@@ -138,16 +138,11 @@ resource containerAppsEnvironment 'Microsoft.App/managedEnvironments@2024-03-01'
   }
 }
 
-// Managed Certificate for custom domain (only created if custom domain is specified)
-resource managedCertificate 'Microsoft.App/managedEnvironments/managedCertificates@2024-03-01' = if (!empty(frontendCustomDomain)) {
+// Reference existing Managed Certificate for custom domain (created manually via Azure CLI)
+// Certificate name follows Azure's auto-generated naming: {hostname}-{env-prefix}-{timestamp}
+resource managedCertificate 'Microsoft.App/managedEnvironments/managedCertificates@2024-03-01' existing = if (!empty(frontendCustomDomain)) {
   parent: containerAppsEnvironment
-  name: '${frontendCustomDomain}-cert'
-  location: location
-  tags: tags
-  properties: {
-    subjectName: frontendCustomDomain
-    domainControlValidation: 'CNAME'
-  }
+  name: 'app.learntocloud.guide-cae-lear-260111200430'
 }
 
 // API Container App (FastAPI)
