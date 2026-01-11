@@ -21,14 +21,10 @@ jobs:
 
       - name: Log in with Azure
         run: |
-          $info = $Env:AZURE_CREDENTIALS | ConvertFrom-Json -AsHashtable
-          azd auth login `
-            --client-id "$($info.clientId)" `
-            --client-secret "$($info.clientSecret)" `
-            --tenant-id "$($info.tenantId)"
-        shell: pwsh
-        env:
-          AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
+          azd auth login \
+            --client-id "${{ fromJson(secrets.AZURE_CREDENTIALS).clientId }}" \
+            --client-secret "${{ fromJson(secrets.AZURE_CREDENTIALS).clientSecret }}" \
+            --tenant-id "${{ fromJson(secrets.AZURE_CREDENTIALS).tenantId }}"
 
       - name: Provision Infrastructure
         run: azd provision --no-prompt
