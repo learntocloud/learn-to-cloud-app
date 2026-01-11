@@ -101,6 +101,31 @@ export async function getPhaseGitHubRequirements(phaseId: number): Promise<Phase
   return res.json();
 }
 
+// Bulk endpoint - fetches ALL phase requirements in a single call
+interface AllPhasesGitHubRequirements {
+  phases: PhaseGitHubRequirements[];
+}
+
+export async function getAllGitHubRequirements(): Promise<Map<number, PhaseGitHubRequirements>> {
+  const headers = await getAuthHeaders();
+  
+  const res = await fetch(`${API_URL}/api/github/requirements`, {
+    headers,
+    cache: "no-store",
+  });
+  
+  if (!res.ok) {
+    return new Map();
+  }
+  
+  const data: AllPhasesGitHubRequirements = await res.json();
+  const map = new Map<number, PhaseGitHubRequirements>();
+  for (const phase of data.phases) {
+    map.set(phase.phase_id, phase);
+  }
+  return map;
+}
+
 // ============ Helper Functions to Merge Content + Progress ============
 
 function calculatePhaseProgress(
@@ -137,20 +162,12 @@ function calculatePhaseProgress(
 
 export async function getPhasesWithProgress(): Promise<PhaseWithProgress[]> {
   const phases = getAllPhases();
-  const { items: progressItems } = await getUserProgress();
   
-  // Fetch GitHub requirements for all phases that have them
-  const githubRequirementsMap = new Map<number, PhaseGitHubRequirements>();
-  for (const phase of phases) {
-    try {
-      const requirements = await getPhaseGitHubRequirements(phase.id);
-      if (requirements.requirements.length > 0) {
-        githubRequirementsMap.set(phase.id, requirements);
-      }
-    } catch {
-      // Ignore errors - phase might not have requirements
-    }
-  }
+  // Fetch user progress AND GitHub requirements in parallel (2 API calls instead of 7+)
+  const [{ items: progressItems }, githubRequirementsMap] = await Promise.all([
+    getUserProgress(),
+    getAllGitHubRequirements(),
+  ]);
   
   // First pass: calculate progress for all phases
   const phasesWithProgress = phases.map(phase => {
@@ -184,45 +201,51 @@ export async function getPhasesWithProgress(): Promise<PhaseWithProgress[]> {
   return phasesWithProgress;
 }
 
+// Helper to check if a phase is locked based on previous phases' progress and GitHub requirements
+async function checkPhaseLocked(
+  phaseId: number,
+  progressItems: ProgressItem[],
+  githubRequirementsMap?: Map<number, PhaseGitHubRequirements>
+): Promise<boolean> {
+  if (phaseId === 0) return false;
+  
+  const phases = getAllPhases();
+  const githubReqs = githubRequirementsMap ?? await getAllGitHubRequirements();
+  
+  for (let i = 0; i < phaseId; i++) {
+    const prevPhase = phases.find(p => p.id === i);
+    if (!prevPhase) continue;
+    
+    const prevProgress = calculatePhaseProgress(
+      prevPhase.id,
+      prevPhase.topics.map(t => t.checklist),
+      progressItems
+    );
+    
+    if (prevProgress.status !== 'completed') {
+      return true;
+    }
+    
+    const prevGithubReqs = githubReqs.get(prevPhase.id);
+    if (prevGithubReqs && prevGithubReqs.requirements.length > 0 && !prevGithubReqs.all_validated) {
+      return true;
+    }
+  }
+  
+  return false;
+}
+
 export async function getPhaseWithProgressBySlug(slug: string): Promise<(PhaseDetailWithProgress & { isLocked: boolean }) | null> {
   const phase = getPhaseBySlugFromContent(slug);
   if (!phase) return null;
   
-  const { items: progressItems } = await getUserProgress();
+  // Fetch progress and GitHub requirements in parallel (2 API calls instead of N+1)
+  const [{ items: progressItems }, githubRequirementsMap] = await Promise.all([
+    getUserProgress(),
+    getAllGitHubRequirements(),
+  ]);
   
-  // Check if this phase is locked (ALL previous phases must be completed + GitHub requirements validated)
-  let isLocked = false;
-  if (phase.id > 0) {
-    const phases = getAllPhases();
-    
-    // Check ALL phases from 0 to phase.id - 1
-    for (let i = 0; i < phase.id; i++) {
-      const prevPhase = phases.find(p => p.id === i);
-      if (prevPhase) {
-        const prevProgress = calculatePhaseProgress(
-          prevPhase.id,
-          prevPhase.topics.map(t => t.checklist),
-          progressItems
-        );
-        
-        if (prevProgress.status !== 'completed') {
-          isLocked = true;
-          break;
-        }
-        
-        // Also check GitHub requirements for this previous phase
-        try {
-          const githubReqs = await getPhaseGitHubRequirements(prevPhase.id);
-          if (githubReqs.requirements.length > 0 && !githubReqs.all_validated) {
-            isLocked = true;
-            break;
-          }
-        } catch {
-          // Ignore errors
-        }
-      }
-    }
-  }
+  const isLocked = await checkPhaseLocked(phase.id, progressItems, githubRequirementsMap);
   
   // Add progress to topics
   const topics: TopicWithProgress[] = phase.topics.map(topic => {
@@ -266,41 +289,13 @@ export async function getTopicWithProgressBySlug(phaseSlug: string, topicSlug: s
   const topic = getTopicBySlugFromContent(phaseSlug, topicSlug);
   if (!topic) return null;
   
-  const { items: progressItems } = await getUserProgress();
+  // Fetch progress and GitHub requirements in parallel (2 API calls instead of N+1)
+  const [{ items: progressItems }, githubRequirementsMap] = await Promise.all([
+    getUserProgress(),
+    getAllGitHubRequirements(),
+  ]);
   
-  // Check if this phase is locked (ALL previous phases must be completed + GitHub requirements validated)
-  let isLocked = false;
-  if (phase.id > 0) {
-    const phases = getAllPhases();
-    
-    // Check ALL phases from 0 to phase.id - 1
-    for (let i = 0; i < phase.id; i++) {
-      const prevPhase = phases.find(p => p.id === i);
-      if (prevPhase) {
-        const prevProgress = calculatePhaseProgress(
-          prevPhase.id,
-          prevPhase.topics.map(t => t.checklist),
-          progressItems
-        );
-        
-        if (prevProgress.status !== 'completed') {
-          isLocked = true;
-          break;
-        }
-        
-        // Also check GitHub requirements for this previous phase
-        try {
-          const githubReqs = await getPhaseGitHubRequirements(prevPhase.id);
-          if (githubReqs.requirements.length > 0 && !githubReqs.all_validated) {
-            isLocked = true;
-            break;
-          }
-        } catch {
-          // Ignore errors
-        }
-      }
-    }
-  }
+  const isLocked = await checkPhaseLocked(phase.id, progressItems, githubRequirementsMap);
   
   const checklist: TopicChecklistItemWithProgress[] = topic.checklist.map(item => {
     const progressItem = progressItems.find(p => p.checklist_item_id === item.id);

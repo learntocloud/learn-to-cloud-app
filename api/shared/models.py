@@ -2,7 +2,7 @@
 
 from datetime import datetime, timezone
 from enum import Enum as PyEnum
-from sqlalchemy import String, Integer, Boolean, DateTime, Text, ForeignKey, UniqueConstraint
+from sqlalchemy import String, Integer, Boolean, DateTime, Text, ForeignKey, UniqueConstraint, Index
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .database import Base
@@ -36,6 +36,7 @@ class ChecklistProgress(Base):
     __tablename__ = "checklist_progress"
     __table_args__ = (
         UniqueConstraint("user_id", "checklist_item_id", name="uq_user_checklist"),
+        Index("ix_checklist_progress_user_phase", "user_id", "phase_id"),
     )
     
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -45,6 +46,7 @@ class ChecklistProgress(Base):
     is_completed: Mapped[bool] = mapped_column(Boolean, default=False)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
     
     # Relationships
     user: Mapped["User"] = relationship(back_populates="checklist_progress")
@@ -56,7 +58,7 @@ class ProcessedWebhook(Base):
     
     id: Mapped[str] = mapped_column(String(255), primary_key=True)  # svix-id
     event_type: Mapped[str] = mapped_column(String(100), nullable=False)
-    processed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    processed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
 
 
 class SubmissionType(str, PyEnum):
@@ -71,6 +73,7 @@ class GitHubSubmission(Base):
     __tablename__ = "github_submissions"
     __table_args__ = (
         UniqueConstraint("user_id", "requirement_id", name="uq_user_requirement"),
+        Index("ix_github_submissions_user_phase", "user_id", "phase_id"),
     )
     
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)

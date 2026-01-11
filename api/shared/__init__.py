@@ -11,6 +11,7 @@ from .schemas import (
     UserResponse, ProgressItem, UserProgressResponse,
     GitHubRequirement, GitHubSubmissionRequest, GitHubSubmissionResponse,
     GitHubValidationResult, PhaseGitHubRequirementsResponse,
+    AllPhasesGitHubRequirementsResponse,
     HealthResponse, ChecklistToggleResponse, WebhookResponse,
 )
 from .github import (
@@ -50,6 +51,7 @@ __all__ = [
     "GitHubSubmissionResponse",
     "GitHubValidationResult",
     "PhaseGitHubRequirementsResponse",
+    "AllPhasesGitHubRequirementsResponse",
     "HealthResponse",
     "ChecklistToggleResponse",
     "WebhookResponse",

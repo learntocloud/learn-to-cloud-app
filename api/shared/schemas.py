@@ -76,7 +76,7 @@ class GitHubSubmissionResponse(BaseModel):
     
     id: int
     requirement_id: str
-    submission_type: str
+    submission_type: SubmissionType
     phase_id: int
     submitted_url: str
     github_username: str | None = None
@@ -100,6 +100,11 @@ class PhaseGitHubRequirementsResponse(BaseModel):
     requirements: list[GitHubRequirement]
     submissions: list[GitHubSubmissionResponse]
     all_validated: bool
+
+
+class AllPhasesGitHubRequirementsResponse(BaseModel):
+    """GitHub requirements for all phases (bulk endpoint)."""
+    phases: list[PhaseGitHubRequirementsResponse]
 
 
 # ============ Health Check Schema ============
