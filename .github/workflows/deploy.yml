@@ -49,9 +49,39 @@ jobs:
             --name ca-learntocloud-api-${{ vars.AZURE_ENV_NAME }} \
             --resource-group rg-learntocloud-${{ vars.AZURE_ENV_NAME }} \
             --secrets \
-              "postgres-password=${{ secrets.POSTGRES_ADMIN_PASSWORD }}" \
               "clerk-secret-key=${{ secrets.CLERK_SECRET_KEY }}" \
               "clerk-webhook-signing-secret=${{ secrets.CLERK_WEBHOOK_SIGNING_SECRET }}"
+
+      - name: Configure PostgreSQL Entra Admin
+        run: |
+          # Get the API container app's managed identity principal ID
+          API_PRINCIPAL_ID=$(az containerapp show \
+            --name ca-learntocloud-api-${{ vars.AZURE_ENV_NAME }} \
+            --resource-group rg-learntocloud-${{ vars.AZURE_ENV_NAME }} \
+            --query "identity.principalId" -o tsv)
+          
+          # Get the PostgreSQL server name (it has a unique suffix)
+          POSTGRES_SERVER=$(az postgres flexible-server list \
+            --resource-group rg-learntocloud-${{ vars.AZURE_ENV_NAME }} \
+            --query "[0].name" -o tsv)
+          
+          # Check if Entra admin is already configured
+          EXISTING_ADMIN=$(az postgres flexible-server microsoft-entra-admin list \
+            --server-name $POSTGRES_SERVER \
+            --resource-group rg-learntocloud-${{ vars.AZURE_ENV_NAME }} \
+            --query "[?objectId=='$API_PRINCIPAL_ID'].objectId" -o tsv)
+          
+          if [ -z "$EXISTING_ADMIN" ]; then
+            echo "Configuring PostgreSQL Entra admin for managed identity..."
+            az postgres flexible-server microsoft-entra-admin create \
+              --server-name $POSTGRES_SERVER \
+              --resource-group rg-learntocloud-${{ vars.AZURE_ENV_NAME }} \
+              --object-id $API_PRINCIPAL_ID \
+              --display-name ca-learntocloud-api-${{ vars.AZURE_ENV_NAME }} \
+              --type ServicePrincipal
+          else
+            echo "PostgreSQL Entra admin already configured"
+          fi
 
       - name: Deploy Application
         run: azd deploy --no-prompt

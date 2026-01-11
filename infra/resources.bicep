@@ -296,16 +296,9 @@ resource apiApp 'Microsoft.App/containerApps@2024-03-01' = {
   }
 }
 
-// PostgreSQL Entra Admin - Grant API managed identity access to the database
-resource postgresEntraAdmin 'Microsoft.DBforPostgreSQL/flexibleServers/administrators@2023-12-01-preview' = {
-  parent: postgres
-  name: apiApp.identity.principalId
-  properties: {
-    principalType: 'ServicePrincipal'
-    principalName: apiAppName
-    tenantId: subscription().tenantId
-  }
-}
+// NOTE: PostgreSQL Entra Admin is configured via Azure CLI in GitHub Actions workflow
+// The API container app's managed identity needs to be added as a PostgreSQL admin
+// This is done post-deployment because the principal ID isn't known until the container app is created
 
 // Frontend Container App (Next.js)
 resource frontendApp 'Microsoft.App/containerApps@2024-03-01' = {
