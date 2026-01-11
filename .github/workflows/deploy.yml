@@ -26,6 +26,11 @@ jobs:
             --client-secret "${{ fromJson(secrets.AZURE_CREDENTIALS).clientSecret }}" \
             --tenant-id "${{ fromJson(secrets.AZURE_CREDENTIALS).tenantId }}"
 
+      - name: Azure CLI Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
       - name: Provision Infrastructure
         run: azd provision --no-prompt
         env:
@@ -36,6 +41,17 @@ jobs:
           CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
           CLERK_WEBHOOK_SIGNING_SECRET: ${{ secrets.CLERK_WEBHOOK_SIGNING_SECRET }}
           POSTGRES_ADMIN_PASSWORD: ${{ secrets.POSTGRES_ADMIN_PASSWORD }}
+
+      - name: Sync Container App Secrets
+        run: |
+          # Update API secrets to ensure they match GitHub secrets
+          az containerapp secret set \
+            --name ca-learntocloud-api-${{ vars.AZURE_ENV_NAME }} \
+            --resource-group rg-learntocloud-${{ vars.AZURE_ENV_NAME }} \
+            --secrets \
+              "postgres-password=${{ secrets.POSTGRES_ADMIN_PASSWORD }}" \
+              "clerk-secret-key=${{ secrets.CLERK_SECRET_KEY }}" \
+              "clerk-webhook-signing-secret=${{ secrets.CLERK_WEBHOOK_SIGNING_SECRET }}"
 
       - name: Deploy Application
         run: azd deploy --no-prompt
