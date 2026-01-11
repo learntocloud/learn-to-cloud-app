@@ -11,9 +11,9 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 COPY pyproject.toml ./
 
 # Install dependencies to virtual environment
-# Using --no-dev to exclude dev dependencies in production
+ENV UV_PROJECT_ENVIRONMENT=/app/.venv
 RUN uv venv /app/.venv && \
-    uv pip install --python /app/.venv/bin/python -r pyproject.toml
+    uv sync --no-dev
 
 # Production stage - minimal runtime
 FROM python:3.13-slim AS runtime

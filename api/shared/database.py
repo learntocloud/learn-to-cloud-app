@@ -2,6 +2,10 @@
 
 Uses SQLAlchemy 2.0 async patterns with proper dependency injection.
 Supports lazy initialization for testability.
+
+Supports two authentication modes:
+- Local development: SQLite or PostgreSQL with password authentication
+- Azure: PostgreSQL with managed identity (passwordless) authentication
 """
 
 from collections.abc import AsyncGenerator
@@ -30,20 +34,70 @@ _engine: AsyncEngine | None = None
 _async_session_maker: async_sessionmaker[AsyncSession] | None = None
 
 
+def _get_azure_token() -> str:
+    """
+    Get an Azure AD token for PostgreSQL authentication.
+    
+    Uses DefaultAzureCredential which automatically works with:
+    - Managed Identity (in Azure Container Apps)
+    - Azure CLI credentials (for local development with `az login`)
+    - Environment variables (AZURE_CLIENT_ID, etc.)
+    """
+    from azure.identity import DefaultAzureCredential
+    
+    credential = DefaultAzureCredential()
+    # PostgreSQL requires this specific scope for Azure AD authentication
+    token = credential.get_token("https://ossrdbms-aad.database.windows.net/.default")
+    return token.token
+
+
+def _build_azure_database_url() -> str:
+    """
+    Build the PostgreSQL connection URL using managed identity.
+    
+    The token is used as the password in the connection string.
+    """
+    settings = get_settings()
+    token = _get_azure_token()
+    
+    # URL encode the token as it may contain special characters
+    from urllib.parse import quote_plus
+    encoded_token = quote_plus(token)
+    
+    return (
+        f"postgresql+asyncpg://{settings.postgres_user}:{encoded_token}"
+        f"@{settings.postgres_host}:5432/{settings.postgres_database}"
+        f"?ssl=require"
+    )
+
+
 def get_engine() -> AsyncEngine:
     """
     Get or create the database engine (lazy initialization).
     
     This allows tests to override settings before the engine is created.
     Uses connection pooling for PostgreSQL to improve performance.
+    
+    Authentication modes:
+    - Azure (POSTGRES_HOST set): Uses managed identity token
+    - Local (DATABASE_URL): Uses provided connection string
     """
     global _engine
     if _engine is None:
         settings = get_settings()
-        is_sqlite = "sqlite" in settings.database_url
+        
+        # Determine which database URL to use
+        if settings.use_azure_postgres:
+            # Azure: Build URL with managed identity token
+            database_url = _build_azure_database_url()
+            is_sqlite = False
+        else:
+            # Local: Use DATABASE_URL from environment
+            database_url = settings.database_url
+            is_sqlite = "sqlite" in database_url
         
         _engine = create_async_engine(
-            settings.database_url,
+            database_url,
             echo=settings.environment == "development",
             # SQLite doesn't support connection pooling
             poolclass=NullPool if is_sqlite else None,
@@ -52,7 +106,7 @@ def get_engine() -> AsyncEngine:
                 "pool_size": 10,          # Base connections to keep open
                 "max_overflow": 20,       # Extra connections when busy
                 "pool_timeout": 30,       # Wait time for available connection
-                "pool_recycle": 1800,     # Recycle connections after 30 min
+                "pool_recycle": 300,      # Recycle connections every 5 min (tokens expire)
                 "pool_pre_ping": True,    # Verify connections before use
             }),
         )

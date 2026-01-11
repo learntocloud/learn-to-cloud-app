@@ -69,6 +69,10 @@ resource postgres 'Microsoft.DBforPostgreSQL/flexibleServers@2023-12-01-preview'
     version: '16'
     administratorLogin: 'ltcadmin'
     administratorLoginPassword: postgresAdminPassword
+    authConfig: {
+      activeDirectoryAuth: 'Enabled'
+      passwordAuth: 'Enabled'  // Keep password auth for admin access
+    }
     storage: {
       storageSizeGB: 32
       autoGrow: 'Enabled'
@@ -101,6 +105,20 @@ resource postgresFirewall 'Microsoft.DBforPostgreSQL/flexibleServers/firewallRul
     startIpAddress: '0.0.0.0'
     endIpAddress: '0.0.0.0'
   }
+}
+
+// PostgreSQL Entra ID Administrator (set after API Container App is created)
+resource postgresEntraAdmin 'Microsoft.DBforPostgreSQL/flexibleServers/administrators@2023-12-01-preview' = {
+  parent: postgres
+  name: apiApp.identity.principalId
+  properties: {
+    principalType: 'ServicePrincipal'
+    principalName: apiApp.name
+    tenantId: subscription().tenantId
+  }
+  dependsOn: [
+    postgresFirewall
+  ]
 }
 
 // Azure Container Registry
@@ -171,10 +189,6 @@ resource apiApp 'Microsoft.App/containerApps@2024-03-01' = {
           value: containerRegistry.listCredentials().passwords[0].value
         }
         {
-          name: 'database-url'
-          value: 'postgresql+asyncpg://ltcadmin:${postgresAdminPassword}@${postgres.properties.fullyQualifiedDomainName}:5432/learntocloud?ssl=require'
-        }
-        {
           name: 'clerk-secret-key'
           value: clerkSecretKey
         }
@@ -195,8 +209,16 @@ resource apiApp 'Microsoft.App/containerApps@2024-03-01' = {
           }
           env: [
             {
-              name: 'DATABASE_URL'
-              secretRef: 'database-url'
+              name: 'POSTGRES_HOST'
+              value: postgres.properties.fullyQualifiedDomainName
+            }
+            {
+              name: 'POSTGRES_DATABASE'
+              value: 'learntocloud'
+            }
+            {
+              name: 'POSTGRES_USER'
+              value: apiApp.name
             }
             {
               name: 'CLERK_SECRET_KEY'

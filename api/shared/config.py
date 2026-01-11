@@ -13,8 +13,13 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
     )
     
-    # Database
+    # Database - Local development (SQLite or local PostgreSQL)
     database_url: str = "sqlite+aiosqlite:///./learn_to_cloud.db"
+    
+    # Database - Azure (managed identity authentication)
+    postgres_host: str = ""
+    postgres_database: str = "learntocloud"
+    postgres_user: str = ""
     
     # Clerk
     clerk_secret_key: str = ""
@@ -26,6 +31,11 @@ class Settings(BaseSettings):
     
     # Environment
     environment: str = "development"
+    
+    @property
+    def use_azure_postgres(self) -> bool:
+        """Check if Azure PostgreSQL with managed identity should be used."""
+        return bool(self.postgres_host and self.postgres_user)
 
 
 @lru_cache
