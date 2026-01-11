@@ -27,6 +27,8 @@ param clerkPublishableKey string
 
 var uniqueSuffix = uniqueString(resourceGroup().id)
 var appName = 'learntocloud'
+var apiAppName = 'ca-${appName}-api-${environment}'
+var frontendAppName = 'ca-${appName}-frontend-${environment}'
 
 // AcrPull role definition ID
 var acrPullRoleId = '7f951dda-4ed3-4680-a7ca-43fe172d538d'
@@ -70,8 +72,8 @@ resource postgres 'Microsoft.DBforPostgreSQL/flexibleServers@2023-12-01-preview'
     administratorLogin: 'ltcadmin'
     administratorLoginPassword: postgresAdminPassword
     authConfig: {
-      activeDirectoryAuth: 'Enabled'
-      passwordAuth: 'Enabled'  // Keep password auth for admin access
+      activeDirectoryAuth: 'Disabled'
+      passwordAuth: 'Enabled'
     }
     storage: {
       storageSizeGB: 32
@@ -107,20 +109,6 @@ resource postgresFirewall 'Microsoft.DBforPostgreSQL/flexibleServers/firewallRul
   }
 }
 
-// PostgreSQL Entra ID Administrator (set after API Container App is created)
-resource postgresEntraAdmin 'Microsoft.DBforPostgreSQL/flexibleServers/administrators@2023-12-01-preview' = {
-  parent: postgres
-  name: apiApp.identity.principalId
-  properties: {
-    principalType: 'ServicePrincipal'
-    principalName: apiApp.name
-    tenantId: subscription().tenantId
-  }
-  dependsOn: [
-    postgresFirewall
-  ]
-}
-
 // Azure Container Registry
 resource containerRegistry 'Microsoft.ContainerRegistry/registries@2023-07-01' = {
   name: 'crltc${uniqueSuffix}'
@@ -152,7 +140,7 @@ resource containerAppsEnvironment 'Microsoft.App/managedEnvironments@2024-03-01'
 
 // API Container App (FastAPI)
 resource apiApp 'Microsoft.App/containerApps@2024-03-01' = {
-  name: 'ca-${appName}-api-${environment}'
+  name: apiAppName
   location: location
   tags: union(tags, { 'azd-service-name': 'api' })
   identity: {
@@ -196,6 +184,10 @@ resource apiApp 'Microsoft.App/containerApps@2024-03-01' = {
           name: 'clerk-webhook-signing-secret'
           value: clerkWebhookSigningSecret
         }
+        {
+          name: 'postgres-password'
+          value: postgresAdminPassword
+        }
       ]
     }
     template: {
@@ -218,7 +210,11 @@ resource apiApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'POSTGRES_USER'
-              value: apiApp.name
+              value: 'ltcadmin'
+            }
+            {
+              name: 'POSTGRES_PASSWORD'
+              secretRef: 'postgres-password'
             }
             {
               name: 'CLERK_SECRET_KEY'
@@ -303,7 +299,7 @@ resource apiApp 'Microsoft.App/containerApps@2024-03-01' = {
 
 // Frontend Container App (Next.js)
 resource frontendApp 'Microsoft.App/containerApps@2024-03-01' = {
-  name: 'ca-${appName}-frontend-${environment}'
+  name: frontendAppName
   location: location
   tags: union(tags, { 'azd-service-name': 'frontend' })
   identity: {

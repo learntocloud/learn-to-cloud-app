@@ -9,7 +9,7 @@
       "value": "${AZURE_ENV_NAME}"
     },
     "postgresAdminPassword": {
-      "value": "$(secretOrRandomPassword ${AZURE_KEY_VAULT_NAME} postgres-admin-password)"
+      "value": "${POSTGRES_ADMIN_PASSWORD}"
     },
     "clerkSecretKey": {
       "value": "${CLERK_SECRET_KEY}"
