@@ -1,26 +1,25 @@
 """FastAPI application for Learn to Cloud API."""
 
-import json
 import logging
-from datetime import datetime
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request, HTTPException, Depends
+from datetime import datetime, timezone
+
+import httpx
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 from sqlalchemy import select
 
 from shared import (
     get_settings, async_session, init_db,
-    User, ChecklistProgress, ProcessedWebhook, CompletionStatus,
+    User, ChecklistProgress, ProcessedWebhook, GitHubSubmission,
     get_user_id_from_request,
-    get_all_phases, get_phase_by_id, get_phase_by_slug, get_topic_by_slug,
-    Phase, PhaseWithProgress, PhaseDetailWithProgress, PhaseProgress,
-    TopicWithProgress, ChecklistItemWithProgress, TopicChecklistItemWithProgress,
-    DashboardResponse, UserResponse
+    UserResponse, ProgressItem, UserProgressResponse,
+    GitHubSubmissionRequest, GitHubSubmissionResponse,
+    GitHubValidationResult, PhaseGitHubRequirementsResponse,
+    get_requirements_for_phase, get_requirement_by_id, validate_submission
 )
 from svix.webhooks import Webhook, WebhookVerificationError
 
-settings = get_settings()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -38,15 +37,19 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Build CORS origins list
-cors_origins = [
-    "http://localhost:3000",
-    "http://localhost:4280",
-]
+def _build_cors_origins() -> list[str]:
+    """Build CORS origins list from settings."""
+    settings = get_settings()
+    origins = [
+        "http://localhost:3000",
+        "http://localhost:4280",
+    ]
+    if settings.frontend_url and settings.frontend_url not in origins:
+        origins.append(settings.frontend_url)
+    return origins
 
-# Add frontend URL from environment
-if settings.frontend_url:
-    cors_origins.append(settings.frontend_url)
+
+cors_origins = _build_cors_origins()
 
 # CORS middleware
 app.add_middleware(
@@ -60,6 +63,48 @@ app.add_middleware(
 
 # ============ Helper Functions ============
 
+async def fetch_github_username_from_clerk(user_id: str) -> str | None:
+    """
+    Fetch GitHub username directly from Clerk API.
+    This is used when the user doesn't have a github_username stored.
+    """
+    settings = get_settings()
+    if not settings.clerk_secret_key:
+        return None
+    
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"https://api.clerk.com/v1/users/{user_id}",
+                headers={
+                    "Authorization": f"Bearer {settings.clerk_secret_key}",
+                    "Content-Type": "application/json",
+                },
+                timeout=10.0,
+            )
+            
+            if response.status_code != 200:
+                logger.warning(f"Failed to fetch user from Clerk: {response.status_code}")
+                return None
+            
+            data = response.json()
+            
+            # Check external_accounts for GitHub
+            external_accounts = data.get("external_accounts", [])
+            for account in external_accounts:
+                provider = account.get("provider", "")
+                # Clerk uses "oauth_github" as the provider name
+                if "github" in provider.lower():
+                    username = account.get("username")
+                    if username:
+                        return username
+            
+            return None
+    except Exception as e:
+        logger.warning(f"Error fetching GitHub username from Clerk: {e}")
+        return None
+
+
 async def get_or_create_user(db, user_id: str) -> User:
     """Get user from DB or create placeholder (will be synced via webhook)."""
     result = await db.execute(select(User).where(User.id == user_id))
@@ -71,48 +116,16 @@ async def get_or_create_user(db, user_id: str) -> User:
         await db.commit()
         await db.refresh(user)
     
+    # If user doesn't have github_username, try to fetch it from Clerk
+    if not user.github_username:
+        github_username = await fetch_github_username_from_clerk(user_id)
+        if github_username:
+            user.github_username = github_username
+            user.updated_at = datetime.now(timezone.utc)
+            await db.commit()
+            await db.refresh(user)
+    
     return user
-
-
-def calculate_phase_progress(
-    phase_id: int,
-    checklist_progress: list[ChecklistProgress],
-    total_phase_checklist: int,
-    total_topic_checklist: int
-) -> PhaseProgress:
-    """Calculate progress for a phase based on all checklist items."""
-    phase_checklist_completed = sum(
-        1 for c in checklist_progress 
-        if c.is_completed and "topic" not in c.checklist_item_id
-    )
-    topic_checklist_completed = sum(
-        1 for c in checklist_progress 
-        if c.is_completed and "topic" in c.checklist_item_id
-    )
-    
-    total_completed = phase_checklist_completed + topic_checklist_completed
-    total_items = total_phase_checklist + total_topic_checklist
-    percentage = (total_completed / total_items * 100) if total_items > 0 else 0
-    
-    if total_completed == 0:
-        status = CompletionStatus.NOT_STARTED
-    elif total_completed == total_items:
-        status = CompletionStatus.COMPLETED
-    else:
-        status = CompletionStatus.IN_PROGRESS
-    
-    return PhaseProgress(
-        phase_id=phase_id,
-        checklist_completed=total_completed,
-        checklist_total=total_items,
-        percentage=round(percentage, 1),
-        status=status
-    )
-
-
-async def get_current_user_id(request: Request) -> str | None:
-    """Extract user ID from request headers."""
-    return get_user_id_from_request(request)
 
 
 async def require_auth(request: Request) -> str:
@@ -132,208 +145,48 @@ async def health():
     return {"status": "healthy", "service": "learn-to-cloud-api"}
 
 
-# ============ Public Routes (no auth) ============
-
-@app.get("/api/phases")
-async def list_phases():
-    """Get all phases (public, no progress)."""
-    phases = get_all_phases()
-    return [p.model_dump() for p in phases]
-
-
-@app.get("/api/phases/{phase_id}")
-async def get_phase(phase_id: int):
-    """Get a single phase by ID (public, no progress)."""
-    phase = get_phase_by_id(phase_id)
-    if not phase:
-        raise HTTPException(status_code=404, detail="Phase not found")
-    return phase.model_dump()
-
-
-@app.get("/api/p/{phase_slug}")
-async def get_phase_by_slug_route(phase_slug: str):
-    """Get a single phase by slug (public, no progress)."""
-    phase = get_phase_by_slug(phase_slug)
-    if not phase:
-        raise HTTPException(status_code=404, detail="Phase not found")
-    return phase.model_dump()
-
-
-@app.get("/api/p/{phase_slug}/{topic_slug}")
-async def get_topic_by_slug_route(phase_slug: str, topic_slug: str):
-    """Get a single topic by phase and topic slug (public, no progress)."""
-    topic = get_topic_by_slug(phase_slug, topic_slug)
-    if not topic:
-        raise HTTPException(status_code=404, detail="Topic not found")
-    return topic.model_dump()
-
-
 # ============ Authenticated Routes ============
 
-@app.get("/api/user/phases")
-async def list_phases_with_progress(user_id: str = Depends(require_auth)):
-    """Get all phases with user's progress."""
+@app.get("/api/user/me")
+async def get_current_user(user_id: str = Depends(require_auth)):
+    """Get current user info."""
+    async with async_session() as db:
+        user = await get_or_create_user(db, user_id)
+        return UserResponse(
+            id=user.id,
+            email=user.email,
+            first_name=user.first_name,
+            last_name=user.last_name,
+            avatar_url=user.avatar_url,
+            github_username=user.github_username,
+            created_at=user.created_at
+        ).model_dump()
+
+
+@app.get("/api/user/progress")
+async def get_user_progress(user_id: str = Depends(require_auth)):
+    """Get all user progress items."""
     async with async_session() as db:
         await get_or_create_user(db, user_id)
-        phases = get_all_phases()
         
-        checklist_result = await db.execute(
+        result = await db.execute(
             select(ChecklistProgress).where(ChecklistProgress.user_id == user_id)
         )
-        all_checklist_progress = checklist_result.scalars().all()
+        progress_items = result.scalars().all()
         
-        phases_with_progress = []
-        for phase in phases:
-            phase_checklist_progress = [c for c in all_checklist_progress if c.phase_id == phase.id]
-            total_topic_checklist = sum(len(topic.checklist) for topic in phase.topics)
-            
-            progress = calculate_phase_progress(
-                phase.id,
-                phase_checklist_progress,
-                len(phase.checklist),
-                total_topic_checklist
+        items = [
+            ProgressItem(
+                checklist_item_id=p.checklist_item_id,
+                is_completed=p.is_completed,
+                completed_at=p.completed_at
             )
-            
-            phases_with_progress.append(PhaseWithProgress(
-                **phase.model_dump(),
-                progress=progress
-            ))
+            for p in progress_items
+        ]
         
-        return [p.model_dump() for p in phases_with_progress]
-
-
-@app.get("/api/user/p/{phase_slug}")
-async def get_phase_with_progress_by_slug(phase_slug: str, user_id: str = Depends(require_auth)):
-    """Get a single phase by slug with full topic and checklist progress."""
-    phase = get_phase_by_slug(phase_slug)
-    if not phase:
-        raise HTTPException(status_code=404, detail="Phase not found")
-    
-    async with async_session() as db:
-        await get_or_create_user(db, user_id)
-        
-        checklist_result = await db.execute(
-            select(ChecklistProgress).where(
-                ChecklistProgress.user_id == user_id,
-                ChecklistProgress.phase_id == phase.id
-            )
-        )
-        checklist_progress_map = {c.checklist_item_id: c for c in checklist_result.scalars().all()}
-        
-        topics_with_progress = []
-        for topic in phase.topics:
-            topic_checklist_with_progress = []
-            for item in topic.checklist:
-                progress = checklist_progress_map.get(item.id)
-                topic_checklist_with_progress.append(TopicChecklistItemWithProgress(
-                    id=item.id,
-                    text=item.text,
-                    order=item.order,
-                    is_completed=progress.is_completed if progress else False,
-                    completed_at=progress.completed_at if progress else None
-                ))
-            
-            topic_items_completed = sum(1 for c in topic_checklist_with_progress if c.is_completed)
-            topic_total_items = len(topic.checklist)
-            
-            topics_with_progress.append(TopicWithProgress(
-                id=topic.id,
-                name=topic.name,
-                slug=topic.slug,
-                description=topic.description,
-                order=topic.order,
-                estimated_time=topic.estimated_time,
-                learning_steps=topic.learning_steps,
-                checklist=topic_checklist_with_progress,
-                is_capstone=topic.is_capstone,
-                items_completed=topic_items_completed,
-                items_total=topic_total_items
-            ))
-        
-        checklist_with_progress = []
-        for item in phase.checklist:
-            progress = checklist_progress_map.get(item.id)
-            checklist_with_progress.append(ChecklistItemWithProgress(
-                **item.model_dump(),
-                is_completed=progress.is_completed if progress else False,
-                completed_at=progress.completed_at if progress else None
-            ))
-        
-        total_topic_checklist = sum(len(topic.checklist) for topic in phase.topics)
-        phase_progress = calculate_phase_progress(
-            phase.id,
-            list(checklist_progress_map.values()),
-            len(phase.checklist),
-            total_topic_checklist
-        )
-        
-        result = PhaseDetailWithProgress(
-            id=phase.id,
-            name=phase.name,
-            slug=phase.slug,
-            description=phase.description,
-            estimated_weeks=phase.estimated_weeks,
-            order=phase.order,
-            prerequisites=phase.prerequisites,
-            topics=topics_with_progress,
-            checklist=checklist_with_progress,
-            progress=phase_progress
-        )
-        
-        return result.model_dump()
-
-
-@app.get("/api/user/p/{phase_slug}/{topic_slug}")
-async def get_topic_with_progress_by_slug(phase_slug: str, topic_slug: str, user_id: str = Depends(require_auth)):
-    """Get a single topic by slug with checklist progress."""
-    phase = get_phase_by_slug(phase_slug)
-    if not phase:
-        raise HTTPException(status_code=404, detail="Phase not found")
-    
-    topic = get_topic_by_slug(phase_slug, topic_slug)
-    if not topic:
-        raise HTTPException(status_code=404, detail="Topic not found")
-    
-    async with async_session() as db:
-        await get_or_create_user(db, user_id)
-        
-        checklist_result = await db.execute(
-            select(ChecklistProgress).where(
-                ChecklistProgress.user_id == user_id,
-                ChecklistProgress.phase_id == phase.id
-            )
-        )
-        checklist_progress_map = {c.checklist_item_id: c for c in checklist_result.scalars().all()}
-        
-        topic_checklist_with_progress = []
-        for item in topic.checklist:
-            progress = checklist_progress_map.get(item.id)
-            topic_checklist_with_progress.append(TopicChecklistItemWithProgress(
-                id=item.id,
-                text=item.text,
-                order=item.order,
-                is_completed=progress.is_completed if progress else False,
-                completed_at=progress.completed_at if progress else None
-            ))
-        
-        topic_items_completed = sum(1 for c in topic_checklist_with_progress if c.is_completed)
-        topic_total_items = len(topic.checklist)
-        
-        result = TopicWithProgress(
-            id=topic.id,
-            name=topic.name,
-            slug=topic.slug,
-            description=topic.description,
-            order=topic.order,
-            estimated_time=topic.estimated_time,
-            learning_steps=topic.learning_steps,
-            checklist=topic_checklist_with_progress,
-            is_capstone=topic.is_capstone,
-            items_completed=topic_items_completed,
-            items_total=topic_total_items
-        )
-        
-        return result.model_dump()
+        return UserProgressResponse(
+            user_id=user_id,
+            items=items
+        ).model_dump()
 
 
 @app.post("/api/checklist/{item_id}/toggle")
@@ -355,7 +208,7 @@ async def toggle_checklist_item(item_id: str, user_id: str = Depends(require_aut
         )
         progress = result.scalar_one_or_none()
         
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         
         if not progress:
             progress = ChecklistProgress(
@@ -376,64 +229,172 @@ async def toggle_checklist_item(item_id: str, user_id: str = Depends(require_aut
         return {"success": True, "item_id": item_id, "is_completed": is_completed}
 
 
-@app.get("/api/user/dashboard")
-async def get_dashboard(user_id: str = Depends(require_auth)):
-    """Get user dashboard with overall progress."""
+# ============ GitHub Submission Routes ============
+
+@app.get("/api/github/requirements/{phase_id}")
+async def get_phase_github_requirements(phase_id: int, user_id: str = Depends(require_auth)):
+    """Get GitHub requirements and user's submissions for a phase."""
+    requirements = get_requirements_for_phase(phase_id)
+    
+    if not requirements:
+        return PhaseGitHubRequirementsResponse(
+            phase_id=phase_id,
+            requirements=[],
+            submissions=[],
+            all_validated=True  # No requirements means nothing to validate
+        ).model_dump()
+    
     async with async_session() as db:
-        user = await get_or_create_user(db, user_id)
-        phases = get_all_phases()
-        
-        checklist_result = await db.execute(
-            select(ChecklistProgress).where(ChecklistProgress.user_id == user_id)
-        )
-        all_checklist_progress = checklist_result.scalars().all()
-        
-        phases_with_progress = []
-        total_items = 0
-        total_completed = 0
-        current_phase = None
-        
-        for phase in phases:
-            phase_checklist_progress = [c for c in all_checklist_progress if c.phase_id == phase.id]
-            total_topic_checklist = sum(len(topic.checklist) for topic in phase.topics)
-            
-            progress = calculate_phase_progress(
-                phase.id,
-                phase_checklist_progress,
-                len(phase.checklist),
-                total_topic_checklist
+        # Get user's existing submissions for this phase
+        result = await db.execute(
+            select(GitHubSubmission).where(
+                GitHubSubmission.user_id == user_id,
+                GitHubSubmission.phase_id == phase_id
             )
-            
-            phases_with_progress.append(PhaseWithProgress(
-                **phase.model_dump(),
-                progress=progress
-            ))
-            
-            total_items += progress.checklist_total
-            total_completed += progress.checklist_completed
-            
-            if current_phase is None and progress.status != CompletionStatus.COMPLETED:
-                current_phase = phase.id
+        )
+        submissions = result.scalars().all()
         
-        overall_progress = (total_completed / total_items * 100) if total_items > 0 else 0
+        submission_responses = [
+            GitHubSubmissionResponse(
+                id=s.id,
+                requirement_id=s.requirement_id,
+                submission_type=s.submission_type,
+                phase_id=s.phase_id,
+                submitted_url=s.submitted_url,
+                github_username=s.github_username,
+                is_validated=s.is_validated,
+                validated_at=s.validated_at,
+                created_at=s.created_at
+            )
+            for s in submissions
+        ]
         
-        result = DashboardResponse(
-            user=UserResponse(
-                id=user.id,
-                email=user.email,
-                first_name=user.first_name,
-                last_name=user.last_name,
-                avatar_url=user.avatar_url,
-                created_at=user.created_at
-            ),
-            phases=phases_with_progress,
-            overall_progress=round(overall_progress, 1),
-            total_completed=total_completed,
-            total_items=total_items,
-            current_phase=current_phase
+        # Check if all requirements are validated
+        validated_requirement_ids = {s.requirement_id for s in submissions if s.is_validated}
+        required_ids = {r.id for r in requirements}
+        all_validated = required_ids.issubset(validated_requirement_ids)
+        
+        return PhaseGitHubRequirementsResponse(
+            phase_id=phase_id,
+            requirements=requirements,
+            submissions=submission_responses,
+            all_validated=all_validated
+        ).model_dump()
+
+
+@app.post("/api/github/submit")
+async def submit_github_validation(
+    submission: GitHubSubmissionRequest,
+    user_id: str = Depends(require_auth)
+):
+    """Submit a GitHub URL for validation."""
+    # Get the requirement
+    requirement = get_requirement_by_id(submission.requirement_id)
+    if not requirement:
+        raise HTTPException(status_code=404, detail="Requirement not found")
+    
+    async with async_session() as db:
+        # Get user with github_username
+        user = await get_or_create_user(db, user_id)
+        
+        # For GitHub-based submissions, require GitHub username
+        if requirement.submission_type.value in ("profile_readme", "repo_fork"):
+            if not user.github_username:
+                raise HTTPException(
+                    status_code=400,
+                    detail="You need to link your GitHub account to submit. Please sign out and sign in with GitHub."
+                )
+        
+        # Validate the submission
+        validation_result = await validate_submission(
+            requirement=requirement,
+            submitted_url=submission.submitted_url,
+            expected_username=user.github_username  # Can be None for deployed apps
         )
         
-        return result.model_dump()
+        now = datetime.now(timezone.utc)
+        
+        # Check for existing submission
+        result = await db.execute(
+            select(GitHubSubmission).where(
+                GitHubSubmission.user_id == user_id,
+                GitHubSubmission.requirement_id == submission.requirement_id
+            )
+        )
+        existing = result.scalar_one_or_none()
+        
+        # Extract username from URL for storage (only for GitHub URLs)
+        from shared import parse_github_url
+        parsed = parse_github_url(submission.submitted_url)
+        github_username = parsed.username if parsed.is_valid else None
+        
+        if existing:
+            # Update existing submission
+            existing.submitted_url = submission.submitted_url
+            existing.github_username = github_username
+            existing.is_validated = validation_result.is_valid
+            existing.validated_at = now if validation_result.is_valid else None
+            existing.updated_at = now
+            db_submission = existing
+        else:
+            # Create new submission
+            db_submission = GitHubSubmission(
+                user_id=user_id,
+                requirement_id=submission.requirement_id,
+                submission_type=requirement.submission_type.value,
+                phase_id=requirement.phase_id,
+                submitted_url=submission.submitted_url,
+                github_username=github_username,
+                is_validated=validation_result.is_valid,
+                validated_at=now if validation_result.is_valid else None
+            )
+            db.add(db_submission)
+        
+        await db.commit()
+        await db.refresh(db_submission)
+        
+        return GitHubValidationResult(
+            is_valid=validation_result.is_valid,
+            message=validation_result.message,
+            username_match=validation_result.username_match,
+            repo_exists=validation_result.repo_exists,
+            submission=GitHubSubmissionResponse(
+                id=db_submission.id,
+                requirement_id=db_submission.requirement_id,
+                submission_type=db_submission.submission_type,
+                phase_id=db_submission.phase_id,
+                submitted_url=db_submission.submitted_url,
+                github_username=db_submission.github_username,
+                is_validated=db_submission.is_validated,
+                validated_at=db_submission.validated_at,
+                created_at=db_submission.created_at
+            )
+        ).model_dump()
+
+
+@app.get("/api/github/submissions")
+async def get_user_github_submissions(user_id: str = Depends(require_auth)):
+    """Get all GitHub submissions for the current user."""
+    async with async_session() as db:
+        result = await db.execute(
+            select(GitHubSubmission).where(GitHubSubmission.user_id == user_id)
+        )
+        submissions = result.scalars().all()
+        
+        return [
+            GitHubSubmissionResponse(
+                id=s.id,
+                requirement_id=s.requirement_id,
+                submission_type=s.submission_type,
+                phase_id=s.phase_id,
+                submitted_url=s.submitted_url,
+                github_username=s.github_username,
+                is_validated=s.is_validated,
+                validated_at=s.validated_at,
+                created_at=s.created_at
+            ).model_dump()
+            for s in submissions
+        ]
 
 
 # ============ Webhook Routes ============
@@ -441,6 +402,7 @@ async def get_dashboard(user_id: str = Depends(require_auth)):
 @app.post("/api/webhooks/clerk")
 async def clerk_webhook(request: Request):
     """Handle Clerk webhooks for user sync."""
+    settings = get_settings()
     payload = await request.body()
     headers = {
         "svix-id": request.headers.get("svix-id"),
@@ -485,6 +447,25 @@ async def clerk_webhook(request: Request):
     return {"status": "processed", "event_type": event_type}
 
 
+def extract_github_username(data: dict) -> str | None:
+    """
+    Extract GitHub username from Clerk webhook data.
+    
+    Clerk stores OAuth account info in 'external_accounts' array.
+    Each account has 'provider' and 'username' fields.
+    """
+    external_accounts = data.get("external_accounts", [])
+    
+    for account in external_accounts:
+        if account.get("provider") == "github" or account.get("provider") == "oauth_github":
+            # Try different possible field names
+            username = account.get("username") or account.get("provider_user_id")
+            if username:
+                return username
+    
+    return None
+
+
 async def handle_user_created(db, data: dict):
     """Handle user.created webhook event."""
     user_id = data.get("id")
@@ -500,12 +481,16 @@ async def handle_user_created(db, data: dict):
         email_addresses[0].get("email_address") if email_addresses else f"{user_id}@unknown.local"
     )
     
+    # Extract GitHub username from OAuth accounts
+    github_username = extract_github_username(data)
+    
     if existing_user:
         existing_user.email = primary_email
         existing_user.first_name = data.get("first_name")
         existing_user.last_name = data.get("last_name")
         existing_user.avatar_url = data.get("image_url")
-        existing_user.updated_at = datetime.utcnow()
+        existing_user.github_username = github_username
+        existing_user.updated_at = datetime.now(timezone.utc)
     else:
         user = User(
             id=user_id,
@@ -513,6 +498,7 @@ async def handle_user_created(db, data: dict):
             first_name=data.get("first_name"),
             last_name=data.get("last_name"),
             avatar_url=data.get("image_url"),
+            github_username=github_username,
         )
         db.add(user)
 
@@ -536,11 +522,15 @@ async def handle_user_updated(db, data: dict):
         email_addresses[0].get("email_address") if email_addresses else user.email
     )
     
+    # Extract GitHub username from OAuth accounts
+    github_username = extract_github_username(data)
+    
     user.email = primary_email
     user.first_name = data.get("first_name")
     user.last_name = data.get("last_name")
     user.avatar_url = data.get("image_url")
-    user.updated_at = datetime.utcnow()
+    user.github_username = github_username
+    user.updated_at = datetime.now(timezone.utc)
 
 
 async def handle_user_deleted(db, data: dict):
@@ -557,4 +547,4 @@ async def handle_user_deleted(db, data: dict):
         user.first_name = None
         user.last_name = None
         user.avatar_url = None
-        user.updated_at = datetime.utcnow()
+        user.updated_at = datetime.now(timezone.utc)

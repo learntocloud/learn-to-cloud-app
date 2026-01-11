@@ -1,13 +1,14 @@
 import { auth } from "@clerk/nextjs/server";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { getPhaseBySlug, getPhaseWithProgressBySlug } from "@/lib/api";
+import { getPhaseWithProgressBySlug, getPhaseGitHubRequirements, getUserInfo } from "@/lib/api";
+import { getPhaseBySlug } from "@/lib/content";
 import { TopicCard } from "@/components/topic-card";
-import { Checklist } from "@/components/checklist";
 import { ProgressBar, StatusBadge } from "@/components/progress";
-import type { PhaseDetailWithProgress, Phase, TopicWithProgress, ChecklistItemWithProgress } from "@/lib/types";
+import { GitHubSubmissionForm } from "@/components/github-submission";
+import type { PhaseDetailWithProgress, Phase, TopicWithProgress, PhaseGitHubRequirements } from "@/lib/types";
 
-// Disable static generation - fetch data at runtime
+// Disable static generation - fetch data at runtime for progress
 export const dynamic = "force-dynamic";
 
 interface PhasePageProps {
@@ -37,26 +38,74 @@ export default async function PhasePage({ params }: PhasePageProps) {
 
   const { userId } = await auth();
   
-  let phase: PhaseDetailWithProgress | Phase;
+  // Get content from local files
+  const phaseContent = getPhaseBySlug(phaseSlug);
+  if (!phaseContent) {
+    notFound();
+  }
+  
+  let phase: PhaseDetailWithProgress | Phase = phaseContent;
   let topics: TopicWithProgress[] | undefined;
-  let checklist: ChecklistItemWithProgress[] | undefined;
   let isAuthenticated = false;
+  let isLocked = false;
+  let githubRequirements: PhaseGitHubRequirements | null = null;
+  let githubUsername: string | null = null;
 
   if (userId) {
-    try {
-      phase = await getPhaseWithProgressBySlug(phaseSlug);
-      topics = (phase as PhaseDetailWithProgress).topics;
-      checklist = (phase as PhaseDetailWithProgress).checklist;
+    // Fetch each resource independently so one failure doesn't break the others
+    const [phaseResult, githubResult, userResult] = await Promise.allSettled([
+      getPhaseWithProgressBySlug(phaseSlug),
+      getPhaseGitHubRequirements(phaseContent.id),
+      getUserInfo(),
+    ]);
+    
+    // Handle phase progress
+    if (phaseResult.status === "fulfilled" && phaseResult.value) {
+      phase = phaseResult.value;
+      topics = phaseResult.value.topics;
       isAuthenticated = true;
-    } catch {
-      phase = await getPhaseBySlug(phaseSlug);
+      isLocked = phaseResult.value.isLocked;
     }
-  } else {
-    phase = await getPhaseBySlug(phaseSlug);
+    
+    // Handle GitHub requirements
+    if (githubResult.status === "fulfilled") {
+      githubRequirements = githubResult.value;
+    }
+    
+    // Handle user info
+    if (userResult.status === "fulfilled") {
+      githubUsername = userResult.value.github_username;
+    }
   }
 
-  if (!phase) {
-    notFound();
+  // If phase is locked, show locked page
+  if (isAuthenticated && isLocked) {
+    const prevPhaseNum = phaseContent.id - 1;
+    return (
+      <div className="min-h-screen py-8">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <nav className="mb-6">
+            <Link href="/phases" className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 text-sm">
+              ← Back to Phases
+            </Link>
+          </nav>
+
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-8 text-center">
+            <div className="text-6xl mb-4">🔒</div>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Phase Locked</h1>
+            <p className="text-gray-600 dark:text-gray-300 mb-6">
+              You need to complete <strong>Phase {prevPhaseNum}</strong> before you can access <strong>{phaseContent.name}</strong>.
+            </p>
+            <Link
+              href={`/phase${prevPhaseNum}`}
+              className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+            >
+              Go to Phase {prevPhaseNum}
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   const nav = PHASE_NAV[phaseSlug];
@@ -142,34 +191,16 @@ export default async function PhasePage({ params }: PhasePageProps) {
           </div>
         </section>
 
-        {/* Checklist */}
-        <section className="mb-8">
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
-            Phase Checklist ({phase.checklist.length})
-          </h2>
-          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
-            {isAuthenticated && checklist ? (
-              <Checklist items={checklist} />
-            ) : (
-              <div className="space-y-2">
-                {phase.checklist.map((item) => (
-                  <div key={item.id} className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                    <span className="text-gray-400">☐</span>
-                    <span className="text-sm text-gray-700 dark:text-gray-300">{item.text}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-            {!isAuthenticated && (
-              <p className="text-sm text-gray-500 dark:text-gray-400 mt-4 text-center">
-                <Link href="/sign-in" className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">
-                  Sign in
-                </Link>{" "}
-                to track your progress
-              </p>
-            )}
-          </div>
-        </section>
+        {/* GitHub Submissions (for phases with requirements) */}
+        {isAuthenticated && githubRequirements && githubRequirements.requirements.length > 0 && (
+          <section className="mb-8">
+            <GitHubSubmissionForm
+              requirements={githubRequirements.requirements}
+              submissions={githubRequirements.submissions}
+              githubUsername={githubUsername}
+            />
+          </section>
+        )}
 
         {/* Navigation */}
         <div className="flex justify-between">

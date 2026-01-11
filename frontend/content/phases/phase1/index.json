@@ -1,0 +1,22 @@
+{
+  "id": 1,
+  "name": "Linux and Bash",
+  "slug": "phase1",
+  "description": "Here at Learn to Cloud, we like to get hands-on as soon as possible. So, we've prepared a Capture The Flag (CTF) lab for you to practice your Linux and Bash. Before you can access them, you'll spend time learning about the lab and setting it up. Don't worry – along the way, we'll provide tips, documentation links, resources, and more to help you succeed.",
+  "short_description": "Master Linux command line, Bash scripting, Git version control, and Infrastructure as Code basics through hands-on CTF challenges.",
+  "estimated_weeks": "2-3 weeks",
+  "order": 1,
+  "prerequisites": [
+    "Mac OS or an Ubuntu based computer. If you're on Windows, you'll use WSL.",
+    "Join the Learn to Cloud Discord - Here you can ask questions, just make sure to ask in the right phase channel."
+  ],
+  "objectives": [
+    "Set up your computer for all our labs",
+    "Learned the basics of version control",
+    "Gained familiarity with the cloud CLI",
+    "Understood the concept of Infrastructure as Code",
+    "Built and accessed the lab environment",
+    "Completed seven CTF challenges to test your Linux skills"
+  ],
+  "topics": ["version-control", "cloud-cli", "iac", "ssh", "cli-basics", "ctf-lab"]
+}

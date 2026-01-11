@@ -1,0 +1,23 @@
+{
+  "id": "phase0-topic4",
+  "slug": "cloud-computing",
+  "name": "What is Cloud Computing",
+  "description": "Cloud computing is the foundation of modern infrastructure. Learn about IaaS, PaaS, SaaS, and different service models.",
+  "order": 4,
+  "estimated_time": "1-2 hours",
+  "is_capstone": false,
+  "learning_steps": [
+    {
+      "order": 1,
+      "text": "Watch: What is Cloud Computing",
+      "action": "Watch:",
+      "title": "What is Cloud Computing",
+      "url": "https://youtu.be/eZLcyTxi8ZI",
+      "description": "Learn about IaaS, PaaS, SaaS and the different service models that make up cloud computing."
+    }
+  ],
+  "checklist": [
+    { "id": "phase0-topic4-check1", "text": "I understand what cloud computing is", "order": 1 },
+    { "id": "phase0-topic4-check2", "text": "I know the difference between IaaS, PaaS, and SaaS", "order": 2 }
+  ]
+}

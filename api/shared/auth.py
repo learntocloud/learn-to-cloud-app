@@ -1,18 +1,30 @@
 """Clerk authentication utilities."""
 
+import logging
+
 import httpx
+from clerk_backend_api import Clerk
+from clerk_backend_api.security.types import AuthenticateRequestOptions
 from fastapi import Request
-from clerk_backend_api import Clerk, authenticate_request, AuthenticateRequestOptions
 
 from .config import get_settings
 
+logger = logging.getLogger(__name__)
 
-settings = get_settings()
 
-
-def get_clerk_client() -> Clerk:
-    """Get Clerk client instance."""
-    return Clerk(bearer_auth=settings.clerk_secret_key)
+def _build_authorized_parties() -> list[str]:
+    """Build list of authorized parties for Clerk authentication."""
+    settings = get_settings()
+    
+    parties = {
+        "http://localhost:3000",
+        "http://localhost:4280",
+    }
+    
+    if settings.frontend_url:
+        parties.add(settings.frontend_url)
+    
+    return list(parties)
 
 
 def get_user_id_from_request(req: Request) -> str | None:
@@ -20,6 +32,8 @@ def get_user_id_from_request(req: Request) -> str | None:
     Get the authenticated user ID from the request.
     Returns None if not authenticated.
     """
+    settings = get_settings()
+    
     if not settings.clerk_secret_key:
         return None
     
@@ -29,33 +43,23 @@ def get_user_id_from_request(req: Request) -> str | None:
         headers=dict(req.headers),
     )
     
-    # Get frontend URL from env or use default
-    frontend_url = settings.frontend_url
-    
-    # Build authorized parties list
-    authorized_parties = [
-        frontend_url,
-        "http://localhost:3000",
-        "http://localhost:4280",
-    ]
-    
-    # Add Azure Container Apps domains
-    if ".azurecontainerapps.io" in frontend_url:
-        authorized_parties.append(frontend_url)
-    
     try:
-        request_state = authenticate_request(
-            httpx_request,
-            AuthenticateRequestOptions(
-                secret_key=settings.clerk_secret_key,
-                authorized_parties=authorized_parties,
+        with Clerk(bearer_auth=settings.clerk_secret_key) as clerk:
+            request_state = clerk.authenticate_request(
+                httpx_request,
+                AuthenticateRequestOptions(
+                    authorized_parties=_build_authorized_parties(),
+                )
             )
-        )
-        
-        if not request_state.is_signed_in:
-            return None
-        
-        return request_state.payload.get("sub")
+            
+            if not request_state.is_signed_in:
+                return None
+            
+            if request_state.payload is None:
+                return None
+            
+            return request_state.payload.get("sub")
         
     except Exception:
+        logger.exception("Failed to authenticate request")
         return None

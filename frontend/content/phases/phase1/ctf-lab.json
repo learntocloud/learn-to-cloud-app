@@ -1,0 +1,70 @@
+{
+  "id": "phase1-topic6",
+  "slug": "ctf-lab",
+  "name": "CTF Lab",
+  "description": "Time to put your Linux skills to the test! Complete these Capture The Flag challenges to prove you've mastered the basics.",
+  "short_description": "Complete 7 hands-on Linux challenges in a real cloud environment to prove your command line skills.",
+  "order": 6,
+  "estimated_time": "2-3 days",
+  "is_capstone": true,
+  "learning_steps": [
+    {
+      "order": 1,
+      "text": "Make sure the lab repo is cloned",
+      "action": "Make sure the lab repo is cloned",
+      "url": null,
+      "description": "If you haven't already, clone the Linux CTF repository:",
+      "code": "cd ~/l2c\ngit clone https://github.com/learntocloud/linux-ctfs"
+    },
+    {
+      "order": 2,
+      "text": "Review Terraform basics",
+      "action": "Review Terraform basics",
+      "url": null,
+      "description": "The lab uses Terraform to provision the CTF environment. Make sure you understand terraform init and terraform apply from the IaC topic."
+    },
+    {
+      "order": 3,
+      "text": "Follow the lab README",
+      "action": "Follow the lab README:",
+      "title": "Linux CTFs Repository",
+      "url": "https://github.com/learntocloud/linux-ctfs",
+      "description": "The repository README contains all instructions for setting up and completing the CTF challenges."
+    },
+    {
+      "order": 4,
+      "text": "Deploy the lab environment",
+      "action": "Deploy the lab environment",
+      "url": null,
+      "description": "Navigate to your cloud provider's folder and deploy the infrastructure:",
+      "code": "cd linux-ctfs/aws  # or azure, or gcp\nterraform init\nterraform apply"
+    },
+    {
+      "order": 5,
+      "text": "Complete the challenges",
+      "action": "Complete the challenges",
+      "url": null,
+      "description": "SSH into the provisioned VM and work through each CTF challenge. Each challenge tests different Linux skills like file navigation, permissions, process management, and more."
+    },
+    {
+      "order": 6,
+      "text": "Clean up resources",
+      "action": "Clean up resources",
+      "url": null,
+      "description": "When you're done, destroy the infrastructure to avoid charges:",
+      "code": "terraform destroy"
+    }
+  ],
+  "checklist": [
+    { "id": "phase1-topic6-check1", "text": "Lab repository is cloned locally", "order": 1 },
+    { "id": "phase1-topic6-check2", "text": "Terraform deployed the lab environment", "order": 2 },
+    { "id": "phase1-topic6-check3", "text": "I completed CTF Challenge 1", "order": 3 },
+    { "id": "phase1-topic6-check4", "text": "I completed CTF Challenge 2", "order": 4 },
+    { "id": "phase1-topic6-check5", "text": "I completed CTF Challenge 3", "order": 5 },
+    { "id": "phase1-topic6-check6", "text": "I completed CTF Challenge 4", "order": 6 },
+    { "id": "phase1-topic6-check7", "text": "I completed CTF Challenge 5", "order": 7 },
+    { "id": "phase1-topic6-check8", "text": "I completed CTF Challenge 6", "order": 8 },
+    { "id": "phase1-topic6-check9", "text": "I completed CTF Challenge 7", "order": 9 },
+    { "id": "phase1-topic6-check10", "text": "I destroyed the lab resources with terraform destroy", "order": 10 }
+  ]
+}

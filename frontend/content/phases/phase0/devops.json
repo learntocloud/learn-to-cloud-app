@@ -1,0 +1,23 @@
+{
+  "id": "phase0-topic5",
+  "slug": "devops",
+  "name": "What is DevOps",
+  "description": "DevOps combines development and operations practices to improve software delivery. It's a key methodology in cloud engineering.",
+  "order": 5,
+  "estimated_time": "1-2 hours",
+  "is_capstone": false,
+  "learning_steps": [
+    {
+      "order": 1,
+      "text": "Watch: What is DevOps",
+      "action": "Watch:",
+      "title": "What is DevOps",
+      "url": "https://youtu.be/9pZ2xmsSDdo/",
+      "description": "Understand how DevOps combines development and operations practices to improve software delivery and reliability."
+    }
+  ],
+  "checklist": [
+    { "id": "phase0-topic5-check1", "text": "I understand what DevOps is", "order": 1 },
+    { "id": "phase0-topic5-check2", "text": "I know how DevOps relates to cloud engineering", "order": 2 }
+  ]
+}

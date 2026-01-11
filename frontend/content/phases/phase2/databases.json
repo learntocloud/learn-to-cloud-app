@@ -1,0 +1,79 @@
+{
+  "id": "phase2-topic4",
+  "slug": "databases",
+  "name": "Databases",
+  "description": "We will be using a database to store our application data. For this we need to first understand how databases work and how to interact with them.",
+  "order": 4,
+  "estimated_time": "3-4 days",
+  "is_capstone": false,
+  "learning_steps": [
+    {
+      "order": 1,
+      "text": "Study SQL basics",
+      "action": "Study SQL basics:",
+      "title": "Intro to SQL",
+      "url": "https://www.khanacademy.org/computing/computer-programming/sql",
+      "description": "Learn the fundamentals of SQL with Khan Academy's interactive course."
+    },
+    {
+      "order": 2,
+      "text": "Choose your cloud database",
+      "action": "Choose your cloud database:",
+      "url": null,
+      "description": "Select the database service for your cloud provider and complete the tutorial:"
+    },
+    {
+      "order": 3,
+      "text": "AWS: DynamoDB Tutorial",
+      "action": "AWS:",
+      "title": "DynamoDB Tutorial For Beginners",
+      "url": "https://www.youtube.com/watch?v=2k2GINpO308",
+      "description": "Learn the basics of AWS DynamoDB, a fully managed NoSQL database."
+    },
+    {
+      "order": 4,
+      "text": "Azure: Cosmos DB Essentials",
+      "action": "Azure:",
+      "title": "Cosmos DB Essentials Playlist",
+      "url": "https://youtube.com/playlist?list=PLLasX02E8BPDd2fKwLCHnmWoyo4bL-oKr&feature=shared/",
+      "description": "Learn the basics of Azure Cosmos DB, a globally distributed database service."
+    },
+    {
+      "order": 5,
+      "text": "Complete the Python quickstart for your database",
+      "action": "Complete the Python quickstart:",
+      "url": null,
+      "description": "Follow your cloud provider's Python quickstart guide:"
+    },
+    {
+      "order": 6,
+      "text": "AWS DynamoDB Python Quickstart",
+      "action": "AWS:",
+      "title": "DynamoDB Python Quickstart",
+      "url": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/example_dynamodb_Scenario_GettingStartedMovies_section.html"
+    },
+    {
+      "order": 7,
+      "text": "Azure Cosmos DB Python Quickstart",
+      "action": "Azure:",
+      "title": "Cosmos DB Python Quickstart",
+      "url": "https://learn.microsoft.com/en-us/azure/cosmos-db/nosql/quickstart-python"
+    }
+  ],
+  "test_knowledge_prompts": [
+    "Can you ask me to explain what a database is and how it works?",
+    "Can you quiz me on the difference between SQL and NoSQL databases?",
+    "Can you ask me to explain the concept of CRUD operations in databases?",
+    "Can you ask me to explain how to connect to a database from a Python application?",
+    "Can you quiz me on how to perform CRUD operations in a database using Python?",
+    "Can you ask me to explain how to use an ORM (Object-Relational Mapping) library in Python?",
+    "Can you ask me to explain how to use a NoSQL database like DynamoDB or Cosmos DB?",
+    "Can you quiz me on how to model data in a NoSQL database like DynamoDB or Cosmos DB?"
+  ],
+  "checklist": [
+    { "id": "phase2-topic4-check1", "text": "I understand SQL basics and CRUD operations", "order": 1 },
+    { "id": "phase2-topic4-check2", "text": "I understand the difference between SQL and NoSQL databases", "order": 2 },
+    { "id": "phase2-topic4-check3", "text": "I completed the Python quickstart for my chosen cloud database", "order": 3 },
+    { "id": "phase2-topic4-check4", "text": "I can connect to a database from Python", "order": 4 }
+  ]
+}

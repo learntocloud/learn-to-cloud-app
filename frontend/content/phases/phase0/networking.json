@@ -1,0 +1,23 @@
+{
+  "id": "phase0-topic2",
+  "slug": "networking",
+  "name": "What is Networking",
+  "description": "Networking is how data moves across the internet and within cloud environments. Understanding the basics is crucial.",
+  "order": 2,
+  "estimated_time": "1-2 hours",
+  "is_capstone": false,
+  "learning_steps": [
+    {
+      "order": 1,
+      "text": "Watch: What is Networking",
+      "action": "Watch:",
+      "title": "What is Networking",
+      "url": "https://youtu.be/3QhU9jd03a0",
+      "description": "Learn how data moves across networks and why networking knowledge is essential for cloud engineering."
+    }
+  ],
+  "checklist": [
+    { "id": "phase0-topic2-check1", "text": "I understand the basics of networking", "order": 1 },
+    { "id": "phase0-topic2-check2", "text": "I know what IP addresses and ports are", "order": 2 }
+  ]
+}

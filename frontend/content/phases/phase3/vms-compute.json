@@ -1,0 +1,86 @@
+{
+  "id": "phase3-topic1",
+  "slug": "vms-compute",
+  "name": "Virtual Machines & Compute Services",
+  "description": "Virtualization and compute services are fundamental to cloud engineering, enabling scalable and flexible infrastructure. In this topic, you will focus on deploying virtual machines on various cloud providers (such as AWS, Azure, and GCP).",
+  "order": 1,
+  "estimated_time": "2-3 days",
+  "is_capstone": false,
+  "learning_steps": [
+    {
+      "order": 1,
+      "text": "Understand what Compute Services are",
+      "action": "Understand:",
+      "title": "What are Compute Services?",
+      "url": "https://aws.amazon.com/what-is/compute/",
+      "description": "Learn the fundamentals of cloud compute - the on-demand delivery of computing power that forms the foundation of cloud infrastructure."
+    },
+    {
+      "order": 2,
+      "text": "Learn about Virtualization",
+      "action": "Learn:",
+      "title": "Understanding Virtualization",
+      "url": "https://aws.amazon.com/what-is/virtualization/",
+      "description": "Understand how virtualization technology enables running multiple virtual machines on a single physical server, enabling cloud scalability."
+    },
+    {
+      "order": 3,
+      "text": "Instance Types & OS Selection",
+      "action": "Study Instance Types & OS Selection:",
+      "url": null,
+      "description": "Learn to choose the right VM specs (CPU, RAM, storage) based on workload requirements. Different instance types are optimized for:\n\n• General purpose - balanced compute, memory, networking\n• Compute optimized - CPU-intensive workloads\n• Memory optimized - large datasets in memory\n• Storage optimized - high sequential read/write"
+    },
+    {
+      "order": 4,
+      "text": "Deploy a VM on your cloud provider",
+      "action": "Deploy a VM on your cloud provider:",
+      "url": null,
+      "description": "Choose your cloud platform and follow the official guide to deploy your first virtual machine:"
+    },
+    {
+      "order": 5,
+      "text": "AWS EC2",
+      "action": "AWS EC2:",
+      "title": "Get Started with Amazon EC2",
+      "url": "https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/EC2_GetStarted.html",
+      "description": "Launch your first Linux instance on AWS Elastic Compute Cloud"
+    },
+    {
+      "order": 6,
+      "text": "Azure Virtual Machines",
+      "action": "Azure VMs:",
+      "title": "Azure Virtual Machines Documentation",
+      "url": "https://learn.microsoft.com/en-us/azure/virtual-machines/",
+      "description": "Create and manage virtual machines in Azure"
+    },
+    {
+      "order": 7,
+      "text": "GCP Compute Engine",
+      "action": "GCP Compute Engine:",
+      "title": "Create Your First VM on GCP",
+      "url": "https://cloud.google.com/products/compute#create-your-first-vm",
+      "description": "Get started with Google Compute Engine"
+    },
+    {
+      "order": 8,
+      "text": "Hands-on: Deploy a VM using default configuration",
+      "action": "Hands-on Task:",
+      "url": null,
+      "description": "Deploy a Virtual Machine on any cloud provider using the default configuration. Don't worry about custom networking or security groups yet - just get comfortable with the deployment process and verify your VM is running and accessible."
+    }
+  ],
+  "test_knowledge_prompts": [
+    "Can you explain what Compute Services are and why they are important in cloud computing?",
+    "Can you describe how virtualization works and its role in cloud infrastructure?",
+    "Can you quiz me on the difference between Virtualization and Compute Services?",
+    "Can you compare the compute services provided by AWS, Azure, and GCP?",
+    "Can you explain what a hypervisor is, how it works, and why it is essential for virtualization?"
+  ],
+  "checklist": [
+    { "id": "phase3-topic1-check1", "text": "Understood what compute services are and their importance", "order": 1 },
+    { "id": "phase3-topic1-check2", "text": "Learned how virtualization works", "order": 2 },
+    { "id": "phase3-topic1-check3", "text": "Understood instance types and OS selection criteria", "order": 3 },
+    { "id": "phase3-topic1-check4", "text": "Successfully deployed a VM on my chosen cloud provider", "order": 4 },
+    { "id": "phase3-topic1-check5", "text": "Verified VM is accessible and running", "order": 5 }
+  ]
+}

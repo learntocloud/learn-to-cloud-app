@@ -1,0 +1,24 @@
+{
+  "id": "phase0-topic6",
+  "slug": "cloud-engineer",
+  "name": "What is a Cloud Engineer",
+  "description": "Learn about the cloud engineer role, what they do day-to-day, and how to become one.",
+  "order": 6,
+  "estimated_time": "1-2 hours",
+  "is_capstone": false,
+  "learning_steps": [
+    {
+      "order": 1,
+      "text": "Watch: What is a Cloud Engineer",
+      "action": "Watch:",
+      "title": "What is a Cloud Engineer",
+      "url": "https://youtu.be/7i1WMGxyt4Q",
+      "description": "Discover what cloud engineers do, what skills they need, and the path to becoming one."
+    }
+  ],
+  "checklist": [
+    { "id": "phase0-topic6-check1", "text": "I understand what a cloud engineer does", "order": 1 },
+    { "id": "phase0-topic6-check2", "text": "I know what skills are needed for cloud engineering", "order": 2 },
+    { "id": "phase0-topic6-check3", "text": "I am committed to pursuing this career path", "order": 3 }
+  ]
+}

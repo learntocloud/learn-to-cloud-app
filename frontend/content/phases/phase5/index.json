@@ -1,0 +1,42 @@
+{
+  "id": 5,
+  "slug": "phase5",
+  "name": "Securing Your Cloud Applications",
+  "description": "This phase focuses on securing the cloud applications and infrastructure you've built throughout your journey. You'll take the Journal API application from previous phases and implement enterprise-grade security controls, monitoring, and incident response capabilities.",
+  "short_description": "Implement cloud security: IAM policies, secrets management, network security, threat detection, and incident response. Enterprise-grade protection.",
+  "order": 5,
+  "estimated_weeks": "3-4 weeks",
+  "topics": [
+    "identity-access-management",
+    "data-protection-secrets",
+    "network-security",
+    "security-monitoring",
+    "threat-detection-response",
+    "capstone"
+  ],
+  "objectives": [
+    "Secure the Journal API application with proper IAM controls",
+    "Implement data protection and secrets management",
+    "Configure network security and secure connectivity",
+    "Set up security monitoring and alerting systems",
+    "Build automated threat detection and incident response",
+    "Complete a comprehensive security implementation project"
+  ],
+  "prerequisites": [
+    "Completed Phase 3: Cloud Platform Fundamentals",
+    "Completed Phase 4: DevOps Fundamentals (recommended but not required)",
+    "Access to the Journal API application and infrastructure from previous phases",
+    "A cloud platform account (AWS, Azure, or GCP) with administrative permissions"
+  ],
+  "connections": [
+    { "phase": "Phase 1-2", "description": "Use your Linux and programming skills to configure security tools" },
+    { "phase": "Phase 3", "description": "Secure the cloud resources and networking you deployed" },
+    { "phase": "Phase 4", "description": "Add security scanning and monitoring to your CI/CD pipelines" },
+    { "phase": "Phase 5", "description": "Make everything production-ready with enterprise security controls" }
+  ],
+  "security_overviews": [
+    { "text": "AWS Security Pillar - Well Architected Framework", "url": "https://docs.aws.amazon.com/wellarchitected/latest/security-pillar/welcome.html" },
+    { "text": "Microsoft Azure - Secure", "url": "https://learn.microsoft.com/en-us/azure/architecture/framework/security/overview" },
+    { "text": "Google Cloud - Security Foundations", "url": "https://cloud.google.com/architecture/security-foundations" }
+  ]
+}

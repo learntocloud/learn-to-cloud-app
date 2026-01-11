@@ -1,0 +1,122 @@
+{
+  "id": "phase3-topic7",
+  "slug": "billing-cost-management",
+  "name": "Cloud Billing & Cost Management",
+  "description": "Cloud services are billed based on consumption. Every VM, database, and API call has a cost. In this topic, you'll learn to monitor spending, set up cost alerts, and estimate expenses before deploying infrastructure. These skills prevent surprise bills and teach you to make cost-aware architecture decisions.",
+  "order": 7,
+  "estimated_time": "2-3 days",
+  "is_capstone": false,
+  "learning_steps": [
+    {
+      "order": 1,
+      "text": "Understand Cloud Billing Basics",
+      "action": "Understand Cloud Billing Basics:",
+      "url": null,
+      "description": "Core concepts you must understand:\n\n• Pay-as-you-go pricing - You're charged for what you use, not upfront\n• Resource types have different costs - VMs, storage, data transfer all priced differently\n• Regional pricing varies - Same resource costs different amounts in different regions\n• Billing cycles - Usually monthly. Charges appear in your bill 24-48 hours after use"
+    },
+    {
+      "order": 2,
+      "text": "Cost Management Overview",
+      "action": "Cost Management Overview:",
+      "url": null,
+      "description": "Learn the billing and cost management tools for your cloud provider:"
+    },
+    {
+      "order": 3,
+      "text": "Azure Cost Management",
+      "action": "Azure:",
+      "title": "Azure Cost Management + Billing",
+      "url": "https://learn.microsoft.com/en-us/azure/cost-management-billing/cost-management-billing-overview",
+      "description": "Complete overview of Azure billing and cost management"
+    },
+    {
+      "order": 4,
+      "text": "AWS Billing",
+      "action": "AWS:",
+      "title": "AWS Billing and Cost Management",
+      "url": "https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/what-is-billing.html",
+      "description": "Understanding your AWS bills and managing costs"
+    },
+    {
+      "order": 5,
+      "text": "GCP Billing",
+      "action": "GCP:",
+      "title": "GCP Cloud Billing",
+      "url": "https://cloud.google.com/billing/docs/how-to",
+      "description": "How to manage billing in Google Cloud"
+    },
+    {
+      "order": 6,
+      "text": "Set Up Budget Alerts",
+      "action": "Set Up Budget Alerts:",
+      "url": null,
+      "description": "Get notified before you overspend! Configure alerts at thresholds like 50%, 80%, 100% of your budget."
+    },
+    {
+      "order": 7,
+      "text": "Azure Budgets",
+      "action": "Azure:",
+      "title": "Create Azure Budgets",
+      "url": "https://learn.microsoft.com/en-us/azure/cost-management-billing/costs/tutorial-acm-create-budgets",
+      "description": "Tutorial for creating budgets and alerts in Azure"
+    },
+    {
+      "order": 8,
+      "text": "AWS Budgets",
+      "action": "AWS:",
+      "title": "Create AWS Budgets",
+      "url": "https://docs.aws.amazon.com/cost-management/latest/userguide/budgets-create.html",
+      "description": "Setting up AWS Budget alerts"
+    },
+    {
+      "order": 9,
+      "text": "GCP Budgets",
+      "action": "GCP:",
+      "title": "Create GCP Budget Alerts",
+      "url": "https://cloud.google.com/billing/docs/how-to/budgets",
+      "description": "Configuring budget alerts in Google Cloud"
+    },
+    {
+      "order": 10,
+      "text": "Use Pricing Calculators",
+      "action": "Use Pricing Calculators:",
+      "url": null,
+      "description": "Estimate costs BEFORE you deploy. Each cloud provider has a calculator:",
+      "secondary_links": [
+        { "text": "Azure Pricing Calculator", "url": "https://azure.microsoft.com/en-us/pricing/calculator/" },
+        { "text": "AWS Pricing Calculator", "url": "https://calculator.aws/#/" },
+        { "text": "GCP Pricing Calculator", "url": "https://cloud.google.com/products/calculator" }
+      ]
+    },
+    {
+      "order": 11,
+      "text": "Cost Optimization Tips",
+      "action": "Cost Optimization Tips:",
+      "url": null,
+      "description": "• Stop or deallocate VMs when not in use (dev environments!)\n• Right-size instances - don't over-provision\n• Use reserved instances for production workloads\n• Delete unused resources (disks, IPs, old snapshots)\n• Monitor data transfer costs - they add up!\n• Use auto-scaling to match capacity with demand"
+    },
+    {
+      "order": 12,
+      "text": "Hands-on Tasks",
+      "action": "Hands-on Tasks:",
+      "url": null,
+      "description": "Set up cost monitoring for your cloud infrastructure:\n\n1. Review your current month's charges in the billing dashboard\n2. Identify potential cost-saving opportunities\n3. Set up a budget alert for $50/month (or your chosen limit)\n4. Use the pricing calculator to estimate costs for a new deployment"
+    }
+  ],
+  "test_knowledge_prompts": [
+    "Your cloud bill is higher than expected. Can you explain how you would investigate which resource is causing the cost increase?",
+    "You're deploying an application that will serve 1,000 users. Can you walk me through how you would estimate the monthly cost?",
+    "Can you explain how to set up a budget alert to notify you if spending exceeds $50/month?",
+    "Can you quiz me on how to determine the cost of running a VM 24/7 for one month?",
+    "Can you explain why it's important to understand what resources are running in your cloud account?",
+    "Can you ask me how to optimize costs for a development environment vs. a production environment?"
+  ],
+  "checklist": [
+    { "id": "phase3-topic7-check1", "text": "Understood how cloud billing and consumption-based pricing works", "order": 1 },
+    { "id": "phase3-topic7-check2", "text": "Reviewed my cloud provider's billing structure", "order": 2 },
+    { "id": "phase3-topic7-check3", "text": "Logged into billing dashboard and reviewed current costs", "order": 3 },
+    { "id": "phase3-topic7-check4", "text": "Created a budget and set up cost alerts", "order": 4 },
+    { "id": "phase3-topic7-check5", "text": "Used the pricing calculator to estimate costs", "order": 5 },
+    { "id": "phase3-topic7-check6", "text": "Reviewed cost optimization strategies", "order": 6 }
+  ]
+}

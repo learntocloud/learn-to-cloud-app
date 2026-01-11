@@ -2,13 +2,17 @@
 
 from .config import get_settings, Settings
 from .database import get_db, init_db, Base, async_session
-from .models import User, ChecklistProgress, ProcessedWebhook, CompletionStatus
+from .models import User, ChecklistProgress, ProcessedWebhook, CompletionStatus, GitHubSubmission, SubmissionType
 from .auth import get_user_id_from_request
-from .content import get_all_phases, get_phase_by_id, get_phase_by_slug, get_topic_by_slug, get_total_checklist_items
 from .schemas import (
-    Phase, PhaseWithProgress, PhaseDetailWithProgress, PhaseProgress,
-    TopicWithProgress, ChecklistItemWithProgress, TopicChecklistItemWithProgress,
-    DashboardResponse, UserResponse, Topic
+    UserResponse, ProgressItem, UserProgressResponse,
+    GitHubRequirement, GitHubSubmissionRequest, GitHubSubmissionResponse,
+    GitHubValidationResult, PhaseGitHubRequirementsResponse
+)
+from .github import (
+    get_requirements_for_phase, get_requirement_by_id,
+    parse_github_url, validate_submission, ValidationResult,
+    GITHUB_REQUIREMENTS
 )
 
 __all__ = [
@@ -22,20 +26,21 @@ __all__ = [
     "ChecklistProgress",
     "ProcessedWebhook",
     "CompletionStatus",
+    "GitHubSubmission",
+    "SubmissionType",
     "get_user_id_from_request",
-    "get_all_phases",
-    "get_phase_by_id",
-    "get_phase_by_slug",
-    "get_topic_by_slug",
-    "get_total_checklist_items",
-    "Phase",
-    "PhaseWithProgress",
-    "PhaseDetailWithProgress",
-    "PhaseProgress",
-    "TopicWithProgress",
-    "ChecklistItemWithProgress",
-    "TopicChecklistItemWithProgress",
-    "DashboardResponse",
     "UserResponse",
-    "Topic",
+    "ProgressItem",
+    "UserProgressResponse",
+    "GitHubRequirement",
+    "GitHubSubmissionRequest",
+    "GitHubSubmissionResponse",
+    "GitHubValidationResult",
+    "PhaseGitHubRequirementsResponse",
+    "get_requirements_for_phase",
+    "get_requirement_by_id",
+    "parse_github_url",
+    "validate_submission",
+    "ValidationResult",
+    "GITHUB_REQUIREMENTS",
 ]

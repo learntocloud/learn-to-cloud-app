@@ -1,0 +1,23 @@
+{
+  "id": "phase0-topic1",
+  "slug": "linux",
+  "name": "What is Linux",
+  "description": "Linux is the backbone of many cloud environments. Understanding what it is and why it matters is essential for cloud engineering.",
+  "order": 1,
+  "estimated_time": "1-2 hours",
+  "is_capstone": false,
+  "learning_steps": [
+    {
+      "order": 1,
+      "text": "Watch: What is Linux",
+      "action": "Watch:",
+      "title": "What is Linux",
+      "url": "https://youtu.be/PwugmcN1hf8",
+      "description": "This video introduces Linux and explains why it's so important in the tech industry, especially for cloud computing."
+    }
+  ],
+  "checklist": [
+    { "id": "phase0-topic1-check1", "text": "I understand what Linux is", "order": 1 },
+    { "id": "phase0-topic1-check2", "text": "I know why Linux is popular in cloud environments", "order": 2 }
+  ]
+}

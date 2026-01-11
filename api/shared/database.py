@@ -1,6 +1,8 @@
 """Database connection and session management."""
 
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+from collections.abc import AsyncGenerator
+
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 
 from .config import get_settings
@@ -11,29 +13,47 @@ class Base(DeclarativeBase):
     pass
 
 
-settings = get_settings()
-
-# Create async engine - use aiosqlite for SQLite, asyncpg for PostgreSQL
-engine = create_async_engine(
-    settings.database_url,
-    echo=settings.environment == "development",
-)
-
-# Session factory
-async_session = async_sessionmaker(
-    engine,
-    class_=AsyncSession,
-    expire_on_commit=False,
-)
+def _get_engine():
+    """Create async engine lazily."""
+    settings = get_settings()
+    return create_async_engine(
+        settings.database_url,
+        echo=settings.environment == "development",
+    )
 
 
-async def get_db() -> AsyncSession:
-    """Get a database session."""
-    async with async_session() as session:
-        return session
+# Lazy engine initialization
+_engine = None
+
+
+def get_engine():
+    """Get or create the async engine."""
+    global _engine
+    if _engine is None:
+        _engine = _get_engine()
+    return _engine
+
+
+def get_async_session_maker():
+    """Get async session factory."""
+    return async_sessionmaker(
+        get_engine(),
+        class_=AsyncSession,
+        expire_on_commit=False,
+    )
+
+
+# For backward compatibility
+async_session = get_async_session_maker()
+
+
+async def get_db() -> AsyncGenerator[AsyncSession, None]:
+    """Get a database session (dependency injection)."""
+    async with get_async_session_maker()() as session:
+        yield session
 
 
 async def init_db():
     """Initialize database tables."""
-    async with engine.begin() as conn:
+    async with get_engine().begin() as conn:
         await conn.run_sync(Base.metadata.create_all)

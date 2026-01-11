@@ -1,0 +1,23 @@
+{
+  "id": "phase0-topic3",
+  "slug": "programming",
+  "name": "What is Programming",
+  "description": "Programming enables you to automate tasks and manage cloud resources efficiently. Understanding the basics will help you throughout your cloud journey.",
+  "order": 3,
+  "estimated_time": "1-2 hours",
+  "is_capstone": false,
+  "learning_steps": [
+    {
+      "order": 1,
+      "text": "Watch: What is Programming",
+      "action": "Watch:",
+      "title": "What is Programming",
+      "url": "https://youtu.be/ifo76VyrBYo",
+      "description": "Discover what programming is and how it's used to automate tasks and build applications in cloud environments."
+    }
+  ],
+  "checklist": [
+    { "id": "phase0-topic3-check1", "text": "I understand what programming is", "order": 1 },
+    { "id": "phase0-topic3-check2", "text": "I know why programming is useful for cloud engineering", "order": 2 }
+  ]
+}

@@ -1,12 +1,17 @@
 """Application configuration using pydantic-settings."""
 
-import os
-from pydantic_settings import BaseSettings
 from functools import lru_cache
+
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
+    
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+    )
     
     # Database
     database_url: str = "sqlite+aiosqlite:///./learn_to_cloud.db"
@@ -21,10 +26,6 @@ class Settings(BaseSettings):
     
     # Environment
     environment: str = "development"
-    
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
 
 
 @lru_cache

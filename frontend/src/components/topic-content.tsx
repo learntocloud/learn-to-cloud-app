@@ -56,20 +56,75 @@ export function TopicContent({ topic, isAuthenticated }: TopicContentProps) {
           <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">
             📚 Learning Path
           </h2>
-          <ol className="space-y-3">
+          <ol className="space-y-4">
             {topic.learning_steps.map((step) => (
               <li key={step.order} className="flex items-start gap-3">
-                <span className="flex-shrink-0 w-6 h-6 bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400 rounded-full flex items-center justify-center text-sm font-medium">
+                <span className="flex-shrink-0 w-6 h-6 bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400 rounded-full flex items-center justify-center text-sm font-medium mt-0.5">
                   {step.order}
                 </span>
-                <a
-                  href={step.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 hover:underline"
-                >
-                  {step.text}
-                </a>
+                <div className="flex-1 min-w-0">
+                  {/* Main step content */}
+                  <div className="text-gray-700 dark:text-gray-300">
+                    {step.action && (
+                      <span className="font-semibold text-gray-900 dark:text-white">{step.action}</span>
+                    )}
+                    {step.action && (step.title || step.url) && " "}
+                    {step.url ? (
+                      <a
+                        href={step.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 hover:underline"
+                      >
+                        {step.title || step.text}
+                      </a>
+                    ) : (
+                      <span>{step.title || (!step.action ? step.text : "")}</span>
+                    )}
+                    {/* Inline description after link (no separate description field) */}
+                    {!step.description && step.action && !step.title && !step.url && (
+                      <span>{step.text.replace(step.action, "").replace(/^[:\s-]+/, "")}</span>
+                    )}
+                  </div>
+
+                  {/* Description paragraph */}
+                  {step.description && (
+                    <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                      {step.description}
+                      {step.secondary_links?.map((link, i) => (
+                        <span key={i}>
+                          {" "}
+                          <a
+                            href={link.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 hover:underline"
+                          >
+                            {link.text}
+                          </a>
+                        </span>
+                      ))}
+                    </p>
+                  )}
+
+                  {/* Code block */}
+                  {step.code && (
+                    <div className="mt-3 relative">
+                      <pre className="bg-gray-900 dark:bg-gray-950 text-gray-100 text-sm p-4 rounded-lg overflow-x-auto">
+                        <code>{step.code}</code>
+                      </pre>
+                      <button
+                        onClick={() => navigator.clipboard.writeText(step.code!)}
+                        className="absolute top-2 right-2 p-1.5 text-gray-400 hover:text-white bg-gray-800 hover:bg-gray-700 rounded transition-colors"
+                        title="Copy to clipboard"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                      </button>
+                    </div>
+                  )}
+                </div>
               </li>
             ))}
           </ol>

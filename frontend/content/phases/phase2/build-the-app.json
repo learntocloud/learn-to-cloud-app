@@ -1,0 +1,128 @@
+{
+  "id": "phase2-topic7",
+  "slug": "build-the-app",
+  "name": "Build the App",
+  "description": "Time to put everything together! In this capstone project, you'll build a working Learning Journal app that combines Python, FastAPI, databases, and LLM integration. This project synthesizes all Phase 2 skills into a complete application.",
+  "short_description": "Build a Learning Journal API with FastAPI, PostgreSQL, and AI-powered entry analysis using LLMs.",
+  "order": 7,
+  "estimated_time": "5-7 days",
+  "is_capstone": true,
+  "learning_steps": [
+    {
+      "order": 1,
+      "text": "Project Overview",
+      "action": "Project Overview:",
+      "url": null,
+      "description": "You'll build a Learning Journal API that allows users to create journal entries about their learning, stores them in a database, and uses an LLM to analyze entries for sentiment, extract topics, and generate summaries."
+    },
+    {
+      "order": 2,
+      "text": "Set Up Dev Containers",
+      "action": "Set Up:",
+      "title": "Dev Containers Tutorial",
+      "url": "https://code.visualstudio.com/docs/devcontainers/tutorial",
+      "description": "Before starting, learn about Dev Containers—a VS Code feature that creates consistent development environments using Docker. This ensures your project works the same way everywhere."
+    },
+    {
+      "order": 3,
+      "text": "Fork the Starter Repository",
+      "action": "Fork:",
+      "title": "Journal Starter Repository",
+      "url": "https://github.com/learntocloud/journal-starter",
+      "description": "Start with this template repository that includes the Dev Container configuration, basic project structure, and dependency files. Fork it to your own GitHub account."
+    },
+    {
+      "order": 4,
+      "text": "Open in Codespaces or VS Code",
+      "action": "Open in Codespaces or VS Code:",
+      "url": null,
+      "description": "Option 1: Click 'Code' → 'Open with Codespaces' on GitHub (free tier available)\nOption 2: Clone locally and open in VS Code with the Dev Containers extension\n\nThe Dev Container will automatically install Python, dependencies, and configure your environment."
+    },
+    {
+      "order": 5,
+      "text": "Build the Core API",
+      "action": "Build the Core API:",
+      "url": null,
+      "description": "Implement these FastAPI endpoints:",
+      "code": "# Your API should have these routes:\n\nPOST /entries           # Create a new journal entry\nGET  /entries           # List all entries (with pagination)\nGET  /entries/{id}      # Get a specific entry\nPUT  /entries/{id}      # Update an entry\nDELETE /entries/{id}    # Delete an entry\n\nPOST /entries/{id}/analyze  # Analyze entry with LLM"
+    },
+    {
+      "order": 6,
+      "text": "Database Schema",
+      "action": "Database Schema:",
+      "url": null,
+      "description": "Create a schema for storing journal entries:",
+      "code": "# Journal Entry should include:\n- id: unique identifier (UUID or auto-increment)\n- content: the journal text (required)\n- created_at: timestamp\n- updated_at: timestamp\n- sentiment: string (populated by LLM analysis)\n- topics: list/array of strings (populated by LLM)\n- summary: string (populated by LLM)"
+    },
+    {
+      "order": 7,
+      "text": "Implement LLM Analysis",
+      "action": "Implement LLM Analysis:",
+      "url": null,
+      "description": "Create an analysis function that sends journal entries to an LLM and stores the results:",
+      "code": "# Your analyze endpoint should:\n1. Retrieve the journal entry from the database\n2. Send it to the LLM with a well-crafted prompt\n3. Parse the structured JSON response\n4. Update the entry with sentiment, topics, summary\n5. Return the analyzed entry"
+    },
+    {
+      "order": 8,
+      "text": "LLM Provider Setup",
+      "action": "LLM Provider Setup:",
+      "url": null,
+      "description": "Configure your preferred LLM provider. Store credentials in environment variables, never in code.",
+      "secondary_links": [
+        { "text": "GitHub Models (Free)", "url": "https://docs.github.com/en/github-models" },
+        { "text": "Azure OpenAI", "url": "https://azure.microsoft.com/en-us/products/ai-services/openai-service" },
+        { "text": "AWS Bedrock", "url": "https://aws.amazon.com/bedrock/" }
+      ]
+    },
+    {
+      "order": 9,
+      "text": "Add Error Handling",
+      "action": "Add Error Handling:",
+      "url": null,
+      "description": "Make your API robust with proper error handling:",
+      "code": "# Handle these scenarios:\n- Entry not found → 404 response\n- Invalid input → 422 with validation errors\n- LLM API failure → 503 with retry message\n- Database errors → 500 with safe error message\n\n# Use FastAPI's exception handlers:\nfrom fastapi import HTTPException\nraise HTTPException(status_code=404, detail=\"Entry not found\")"
+    },
+    {
+      "order": 10,
+      "text": "Test Your API",
+      "action": "Test Your API:",
+      "url": null,
+      "description": "Use FastAPI's built-in docs at /docs to test all endpoints. Create several journal entries, analyze them, and verify the LLM responses are stored correctly.",
+      "code": "# Test checklist:\n1. Create 3-5 test journal entries\n2. Verify entries are persisted in database\n3. Analyze each entry and check results\n4. Test error cases (invalid ID, empty content)\n5. Check pagination on list endpoint"
+    },
+    {
+      "order": 11,
+      "text": "Documentation",
+      "action": "Documentation:",
+      "url": null,
+      "description": "Update your README with:\n• Project description and features\n• How to run locally (with Dev Container)\n• API endpoint documentation\n• Environment variables needed\n• Example API calls with curl or HTTPie"
+    },
+    {
+      "order": 12,
+      "text": "Share Your Project",
+      "action": "Share Your Project:",
+      "url": null,
+      "description": "Push your completed project to GitHub! This becomes part of your portfolio. Consider sharing it on LinkedIn or the Learn to Cloud community Discord."
+    }
+  ],
+  "test_knowledge_prompts": [
+    "Can you review my FastAPI code and check if I'm following best practices?",
+    "Can you help me debug why my LLM analysis isn't returning structured JSON?",
+    "Can you explain how to set up environment variables for my API keys?",
+    "Can you quiz me on REST API design principles?",
+    "Can you help me write better error handling for my endpoints?",
+    "Can you explain the difference between sync and async database calls in FastAPI?",
+    "Can you review my prompt engineering for the journal analysis feature?"
+  ],
+  "checklist": [
+    { "id": "phase2-topic7-check1", "text": "Forked the journal-starter repository", "order": 1 },
+    { "id": "phase2-topic7-check2", "text": "Set up Dev Container environment", "order": 2 },
+    { "id": "phase2-topic7-check3", "text": "Implemented all CRUD endpoints for entries", "order": 3 },
+    { "id": "phase2-topic7-check4", "text": "Connected to database and created schema", "order": 4 },
+    { "id": "phase2-topic7-check5", "text": "Integrated LLM API for analysis", "order": 5 },
+    { "id": "phase2-topic7-check6", "text": "Added proper error handling", "order": 6 },
+    { "id": "phase2-topic7-check7", "text": "Tested all endpoints via /docs", "order": 7 },
+    { "id": "phase2-topic7-check8", "text": "Updated README documentation", "order": 8 },
+    { "id": "phase2-topic7-check9", "text": "Pushed completed project to GitHub", "order": 9 }
+  ]
+}

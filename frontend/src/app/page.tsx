@@ -1,14 +1,11 @@
 import Link from "next/link";
 import { SignInButton, SignUpButton } from "@clerk/nextjs";
 import { auth } from "@clerk/nextjs/server";
-import { getPhases } from "@/lib/api";
-
-// Disable static generation - fetch data at runtime
-export const dynamic = "force-dynamic";
+import { getAllPhases } from "@/lib/content";
 
 export default async function Home() {
   const { userId } = await auth();
-  const phases = await getPhases();
+  const phases = getAllPhases();
 
   return (
     <div className="min-h-screen">
@@ -99,10 +96,9 @@ export default async function Home() {
                       <p className="text-sm text-gray-500 dark:text-gray-400">{phase.estimated_weeks}</p>
                     </div>
                   </div>
-                  <p className="text-gray-600 dark:text-gray-300 text-sm line-clamp-2">{phase.description}</p>
+                  <p className="text-gray-600 dark:text-gray-300 text-sm">{phase.short_description}</p>
                   <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400 mt-4">
                     <span>📚 {phase.topics.length} topics</span>
-                    <span>✅ {phase.checklist.length} milestones</span>
                   </div>
                 </div>
               </Link>

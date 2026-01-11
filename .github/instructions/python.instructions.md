@@ -1,8 +1,37 @@
 ---
-applyTo: '**'
+applyTo: '**/*.py'
 ---
-- when you need to run the api, make sure you are in the api folder and use
-func host command
-- when you need to run the frontend, make sure you are in the frontend folder
-and use npm run dev
-- use uv virtual environment things
+
+## Running the API
+
+1. Navigate to the api directory first:
+   ```bash
+   cd /Users/gps/Developer/learn-to-cloud-app/api
+   ```
+
+2. Run the API using the venv python directly:
+   ```bash
+   .venv/bin/python -m uvicorn main:app --reload --port 8000
+   ```
+
+3. API will be available at:
+   - Health check: http://localhost:8000/api
+   - Swagger docs: http://localhost:8000/docs
+
+## Virtual Environment
+
+- Location: `api/.venv`
+- Managed with `uv`
+- To sync dependencies: `uv sync` (from api directory)
+- To add packages: `uv add <package>` (from api directory)
+
+## Common Issues
+
+- **Port already in use**: Kill existing process first:
+  ```bash
+  pkill -f "uvicorn main:app"
+  ```
+
+- **Module not found errors**: Ensure you're using the venv python (`.venv/bin/python`), not system python
+
+- **`uv run` not finding modules**: Use `.venv/bin/python -m uvicorn` instead of `uv run uvicorn`

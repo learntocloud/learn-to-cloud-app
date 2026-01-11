@@ -1,0 +1,119 @@
+{
+  "id": "phase1-topic1",
+  "slug": "version-control",
+  "name": "Version Control",
+  "description": "Here at L2C we use Git and GitHub for our version control. I need you to spend a few days getting up to speed with them.",
+  "order": 1,
+  "estimated_time": "3-5 days",
+  "is_capstone": false,
+  "learning_steps": [
+    {
+      "order": 1,
+      "text": "Study: Intro to Git",
+      "action": "Study:",
+      "title": "Intro to Git",
+      "url": "https://learn.microsoft.com/training/modules/intro-to-git/"
+    },
+    {
+      "order": 2,
+      "text": "Create a GitHub account",
+      "action": "Create a",
+      "title": "GitHub account",
+      "url": "https://docs.github.com/get-started/start-your-journey/creating-an-account-on-github"
+    },
+    {
+      "order": 3,
+      "text": "Star the Learn to Cloud Repository",
+      "action": "Star the",
+      "title": "Learn to Cloud Repository",
+      "url": "https://github.com/learntocloud/learn-to-cloud"
+    },
+    {
+      "order": 4,
+      "text": "Set up an AI learning assistant",
+      "action": "Set up an AI learning assistant",
+      "url": null,
+      "description": "Here at L2C we are big fans of GenAI abilities to help with learning. We leverage it a lot to dive deeper and clarify concepts. It's a good time for you to setup an account with any tool you'd like and start using it for your own learning. Try it out first with testing your knowledge on what version control is. Use this prompt as a template:",
+      "code": "I'm studying cloud engineering and recently learned about version control. I will provide you an explanation about it and please ask me any questions if my explanation is not clear. I want to make sure I really understand this concept so please do not correct me, simply ask questions until I get the explanation right. Here is my explanation: version control is..."
+    },
+    {
+      "order": 5,
+      "text": "Install VS Code - We use VS Code for all our programming",
+      "action": "Install",
+      "title": "VS Code",
+      "url": "https://code.visualstudio.com/",
+      "description": "We use VS Code for all our programming"
+    },
+    {
+      "order": 6,
+      "text": "Windows users only: Set up WSL",
+      "action": "Windows users only:",
+      "title": "Set up WSL",
+      "url": "https://learn.microsoft.com/windows/wsl/install",
+      "description": "All our labs and tools expect a Linux based environment, WSL will provide that. Then follow:",
+      "secondary_links": [
+        { "text": "Get started using Visual Studio Code with Windows Subsystem for Linux", "url": "https://learn.microsoft.com/en-us/windows/wsl/tutorials/wsl-vscode" }
+      ]
+    },
+    {
+      "order": 7,
+      "text": "Learn command line basics",
+      "action": "Learn command line basics:",
+      "title": "Command Line for Beginners – How to Use the Terminal Like a Pro",
+      "url": "https://www.freecodecamp.org/news/command-line-for-beginners/#heading-most-common-and-useful-commands-to-use"
+    },
+    {
+      "order": 8,
+      "text": "Create your workspace",
+      "action": "Create your workspace",
+      "url": null,
+      "description": "Using a Terminal, create a folder on your computer where you will store all your labs and projects. Name it `l2c`. Use the `mkdir` and `cd` commands for this.",
+      "code": "mkdir l2c && cd l2c"
+    },
+    {
+      "order": 9,
+      "text": "Clone the lab repository",
+      "action": "Clone the lab repository",
+      "url": null,
+      "description": "Inside your `l2c` folder, run:",
+      "code": "git clone https://github.com/learntocloud/linux-ctfs"
+    },
+    {
+      "order": 10,
+      "text": "Learn Markdown",
+      "action": "Learn Markdown:",
+      "title": "Communicate using markdown",
+      "url": "https://learn.microsoft.com/en-us/training/modules/communicate-using-markdown/"
+    },
+    {
+      "order": 11,
+      "text": "Create your GitHub profile README",
+      "action": "Create your GitHub profile README:",
+      "title": "Adding a profile README",
+      "url": "https://docs.github.com/en/account-and-profile/setting-up-and-managing-your-github-profile/customizing-your-profile/managing-your-profile-readme#adding-a-profile-readme"
+    },
+    {
+      "order": 12,
+      "text": "Practice Git workflow",
+      "action": "Practice Git workflow",
+      "url": null,
+      "description": "Clone your README repo to your local machine. Use VS Code to edit it and push changes back to GitHub from the terminal. Don't feel like you have to make a very fancy README—write a brief description on who you are and add links to your socials.",
+      "secondary_links": [
+        { "text": "Great guide on using markdown with VS Code", "url": "https://www.freecodecamp.org/news/how-to-use-markdown-in-vscode/" }
+      ]
+    }
+  ],
+  "checklist": [
+    { "id": "phase1-topic1-check1", "text": "I understand what version control is", "order": 1 },
+    { "id": "phase1-topic1-check2", "text": "I understand what markdown is", "order": 2 },
+    { "id": "phase1-topic1-check3", "text": "I know what a git repository is", "order": 3 },
+    { "id": "phase1-topic1-check4", "text": "I know how to clone a repository", "order": 4 },
+    { "id": "phase1-topic1-check5", "text": "Git is installed on my computer", "order": 5 },
+    { "id": "phase1-topic1-check6", "text": "VS Code is installed on my computer", "order": 6 },
+    { "id": "phase1-topic1-check7", "text": "WSL is set up (Windows users)", "order": 7 },
+    { "id": "phase1-topic1-check8", "text": "I created the l2c folder using mkdir", "order": 8 },
+    { "id": "phase1-topic1-check9", "text": "The lab repo is cloned locally", "order": 9 },
+    { "id": "phase1-topic1-check10", "text": "My README repo is cloned locally", "order": 10 },
+    { "id": "phase1-topic1-check11", "text": "I starred the Learn to Cloud repository", "order": 11 }
+  ]
+}

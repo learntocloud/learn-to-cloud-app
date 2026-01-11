@@ -1,0 +1,89 @@
+{
+  "id": "phase3-topic5",
+  "slug": "database-deployment",
+  "name": "Database Deployment & Configuration",
+  "description": "Learn to deploy and configure PostgreSQL databases in the cloud. This topic covers the fundamentals of relational database deployment, including architecture, installation, and secure remote access configuration.",
+  "order": 5,
+  "estimated_time": "2-3 days",
+  "is_capstone": false,
+  "learning_steps": [
+    {
+      "order": 1,
+      "text": "Learn PostgreSQL Basics",
+      "action": "Learn PostgreSQL Basics:",
+      "title": "Getting to Know PostgreSQL",
+      "url": "https://www.prisma.io/dataguide/postgresql/getting-to-know-postgresql",
+      "description": "Understand the architecture of PostgreSQL, including tables, schemas, and users."
+    },
+    {
+      "order": 2,
+      "text": "PostgreSQL Fundamentals",
+      "action": "Study:",
+      "title": "PostgreSQL Online Resources",
+      "url": "https://www.postgresql.org/docs/online-resources/",
+      "description": "Official PostgreSQL documentation and learning resources"
+    },
+    {
+      "order": 3,
+      "text": "Install PostgreSQL on a VM",
+      "action": "Install PostgreSQL on a VM:",
+      "url": null,
+      "description": "Learn how to install PostgreSQL on a virtual machine for your cloud provider:"
+    },
+    {
+      "order": 4,
+      "text": "AWS Installation",
+      "action": "AWS:",
+      "title": "Install PostgreSQL on AWS EC2",
+      "url": "https://www.youtube.com/watch?v=KQ4eIv6h7Sk",
+      "description": "Video guide for installing PostgreSQL on an EC2 instance"
+    },
+    {
+      "order": 5,
+      "text": "Azure Installation",
+      "action": "Azure:",
+      "title": "Install PostgreSQL on Azure VM",
+      "url": "https://www.youtube.com/watch?v=_f1gKlV60Iw",
+      "description": "Video guide for installing PostgreSQL on Azure Virtual Machine"
+    },
+    {
+      "order": 6,
+      "text": "GCP Installation",
+      "action": "GCP:",
+      "title": "Set Up PostgreSQL on GCP VM",
+      "url": "https://dev.to/vishalpaalakurthi/how-to-set-up-a-postgresql-server-on-a-virtual-machine-473f",
+      "description": "Step-by-step guide for PostgreSQL on Google Compute Engine"
+    },
+    {
+      "order": 7,
+      "text": "Access Control & Authentication",
+      "action": "Access Control & Authentication:",
+      "url": null,
+      "description": "Learn how to use pg_hba.conf to manage authentication and enforce secure database access. This file controls:\n\n• Which hosts can connect\n• Which database users can connect\n• Which databases they can access\n• What authentication method is required",
+      "code": "# Example pg_hba.conf entries:\n# TYPE  DATABASE        USER            ADDRESS                 METHOD\nlocal   all             postgres                                peer\nhost    all             all             10.0.0.0/8              md5\nhost    all             all             0.0.0.0/0               reject"
+    },
+    {
+      "order": 8,
+      "text": "Hands-on Task",
+      "action": "Hands-on Task:",
+      "url": null,
+      "description": "Deploy a PostgreSQL Database in a Private Subnet:\n\n1. Deploy a VM in a private subnet\n2. Install and configure PostgreSQL\n3. Configure pg_hba.conf for secure remote access\n4. Create database users with appropriate permissions\n5. Test connection from your API server (in public subnet)\n6. Verify the database is NOT accessible from the internet"
+    }
+  ],
+  "test_knowledge_prompts": [
+    "Can you explain the key components of PostgreSQL architecture?",
+    "Can you quiz me on how tables, schemas, and roles interact in PostgreSQL?",
+    "Can you ask me the steps to install and configure PostgreSQL on a Linux-based VM?",
+    "Can you explain how to securely configure PostgreSQL for remote access within a private subnet?",
+    "Can you quiz me on the purpose of pg_hba.conf and how it controls authentication?",
+    "Can you ask me how to create and manage PostgreSQL users and roles with appropriate permissions?"
+  ],
+  "checklist": [
+    { "id": "phase3-topic5-check1", "text": "Understood PostgreSQL basics and architecture", "order": 1 },
+    { "id": "phase3-topic5-check2", "text": "Learned how to install PostgreSQL on a VM", "order": 2 },
+    { "id": "phase3-topic5-check3", "text": "Understood access control with pg_hba.conf", "order": 3 },
+    { "id": "phase3-topic5-check4", "text": "Deployed PostgreSQL in a private subnet", "order": 4 },
+    { "id": "phase3-topic5-check5", "text": "Configured secure remote access to the database", "order": 5 },
+    { "id": "phase3-topic5-check6", "text": "Created database users with appropriate permissions", "order": 6 }
+  ]
+}

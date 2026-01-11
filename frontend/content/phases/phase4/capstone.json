@@ -1,0 +1,93 @@
+{
+  "id": "phase4-topic6",
+  "slug": "capstone",
+  "name": "DevOps Capstone Project",
+  "description": "Now that you've learned the fundamentals of DevOps, it's time to apply these practices to the Journal API app you built in Phase 2 and deployed in Phase 3. In this capstone, you'll containerize the app, automate its deployment, manage infrastructure as code, set up monitoring, and orchestrate containers with Kubernetes—demonstrating your end-to-end DevOps skills.",
+  "short_description": "Containerize your app with Docker, deploy to Kubernetes, automate with CI/CD, and monitor with Prometheus/Grafana.",
+  "order": 6,
+  "estimated_time": "1 week",
+  "is_capstone": true,
+  "learning_steps": [
+    {
+      "order": 1,
+      "text": "Step 1: Containerize the Application",
+      "action": "Step 1: Containerize the Application",
+      "url": null,
+      "description": "• Write a `Dockerfile` for your FastAPI app\n• Build and run the container locally to verify it works\n• Ensure LLM API credentials are passed via environment variables (not baked into image)\n• Push your image to a container registry (DockerHub, AWS ECR, Azure ACR, or GCP GCR)"
+    },
+    {
+      "order": 2,
+      "text": "Step 2: Infrastructure as Code",
+      "action": "Step 2: Infrastructure as Code",
+      "url": null,
+      "description": "• Use Terraform to define and provision:\n  - Compute resources (container services)\n  - Networking (VPC, subnets, security groups)\n  - Database (PostgreSQL, as in previous phases)\n• Store your IaC code in version control"
+    },
+    {
+      "order": 3,
+      "text": "Step 3: CI/CD Pipeline",
+      "action": "Step 3: CI/CD Pipeline",
+      "url": null,
+      "description": "• Set up a CI/CD pipeline (GitHub Actions, Azure DevOps, or Jenkins) to:\n  - Build and test your app on every commit\n  - Build and push your Docker image\n  - Deploy your app automatically to your cloud environment"
+    },
+    {
+      "order": 4,
+      "text": "Step 4: Container Orchestration",
+      "action": "Step 4: Container Orchestration with Kubernetes",
+      "url": null,
+      "description": "• Write Kubernetes manifests (Deployment, Service, ConfigMap/Secret)\n• Store your LLM API key in a Kubernetes Secret\n• Deploy to a local cluster (Minikube/Kind) or managed service (EKS, AKS, GKE)\n• Expose your FastAPI app using a Service (NodePort or LoadBalancer)\n• (Optional) Use Helm to package and deploy your app"
+    },
+    {
+      "order": 5,
+      "text": "Step 5: Monitoring & Observability",
+      "action": "Step 5: Monitoring & Observability",
+      "url": null,
+      "description": "• Deploy Prometheus and Grafana\n• Instrument your FastAPI app to expose metrics\n• Track LLM API calls: latency, error rate, token usage for /analyze endpoint\n• Configure Prometheus to scrape your app's metrics endpoint\n• Create a Grafana dashboard for key metrics"
+    },
+    {
+      "order": 6,
+      "text": "Step 6: Documentation",
+      "action": "Step 6: Documentation",
+      "url": null,
+      "description": "• Document your setup and deployment process in README.md\n• Include diagrams or screenshots of:\n  - CI/CD pipeline\n  - Kubernetes setup\n  - Monitoring dashboards"
+    },
+    {
+      "order": 7,
+      "text": "Project Structure",
+      "action": "Example Project Structure:",
+      "url": null,
+      "description": "Organize your project:",
+      "code": "/journal-app\n  /infra                # Terraform or IaC configs\n  /k8s                  # Kubernetes manifests\n  /app                  # FastAPI app code\n  Dockerfile\n  .github/workflows/    # CI/CD pipeline configs\n  README.md"
+    },
+    {
+      "order": 8,
+      "text": "Testing & Validation",
+      "action": "Testing & Validation:",
+      "url": null,
+      "description": "Verify your deployment:\n\n• Make a code change and push to your repo—verify the pipeline builds, tests, and deploys\n• Access your deployed app and confirm it works with the database\n• Visit Grafana and confirm you see live metrics from your app\n• Use `kubectl` to verify your app and database are running in the cluster"
+    },
+    {
+      "order": 9,
+      "text": "Next Steps",
+      "action": "Next Steps:",
+      "url": null,
+      "description": "Once you've completed this capstone, you'll have demonstrated practical DevOps skills by taking an app from code to production with automation, infrastructure as code, container orchestration, and monitoring. This gives you a strong portfolio project to showcase for job applications and discuss during interviews!"
+    }
+  ],
+  "test_knowledge_prompts": [
+    "Can you review my Dockerfile and suggest improvements?",
+    "Can you help me debug my CI/CD pipeline that's failing?",
+    "Can you review my Kubernetes manifests for best practices?",
+    "Can you help me set up Prometheus to scrape my FastAPI metrics?",
+    "Can you explain how to store secrets securely in Kubernetes?",
+    "Can you review my Terraform configuration for security issues?",
+    "Can you help me design a Grafana dashboard for my LLM API metrics?"
+  ],
+  "checklist": [
+    { "id": "phase4-topic6-check1", "text": "Dockerfile and containerization complete", "order": 1 },
+    { "id": "phase4-topic6-check2", "text": "Infrastructure as Code (Terraform) configured", "order": 2 },
+    { "id": "phase4-topic6-check3", "text": "CI/CD pipeline setup and working", "order": 3 },
+    { "id": "phase4-topic6-check4", "text": "Kubernetes manifests created and deployed", "order": 4 },
+    { "id": "phase4-topic6-check5", "text": "Monitoring and observability (Prometheus + Grafana) configured", "order": 5 },
+    { "id": "phase4-topic6-check6", "text": "Documentation complete", "order": 6 }
+  ]
+}

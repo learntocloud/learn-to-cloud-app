@@ -1,0 +1,49 @@
+{
+  "id": "phase1-topic5",
+  "slug": "cli-basics",
+  "name": "CLI Basics",
+  "description": "Before diving into the CTF challenges, make sure you're comfortable with basic command line operations.",
+  "order": 5,
+  "estimated_time": "1-2 days",
+  "is_capstone": false,
+  "learning_steps": [
+    {
+      "order": 1,
+      "text": "Learn the essential Linux commands",
+      "action": "Learn the essential Linux commands:",
+      "title": "Linux Commands Cheat Sheet",
+      "url": "https://www.guru99.com/linux-commands-cheat-sheet.html",
+      "description": "Familiarize yourself with common commands like ls, cd, pwd, cat, grep, find, and more."
+    },
+    {
+      "order": 2,
+      "text": "Practice navigation commands",
+      "action": "Practice navigation commands",
+      "url": null,
+      "description": "Open your terminal and practice these essential commands:",
+      "code": "# Print working directory\npwd\n\n# List files\nls -la\n\n# Change directory\ncd ~/l2c\n\n# Create a directory\nmkdir test-folder\n\n# Create a file\ntouch test-file.txt\n\n# View file contents\ncat test-file.txt"
+    },
+    {
+      "order": 3,
+      "text": "Learn about file permissions",
+      "action": "Learn about file permissions:",
+      "title": "Understanding Linux File Permissions",
+      "url": "https://www.guru99.com/file-permissions.html",
+      "description": "Understanding permissions (chmod, chown) is essential for Linux administration."
+    },
+    {
+      "order": 4,
+      "text": "Practice with pipes and redirects",
+      "action": "Practice with pipes and redirects",
+      "url": null,
+      "description": "Learn how to chain commands together:",
+      "code": "# Pipe output to another command\nls -la | grep \".txt\"\n\n# Redirect output to a file\necho \"Hello World\" > hello.txt\n\n# Append to a file\necho \"Another line\" >> hello.txt\n\n# View file contents\ncat hello.txt"
+    }
+  ],
+  "checklist": [
+    { "id": "phase1-topic5-check1", "text": "I can navigate the file system using cd, ls, and pwd", "order": 1 },
+    { "id": "phase1-topic5-check2", "text": "I can create and view files using touch, cat, and echo", "order": 2 },
+    { "id": "phase1-topic5-check3", "text": "I understand file permissions in Linux", "order": 3 },
+    { "id": "phase1-topic5-check4", "text": "I can use pipes and redirects", "order": 4 }
+  ]
+}

@@ -8,8 +8,15 @@ export default function SignUpPage() {
           elements: {
             rootBox: "mx-auto",
             card: "shadow-xl",
+            socialButtonsBlockButton: "flex items-center justify-center gap-2",
+            socialButtonsBlockButtonText: "font-medium",
+            footer: "hidden",
+            dividerRow: "hidden",
+            form: "hidden",
           },
         }}
+        routing="path"
+        path="/sign-up"
       />
     </div>
   );
