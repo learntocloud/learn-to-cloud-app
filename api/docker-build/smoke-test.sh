@@ -9,13 +9,27 @@ PORT=8080
 
 echo "🔥 Running smoke test for image: $IMAGE_NAME"
 
-# Start container in background
+# Start container in background with minimal config for smoke test
+# Uses SQLite in-memory database for testing (no external dependencies)
 echo "Starting container..."
-docker run -d --name "$CONTAINER_NAME" -p "$PORT:8000" "$IMAGE_NAME"
+docker run -d --name "$CONTAINER_NAME" -p "$PORT:8000" \
+    -e "CLERK_SECRET_KEY=sk_test_placeholder" \
+    -e "CLERK_PUBLISHABLE_KEY=pk_test_placeholder" \
+    -e "CLERK_WEBHOOK_SIGNING_SECRET=whsec_test_placeholder" \
+    "$IMAGE_NAME"
 
 # Wait for container to be healthy
 echo "Waiting for container to start..."
-sleep 5
+sleep 10
+
+# Check if container is still running
+if ! docker ps --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
+    echo "❌ Container crashed during startup"
+    echo "Container logs:"
+    docker logs "$CONTAINER_NAME" 2>&1 | tail -30
+    docker rm "$CONTAINER_NAME" > /dev/null 2>&1 || true
+    exit 1
+fi
 
 # Test health endpoint
 echo "Testing /health endpoint..."
