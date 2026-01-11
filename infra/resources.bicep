@@ -72,8 +72,8 @@ resource postgres 'Microsoft.DBforPostgreSQL/flexibleServers@2023-12-01-preview'
     administratorLogin: 'ltcadmin'
     administratorLoginPassword: postgresAdminPassword
     authConfig: {
-      activeDirectoryAuth: 'Disabled'
-      passwordAuth: 'Enabled'
+      activeDirectoryAuth: 'Enabled'
+      passwordAuth: 'Enabled'  // Keep password auth enabled for admin/migration tasks
     }
     storage: {
       storageSizeGB: 32
@@ -191,10 +191,6 @@ resource apiApp 'Microsoft.App/containerApps@2024-03-01' = {
           name: 'clerk-webhook-signing-secret'
           value: clerkWebhookSigningSecret
         }
-        {
-          name: 'postgres-password'
-          value: postgresAdminPassword
-        }
       ]
     }
     template: {
@@ -217,11 +213,7 @@ resource apiApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'POSTGRES_USER'
-              value: 'ltcadmin'
-            }
-            {
-              name: 'POSTGRES_PASSWORD'
-              secretRef: 'postgres-password'
+              value: apiAppName  // Use managed identity name for Entra auth
             }
             {
               name: 'CLERK_SECRET_KEY'
@@ -301,6 +293,17 @@ resource apiApp 'Microsoft.App/containerApps@2024-03-01' = {
         ]
       }
     }
+  }
+}
+
+// PostgreSQL Entra Admin - Grant API managed identity access to the database
+resource postgresEntraAdmin 'Microsoft.DBforPostgreSQL/flexibleServers/administrators@2023-12-01-preview' = {
+  parent: postgres
+  name: apiApp.identity.principalId
+  properties: {
+    principalType: 'ServicePrincipal'
+    principalName: apiAppName
+    tenantId: subscription().tenantId
   }
 }
 
