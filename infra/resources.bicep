@@ -10,15 +10,19 @@ param location string
 @description('Resource tags')
 param tags object
 
+@description('PostgreSQL administrator password')
 @secure()
 param postgresAdminPassword string
 
+@description('Clerk secret key for backend authentication')
 @secure()
 param clerkSecretKey string
 
+@description('Clerk webhook signing secret for verifying webhook payloads')
 @secure()
 param clerkWebhookSigningSecret string
 
+@description('Clerk publishable key for frontend authentication')
 param clerkPublishableKey string
 
 var uniqueSuffix = uniqueString(resourceGroup().id)
@@ -50,9 +54,6 @@ resource appInsights 'Microsoft.Insights/components@2020-02-02' = {
     Application_Type: 'web'
     WorkspaceResourceId: logAnalytics.id
   }
-  dependsOn: [
-    logAnalytics
-  ]
 }
 
 // PostgreSQL Flexible Server
@@ -129,10 +130,6 @@ resource containerAppsEnvironment 'Microsoft.App/managedEnvironments@2024-03-01'
       }
     }
   }
-  dependsOn: [
-    logAnalytics
-    appInsights
-  ]
 }
 
 // API Container App (FastAPI)
@@ -229,7 +226,7 @@ resource apiApp 'Microsoft.App/containerApps@2024-03-01' = {
         }
       ]
       scale: {
-        minReplicas: 0
+        minReplicas: 1
         maxReplicas: 10
         rules: [
           {
@@ -319,7 +316,7 @@ resource frontendApp 'Microsoft.App/containerApps@2024-03-01' = {
         }
       ]
       scale: {
-        minReplicas: 0
+        minReplicas: 1
         maxReplicas: 10
         rules: [
           {
