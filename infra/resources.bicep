@@ -241,7 +241,7 @@ resource apiApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'FRONTEND_URL'
-              value: 'https://ca-${appName}-frontend-${environment}.${containerAppsEnvironment.properties.defaultDomain}'
+              value: !empty(frontendCustomDomain) ? 'https://${frontendCustomDomain}' : 'https://ca-${appName}-frontend-${environment}.${containerAppsEnvironment.properties.defaultDomain}'
             }
             {
               name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
