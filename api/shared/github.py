@@ -8,6 +8,7 @@ import httpx
 
 from .models import SubmissionType
 from .schemas import GitHubRequirement
+from .telemetry import track_dependency
 
 logger = logging.getLogger(__name__)
 
@@ -147,6 +148,7 @@ def parse_github_url(url: str) -> ParsedGitHubUrl:
 
 # ============ GitHub API Validation ============
 
+@track_dependency("github_url_check", "HTTP")
 async def check_github_url_exists(url: str) -> tuple[bool, str]:
     """
     Check if a GitHub URL exists by making a HEAD request.
@@ -172,6 +174,7 @@ async def check_github_url_exists(url: str) -> tuple[bool, str]:
         return False, f"Request error: {str(e)}"
 
 
+@track_dependency("github_api_fork_check", "HTTP")
 async def check_repo_is_fork_of(username: str, repo_name: str, original_repo: str) -> tuple[bool, str]:
     """
     Check if a repository is a fork of the specified original repository.
@@ -352,6 +355,7 @@ async def validate_repo_fork(
     )
 
 
+@track_dependency("deployed_app_check", "HTTP")
 async def validate_deployed_app(
     app_url: str,
     expected_endpoint: str | None = None

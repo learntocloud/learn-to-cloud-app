@@ -8,6 +8,7 @@ Supports two authentication modes:
 - Azure: PostgreSQL with managed identity (passwordless) authentication
 """
 
+import logging
 from collections.abc import AsyncGenerator
 from typing import Annotated
 
@@ -22,6 +23,8 @@ from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.pool import NullPool
 
 from .config import get_settings
+
+logger = logging.getLogger(__name__)
 
 
 class Base(DeclarativeBase):
@@ -110,6 +113,14 @@ def get_engine() -> AsyncEngine:
                 "pool_pre_ping": True,    # Verify connections before use
             }),
         )
+        
+        # Instrument SQLAlchemy for query performance tracking
+        try:
+            from .telemetry import instrument_sqlalchemy_engine
+            instrument_sqlalchemy_engine(_engine)
+        except Exception as e:
+            logger.warning(f"Failed to instrument SQLAlchemy for telemetry: {e}")
+            
     return _engine
 
 

@@ -14,7 +14,19 @@
       "title": "What is a Cloud Engineer",
       "url": "https://youtu.be/7i1WMGxyt4Q",
       "description": "Discover what cloud engineers do, what skills they need, and the path to becoming one."
+    },
+    {
+      "order": 2,
+      "text": "Reflect: Is this for me?",
+      "action": "Reflect:",
+      "url": null,
+      "description": "Cloud engineering requires continuous learning and problem-solving. Consider: Do you enjoy figuring out how things work? Are you comfortable with change? Can you commit to learning new technologies regularly?"
     }
+  ],
+  "test_knowledge_prompts": [
+    "Can you ask me what a cloud engineer does day-to-day?",
+    "Can you quiz me on the skills needed to become a cloud engineer?",
+    "Can you ask me why I want to become a cloud engineer?"
   ],
   "checklist": [
     { "id": "phase0-topic6-check1", "text": "I understand what a cloud engineer does", "order": 1 },

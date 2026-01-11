@@ -14,10 +14,24 @@
       "title": "What is DevOps",
       "url": "https://youtu.be/9pZ2xmsSDdo/",
       "description": "Understand how DevOps combines development and operations practices to improve software delivery and reliability."
+    },
+    {
+      "order": 2,
+      "text": "Read: DevOps Culture",
+      "action": "Read:",
+      "title": "What is DevOps?",
+      "url": "https://www.atlassian.com/devops",
+      "description": "Learn about the culture, practices, and tools that make up DevOps."
     }
+  ],
+  "test_knowledge_prompts": [
+    "Can you ask me what DevOps is and why it matters?",
+    "Can you quiz me on how DevOps relates to cloud engineering?",
+    "Can you ask me what CI/CD stands for at a high level?"
   ],
   "checklist": [
     { "id": "phase0-topic5-check1", "text": "I understand what DevOps is", "order": 1 },
-    { "id": "phase0-topic5-check2", "text": "I know how DevOps relates to cloud engineering", "order": 2 }
+    { "id": "phase0-topic5-check2", "text": "I know how DevOps relates to cloud engineering", "order": 2 },
+    { "id": "phase0-topic5-check3", "text": "I understand the basic idea of CI/CD", "order": 3 }
   ]
 }

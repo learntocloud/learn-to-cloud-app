@@ -44,6 +44,11 @@
       "url": "https://cloud.google.com/compute/docs/connect/standard-ssh"
     }
   ],
+  "test_knowledge_prompts": [
+    "Can you ask me what SSH is and what it's used for?",
+    "Can you quiz me on why SSH keys are more secure than passwords?",
+    "Can you ask me to explain how to SSH into a remote server?"
+  ],
   "checklist": [
     { "id": "phase1-topic4-check1", "text": "I understand what SSH is and why it's used", "order": 1 },
     { "id": "phase1-topic4-check2", "text": "I know how to SSH into a VM from my local terminal", "order": 2 },

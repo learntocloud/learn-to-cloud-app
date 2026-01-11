@@ -376,6 +376,10 @@ resource frontendApp 'Microsoft.App/containerApps@2024-03-01' = {
               name: 'NEXT_PUBLIC_CLERK_SIGN_UP_URL'
               value: '/sign-up'
             }
+            {
+              name: 'NEXT_PUBLIC_APPLICATIONINSIGHTS_CONNECTION_STRING'
+              value: appInsights.properties.ConnectionString
+            }
           ]
           // Health probes for frontend
           probes: [

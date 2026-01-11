@@ -2,20 +2,40 @@
 
 import asyncio
 import logging
+import os
 from contextlib import asynccontextmanager
+
+# Configure Azure Monitor OpenTelemetry (must be done before other imports use logging)
+# Only enable if connection string is provided (Azure environment)
+if os.getenv("APPLICATIONINSIGHTS_CONNECTION_STRING"):
+    from azure.monitor.opentelemetry import configure_azure_monitor
+
+    configure_azure_monitor(
+        enable_live_metrics=True,
+        instrumentation_options={
+            "azure_sdk": {"enabled": True},
+            "flask": {"enabled": False},
+            "django": {"enabled": False},
+            "fastapi": {"enabled": True},
+            "psycopg2": {"enabled": False},
+            "requests": {"enabled": True},
+            "urllib": {"enabled": True},
+            "urllib3": {"enabled": True},
+        },
+    )
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 
-from shared import get_settings, init_db, cleanup_old_webhooks
 from routes import (
-    health_router,
-    users_router,
     checklist_router,
     github_router,
+    health_router,
+    users_router,
     webhooks_router,
 )
+from shared import RequestTimingMiddleware, cleanup_old_webhooks, get_settings, init_db
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -70,6 +90,9 @@ def _build_cors_origins() -> list[str]:
 # GZip compression for responses > 500 bytes
 app.add_middleware(GZipMiddleware, minimum_size=500)
 
+# Request timing middleware (adds performance tracking and X-Request-Duration-Ms header)
+app.add_middleware(RequestTimingMiddleware)
+
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
@@ -77,6 +100,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["X-Request-Duration-Ms"],  # Expose timing header to frontend
 )
 
 # Include routers

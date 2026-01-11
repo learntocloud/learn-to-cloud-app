@@ -103,6 +103,11 @@
       ]
     }
   ],
+  "test_knowledge_prompts": [
+    "Can you ask me what version control is and why it's important?",
+    "Can you quiz me on the basic Git commands like clone, commit, push, and pull?",
+    "Can you ask me what a repository is and how Git tracks changes?"
+  ],
   "checklist": [
     { "id": "phase1-topic1-check1", "text": "I understand what version control is", "order": 1 },
     { "id": "phase1-topic1-check2", "text": "I understand what markdown is", "order": 2 },

@@ -55,6 +55,11 @@
       "code": "# AWS\naws configure\n\n# Azure\naz login\n\n# GCP\ngcloud auth login"
     }
   ],
+  "test_knowledge_prompts": [
+    "Can you ask me why cloud engineers use CLI instead of the web console?",
+    "Can you quiz me on how to authenticate with my cloud provider via CLI?",
+    "Can you ask me what advantages CLI has for automation and scripting?"
+  ],
   "checklist": [
     { "id": "phase1-topic2-check1", "text": "Cloud CLI is installed on my computer", "order": 1 },
     { "id": "phase1-topic2-check2", "text": "I can run version commands successfully", "order": 2 },

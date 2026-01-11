@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@clerk/nextjs": "^6.36.7",
+    "@microsoft/applicationinsights-web": "^3.3.0",
     "next": "16.1.1",
     "react": "19.2.3",
     "react-dom": "19.2.3"

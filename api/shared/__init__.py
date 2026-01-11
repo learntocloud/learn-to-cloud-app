@@ -20,6 +20,13 @@ from .github import (
     parse_github_url, validate_submission, ValidationResult,
     GITHUB_REQUIREMENTS
 )
+from .telemetry import (
+    track_dependency,
+    track_operation,
+    add_custom_attribute,
+    log_metric,
+    RequestTimingMiddleware,
+)
 
 __all__ = [
     # Config
@@ -64,4 +71,10 @@ __all__ = [
     "validate_submission",
     "ValidationResult",
     "GITHUB_REQUIREMENTS",
+    # Telemetry
+    "track_dependency",
+    "track_operation",
+    "add_custom_attribute",
+    "log_metric",
+    "RequestTimingMiddleware",
 ]

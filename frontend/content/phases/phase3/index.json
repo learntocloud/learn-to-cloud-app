@@ -30,5 +30,31 @@
     "Completed Phase 2: Programming & AI Integration",
     "Git and version control fundamentals",
     "A cloud platform account (AWS, Azure, or GCP)"
+  ],
+  "certifications": [
+    {
+      "provider": "AWS",
+      "title": "AWS Certified Cloud Practitioner",
+      "url": "https://aws.amazon.com/certification/certified-cloud-practitioner/",
+      "description": "Entry-level certification covering AWS fundamentals",
+      "is_necessary": false,
+      "recommendation": "Good for validating foundational AWS knowledge"
+    },
+    {
+      "provider": "Azure",
+      "title": "AZ-900: Azure Fundamentals",
+      "url": "https://learn.microsoft.com/en-us/certifications/azure-fundamentals/",
+      "description": "Entry-level certification covering Azure fundamentals",
+      "is_necessary": false,
+      "recommendation": "Great starting point for Azure learners"
+    },
+    {
+      "provider": "GCP",
+      "title": "Cloud Digital Leader",
+      "url": "https://cloud.google.com/learn/certification/cloud-digital-leader",
+      "description": "Entry-level certification covering GCP fundamentals",
+      "is_necessary": false,
+      "recommendation": "Good for validating foundational GCP knowledge"
+    }
   ]
 }

@@ -12,11 +12,11 @@
   ],
   "objectives": [
     "Set up your computer for all our labs",
-    "Learned the basics of version control",
-    "Gained familiarity with the cloud CLI",
-    "Understood the concept of Infrastructure as Code",
-    "Built and accessed the lab environment",
-    "Completed seven CTF challenges to test your Linux skills"
+    "Learn the basics of version control",
+    "Gain familiarity with the cloud CLI",
+    "Understand the concept of Infrastructure as Code",
+    "Build and access the lab environment",
+    "Complete the CTF challenges to test your Linux skills"
   ],
   "topics": ["version-control", "cloud-cli", "iac", "ssh", "cli-basics", "ctf-lab"]
 }

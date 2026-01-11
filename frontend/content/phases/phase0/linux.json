@@ -14,10 +14,32 @@
       "title": "What is Linux",
       "url": "https://youtu.be/PwugmcN1hf8",
       "description": "This video introduces Linux and explains why it's so important in the tech industry, especially for cloud computing."
+    },
+    {
+      "order": 2,
+      "text": "Read: Linux Overview",
+      "action": "Read:",
+      "title": "What is Linux?",
+      "url": "https://opensource.com/resources/linux",
+      "description": "A quick overview of Linux, its history, and why it powers most of the internet."
+    },
+    {
+      "order": 3,
+      "text": "Explore: Linux Distributions",
+      "action": "Explore:",
+      "title": "Popular Linux Distributions",
+      "url": "https://www.linux.com/what-is-linux/",
+      "description": "Learn about Ubuntu, CentOS, Debian, and other popular distributions used in cloud environments."
     }
+  ],
+  "test_knowledge_prompts": [
+    "Can you ask me what Linux is and why it's important for cloud computing?",
+    "Can you quiz me on the differences between Linux and Windows?",
+    "Can you ask me why most cloud servers run Linux?"
   ],
   "checklist": [
     { "id": "phase0-topic1-check1", "text": "I understand what Linux is", "order": 1 },
-    { "id": "phase0-topic1-check2", "text": "I know why Linux is popular in cloud environments", "order": 2 }
+    { "id": "phase0-topic1-check2", "text": "I know why Linux is popular in cloud environments", "order": 2 },
+    { "id": "phase0-topic1-check3", "text": "I'm aware of different Linux distributions", "order": 3 }
   ]
 }
