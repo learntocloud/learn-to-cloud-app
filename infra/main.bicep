@@ -24,6 +24,9 @@ param clerkWebhookSigningSecret string
 @description('Clerk Publishable Key')
 param clerkPublishableKey string
 
+@description('Custom domain for the frontend app (optional)')
+param frontendCustomDomain string = ''
+
 var resourceGroupName = 'rg-learntocloud-${environment}'
 var tags = {
   environment: environment
@@ -49,6 +52,7 @@ module resources 'resources.bicep' = {
     clerkSecretKey: clerkSecretKey
     clerkWebhookSigningSecret: clerkWebhookSigningSecret
     clerkPublishableKey: clerkPublishableKey
+    frontendCustomDomain: frontendCustomDomain
   }
 }
 

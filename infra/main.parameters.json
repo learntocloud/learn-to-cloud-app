@@ -19,6 +19,9 @@
     },
     "clerkPublishableKey": {
       "value": "${CLERK_PUBLISHABLE_KEY}"
+    },
+    "frontendCustomDomain": {
+      "value": "app.learntocloud.guide"
     }
   }
 }

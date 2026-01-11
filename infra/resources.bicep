@@ -25,6 +25,9 @@ param clerkWebhookSigningSecret string
 @description('Clerk publishable key for frontend authentication')
 param clerkPublishableKey string
 
+@description('Custom domain for the frontend app (optional)')
+param frontendCustomDomain string = ''
+
 var uniqueSuffix = uniqueString(resourceGroup().id)
 var appName = 'learntocloud'
 var apiAppName = 'ca-${appName}-api-${environment}'
@@ -132,6 +135,18 @@ resource containerAppsEnvironment 'Microsoft.App/managedEnvironments@2024-03-01'
         sharedKey: logAnalytics.listKeys().primarySharedKey
       }
     }
+  }
+}
+
+// Managed Certificate for custom domain (only created if custom domain is specified)
+resource managedCertificate 'Microsoft.App/managedEnvironments/managedCertificates@2024-03-01' = if (!empty(frontendCustomDomain)) {
+  parent: containerAppsEnvironment
+  name: '${frontendCustomDomain}-cert'
+  location: location
+  tags: tags
+  properties: {
+    subjectName: frontendCustomDomain
+    domainControlValidation: 'CNAME'
   }
 }
 
@@ -310,6 +325,13 @@ resource frontendApp 'Microsoft.App/containerApps@2024-03-01' = {
         targetPort: 3000
         transport: 'http'
         allowInsecure: false
+        customDomains: !empty(frontendCustomDomain) ? [
+          {
+            name: frontendCustomDomain
+            bindingType: 'SniEnabled'
+            certificateId: managedCertificate.id
+          }
+        ] : []
       }
       registries: [
         {
