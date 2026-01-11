@@ -223,17 +223,53 @@ resource apiApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: appInsights.properties.ConnectionString
             }
           ]
+          // Health probes - allow longer startup for cold starts
+          probes: [
+            {
+              type: 'Startup'
+              httpGet: {
+                path: '/api'
+                port: 8000
+              }
+              initialDelaySeconds: 5
+              periodSeconds: 10
+              failureThreshold: 30  // Allow up to 5 minutes for cold start
+              timeoutSeconds: 3
+            }
+            {
+              type: 'Liveness'
+              httpGet: {
+                path: '/api'
+                port: 8000
+              }
+              initialDelaySeconds: 0
+              periodSeconds: 30
+              failureThreshold: 3
+              timeoutSeconds: 5
+            }
+            {
+              type: 'Readiness'
+              httpGet: {
+                path: '/api'
+                port: 8000
+              }
+              initialDelaySeconds: 0
+              periodSeconds: 10
+              failureThreshold: 3
+              timeoutSeconds: 3
+            }
+          ]
         }
       ]
       scale: {
-        minReplicas: 1
+        minReplicas: 0  // Scale to zero when idle (cost savings)
         maxReplicas: 10
         rules: [
           {
             name: 'http-scaling'
             http: {
               metadata: {
-                concurrentRequests: '100'
+                concurrentRequests: '50'  // Scale up sooner for better latency
               }
             }
           }
@@ -313,17 +349,53 @@ resource frontendApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: '/sign-up'
             }
           ]
+          // Health probes for frontend
+          probes: [
+            {
+              type: 'Startup'
+              httpGet: {
+                path: '/'
+                port: 3000
+              }
+              initialDelaySeconds: 5
+              periodSeconds: 10
+              failureThreshold: 30  // Allow up to 5 minutes for Next.js cold start
+              timeoutSeconds: 3
+            }
+            {
+              type: 'Liveness'
+              httpGet: {
+                path: '/'
+                port: 3000
+              }
+              initialDelaySeconds: 0
+              periodSeconds: 30
+              failureThreshold: 3
+              timeoutSeconds: 5
+            }
+            {
+              type: 'Readiness'
+              httpGet: {
+                path: '/'
+                port: 3000
+              }
+              initialDelaySeconds: 0
+              periodSeconds: 10
+              failureThreshold: 3
+              timeoutSeconds: 3
+            }
+          ]
         }
       ]
       scale: {
-        minReplicas: 1
+        minReplicas: 0  // Scale to zero when idle (cost savings)
         maxReplicas: 10
         rules: [
           {
             name: 'http-scaling'
             http: {
               metadata: {
-                concurrentRequests: '100'
+                concurrentRequests: '50'  // Scale up sooner for better latency
               }
             }
           }

@@ -1,32 +1,34 @@
-# Build stage
-FROM python:3.11-slim AS builder
+# syntax=docker/dockerfile:1.14
+# Build stage - compile dependencies
+FROM python:3.13-slim AS builder
 
 WORKDIR /app
 
-# Install build dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    && rm -rf /var/lib/apt/lists/*
+# Install uv for fast dependency management
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
-# Copy requirements first for caching
-COPY requirements.txt .
+# Copy dependency files first for caching
+COPY pyproject.toml ./
 
-# Install dependencies
-RUN pip install --no-cache-dir --user -r requirements.txt
+# Install dependencies to virtual environment
+# Using --no-dev to exclude dev dependencies in production
+RUN uv venv /app/.venv && \
+    uv pip install --python /app/.venv/bin/python -r pyproject.toml
 
-# Production stage
-FROM python:3.11-slim
+# Production stage - minimal runtime
+FROM python:3.13-slim AS runtime
 
 WORKDIR /app
 
 # Create non-root user
 RUN useradd --create-home --shell /bin/bash appuser
 
-# Copy installed packages from builder
-COPY --from=builder /root/.local /home/appuser/.local
+# Copy virtual environment from builder
+COPY --from=builder /app/.venv /app/.venv
 
-# Make sure scripts in .local are usable
-ENV PATH=/home/appuser/.local/bin:$PATH
+# Activate virtual environment
+ENV PATH="/app/.venv/bin:$PATH"
+ENV VIRTUAL_ENV="/app/.venv"
 
 # Copy application code
 COPY --chown=appuser:appuser . .
@@ -39,7 +41,8 @@ EXPOSE 8000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/')"
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"
 
-# Run the application
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Run with multiple workers for better concurrency
+# Workers = 2-4 x CPU cores, but Container Apps typically has 0.5-2 vCPU
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]

@@ -1,0 +1,36 @@
+# Dependencies
+node_modules/
+.pnp/
+.pnp.js
+
+# Build outputs
+.next/
+out/
+build/
+dist/
+
+# Testing
+coverage/
+
+# Environment
+.env*
+!.env.example
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Docker
+Dockerfile*
+docker-compose*
+
+# Git
+.git/
+.gitignore
+
+# Misc
+*.md
+*.log
+npm-debug.log*

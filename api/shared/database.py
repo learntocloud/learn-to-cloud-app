@@ -35,14 +35,26 @@ def get_engine() -> AsyncEngine:
     Get or create the database engine (lazy initialization).
     
     This allows tests to override settings before the engine is created.
+    Uses connection pooling for PostgreSQL to improve performance.
     """
     global _engine
     if _engine is None:
         settings = get_settings()
+        is_sqlite = "sqlite" in settings.database_url
+        
         _engine = create_async_engine(
             settings.database_url,
             echo=settings.environment == "development",
-            poolclass=NullPool if "sqlite" in settings.database_url else None,
+            # SQLite doesn't support connection pooling
+            poolclass=NullPool if is_sqlite else None,
+            # Connection pool settings for PostgreSQL (asyncpg)
+            **({} if is_sqlite else {
+                "pool_size": 10,          # Base connections to keep open
+                "max_overflow": 20,       # Extra connections when busy
+                "pool_timeout": 30,       # Wait time for available connection
+                "pool_recycle": 1800,     # Recycle connections after 30 min
+                "pool_pre_ping": True,    # Verify connections before use
+            }),
         )
     return _engine
 
@@ -90,6 +102,34 @@ async def init_db() -> None:
     engine = get_engine()
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+
+async def cleanup_old_webhooks(days: int = 7) -> int:
+    """
+    Remove ProcessedWebhook entries older than the specified days.
+    
+    This prevents the table from growing indefinitely. Webhooks older
+    than 7 days are unlikely to be replayed, so they can be safely removed.
+    
+    Args:
+        days: Number of days to retain webhooks (default: 7)
+        
+    Returns:
+        Number of deleted entries
+    """
+    from datetime import datetime, timezone, timedelta
+    from sqlalchemy import delete
+    from .models import ProcessedWebhook
+    
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+    session_maker = get_session_maker()
+    
+    async with session_maker() as session:
+        result = await session.execute(
+            delete(ProcessedWebhook).where(ProcessedWebhook.processed_at < cutoff)
+        )
+        await session.commit()
+        return result.rowcount or 0
 
 
 def reset_db_state() -> None:

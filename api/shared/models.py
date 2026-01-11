@@ -37,6 +37,7 @@ class ChecklistProgress(Base):
     __table_args__ = (
         UniqueConstraint("user_id", "checklist_item_id", name="uq_user_checklist"),
         Index("ix_checklist_progress_user_phase", "user_id", "phase_id"),
+        Index("ix_checklist_progress_user_item", "user_id", "checklist_item_id"),
     )
     
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
