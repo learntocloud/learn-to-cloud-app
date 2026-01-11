@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.39.26.7824",
-      "templateHash": "8920932663980171608"
+      "templateHash": "9306393912126878297"
     }
   },
   "parameters": {
@@ -102,7 +102,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.39.26.7824",
-              "templateHash": "2818746442223181455"
+              "templateHash": "18186071727203544518"
             }
           },
           "parameters": {
@@ -153,8 +153,7 @@
             "uniqueSuffix": "[uniqueString(resourceGroup().id)]",
             "appName": "learntocloud",
             "apiAppName": "[format('ca-{0}-api-{1}', variables('appName'), parameters('environment'))]",
-            "frontendAppName": "[format('ca-{0}-frontend-{1}', variables('appName'), parameters('environment'))]",
-            "acrPullRoleId": "7f951dda-4ed3-4680-a7ca-43fe172d538d"
+            "frontendAppName": "[format('ca-{0}-frontend-{1}', variables('appName'), parameters('environment'))]"
           },
           "resources": [
             {
@@ -572,36 +571,6 @@
                 "[resourceId('Microsoft.App/containerApps', variables('apiAppName'))]",
                 "[resourceId('Microsoft.App/managedEnvironments', format('cae-{0}-{1}', variables('appName'), parameters('environment')))]",
                 "[resourceId('Microsoft.ContainerRegistry/registries', format('crltc{0}', variables('uniqueSuffix')))]"
-              ]
-            },
-            {
-              "type": "Microsoft.Authorization/roleAssignments",
-              "apiVersion": "2022-04-01",
-              "scope": "[format('Microsoft.ContainerRegistry/registries/{0}', format('crltc{0}', variables('uniqueSuffix')))]",
-              "name": "[guid(resourceId('Microsoft.ContainerRegistry/registries', format('crltc{0}', variables('uniqueSuffix'))), resourceId('Microsoft.App/containerApps', variables('apiAppName')), variables('acrPullRoleId'))]",
-              "properties": {
-                "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', variables('acrPullRoleId'))]",
-                "principalId": "[reference(resourceId('Microsoft.App/containerApps', variables('apiAppName')), '2024-03-01', 'full').identity.principalId]",
-                "principalType": "ServicePrincipal"
-              },
-              "dependsOn": [
-                "[resourceId('Microsoft.App/containerApps', variables('apiAppName'))]",
-                "[resourceId('Microsoft.ContainerRegistry/registries', format('crltc{0}', variables('uniqueSuffix')))]"
-              ]
-            },
-            {
-              "type": "Microsoft.Authorization/roleAssignments",
-              "apiVersion": "2022-04-01",
-              "scope": "[format('Microsoft.ContainerRegistry/registries/{0}', format('crltc{0}', variables('uniqueSuffix')))]",
-              "name": "[guid(resourceId('Microsoft.ContainerRegistry/registries', format('crltc{0}', variables('uniqueSuffix'))), resourceId('Microsoft.App/containerApps', variables('frontendAppName')), variables('acrPullRoleId'))]",
-              "properties": {
-                "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', variables('acrPullRoleId'))]",
-                "principalId": "[reference(resourceId('Microsoft.App/containerApps', variables('frontendAppName')), '2024-03-01', 'full').identity.principalId]",
-                "principalType": "ServicePrincipal"
-              },
-              "dependsOn": [
-                "[resourceId('Microsoft.ContainerRegistry/registries', format('crltc{0}', variables('uniqueSuffix')))]",
-                "[resourceId('Microsoft.App/containerApps', variables('frontendAppName'))]"
               ]
             }
           ],

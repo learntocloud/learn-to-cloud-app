@@ -30,9 +30,6 @@ var appName = 'learntocloud'
 var apiAppName = 'ca-${appName}-api-${environment}'
 var frontendAppName = 'ca-${appName}-frontend-${environment}'
 
-// AcrPull role definition ID
-var acrPullRoleId = '7f951dda-4ed3-4680-a7ca-43fe172d538d'
-
 // Log Analytics Workspace
 resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
   name: 'log-${appName}-${environment}'
@@ -424,28 +421,6 @@ resource frontendApp 'Microsoft.App/containerApps@2024-03-01' = {
   dependsOn: [
     apiApp
   ]
-}
-
-// Grant API Container App access to ACR
-resource apiAcrPull 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(containerRegistry.id, apiApp.id, acrPullRoleId)
-  scope: containerRegistry
-  properties: {
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', acrPullRoleId)
-    principalId: apiApp.identity.principalId
-    principalType: 'ServicePrincipal'
-  }
-}
-
-// Grant Frontend Container App access to ACR
-resource frontendAcrPull 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(containerRegistry.id, frontendApp.id, acrPullRoleId)
-  scope: containerRegistry
-  properties: {
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', acrPullRoleId)
-    principalId: frontendApp.identity.principalId
-    principalType: 'ServicePrincipal'
-  }
 }
 
 // Outputs
