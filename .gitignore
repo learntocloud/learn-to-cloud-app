@@ -1,0 +1,69 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+.python_packages/
+
+# uv
+uv.lock
+
+# Environment files
+.env
+.env.local
+.env*.local
+local.settings.json
+
+# Database
+*.db
+*.sqlite
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Node
+node_modules/
+.next/
+out/
+
+# Build outputs
+dist/
+build/
+*.egg-info/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+coverage/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Azure Functions
+bin/
+obj/
+
+# Misc
+*.pem
+frontend/public/.swa/
+*.zip
+
+# SWA Oryx build artifacts
+*-swa-oryx/
+*-api.zip
+*-app.zip

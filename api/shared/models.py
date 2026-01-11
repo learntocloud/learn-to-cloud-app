@@ -1,0 +1,64 @@
+"""SQLAlchemy models for Learn to Cloud progress tracking."""
+
+from datetime import datetime, timezone
+from enum import Enum as PyEnum
+from sqlalchemy import String, Integer, Boolean, DateTime, Text, ForeignKey, UniqueConstraint
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from .database import Base
+
+
+def utcnow() -> datetime:
+    """Return current UTC time (timezone-aware)."""
+    return datetime.now(timezone.utc)
+
+
+class CompletionStatus(str, PyEnum):
+    """Status of phase completion."""
+    NOT_STARTED = "not_started"
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
+
+
+class User(Base):
+    """User model - synced from Clerk via webhooks."""
+    __tablename__ = "users"
+    
+    id: Mapped[str] = mapped_column(String(255), primary_key=True)  # Clerk user ID
+    email: Mapped[str] = mapped_column(String(255), nullable=False)
+    first_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    last_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    avatar_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+    
+    # Relationships
+    checklist_progress: Mapped[list["ChecklistProgress"]] = relationship(back_populates="user", cascade="all, delete-orphan")
+
+
+class ChecklistProgress(Base):
+    """Tracks user progress on checklist items (both phase and topic level)."""
+    __tablename__ = "checklist_progress"
+    __table_args__ = (
+        UniqueConstraint("user_id", "checklist_item_id", name="uq_user_checklist"),
+    )
+    
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[str] = mapped_column(String(255), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    checklist_item_id: Mapped[str] = mapped_column(String(100), nullable=False)  # e.g., "phase0-check1" or "phase1-topic1-check1"
+    phase_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    is_completed: Mapped[bool] = mapped_column(Boolean, default=False)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    
+    # Relationships
+    user: Mapped["User"] = relationship(back_populates="checklist_progress")
+
+
+class ProcessedWebhook(Base):
+    """Tracks processed webhooks for idempotency."""
+    __tablename__ = "processed_webhooks"
+    
+    id: Mapped[str] = mapped_column(String(255), primary_key=True)  # svix-id
+    event_type: Mapped[str] = mapped_column(String(100), nullable=False)
+    processed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)

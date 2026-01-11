@@ -1,0 +1,27 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Azure/azure-dev/main/schemas/v1.0/azure.yaml.json
+name: learn-to-cloud-app
+metadata:
+  template: learn-to-cloud-app
+
+services:
+  api:
+    project: ./api
+    language: python
+    host: containerapp
+    docker:
+      path: ./Dockerfile
+
+  frontend:
+    project: ./frontend
+    language: js
+    host: containerapp
+    docker:
+      path: ./Dockerfile
+      buildArgs:
+        - "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${CLERK_PUBLISHABLE_KEY}"
+        - "NEXT_PUBLIC_API_URL=${apiUrl}"
+
+infra:
+  provider: bicep
+  path: ./infra
+  module: main
