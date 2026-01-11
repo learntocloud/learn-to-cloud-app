@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useAuth } from "@clerk/nextjs";
 import type { GitHubRequirement, GitHubSubmission, GitHubValidationResult } from "@/lib/types";
 
 interface GitHubSubmissionFormProps {
@@ -18,6 +19,7 @@ export function GitHubSubmissionForm({
   githubUsername,
   onSubmissionSuccess,
 }: GitHubSubmissionFormProps) {
+  const { getToken } = useAuth();
   const [urls, setUrls] = useState<Record<string, string>>(() => {
     // Pre-fill with existing submissions
     const initial: Record<string, string> = {};
@@ -27,7 +29,7 @@ export function GitHubSubmissionForm({
     return initial;
   });
   const [loading, setLoading] = useState<Record<string, boolean>>({});
-  const [results, setResults] = useState<Record<string, GitHubValidationResult>>({});
+  const [results, setResults] = useState<Record<string, GitHubValidationResult | null>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const getSubmissionForRequirement = (requirementId: string): GitHubSubmission | undefined => {
@@ -43,15 +45,16 @@ export function GitHubSubmissionForm({
 
     setLoading((prev) => ({ ...prev, [requirementId]: true }));
     setErrors((prev) => ({ ...prev, [requirementId]: "" }));
-    setResults((prev) => ({ ...prev, [requirementId]: undefined as unknown as GitHubValidationResult }));
+    setResults((prev) => ({ ...prev, [requirementId]: null }));
 
     try {
+      const token = await getToken();
       const res = await fetch(`${API_URL}/api/github/submit`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        credentials: "include",
         body: JSON.stringify({
           requirement_id: requirementId,
           submitted_url: url,
@@ -110,9 +113,6 @@ export function GitHubSubmissionForm({
 
   // Check if this phase has any deployed app requirements
   const hasDeployedAppReqs = requirements.some((r) => r.submission_type === "deployed_app");
-  const hasGitHubReqs = requirements.some(
-    (r) => r.submission_type === "profile_readme" || r.submission_type === "repo_fork"
-  );
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
@@ -120,12 +120,12 @@ export function GitHubSubmissionForm({
         🔗 Hands-On Verification
       </h3>
       <p className="text-sm text-gray-600 dark:text-gray-300 mb-6">
-        {hasDeployedAppReqs && !hasGitHubReqs
+        {hasDeployedAppReqs && !hasGitHubRequirements
           ? "Submit the URL of your deployed application to verify you've completed the hands-on work."
-          : hasDeployedAppReqs && hasGitHubReqs
+          : hasDeployedAppReqs && hasGitHubRequirements
           ? "Submit links to your GitHub repositories or deployed applications to verify you've completed the hands-on work."
           : "Submit links to your GitHub repositories to verify you've completed the hands-on work."}
-        {githubUsername && hasGitHubReqs && (
+        {githubUsername && hasGitHubRequirements && (
           <>
             {" "}Your GitHub username: <span className="font-mono text-blue-600 dark:text-blue-400">@{githubUsername}</span>
           </>

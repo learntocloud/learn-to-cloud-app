@@ -50,6 +50,9 @@ resource appInsights 'Microsoft.Insights/components@2020-02-02' = {
     Application_Type: 'web'
     WorkspaceResourceId: logAnalytics.id
   }
+  dependsOn: [
+    logAnalytics
+  ]
 }
 
 // PostgreSQL Flexible Server
@@ -126,6 +129,10 @@ resource containerAppsEnvironment 'Microsoft.App/managedEnvironments@2024-03-01'
       }
     }
   }
+  dependsOn: [
+    logAnalytics
+    appInsights
+  ]
 }
 
 // API Container App (FastAPI)
@@ -201,6 +208,10 @@ resource apiApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'CLERK_WEBHOOK_SIGNING_SECRET'
               secretRef: 'clerk-webhook-signing-secret'
+            }
+            {
+              name: 'CLERK_PUBLISHABLE_KEY'
+              value: clerkPublishableKey
             }
             {
               name: 'ENVIRONMENT'
@@ -295,6 +306,14 @@ resource frontendApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'PORT'
               value: '3000'
+            }
+            {
+              name: 'NEXT_PUBLIC_CLERK_SIGN_IN_URL'
+              value: '/sign-in'
+            }
+            {
+              name: 'NEXT_PUBLIC_CLERK_SIGN_UP_URL'
+              value: '/sign-up'
             }
           ]
         }

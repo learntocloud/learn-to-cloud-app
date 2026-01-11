@@ -5,18 +5,20 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 
 import httpx
-from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from shared import (
-    get_settings, async_session, init_db,
+    get_settings, init_db, DbSession, UserId,
     User, ChecklistProgress, ProcessedWebhook, GitHubSubmission,
-    get_user_id_from_request,
     UserResponse, ProgressItem, UserProgressResponse,
     GitHubSubmissionRequest, GitHubSubmissionResponse,
     GitHubValidationResult, PhaseGitHubRequirementsResponse,
-    get_requirements_for_phase, get_requirement_by_id, validate_submission
+    HealthResponse, ChecklistToggleResponse, WebhookResponse,
+    get_requirements_for_phase, get_requirement_by_id, validate_submission,
+    parse_github_url,
 )
 from svix.webhooks import Webhook, WebhookVerificationError
 
@@ -105,7 +107,7 @@ async def fetch_github_username_from_clerk(user_id: str) -> str | None:
         return None
 
 
-async def get_or_create_user(db, user_id: str) -> User:
+async def get_or_create_user(db: AsyncSession, user_id: str) -> User:
     """Get user from DB or create placeholder (will be synced via webhook)."""
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
@@ -128,111 +130,89 @@ async def get_or_create_user(db, user_id: str) -> User:
     return user
 
 
-async def require_auth(request: Request) -> str:
-    """Require authentication and return user ID."""
-    user_id = get_user_id_from_request(request)
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Unauthorized")
-    return user_id
-
-
 # ============ Health Check ============
 
-@app.get("/")
-@app.get("/api")
-async def health():
+@app.get("/", response_model=HealthResponse)
+@app.get("/api", response_model=HealthResponse)
+async def health() -> HealthResponse:
     """Health check endpoint."""
-    return {"status": "healthy", "service": "learn-to-cloud-api"}
+    return HealthResponse(status="healthy", service="learn-to-cloud-api")
 
 
 # ============ Authenticated Routes ============
 
-@app.get("/api/user/me")
-async def get_current_user(user_id: str = Depends(require_auth)):
+@app.get("/api/user/me", response_model=UserResponse)
+async def get_current_user(user_id: UserId, db: DbSession) -> UserResponse:
     """Get current user info."""
-    async with async_session() as db:
-        user = await get_or_create_user(db, user_id)
-        return UserResponse(
-            id=user.id,
-            email=user.email,
-            first_name=user.first_name,
-            last_name=user.last_name,
-            avatar_url=user.avatar_url,
-            github_username=user.github_username,
-            created_at=user.created_at
-        ).model_dump()
+    user = await get_or_create_user(db, user_id)
+    return UserResponse.model_validate(user)
 
 
-@app.get("/api/user/progress")
-async def get_user_progress(user_id: str = Depends(require_auth)):
+@app.get("/api/user/progress", response_model=UserProgressResponse)
+async def get_user_progress(user_id: UserId, db: DbSession) -> UserProgressResponse:
     """Get all user progress items."""
-    async with async_session() as db:
-        await get_or_create_user(db, user_id)
-        
-        result = await db.execute(
-            select(ChecklistProgress).where(ChecklistProgress.user_id == user_id)
-        )
-        progress_items = result.scalars().all()
-        
-        items = [
+    await get_or_create_user(db, user_id)
+    
+    result = await db.execute(
+        select(ChecklistProgress).where(ChecklistProgress.user_id == user_id)
+    )
+    progress_items = result.scalars().all()
+    
+    return UserProgressResponse(
+        user_id=user_id,
+        items=[
             ProgressItem(
                 checklist_item_id=p.checklist_item_id,
                 is_completed=p.is_completed,
-                completed_at=p.completed_at
+                completed_at=p.completed_at,
             )
             for p in progress_items
-        ]
-        
-        return UserProgressResponse(
-            user_id=user_id,
-            items=items
-        ).model_dump()
+        ],
+    )
 
 
-@app.post("/api/checklist/{item_id}/toggle")
-async def toggle_checklist_item(item_id: str, user_id: str = Depends(require_auth)):
+@app.post("/api/checklist/{item_id}/toggle", response_model=ChecklistToggleResponse)
+async def toggle_checklist_item(item_id: str, user_id: UserId, db: DbSession) -> ChecklistToggleResponse:
     """Toggle a checklist item completion status."""
     try:
         phase_id = int(item_id.split("-")[0].replace("phase", ""))
     except (ValueError, IndexError):
         raise HTTPException(status_code=400, detail="Invalid checklist item ID format")
     
-    async with async_session() as db:
-        await get_or_create_user(db, user_id)
-        
-        result = await db.execute(
-            select(ChecklistProgress).where(
-                ChecklistProgress.user_id == user_id,
-                ChecklistProgress.checklist_item_id == item_id
-            )
+    await get_or_create_user(db, user_id)
+    
+    result = await db.execute(
+        select(ChecklistProgress).where(
+            ChecklistProgress.user_id == user_id,
+            ChecklistProgress.checklist_item_id == item_id
         )
-        progress = result.scalar_one_or_none()
-        
-        now = datetime.now(timezone.utc)
-        
-        if not progress:
-            progress = ChecklistProgress(
-                user_id=user_id,
-                checklist_item_id=item_id,
-                phase_id=phase_id,
-                is_completed=True,
-                completed_at=now
-            )
-            db.add(progress)
-            is_completed = True
-        else:
-            progress.is_completed = not progress.is_completed
-            progress.completed_at = now if progress.is_completed else None
-            is_completed = progress.is_completed
-        
-        await db.commit()
-        return {"success": True, "item_id": item_id, "is_completed": is_completed}
+    )
+    progress = result.scalar_one_or_none()
+    
+    now = datetime.now(timezone.utc)
+    
+    if not progress:
+        progress = ChecklistProgress(
+            user_id=user_id,
+            checklist_item_id=item_id,
+            phase_id=phase_id,
+            is_completed=True,
+            completed_at=now
+        )
+        db.add(progress)
+        is_completed = True
+    else:
+        progress.is_completed = not progress.is_completed
+        progress.completed_at = now if progress.is_completed else None
+        is_completed = progress.is_completed
+    
+    return ChecklistToggleResponse(success=True, item_id=item_id, is_completed=is_completed)
 
 
 # ============ GitHub Submission Routes ============
 
-@app.get("/api/github/requirements/{phase_id}")
-async def get_phase_github_requirements(phase_id: int, user_id: str = Depends(require_auth)):
+@app.get("/api/github/requirements/{phase_id}", response_model=PhaseGitHubRequirementsResponse)
+async def get_phase_github_requirements(phase_id: int, user_id: UserId, db: DbSession) -> PhaseGitHubRequirementsResponse:
     """Get GitHub requirements and user's submissions for a phase."""
     requirements = get_requirements_for_phase(phase_id)
     
@@ -241,166 +221,131 @@ async def get_phase_github_requirements(phase_id: int, user_id: str = Depends(re
             phase_id=phase_id,
             requirements=[],
             submissions=[],
-            all_validated=True  # No requirements means nothing to validate
-        ).model_dump()
-    
-    async with async_session() as db:
-        # Get user's existing submissions for this phase
-        result = await db.execute(
-            select(GitHubSubmission).where(
-                GitHubSubmission.user_id == user_id,
-                GitHubSubmission.phase_id == phase_id
-            )
+            all_validated=True,  # No requirements means nothing to validate
         )
-        submissions = result.scalars().all()
-        
-        submission_responses = [
-            GitHubSubmissionResponse(
-                id=s.id,
-                requirement_id=s.requirement_id,
-                submission_type=s.submission_type,
-                phase_id=s.phase_id,
-                submitted_url=s.submitted_url,
-                github_username=s.github_username,
-                is_validated=s.is_validated,
-                validated_at=s.validated_at,
-                created_at=s.created_at
-            )
-            for s in submissions
-        ]
-        
-        # Check if all requirements are validated
-        validated_requirement_ids = {s.requirement_id for s in submissions if s.is_validated}
-        required_ids = {r.id for r in requirements}
-        all_validated = required_ids.issubset(validated_requirement_ids)
-        
-        return PhaseGitHubRequirementsResponse(
-            phase_id=phase_id,
-            requirements=requirements,
-            submissions=submission_responses,
-            all_validated=all_validated
-        ).model_dump()
+    
+    # Get user's existing submissions for this phase
+    result = await db.execute(
+        select(GitHubSubmission).where(
+            GitHubSubmission.user_id == user_id,
+            GitHubSubmission.phase_id == phase_id
+        )
+    )
+    submissions = result.scalars().all()
+    
+    submission_responses = [
+        GitHubSubmissionResponse.model_validate(s) for s in submissions
+    ]
+    
+    # Check if all requirements are validated
+    validated_requirement_ids = {s.requirement_id for s in submissions if s.is_validated}
+    required_ids = {r.id for r in requirements}
+    all_validated = required_ids.issubset(validated_requirement_ids)
+    
+    return PhaseGitHubRequirementsResponse(
+        phase_id=phase_id,
+        requirements=requirements,
+        submissions=submission_responses,
+        all_validated=all_validated,
+    )
 
 
-@app.post("/api/github/submit")
+@app.post("/api/github/submit", response_model=GitHubValidationResult)
 async def submit_github_validation(
     submission: GitHubSubmissionRequest,
-    user_id: str = Depends(require_auth)
-):
+    user_id: UserId,
+    db: DbSession,
+) -> GitHubValidationResult:
     """Submit a GitHub URL for validation."""
     # Get the requirement
     requirement = get_requirement_by_id(submission.requirement_id)
     if not requirement:
         raise HTTPException(status_code=404, detail="Requirement not found")
     
-    async with async_session() as db:
-        # Get user with github_username
-        user = await get_or_create_user(db, user_id)
-        
-        # For GitHub-based submissions, require GitHub username
-        if requirement.submission_type.value in ("profile_readme", "repo_fork"):
-            if not user.github_username:
-                raise HTTPException(
-                    status_code=400,
-                    detail="You need to link your GitHub account to submit. Please sign out and sign in with GitHub."
-                )
-        
-        # Validate the submission
-        validation_result = await validate_submission(
-            requirement=requirement,
+    # Get user with github_username
+    user = await get_or_create_user(db, user_id)
+    
+    # For GitHub-based submissions, require GitHub username
+    if requirement.submission_type.value in ("profile_readme", "repo_fork"):
+        if not user.github_username:
+            raise HTTPException(
+                status_code=400,
+                detail="You need to link your GitHub account to submit. Please sign out and sign in with GitHub."
+            )
+    
+    # Validate the submission
+    validation_result = await validate_submission(
+        requirement=requirement,
+        submitted_url=submission.submitted_url,
+        expected_username=user.github_username  # Can be None for deployed apps
+    )
+    
+    now = datetime.now(timezone.utc)
+    
+    # Check for existing submission
+    result = await db.execute(
+        select(GitHubSubmission).where(
+            GitHubSubmission.user_id == user_id,
+            GitHubSubmission.requirement_id == submission.requirement_id
+        )
+    )
+    existing = result.scalar_one_or_none()
+    
+    # Extract username from URL for storage (only for GitHub URLs)
+    parsed = parse_github_url(submission.submitted_url)
+    github_username = parsed.username if parsed.is_valid else None
+    
+    if existing:
+        # Update existing submission
+        existing.submitted_url = submission.submitted_url
+        existing.github_username = github_username
+        existing.is_validated = validation_result.is_valid
+        existing.validated_at = now if validation_result.is_valid else None
+        existing.updated_at = now
+        db_submission = existing
+    else:
+        # Create new submission
+        db_submission = GitHubSubmission(
+            user_id=user_id,
+            requirement_id=submission.requirement_id,
+            submission_type=requirement.submission_type.value,
+            phase_id=requirement.phase_id,
             submitted_url=submission.submitted_url,
-            expected_username=user.github_username  # Can be None for deployed apps
+            github_username=github_username,
+            is_validated=validation_result.is_valid,
+            validated_at=now if validation_result.is_valid else None
         )
-        
-        now = datetime.now(timezone.utc)
-        
-        # Check for existing submission
-        result = await db.execute(
-            select(GitHubSubmission).where(
-                GitHubSubmission.user_id == user_id,
-                GitHubSubmission.requirement_id == submission.requirement_id
-            )
-        )
-        existing = result.scalar_one_or_none()
-        
-        # Extract username from URL for storage (only for GitHub URLs)
-        from shared import parse_github_url
-        parsed = parse_github_url(submission.submitted_url)
-        github_username = parsed.username if parsed.is_valid else None
-        
-        if existing:
-            # Update existing submission
-            existing.submitted_url = submission.submitted_url
-            existing.github_username = github_username
-            existing.is_validated = validation_result.is_valid
-            existing.validated_at = now if validation_result.is_valid else None
-            existing.updated_at = now
-            db_submission = existing
-        else:
-            # Create new submission
-            db_submission = GitHubSubmission(
-                user_id=user_id,
-                requirement_id=submission.requirement_id,
-                submission_type=requirement.submission_type.value,
-                phase_id=requirement.phase_id,
-                submitted_url=submission.submitted_url,
-                github_username=github_username,
-                is_validated=validation_result.is_valid,
-                validated_at=now if validation_result.is_valid else None
-            )
-            db.add(db_submission)
-        
-        await db.commit()
-        await db.refresh(db_submission)
-        
-        return GitHubValidationResult(
-            is_valid=validation_result.is_valid,
-            message=validation_result.message,
-            username_match=validation_result.username_match,
-            repo_exists=validation_result.repo_exists,
-            submission=GitHubSubmissionResponse(
-                id=db_submission.id,
-                requirement_id=db_submission.requirement_id,
-                submission_type=db_submission.submission_type,
-                phase_id=db_submission.phase_id,
-                submitted_url=db_submission.submitted_url,
-                github_username=db_submission.github_username,
-                is_validated=db_submission.is_validated,
-                validated_at=db_submission.validated_at,
-                created_at=db_submission.created_at
-            )
-        ).model_dump()
+        db.add(db_submission)
+    
+    await db.flush()
+    await db.refresh(db_submission)
+    
+    return GitHubValidationResult(
+        is_valid=validation_result.is_valid,
+        message=validation_result.message,
+        username_match=validation_result.username_match,
+        repo_exists=validation_result.repo_exists,
+        submission=GitHubSubmissionResponse.model_validate(db_submission),
+    )
 
 
-@app.get("/api/github/submissions")
-async def get_user_github_submissions(user_id: str = Depends(require_auth)):
+@app.get("/api/github/submissions", response_model=list[GitHubSubmissionResponse])
+async def get_user_github_submissions(user_id: UserId, db: DbSession) -> list[GitHubSubmissionResponse]:
     """Get all GitHub submissions for the current user."""
-    async with async_session() as db:
-        result = await db.execute(
-            select(GitHubSubmission).where(GitHubSubmission.user_id == user_id)
-        )
-        submissions = result.scalars().all()
-        
-        return [
-            GitHubSubmissionResponse(
-                id=s.id,
-                requirement_id=s.requirement_id,
-                submission_type=s.submission_type,
-                phase_id=s.phase_id,
-                submitted_url=s.submitted_url,
-                github_username=s.github_username,
-                is_validated=s.is_validated,
-                validated_at=s.validated_at,
-                created_at=s.created_at
-            ).model_dump()
-            for s in submissions
-        ]
+    result = await db.execute(
+        select(GitHubSubmission).where(GitHubSubmission.user_id == user_id)
+    )
+    submissions = result.scalars().all()
+    
+    return [
+        GitHubSubmissionResponse.model_validate(s) for s in submissions
+    ]
 
 
 # ============ Webhook Routes ============
 
-@app.post("/api/webhooks/clerk")
-async def clerk_webhook(request: Request):
+@app.post("/api/webhooks/clerk", response_model=WebhookResponse)
+async def clerk_webhook(request: Request, db: DbSession) -> WebhookResponse:
     """Handle Clerk webhooks for user sync."""
     settings = get_settings()
     payload = await request.body()
@@ -413,12 +358,15 @@ async def clerk_webhook(request: Request):
     if not all(headers.values()):
         raise HTTPException(status_code=400, detail="Missing webhook headers")
     
+    # Type narrow: after the check above, all values are non-None
+    verified_headers = {k: v for k, v in headers.items() if v is not None}
+    
     if not settings.clerk_webhook_signing_secret:
         raise HTTPException(status_code=500, detail="Webhook signing secret not configured")
     
     try:
         wh = Webhook(settings.clerk_webhook_signing_secret)
-        event = wh.verify(payload, headers)
+        event = wh.verify(payload, verified_headers)
     except WebhookVerificationError as e:
         raise HTTPException(status_code=400, detail=f"Invalid webhook signature: {str(e)}")
     
@@ -426,25 +374,23 @@ async def clerk_webhook(request: Request):
     data = event.get("data", {})
     svix_id = headers["svix-id"]
     
-    async with async_session() as db:
-        result = await db.execute(
-            select(ProcessedWebhook).where(ProcessedWebhook.id == svix_id)
-        )
-        if result.scalar_one_or_none():
-            return {"status": "already_processed"}
-        
-        if event_type == "user.created":
-            await handle_user_created(db, data)
-        elif event_type == "user.updated":
-            await handle_user_updated(db, data)
-        elif event_type == "user.deleted":
-            await handle_user_deleted(db, data)
-        
-        processed = ProcessedWebhook(id=svix_id, event_type=event_type)
-        db.add(processed)
-        await db.commit()
+    result = await db.execute(
+        select(ProcessedWebhook).where(ProcessedWebhook.id == svix_id)
+    )
+    if result.scalar_one_or_none():
+        return WebhookResponse(status="already_processed")
     
-    return {"status": "processed", "event_type": event_type}
+    if event_type == "user.created":
+        await handle_user_created(db, data)
+    elif event_type == "user.updated":
+        await handle_user_updated(db, data)
+    elif event_type == "user.deleted":
+        await handle_user_deleted(db, data)
+    
+    processed = ProcessedWebhook(id=svix_id, event_type=event_type)
+    db.add(processed)
+    
+    return WebhookResponse(status="processed", event_type=event_type)
 
 
 def extract_github_username(data: dict) -> str | None:
@@ -456,17 +402,18 @@ def extract_github_username(data: dict) -> str | None:
     """
     external_accounts = data.get("external_accounts", [])
     
-    for account in external_accounts:
-        if account.get("provider") == "github" or account.get("provider") == "oauth_github":
-            # Try different possible field names
-            username = account.get("username") or account.get("provider_user_id")
-            if username:
-                return username
-    
-    return None
+    return next(
+        (
+            account.get("username") or account.get("provider_user_id")
+            for account in external_accounts
+            if account.get("provider") in ("github", "oauth_github")
+            and (account.get("username") or account.get("provider_user_id"))
+        ),
+        None,
+    )
 
 
-async def handle_user_created(db, data: dict):
+async def handle_user_created(db: AsyncSession, data: dict) -> None:
     """Handle user.created webhook event."""
     user_id = data.get("id")
     if not user_id:
@@ -503,7 +450,7 @@ async def handle_user_created(db, data: dict):
         db.add(user)
 
 
-async def handle_user_updated(db, data: dict):
+async def handle_user_updated(db: AsyncSession, data: dict) -> None:
     """Handle user.updated webhook event."""
     user_id = data.get("id")
     if not user_id:
@@ -533,7 +480,7 @@ async def handle_user_updated(db, data: dict):
     user.updated_at = datetime.now(timezone.utc)
 
 
-async def handle_user_deleted(db, data: dict):
+async def handle_user_deleted(db: AsyncSession, data: dict) -> None:
     """Handle user.deleted webhook event."""
     user_id = data.get("id")
     if not user_id:

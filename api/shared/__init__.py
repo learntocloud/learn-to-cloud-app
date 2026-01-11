@@ -1,13 +1,17 @@
-"""Shared modules for Azure Functions."""
+"""Shared modules for Learn to Cloud API."""
 
 from .config import get_settings, Settings
-from .database import get_db, init_db, Base, async_session
-from .models import User, ChecklistProgress, ProcessedWebhook, CompletionStatus, GitHubSubmission, SubmissionType
-from .auth import get_user_id_from_request
+from .database import (
+    init_db, Base, get_db, DbSession,
+    get_engine, get_session_maker, reset_db_state,
+)
+from .models import User, ChecklistProgress, ProcessedWebhook, GitHubSubmission, SubmissionType
+from .auth import get_user_id_from_request, require_auth, UserId
 from .schemas import (
     UserResponse, ProgressItem, UserProgressResponse,
     GitHubRequirement, GitHubSubmissionRequest, GitHubSubmissionResponse,
-    GitHubValidationResult, PhaseGitHubRequirementsResponse
+    GitHubValidationResult, PhaseGitHubRequirementsResponse,
+    HealthResponse, ChecklistToggleResponse, WebhookResponse,
 )
 from .github import (
     get_requirements_for_phase, get_requirement_by_id,
@@ -16,19 +20,28 @@ from .github import (
 )
 
 __all__ = [
+    # Config
     "get_settings",
     "Settings",
-    "get_db",
+    # Database
     "init_db",
     "Base",
-    "async_session",
+    "get_db",
+    "DbSession",
+    "get_engine",
+    "get_session_maker",
+    "reset_db_state",
+    # Models
     "User",
     "ChecklistProgress",
     "ProcessedWebhook",
-    "CompletionStatus",
     "GitHubSubmission",
     "SubmissionType",
+    # Auth
     "get_user_id_from_request",
+    "require_auth",
+    "UserId",
+    # Schemas
     "UserResponse",
     "ProgressItem",
     "UserProgressResponse",
@@ -37,6 +50,10 @@ __all__ = [
     "GitHubSubmissionResponse",
     "GitHubValidationResult",
     "PhaseGitHubRequirementsResponse",
+    "HealthResponse",
+    "ChecklistToggleResponse",
+    "WebhookResponse",
+    # GitHub utilities
     "get_requirements_for_phase",
     "get_requirement_by_id",
     "parse_github_url",

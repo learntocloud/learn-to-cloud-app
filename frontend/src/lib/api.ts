@@ -4,11 +4,9 @@ import type {
   PhaseWithProgress,
   PhaseDetailWithProgress,
   TopicWithProgress,
-  ChecklistItemWithProgress,
   TopicChecklistItemWithProgress,
   DashboardResponse,
   PhaseGitHubRequirements,
-  GitHubValidationResult,
 } from "./types";
 import { getAllPhases, getPhaseBySlug as getPhaseBySlugFromContent, getTopicBySlug as getTopicBySlugFromContent } from "./content";
 
@@ -80,24 +78,6 @@ export async function getUserInfo(): Promise<UserInfo> {
   return res.json();
 }
 
-// ============ Client-side API calls (for mutations) ============
-
-export async function toggleChecklistItem(itemId: string): Promise<{ is_completed: boolean }> {
-  const res = await fetch(`${API_URL}/api/checklist/${itemId}/toggle`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    credentials: "include",
-  });
-  
-  if (!res.ok) {
-    throw new Error("Failed to toggle checklist item");
-  }
-  
-  return res.json();
-}
-
 // ============ GitHub Submission API Calls ============
 
 export async function getPhaseGitHubRequirements(phaseId: number): Promise<PhaseGitHubRequirements> {
@@ -116,29 +96,6 @@ export async function getPhaseGitHubRequirements(phaseId: number): Promise<Phase
       submissions: [],
       all_validated: true,
     };
-  }
-  
-  return res.json();
-}
-
-export async function submitGitHubUrl(
-  requirementId: string,
-  submittedUrl: string
-): Promise<GitHubValidationResult> {
-  const headers = await getAuthHeaders();
-  
-  const res = await fetch(`${API_URL}/api/github/submit`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({
-      requirement_id: requirementId,
-      submitted_url: submittedUrl,
-    }),
-  });
-  
-  if (!res.ok) {
-    const error = await res.json().catch(() => ({ detail: "Failed to submit GitHub URL" }));
-    throw new Error(error.detail || "Failed to submit GitHub URL");
   }
   
   return res.json();
@@ -220,7 +177,8 @@ export async function getPhasesWithProgress(): Promise<PhaseWithProgress[]> {
     const previousGithubReqs = githubRequirementsMap.get(previousPhase.id);
     const areGithubReqsValidated = !previousGithubReqs || previousGithubReqs.all_validated;
     
-    phasesWithProgress[i].isLocked = !isPreviousCompleted || !areGithubReqsValidated;
+    // Lock cascades: if previous phase is locked OR not completed, this phase is locked
+    phasesWithProgress[i].isLocked = previousPhase.isLocked || !isPreviousCompleted || !areGithubReqsValidated;
   }
   
   return phasesWithProgress;
@@ -232,31 +190,37 @@ export async function getPhaseWithProgressBySlug(slug: string): Promise<(PhaseDe
   
   const { items: progressItems } = await getUserProgress();
   
-  // Check if this phase is locked (previous phase must be completed + GitHub requirements validated)
+  // Check if this phase is locked (ALL previous phases must be completed + GitHub requirements validated)
   let isLocked = false;
   if (phase.id > 0) {
     const phases = getAllPhases();
-    const previousPhase = phases.find(p => p.id === phase.id - 1);
-    if (previousPhase) {
-      const previousProgress = calculatePhaseProgress(
-        previousPhase.id,
-        previousPhase.topics.map(t => t.checklist),
-        progressItems
-      );
-      const checklistNotCompleted = previousProgress.status !== 'completed';
-      
-      // Also check GitHub requirements for the previous phase
-      let githubReqsNotValidated = false;
-      try {
-        const githubReqs = await getPhaseGitHubRequirements(previousPhase.id);
-        if (githubReqs.requirements.length > 0) {
-          githubReqsNotValidated = !githubReqs.all_validated;
+    
+    // Check ALL phases from 0 to phase.id - 1
+    for (let i = 0; i < phase.id; i++) {
+      const prevPhase = phases.find(p => p.id === i);
+      if (prevPhase) {
+        const prevProgress = calculatePhaseProgress(
+          prevPhase.id,
+          prevPhase.topics.map(t => t.checklist),
+          progressItems
+        );
+        
+        if (prevProgress.status !== 'completed') {
+          isLocked = true;
+          break;
         }
-      } catch {
-        // Ignore errors
+        
+        // Also check GitHub requirements for this previous phase
+        try {
+          const githubReqs = await getPhaseGitHubRequirements(prevPhase.id);
+          if (githubReqs.requirements.length > 0 && !githubReqs.all_validated) {
+            isLocked = true;
+            break;
+          }
+        } catch {
+          // Ignore errors
+        }
       }
-      
-      isLocked = checklistNotCompleted || githubReqsNotValidated;
     }
   }
   
@@ -304,31 +268,37 @@ export async function getTopicWithProgressBySlug(phaseSlug: string, topicSlug: s
   
   const { items: progressItems } = await getUserProgress();
   
-  // Check if this phase is locked (previous phase must be completed + GitHub requirements validated)
+  // Check if this phase is locked (ALL previous phases must be completed + GitHub requirements validated)
   let isLocked = false;
   if (phase.id > 0) {
     const phases = getAllPhases();
-    const previousPhase = phases.find(p => p.id === phase.id - 1);
-    if (previousPhase) {
-      const previousProgress = calculatePhaseProgress(
-        previousPhase.id,
-        previousPhase.topics.map(t => t.checklist),
-        progressItems
-      );
-      const checklistNotCompleted = previousProgress.status !== 'completed';
-      
-      // Also check GitHub requirements for the previous phase
-      let githubReqsNotValidated = false;
-      try {
-        const githubReqs = await getPhaseGitHubRequirements(previousPhase.id);
-        if (githubReqs.requirements.length > 0) {
-          githubReqsNotValidated = !githubReqs.all_validated;
+    
+    // Check ALL phases from 0 to phase.id - 1
+    for (let i = 0; i < phase.id; i++) {
+      const prevPhase = phases.find(p => p.id === i);
+      if (prevPhase) {
+        const prevProgress = calculatePhaseProgress(
+          prevPhase.id,
+          prevPhase.topics.map(t => t.checklist),
+          progressItems
+        );
+        
+        if (prevProgress.status !== 'completed') {
+          isLocked = true;
+          break;
         }
-      } catch {
-        // Ignore errors
+        
+        // Also check GitHub requirements for this previous phase
+        try {
+          const githubReqs = await getPhaseGitHubRequirements(prevPhase.id);
+          if (githubReqs.requirements.length > 0 && !githubReqs.all_validated) {
+            isLocked = true;
+            break;
+          }
+        } catch {
+          // Ignore errors
+        }
       }
-      
-      isLocked = checklistNotCompleted || githubReqsNotValidated;
     }
   }
   

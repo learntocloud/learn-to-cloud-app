@@ -4,6 +4,13 @@ import { useAuth } from "@clerk/nextjs";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
+/**
+ * Client-side API hook for authenticated mutations.
+ * 
+ * Note: Read operations (getPhasesWithProgress, getDashboard, etc.) are handled
+ * server-side in api.ts. This hook is only for client-side mutations that need
+ * to be called from event handlers.
+ */
 export function useApi() {
   const { getToken } = useAuth();
 
@@ -27,18 +34,13 @@ export function useApi() {
   }
 
   return {
-    async toggleChecklistItem(itemId: string) {
+    /**
+     * Toggle a checklist item's completion status.
+     */
+    async toggleChecklistItem(itemId: string): Promise<{ is_completed: boolean }> {
       return fetchWithAuth(`${API_URL}/api/checklist/${itemId}/toggle`, {
         method: "POST",
       });
-    },
-
-    async getDashboard() {
-      return fetchWithAuth(`${API_URL}/api/user/dashboard`);
-    },
-
-    async getPhaseWithProgress(phaseId: number) {
-      return fetchWithAuth(`${API_URL}/api/user/phases/${phaseId}`);
     },
   };
 }

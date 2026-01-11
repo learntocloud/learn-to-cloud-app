@@ -13,13 +13,6 @@ def utcnow() -> datetime:
     return datetime.now(timezone.utc)
 
 
-class CompletionStatus(str, PyEnum):
-    """Status of phase completion."""
-    NOT_STARTED = "not_started"
-    IN_PROGRESS = "in_progress"
-    COMPLETED = "completed"
-
-
 class User(Base):
     """User model - synced from Clerk via webhooks."""
     __tablename__ = "users"

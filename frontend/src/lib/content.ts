@@ -1,4 +1,4 @@
-import type { Phase, Topic, ChecklistItem, LearningStep, TopicChecklistItem } from './types';
+import type { Phase, Topic } from './types';
 
 // Import all phase index files
 import phase0Index from '../../content/phases/phase0/index.json';
@@ -179,48 +179,10 @@ export function getPhaseBySlug(slug: string): Phase | null {
 }
 
 /**
- * Get a phase by its ID
- */
-export function getPhaseById(id: number): Phase | null {
-  const index = phaseIndices.find((p) => p.id === id);
-  if (!index) return null;
-  return buildPhase(index);
-}
-
-/**
  * Get a topic by phase slug and topic slug
  */
 export function getTopicBySlug(phaseSlug: string, topicSlug: string): Topic | null {
   const phaseTopics = topicsByPhase[phaseSlug];
   if (!phaseTopics) return null;
   return phaseTopics[topicSlug] || null;
-}
-
-/**
- * Get all checklist item IDs across all phases and topics
- */
-export function getAllChecklistItemIds(): string[] {
-  const ids: string[] = [];
-  for (const phase of getAllPhases()) {
-    for (const topic of phase.topics) {
-      for (const item of topic.checklist) {
-        ids.push(item.id);
-      }
-    }
-  }
-  return ids;
-}
-
-/**
- * Get total number of checklist items
- */
-export function getTotalChecklistItems(): number {
-  return getAllChecklistItemIds().length;
-}
-
-/**
- * Get total number of topics
- */
-export function getTotalTopics(): number {
-  return getAllPhases().reduce((sum, phase) => sum + phase.topics.length, 0);
 }

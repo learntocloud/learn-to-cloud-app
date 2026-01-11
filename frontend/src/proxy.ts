@@ -10,8 +10,8 @@ const isPublicRoute = createRouteMatcher([
   '/',
   '/sign-in(.*)',
   '/sign-up(.*)',
-  '/phases(.*)',  // Allow viewing phases without auth
-  '/p/(.*)',      // Allow viewing phase/topic pages without auth
+  '/phases(.*)',    // Allow viewing phases without auth
+  '/phase[0-9](.*)', // Allow viewing phase/topic pages without auth (phase0, phase1, etc.)
 ])
 
 export default clerkMiddleware(async (auth, request) => {
