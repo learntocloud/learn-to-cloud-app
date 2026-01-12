@@ -547,13 +547,13 @@ resource apiErrorRateAlert 'Microsoft.Insights/metricAlerts@2018-03-01' = {
   }
 }
 
-// API Container App - High Response Time Alert (P95 > 2 seconds)
-resource apiLatencyAlert 'Microsoft.Insights/metricAlerts@2018-03-01' = {
-  name: 'alert-${apiAppName}-latency'
+// API Container App - High Request Count Alert (monitors traffic spikes)
+resource apiRequestsAlert 'Microsoft.Insights/metricAlerts@2018-03-01' = {
+  name: 'alert-${apiAppName}-requests'
   location: 'global'
   tags: tags
   properties: {
-    description: 'Alert when API P95 response time exceeds 2 seconds'
+    description: 'Alert when API receives unusually high request volume'
     severity: 3
     enabled: true
     scopes: [
@@ -565,12 +565,12 @@ resource apiLatencyAlert 'Microsoft.Insights/metricAlerts@2018-03-01' = {
       'odata.type': 'Microsoft.Azure.Monitor.SingleResourceMultipleMetricCriteria'
       allOf: [
         {
-          name: 'HighLatency'
-          metricName: 'RequestDuration'
+          name: 'HighRequests'
+          metricName: 'Requests'
           metricNamespace: 'Microsoft.App/containerApps'
           operator: 'GreaterThan'
-          threshold: 2000
-          timeAggregation: 'Average'
+          threshold: 10000
+          timeAggregation: 'Total'
           criterionType: 'StaticThresholdCriterion'
         }
       ]
@@ -790,10 +790,10 @@ resource appInsightsFailedRequestsAlert 'Microsoft.Insights/metricAlerts@2018-03
         {
           name: 'FailedRequests'
           metricName: 'requests/failed'
-          metricNamespace: 'Microsoft.Insights/components'
+          metricNamespace: 'microsoft.insights/components'
           operator: 'GreaterThan'
           threshold: 10
-          timeAggregation: 'Total'
+          timeAggregation: 'Count'
           criterionType: 'StaticThresholdCriterion'
         }
       ]
@@ -826,10 +826,10 @@ resource appInsightsExceptionsAlert 'Microsoft.Insights/metricAlerts@2018-03-01'
         {
           name: 'HighExceptions'
           metricName: 'exceptions/count'
-          metricNamespace: 'Microsoft.Insights/components'
+          metricNamespace: 'microsoft.insights/components'
           operator: 'GreaterThan'
           threshold: 20
-          timeAggregation: 'Total'
+          timeAggregation: 'Count'
           criterionType: 'StaticThresholdCriterion'
         }
       ]
