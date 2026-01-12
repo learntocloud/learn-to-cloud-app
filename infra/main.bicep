@@ -28,6 +28,9 @@ param frontendCustomDomain string = ''
 @description('Name of the existing managed certificate resource in the Container Apps environment (required when binding a custom domain)')
 param frontendManagedCertificateName string = ''
 
+@description('Email address for alert notifications (leave empty to disable alerts)')
+param alertEmailAddress string = ''
+
 var resourceGroupName = 'rg-learntocloud-${environment}'
 var tags = {
   environment: environment
@@ -54,6 +57,7 @@ module resources 'resources.bicep' = {
     clerkPublishableKey: clerkPublishableKey
     frontendCustomDomain: frontendCustomDomain
     frontendManagedCertificateName: frontendManagedCertificateName
+    alertEmailAddress: alertEmailAddress
   }
 }
 

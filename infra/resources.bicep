@@ -31,6 +31,9 @@ param frontendCustomDomain string = ''
 @description('Name of the existing managed certificate resource in the Container Apps environment (required when binding a custom domain)')
 param frontendManagedCertificateName string = ''
 
+@description('Email address for alert notifications')
+param alertEmailAddress string = ''
+
 var uniqueSuffix = uniqueString(resourceGroup().id)
 var appName = 'learntocloud'
 var apiAppName = 'ca-${appName}-api-${environment}'
@@ -468,6 +471,366 @@ resource frontendAcrPullRoleAssignment 'Microsoft.Authorization/roleAssignments@
     roleDefinitionId: acrPullRoleDefinitionId
     principalId: frontendApp.identity.principalId
     principalType: 'ServicePrincipal'
+  }
+}
+
+// =============================================================================
+// Monitoring Alerts
+// =============================================================================
+
+// Action Group for alert notifications
+resource alertActionGroup 'Microsoft.Insights/actionGroups@2023-01-01' = if (!empty(alertEmailAddress)) {
+  name: 'ag-${appName}-${environment}'
+  location: 'global'
+  tags: tags
+  properties: {
+    groupShortName: 'ltc-alerts'
+    enabled: true
+    emailReceivers: [
+      {
+        name: 'AdminEmail'
+        emailAddress: alertEmailAddress
+        useCommonAlertSchema: true
+      }
+    ]
+  }
+}
+
+// API Container App - High Error Rate Alert (5xx errors > 5% of requests)
+resource apiErrorRateAlert 'Microsoft.Insights/metricAlerts@2018-03-01' = if (!empty(alertEmailAddress)) {
+  name: 'alert-${apiAppName}-error-rate'
+  location: 'global'
+  tags: tags
+  properties: {
+    description: 'Alert when API error rate exceeds 5%'
+    severity: 2
+    enabled: true
+    scopes: [
+      apiApp.id
+    ]
+    evaluationFrequency: 'PT5M'
+    windowSize: 'PT15M'
+    criteria: {
+      'odata.type': 'Microsoft.Azure.Monitor.SingleResourceMultipleMetricCriteria'
+      allOf: [
+        {
+          name: 'HighErrorRate'
+          metricName: 'Requests'
+          metricNamespace: 'Microsoft.App/containerApps'
+          operator: 'GreaterThan'
+          threshold: 10
+          timeAggregation: 'Total'
+          dimensions: [
+            {
+              name: 'statusCodeCategory'
+              operator: 'Include'
+              values: ['5xx']
+            }
+          ]
+          criterionType: 'StaticThresholdCriterion'
+        }
+      ]
+    }
+    actions: [
+      {
+        actionGroupId: alertActionGroup.id
+      }
+    ]
+  }
+}
+
+// API Container App - High Response Time Alert (P95 > 2 seconds)
+resource apiLatencyAlert 'Microsoft.Insights/metricAlerts@2018-03-01' = if (!empty(alertEmailAddress)) {
+  name: 'alert-${apiAppName}-latency'
+  location: 'global'
+  tags: tags
+  properties: {
+    description: 'Alert when API P95 response time exceeds 2 seconds'
+    severity: 3
+    enabled: true
+    scopes: [
+      apiApp.id
+    ]
+    evaluationFrequency: 'PT5M'
+    windowSize: 'PT15M'
+    criteria: {
+      'odata.type': 'Microsoft.Azure.Monitor.SingleResourceMultipleMetricCriteria'
+      allOf: [
+        {
+          name: 'HighLatency'
+          metricName: 'RequestDuration'
+          metricNamespace: 'Microsoft.App/containerApps'
+          operator: 'GreaterThan'
+          threshold: 2000
+          timeAggregation: 'Average'
+          criterionType: 'StaticThresholdCriterion'
+        }
+      ]
+    }
+    actions: [
+      {
+        actionGroupId: alertActionGroup.id
+      }
+    ]
+  }
+}
+
+// API Container App - Replica Restart Alert
+resource apiRestartAlert 'Microsoft.Insights/metricAlerts@2018-03-01' = if (!empty(alertEmailAddress)) {
+  name: 'alert-${apiAppName}-restarts'
+  location: 'global'
+  tags: tags
+  properties: {
+    description: 'Alert when API container restarts frequently'
+    severity: 2
+    enabled: true
+    scopes: [
+      apiApp.id
+    ]
+    evaluationFrequency: 'PT5M'
+    windowSize: 'PT15M'
+    criteria: {
+      'odata.type': 'Microsoft.Azure.Monitor.SingleResourceMultipleMetricCriteria'
+      allOf: [
+        {
+          name: 'FrequentRestarts'
+          metricName: 'RestartCount'
+          metricNamespace: 'Microsoft.App/containerApps'
+          operator: 'GreaterThan'
+          threshold: 3
+          timeAggregation: 'Total'
+          criterionType: 'StaticThresholdCriterion'
+        }
+      ]
+    }
+    actions: [
+      {
+        actionGroupId: alertActionGroup.id
+      }
+    ]
+  }
+}
+
+// Frontend Container App - High Error Rate Alert
+resource frontendErrorRateAlert 'Microsoft.Insights/metricAlerts@2018-03-01' = if (!empty(alertEmailAddress)) {
+  name: 'alert-${frontendAppName}-error-rate'
+  location: 'global'
+  tags: tags
+  properties: {
+    description: 'Alert when Frontend error rate is high'
+    severity: 2
+    enabled: true
+    scopes: [
+      frontendApp.id
+    ]
+    evaluationFrequency: 'PT5M'
+    windowSize: 'PT15M'
+    criteria: {
+      'odata.type': 'Microsoft.Azure.Monitor.SingleResourceMultipleMetricCriteria'
+      allOf: [
+        {
+          name: 'HighErrorRate'
+          metricName: 'Requests'
+          metricNamespace: 'Microsoft.App/containerApps'
+          operator: 'GreaterThan'
+          threshold: 10
+          timeAggregation: 'Total'
+          dimensions: [
+            {
+              name: 'statusCodeCategory'
+              operator: 'Include'
+              values: ['5xx']
+            }
+          ]
+          criterionType: 'StaticThresholdCriterion'
+        }
+      ]
+    }
+    actions: [
+      {
+        actionGroupId: alertActionGroup.id
+      }
+    ]
+  }
+}
+
+// PostgreSQL - High CPU Alert (> 80%)
+resource postgresCpuAlert 'Microsoft.Insights/metricAlerts@2018-03-01' = if (!empty(alertEmailAddress)) {
+  name: 'alert-postgres-${environment}-cpu'
+  location: 'global'
+  tags: tags
+  properties: {
+    description: 'Alert when PostgreSQL CPU exceeds 80%'
+    severity: 2
+    enabled: true
+    scopes: [
+      postgres.id
+    ]
+    evaluationFrequency: 'PT5M'
+    windowSize: 'PT15M'
+    criteria: {
+      'odata.type': 'Microsoft.Azure.Monitor.SingleResourceMultipleMetricCriteria'
+      allOf: [
+        {
+          name: 'HighCPU'
+          metricName: 'cpu_percent'
+          metricNamespace: 'Microsoft.DBforPostgreSQL/flexibleServers'
+          operator: 'GreaterThan'
+          threshold: 80
+          timeAggregation: 'Average'
+          criterionType: 'StaticThresholdCriterion'
+        }
+      ]
+    }
+    actions: [
+      {
+        actionGroupId: alertActionGroup.id
+      }
+    ]
+  }
+}
+
+// PostgreSQL - High Storage Alert (> 80%)
+resource postgresStorageAlert 'Microsoft.Insights/metricAlerts@2018-03-01' = if (!empty(alertEmailAddress)) {
+  name: 'alert-postgres-${environment}-storage'
+  location: 'global'
+  tags: tags
+  properties: {
+    description: 'Alert when PostgreSQL storage exceeds 80%'
+    severity: 2
+    enabled: true
+    scopes: [
+      postgres.id
+    ]
+    evaluationFrequency: 'PT1H'
+    windowSize: 'PT1H'
+    criteria: {
+      'odata.type': 'Microsoft.Azure.Monitor.SingleResourceMultipleMetricCriteria'
+      allOf: [
+        {
+          name: 'HighStorage'
+          metricName: 'storage_percent'
+          metricNamespace: 'Microsoft.DBforPostgreSQL/flexibleServers'
+          operator: 'GreaterThan'
+          threshold: 80
+          timeAggregation: 'Average'
+          criterionType: 'StaticThresholdCriterion'
+        }
+      ]
+    }
+    actions: [
+      {
+        actionGroupId: alertActionGroup.id
+      }
+    ]
+  }
+}
+
+// PostgreSQL - Connection Failures Alert
+resource postgresConnectionAlert 'Microsoft.Insights/metricAlerts@2018-03-01' = if (!empty(alertEmailAddress)) {
+  name: 'alert-postgres-${environment}-connections'
+  location: 'global'
+  tags: tags
+  properties: {
+    description: 'Alert when PostgreSQL has connection failures'
+    severity: 2
+    enabled: true
+    scopes: [
+      postgres.id
+    ]
+    evaluationFrequency: 'PT5M'
+    windowSize: 'PT15M'
+    criteria: {
+      'odata.type': 'Microsoft.Azure.Monitor.SingleResourceMultipleMetricCriteria'
+      allOf: [
+        {
+          name: 'ConnectionFailures'
+          metricName: 'connections_failed'
+          metricNamespace: 'Microsoft.DBforPostgreSQL/flexibleServers'
+          operator: 'GreaterThan'
+          threshold: 5
+          timeAggregation: 'Total'
+          criterionType: 'StaticThresholdCriterion'
+        }
+      ]
+    }
+    actions: [
+      {
+        actionGroupId: alertActionGroup.id
+      }
+    ]
+  }
+}
+
+// Application Insights - Failed Requests Alert
+resource appInsightsFailedRequestsAlert 'Microsoft.Insights/metricAlerts@2018-03-01' = if (!empty(alertEmailAddress)) {
+  name: 'alert-appinsights-${environment}-failed-requests'
+  location: 'global'
+  tags: tags
+  properties: {
+    description: 'Alert when Application Insights detects failed requests'
+    severity: 2
+    enabled: true
+    scopes: [
+      appInsights.id
+    ]
+    evaluationFrequency: 'PT5M'
+    windowSize: 'PT15M'
+    criteria: {
+      'odata.type': 'Microsoft.Azure.Monitor.SingleResourceMultipleMetricCriteria'
+      allOf: [
+        {
+          name: 'FailedRequests'
+          metricName: 'requests/failed'
+          metricNamespace: 'Microsoft.Insights/components'
+          operator: 'GreaterThan'
+          threshold: 10
+          timeAggregation: 'Total'
+          criterionType: 'StaticThresholdCriterion'
+        }
+      ]
+    }
+    actions: [
+      {
+        actionGroupId: alertActionGroup.id
+      }
+    ]
+  }
+}
+
+// Application Insights - Exception Rate Alert
+resource appInsightsExceptionsAlert 'Microsoft.Insights/metricAlerts@2018-03-01' = if (!empty(alertEmailAddress)) {
+  name: 'alert-appinsights-${environment}-exceptions'
+  location: 'global'
+  tags: tags
+  properties: {
+    description: 'Alert when Application Insights detects high exception rate'
+    severity: 2
+    enabled: true
+    scopes: [
+      appInsights.id
+    ]
+    evaluationFrequency: 'PT5M'
+    windowSize: 'PT15M'
+    criteria: {
+      'odata.type': 'Microsoft.Azure.Monitor.SingleResourceMultipleMetricCriteria'
+      allOf: [
+        {
+          name: 'HighExceptions'
+          metricName: 'exceptions/count'
+          metricNamespace: 'Microsoft.Insights/components'
+          operator: 'GreaterThan'
+          threshold: 20
+          timeAggregation: 'Total'
+          criterionType: 'StaticThresholdCriterion'
+        }
+      ]
+    }
+    actions: [
+      {
+        actionGroupId: alertActionGroup.id
+      }
+    ]
   }
 }
 

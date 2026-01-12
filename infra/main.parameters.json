@@ -25,6 +25,9 @@
     },
     "frontendManagedCertificateName": {
       "value": "app.learntocloud.guide-cae-lear-260111200430"
+    },
+    "alertEmailAddress": {
+      "value": "${ALERT_EMAIL_ADDRESS}"
     }
   }
 }
