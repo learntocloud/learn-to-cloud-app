@@ -1,0 +1,34 @@
+#!/bin/bash
+set -e
+
+echo "🚀 Setting up Learn to Cloud development environment..."
+
+# Install uv
+echo "📦 Installing uv..."
+curl -LsSf https://astral.sh/uv/install.sh | sh
+export PATH="$HOME/.local/bin:$PATH"
+
+# Setup API (Python/FastAPI)
+echo "🐍 Setting up API..."
+cd api
+uv venv
+uv sync
+cd ..
+
+# Setup Frontend (Next.js)
+echo "⚛️ Setting up Frontend..."
+cd frontend
+npm install
+cd ..
+
+# Copy .env.example files if .env doesn't exist
+if [ ! -f api/.env ] && [ -f api/.env.example ]; then
+    echo "📝 Creating api/.env from .env.example..."
+    cp api/.env.example api/.env
+fi
+
+echo "✅ Setup complete!"
+echo ""
+echo "To start developing:"
+echo "  API:      cd api && uv run uvicorn main:app --reload"
+echo "  Frontend: cd frontend && npm run dev"
