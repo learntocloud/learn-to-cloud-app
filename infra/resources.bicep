@@ -28,11 +28,11 @@ param clerkPublishableKey string
 @description('Custom domain for the frontend app (optional)')
 param frontendCustomDomain string = ''
 
+@description('Email address for alert notifications (optional)')
+param alertEmailAddress string = ''
+
 @description('Name of the existing managed certificate resource in the Container Apps environment (required when binding a custom domain)')
 param frontendManagedCertificateName string = ''
-
-@description('Email address for alert notifications')
-param alertEmailAddress string = ''
 
 var uniqueSuffix = uniqueString(resourceGroup().id)
 var appName = 'learntocloud'
@@ -479,17 +479,25 @@ resource frontendAcrPullRoleAssignment 'Microsoft.Authorization/roleAssignments@
 // =============================================================================
 
 // Action Group for alert notifications
-resource alertActionGroup 'Microsoft.Insights/actionGroups@2023-01-01' = if (!empty(alertEmailAddress)) {
+// Sends emails to specified address and optionally to subscription owners
+resource alertActionGroup 'Microsoft.Insights/actionGroups@2023-01-01' = {
   name: 'ag-${appName}-${environment}'
   location: 'global'
   tags: tags
   properties: {
     groupShortName: 'ltc-alerts'
     enabled: true
-    emailReceivers: [
+    emailReceivers: alertEmailAddress != '' ? [
       {
-        name: 'AdminEmail'
+        name: 'EmailAlert'
         emailAddress: alertEmailAddress
+        useCommonAlertSchema: true
+      }
+    ] : []
+    armRoleReceivers: [
+      {
+        name: 'SubscriptionOwners'
+        roleId: '8e3af657-a8ff-443c-a75c-2fe8c4bcb635' // Owner role GUID
         useCommonAlertSchema: true
       }
     ]
@@ -497,7 +505,7 @@ resource alertActionGroup 'Microsoft.Insights/actionGroups@2023-01-01' = if (!em
 }
 
 // API Container App - High Error Rate Alert (5xx errors > 5% of requests)
-resource apiErrorRateAlert 'Microsoft.Insights/metricAlerts@2018-03-01' = if (!empty(alertEmailAddress)) {
+resource apiErrorRateAlert 'Microsoft.Insights/metricAlerts@2018-03-01' = {
   name: 'alert-${apiAppName}-error-rate'
   location: 'global'
   tags: tags
@@ -540,7 +548,7 @@ resource apiErrorRateAlert 'Microsoft.Insights/metricAlerts@2018-03-01' = if (!e
 }
 
 // API Container App - High Response Time Alert (P95 > 2 seconds)
-resource apiLatencyAlert 'Microsoft.Insights/metricAlerts@2018-03-01' = if (!empty(alertEmailAddress)) {
+resource apiLatencyAlert 'Microsoft.Insights/metricAlerts@2018-03-01' = {
   name: 'alert-${apiAppName}-latency'
   location: 'global'
   tags: tags
@@ -576,7 +584,7 @@ resource apiLatencyAlert 'Microsoft.Insights/metricAlerts@2018-03-01' = if (!emp
 }
 
 // API Container App - Replica Restart Alert
-resource apiRestartAlert 'Microsoft.Insights/metricAlerts@2018-03-01' = if (!empty(alertEmailAddress)) {
+resource apiRestartAlert 'Microsoft.Insights/metricAlerts@2018-03-01' = {
   name: 'alert-${apiAppName}-restarts'
   location: 'global'
   tags: tags
@@ -612,7 +620,7 @@ resource apiRestartAlert 'Microsoft.Insights/metricAlerts@2018-03-01' = if (!emp
 }
 
 // Frontend Container App - High Error Rate Alert
-resource frontendErrorRateAlert 'Microsoft.Insights/metricAlerts@2018-03-01' = if (!empty(alertEmailAddress)) {
+resource frontendErrorRateAlert 'Microsoft.Insights/metricAlerts@2018-03-01' = {
   name: 'alert-${frontendAppName}-error-rate'
   location: 'global'
   tags: tags
@@ -655,7 +663,7 @@ resource frontendErrorRateAlert 'Microsoft.Insights/metricAlerts@2018-03-01' = i
 }
 
 // PostgreSQL - High CPU Alert (> 80%)
-resource postgresCpuAlert 'Microsoft.Insights/metricAlerts@2018-03-01' = if (!empty(alertEmailAddress)) {
+resource postgresCpuAlert 'Microsoft.Insights/metricAlerts@2018-03-01' = {
   name: 'alert-postgres-${environment}-cpu'
   location: 'global'
   tags: tags
@@ -691,7 +699,7 @@ resource postgresCpuAlert 'Microsoft.Insights/metricAlerts@2018-03-01' = if (!em
 }
 
 // PostgreSQL - High Storage Alert (> 80%)
-resource postgresStorageAlert 'Microsoft.Insights/metricAlerts@2018-03-01' = if (!empty(alertEmailAddress)) {
+resource postgresStorageAlert 'Microsoft.Insights/metricAlerts@2018-03-01' = {
   name: 'alert-postgres-${environment}-storage'
   location: 'global'
   tags: tags
@@ -727,7 +735,7 @@ resource postgresStorageAlert 'Microsoft.Insights/metricAlerts@2018-03-01' = if 
 }
 
 // PostgreSQL - Connection Failures Alert
-resource postgresConnectionAlert 'Microsoft.Insights/metricAlerts@2018-03-01' = if (!empty(alertEmailAddress)) {
+resource postgresConnectionAlert 'Microsoft.Insights/metricAlerts@2018-03-01' = {
   name: 'alert-postgres-${environment}-connections'
   location: 'global'
   tags: tags
@@ -763,7 +771,7 @@ resource postgresConnectionAlert 'Microsoft.Insights/metricAlerts@2018-03-01' = 
 }
 
 // Application Insights - Failed Requests Alert
-resource appInsightsFailedRequestsAlert 'Microsoft.Insights/metricAlerts@2018-03-01' = if (!empty(alertEmailAddress)) {
+resource appInsightsFailedRequestsAlert 'Microsoft.Insights/metricAlerts@2018-03-01' = {
   name: 'alert-appinsights-${environment}-failed-requests'
   location: 'global'
   tags: tags
@@ -799,7 +807,7 @@ resource appInsightsFailedRequestsAlert 'Microsoft.Insights/metricAlerts@2018-03
 }
 
 // Application Insights - Exception Rate Alert
-resource appInsightsExceptionsAlert 'Microsoft.Insights/metricAlerts@2018-03-01' = if (!empty(alertEmailAddress)) {
+resource appInsightsExceptionsAlert 'Microsoft.Insights/metricAlerts@2018-03-01' = {
   name: 'alert-appinsights-${environment}-exceptions'
   location: 'global'
   tags: tags

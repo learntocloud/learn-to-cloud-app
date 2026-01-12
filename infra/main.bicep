@@ -28,7 +28,7 @@ param frontendCustomDomain string = ''
 @description('Name of the existing managed certificate resource in the Container Apps environment (required when binding a custom domain)')
 param frontendManagedCertificateName string = ''
 
-@description('Email address for alert notifications (leave empty to disable alerts)')
+@description('Email address for alert notifications')
 param alertEmailAddress string = ''
 
 var resourceGroupName = 'rg-learntocloud-${environment}'
