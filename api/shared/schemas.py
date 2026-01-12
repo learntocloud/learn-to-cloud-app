@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from .models import SubmissionType
 
@@ -57,9 +57,10 @@ class GitHubRequirement(BaseModel):
 
 class GitHubSubmissionRequest(BaseModel):
     """Request to submit a URL for validation."""
-    requirement_id: str
-    submitted_url: str
-    
+
+    requirement_id: str = Field(max_length=100)
+    submitted_url: str = Field(max_length=2048)  # Standard URL max length
+
     @field_validator("submitted_url")
     @classmethod
     def validate_url(cls, v: str) -> str:

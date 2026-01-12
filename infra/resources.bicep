@@ -28,6 +28,9 @@ param clerkPublishableKey string
 @description('Custom domain for the frontend app (optional)')
 param frontendCustomDomain string = ''
 
+@description('Name of the existing managed certificate resource in the Container Apps environment (required when binding a custom domain)')
+param frontendManagedCertificateName string = ''
+
 var uniqueSuffix = uniqueString(resourceGroup().id)
 var appName = 'learntocloud'
 var apiAppName = 'ca-${appName}-api-${environment}'
@@ -118,7 +121,7 @@ resource containerRegistry 'Microsoft.ContainerRegistry/registries@2023-07-01' =
     name: 'Basic'
   }
   properties: {
-    adminUserEnabled: true
+    adminUserEnabled: false
   }
 }
 
@@ -138,11 +141,23 @@ resource containerAppsEnvironment 'Microsoft.App/managedEnvironments@2024-03-01'
   }
 }
 
+var apiDefaultUrl = 'https://${apiAppName}.${containerAppsEnvironment.properties.defaultDomain}'
+var frontendDefaultUrl = 'https://${frontendAppName}.${containerAppsEnvironment.properties.defaultDomain}'
+var apiCorsAllowedOrigins = concat(
+  [
+    frontendDefaultUrl
+    'http://localhost:3000'
+  ],
+  !empty(frontendCustomDomain) ? [
+    'https://${frontendCustomDomain}'
+  ] : []
+)
+
 // Reference existing Managed Certificate for custom domain (created manually via Azure CLI)
 // Certificate name follows Azure's auto-generated naming: {hostname}-{env-prefix}-{timestamp}
-resource managedCertificate 'Microsoft.App/managedEnvironments/managedCertificates@2024-03-01' existing = if (!empty(frontendCustomDomain)) {
+resource managedCertificate 'Microsoft.App/managedEnvironments/managedCertificates@2024-03-01' existing = if (!empty(frontendCustomDomain) && !empty(frontendManagedCertificateName)) {
   parent: containerAppsEnvironment
-  name: 'app.learntocloud.guide-cae-lear-260111200430'
+  name: frontendManagedCertificateName
 }
 
 // API Container App (FastAPI)
@@ -162,10 +177,7 @@ resource apiApp 'Microsoft.App/containerApps@2024-03-01' = {
         transport: 'http'
         allowInsecure: false
         corsPolicy: {
-          allowedOrigins: [
-            'https://*.azurecontainerapps.io'
-            'http://localhost:3000'
-          ]
+          allowedOrigins: apiCorsAllowedOrigins
           allowedMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
           allowedHeaders: ['*']
           allowCredentials: true
@@ -174,15 +186,10 @@ resource apiApp 'Microsoft.App/containerApps@2024-03-01' = {
       registries: [
         {
           server: containerRegistry.properties.loginServer
-          username: containerRegistry.listCredentials().username
-          passwordSecretRef: 'registry-password'
+          identity: 'system'
         }
       ]
       secrets: [
-        {
-          name: 'registry-password'
-          value: containerRegistry.listCredentials().passwords[0].value
-        }
         {
           name: 'clerk-secret-key'
           value: clerkSecretKey
@@ -233,7 +240,7 @@ resource apiApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'FRONTEND_URL'
-              value: !empty(frontendCustomDomain) ? 'https://${frontendCustomDomain}' : 'https://ca-${appName}-frontend-${environment}.${containerAppsEnvironment.properties.defaultDomain}'
+              value: !empty(frontendCustomDomain) ? 'https://${frontendCustomDomain}' : frontendDefaultUrl
             }
             {
               name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
@@ -267,7 +274,7 @@ resource apiApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               type: 'Readiness'
               httpGet: {
-                path: '/health'
+                path: '/ready'
                 port: 8000
               }
               initialDelaySeconds: 0
@@ -316,7 +323,7 @@ resource frontendApp 'Microsoft.App/containerApps@2024-03-01' = {
         targetPort: 3000
         transport: 'http'
         allowInsecure: false
-        customDomains: !empty(frontendCustomDomain) ? [
+        customDomains: (!empty(frontendCustomDomain) && !empty(frontendManagedCertificateName)) ? [
           {
             name: frontendCustomDomain
             bindingType: 'SniEnabled'
@@ -327,15 +334,10 @@ resource frontendApp 'Microsoft.App/containerApps@2024-03-01' = {
       registries: [
         {
           server: containerRegistry.properties.loginServer
-          username: containerRegistry.listCredentials().username
-          passwordSecretRef: 'registry-password'
+          identity: 'system'
         }
       ]
       secrets: [
-        {
-          name: 'registry-password'
-          value: containerRegistry.listCredentials().passwords[0].value
-        }
         {
           name: 'clerk-secret-key'
           value: clerkSecretKey
@@ -354,7 +356,7 @@ resource frontendApp 'Microsoft.App/containerApps@2024-03-01' = {
           env: [
             {
               name: 'NEXT_PUBLIC_API_URL'
-              value: 'https://ca-${appName}-api-${environment}.${containerAppsEnvironment.properties.defaultDomain}'
+              value: apiDefaultUrl
             }
             {
               name: 'NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY'
@@ -438,6 +440,26 @@ resource frontendApp 'Microsoft.App/containerApps@2024-03-01' = {
   dependsOn: [
     apiApp
   ]
+}
+
+var acrPullRoleDefinitionId = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '7f951dda-4ed3-4680-a7ca-43fe172d538d')
+
+resource apiAcrPullRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(containerRegistry.id, apiApp.id, 'acrPull')
+  scope: containerRegistry
+  properties: {
+    roleDefinitionId: acrPullRoleDefinitionId
+    principalId: apiApp.identity.principalId
+  }
+}
+
+resource frontendAcrPullRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(containerRegistry.id, frontendApp.id, 'acrPull')
+  scope: containerRegistry
+  properties: {
+    roleDefinitionId: acrPullRoleDefinitionId
+    principalId: frontendApp.identity.principalId
+  }
 }
 
 // Outputs

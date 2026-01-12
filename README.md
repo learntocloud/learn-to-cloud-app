@@ -10,12 +10,14 @@ A web application for tracking your progress through the [Learn to Cloud](https:
 - ✅ Progress tracking for topics and checklist items
 - 🔐 Authentication via Clerk
 - 📊 Dashboard with overall progress visualization
-- ☁️ Deployable to Azure (Azure Functions + Static Web Apps + PostgreSQL)
+- 🐙 GitHub integration for project submissions
+- ☁️ Deployable to Azure (Container Apps + PostgreSQL)
 
 ## Tech Stack
 
 ### Backend
-- **Python 3.13+** with **Azure Functions** (v2 programming model)
+- **Python 3.13+** with **FastAPI**
+- **Uvicorn** ASGI server
 - **SQLAlchemy** (async) for database ORM
 - **PostgreSQL** (production) / **SQLite** (development)
 - **Clerk** for authentication
@@ -28,21 +30,21 @@ A web application for tracking your progress through the [Learn to Cloud](https:
 - **Clerk** for authentication UI
 
 ### Infrastructure
-- **Azure Functions** (Flex Consumption) - Backend API
-- **Azure Static Web Apps** - Frontend hosting with linked backend
+- **Azure Container Apps** - Backend and frontend hosting
 - **Azure Database for PostgreSQL** (Flexible Server) - Production database
 - **Azure Application Insights** - Monitoring
+- **Docker** - Containerization
 
 ## Local Development
 
 ### Prerequisites
 - Python 3.13+
 - Node.js 20+
-- [Azure Functions Core Tools](https://learn.microsoft.com/azure/azure-functions/functions-run-local) v4
 - [uv](https://docs.astral.sh/uv/) - Python package manager
 - [Clerk](https://clerk.com) account
+- Docker (optional, for containerized development)
 
-### 1. Backend setup (Azure Functions)
+### 1. Backend setup (FastAPI)
 
 ```bash
 cd api
@@ -54,15 +56,17 @@ source .venv/bin/activate
 # Install dependencies
 uv sync
 
-# Edit local.settings.json with your Clerk keys
+# Copy and edit environment variables
+cp .env.example .env
+# Edit .env with your Clerk keys and database settings
 
-# Run Azure Functions locally
-func host start --port 7071
+# Run FastAPI locally
+uvicorn main:app --reload --port 7071
 ```
 
-Backend will be available at http://localhost:7071/api
+Backend will be available at http://localhost:7071
 
-### 3. Frontend setup
+### 2. Frontend setup
 
 ```bash
 cd frontend
@@ -87,13 +91,21 @@ Frontend will be available at http://localhost:3000
    - `CLERK_SECRET_KEY` (backend)
    - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` (frontend)
 3. Set up webhook:
-   - Endpoint: `http://localhost:7071/api/webhooks/clerk`
+   - Endpoint: `http://localhost:7071/webhooks/clerk`
    - Events: `user.created`, `user.updated`, `user.deleted`
    - Get `CLERK_WEBHOOK_SIGNING_SECRET`
 
+### 4. Docker Compose (Alternative)
+
+Run both services with Docker:
+
+```bash
+docker-compose up --build
+```
+
 ## Azure Deployment
 
-### Option 1: Using Azure Developer CLI (Recommended)
+### Using Azure Developer CLI (Recommended)
 
 ```bash
 # Login to Azure
@@ -108,79 +120,83 @@ azd up
 
 You'll be prompted for secure parameters (PostgreSQL password, Clerk keys).
 
-### Option 2: Manual Bicep Deployment
-
-```bash
-cd infra
-
-az deployment sub create \
-  --location eastus \
-  --template-file main.bicep \
-  --parameters \
-    environment=dev \
-    postgresAdminPassword='<secure-password>' \
-    clerkSecretKey='<your-clerk-secret>' \
-    clerkWebhookSigningSecret='<your-webhook-secret>' \
-    clerkPublishableKey='<your-publishable-key>'
-```
-
-Then deploy the apps:
-
-```bash
-# Deploy frontend
-cd frontend && npx swa deploy --env production
-
-# Deploy API
-cd api && func azure functionapp publish <function-app-name>
-```
-
 ## API Endpoints
 
 | Method | Endpoint | Description | Auth |
 |--------|----------|-------------|------|
-| GET | `/api/` | Health check | No |
-| GET | `/api/phases` | List all phases | No |
-| GET | `/api/phases/{id}` | Get phase by ID | No |
-| GET | `/api/p/{slug}` | Get phase by slug | No |
-| GET | `/api/p/{phase}/{topic}` | Get topic by slug | No |
-| GET | `/api/user/phases` | Phases with progress | Yes |
-| GET | `/api/user/p/{slug}` | Phase with full progress | Yes |
-| GET | `/api/user/p/{phase}/{topic}` | Topic with progress | Yes |
-| GET | `/api/user/dashboard` | User dashboard data | Yes |
-| POST | `/api/checklist/{id}/toggle` | Toggle checklist item | Yes |
-| POST | `/api/webhooks/clerk` | Clerk webhook handler | Svix |
+| GET | `/health` | Health check | No |
+| GET | `/ready` | Readiness check (init complete + DB reachable) | No |
+| GET | `/phases` | List all phases | No |
+| GET | `/phases/{id}` | Get phase by ID | No |
+| GET | `/p/{slug}` | Get phase by slug | No |
+| GET | `/p/{phase}/{topic}` | Get topic by slug | No |
+| GET | `/user/phases` | Phases with progress | Yes |
+| GET | `/user/p/{slug}` | Phase with full progress | Yes |
+| GET | `/user/p/{phase}/{topic}` | Topic with progress | Yes |
+| GET | `/user/dashboard` | User dashboard data | Yes |
+| POST | `/checklist/{id}/toggle` | Toggle checklist item | Yes |
+| POST | `/github/submit` | Submit GitHub project | Yes |
+| POST | `/webhooks/clerk` | Clerk webhook handler | Svix |
+
+### Health vs readiness
+
+- **`/health`** is a fast liveness endpoint. It does **not** depend on the database.
+- **`/ready`** is a readiness endpoint. It returns **200** only after:
+   - background initialization completed successfully, and
+   - the database is reachable.
+
+In Azure Container Apps, the API container uses:
+- **Startup + liveness probes**: `/health`
+- **Readiness probe**: `/ready`
+
+Local quick check:
+
+```bash
+curl -i http://localhost:7071/health
+curl -i http://localhost:7071/ready
+```
 
 ## Project Structure
 
 ```
 learn-to-cloud-app/
 ├── api/
-│   ├── function_app.py      # Azure Functions endpoints
-│   ├── host.json            # Functions host config
-│   ├── requirements.txt     # Python dependencies
-│   ├── pyproject.toml       # uv project config
+│   ├── main.py              # FastAPI application entry point
+│   ├── Dockerfile           # API container definition
+│   ├── pyproject.toml       # uv/Python dependencies
+│   ├── routes/
+│   │   ├── __init__.py      # Router exports
+│   │   ├── checklist.py     # Checklist toggle endpoints
+│   │   ├── github.py        # GitHub submission endpoints
+│   │   ├── health.py        # Health check endpoint
+│   │   ├── users.py         # User progress endpoints
+│   │   └── webhooks.py      # Clerk webhook handler
 │   └── shared/
 │       ├── __init__.py      # Module exports
 │       ├── auth.py          # Clerk authentication
 │       ├── config.py        # Settings
-│       ├── content.py       # Static phase content
 │       ├── database.py      # DB connection
+│       ├── github.py        # GitHub API integration
 │       ├── models.py        # SQLAlchemy models
-│       └── schemas.py       # Pydantic schemas
+│       ├── schemas.py       # Pydantic schemas
+│       └── telemetry.py     # Azure Monitor integration
 ├── frontend/
 │   ├── src/
 │   │   ├── app/             # Next.js App Router pages
 │   │   ├── components/      # React components
 │   │   ├── lib/             # API client, types, hooks
-│   │   └── proxy.ts         # Clerk auth proxy (Next.js 16)
-│   ├── staticwebapp.config.json
+│   │   └── proxy.ts         # Clerk auth proxy
+│   ├── content/
+│   │   └── phases/          # Phase and topic JSON content
+│   ├── Dockerfile           # Frontend container definition
 │   └── package.json
 ├── infra/
 │   ├── main.bicep           # Subscription-level deployment
 │   └── resources.bicep      # Resource definitions
+├── docker-compose.yml       # Local development containers
 └── azure.yaml               # Azure Developer CLI config
 ```
 
 ## License
 
-This project is proprietary and closed source. All righazd upts reserved.
+This project is proprietary and closed source. All rights reserved.

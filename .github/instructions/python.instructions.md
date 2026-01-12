@@ -15,7 +15,8 @@ applyTo: '**/*.py'
    ```
 
 3. API will be available at:
-   - Health check: http://localhost:8000/api
+   - Liveness: http://localhost:8000/health
+   - Readiness: http://localhost:8000/ready
    - Swagger docs: http://localhost:8000/docs
 
 ## Virtual Environment

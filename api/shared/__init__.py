@@ -4,7 +4,7 @@ from .config import get_settings, Settings
 from .database import (
     init_db, Base, get_db, DbSession,
     get_engine, get_session_maker, reset_db_state,
-    cleanup_old_webhooks,
+    cleanup_old_webhooks, upsert_on_conflict,
 )
 from .models import User, ChecklistProgress, ProcessedWebhook, GitHubSubmission, SubmissionType
 from .auth import get_user_id_from_request, require_auth, UserId
@@ -41,6 +41,7 @@ __all__ = [
     "get_session_maker",
     "reset_db_state",
     "cleanup_old_webhooks",
+    "upsert_on_conflict",
     # Models
     "User",
     "ChecklistProgress",

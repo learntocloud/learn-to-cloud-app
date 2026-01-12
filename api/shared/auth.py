@@ -13,19 +13,9 @@ from .config import get_settings
 logger = logging.getLogger(__name__)
 
 
-def _build_authorized_parties() -> list[str]:
-    """Build list of authorized parties for Clerk authentication."""
-    settings = get_settings()
-    
-    parties = {
-        "http://localhost:3000",
-        "http://localhost:4280",
-    }
-    
-    if settings.frontend_url:
-        parties.add(settings.frontend_url)
-    
-    return list(parties)
+def _get_authorized_parties() -> list[str]:
+    """Get authorized parties for Clerk authentication from centralized config."""
+    return get_settings().allowed_origins
 
 
 def get_user_id_from_request(req: Request) -> str | None:
@@ -49,7 +39,7 @@ def get_user_id_from_request(req: Request) -> str | None:
             request_state = clerk.authenticate_request(
                 httpx_request,
                 AuthenticateRequestOptions(
-                    authorized_parties=_build_authorized_parties(),
+                    authorized_parties=_get_authorized_parties(),
                 )
             )
             

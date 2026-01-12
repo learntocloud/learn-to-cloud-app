@@ -22,6 +22,9 @@
     },
     "frontendCustomDomain": {
       "value": "app.learntocloud.guide"
+    },
+    "frontendManagedCertificateName": {
+      "value": "app.learntocloud.guide-cae-lear-260111200430"
     }
   }
 }

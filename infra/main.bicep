@@ -1,5 +1,3 @@
-// Azure Infrastructure for Learn to Cloud App
-// Deploy with: az deployment sub create --location eastus2 --template-file main.bicep
 
 targetScope = 'subscription'
 
@@ -27,6 +25,9 @@ param clerkPublishableKey string
 @description('Custom domain for the frontend app (optional)')
 param frontendCustomDomain string = ''
 
+@description('Name of the existing managed certificate resource in the Container Apps environment (required when binding a custom domain)')
+param frontendManagedCertificateName string = ''
+
 var resourceGroupName = 'rg-learntocloud-${environment}'
 var tags = {
   environment: environment
@@ -42,7 +43,6 @@ resource rg 'Microsoft.Resources/resourceGroups@2023-07-01' = {
 
 // Deploy all resources in the resource group
 module resources 'resources.bicep' = {
-  name: 'resources-${environment}'
   scope: rg
   params: {
     environment: environment
@@ -53,6 +53,7 @@ module resources 'resources.bicep' = {
     clerkWebhookSigningSecret: clerkWebhookSigningSecret
     clerkPublishableKey: clerkPublishableKey
     frontendCustomDomain: frontendCustomDomain
+    frontendManagedCertificateName: frontendManagedCertificateName
   }
 }
 

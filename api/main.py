@@ -8,7 +8,9 @@ from contextlib import asynccontextmanager
 # Configure Azure Monitor OpenTelemetry (must be done before other imports use logging)
 # Only enable if connection string is provided (Azure environment)
 if os.getenv("APPLICATIONINSIGHTS_CONNECTION_STRING"):
-    from azure.monitor.opentelemetry import configure_azure_monitor
+    from azure.monitor.opentelemetry import (  # type: ignore[import-not-found]
+        configure_azure_monitor,
+    )
 
     configure_azure_monitor(
         enable_live_metrics=True,
@@ -27,6 +29,7 @@ if os.getenv("APPLICATIONINSIGHTS_CONNECTION_STRING"):
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
+from slowapi.errors import RateLimitExceeded
 
 from routes import (
     checklist_router,
@@ -35,7 +38,11 @@ from routes import (
     users_router,
     webhooks_router,
 )
-from shared import RequestTimingMiddleware, cleanup_old_webhooks, get_settings, init_db
+from routes.users import close_http_client
+from shared.config import get_settings
+from shared.database import cleanup_old_webhooks, init_db
+from shared.ratelimit import limiter, rate_limit_exceeded_handler
+from shared.telemetry import RequestTimingMiddleware
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -59,13 +66,37 @@ async def lifespan(app: FastAPI):
     """Initialize database in background for faster cold start."""
     # Start init in background - don't block server startup
     # This allows the health endpoint to respond immediately
+    app.state.init_done = False
+    app.state.init_error = None
+
     init_task = asyncio.create_task(_background_init())
-    
-    yield
-    
-    # Ensure init completes before shutdown
-    if not init_task.done():
-        await init_task
+
+    def _record_init_result(task: asyncio.Task[None]) -> None:
+        try:
+            task.result()
+            app.state.init_done = True
+            app.state.init_error = None
+        except Exception as e:
+            # Store a string to avoid leaking exception objects across boundaries.
+            app.state.init_done = False
+            app.state.init_error = str(e)
+
+    init_task.add_done_callback(_record_init_result)
+
+    try:
+        yield
+    finally:
+        # Close reusable clients
+        await close_http_client()
+
+        # Ensure init completes (or at least observe/log failures) before shutdown.
+        try:
+            if not init_task.done():
+                await init_task
+            else:
+                init_task.result()
+        except Exception:
+            logger.exception("Background initialization failed")
 
 
 app = FastAPI(
@@ -74,18 +105,9 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-
-def _build_cors_origins() -> list[str]:
-    """Build CORS origins list from settings."""
-    settings = get_settings()
-    origins = [
-        "http://localhost:3000",
-        "http://localhost:4280",
-    ]
-    if settings.frontend_url and settings.frontend_url not in origins:
-        origins.append(settings.frontend_url)
-    return origins
-
+# Rate limiting
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
 
 # GZip compression for responses > 500 bytes
 app.add_middleware(GZipMiddleware, minimum_size=500)
@@ -93,10 +115,10 @@ app.add_middleware(GZipMiddleware, minimum_size=500)
 # Request timing middleware (adds performance tracking and X-Request-Duration-Ms header)
 app.add_middleware(RequestTimingMiddleware)
 
-# CORS middleware
+# CORS middleware - uses centralized allowed_origins from settings
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=_build_cors_origins(),
+    allow_origins=get_settings().allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

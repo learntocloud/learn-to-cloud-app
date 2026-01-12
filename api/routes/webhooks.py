@@ -1,19 +1,17 @@
 """Clerk webhook endpoints."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException, Request
-from sqlalchemy import select
+from sqlalchemy import delete, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from svix.webhooks import Webhook, WebhookVerificationError
 
-from shared import (
-    get_settings,
-    DbSession,
-    User,
-    ProcessedWebhook,
-    WebhookResponse,
-)
+from shared.config import get_settings
+from shared.database import DbSession
+from shared.models import ProcessedWebhook, User
+from shared.schemas import WebhookResponse
 
 router = APIRouter(prefix="/api/webhooks", tags=["webhooks"])
 
@@ -68,7 +66,7 @@ async def handle_user_created(db: AsyncSession, data: dict) -> None:
         existing_user.last_name = data.get("last_name")
         existing_user.avatar_url = data.get("image_url")
         existing_user.github_username = github_username
-        existing_user.updated_at = datetime.now(timezone.utc)
+        existing_user.updated_at = datetime.now(UTC)
     else:
         user = User(
             id=user_id,
@@ -112,7 +110,7 @@ async def handle_user_updated(db: AsyncSession, data: dict) -> None:
     user.last_name = data.get("last_name")
     user.avatar_url = data.get("image_url")
     user.github_username = github_username
-    user.updated_at = datetime.now(timezone.utc)
+    user.updated_at = datetime.now(UTC)
 
 
 async def handle_user_deleted(db: AsyncSession, data: dict) -> None:
@@ -121,15 +119,9 @@ async def handle_user_deleted(db: AsyncSession, data: dict) -> None:
     if not user_id:
         return
 
-    result = await db.execute(select(User).where(User.id == user_id))
-    user = result.scalar_one_or_none()
-
-    if user:
-        user.email = f"deleted_{user_id}@deleted.local"
-        user.first_name = None
-        user.last_name = None
-        user.avatar_url = None
-        user.updated_at = datetime.now(timezone.utc)
+    # Hard delete: remove the user and rely on FK ON DELETE CASCADE to
+    # delete dependent rows (checklist_progress, github_submissions).
+    await db.execute(delete(User).where(User.id == user_id))
 
 
 @router.post("/clerk", response_model=WebhookResponse)
@@ -150,22 +142,31 @@ async def clerk_webhook(request: Request, db: DbSession) -> WebhookResponse:
     verified_headers = {k: v for k, v in headers.items() if v is not None}
 
     if not settings.clerk_webhook_signing_secret:
-        raise HTTPException(status_code=500, detail="Webhook signing secret not configured")
+        raise HTTPException(
+            status_code=500,
+            detail="Webhook signing secret not configured",
+        )
 
     try:
         wh = Webhook(settings.clerk_webhook_signing_secret)
         event = wh.verify(payload, verified_headers)
     except WebhookVerificationError as e:
-        raise HTTPException(status_code=400, detail=f"Invalid webhook signature: {str(e)}")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid webhook signature: {str(e)}",
+        )
 
-    event_type = event.get("type")
+    event_type = event.get("type") or "unknown"
     data = event.get("data", {})
-    svix_id = headers["svix-id"]
+    svix_id = verified_headers["svix-id"]
 
-    result = await db.execute(
-        select(ProcessedWebhook).where(ProcessedWebhook.id == svix_id)
-    )
-    if result.scalar_one_or_none():
+    # Idempotency under concurrency: acquire the svix-id by inserting it first.
+    # If another request already inserted the same id, treat as already processed.
+    processed = ProcessedWebhook(id=svix_id, event_type=event_type)
+    db.add(processed)
+    try:
+        await db.flush()
+    except IntegrityError:
         return WebhookResponse(status="already_processed")
 
     if event_type == "user.created":
@@ -174,8 +175,5 @@ async def clerk_webhook(request: Request, db: DbSession) -> WebhookResponse:
         await handle_user_updated(db, data)
     elif event_type == "user.deleted":
         await handle_user_deleted(db, data)
-
-    processed = ProcessedWebhook(id=svix_id, event_type=event_type)
-    db.add(processed)
 
     return WebhookResponse(status="processed", event_type=event_type)

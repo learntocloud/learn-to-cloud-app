@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
+        extra="ignore",
     )
     
     # Database - Local development (SQLite or local PostgreSQL)
@@ -25,17 +26,37 @@ class Settings(BaseSettings):
     clerk_secret_key: str = ""
     clerk_webhook_signing_secret: str = ""
     clerk_publishable_key: str = ""
-    
+
+    # GitHub API (optional, for higher rate limits)
+    github_token: str = ""
+
     # Frontend URL for CORS
     frontend_url: str = "http://localhost:4280"
     
     # Environment
     environment: str = "development"
+
+    # Development-only convenience: drop and recreate tables on startup.
+    reset_db_on_startup: bool = False
     
     @property
     def use_azure_postgres(self) -> bool:
         """Check if Azure PostgreSQL with managed identity should be used."""
         return bool(self.postgres_host and self.postgres_user)
+
+    @property
+    def allowed_origins(self) -> list[str]:
+        """Get list of allowed origins for CORS and auth.
+
+        Used by both CORS middleware and Clerk auth validation.
+        """
+        origins = [
+            "http://localhost:3000",
+            "http://localhost:4280",
+        ]
+        if self.frontend_url and self.frontend_url not in origins:
+            origins.append(self.frontend_url)
+        return origins
 
 
 @lru_cache

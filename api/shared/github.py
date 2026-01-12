@@ -1,16 +1,114 @@
-"""GitHub validation utilities for hands-on verification."""
+"""GitHub validation utilities for hands-on verification.
 
+Security note:
+This module processes user-submitted URLs (deployed app validation). Those URLs
+must be treated as untrusted to avoid SSRF.
+"""
+
+import asyncio
 import logging
 import re
+import socket
 from dataclasses import dataclass
+from ipaddress import ip_address
+from urllib.parse import urljoin, urlsplit
 
 import httpx
 
+from .config import get_settings
 from .models import SubmissionType
 from .schemas import GitHubRequirement
 from .telemetry import track_dependency
 
+
+def _get_github_headers() -> dict[str, str]:
+    """Get headers for GitHub API requests, including auth token if available."""
+    headers = {"Accept": "application/vnd.github.v3+json"}
+    settings = get_settings()
+    if settings.github_token:
+        headers["Authorization"] = f"Bearer {settings.github_token}"
+    return headers
+
 logger = logging.getLogger(__name__)
+
+
+def _is_public_ip(ip_str: str) -> bool:
+    """Return True if the IP is publicly routable (not private/loopback/etc)."""
+    try:
+        ip_obj = ip_address(ip_str)
+    except ValueError:
+        return False
+
+    # ipaddress.IPv4Address/IPv6Address has helpful predicates.
+    # Prefer is_global when available (py3.13), but guard with fallbacks.
+    is_global = getattr(ip_obj, "is_global", None)
+    if callable(is_global):
+        return bool(is_global())
+
+    return not (
+        ip_obj.is_private
+        or ip_obj.is_loopback
+        or ip_obj.is_link_local
+        or ip_obj.is_multicast
+        or ip_obj.is_reserved
+        or ip_obj.is_unspecified
+    )
+
+
+async def _host_resolves_to_public_ip(host: str) -> bool:
+    """Resolve host and ensure all A/AAAA records are publicly routable."""
+    # If host is already an IP literal, validate it directly.
+    try:
+        ip_address(host)
+        return _is_public_ip(host)
+    except ValueError:
+        pass
+
+    def _resolve() -> list[str]:
+        # getaddrinfo can return duplicates; normalize.
+        results = socket.getaddrinfo(host, None, type=socket.SOCK_STREAM)
+        addrs: set[str] = set()
+        for family, _, _, _, sockaddr in results:
+            if family == socket.AF_INET:
+                addrs.add(sockaddr[0])
+            elif family == socket.AF_INET6:
+                addrs.add(sockaddr[0])
+        return sorted(addrs)
+
+    try:
+        addresses = await asyncio.to_thread(_resolve)
+    except socket.gaierror:
+        return False
+
+    if not addresses:
+        return False
+
+    return all(_is_public_ip(addr) for addr in addresses)
+
+
+async def _validate_public_https_url(url: str) -> str:
+    """Validate an untrusted URL is HTTPS and resolves to public IPs."""
+    url = url.strip()
+    parts = urlsplit(url)
+
+    if parts.scheme != "https":
+        raise ValueError("URL must use https")
+    if not parts.netloc:
+        raise ValueError("URL must include a host")
+    if parts.username or parts.password:
+        raise ValueError("URL must not include credentials")
+
+    hostname = parts.hostname
+    if not hostname:
+        raise ValueError("URL host is invalid")
+
+    # Prevent SSRF to internal networks.
+    is_public = await _host_resolves_to_public_ip(hostname)
+    if not is_public:
+        raise ValueError("URL host is not publicly routable")
+
+    # Drop fragments; keep the rest as-is.
+    return parts._replace(fragment="").geturl()
 
 
 # ============ GitHub Requirements Configuration ============
@@ -193,30 +291,30 @@ async def check_repo_is_fork_of(username: str, repo_name: str, original_repo: st
         async with httpx.AsyncClient(timeout=10.0) as client:
             response = await client.get(
                 api_url,
-                headers={"Accept": "application/vnd.github.v3+json"}
+                headers=_get_github_headers(),
             )
-            
+
             if response.status_code == 404:
                 return False, f"Repository {username}/{repo_name} not found"
-            
+
             if response.status_code != 200:
                 return False, f"GitHub API error: {response.status_code}"
-            
+
             repo_data = response.json()
-            
+
             # Check if it's a fork
             if not repo_data.get("fork", False):
                 return False, "Repository is not a fork"
-            
+
             # Check if it's forked from the correct repository
             parent = repo_data.get("parent", {})
             parent_full_name = parent.get("full_name", "")
-            
+
             if parent_full_name.lower() == original_repo.lower():
                 return True, f"Verified fork of {original_repo}"
             else:
                 return False, f"Repository is forked from {parent_full_name}, not {original_repo}"
-                
+
     except httpx.TimeoutException:
         return False, "GitHub API request timed out"
     except httpx.RequestError as e:
@@ -383,38 +481,73 @@ async def validate_deployed_app(
         check_url = app_url
     
     try:
-        async with httpx.AsyncClient(follow_redirects=True, timeout=15.0) as client:
-            response = await client.get(check_url)
-            
-            if response.status_code == 200:
-                return ValidationResult(
-                    is_valid=True,
-                    message=f"App is live! Successfully reached {check_url}",
-                    username_match=True,  # Not applicable for deployed apps
-                    repo_exists=True  # Using this to indicate "app exists"
-                )
-            elif response.status_code in (401, 403):
-                # Authentication required - app is running but endpoint is protected
+        # SSRF hardening: validate the URL and follow redirects manually, validating
+        # every hop (redirect targets included).
+        max_redirects = 5
+        current_url = check_url
+
+        async with httpx.AsyncClient(follow_redirects=False, timeout=15.0) as client:
+            for redirect_count in range(max_redirects + 1):
+                safe_url = await _validate_public_https_url(current_url)
+
+                async with client.stream("GET", safe_url) as response:
+                    status_code = response.status_code
+                    location = response.headers.get("location")
+
+                if status_code in (301, 302, 303, 307, 308):
+                    if not location:
+                        return ValidationResult(
+                            is_valid=False,
+                            message="App returned a redirect without a Location header.",
+                            username_match=True,
+                            repo_exists=False,
+                        )
+                    current_url = urljoin(safe_url, location)
+                    continue
+
+                if status_code == 200:
+                    return ValidationResult(
+                        is_valid=True,
+                        message=f"App is live! Successfully reached {safe_url}",
+                        username_match=True,  # Not applicable for deployed apps
+                        repo_exists=True,  # Using this to indicate "app exists"
+                    )
+
+                if status_code in (401, 403):
+                    # Authentication required - app is running but endpoint is protected
+                    return ValidationResult(
+                        is_valid=False,
+                        message=(
+                            f"App is running but {expected_endpoint or '/'} requires authentication. "
+                            "Make sure the endpoint is publicly accessible without auth."
+                        ),
+                        username_match=True,
+                        repo_exists=True,
+                    )
+
+                if status_code == 404:
+                    return ValidationResult(
+                        is_valid=False,
+                        message=(
+                            f"Endpoint not found (404). Make sure your app has a {expected_endpoint or '/'} endpoint."
+                        ),
+                        username_match=True,
+                        repo_exists=False,
+                    )
+
                 return ValidationResult(
                     is_valid=False,
-                    message=f"App is running but {expected_endpoint or '/'} requires authentication. Make sure the endpoint is publicly accessible without auth.",
+                    message=f"App returned status {status_code}. Expected 200 OK.",
                     username_match=True,
-                    repo_exists=True
+                    repo_exists=False,
                 )
-            elif response.status_code == 404:
-                return ValidationResult(
-                    is_valid=False,
-                    message=f"Endpoint not found (404). Make sure your app has a {expected_endpoint or '/'} endpoint.",
-                    username_match=True,
-                    repo_exists=False
-                )
-            else:
-                return ValidationResult(
-                    is_valid=False,
-                    message=f"App returned status {response.status_code}. Expected 200 OK.",
-                    username_match=True,
-                    repo_exists=False
-                )
+
+        return ValidationResult(
+            is_valid=False,
+            message="Too many redirects while trying to reach your app.",
+            username_match=True,
+            repo_exists=False,
+        )
                 
     except httpx.TimeoutException:
         return ValidationResult(
@@ -429,6 +562,13 @@ async def validate_deployed_app(
             message="Could not connect to your app. Check that the URL is correct and the app is deployed.",
             username_match=True,
             repo_exists=False
+        )
+    except ValueError as e:
+        return ValidationResult(
+            is_valid=False,
+            message=str(e),
+            username_match=True,
+            repo_exists=False,
         )
     except httpx.RequestError as e:
         logger.warning(f"Error checking deployed app {check_url}: {e}")

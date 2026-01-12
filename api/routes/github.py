@@ -1,25 +1,29 @@
 """GitHub submission endpoints."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from sqlalchemy import select
 
-from shared import (
-    DbSession,
-    UserId,
-    GitHubSubmission,
+from shared.auth import UserId
+from shared.database import DbSession, upsert_on_conflict
+from shared.github import (
+    GITHUB_REQUIREMENTS,
+    get_requirement_by_id,
+    get_requirements_for_phase,
+    parse_github_url,
+    validate_submission,
+)
+from shared.models import GitHubSubmission, SubmissionType
+from shared.ratelimit import EXTERNAL_API_LIMIT, limiter
+from shared.schemas import (
+    AllPhasesGitHubRequirementsResponse,
     GitHubSubmissionRequest,
     GitHubSubmissionResponse,
     GitHubValidationResult,
     PhaseGitHubRequirementsResponse,
-    AllPhasesGitHubRequirementsResponse,
-    get_requirements_for_phase,
-    get_requirement_by_id,
-    validate_submission,
-    parse_github_url,
-    GITHUB_REQUIREMENTS,
 )
+
 from .users import get_or_create_user
 
 router = APIRouter(prefix="/api/github", tags=["github"])
@@ -102,7 +106,9 @@ async def get_phase_github_requirements(
     ]
 
     # Check if all requirements are validated
-    validated_requirement_ids = {s.requirement_id for s in submissions if s.is_validated}
+    validated_requirement_ids = {
+        s.requirement_id for s in submissions if s.is_validated
+    }
     required_ids = {r.id for r in requirements}
     all_validated = required_ids.issubset(validated_requirement_ids)
 
@@ -115,7 +121,9 @@ async def get_phase_github_requirements(
 
 
 @router.post("/submit", response_model=GitHubValidationResult)
+@limiter.limit(EXTERNAL_API_LIMIT)
 async def submit_github_validation(
+    request: Request,
     submission: GitHubSubmissionRequest,
     user_id: UserId,
     db: DbSession,
@@ -130,11 +138,17 @@ async def submit_github_validation(
     user = await get_or_create_user(db, user_id)
 
     # For GitHub-based submissions, require GitHub username
-    if requirement.submission_type.value in ("profile_readme", "repo_fork"):
+    if requirement.submission_type in (
+        SubmissionType.PROFILE_README,
+        SubmissionType.REPO_FORK,
+    ):
         if not user.github_username:
             raise HTTPException(
                 status_code=400,
-                detail="You need to link your GitHub account to submit. Please sign out and sign in with GitHub.",
+                detail=(
+                    "You need to link your GitHub account to submit. "
+                    "Please sign out and sign in with GitHub."
+                ),
             )
 
     # Validate the submission
@@ -144,45 +158,49 @@ async def submit_github_validation(
         expected_username=user.github_username,  # Can be None for deployed apps
     )
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
-    # Check for existing submission
+    # Extract username from URL for storage (only for GitHub URLs)
+    parsed = parse_github_url(submission.submitted_url)
+    github_username = parsed.username if parsed.is_valid else None
+
+    # Concurrency-safe upsert for uq_user_requirement (user_id, requirement_id)
+    values = {
+        "user_id": user_id,
+        "requirement_id": submission.requirement_id,
+        "submission_type": requirement.submission_type,
+        "phase_id": requirement.phase_id,
+        "submitted_url": submission.submitted_url,
+        "github_username": github_username,
+        "is_validated": validation_result.is_valid,
+        "validated_at": now if validation_result.is_valid else None,
+        "updated_at": now,
+    }
+
+    await upsert_on_conflict(
+        db=db,
+        model=GitHubSubmission,
+        values=values,
+        index_elements=["user_id", "requirement_id"],
+        update_fields=[
+            "submission_type",
+            "phase_id",
+            "submitted_url",
+            "github_username",
+            "is_validated",
+            "validated_at",
+            "updated_at",
+        ],
+    )
+
+    # Re-fetch for a consistent response (works for both insert and update)
     result = await db.execute(
         select(GitHubSubmission).where(
             GitHubSubmission.user_id == user_id,
             GitHubSubmission.requirement_id == submission.requirement_id,
         )
     )
-    existing = result.scalar_one_or_none()
-
-    # Extract username from URL for storage (only for GitHub URLs)
-    parsed = parse_github_url(submission.submitted_url)
-    github_username = parsed.username if parsed.is_valid else None
-
-    if existing:
-        # Update existing submission
-        existing.submitted_url = submission.submitted_url
-        existing.github_username = github_username
-        existing.is_validated = validation_result.is_valid
-        existing.validated_at = now if validation_result.is_valid else None
-        existing.updated_at = now
-        db_submission = existing
-    else:
-        # Create new submission
-        db_submission = GitHubSubmission(
-            user_id=user_id,
-            requirement_id=submission.requirement_id,
-            submission_type=requirement.submission_type.value,
-            phase_id=requirement.phase_id,
-            submitted_url=submission.submitted_url,
-            github_username=github_username,
-            is_validated=validation_result.is_valid,
-            validated_at=now if validation_result.is_valid else None,
-        )
-        db.add(db_submission)
-
-    await db.flush()
-    await db.refresh(db_submission)
+    db_submission = result.scalar_one()
 
     return GitHubValidationResult(
         is_valid=validation_result.is_valid,

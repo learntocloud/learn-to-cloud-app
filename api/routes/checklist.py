@@ -1,18 +1,19 @@
 """Checklist progress endpoints."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException
 from sqlalchemy import select
 
-from shared import (
-    DbSession,
-    UserId,
-    ChecklistProgress,
+from shared.auth import UserId
+from shared.database import DbSession
+from shared.models import ChecklistProgress
+from shared.schemas import (
+    ChecklistToggleResponse,
     ProgressItem,
     UserProgressResponse,
-    ChecklistToggleResponse,
 )
+
 from .users import get_or_create_user
 
 router = APIRouter(prefix="/api", tags=["checklist"])
@@ -61,7 +62,7 @@ async def toggle_checklist_item(
     )
     progress = result.scalar_one_or_none()
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     if not progress:
         progress = ChecklistProgress(
@@ -78,4 +79,6 @@ async def toggle_checklist_item(
         progress.completed_at = now if progress.is_completed else None
         is_completed = progress.is_completed
 
-    return ChecklistToggleResponse(success=True, item_id=item_id, is_completed=is_completed)
+    return ChecklistToggleResponse(
+        success=True, item_id=item_id, is_completed=is_completed
+    )

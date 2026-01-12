@@ -14,8 +14,7 @@ from collections.abc import Awaitable, Callable
 from functools import wraps
 from typing import Any, ParamSpec, TypeVar
 
-from fastapi import Request, Response
-from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +55,9 @@ def instrument_sqlalchemy_engine(engine: Any) -> None:
         return
 
     try:
-        from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
+        from opentelemetry.instrumentation.sqlalchemy import (  # type: ignore[import-not-found]
+            SQLAlchemyInstrumentor,
+        )
 
         # Get the sync engine from async engine for instrumentation
         SQLAlchemyInstrumentor().instrument(
@@ -68,7 +69,7 @@ def instrument_sqlalchemy_engine(engine: Any) -> None:
         logger.warning(f"Failed to instrument SQLAlchemy: {e}")
 
 
-class RequestTimingMiddleware(BaseHTTPMiddleware):
+class RequestTimingMiddleware:
     """
     Middleware to add detailed request timing information.
     
@@ -79,62 +80,92 @@ class RequestTimingMiddleware(BaseHTTPMiddleware):
     - User context (if authenticated)
     """
 
-    async def dispatch(
-        self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
-    ) -> Response:
+    def __init__(self, app: ASGIApp):
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
         start_time = time.perf_counter()
-        
-        # Extract route info for better span names
-        route = request.scope.get("route")
-        route_path = route.path if route else request.url.path
-        
+        method = scope.get("method", "UNKNOWN")
+        path = scope.get("path", "")
+
+        client = scope.get("client")
+        client_ip = client[0] if client else "unknown"
+
+        response_status: int | None = None
+
+        async def send_wrapper(message: Message) -> None:
+            nonlocal response_status
+
+            if message.get("type") == "http.response.start":
+                response_status = int(message.get("status", 0))
+                headers: list[tuple[bytes, bytes]] = list(message.get("headers", []))
+                # This header is primarily for debugging. It measures time-to-first-byte
+                # (TTFB) for streaming responses.
+                duration_ms = (time.perf_counter() - start_time) * 1000
+                headers.append(
+                    (b"x-request-duration-ms", f"{duration_ms:.2f}".encode())
+                )
+                message["headers"] = headers
+
+            elif message.get("type") == "http.response.body" and not message.get(
+                "more_body", False
+            ):
+                duration_ms = (time.perf_counter() - start_time) * 1000
+
+                route = scope.get("route")
+                route_path = getattr(route, "path", None) or path
+
+                if (
+                    TELEMETRY_ENABLED
+                    and tracer
+                    and trace is not None
+                    and Status is not None
+                    and StatusCode is not None
+                    and response_status is not None
+                ):
+                    span = trace.get_current_span() if trace else None
+                    if span:
+                        span.set_attribute("http.route", route_path)
+                        span.set_attribute("http.status_code", response_status)
+                        span.set_attribute("http.duration_ms", duration_ms)
+
+                        if response_status >= 500:
+                            span.set_status(
+                                Status(StatusCode.ERROR, f"HTTP {response_status}")
+                            )
+                        elif response_status >= 400:
+                            span.set_status(
+                                Status(
+                                    StatusCode.ERROR,
+                                    f"Client error {response_status}",
+                                )
+                            )
+
+                if duration_ms > 1000:
+                    logger.warning(
+                        f"Slow request: {method} {route_path} took {duration_ms:.2f}ms"
+                    )
+
+            await send(message)
+
         if TELEMETRY_ENABLED and tracer:
-            client_ip = request.client.host if request.client else "unknown"
             with tracer.start_as_current_span(
-                f"{request.method} {route_path}",
+                f"{method} {path}",
                 attributes={
-                    "http.method": request.method,
-                    "http.route": route_path,
-                    "http.url": str(request.url),
+                    "http.method": method,
+                    "http.route": path,
+                    "http.url": scope.get("raw_path", path),
                     "http.client_ip": client_ip,
                 },
-            ) as span:
-                response = await call_next(request)
-                
-                # Calculate duration
-                duration_ms = (time.perf_counter() - start_time) * 1000
-                
-                # Add response attributes
-                span.set_attribute("http.status_code", response.status_code)
-                span.set_attribute("http.duration_ms", duration_ms)
-                
-                # Set span status based on response code
-                if response.status_code >= 500:
-                    span.set_status(
-                        Status(StatusCode.ERROR, f"HTTP {response.status_code}")
-                    )
-                elif response.status_code >= 400:
-                    span.set_status(
-                        Status(StatusCode.ERROR, f"Client error {response.status_code}")
-                    )
-                
-                # Add timing header for debugging
-                response.headers["X-Request-Duration-Ms"] = f"{duration_ms:.2f}"
-                
-                # Log slow requests
-                if duration_ms > 1000:  # Over 1 second
-                    logger.warning(
-                        f"Slow request: {request.method} {route_path} "
-                        f"took {duration_ms:.2f}ms"
-                    )
-                
-                return response
-        else:
-            # Non-instrumented path (local development)
-            response = await call_next(request)
-            duration_ms = (time.perf_counter() - start_time) * 1000
-            response.headers["X-Request-Duration-Ms"] = f"{duration_ms:.2f}"
-            return response
+            ):
+                await self.app(scope, receive, send_wrapper)
+                return
+
+        await self.app(scope, receive, send_wrapper)
 
 
 def track_dependency(name: str, dependency_type: str = "custom"):
@@ -171,7 +202,8 @@ def track_dependency(name: str, dependency_type: str = "custom"):
                 except Exception as e:
                     span.set_attribute("dependency.success", False)
                     span.set_attribute("dependency.error", str(e))
-                    span.set_status(Status(StatusCode.ERROR, str(e)))
+                    if Status is not None and StatusCode is not None:
+                        span.set_status(Status(StatusCode.ERROR, str(e)))
                     raise
                 finally:
                     duration_ms = (time.perf_counter() - start_time) * 1000
@@ -211,7 +243,8 @@ def track_operation(operation_name: str):
                 except Exception as e:
                     span.set_attribute("operation.success", False)
                     span.record_exception(e)
-                    span.set_status(Status(StatusCode.ERROR, str(e)))
+                    if Status is not None and StatusCode is not None:
+                        span.set_status(Status(StatusCode.ERROR, str(e)))
                     raise
                 finally:
                     duration_ms = (time.perf_counter() - start_time) * 1000

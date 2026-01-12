@@ -1,21 +1,19 @@
 """User-related endpoints and helpers."""
 
 import logging
-from datetime import datetime, timezone
-
+import time
+from datetime import UTC, datetime
 
 import httpx
 from fastapi import APIRouter
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from shared import (
-    get_settings,
-    DbSession,
-    UserId,
-    User,
-    UserResponse,
-)
+from shared.auth import UserId
+from shared.config import get_settings
+from shared.database import DbSession
+from shared.models import User
+from shared.schemas import UserResponse
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +21,11 @@ router = APIRouter(prefix="/api/user", tags=["users"])
 
 # Reusable HTTP client for Clerk API calls (connection pooling)
 _http_client: httpx.AsyncClient | None = None
+
+# Simple in-process backoff to avoid hammering Clerk on repeated failures.
+# Keyed by Clerk user_id, value is next-allowed UNIX timestamp.
+_clerk_lookup_backoff_until: dict[str, float] = {}
+_CLERK_LOOKUP_BACKOFF_SECONDS = 300.0
 
 
 async def get_http_client() -> httpx.AsyncClient:
@@ -36,6 +39,16 @@ async def get_http_client() -> httpx.AsyncClient:
     return _http_client
 
 
+async def close_http_client() -> None:
+    """Close the reusable HTTP client (called on application shutdown)."""
+    global _http_client
+    if _http_client is None:
+        return
+    if not _http_client.is_closed:
+        await _http_client.aclose()
+    _http_client = None
+
+
 # ============ Helper Functions ============
 
 async def fetch_github_username_from_clerk(user_id: str) -> str | None:
@@ -45,6 +58,11 @@ async def fetch_github_username_from_clerk(user_id: str) -> str | None:
     """
     settings = get_settings()
     if not settings.clerk_secret_key:
+        return None
+
+    now = time.time()
+    backoff_until = _clerk_lookup_backoff_until.get(user_id)
+    if backoff_until is not None and backoff_until > now:
         return None
 
     try:
@@ -75,6 +93,9 @@ async def fetch_github_username_from_clerk(user_id: str) -> str | None:
 
         return None
     except Exception as e:
+        _clerk_lookup_backoff_until[user_id] = (
+            time.time() + _CLERK_LOOKUP_BACKOFF_SECONDS
+        )
         logger.warning(f"Error fetching GitHub username from Clerk: {e}")
         return None
 
@@ -97,7 +118,7 @@ async def get_or_create_user(db: AsyncSession, user_id: str) -> User:
         github_username = await fetch_github_username_from_clerk(user_id)
         if github_username:
             user.github_username = github_username
-            user.updated_at = datetime.now(timezone.utc)
+            user.updated_at = datetime.now(UTC)
             # No need to flush here - changes tracked automatically
 
     return user
