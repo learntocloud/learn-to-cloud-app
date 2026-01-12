@@ -1,0 +1,552 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.39.26.7824",
+      "templateHash": "17634143407732891726"
+    }
+  },
+  "parameters": {
+    "environment": {
+      "type": "string",
+      "metadata": {
+        "description": "The environment name"
+      }
+    },
+    "location": {
+      "type": "string",
+      "metadata": {
+        "description": "The Azure region"
+      }
+    },
+    "tags": {
+      "type": "object",
+      "metadata": {
+        "description": "Resource tags"
+      }
+    },
+    "postgresAdminPassword": {
+      "type": "securestring",
+      "metadata": {
+        "description": "PostgreSQL administrator password"
+      }
+    },
+    "clerkSecretKey": {
+      "type": "securestring",
+      "metadata": {
+        "description": "Clerk secret key for backend authentication"
+      }
+    },
+    "clerkWebhookSigningSecret": {
+      "type": "securestring",
+      "metadata": {
+        "description": "Clerk webhook signing secret for verifying webhook payloads"
+      }
+    },
+    "clerkPublishableKey": {
+      "type": "string",
+      "metadata": {
+        "description": "Clerk publishable key for frontend authentication"
+      }
+    },
+    "frontendCustomDomain": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Custom domain for the frontend app (optional)"
+      }
+    },
+    "frontendManagedCertificateName": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Name of the existing managed certificate resource in the Container Apps environment (required when binding a custom domain)"
+      }
+    }
+  },
+  "variables": {
+    "uniqueSuffix": "[uniqueString(resourceGroup().id)]",
+    "appName": "learntocloud",
+    "apiAppName": "[format('ca-{0}-api-{1}', variables('appName'), parameters('environment'))]",
+    "frontendAppName": "[format('ca-{0}-frontend-{1}', variables('appName'), parameters('environment'))]",
+    "acrPullRoleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '7f951dda-4ed3-4680-a7ca-43fe172d538d')]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.OperationalInsights/workspaces",
+      "apiVersion": "2023-09-01",
+      "name": "[format('log-{0}-{1}', variables('appName'), parameters('environment'))]",
+      "location": "[parameters('location')]",
+      "tags": "[parameters('tags')]",
+      "properties": {
+        "sku": {
+          "name": "PerGB2018"
+        },
+        "retentionInDays": 30
+      }
+    },
+    {
+      "type": "Microsoft.Insights/components",
+      "apiVersion": "2020-02-02",
+      "name": "[format('appi-{0}-{1}', variables('appName'), parameters('environment'))]",
+      "location": "[parameters('location')]",
+      "tags": "[parameters('tags')]",
+      "kind": "web",
+      "properties": {
+        "Application_Type": "web",
+        "WorkspaceResourceId": "[resourceId('Microsoft.OperationalInsights/workspaces', format('log-{0}-{1}', variables('appName'), parameters('environment')))]"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.OperationalInsights/workspaces', format('log-{0}-{1}', variables('appName'), parameters('environment')))]"
+      ]
+    },
+    {
+      "type": "Microsoft.DBforPostgreSQL/flexibleServers",
+      "apiVersion": "2023-12-01-preview",
+      "name": "[format('psql-{0}-{1}-{2}', variables('appName'), parameters('environment'), variables('uniqueSuffix'))]",
+      "location": "[parameters('location')]",
+      "tags": "[parameters('tags')]",
+      "sku": {
+        "name": "Standard_B1ms",
+        "tier": "Burstable"
+      },
+      "properties": {
+        "version": "16",
+        "administratorLogin": "ltcadmin",
+        "administratorLoginPassword": "[parameters('postgresAdminPassword')]",
+        "authConfig": {
+          "activeDirectoryAuth": "Enabled",
+          "passwordAuth": "Enabled"
+        },
+        "storage": {
+          "storageSizeGB": 32,
+          "autoGrow": "Enabled"
+        },
+        "backup": {
+          "backupRetentionDays": 7,
+          "geoRedundantBackup": "Disabled"
+        },
+        "highAvailability": {
+          "mode": "Disabled"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DBforPostgreSQL/flexibleServers/databases",
+      "apiVersion": "2023-12-01-preview",
+      "name": "[format('{0}/{1}', format('psql-{0}-{1}-{2}', variables('appName'), parameters('environment'), variables('uniqueSuffix')), 'learntocloud')]",
+      "properties": {
+        "charset": "UTF8",
+        "collation": "en_US.utf8"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.DBforPostgreSQL/flexibleServers', format('psql-{0}-{1}-{2}', variables('appName'), parameters('environment'), variables('uniqueSuffix')))]"
+      ]
+    },
+    {
+      "type": "Microsoft.DBforPostgreSQL/flexibleServers/firewallRules",
+      "apiVersion": "2023-12-01-preview",
+      "name": "[format('{0}/{1}', format('psql-{0}-{1}-{2}', variables('appName'), parameters('environment'), variables('uniqueSuffix')), 'AllowAzureServices')]",
+      "properties": {
+        "startIpAddress": "0.0.0.0",
+        "endIpAddress": "0.0.0.0"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.DBforPostgreSQL/flexibleServers', format('psql-{0}-{1}-{2}', variables('appName'), parameters('environment'), variables('uniqueSuffix')))]"
+      ]
+    },
+    {
+      "type": "Microsoft.ContainerRegistry/registries",
+      "apiVersion": "2023-07-01",
+      "name": "[format('crltc{0}', variables('uniqueSuffix'))]",
+      "location": "[parameters('location')]",
+      "tags": "[parameters('tags')]",
+      "sku": {
+        "name": "Basic"
+      },
+      "properties": {
+        "adminUserEnabled": false
+      }
+    },
+    {
+      "type": "Microsoft.App/managedEnvironments",
+      "apiVersion": "2024-03-01",
+      "name": "[format('cae-{0}-{1}', variables('appName'), parameters('environment'))]",
+      "location": "[parameters('location')]",
+      "tags": "[parameters('tags')]",
+      "properties": {
+        "appLogsConfiguration": {
+          "destination": "log-analytics",
+          "logAnalyticsConfiguration": {
+            "customerId": "[reference(resourceId('Microsoft.OperationalInsights/workspaces', format('log-{0}-{1}', variables('appName'), parameters('environment'))), '2023-09-01').customerId]",
+            "sharedKey": "[listKeys(resourceId('Microsoft.OperationalInsights/workspaces', format('log-{0}-{1}', variables('appName'), parameters('environment'))), '2023-09-01').primarySharedKey]"
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.OperationalInsights/workspaces', format('log-{0}-{1}', variables('appName'), parameters('environment')))]"
+      ]
+    },
+    {
+      "type": "Microsoft.App/containerApps",
+      "apiVersion": "2024-03-01",
+      "name": "[variables('apiAppName')]",
+      "location": "[parameters('location')]",
+      "tags": "[union(parameters('tags'), createObject('azd-service-name', 'api'))]",
+      "identity": {
+        "type": "SystemAssigned"
+      },
+      "properties": {
+        "managedEnvironmentId": "[resourceId('Microsoft.App/managedEnvironments', format('cae-{0}-{1}', variables('appName'), parameters('environment')))]",
+        "configuration": {
+          "ingress": {
+            "external": true,
+            "targetPort": 8000,
+            "transport": "http",
+            "allowInsecure": false,
+            "corsPolicy": {
+              "allowedOrigins": "[concat(createArray(format('https://{0}.{1}', variables('frontendAppName'), reference(resourceId('Microsoft.App/managedEnvironments', format('cae-{0}-{1}', variables('appName'), parameters('environment'))), '2024-03-01').defaultDomain), 'http://localhost:3000'), if(not(empty(parameters('frontendCustomDomain'))), createArray(format('https://{0}', parameters('frontendCustomDomain'))), createArray()))]",
+              "allowedMethods": [
+                "GET",
+                "POST",
+                "PUT",
+                "DELETE",
+                "OPTIONS"
+              ],
+              "allowedHeaders": [
+                "*"
+              ],
+              "allowCredentials": true
+            }
+          },
+          "registries": [
+            {
+              "server": "[reference(resourceId('Microsoft.ContainerRegistry/registries', format('crltc{0}', variables('uniqueSuffix'))), '2023-07-01').loginServer]",
+              "identity": "system"
+            }
+          ],
+          "secrets": [
+            {
+              "name": "clerk-secret-key",
+              "value": "[parameters('clerkSecretKey')]"
+            },
+            {
+              "name": "clerk-webhook-signing-secret",
+              "value": "[parameters('clerkWebhookSigningSecret')]"
+            }
+          ]
+        },
+        "template": {
+          "containers": [
+            {
+              "name": "api",
+              "image": "mcr.microsoft.com/azuredocs/containerapps-helloworld:latest",
+              "resources": {
+                "cpu": "[json('0.5')]",
+                "memory": "1Gi"
+              },
+              "env": [
+                {
+                  "name": "POSTGRES_HOST",
+                  "value": "[reference(resourceId('Microsoft.DBforPostgreSQL/flexibleServers', format('psql-{0}-{1}-{2}', variables('appName'), parameters('environment'), variables('uniqueSuffix'))), '2023-12-01-preview').fullyQualifiedDomainName]"
+                },
+                {
+                  "name": "POSTGRES_DATABASE",
+                  "value": "learntocloud"
+                },
+                {
+                  "name": "POSTGRES_USER",
+                  "value": "[variables('apiAppName')]"
+                },
+                {
+                  "name": "CLERK_SECRET_KEY",
+                  "secretRef": "clerk-secret-key"
+                },
+                {
+                  "name": "CLERK_WEBHOOK_SIGNING_SECRET",
+                  "secretRef": "clerk-webhook-signing-secret"
+                },
+                {
+                  "name": "CLERK_PUBLISHABLE_KEY",
+                  "value": "[parameters('clerkPublishableKey')]"
+                },
+                {
+                  "name": "ENVIRONMENT",
+                  "value": "[parameters('environment')]"
+                },
+                {
+                  "name": "FRONTEND_URL",
+                  "value": "[if(not(empty(parameters('frontendCustomDomain'))), format('https://{0}', parameters('frontendCustomDomain')), format('https://{0}.{1}', variables('frontendAppName'), reference(resourceId('Microsoft.App/managedEnvironments', format('cae-{0}-{1}', variables('appName'), parameters('environment'))), '2024-03-01').defaultDomain))]"
+                },
+                {
+                  "name": "APPLICATIONINSIGHTS_CONNECTION_STRING",
+                  "value": "[reference(resourceId('Microsoft.Insights/components', format('appi-{0}-{1}', variables('appName'), parameters('environment'))), '2020-02-02').ConnectionString]"
+                }
+              ],
+              "probes": [
+                {
+                  "type": "Startup",
+                  "httpGet": {
+                    "path": "/health",
+                    "port": 8000
+                  },
+                  "initialDelaySeconds": 5,
+                  "periodSeconds": 10,
+                  "failureThreshold": 30,
+                  "timeoutSeconds": 3
+                },
+                {
+                  "type": "Liveness",
+                  "httpGet": {
+                    "path": "/health",
+                    "port": 8000
+                  },
+                  "initialDelaySeconds": 0,
+                  "periodSeconds": 30,
+                  "failureThreshold": 3,
+                  "timeoutSeconds": 5
+                },
+                {
+                  "type": "Readiness",
+                  "httpGet": {
+                    "path": "/ready",
+                    "port": 8000
+                  },
+                  "initialDelaySeconds": 0,
+                  "periodSeconds": 10,
+                  "failureThreshold": 3,
+                  "timeoutSeconds": 3
+                }
+              ]
+            }
+          ],
+          "scale": {
+            "minReplicas": 0,
+            "maxReplicas": 10,
+            "rules": [
+              {
+                "name": "http-scaling",
+                "http": {
+                  "metadata": {
+                    "concurrentRequests": "50"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Insights/components', format('appi-{0}-{1}', variables('appName'), parameters('environment')))]",
+        "[resourceId('Microsoft.App/managedEnvironments', format('cae-{0}-{1}', variables('appName'), parameters('environment')))]",
+        "[resourceId('Microsoft.ContainerRegistry/registries', format('crltc{0}', variables('uniqueSuffix')))]",
+        "[resourceId('Microsoft.DBforPostgreSQL/flexibleServers', format('psql-{0}-{1}-{2}', variables('appName'), parameters('environment'), variables('uniqueSuffix')))]"
+      ]
+    },
+    {
+      "type": "Microsoft.DBforPostgreSQL/flexibleServers/administrators",
+      "apiVersion": "2022-12-01",
+      "name": "[format('{0}/{1}', format('psql-{0}-{1}-{2}', variables('appName'), parameters('environment'), variables('uniqueSuffix')), 'activeDirectory')]",
+      "properties": {
+        "principalType": "ServicePrincipal",
+        "principalName": "[reference(resourceId('Microsoft.App/containerApps', variables('apiAppName')), '2024-03-01', 'full').identity.principalId]",
+        "tenantId": "[subscription().tenantId]"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.App/containerApps', variables('apiAppName'))]",
+        "[resourceId('Microsoft.DBforPostgreSQL/flexibleServers', format('psql-{0}-{1}-{2}', variables('appName'), parameters('environment'), variables('uniqueSuffix')))]"
+      ]
+    },
+    {
+      "type": "Microsoft.App/containerApps",
+      "apiVersion": "2024-03-01",
+      "name": "[variables('frontendAppName')]",
+      "location": "[parameters('location')]",
+      "tags": "[union(parameters('tags'), createObject('azd-service-name', 'frontend'))]",
+      "identity": {
+        "type": "SystemAssigned"
+      },
+      "properties": {
+        "managedEnvironmentId": "[resourceId('Microsoft.App/managedEnvironments', format('cae-{0}-{1}', variables('appName'), parameters('environment')))]",
+        "configuration": {
+          "ingress": {
+            "external": true,
+            "targetPort": 3000,
+            "transport": "http",
+            "allowInsecure": false,
+            "customDomains": "[if(and(not(empty(parameters('frontendCustomDomain'))), not(empty(parameters('frontendManagedCertificateName')))), createArray(createObject('name', parameters('frontendCustomDomain'), 'bindingType', 'SniEnabled', 'certificateId', resourceId('Microsoft.App/managedEnvironments/managedCertificates', format('cae-{0}-{1}', variables('appName'), parameters('environment')), parameters('frontendManagedCertificateName')))), createArray())]"
+          },
+          "registries": [
+            {
+              "server": "[reference(resourceId('Microsoft.ContainerRegistry/registries', format('crltc{0}', variables('uniqueSuffix'))), '2023-07-01').loginServer]",
+              "identity": "system"
+            }
+          ],
+          "secrets": [
+            {
+              "name": "clerk-secret-key",
+              "value": "[parameters('clerkSecretKey')]"
+            }
+          ]
+        },
+        "template": {
+          "containers": [
+            {
+              "name": "frontend",
+              "image": "mcr.microsoft.com/azuredocs/containerapps-helloworld:latest",
+              "resources": {
+                "cpu": "[json('0.5')]",
+                "memory": "1Gi"
+              },
+              "env": [
+                {
+                  "name": "NEXT_PUBLIC_API_URL",
+                  "value": "[format('https://{0}.{1}', variables('apiAppName'), reference(resourceId('Microsoft.App/managedEnvironments', format('cae-{0}-{1}', variables('appName'), parameters('environment'))), '2024-03-01').defaultDomain)]"
+                },
+                {
+                  "name": "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY",
+                  "value": "[parameters('clerkPublishableKey')]"
+                },
+                {
+                  "name": "CLERK_SECRET_KEY",
+                  "secretRef": "clerk-secret-key"
+                },
+                {
+                  "name": "PORT",
+                  "value": "3000"
+                },
+                {
+                  "name": "NEXT_PUBLIC_CLERK_SIGN_IN_URL",
+                  "value": "/sign-in"
+                },
+                {
+                  "name": "NEXT_PUBLIC_CLERK_SIGN_UP_URL",
+                  "value": "/sign-up"
+                },
+                {
+                  "name": "NEXT_PUBLIC_APPLICATIONINSIGHTS_CONNECTION_STRING",
+                  "value": "[reference(resourceId('Microsoft.Insights/components', format('appi-{0}-{1}', variables('appName'), parameters('environment'))), '2020-02-02').ConnectionString]"
+                }
+              ],
+              "probes": [
+                {
+                  "type": "Startup",
+                  "httpGet": {
+                    "path": "/",
+                    "port": 3000
+                  },
+                  "initialDelaySeconds": 5,
+                  "periodSeconds": 10,
+                  "failureThreshold": 30,
+                  "timeoutSeconds": 3
+                },
+                {
+                  "type": "Liveness",
+                  "httpGet": {
+                    "path": "/",
+                    "port": 3000
+                  },
+                  "initialDelaySeconds": 0,
+                  "periodSeconds": 30,
+                  "failureThreshold": 3,
+                  "timeoutSeconds": 5
+                },
+                {
+                  "type": "Readiness",
+                  "httpGet": {
+                    "path": "/",
+                    "port": 3000
+                  },
+                  "initialDelaySeconds": 0,
+                  "periodSeconds": 10,
+                  "failureThreshold": 3,
+                  "timeoutSeconds": 3
+                }
+              ]
+            }
+          ],
+          "scale": {
+            "minReplicas": 0,
+            "maxReplicas": 10,
+            "rules": [
+              {
+                "name": "http-scaling",
+                "http": {
+                  "metadata": {
+                    "concurrentRequests": "50"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.App/containerApps', variables('apiAppName'))]",
+        "[resourceId('Microsoft.Insights/components', format('appi-{0}-{1}', variables('appName'), parameters('environment')))]",
+        "[resourceId('Microsoft.App/managedEnvironments', format('cae-{0}-{1}', variables('appName'), parameters('environment')))]",
+        "[resourceId('Microsoft.ContainerRegistry/registries', format('crltc{0}', variables('uniqueSuffix')))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2022-04-01",
+      "scope": "[format('Microsoft.ContainerRegistry/registries/{0}', format('crltc{0}', variables('uniqueSuffix')))]",
+      "name": "[guid(resourceId('Microsoft.ContainerRegistry/registries', format('crltc{0}', variables('uniqueSuffix'))), resourceId('Microsoft.App/containerApps', variables('apiAppName')), 'acrPull')]",
+      "properties": {
+        "roleDefinitionId": "[variables('acrPullRoleDefinitionId')]",
+        "principalId": "[reference(resourceId('Microsoft.App/containerApps', variables('apiAppName')), '2024-03-01', 'full').identity.principalId]"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.App/containerApps', variables('apiAppName'))]",
+        "[resourceId('Microsoft.ContainerRegistry/registries', format('crltc{0}', variables('uniqueSuffix')))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2022-04-01",
+      "scope": "[format('Microsoft.ContainerRegistry/registries/{0}', format('crltc{0}', variables('uniqueSuffix')))]",
+      "name": "[guid(resourceId('Microsoft.ContainerRegistry/registries', format('crltc{0}', variables('uniqueSuffix'))), resourceId('Microsoft.App/containerApps', variables('frontendAppName')), 'acrPull')]",
+      "properties": {
+        "roleDefinitionId": "[variables('acrPullRoleDefinitionId')]",
+        "principalId": "[reference(resourceId('Microsoft.App/containerApps', variables('frontendAppName')), '2024-03-01', 'full').identity.principalId]"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.ContainerRegistry/registries', format('crltc{0}', variables('uniqueSuffix')))]",
+        "[resourceId('Microsoft.App/containerApps', variables('frontendAppName'))]"
+      ]
+    }
+  ],
+  "outputs": {
+    "apiUrl": {
+      "type": "string",
+      "value": "[format('https://{0}', reference(resourceId('Microsoft.App/containerApps', variables('apiAppName')), '2024-03-01').configuration.ingress.fqdn)]"
+    },
+    "frontendUrl": {
+      "type": "string",
+      "value": "[format('https://{0}', reference(resourceId('Microsoft.App/containerApps', variables('frontendAppName')), '2024-03-01').configuration.ingress.fqdn)]"
+    },
+    "postgresHost": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.DBforPostgreSQL/flexibleServers', format('psql-{0}-{1}-{2}', variables('appName'), parameters('environment'), variables('uniqueSuffix'))), '2023-12-01-preview').fullyQualifiedDomainName]"
+    },
+    "apiAppName": {
+      "type": "string",
+      "value": "[variables('apiAppName')]"
+    },
+    "frontendAppName": {
+      "type": "string",
+      "value": "[variables('frontendAppName')]"
+    },
+    "containerRegistryName": {
+      "type": "string",
+      "value": "[format('crltc{0}', variables('uniqueSuffix'))]"
+    },
+    "containerRegistryLoginServer": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.ContainerRegistry/registries', format('crltc{0}', variables('uniqueSuffix'))), '2023-07-01').loginServer]"
+    }
+  }
+}

@@ -5,6 +5,12 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# Concurrency settings for the workflow
+# - group: Creates a concurrency group named "deploy-{AZURE_ENV_NAME}" to ensure only one deployment
+#   runs at a time for each Azure environment. Multiple workflow runs with the same group name
+#   will be queued or cancelled based on the cancel-in-progress setting.
+# - cancel-in-progress: When set to true, any currently running workflow in this concurrency group
+#   will be cancelled when a new workflow run is triggered, ensuring only the latest deployment proceeds.
 concurrency:
   group: deploy-${{ vars.AZURE_ENV_NAME }}
   cancel-in-progress: true
@@ -55,6 +61,38 @@ jobs:
           CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
           CLERK_WEBHOOK_SIGNING_SECRET: ${{ secrets.CLERK_WEBHOOK_SIGNING_SECRET }}
           POSTGRES_ADMIN_PASSWORD: ${{ secrets.POSTGRES_ADMIN_PASSWORD }}
+
+      - name: Configure PostgreSQL Entra Admin
+        run: |
+          set -euo pipefail
+          # Get the API container app's managed identity principal ID
+          API_PRINCIPAL_ID=$(az containerapp show \
+            --name ca-learntocloud-api-${{ vars.AZURE_ENV_NAME }} \
+            --resource-group rg-learntocloud-${{ vars.AZURE_ENV_NAME }} \
+            --query "identity.principalId" -o tsv)
+          
+          # Get the PostgreSQL server name (it has a unique suffix)
+          POSTGRES_SERVER=$(az postgres flexible-server list \
+            --resource-group rg-learntocloud-${{ vars.AZURE_ENV_NAME }} \
+            --query "[0].name" -o tsv)
+          
+          # Check if Entra admin is already configured
+          EXISTING_ADMIN=$(az postgres flexible-server microsoft-entra-admin list \
+            --server-name "$POSTGRES_SERVER" \
+            --resource-group rg-learntocloud-${{ vars.AZURE_ENV_NAME }} \
+            --query "[?objectId=='$API_PRINCIPAL_ID'].objectId" -o tsv)
+          
+          if [ -z "$EXISTING_ADMIN" ]; then
+            echo "Configuring PostgreSQL Entra admin for managed identity..."
+            az postgres flexible-server microsoft-entra-admin create \
+              --server-name "$POSTGRES_SERVER" \
+              --resource-group rg-learntocloud-${{ vars.AZURE_ENV_NAME }} \
+              --object-id "$API_PRINCIPAL_ID" \
+              --display-name ca-learntocloud-api-${{ vars.AZURE_ENV_NAME }} \
+              --type ServicePrincipal
+          else
+            echo "PostgreSQL Entra admin already configured"
+          fi
 
       - name: Deploy Application
         run: |
