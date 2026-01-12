@@ -94,6 +94,7 @@ export async function getPhaseGitHubRequirements(phaseId: number): Promise<Phase
       phase_id: phaseId,
       requirements: [],
       submissions: [],
+      has_requirements: false,
       all_validated: true,
     };
   }
@@ -227,7 +228,7 @@ async function checkPhaseLocked(
     }
     
     const prevGithubReqs = githubReqs.get(prevPhase.id);
-    if (prevGithubReqs && prevGithubReqs.requirements.length > 0 && !prevGithubReqs.all_validated) {
+    if (prevGithubReqs && prevGithubReqs.has_requirements && !prevGithubReqs.all_validated) {
       return true;
     }
   }

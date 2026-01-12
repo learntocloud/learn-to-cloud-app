@@ -6,11 +6,12 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from .models import SubmissionType
 
-
 # ============ User Schemas ============
+
 
 class UserBase(BaseModel):
     """Base user schema."""
+
     email: str
     first_name: str | None = None
     last_name: str | None = None
@@ -20,16 +21,19 @@ class UserBase(BaseModel):
 
 class UserResponse(UserBase):
     """User response schema."""
+
     model_config = ConfigDict(from_attributes=True)
-    
+
     id: str
     created_at: datetime
 
 
 # ============ Progress Schemas ============
 
+
 class ProgressItem(BaseModel):
     """Single checklist progress item."""
+
     checklist_item_id: str
     is_completed: bool
     completed_at: datetime | None = None
@@ -37,21 +41,26 @@ class ProgressItem(BaseModel):
 
 class UserProgressResponse(BaseModel):
     """User's progress on all checklist items."""
+
     user_id: str
     items: list[ProgressItem]
 
 
 # ============ GitHub Submission Schemas ============
 
+
 class GitHubRequirement(BaseModel):
     """A requirement for phase completion (GitHub or deployed app)."""
+
     id: str  # e.g., "phase1-profile-readme"
     phase_id: int
     submission_type: SubmissionType
     name: str
     description: str
     example_url: str | None = None
-    required_repo: str | None = None  # e.g., "learntocloud/linux-ctfs" for fork validation
+    required_repo: str | None = (
+        None  # e.g., "learntocloud/linux-ctfs" for fork validation
+    )
     expected_endpoint: str | None = None  # e.g., "/entries" for deployed app validation
 
 
@@ -73,8 +82,9 @@ class GitHubSubmissionRequest(BaseModel):
 
 class GitHubSubmissionResponse(BaseModel):
     """Response for a submission."""
+
     model_config = ConfigDict(from_attributes=True)
-    
+
     id: int
     requirement_id: str
     submission_type: SubmissionType
@@ -88,6 +98,7 @@ class GitHubSubmissionResponse(BaseModel):
 
 class GitHubValidationResult(BaseModel):
     """Result of validating a GitHub submission."""
+
     is_valid: bool
     message: str
     username_match: bool
@@ -97,27 +108,33 @@ class GitHubValidationResult(BaseModel):
 
 class PhaseGitHubRequirementsResponse(BaseModel):
     """GitHub requirements for a phase with user's submission status."""
+
     phase_id: int
     requirements: list[GitHubRequirement]
     submissions: list[GitHubSubmissionResponse]
-    all_validated: bool
+    has_requirements: bool  # False if phase has no requirements defined
+    all_validated: bool  # True if all requirements are validated (or no requirements)
 
 
 class AllPhasesGitHubRequirementsResponse(BaseModel):
     """GitHub requirements for all phases (bulk endpoint)."""
+
     phases: list[PhaseGitHubRequirementsResponse]
 
 
 # ============ Health Check Schema ============
 
+
 class HealthResponse(BaseModel):
     """Health check response."""
+
     status: str
     service: str
 
 
 class ChecklistToggleResponse(BaseModel):
     """Response for checklist toggle."""
+
     success: bool
     item_id: str
     is_completed: bool
@@ -125,5 +142,6 @@ class ChecklistToggleResponse(BaseModel):
 
 class WebhookResponse(BaseModel):
     """Response for webhook processing."""
+
     status: str
     event_type: str | None = None

@@ -70,6 +70,7 @@ async def get_all_github_requirements(
                 phase_id=phase_id,
                 requirements=requirements,
                 submissions=submission_responses,
+                has_requirements=True,
                 all_validated=all_validated,
             )
         )
@@ -89,7 +90,8 @@ async def get_phase_github_requirements(
             phase_id=phase_id,
             requirements=[],
             submissions=[],
-            all_validated=True,  # No requirements means nothing to validate
+            has_requirements=False,
+            all_validated=True,  # Vacuously true - nothing to validate
         )
 
     # Get user's existing submissions for this phase
@@ -116,6 +118,7 @@ async def get_phase_github_requirements(
         phase_id=phase_id,
         requirements=requirements,
         submissions=submission_responses,
+        has_requirements=True,
         all_validated=all_validated,
     )
 

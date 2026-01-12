@@ -30,6 +30,9 @@ class Settings(BaseSettings):
     # GitHub API (optional, for higher rate limits)
     github_token: str = ""
 
+    # HTTP client settings
+    http_timeout: float = 10.0  # Timeout for external API calls (Clerk, GitHub)
+
     # Frontend URL for CORS
     frontend_url: str = "http://localhost:4280"
 

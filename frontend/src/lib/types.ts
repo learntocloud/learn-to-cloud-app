@@ -159,5 +159,6 @@ export interface PhaseGitHubRequirements {
   phase_id: number;
   requirements: GitHubRequirement[];
   submissions: GitHubSubmission[];
+  has_requirements: boolean;  // False if phase has no requirements defined
   all_validated: boolean;
 }

@@ -1,8 +1,9 @@
 """Checklist progress endpoints."""
 
 from datetime import UTC, datetime
+from typing import Annotated
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Path
 from sqlalchemy import select
 
 from shared.auth import UserId
@@ -42,15 +43,20 @@ async def get_user_progress(user_id: UserId, db: DbSession) -> UserProgressRespo
     )
 
 
+# Validated item_id: e.g., "phase0-check1" or "phase1-topic1-check1"
+ValidatedItemId = Annotated[
+    str,
+    Path(max_length=100, pattern=r"^phase\d+-.+$"),
+]
+
+
 @router.post("/checklist/{item_id}/toggle", response_model=ChecklistToggleResponse)
 async def toggle_checklist_item(
-    item_id: str, user_id: UserId, db: DbSession
+    item_id: ValidatedItemId, user_id: UserId, db: DbSession
 ) -> ChecklistToggleResponse:
     """Toggle a checklist item completion status."""
-    try:
-        phase_id = int(item_id.split("-")[0].replace("phase", ""))
-    except (ValueError, IndexError):
-        raise HTTPException(status_code=400, detail="Invalid checklist item ID format")
+    # Pattern already validates format, but extract phase_id safely
+    phase_id = int(item_id.split("-")[0].replace("phase", ""))
 
     await get_or_create_user(db, user_id)
 

@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 import httpx
 from fastapi import APIRouter
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from shared.auth import UserId
@@ -28,12 +29,21 @@ _clerk_lookup_backoff_until: dict[str, float] = {}
 _CLERK_LOOKUP_BACKOFF_SECONDS = 300.0
 
 
+def _cleanup_expired_backoffs() -> None:
+    """Remove expired backoff entries to prevent unbounded memory growth."""
+    now = time.time()
+    expired = [k for k, v in _clerk_lookup_backoff_until.items() if v <= now]
+    for k in expired:
+        del _clerk_lookup_backoff_until[k]
+
+
 async def get_http_client() -> httpx.AsyncClient:
     """Get or create a reusable HTTP client with connection pooling."""
     global _http_client
     if _http_client is None or _http_client.is_closed:
+        settings = get_settings()
         _http_client = httpx.AsyncClient(
-            timeout=10.0,
+            timeout=settings.http_timeout,
             limits=httpx.Limits(max_connections=20, max_keepalive_connections=10),
         )
     return _http_client
@@ -51,6 +61,7 @@ async def close_http_client() -> None:
 
 # ============ Helper Functions ============
 
+
 async def fetch_github_username_from_clerk(user_id: str) -> str | None:
     """
     Fetch GitHub username directly from Clerk API.
@@ -59,6 +70,8 @@ async def fetch_github_username_from_clerk(user_id: str) -> str | None:
     settings = get_settings()
     if not settings.clerk_secret_key:
         return None
+
+    _cleanup_expired_backoffs()
 
     now = time.time()
     backoff_until = _clerk_lookup_backoff_until.get(user_id)
@@ -102,16 +115,55 @@ async def fetch_github_username_from_clerk(user_id: str) -> str | None:
 
 async def get_or_create_user(db: AsyncSession, user_id: str) -> User:
     """Get user from DB or create placeholder (will be synced via webhook).
-    
+
+    Uses INSERT ... ON CONFLICT to handle concurrent requests safely.
     Note: Does not commit - relies on the get_db dependency to handle transactions.
     """
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
 
     if not user:
-        user = User(id=user_id, email=f"{user_id}@placeholder.local")
-        db.add(user)
-        await db.flush()  # Flush to get the user in session without committing
+        # Use upsert to handle race condition where another request
+        # creates the same user between our SELECT and INSERT
+        bind = db.get_bind()
+        dialect = bind.dialect.name if bind else ""
+
+        if dialect == "postgresql":
+            from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+            stmt = (
+                pg_insert(User)
+                .values(
+                    id=user_id,
+                    email=f"{user_id}@placeholder.local",
+                )
+                .on_conflict_do_nothing(index_elements=["id"])
+            )
+            await db.execute(stmt)
+        elif dialect == "sqlite":
+            from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+
+            stmt = (
+                sqlite_insert(User)
+                .values(
+                    id=user_id,
+                    email=f"{user_id}@placeholder.local",
+                )
+                .on_conflict_do_nothing(index_elements=["id"])
+            )
+            await db.execute(stmt)
+        else:
+            # Fallback: catch integrity error
+            try:
+                user = User(id=user_id, email=f"{user_id}@placeholder.local")
+                db.add(user)
+                await db.flush()
+            except IntegrityError:
+                await db.rollback()
+
+        # Re-fetch the user (either we inserted it or another request did)
+        result = await db.execute(select(User).where(User.id == user_id))
+        user = result.scalar_one()
 
     # If user doesn't have github_username, try to fetch it from Clerk
     if not user.github_username:
@@ -125,6 +177,7 @@ async def get_or_create_user(db: AsyncSession, user_id: str) -> User:
 
 
 # ============ Routes ============
+
 
 @router.get("/me", response_model=UserResponse)
 async def get_current_user(user_id: UserId, db: DbSession) -> UserResponse:

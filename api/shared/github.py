@@ -29,6 +29,7 @@ def _get_github_headers() -> dict[str, str]:
         headers["Authorization"] = f"Bearer {settings.github_token}"
     return headers
 
+
 logger = logging.getLogger(__name__)
 
 
@@ -175,9 +176,11 @@ def get_requirement_by_id(requirement_id: str) -> GitHubRequirement | None:
 
 # ============ URL Parsing Utilities ============
 
+
 @dataclass
 class ParsedGitHubUrl:
     """Parsed components of a GitHub URL."""
+
     username: str
     repo_name: str | None = None
     file_path: str | None = None
@@ -188,83 +191,78 @@ class ParsedGitHubUrl:
 def parse_github_url(url: str) -> ParsedGitHubUrl:
     """
     Parse a GitHub URL and extract components.
-    
+
     Supports:
     - Profile README: https://github.com/username/username/blob/main/README.md
     - Repository: https://github.com/username/repo-name
     - Repository with path: https://github.com/username/repo-name/tree/main/folder
     """
     url = url.strip().rstrip("/")
-    
+
     # Basic validation
     if not url.startswith("https://github.com/"):
         return ParsedGitHubUrl(
-            username="",
-            is_valid=False,
-            error="URL must start with https://github.com/"
+            username="", is_valid=False, error="URL must start with https://github.com/"
         )
-    
+
     # Remove the base URL
     path = url.replace("https://github.com/", "")
-    
+
     # Split into parts
     parts = path.split("/")
-    
+
     if not parts or not parts[0]:
         return ParsedGitHubUrl(
-            username="",
-            is_valid=False,
-            error="Could not extract username from URL"
+            username="", is_valid=False, error="Could not extract username from URL"
         )
-    
+
     username = parts[0]
-    
+
     # Validate username format
     if not re.match(r"^[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?$", username):
         return ParsedGitHubUrl(
-            username=username,
-            is_valid=False,
-            error="Invalid GitHub username format"
+            username=username, is_valid=False, error="Invalid GitHub username format"
         )
-    
+
     repo_name = parts[1] if len(parts) > 1 else None
-    
+
     # Extract file path if present (after blob/tree/main/etc)
     file_path = None
     if len(parts) > 3 and parts[2] in ("blob", "tree"):
         # Skip the branch name (parts[3]) and get the rest
         if len(parts) > 4:
             file_path = "/".join(parts[4:])
-    
+
     return ParsedGitHubUrl(
-        username=username,
-        repo_name=repo_name,
-        file_path=file_path,
-        is_valid=True
+        username=username, repo_name=repo_name, file_path=file_path, is_valid=True
     )
 
 
 # ============ GitHub API Validation ============
 
+
 @track_dependency("github_url_check", "HTTP")
 async def check_github_url_exists(url: str) -> tuple[bool, str]:
     """
     Check if a GitHub URL exists by making a HEAD request.
-    
+
     Returns:
         Tuple of (exists: bool, message: str)
     """
+    settings = get_settings()
     try:
-        async with httpx.AsyncClient(follow_redirects=True, timeout=10.0) as client:
+        async with httpx.AsyncClient(
+            follow_redirects=True, timeout=settings.http_timeout
+        ) as client:
             response = await client.head(url)
-            
+
             if response.status_code == 200:
                 return True, "URL exists"
             elif response.status_code == 404:
                 return False, "URL not found (404)"
             else:
                 return False, f"Unexpected status code: {response.status_code}"
-                
+
     except httpx.TimeoutException:
         return False, "Request timed out"
     except httpx.RequestError as e:
@@ -273,22 +271,25 @@ async def check_github_url_exists(url: str) -> tuple[bool, str]:
 
 
 @track_dependency("github_api_fork_check", "HTTP")
-async def check_repo_is_fork_of(username: str, repo_name: str, original_repo: str) -> tuple[bool, str]:
+async def check_repo_is_fork_of(
+    username: str, repo_name: str, original_repo: str
+) -> tuple[bool, str]:
     """
     Check if a repository is a fork of the specified original repository.
-    
+
     Args:
         username: The GitHub username
         repo_name: The repository name to check
         original_repo: The original repo in format "owner/repo"
-        
+
     Returns:
         Tuple of (is_fork: bool, message: str)
     """
     api_url = f"https://api.github.com/repos/{username}/{repo_name}"
-    
+    settings = get_settings()
+
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        async with httpx.AsyncClient(timeout=settings.http_timeout) as client:
             response = await client.get(
                 api_url,
                 headers=_get_github_headers(),
@@ -313,7 +314,10 @@ async def check_repo_is_fork_of(username: str, repo_name: str, original_repo: st
             if parent_full_name.lower() == original_repo.lower():
                 return True, f"Verified fork of {original_repo}"
             else:
-                return False, f"Repository is forked from {parent_full_name}, not {original_repo}"
+                return (
+                    False,
+                    f"Repository is forked from {parent_full_name}, not {original_repo}",
+                )
 
     except httpx.TimeoutException:
         return False, "GitHub API request timed out"
@@ -325,6 +329,7 @@ async def check_repo_is_fork_of(username: str, repo_name: str, original_repo: st
 @dataclass
 class ValidationResult:
     """Result of validating a GitHub submission."""
+
     is_valid: bool
     message: str
     username_match: bool
@@ -332,145 +337,136 @@ class ValidationResult:
 
 
 async def validate_profile_readme(
-    github_url: str,
-    expected_username: str
+    github_url: str, expected_username: str
 ) -> ValidationResult:
     """
     Validate a GitHub profile README submission.
-    
+
     The URL should be like: https://github.com/username/username/blob/main/README.md
     And the username should match the expected_username (case-insensitive).
     """
     parsed = parse_github_url(github_url)
-    
+
     if not parsed.is_valid:
         return ValidationResult(
             is_valid=False,
             message=parsed.error or "Invalid URL",
             username_match=False,
-            repo_exists=False
+            repo_exists=False,
         )
-    
+
     # Check if username matches (case-insensitive)
     username_match = parsed.username.lower() == expected_username.lower()
-    
+
     if not username_match:
         return ValidationResult(
             is_valid=False,
             message=f"GitHub username '{parsed.username}' does not match your account username '{expected_username}'",
             username_match=False,
-            repo_exists=False
+            repo_exists=False,
         )
-    
+
     # For profile README, repo name should match username
     if parsed.repo_name and parsed.repo_name.lower() != parsed.username.lower():
         return ValidationResult(
             is_valid=False,
             message=f"Profile README must be in a repo named '{parsed.username}', not '{parsed.repo_name}'",
             username_match=True,
-            repo_exists=False
+            repo_exists=False,
         )
-    
+
     # Check if the URL exists
     exists, exists_msg = await check_github_url_exists(github_url)
-    
+
     if not exists:
         return ValidationResult(
             is_valid=False,
             message=f"Could not find your profile README. {exists_msg}",
             username_match=True,
-            repo_exists=False
+            repo_exists=False,
         )
-    
+
     return ValidationResult(
         is_valid=True,
         message="Profile README validated successfully!",
         username_match=True,
-        repo_exists=True
+        repo_exists=True,
     )
 
 
 async def validate_repo_fork(
-    github_url: str,
-    expected_username: str,
-    required_repo: str
+    github_url: str, expected_username: str, required_repo: str
 ) -> ValidationResult:
     """
     Validate a repository fork submission.
-    
+
     The URL should be like: https://github.com/username/repo-name
     And the repo should be a fork of the required_repo.
     """
     parsed = parse_github_url(github_url)
-    
+
     if not parsed.is_valid:
         return ValidationResult(
             is_valid=False,
             message=parsed.error or "Invalid URL",
             username_match=False,
-            repo_exists=False
+            repo_exists=False,
         )
-    
+
     # Check if username matches (case-insensitive)
     username_match = parsed.username.lower() == expected_username.lower()
-    
+
     if not username_match:
         return ValidationResult(
             is_valid=False,
             message=f"GitHub username '{parsed.username}' does not match your account username '{expected_username}'",
             username_match=False,
-            repo_exists=False
+            repo_exists=False,
         )
-    
+
     if not parsed.repo_name:
         return ValidationResult(
             is_valid=False,
             message="Could not extract repository name from URL",
             username_match=True,
-            repo_exists=False
+            repo_exists=False,
         )
-    
+
     # Check if the repo is a fork of the required repo
     is_fork, fork_msg = await check_repo_is_fork_of(
-        parsed.username,
-        parsed.repo_name,
-        required_repo
+        parsed.username, parsed.repo_name, required_repo
     )
-    
+
     if not is_fork:
         return ValidationResult(
-            is_valid=False,
-            message=fork_msg,
-            username_match=True,
-            repo_exists=False
+            is_valid=False, message=fork_msg, username_match=True, repo_exists=False
         )
-    
+
     return ValidationResult(
         is_valid=True,
         message=f"Repository fork validated successfully! {fork_msg}",
         username_match=True,
-        repo_exists=True
+        repo_exists=True,
     )
 
 
 @track_dependency("deployed_app_check", "HTTP")
 async def validate_deployed_app(
-    app_url: str,
-    expected_endpoint: str | None = None
+    app_url: str, expected_endpoint: str | None = None
 ) -> ValidationResult:
     """
     Validate a deployed application by making a GET request.
-    
+
     Args:
         app_url: The base URL of the deployed app (e.g., https://my-app.azurewebsites.net)
         expected_endpoint: Optional endpoint to append (e.g., "/entries")
-        
+
     Returns:
         ValidationResult indicating if the app is accessible
     """
     # Clean up the URL
     app_url = app_url.strip().rstrip("/")
-    
+
     # Build the full URL to check
     if expected_endpoint:
         # Ensure endpoint starts with /
@@ -479,7 +475,7 @@ async def validate_deployed_app(
         check_url = app_url + expected_endpoint
     else:
         check_url = app_url
-    
+
     try:
         # SSRF hardening: validate the URL and follow redirects manually, validating
         # every hop (redirect targets included).
@@ -548,20 +544,20 @@ async def validate_deployed_app(
             username_match=True,
             repo_exists=False,
         )
-                
+
     except httpx.TimeoutException:
         return ValidationResult(
             is_valid=False,
             message="Request timed out. Is your app running and accessible from the internet?",
             username_match=True,
-            repo_exists=False
+            repo_exists=False,
         )
     except httpx.ConnectError:
         return ValidationResult(
             is_valid=False,
             message="Could not connect to your app. Check that the URL is correct and the app is deployed.",
             username_match=True,
-            repo_exists=False
+            repo_exists=False,
         )
     except ValueError as e:
         return ValidationResult(
@@ -576,18 +572,18 @@ async def validate_deployed_app(
             is_valid=False,
             message=f"Request error: {str(e)}",
             username_match=True,
-            repo_exists=False
+            repo_exists=False,
         )
 
 
 async def validate_submission(
     requirement: GitHubRequirement,
     submitted_url: str,
-    expected_username: str | None = None
+    expected_username: str | None = None,
 ) -> ValidationResult:
     """
     Validate a submission based on its requirement type.
-    
+
     Args:
         requirement: The requirement being validated
         submitted_url: The URL submitted by the user
@@ -599,7 +595,7 @@ async def validate_submission(
                 is_valid=False,
                 message="GitHub username is required for profile README validation",
                 username_match=False,
-                repo_exists=False
+                repo_exists=False,
             )
         return await validate_profile_readme(submitted_url, expected_username)
     elif requirement.submission_type == SubmissionType.REPO_FORK:
@@ -608,16 +604,18 @@ async def validate_submission(
                 is_valid=False,
                 message="GitHub username is required for repository fork validation",
                 username_match=False,
-                repo_exists=False
+                repo_exists=False,
             )
         if not requirement.required_repo:
             return ValidationResult(
                 is_valid=False,
                 message="Requirement configuration error: missing required_repo",
                 username_match=False,
-                repo_exists=False
+                repo_exists=False,
             )
-        return await validate_repo_fork(submitted_url, expected_username, requirement.required_repo)
+        return await validate_repo_fork(
+            submitted_url, expected_username, requirement.required_repo
+        )
     elif requirement.submission_type == SubmissionType.DEPLOYED_APP:
         return await validate_deployed_app(submitted_url, requirement.expected_endpoint)
     else:
@@ -625,5 +623,5 @@ async def validate_submission(
             is_valid=False,
             message=f"Unknown submission type: {requirement.submission_type}",
             username_match=False,
-            repo_exists=False
+            repo_exists=False,
         )

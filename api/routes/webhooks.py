@@ -1,5 +1,6 @@
 """Clerk webhook endpoints."""
 
+import logging
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException, Request
@@ -12,6 +13,8 @@ from shared.config import get_settings
 from shared.database import DbSession
 from shared.models import ProcessedWebhook, User
 from shared.schemas import WebhookResponse
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/webhooks", tags=["webhooks"])
 
@@ -150,7 +153,11 @@ async def clerk_webhook(request: Request, db: DbSession) -> WebhookResponse:
     try:
         wh = Webhook(settings.clerk_webhook_signing_secret)
         event = wh.verify(payload, verified_headers)
-    except WebhookVerificationError:
+    except WebhookVerificationError as e:
+        logger.warning(
+            f"Webhook verification failed: svix_id={headers.get('svix-id')}, "
+            f"timestamp={headers.get('svix-timestamp')}, error={e}"
+        )
         raise HTTPException(
             status_code=400,
             detail="Invalid webhook signature",
