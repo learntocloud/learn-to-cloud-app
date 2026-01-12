@@ -150,10 +150,10 @@ async def clerk_webhook(request: Request, db: DbSession) -> WebhookResponse:
     try:
         wh = Webhook(settings.clerk_webhook_signing_secret)
         event = wh.verify(payload, verified_headers)
-    except WebhookVerificationError as e:
+    except WebhookVerificationError:
         raise HTTPException(
             status_code=400,
-            detail=f"Invalid webhook signature: {str(e)}",
+            detail="Invalid webhook signature",
         )
 
     event_type = event.get("type") or "unknown"

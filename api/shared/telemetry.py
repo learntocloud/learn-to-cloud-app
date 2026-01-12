@@ -69,6 +69,45 @@ def instrument_sqlalchemy_engine(engine: Any) -> None:
         logger.warning(f"Failed to instrument SQLAlchemy: {e}")
 
 
+class SecurityHeadersMiddleware:
+    """
+    Middleware to add security headers to all responses.
+    
+    Adds headers to protect against common web vulnerabilities:
+    - X-Content-Type-Options: Prevents MIME sniffing
+    - X-Frame-Options: Prevents clickjacking
+    - X-XSS-Protection: Legacy XSS protection for older browsers
+    - Referrer-Policy: Controls referrer information
+    - Content-Security-Policy: Restricts resource loading (API-appropriate policy)
+    """
+
+    # Security headers to add to all responses
+    SECURITY_HEADERS: list[tuple[bytes, bytes]] = [
+        (b"x-content-type-options", b"nosniff"),
+        (b"x-frame-options", b"DENY"),
+        (b"x-xss-protection", b"1; mode=block"),
+        (b"referrer-policy", b"strict-origin-when-cross-origin"),
+        (b"content-security-policy", b"default-src 'none'; frame-ancestors 'none'"),
+    ]
+
+    def __init__(self, app: ASGIApp):
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        async def send_wrapper(message: Message) -> None:
+            if message.get("type") == "http.response.start":
+                headers: list[tuple[bytes, bytes]] = list(message.get("headers", []))
+                headers.extend(self.SECURITY_HEADERS)
+                message["headers"] = headers
+            await send(message)
+
+        await self.app(scope, receive, send_wrapper)
+
+
 class RequestTimingMiddleware:
     """
     Middleware to add detailed request timing information.

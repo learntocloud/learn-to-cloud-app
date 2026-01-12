@@ -42,7 +42,7 @@ from routes.users import close_http_client
 from shared.config import get_settings
 from shared.database import cleanup_old_webhooks, init_db
 from shared.ratelimit import limiter, rate_limit_exceeded_handler
-from shared.telemetry import RequestTimingMiddleware
+from shared.telemetry import RequestTimingMiddleware, SecurityHeadersMiddleware
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -112,6 +112,9 @@ app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
 # GZip compression for responses > 500 bytes
 app.add_middleware(GZipMiddleware, minimum_size=500)
 
+# Security headers middleware (adds X-Content-Type-Options, X-Frame-Options, etc.)
+app.add_middleware(SecurityHeadersMiddleware)
+
 # Request timing middleware (adds performance tracking and X-Request-Duration-Ms header)
 app.add_middleware(RequestTimingMiddleware)
 
@@ -120,8 +123,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=get_settings().allowed_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
     expose_headers=["X-Request-Duration-Ms"],  # Expose timing header to frontend
 )
 

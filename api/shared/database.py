@@ -131,8 +131,8 @@ def get_engine() -> AsyncEngine:
             poolclass=NullPool if is_sqlite else None,
             # Connection pool settings for PostgreSQL (asyncpg)
             **({} if is_sqlite else {
-                "pool_size": 10,          # Base connections to keep open
-                "max_overflow": 20,       # Extra connections when busy
+                "pool_size": 5,           # Base connections to keep open
+                "max_overflow": 5,        # Extra connections when busy (max 10 total)
                 "pool_timeout": 30,       # Wait time for available connection
                 "pool_recycle": 300,      # Recycle connections every 5 min (tokens expire)
                 "pool_pre_ping": True,    # Verify connections before use

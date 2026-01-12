@@ -34,6 +34,9 @@ param alertEmailAddress string = ''
 @description('Name of the existing managed certificate resource in the Container Apps environment (required when binding a custom domain)')
 param frontendManagedCertificateName string = ''
 
+@description('Enable Azure Cache for Redis for distributed rate limiting')
+param enableRedis bool = true
+
 var uniqueSuffix = uniqueString(resourceGroup().id)
 var appName = 'learntocloud'
 var apiAppName = 'ca-${appName}-api-${environment}'
@@ -123,6 +126,25 @@ resource postgresFirewall 'Microsoft.DBforPostgreSQL/flexibleServers/firewallRul
   }
 }
 
+// Azure Cache for Redis (for distributed rate limiting)
+// Basic C0 tier is cost-effective for rate limiting use case (~$16/month)
+resource redis 'Microsoft.Cache/redis@2024-03-01' = if (enableRedis) {
+  name: 'redis-${appName}-${environment}-${uniqueSuffix}'
+  location: location
+  tags: tags
+  properties: {
+    sku: {
+      name: 'Basic'
+      family: 'C'
+      capacity: 0  // C0 = 250MB, sufficient for rate limiting
+    }
+    enableNonSslPort: false
+    minimumTlsVersion: '1.2'
+    publicNetworkAccess: 'Enabled'  // Consider private endpoints for production
+    redisVersion: '6'
+  }
+}
+
 // Azure Container Registry
 resource containerRegistry 'Microsoft.ContainerRegistry/registries@2023-07-01' = {
   name: 'crltc${uniqueSuffix}'
@@ -200,6 +222,16 @@ resource secretPostgresPassword 'Microsoft.KeyVault/vaults/secrets@2024-04-01-pr
   }
 }
 
+// Redis connection string secret (only if Redis is enabled)
+resource secretRedisConnectionString 'Microsoft.KeyVault/vaults/secrets@2024-04-01-preview' = if (enableRedis) {
+  parent: keyVault
+  name: 'redis-connection-string'
+  properties: {
+    // Format: rediss://:password@hostname:port/0
+    value: 'rediss://:${redis!.listKeys().primaryKey}@${redis!.properties.hostName}:${redis!.properties.sslPort}/0'
+  }
+}
+
 // Key Vault Secrets User role for User-Assigned Managed Identity
 // This is created BEFORE Container Apps so RBAC is ready when apps are deployed
 var keyVaultSecretsUserRoleDefinitionId = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '4633458b-17de-408a-b874-0445c86b69e6')
@@ -266,7 +298,7 @@ resource apiApp 'Microsoft.App/containerApps@2024-03-01' = {
           identity: 'system'
         }
       ]
-      secrets: [
+      secrets: concat([
         {
           name: 'clerk-secret-key'
           keyVaultUrl: secretClerkSecretKey.properties.secretUri
@@ -277,7 +309,13 @@ resource apiApp 'Microsoft.App/containerApps@2024-03-01' = {
           keyVaultUrl: secretClerkWebhookSigningSecret.properties.secretUri
           identity: containerAppIdentity.id
         }
-      ]
+      ], enableRedis ? [
+        {
+          name: 'redis-connection-string'
+          keyVaultUrl: secretRedisConnectionString!.properties.secretUri
+          identity: containerAppIdentity.id
+        }
+      ] : [])
     }
     template: {
       containers: [
@@ -288,7 +326,7 @@ resource apiApp 'Microsoft.App/containerApps@2024-03-01' = {
             cpu: json('0.5')
             memory: '1Gi'
           }
-          env: [
+          env: concat([
             {
               name: 'POSTGRES_HOST'
               value: postgres.properties.fullyQualifiedDomainName
@@ -325,7 +363,12 @@ resource apiApp 'Microsoft.App/containerApps@2024-03-01' = {
               name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
               value: appInsights.properties.ConnectionString
             }
-          ]
+          ], enableRedis ? [
+            {
+              name: 'REDIS_URL'
+              secretRef: 'redis-connection-string'
+            }
+          ] : [])
           // Health probes - allow longer startup for cold starts
           probes: [
             {

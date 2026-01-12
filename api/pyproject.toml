@@ -16,6 +16,7 @@ dependencies = [
     "pydantic>=2.11.2",
     "pydantic-settings==2.7.1",
     "python-dotenv==1.0.1",
+    "redis>=5.0.0",
     "slowapi==0.1.9",
     "sqlalchemy==2.0.36",
     "svix==1.45.1",

@@ -39,6 +39,10 @@ class Settings(BaseSettings):
     # Development-only convenience: drop and recreate tables on startup.
     reset_db_on_startup: bool = False
     
+    # Redis URL for distributed rate limiting (optional)
+    # Format: redis://host:port or rediss://host:port for SSL
+    redis_url: str = ""
+    
     @property
     def use_azure_postgres(self) -> bool:
         """Check if Azure PostgreSQL with managed identity should be used."""
