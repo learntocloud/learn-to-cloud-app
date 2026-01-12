@@ -136,7 +136,12 @@ class GitHubSubmission(Base):
         nullable=False,
     )  # e.g., "phase1-profile-readme", "phase1-linux-ctfs-fork"
     submission_type: Mapped[SubmissionType] = mapped_column(
-        Enum(SubmissionType, name="submission_type", native_enum=False),
+        Enum(
+            SubmissionType,
+            name="submission_type",
+            native_enum=False,
+            values_callable=lambda x: [e.value for e in x],
+        ),
         nullable=False,
     )
     phase_id: Mapped[int] = mapped_column(Integer, nullable=False)
