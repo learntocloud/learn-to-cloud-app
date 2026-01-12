@@ -144,6 +144,53 @@ resource containerAppsEnvironment 'Microsoft.App/managedEnvironments@2024-03-01'
   }
 }
 
+// Key Vault for secure secret management
+resource keyVault 'Microsoft.KeyVault/vaults@2024-04-01-preview' = {
+  name: 'kv-${appName}-${environment}-${uniqueSuffix}'
+  location: location
+  tags: tags
+  properties: {
+    sku: {
+      family: 'A'
+      name: 'standard'
+    }
+    tenantId: subscription().tenantId
+    enableRbacAuthorization: true
+    enableSoftDelete: true
+    softDeleteRetentionInDays: 7
+    enablePurgeProtection: false  // Set to true for production
+    networkAcls: {
+      bypass: 'AzureServices'
+      defaultAction: 'Allow'  // Consider 'Deny' with private endpoints for production
+    }
+  }
+}
+
+// Key Vault Secrets
+resource secretClerkSecretKey 'Microsoft.KeyVault/vaults/secrets@2024-04-01-preview' = {
+  parent: keyVault
+  name: 'clerk-secret-key'
+  properties: {
+    value: clerkSecretKey
+  }
+}
+
+resource secretClerkWebhookSigningSecret 'Microsoft.KeyVault/vaults/secrets@2024-04-01-preview' = {
+  parent: keyVault
+  name: 'clerk-webhook-signing-secret'
+  properties: {
+    value: clerkWebhookSigningSecret
+  }
+}
+
+resource secretPostgresPassword 'Microsoft.KeyVault/vaults/secrets@2024-04-01-preview' = {
+  parent: keyVault
+  name: 'postgres-admin-password'
+  properties: {
+    value: postgresAdminPassword
+  }
+}
+
 var apiDefaultUrl = 'https://${apiAppName}.${containerAppsEnvironment.properties.defaultDomain}'
 var frontendDefaultUrl = 'https://${frontendAppName}.${containerAppsEnvironment.properties.defaultDomain}'
 // Use wildcard for Container Apps origins plus localhost for development
@@ -196,11 +243,13 @@ resource apiApp 'Microsoft.App/containerApps@2024-03-01' = {
       secrets: [
         {
           name: 'clerk-secret-key'
-          value: clerkSecretKey
+          keyVaultUrl: secretClerkSecretKey.properties.secretUri
+          identity: 'system'
         }
         {
           name: 'clerk-webhook-signing-secret'
-          value: clerkWebhookSigningSecret
+          keyVaultUrl: secretClerkWebhookSigningSecret.properties.secretUri
+          identity: 'system'
         }
       ]
     }
@@ -290,7 +339,7 @@ resource apiApp 'Microsoft.App/containerApps@2024-03-01' = {
         }
       ]
       scale: {
-        minReplicas: 0  // Scale to zero when idle (cost savings)
+        minReplicas: 1  // Keep 1 instance always running to avoid cold starts
         maxReplicas: 10
         rules: [
           {
@@ -349,7 +398,8 @@ resource frontendApp 'Microsoft.App/containerApps@2024-03-01' = {
       secrets: [
         {
           name: 'clerk-secret-key'
-          value: clerkSecretKey
+          keyVaultUrl: secretClerkSecretKey.properties.secretUri
+          identity: 'system'
         }
       ]
     }
@@ -431,7 +481,7 @@ resource frontendApp 'Microsoft.App/containerApps@2024-03-01' = {
         }
       ]
       scale: {
-        minReplicas: 0  // Scale to zero when idle (cost savings)
+        minReplicas: 0  // Scale to zero when idle (frontend cold starts are acceptable)
         maxReplicas: 10
         rules: [
           {
@@ -469,6 +519,30 @@ resource frontendAcrPullRoleAssignment 'Microsoft.Authorization/roleAssignments@
   scope: containerRegistry
   properties: {
     roleDefinitionId: acrPullRoleDefinitionId
+    principalId: frontendApp.identity.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+// Key Vault Secrets User role assignment for Container Apps to read secrets
+// Role ID: 4633458b-17de-408a-b874-0445c86b69e6 (Key Vault Secrets User)
+var keyVaultSecretsUserRoleDefinitionId = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '4633458b-17de-408a-b874-0445c86b69e6')
+
+resource apiKeyVaultRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(keyVault.id, apiApp.id, 'keyVaultSecretsUser')
+  scope: keyVault
+  properties: {
+    roleDefinitionId: keyVaultSecretsUserRoleDefinitionId
+    principalId: apiApp.identity.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+resource frontendKeyVaultRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(keyVault.id, frontendApp.id, 'keyVaultSecretsUser')
+  scope: keyVault
+  properties: {
+    roleDefinitionId: keyVaultSecretsUserRoleDefinitionId
     principalId: frontendApp.identity.principalId
     principalType: 'ServicePrincipal'
   }
@@ -850,3 +924,5 @@ output apiAppName string = apiApp.name
 output frontendAppName string = frontendApp.name
 output containerRegistryName string = containerRegistry.name
 output containerRegistryLoginServer string = containerRegistry.properties.loginServer
+output keyVaultName string = keyVault.name
+output keyVaultUri string = keyVault.properties.vaultUri

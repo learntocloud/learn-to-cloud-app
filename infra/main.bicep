@@ -70,6 +70,10 @@ output apiUrl string = resources.outputs.apiUrl
 output frontendUrl string = resources.outputs.frontendUrl
 output postgresHost string = resources.outputs.postgresHost
 
+// Key Vault
+output keyVaultName string = resources.outputs.keyVaultName
+output keyVaultUri string = resources.outputs.keyVaultUri
+
 // Service resource names for azd deploy
 output AZURE_CONTAINER_REGISTRY_NAME string = resources.outputs.containerRegistryName
 output AZURE_CONTAINER_REGISTRY_ENDPOINT string = resources.outputs.containerRegistryLoginServer
