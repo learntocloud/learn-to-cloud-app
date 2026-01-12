@@ -145,8 +145,9 @@ resource containerAppsEnvironment 'Microsoft.App/managedEnvironments@2024-03-01'
 }
 
 // Key Vault for secure secret management
+// Key Vault names must be 3-24 characters, alphanumeric and hyphens only
 resource keyVault 'Microsoft.KeyVault/vaults@2024-04-01-preview' = {
-  name: 'kv-${appName}-${environment}-${uniqueSuffix}'
+  name: 'kv-ltc-${environment}-${uniqueSuffix}'
   location: location
   tags: tags
   properties: {
