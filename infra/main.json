@@ -6,7 +6,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.39.26.7824",
-      "templateHash": "11891462713841964967"
+      "templateHash": "2995187319185877756"
     }
   },
   "parameters": {
@@ -123,7 +123,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.39.26.7824",
-              "templateHash": "8127273896218099374"
+              "templateHash": "17634143407732891726"
             }
           },
           "parameters": {
@@ -460,6 +460,20 @@
                 "[resourceId('Microsoft.Insights/components', format('appi-{0}-{1}', variables('appName'), parameters('environment')))]",
                 "[resourceId('Microsoft.App/managedEnvironments', format('cae-{0}-{1}', variables('appName'), parameters('environment')))]",
                 "[resourceId('Microsoft.ContainerRegistry/registries', format('crltc{0}', variables('uniqueSuffix')))]",
+                "[resourceId('Microsoft.DBforPostgreSQL/flexibleServers', format('psql-{0}-{1}-{2}', variables('appName'), parameters('environment'), variables('uniqueSuffix')))]"
+              ]
+            },
+            {
+              "type": "Microsoft.DBforPostgreSQL/flexibleServers/administrators",
+              "apiVersion": "2022-12-01",
+              "name": "[format('{0}/{1}', format('psql-{0}-{1}-{2}', variables('appName'), parameters('environment'), variables('uniqueSuffix')), 'activeDirectory')]",
+              "properties": {
+                "principalType": "ServicePrincipal",
+                "principalName": "[reference(resourceId('Microsoft.App/containerApps', variables('apiAppName')), '2024-03-01', 'full').identity.principalId]",
+                "tenantId": "[subscription().tenantId]"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.App/containerApps', variables('apiAppName'))]",
                 "[resourceId('Microsoft.DBforPostgreSQL/flexibleServers', format('psql-{0}-{1}-{2}', variables('appName'), parameters('environment'), variables('uniqueSuffix')))]"
               ]
             },

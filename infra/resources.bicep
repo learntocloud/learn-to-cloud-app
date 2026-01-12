@@ -303,9 +303,18 @@ resource apiApp 'Microsoft.App/containerApps@2024-03-01' = {
   }
 }
 
-// NOTE: PostgreSQL Entra Admin is configured via Azure CLI in GitHub Actions workflow
-// The API container app's managed identity needs to be added as a PostgreSQL admin
-// This is done post-deployment because the principal ID isn't known until the container app is created
+// PostgreSQL Microsoft Entra admin: bind the API container app's managed identity to the server.
+// This keeps auth configuration in IaC and avoids post-deploy drift.
+resource postgresEntraAdmin 'Microsoft.DBforPostgreSQL/flexibleServers/administrators@2022-12-01' = {
+  parent: postgres
+  name: 'activeDirectory'
+  properties: {
+    principalType: 'ServicePrincipal'
+    // The RP resolves the principal based on this value; for managed identities this is the principalId GUID.
+    principalName: apiApp.identity.principalId
+    tenantId: subscription().tenantId
+  }
+}
 
 // Frontend Container App (Next.js)
 resource frontendApp 'Microsoft.App/containerApps@2024-03-01' = {

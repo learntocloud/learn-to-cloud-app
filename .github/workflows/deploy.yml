@@ -5,6 +5,17 @@ on:
     branches: [main]
   workflow_dispatch:
 
+concurrency:
+  group: deploy-${{ vars.AZURE_ENV_NAME }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
 env:
   AZURE_ENV_NAME: ${{ vars.AZURE_ENV_NAME }}
   AZURE_LOCATION: ${{ vars.AZURE_LOCATION }}
@@ -21,6 +32,7 @@ jobs:
 
       - name: Log in with Azure
         run: |
+          set -euo pipefail
           azd auth login \
             --client-id "${{ fromJson(secrets.AZURE_CREDENTIALS).clientId }}" \
             --client-secret "${{ fromJson(secrets.AZURE_CREDENTIALS).clientSecret }}" \
@@ -32,7 +44,9 @@ jobs:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Provision Infrastructure
-        run: azd provision --no-prompt
+        run: |
+          set -euo pipefail
+          azd provision --no-prompt
         env:
           AZURE_ENV_NAME: ${{ vars.AZURE_ENV_NAME }}
           AZURE_LOCATION: ${{ vars.AZURE_LOCATION }}
@@ -42,49 +56,10 @@ jobs:
           CLERK_WEBHOOK_SIGNING_SECRET: ${{ secrets.CLERK_WEBHOOK_SIGNING_SECRET }}
           POSTGRES_ADMIN_PASSWORD: ${{ secrets.POSTGRES_ADMIN_PASSWORD }}
 
-      - name: Sync Container App Secrets
-        run: |
-          # Update API secrets to ensure they match GitHub secrets
-          az containerapp secret set \
-            --name ca-learntocloud-api-${{ vars.AZURE_ENV_NAME }} \
-            --resource-group rg-learntocloud-${{ vars.AZURE_ENV_NAME }} \
-            --secrets \
-              "clerk-secret-key=${{ secrets.CLERK_SECRET_KEY }}" \
-              "clerk-webhook-signing-secret=${{ secrets.CLERK_WEBHOOK_SIGNING_SECRET }}"
-
-      - name: Configure PostgreSQL Entra Admin
-        run: |
-          # Get the API container app's managed identity principal ID
-          API_PRINCIPAL_ID=$(az containerapp show \
-            --name ca-learntocloud-api-${{ vars.AZURE_ENV_NAME }} \
-            --resource-group rg-learntocloud-${{ vars.AZURE_ENV_NAME }} \
-            --query "identity.principalId" -o tsv)
-          
-          # Get the PostgreSQL server name (it has a unique suffix)
-          POSTGRES_SERVER=$(az postgres flexible-server list \
-            --resource-group rg-learntocloud-${{ vars.AZURE_ENV_NAME }} \
-            --query "[0].name" -o tsv)
-          
-          # Check if Entra admin is already configured
-          EXISTING_ADMIN=$(az postgres flexible-server microsoft-entra-admin list \
-            --server-name $POSTGRES_SERVER \
-            --resource-group rg-learntocloud-${{ vars.AZURE_ENV_NAME }} \
-            --query "[?objectId=='$API_PRINCIPAL_ID'].objectId" -o tsv)
-          
-          if [ -z "$EXISTING_ADMIN" ]; then
-            echo "Configuring PostgreSQL Entra admin for managed identity..."
-            az postgres flexible-server microsoft-entra-admin create \
-              --server-name $POSTGRES_SERVER \
-              --resource-group rg-learntocloud-${{ vars.AZURE_ENV_NAME }} \
-              --object-id $API_PRINCIPAL_ID \
-              --display-name ca-learntocloud-api-${{ vars.AZURE_ENV_NAME }} \
-              --type ServicePrincipal
-          else
-            echo "PostgreSQL Entra admin already configured"
-          fi
-
       - name: Deploy Application
-        run: azd deploy --no-prompt
+        run: |
+          set -euo pipefail
+          azd deploy --no-prompt
         env:
           AZURE_ENV_NAME: ${{ vars.AZURE_ENV_NAME }}
           AZURE_LOCATION: ${{ vars.AZURE_LOCATION }}
