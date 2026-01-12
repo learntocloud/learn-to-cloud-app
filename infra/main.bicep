@@ -31,9 +31,6 @@ param frontendManagedCertificateName string = ''
 @description('Email address for alert notifications')
 param alertEmailAddress string = ''
 
-@description('Enable Azure Cache for Redis for distributed rate limiting')
-param enableRedis bool = true
-
 var resourceGroupName = 'rg-learntocloud-${environment}'
 var tags = {
   environment: environment
@@ -61,7 +58,6 @@ module resources 'resources.bicep' = {
     frontendCustomDomain: frontendCustomDomain
     frontendManagedCertificateName: frontendManagedCertificateName
     alertEmailAddress: alertEmailAddress
-    enableRedis: enableRedis
   }
 }
 

@@ -325,7 +325,7 @@ resource apiApp 'Microsoft.App/containerApps@2024-03-01' = {
               name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
               value: appInsights.properties.ConnectionString
             }
-          ]
+          ])
           // Health probes - allow longer startup for cold starts
           probes: [
             {
