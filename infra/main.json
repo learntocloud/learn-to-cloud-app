@@ -6,7 +6,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.39.26.7824",
-      "templateHash": "2995187319185877756"
+      "templateHash": "16611158899474696929"
     }
   },
   "parameters": {
@@ -123,7 +123,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.39.26.7824",
-              "templateHash": "17634143407732891726"
+              "templateHash": "11003833151576089983"
             }
           },
           "parameters": {
@@ -189,7 +189,7 @@
             "appName": "learntocloud",
             "apiAppName": "[format('ca-{0}-api-{1}', variables('appName'), parameters('environment'))]",
             "frontendAppName": "[format('ca-{0}-frontend-{1}', variables('appName'), parameters('environment'))]",
-            "acrPullRoleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '7f951dda-4ed3-4680-a7ca-43fe172d538d')]"
+            "apiCorsAllowedOrigins": "[if(not(empty(parameters('frontendCustomDomain'))), createArray('https://*.azurecontainerapps.io', 'http://localhost:3000', format('https://{0}', parameters('frontendCustomDomain'))), createArray('https://*.azurecontainerapps.io', 'http://localhost:3000'))]"
           },
           "resources": [
             {
@@ -285,7 +285,7 @@
                 "name": "Basic"
               },
               "properties": {
-                "adminUserEnabled": false
+                "adminUserEnabled": true
               }
             },
             {
@@ -325,7 +325,7 @@
                     "transport": "http",
                     "allowInsecure": false,
                     "corsPolicy": {
-                      "allowedOrigins": "[concat(createArray(format('https://{0}.{1}', variables('frontendAppName'), reference(resourceId('Microsoft.App/managedEnvironments', format('cae-{0}-{1}', variables('appName'), parameters('environment'))), '2024-03-01').defaultDomain), 'http://localhost:3000'), if(not(empty(parameters('frontendCustomDomain'))), createArray(format('https://{0}', parameters('frontendCustomDomain'))), createArray()))]",
+                      "allowedOrigins": "[variables('apiCorsAllowedOrigins')]",
                       "allowedMethods": [
                         "GET",
                         "POST",
@@ -342,10 +342,15 @@
                   "registries": [
                     {
                       "server": "[reference(resourceId('Microsoft.ContainerRegistry/registries', format('crltc{0}', variables('uniqueSuffix'))), '2023-07-01').loginServer]",
-                      "identity": "system"
+                      "username": "[listCredentials(resourceId('Microsoft.ContainerRegistry/registries', format('crltc{0}', variables('uniqueSuffix'))), '2023-07-01').username]",
+                      "passwordSecretRef": "registry-password"
                     }
                   ],
                   "secrets": [
+                    {
+                      "name": "registry-password",
+                      "value": "[listCredentials(resourceId('Microsoft.ContainerRegistry/registries', format('crltc{0}', variables('uniqueSuffix'))), '2023-07-01').passwords[0].value]"
+                    },
                     {
                       "name": "clerk-secret-key",
                       "value": "[parameters('clerkSecretKey')]"
@@ -499,10 +504,15 @@
                   "registries": [
                     {
                       "server": "[reference(resourceId('Microsoft.ContainerRegistry/registries', format('crltc{0}', variables('uniqueSuffix'))), '2023-07-01').loginServer]",
-                      "identity": "system"
+                      "username": "[listCredentials(resourceId('Microsoft.ContainerRegistry/registries', format('crltc{0}', variables('uniqueSuffix'))), '2023-07-01').username]",
+                      "passwordSecretRef": "registry-password"
                     }
                   ],
                   "secrets": [
+                    {
+                      "name": "registry-password",
+                      "value": "[listCredentials(resourceId('Microsoft.ContainerRegistry/registries', format('crltc{0}', variables('uniqueSuffix'))), '2023-07-01').passwords[0].value]"
+                    },
                     {
                       "name": "clerk-secret-key",
                       "value": "[parameters('clerkSecretKey')]"
@@ -606,34 +616,6 @@
                 "[resourceId('Microsoft.Insights/components', format('appi-{0}-{1}', variables('appName'), parameters('environment')))]",
                 "[resourceId('Microsoft.App/managedEnvironments', format('cae-{0}-{1}', variables('appName'), parameters('environment')))]",
                 "[resourceId('Microsoft.ContainerRegistry/registries', format('crltc{0}', variables('uniqueSuffix')))]"
-              ]
-            },
-            {
-              "type": "Microsoft.Authorization/roleAssignments",
-              "apiVersion": "2022-04-01",
-              "scope": "[format('Microsoft.ContainerRegistry/registries/{0}', format('crltc{0}', variables('uniqueSuffix')))]",
-              "name": "[guid(resourceId('Microsoft.ContainerRegistry/registries', format('crltc{0}', variables('uniqueSuffix'))), resourceId('Microsoft.App/containerApps', variables('apiAppName')), 'acrPull')]",
-              "properties": {
-                "roleDefinitionId": "[variables('acrPullRoleDefinitionId')]",
-                "principalId": "[reference(resourceId('Microsoft.App/containerApps', variables('apiAppName')), '2024-03-01', 'full').identity.principalId]"
-              },
-              "dependsOn": [
-                "[resourceId('Microsoft.App/containerApps', variables('apiAppName'))]",
-                "[resourceId('Microsoft.ContainerRegistry/registries', format('crltc{0}', variables('uniqueSuffix')))]"
-              ]
-            },
-            {
-              "type": "Microsoft.Authorization/roleAssignments",
-              "apiVersion": "2022-04-01",
-              "scope": "[format('Microsoft.ContainerRegistry/registries/{0}', format('crltc{0}', variables('uniqueSuffix')))]",
-              "name": "[guid(resourceId('Microsoft.ContainerRegistry/registries', format('crltc{0}', variables('uniqueSuffix'))), resourceId('Microsoft.App/containerApps', variables('frontendAppName')), 'acrPull')]",
-              "properties": {
-                "roleDefinitionId": "[variables('acrPullRoleDefinitionId')]",
-                "principalId": "[reference(resourceId('Microsoft.App/containerApps', variables('frontendAppName')), '2024-03-01', 'full').identity.principalId]"
-              },
-              "dependsOn": [
-                "[resourceId('Microsoft.ContainerRegistry/registries', format('crltc{0}', variables('uniqueSuffix')))]",
-                "[resourceId('Microsoft.App/containerApps', variables('frontendAppName'))]"
               ]
             }
           ],

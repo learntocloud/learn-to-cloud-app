@@ -121,7 +121,7 @@ resource containerRegistry 'Microsoft.ContainerRegistry/registries@2023-07-01' =
     name: 'Basic'
   }
   properties: {
-    adminUserEnabled: false
+    adminUserEnabled: true
   }
 }
 
@@ -143,15 +143,16 @@ resource containerAppsEnvironment 'Microsoft.App/managedEnvironments@2024-03-01'
 
 var apiDefaultUrl = 'https://${apiAppName}.${containerAppsEnvironment.properties.defaultDomain}'
 var frontendDefaultUrl = 'https://${frontendAppName}.${containerAppsEnvironment.properties.defaultDomain}'
-var apiCorsAllowedOrigins = concat(
-  [
-    frontendDefaultUrl
-    'http://localhost:3000'
-  ],
-  !empty(frontendCustomDomain) ? [
-    'https://${frontendCustomDomain}'
-  ] : []
-)
+// Use wildcard for Container Apps origins plus localhost for development
+// The custom domain is added conditionally if specified
+var apiCorsAllowedOrigins = !empty(frontendCustomDomain) ? [
+  'https://*.azurecontainerapps.io'
+  'http://localhost:3000'
+  'https://${frontendCustomDomain}'
+] : [
+  'https://*.azurecontainerapps.io'
+  'http://localhost:3000'
+]
 
 // Reference existing Managed Certificate for custom domain (created manually via Azure CLI)
 // Certificate name follows Azure's auto-generated naming: {hostname}-{env-prefix}-{timestamp}
@@ -186,10 +187,15 @@ resource apiApp 'Microsoft.App/containerApps@2024-03-01' = {
       registries: [
         {
           server: containerRegistry.properties.loginServer
-          identity: 'system'
+          username: containerRegistry.listCredentials().username
+          passwordSecretRef: 'registry-password'
         }
       ]
       secrets: [
+        {
+          name: 'registry-password'
+          value: containerRegistry.listCredentials().passwords[0].value
+        }
         {
           name: 'clerk-secret-key'
           value: clerkSecretKey
@@ -343,10 +349,15 @@ resource frontendApp 'Microsoft.App/containerApps@2024-03-01' = {
       registries: [
         {
           server: containerRegistry.properties.loginServer
-          identity: 'system'
+          username: containerRegistry.listCredentials().username
+          passwordSecretRef: 'registry-password'
         }
       ]
       secrets: [
+        {
+          name: 'registry-password'
+          value: containerRegistry.listCredentials().passwords[0].value
+        }
         {
           name: 'clerk-secret-key'
           value: clerkSecretKey
@@ -449,26 +460,6 @@ resource frontendApp 'Microsoft.App/containerApps@2024-03-01' = {
   dependsOn: [
     apiApp
   ]
-}
-
-var acrPullRoleDefinitionId = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '7f951dda-4ed3-4680-a7ca-43fe172d538d')
-
-resource apiAcrPullRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(containerRegistry.id, apiApp.id, 'acrPull')
-  scope: containerRegistry
-  properties: {
-    roleDefinitionId: acrPullRoleDefinitionId
-    principalId: apiApp.identity.principalId
-  }
-}
-
-resource frontendAcrPullRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(containerRegistry.id, frontendApp.id, 'acrPull')
-  scope: containerRegistry
-  properties: {
-    roleDefinitionId: acrPullRoleDefinitionId
-    principalId: frontendApp.identity.principalId
-  }
 }
 
 // Outputs
