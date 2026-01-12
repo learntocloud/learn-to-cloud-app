@@ -158,8 +158,8 @@ resource keyVault 'Microsoft.KeyVault/vaults@2024-04-01-preview' = {
     tenantId: subscription().tenantId
     enableRbacAuthorization: true
     enableSoftDelete: true
-    softDeleteRetentionInDays: 7
-    enablePurgeProtection: false  // Set to true for production
+    softDeleteRetentionInDays: 90
+    // Note: enablePurgeProtection defaults to true and cannot be disabled once enabled
     networkAcls: {
       bypass: 'AzureServices'
       defaultAction: 'Allow'  // Consider 'Deny' with private endpoints for production
@@ -917,6 +917,21 @@ resource appInsightsExceptionsAlert 'Microsoft.Insights/metricAlerts@2018-03-01'
   }
 }
 
+// Monitoring Dashboard
+module monitoringDashboard 'dashboard.bicep' = {
+  name: 'monitoring-dashboard'
+  params: {
+    environment: environment
+    location: location
+    tags: tags
+    apiAppId: apiApp.id
+    frontendAppId: frontendApp.id
+    postgresServerId: postgres.id
+    appInsightsId: appInsights.id
+    logAnalyticsId: logAnalytics.id
+  }
+}
+
 // Outputs
 output apiUrl string = 'https://${apiApp.properties.configuration.ingress.fqdn}'
 output frontendUrl string = 'https://${frontendApp.properties.configuration.ingress.fqdn}'
@@ -927,3 +942,4 @@ output containerRegistryName string = containerRegistry.name
 output containerRegistryLoginServer string = containerRegistry.properties.loginServer
 output keyVaultName string = keyVault.name
 output keyVaultUri string = keyVault.properties.vaultUri
+output dashboardId string = monitoringDashboard.outputs.dashboardId
