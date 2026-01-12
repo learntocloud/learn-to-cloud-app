@@ -121,7 +121,7 @@ resource containerRegistry 'Microsoft.ContainerRegistry/registries@2023-07-01' =
     name: 'Basic'
   }
   properties: {
-    adminUserEnabled: true
+    adminUserEnabled: false
   }
 }
 
@@ -187,15 +187,10 @@ resource apiApp 'Microsoft.App/containerApps@2024-03-01' = {
       registries: [
         {
           server: containerRegistry.properties.loginServer
-          username: containerRegistry.listCredentials().username
-          passwordSecretRef: 'registry-password'
+          identity: 'system'
         }
       ]
       secrets: [
-        {
-          name: 'registry-password'
-          value: containerRegistry.listCredentials().passwords[0].value
-        }
         {
           name: 'clerk-secret-key'
           value: clerkSecretKey
@@ -345,15 +340,10 @@ resource frontendApp 'Microsoft.App/containerApps@2024-03-01' = {
       registries: [
         {
           server: containerRegistry.properties.loginServer
-          username: containerRegistry.listCredentials().username
-          passwordSecretRef: 'registry-password'
+          identity: 'system'
         }
       ]
       secrets: [
-        {
-          name: 'registry-password'
-          value: containerRegistry.listCredentials().passwords[0].value
-        }
         {
           name: 'clerk-secret-key'
           value: clerkSecretKey
@@ -456,6 +446,29 @@ resource frontendApp 'Microsoft.App/containerApps@2024-03-01' = {
   dependsOn: [
     apiApp
   ]
+}
+
+// AcrPull role assignment for Container Apps to pull images using managed identity
+var acrPullRoleDefinitionId = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '7f951dda-4ed3-4680-a7ca-43fe172d538d')
+
+resource apiAcrPullRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(containerRegistry.id, apiApp.id, 'acrPull')
+  scope: containerRegistry
+  properties: {
+    roleDefinitionId: acrPullRoleDefinitionId
+    principalId: apiApp.identity.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+resource frontendAcrPullRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(containerRegistry.id, frontendApp.id, 'acrPull')
+  scope: containerRegistry
+  properties: {
+    roleDefinitionId: acrPullRoleDefinitionId
+    principalId: frontendApp.identity.principalId
+    principalType: 'ServicePrincipal'
+  }
 }
 
 // Outputs
