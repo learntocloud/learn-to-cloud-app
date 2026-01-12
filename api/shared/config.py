@@ -7,21 +7,21 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
-    
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
         extra="ignore",
     )
-    
+
     # Database - Local development (SQLite or local PostgreSQL)
     database_url: str = "sqlite+aiosqlite:///./learn_to_cloud.db"
-    
+
     # Database - Azure (managed identity authentication)
     postgres_host: str = ""
     postgres_database: str = "learntocloud"
     postgres_user: str = ""
-    
+
     # Clerk
     clerk_secret_key: str = ""
     clerk_webhook_signing_secret: str = ""
@@ -32,17 +32,13 @@ class Settings(BaseSettings):
 
     # Frontend URL for CORS
     frontend_url: str = "http://localhost:4280"
-    
+
     # Environment
     environment: str = "development"
 
     # Development-only convenience: drop and recreate tables on startup.
     reset_db_on_startup: bool = False
-    
-    # Redis URL for distributed rate limiting (optional)
-    # Format: redis://host:port or rediss://host:port for SSL
-    redis_url: str = ""
-    
+
     @property
     def use_azure_postgres(self) -> bool:
         """Check if Azure PostgreSQL with managed identity should be used."""

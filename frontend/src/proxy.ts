@@ -12,6 +12,7 @@ const isPublicRoute = createRouteMatcher([
   '/sign-up(.*)',
   '/phases(.*)',    // Allow viewing phases without auth
   '/phase[0-9](.*)', // Allow viewing phase/topic pages without auth (phase0, phase1, etc.)
+  '/api/(.*)',       // API routes are proxied to backend which handles its own auth
 ])
 
 export default clerkMiddleware(async (auth, request) => {

@@ -14,7 +14,7 @@ from collections.abc import AsyncGenerator
 from typing import Annotated
 
 from fastapi import Depends
-from sqlalchemy import event
+from sqlalchemy import event, text
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -23,7 +23,6 @@ from sqlalchemy.ext.asyncio import (
 )
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.pool import NullPool
-from sqlalchemy import text
 
 from .config import get_settings
 
@@ -35,6 +34,7 @@ _azure_credential = None
 
 class Base(DeclarativeBase):
     """Base class for all SQLAlchemy models."""
+
     pass
 
 
@@ -100,10 +100,10 @@ async def _azure_asyncpg_creator():
 def get_engine() -> AsyncEngine:
     """
     Get or create the database engine (lazy initialization).
-    
+
     This allows tests to override settings before the engine is created.
     Uses connection pooling for PostgreSQL to improve performance.
-    
+
     Authentication modes:
     - Azure (POSTGRES_HOST set): Uses managed identity token
     - Local (DATABASE_URL): Uses provided connection string
@@ -111,7 +111,7 @@ def get_engine() -> AsyncEngine:
     global _engine
     if _engine is None:
         settings = get_settings()
-        
+
         # Determine which database URL to use
         if settings.use_azure_postgres:
             # Azure: Use managed identity token (fetched per new connection)
@@ -123,39 +123,45 @@ def get_engine() -> AsyncEngine:
             database_url = settings.database_url
             is_sqlite = "sqlite" in database_url
             async_creator = None
-        
+
         _engine = create_async_engine(
             database_url,
             echo=settings.environment == "development",
             # SQLite doesn't support connection pooling
             poolclass=NullPool if is_sqlite else None,
             # Connection pool settings for PostgreSQL (asyncpg)
-            **({} if is_sqlite else {
-                "pool_size": 5,           # Base connections to keep open
-                "max_overflow": 5,        # Extra connections when busy (max 10 total)
-                "pool_timeout": 30,       # Wait time for available connection
-                "pool_recycle": 300,      # Recycle connections every 5 min (tokens expire)
-                "pool_pre_ping": True,    # Verify connections before use
-            }),
+            **(
+                {}
+                if is_sqlite
+                else {
+                    "pool_size": 5,  # Base connections to keep open
+                    "max_overflow": 5,  # Extra connections when busy (max 10 total)
+                    "pool_timeout": 30,  # Wait time for available connection
+                    "pool_recycle": 300,  # Recycle connections every 5 min (tokens expire)
+                    "pool_pre_ping": True,  # Verify connections before use
+                }
+            ),
             **({} if async_creator is None else {"async_creator": async_creator}),
         )
 
         # SQLite does not enforce foreign keys unless explicitly enabled.
         # We rely on ON DELETE CASCADE for user deletion.
         if is_sqlite:
+
             @event.listens_for(_engine.sync_engine, "connect")
             def _set_sqlite_pragma(dbapi_connection, connection_record) -> None:  # type: ignore[no-redef]
                 cursor = dbapi_connection.cursor()
                 cursor.execute("PRAGMA foreign_keys=ON")
                 cursor.close()
-        
+
         # Instrument SQLAlchemy for query performance tracking
         try:
             from .telemetry import instrument_sqlalchemy_engine
+
             instrument_sqlalchemy_engine(_engine)
         except Exception as e:
             logger.warning(f"Failed to instrument SQLAlchemy for telemetry: {e}")
-            
+
     return _engine
 
 
@@ -176,7 +182,7 @@ def get_session_maker() -> async_sessionmaker[AsyncSession]:
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """
     FastAPI dependency that provides a database session.
-    
+
     Usage:
         @app.get("/items")
         async def get_items(db: DbSession):
@@ -230,23 +236,25 @@ async def check_db_connection() -> None:
 async def cleanup_old_webhooks(days: int = 7) -> int:
     """
     Remove ProcessedWebhook entries older than the specified days.
-    
+
     This prevents the table from growing indefinitely. Webhooks older
     than 7 days are unlikely to be replayed, so they can be safely removed.
-    
+
     Args:
         days: Number of days to retain webhooks (default: 7)
-        
+
     Returns:
         Number of deleted entries
     """
-    from datetime import datetime, timezone, timedelta
+    from datetime import datetime, timedelta, timezone
+
     from sqlalchemy import delete
+
     from .models import ProcessedWebhook
-    
+
     cutoff = datetime.now(timezone.utc) - timedelta(days=days)
     session_maker = get_session_maker()
-    
+
     async with session_maker() as session:
         result = await session.execute(
             delete(ProcessedWebhook).where(ProcessedWebhook.processed_at < cutoff)
@@ -294,6 +302,9 @@ async def upsert_on_conflict(
         values: Dict of column name -> value for the insert
         index_elements: Column names that form the unique constraint
         update_fields: Column names to update on conflict
+
+    Note: This function commits the transaction since raw SQL executes
+    don't track changes in session.new/dirty/deleted.
     """
     bind = db.get_bind()
     dialect_name = bind.dialect.name if bind is not None else ""
@@ -309,6 +320,7 @@ async def upsert_on_conflict(
             set_=update_set,
         )
         await db.execute(stmt)
+        await db.commit()
 
     elif dialect_name == "sqlite":
         from sqlalchemy.dialects.sqlite import insert as sqlite_insert
@@ -319,10 +331,12 @@ async def upsert_on_conflict(
             set_=update_set,
         )
         await db.execute(stmt)
+        await db.commit()
 
     else:
         # Fallback for other dialects: select then insert/update
-        from sqlalchemy import select, and_
+        # These use ORM methods so session tracking works
+        from sqlalchemy import and_, select
 
         conditions = [getattr(model, elem) == values[elem] for elem in index_elements]
         result = await db.execute(select(model).where(and_(*conditions)))

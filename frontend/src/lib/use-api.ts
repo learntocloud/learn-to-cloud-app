@@ -3,7 +3,12 @@
 import { useAuth } from "@clerk/nextjs";
 import { trackEvent, getAppInsights } from "./app-insights";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+// In dev containers/Codespaces, use same-origin proxy (Next.js rewrites /api/* to backend)
+// In production, use the explicit API URL
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
+
+// Check if we're using the proxy (empty or localhost URL)
+const isUsingProxy = !API_URL || API_URL.includes('localhost') || API_URL.includes('127.0.0.1');
 
 /**
  * Track an API call with performance metrics.
@@ -26,7 +31,7 @@ function trackApiCall(
     success,
     responseCode: statusCode || 0,
     type: "HTTP",
-    target: new URL(endpoint, API_URL).host,
+    target: isUsingProxy ? window.location.host : new URL(API_URL).host,
     data: endpoint,
   });
 
@@ -76,7 +81,8 @@ export function useApi() {
       return response.json();
     } finally {
       const durationMs = performance.now() - startTime;
-      const endpoint = new URL(url).pathname;
+      // Extract pathname safely - for relative URLs, the url itself is the path
+      const endpoint = url.startsWith('/') ? url.split('?')[0] : new URL(url).pathname;
       
       // Extract server-side duration from header if available
       const serverDuration = response?.headers.get("X-Request-Duration-Ms");
@@ -104,7 +110,11 @@ export function useApi() {
      * Toggle a checklist item's completion status.
      */
     async toggleChecklistItem(itemId: string): Promise<{ is_completed: boolean }> {
-      return fetchWithAuth(`${API_URL}/api/checklist/${itemId}/toggle`, {
+      // Use relative URL for proxy in dev containers, absolute URL in production
+      const url = isUsingProxy 
+        ? `/api/checklist/${itemId}/toggle`
+        : `${API_URL}/api/checklist/${itemId}/toggle`;
+      return fetchWithAuth(url, {
         method: "POST",
       });
     },

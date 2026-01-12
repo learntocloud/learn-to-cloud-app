@@ -1,5 +1,11 @@
 import type { NextConfig } from "next";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
+// Only proxy API calls in development (localhost)
+// In production, the frontend calls the API directly via NEXT_PUBLIC_API_URL
+const isDevelopment = API_URL.includes('localhost') || API_URL.includes('127.0.0.1');
+
 const nextConfig: NextConfig = {
   output: 'standalone', // Required for Container Apps deployment
   images: {
@@ -25,6 +31,20 @@ const nextConfig: NextConfig = {
       ],
     },
   ],
+  // Proxy API calls to backend in development only
+  // Required for dev containers/Codespaces where browser can't reach localhost:8000
+  // In production, client-side JS calls the API URL directly (no proxy overhead)
+  async rewrites() {
+    if (!isDevelopment) {
+      return [];
+    }
+    return [
+      {
+        source: '/api/:path*',
+        destination: `${API_URL}/api/:path*`,
+      },
+    ];
+  },
 };
 
 export default nextConfig;

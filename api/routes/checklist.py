@@ -79,6 +79,8 @@ async def toggle_checklist_item(
         progress.completed_at = now if progress.is_completed else None
         is_completed = progress.is_completed
 
+    await db.commit()
+
     return ChecklistToggleResponse(
         success=True, item_id=item_id, is_completed=is_completed
     )

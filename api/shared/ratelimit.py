@@ -8,8 +8,6 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 from starlette.responses import JSONResponse
 
-from .config import get_settings
-
 logger = logging.getLogger(__name__)
 
 
@@ -29,25 +27,12 @@ def _get_request_identifier(request: Request) -> str:
     return get_remote_address(request)
 
 
-def _get_storage_uri() -> str:
-    """Get the storage URI for rate limiting.
-    
-    Uses Redis if configured (for distributed rate limiting across replicas),
-    otherwise falls back to in-memory storage (single instance only).
-    """
-    settings = get_settings()
-    if settings.redis_url:
-        logger.info("Using Redis for distributed rate limiting")
-        return settings.redis_url
-    logger.info("Using in-memory storage for rate limiting (single instance only)")
-    return "memory://"
-
-
-# Create the limiter instance
+# Create the limiter instance with in-memory storage
+# For single-replica deployments, in-memory is sufficient and avoids Redis costs
 limiter = Limiter(
     key_func=_get_request_identifier,
     default_limits=["100/minute"],  # Default rate limit for all endpoints
-    storage_uri=_get_storage_uri(),
+    storage_uri="memory://",
 )
 
 

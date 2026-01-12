@@ -11,7 +11,14 @@ interface GitHubSubmissionFormProps {
   onSubmissionSuccess?: () => void;
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+// In dev containers/Codespaces, use same-origin proxy (Next.js rewrites /api/* to backend)
+// In production, use the explicit API URL
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
+const isUsingProxy = !API_URL || API_URL.includes('localhost') || API_URL.includes('127.0.0.1');
+
+function getApiUrl(path: string): string {
+  return isUsingProxy ? path : `${API_URL}${path}`;
+}
 
 export function GitHubSubmissionForm({
   requirements,
@@ -49,7 +56,7 @@ export function GitHubSubmissionForm({
 
     try {
       const token = await getToken();
-      const res = await fetch(`${API_URL}/api/github/submit`, {
+      const res = await fetch(getApiUrl("/api/github/submit"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
