@@ -24,7 +24,6 @@ local.settings.json
 
 # IDE
 .idea/
-.vscode/
 *.swp
 *.swo
 
