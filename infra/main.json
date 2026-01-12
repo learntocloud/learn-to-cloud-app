@@ -6,7 +6,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.39.26.7824",
-      "templateHash": "12644695706204651392"
+      "templateHash": "9903202888602768536"
     }
   },
   "parameters": {
@@ -65,7 +65,7 @@
       "type": "string",
       "defaultValue": "",
       "metadata": {
-        "description": "Email address for alert notifications (leave empty to disable alerts)"
+        "description": "Email address for alert notifications"
       }
     }
   },
@@ -133,7 +133,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.39.26.7824",
-              "templateHash": "10470250262109154262"
+              "templateHash": "16517909568972730846"
             }
           },
           "parameters": {
@@ -186,18 +186,18 @@
                 "description": "Custom domain for the frontend app (optional)"
               }
             },
+            "alertEmailAddress": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "Email address for alert notifications (optional)"
+              }
+            },
             "frontendManagedCertificateName": {
               "type": "string",
               "defaultValue": "",
               "metadata": {
                 "description": "Name of the existing managed certificate resource in the Container Apps environment (required when binding a custom domain)"
-              }
-            },
-            "alertEmailAddress": {
-              "type": "string",
-              "defaultValue": "",
-              "metadata": {
-                "description": "Email address for alert notifications"
               }
             }
           },
@@ -206,10 +206,18 @@
             "appName": "learntocloud",
             "apiAppName": "[format('ca-{0}-api-{1}', variables('appName'), parameters('environment'))]",
             "frontendAppName": "[format('ca-{0}-frontend-{1}', variables('appName'), parameters('environment'))]",
+            "keyVaultSecretsUserRoleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '4633458b-17de-408a-b874-0445c86b69e6')]",
             "apiCorsAllowedOrigins": "[if(not(empty(parameters('frontendCustomDomain'))), createArray('https://*.azurecontainerapps.io', 'http://localhost:3000', format('https://{0}', parameters('frontendCustomDomain'))), createArray('https://*.azurecontainerapps.io', 'http://localhost:3000'))]",
             "acrPullRoleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '7f951dda-4ed3-4680-a7ca-43fe172d538d')]"
           },
           "resources": [
+            {
+              "type": "Microsoft.ManagedIdentity/userAssignedIdentities",
+              "apiVersion": "2023-01-31",
+              "name": "[format('id-{0}-{1}', variables('appName'), parameters('environment'))]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]"
+            },
             {
               "type": "Microsoft.OperationalInsights/workspaces",
               "apiVersion": "2023-09-01",
@@ -326,13 +334,85 @@
               ]
             },
             {
+              "type": "Microsoft.KeyVault/vaults",
+              "apiVersion": "2024-04-01-preview",
+              "name": "[format('kv-ltc-{0}-{1}', parameters('environment'), variables('uniqueSuffix'))]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "sku": {
+                  "family": "A",
+                  "name": "standard"
+                },
+                "tenantId": "[subscription().tenantId]",
+                "enableRbacAuthorization": true,
+                "enableSoftDelete": true,
+                "softDeleteRetentionInDays": 90,
+                "networkAcls": {
+                  "bypass": "AzureServices",
+                  "defaultAction": "Allow"
+                }
+              }
+            },
+            {
+              "type": "Microsoft.KeyVault/vaults/secrets",
+              "apiVersion": "2024-04-01-preview",
+              "name": "[format('{0}/{1}', format('kv-ltc-{0}-{1}', parameters('environment'), variables('uniqueSuffix')), 'clerk-secret-key')]",
+              "properties": {
+                "value": "[parameters('clerkSecretKey')]"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.KeyVault/vaults', format('kv-ltc-{0}-{1}', parameters('environment'), variables('uniqueSuffix')))]"
+              ]
+            },
+            {
+              "type": "Microsoft.KeyVault/vaults/secrets",
+              "apiVersion": "2024-04-01-preview",
+              "name": "[format('{0}/{1}', format('kv-ltc-{0}-{1}', parameters('environment'), variables('uniqueSuffix')), 'clerk-webhook-signing-secret')]",
+              "properties": {
+                "value": "[parameters('clerkWebhookSigningSecret')]"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.KeyVault/vaults', format('kv-ltc-{0}-{1}', parameters('environment'), variables('uniqueSuffix')))]"
+              ]
+            },
+            {
+              "type": "Microsoft.KeyVault/vaults/secrets",
+              "apiVersion": "2024-04-01-preview",
+              "name": "[format('{0}/{1}', format('kv-ltc-{0}-{1}', parameters('environment'), variables('uniqueSuffix')), 'postgres-admin-password')]",
+              "properties": {
+                "value": "[parameters('postgresAdminPassword')]"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.KeyVault/vaults', format('kv-ltc-{0}-{1}', parameters('environment'), variables('uniqueSuffix')))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[format('Microsoft.KeyVault/vaults/{0}', format('kv-ltc-{0}-{1}', parameters('environment'), variables('uniqueSuffix')))]",
+              "name": "[guid(resourceId('Microsoft.KeyVault/vaults', format('kv-ltc-{0}-{1}', parameters('environment'), variables('uniqueSuffix'))), resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('id-{0}-{1}', variables('appName'), parameters('environment'))), 'keyVaultSecretsUser')]",
+              "properties": {
+                "roleDefinitionId": "[variables('keyVaultSecretsUserRoleDefinitionId')]",
+                "principalId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('id-{0}-{1}', variables('appName'), parameters('environment'))), '2023-01-31').principalId]",
+                "principalType": "ServicePrincipal"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('id-{0}-{1}', variables('appName'), parameters('environment')))]",
+                "[resourceId('Microsoft.KeyVault/vaults', format('kv-ltc-{0}-{1}', parameters('environment'), variables('uniqueSuffix')))]"
+              ]
+            },
+            {
               "type": "Microsoft.App/containerApps",
               "apiVersion": "2024-03-01",
               "name": "[variables('apiAppName')]",
               "location": "[parameters('location')]",
               "tags": "[union(parameters('tags'), createObject('azd-service-name', 'api'))]",
               "identity": {
-                "type": "SystemAssigned"
+                "type": "SystemAssigned, UserAssigned",
+                "userAssignedIdentities": {
+                  "[format('{0}', resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('id-{0}-{1}', variables('appName'), parameters('environment'))))]": {}
+                }
               },
               "properties": {
                 "managedEnvironmentId": "[resourceId('Microsoft.App/managedEnvironments', format('cae-{0}-{1}', variables('appName'), parameters('environment')))]",
@@ -366,11 +446,13 @@
                   "secrets": [
                     {
                       "name": "clerk-secret-key",
-                      "value": "[parameters('clerkSecretKey')]"
+                      "keyVaultUrl": "[reference(resourceId('Microsoft.KeyVault/vaults/secrets', format('kv-ltc-{0}-{1}', parameters('environment'), variables('uniqueSuffix')), 'clerk-secret-key'), '2024-04-01-preview').secretUri]",
+                      "identity": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('id-{0}-{1}', variables('appName'), parameters('environment')))]"
                     },
                     {
                       "name": "clerk-webhook-signing-secret",
-                      "value": "[parameters('clerkWebhookSigningSecret')]"
+                      "keyVaultUrl": "[reference(resourceId('Microsoft.KeyVault/vaults/secrets', format('kv-ltc-{0}-{1}', parameters('environment'), variables('uniqueSuffix')), 'clerk-webhook-signing-secret'), '2024-04-01-preview').secretUri]",
+                      "identity": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('id-{0}-{1}', variables('appName'), parameters('environment')))]"
                     }
                   ]
                 },
@@ -459,7 +541,7 @@
                     }
                   ],
                   "scale": {
-                    "minReplicas": 0,
+                    "minReplicas": 1,
                     "maxReplicas": 10,
                     "rules": [
                       {
@@ -476,9 +558,13 @@
               },
               "dependsOn": [
                 "[resourceId('Microsoft.Insights/components', format('appi-{0}-{1}', variables('appName'), parameters('environment')))]",
+                "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('id-{0}-{1}', variables('appName'), parameters('environment')))]",
+                "[extensionResourceId(resourceId('Microsoft.KeyVault/vaults', format('kv-ltc-{0}-{1}', parameters('environment'), variables('uniqueSuffix'))), 'Microsoft.Authorization/roleAssignments', guid(resourceId('Microsoft.KeyVault/vaults', format('kv-ltc-{0}-{1}', parameters('environment'), variables('uniqueSuffix'))), resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('id-{0}-{1}', variables('appName'), parameters('environment'))), 'keyVaultSecretsUser'))]",
                 "[resourceId('Microsoft.App/managedEnvironments', format('cae-{0}-{1}', variables('appName'), parameters('environment')))]",
                 "[resourceId('Microsoft.ContainerRegistry/registries', format('crltc{0}', variables('uniqueSuffix')))]",
-                "[resourceId('Microsoft.DBforPostgreSQL/flexibleServers', format('psql-{0}-{1}-{2}', variables('appName'), parameters('environment'), variables('uniqueSuffix')))]"
+                "[resourceId('Microsoft.DBforPostgreSQL/flexibleServers', format('psql-{0}-{1}-{2}', variables('appName'), parameters('environment'), variables('uniqueSuffix')))]",
+                "[resourceId('Microsoft.KeyVault/vaults/secrets', format('kv-ltc-{0}-{1}', parameters('environment'), variables('uniqueSuffix')), 'clerk-secret-key')]",
+                "[resourceId('Microsoft.KeyVault/vaults/secrets', format('kv-ltc-{0}-{1}', parameters('environment'), variables('uniqueSuffix')), 'clerk-webhook-signing-secret')]"
               ]
             },
             {
@@ -488,7 +574,10 @@
               "location": "[parameters('location')]",
               "tags": "[union(parameters('tags'), createObject('azd-service-name', 'frontend'))]",
               "identity": {
-                "type": "SystemAssigned"
+                "type": "SystemAssigned, UserAssigned",
+                "userAssignedIdentities": {
+                  "[format('{0}', resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('id-{0}-{1}', variables('appName'), parameters('environment'))))]": {}
+                }
               },
               "properties": {
                 "managedEnvironmentId": "[resourceId('Microsoft.App/managedEnvironments', format('cae-{0}-{1}', variables('appName'), parameters('environment')))]",
@@ -509,7 +598,8 @@
                   "secrets": [
                     {
                       "name": "clerk-secret-key",
-                      "value": "[parameters('clerkSecretKey')]"
+                      "keyVaultUrl": "[reference(resourceId('Microsoft.KeyVault/vaults/secrets', format('kv-ltc-{0}-{1}', parameters('environment'), variables('uniqueSuffix')), 'clerk-secret-key'), '2024-04-01-preview').secretUri]",
+                      "identity": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('id-{0}-{1}', variables('appName'), parameters('environment')))]"
                     }
                   ]
                 },
@@ -608,8 +698,11 @@
               "dependsOn": [
                 "[resourceId('Microsoft.App/containerApps', variables('apiAppName'))]",
                 "[resourceId('Microsoft.Insights/components', format('appi-{0}-{1}', variables('appName'), parameters('environment')))]",
+                "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('id-{0}-{1}', variables('appName'), parameters('environment')))]",
+                "[extensionResourceId(resourceId('Microsoft.KeyVault/vaults', format('kv-ltc-{0}-{1}', parameters('environment'), variables('uniqueSuffix'))), 'Microsoft.Authorization/roleAssignments', guid(resourceId('Microsoft.KeyVault/vaults', format('kv-ltc-{0}-{1}', parameters('environment'), variables('uniqueSuffix'))), resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('id-{0}-{1}', variables('appName'), parameters('environment'))), 'keyVaultSecretsUser'))]",
                 "[resourceId('Microsoft.App/managedEnvironments', format('cae-{0}-{1}', variables('appName'), parameters('environment')))]",
-                "[resourceId('Microsoft.ContainerRegistry/registries', format('crltc{0}', variables('uniqueSuffix')))]"
+                "[resourceId('Microsoft.ContainerRegistry/registries', format('crltc{0}', variables('uniqueSuffix')))]",
+                "[resourceId('Microsoft.KeyVault/vaults/secrets', format('kv-ltc-{0}-{1}', parameters('environment'), variables('uniqueSuffix')), 'clerk-secret-key')]"
               ]
             },
             {
@@ -643,7 +736,6 @@
               ]
             },
             {
-              "condition": "[not(empty(parameters('alertEmailAddress')))]",
               "type": "Microsoft.Insights/actionGroups",
               "apiVersion": "2023-01-01",
               "name": "[format('ag-{0}-{1}', variables('appName'), parameters('environment'))]",
@@ -652,17 +744,17 @@
               "properties": {
                 "groupShortName": "ltc-alerts",
                 "enabled": true,
-                "emailReceivers": [
+                "emailReceivers": "[if(not(equals(parameters('alertEmailAddress'), '')), createArray(createObject('name', 'EmailAlert', 'emailAddress', parameters('alertEmailAddress'), 'useCommonAlertSchema', true())), createArray())]",
+                "armRoleReceivers": [
                   {
-                    "name": "AdminEmail",
-                    "emailAddress": "[parameters('alertEmailAddress')]",
+                    "name": "SubscriptionOwners",
+                    "roleId": "8e3af657-a8ff-443c-a75c-2fe8c4bcb635",
                     "useCommonAlertSchema": true
                   }
                 ]
               }
             },
             {
-              "condition": "[not(empty(parameters('alertEmailAddress')))]",
               "type": "Microsoft.Insights/metricAlerts",
               "apiVersion": "2018-03-01",
               "name": "[format('alert-{0}-error-rate', variables('apiAppName'))]",
@@ -712,14 +804,13 @@
               ]
             },
             {
-              "condition": "[not(empty(parameters('alertEmailAddress')))]",
               "type": "Microsoft.Insights/metricAlerts",
               "apiVersion": "2018-03-01",
-              "name": "[format('alert-{0}-latency', variables('apiAppName'))]",
+              "name": "[format('alert-{0}-requests', variables('apiAppName'))]",
               "location": "global",
               "tags": "[parameters('tags')]",
               "properties": {
-                "description": "Alert when API P95 response time exceeds 2 seconds",
+                "description": "Alert when API receives unusually high request volume",
                 "severity": 3,
                 "enabled": true,
                 "scopes": [
@@ -731,12 +822,12 @@
                   "odata.type": "Microsoft.Azure.Monitor.SingleResourceMultipleMetricCriteria",
                   "allOf": [
                     {
-                      "name": "HighLatency",
-                      "metricName": "RequestDuration",
+                      "name": "HighRequests",
+                      "metricName": "Requests",
                       "metricNamespace": "Microsoft.App/containerApps",
                       "operator": "GreaterThan",
-                      "threshold": 2000,
-                      "timeAggregation": "Average",
+                      "threshold": 10000,
+                      "timeAggregation": "Total",
                       "criterionType": "StaticThresholdCriterion"
                     }
                   ]
@@ -753,7 +844,6 @@
               ]
             },
             {
-              "condition": "[not(empty(parameters('alertEmailAddress')))]",
               "type": "Microsoft.Insights/metricAlerts",
               "apiVersion": "2018-03-01",
               "name": "[format('alert-{0}-restarts', variables('apiAppName'))]",
@@ -794,7 +884,6 @@
               ]
             },
             {
-              "condition": "[not(empty(parameters('alertEmailAddress')))]",
               "type": "Microsoft.Insights/metricAlerts",
               "apiVersion": "2018-03-01",
               "name": "[format('alert-{0}-error-rate', variables('frontendAppName'))]",
@@ -844,7 +933,6 @@
               ]
             },
             {
-              "condition": "[not(empty(parameters('alertEmailAddress')))]",
               "type": "Microsoft.Insights/metricAlerts",
               "apiVersion": "2018-03-01",
               "name": "[format('alert-postgres-{0}-cpu', parameters('environment'))]",
@@ -885,7 +973,6 @@
               ]
             },
             {
-              "condition": "[not(empty(parameters('alertEmailAddress')))]",
               "type": "Microsoft.Insights/metricAlerts",
               "apiVersion": "2018-03-01",
               "name": "[format('alert-postgres-{0}-storage', parameters('environment'))]",
@@ -926,7 +1013,6 @@
               ]
             },
             {
-              "condition": "[not(empty(parameters('alertEmailAddress')))]",
               "type": "Microsoft.Insights/metricAlerts",
               "apiVersion": "2018-03-01",
               "name": "[format('alert-postgres-{0}-connections', parameters('environment'))]",
@@ -967,7 +1053,6 @@
               ]
             },
             {
-              "condition": "[not(empty(parameters('alertEmailAddress')))]",
               "type": "Microsoft.Insights/metricAlerts",
               "apiVersion": "2018-03-01",
               "name": "[format('alert-appinsights-{0}-failed-requests', parameters('environment'))]",
@@ -988,10 +1073,10 @@
                     {
                       "name": "FailedRequests",
                       "metricName": "requests/failed",
-                      "metricNamespace": "Microsoft.Insights/components",
+                      "metricNamespace": "microsoft.insights/components",
                       "operator": "GreaterThan",
                       "threshold": 10,
-                      "timeAggregation": "Total",
+                      "timeAggregation": "Count",
                       "criterionType": "StaticThresholdCriterion"
                     }
                   ]
@@ -1008,7 +1093,6 @@
               ]
             },
             {
-              "condition": "[not(empty(parameters('alertEmailAddress')))]",
               "type": "Microsoft.Insights/metricAlerts",
               "apiVersion": "2018-03-01",
               "name": "[format('alert-appinsights-{0}-exceptions', parameters('environment'))]",
@@ -1029,10 +1113,10 @@
                     {
                       "name": "HighExceptions",
                       "metricName": "exceptions/count",
-                      "metricNamespace": "Microsoft.Insights/components",
+                      "metricNamespace": "microsoft.insights/components",
                       "operator": "GreaterThan",
                       "threshold": 20,
-                      "timeAggregation": "Total",
+                      "timeAggregation": "Count",
                       "criterionType": "StaticThresholdCriterion"
                     }
                   ]
@@ -1046,6 +1130,1241 @@
               "dependsOn": [
                 "[resourceId('Microsoft.Insights/actionGroups', format('ag-{0}-{1}', variables('appName'), parameters('environment')))]",
                 "[resourceId('Microsoft.Insights/components', format('appi-{0}-{1}', variables('appName'), parameters('environment')))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Resources/deployments",
+              "apiVersion": "2025-04-01",
+              "name": "monitoring-dashboard",
+              "properties": {
+                "expressionEvaluationOptions": {
+                  "scope": "inner"
+                },
+                "mode": "Incremental",
+                "parameters": {
+                  "environment": {
+                    "value": "[parameters('environment')]"
+                  },
+                  "location": {
+                    "value": "[parameters('location')]"
+                  },
+                  "tags": {
+                    "value": "[parameters('tags')]"
+                  },
+                  "apiAppId": {
+                    "value": "[resourceId('Microsoft.App/containerApps', variables('apiAppName'))]"
+                  },
+                  "frontendAppId": {
+                    "value": "[resourceId('Microsoft.App/containerApps', variables('frontendAppName'))]"
+                  },
+                  "postgresServerId": {
+                    "value": "[resourceId('Microsoft.DBforPostgreSQL/flexibleServers', format('psql-{0}-{1}-{2}', variables('appName'), parameters('environment'), variables('uniqueSuffix')))]"
+                  },
+                  "appInsightsId": {
+                    "value": "[resourceId('Microsoft.Insights/components', format('appi-{0}-{1}', variables('appName'), parameters('environment')))]"
+                  },
+                  "logAnalyticsId": {
+                    "value": "[resourceId('Microsoft.OperationalInsights/workspaces', format('log-{0}-{1}', variables('appName'), parameters('environment')))]"
+                  }
+                },
+                "template": {
+                  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+                  "contentVersion": "1.0.0.0",
+                  "metadata": {
+                    "_generator": {
+                      "name": "bicep",
+                      "version": "0.39.26.7824",
+                      "templateHash": "14599671857825121183"
+                    }
+                  },
+                  "parameters": {
+                    "environment": {
+                      "type": "string",
+                      "metadata": {
+                        "description": "The environment name"
+                      }
+                    },
+                    "location": {
+                      "type": "string",
+                      "metadata": {
+                        "description": "The Azure region"
+                      }
+                    },
+                    "tags": {
+                      "type": "object",
+                      "metadata": {
+                        "description": "Resource tags"
+                      }
+                    },
+                    "apiAppId": {
+                      "type": "string",
+                      "metadata": {
+                        "description": "Resource ID of the API Container App"
+                      }
+                    },
+                    "frontendAppId": {
+                      "type": "string",
+                      "metadata": {
+                        "description": "Resource ID of the Frontend Container App"
+                      }
+                    },
+                    "postgresServerId": {
+                      "type": "string",
+                      "metadata": {
+                        "description": "Resource ID of the PostgreSQL Flexible Server"
+                      }
+                    },
+                    "appInsightsId": {
+                      "type": "string",
+                      "metadata": {
+                        "description": "Resource ID of Application Insights"
+                      }
+                    },
+                    "logAnalyticsId": {
+                      "type": "string",
+                      "metadata": {
+                        "description": "Resource ID of Log Analytics Workspace"
+                      }
+                    }
+                  },
+                  "variables": {
+                    "dashboardName": "[format('dashboard-learntocloud-{0}', parameters('environment'))]"
+                  },
+                  "resources": [
+                    {
+                      "type": "Microsoft.Portal/dashboards",
+                      "apiVersion": "2020-09-01-preview",
+                      "name": "[variables('dashboardName')]",
+                      "location": "[parameters('location')]",
+                      "tags": "[union(parameters('tags'), createObject('hidden-title', format('Learn to Cloud - {0}', parameters('environment'))))]",
+                      "properties": {
+                        "lenses": [
+                          {
+                            "order": 0,
+                            "parts": [
+                              {
+                                "position": {
+                                  "x": 0,
+                                  "y": 0,
+                                  "colSpan": 4,
+                                  "rowSpan": 3
+                                },
+                                "metadata": {
+                                  "type": "Extension/HubsExtension/PartType/MonitorChartPart",
+                                  "inputs": [
+                                    {
+                                      "name": "options",
+                                      "value": {
+                                        "chart": {
+                                          "metrics": [
+                                            {
+                                              "resourceMetadata": {
+                                                "id": "[parameters('apiAppId')]"
+                                              },
+                                              "name": "UsageNanoCores",
+                                              "aggregationType": 4,
+                                              "namespace": "Microsoft.App/containerApps",
+                                              "metricVisualization": {
+                                                "displayName": "CPU Usage",
+                                                "resourceDisplayName": "API"
+                                              }
+                                            }
+                                          ],
+                                          "title": "API - CPU Usage",
+                                          "titleKind": 1,
+                                          "visualization": {
+                                            "chartType": 2,
+                                            "legendVisualization": {
+                                              "isVisible": true,
+                                              "position": 2,
+                                              "hideSubtitle": false
+                                            },
+                                            "axisVisualization": {
+                                              "x": {
+                                                "isVisible": true,
+                                                "axisType": 2
+                                              },
+                                              "y": {
+                                                "isVisible": true,
+                                                "axisType": 1
+                                              }
+                                            }
+                                          },
+                                          "timespan": {
+                                            "relative": {
+                                              "duration": 86400000
+                                            },
+                                            "showUTCTime": false,
+                                            "grain": 1
+                                          }
+                                        }
+                                      }
+                                    }
+                                  ]
+                                }
+                              },
+                              {
+                                "position": {
+                                  "x": 4,
+                                  "y": 0,
+                                  "colSpan": 4,
+                                  "rowSpan": 3
+                                },
+                                "metadata": {
+                                  "type": "Extension/HubsExtension/PartType/MonitorChartPart",
+                                  "inputs": [
+                                    {
+                                      "name": "options",
+                                      "value": {
+                                        "chart": {
+                                          "metrics": [
+                                            {
+                                              "resourceMetadata": {
+                                                "id": "[parameters('apiAppId')]"
+                                              },
+                                              "name": "WorkingSetBytes",
+                                              "aggregationType": 4,
+                                              "namespace": "Microsoft.App/containerApps",
+                                              "metricVisualization": {
+                                                "displayName": "Memory Working Set",
+                                                "resourceDisplayName": "API"
+                                              }
+                                            }
+                                          ],
+                                          "title": "API - Memory Usage",
+                                          "titleKind": 1,
+                                          "visualization": {
+                                            "chartType": 2,
+                                            "legendVisualization": {
+                                              "isVisible": true,
+                                              "position": 2,
+                                              "hideSubtitle": false
+                                            },
+                                            "axisVisualization": {
+                                              "x": {
+                                                "isVisible": true,
+                                                "axisType": 2
+                                              },
+                                              "y": {
+                                                "isVisible": true,
+                                                "axisType": 1
+                                              }
+                                            }
+                                          },
+                                          "timespan": {
+                                            "relative": {
+                                              "duration": 86400000
+                                            },
+                                            "showUTCTime": false,
+                                            "grain": 1
+                                          }
+                                        }
+                                      }
+                                    }
+                                  ]
+                                }
+                              },
+                              {
+                                "position": {
+                                  "x": 8,
+                                  "y": 0,
+                                  "colSpan": 4,
+                                  "rowSpan": 3
+                                },
+                                "metadata": {
+                                  "type": "Extension/HubsExtension/PartType/MonitorChartPart",
+                                  "inputs": [
+                                    {
+                                      "name": "options",
+                                      "value": {
+                                        "chart": {
+                                          "metrics": [
+                                            {
+                                              "resourceMetadata": {
+                                                "id": "[parameters('apiAppId')]"
+                                              },
+                                              "name": "Replicas",
+                                              "aggregationType": 4,
+                                              "namespace": "Microsoft.App/containerApps",
+                                              "metricVisualization": {
+                                                "displayName": "Replica Count",
+                                                "resourceDisplayName": "API"
+                                              }
+                                            }
+                                          ],
+                                          "title": "API - Replica Count",
+                                          "titleKind": 1,
+                                          "visualization": {
+                                            "chartType": 2,
+                                            "legendVisualization": {
+                                              "isVisible": true,
+                                              "position": 2,
+                                              "hideSubtitle": false
+                                            },
+                                            "axisVisualization": {
+                                              "x": {
+                                                "isVisible": true,
+                                                "axisType": 2
+                                              },
+                                              "y": {
+                                                "isVisible": true,
+                                                "axisType": 1
+                                              }
+                                            }
+                                          },
+                                          "timespan": {
+                                            "relative": {
+                                              "duration": 86400000
+                                            },
+                                            "showUTCTime": false,
+                                            "grain": 1
+                                          }
+                                        }
+                                      }
+                                    }
+                                  ]
+                                }
+                              },
+                              {
+                                "position": {
+                                  "x": 12,
+                                  "y": 0,
+                                  "colSpan": 4,
+                                  "rowSpan": 3
+                                },
+                                "metadata": {
+                                  "type": "Extension/HubsExtension/PartType/MonitorChartPart",
+                                  "inputs": [
+                                    {
+                                      "name": "options",
+                                      "value": {
+                                        "chart": {
+                                          "metrics": [
+                                            {
+                                              "resourceMetadata": {
+                                                "id": "[parameters('apiAppId')]"
+                                              },
+                                              "name": "Requests",
+                                              "aggregationType": 1,
+                                              "namespace": "Microsoft.App/containerApps",
+                                              "metricVisualization": {
+                                                "displayName": "Total Requests",
+                                                "resourceDisplayName": "API"
+                                              }
+                                            }
+                                          ],
+                                          "title": "API - Request Count",
+                                          "titleKind": 1,
+                                          "visualization": {
+                                            "chartType": 2,
+                                            "legendVisualization": {
+                                              "isVisible": true,
+                                              "position": 2,
+                                              "hideSubtitle": false
+                                            },
+                                            "axisVisualization": {
+                                              "x": {
+                                                "isVisible": true,
+                                                "axisType": 2
+                                              },
+                                              "y": {
+                                                "isVisible": true,
+                                                "axisType": 1
+                                              }
+                                            }
+                                          },
+                                          "timespan": {
+                                            "relative": {
+                                              "duration": 86400000
+                                            },
+                                            "showUTCTime": false,
+                                            "grain": 1
+                                          }
+                                        }
+                                      }
+                                    }
+                                  ]
+                                }
+                              },
+                              {
+                                "position": {
+                                  "x": 0,
+                                  "y": 3,
+                                  "colSpan": 6,
+                                  "rowSpan": 3
+                                },
+                                "metadata": {
+                                  "type": "Extension/HubsExtension/PartType/MonitorChartPart",
+                                  "inputs": [
+                                    {
+                                      "name": "options",
+                                      "value": {
+                                        "chart": {
+                                          "metrics": [
+                                            {
+                                              "resourceMetadata": {
+                                                "id": "[parameters('apiAppId')]"
+                                              },
+                                              "name": "Requests",
+                                              "aggregationType": 1,
+                                              "namespace": "Microsoft.App/containerApps",
+                                              "metricVisualization": {
+                                                "displayName": "Requests by Status",
+                                                "resourceDisplayName": "API"
+                                              }
+                                            }
+                                          ],
+                                          "title": "API - Requests by Status Code",
+                                          "titleKind": 1,
+                                          "visualization": {
+                                            "chartType": 2,
+                                            "legendVisualization": {
+                                              "isVisible": true,
+                                              "position": 2,
+                                              "hideSubtitle": false
+                                            },
+                                            "axisVisualization": {
+                                              "x": {
+                                                "isVisible": true,
+                                                "axisType": 2
+                                              },
+                                              "y": {
+                                                "isVisible": true,
+                                                "axisType": 1
+                                              }
+                                            }
+                                          },
+                                          "grouping": {
+                                            "dimension": "statusCodeCategory",
+                                            "sort": 2,
+                                            "top": 10
+                                          },
+                                          "timespan": {
+                                            "relative": {
+                                              "duration": 86400000
+                                            },
+                                            "showUTCTime": false,
+                                            "grain": 1
+                                          }
+                                        }
+                                      }
+                                    }
+                                  ]
+                                }
+                              },
+                              {
+                                "position": {
+                                  "x": 6,
+                                  "y": 3,
+                                  "colSpan": 6,
+                                  "rowSpan": 3
+                                },
+                                "metadata": {
+                                  "type": "Extension/HubsExtension/PartType/MonitorChartPart",
+                                  "inputs": [
+                                    {
+                                      "name": "options",
+                                      "value": {
+                                        "chart": {
+                                          "metrics": [
+                                            {
+                                              "resourceMetadata": {
+                                                "id": "[parameters('appInsightsId')]"
+                                              },
+                                              "name": "requests/duration",
+                                              "aggregationType": 4,
+                                              "namespace": "microsoft.insights/components",
+                                              "metricVisualization": {
+                                                "displayName": "Avg Response Time",
+                                                "resourceDisplayName": "App Insights"
+                                              }
+                                            }
+                                          ],
+                                          "title": "API - Response Time (App Insights)",
+                                          "titleKind": 1,
+                                          "visualization": {
+                                            "chartType": 2,
+                                            "legendVisualization": {
+                                              "isVisible": true,
+                                              "position": 2,
+                                              "hideSubtitle": false
+                                            },
+                                            "axisVisualization": {
+                                              "x": {
+                                                "isVisible": true,
+                                                "axisType": 2
+                                              },
+                                              "y": {
+                                                "isVisible": true,
+                                                "axisType": 1
+                                              }
+                                            }
+                                          },
+                                          "timespan": {
+                                            "relative": {
+                                              "duration": 86400000
+                                            },
+                                            "showUTCTime": false,
+                                            "grain": 1
+                                          }
+                                        }
+                                      }
+                                    }
+                                  ]
+                                }
+                              },
+                              {
+                                "position": {
+                                  "x": 12,
+                                  "y": 3,
+                                  "colSpan": 4,
+                                  "rowSpan": 3
+                                },
+                                "metadata": {
+                                  "type": "Extension/HubsExtension/PartType/MonitorChartPart",
+                                  "inputs": [
+                                    {
+                                      "name": "options",
+                                      "value": {
+                                        "chart": {
+                                          "metrics": [
+                                            {
+                                              "resourceMetadata": {
+                                                "id": "[parameters('appInsightsId')]"
+                                              },
+                                              "name": "requests/failed",
+                                              "aggregationType": 1,
+                                              "namespace": "microsoft.insights/components",
+                                              "metricVisualization": {
+                                                "displayName": "Failed Requests",
+                                                "resourceDisplayName": "App Insights"
+                                              }
+                                            }
+                                          ],
+                                          "title": "API - Failed Requests",
+                                          "titleKind": 1,
+                                          "visualization": {
+                                            "chartType": 2,
+                                            "legendVisualization": {
+                                              "isVisible": true,
+                                              "position": 2,
+                                              "hideSubtitle": false
+                                            },
+                                            "axisVisualization": {
+                                              "x": {
+                                                "isVisible": true,
+                                                "axisType": 2
+                                              },
+                                              "y": {
+                                                "isVisible": true,
+                                                "axisType": 1
+                                              }
+                                            }
+                                          },
+                                          "timespan": {
+                                            "relative": {
+                                              "duration": 86400000
+                                            },
+                                            "showUTCTime": false,
+                                            "grain": 1
+                                          }
+                                        }
+                                      }
+                                    }
+                                  ]
+                                }
+                              },
+                              {
+                                "position": {
+                                  "x": 0,
+                                  "y": 6,
+                                  "colSpan": 4,
+                                  "rowSpan": 3
+                                },
+                                "metadata": {
+                                  "type": "Extension/HubsExtension/PartType/MonitorChartPart",
+                                  "inputs": [
+                                    {
+                                      "name": "options",
+                                      "value": {
+                                        "chart": {
+                                          "metrics": [
+                                            {
+                                              "resourceMetadata": {
+                                                "id": "[parameters('postgresServerId')]"
+                                              },
+                                              "name": "cpu_percent",
+                                              "aggregationType": 4,
+                                              "namespace": "Microsoft.DBforPostgreSQL/flexibleServers",
+                                              "metricVisualization": {
+                                                "displayName": "CPU Percent",
+                                                "resourceDisplayName": "PostgreSQL"
+                                              }
+                                            }
+                                          ],
+                                          "title": "PostgreSQL - CPU %",
+                                          "titleKind": 1,
+                                          "visualization": {
+                                            "chartType": 2,
+                                            "legendVisualization": {
+                                              "isVisible": true,
+                                              "position": 2,
+                                              "hideSubtitle": false
+                                            },
+                                            "axisVisualization": {
+                                              "x": {
+                                                "isVisible": true,
+                                                "axisType": 2
+                                              },
+                                              "y": {
+                                                "isVisible": true,
+                                                "axisType": 1
+                                              }
+                                            }
+                                          },
+                                          "timespan": {
+                                            "relative": {
+                                              "duration": 86400000
+                                            },
+                                            "showUTCTime": false,
+                                            "grain": 1
+                                          }
+                                        }
+                                      }
+                                    }
+                                  ]
+                                }
+                              },
+                              {
+                                "position": {
+                                  "x": 4,
+                                  "y": 6,
+                                  "colSpan": 4,
+                                  "rowSpan": 3
+                                },
+                                "metadata": {
+                                  "type": "Extension/HubsExtension/PartType/MonitorChartPart",
+                                  "inputs": [
+                                    {
+                                      "name": "options",
+                                      "value": {
+                                        "chart": {
+                                          "metrics": [
+                                            {
+                                              "resourceMetadata": {
+                                                "id": "[parameters('postgresServerId')]"
+                                              },
+                                              "name": "memory_percent",
+                                              "aggregationType": 4,
+                                              "namespace": "Microsoft.DBforPostgreSQL/flexibleServers",
+                                              "metricVisualization": {
+                                                "displayName": "Memory Percent",
+                                                "resourceDisplayName": "PostgreSQL"
+                                              }
+                                            }
+                                          ],
+                                          "title": "PostgreSQL - Memory %",
+                                          "titleKind": 1,
+                                          "visualization": {
+                                            "chartType": 2,
+                                            "legendVisualization": {
+                                              "isVisible": true,
+                                              "position": 2,
+                                              "hideSubtitle": false
+                                            },
+                                            "axisVisualization": {
+                                              "x": {
+                                                "isVisible": true,
+                                                "axisType": 2
+                                              },
+                                              "y": {
+                                                "isVisible": true,
+                                                "axisType": 1
+                                              }
+                                            }
+                                          },
+                                          "timespan": {
+                                            "relative": {
+                                              "duration": 86400000
+                                            },
+                                            "showUTCTime": false,
+                                            "grain": 1
+                                          }
+                                        }
+                                      }
+                                    }
+                                  ]
+                                }
+                              },
+                              {
+                                "position": {
+                                  "x": 8,
+                                  "y": 6,
+                                  "colSpan": 4,
+                                  "rowSpan": 3
+                                },
+                                "metadata": {
+                                  "type": "Extension/HubsExtension/PartType/MonitorChartPart",
+                                  "inputs": [
+                                    {
+                                      "name": "options",
+                                      "value": {
+                                        "chart": {
+                                          "metrics": [
+                                            {
+                                              "resourceMetadata": {
+                                                "id": "[parameters('postgresServerId')]"
+                                              },
+                                              "name": "active_connections",
+                                              "aggregationType": 4,
+                                              "namespace": "Microsoft.DBforPostgreSQL/flexibleServers",
+                                              "metricVisualization": {
+                                                "displayName": "Active Connections",
+                                                "resourceDisplayName": "PostgreSQL"
+                                              }
+                                            }
+                                          ],
+                                          "title": "PostgreSQL - Active Connections",
+                                          "titleKind": 1,
+                                          "visualization": {
+                                            "chartType": 2,
+                                            "legendVisualization": {
+                                              "isVisible": true,
+                                              "position": 2,
+                                              "hideSubtitle": false
+                                            },
+                                            "axisVisualization": {
+                                              "x": {
+                                                "isVisible": true,
+                                                "axisType": 2
+                                              },
+                                              "y": {
+                                                "isVisible": true,
+                                                "axisType": 1
+                                              }
+                                            }
+                                          },
+                                          "timespan": {
+                                            "relative": {
+                                              "duration": 86400000
+                                            },
+                                            "showUTCTime": false,
+                                            "grain": 1
+                                          }
+                                        }
+                                      }
+                                    }
+                                  ]
+                                }
+                              },
+                              {
+                                "position": {
+                                  "x": 12,
+                                  "y": 6,
+                                  "colSpan": 4,
+                                  "rowSpan": 3
+                                },
+                                "metadata": {
+                                  "type": "Extension/HubsExtension/PartType/MonitorChartPart",
+                                  "inputs": [
+                                    {
+                                      "name": "options",
+                                      "value": {
+                                        "chart": {
+                                          "metrics": [
+                                            {
+                                              "resourceMetadata": {
+                                                "id": "[parameters('postgresServerId')]"
+                                              },
+                                              "name": "storage_used",
+                                              "aggregationType": 4,
+                                              "namespace": "Microsoft.DBforPostgreSQL/flexibleServers",
+                                              "metricVisualization": {
+                                                "displayName": "Storage Used",
+                                                "resourceDisplayName": "PostgreSQL"
+                                              }
+                                            }
+                                          ],
+                                          "title": "PostgreSQL - Storage Used",
+                                          "titleKind": 1,
+                                          "visualization": {
+                                            "chartType": 2,
+                                            "legendVisualization": {
+                                              "isVisible": true,
+                                              "position": 2,
+                                              "hideSubtitle": false
+                                            },
+                                            "axisVisualization": {
+                                              "x": {
+                                                "isVisible": true,
+                                                "axisType": 2
+                                              },
+                                              "y": {
+                                                "isVisible": true,
+                                                "axisType": 1
+                                              }
+                                            }
+                                          },
+                                          "timespan": {
+                                            "relative": {
+                                              "duration": 86400000
+                                            },
+                                            "showUTCTime": false,
+                                            "grain": 1
+                                          }
+                                        }
+                                      }
+                                    }
+                                  ]
+                                }
+                              },
+                              {
+                                "position": {
+                                  "x": 0,
+                                  "y": 9,
+                                  "colSpan": 4,
+                                  "rowSpan": 3
+                                },
+                                "metadata": {
+                                  "type": "Extension/HubsExtension/PartType/MonitorChartPart",
+                                  "inputs": [
+                                    {
+                                      "name": "options",
+                                      "value": {
+                                        "chart": {
+                                          "metrics": [
+                                            {
+                                              "resourceMetadata": {
+                                                "id": "[parameters('frontendAppId')]"
+                                              },
+                                              "name": "UsageNanoCores",
+                                              "aggregationType": 4,
+                                              "namespace": "Microsoft.App/containerApps",
+                                              "metricVisualization": {
+                                                "displayName": "CPU Usage",
+                                                "resourceDisplayName": "Frontend"
+                                              }
+                                            }
+                                          ],
+                                          "title": "Frontend - CPU Usage",
+                                          "titleKind": 1,
+                                          "visualization": {
+                                            "chartType": 2,
+                                            "legendVisualization": {
+                                              "isVisible": true,
+                                              "position": 2,
+                                              "hideSubtitle": false
+                                            },
+                                            "axisVisualization": {
+                                              "x": {
+                                                "isVisible": true,
+                                                "axisType": 2
+                                              },
+                                              "y": {
+                                                "isVisible": true,
+                                                "axisType": 1
+                                              }
+                                            }
+                                          },
+                                          "timespan": {
+                                            "relative": {
+                                              "duration": 86400000
+                                            },
+                                            "showUTCTime": false,
+                                            "grain": 1
+                                          }
+                                        }
+                                      }
+                                    }
+                                  ]
+                                }
+                              },
+                              {
+                                "position": {
+                                  "x": 4,
+                                  "y": 9,
+                                  "colSpan": 4,
+                                  "rowSpan": 3
+                                },
+                                "metadata": {
+                                  "type": "Extension/HubsExtension/PartType/MonitorChartPart",
+                                  "inputs": [
+                                    {
+                                      "name": "options",
+                                      "value": {
+                                        "chart": {
+                                          "metrics": [
+                                            {
+                                              "resourceMetadata": {
+                                                "id": "[parameters('frontendAppId')]"
+                                              },
+                                              "name": "WorkingSetBytes",
+                                              "aggregationType": 4,
+                                              "namespace": "Microsoft.App/containerApps",
+                                              "metricVisualization": {
+                                                "displayName": "Memory Working Set",
+                                                "resourceDisplayName": "Frontend"
+                                              }
+                                            }
+                                          ],
+                                          "title": "Frontend - Memory Usage",
+                                          "titleKind": 1,
+                                          "visualization": {
+                                            "chartType": 2,
+                                            "legendVisualization": {
+                                              "isVisible": true,
+                                              "position": 2,
+                                              "hideSubtitle": false
+                                            },
+                                            "axisVisualization": {
+                                              "x": {
+                                                "isVisible": true,
+                                                "axisType": 2
+                                              },
+                                              "y": {
+                                                "isVisible": true,
+                                                "axisType": 1
+                                              }
+                                            }
+                                          },
+                                          "timespan": {
+                                            "relative": {
+                                              "duration": 86400000
+                                            },
+                                            "showUTCTime": false,
+                                            "grain": 1
+                                          }
+                                        }
+                                      }
+                                    }
+                                  ]
+                                }
+                              },
+                              {
+                                "position": {
+                                  "x": 8,
+                                  "y": 9,
+                                  "colSpan": 4,
+                                  "rowSpan": 3
+                                },
+                                "metadata": {
+                                  "type": "Extension/HubsExtension/PartType/MonitorChartPart",
+                                  "inputs": [
+                                    {
+                                      "name": "options",
+                                      "value": {
+                                        "chart": {
+                                          "metrics": [
+                                            {
+                                              "resourceMetadata": {
+                                                "id": "[parameters('frontendAppId')]"
+                                              },
+                                              "name": "Requests",
+                                              "aggregationType": 1,
+                                              "namespace": "Microsoft.App/containerApps",
+                                              "metricVisualization": {
+                                                "displayName": "Total Requests",
+                                                "resourceDisplayName": "Frontend"
+                                              }
+                                            }
+                                          ],
+                                          "title": "Frontend - Request Count",
+                                          "titleKind": 1,
+                                          "visualization": {
+                                            "chartType": 2,
+                                            "legendVisualization": {
+                                              "isVisible": true,
+                                              "position": 2,
+                                              "hideSubtitle": false
+                                            },
+                                            "axisVisualization": {
+                                              "x": {
+                                                "isVisible": true,
+                                                "axisType": 2
+                                              },
+                                              "y": {
+                                                "isVisible": true,
+                                                "axisType": 1
+                                              }
+                                            }
+                                          },
+                                          "timespan": {
+                                            "relative": {
+                                              "duration": 86400000
+                                            },
+                                            "showUTCTime": false,
+                                            "grain": 1
+                                          }
+                                        }
+                                      }
+                                    }
+                                  ]
+                                }
+                              },
+                              {
+                                "position": {
+                                  "x": 12,
+                                  "y": 9,
+                                  "colSpan": 4,
+                                  "rowSpan": 3
+                                },
+                                "metadata": {
+                                  "type": "Extension/HubsExtension/PartType/MonitorChartPart",
+                                  "inputs": [
+                                    {
+                                      "name": "options",
+                                      "value": {
+                                        "chart": {
+                                          "metrics": [
+                                            {
+                                              "resourceMetadata": {
+                                                "id": "[parameters('frontendAppId')]"
+                                              },
+                                              "name": "Requests",
+                                              "aggregationType": 1,
+                                              "namespace": "Microsoft.App/containerApps",
+                                              "metricVisualization": {
+                                                "displayName": "Requests by Status",
+                                                "resourceDisplayName": "Frontend"
+                                              }
+                                            }
+                                          ],
+                                          "title": "Frontend - Requests by Status",
+                                          "titleKind": 1,
+                                          "visualization": {
+                                            "chartType": 2,
+                                            "legendVisualization": {
+                                              "isVisible": true,
+                                              "position": 2,
+                                              "hideSubtitle": false
+                                            },
+                                            "axisVisualization": {
+                                              "x": {
+                                                "isVisible": true,
+                                                "axisType": 2
+                                              },
+                                              "y": {
+                                                "isVisible": true,
+                                                "axisType": 1
+                                              }
+                                            }
+                                          },
+                                          "grouping": {
+                                            "dimension": "statusCodeCategory",
+                                            "sort": 2,
+                                            "top": 10
+                                          },
+                                          "timespan": {
+                                            "relative": {
+                                              "duration": 86400000
+                                            },
+                                            "showUTCTime": false,
+                                            "grain": 1
+                                          }
+                                        }
+                                      }
+                                    }
+                                  ]
+                                }
+                              },
+                              {
+                                "position": {
+                                  "x": 0,
+                                  "y": 12,
+                                  "colSpan": 6,
+                                  "rowSpan": 3
+                                },
+                                "metadata": {
+                                  "type": "Extension/HubsExtension/PartType/MonitorChartPart",
+                                  "inputs": [
+                                    {
+                                      "name": "options",
+                                      "value": {
+                                        "chart": {
+                                          "metrics": [
+                                            {
+                                              "resourceMetadata": {
+                                                "id": "[parameters('appInsightsId')]"
+                                              },
+                                              "name": "dependencies/duration",
+                                              "aggregationType": 4,
+                                              "namespace": "microsoft.insights/components",
+                                              "metricVisualization": {
+                                                "displayName": "Dependency Duration",
+                                                "resourceDisplayName": "App Insights"
+                                              }
+                                            }
+                                          ],
+                                          "title": "Dependency Call Duration (DB, External APIs)",
+                                          "titleKind": 1,
+                                          "visualization": {
+                                            "chartType": 2,
+                                            "legendVisualization": {
+                                              "isVisible": true,
+                                              "position": 2,
+                                              "hideSubtitle": false
+                                            },
+                                            "axisVisualization": {
+                                              "x": {
+                                                "isVisible": true,
+                                                "axisType": 2
+                                              },
+                                              "y": {
+                                                "isVisible": true,
+                                                "axisType": 1
+                                              }
+                                            }
+                                          },
+                                          "timespan": {
+                                            "relative": {
+                                              "duration": 86400000
+                                            },
+                                            "showUTCTime": false,
+                                            "grain": 1
+                                          }
+                                        }
+                                      }
+                                    }
+                                  ]
+                                }
+                              },
+                              {
+                                "position": {
+                                  "x": 6,
+                                  "y": 12,
+                                  "colSpan": 6,
+                                  "rowSpan": 3
+                                },
+                                "metadata": {
+                                  "type": "Extension/HubsExtension/PartType/MonitorChartPart",
+                                  "inputs": [
+                                    {
+                                      "name": "options",
+                                      "value": {
+                                        "chart": {
+                                          "metrics": [
+                                            {
+                                              "resourceMetadata": {
+                                                "id": "[parameters('appInsightsId')]"
+                                              },
+                                              "name": "dependencies/failed",
+                                              "aggregationType": 1,
+                                              "namespace": "microsoft.insights/components",
+                                              "metricVisualization": {
+                                                "displayName": "Failed Dependencies",
+                                                "resourceDisplayName": "App Insights"
+                                              }
+                                            }
+                                          ],
+                                          "title": "Failed Dependency Calls",
+                                          "titleKind": 1,
+                                          "visualization": {
+                                            "chartType": 2,
+                                            "legendVisualization": {
+                                              "isVisible": true,
+                                              "position": 2,
+                                              "hideSubtitle": false
+                                            },
+                                            "axisVisualization": {
+                                              "x": {
+                                                "isVisible": true,
+                                                "axisType": 2
+                                              },
+                                              "y": {
+                                                "isVisible": true,
+                                                "axisType": 1
+                                              }
+                                            }
+                                          },
+                                          "timespan": {
+                                            "relative": {
+                                              "duration": 86400000
+                                            },
+                                            "showUTCTime": false,
+                                            "grain": 1
+                                          }
+                                        }
+                                      }
+                                    }
+                                  ]
+                                }
+                              },
+                              {
+                                "position": {
+                                  "x": 12,
+                                  "y": 12,
+                                  "colSpan": 4,
+                                  "rowSpan": 3
+                                },
+                                "metadata": {
+                                  "type": "Extension/HubsExtension/PartType/MarkdownPart",
+                                  "inputs": [],
+                                  "settings": {
+                                    "content": {
+                                      "content": "[format('## Learn to Cloud\n### {0} Environment\n\n**Quick Links:**\n- [Application Insights](https://portal.azure.com/#blade/HubsExtension/BrowseResource/resourceType/microsoft.insights%2Fcomponents)\n- [Log Analytics](https://portal.azure.com/#blade/HubsExtension/BrowseResource/resourceType/Microsoft.OperationalInsights%2Fworkspaces)\n- [Alerts](https://portal.azure.com/#blade/Microsoft_Azure_Monitoring/AzureMonitoringBrowseBlade/alertsV2)\n\n**Timespan:** Last 24 hours', parameters('environment'))]",
+                                      "title": "Dashboard Info",
+                                      "subtitle": "",
+                                      "markdownSource": 1,
+                                      "markdownUri": ""
+                                    }
+                                  }
+                                }
+                              }
+                            ]
+                          }
+                        ],
+                        "metadata": {
+                          "model": {
+                            "timeRange": {
+                              "value": {
+                                "relative": {
+                                  "duration": 24,
+                                  "timeUnit": 1
+                                }
+                              },
+                              "type": "MsPortalFx.Composition.Configuration.ValueTypes.TimeRange"
+                            },
+                            "filterLocale": {
+                              "value": "en-us"
+                            },
+                            "filters": {
+                              "value": {
+                                "MsPortalFx_TimeRange": {
+                                  "model": {
+                                    "format": "utc",
+                                    "granularity": "auto",
+                                    "relative": "24h"
+                                  },
+                                  "displayCache": {
+                                    "name": "UTC Time",
+                                    "value": "Past 24 hours"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ],
+                  "outputs": {
+                    "dashboardId": {
+                      "type": "string",
+                      "value": "[resourceId('Microsoft.Portal/dashboards', variables('dashboardName'))]"
+                    },
+                    "dashboardName": {
+                      "type": "string",
+                      "value": "[variables('dashboardName')]"
+                    }
+                  }
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.App/containerApps', variables('apiAppName'))]",
+                "[resourceId('Microsoft.Insights/components', format('appi-{0}-{1}', variables('appName'), parameters('environment')))]",
+                "[resourceId('Microsoft.App/containerApps', variables('frontendAppName'))]",
+                "[resourceId('Microsoft.OperationalInsights/workspaces', format('log-{0}-{1}', variables('appName'), parameters('environment')))]",
+                "[resourceId('Microsoft.DBforPostgreSQL/flexibleServers', format('psql-{0}-{1}-{2}', variables('appName'), parameters('environment'), variables('uniqueSuffix')))]"
               ]
             }
           ],
@@ -1077,6 +2396,18 @@
             "containerRegistryLoginServer": {
               "type": "string",
               "value": "[reference(resourceId('Microsoft.ContainerRegistry/registries', format('crltc{0}', variables('uniqueSuffix'))), '2023-07-01').loginServer]"
+            },
+            "keyVaultName": {
+              "type": "string",
+              "value": "[format('kv-ltc-{0}-{1}', parameters('environment'), variables('uniqueSuffix'))]"
+            },
+            "keyVaultUri": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.KeyVault/vaults', format('kv-ltc-{0}-{1}', parameters('environment'), variables('uniqueSuffix'))), '2024-04-01-preview').vaultUri]"
+            },
+            "dashboardId": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Resources/deployments', 'monitoring-dashboard'), '2025-04-01').outputs.dashboardId.value]"
             }
           }
         }
@@ -1106,6 +2437,14 @@
     "postgresHost": {
       "type": "string",
       "value": "[reference('resources').outputs.postgresHost.value]"
+    },
+    "keyVaultName": {
+      "type": "string",
+      "value": "[reference('resources').outputs.keyVaultName.value]"
+    },
+    "keyVaultUri": {
+      "type": "string",
+      "value": "[reference('resources').outputs.keyVaultUri.value]"
     },
     "AZURE_CONTAINER_REGISTRY_NAME": {
       "type": "string",

@@ -39,6 +39,14 @@ var appName = 'learntocloud'
 var apiAppName = 'ca-${appName}-api-${environment}'
 var frontendAppName = 'ca-${appName}-frontend-${environment}'
 
+// User-Assigned Managed Identity for Container Apps
+// Created first so we can grant Key Vault access before Container Apps reference secrets
+resource containerAppIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
+  name: 'id-${appName}-${environment}'
+  location: location
+  tags: tags
+}
+
 // Log Analytics Workspace
 resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
   name: 'log-${appName}-${environment}'
@@ -192,6 +200,20 @@ resource secretPostgresPassword 'Microsoft.KeyVault/vaults/secrets@2024-04-01-pr
   }
 }
 
+// Key Vault Secrets User role for User-Assigned Managed Identity
+// This is created BEFORE Container Apps so RBAC is ready when apps are deployed
+var keyVaultSecretsUserRoleDefinitionId = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '4633458b-17de-408a-b874-0445c86b69e6')
+
+resource containerAppIdentityKeyVaultRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(keyVault.id, containerAppIdentity.id, 'keyVaultSecretsUser')
+  scope: keyVault
+  properties: {
+    roleDefinitionId: keyVaultSecretsUserRoleDefinitionId
+    principalId: containerAppIdentity.properties.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
 var apiDefaultUrl = 'https://${apiAppName}.${containerAppsEnvironment.properties.defaultDomain}'
 var frontendDefaultUrl = 'https://${frontendAppName}.${containerAppsEnvironment.properties.defaultDomain}'
 // Use wildcard for Container Apps origins plus localhost for development
@@ -218,7 +240,10 @@ resource apiApp 'Microsoft.App/containerApps@2024-03-01' = {
   location: location
   tags: union(tags, { 'azd-service-name': 'api' })
   identity: {
-    type: 'SystemAssigned'
+    type: 'SystemAssigned, UserAssigned'
+    userAssignedIdentities: {
+      '${containerAppIdentity.id}': {}
+    }
   }
   properties: {
     managedEnvironmentId: containerAppsEnvironment.id
@@ -245,12 +270,12 @@ resource apiApp 'Microsoft.App/containerApps@2024-03-01' = {
         {
           name: 'clerk-secret-key'
           keyVaultUrl: secretClerkSecretKey.properties.secretUri
-          identity: 'system'
+          identity: containerAppIdentity.id
         }
         {
           name: 'clerk-webhook-signing-secret'
           keyVaultUrl: secretClerkWebhookSigningSecret.properties.secretUri
-          identity: 'system'
+          identity: containerAppIdentity.id
         }
       ]
     }
@@ -355,6 +380,9 @@ resource apiApp 'Microsoft.App/containerApps@2024-03-01' = {
       }
     }
   }
+  dependsOn: [
+    containerAppIdentityKeyVaultRole
+  ]
 }
 
 // NOTE: PostgreSQL Entra Admin configuration for the API container app's managed identity
@@ -372,7 +400,10 @@ resource frontendApp 'Microsoft.App/containerApps@2024-03-01' = {
   location: location
   tags: union(tags, { 'azd-service-name': 'frontend' })
   identity: {
-    type: 'SystemAssigned'
+    type: 'SystemAssigned, UserAssigned'
+    userAssignedIdentities: {
+      '${containerAppIdentity.id}': {}
+    }
   }
   properties: {
     managedEnvironmentId: containerAppsEnvironment.id
@@ -400,7 +431,7 @@ resource frontendApp 'Microsoft.App/containerApps@2024-03-01' = {
         {
           name: 'clerk-secret-key'
           keyVaultUrl: secretClerkSecretKey.properties.secretUri
-          identity: 'system'
+          identity: containerAppIdentity.id
         }
       ]
     }
@@ -499,6 +530,7 @@ resource frontendApp 'Microsoft.App/containerApps@2024-03-01' = {
   }
   dependsOn: [
     apiApp
+    containerAppIdentityKeyVaultRole
   ]
 }
 
@@ -525,29 +557,8 @@ resource frontendAcrPullRoleAssignment 'Microsoft.Authorization/roleAssignments@
   }
 }
 
-// Key Vault Secrets User role assignment for Container Apps to read secrets
-// Role ID: 4633458b-17de-408a-b874-0445c86b69e6 (Key Vault Secrets User)
-var keyVaultSecretsUserRoleDefinitionId = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '4633458b-17de-408a-b874-0445c86b69e6')
-
-resource apiKeyVaultRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(keyVault.id, apiApp.id, 'keyVaultSecretsUser')
-  scope: keyVault
-  properties: {
-    roleDefinitionId: keyVaultSecretsUserRoleDefinitionId
-    principalId: apiApp.identity.principalId
-    principalType: 'ServicePrincipal'
-  }
-}
-
-resource frontendKeyVaultRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(keyVault.id, frontendApp.id, 'keyVaultSecretsUser')
-  scope: keyVault
-  properties: {
-    roleDefinitionId: keyVaultSecretsUserRoleDefinitionId
-    principalId: frontendApp.identity.principalId
-    principalType: 'ServicePrincipal'
-  }
-}
+// Key Vault Secrets User role is assigned to the User-Assigned Managed Identity (containerAppIdentityKeyVaultRole)
+// which is shared by both Container Apps. This avoids RBAC propagation timing issues.
 
 // =============================================================================
 // Monitoring Alerts
