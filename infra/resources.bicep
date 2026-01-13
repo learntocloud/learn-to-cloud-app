@@ -25,6 +25,10 @@ param clerkWebhookSigningSecret string
 @description('Clerk publishable key for frontend authentication')
 param clerkPublishableKey string
 
+@description('Google Gemini API key for LLM features')
+@secure()
+param googleApiKey string
+
 @description('Custom domain for the frontend app (optional)')
 param frontendCustomDomain string = ''
 
@@ -200,6 +204,14 @@ resource secretPostgresPassword 'Microsoft.KeyVault/vaults/secrets@2024-04-01-pr
   }
 }
 
+resource secretGoogleApiKey 'Microsoft.KeyVault/vaults/secrets@2024-04-01-preview' = {
+  parent: keyVault
+  name: 'google-api-key'
+  properties: {
+    value: googleApiKey
+  }
+}
+
 // Key Vault Secrets User role for User-Assigned Managed Identity
 // This is created BEFORE Container Apps so RBAC is ready when apps are deployed
 var keyVaultSecretsUserRoleDefinitionId = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '4633458b-17de-408a-b874-0445c86b69e6')
@@ -277,6 +289,11 @@ resource apiApp 'Microsoft.App/containerApps@2024-03-01' = {
           keyVaultUrl: secretClerkWebhookSigningSecret.properties.secretUri
           identity: containerAppIdentity.id
         }
+        {
+          name: 'google-api-key'
+          keyVaultUrl: secretGoogleApiKey.properties.secretUri
+          identity: containerAppIdentity.id
+        }
       ]
     }
     template: {
@@ -312,6 +329,10 @@ resource apiApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'CLERK_PUBLISHABLE_KEY'
               value: clerkPublishableKey
+            }
+            {
+              name: 'GOOGLE_API_KEY'
+              secretRef: 'google-api-key'
             }
             {
               name: 'ENVIRONMENT'

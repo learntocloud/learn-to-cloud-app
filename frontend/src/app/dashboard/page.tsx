@@ -87,10 +87,13 @@ export default async function DashboardPage() {
             </div>
             <div className="text-gray-600 dark:text-gray-300 text-sm">In Progress</div>
           </div>
-          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
-            <div className="text-3xl font-bold text-gray-600 dark:text-gray-300">{dashboard.total_items}</div>
-            <div className="text-gray-600 dark:text-gray-300 text-sm">Total Items</div>
-          </div>
+          <a 
+            href="/certificates"
+            className="bg-gradient-to-br from-amber-500/20 to-amber-600/10 rounded-xl border border-amber-500/30 p-6 hover:border-amber-400 transition-colors group"
+          >
+            <div className="text-3xl font-bold text-amber-500 group-hover:text-amber-400">🏆</div>
+            <div className="text-amber-200 text-sm">View Certificates</div>
+          </a>
         </div>
 
         {/* Phases Grid */}

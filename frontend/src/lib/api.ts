@@ -12,6 +12,10 @@ import type {
   StreakResponse,
   ActivityHeatmapResponse,
   PublicProfileResponse,
+  CertificateEligibility,
+  Certificate,
+  CertificateVerifyResponse,
+  UserCertificates,
 } from "./types";
 import { getAllPhases, getPhaseBySlug as getPhaseBySlugFromContent, getTopicBySlug as getTopicBySlugFromContent } from "./content";
 
@@ -545,4 +549,85 @@ export async function getAllQuestionsStatus(): Promise<Record<string, TopicQuest
   }
   
   return res.json();
+}
+
+// ============ Certificate API Calls ============
+
+export async function getCertificateEligibility(certificateType: string): Promise<CertificateEligibility> {
+  const headers = await getAuthHeaders();
+  
+  const res = await fetch(`${API_URL}/api/certificates/eligibility/${encodeURIComponent(certificateType)}`, {
+    headers,
+    cache: "no-store",
+  });
+  
+  if (!res.ok) {
+    throw new Error(`Failed to check eligibility: ${res.status}`);
+  }
+  
+  return res.json();
+}
+
+export async function getUserCertificates(): Promise<UserCertificates> {
+  const headers = await getAuthHeaders();
+  
+  const res = await fetch(`${API_URL}/api/certificates`, {
+    headers,
+    cache: "no-store",
+  });
+  
+  if (!res.ok) {
+    return { certificates: [], full_completion_eligible: false };
+  }
+  
+  return res.json();
+}
+
+export async function getCertificate(certificateId: number): Promise<Certificate | null> {
+  const headers = await getAuthHeaders();
+  
+  const res = await fetch(`${API_URL}/api/certificates/${certificateId}`, {
+    headers,
+    cache: "no-store",
+  });
+  
+  if (!res.ok) {
+    return null;
+  }
+  
+  return res.json();
+}
+
+export async function verifyCertificate(verificationCode: string): Promise<CertificateVerifyResponse> {
+  // Public endpoint - no auth required
+  const res = await fetch(`${API_URL}/api/certificates/verify/${encodeURIComponent(verificationCode)}`, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+  });
+  
+  if (!res.ok) {
+    return {
+      is_valid: false,
+      certificate: null,
+      message: "Failed to verify certificate",
+    };
+  }
+  
+  return res.json();
+}
+
+export function getCertificateSvgUrl(certificateId: number): string {
+  return `${API_URL}/api/certificates/${certificateId}/svg`;
+}
+
+export function getCertificatePdfUrl(certificateId: number): string {
+  return `${API_URL}/api/certificates/${certificateId}/pdf`;
+}
+
+export function getVerifiedCertificateSvgUrl(verificationCode: string): string {
+  return `${API_URL}/api/certificates/verify/${encodeURIComponent(verificationCode)}/svg`;
+}
+
+export function getVerifiedCertificatePdfUrl(verificationCode: string): string {
+  return `${API_URL}/api/certificates/verify/${encodeURIComponent(verificationCode)}/pdf`;
 }

@@ -77,6 +77,10 @@ class User(Base):
         back_populates="user",
         cascade="all, delete-orphan",
     )
+    certificates: Mapped[list["Certificate"]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
 
 
 class ChecklistProgress(Base):
@@ -204,6 +208,51 @@ class ActivityType(str, PyEnum):
     QUESTION_ATTEMPT = "question_attempt"  # Attempted a knowledge question
     TOPIC_COMPLETE = "topic_complete"  # Completed all questions for a topic
     REFLECTION = "reflection"  # Submitted a daily reflection
+    CERTIFICATE_EARNED = "certificate_earned"  # Earned a completion certificate
+
+
+class Certificate(Base):
+    """Tracks completion certificates issued to users."""
+
+    __tablename__ = "certificates"
+    __table_args__ = (
+        UniqueConstraint("user_id", "certificate_type", name="uq_user_certificate"),
+        Index("ix_certificates_user", "user_id"),
+        Index("ix_certificates_verification", "verification_code"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[str] = mapped_column(
+        String(255),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    certificate_type: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+    )  # "full_completion" or "phase_X"
+    verification_code: Mapped[str] = mapped_column(
+        String(64),
+        nullable=False,
+        unique=True,
+    )  # Unique code for certificate verification
+    recipient_name: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+    )  # Name as it appears on certificate
+    issued_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=utcnow,
+    )
+    topics_completed: Mapped[int] = mapped_column(Integer, nullable=False)
+    total_topics: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=utcnow,
+    )
+
+    # Relationships
+    user: Mapped["User"] = relationship(back_populates="certificates")
 
 
 class QuestionAttempt(Base):

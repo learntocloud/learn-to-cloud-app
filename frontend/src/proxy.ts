@@ -10,8 +10,10 @@ const isPublicRoute = createRouteMatcher([
   '/',
   '/sign-in(.*)',
   '/sign-up(.*)',
-  '/phases(.*)',    // Allow viewing phases without auth
+  '/phases(.*)',     // Allow viewing phases without auth
   '/phase[0-9](.*)', // Allow viewing phase/topic pages without auth (phase0, phase1, etc.)
+  '/faq(.*)',        // FAQ page is public
+  '/verify(.*)',     // Certificate verification pages must be public
   '/api/(.*)',       // API routes are proxied to backend which handles its own auth
 ])
 

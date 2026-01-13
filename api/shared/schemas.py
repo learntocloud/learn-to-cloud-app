@@ -319,3 +319,67 @@ class PublicProfileResponse(BaseModel):
     activity_heatmap: ActivityHeatmapResponse
     member_since: datetime
     submissions: list[PublicSubmission] = []  # Validated GitHub submissions
+
+
+# ============ Certificate Schemas ============
+
+
+class CertificateEligibilityResponse(BaseModel):
+    """Response for checking certificate eligibility."""
+
+    is_eligible: bool
+    certificate_type: str  # "full_completion" or "phase_X"
+    topics_completed: int
+    total_topics: int
+    completion_percentage: float
+    already_issued: bool
+    existing_certificate_id: int | None = None
+    message: str
+
+
+class CertificateRequest(BaseModel):
+    """Request to generate a certificate."""
+
+    certificate_type: str = Field(
+        default="full_completion",
+        pattern=r"^(full_completion|phase_[0-5])$",
+    )
+    recipient_name: str = Field(min_length=2, max_length=100)
+
+    @field_validator("recipient_name")
+    @classmethod
+    def validate_recipient_name(cls, v: str) -> str:
+        """Validate and clean recipient name."""
+        cleaned = " ".join(v.strip().split())
+        if len(cleaned) < 2:
+            raise ValueError("Name must be at least 2 characters")
+        return cleaned
+
+
+class CertificateResponse(BaseModel):
+    """Response containing certificate data."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    certificate_type: str
+    verification_code: str
+    recipient_name: str
+    issued_at: datetime
+    topics_completed: int
+    total_topics: int
+
+
+class CertificateVerifyResponse(BaseModel):
+    """Response for certificate verification."""
+
+    is_valid: bool
+    certificate: CertificateResponse | None = None
+    message: str
+
+
+class UserCertificatesResponse(BaseModel):
+    """All certificates for a user."""
+
+    certificates: list[CertificateResponse]
+    full_completion_eligible: bool

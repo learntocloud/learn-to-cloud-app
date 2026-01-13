@@ -221,7 +221,7 @@ export interface StreakResponse {
   streak_alive: boolean;
 }
 
-export type ActivityType = 'question_attempt' | 'topic_complete' | 'reflection';
+export type ActivityType = 'question_attempt' | 'topic_complete' | 'reflection' | 'certificate_earned';
 
 export interface ActivityHeatmapDay {
   date: string;
@@ -268,4 +268,38 @@ export interface TopicWithProgressAndQuestions extends TopicWithProgress {
   questions?: KnowledgeQuestion[];
   questionsStatus?: TopicQuestionsStatus;
   isUnlocked: boolean;
+}
+
+// ============ Certificate Types ============
+
+export interface CertificateEligibility {
+  is_eligible: boolean;
+  certificate_type: string;
+  topics_completed: number;
+  total_topics: number;
+  completion_percentage: number;
+  already_issued: boolean;
+  existing_certificate_id: number | null;
+  message: string;
+}
+
+export interface Certificate {
+  id: number;
+  certificate_type: string;
+  verification_code: string;
+  recipient_name: string;
+  issued_at: string;
+  topics_completed: number;
+  total_topics: number;
+}
+
+export interface CertificateVerifyResponse {
+  is_valid: boolean;
+  certificate: Certificate | null;
+  message: string;
+}
+
+export interface UserCertificates {
+  certificates: Certificate[];
+  full_completion_eligible: boolean;
 }

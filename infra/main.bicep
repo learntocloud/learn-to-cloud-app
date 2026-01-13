@@ -22,6 +22,10 @@ param clerkWebhookSigningSecret string
 @description('Clerk Publishable Key')
 param clerkPublishableKey string
 
+@description('Google Gemini API key for LLM features')
+@secure()
+param googleApiKey string
+
 @description('Custom domain for the frontend app (optional)')
 param frontendCustomDomain string = ''
 
@@ -55,6 +59,7 @@ module resources 'resources.bicep' = {
     clerkSecretKey: clerkSecretKey
     clerkWebhookSigningSecret: clerkWebhookSigningSecret
     clerkPublishableKey: clerkPublishableKey
+    googleApiKey: googleApiKey
     frontendCustomDomain: frontendCustomDomain
     frontendManagedCertificateName: frontendManagedCertificateName
     alertEmailAddress: alertEmailAddress

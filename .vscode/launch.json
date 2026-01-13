@@ -10,7 +10,8 @@
       "cwd": "${workspaceFolder}/api",
       "envFile": "${workspaceFolder}/api/.env",
       "env": {
-        "PYTHONPATH": "${workspaceFolder}/api"
+        "PYTHONPATH": "${workspaceFolder}/api",
+        "DYLD_FALLBACK_LIBRARY_PATH": "/opt/homebrew/lib"
       },
       "console": "integratedTerminal",
       "justMyCode": true

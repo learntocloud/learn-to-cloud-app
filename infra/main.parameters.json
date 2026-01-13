@@ -20,6 +20,9 @@
     "clerkPublishableKey": {
       "value": "${CLERK_PUBLISHABLE_KEY}"
     },
+    "googleApiKey": {
+      "value": "${GOOGLE_API_KEY}"
+    },
     "frontendCustomDomain": {
       "value": "app.learntocloud.guide"
     },

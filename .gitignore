@@ -16,6 +16,7 @@ uv.lock
 .env
 .env.local
 .env*.local
+.env.azure
 local.settings.json
 
 # Database

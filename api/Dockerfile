@@ -20,6 +20,11 @@ FROM python:3.13-slim AS runtime
 
 WORKDIR /app
 
+# Install Cairo library for PDF generation (required by cairosvg)
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends libcairo2 && \
+    rm -rf /var/lib/apt/lists/*
+
 # Create non-root user
 RUN useradd --create-home --shell /bin/bash appuser
 
