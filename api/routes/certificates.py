@@ -8,6 +8,7 @@ from sqlalchemy import select, func
 from shared.auth import OptionalUserId, UserId
 from shared.certificates import (
     PHASE_TOPIC_COUNTS,
+    TOTAL_TOPICS,
     generate_certificate_svg,
     generate_verification_code,
     get_certificate_info,
@@ -34,49 +35,56 @@ from .users import get_or_create_user
 
 router = APIRouter(prefix="/api/certificates", tags=["certificates"])
 
-# Questions per phase (2 questions per topic)
-PHASE_QUESTION_COUNTS = {
-    0: 12,  # 6 topics × 2
-    1: 12,  # 6 topics × 2
-    2: 14,  # 7 topics × 2
-    3: 18,  # 9 topics × 2
-    4: 12,  # 6 topics × 2
-    5: 12,  # 6 topics × 2
-}
+# Questions required per topic for completion (all topics have 2 questions)
+QUESTIONS_PER_TOPIC = 2
 
 
-async def _count_passed_questions_per_phase(
+async def _count_completed_topics(
     db: DbSession,
     user_id: str,
-    phase_ids: list[int] | None = None,
-) -> dict[int, int]:
-    """Count passed questions per phase for a user.
+    phase_ids: list[int],
+) -> tuple[int, int]:
+    """Count how many topics are fully completed based on questions.
 
-    Returns dict mapping phase_id -> passed_question_count.
+    A topic is complete when all questions are passed.
+    Since all topics have 2 questions, a topic is complete when the user
+    has 2 distinct passed questions for that topic.
+
+    Returns (topics_completed, total_topics).
     """
-    # Get all passed question attempts for the user
-    # Question IDs are like "phase0-topic1-q1"
-    query = select(QuestionAttempt.question_id).where(
+    # Get all passed questions grouped by topic
+    # Question IDs are like "phase0-topic1-q1", topic IDs like "phase0-topic1"
+    query = select(
+        QuestionAttempt.topic_id,
+        func.count(func.distinct(QuestionAttempt.question_id)).label("passed_count"),
+    ).where(
         QuestionAttempt.user_id == user_id,
-        QuestionAttempt.passed.is_(True),
-    ).distinct()
+        QuestionAttempt.is_passed.is_(True),
+    ).group_by(QuestionAttempt.topic_id)
 
     result = await db.execute(query)
-    passed_questions = [row[0] for row in result.all()]
+    passed_by_topic = {row.topic_id: row.passed_count for row in result.all()}
 
-    # Count by phase
-    passed_by_phase: dict[int, int] = {i: 0 for i in range(6)}
-    for question_id in passed_questions:
-        # Extract phase from question_id (e.g., "phase0-topic1-q1" -> 0)
-        if question_id.startswith("phase"):
+    # Count topics per phase that are complete and total topics
+    topics_completed = 0
+    total_topics = 0
+
+    for topic_id, passed_count in passed_by_topic.items():
+        # Extract phase from topic_id (e.g., "phase0-linux" -> 0)
+        if topic_id.startswith("phase"):
             try:
-                phase_num = int(question_id[5])  # "phase0" -> 0
-                if phase_ids is None or phase_num in phase_ids:
-                    passed_by_phase[phase_num] = passed_by_phase.get(phase_num, 0) + 1
+                phase_num = int(topic_id[5])
+                if phase_num in phase_ids:
+                    total_topics += 1
+                    if passed_count >= QUESTIONS_PER_TOPIC:
+                        topics_completed += 1
             except (ValueError, IndexError):
                 continue
 
-    return passed_by_phase
+    # For total topics, use the expected count from PHASE_TOPIC_COUNTS
+    expected_total = sum(PHASE_TOPIC_COUNTS.get(p, 0) for p in phase_ids)
+
+    return topics_completed, expected_total
 
 
 async def _check_eligibility(
@@ -86,7 +94,7 @@ async def _check_eligibility(
 ) -> tuple[bool, int, int, float, Certificate | None]:
     """Check if user is eligible for a certificate.
 
-    Returns (is_eligible, questions_passed, total_questions, percentage, existing_cert).
+    Returns (is_eligible, topics_completed, total_topics, percentage, existing_cert).
     """
     requirements = get_completion_requirements(certificate_type)
     required_phases = requirements["required_phases"]
@@ -101,16 +109,15 @@ async def _check_eligibility(
     )
     existing_cert = result.scalar_one_or_none()
 
-    # Count passed questions per phase
-    passed_counts = await _count_passed_questions_per_phase(db, user_id, required_phases)
+    # Count completed topics (where all questions are passed)
+    topics_completed, total_topics = await _count_completed_topics(
+        db, user_id, required_phases
+    )
 
-    questions_passed = sum(passed_counts.values())
-    total_questions = sum(PHASE_QUESTION_COUNTS.get(p, 0) for p in required_phases)
-
-    if total_questions == 0:
+    if total_topics == 0:
         percentage = 0.0
     else:
-        percentage = (questions_passed / total_questions) * 100
+        percentage = (topics_completed / total_topics) * 100
 
     is_eligible = percentage >= min_percentage
 
@@ -142,8 +149,8 @@ async def check_certificate_eligibility(
 
     (
         is_eligible,
-        questions_passed,
-        total_questions,
+        topics_completed,
+        total_topics,
         percentage,
         existing_cert,
     ) = await _check_eligibility(db, user_id, certificate_type)
@@ -159,14 +166,14 @@ async def check_certificate_eligibility(
         requirements = get_completion_requirements(certificate_type)
         min_pct = requirements["min_completion_percentage"]
         message = (
-            f"Pass at least {min_pct}% of questions to earn this certificate"
+            f"Complete at least {min_pct}% of topics to earn this certificate"
         )
 
     return CertificateEligibilityResponse(
         is_eligible=is_eligible,
         certificate_type=certificate_type,
-        topics_completed=questions_passed,  # Questions passed (API compat)
-        total_topics=total_questions,  # Total questions (API compat)
+        topics_completed=topics_completed,
+        total_topics=total_topics,
         completion_percentage=round(percentage, 1),
         already_issued=existing_cert is not None,
         existing_certificate_id=existing_cert.id if existing_cert else None,

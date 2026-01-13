@@ -414,9 +414,11 @@ export async function getTopicWithProgressBySlug(phaseSlug: string, topicSlug: s
 }
 
 export async function getDashboard(): Promise<DashboardResponse> {
-  const [userInfo, phasesWithProgress] = await Promise.all([
+  const [userInfo, phasesWithProgress, stepsStatus, questionsStatus] = await Promise.all([
     getUserInfo(),
     getPhasesWithProgress(),
+    getAllStepsStatus(),
+    getAllQuestionsStatus(),
   ]);
   
   // Calculate overall progress from phase percentages (which include steps + questions)
@@ -429,15 +431,42 @@ export async function getDashboard(): Promise<DashboardResponse> {
     ? totalPercentage / phasesWithContent.length 
     : 0;
   
-  // For total items count, we use questions for backward compatibility in the API response
-  const totalItems = phasesWithProgress.reduce(
-    (sum, p) => sum + (p.progress?.questions_total ?? 0), 
-    0
-  );
-  const totalCompleted = phasesWithProgress.reduce(
-    (sum, p) => sum + (p.progress?.questions_passed ?? 0), 
-    0
-  );
+  // Calculate granular stats
+  const phasesCompleted = phasesWithProgress.filter(p => p.progress?.status === 'completed').length;
+  const phasesTotal = phasesWithProgress.length;
+  
+  // Count topics, steps, questions
+  let topicsCompleted = 0;
+  let topicsTotal = 0;
+  let stepsCompletedCount = 0;
+  let stepsTotalCount = 0;
+  let questionsCompletedCount = 0;
+  let questionsTotalCount = 0;
+  
+  for (const phase of phasesWithProgress) {
+    for (const topic of phase.topics) {
+      topicsTotal++;
+      
+      // Count steps
+      const topicStepCount = topic.learning_steps?.length ?? 0;
+      stepsTotalCount += topicStepCount;
+      const completedSteps = stepsStatus[topic.id] ?? [];
+      stepsCompletedCount += completedSteps.length;
+      
+      // Count questions  
+      const topicQuestionCount = topic.questions?.length ?? 0;
+      questionsTotalCount += topicQuestionCount;
+      const questionsStatusData = questionsStatus[topic.id];
+      questionsCompletedCount += questionsStatusData?.passed_questions ?? 0;
+      
+      // Topic is complete if all steps and questions are done
+      const allStepsDone = completedSteps.length >= topicStepCount;
+      const allQuestionsDone = (questionsStatusData?.passed_questions ?? 0) >= topicQuestionCount;
+      if (allStepsDone && allQuestionsDone && (topicStepCount + topicQuestionCount) > 0) {
+        topicsCompleted++;
+      }
+    }
+  }
   
   // Find current phase (first in-progress, or first not-started)
   let currentPhase: number | null = null;
@@ -455,8 +484,18 @@ export async function getDashboard(): Promise<DashboardResponse> {
     user: userInfo,
     phases: phasesWithProgress,
     overall_progress: Math.round(overallProgress * 10) / 10,
-    total_completed: totalCompleted,
-    total_items: totalItems,
+    // Granular stats
+    phases_completed: phasesCompleted,
+    phases_total: phasesTotal,
+    topics_completed: topicsCompleted,
+    topics_total: topicsTotal,
+    steps_completed: stepsCompletedCount,
+    steps_total: stepsTotalCount,
+    questions_completed: questionsCompletedCount,
+    questions_total: questionsTotalCount,
+    // Legacy fields
+    total_completed: questionsCompletedCount,
+    total_items: questionsTotalCount,
     current_phase: currentPhase,
   };
 }

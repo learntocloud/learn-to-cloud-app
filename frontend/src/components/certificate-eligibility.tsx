@@ -81,7 +81,7 @@ export function CertificateEligibilityCard({ eligibility, userName }: Certificat
         </div>
         {!eligibility.is_eligible && (
           <p className="text-gray-500 dark:text-slate-500 text-xs mt-2">
-            Need 90% completion ({Math.ceil(eligibility.total_topics * 0.9)} topics) to earn this certificate
+            Need 100% completion ({eligibility.total_topics} topics) to earn this certificate
           </p>
         )}
       </div>

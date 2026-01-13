@@ -59,9 +59,16 @@ function FormattedDescription({ text }: { text: string }) {
 interface TopicContentProps {
   topic: Topic | TopicWithProgress;
   isAuthenticated: boolean;
+  onStepProgressChange?: (completedCount: number) => void;
+  onQuestionProgressChange?: (completedCount: number) => void;
 }
 
-export function TopicContent({ topic, isAuthenticated }: TopicContentProps) {
+export function TopicContent({ 
+  topic, 
+  isAuthenticated,
+  onStepProgressChange,
+  onQuestionProgressChange,
+}: TopicContentProps) {
   const api = useApi();
   
   // State for step progress
@@ -80,6 +87,7 @@ export function TopicContent({ topic, isAuthenticated }: TopicContentProps) {
       api.getTopicStepProgress(topic.id, topic.learning_steps.length)
         .then((progress) => {
           setStepProgress(progress);
+          onStepProgressChange?.(progress.completed_steps.length);
         })
         .catch((err) => {
           console.error("Failed to fetch step progress:", err);
@@ -90,6 +98,7 @@ export function TopicContent({ topic, isAuthenticated }: TopicContentProps) {
             total_steps: topic.learning_steps.length,
             next_unlocked_step: 1,
           });
+          onStepProgressChange?.(0);
         })
         .finally(() => {
           setLoadingSteps(false);
@@ -105,6 +114,7 @@ export function TopicContent({ topic, isAuthenticated }: TopicContentProps) {
       api.getTopicQuestionsStatus(topic.id)
         .then((status) => {
           setQuestionsStatus(status);
+          onQuestionProgressChange?.(status.passed_questions);
         })
         .catch((err) => {
           console.error("Failed to fetch question status:", err);
@@ -122,6 +132,7 @@ export function TopicContent({ topic, isAuthenticated }: TopicContentProps) {
       api.getTopicQuestionsStatus(topic.id)
         .then((status) => {
           setQuestionsStatus(status);
+          onQuestionProgressChange?.(status.passed_questions);
         })
         .catch((err) => {
           console.error("Failed to refresh question status:", err);
@@ -140,11 +151,13 @@ export function TopicContent({ topic, isAuthenticated }: TopicContentProps) {
         // Uncomplete this step (and all after it)
         await api.uncompleteStep(topic.id, stepOrder);
         // Update local state
+        const newCompleted = stepProgress.completed_steps.filter(s => s < stepOrder);
         setStepProgress({
           ...stepProgress,
-          completed_steps: stepProgress.completed_steps.filter(s => s < stepOrder),
+          completed_steps: newCompleted,
           next_unlocked_step: stepOrder,
         });
+        onStepProgressChange?.(newCompleted.length);
       } else {
         // Complete this step
         await api.completeStep(topic.id, stepOrder);
@@ -155,6 +168,7 @@ export function TopicContent({ topic, isAuthenticated }: TopicContentProps) {
           completed_steps: newCompleted,
           next_unlocked_step: Math.min(stepOrder + 1, topic.learning_steps.length),
         });
+        onStepProgressChange?.(newCompleted.length);
       }
     } catch (err) {
       console.error("Failed to toggle step:", err);

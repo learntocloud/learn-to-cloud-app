@@ -331,7 +331,7 @@ def get_completion_requirements(certificate_type: str) -> dict:
     if certificate_type == "full_completion":
         return {
             "required_phases": [0, 1, 2, 3, 4, 5],
-            "min_completion_percentage": 90,  # Allow some flexibility
+            "min_completion_percentage": 100,  # Must complete everything
         }
     else:
         raise ValueError(

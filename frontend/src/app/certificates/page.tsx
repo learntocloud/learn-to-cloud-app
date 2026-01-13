@@ -78,17 +78,19 @@ export default async function CertificatesPage() {
           )}
         </div>
 
-        {/* Issued Certificates */}
-        {issuedCertificates.length > 0 && (
+        {/* Issued Certificates (excluding full_completion which is shown above) */}
+        {issuedCertificates.filter(c => c.certificate_type !== "full_completion").length > 0 && (
           <div className="mb-10">
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
               <span className="text-2xl">📜</span>
               Issued Certificates
             </h2>
             <div className="space-y-4">
-              {issuedCertificates.map(cert => (
-                <CertificateCard key={cert.id} certificate={cert} />
-              ))}
+              {issuedCertificates
+                .filter(c => c.certificate_type !== "full_completion")
+                .map(cert => (
+                  <CertificateCard key={cert.id} certificate={cert} />
+                ))}
             </div>
           </div>
         )}
@@ -128,7 +130,7 @@ export default async function CertificatesPage() {
             </li>
             <li className="flex items-start gap-2">
               <span className="text-green-500 dark:text-green-400 mt-0.5">✓</span>
-              Full program certificate requires 90% completion of all topics
+              Full program certificate requires 100% completion of all topics
             </li>
           </ul>
         </div>
