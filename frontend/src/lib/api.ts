@@ -178,28 +178,46 @@ export async function getAllGitHubRequirements(): Promise<Map<number, PhaseGitHu
 
 function calculatePhaseProgress(
   phaseId: number,
-  topics: { questions?: { id: string }[]; id: string }[],
-  questionsStatusMap: Record<string, TopicQuestionsStatus>
+  topics: { questions?: { id: string }[]; learning_steps: { order: number }[]; id: string }[],
+  questionsStatusMap: Record<string, TopicQuestionsStatus>,
+  stepsStatusMap: Record<string, number[]>
 ): PhaseProgress {
-  // Count questions only - progress is based on passed questions
+  // Count both questions and steps for progress calculation
+  let totalItems = 0;
+  let completedItems = 0;
+  
+  for (const topic of topics) {
+    // Count steps
+    const topicStepCount = topic.learning_steps?.length ?? 0;
+    totalItems += topicStepCount;
+    const completedSteps = stepsStatusMap[topic.id] ?? [];
+    completedItems += completedSteps.length;
+    
+    // Count questions
+    const topicQuestionCount = topic.questions?.length ?? 0;
+    totalItems += topicQuestionCount;
+    const status = questionsStatusMap[topic.id];
+    completedItems += status?.passed_questions ?? 0;
+  }
+  
+  const percentage = totalItems > 0 ? (completedItems / totalItems) * 100 : 0;
+  
+  let status: 'not_started' | 'in_progress' | 'completed' = 'not_started';
+  if (completedItems === totalItems && totalItems > 0) {
+    status = 'completed';
+  } else if (completedItems > 0) {
+    status = 'in_progress';
+  }
+  
+  // Note: We keep questions_passed/questions_total for backward compatibility
+  // but the percentage now includes both steps AND questions
   let totalQuestions = 0;
   let passedQuestions = 0;
   for (const topic of topics) {
     const topicQuestionCount = topic.questions?.length ?? 0;
-    if (topicQuestionCount > 0) {
-      totalQuestions += topicQuestionCount;
-      const status = questionsStatusMap[topic.id];
-      passedQuestions += status?.passed_questions ?? 0;
-    }
-  }
-  
-  const percentage = totalQuestions > 0 ? (passedQuestions / totalQuestions) * 100 : 0;
-  
-  let status: 'not_started' | 'in_progress' | 'completed' = 'not_started';
-  if (passedQuestions === totalQuestions && totalQuestions > 0) {
-    status = 'completed';
-  } else if (passedQuestions > 0) {
-    status = 'in_progress';
+    totalQuestions += topicQuestionCount;
+    const status = questionsStatusMap[topic.id];
+    passedQuestions += status?.passed_questions ?? 0;
   }
   
   return {
@@ -216,18 +234,20 @@ function calculatePhaseProgress(
 export async function getPhasesWithProgress(): Promise<PhaseWithProgress[]> {
   const phases = getAllPhases();
   
-  // Fetch GitHub requirements AND questions status in parallel
-  const [githubRequirementsMap, questionsStatusMap] = await Promise.all([
+  // Fetch GitHub requirements, questions status, AND steps status in parallel
+  const [githubRequirementsMap, questionsStatusMap, stepsStatusMap] = await Promise.all([
     getAllGitHubRequirements(),
     getAllQuestionsStatus(),
+    getAllStepsStatus(),
   ]);
   
-  // First pass: calculate progress for all phases (questions only)
+  // First pass: calculate progress for all phases (steps + questions)
   const phasesWithProgress = phases.map(phase => {
     const progress = calculatePhaseProgress(
       phase.id,
       phase.topics,
-      questionsStatusMap
+      questionsStatusMap,
+      stepsStatusMap
     );
     
     return {
@@ -258,13 +278,15 @@ export async function getPhasesWithProgress(): Promise<PhaseWithProgress[]> {
 async function checkPhaseLocked(
   phaseId: number,
   githubRequirementsMap?: Map<number, PhaseGitHubRequirements>,
-  questionsStatusMap?: Record<string, TopicQuestionsStatus>
+  questionsStatusMap?: Record<string, TopicQuestionsStatus>,
+  stepsStatusMap?: Record<string, number[]>
 ): Promise<boolean> {
   if (phaseId === 0) return false;
   
   const phases = getAllPhases();
   const githubReqs = githubRequirementsMap ?? await getAllGitHubRequirements();
   const questionsStatus = questionsStatusMap ?? await getAllQuestionsStatus();
+  const stepsStatus = stepsStatusMap ?? await getAllStepsStatus();
   
   for (let i = 0; i < phaseId; i++) {
     const prevPhase = phases.find(p => p.id === i);
@@ -273,7 +295,8 @@ async function checkPhaseLocked(
     const prevProgress = calculatePhaseProgress(
       prevPhase.id,
       prevPhase.topics,
-      questionsStatus
+      questionsStatus,
+      stepsStatus
     );
     
     if (prevProgress.status !== 'completed') {
@@ -293,31 +316,37 @@ export async function getPhaseWithProgressBySlug(slug: string): Promise<(PhaseDe
   const phase = getPhaseBySlugFromContent(slug);
   if (!phase) return null;
   
-  // Fetch GitHub requirements and questions status in parallel
-  const [githubRequirementsMap, questionsStatusMap] = await Promise.all([
+  // Fetch GitHub requirements, questions status, and steps status in parallel
+  const [githubRequirementsMap, questionsStatusMap, stepsStatusMap] = await Promise.all([
     getAllGitHubRequirements(),
     getAllQuestionsStatus(),
+    getAllStepsStatus(),
   ]);
   
-  const isLocked = await checkPhaseLocked(phase.id, githubRequirementsMap, questionsStatusMap);
+  const isLocked = await checkPhaseLocked(phase.id, githubRequirementsMap, questionsStatusMap, stepsStatusMap);
   
-  // Add progress to topics (questions only)
+  // Add progress to topics (steps + questions)
   const topics: TopicWithProgress[] = phase.topics.map(topic => {
     const questionsStatus = questionsStatusMap[topic.id];
     const questionCount = topic.questions?.length ?? 0;
     const questionsCompleted = questionsStatus?.passed_questions ?? 0;
+    const stepCount = topic.learning_steps?.length ?? 0;
+    const completedSteps = stepsStatusMap[topic.id] ?? [];
     
     return {
       ...topic,
       questions_passed: questionsCompleted,
       questions_total: questionCount,
+      steps_completed: completedSteps.length,
+      steps_total: stepCount,
     };
   });
   
   const progress = calculatePhaseProgress(
     phase.id,
     phase.topics,
-    questionsStatusMap
+    questionsStatusMap,
+    stepsStatusMap
   );
   
   return {
@@ -335,15 +364,16 @@ export async function getTopicWithProgressBySlug(phaseSlug: string, topicSlug: s
   const topic = getTopicBySlugFromContent(phaseSlug, topicSlug);
   if (!topic) return null;
   
-  // Fetch GitHub requirements and questions status in parallel
-  const [githubRequirementsMap, questionsStatusMap] = await Promise.all([
+  // Fetch GitHub requirements, questions status, and steps status in parallel
+  const [githubRequirementsMap, questionsStatusMap, stepsStatusMap] = await Promise.all([
     getAllGitHubRequirements(),
     getAllQuestionsStatus(),
+    getAllStepsStatus(),
   ]);
   
-  const isLocked = await checkPhaseLocked(phase.id, githubRequirementsMap, questionsStatusMap);
+  const isLocked = await checkPhaseLocked(phase.id, githubRequirementsMap, questionsStatusMap, stepsStatusMap);
   
-  // Calculate topic-level locking: previous topic must have all questions passed
+  // Calculate topic-level locking: previous topic must have all steps AND questions complete
   const topicIndex = phase.topics.findIndex(t => t.slug === topicSlug);
   let isTopicLocked = false;
   let previousTopicName: string | undefined;
@@ -352,22 +382,31 @@ export async function getTopicWithProgressBySlug(phaseSlug: string, topicSlug: s
     const previousTopic = phase.topics[topicIndex - 1];
     previousTopicName = previousTopic.name;
     
+    // Check if previous topic's steps are all complete
+    const prevStepCount = previousTopic.learning_steps?.length ?? 0;
+    const prevCompletedSteps = stepsStatusMap[previousTopic.id] ?? [];
+    const areStepsComplete = prevStepCount === 0 || prevCompletedSteps.length >= prevStepCount;
+    
     // Check if previous topic's questions are all passed
     const prevQuestionsStatus = questionsStatusMap[previousTopic.id];
     const prevQuestionCount = previousTopic.questions?.length ?? 0;
     const areQuestionsComplete = prevQuestionCount === 0 || (prevQuestionsStatus?.all_passed ?? false);
     
-    isTopicLocked = !areQuestionsComplete;
+    isTopicLocked = !areStepsComplete || !areQuestionsComplete;
   }
   
   const questionsStatus = questionsStatusMap[topic.id];
   const questionCount = topic.questions?.length ?? 0;
   const questionsCompleted = questionsStatus?.passed_questions ?? 0;
+  const stepCount = topic.learning_steps?.length ?? 0;
+  const completedSteps = stepsStatusMap[topic.id] ?? [];
   
   return {
     ...topic,
     questions_passed: questionsCompleted,
     questions_total: questionCount,
+    steps_completed: completedSteps.length,
+    steps_total: stepCount,
     isLocked,
     isTopicLocked,
     previousTopicName,
@@ -380,6 +419,17 @@ export async function getDashboard(): Promise<DashboardResponse> {
     getPhasesWithProgress(),
   ]);
   
+  // Calculate overall progress from phase percentages (which include steps + questions)
+  const phasesWithContent = phasesWithProgress.filter(p => (p.progress?.percentage ?? 0) >= 0);
+  const totalPercentage = phasesWithContent.reduce(
+    (sum, p) => sum + (p.progress?.percentage ?? 0), 
+    0
+  );
+  const overallProgress = phasesWithContent.length > 0 
+    ? totalPercentage / phasesWithContent.length 
+    : 0;
+  
+  // For total items count, we use questions for backward compatibility in the API response
   const totalItems = phasesWithProgress.reduce(
     (sum, p) => sum + (p.progress?.questions_total ?? 0), 
     0
@@ -388,7 +438,6 @@ export async function getDashboard(): Promise<DashboardResponse> {
     (sum, p) => sum + (p.progress?.questions_passed ?? 0), 
     0
   );
-  const overallProgress = totalItems > 0 ? (totalCompleted / totalItems) * 100 : 0;
   
   // Find current phase (first in-progress, or first not-started)
   let currentPhase: number | null = null;
@@ -433,6 +482,21 @@ export async function getAllQuestionsStatus(): Promise<Record<string, TopicQuest
   const headers = await getAuthHeaders();
   
   const res = await fetch(`${API_URL}/api/questions/user/all-status`, {
+    headers,
+    cache: "no-store",
+  });
+  
+  if (!res.ok) {
+    return {};
+  }
+  
+  return res.json();
+}
+
+export async function getAllStepsStatus(): Promise<Record<string, number[]>> {
+  const headers = await getAuthHeaders();
+  
+  const res = await fetch(`${API_URL}/api/steps/user/all-status`, {
     headers,
     cache: "no-store",
   });

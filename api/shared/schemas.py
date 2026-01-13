@@ -200,6 +200,35 @@ class ActivityResponse(BaseModel):
     created_at: datetime
 
 
+# ============ Step Progress Schemas ============
+
+
+class StepCompleteRequest(BaseModel):
+    """Request to mark a learning step as complete."""
+
+    topic_id: str = Field(max_length=100)
+    step_order: int = Field(ge=1)
+
+
+class StepProgressResponse(BaseModel):
+    """Response for a single step's progress."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    topic_id: str
+    step_order: int
+    completed_at: datetime
+
+
+class TopicStepProgressResponse(BaseModel):
+    """Progress of all steps in a topic for a user."""
+
+    topic_id: str
+    completed_steps: list[int]  # List of step_order numbers that are complete
+    total_steps: int
+    next_unlocked_step: int  # The next step that can be completed (1-indexed)
+
+
 class StreakResponse(BaseModel):
     """Response containing user's streak information."""
 

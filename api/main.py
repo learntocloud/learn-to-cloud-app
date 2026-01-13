@@ -37,6 +37,7 @@ from routes import (
     github_router,
     health_router,
     questions_router,
+    steps_router,
     users_router,
     webhooks_router,
 )
@@ -139,3 +140,4 @@ app.include_router(webhooks_router)
 app.include_router(questions_router)
 app.include_router(activity_router)
 app.include_router(certificates_router)
+app.include_router(steps_router)

@@ -73,6 +73,10 @@ class User(Base):
         back_populates="user",
         cascade="all, delete-orphan",
     )
+    step_progress: Mapped[list["StepProgress"]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
 
 
 class ProcessedWebhook(Base):
@@ -158,6 +162,7 @@ class ActivityType(str, PyEnum):
     """Type of user activity for streak tracking."""
 
     QUESTION_ATTEMPT = "question_attempt"  # Attempted a knowledge question
+    STEP_COMPLETE = "step_complete"  # Completed a learning step
     TOPIC_COMPLETE = "topic_complete"  # Completed all questions for a topic
     CERTIFICATE_EARNED = "certificate_earned"  # Earned a completion certificate
 
@@ -240,6 +245,38 @@ class QuestionAttempt(Base):
 
     # Relationships
     user: Mapped["User"] = relationship(back_populates="question_attempts")
+
+
+class StepProgress(Base):
+    """Tracks completion of learning steps within topics."""
+
+    __tablename__ = "step_progress"
+    __table_args__ = (
+        UniqueConstraint("user_id", "topic_id", "step_order", name="uq_user_topic_step"),
+        Index("ix_step_progress_user_topic", "user_id", "topic_id"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[str] = mapped_column(
+        String(255),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    topic_id: Mapped[str] = mapped_column(
+        String(100),
+        nullable=False,
+    )  # e.g., "phase1-topic5"
+    step_order: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+    )  # The order/number of the step (1, 2, 3, etc.)
+    completed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=utcnow,
+    )
+
+    # Relationships
+    user: Mapped["User"] = relationship(back_populates="step_progress")
 
 
 class UserActivity(Base):

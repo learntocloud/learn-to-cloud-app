@@ -195,32 +195,43 @@ export default async function TopicPage({ params }: TopicPageProps) {
                 {topic.estimated_time}
               </p>
             )}
-            {isAuthenticated && 'questions_passed' in topic && (
-              <span className={`text-sm font-medium px-2 py-1 rounded ${
-                topic.questions_passed === topic.questions_total && topic.questions_total > 0
-                  ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300"
-                  : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400"
-              }`}>
-                {topic.questions_passed}/{topic.questions_total} questions
-              </span>
+            {isAuthenticated && 'steps_completed' in topic && (
+              (() => {
+                const totalItems = topic.steps_total + topic.questions_total;
+                const completedItems = topic.steps_completed + topic.questions_passed;
+                const isComplete = completedItems === totalItems && totalItems > 0;
+                return (
+                  <span className={`text-sm font-medium px-2 py-1 rounded ${
+                    isComplete
+                      ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300"
+                      : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400"
+                  }`}>
+                    {completedItems}/{totalItems} complete
+                  </span>
+                );
+              })()
             )}
           </div>
 
-          {isAuthenticated && 'questions_passed' in topic && (
-            <div className="mt-4">
-              <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                <div
-                  className={`h-full transition-all duration-300 ${
-                    topic.questions_passed === topic.questions_total && topic.questions_total > 0
-                      ? "bg-green-500"
-                      : "bg-blue-500"
-                  }`}
-                  style={{ 
-                    width: `${topic.questions_total > 0 ? (topic.questions_passed / topic.questions_total) * 100 : 0}%` 
-                  }}
-                />
-              </div>
-            </div>
+          {isAuthenticated && 'steps_completed' in topic && (
+            (() => {
+              const totalItems = topic.steps_total + topic.questions_total;
+              const completedItems = topic.steps_completed + topic.questions_passed;
+              const isComplete = completedItems === totalItems && totalItems > 0;
+              const percentage = totalItems > 0 ? (completedItems / totalItems) * 100 : 0;
+              return (
+                <div className="mt-4">
+                  <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full transition-all duration-300 ${
+                        isComplete ? "bg-green-500" : "bg-blue-500"
+                      }`}
+                      style={{ width: `${percentage}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })()
           )}
         </div>
 

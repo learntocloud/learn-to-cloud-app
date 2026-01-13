@@ -2,7 +2,7 @@
 
 import { useAuth } from "@clerk/nextjs";
 import { trackEvent, getAppInsights } from "./app-insights";
-import type { QuestionSubmitResponse, StreakResponse, TopicQuestionsStatus } from "./types";
+import type { QuestionSubmitResponse, StreakResponse, TopicQuestionsStatus, TopicStepProgress, StepProgress } from "./types";
 
 // In dev containers/Codespaces, use same-origin proxy (Next.js rewrites /api/* to backend)
 // In production, use the explicit API URL
@@ -178,6 +178,46 @@ export function useApi() {
         : `${API_URL}/api/user/me`;
       return fetchWithAuth(url, {
         method: "GET",
+      });
+    },
+
+    /**
+     * Get step progress for a topic.
+     */
+    async getTopicStepProgress(topicId: string, totalSteps: number): Promise<TopicStepProgress> {
+      const url = isUsingProxy
+        ? `/api/steps/${topicId}?total_steps=${totalSteps}`
+        : `${API_URL}/api/steps/${topicId}?total_steps=${totalSteps}`;
+      return fetchWithAuth(url, {
+        method: "GET",
+      });
+    },
+
+    /**
+     * Mark a learning step as complete.
+     */
+    async completeStep(topicId: string, stepOrder: number): Promise<StepProgress> {
+      const url = isUsingProxy
+        ? `/api/steps/complete`
+        : `${API_URL}/api/steps/complete`;
+      return fetchWithAuth(url, {
+        method: "POST",
+        body: JSON.stringify({
+          topic_id: topicId,
+          step_order: stepOrder,
+        }),
+      });
+    },
+
+    /**
+     * Mark a learning step as incomplete (uncomplete it).
+     */
+    async uncompleteStep(topicId: string, stepOrder: number): Promise<{ status: string; deleted_count: number }> {
+      const url = isUsingProxy
+        ? `/api/steps/${topicId}/${stepOrder}`
+        : `${API_URL}/api/steps/${topicId}/${stepOrder}`;
+      return fetchWithAuth(url, {
+        method: "DELETE",
       });
     },
   };

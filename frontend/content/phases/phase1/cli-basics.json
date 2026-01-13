@@ -2,64 +2,104 @@
   "id": "phase1-topic5",
   "slug": "cli-basics",
   "name": "CLI Basics",
-  "description": "Before diving into the CTF challenges, make sure you're comfortable with basic command line operations.",
+  "description": "The Linux command line is your gateway to cloud infrastructure. Work through Linux Basics for Hackers chapter by chapter to prepare for the CTF challenges.",
   "order": 5,
-  "estimated_time": "1-2 days",
+  "estimated_time": "2-3 weeks (1 chapter every 1-2 days)",
   "is_capstone": false,
   "learning_steps": [
     {
       "order": 1,
-      "text": "Learn the essential Linux commands",
-      "action": "Learn the essential Linux commands:",
-      "title": "Linux Commands Cheat Sheet",
-      "url": "https://www.guru99.com/linux-commands-cheat-sheet.html",
-      "description": "Familiarize yourself with common commands like ls, cd, pwd, cat, grep, find, and more."
+      "text": "Get the book",
+      "action": "Get the book:",
+      "title": "Linux Basics for Hackers, 2nd Edition",
+      "url": "https://nostarch.com/linux-basics-hackers-2nd-edition",
+      "description": "Purchase or borrow Linux Basics for Hackers by OccupyTheWeb. We'll work through chapters 1-9, which cover everything you need for the CTF challenges."
     },
     {
       "order": 2,
-      "text": "Practice navigation commands",
-      "action": "Practice navigation commands",
+      "text": "Chapter 1: Getting Started with the Basics",
+      "action": "Read Chapter 1:",
+      "title": "Getting Started with the Basics",
       "url": null,
-      "description": "Open your terminal and practice these essential commands:",
-      "code": "# Print working directory\npwd\n\n# List files\nls -la\n\n# Change directory\ncd ~/l2c\n\n# Create a directory\nmkdir test-folder\n\n# Create a file\ntouch test-file.txt\n\n# View file contents\ncat test-file.txt"
+      "description": "Learn essential navigation commands: pwd, cd, ls, whoami, and getting help with man pages. Understand the Linux filesystem hierarchy."
     },
     {
       "order": 3,
-      "text": "Learn about file permissions",
-      "action": "Learn about file permissions:",
-      "title": "Understanding Linux File Permissions",
-      "url": "https://www.guru99.com/file-permissions.html",
-      "description": "Understanding permissions (chmod, chown) is essential for Linux administration."
+      "text": "Chapter 2: Text Manipulation",
+      "action": "Read Chapter 2:",
+      "title": "Text Manipulation",
+      "url": null,
+      "description": "Learn to view and manipulate text files using cat, head, tail, grep, and sed. Master pipes and redirects for chaining commands."
     },
     {
       "order": 4,
-      "text": "Practice with pipes and redirects",
-      "action": "Practice with pipes and redirects",
+      "text": "Chapter 3: Analyzing and Managing Networks",
+      "action": "Read Chapter 3:",
+      "title": "Analyzing and Managing Networks",
       "url": null,
-      "description": "Learn how to chain commands together:",
-      "code": "# Pipe output to another command\nls -la | grep \".txt\"\n\n# Redirect output to a file\necho \"Hello World\" > hello.txt\n\n# Append to a file\necho \"Another line\" >> hello.txt\n\n# View file contents\ncat hello.txt"
+      "description": "Learn network analysis commands: ifconfig/ip, iwconfig, dig, and DNS configuration. Essential for cloud engineering."
+    },
+    {
+      "order": 5,
+      "text": "Chapter 4: Adding and Removing Software",
+      "action": "Read Chapter 4:",
+      "title": "Adding and Removing Software",
+      "url": null,
+      "description": "Learn package management with apt: searching, installing, updating, and removing software."
+    },
+    {
+      "order": 6,
+      "text": "Chapter 5: Controlling File and Directory Permissions",
+      "action": "Read Chapter 5:",
+      "title": "Controlling File and Directory Permissions",
+      "url": null,
+      "description": "Master Linux permissions: understanding rwx, chmod, chown, and special permissions. Critical for security."
+    },
+    {
+      "order": 7,
+      "text": "Chapter 6: Process Management",
+      "action": "Read Chapter 6:",
+      "title": "Process Management",
+      "url": null,
+      "description": "Learn to view and manage processes with ps, top, kill, and nice. Essential for troubleshooting."
+    },
+    {
+      "order": 8,
+      "text": "Chapter 7: Managing User Environment Variables",
+      "action": "Read Chapter 7:",
+      "title": "Managing User Environment Variables",
+      "url": null,
+      "description": "Understand environment variables like PATH, HOME, and how to configure them in .bashrc."
+    },
+    {
+      "order": 9,
+      "text": "Chapter 8: Bash Scripting",
+      "action": "Read Chapter 8:",
+      "title": "Bash Scripting",
+      "url": "https://nostarch.com/download/LinuxBasicsforHackers2e_chapter8.pdf",
+      "description": "Introduction to bash scripting: variables, conditionals, loops. Free sample chapter available!"
+    },
+    {
+      "order": 10,
+      "text": "Chapter 9: Compressing and Archiving",
+      "action": "Read Chapter 9:",
+      "title": "Compressing and Archiving",
+      "url": null,
+      "description": "Learn to work with compressed files using tar, gzip, bzip2. Used constantly for logs and backups."
+    },
+    {
+      "order": 11,
+      "text": "Optional: Practice with OverTheWire Bandit",
+      "action": "Optional:",
+      "title": "OverTheWire Bandit",
+      "url": "https://overthewire.org/wargames/bandit/",
+      "description": "A free wargame that reinforces Linux commands through progressively harder challenges. Great extra practice before the CTF."
     }
   ],
   "questions": [
     {
       "id": "phase1-topic5-q1",
-      "prompt": "Explain what the ls, cd, and pwd commands do in Linux.",
-      "expected_concepts": [
-        "ls",
-        "list",
-        "files",
-        "directories",
-        "cd",
-        "change directory",
-        "pwd",
-        "print working directory",
-        "navigation",
-        "current path"
-      ]
-    },
-    {
-      "id": "phase1-topic5-q2",
-      "prompt": "What are file permissions in Linux and what do the read, write, and execute permissions mean?",
+      "prompt": "Explain the Linux file permission system. What do the read, write, and execute permissions mean for files vs directories?",
       "expected_concepts": [
         "read",
         "write",
@@ -69,31 +109,88 @@
         "group",
         "others",
         "rwx",
-        "access control",
-        "permission denied"
+        "directory",
+        "file",
+        "list",
+        "enter"
+      ]
+    },
+    {
+      "id": "phase1-topic5-q2",
+      "prompt": "What are pipes and redirects in Linux? Give an example of when you'd use each.",
+      "expected_concepts": [
+        "pipe",
+        "|",
+        "redirect",
+        ">",
+        ">>",
+        "output",
+        "input",
+        "command",
+        "chain",
+        "file"
       ]
     }
   ],
   "test_knowledge_prompts": [
-    "Can you quiz me on basic Linux navigation commands like ls, cd, and pwd?",
-    "Can you ask me how file permissions work in Linux?",
-    "Can you ask me to explain what pipes and redirects do?"
+    "Can you quiz me on Linux file permissions?",
+    "Can you ask me about pipes and redirects?"
   ],
   "learning_objectives": [
     {
       "id": "phase1-topic5-check1",
-      "text": "How to navigate the file system using cd, ls, and pwd",
+      "text": "Get Linux Basics for Hackers book",
       "order": 1
     },
     {
       "id": "phase1-topic5-check2",
-      "text": "How to create and view files using touch, cat, and echo",
+      "text": "Chapter 1: Navigation basics",
       "order": 2
     },
     {
       "id": "phase1-topic5-check3",
-      "text": "How to use pipes and redirects effectively",
+      "text": "Chapter 2: Text manipulation",
       "order": 3
+    },
+    {
+      "id": "phase1-topic5-check4",
+      "text": "Chapter 3: Networking",
+      "order": 4
+    },
+    {
+      "id": "phase1-topic5-check5",
+      "text": "Chapter 4: Package management",
+      "order": 5
+    },
+    {
+      "id": "phase1-topic5-check6",
+      "text": "Chapter 5: Permissions",
+      "order": 6
+    },
+    {
+      "id": "phase1-topic5-check7",
+      "text": "Chapter 6: Process management",
+      "order": 7
+    },
+    {
+      "id": "phase1-topic5-check8",
+      "text": "Chapter 7: Environment variables",
+      "order": 8
+    },
+    {
+      "id": "phase1-topic5-check9",
+      "text": "Chapter 8: Bash scripting",
+      "order": 9
+    },
+    {
+      "id": "phase1-topic5-check10",
+      "text": "Chapter 9: Archives and compression",
+      "order": 10
+    },
+    {
+      "id": "phase1-topic5-check11",
+      "text": "Optional: OverTheWire Bandit practice",
+      "order": 11
     }
   ]
 }

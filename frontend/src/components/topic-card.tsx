@@ -11,9 +11,14 @@ interface TopicCardProps {
 }
 
 export function TopicCard({ topic, phaseSlug, isLocked = false, previousTopicName }: TopicCardProps) {
-  // Use questions_passed/questions_total for progress
-  const completedCount = topic.questions_passed;
-  const totalCount = topic.questions_total;
+  // Use steps + questions for progress
+  const stepsCompleted = topic.steps_completed ?? 0;
+  const stepsTotal = topic.steps_total ?? 0;
+  const questionsCompleted = topic.questions_passed;
+  const questionsTotal = topic.questions_total;
+  
+  const completedCount = stepsCompleted + questionsCompleted;
+  const totalCount = stepsTotal + questionsTotal;
   const progressPercent = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
   const isCompleted = completedCount === totalCount && totalCount > 0;
 

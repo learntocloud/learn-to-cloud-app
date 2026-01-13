@@ -57,6 +57,8 @@ export interface TopicWithProgress {
   is_capstone: boolean;
   questions_passed: number;
   questions_total: number;
+  steps_completed: number;
+  steps_total: number;
 }
 
 export interface PhaseProgress {
@@ -157,6 +159,21 @@ export interface PhaseGitHubRequirements {
   submissions: GitHubSubmission[];
   has_requirements: boolean;  // False if phase has no requirements defined
   all_validated: boolean;
+}
+
+// ============ Step Progress Types ============
+
+export interface StepProgress {
+  topic_id: string;
+  step_order: number;
+  completed_at: string;
+}
+
+export interface TopicStepProgress {
+  topic_id: string;
+  completed_steps: number[];  // List of step_order numbers that are complete
+  total_steps: number;
+  next_unlocked_step: number;  // The next step that can be completed (1-indexed)
 }
 
 // ============ Knowledge Question Types ============
