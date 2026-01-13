@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useApi } from "@/lib/use-api";
 import type { KnowledgeQuestion, QuestionSubmitResponse } from "@/lib/types";
@@ -32,17 +32,7 @@ export function KnowledgeQuestion({
   const [feedback, setFeedback] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Prevent paste
-  const handlePaste = useCallback((e: React.ClipboardEvent) => {
-    e.preventDefault();
-    setError("Paste is disabled. Please type your answer to demonstrate understanding.");
-  }, []);
 
-  // Prevent drop
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setError("Drag and drop is disabled. Please type your answer.");
-  }, []);
 
   const handleSubmit = async () => {
     if (answer.length < MIN_CHARS) {
@@ -127,9 +117,7 @@ export function KnowledgeQuestion({
                 setAnswer(e.target.value);
                 setError(null);
               }}
-              onPaste={handlePaste}
-              onDrop={handleDrop}
-              placeholder="Type your answer here... (paste is disabled)"
+              placeholder="Type your answer here..."
               rows={4}
               maxLength={MAX_CHARS + 100} // Allow typing over to show error
               disabled={isSubmitting}
