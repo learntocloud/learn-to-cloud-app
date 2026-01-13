@@ -11,13 +11,21 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from shared.auth import OptionalUserId, UserId
+from shared.badges import compute_all_badges
 from shared.config import get_settings
 from shared.database import DbSession
 from shared.github import get_requirement_by_id
-from shared.models import ChecklistProgress, GitHubSubmission, User, UserActivity
+from shared.models import (
+    ChecklistProgress,
+    GitHubSubmission,
+    QuestionAttempt,
+    User,
+    UserActivity,
+)
 from shared.schemas import (
     ActivityHeatmapDay,
     ActivityHeatmapResponse,
+    BadgeResponse,
     PublicProfileResponse,
     PublicSubmission,
     StreakResponse,
@@ -293,11 +301,22 @@ async def get_public_profile(
             ChecklistProgress.is_completed.is_(True),
         )
     )
-    completed_topics = int(checklist_result.scalar() or 0)
+    completed_checklist = int(checklist_result.scalar() or 0)
 
-    # Total checklist items across all phases (from content structure)
-    # Phase 0: 19, Phase 1: 36, Phase 2: 52, Phase 3: 51, Phase 4: 36, Phase 5: 36 = 230
-    total_topics = 230
+    # Get passed questions count (unique question_ids that have is_passed=True)
+    questions_result = await db.execute(
+        select(func.count(func.distinct(QuestionAttempt.question_id))).where(
+            QuestionAttempt.user_id == profile_user.id,
+            QuestionAttempt.is_passed.is_(True),
+        )
+    )
+    passed_questions = int(questions_result.scalar() or 0)
+
+    # Total completed = checklist + passed questions
+    completed_topics = completed_checklist + passed_questions
+
+    # Total items across all phases (checklist + questions = 247)
+    total_topics = 247
 
     # Get streak info
     activity_result = await db.execute(
@@ -322,11 +341,11 @@ async def get_public_profile(
         streak_alive=streak_alive,
     )
 
-    # Get activity heatmap (last 365 days)
+    # Get activity heatmap (last 270 days / ~9 months for cleaner display)
     from datetime import timedelta
 
     today = datetime.now(UTC).date()
-    start_date = today - timedelta(days=365)
+    start_date = today - timedelta(days=270)
 
     heatmap_result = await db.execute(
         select(
@@ -382,16 +401,37 @@ async def get_public_profile(
     )
     completed_items = [row[0] for row in progress_result.all()]
 
+    # Get passed questions grouped by phase (question_id format: phase{N}-topic{M}-q{X})
+    passed_questions_result = await db.execute(
+        select(func.distinct(QuestionAttempt.question_id)).where(
+            QuestionAttempt.user_id == profile_user.id,
+            QuestionAttempt.is_passed.is_(True),
+        )
+    )
+    passed_question_ids = [row[0] for row in passed_questions_result.all()]
+
     # Count completed items per phase (item IDs follow pattern: phase{N}-topic{M}-check{X})
-    # Known totals per phase (from content structure)
-    phase_totals = {0: 19, 1: 36, 2: 52, 3: 51, 4: 36, 5: 36}  # Total checklist items
+    # Known totals per phase (checklist + questions from content structure)
+    # Total: 167 checklist + 80 questions = 247
+    phase_totals = {0: 25, 1: 32, 2: 48, 3: 57, 4: 43, 5: 42}
     phase_completed: dict[int, int] = {}
 
+    # Count checklist items per phase
     for item_id in completed_items:
         # Extract phase number from ID like "phase0-topic1-check1"
         if item_id.startswith("phase"):
             try:
                 phase_num = int(item_id.split("-")[0].replace("phase", ""))
+                phase_completed[phase_num] = phase_completed.get(phase_num, 0) + 1
+            except (ValueError, IndexError):
+                continue
+
+    # Count passed questions per phase
+    for question_id in passed_question_ids:
+        # Extract phase number from ID like "phase0-topic1-q1"
+        if question_id.startswith("phase"):
+            try:
+                phase_num = int(question_id.split("-")[0].replace("phase", ""))
                 phase_completed[phase_num] = phase_completed.get(phase_num, 0) + 1
             except (ValueError, IndexError):
                 continue
@@ -439,6 +479,21 @@ async def get_public_profile(
             )
         )
 
+    # Compute badges from progress and streak data
+    earned_badges = compute_all_badges(
+        phase_completed_counts=phase_completed,
+        longest_streak=longest_streak,
+    )
+    badges = [
+        BadgeResponse(
+            id=badge.id,
+            name=badge.name,
+            description=badge.description,
+            icon=badge.icon,
+        )
+        for badge in earned_badges
+    ]
+
     return PublicProfileResponse(
         username=profile_user.github_username,
         first_name=profile_user.first_name,
@@ -450,4 +505,5 @@ async def get_public_profile(
         activity_heatmap=activity_heatmap,
         member_since=profile_user.created_at,
         submissions=submissions,
+        badges=badges,
     )

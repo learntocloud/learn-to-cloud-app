@@ -85,8 +85,8 @@ export default async function PhasePage({ params }: PhasePageProps) {
       <div className="min-h-screen py-8">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <nav className="mb-6">
-            <Link href="/phases" className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 text-sm">
-              ← Back to Phases
+            <Link href="/dashboard" className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 text-sm">
+              ← Back to Dashboard
             </Link>
           </nav>
 
@@ -115,8 +115,8 @@ export default async function PhasePage({ params }: PhasePageProps) {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Breadcrumb */}
         <nav className="mb-6">
-          <Link href="/phases" className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 text-sm">
-            ← Back to Phases
+          <Link href={isAuthenticated ? "/dashboard" : "/"} className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 text-sm">
+            ← {isAuthenticated ? "Back to Dashboard" : "Back to Home"}
           </Link>
         </nav>
 

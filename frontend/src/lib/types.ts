@@ -245,6 +245,15 @@ export interface PublicSubmission {
   validated_at: string | null;
 }
 
+// ============ Badge Types ============
+
+export interface Badge {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+}
+
 export interface PublicProfileResponse {
   username: string | null;
   first_name: string | null;
@@ -256,6 +265,7 @@ export interface PublicProfileResponse {
   activity_heatmap: ActivityHeatmapResponse;
   member_since: string;
   submissions: PublicSubmission[];
+  badges: Badge[];
 }
 
 // ============ Extended Topic Types with Questions ============

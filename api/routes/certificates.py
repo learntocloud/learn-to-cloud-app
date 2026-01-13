@@ -143,19 +143,16 @@ async def check_certificate_eligibility(
     """Check if user is eligible for a specific certificate type."""
     await get_or_create_user(db, user_id)
 
-    # Validate certificate type
-    if certificate_type not in ["full_completion"] and not certificate_type.startswith(
-        "phase_"
-    ):
-        raise HTTPException(status_code=400, detail="Invalid certificate type")
-
-    if certificate_type.startswith("phase_"):
-        try:
-            phase_num = int(certificate_type.split("_")[1])
-            if phase_num < 0 or phase_num > 5:
-                raise ValueError()
-        except (ValueError, IndexError):
-            raise HTTPException(status_code=400, detail="Invalid phase number")
+    # Only full_completion certificate is supported
+    # Phase badges are used for phase-level achievements instead
+    if certificate_type != "full_completion":
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Only 'full_completion' certificate type is supported. "
+                "Phase achievements are tracked via badges."
+            ),
+        )
 
     (
         is_eligible,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import type { ActivityHeatmapDay } from "@/lib/types";
 
 interface ActivityHeatmapProps {
@@ -31,6 +31,15 @@ const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 export function ActivityHeatmap({ days, startDate, endDate }: ActivityHeatmapProps) {
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  
+  // Scroll to the right (most recent activity) on mount
+  useEffect(() => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollLeft = scrollContainerRef.current.scrollWidth;
+    }
+  }, []);
+  
   // Build a map of date -> count for quick lookup
   const activityMap = useMemo(() => {
     const map = new Map<string, number>();
@@ -42,19 +51,28 @@ export function ActivityHeatmap({ days, startDate, endDate }: ActivityHeatmapPro
 
   // Generate grid of weeks (columns) and days (rows)
   const grid = useMemo(() => {
-    const start = new Date(startDate);
-    const end = new Date(endDate);
+    // Parse dates as UTC to avoid timezone issues
+    const [startYear, startMonth, startDay] = startDate.split('-').map(Number);
+    const [endYear, endMonth, endDay] = endDate.split('-').map(Number);
     
-    // Adjust start to the previous Sunday
+    const start = new Date(Date.UTC(startYear, startMonth - 1, startDay));
+    const end = new Date(Date.UTC(endYear, endMonth - 1, endDay));
+    
+    // Adjust start to the previous Sunday (in UTC)
     const adjustedStart = new Date(start);
-    adjustedStart.setDate(start.getDate() - start.getDay());
+    adjustedStart.setUTCDate(start.getUTCDate() - start.getUTCDay());
     
     const weeks: { date: Date; count: number }[][] = [];
     let currentWeek: { date: Date; count: number }[] = [];
     let currentDate = new Date(adjustedStart);
     
     while (currentDate <= end || currentWeek.length > 0) {
-      const dateStr = currentDate.toISOString().split("T")[0];
+      // Format date as YYYY-MM-DD in UTC
+      const year = currentDate.getUTCFullYear();
+      const month = String(currentDate.getUTCMonth() + 1).padStart(2, '0');
+      const day = String(currentDate.getUTCDate()).padStart(2, '0');
+      const dateStr = `${year}-${month}-${day}`;
+      
       const isInRange = currentDate >= start && currentDate <= end;
       
       currentWeek.push({
@@ -67,7 +85,7 @@ export function ActivityHeatmap({ days, startDate, endDate }: ActivityHeatmapPro
         currentWeek = [];
       }
       
-      currentDate.setDate(currentDate.getDate() + 1);
+      currentDate.setUTCDate(currentDate.getUTCDate() + 1);
       
       // Break if we've gone past end date and completed the week
       if (currentDate > end && currentWeek.length === 0) {
@@ -103,7 +121,7 @@ export function ActivityHeatmap({ days, startDate, endDate }: ActivityHeatmapPro
   }, [grid]);
 
   return (
-    <div className="overflow-x-auto">
+    <div ref={scrollContainerRef} className="overflow-x-auto">
       {/* Month labels */}
       <div className="flex text-xs text-gray-500 dark:text-gray-400 mb-1 pl-8">
         {monthLabels.map(({ month, weekIndex }) => (
@@ -134,6 +152,7 @@ export function ActivityHeatmap({ days, startDate, endDate }: ActivityHeatmapPro
               {week.map((day, dayIndex) => {
                 const level = day.count < 0 ? -1 : getActivityLevel(day.count);
                 const color = level < 0 ? "bg-transparent" : LEVEL_COLORS[level];
+                const hasActivity = level > 0;
                 const dateStr = day.date.toLocaleDateString("en-US", {
                   month: "short",
                   day: "numeric",
@@ -143,7 +162,7 @@ export function ActivityHeatmap({ days, startDate, endDate }: ActivityHeatmapPro
                 return (
                   <div
                     key={`${weekIndex}-${dayIndex}`}
-                    className={`w-3 h-3 rounded-sm ${color} ${level >= 0 ? "cursor-default" : ""}`}
+                    className={`w-3 h-3 rounded-sm ${color} ${level >= 0 ? "cursor-default" : ""} ${hasActivity ? "ring-1 ring-green-400 dark:ring-green-600" : ""}`}
                     title={level >= 0 ? `${day.count} activities on ${dateStr}` : undefined}
                   />
                 );

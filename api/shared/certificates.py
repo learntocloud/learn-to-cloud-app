@@ -325,20 +325,19 @@ def get_completion_requirements(certificate_type: str) -> dict:
     Returns dict with:
     - required_phases: list of phase IDs that must be completed
     - min_completion_percentage: minimum percentage (0-100) required
+
+    Note: Only full_completion is supported. Phase achievements are tracked via badges.
     """
     if certificate_type == "full_completion":
         return {
             "required_phases": [0, 1, 2, 3, 4, 5],
             "min_completion_percentage": 90,  # Allow some flexibility
         }
-    elif certificate_type.startswith("phase_"):
-        phase_num = int(certificate_type.split("_")[1])
-        return {
-            "required_phases": [phase_num],
-            "min_completion_percentage": 100,
-        }
     else:
-        raise ValueError(f"Unknown certificate type: {certificate_type}")
+        raise ValueError(
+            f"Unknown certificate type: {certificate_type}. "
+            "Only 'full_completion' is supported. Phase achievements are tracked via badges."
+        )
 
 
 def svg_to_pdf(svg_content: str) -> bytes:

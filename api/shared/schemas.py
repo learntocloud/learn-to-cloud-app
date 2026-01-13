@@ -292,6 +292,18 @@ class ActivityHeatmapResponse(BaseModel):
     total_activities: int
 
 
+# ============ Badge Schemas ============
+
+
+class BadgeResponse(BaseModel):
+    """A badge earned by a user."""
+
+    id: str
+    name: str
+    description: str
+    icon: str
+
+
 # ============ User Profile Schemas ============
 
 
@@ -319,6 +331,7 @@ class PublicProfileResponse(BaseModel):
     activity_heatmap: ActivityHeatmapResponse
     member_since: datetime
     submissions: list[PublicSubmission] = []  # Validated GitHub submissions
+    badges: list[BadgeResponse] = []  # Earned badges
 
 
 # ============ Certificate Schemas ============
@@ -342,7 +355,7 @@ class CertificateRequest(BaseModel):
 
     certificate_type: str = Field(
         default="full_completion",
-        pattern=r"^(full_completion|phase_[0-5])$",
+        pattern=r"^full_completion$",  # Only full completion certificate is supported
     )
     recipient_name: str = Field(min_length=2, max_length=100)
 

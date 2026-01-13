@@ -26,39 +26,76 @@ function getSubmissionIcon(type: SubmissionType) {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
       );
+    default:
+      return (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+      );
   }
 }
 
-function getSubmissionTypeLabel(type: SubmissionType) {
-  switch (type) {
-    case "profile_readme":
-      return "Profile README";
-    case "repo_fork":
-      return "Repository";
-    case "deployed_app":
-      return "Deployed App";
-  }
+// Phase colors and icons for visual differentiation
+const PHASE_STYLES: Record<number, { color: string; icon: string; borderColor: string }> = {
+  0: { 
+    color: "text-gray-600 dark:text-gray-400", 
+    borderColor: "border-gray-300 dark:border-gray-600",
+    icon: "🌱" 
+  },
+  1: { 
+    color: "text-blue-600 dark:text-blue-400", 
+    borderColor: "border-blue-300 dark:border-blue-600",
+    icon: "🐧" 
+  },
+  2: { 
+    color: "text-green-600 dark:text-green-400", 
+    borderColor: "border-green-300 dark:border-green-600",
+    icon: "🐍" 
+  },
+  3: { 
+    color: "text-purple-600 dark:text-purple-400", 
+    borderColor: "border-purple-300 dark:border-purple-600",
+    icon: "☁️" 
+  },
+  4: { 
+    color: "text-orange-600 dark:text-orange-400", 
+    borderColor: "border-orange-300 dark:border-orange-600",
+    icon: "🚀" 
+  },
+  5: { 
+    color: "text-pink-600 dark:text-pink-400", 
+    borderColor: "border-pink-300 dark:border-pink-600",
+    icon: "🔐" 
+  },
+};
+
+function getPhaseStyle(phaseId: number) {
+  return PHASE_STYLES[phaseId] || PHASE_STYLES[0];
 }
 
-function getPhaseColor(phaseId: number) {
-  const colors = [
-    "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300",
-    "bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300",
-    "bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300",
-    "bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300",
-    "bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-300",
-    "bg-pink-100 text-pink-700 dark:bg-pink-900/50 dark:text-pink-300",
-  ];
-  return colors[phaseId] || colors[0];
-}
+// Submissions that should be combined (CTF token links to fork)
+const CTF_RELATED_IDS = ["linux_ctf_token", "linux_ctfs_fork"];
 
 export function SubmissionsShowcase({ submissions }: SubmissionsShowcaseProps) {
   if (!submissions || submissions.length === 0) {
     return null;
   }
 
+  // Check if both CTF submissions exist
+  const hasCTFToken = submissions.some(s => s.requirement_id === "linux_ctf_token");
+  const hasCTFFork = submissions.some(s => s.requirement_id === "linux_ctfs_fork");
+  const ctfFork = submissions.find(s => s.requirement_id === "linux_ctfs_fork");
+  
+  // Filter out CTF token if fork exists (they'll be combined)
+  const filteredSubmissions = submissions.filter(s => {
+    if (s.requirement_id === "linux_ctf_token" && hasCTFFork) {
+      return false; // Skip token, we'll show it combined with fork
+    }
+    return true;
+  });
+
   // Group submissions by phase
-  const groupedByPhase = submissions.reduce((acc, submission) => {
+  const groupedByPhase = filteredSubmissions.reduce((acc, submission) => {
     const phase = submission.phase_id;
     if (!acc[phase]) {
       acc[phase] = [];
@@ -68,72 +105,69 @@ export function SubmissionsShowcase({ submissions }: SubmissionsShowcaseProps) {
   }, {} as Record<number, PublicSubmission[]>);
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+    <div>
       <div className="flex items-center gap-2 mb-4">
-        <svg className="w-5 h-5 text-gray-700 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-        </svg>
-        <h2 className="text-lg font-bold text-gray-900 dark:text-white">
-          Projects & Submissions
+        <h2 className="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+          Projects
         </h2>
-        <span className="ml-auto text-sm text-gray-500 dark:text-gray-400">
-          {submissions.length} completed
+        <span className="text-sm text-gray-400 dark:text-gray-500">
+          {filteredSubmissions.length}
         </span>
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-2">
         {Object.entries(groupedByPhase)
           .sort(([a], [b]) => Number(a) - Number(b))
-          .map(([phaseId, phaseSubmissions]) => (
-            <div key={phaseId}>
-              <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">
-                Phase {phaseId}
-              </div>
-              <div className="space-y-2">
-                {phaseSubmissions.map((submission) => (
-                  <a
-                    key={submission.requirement_id}
-                    href={submission.submitted_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors group"
-                  >
-                    <div className={`p-2 rounded-lg ${getPhaseColor(Number(phaseId))}`}>
-                      {getSubmissionIcon(submission.submission_type)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="font-medium text-gray-900 dark:text-white truncate group-hover:text-blue-600 dark:group-hover:text-blue-400">
-                        {submission.name}
+          .map(([phaseId, phaseSubmissions]) => {
+            const phaseStyle = getPhaseStyle(Number(phaseId));
+            
+            return (
+              <div key={phaseId} className="space-y-1">
+                {phaseSubmissions.map((submission) => {
+                  // Check if this is the CTF fork that should show verified badge
+                  const showVerified = submission.requirement_id === "linux_ctfs_fork" && hasCTFToken;
+                  
+                  return (
+                    <a
+                      key={submission.requirement_id}
+                      href={submission.submitted_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`flex items-center gap-3 py-2.5 px-3 -mx-3 rounded-lg border-l-2 ${phaseStyle.borderColor} hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors group`}
+                    >
+                      <div className={phaseStyle.color}>
+                        {getSubmissionIcon(submission.submission_type)}
                       </div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-2">
-                        <span>{getSubmissionTypeLabel(submission.submission_type)}</span>
-                        {submission.validated_at && (
-                          <>
-                            <span>•</span>
-                            <span>
-                              Verified {new Date(submission.validated_at).toLocaleDateString("en-US", {
-                                month: "short",
-                                day: "numeric",
-                                year: "numeric",
-                              })}
-                            </span>
-                          </>
+                      <div className="flex-1 min-w-0 flex items-center gap-2">
+                        <span className="text-gray-900 dark:text-white group-hover:text-gray-600 dark:group-hover:text-gray-300 truncate">
+                          {submission.name}
+                        </span>
+                        {showVerified && (
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 text-xs rounded-full">
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                            CTF
+                          </span>
                         )}
                       </div>
-                    </div>
-                    <svg
-                      className="w-4 h-4 text-gray-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 shrink-0"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                    </svg>
-                  </a>
-                ))}
+                      <span className={`text-xs font-medium ${phaseStyle.color}`}>
+                        {phaseStyle.icon} Phase {phaseId}
+                      </span>
+                      <svg
+                        className="w-4 h-4 text-gray-300 dark:text-gray-600 group-hover:text-gray-400 shrink-0"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                      </svg>
+                    </a>
+                  );
+                })}
               </div>
-            </div>
-          ))}
+            );
+          })}
       </div>
     </div>
   );

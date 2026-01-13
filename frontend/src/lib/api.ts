@@ -148,6 +148,29 @@ export async function getTodayReflection(): Promise<{ reflection_text: string } 
   return data;
 }
 
+export interface ReflectionEntry {
+  id: number;
+  reflection_date: string;
+  reflection_text: string;
+  ai_greeting: string | null;
+  created_at: string;
+}
+
+export async function getReflectionHistory(limit: number = 30): Promise<ReflectionEntry[]> {
+  const headers = await getAuthHeaders();
+  
+  const res = await fetch(`${API_URL}/api/reflections/history?limit=${limit}`, {
+    headers,
+    cache: "no-store",
+  });
+  
+  if (!res.ok) {
+    return [];
+  }
+  
+  return res.json();
+}
+
 export async function getActivityHeatmap(days: number = 365): Promise<ActivityHeatmapResponse> {
   const headers = await getAuthHeaders();
   

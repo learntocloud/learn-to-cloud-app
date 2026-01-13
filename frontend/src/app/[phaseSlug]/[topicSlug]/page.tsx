@@ -65,8 +65,8 @@ export default async function TopicPage({ params }: TopicPageProps) {
       <div className="min-h-screen py-8">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <nav className="mb-6 flex items-center gap-2 text-sm">
-            <Link href="/phases" className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">
-              Phases
+            <Link href="/dashboard" className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">
+              Dashboard
             </Link>
             <span className="text-gray-400">→</span>
             <Link href={`/${phaseSlug}`} className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">
@@ -98,8 +98,8 @@ export default async function TopicPage({ params }: TopicPageProps) {
       <div className="min-h-screen py-8">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <nav className="mb-6 flex items-center gap-2 text-sm">
-            <Link href="/phases" className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">
-              Phases
+            <Link href="/dashboard" className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">
+              Dashboard
             </Link>
             <span className="text-gray-400">→</span>
             <Link href={`/${phaseSlug}`} className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">
@@ -135,8 +135,8 @@ export default async function TopicPage({ params }: TopicPageProps) {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Breadcrumb */}
         <nav className="mb-6 flex items-center gap-2 text-sm">
-          <Link href="/phases" className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">
-            Phases
+          <Link href={isAuthenticated ? "/dashboard" : "/"} className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">
+            {isAuthenticated ? "Dashboard" : "Home"}
           </Link>
           <span className="text-gray-400">→</span>
           <Link href={`/${phaseSlug}`} className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">
