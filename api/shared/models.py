@@ -139,6 +139,7 @@ class SubmissionType(str, PyEnum):
     PROFILE_README = "profile_readme"  # GitHub profile README
     REPO_FORK = "repo_fork"  # Fork of a required repository
     DEPLOYED_APP = "deployed_app"  # Deployed application URL
+    CTF_TOKEN = "ctf_token"  # CTF completion token verification
 
 
 class GitHubSubmission(Base):

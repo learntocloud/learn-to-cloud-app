@@ -16,6 +16,7 @@ from urllib.parse import urljoin, urlsplit
 import httpx
 
 from .config import get_settings
+from .ctf import CTFVerificationResult, verify_ctf_token
 from .models import SubmissionType
 from .schemas import GitHubRequirement
 from .telemetry import track_dependency
@@ -133,6 +134,14 @@ GITHUB_REQUIREMENTS: dict[int, list[GitHubRequirement]] = {
             description="Fork the Linux CTFs repository to complete the hands-on challenges.",
             example_url="https://github.com/madebygps/linux-ctfs",
             required_repo="learntocloud/linux-ctfs",
+        ),
+        GitHubRequirement(
+            id="phase1-linux-ctf-token",
+            phase_id=1,
+            submission_type=SubmissionType.CTF_TOKEN,
+            name="Linux CTF Completion Token",
+            description="Complete all 18 Linux CTF challenges and submit your verification token. The token is generated after completing all challenges in the CTF environment.",
+            example_url=None,
         ),
     ],
     2: [
@@ -586,7 +595,7 @@ async def validate_submission(
 
     Args:
         requirement: The requirement being validated
-        submitted_url: The URL submitted by the user
+        submitted_url: The URL submitted by the user (or CTF token for CTF_TOKEN type)
         expected_username: The expected GitHub username (required for GitHub-based validations)
     """
     if requirement.submission_type == SubmissionType.PROFILE_README:
@@ -618,6 +627,15 @@ async def validate_submission(
         )
     elif requirement.submission_type == SubmissionType.DEPLOYED_APP:
         return await validate_deployed_app(submitted_url, requirement.expected_endpoint)
+    elif requirement.submission_type == SubmissionType.CTF_TOKEN:
+        if not expected_username:
+            return ValidationResult(
+                is_valid=False,
+                message="GitHub username is required for CTF token validation",
+                username_match=False,
+                repo_exists=False,
+            )
+        return validate_ctf_token_submission(submitted_url, expected_username)
     else:
         return ValidationResult(
             is_valid=False,
@@ -625,3 +643,26 @@ async def validate_submission(
             username_match=False,
             repo_exists=False,
         )
+
+
+def validate_ctf_token_submission(
+    token: str, expected_username: str
+) -> ValidationResult:
+    """
+    Validate a CTF token submission.
+
+    Args:
+        token: The base64-encoded CTF completion token
+        expected_username: The expected GitHub username from OAuth
+
+    Returns:
+        ValidationResult with verification status
+    """
+    ctf_result = verify_ctf_token(token, expected_username)
+
+    return ValidationResult(
+        is_valid=ctf_result.is_valid,
+        message=ctf_result.message,
+        username_match=ctf_result.is_valid,  # Username match is part of CTF validation
+        repo_exists=ctf_result.is_valid,  # Using repo_exists to indicate token is valid
+    )

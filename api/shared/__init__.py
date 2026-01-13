@@ -1,31 +1,54 @@
 """Shared modules for Learn to Cloud API."""
 
-from .config import get_settings, Settings
+from .auth import UserId, get_user_id_from_request, require_auth
+from .config import Settings, get_settings
+from .ctf import CTFVerificationResult, verify_ctf_token
 from .database import (
-    init_db, Base, get_db, DbSession,
-    get_engine, get_session_maker, reset_db_state,
-    cleanup_old_webhooks, upsert_on_conflict,
-)
-from .models import User, ChecklistProgress, ProcessedWebhook, GitHubSubmission, SubmissionType
-from .auth import get_user_id_from_request, require_auth, UserId
-from .schemas import (
-    UserResponse, ProgressItem, UserProgressResponse,
-    GitHubRequirement, GitHubSubmissionRequest, GitHubSubmissionResponse,
-    GitHubValidationResult, PhaseGitHubRequirementsResponse,
-    AllPhasesGitHubRequirementsResponse,
-    HealthResponse, ChecklistToggleResponse, WebhookResponse,
+    Base,
+    DbSession,
+    cleanup_old_webhooks,
+    get_db,
+    get_engine,
+    get_session_maker,
+    init_db,
+    reset_db_state,
+    upsert_on_conflict,
 )
 from .github import (
-    get_requirements_for_phase, get_requirement_by_id,
-    parse_github_url, validate_submission, ValidationResult,
-    GITHUB_REQUIREMENTS
+    GITHUB_REQUIREMENTS,
+    ValidationResult,
+    get_requirement_by_id,
+    get_requirements_for_phase,
+    parse_github_url,
+    validate_submission,
+)
+from .models import (
+    ChecklistProgress,
+    GitHubSubmission,
+    ProcessedWebhook,
+    SubmissionType,
+    User,
+)
+from .schemas import (
+    AllPhasesGitHubRequirementsResponse,
+    ChecklistToggleResponse,
+    GitHubRequirement,
+    GitHubSubmissionRequest,
+    GitHubSubmissionResponse,
+    GitHubValidationResult,
+    HealthResponse,
+    PhaseGitHubRequirementsResponse,
+    ProgressItem,
+    UserProgressResponse,
+    UserResponse,
+    WebhookResponse,
 )
 from .telemetry import (
-    track_dependency,
-    track_operation,
+    RequestTimingMiddleware,
     add_custom_attribute,
     log_metric,
-    RequestTimingMiddleware,
+    track_dependency,
+    track_operation,
 )
 
 __all__ = [
@@ -72,6 +95,9 @@ __all__ = [
     "validate_submission",
     "ValidationResult",
     "GITHUB_REQUIREMENTS",
+    # CTF verification
+    "verify_ctf_token",
+    "CTFVerificationResult",
     # Telemetry
     "track_dependency",
     "track_operation",

@@ -34,6 +34,9 @@ class Settings(BaseSettings):
     google_api_key: str = ""
     gemini_model: str = "gemini-2.0-flash"
 
+    # CTF verification
+    ctf_master_secret: str = "L2C_CTF_MASTER_2024"
+
     # HTTP client settings
     http_timeout: float = 10.0  # Timeout for external API calls (Clerk, GitHub)
 

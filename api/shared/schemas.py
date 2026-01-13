@@ -65,18 +65,24 @@ class GitHubRequirement(BaseModel):
 
 
 class GitHubSubmissionRequest(BaseModel):
-    """Request to submit a URL for validation."""
+    """Request to submit a URL or CTF token for validation."""
 
     requirement_id: str = Field(max_length=100)
-    submitted_url: str = Field(max_length=2048)  # Standard URL max length
+    submitted_url: str = Field(max_length=4096)  # Increased for base64 CTF tokens
 
     @field_validator("submitted_url")
     @classmethod
-    def validate_url(cls, v: str) -> str:
-        """Ensure the URL is valid (GitHub or HTTPS)."""
+    def validate_submission_value(cls, v: str) -> str:
+        """Validate the submitted value (URL or CTF token).
+
+        For URLs: must use HTTPS
+        For CTF tokens: base64 encoded string (no protocol check)
+        """
         v = v.strip()
-        if not v.startswith("https://"):
-            raise ValueError("URL must use HTTPS")
+        # Allow base64 CTF tokens (they don't start with a protocol)
+        # CTF tokens are base64 encoded JSON, so they contain alphanumeric, +, /, =
+        if not v:
+            raise ValueError("Submission value cannot be empty")
         return v
 
 

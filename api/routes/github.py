@@ -131,7 +131,7 @@ async def submit_github_validation(
     user_id: UserId,
     db: DbSession,
 ) -> GitHubValidationResult:
-    """Submit a GitHub URL for validation."""
+    """Submit a GitHub URL or CTF token for validation."""
     # Get the requirement
     requirement = get_requirement_by_id(submission.requirement_id)
     if not requirement:
@@ -140,10 +140,11 @@ async def submit_github_validation(
     # Get user with github_username
     user = await get_or_create_user(db, user_id)
 
-    # For GitHub-based submissions, require GitHub username
+    # For GitHub-based and CTF submissions, require GitHub username
     if requirement.submission_type in (
         SubmissionType.PROFILE_README,
         SubmissionType.REPO_FORK,
+        SubmissionType.CTF_TOKEN,
     ):
         if not user.github_username:
             raise HTTPException(
@@ -163,9 +164,14 @@ async def submit_github_validation(
 
     now = datetime.now(UTC)
 
-    # Extract username from URL for storage (only for GitHub URLs)
-    parsed = parse_github_url(submission.submitted_url)
-    github_username = parsed.username if parsed.is_valid else None
+    # Extract username from URL for storage (only for GitHub URLs, not CTF tokens)
+    github_username = None
+    if requirement.submission_type != SubmissionType.CTF_TOKEN:
+        parsed = parse_github_url(submission.submitted_url)
+        github_username = parsed.username if parsed.is_valid else None
+    else:
+        # For CTF tokens, use the authenticated user's GitHub username
+        github_username = user.github_username
 
     # Concurrency-safe upsert for uq_user_requirement (user_id, requirement_id)
     values = {
