@@ -37,14 +37,14 @@ const faqs: FAQItem[] = [
       "Daily reflections are optional journal entries where you can write about what you learned, challenges you faced, or goals for tomorrow. They help reinforce learning and contribute to your activity streak.",
   },
   {
-    question: "How do I make my profile public?",
+    question: "Can I make my profile private?",
     answer:
-      "Go to your profile settings and toggle the 'Public Profile' option. You'll also need to set a GitHub username to have a public profile URL. Once public, others can see your progress, activity heatmap, and stats.",
+      "No. Learn to Cloud is built around the principle of public and accountable learning. Keeping profiles public creates positive accountability, motivates consistent progress, and builds a supportive community where learners can inspire each other. This transparency aligns with the open culture of the tech industry.",
   },
   {
     question: "What's shown on my public profile?",
     answer:
-      "Your public profile displays: total activities count, activity heatmap (last 365 days), current and longest streaks, phase progress, and GitHub submissions. Only users with a GitHub username and public profile enabled are visible.",
+      "Your public profile displays: total activities count, activity heatmap (last 365 days), current and longest streaks, phase progress, and GitHub submissions. To have a public profile URL, you need to set a GitHub username in your profile settings.",
   },
   {
     question: "How do GitHub submissions work?",
