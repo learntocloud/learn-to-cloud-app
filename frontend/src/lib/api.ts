@@ -4,11 +4,9 @@ import type {
   PhaseWithProgress,
   PhaseDetailWithProgress,
   TopicWithProgress,
-  TopicChecklistItemWithProgress,
   DashboardResponse,
   PhaseGitHubRequirements,
   TopicQuestionsStatus,
-  LatestGreetingResponse,
   StreakResponse,
   ActivityHeatmapResponse,
   PublicProfileResponse,
@@ -38,17 +36,6 @@ async function getAuthHeaders(): Promise<HeadersInit> {
 
 // ============ Progress API Types ============
 
-interface ProgressItem {
-  checklist_item_id: string;
-  is_completed: boolean;
-  completed_at: string | null;
-}
-
-interface UserProgressResponse {
-  user_id: string;
-  items: ProgressItem[];
-}
-
 interface UserInfo {
   id: string;
   email: string;
@@ -59,23 +46,7 @@ interface UserInfo {
   created_at: string;
 }
 
-// ============ Progress API Calls ============
-
-export async function getUserProgress(): Promise<UserProgressResponse> {
-  const headers = await getAuthHeaders();
-  
-  const res = await fetch(`${API_URL}/api/user/progress`, {
-    headers,
-    cache: "no-store",
-  });
-  
-  if (!res.ok) {
-    const errorText = await res.text().catch(() => "Unknown error");
-    throw new Error(`Failed to fetch progress: ${res.status} ${res.statusText} - ${errorText}`);
-  }
-  
-  return res.json();
-}
+// ============ User Info API Call ============
 
 export async function getUserInfo(): Promise<UserInfo> {
   const headers = await getAuthHeaders();
@@ -93,22 +64,7 @@ export async function getUserInfo(): Promise<UserInfo> {
   return res.json();
 }
 
-// ============ Reflections & Activity API Calls ============
-
-export async function getLatestGreeting(): Promise<LatestGreetingResponse> {
-  const headers = await getAuthHeaders();
-  
-  const res = await fetch(`${API_URL}/api/reflections/latest`, {
-    headers,
-    cache: "no-store",
-  });
-  
-  if (!res.ok) {
-    return { has_greeting: false, greeting: null, reflection_date: null, user_first_name: null };
-  }
-  
-  return res.json();
-}
+// ============ Streak & Activity API Calls ============
 
 export async function getStreak(): Promise<StreakResponse> {
   const headers = await getAuthHeaders();
@@ -126,46 +82,6 @@ export async function getStreak(): Promise<StreakResponse> {
       last_activity_date: null,
       streak_alive: false 
     };
-  }
-  
-  return res.json();
-}
-
-export async function getTodayReflection(): Promise<{ reflection_text: string } | null> {
-  const headers = await getAuthHeaders();
-  
-  const res = await fetch(`${API_URL}/api/reflections/today`, {
-    headers,
-    cache: "no-store",
-  });
-  
-  if (!res.ok) {
-    return null;
-  }
-  
-  const data = await res.json();
-  // API can return null when no reflection exists
-  return data;
-}
-
-export interface ReflectionEntry {
-  id: number;
-  reflection_date: string;
-  reflection_text: string;
-  ai_greeting: string | null;
-  created_at: string;
-}
-
-export async function getReflectionHistory(limit: number = 30): Promise<ReflectionEntry[]> {
-  const headers = await getAuthHeaders();
-  
-  const res = await fetch(`${API_URL}/api/reflections/history?limit=${limit}`, {
-    headers,
-    cache: "no-store",
-  });
-  
-  if (!res.ok) {
-    return [];
   }
   
   return res.json();
@@ -262,17 +178,10 @@ export async function getAllGitHubRequirements(): Promise<Map<number, PhaseGitHu
 
 function calculatePhaseProgress(
   phaseId: number,
-  topics: { checklist: { id: string }[]; questions?: { id: string }[]; id: string }[],
-  progressItems: ProgressItem[],
+  topics: { questions?: { id: string }[]; id: string }[],
   questionsStatusMap: Record<string, TopicQuestionsStatus>
 ): PhaseProgress {
-  // Count checklist items
-  const allChecklistIds = topics.flatMap(t => t.checklist.map(c => c.id));
-  const completedChecklistCount = allChecklistIds.filter(id => 
-    progressItems.some(p => p.checklist_item_id === id && p.is_completed)
-  ).length;
-  
-  // Count questions - each topic with questions must have all passed
+  // Count questions only - progress is based on passed questions
   let totalQuestions = 0;
   let passedQuestions = 0;
   for (const topic of topics) {
@@ -284,21 +193,19 @@ function calculatePhaseProgress(
     }
   }
   
-  const total = allChecklistIds.length + totalQuestions;
-  const completedCount = completedChecklistCount + passedQuestions;
-  const percentage = total > 0 ? (completedCount / total) * 100 : 0;
+  const percentage = totalQuestions > 0 ? (passedQuestions / totalQuestions) * 100 : 0;
   
   let status: 'not_started' | 'in_progress' | 'completed' = 'not_started';
-  if (completedCount === total && total > 0) {
+  if (passedQuestions === totalQuestions && totalQuestions > 0) {
     status = 'completed';
-  } else if (completedCount > 0) {
+  } else if (passedQuestions > 0) {
     status = 'in_progress';
   }
   
   return {
     phase_id: phaseId,
-    checklist_completed: completedCount,
-    checklist_total: total,
+    questions_passed: passedQuestions,
+    questions_total: totalQuestions,
     percentage: Math.round(percentage * 10) / 10,
     status,
   };
@@ -309,19 +216,17 @@ function calculatePhaseProgress(
 export async function getPhasesWithProgress(): Promise<PhaseWithProgress[]> {
   const phases = getAllPhases();
   
-  // Fetch user progress, GitHub requirements, AND questions status in parallel
-  const [{ items: progressItems }, githubRequirementsMap, questionsStatusMap] = await Promise.all([
-    getUserProgress(),
+  // Fetch GitHub requirements AND questions status in parallel
+  const [githubRequirementsMap, questionsStatusMap] = await Promise.all([
     getAllGitHubRequirements(),
     getAllQuestionsStatus(),
   ]);
   
-  // First pass: calculate progress for all phases (including questions)
+  // First pass: calculate progress for all phases (questions only)
   const phasesWithProgress = phases.map(phase => {
     const progress = calculatePhaseProgress(
       phase.id,
       phase.topics,
-      progressItems,
       questionsStatusMap
     );
     
@@ -352,7 +257,6 @@ export async function getPhasesWithProgress(): Promise<PhaseWithProgress[]> {
 // Helper to check if a phase is locked based on previous phases' progress and GitHub requirements
 async function checkPhaseLocked(
   phaseId: number,
-  progressItems: ProgressItem[],
   githubRequirementsMap?: Map<number, PhaseGitHubRequirements>,
   questionsStatusMap?: Record<string, TopicQuestionsStatus>
 ): Promise<boolean> {
@@ -369,7 +273,6 @@ async function checkPhaseLocked(
     const prevProgress = calculatePhaseProgress(
       prevPhase.id,
       prevPhase.topics,
-      progressItems,
       questionsStatus
     );
     
@@ -390,43 +293,30 @@ export async function getPhaseWithProgressBySlug(slug: string): Promise<(PhaseDe
   const phase = getPhaseBySlugFromContent(slug);
   if (!phase) return null;
   
-  // Fetch progress, GitHub requirements, and questions status in parallel
-  const [{ items: progressItems }, githubRequirementsMap, questionsStatusMap] = await Promise.all([
-    getUserProgress(),
+  // Fetch GitHub requirements and questions status in parallel
+  const [githubRequirementsMap, questionsStatusMap] = await Promise.all([
     getAllGitHubRequirements(),
     getAllQuestionsStatus(),
   ]);
   
-  const isLocked = await checkPhaseLocked(phase.id, progressItems, githubRequirementsMap, questionsStatusMap);
+  const isLocked = await checkPhaseLocked(phase.id, githubRequirementsMap, questionsStatusMap);
   
-  // Add progress to topics (including questions)
+  // Add progress to topics (questions only)
   const topics: TopicWithProgress[] = phase.topics.map(topic => {
-    const topicChecklist: TopicChecklistItemWithProgress[] = topic.checklist.map(item => {
-      const progressItem = progressItems.find(p => p.checklist_item_id === item.id);
-      return {
-        ...item,
-        is_completed: progressItem?.is_completed ?? false,
-        completed_at: progressItem?.completed_at ?? null,
-      };
-    });
-    
-    const checklistCompleted = topicChecklist.filter(c => c.is_completed).length;
     const questionsStatus = questionsStatusMap[topic.id];
     const questionCount = topic.questions?.length ?? 0;
     const questionsCompleted = questionsStatus?.passed_questions ?? 0;
     
     return {
       ...topic,
-      checklist: topicChecklist,
-      items_completed: checklistCompleted + questionsCompleted,
-      items_total: topicChecklist.length + questionCount,
+      questions_passed: questionsCompleted,
+      questions_total: questionCount,
     };
   });
   
   const progress = calculatePhaseProgress(
     phase.id,
     phase.topics,
-    progressItems,
     questionsStatusMap
   );
   
@@ -445,16 +335,15 @@ export async function getTopicWithProgressBySlug(phaseSlug: string, topicSlug: s
   const topic = getTopicBySlugFromContent(phaseSlug, topicSlug);
   if (!topic) return null;
   
-  // Fetch progress, GitHub requirements, and questions status in parallel
-  const [{ items: progressItems }, githubRequirementsMap, questionsStatusMap] = await Promise.all([
-    getUserProgress(),
+  // Fetch GitHub requirements and questions status in parallel
+  const [githubRequirementsMap, questionsStatusMap] = await Promise.all([
     getAllGitHubRequirements(),
     getAllQuestionsStatus(),
   ]);
   
-  const isLocked = await checkPhaseLocked(phase.id, progressItems, githubRequirementsMap, questionsStatusMap);
+  const isLocked = await checkPhaseLocked(phase.id, githubRequirementsMap, questionsStatusMap);
   
-  // Calculate topic-level locking: previous topic must be completed (checklist AND questions)
+  // Calculate topic-level locking: previous topic must have all questions passed
   const topicIndex = phase.topics.findIndex(t => t.slug === topicSlug);
   let isTopicLocked = false;
   let previousTopicName: string | undefined;
@@ -463,41 +352,22 @@ export async function getTopicWithProgressBySlug(phaseSlug: string, topicSlug: s
     const previousTopic = phase.topics[topicIndex - 1];
     previousTopicName = previousTopic.name;
     
-    // Calculate progress for previous topic (checklist)
-    const prevTopicChecklistCompleted = previousTopic.checklist.filter(item => {
-      const progressItem = progressItems.find(p => p.checklist_item_id === item.id);
-      return progressItem?.is_completed ?? false;
-    }).length;
-    
-    const isChecklistComplete = prevTopicChecklistCompleted === previousTopic.checklist.length && previousTopic.checklist.length > 0;
-    
     // Check if previous topic's questions are all passed
     const prevQuestionsStatus = questionsStatusMap[previousTopic.id];
     const prevQuestionCount = previousTopic.questions?.length ?? 0;
     const areQuestionsComplete = prevQuestionCount === 0 || (prevQuestionsStatus?.all_passed ?? false);
     
-    isTopicLocked = !isChecklistComplete || !areQuestionsComplete;
+    isTopicLocked = !areQuestionsComplete;
   }
   
-  const checklist: TopicChecklistItemWithProgress[] = topic.checklist.map(item => {
-    const progressItem = progressItems.find(p => p.checklist_item_id === item.id);
-    return {
-      ...item,
-      is_completed: progressItem?.is_completed ?? false,
-      completed_at: progressItem?.completed_at ?? null,
-    };
-  });
-  
-  const checklistCompleted = checklist.filter(c => c.is_completed).length;
   const questionsStatus = questionsStatusMap[topic.id];
   const questionCount = topic.questions?.length ?? 0;
   const questionsCompleted = questionsStatus?.passed_questions ?? 0;
   
   return {
     ...topic,
-    checklist,
-    items_completed: checklistCompleted + questionsCompleted,
-    items_total: checklist.length + questionCount,
+    questions_passed: questionsCompleted,
+    questions_total: questionCount,
     isLocked,
     isTopicLocked,
     previousTopicName,
@@ -511,11 +381,11 @@ export async function getDashboard(): Promise<DashboardResponse> {
   ]);
   
   const totalItems = phasesWithProgress.reduce(
-    (sum, p) => sum + (p.progress?.checklist_total ?? 0), 
+    (sum, p) => sum + (p.progress?.questions_total ?? 0), 
     0
   );
   const totalCompleted = phasesWithProgress.reduce(
-    (sum, p) => sum + (p.progress?.checklist_completed ?? 0), 
+    (sum, p) => sum + (p.progress?.questions_passed ?? 0), 
     0
   );
   const overallProgress = totalItems > 0 ? (totalCompleted / totalItems) * 100 : 0;

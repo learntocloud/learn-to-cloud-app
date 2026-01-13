@@ -36,12 +36,34 @@
     {
       "id": "phase0-topic1-q1",
       "prompt": "What is Linux and why is it the dominant operating system for cloud servers?",
-      "expected_concepts": ["open source", "free", "kernel", "stable", "secure", "customizable", "server", "command line", "no licensing fees", "community"]
+      "expected_concepts": [
+        "open source",
+        "free",
+        "kernel",
+        "stable",
+        "secure",
+        "customizable",
+        "server",
+        "command line",
+        "no licensing fees",
+        "community"
+      ]
     },
     {
       "id": "phase0-topic1-q2",
       "prompt": "What is a Linux distribution and can you name a few commonly used in cloud environments?",
-      "expected_concepts": ["distribution", "distro", "Ubuntu", "CentOS", "Debian", "Red Hat", "Amazon Linux", "kernel", "package manager", "different purposes"]
+      "expected_concepts": [
+        "distribution",
+        "distro",
+        "Ubuntu",
+        "CentOS",
+        "Debian",
+        "Red Hat",
+        "Amazon Linux",
+        "kernel",
+        "package manager",
+        "different purposes"
+      ]
     }
   ],
   "test_knowledge_prompts": [
@@ -49,8 +71,16 @@
     "Can you quiz me on the differences between Linux and Windows?",
     "Can you ask me why most cloud servers run Linux?"
   ],
-  "checklist": [
-    { "id": "phase0-topic1-check1", "text": "Completed the Linux learning materials", "order": 1 },
-    { "id": "phase0-topic1-check2", "text": "Answered the knowledge check questions", "order": 2 }
+  "learning_objectives": [
+    {
+      "id": "phase0-topic1-check1",
+      "text": "Completed the Linux learning materials",
+      "order": 1
+    },
+    {
+      "id": "phase0-topic1-check2",
+      "text": "Answered the knowledge check questions",
+      "order": 2
+    }
   ]
 }

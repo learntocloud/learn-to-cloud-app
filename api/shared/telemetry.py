@@ -322,7 +322,7 @@ def log_metric(
     Log a custom metric for aggregation in Application Insights.
     
     Usage:
-        log_metric("checklist.items_completed", 5, {"phase": "phase1"})
+        log_metric("questions.passed", 5, {"phase": "phase1"})
     
     Args:
         name: Metric name

@@ -162,12 +162,12 @@ export default async function TopicPage({ params }: TopicPageProps) {
               </div>
               <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{topic.name}</h1>
             </div>
-            {isAuthenticated && 'items_completed' in topic && (
+            {isAuthenticated && 'questions_passed' in topic && (
               <div className="text-right">
                 <div className="text-lg font-semibold text-gray-900 dark:text-white">
-                  {topic.items_completed}/{topic.items_total}
+                  {topic.questions_passed}/{topic.questions_total}
                 </div>
-                <div className="text-sm text-gray-500 dark:text-gray-400">completed</div>
+                <div className="text-sm text-gray-500 dark:text-gray-400">questions</div>
               </div>
             )}
           </div>
@@ -180,13 +180,13 @@ export default async function TopicPage({ params }: TopicPageProps) {
             </p>
           )}
 
-          {isAuthenticated && 'items_completed' in topic && (
+          {isAuthenticated && 'questions_passed' in topic && (
             <div className="mt-4">
               <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                 <div
                   className="h-full bg-green-500 transition-all duration-300"
                   style={{ 
-                    width: `${topic.items_total > 0 ? (topic.items_completed / topic.items_total) * 100 : 0}%` 
+                    width: `${topic.questions_total > 0 ? (topic.questions_passed / topic.questions_total) * 100 : 0}%` 
                   }}
                 />
               </div>
@@ -194,7 +194,7 @@ export default async function TopicPage({ params }: TopicPageProps) {
           )}
         </div>
 
-        {/* Topic Content (Learning Steps & Checklist) */}
+        {/* Topic Content (Learning Steps & Questions) */}
         <TopicContent 
           topic={topic} 
           isAuthenticated={isAuthenticated} 
@@ -207,7 +207,7 @@ export default async function TopicPage({ params }: TopicPageProps) {
               <Link href="/sign-in" className="font-medium hover:underline">
                 Sign in
               </Link>{" "}
-              to track your progress and check off items
+              to track your progress and answer knowledge questions
             </p>
           </div>
         )}
@@ -226,7 +226,7 @@ export default async function TopicPage({ params }: TopicPageProps) {
           )}
           {nextTopic ? (
             // Check if next topic should be locked (current topic not completed)
-            isAuthenticated && 'items_completed' in topic && (topic.items_completed < topic.items_total || topic.items_total === 0) ? (
+            isAuthenticated && 'questions_passed' in topic && (topic.questions_passed < topic.questions_total || topic.questions_total === 0) ? (
               <span className="text-gray-400 dark:text-gray-500 font-medium cursor-not-allowed flex items-center gap-1">
                 🔒 {nextTopic.name}
               </span>

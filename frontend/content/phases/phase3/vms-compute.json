@@ -28,7 +28,7 @@
       "text": "Instance Types & OS Selection",
       "action": "Study Instance Types & OS Selection:",
       "url": null,
-      "description": "Learn to choose the right VM specs (CPU, RAM, storage) based on workload requirements. Different instance types are optimized for:\n\n• General purpose - balanced compute, memory, networking\n• Compute optimized - CPU-intensive workloads\n• Memory optimized - large datasets in memory\n• Storage optimized - high sequential read/write"
+      "description": "Learn to choose the right VM specs (CPU, RAM, storage) based on workload requirements. Different instance types are optimized for:\n\n\u2022 General purpose - balanced compute, memory, networking\n\u2022 Compute optimized - CPU-intensive workloads\n\u2022 Memory optimized - large datasets in memory\n\u2022 Storage optimized - high sequential read/write"
     },
     {
       "order": 4,
@@ -73,12 +73,33 @@
     {
       "id": "phase3-topic1-q1",
       "prompt": "What is virtualization and how does it enable cloud computing?",
-      "expected_concepts": ["hypervisor", "virtual machine", "physical server", "isolation", "multiple VMs", "hardware abstraction", "resource sharing", "efficiency", "scalability"]
+      "expected_concepts": [
+        "hypervisor",
+        "virtual machine",
+        "physical server",
+        "isolation",
+        "multiple VMs",
+        "hardware abstraction",
+        "resource sharing",
+        "efficiency",
+        "scalability"
+      ]
     },
     {
       "id": "phase3-topic1-q2",
       "prompt": "What factors should you consider when choosing a VM instance type for your workload?",
-      "expected_concepts": ["CPU", "memory", "storage", "network", "cost", "workload", "general purpose", "compute optimized", "memory optimized", "sizing"]
+      "expected_concepts": [
+        "CPU",
+        "memory",
+        "storage",
+        "network",
+        "cost",
+        "workload",
+        "general purpose",
+        "compute optimized",
+        "memory optimized",
+        "sizing"
+      ]
     }
   ],
   "test_knowledge_prompts": [
@@ -88,8 +109,16 @@
     "Can you compare the compute services provided by AWS, Azure, and GCP?",
     "Can you explain what a hypervisor is, how it works, and why it is essential for virtualization?"
   ],
-  "checklist": [
-    { "id": "phase3-topic1-check1", "text": "Successfully deployed a VM on my chosen cloud provider", "order": 1 },
-    { "id": "phase3-topic1-check2", "text": "Verified VM is accessible and running", "order": 2 }
+  "learning_objectives": [
+    {
+      "id": "phase3-topic1-check1",
+      "text": "Successfully deployed a VM on my chosen cloud provider",
+      "order": 1
+    },
+    {
+      "id": "phase3-topic1-check2",
+      "text": "Verified VM is accessible and running",
+      "order": 2
+    }
   ]
 }

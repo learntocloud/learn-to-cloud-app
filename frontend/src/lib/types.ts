@@ -14,15 +14,11 @@ export interface LearningStep {
   secondary_links?: { text: string; url: string }[];  // Additional links in the description
 }
 
-export interface TopicChecklistItem {
+// Learning objectives displayed at top of topic (not tracked)
+export interface LearningObjective {
   id: string;
   text: string;
   order: number;
-}
-
-export interface TopicChecklistItemWithProgress extends TopicChecklistItem {
-  is_completed: boolean;
-  completed_at: string | null;
 }
 
 export interface Topic {
@@ -34,7 +30,7 @@ export interface Topic {
   order: number;
   estimated_time: string | null;
   learning_steps: LearningStep[];
-  checklist: TopicChecklistItem[];
+  learning_objectives: LearningObjective[];
   questions?: KnowledgeQuestion[];
   is_capstone: boolean;
 }
@@ -47,28 +43,17 @@ export interface TopicWithProgress {
   order: number;
   estimated_time: string | null;
   learning_steps: LearningStep[];
-  checklist: TopicChecklistItemWithProgress[];
+  learning_objectives: LearningObjective[];
   questions?: KnowledgeQuestion[];
   is_capstone: boolean;
-  items_completed: number;
-  items_total: number;
-}
-
-export interface ChecklistItem {
-  id: string;
-  text: string;
-  order: number;
-}
-
-export interface ChecklistItemWithProgress extends ChecklistItem {
-  is_completed: boolean;
-  completed_at: string | null;
+  questions_passed: number;
+  questions_total: number;
 }
 
 export interface PhaseProgress {
   phase_id: number;
-  checklist_completed: number;
-  checklist_total: number;
+  questions_passed: number;
+  questions_total: number;
   percentage: number;
   status: CompletionStatus;
 }
@@ -196,22 +181,7 @@ export interface QuestionSubmitResponse {
   attempt_id: number;
 }
 
-// ============ Reflection & Activity Types ============
-
-export interface ReflectionResponse {
-  id: number;
-  reflection_date: string;
-  reflection_text: string;
-  ai_greeting: string | null;
-  created_at: string;
-}
-
-export interface LatestGreetingResponse {
-  has_greeting: boolean;
-  greeting: string | null;
-  reflection_date: string | null;
-  user_first_name: string | null;
-}
+// ============ Streak & Activity Types ============
 
 export interface StreakResponse {
   current_streak: number;
@@ -221,7 +191,7 @@ export interface StreakResponse {
   streak_alive: boolean;
 }
 
-export type ActivityType = 'question_attempt' | 'topic_complete' | 'reflection' | 'certificate_earned';
+export type ActivityType = 'question_attempt' | 'topic_complete' | 'certificate_earned';
 
 export interface ActivityHeatmapDay {
   date: string;
@@ -313,3 +283,5 @@ export interface UserCertificates {
   certificates: Certificate[];
   full_completion_eligible: boolean;
 }
+
+

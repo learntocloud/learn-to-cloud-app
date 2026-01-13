@@ -30,10 +30,22 @@
       "url": null,
       "description": "Master these essential Terraform commands:",
       "secondary_links": [
-        { "text": "terraform init", "url": "https://developer.hashicorp.com/terraform/cli/commands/init" },
-        { "text": "terraform plan", "url": "https://developer.hashicorp.com/terraform/cli/commands/plan" },
-        { "text": "terraform apply", "url": "https://developer.hashicorp.com/terraform/cli/commands/apply" },
-        { "text": "terraform destroy", "url": "https://developer.hashicorp.com/terraform/cli/commands/destroy" }
+        {
+          "text": "terraform init",
+          "url": "https://developer.hashicorp.com/terraform/cli/commands/init"
+        },
+        {
+          "text": "terraform plan",
+          "url": "https://developer.hashicorp.com/terraform/cli/commands/plan"
+        },
+        {
+          "text": "terraform apply",
+          "url": "https://developer.hashicorp.com/terraform/cli/commands/apply"
+        },
+        {
+          "text": "terraform destroy",
+          "url": "https://developer.hashicorp.com/terraform/cli/commands/destroy"
+        }
       ]
     },
     {
@@ -43,9 +55,18 @@
       "url": null,
       "description": "Explore Terraform providers for your cloud platform:",
       "secondary_links": [
-        { "text": "AWS Provider", "url": "https://registry.terraform.io/providers/hashicorp/aws/latest/docs" },
-        { "text": "Azure Provider", "url": "https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs" },
-        { "text": "GCP Provider", "url": "https://registry.terraform.io/providers/hashicorp/google/latest/docs" }
+        {
+          "text": "AWS Provider",
+          "url": "https://registry.terraform.io/providers/hashicorp/aws/latest/docs"
+        },
+        {
+          "text": "Azure Provider",
+          "url": "https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs"
+        },
+        {
+          "text": "GCP Provider",
+          "url": "https://registry.terraform.io/providers/hashicorp/google/latest/docs"
+        }
       ]
     },
     {
@@ -61,7 +82,7 @@
       "text": "Basic IaC Project",
       "action": "Hands-on: Basic IaC Project",
       "url": null,
-      "description": "1. Write a Terraform configuration file to:\n   • Create a virtual machine in your preferred cloud platform\n   • Configure a security group to allow SSH access\n   • (Or deploy a static site)\n2. Run `terraform init` to set up the working directory\n3. Run `terraform plan` to preview changes\n4. Run `terraform apply` to create the resources\n5. Verify the resources in your cloud platform\n6. Run `terraform destroy` to clean up"
+      "description": "1. Write a Terraform configuration file to:\n   \u2022 Create a virtual machine in your preferred cloud platform\n   \u2022 Configure a security group to allow SSH access\n   \u2022 (Or deploy a static site)\n2. Run `terraform init` to set up the working directory\n3. Run `terraform plan` to preview changes\n4. Run `terraform apply` to create the resources\n5. Verify the resources in your cloud platform\n6. Run `terraform destroy` to clean up"
     },
     {
       "order": 7,
@@ -78,9 +99,18 @@
       "url": null,
       "description": "Watch these cloud-specific Terraform tutorials:",
       "secondary_links": [
-        { "text": "AWS Terraform Example", "url": "https://youtu.be/P4A62b1dkJE" },
-        { "text": "Azure Terraform Example", "url": "https://youtu.be/HdMB2YCtVr4" },
-        { "text": "GCP Terraform Example", "url": "https://youtu.be/VCayKl82Lt8" }
+        {
+          "text": "AWS Terraform Example",
+          "url": "https://youtu.be/P4A62b1dkJE"
+        },
+        {
+          "text": "Azure Terraform Example",
+          "url": "https://youtu.be/HdMB2YCtVr4"
+        },
+        {
+          "text": "GCP Terraform Example",
+          "url": "https://youtu.be/VCayKl82Lt8"
+        }
       ]
     },
     {
@@ -88,7 +118,7 @@
       "text": "Advanced Challenge with Copilot",
       "action": "Advanced Challenge (Optional):",
       "url": null,
-      "description": "Use GitHub Copilot to design a modular Terraform configuration for a multi-tier application:\n\n1. Organize infrastructure into reusable modules:\n   • VPC — public and private subnets, routing\n   • Web server tier — compute, load balancing\n   • Database tier — managed database, backup configuration\n   • Security — security groups, IAM roles, encryption\n2. Use variables to parameterize your configuration\n3. Create module outputs for cross-module communication\n4. Implement backend state management\n5. Deploy and verify your resources"
+      "description": "Use GitHub Copilot to design a modular Terraform configuration for a multi-tier application:\n\n1. Organize infrastructure into reusable modules:\n   \u2022 VPC \u2014 public and private subnets, routing\n   \u2022 Web server tier \u2014 compute, load balancing\n   \u2022 Database tier \u2014 managed database, backup configuration\n   \u2022 Security \u2014 security groups, IAM roles, encryption\n2. Use variables to parameterize your configuration\n3. Create module outputs for cross-module communication\n4. Implement backend state management\n5. Deploy and verify your resources"
     },
     {
       "order": 10,
@@ -97,8 +127,14 @@
       "url": null,
       "description": "Learn more about Terraform best practices:",
       "secondary_links": [
-        { "text": "Terraform Documentation", "url": "https://developer.hashicorp.com/terraform/docs" },
-        { "text": "Terraform Best Practices", "url": "https://www.terraform-best-practices.com/" }
+        {
+          "text": "Terraform Documentation",
+          "url": "https://developer.hashicorp.com/terraform/docs"
+        },
+        {
+          "text": "Terraform Best Practices",
+          "url": "https://www.terraform-best-practices.com/"
+        }
       ]
     }
   ],
@@ -106,12 +142,33 @@
     {
       "id": "phase4-topic3-q1",
       "prompt": "What is the Terraform state file and why is it important?",
-      "expected_concepts": ["state file", "tfstate", "tracks resources", "current state", "desired state", "remote backend", "locking", "source of truth", "drift detection"]
+      "expected_concepts": [
+        "state file",
+        "tfstate",
+        "tracks resources",
+        "current state",
+        "desired state",
+        "remote backend",
+        "locking",
+        "source of truth",
+        "drift detection"
+      ]
     },
     {
       "id": "phase4-topic3-q2",
       "prompt": "Explain the difference between terraform plan and terraform apply.",
-      "expected_concepts": ["plan", "preview", "dry run", "show changes", "apply", "execute", "create resources", "modify", "destroy", "confirmation"]
+      "expected_concepts": [
+        "plan",
+        "preview",
+        "dry run",
+        "show changes",
+        "apply",
+        "execute",
+        "create resources",
+        "modify",
+        "destroy",
+        "confirmation"
+      ]
     }
   ],
   "test_knowledge_prompts": [
@@ -125,11 +182,31 @@
     "Can you explain the benefits of using AI assistants to generate IaC templates?",
     "Can you ask me how to ensure quality and security when using AI-generated IaC?"
   ],
-  "checklist": [
-    { "id": "phase4-topic3-check1", "text": "Installed Terraform on my system", "order": 1 },
-    { "id": "phase4-topic3-check2", "text": "Written Terraform configuration for a VM or static site", "order": 2 },
-    { "id": "phase4-topic3-check3", "text": "Deployed and verified resources in my cloud platform", "order": 3 },
-    { "id": "phase4-topic3-check4", "text": "Destroyed resources to clean up", "order": 4 },
-    { "id": "phase4-topic3-check5", "text": "(Optional) Created modular Terraform design with GitHub Copilot", "order": 5 }
+  "learning_objectives": [
+    {
+      "id": "phase4-topic3-check1",
+      "text": "Installed Terraform on my system",
+      "order": 1
+    },
+    {
+      "id": "phase4-topic3-check2",
+      "text": "Written Terraform configuration for a VM or static site",
+      "order": 2
+    },
+    {
+      "id": "phase4-topic3-check3",
+      "text": "Deployed and verified resources in my cloud platform",
+      "order": 3
+    },
+    {
+      "id": "phase4-topic3-check4",
+      "text": "Destroyed resources to clean up",
+      "order": 4
+    },
+    {
+      "id": "phase4-topic3-check5",
+      "text": "(Optional) Created modular Terraform design with GitHub Copilot",
+      "order": 5
+    }
   ]
 }

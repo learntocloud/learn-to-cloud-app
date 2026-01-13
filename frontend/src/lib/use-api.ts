@@ -2,7 +2,7 @@
 
 import { useAuth } from "@clerk/nextjs";
 import { trackEvent, getAppInsights } from "./app-insights";
-import type { QuestionSubmitResponse, ReflectionResponse, StreakResponse, LatestGreetingResponse, TopicQuestionsStatus } from "./types";
+import type { QuestionSubmitResponse, StreakResponse, TopicQuestionsStatus } from "./types";
 
 // In dev containers/Codespaces, use same-origin proxy (Next.js rewrites /api/* to backend)
 // In production, use the explicit API URL
@@ -119,19 +119,6 @@ export function useApi() {
 
   return {
     /**
-     * Toggle a checklist item's completion status.
-     */
-    async toggleChecklistItem(itemId: string): Promise<{ is_completed: boolean }> {
-      // Use relative URL for proxy in dev containers, absolute URL in production
-      const url = isUsingProxy 
-        ? `/api/checklist/${itemId}/toggle`
-        : `${API_URL}/api/checklist/${itemId}/toggle`;
-      return fetchWithAuth(url, {
-        method: "POST",
-      });
-    },
-
-    /**
      * Submit an answer to a knowledge question for LLM grading.
      */
     async submitQuestionAnswer(
@@ -155,50 +142,6 @@ export function useApi() {
           topic_name: topicName,
           user_answer: userAnswer,
         }),
-      });
-    },
-
-    /**
-     * Submit a daily reflection.
-     */
-    async submitReflection(reflectionText: string): Promise<ReflectionResponse> {
-      const url = isUsingProxy
-        ? `/api/reflections`
-        : `${API_URL}/api/reflections`;
-      return fetchWithAuth(url, {
-        method: "POST",
-        body: JSON.stringify({
-          reflection_text: reflectionText,
-        }),
-      });
-    },
-
-    /**
-     * Get today's reflection if one exists.
-     */
-    async getTodayReflection(): Promise<ReflectionResponse | null> {
-      const url = isUsingProxy
-        ? `/api/reflections/today`
-        : `${API_URL}/api/reflections/today`;
-      try {
-        return await fetchWithAuth(url, {
-          method: "GET",
-        });
-      } catch {
-        // Returns null if no reflection exists for today
-        return null;
-      }
-    },
-
-    /**
-     * Get the latest AI-generated greeting from reflection.
-     */
-    async getLatestGreeting(): Promise<LatestGreetingResponse> {
-      const url = isUsingProxy
-        ? `/api/reflections/latest`
-        : `${API_URL}/api/reflections/latest`;
-      return fetchWithAuth(url, {
-        method: "GET",
       });
     },
 

@@ -11,9 +11,9 @@ interface TopicCardProps {
 }
 
 export function TopicCard({ topic, phaseSlug, isLocked = false, previousTopicName }: TopicCardProps) {
-  // Use items_completed/items_total which now includes both checklist AND questions
-  const completedCount = topic.items_completed;
-  const totalCount = topic.items_total;
+  // Use questions_passed/questions_total for progress
+  const completedCount = topic.questions_passed;
+  const totalCount = topic.questions_total;
   const progressPercent = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
   const isCompleted = completedCount === totalCount && totalCount > 0;
 

@@ -74,7 +74,7 @@
       "text": "Key Security Principles",
       "action": "Key Security Principles:",
       "url": null,
-      "description": "• Least Privilege Principle - Grant only the minimum permissions needed\n• RBAC (Role-Based Access Control) - Assign permissions based on job roles\n• Stateful vs Stateless rules - Security groups are stateful, network ACLs are stateless\n• Inbound vs Outbound rules - Control traffic in both directions"
+      "description": "\u2022 Least Privilege Principle - Grant only the minimum permissions needed\n\u2022 RBAC (Role-Based Access Control) - Assign permissions based on job roles\n\u2022 Stateful vs Stateless rules - Security groups are stateful, network ACLs are stateless\n\u2022 Inbound vs Outbound rules - Control traffic in both directions"
     },
     {
       "order": 10,
@@ -88,12 +88,33 @@
     {
       "id": "phase3-topic2-q1",
       "prompt": "What is the principle of least privilege and why is it important in cloud security?",
-      "expected_concepts": ["minimum permissions", "necessary", "reduce risk", "compromise", "limit access", "attack surface", "security", "roles", "policies"]
+      "expected_concepts": [
+        "minimum permissions",
+        "necessary",
+        "reduce risk",
+        "compromise",
+        "limit access",
+        "attack surface",
+        "security",
+        "roles",
+        "policies"
+      ]
     },
     {
       "id": "phase3-topic2-q2",
       "prompt": "What is the difference between a security group and a network ACL?",
-      "expected_concepts": ["security group", "stateful", "instance level", "network ACL", "stateless", "subnet level", "allow", "deny", "return traffic", "firewall"]
+      "expected_concepts": [
+        "security group",
+        "stateful",
+        "instance level",
+        "network ACL",
+        "stateless",
+        "subnet level",
+        "allow",
+        "deny",
+        "return traffic",
+        "firewall"
+      ]
     }
   ],
   "test_knowledge_prompts": [
@@ -106,11 +127,31 @@
     "Can you ask me how security groups differ from network ACLs?",
     "Can you explain stateful vs. stateless rules in cloud security?"
   ],
-  "checklist": [
-    { "id": "phase3-topic2-check1", "text": "Created IAM users and groups with specific permissions", "order": 1 },
-    { "id": "phase3-topic2-check2", "text": "Implemented IAM roles for secure access", "order": 2 },
-    { "id": "phase3-topic2-check3", "text": "Created and configured security groups", "order": 3 },
-    { "id": "phase3-topic2-check4", "text": "Tested inbound and outbound rules", "order": 4 },
-    { "id": "phase3-topic2-check5", "text": "Verified access restrictions work correctly", "order": 5 }
+  "learning_objectives": [
+    {
+      "id": "phase3-topic2-check1",
+      "text": "Created IAM users and groups with specific permissions",
+      "order": 1
+    },
+    {
+      "id": "phase3-topic2-check2",
+      "text": "Implemented IAM roles for secure access",
+      "order": 2
+    },
+    {
+      "id": "phase3-topic2-check3",
+      "text": "Created and configured security groups",
+      "order": 3
+    },
+    {
+      "id": "phase3-topic2-check4",
+      "text": "Tested inbound and outbound rules",
+      "order": 4
+    },
+    {
+      "id": "phase3-topic2-check5",
+      "text": "Verified access restrictions work correctly",
+      "order": 5
+    }
   ]
 }

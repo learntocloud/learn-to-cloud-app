@@ -53,12 +53,6 @@ export function Navbar() {
                   >
                     Dashboard
                   </Link>
-                  <Link
-                    href="/journal"
-                    className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white px-3 py-2 text-sm font-medium"
-                  >
-                    Journal
-                  </Link>
                   {githubUsername && (
                     <Link
                       href={`/user/${githubUsername}`}

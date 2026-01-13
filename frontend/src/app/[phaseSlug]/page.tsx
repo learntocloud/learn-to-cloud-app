@@ -169,7 +169,7 @@ export default async function PhasePage({ params }: PhasePageProps) {
                 // First topic is always unlocked, subsequent topics require previous to be completed
                 const previousTopic = index > 0 ? topics[index - 1] : null;
                 const isPreviousCompleted = previousTopic 
-                  ? previousTopic.items_completed === previousTopic.items_total && previousTopic.items_total > 0
+                  ? previousTopic.questions_passed === previousTopic.questions_total && previousTopic.questions_total > 0
                   : true;
                 const isTopicLocked = index > 0 && !isPreviousCompleted;
                 

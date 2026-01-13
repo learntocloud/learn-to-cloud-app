@@ -44,12 +44,34 @@
     {
       "id": "phase1-topic5-q1",
       "prompt": "Explain what the ls, cd, and pwd commands do in Linux.",
-      "expected_concepts": ["ls", "list", "files", "directories", "cd", "change directory", "pwd", "print working directory", "navigation", "current path"]
+      "expected_concepts": [
+        "ls",
+        "list",
+        "files",
+        "directories",
+        "cd",
+        "change directory",
+        "pwd",
+        "print working directory",
+        "navigation",
+        "current path"
+      ]
     },
     {
       "id": "phase1-topic5-q2",
       "prompt": "What are file permissions in Linux and what do the read, write, and execute permissions mean?",
-      "expected_concepts": ["read", "write", "execute", "chmod", "owner", "group", "others", "rwx", "access control", "permission denied"]
+      "expected_concepts": [
+        "read",
+        "write",
+        "execute",
+        "chmod",
+        "owner",
+        "group",
+        "others",
+        "rwx",
+        "access control",
+        "permission denied"
+      ]
     }
   ],
   "test_knowledge_prompts": [
@@ -57,9 +79,21 @@
     "Can you ask me how file permissions work in Linux?",
     "Can you ask me to explain what pipes and redirects do?"
   ],
-  "checklist": [
-    { "id": "phase1-topic5-check1", "text": "I can navigate the file system using cd, ls, and pwd", "order": 1 },
-    { "id": "phase1-topic5-check2", "text": "I can create and view files using touch, cat, and echo", "order": 2 },
-    { "id": "phase1-topic5-check3", "text": "I can use pipes and redirects", "order": 3 }
+  "learning_objectives": [
+    {
+      "id": "phase1-topic5-check1",
+      "text": "I can navigate the file system using cd, ls, and pwd",
+      "order": 1
+    },
+    {
+      "id": "phase1-topic5-check2",
+      "text": "I can create and view files using touch, cat, and echo",
+      "order": 2
+    },
+    {
+      "id": "phase1-topic5-check3",
+      "text": "I can use pipes and redirects",
+      "order": 3
+    }
   ]
 }

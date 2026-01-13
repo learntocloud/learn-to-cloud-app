@@ -48,16 +48,40 @@
     {
       "id": "phase1-topic4-q1",
       "prompt": "What is SSH and what is it primarily used for in cloud computing?",
-      "expected_concepts": ["secure shell", "encrypted", "remote access", "server", "command line", "terminal", "secure connection"]
+      "expected_concepts": [
+        "secure shell",
+        "encrypted",
+        "remote access",
+        "server",
+        "command line",
+        "terminal",
+        "secure connection"
+      ]
     },
     {
       "id": "phase1-topic4-q2",
       "prompt": "Why are SSH keys more secure than passwords for authentication?",
-      "expected_concepts": ["asymmetric", "public key", "private key", "cannot be guessed", "brute force", "cryptographic", "no password transmission"]
+      "expected_concepts": [
+        "asymmetric",
+        "public key",
+        "private key",
+        "cannot be guessed",
+        "brute force",
+        "cryptographic",
+        "no password transmission"
+      ]
     }
   ],
-  "checklist": [
-    { "id": "phase1-topic4-check1", "text": "Completed the SSH learning materials", "order": 1 },
-    { "id": "phase1-topic4-check2", "text": "Successfully SSHed into a VM from my terminal", "order": 2 }
+  "learning_objectives": [
+    {
+      "id": "phase1-topic4-check1",
+      "text": "Completed the SSH learning materials",
+      "order": 1
+    },
+    {
+      "id": "phase1-topic4-check2",
+      "text": "Successfully SSHed into a VM from my terminal",
+      "order": 2
+    }
   ]
 }

@@ -52,14 +52,17 @@
       "url": "https://learn.microsoft.com/windows/wsl/install",
       "description": "All our labs and tools expect a Linux based environment, WSL will provide that. Then follow:",
       "secondary_links": [
-        { "text": "Get started using Visual Studio Code with Windows Subsystem for Linux", "url": "https://learn.microsoft.com/en-us/windows/wsl/tutorials/wsl-vscode" }
+        {
+          "text": "Get started using Visual Studio Code with Windows Subsystem for Linux",
+          "url": "https://learn.microsoft.com/en-us/windows/wsl/tutorials/wsl-vscode"
+        }
       ]
     },
     {
       "order": 7,
       "text": "Learn command line basics",
       "action": "Learn command line basics:",
-      "title": "Command Line for Beginners – How to Use the Terminal Like a Pro",
+      "title": "Command Line for Beginners \u2013 How to Use the Terminal Like a Pro",
       "url": "https://www.freecodecamp.org/news/command-line-for-beginners/#heading-most-common-and-useful-commands-to-use"
     },
     {
@@ -97,9 +100,12 @@
       "text": "Practice Git workflow",
       "action": "Practice Git workflow",
       "url": null,
-      "description": "Clone your README repo to your local machine. Use VS Code to edit it and push changes back to GitHub from the terminal. Don't feel like you have to make a very fancy README—write a brief description on who you are and add links to your socials.",
+      "description": "Clone your README repo to your local machine. Use VS Code to edit it and push changes back to GitHub from the terminal. Don't feel like you have to make a very fancy README\u2014write a brief description on who you are and add links to your socials.",
       "secondary_links": [
-        { "text": "Great guide on using markdown with VS Code", "url": "https://www.freecodecamp.org/news/how-to-use-markdown-in-vscode/" }
+        {
+          "text": "Great guide on using markdown with VS Code",
+          "url": "https://www.freecodecamp.org/news/how-to-use-markdown-in-vscode/"
+        }
       ]
     }
   ],
@@ -107,12 +113,34 @@
     {
       "id": "phase1-topic1-q1",
       "prompt": "What is version control and why is it essential for software development?",
-      "expected_concepts": ["track changes", "history", "collaboration", "rollback", "branches", "repository", "commits", "backup", "team", "code"]
+      "expected_concepts": [
+        "track changes",
+        "history",
+        "collaboration",
+        "rollback",
+        "branches",
+        "repository",
+        "commits",
+        "backup",
+        "team",
+        "code"
+      ]
     },
     {
       "id": "phase1-topic1-q2",
       "prompt": "Explain the basic Git workflow: staging, committing, and pushing changes.",
-      "expected_concepts": ["git add", "staging area", "git commit", "local repository", "git push", "remote", "message", "snapshot", "changes", "history"]
+      "expected_concepts": [
+        "git add",
+        "staging area",
+        "git commit",
+        "local repository",
+        "git push",
+        "remote",
+        "message",
+        "snapshot",
+        "changes",
+        "history"
+      ]
     }
   ],
   "test_knowledge_prompts": [
@@ -120,13 +148,41 @@
     "Can you quiz me on the basic Git commands like clone, commit, push, and pull?",
     "Can you ask me what a repository is and how Git tracks changes?"
   ],
-  "checklist": [
-    { "id": "phase1-topic1-check1", "text": "Git is installed on my computer", "order": 1 },
-    { "id": "phase1-topic1-check2", "text": "VS Code is installed on my computer", "order": 2 },
-    { "id": "phase1-topic1-check3", "text": "WSL is set up (Windows users)", "order": 3 },
-    { "id": "phase1-topic1-check4", "text": "I created the l2c folder using mkdir", "order": 4 },
-    { "id": "phase1-topic1-check5", "text": "The lab repo is cloned locally", "order": 5 },
-    { "id": "phase1-topic1-check6", "text": "My README repo is cloned locally", "order": 6 },
-    { "id": "phase1-topic1-check7", "text": "I starred the Learn to Cloud repository", "order": 7 }
+  "learning_objectives": [
+    {
+      "id": "phase1-topic1-check1",
+      "text": "Git is installed on my computer",
+      "order": 1
+    },
+    {
+      "id": "phase1-topic1-check2",
+      "text": "VS Code is installed on my computer",
+      "order": 2
+    },
+    {
+      "id": "phase1-topic1-check3",
+      "text": "WSL is set up (Windows users)",
+      "order": 3
+    },
+    {
+      "id": "phase1-topic1-check4",
+      "text": "I created the l2c folder using mkdir",
+      "order": 4
+    },
+    {
+      "id": "phase1-topic1-check5",
+      "text": "The lab repo is cloned locally",
+      "order": 5
+    },
+    {
+      "id": "phase1-topic1-check6",
+      "text": "My README repo is cloned locally",
+      "order": 6
+    },
+    {
+      "id": "phase1-topic1-check7",
+      "text": "I starred the Learn to Cloud repository",
+      "order": 7
+    }
   ]
 }

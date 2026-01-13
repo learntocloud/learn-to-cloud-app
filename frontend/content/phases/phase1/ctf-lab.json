@@ -21,19 +21,43 @@
       "text": "Tips for success",
       "action": "Tips for success:",
       "url": null,
-      "description": "• Use `man` pages to learn commands (e.g., `man find`)\n• Combine commands with pipes (`|`) to process output\n• Use `verify hint [num]` when stuck on a challenge\n• Experiment freely—you can't break anything permanently\n• Don't share solutions publicly—share your learning journey instead"
+      "description": "\u2022 Use `man` pages to learn commands (e.g., `man find`)\n\u2022 Combine commands with pipes (`|`) to process output\n\u2022 Use `verify hint [num]` when stuck on a challenge\n\u2022 Experiment freely\u2014you can't break anything permanently\n\u2022 Don't share solutions publicly\u2014share your learning journey instead"
     }
   ],
   "questions": [
     {
       "id": "phase1-topic6-q1",
       "prompt": "How would you use the find command to locate files on a Linux system?",
-      "expected_concepts": ["find", "path", "name", "type", "size", "mtime", "exec", "search", "recursive", "criteria", "locate"]
+      "expected_concepts": [
+        "find",
+        "path",
+        "name",
+        "type",
+        "size",
+        "mtime",
+        "exec",
+        "search",
+        "recursive",
+        "criteria",
+        "locate"
+      ]
     },
     {
       "id": "phase1-topic6-q2",
       "prompt": "What are some common Linux commands for inspecting running processes and network connections?",
-      "expected_concepts": ["ps", "top", "htop", "netstat", "ss", "lsof", "processes", "ports", "connections", "PID", "kill"]
+      "expected_concepts": [
+        "ps",
+        "top",
+        "htop",
+        "netstat",
+        "ss",
+        "lsof",
+        "processes",
+        "ports",
+        "connections",
+        "PID",
+        "kill"
+      ]
     }
   ],
   "test_knowledge_prompts": [
@@ -43,9 +67,21 @@
     "Can you ask me about Linux processes and how to inspect them?",
     "Can you quiz me on basic networking commands like netstat and ss?"
   ],
-  "checklist": [
-    { "id": "phase1-topic6-check1", "text": "I deployed the CTF lab environment", "order": 1 },
-    { "id": "phase1-topic6-check2", "text": "I completed all CTF challenges", "order": 2 },
-    { "id": "phase1-topic6-check3", "text": "I destroyed the lab resources to avoid charges", "order": 3 }
+  "learning_objectives": [
+    {
+      "id": "phase1-topic6-check1",
+      "text": "I deployed the CTF lab environment",
+      "order": 1
+    },
+    {
+      "id": "phase1-topic6-check2",
+      "text": "I completed all CTF challenges",
+      "order": 2
+    },
+    {
+      "id": "phase1-topic6-check3",
+      "text": "I destroyed the lab resources to avoid charges",
+      "order": 3
+    }
   ]
 }

@@ -123,7 +123,7 @@ async def handle_user_deleted(db: AsyncSession, data: dict) -> None:
         return
 
     # Hard delete: remove the user and rely on FK ON DELETE CASCADE to
-    # delete dependent rows (checklist_progress, github_submissions).
+    # delete dependent rows (github_submissions, question_attempts, etc.).
     await db.execute(delete(User).where(User.id == user_id))
 
 

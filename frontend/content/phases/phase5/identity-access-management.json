@@ -14,9 +14,18 @@
       "url": null,
       "description": "Start with your cloud provider's IAM documentation:",
       "secondary_links": [
-        { "text": "AWS IAM User Guide", "url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/introduction.html" },
-        { "text": "Azure RBAC Documentation", "url": "https://learn.microsoft.com/en-us/azure/role-based-access-control/overview" },
-        { "text": "GCP IAM Overview", "url": "https://cloud.google.com/iam/docs/overview" }
+        {
+          "text": "AWS IAM User Guide",
+          "url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/introduction.html"
+        },
+        {
+          "text": "Azure RBAC Documentation",
+          "url": "https://learn.microsoft.com/en-us/azure/role-based-access-control/overview"
+        },
+        {
+          "text": "GCP IAM Overview",
+          "url": "https://cloud.google.com/iam/docs/overview"
+        }
       ]
     },
     {
@@ -26,9 +35,18 @@
       "url": null,
       "description": "Video tutorials for your cloud provider:",
       "secondary_links": [
-        { "text": "AWS IAM Tutorial (30 min)", "url": "https://www.youtube.com/watch?v=Ul6FW4UANGc" },
-        { "text": "Azure RBAC Explained (25 min)", "url": "https://www.youtube.com/watch?v=C7hJ3oGHrhM" },
-        { "text": "GCP IAM Deep Dive (40 min)", "url": "https://www.youtube.com/watch?v=96HlT4f2AUU" }
+        {
+          "text": "AWS IAM Tutorial (30 min)",
+          "url": "https://www.youtube.com/watch?v=Ul6FW4UANGc"
+        },
+        {
+          "text": "Azure RBAC Explained (25 min)",
+          "url": "https://www.youtube.com/watch?v=C7hJ3oGHrhM"
+        },
+        {
+          "text": "GCP IAM Deep Dive (40 min)",
+          "url": "https://www.youtube.com/watch?v=96HlT4f2AUU"
+        }
       ]
     },
     {
@@ -38,8 +56,14 @@
       "url": null,
       "description": "Read these essential security guides:",
       "secondary_links": [
-        { "text": "OWASP Cloud Security Cheat Sheet", "url": "https://cheatsheetseries.owasp.org/cheatsheets/Cloud_Security_Cheat_Sheet.html" },
-        { "text": "CIS Cloud Security Controls", "url": "https://www.cisecurity.org/controls/cloud-security-controls" }
+        {
+          "text": "OWASP Cloud Security Cheat Sheet",
+          "url": "https://cheatsheetseries.owasp.org/cheatsheets/Cloud_Security_Cheat_Sheet.html"
+        },
+        {
+          "text": "CIS Cloud Security Controls",
+          "url": "https://www.cisecurity.org/controls/cloud-security-controls"
+        }
       ]
     },
     {
@@ -47,7 +71,7 @@
       "text": "IAM Components",
       "action": "Key Concepts - IAM Components:",
       "url": null,
-      "description": "• Users - Individual people or applications\n• Groups - Collections of users with similar permissions\n• Roles - Set of permissions that can be assumed\n• Policies - Documents that define permissions"
+      "description": "\u2022 Users - Individual people or applications\n\u2022 Groups - Collections of users with similar permissions\n\u2022 Roles - Set of permissions that can be assumed\n\u2022 Policies - Documents that define permissions"
     },
     {
       "order": 5,
@@ -61,14 +85,14 @@
       "text": "Service Accounts vs User Accounts",
       "action": "Service Accounts vs User Accounts:",
       "url": null,
-      "description": "• User accounts - For people who need to access resources\n• Service accounts - For applications and services to access resources"
+      "description": "\u2022 User accounts - For people who need to access resources\n\u2022 Service accounts - For applications and services to access resources"
     },
     {
       "order": 7,
       "text": "Authentication vs Authorization",
       "action": "Authentication vs Authorization:",
       "url": null,
-      "description": "• Authentication - Who are you? (login, MFA)\n• Authorization - What can you do? (permissions, policies)"
+      "description": "\u2022 Authentication - Who are you? (login, MFA)\n\u2022 Authorization - What can you do? (permissions, policies)"
     },
     {
       "order": 8,
@@ -77,9 +101,18 @@
       "url": null,
       "description": "Complete IAM workshops:",
       "secondary_links": [
-        { "text": "AWS IAM Workshop", "url": "https://catalog.workshops.aws/general-immersionday/en-US/basic-modules/30-iam" },
-        { "text": "Azure RBAC Tutorial", "url": "https://learn.microsoft.com/en-us/azure/role-based-access-control/tutorial-role-assignments-user-powershell" },
-        { "text": "GCP IAM Tutorial", "url": "https://cloud.google.com/iam/docs/quickstart" }
+        {
+          "text": "AWS IAM Workshop",
+          "url": "https://catalog.workshops.aws/general-immersionday/en-US/basic-modules/30-iam"
+        },
+        {
+          "text": "Azure RBAC Tutorial",
+          "url": "https://learn.microsoft.com/en-us/azure/role-based-access-control/tutorial-role-assignments-user-powershell"
+        },
+        {
+          "text": "GCP IAM Tutorial",
+          "url": "https://cloud.google.com/iam/docs/quickstart"
+        }
       ]
     },
     {
@@ -89,8 +122,14 @@
       "url": null,
       "description": "Practice with real-world scenarios:",
       "secondary_links": [
-        { "text": "PwnedLabs - AWS IAM Enumeration", "url": "https://pwnedlabs.io/labs/intro-to-aws-iam-enumeration" },
-        { "text": "PwnedLabs - IAM Breaches with CloudTrail", "url": "https://pwnedlabs.io/labs/identify-iam-breaches-with-cloudtrail-and-athena" }
+        {
+          "text": "PwnedLabs - AWS IAM Enumeration",
+          "url": "https://pwnedlabs.io/labs/intro-to-aws-iam-enumeration"
+        },
+        {
+          "text": "PwnedLabs - IAM Breaches with CloudTrail",
+          "url": "https://pwnedlabs.io/labs/identify-iam-breaches-with-cloudtrail-and-athena"
+        }
       ]
     },
     {
@@ -100,9 +139,18 @@
       "url": null,
       "description": "Best practices guides:",
       "secondary_links": [
-        { "text": "AWS IAM Best Practices", "url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/best-practices.html" },
-        { "text": "Azure Security Best Practices", "url": "https://learn.microsoft.com/en-us/azure/security/fundamentals/best-practices-and-patterns" },
-        { "text": "GCP Security Best Practices", "url": "https://cloud.google.com/security/best-practices" }
+        {
+          "text": "AWS IAM Best Practices",
+          "url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/best-practices.html"
+        },
+        {
+          "text": "Azure Security Best Practices",
+          "url": "https://learn.microsoft.com/en-us/azure/security/fundamentals/best-practices-and-patterns"
+        },
+        {
+          "text": "GCP Security Best Practices",
+          "url": "https://cloud.google.com/security/best-practices"
+        }
       ]
     }
   ],
@@ -110,12 +158,34 @@
     {
       "id": "phase5-topic1-q1",
       "prompt": "Explain the difference between authentication and authorization in cloud security.",
-      "expected_concepts": ["authentication", "identity", "who you are", "login", "credentials", "authorization", "permissions", "what you can do", "access control", "policies"]
+      "expected_concepts": [
+        "authentication",
+        "identity",
+        "who you are",
+        "login",
+        "credentials",
+        "authorization",
+        "permissions",
+        "what you can do",
+        "access control",
+        "policies"
+      ]
     },
     {
       "id": "phase5-topic1-q2",
       "prompt": "When should you use a service account versus a user account in cloud environments?",
-      "expected_concepts": ["service account", "applications", "automated", "no human", "user account", "people", "interactive", "MFA", "credentials", "programmatic"]
+      "expected_concepts": [
+        "service account",
+        "applications",
+        "automated",
+        "no human",
+        "user account",
+        "people",
+        "interactive",
+        "MFA",
+        "credentials",
+        "programmatic"
+      ]
     }
   ],
   "test_knowledge_prompts": [
@@ -128,10 +198,26 @@
     "Can you quiz me on when and why to use multi-factor authentication?",
     "Can you ask me about workload identity and why it's better than long-lived keys?"
   ],
-  "checklist": [
-    { "id": "phase5-topic1-check1", "text": "Completed the IAM learning materials", "order": 1 },
-    { "id": "phase5-topic1-check2", "text": "Reviewed cloud provider IAM documentation", "order": 2 },
-    { "id": "phase5-topic1-check3", "text": "Answered the knowledge check questions", "order": 3 },
-    { "id": "phase5-topic1-check4", "text": "(Optional) Completed hands-on IAM workshops", "order": 4 }
+  "learning_objectives": [
+    {
+      "id": "phase5-topic1-check1",
+      "text": "Completed the IAM learning materials",
+      "order": 1
+    },
+    {
+      "id": "phase5-topic1-check2",
+      "text": "Reviewed cloud provider IAM documentation",
+      "order": 2
+    },
+    {
+      "id": "phase5-topic1-check3",
+      "text": "Answered the knowledge check questions",
+      "order": 3
+    },
+    {
+      "id": "phase5-topic1-check4",
+      "text": "(Optional) Completed hands-on IAM workshops",
+      "order": 4
+    }
   ]
 }

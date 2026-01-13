@@ -28,24 +28,6 @@ class UserResponse(UserBase):
     created_at: datetime
 
 
-# ============ Progress Schemas ============
-
-
-class ProgressItem(BaseModel):
-    """Single checklist progress item."""
-
-    checklist_item_id: str
-    is_completed: bool
-    completed_at: datetime | None = None
-
-
-class UserProgressResponse(BaseModel):
-    """User's progress on all checklist items."""
-
-    user_id: str
-    items: list[ProgressItem]
-
-
 # ============ GitHub Submission Schemas ============
 
 
@@ -138,14 +120,6 @@ class HealthResponse(BaseModel):
     service: str
 
 
-class ChecklistToggleResponse(BaseModel):
-    """Response for checklist toggle."""
-
-    success: bool
-    item_id: str
-    is_completed: bool
-
-
 class WebhookResponse(BaseModel):
     """Response for webhook processing."""
 
@@ -202,45 +176,6 @@ class TopicQuestionsStatusResponse(BaseModel):
     all_passed: bool
     total_questions: int
     passed_questions: int
-
-
-# ============ Daily Reflection Schemas ============
-
-
-class ReflectionSubmitRequest(BaseModel):
-    """Request to submit a daily reflection."""
-
-    reflection_text: str = Field(min_length=10, max_length=1000)
-
-    @field_validator("reflection_text")
-    @classmethod
-    def validate_reflection(cls, v: str) -> str:
-        """Ensure reflection has meaningful content."""
-        stripped = v.strip()
-        if len(stripped) < 10:
-            raise ValueError("Reflection must be at least 10 characters")
-        return stripped
-
-
-class ReflectionResponse(BaseModel):
-    """Response for a reflection submission."""
-
-    model_config = ConfigDict(from_attributes=True)
-
-    id: int
-    reflection_date: date
-    reflection_text: str
-    ai_greeting: str | None = None
-    created_at: datetime
-
-
-class LatestGreetingResponse(BaseModel):
-    """Response containing the latest AI-generated greeting."""
-
-    has_greeting: bool
-    greeting: str | None = None
-    reflection_date: date | None = None
-    user_first_name: str | None = None
 
 
 # ============ Activity & Streak Schemas ============
@@ -341,9 +276,9 @@ class CertificateEligibilityResponse(BaseModel):
     """Response for checking certificate eligibility."""
 
     is_eligible: bool
-    certificate_type: str  # "full_completion" or "phase_X"
-    topics_completed: int
-    total_topics: int
+    certificate_type: str  # "full_completion"
+    topics_completed: int  # Actually questions passed, kept for API compatibility
+    total_topics: int  # Actually total questions, kept for API compatibility
     completion_percentage: float
     already_issued: bool
     existing_certificate_id: int | None = None

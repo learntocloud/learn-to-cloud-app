@@ -12,7 +12,7 @@
       "text": "Why Monitoring Matters",
       "action": "Why Monitoring Matters:",
       "url": null,
-      "description": "Cloud-native applications need monitoring because they:\n\n• Help detect and resolve issues quickly, minimizing downtime\n• Provide visibility into system health and performance\n• Enable proactive alerting and troubleshooting\n• Support scalability by identifying bottlenecks\n• Help understand dependencies between microservices"
+      "description": "Cloud-native applications need monitoring because they:\n\n\u2022 Help detect and resolve issues quickly, minimizing downtime\n\u2022 Provide visibility into system health and performance\n\u2022 Enable proactive alerting and troubleshooting\n\u2022 Support scalability by identifying bottlenecks\n\u2022 Help understand dependencies between microservices"
     },
     {
       "order": 2,
@@ -27,7 +27,7 @@
       "text": "Key Concepts",
       "action": "Key Concepts:",
       "url": null,
-      "description": "• Metrics - Quantitative data about your systems (CPU, memory, requests)\n• Alerting - Automated notifications based on metric thresholds\n• Dashboards - Visual representations of metrics for quick insights\n• Instrumentation - Adding code or exporters to expose metrics"
+      "description": "\u2022 Metrics - Quantitative data about your systems (CPU, memory, requests)\n\u2022 Alerting - Automated notifications based on metric thresholds\n\u2022 Dashboards - Visual representations of metrics for quick insights\n\u2022 Instrumentation - Adding code or exporters to expose metrics"
     },
     {
       "order": 4,
@@ -36,9 +36,18 @@
       "url": null,
       "description": "The industry-standard monitoring stack:",
       "secondary_links": [
-        { "text": "Prometheus Overview", "url": "https://prometheus.io/docs/introduction/overview/" },
-        { "text": "Grafana Overview", "url": "https://grafana.com/docs/grafana/latest/getting-started/what-is-grafana/" },
-        { "text": "Prometheus + Grafana Integration", "url": "https://grafana.com/docs/grafana/latest/datasources/prometheus/" }
+        {
+          "text": "Prometheus Overview",
+          "url": "https://prometheus.io/docs/introduction/overview/"
+        },
+        {
+          "text": "Grafana Overview",
+          "url": "https://grafana.com/docs/grafana/latest/getting-started/what-is-grafana/"
+        },
+        {
+          "text": "Prometheus + Grafana Integration",
+          "url": "https://grafana.com/docs/grafana/latest/datasources/prometheus/"
+        }
       ]
     },
     {
@@ -64,9 +73,18 @@
       "url": null,
       "description": "Add metrics to your application:",
       "secondary_links": [
-        { "text": "Python prometheus_client", "url": "https://github.com/prometheus/client_python" },
-        { "text": "Node.js prom-client", "url": "https://github.com/siimon/prom-client" },
-        { "text": "FastAPI Monitoring Tutorial", "url": "https://dev.to/ken_mwaura1/getting-started-monitoring-a-fastapi-app-with-grafana-and-prometheus-a-step-by-step-guide-3fbn" }
+        {
+          "text": "Python prometheus_client",
+          "url": "https://github.com/prometheus/client_python"
+        },
+        {
+          "text": "Node.js prom-client",
+          "url": "https://github.com/siimon/prom-client"
+        },
+        {
+          "text": "FastAPI Monitoring Tutorial",
+          "url": "https://dev.to/ken_mwaura1/getting-started-monitoring-a-fastapi-app-with-grafana-and-prometheus-a-step-by-step-guide-3fbn"
+        }
       ]
     },
     {
@@ -74,7 +92,7 @@
       "text": "AI Agents for Monitoring",
       "action": "AI Agents for Monitoring:",
       "url": null,
-      "description": "AI agents can enhance monitoring by:\n\n• Responding instantly to alerts without human delays\n• Analyzing logs and metrics to find root causes automatically\n• Executing fixes (restart services, scale resources) independently\n• Learning from incidents to improve future responses\n• Freeing teams from repetitive troubleshooting"
+      "description": "AI agents can enhance monitoring by:\n\n\u2022 Responding instantly to alerts without human delays\n\u2022 Analyzing logs and metrics to find root causes automatically\n\u2022 Executing fixes (restart services, scale resources) independently\n\u2022 Learning from incidents to improve future responses\n\u2022 Freeing teams from repetitive troubleshooting"
     },
     {
       "order": 9,
@@ -83,9 +101,18 @@
       "url": null,
       "description": "Understand AI agents and agentic workflows:",
       "secondary_links": [
-        { "text": "What are AI Agents?", "url": "https://aws.amazon.com/what-is/ai-agents/" },
-        { "text": "Agentic Workflows", "url": "https://www.ibm.com/think/topics/agentic-workflows" },
-        { "text": "n8n Overview", "url": "https://n8n.io/features/" }
+        {
+          "text": "What are AI Agents?",
+          "url": "https://aws.amazon.com/what-is/ai-agents/"
+        },
+        {
+          "text": "Agentic Workflows",
+          "url": "https://www.ibm.com/think/topics/agentic-workflows"
+        },
+        {
+          "text": "n8n Overview",
+          "url": "https://n8n.io/features/"
+        }
       ]
     },
     {
@@ -93,7 +120,7 @@
       "text": "Build an AI Agent with n8n",
       "action": "Hands-on: Build an AI Agent with n8n",
       "url": null,
-      "description": "1. Install n8n: `docker run -d -p 5678:5678 --name n8n n8nio/n8n:latest`\n2. Access n8n at http://localhost:5678\n3. Build your agent workflow:\n   • Create a Schedule trigger (every 1-2 minutes)\n   • Query Prometheus API for a specific metric\n   • Add an If node to check threshold\n   • Call an LLM to analyze anomalies and suggest remediation\n   • Send analysis via email or Slack\n   • (Optional) Add automated remediation steps\n4. Test by intentionally triggering high traffic or errors"
+      "description": "1. Install n8n: `docker run -d -p 5678:5678 --name n8n n8nio/n8n:latest`\n2. Access n8n at http://localhost:5678\n3. Build your agent workflow:\n   \u2022 Create a Schedule trigger (every 1-2 minutes)\n   \u2022 Query Prometheus API for a specific metric\n   \u2022 Add an If node to check threshold\n   \u2022 Call an LLM to analyze anomalies and suggest remediation\n   \u2022 Send analysis via email or Slack\n   \u2022 (Optional) Add automated remediation steps\n4. Test by intentionally triggering high traffic or errors"
     },
     {
       "order": 11,
@@ -102,10 +129,22 @@
       "url": null,
       "description": "Learn more about monitoring:",
       "secondary_links": [
-        { "text": "Prometheus Documentation", "url": "https://prometheus.io/docs/" },
-        { "text": "Grafana Documentation", "url": "https://grafana.com/docs/" },
-        { "text": "Awesome Prometheus Alerts", "url": "https://samber.github.io/awesome-prometheus-alerts/" },
-        { "text": "n8n Documentation", "url": "https://docs.n8n.io/" }
+        {
+          "text": "Prometheus Documentation",
+          "url": "https://prometheus.io/docs/"
+        },
+        {
+          "text": "Grafana Documentation",
+          "url": "https://grafana.com/docs/"
+        },
+        {
+          "text": "Awesome Prometheus Alerts",
+          "url": "https://samber.github.io/awesome-prometheus-alerts/"
+        },
+        {
+          "text": "n8n Documentation",
+          "url": "https://docs.n8n.io/"
+        }
       ]
     }
   ],
@@ -113,12 +152,35 @@
     {
       "id": "phase4-topic5-q1",
       "prompt": "What is the difference between monitoring and observability?",
-      "expected_concepts": ["monitoring", "known problems", "metrics", "thresholds", "observability", "unknown problems", "logs", "traces", "understand system", "debugging"]
+      "expected_concepts": [
+        "monitoring",
+        "known problems",
+        "metrics",
+        "thresholds",
+        "observability",
+        "unknown problems",
+        "logs",
+        "traces",
+        "understand system",
+        "debugging"
+      ]
     },
     {
       "id": "phase4-topic5-q2",
       "prompt": "How do Prometheus and Grafana work together for application monitoring?",
-      "expected_concepts": ["Prometheus", "collect", "scrape", "metrics", "time series", "Grafana", "visualize", "dashboards", "queries", "PromQL", "alerts"]
+      "expected_concepts": [
+        "Prometheus",
+        "collect",
+        "scrape",
+        "metrics",
+        "time series",
+        "Grafana",
+        "visualize",
+        "dashboards",
+        "queries",
+        "PromQL",
+        "alerts"
+      ]
     }
   ],
   "test_knowledge_prompts": [
@@ -132,12 +194,36 @@
     "Can you explain the key components of AI agent architecture?",
     "Can you ask me how an LLM helps an agent make decisions?"
   ],
-  "checklist": [
-    { "id": "phase4-topic5-check1", "text": "Set up Prometheus with basic configuration", "order": 1 },
-    { "id": "phase4-topic5-check2", "text": "Deployed Grafana and connected to Prometheus", "order": 2 },
-    { "id": "phase4-topic5-check3", "text": "Created dashboards with PromQL queries", "order": 3 },
-    { "id": "phase4-topic5-check4", "text": "Instrumented a sample application with metrics", "order": 4 },
-    { "id": "phase4-topic5-check5", "text": "Built an AI agent with n8n for automated responses", "order": 5 },
-    { "id": "phase4-topic5-check6", "text": "Tested agent detection and alerting", "order": 6 }
+  "learning_objectives": [
+    {
+      "id": "phase4-topic5-check1",
+      "text": "Set up Prometheus with basic configuration",
+      "order": 1
+    },
+    {
+      "id": "phase4-topic5-check2",
+      "text": "Deployed Grafana and connected to Prometheus",
+      "order": 2
+    },
+    {
+      "id": "phase4-topic5-check3",
+      "text": "Created dashboards with PromQL queries",
+      "order": 3
+    },
+    {
+      "id": "phase4-topic5-check4",
+      "text": "Instrumented a sample application with metrics",
+      "order": 4
+    },
+    {
+      "id": "phase4-topic5-check5",
+      "text": "Built an AI agent with n8n for automated responses",
+      "order": 5
+    },
+    {
+      "id": "phase4-topic5-check6",
+      "text": "Tested agent detection and alerting",
+      "order": 6
+    }
   ]
 }

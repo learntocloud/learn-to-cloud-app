@@ -1,8 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import type { Topic, TopicWithProgress, TopicChecklistItemWithProgress, TopicQuestionsStatus } from "@/lib/types";
+import type { Topic, TopicWithProgress, LearningObjective, TopicQuestionsStatus } from "@/lib/types";
 import { useApi } from "@/lib/use-api";
 import { KnowledgeQuestion } from "./knowledge-question";
 
@@ -12,16 +11,12 @@ interface TopicContentProps {
 }
 
 export function TopicContent({ topic, isAuthenticated }: TopicContentProps) {
-  const router = useRouter();
   const api = useApi();
   
-  // Only manage state for authenticated users
-  const initialChecklist = 'items_completed' in topic 
-    ? (topic as TopicWithProgress).checklist 
-    : topic.checklist.map(item => ({ ...item, is_completed: false, completed_at: null }));
-  
-  const [checklist, setChecklist] = useState<TopicChecklistItemWithProgress[]>(initialChecklist as TopicChecklistItemWithProgress[]);
-  const [updatingItems, setUpdatingItems] = useState<Set<string>>(new Set());
+  // Get learning objectives (static display, not tracked)
+  const learningObjectives: LearningObjective[] = 'learning_objectives' in topic 
+    ? topic.learning_objectives 
+    : [];
   
   // State for knowledge questions
   const [questionsStatus, setQuestionsStatus] = useState<TopicQuestionsStatus | null>(null);
@@ -55,32 +50,6 @@ export function TopicContent({ topic, isAuthenticated }: TopicContentProps) {
         .catch((err) => {
           console.error("Failed to refresh question status:", err);
         });
-    }
-  };
-
-  const handleToggleItem = async (itemId: string) => {
-    if (!isAuthenticated || updatingItems.has(itemId)) return;
-
-    setUpdatingItems((prev) => new Set(prev).add(itemId));
-
-    try {
-      const result = await api.toggleChecklistItem(itemId);
-      setChecklist((prev) =>
-        prev.map((item) =>
-          item.id === itemId
-            ? { ...item, is_completed: result.is_completed }
-            : item
-        )
-      );
-      router.refresh();
-    } catch (error) {
-      console.error("Failed to toggle checklist item:", error);
-    } finally {
-      setUpdatingItems((prev) => {
-        const next = new Set(prev);
-        next.delete(itemId);
-        return next;
-      });
     }
   };
 
@@ -167,55 +136,19 @@ export function TopicContent({ topic, isAuthenticated }: TopicContentProps) {
         </div>
       )}
 
-      {/* Checklist */}
-      {checklist.length > 0 && (
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+      {/* What You'll Learn - Static display */}
+      {learningObjectives.length > 0 && (
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl border border-blue-200 dark:border-blue-800 p-6">
           <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">
-            ✅ Checklist
+            🎯 What You&apos;ll Learn
           </h2>
-          <ul className="space-y-3">
-            {checklist.map((item) => (
+          <ul className="space-y-2">
+            {learningObjectives.map((item) => (
               <li key={item.id} className="flex items-start gap-3">
-                {isAuthenticated ? (
-                  <button
-                    onClick={() => handleToggleItem(item.id)}
-                    disabled={updatingItems.has(item.id)}
-                    className="mt-0.5 flex-shrink-0"
-                  >
-                    <div
-                      className={`w-6 h-6 rounded border-2 flex items-center justify-center transition-colors ${
-                        item.is_completed
-                          ? "bg-green-500 border-green-500"
-                          : "border-gray-300 dark:border-gray-500 hover:border-green-500"
-                      } ${updatingItems.has(item.id) ? "opacity-50" : ""}`}
-                    >
-                      {item.is_completed && (
-                        <svg
-                          className="w-4 h-4 text-white"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={3}
-                            d="M5 13l4 4L19 7"
-                          />
-                        </svg>
-                      )}
-                    </div>
-                  </button>
-                ) : (
-                  <div className="mt-0.5 flex-shrink-0 w-6 h-6 rounded border-2 border-gray-300 dark:border-gray-500" />
-                )}
-                <span
-                  className={`${
-                    item.is_completed
-                      ? "text-gray-500 dark:text-gray-400 line-through"
-                      : "text-gray-700 dark:text-gray-300"
-                  }`}
-                >
+                <svg className="w-5 h-5 text-blue-500 dark:text-blue-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span className="text-gray-700 dark:text-gray-300">
                   {item.text}
                 </span>
               </li>

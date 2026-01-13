@@ -57,19 +57,11 @@ class User(Base):
     )
 
     # Relationships
-    checklist_progress: Mapped[list["ChecklistProgress"]] = relationship(
-        back_populates="user",
-        cascade="all, delete-orphan",
-    )
     github_submissions: Mapped[list["GitHubSubmission"]] = relationship(
         back_populates="user",
         cascade="all, delete-orphan",
     )
     question_attempts: Mapped[list["QuestionAttempt"]] = relationship(
-        back_populates="user",
-        cascade="all, delete-orphan",
-    )
-    daily_reflections: Mapped[list["DailyReflection"]] = relationship(
         back_populates="user",
         cascade="all, delete-orphan",
     )
@@ -81,46 +73,6 @@ class User(Base):
         back_populates="user",
         cascade="all, delete-orphan",
     )
-
-
-class ChecklistProgress(Base):
-    """Tracks user progress on checklist items (both phase and topic level)."""
-
-    __tablename__ = "checklist_progress"
-    __table_args__ = (
-        UniqueConstraint("user_id", "checklist_item_id", name="uq_user_checklist"),
-        Index("ix_checklist_progress_user_phase", "user_id", "phase_id"),
-        Index("ix_checklist_progress_user_item", "user_id", "checklist_item_id"),
-    )
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    user_id: Mapped[str] = mapped_column(
-        String(255),
-        ForeignKey("users.id", ondelete="CASCADE"),
-        nullable=False,
-    )
-    checklist_item_id: Mapped[str] = mapped_column(
-        String(100),
-        nullable=False,
-    )  # e.g., "phase0-check1" or "phase1-topic1-check1"
-    phase_id: Mapped[int] = mapped_column(Integer, nullable=False)
-    is_completed: Mapped[bool] = mapped_column(Boolean, default=False)
-    completed_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True),
-        nullable=True,
-    )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        default=utcnow,
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        default=utcnow,
-        onupdate=utcnow,
-    )
-
-    # Relationships
-    user: Mapped["User"] = relationship(back_populates="checklist_progress")
 
 
 class ProcessedWebhook(Base):
@@ -207,7 +159,6 @@ class ActivityType(str, PyEnum):
 
     QUESTION_ATTEMPT = "question_attempt"  # Attempted a knowledge question
     TOPIC_COMPLETE = "topic_complete"  # Completed all questions for a topic
-    REFLECTION = "reflection"  # Submitted a daily reflection
     CERTIFICATE_EARNED = "certificate_earned"  # Earned a completion certificate
 
 
@@ -289,41 +240,6 @@ class QuestionAttempt(Base):
 
     # Relationships
     user: Mapped["User"] = relationship(back_populates="question_attempts")
-
-
-class DailyReflection(Base):
-    """Tracks daily reflections and AI-generated personalized greetings."""
-
-    __tablename__ = "daily_reflections"
-    __table_args__ = (
-        UniqueConstraint("user_id", "reflection_date", name="uq_user_reflection_date"),
-        Index("ix_daily_reflections_user_date", "user_id", "reflection_date"),
-    )
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    user_id: Mapped[str] = mapped_column(
-        String(255),
-        ForeignKey("users.id", ondelete="CASCADE"),
-        nullable=False,
-    )
-    reflection_date: Mapped[date] = mapped_column(Date, nullable=False, default=today)
-    reflection_text: Mapped[str] = mapped_column(Text, nullable=False)
-    ai_greeting: Mapped[str | None] = mapped_column(
-        Text,
-        nullable=True,
-    )  # Generated greeting for next visit
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        default=utcnow,
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        default=utcnow,
-        onupdate=utcnow,
-    )
-
-    # Relationships
-    user: Mapped["User"] = relationship(back_populates="daily_reflections")
 
 
 class UserActivity(Base):

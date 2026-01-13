@@ -34,11 +34,9 @@ from slowapi.errors import RateLimitExceeded
 from routes import (
     activity_router,
     certificates_router,
-    checklist_router,
     github_router,
     health_router,
     questions_router,
-    reflections_router,
     users_router,
     webhooks_router,
 )
@@ -136,10 +134,8 @@ app.add_middleware(
 # Include routers
 app.include_router(health_router)
 app.include_router(users_router)
-app.include_router(checklist_router)
 app.include_router(github_router)
 app.include_router(webhooks_router)
 app.include_router(questions_router)
-app.include_router(reflections_router)
 app.include_router(activity_router)
 app.include_router(certificates_router)

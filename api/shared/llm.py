@@ -1,4 +1,4 @@
-"""Gemini LLM integration for knowledge question grading and reflection greetings."""
+"""Gemini LLM integration for knowledge question grading."""
 
 import json
 import logging
@@ -121,65 +121,3 @@ Please evaluate this answer."""
     except Exception as e:
         logger.exception(f"Error calling Gemini API: {e}")
         raise
-
-
-async def generate_greeting(
-    reflection_text: str,
-    user_first_name: str | None,
-) -> str:
-    """Generate a personalized greeting based on user's daily reflection.
-
-    Args:
-        reflection_text: The user's reflection/journal entry
-        user_first_name: User's first name for personalization
-
-    Returns:
-        A personalized greeting message for their next visit
-    """
-    settings = get_settings()
-    client = get_gemini_client()
-
-    name = user_first_name or "there"
-
-    system_prompt = """You are a supportive learning companion for \
-"Learn to Cloud", a platform helping people learn cloud computing.
-
-Your task is to generate a brief, personalized greeting message \
-that will be shown to the student when they return to the platform.
-
-GUIDELINES:
-1. Reference specific things they mentioned in their reflection
-2. Be encouraging and supportive
-3. If they mentioned struggles, acknowledge them and offer encouragement
-4. If they mentioned progress, celebrate it
-5. Keep it brief (2-3 sentences max)
-6. Be warm but professional
-7. Don't use excessive exclamation marks
-
-TONE: Like a friendly mentor who remembers your conversations"""
-
-    user_message = f"""The student's name is {name}.
-
-Their reflection from their last session:
-"{reflection_text}"
-
-Generate a brief welcome-back greeting that references their reflection."""
-
-    try:
-        response = await client.aio.models.generate_content(
-            model=settings.gemini_model,
-            contents=user_message,
-            config=types.GenerateContentConfig(
-                system_instruction=system_prompt,
-                temperature=0.7,
-                max_output_tokens=200,
-            ),
-        )
-
-        return (response.text or "").strip() or f"Welcome back, {name}!"
-
-    except Exception as e:
-        logger.exception(f"Error generating greeting: {e}")
-        # Fallback to a generic greeting
-        return f"Welcome back, {name}! Ready to continue your cloud journey?"
-        return f"Welcome back, {name}! Ready to continue your cloud learning journey?"

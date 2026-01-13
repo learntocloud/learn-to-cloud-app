@@ -36,12 +36,35 @@
     {
       "id": "phase2-topic2-q1",
       "prompt": "What is a REST API and what are its key principles?",
-      "expected_concepts": ["representational state transfer", "stateless", "HTTP", "resources", "endpoints", "uniform interface", "client-server", "cacheable", "standard methods"]
+      "expected_concepts": [
+        "representational state transfer",
+        "stateless",
+        "HTTP",
+        "resources",
+        "endpoints",
+        "uniform interface",
+        "client-server",
+        "cacheable",
+        "standard methods"
+      ]
     },
     {
       "id": "phase2-topic2-q2",
       "prompt": "Explain the difference between GET, POST, PUT, and DELETE HTTP methods.",
-      "expected_concepts": ["GET", "retrieve", "read", "POST", "create", "PUT", "update", "replace", "DELETE", "remove", "CRUD", "idempotent"]
+      "expected_concepts": [
+        "GET",
+        "retrieve",
+        "read",
+        "POST",
+        "create",
+        "PUT",
+        "update",
+        "replace",
+        "DELETE",
+        "remove",
+        "CRUD",
+        "idempotent"
+      ]
     }
   ],
   "test_knowledge_prompts": [
@@ -52,8 +75,16 @@
     "Can you quiz me on how to use the HTTP methods GET, POST, PUT, and DELETE in REST?",
     "Can you ask me to explain the concept of status codes in REST and give examples?"
   ],
-  "checklist": [
-    { "id": "phase2-topic2-check1", "text": "Completed the API learning materials", "order": 1 },
-    { "id": "phase2-topic2-check2", "text": "Answered the knowledge check questions", "order": 2 }
+  "learning_objectives": [
+    {
+      "id": "phase2-topic2-check1",
+      "text": "Completed the API learning materials",
+      "order": 1
+    },
+    {
+      "id": "phase2-topic2-check2",
+      "text": "Answered the knowledge check questions",
+      "order": 2
+    }
   ]
 }

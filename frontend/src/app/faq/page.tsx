@@ -14,27 +14,22 @@ const faqs: FAQItem[] = [
   {
     question: "How does progress tracking work?",
     answer:
-      "Each topic has checklist items you can mark as complete. Your progress is saved automatically and displayed on your dashboard. You can see your overall completion percentage and which phases are in progress or completed.",
+      "Each topic has knowledge questions that test your understanding. Your progress is saved automatically and displayed on your dashboard. You can see your overall completion percentage and which phases are in progress or completed.",
   },
   {
     question: "What counts as an activity?",
     answer:
-      "Activities include: attempting knowledge questions, completing all questions for a topic, and submitting daily reflections. Your total activity count and activity heatmap are shown on your public profile.",
+      "Activities include: attempting knowledge questions, completing all questions for a topic, and earning certificates. Your total activity count and activity heatmap are shown on your public profile.",
   },
   {
     question: "How do streaks work?",
     answer:
-      "You maintain a streak by completing at least one activity per day. Activities that count toward your streak include answering knowledge questions and submitting daily reflections. Your current streak is displayed on your dashboard.",
+      "You maintain a streak by completing at least one activity per day. Activities that count toward your streak include answering knowledge questions and earning certificates. Your current streak is displayed on your dashboard.",
   },
   {
     question: "What are knowledge questions?",
     answer:
       "Knowledge questions are AI-graded questions at the end of each topic to test your understanding. You can attempt them multiple times, and your answers are evaluated by an AI that provides feedback on whether you've demonstrated comprehension of the material.",
-  },
-  {
-    question: "What are daily reflections?",
-    answer:
-      "Daily reflections are optional journal entries where you can write about what you learned, challenges you faced, or goals for tomorrow. They help reinforce learning and contribute to your activity streak.",
   },
   {
     question: "Can I make my profile private?",
@@ -54,7 +49,7 @@ const faqs: FAQItem[] = [
   {
     question: "Can I reset my progress?",
     answer:
-      "Currently, there's no bulk reset option. You can uncheck individual checklist items if needed. If you need a full reset, please contact support.",
+      "Question attempts can be retried anytime. If you need a full reset of your progress, please contact support.",
   },
 ];
 

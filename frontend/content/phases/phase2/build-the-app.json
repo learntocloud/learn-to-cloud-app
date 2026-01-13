@@ -21,7 +21,7 @@
       "action": "Set Up:",
       "title": "Dev Containers Tutorial",
       "url": "https://code.visualstudio.com/docs/devcontainers/tutorial",
-      "description": "Before starting, learn about Dev Containers—a VS Code feature that creates consistent development environments using Docker. This ensures your project works the same way everywhere."
+      "description": "Before starting, learn about Dev Containers\u2014a VS Code feature that creates consistent development environments using Docker. This ensures your project works the same way everywhere."
     },
     {
       "order": 3,
@@ -36,7 +36,7 @@
       "text": "Open in Codespaces or VS Code",
       "action": "Open in Codespaces or VS Code:",
       "url": null,
-      "description": "Option 1: Click 'Code' → 'Open with Codespaces' on GitHub (free tier available)\nOption 2: Clone locally and open in VS Code with the Dev Containers extension\n\nThe Dev Container will automatically install Python, dependencies, and configure your environment."
+      "description": "Option 1: Click 'Code' \u2192 'Open with Codespaces' on GitHub (free tier available)\nOption 2: Clone locally and open in VS Code with the Dev Containers extension\n\nThe Dev Container will automatically install Python, dependencies, and configure your environment."
     },
     {
       "order": 5,
@@ -69,9 +69,18 @@
       "url": null,
       "description": "Configure your preferred LLM provider. Store credentials in environment variables, never in code.",
       "secondary_links": [
-        { "text": "GitHub Models (Free)", "url": "https://docs.github.com/en/github-models" },
-        { "text": "Azure OpenAI", "url": "https://azure.microsoft.com/en-us/products/ai-services/openai-service" },
-        { "text": "AWS Bedrock", "url": "https://aws.amazon.com/bedrock/" }
+        {
+          "text": "GitHub Models (Free)",
+          "url": "https://docs.github.com/en/github-models"
+        },
+        {
+          "text": "Azure OpenAI",
+          "url": "https://azure.microsoft.com/en-us/products/ai-services/openai-service"
+        },
+        {
+          "text": "AWS Bedrock",
+          "url": "https://aws.amazon.com/bedrock/"
+        }
       ]
     },
     {
@@ -80,7 +89,7 @@
       "action": "Add Error Handling:",
       "url": null,
       "description": "Make your API robust with proper error handling:",
-      "code": "# Handle these scenarios:\n- Entry not found → 404 response\n- Invalid input → 422 with validation errors\n- LLM API failure → 503 with retry message\n- Database errors → 500 with safe error message\n\n# Use FastAPI's exception handlers:\nfrom fastapi import HTTPException\nraise HTTPException(status_code=404, detail=\"Entry not found\")"
+      "code": "# Handle these scenarios:\n- Entry not found \u2192 404 response\n- Invalid input \u2192 422 with validation errors\n- LLM API failure \u2192 503 with retry message\n- Database errors \u2192 500 with safe error message\n\n# Use FastAPI's exception handlers:\nfrom fastapi import HTTPException\nraise HTTPException(status_code=404, detail=\"Entry not found\")"
     },
     {
       "order": 10,
@@ -95,7 +104,7 @@
       "text": "Documentation",
       "action": "Documentation:",
       "url": null,
-      "description": "Update your README with:\n• Project description and features\n• How to run locally (with Dev Container)\n• API endpoint documentation\n• Environment variables needed\n• Example API calls with curl or HTTPie"
+      "description": "Update your README with:\n\u2022 Project description and features\n\u2022 How to run locally (with Dev Container)\n\u2022 API endpoint documentation\n\u2022 Environment variables needed\n\u2022 Example API calls with curl or HTTPie"
     },
     {
       "order": 12,
@@ -109,12 +118,35 @@
     {
       "id": "phase2-topic7-q1",
       "prompt": "Describe the architecture of your Journal API application and how the different components work together.",
-      "expected_concepts": ["FastAPI", "endpoints", "database", "LLM", "CRUD", "entries", "analysis", "PostgreSQL", "schema", "API", "integration"]
+      "expected_concepts": [
+        "FastAPI",
+        "endpoints",
+        "database",
+        "LLM",
+        "CRUD",
+        "entries",
+        "analysis",
+        "PostgreSQL",
+        "schema",
+        "API",
+        "integration"
+      ]
     },
     {
       "id": "phase2-topic7-q2",
       "prompt": "How did you implement the LLM analysis feature for journal entries, and what prompt engineering techniques did you use?",
-      "expected_concepts": ["prompt", "sentiment", "topics", "summary", "JSON", "structured output", "system message", "API call", "parse", "response"]
+      "expected_concepts": [
+        "prompt",
+        "sentiment",
+        "topics",
+        "summary",
+        "JSON",
+        "structured output",
+        "system message",
+        "API call",
+        "parse",
+        "response"
+      ]
     }
   ],
   "test_knowledge_prompts": [
@@ -126,15 +158,51 @@
     "Can you explain the difference between sync and async database calls in FastAPI?",
     "Can you review my prompt engineering for the journal analysis feature?"
   ],
-  "checklist": [
-    { "id": "phase2-topic7-check1", "text": "Forked the journal-starter repository", "order": 1 },
-    { "id": "phase2-topic7-check2", "text": "Set up Dev Container environment", "order": 2 },
-    { "id": "phase2-topic7-check3", "text": "Implemented all CRUD endpoints for entries", "order": 3 },
-    { "id": "phase2-topic7-check4", "text": "Connected to database and created schema", "order": 4 },
-    { "id": "phase2-topic7-check5", "text": "Integrated LLM API for analysis", "order": 5 },
-    { "id": "phase2-topic7-check6", "text": "Added proper error handling", "order": 6 },
-    { "id": "phase2-topic7-check7", "text": "Tested all endpoints via /docs", "order": 7 },
-    { "id": "phase2-topic7-check8", "text": "Updated README documentation", "order": 8 },
-    { "id": "phase2-topic7-check9", "text": "Pushed completed project to GitHub", "order": 9 }
+  "learning_objectives": [
+    {
+      "id": "phase2-topic7-check1",
+      "text": "Forked the journal-starter repository",
+      "order": 1
+    },
+    {
+      "id": "phase2-topic7-check2",
+      "text": "Set up Dev Container environment",
+      "order": 2
+    },
+    {
+      "id": "phase2-topic7-check3",
+      "text": "Implemented all CRUD endpoints for entries",
+      "order": 3
+    },
+    {
+      "id": "phase2-topic7-check4",
+      "text": "Connected to database and created schema",
+      "order": 4
+    },
+    {
+      "id": "phase2-topic7-check5",
+      "text": "Integrated LLM API for analysis",
+      "order": 5
+    },
+    {
+      "id": "phase2-topic7-check6",
+      "text": "Added proper error handling",
+      "order": 6
+    },
+    {
+      "id": "phase2-topic7-check7",
+      "text": "Tested all endpoints via /docs",
+      "order": 7
+    },
+    {
+      "id": "phase2-topic7-check8",
+      "text": "Updated README documentation",
+      "order": 8
+    },
+    {
+      "id": "phase2-topic7-check9",
+      "text": "Pushed completed project to GitHub",
+      "order": 9
+    }
   ]
 }

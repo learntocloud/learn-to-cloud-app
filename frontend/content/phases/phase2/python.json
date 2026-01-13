@@ -21,19 +21,42 @@
       "action": "Watch:",
       "title": "CS50 lecture on Python",
       "url": "https://youtu.be/LfaMVlDaQ24?feature=shared&t=49364",
-      "description": "Once you are done with the book, watch this lecture. Everything here should make sense to you—if not, you are not ready to move on."
+      "description": "Once you are done with the book, watch this lecture. Everything here should make sense to you\u2014if not, you are not ready to move on."
     }
   ],
   "questions": [
     {
       "id": "phase2-topic1-q1",
       "prompt": "What is the difference between a list and a dictionary in Python, and when would you use each?",
-      "expected_concepts": ["list", "ordered", "index", "dictionary", "key-value", "unordered", "lookup", "hash", "mutable", "collection"]
+      "expected_concepts": [
+        "list",
+        "ordered",
+        "index",
+        "dictionary",
+        "key-value",
+        "unordered",
+        "lookup",
+        "hash",
+        "mutable",
+        "collection"
+      ]
     },
     {
       "id": "phase2-topic1-q2",
       "prompt": "What is exception handling in Python and why is it important?",
-      "expected_concepts": ["try", "except", "finally", "error", "exception", "catch", "handle", "graceful", "crash", "raise", "robust"]
+      "expected_concepts": [
+        "try",
+        "except",
+        "finally",
+        "error",
+        "exception",
+        "catch",
+        "handle",
+        "graceful",
+        "crash",
+        "raise",
+        "robust"
+      ]
     }
   ],
   "test_knowledge_prompts": [
@@ -48,12 +71,36 @@
     "Can you ask me about generators in Python and how they differ from regular functions?",
     "Can you quiz me on how to use the map, filter, and reduce functions in Python?"
   ],
-  "checklist": [
-    { "id": "phase2-topic1-check1", "text": "Worked with lists, tuples, and dictionaries", "order": 1 },
-    { "id": "phase2-topic1-check2", "text": "Defined and used functions", "order": 2 },
-    { "id": "phase2-topic1-check3", "text": "Handled exceptions properly", "order": 3 },
-    { "id": "phase2-topic1-check4", "text": "Worked with classes and OOP basics", "order": 4 },
-    { "id": "phase2-topic1-check5", "text": "Read and wrote files in Python", "order": 5 },
-    { "id": "phase2-topic1-check6", "text": "Completed the CS50 Python lecture", "order": 6 }
+  "learning_objectives": [
+    {
+      "id": "phase2-topic1-check1",
+      "text": "Worked with lists, tuples, and dictionaries",
+      "order": 1
+    },
+    {
+      "id": "phase2-topic1-check2",
+      "text": "Defined and used functions",
+      "order": 2
+    },
+    {
+      "id": "phase2-topic1-check3",
+      "text": "Handled exceptions properly",
+      "order": 3
+    },
+    {
+      "id": "phase2-topic1-check4",
+      "text": "Worked with classes and OOP basics",
+      "order": 4
+    },
+    {
+      "id": "phase2-topic1-check5",
+      "text": "Read and wrote files in Python",
+      "order": 5
+    },
+    {
+      "id": "phase2-topic1-check6",
+      "text": "Completed the CS50 Python lecture",
+      "order": 6
+    }
   ]
 }

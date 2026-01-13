@@ -2,7 +2,7 @@
 
 Badges are computed on-the-fly from user progress data.
 No separate database table is needed - badges are derived from:
-- Checklist progress (phase completion badges)
+- Question attempts (phase completion badges)
 - User activities (streak badges)
 """
 
@@ -80,21 +80,21 @@ STREAK_BADGES = [
     },
 ]
 
-# Known totals per phase (checklist items + questions from content structure)
-# Phase 0: 13 checklist + 12 questions = 25
-# Phase 1: 20 checklist + 12 questions = 32
-# Phase 2: 34 checklist + 14 questions = 48
-# Phase 3: 39 checklist + 18 questions = 57
-# Phase 4: 31 checklist + 12 questions = 43
-# Phase 5: 30 checklist + 12 questions = 42
-# Total: 167 checklist + 80 questions = 247
-PHASE_CHECKLIST_TOTALS = {
-    0: 25,
-    1: 32,
-    2: 48,
-    3: 57,
-    4: 43,
-    5: 42,
+# Questions per phase (progress is now based on passed questions only)
+# Phase 0: 12 questions (6 topics × 2 questions)
+# Phase 1: 12 questions (6 topics × 2 questions)
+# Phase 2: 14 questions (7 topics × 2 questions)
+# Phase 3: 18 questions (9 topics × 2 questions)
+# Phase 4: 12 questions (6 topics × 2 questions)
+# Phase 5: 12 questions (6 topics × 2 questions)
+# Total: 80 questions
+PHASE_QUESTION_TOTALS = {
+    0: 12,
+    1: 12,
+    2: 14,
+    3: 18,
+    4: 12,
+    5: 12,
 }
 
 
@@ -110,12 +110,12 @@ class Badge:
 
 
 def compute_phase_badges(
-    phase_completed_counts: dict[int, int],
+    phase_passed_counts: dict[int, int],
 ) -> list[Badge]:
     """Compute which phase badges a user has earned.
 
     Args:
-        phase_completed_counts: Dict mapping phase_id -> completed checklist items count
+        phase_passed_counts: Dict mapping phase_id -> passed questions count
 
     Returns:
         List of earned Badge objects
@@ -123,10 +123,10 @@ def compute_phase_badges(
     earned_badges = []
 
     for phase_id, badge_info in PHASE_BADGES.items():
-        total_required = PHASE_CHECKLIST_TOTALS.get(phase_id, 0)
-        completed = phase_completed_counts.get(phase_id, 0)
+        total_required = PHASE_QUESTION_TOTALS.get(phase_id, 0)
+        passed = phase_passed_counts.get(phase_id, 0)
 
-        if total_required > 0 and completed >= total_required:
+        if total_required > 0 and passed >= total_required:
             earned_badges.append(
                 Badge(
                     id=badge_info["id"],
@@ -167,20 +167,20 @@ def compute_streak_badges(
 
 
 def compute_all_badges(
-    phase_completed_counts: dict[int, int],
+    phase_passed_counts: dict[int, int],
     longest_streak: int,
 ) -> list[Badge]:
     """Compute all badges a user has earned.
 
     Args:
-        phase_completed_counts: Dict mapping phase_id -> completed checklist items count
+        phase_passed_counts: Dict mapping phase_id -> passed questions count
         longest_streak: User's longest streak (all-time)
 
     Returns:
         List of all earned Badge objects
     """
     badges = []
-    badges.extend(compute_phase_badges(phase_completed_counts))
+    badges.extend(compute_phase_badges(phase_passed_counts))
     badges.extend(compute_streak_badges(longest_streak))
     return badges
 
@@ -195,11 +195,11 @@ def get_all_available_badges() -> list[dict]:
 
     # Phase badges
     for phase_id, badge_info in PHASE_BADGES.items():
-        total = PHASE_CHECKLIST_TOTALS.get(phase_id, 0)
+        total = PHASE_QUESTION_TOTALS.get(phase_id, 0)
         badges.append({
             **badge_info,
             "category": "phase",
-            "requirement": f"Complete all {total} items in Phase {phase_id}",
+            "requirement": f"Pass all {total} questions in Phase {phase_id}",
         })
 
     # Streak badges

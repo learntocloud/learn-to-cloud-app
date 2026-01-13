@@ -23,7 +23,6 @@ from .github import (
     validate_submission,
 )
 from .models import (
-    ChecklistProgress,
     GitHubSubmission,
     ProcessedWebhook,
     SubmissionType,
@@ -31,15 +30,12 @@ from .models import (
 )
 from .schemas import (
     AllPhasesGitHubRequirementsResponse,
-    ChecklistToggleResponse,
     GitHubRequirement,
     GitHubSubmissionRequest,
     GitHubSubmissionResponse,
     GitHubValidationResult,
     HealthResponse,
     PhaseGitHubRequirementsResponse,
-    ProgressItem,
-    UserProgressResponse,
     UserResponse,
     WebhookResponse,
 )
@@ -67,7 +63,6 @@ __all__ = [
     "upsert_on_conflict",
     # Models
     "User",
-    "ChecklistProgress",
     "ProcessedWebhook",
     "GitHubSubmission",
     "SubmissionType",
@@ -77,8 +72,6 @@ __all__ = [
     "UserId",
     # Schemas
     "UserResponse",
-    "ProgressItem",
-    "UserProgressResponse",
     "GitHubRequirement",
     "GitHubSubmissionRequest",
     "GitHubSubmissionResponse",
@@ -86,7 +79,6 @@ __all__ = [
     "PhaseGitHubRequirementsResponse",
     "AllPhasesGitHubRequirementsResponse",
     "HealthResponse",
-    "ChecklistToggleResponse",
     "WebhookResponse",
     # GitHub utilities
     "get_requirements_for_phase",

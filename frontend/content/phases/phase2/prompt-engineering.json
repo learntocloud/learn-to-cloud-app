@@ -2,7 +2,7 @@
   "id": "phase2-topic6",
   "slug": "prompt-engineering",
   "name": "Prompt Engineering",
-  "description": "Now that you can call LLM APIs, you need to learn how to write effective prompts. This topic covers the core principles and practical patterns that will help you get consistent, useful responses from LLMs—a crucial skill for building AI-powered features.",
+  "description": "Now that you can call LLM APIs, you need to learn how to write effective prompts. This topic covers the core principles and practical patterns that will help you get consistent, useful responses from LLMs\u2014a crucial skill for building AI-powered features.",
   "order": 6,
   "estimated_time": "3-4 days",
   "is_capstone": false,
@@ -12,7 +12,7 @@
       "text": "Core Principles of Prompting",
       "action": "Core Principles of Prompting:",
       "url": null,
-      "description": "Start with these five foundational principles:\n\n• Be Clear and Specific - Precise language prevents misinterpretation. Don't assume the model knows context.\n• Provide Context - Background info improves response accuracy significantly.\n• Use Few-Shot Examples - Showing examples of desired input/output pairs is one of the most powerful techniques.\n• Request Specific Format - Specify exactly how you want the output (JSON, markdown, bullets, etc.).\n• Adjust Temperature - Use 0 for consistent/deterministic outputs, higher (0.7-1.0) for creative tasks."
+      "description": "Start with these five foundational principles:\n\n\u2022 Be Clear and Specific - Precise language prevents misinterpretation. Don't assume the model knows context.\n\u2022 Provide Context - Background info improves response accuracy significantly.\n\u2022 Use Few-Shot Examples - Showing examples of desired input/output pairs is one of the most powerful techniques.\n\u2022 Request Specific Format - Specify exactly how you want the output (JSON, markdown, bullets, etc.).\n\u2022 Adjust Temperature - Use 0 for consistent/deterministic outputs, higher (0.7-1.0) for creative tasks."
     },
     {
       "order": 2,
@@ -83,19 +83,40 @@
       "text": "Key Tips for Production Prompts",
       "action": "Key Tips for Production Prompts:",
       "url": null,
-      "description": "• Always use delimiters (``` or ###) to separate user content from instructions\n• Set constraints on response length when needed\n• Use 'Output Priming' by starting the expected response format\n• Test with edge cases: empty inputs, very long inputs, malicious inputs\n• Version control your prompts—they're code too!"
+      "description": "\u2022 Always use delimiters (``` or ###) to separate user content from instructions\n\u2022 Set constraints on response length when needed\n\u2022 Use 'Output Priming' by starting the expected response format\n\u2022 Test with edge cases: empty inputs, very long inputs, malicious inputs\n\u2022 Version control your prompts\u2014they're code too!"
     }
   ],
   "questions": [
     {
       "id": "phase2-topic6-q1",
       "prompt": "What is few-shot prompting and why is it one of the most effective prompt engineering techniques?",
-      "expected_concepts": ["few-shot", "examples", "input-output pairs", "demonstrate", "pattern", "format", "consistent", "teach", "context", "behavior"]
+      "expected_concepts": [
+        "few-shot",
+        "examples",
+        "input-output pairs",
+        "demonstrate",
+        "pattern",
+        "format",
+        "consistent",
+        "teach",
+        "context",
+        "behavior"
+      ]
     },
     {
       "id": "phase2-topic6-q2",
       "prompt": "Why is it important to use delimiters in prompts when processing user input?",
-      "expected_concepts": ["delimiters", "separation", "prompt injection", "security", "clear boundaries", "instructions", "user content", "triple backticks", "prevent manipulation"]
+      "expected_concepts": [
+        "delimiters",
+        "separation",
+        "prompt injection",
+        "security",
+        "clear boundaries",
+        "instructions",
+        "user content",
+        "triple backticks",
+        "prevent manipulation"
+      ]
     }
   ],
   "test_knowledge_prompts": [
@@ -107,12 +128,36 @@
     "Can you ask me about the difference between zero-shot and few-shot prompting?",
     "Can you quiz me on how temperature affects LLM outputs?"
   ],
-  "checklist": [
-    { "id": "phase2-topic6-check1", "text": "Learned the 5 core prompting principles", "order": 1 },
-    { "id": "phase2-topic6-check2", "text": "Practiced simple sentiment analysis prompts", "order": 2 },
-    { "id": "phase2-topic6-check3", "text": "Created prompts that return structured JSON", "order": 3 },
-    { "id": "phase2-topic6-check4", "text": "Used few-shot examples to guide model behavior", "order": 4 },
-    { "id": "phase2-topic6-check5", "text": "Practiced chain-of-thought prompting", "order": 5 },
-    { "id": "phase2-topic6-check6", "text": "Tested prompts with edge cases", "order": 6 }
+  "learning_objectives": [
+    {
+      "id": "phase2-topic6-check1",
+      "text": "Learned the 5 core prompting principles",
+      "order": 1
+    },
+    {
+      "id": "phase2-topic6-check2",
+      "text": "Practiced simple sentiment analysis prompts",
+      "order": 2
+    },
+    {
+      "id": "phase2-topic6-check3",
+      "text": "Created prompts that return structured JSON",
+      "order": 3
+    },
+    {
+      "id": "phase2-topic6-check4",
+      "text": "Used few-shot examples to guide model behavior",
+      "order": 4
+    },
+    {
+      "id": "phase2-topic6-check5",
+      "text": "Practiced chain-of-thought prompting",
+      "order": 5
+    },
+    {
+      "id": "phase2-topic6-check6",
+      "text": "Tested prompts with edge cases",
+      "order": 6
+    }
   ]
 }

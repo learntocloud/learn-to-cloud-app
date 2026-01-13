@@ -1,6 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
-import { getDashboard, getStreak, getTodayReflection } from "@/lib/api";
+import { getDashboard, getStreak } from "@/lib/api";
 import { PhaseCard } from "@/components/phase-card";
 import Link from "next/link";
 
@@ -14,10 +14,9 @@ export default async function DashboardPage() {
     redirect("/sign-in");
   }
 
-  const [dashboard, streakData, todayReflection] = await Promise.all([
+  const [dashboard, streakData] = await Promise.all([
     getDashboard(),
     getStreak().catch(() => ({ current_streak: 0, longest_streak: 0, last_activity_date: null })),
-    getTodayReflection().catch(() => null),
   ]);
 
   const completedPhases = dashboard.phases.filter(p => p.progress?.status === "completed").length;
@@ -41,7 +40,7 @@ export default async function DashboardPage() {
               </span>
               <span className="text-gray-300 dark:text-gray-600">·</span>
               <span>
-                <span className="font-medium text-gray-900 dark:text-white">{dashboard.total_completed}</span>/{dashboard.total_items} items
+                <span className="font-medium text-gray-900 dark:text-white">{dashboard.total_completed}</span>/{dashboard.total_items} questions
               </span>
             </div>
           </div>
@@ -60,35 +59,6 @@ export default async function DashboardPage() {
             </Link>
           </div>
         </div>
-
-        {/* Journal prompt */}
-        <Link
-          href="/journal"
-          className="block mb-6 px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 transition-colors group"
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-sm">
-              {todayReflection ? (
-                <>
-                  <span className="text-green-500">✓</span>
-                  <span className="text-gray-600 dark:text-gray-400">Today's reflection</span>
-                  <span className="text-gray-300 dark:text-gray-600">·</span>
-                  <span className="text-gray-500 dark:text-gray-500 truncate max-w-[250px]">
-                    {todayReflection.reflection_text}
-                  </span>
-                </>
-              ) : (
-                <>
-                  <span className="text-gray-400">📝</span>
-                  <span className="text-gray-600 dark:text-gray-400">Write today's reflection</span>
-                </>
-              )}
-            </div>
-            <span className="text-xs text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300">
-              {todayReflection ? 'View' : 'Start'} →
-            </span>
-          </div>
-        </Link>
 
         {/* Progress bar */}
         <div className="mb-8">

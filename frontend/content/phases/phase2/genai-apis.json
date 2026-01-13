@@ -12,7 +12,7 @@
       "text": "Understand LLM API Basics",
       "action": "Understand LLM API Basics:",
       "url": null,
-      "description": "Before coding, understand these core concepts:\n\n• Messages format: LLMs work with conversation-style inputs (system, user, assistant messages)\n• Completions: The API generates text based on your input\n• Parameters: temperature (0 = deterministic, 1 = creative), max_tokens (response length), model (which LLM version)\n• Structured outputs: Getting JSON instead of free text"
+      "description": "Before coding, understand these core concepts:\n\n\u2022 Messages format: LLMs work with conversation-style inputs (system, user, assistant messages)\n\u2022 Completions: The API generates text based on your input\n\u2022 Parameters: temperature (0 = deterministic, 1 = creative), max_tokens (response length), model (which LLM version)\n\u2022 Structured outputs: Getting JSON instead of free text"
     },
     {
       "order": 2,
@@ -20,9 +20,12 @@
       "action": "Hands-On:",
       "title": "Python OpenAI Demos",
       "url": "https://aka.ms/python-openai-demos",
-      "description": "Start with this free hands-on practice using GitHub Models. This repository teaches you the OpenAI Python SDK through progressively complex examples—the same SDK used by Azure OpenAI. You can run it completely free using GitHub Models in GitHub Codespaces.",
+      "description": "Start with this free hands-on practice using GitHub Models. This repository teaches you the OpenAI Python SDK through progressively complex examples\u2014the same SDK used by Azure OpenAI. You can run it completely free using GitHub Models in GitHub Codespaces.",
       "secondary_links": [
-        { "text": "Video Walkthrough", "url": "https://www.youtube.com/watch?v=_daw48A-RZI" }
+        {
+          "text": "Video Walkthrough",
+          "url": "https://www.youtube.com/watch?v=_daw48A-RZI"
+        }
       ]
     },
     {
@@ -83,12 +86,34 @@
     {
       "id": "phase2-topic5-q1",
       "prompt": "How do LLM APIs differ from traditional REST APIs in terms of how you interact with them?",
-      "expected_concepts": ["messages", "conversation", "system message", "user message", "assistant", "completion", "tokens", "context", "prompt", "stateless"]
+      "expected_concepts": [
+        "messages",
+        "conversation",
+        "system message",
+        "user message",
+        "assistant",
+        "completion",
+        "tokens",
+        "context",
+        "prompt",
+        "stateless"
+      ]
     },
     {
       "id": "phase2-topic5-q2",
       "prompt": "What is the temperature parameter in LLM APIs and how does it affect the output?",
-      "expected_concepts": ["temperature", "randomness", "creativity", "deterministic", "zero", "one", "consistent", "varied", "sampling", "probability"]
+      "expected_concepts": [
+        "temperature",
+        "randomness",
+        "creativity",
+        "deterministic",
+        "zero",
+        "one",
+        "consistent",
+        "varied",
+        "sampling",
+        "probability"
+      ]
     }
   ],
   "test_knowledge_prompts": [
@@ -100,11 +125,31 @@
     "Can you quiz me on how to handle errors and rate limits when calling LLM APIs?",
     "Can you explain how to get structured JSON output from an LLM instead of plain text?"
   ],
-  "checklist": [
-    { "id": "phase2-topic5-check1", "text": "Completed the Python OpenAI Demos exercises", "order": 1 },
-    { "id": "phase2-topic5-check2", "text": "Tested prompts in my cloud provider's playground", "order": 2 },
-    { "id": "phase2-topic5-check3", "text": "Practiced with structured outputs (JSON responses)", "order": 3 },
-    { "id": "phase2-topic5-check4", "text": "Created a Python script that calls an LLM API", "order": 4 },
-    { "id": "phase2-topic5-check5", "text": "Stored API keys securely in environment variables", "order": 5 }
+  "learning_objectives": [
+    {
+      "id": "phase2-topic5-check1",
+      "text": "Completed the Python OpenAI Demos exercises",
+      "order": 1
+    },
+    {
+      "id": "phase2-topic5-check2",
+      "text": "Tested prompts in my cloud provider's playground",
+      "order": 2
+    },
+    {
+      "id": "phase2-topic5-check3",
+      "text": "Practiced with structured outputs (JSON responses)",
+      "order": 3
+    },
+    {
+      "id": "phase2-topic5-check4",
+      "text": "Created a Python script that calls an LLM API",
+      "order": 4
+    },
+    {
+      "id": "phase2-topic5-check5",
+      "text": "Stored API keys securely in environment variables",
+      "order": 5
+    }
   ]
 }

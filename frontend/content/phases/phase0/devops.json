@@ -28,12 +28,34 @@
     {
       "id": "phase0-topic5-q1",
       "prompt": "What is DevOps and why is it important in modern software development?",
-      "expected_concepts": ["development", "operations", "collaboration", "automation", "faster delivery", "continuous", "culture", "communication", "feedback", "reliability"]
+      "expected_concepts": [
+        "development",
+        "operations",
+        "collaboration",
+        "automation",
+        "faster delivery",
+        "continuous",
+        "culture",
+        "communication",
+        "feedback",
+        "reliability"
+      ]
     },
     {
       "id": "phase0-topic5-q2",
       "prompt": "What does CI/CD stand for and why is it a key practice in DevOps?",
-      "expected_concepts": ["continuous integration", "continuous delivery", "continuous deployment", "automate", "testing", "build", "deploy", "faster", "quality", "pipeline"]
+      "expected_concepts": [
+        "continuous integration",
+        "continuous delivery",
+        "continuous deployment",
+        "automate",
+        "testing",
+        "build",
+        "deploy",
+        "faster",
+        "quality",
+        "pipeline"
+      ]
     }
   ],
   "test_knowledge_prompts": [
@@ -41,8 +63,16 @@
     "Can you quiz me on how DevOps relates to cloud engineering?",
     "Can you ask me what CI/CD stands for at a high level?"
   ],
-  "checklist": [
-    { "id": "phase0-topic5-check1", "text": "Completed the DevOps learning materials", "order": 1 },
-    { "id": "phase0-topic5-check2", "text": "Answered the knowledge check questions", "order": 2 }
+  "learning_objectives": [
+    {
+      "id": "phase0-topic5-check1",
+      "text": "Completed the DevOps learning materials",
+      "order": 1
+    },
+    {
+      "id": "phase0-topic5-check2",
+      "text": "Answered the knowledge check questions",
+      "order": 2
+    }
   ]
 }

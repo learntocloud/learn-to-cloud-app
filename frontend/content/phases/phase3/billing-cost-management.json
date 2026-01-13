@@ -12,7 +12,7 @@
       "text": "Understand Cloud Billing Basics",
       "action": "Understand Cloud Billing Basics:",
       "url": null,
-      "description": "Core concepts you must understand:\n\n• Pay-as-you-go pricing - You're charged for what you use, not upfront\n• Resource types have different costs - VMs, storage, data transfer all priced differently\n• Regional pricing varies - Same resource costs different amounts in different regions\n• Billing cycles - Usually monthly. Charges appear in your bill 24-48 hours after use"
+      "description": "Core concepts you must understand:\n\n\u2022 Pay-as-you-go pricing - You're charged for what you use, not upfront\n\u2022 Resource types have different costs - VMs, storage, data transfer all priced differently\n\u2022 Regional pricing varies - Same resource costs different amounts in different regions\n\u2022 Billing cycles - Usually monthly. Charges appear in your bill 24-48 hours after use"
     },
     {
       "order": 2,
@@ -83,9 +83,18 @@
       "url": null,
       "description": "Estimate costs BEFORE you deploy. Each cloud provider has a calculator:",
       "secondary_links": [
-        { "text": "Azure Pricing Calculator", "url": "https://azure.microsoft.com/en-us/pricing/calculator/" },
-        { "text": "AWS Pricing Calculator", "url": "https://calculator.aws/#/" },
-        { "text": "GCP Pricing Calculator", "url": "https://cloud.google.com/products/calculator" }
+        {
+          "text": "Azure Pricing Calculator",
+          "url": "https://azure.microsoft.com/en-us/pricing/calculator/"
+        },
+        {
+          "text": "AWS Pricing Calculator",
+          "url": "https://calculator.aws/#/"
+        },
+        {
+          "text": "GCP Pricing Calculator",
+          "url": "https://cloud.google.com/products/calculator"
+        }
       ]
     },
     {
@@ -93,7 +102,7 @@
       "text": "Cost Optimization Tips",
       "action": "Cost Optimization Tips:",
       "url": null,
-      "description": "• Stop or deallocate VMs when not in use (dev environments!)\n• Right-size instances - don't over-provision\n• Use reserved instances for production workloads\n• Delete unused resources (disks, IPs, old snapshots)\n• Monitor data transfer costs - they add up!\n• Use auto-scaling to match capacity with demand"
+      "description": "\u2022 Stop or deallocate VMs when not in use (dev environments!)\n\u2022 Right-size instances - don't over-provision\n\u2022 Use reserved instances for production workloads\n\u2022 Delete unused resources (disks, IPs, old snapshots)\n\u2022 Monitor data transfer costs - they add up!\n\u2022 Use auto-scaling to match capacity with demand"
     },
     {
       "order": 12,
@@ -107,12 +116,32 @@
     {
       "id": "phase3-topic7-q1",
       "prompt": "How does cloud billing work and what are the main factors that affect your monthly cloud costs?",
-      "expected_concepts": ["pay-as-you-go", "consumption", "compute hours", "storage", "data transfer", "region", "instance type", "resources", "usage"]
+      "expected_concepts": [
+        "pay-as-you-go",
+        "consumption",
+        "compute hours",
+        "storage",
+        "data transfer",
+        "region",
+        "instance type",
+        "resources",
+        "usage"
+      ]
     },
     {
       "id": "phase3-topic7-q2",
       "prompt": "What strategies can you use to reduce cloud costs without sacrificing performance?",
-      "expected_concepts": ["right-sizing", "reserved instances", "spot instances", "auto-scaling", "stop unused", "delete orphaned", "schedule", "optimize", "monitoring"]
+      "expected_concepts": [
+        "right-sizing",
+        "reserved instances",
+        "spot instances",
+        "auto-scaling",
+        "stop unused",
+        "delete orphaned",
+        "schedule",
+        "optimize",
+        "monitoring"
+      ]
     }
   ],
   "test_knowledge_prompts": [
@@ -123,11 +152,31 @@
     "Can you explain why it's important to understand what resources are running in your cloud account?",
     "Can you ask me how to optimize costs for a development environment vs. a production environment?"
   ],
-  "checklist": [
-    { "id": "phase3-topic7-check1", "text": "Reviewed my cloud provider's billing structure", "order": 1 },
-    { "id": "phase3-topic7-check2", "text": "Logged into billing dashboard and reviewed current costs", "order": 2 },
-    { "id": "phase3-topic7-check3", "text": "Created a budget and set up cost alerts", "order": 3 },
-    { "id": "phase3-topic7-check4", "text": "Used the pricing calculator to estimate costs", "order": 4 },
-    { "id": "phase3-topic7-check5", "text": "Reviewed cost optimization strategies", "order": 5 }
+  "learning_objectives": [
+    {
+      "id": "phase3-topic7-check1",
+      "text": "Reviewed my cloud provider's billing structure",
+      "order": 1
+    },
+    {
+      "id": "phase3-topic7-check2",
+      "text": "Logged into billing dashboard and reviewed current costs",
+      "order": 2
+    },
+    {
+      "id": "phase3-topic7-check3",
+      "text": "Created a budget and set up cost alerts",
+      "order": 3
+    },
+    {
+      "id": "phase3-topic7-check4",
+      "text": "Used the pricing calculator to estimate costs",
+      "order": 4
+    },
+    {
+      "id": "phase3-topic7-check5",
+      "text": "Reviewed cost optimization strategies",
+      "order": 5
+    }
   ]
 }

@@ -34,7 +34,7 @@ async def log_activity(
     """Manually log a user activity.
 
     Note: Most activities are logged automatically by other endpoints
-    (question attempts, reflections, topic completions).
+    (question attempts, topic completions, certificates).
     """
     await get_or_create_user(db, user_id)
 

@@ -16,7 +16,6 @@ from shared.config import get_settings
 from shared.database import DbSession
 from shared.github import get_requirement_by_id
 from shared.models import (
-    ChecklistProgress,
     GitHubSubmission,
     QuestionAttempt,
     User,
@@ -294,16 +293,7 @@ async def get_public_profile(
     if not is_owner and not profile_user.is_profile_public:
         raise HTTPException(status_code=403, detail="This profile is private")
 
-    # Get completed checklist items count
-    checklist_result = await db.execute(
-        select(func.count(ChecklistProgress.id)).where(
-            ChecklistProgress.user_id == profile_user.id,
-            ChecklistProgress.is_completed.is_(True),
-        )
-    )
-    completed_checklist = int(checklist_result.scalar() or 0)
-
-    # Get passed questions count (unique question_ids that have is_passed=True)
+    # Get passed questions count (unique question_ids that have passed=True)
     questions_result = await db.execute(
         select(func.count(func.distinct(QuestionAttempt.question_id))).where(
             QuestionAttempt.user_id == profile_user.id,
@@ -312,11 +302,9 @@ async def get_public_profile(
     )
     passed_questions = int(questions_result.scalar() or 0)
 
-    # Total completed = checklist + passed questions
-    completed_topics = completed_checklist + passed_questions
-
-    # Total items across all phases (checklist + questions = 247)
-    total_topics = 247
+    # Progress is now based on questions only (80 total)
+    completed_topics = passed_questions
+    total_topics = 80
 
     # Get streak info
     activity_result = await db.execute(
@@ -391,16 +379,7 @@ async def get_public_profile(
         total_activities=total_activities,
     )
 
-    # Calculate current phase from checklist progress
-    # Get all completed checklist items for this user
-    progress_result = await db.execute(
-        select(ChecklistProgress.checklist_item_id).where(
-            ChecklistProgress.user_id == profile_user.id,
-            ChecklistProgress.is_completed.is_(True),
-        )
-    )
-    completed_items = [row[0] for row in progress_result.all()]
-
+    # Calculate current phase from passed questions
     # Get passed questions grouped by phase (question_id format: phase{N}-topic{M}-q{X})
     passed_questions_result = await db.execute(
         select(func.distinct(QuestionAttempt.question_id)).where(
@@ -410,21 +389,9 @@ async def get_public_profile(
     )
     passed_question_ids = [row[0] for row in passed_questions_result.all()]
 
-    # Count completed items per phase (item IDs follow pattern: phase{N}-topic{M}-check{X})
-    # Known totals per phase (checklist + questions from content structure)
-    # Total: 167 checklist + 80 questions = 247
-    phase_totals = {0: 25, 1: 32, 2: 48, 3: 57, 4: 43, 5: 42}
+    # Questions per phase (2 per topic)
+    phase_totals = {0: 12, 1: 12, 2: 14, 3: 18, 4: 12, 5: 12}
     phase_completed: dict[int, int] = {}
-
-    # Count checklist items per phase
-    for item_id in completed_items:
-        # Extract phase number from ID like "phase0-topic1-check1"
-        if item_id.startswith("phase"):
-            try:
-                phase_num = int(item_id.split("-")[0].replace("phase", ""))
-                phase_completed[phase_num] = phase_completed.get(phase_num, 0) + 1
-            except (ValueError, IndexError):
-                continue
 
     # Count passed questions per phase
     for question_id in passed_question_ids:
@@ -481,7 +448,7 @@ async def get_public_profile(
 
     # Compute badges from progress and streak data
     earned_badges = compute_all_badges(
-        phase_completed_counts=phase_completed,
+        phase_passed_counts=phase_completed,
         longest_streak=longest_streak,
     )
     badges = [

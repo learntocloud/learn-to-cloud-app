@@ -43,7 +43,7 @@
       "text": "Why Session-Based Access?",
       "action": "Why Session-Based Access?:",
       "url": null,
-      "description": "Advantages over direct SSH/RDP:\n\n• No exposed SSH ports (port 22/3389) on security groups\n• Integrated with cloud IAM - use your existing identity\n• Full audit logging of all sessions\n• No need to manage SSH keys\n• Browser-based access - no local SSH client needed"
+      "description": "Advantages over direct SSH/RDP:\n\n\u2022 No exposed SSH ports (port 22/3389) on security groups\n\u2022 Integrated with cloud IAM - use your existing identity\n\u2022 Full audit logging of all sessions\n\u2022 No need to manage SSH keys\n\u2022 Browser-based access - no local SSH client needed"
     },
     {
       "order": 6,
@@ -65,12 +65,31 @@
     {
       "id": "phase3-topic4-q1",
       "prompt": "Why is session-based access (like AWS SSM or Azure Bastion) preferred over opening SSH ports directly?",
-      "expected_concepts": ["no open ports", "audit logging", "IAM integration", "no SSH keys", "browser-based", "secure", "session manager", "bastion", "port 22"]
+      "expected_concepts": [
+        "no open ports",
+        "audit logging",
+        "IAM integration",
+        "no SSH keys",
+        "browser-based",
+        "secure",
+        "session manager",
+        "bastion",
+        "port 22"
+      ]
     },
     {
       "id": "phase3-topic4-q2",
       "prompt": "What are the security advantages of using a cloud-native remote access solution?",
-      "expected_concepts": ["audit trail", "identity-based", "no key management", "centralized", "access control", "temporary sessions", "compliance", "monitoring"]
+      "expected_concepts": [
+        "audit trail",
+        "identity-based",
+        "no key management",
+        "centralized",
+        "access control",
+        "temporary sessions",
+        "compliance",
+        "monitoring"
+      ]
     }
   ],
   "test_knowledge_prompts": [
@@ -79,8 +98,16 @@
     "Can you explain why we don't want to expose port 22 or 3389 on our security groups?",
     "Can you ask me how session-based access integrates with cloud IAM?"
   ],
-  "checklist": [
-    { "id": "phase3-topic4-check1", "text": "Configured session-based access on my cloud provider", "order": 1 },
-    { "id": "phase3-topic4-check2", "text": "Applied least privilege IAM policies for remote access", "order": 2 }
+  "learning_objectives": [
+    {
+      "id": "phase3-topic4-check1",
+      "text": "Configured session-based access on my cloud provider",
+      "order": 1
+    },
+    {
+      "id": "phase3-topic4-check2",
+      "text": "Applied least privilege IAM policies for remote access",
+      "order": 2
+    }
   ]
 }

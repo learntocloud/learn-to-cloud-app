@@ -14,9 +14,18 @@
       "url": null,
       "description": "Each major cloud provider offers an AI platform for deploying and managing models. Learn about your chosen platform:",
       "secondary_links": [
-        { "text": "Azure AI Foundry", "url": "https://learn.microsoft.com/en-us/azure/ai-foundry/what-is-ai-foundry" },
-        { "text": "AWS Bedrock", "url": "https://docs.aws.amazon.com/bedrock/latest/userguide/what-is-bedrock.html" },
-        { "text": "GCP Vertex AI", "url": "https://cloud.google.com/vertex-ai/docs/start/introduction-unified-platform" }
+        {
+          "text": "Azure AI Foundry",
+          "url": "https://learn.microsoft.com/en-us/azure/ai-foundry/what-is-ai-foundry"
+        },
+        {
+          "text": "AWS Bedrock",
+          "url": "https://docs.aws.amazon.com/bedrock/latest/userguide/what-is-bedrock.html"
+        },
+        {
+          "text": "GCP Vertex AI",
+          "url": "https://cloud.google.com/vertex-ai/docs/start/introduction-unified-platform"
+        }
       ]
     },
     {
@@ -26,9 +35,18 @@
       "url": null,
       "description": "Each platform offers different models with varying capabilities, speeds, and costs:",
       "secondary_links": [
-        { "text": "Azure AI Foundry Models", "url": "https://learn.microsoft.com/en-us/azure/ai-foundry/concepts/foundry-models-overview" },
-        { "text": "AWS Bedrock Models", "url": "https://docs.aws.amazon.com/bedrock/latest/userguide/models-supported.html" },
-        { "text": "GCP Model Garden", "url": "https://cloud.google.com/vertex-ai/generative-ai/docs/learn/models" }
+        {
+          "text": "Azure AI Foundry Models",
+          "url": "https://learn.microsoft.com/en-us/azure/ai-foundry/concepts/foundry-models-overview"
+        },
+        {
+          "text": "AWS Bedrock Models",
+          "url": "https://docs.aws.amazon.com/bedrock/latest/userguide/models-supported.html"
+        },
+        {
+          "text": "GCP Model Garden",
+          "url": "https://cloud.google.com/vertex-ai/generative-ai/docs/learn/models"
+        }
       ]
     },
     {
@@ -38,9 +56,18 @@
       "url": null,
       "description": "Learn how to deploy models in production:",
       "secondary_links": [
-        { "text": "Azure Deployments", "url": "https://learn.microsoft.com/en-us/azure/ai-foundry/concepts/deployments-overview" },
-        { "text": "AWS Bedrock Deployment", "url": "https://docs.aws.amazon.com/bedrock/latest/userguide/bedrock-marketplace-deploy-a-model.html" },
-        { "text": "GCP Deployment", "url": "https://cloud.google.com/vertex-ai/docs/general/deployment" }
+        {
+          "text": "Azure Deployments",
+          "url": "https://learn.microsoft.com/en-us/azure/ai-foundry/concepts/deployments-overview"
+        },
+        {
+          "text": "AWS Bedrock Deployment",
+          "url": "https://docs.aws.amazon.com/bedrock/latest/userguide/bedrock-marketplace-deploy-a-model.html"
+        },
+        {
+          "text": "GCP Deployment",
+          "url": "https://cloud.google.com/vertex-ai/docs/general/deployment"
+        }
       ]
     },
     {
@@ -50,9 +77,18 @@
       "url": null,
       "description": "Learn about content filtering and safety features to ensure responsible AI use:",
       "secondary_links": [
-        { "text": "Azure Guardrails", "url": "https://learn.microsoft.com/en-us/azure/ai-foundry/guardrails/guardrails-overview" },
-        { "text": "AWS Bedrock Guardrails", "url": "https://docs.aws.amazon.com/bedrock/latest/userguide/guardrails.html" },
-        { "text": "GCP Safety Overview", "url": "https://cloud.google.com/vertex-ai/generative-ai/docs/learn/safety-overview" }
+        {
+          "text": "Azure Guardrails",
+          "url": "https://learn.microsoft.com/en-us/azure/ai-foundry/guardrails/guardrails-overview"
+        },
+        {
+          "text": "AWS Bedrock Guardrails",
+          "url": "https://docs.aws.amazon.com/bedrock/latest/userguide/guardrails.html"
+        },
+        {
+          "text": "GCP Safety Overview",
+          "url": "https://cloud.google.com/vertex-ai/generative-ai/docs/learn/safety-overview"
+        }
       ]
     },
     {
@@ -62,9 +98,18 @@
       "url": null,
       "description": "Use the playground to test models before writing code:",
       "secondary_links": [
-        { "text": "Azure AI Playgrounds", "url": "https://learn.microsoft.com/en-us/azure/ai-foundry/concepts/concept-playgrounds" },
-        { "text": "AWS Bedrock Playgrounds", "url": "https://docs.aws.amazon.com/bedrock/latest/userguide/playgrounds.html" },
-        { "text": "GCP Model Garden", "url": "https://cloud.google.com/model-garden" }
+        {
+          "text": "Azure AI Playgrounds",
+          "url": "https://learn.microsoft.com/en-us/azure/ai-foundry/concepts/concept-playgrounds"
+        },
+        {
+          "text": "AWS Bedrock Playgrounds",
+          "url": "https://docs.aws.amazon.com/bedrock/latest/userguide/playgrounds.html"
+        },
+        {
+          "text": "GCP Model Garden",
+          "url": "https://cloud.google.com/model-garden"
+        }
       ]
     },
     {
@@ -72,7 +117,7 @@
       "text": "Model Selection for Your Journal App",
       "action": "Model Selection for Your Journal App:",
       "url": null,
-      "description": "For the capstone project, consider:\n\n• Smaller, faster models for simple sentiment analysis\n• Larger models if you need complex reasoning\n• Cost per token - some models are 10x more expensive\n• Latency requirements - how fast do you need responses?\n• Context window - how much text can the model handle?"
+      "description": "For the capstone project, consider:\n\n\u2022 Smaller, faster models for simple sentiment analysis\n\u2022 Larger models if you need complex reasoning\n\u2022 Cost per token - some models are 10x more expensive\n\u2022 Latency requirements - how fast do you need responses?\n\u2022 Context window - how much text can the model handle?"
     },
     {
       "order": 7,
@@ -86,12 +131,33 @@
     {
       "id": "phase3-topic8-q1",
       "prompt": "What factors should you consider when choosing an LLM model for your application?",
-      "expected_concepts": ["cost per token", "latency", "context window", "accuracy", "capability", "speed", "use case", "complexity", "size", "pricing"]
+      "expected_concepts": [
+        "cost per token",
+        "latency",
+        "context window",
+        "accuracy",
+        "capability",
+        "speed",
+        "use case",
+        "complexity",
+        "size",
+        "pricing"
+      ]
     },
     {
       "id": "phase3-topic8-q2",
       "prompt": "What are AI guardrails and why are they important for production applications?",
-      "expected_concepts": ["content filtering", "safety", "responsible AI", "harmful content", "prevent abuse", "moderation", "compliance", "limits", "protection"]
+      "expected_concepts": [
+        "content filtering",
+        "safety",
+        "responsible AI",
+        "harmful content",
+        "prevent abuse",
+        "moderation",
+        "compliance",
+        "limits",
+        "protection"
+      ]
     }
   ],
   "test_knowledge_prompts": [
@@ -102,10 +168,26 @@
     "Can you explain the deployment options available and how I would deploy a model for my journal app?",
     "Can you ask me how I would test different models and prompts before deploying to production?"
   ],
-  "checklist": [
-    { "id": "phase3-topic8-check1", "text": "Explored available models on my chosen platform", "order": 1 },
-    { "id": "phase3-topic8-check2", "text": "Tested multiple models in my platform's playground", "order": 2 },
-    { "id": "phase3-topic8-check3", "text": "Reviewed safety/guardrail features", "order": 3 },
-    { "id": "phase3-topic8-check4", "text": "Made an informed decision about which model to use", "order": 4 }
+  "learning_objectives": [
+    {
+      "id": "phase3-topic8-check1",
+      "text": "Explored available models on my chosen platform",
+      "order": 1
+    },
+    {
+      "id": "phase3-topic8-check2",
+      "text": "Tested multiple models in my platform's playground",
+      "order": 2
+    },
+    {
+      "id": "phase3-topic8-check3",
+      "text": "Reviewed safety/guardrail features",
+      "order": 3
+    },
+    {
+      "id": "phase3-topic8-check4",
+      "text": "Made an informed decision about which model to use",
+      "order": 4
+    }
   ]
 }

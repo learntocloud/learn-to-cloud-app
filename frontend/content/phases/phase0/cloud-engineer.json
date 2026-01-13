@@ -27,12 +27,34 @@
     {
       "id": "phase0-topic6-q1",
       "prompt": "What does a cloud engineer do and what are some of their typical day-to-day responsibilities?",
-      "expected_concepts": ["infrastructure", "deploy", "manage", "monitor", "troubleshoot", "automation", "security", "cloud services", "optimize", "collaborate"]
+      "expected_concepts": [
+        "infrastructure",
+        "deploy",
+        "manage",
+        "monitor",
+        "troubleshoot",
+        "automation",
+        "security",
+        "cloud services",
+        "optimize",
+        "collaborate"
+      ]
     },
     {
       "id": "phase0-topic6-q2",
       "prompt": "What skills are essential for becoming a successful cloud engineer?",
-      "expected_concepts": ["Linux", "networking", "programming", "scripting", "cloud platforms", "problem solving", "automation", "security", "continuous learning", "communication"]
+      "expected_concepts": [
+        "Linux",
+        "networking",
+        "programming",
+        "scripting",
+        "cloud platforms",
+        "problem solving",
+        "automation",
+        "security",
+        "continuous learning",
+        "communication"
+      ]
     }
   ],
   "test_knowledge_prompts": [
@@ -40,9 +62,21 @@
     "Can you quiz me on the skills needed to become a cloud engineer?",
     "Can you ask me why I want to become a cloud engineer?"
   ],
-  "checklist": [
-    { "id": "phase0-topic6-check1", "text": "Completed the learning materials", "order": 1 },
-    { "id": "phase0-topic6-check2", "text": "Answered the knowledge check questions", "order": 2 },
-    { "id": "phase0-topic6-check3", "text": "I am committed to pursuing this career path", "order": 3 }
+  "learning_objectives": [
+    {
+      "id": "phase0-topic6-check1",
+      "text": "Completed the learning materials",
+      "order": 1
+    },
+    {
+      "id": "phase0-topic6-check2",
+      "text": "Answered the knowledge check questions",
+      "order": 2
+    },
+    {
+      "id": "phase0-topic6-check3",
+      "text": "I am committed to pursuing this career path",
+      "order": 3
+    }
   ]
 }

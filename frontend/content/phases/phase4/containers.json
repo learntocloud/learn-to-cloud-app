@@ -54,10 +54,22 @@
       "url": null,
       "description": "Learn how to containerize an application and deploy to different registries:",
       "secondary_links": [
-        { "text": "DockerHub", "url": "https://docs.docker.com/get-started/workshop/04_sharing_app/" },
-        { "text": "AWS ECR", "url": "https://docs.aws.amazon.com/AmazonECR/latest/userguide/docker-push-ecr-image.html" },
-        { "text": "Azure Container Registry", "url": "https://learn.microsoft.com/en-us/training/modules/deploy-use-azure-container-registry/" },
-        { "text": "Google Container Registry", "url": "https://www.youtube.com/watch?v=D1_FC6pGutQ" }
+        {
+          "text": "DockerHub",
+          "url": "https://docs.docker.com/get-started/workshop/04_sharing_app/"
+        },
+        {
+          "text": "AWS ECR",
+          "url": "https://docs.aws.amazon.com/AmazonECR/latest/userguide/docker-push-ecr-image.html"
+        },
+        {
+          "text": "Azure Container Registry",
+          "url": "https://learn.microsoft.com/en-us/training/modules/deploy-use-azure-container-registry/"
+        },
+        {
+          "text": "Google Container Registry",
+          "url": "https://www.youtube.com/watch?v=D1_FC6pGutQ"
+        }
       ]
     },
     {
@@ -82,7 +94,10 @@
       "url": null,
       "description": "1. Ensure you have Docker Desktop and GitHub Copilot installed\n2. Install the official GitHub MCP Server in Docker Desktop\n3. Create a GitHub Personal Access Token and provide it to the server\n4. Enable MCP Gateway in VSCode with `docker mcp gateway run`\n5. Enable Agent mode in GitHub Copilot\n6. Explore and test - Query your repos and perform GitHub operations",
       "secondary_links": [
-        { "text": "GitHub MCP Server", "url": "https://github.com/github/github-mcp-server" }
+        {
+          "text": "GitHub MCP Server",
+          "url": "https://github.com/github/github-mcp-server"
+        }
       ]
     },
     {
@@ -92,8 +107,14 @@
       "url": null,
       "description": "Common issues and solutions:",
       "secondary_links": [
-        { "text": "Docker Common Issues & Solutions", "url": "https://docs.docker.com/engine/reference/troubleshoot/" },
-        { "text": "Dockerfile Best Practices", "url": "https://docs.docker.com/develop/develop-images/dockerfile_best-practices/" }
+        {
+          "text": "Docker Common Issues & Solutions",
+          "url": "https://docs.docker.com/engine/reference/troubleshoot/"
+        },
+        {
+          "text": "Dockerfile Best Practices",
+          "url": "https://docs.docker.com/develop/develop-images/dockerfile_best-practices/"
+        }
       ]
     }
   ],
@@ -101,12 +122,34 @@
     {
       "id": "phase4-topic1-q1",
       "prompt": "What is the difference between a container and a virtual machine?",
-      "expected_concepts": ["lightweight", "shared kernel", "isolated", "hypervisor", "faster startup", "less resources", "portability", "operating system", "overhead"]
+      "expected_concepts": [
+        "lightweight",
+        "shared kernel",
+        "isolated",
+        "hypervisor",
+        "faster startup",
+        "less resources",
+        "portability",
+        "operating system",
+        "overhead"
+      ]
     },
     {
       "id": "phase4-topic1-q2",
       "prompt": "Explain the purpose of a Dockerfile and describe the key instructions used in one.",
-      "expected_concepts": ["Dockerfile", "FROM", "base image", "COPY", "RUN", "CMD", "EXPOSE", "WORKDIR", "build", "layers", "instructions"]
+      "expected_concepts": [
+        "Dockerfile",
+        "FROM",
+        "base image",
+        "COPY",
+        "RUN",
+        "CMD",
+        "EXPOSE",
+        "WORKDIR",
+        "build",
+        "layers",
+        "instructions"
+      ]
     }
   ],
   "test_knowledge_prompts": [
@@ -117,10 +160,26 @@
     "Can you explain container networking and storage concepts?",
     "Can you ask me about security considerations when using containers?"
   ],
-  "checklist": [
-    { "id": "phase4-topic1-check1", "text": "Written a Dockerfile for an application", "order": 1 },
-    { "id": "phase4-topic1-check2", "text": "Built and ran a container locally", "order": 2 },
-    { "id": "phase4-topic1-check3", "text": "Pushed an image to a container registry", "order": 3 },
-    { "id": "phase4-topic1-check4", "text": "Set up and tested the GitHub MCP Server", "order": 4 }
+  "learning_objectives": [
+    {
+      "id": "phase4-topic1-check1",
+      "text": "Written a Dockerfile for an application",
+      "order": 1
+    },
+    {
+      "id": "phase4-topic1-check2",
+      "text": "Built and ran a container locally",
+      "order": 2
+    },
+    {
+      "id": "phase4-topic1-check3",
+      "text": "Pushed an image to a container registry",
+      "order": 3
+    },
+    {
+      "id": "phase4-topic1-check4",
+      "text": "Set up and tested the GitHub MCP Server",
+      "order": 4
+    }
   ]
 }

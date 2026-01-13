@@ -21,19 +21,40 @@
       "action": "Read:",
       "title": "Programming vs Scripting Languages",
       "url": "https://www.geeksforgeeks.org/whats-the-difference-between-scripting-and-programming-languages/",
-      "description": "Understand the difference between programming and scripting—both are useful in cloud engineering."
+      "description": "Understand the difference between programming and scripting\u2014both are useful in cloud engineering."
     }
   ],
   "questions": [
     {
       "id": "phase0-topic3-q1",
       "prompt": "What is programming and why is it important for cloud engineers to learn?",
-      "expected_concepts": ["instructions", "computer", "automate", "tasks", "infrastructure", "scripts", "efficiency", "repeatable", "code", "logic"]
+      "expected_concepts": [
+        "instructions",
+        "computer",
+        "automate",
+        "tasks",
+        "infrastructure",
+        "scripts",
+        "efficiency",
+        "repeatable",
+        "code",
+        "logic"
+      ]
     },
     {
       "id": "phase0-topic3-q2",
       "prompt": "What is the difference between a programming language and a scripting language?",
-      "expected_concepts": ["compiled", "interpreted", "runtime", "automation", "Python", "Bash", "quick tasks", "full applications", "execution"]
+      "expected_concepts": [
+        "compiled",
+        "interpreted",
+        "runtime",
+        "automation",
+        "Python",
+        "Bash",
+        "quick tasks",
+        "full applications",
+        "execution"
+      ]
     }
   ],
   "test_knowledge_prompts": [
@@ -41,8 +62,16 @@
     "Can you quiz me on why cloud engineers need to know programming?",
     "Can you ask me what the difference is between programming and scripting?"
   ],
-  "checklist": [
-    { "id": "phase0-topic3-check1", "text": "Completed the programming learning materials", "order": 1 },
-    { "id": "phase0-topic3-check2", "text": "Answered the knowledge check questions", "order": 2 }
+  "learning_objectives": [
+    {
+      "id": "phase0-topic3-check1",
+      "text": "Completed the programming learning materials",
+      "order": 1
+    },
+    {
+      "id": "phase0-topic3-check2",
+      "text": "Answered the knowledge check questions",
+      "order": 2
+    }
   ]
 }

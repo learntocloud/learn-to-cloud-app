@@ -14,8 +14,14 @@
       "url": null,
       "description": "Learn the fundamentals of continuous integration and continuous deployment.",
       "secondary_links": [
-        { "text": "What is Continuous Integration?", "url": "https://www.ibm.com/think/topics/continuous-integration" },
-        { "text": "What is Continuous Delivery?", "url": "https://www.ibm.com/think/topics/continuous-delivery" }
+        {
+          "text": "What is Continuous Integration?",
+          "url": "https://www.ibm.com/think/topics/continuous-integration"
+        },
+        {
+          "text": "What is Continuous Delivery?",
+          "url": "https://www.ibm.com/think/topics/continuous-delivery"
+        }
       ]
     },
     {
@@ -33,10 +39,22 @@
       "url": null,
       "description": "Learn about implementing CI/CD pipelines with these tools:",
       "secondary_links": [
-        { "text": "GitHub Actions", "url": "https://www.youtube.com/watch?v=R8_veQiYBjI" },
-        { "text": "AWS CodePipeline", "url": "https://www.youtube.com/watch?v=zZt-LTY9hAE" },
-        { "text": "Azure DevOps", "url": "https://www.youtube.com/watch?v=4BibQ69MD8c" },
-        { "text": "GCP Cloud Build", "url": "https://www.youtube.com/watch?v=vCt5zMvgV5s" }
+        {
+          "text": "GitHub Actions",
+          "url": "https://www.youtube.com/watch?v=R8_veQiYBjI"
+        },
+        {
+          "text": "AWS CodePipeline",
+          "url": "https://www.youtube.com/watch?v=zZt-LTY9hAE"
+        },
+        {
+          "text": "Azure DevOps",
+          "url": "https://www.youtube.com/watch?v=4BibQ69MD8c"
+        },
+        {
+          "text": "GCP Cloud Build",
+          "url": "https://www.youtube.com/watch?v=vCt5zMvgV5s"
+        }
       ]
     },
     {
@@ -44,7 +62,7 @@
       "text": "Basic CI/CD Pipeline Setup",
       "action": "Hands-on: Basic CI/CD Pipeline Setup",
       "url": null,
-      "description": "Set up a basic CI/CD pipeline for your containerized application:\n\n1. Use GitHub Actions (or your preferred tool) to automatically:\n   • Build your application\n   • Run tests\n   • Build a Docker image\n   • Push the image to a container registry\n2. Configure the pipeline to trigger on code commits to your main branch\n3. Add a notification system for successful deployments or failures"
+      "description": "Set up a basic CI/CD pipeline for your containerized application:\n\n1. Use GitHub Actions (or your preferred tool) to automatically:\n   \u2022 Build your application\n   \u2022 Run tests\n   \u2022 Build a Docker image\n   \u2022 Push the image to a container registry\n2. Configure the pipeline to trigger on code commits to your main branch\n3. Add a notification system for successful deployments or failures"
     },
     {
       "order": 5,
@@ -66,12 +84,35 @@
     {
       "id": "phase4-topic2-q1",
       "prompt": "What is the difference between Continuous Integration, Continuous Delivery, and Continuous Deployment?",
-      "expected_concepts": ["continuous integration", "merge", "build", "test", "continuous delivery", "ready to deploy", "manual approval", "continuous deployment", "automatic", "production"]
+      "expected_concepts": [
+        "continuous integration",
+        "merge",
+        "build",
+        "test",
+        "continuous delivery",
+        "ready to deploy",
+        "manual approval",
+        "continuous deployment",
+        "automatic",
+        "production"
+      ]
     },
     {
       "id": "phase4-topic2-q2",
       "prompt": "Describe the typical stages in a CI/CD pipeline for a containerized application.",
-      "expected_concepts": ["checkout", "build", "test", "Docker build", "push", "registry", "deploy", "stages", "pipeline", "trigger", "artifacts"]
+      "expected_concepts": [
+        "checkout",
+        "build",
+        "test",
+        "Docker build",
+        "push",
+        "registry",
+        "deploy",
+        "stages",
+        "pipeline",
+        "trigger",
+        "artifacts"
+      ]
     }
   ],
   "test_knowledge_prompts": [
@@ -83,11 +124,31 @@
     "Can you ask me about deployment strategies like blue-green and canary?",
     "Can you quiz me on security considerations in CI/CD pipelines?"
   ],
-  "checklist": [
-    { "id": "phase4-topic2-check1", "text": "Set up a basic CI/CD pipeline (GitHub Actions or similar)", "order": 1 },
-    { "id": "phase4-topic2-check2", "text": "Configured automatic builds on code commits", "order": 2 },
-    { "id": "phase4-topic2-check3", "text": "Implemented Docker image building and pushing", "order": 3 },
-    { "id": "phase4-topic2-check4", "text": "Added notifications for success/failure", "order": 4 },
-    { "id": "phase4-topic2-check5", "text": "(Optional) Implemented multi-environment deployment", "order": 5 }
+  "learning_objectives": [
+    {
+      "id": "phase4-topic2-check1",
+      "text": "Set up a basic CI/CD pipeline (GitHub Actions or similar)",
+      "order": 1
+    },
+    {
+      "id": "phase4-topic2-check2",
+      "text": "Configured automatic builds on code commits",
+      "order": 2
+    },
+    {
+      "id": "phase4-topic2-check3",
+      "text": "Implemented Docker image building and pushing",
+      "order": 3
+    },
+    {
+      "id": "phase4-topic2-check4",
+      "text": "Added notifications for success/failure",
+      "order": 4
+    },
+    {
+      "id": "phase4-topic2-check5",
+      "text": "(Optional) Implemented multi-environment deployment",
+      "order": 5
+    }
   ]
 }

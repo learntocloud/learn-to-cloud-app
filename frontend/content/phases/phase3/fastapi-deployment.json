@@ -51,7 +51,7 @@
       "text": "Configure Security Groups/Firewall",
       "action": "Configure Security Groups/Firewall:",
       "url": null,
-      "description": "Set up rules to allow external HTTP traffic to your FastAPI application:\n\n• Allow inbound TCP port 80 (HTTP) or 443 (HTTPS)\n• Allow inbound TCP port 8000 (FastAPI default) if not using a reverse proxy\n• Restrict SSH access to your IP only\n• Ensure the database port (5432) is NOT exposed to the internet"
+      "description": "Set up rules to allow external HTTP traffic to your FastAPI application:\n\n\u2022 Allow inbound TCP port 80 (HTTP) or 443 (HTTPS)\n\u2022 Allow inbound TCP port 8000 (FastAPI default) if not using a reverse proxy\n\u2022 Restrict SSH access to your IP only\n\u2022 Ensure the database port (5432) is NOT exposed to the internet"
     },
     {
       "order": 7,
@@ -73,12 +73,32 @@
     {
       "id": "phase3-topic6-q1",
       "prompt": "How should you manage sensitive configuration like API keys and database credentials when deploying an application?",
-      "expected_concepts": ["environment variables", "never hardcode", "secrets", "os.getenv", "configuration", "secure", "separate from code", "rotation"]
+      "expected_concepts": [
+        "environment variables",
+        "never hardcode",
+        "secrets",
+        "os.getenv",
+        "configuration",
+        "secure",
+        "separate from code",
+        "rotation"
+      ]
     },
     {
       "id": "phase3-topic6-q2",
       "prompt": "What security group rules do you need to configure for a public-facing API server?",
-      "expected_concepts": ["inbound", "HTTP", "HTTPS", "port 80", "port 443", "SSH restricted", "your IP", "outbound", "database port", "internal only"]
+      "expected_concepts": [
+        "inbound",
+        "HTTP",
+        "HTTPS",
+        "port 80",
+        "port 443",
+        "SSH restricted",
+        "your IP",
+        "outbound",
+        "database port",
+        "internal only"
+      ]
     }
   ],
   "test_knowledge_prompts": [
@@ -87,10 +107,26 @@
     "Can you ask me about the difference between running FastAPI in development vs production?",
     "Can you quiz me on how to use systemd to keep my FastAPI application running?"
   ],
-  "checklist": [
-    { "id": "phase3-topic6-check1", "text": "Reviewed FastAPI deployment resources for my cloud provider", "order": 1 },
-    { "id": "phase3-topic6-check2", "text": "Configured security groups/firewall rules for HTTP traffic", "order": 2 },
-    { "id": "phase3-topic6-check3", "text": "Deployed FastAPI on a VM in the public subnet", "order": 3 },
-    { "id": "phase3-topic6-check4", "text": "Verified the API is accessible from the internet", "order": 4 }
+  "learning_objectives": [
+    {
+      "id": "phase3-topic6-check1",
+      "text": "Reviewed FastAPI deployment resources for my cloud provider",
+      "order": 1
+    },
+    {
+      "id": "phase3-topic6-check2",
+      "text": "Configured security groups/firewall rules for HTTP traffic",
+      "order": 2
+    },
+    {
+      "id": "phase3-topic6-check3",
+      "text": "Deployed FastAPI on a VM in the public subnet",
+      "order": 3
+    },
+    {
+      "id": "phase3-topic6-check4",
+      "text": "Verified the API is accessible from the internet",
+      "order": 4
+    }
   ]
 }
