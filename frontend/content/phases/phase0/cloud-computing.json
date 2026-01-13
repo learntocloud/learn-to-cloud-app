@@ -31,14 +31,25 @@
       "description": "The three major cloud providers are AWS (Amazon), Azure (Microsoft), and GCP (Google). You'll choose one to focus on throughout this guide, but the concepts you learn apply to all of them."
     }
   ],
+  "questions": [
+    {
+      "id": "phase0-topic4-q1",
+      "prompt": "What is cloud computing and what are the main benefits of using it compared to on-premises infrastructure?",
+      "expected_concepts": ["on-demand", "internet", "scalable", "pay-as-you-go", "no upfront costs", "flexible", "managed", "remote", "resources", "servers"]
+    },
+    {
+      "id": "phase0-topic4-q2",
+      "prompt": "Explain the three main cloud service models: IaaS, PaaS, and SaaS. Give an example of each.",
+      "expected_concepts": ["Infrastructure as a Service", "Platform as a Service", "Software as a Service", "virtual machines", "EC2", "app hosting", "Heroku", "Gmail", "Office 365", "managed", "responsibility"]
+    }
+  ],
   "test_knowledge_prompts": [
     "Can you ask me what cloud computing is and why companies use it?",
     "Can you quiz me on the differences between IaaS, PaaS, and SaaS with examples?",
     "Can you ask me to name the major cloud providers and one service each offers?"
   ],
   "checklist": [
-    { "id": "phase0-topic4-check1", "text": "I understand what cloud computing is", "order": 1 },
-    { "id": "phase0-topic4-check2", "text": "I know the difference between IaaS, PaaS, and SaaS", "order": 2 },
-    { "id": "phase0-topic4-check3", "text": "I'm aware of the major cloud providers (AWS, Azure, GCP)", "order": 3 }
+    { "id": "phase0-topic4-check1", "text": "Completed the cloud computing learning materials", "order": 1 },
+    { "id": "phase0-topic4-check2", "text": "Answered the knowledge check questions", "order": 2 }
   ]
 }

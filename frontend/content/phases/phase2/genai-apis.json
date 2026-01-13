@@ -79,6 +79,18 @@
       "code": "# Example journal entry to test:\n\"Today I learned about FastAPI and built my first endpoint.\nThe automatic documentation is amazing! I struggled a bit with\nasync functions but the official tutorial helped. Tomorrow I'll\ntackle database integration.\""
     }
   ],
+  "questions": [
+    {
+      "id": "phase2-topic5-q1",
+      "prompt": "How do LLM APIs differ from traditional REST APIs in terms of how you interact with them?",
+      "expected_concepts": ["messages", "conversation", "system message", "user message", "assistant", "completion", "tokens", "context", "prompt", "stateless"]
+    },
+    {
+      "id": "phase2-topic5-q2",
+      "prompt": "What is the temperature parameter in LLM APIs and how does it affect the output?",
+      "expected_concepts": ["temperature", "randomness", "creativity", "deterministic", "zero", "one", "consistent", "varied", "sampling", "probability"]
+    }
+  ],
   "test_knowledge_prompts": [
     "Can you explain what an LLM API is and how it differs from a traditional REST API?",
     "Can you explain the role of system messages, user messages, and assistant messages?",
@@ -91,10 +103,8 @@
   "checklist": [
     { "id": "phase2-topic5-check1", "text": "Completed the Python OpenAI Demos exercises", "order": 1 },
     { "id": "phase2-topic5-check2", "text": "Tested prompts in my cloud provider's playground", "order": 2 },
-    { "id": "phase2-topic5-check3", "text": "Understood the messages format (system, user, assistant)", "order": 3 },
-    { "id": "phase2-topic5-check4", "text": "Practiced with structured outputs (JSON responses)", "order": 4 },
-    { "id": "phase2-topic5-check5", "text": "Created a Python script that calls an LLM API", "order": 5 },
-    { "id": "phase2-topic5-check6", "text": "Stored API keys securely in environment variables", "order": 6 },
-    { "id": "phase2-topic5-check7", "text": "Understood cost awareness and token pricing", "order": 7 }
+    { "id": "phase2-topic5-check3", "text": "Practiced with structured outputs (JSON responses)", "order": 3 },
+    { "id": "phase2-topic5-check4", "text": "Created a Python script that calls an LLM API", "order": 4 },
+    { "id": "phase2-topic5-check5", "text": "Stored API keys securely in environment variables", "order": 5 }
   ]
 }

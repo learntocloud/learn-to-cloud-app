@@ -62,6 +62,18 @@
       "description": "Implement a multi-environment deployment pipeline:\n\n1. Deploy to staging first\n2. Run automated tests against staging\n3. Require manual approval for production\n4. Promote to production after approval"
     }
   ],
+  "questions": [
+    {
+      "id": "phase4-topic2-q1",
+      "prompt": "What is the difference between Continuous Integration, Continuous Delivery, and Continuous Deployment?",
+      "expected_concepts": ["continuous integration", "merge", "build", "test", "continuous delivery", "ready to deploy", "manual approval", "continuous deployment", "automatic", "production"]
+    },
+    {
+      "id": "phase4-topic2-q2",
+      "prompt": "Describe the typical stages in a CI/CD pipeline for a containerized application.",
+      "expected_concepts": ["checkout", "build", "test", "Docker build", "push", "registry", "deploy", "stages", "pipeline", "trigger", "artifacts"]
+    }
+  ],
   "test_knowledge_prompts": [
     "I'm learning about CI/CD pipelines. Can you act as an interviewer and ask me questions about CI/CD concepts?",
     "Can you quiz me on CI/CD fundamentals and the differences between CI, CD (delivery), and CD (deployment)?",
@@ -72,12 +84,10 @@
     "Can you quiz me on security considerations in CI/CD pipelines?"
   ],
   "checklist": [
-    { "id": "phase4-topic2-check1", "text": "Understood CI/CD fundamentals and differences", "order": 1 },
-    { "id": "phase4-topic2-check2", "text": "Learned about pipeline components and stages", "order": 2 },
-    { "id": "phase4-topic2-check3", "text": "Set up a basic CI/CD pipeline (GitHub Actions or similar)", "order": 3 },
-    { "id": "phase4-topic2-check4", "text": "Configured automatic builds on code commits", "order": 4 },
-    { "id": "phase4-topic2-check5", "text": "Implemented Docker image building and pushing", "order": 5 },
-    { "id": "phase4-topic2-check6", "text": "Added notifications for success/failure", "order": 6 },
-    { "id": "phase4-topic2-check7", "text": "(Optional) Implemented multi-environment deployment", "order": 7 }
+    { "id": "phase4-topic2-check1", "text": "Set up a basic CI/CD pipeline (GitHub Actions or similar)", "order": 1 },
+    { "id": "phase4-topic2-check2", "text": "Configured automatic builds on code commits", "order": 2 },
+    { "id": "phase4-topic2-check3", "text": "Implemented Docker image building and pushing", "order": 3 },
+    { "id": "phase4-topic2-check4", "text": "Added notifications for success/failure", "order": 4 },
+    { "id": "phase4-topic2-check5", "text": "(Optional) Implemented multi-environment deployment", "order": 5 }
   ]
 }

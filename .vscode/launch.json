@@ -8,6 +8,7 @@
       "module": "uvicorn",
       "args": ["main:app", "--reload", "--host", "0.0.0.0", "--port", "8000"],
       "cwd": "${workspaceFolder}/api",
+      "envFile": "${workspaceFolder}/api/.env",
       "env": {
         "PYTHONPATH": "${workspaceFolder}/api"
       },

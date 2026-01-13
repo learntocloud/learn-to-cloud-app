@@ -84,6 +84,18 @@
       "description": "Complete these security exercises on your cloud platform:\n\n1. Create IAM users and groups with specific permissions\n2. Implement IAM roles for secure access management\n3. Define and apply IAM policies to restrict access to sensitive resources\n4. Create a security group for a VM instance\n5. Define inbound rules to allow specific traffic (e.g., HTTP, SSH, RDP)\n6. Define outbound rules to control external communication\n7. Apply security group rules to a VM and verify access restrictions\n8. Test traffic flow by attempting to connect from allowed and restricted IPs"
     }
   ],
+  "questions": [
+    {
+      "id": "phase3-topic2-q1",
+      "prompt": "What is the principle of least privilege and why is it important in cloud security?",
+      "expected_concepts": ["minimum permissions", "necessary", "reduce risk", "compromise", "limit access", "attack surface", "security", "roles", "policies"]
+    },
+    {
+      "id": "phase3-topic2-q2",
+      "prompt": "What is the difference between a security group and a network ACL?",
+      "expected_concepts": ["security group", "stateful", "instance level", "network ACL", "stateless", "subnet level", "allow", "deny", "return traffic", "firewall"]
+    }
+  ],
   "test_knowledge_prompts": [
     "Can you quiz me on the difference between IAM Users, Groups, and Roles?",
     "Can you explain how RBAC differs from ABAC in cloud identity management?",
@@ -95,12 +107,10 @@
     "Can you explain stateful vs. stateless rules in cloud security?"
   ],
   "checklist": [
-    { "id": "phase3-topic2-check1", "text": "Understood IAM concepts (Users, Groups, Roles, Policies)", "order": 1 },
-    { "id": "phase3-topic2-check2", "text": "Learned about RBAC and least privilege principle", "order": 2 },
-    { "id": "phase3-topic2-check3", "text": "Created IAM users and groups with specific permissions", "order": 3 },
-    { "id": "phase3-topic2-check4", "text": "Implemented IAM roles for secure access", "order": 4 },
-    { "id": "phase3-topic2-check5", "text": "Created and configured security groups", "order": 5 },
-    { "id": "phase3-topic2-check6", "text": "Tested inbound and outbound rules", "order": 6 },
-    { "id": "phase3-topic2-check7", "text": "Verified access restrictions work correctly", "order": 7 }
+    { "id": "phase3-topic2-check1", "text": "Created IAM users and groups with specific permissions", "order": 1 },
+    { "id": "phase3-topic2-check2", "text": "Implemented IAM roles for secure access", "order": 2 },
+    { "id": "phase3-topic2-check3", "text": "Created and configured security groups", "order": 3 },
+    { "id": "phase3-topic2-check4", "text": "Tested inbound and outbound rules", "order": 4 },
+    { "id": "phase3-topic2-check5", "text": "Verified access restrictions work correctly", "order": 5 }
   ]
 }

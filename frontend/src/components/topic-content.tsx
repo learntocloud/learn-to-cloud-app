@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import type { Topic, TopicWithProgress, TopicChecklistItemWithProgress } from "@/lib/types";
+import type { Topic, TopicWithProgress, TopicChecklistItemWithProgress, TopicQuestionsStatus } from "@/lib/types";
 import { useApi } from "@/lib/use-api";
+import { KnowledgeQuestion } from "./knowledge-question";
 
 interface TopicContentProps {
   topic: Topic | TopicWithProgress;
@@ -21,6 +22,41 @@ export function TopicContent({ topic, isAuthenticated }: TopicContentProps) {
   
   const [checklist, setChecklist] = useState<TopicChecklistItemWithProgress[]>(initialChecklist as TopicChecklistItemWithProgress[]);
   const [updatingItems, setUpdatingItems] = useState<Set<string>>(new Set());
+  
+  // State for knowledge questions
+  const [questionsStatus, setQuestionsStatus] = useState<TopicQuestionsStatus | null>(null);
+  const [loadingQuestions, setLoadingQuestions] = useState(false);
+
+  // Fetch question status for authenticated users
+  useEffect(() => {
+    if (isAuthenticated && topic.questions && topic.questions.length > 0) {
+      setLoadingQuestions(true);
+      api.getTopicQuestionsStatus(topic.id)
+        .then((status) => {
+          setQuestionsStatus(status);
+        })
+        .catch((err) => {
+          console.error("Failed to fetch question status:", err);
+        })
+        .finally(() => {
+          setLoadingQuestions(false);
+        });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, topic.id, topic.questions?.length]);
+
+  const handleQuestionPass = () => {
+    // Refresh question status when a question is passed
+    if (topic.questions && topic.questions.length > 0) {
+      api.getTopicQuestionsStatus(topic.id)
+        .then((status) => {
+          setQuestionsStatus(status);
+        })
+        .catch((err) => {
+          console.error("Failed to refresh question status:", err);
+        });
+    }
+  };
 
   const handleToggleItem = async (itemId: string) => {
     if (!isAuthenticated || updatingItems.has(itemId)) return;
@@ -185,6 +221,58 @@ export function TopicContent({ topic, isAuthenticated }: TopicContentProps) {
               </li>
             ))}
           </ul>
+        </div>
+      )}
+
+      {/* Knowledge Questions */}
+      {topic.questions && topic.questions.length > 0 && (
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white">
+              🧠 Test Your Knowledge
+            </h2>
+            {questionsStatus && (
+              <span className={`text-sm font-medium px-2 py-1 rounded ${
+                questionsStatus.all_passed 
+                  ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300"
+                  : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400"
+              }`}>
+                {questionsStatus.passed_questions}/{questionsStatus.total_questions} passed
+              </span>
+            )}
+          </div>
+          
+          {!isAuthenticated ? (
+            <p className="text-gray-600 dark:text-gray-400 text-sm">
+              Sign in to answer knowledge questions and track your progress.
+            </p>
+          ) : loadingQuestions ? (
+            <div className="flex items-center gap-2 text-gray-500">
+              <svg className="animate-spin w-5 h-5" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+              Loading questions...
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {topic.questions.map((question) => {
+                const questionStatus = questionsStatus?.questions?.find(
+                  (q) => q.question_id === question.id
+                );
+                return (
+                  <KnowledgeQuestion
+                    key={question.id}
+                    question={question}
+                    topicId={topic.id}
+                    topicName={topic.name}
+                    isPassed={questionStatus?.is_passed ?? false}
+                    onPass={handleQuestionPass}
+                  />
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
     </div>

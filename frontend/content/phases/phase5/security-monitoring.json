@@ -74,6 +74,18 @@
       "description": "• High Signal-to-Noise Ratio: Alerts should indicate real problems\n• Actionable: Each alert should have a clear response procedure\n• Escalation: Different severity levels with appropriate response times\n• Context: Provide enough information to understand the issue"
     }
   ],
+  "questions": [
+    {
+      "id": "phase5-topic4-q1",
+      "prompt": "What types of logs should you collect for effective security monitoring in cloud environments?",
+      "expected_concepts": ["authentication logs", "API logs", "network logs", "audit logs", "application logs", "access logs", "CloudTrail", "CloudWatch", "activity log"]
+    },
+    {
+      "id": "phase5-topic4-q2",
+      "prompt": "What is a SIEM and how does it help with security monitoring?",
+      "expected_concepts": ["SIEM", "security information", "event management", "collect", "correlate", "analyze", "alert", "centralized", "patterns", "threats"]
+    }
+  ],
   "test_knowledge_prompts": [
     "Can you quiz me on the different types of logs I should monitor for security?",
     "Can you ask me about SIEM concepts and how they work together?",
@@ -85,10 +97,8 @@
     "Can you ask me about incident response workflows for security events?"
   ],
   "checklist": [
-    { "id": "phase5-topic4-check1", "text": "Understood the different types of security logs", "order": 1 },
-    { "id": "phase5-topic4-check2", "text": "Learned SIEM concepts and how they work", "order": 2 },
-    { "id": "phase5-topic4-check3", "text": "Understood alert design principles", "order": 3 },
-    { "id": "phase5-topic4-check4", "text": "Learned key security metrics to track", "order": 4 },
-    { "id": "phase5-topic4-check5", "text": "Reviewed cloud provider monitoring documentation", "order": 5 }
+    { "id": "phase5-topic4-check1", "text": "Completed the security monitoring learning materials", "order": 1 },
+    { "id": "phase5-topic4-check2", "text": "Reviewed cloud provider monitoring documentation", "order": 2 },
+    { "id": "phase5-topic4-check3", "text": "Answered the knowledge check questions", "order": 3 }
   ]
 }

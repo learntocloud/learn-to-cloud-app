@@ -10,6 +10,7 @@ dependencies = [
     "azure-monitor-opentelemetry>=1.6.0",
     "clerk-backend-api==4.2.0",
     "fastapi==0.115.6",
+    "google-genai>=1.57.0",
     "greenlet==3.1.1",
     "httpx==0.28.1",
     "opentelemetry-instrumentation-sqlalchemy>=0.48b0",

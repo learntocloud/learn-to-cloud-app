@@ -30,6 +30,10 @@ class Settings(BaseSettings):
     # GitHub API (optional, for higher rate limits)
     github_token: str = ""
 
+    # Google Gemini API
+    google_api_key: str = ""
+    gemini_model: str = "gemini-2.0-flash"
+
     # HTTP client settings
     http_timeout: float = 10.0  # Timeout for external API calls (Clerk, GitHub)
 

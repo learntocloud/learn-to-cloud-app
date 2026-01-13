@@ -113,6 +113,18 @@
       ]
     }
   ],
+  "questions": [
+    {
+      "id": "phase5-topic3-q1",
+      "prompt": "Explain the concept of network segmentation and why you would use public, private, and isolated subnets.",
+      "expected_concepts": ["segmentation", "public subnet", "internet facing", "private subnet", "no direct access", "isolated", "no internet", "separation", "security", "blast radius"]
+    },
+    {
+      "id": "phase5-topic3-q2",
+      "prompt": "What is the difference between a security group and a network ACL in terms of how they process traffic?",
+      "expected_concepts": ["security group", "stateful", "instance", "return traffic", "network ACL", "stateless", "subnet", "explicit rules", "allow", "deny"]
+    }
+  ],
   "test_knowledge_prompts": [
     "Can you quiz me on the difference between Security Groups and Network ACLs?",
     "Can you ask me to explain VPC concepts like subnets and route tables?",
@@ -124,11 +136,9 @@
     "Can you ask me about common network security mistakes in the cloud?"
   ],
   "checklist": [
-    { "id": "phase5-topic3-check1", "text": "Understood VPC and network isolation concepts", "order": 1 },
-    { "id": "phase5-topic3-check2", "text": "Learned Security Groups vs Network ACLs", "order": 2 },
-    { "id": "phase5-topic3-check3", "text": "Understood network segmentation (public/private/isolated)", "order": 3 },
-    { "id": "phase5-topic3-check4", "text": "Learned about load balancers and traffic management", "order": 4 },
-    { "id": "phase5-topic3-check5", "text": "Reviewed cloud provider networking documentation", "order": 5 },
-    { "id": "phase5-topic3-check6", "text": "(Optional) Completed VPC/networking workshops", "order": 6 }
+    { "id": "phase5-topic3-check1", "text": "Completed the network security learning materials", "order": 1 },
+    { "id": "phase5-topic3-check2", "text": "Reviewed cloud provider networking documentation", "order": 2 },
+    { "id": "phase5-topic3-check3", "text": "Answered the knowledge check questions", "order": 3 },
+    { "id": "phase5-topic3-check4", "text": "(Optional) Completed VPC/networking workshops", "order": 4 }
   ]
 }

@@ -86,6 +86,18 @@
       "description": "• Always use delimiters (``` or ###) to separate user content from instructions\n• Set constraints on response length when needed\n• Use 'Output Priming' by starting the expected response format\n• Test with edge cases: empty inputs, very long inputs, malicious inputs\n• Version control your prompts—they're code too!"
     }
   ],
+  "questions": [
+    {
+      "id": "phase2-topic6-q1",
+      "prompt": "What is few-shot prompting and why is it one of the most effective prompt engineering techniques?",
+      "expected_concepts": ["few-shot", "examples", "input-output pairs", "demonstrate", "pattern", "format", "consistent", "teach", "context", "behavior"]
+    },
+    {
+      "id": "phase2-topic6-q2",
+      "prompt": "Why is it important to use delimiters in prompts when processing user input?",
+      "expected_concepts": ["delimiters", "separation", "prompt injection", "security", "clear boundaries", "instructions", "user content", "triple backticks", "prevent manipulation"]
+    }
+  ],
   "test_knowledge_prompts": [
     "Can you quiz me on the five core principles of prompt engineering?",
     "Can you explain what few-shot prompting is and when to use it?",
@@ -101,7 +113,6 @@
     { "id": "phase2-topic6-check3", "text": "Created prompts that return structured JSON", "order": 3 },
     { "id": "phase2-topic6-check4", "text": "Used few-shot examples to guide model behavior", "order": 4 },
     { "id": "phase2-topic6-check5", "text": "Practiced chain-of-thought prompting", "order": 5 },
-    { "id": "phase2-topic6-check6", "text": "Understand how to use delimiters for safety", "order": 6 },
-    { "id": "phase2-topic6-check7", "text": "Tested prompts with edge cases", "order": 7 }
+    { "id": "phase2-topic6-check6", "text": "Tested prompts with edge cases", "order": 6 }
   ]
 }

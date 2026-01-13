@@ -105,6 +105,18 @@
       "description": "Push your completed project to GitHub! This becomes part of your portfolio. Consider sharing it on LinkedIn or the Learn to Cloud community Discord."
     }
   ],
+  "questions": [
+    {
+      "id": "phase2-topic7-q1",
+      "prompt": "Describe the architecture of your Journal API application and how the different components work together.",
+      "expected_concepts": ["FastAPI", "endpoints", "database", "LLM", "CRUD", "entries", "analysis", "PostgreSQL", "schema", "API", "integration"]
+    },
+    {
+      "id": "phase2-topic7-q2",
+      "prompt": "How did you implement the LLM analysis feature for journal entries, and what prompt engineering techniques did you use?",
+      "expected_concepts": ["prompt", "sentiment", "topics", "summary", "JSON", "structured output", "system message", "API call", "parse", "response"]
+    }
+  ],
   "test_knowledge_prompts": [
     "Can you review my FastAPI code and check if I'm following best practices?",
     "Can you help me debug why my LLM analysis isn't returning structured JSON?",

@@ -1,8 +1,10 @@
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
-import { getDashboard } from "@/lib/api";
+import { getDashboard, getLatestGreeting, getStreak, getTodayReflection } from "@/lib/api";
 import { PhaseCard } from "@/components/phase-card";
 import { ProgressBar } from "@/components/progress";
+import { DailyReflection } from "@/components/daily-reflection";
+import { DashboardGreeting } from "@/components/dashboard-greeting";
 
 // Disable static generation - fetch data at runtime
 export const dynamic = "force-dynamic";
@@ -14,18 +16,22 @@ export default async function DashboardPage() {
     redirect("/sign-in");
   }
 
-  const dashboard = await getDashboard();
+  const [dashboard, greetingData, streakData, todayReflection] = await Promise.all([
+    getDashboard(),
+    getLatestGreeting().catch(() => ({ greeting: null, reflection_date: null })),
+    getStreak().catch(() => ({ current_streak: 0, longest_streak: 0, last_activity_date: null })),
+    getTodayReflection().catch(() => null),
+  ]);
 
   return (
     <div className="min-h-screen py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-            Welcome back{dashboard.user.first_name ? `, ${dashboard.user.first_name}` : ""}! 👋
-          </h1>
-          <p className="text-gray-600 dark:text-gray-300 mt-2">Track your progress through Learn to Cloud</p>
-        </div>
+        {/* Header with Personalized Greeting */}
+        <DashboardGreeting 
+          userName={dashboard.user.first_name || undefined}
+          aiGreeting={greetingData.greeting || undefined}
+          currentStreak={streakData.current_streak}
+        />
 
         {/* Overall Progress Card */}
         <div className="bg-gradient-to-br from-blue-600 to-blue-800 rounded-2xl p-8 mb-8 text-white">
@@ -56,6 +62,12 @@ export default async function DashboardPage() {
             </div>
           </div>
         </div>
+
+        {/* Daily Reflection */}
+        <DailyReflection 
+          userName={dashboard.user.first_name || undefined} 
+          existingReflection={todayReflection?.reflection_text}
+        />
 
         {/* Stats Grid */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">

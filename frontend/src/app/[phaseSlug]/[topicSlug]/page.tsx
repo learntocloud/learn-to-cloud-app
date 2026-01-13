@@ -40,6 +40,8 @@ export default async function TopicPage({ params }: TopicPageProps) {
   let topic: Topic | TopicWithProgress = topicContent;
   let isAuthenticated = false;
   let isLocked = false;
+  let isTopicLocked = false;
+  let previousTopicName: string | undefined;
 
   if (userId) {
     try {
@@ -48,6 +50,8 @@ export default async function TopicPage({ params }: TopicPageProps) {
         topic = topicWithProgress;
         isAuthenticated = true;
         isLocked = topicWithProgress.isLocked;
+        isTopicLocked = topicWithProgress.isTopicLocked;
+        previousTopicName = topicWithProgress.previousTopicName;
       }
     } catch {
       // Fall back to content without progress
@@ -81,6 +85,39 @@ export default async function TopicPage({ params }: TopicPageProps) {
               className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
             >
               Go to Phase {prevPhaseNum}
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // If topic is locked (previous topic not completed), show locked page
+  if (isAuthenticated && isTopicLocked) {
+    return (
+      <div className="min-h-screen py-8">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <nav className="mb-6 flex items-center gap-2 text-sm">
+            <Link href="/phases" className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">
+              Phases
+            </Link>
+            <span className="text-gray-400">→</span>
+            <Link href={`/${phaseSlug}`} className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">
+              {phase.name}
+            </Link>
+          </nav>
+
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-8 text-center">
+            <div className="text-6xl mb-4">🔒</div>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Topic Locked</h1>
+            <p className="text-gray-600 dark:text-gray-300 mb-6">
+              You need to complete <strong>{previousTopicName}</strong> before you can access <strong>{topic.name}</strong>.
+            </p>
+            <Link
+              href={`/${phaseSlug}`}
+              className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+            >
+              Go to {phase.name}
             </Link>
           </div>
         </div>
@@ -188,12 +225,19 @@ export default async function TopicPage({ params }: TopicPageProps) {
             <div />
           )}
           {nextTopic ? (
-            <Link
-              href={`/${phaseSlug}/${nextTopic.slug}`}
-              className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-medium"
-            >
-              {nextTopic.name} →
-            </Link>
+            // Check if next topic should be locked (current topic not completed)
+            isAuthenticated && 'items_completed' in topic && (topic.items_completed < topic.items_total || topic.items_total === 0) ? (
+              <span className="text-gray-400 dark:text-gray-500 font-medium cursor-not-allowed flex items-center gap-1">
+                🔒 {nextTopic.name}
+              </span>
+            ) : (
+              <Link
+                href={`/${phaseSlug}/${nextTopic.slug}`}
+                className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-medium"
+              >
+                {nextTopic.name} →
+              </Link>
+            )
           ) : (
             <Link
               href={`/${phaseSlug}`}

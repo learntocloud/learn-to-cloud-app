@@ -32,6 +32,18 @@
       "description": "A quick but comprehensive overview of REST APIs."
     }
   ],
+  "questions": [
+    {
+      "id": "phase2-topic2-q1",
+      "prompt": "What is a REST API and what are its key principles?",
+      "expected_concepts": ["representational state transfer", "stateless", "HTTP", "resources", "endpoints", "uniform interface", "client-server", "cacheable", "standard methods"]
+    },
+    {
+      "id": "phase2-topic2-q2",
+      "prompt": "Explain the difference between GET, POST, PUT, and DELETE HTTP methods.",
+      "expected_concepts": ["GET", "retrieve", "read", "POST", "create", "PUT", "update", "replace", "DELETE", "remove", "CRUD", "idempotent"]
+    }
+  ],
   "test_knowledge_prompts": [
     "Can you ask me to explain what REST stands for and how it works?",
     "Can you quiz me on the difference between a REST API and a SOAP API?",
@@ -41,9 +53,7 @@
     "Can you ask me to explain the concept of status codes in REST and give examples?"
   ],
   "checklist": [
-    { "id": "phase2-topic2-check1", "text": "I understand what REST is and its principles", "order": 1 },
-    { "id": "phase2-topic2-check2", "text": "I know the difference between GET, POST, PUT, and DELETE", "order": 2 },
-    { "id": "phase2-topic2-check3", "text": "I understand HTTP status codes (200, 201, 400, 404, 500)", "order": 3 },
-    { "id": "phase2-topic2-check4", "text": "I can explain what an API endpoint is", "order": 4 }
+    { "id": "phase2-topic2-check1", "text": "Completed the API learning materials", "order": 1 },
+    { "id": "phase2-topic2-check2", "text": "Answered the knowledge check questions", "order": 2 }
   ]
 }

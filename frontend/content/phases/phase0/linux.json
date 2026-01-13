@@ -32,14 +32,25 @@
       "description": "Learn about Ubuntu, CentOS, Debian, and other popular distributions used in cloud environments."
     }
   ],
+  "questions": [
+    {
+      "id": "phase0-topic1-q1",
+      "prompt": "What is Linux and why is it the dominant operating system for cloud servers?",
+      "expected_concepts": ["open source", "free", "kernel", "stable", "secure", "customizable", "server", "command line", "no licensing fees", "community"]
+    },
+    {
+      "id": "phase0-topic1-q2",
+      "prompt": "What is a Linux distribution and can you name a few commonly used in cloud environments?",
+      "expected_concepts": ["distribution", "distro", "Ubuntu", "CentOS", "Debian", "Red Hat", "Amazon Linux", "kernel", "package manager", "different purposes"]
+    }
+  ],
   "test_knowledge_prompts": [
     "Can you ask me what Linux is and why it's important for cloud computing?",
     "Can you quiz me on the differences between Linux and Windows?",
     "Can you ask me why most cloud servers run Linux?"
   ],
   "checklist": [
-    { "id": "phase0-topic1-check1", "text": "I understand what Linux is", "order": 1 },
-    { "id": "phase0-topic1-check2", "text": "I know why Linux is popular in cloud environments", "order": 2 },
-    { "id": "phase0-topic1-check3", "text": "I'm aware of different Linux distributions", "order": 3 }
+    { "id": "phase0-topic1-check1", "text": "Completed the Linux learning materials", "order": 1 },
+    { "id": "phase0-topic1-check2", "text": "Answered the knowledge check questions", "order": 2 }
   ]
 }

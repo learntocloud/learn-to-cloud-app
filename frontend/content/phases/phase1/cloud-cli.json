@@ -55,6 +55,18 @@
       "code": "# AWS\naws configure\n\n# Azure\naz login\n\n# GCP\ngcloud auth login"
     }
   ],
+  "questions": [
+    {
+      "id": "phase1-topic2-q1",
+      "prompt": "Why do cloud engineers prefer using the command line interface (CLI) over the web console?",
+      "expected_concepts": ["automation", "scripting", "faster", "repeatable", "infrastructure as code", "batch operations", "version control", "consistency", "efficiency"]
+    },
+    {
+      "id": "phase1-topic2-q2",
+      "prompt": "How do you authenticate with your cloud provider using the CLI?",
+      "expected_concepts": ["login", "configure", "credentials", "access key", "secret key", "token", "service principal", "profile", "session", "secure"]
+    }
+  ],
   "test_knowledge_prompts": [
     "Can you ask me why cloud engineers use CLI instead of the web console?",
     "Can you quiz me on how to authenticate with my cloud provider via CLI?",
@@ -63,7 +75,6 @@
   "checklist": [
     { "id": "phase1-topic2-check1", "text": "Cloud CLI is installed on my computer", "order": 1 },
     { "id": "phase1-topic2-check2", "text": "I can run version commands successfully", "order": 2 },
-    { "id": "phase1-topic2-check3", "text": "I am authenticated with my cloud provider", "order": 3 },
-    { "id": "phase1-topic2-check4", "text": "I understand why CLI is useful for automation", "order": 4 }
+    { "id": "phase1-topic2-check3", "text": "I am authenticated with my cloud provider", "order": 3 }
   ]
 }

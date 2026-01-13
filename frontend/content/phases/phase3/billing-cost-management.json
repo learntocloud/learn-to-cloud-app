@@ -103,6 +103,18 @@
       "description": "Set up cost monitoring for your cloud infrastructure:\n\n1. Review your current month's charges in the billing dashboard\n2. Identify potential cost-saving opportunities\n3. Set up a budget alert for $50/month (or your chosen limit)\n4. Use the pricing calculator to estimate costs for a new deployment"
     }
   ],
+  "questions": [
+    {
+      "id": "phase3-topic7-q1",
+      "prompt": "How does cloud billing work and what are the main factors that affect your monthly cloud costs?",
+      "expected_concepts": ["pay-as-you-go", "consumption", "compute hours", "storage", "data transfer", "region", "instance type", "resources", "usage"]
+    },
+    {
+      "id": "phase3-topic7-q2",
+      "prompt": "What strategies can you use to reduce cloud costs without sacrificing performance?",
+      "expected_concepts": ["right-sizing", "reserved instances", "spot instances", "auto-scaling", "stop unused", "delete orphaned", "schedule", "optimize", "monitoring"]
+    }
+  ],
   "test_knowledge_prompts": [
     "Your cloud bill is higher than expected. Can you explain how you would investigate which resource is causing the cost increase?",
     "You're deploying an application that will serve 1,000 users. Can you walk me through how you would estimate the monthly cost?",
@@ -112,11 +124,10 @@
     "Can you ask me how to optimize costs for a development environment vs. a production environment?"
   ],
   "checklist": [
-    { "id": "phase3-topic7-check1", "text": "Understood how cloud billing and consumption-based pricing works", "order": 1 },
-    { "id": "phase3-topic7-check2", "text": "Reviewed my cloud provider's billing structure", "order": 2 },
-    { "id": "phase3-topic7-check3", "text": "Logged into billing dashboard and reviewed current costs", "order": 3 },
-    { "id": "phase3-topic7-check4", "text": "Created a budget and set up cost alerts", "order": 4 },
-    { "id": "phase3-topic7-check5", "text": "Used the pricing calculator to estimate costs", "order": 5 },
-    { "id": "phase3-topic7-check6", "text": "Reviewed cost optimization strategies", "order": 6 }
+    { "id": "phase3-topic7-check1", "text": "Reviewed my cloud provider's billing structure", "order": 1 },
+    { "id": "phase3-topic7-check2", "text": "Logged into billing dashboard and reviewed current costs", "order": 2 },
+    { "id": "phase3-topic7-check3", "text": "Created a budget and set up cost alerts", "order": 3 },
+    { "id": "phase3-topic7-check4", "text": "Used the pricing calculator to estimate costs", "order": 4 },
+    { "id": "phase3-topic7-check5", "text": "Reviewed cost optimization strategies", "order": 5 }
   ]
 }

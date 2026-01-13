@@ -2,9 +2,28 @@
 
 import Link from "next/link";
 import { UserButton, SignInButton, useUser } from "@clerk/nextjs";
+import { useApi } from "@/lib/use-api";
+import { useEffect, useState } from "react";
 
 export function Navbar() {
   const { isSignedIn, isLoaded } = useUser();
+  const api = useApi();
+  const [githubUsername, setGithubUsername] = useState<string | null>(null);
+  
+  // Fetch GitHub username from backend when user is signed in
+  useEffect(() => {
+    if (isSignedIn) {
+      api.getUserInfo()
+        .then((userInfo) => {
+          setGithubUsername(userInfo.github_username);
+        })
+        .catch((error) => {
+          console.error("Failed to fetch user info:", error);
+        });
+    } else {
+      setGithubUsername(null);
+    }
+  }, [isSignedIn]);
 
   return (
     <nav className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800">
@@ -22,13 +41,29 @@ export function Navbar() {
               >
                 Phases
               </Link>
+              <Link
+                href="/faq"
+                className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white px-3 py-2 text-sm font-medium"
+              >
+                FAQ
+              </Link>
               {isSignedIn && (
-                <Link
-                  href="/dashboard"
-                  className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white px-3 py-2 text-sm font-medium"
-                >
-                  Dashboard
-                </Link>
+                <>
+                  <Link
+                    href="/dashboard"
+                    className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white px-3 py-2 text-sm font-medium"
+                  >
+                    Dashboard
+                  </Link>
+                  {githubUsername && (
+                    <Link
+                      href={`/user/${githubUsername}`}
+                      className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white px-3 py-2 text-sm font-medium"
+                    >
+                      Profile
+                    </Link>
+                  )}
+                </>
               )}
             </div>
           </div>
