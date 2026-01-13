@@ -40,41 +40,37 @@
       "text": "Choose your cloud provider",
       "action": "Choose your cloud provider:",
       "url": null,
-      "description": "Once you've completed the demos, apply your skills to your cloud provider's AI service:"
+      "description": "Once you've completed the demos, apply your skills to your cloud provider's AI service:",
+      "options": [
+        {
+          "provider": "azure",
+          "title": "Azure OpenAI Chat Completions Quickstart",
+          "url": "https://learn.microsoft.com/en-us/azure/ai-foundry/openai/chatgpt-quickstart",
+          "description": "If you're focusing on Azure (accessed via Azure AI Foundry)"
+        },
+        {
+          "provider": "aws",
+          "title": "AWS Bedrock Getting Started",
+          "url": "https://docs.aws.amazon.com/bedrock/latest/userguide/getting-started.html",
+          "description": "If you're focusing on AWS (supports Claude, Llama, and other models)"
+        },
+        {
+          "provider": "gcp",
+          "title": "Vertex AI Generative AI Overview",
+          "url": "https://cloud.google.com/vertex-ai/generative-ai/docs/learn/overview",
+          "description": "If you're focusing on Google Cloud (supports Gemini and other models)"
+        }
+      ]
     },
     {
       "order": 5,
-      "text": "Azure OpenAI",
-      "action": "Azure OpenAI:",
-      "title": "Azure OpenAI Chat Completions Quickstart",
-      "url": "https://learn.microsoft.com/en-us/azure/ai-foundry/openai/chatgpt-quickstart",
-      "description": "If you're focusing on Azure (accessed via Azure AI Foundry)"
-    },
-    {
-      "order": 6,
-      "text": "AWS Bedrock",
-      "action": "AWS Bedrock:",
-      "title": "AWS Bedrock Getting Started",
-      "url": "https://docs.aws.amazon.com/bedrock/latest/userguide/getting-started.html",
-      "description": "If you're focusing on AWS (supports Claude, Llama, and other models)"
-    },
-    {
-      "order": 7,
-      "text": "GCP Vertex AI",
-      "action": "GCP Vertex AI:",
-      "title": "Vertex AI Generative AI Overview",
-      "url": "https://cloud.google.com/vertex-ai/generative-ai/docs/learn/overview",
-      "description": "If you're focusing on Google Cloud (supports Gemini and other models)"
-    },
-    {
-      "order": 8,
       "text": "Test in the playground first",
       "action": "Test in the playground first:",
       "url": null,
       "description": "IMPORTANT: Test prompts in your provider's web interface before writing code. Try these exercises:\n\n1. Simple completion: 'Analyze the sentiment of this text: I learned so much today!'\n2. Structured output: Request JSON with sentiment and summary fields\n3. System message test: Add a system message that sets a 'learning coach' persona"
     },
     {
-      "order": 9,
+      "order": 6,
       "text": "Create a Python test script",
       "action": "Create a Python test script",
       "url": null,
@@ -128,27 +124,27 @@
   "learning_objectives": [
     {
       "id": "phase2-topic5-check1",
-      "text": "Completed the Python OpenAI Demos exercises",
+      "text": "How to use OpenAI-compatible APIs in Python",
       "order": 1
     },
     {
       "id": "phase2-topic5-check2",
-      "text": "Tested prompts in my cloud provider's playground",
+      "text": "How to test prompts in cloud provider playgrounds",
       "order": 2
     },
     {
       "id": "phase2-topic5-check3",
-      "text": "Practiced with structured outputs (JSON responses)",
+      "text": "How to get structured JSON outputs from LLMs",
       "order": 3
     },
     {
       "id": "phase2-topic5-check4",
-      "text": "Created a Python script that calls an LLM API",
+      "text": "How to create a Python script that calls an LLM API",
       "order": 4
     },
     {
       "id": "phase2-topic5-check5",
-      "text": "Stored API keys securely in environment variables",
+      "text": "How to store API keys securely in environment variables",
       "order": 5
     }
   ]

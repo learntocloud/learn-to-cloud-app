@@ -74,12 +74,12 @@
   "learning_objectives": [
     {
       "id": "phase0-topic4-check1",
-      "text": "Completed the cloud computing learning materials",
+      "text": "Understand IaaS, PaaS, and SaaS service models",
       "order": 1
     },
     {
       "id": "phase0-topic4-check2",
-      "text": "Answered the knowledge check questions",
+      "text": "Know the major cloud providers and their core services",
       "order": 2
     }
   ]

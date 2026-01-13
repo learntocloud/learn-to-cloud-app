@@ -10,43 +10,39 @@
     {
       "order": 1,
       "text": "Understand Session-Based Access Management",
-      "action": "Understand Session-Based Access Management:",
+      "action": "Learn about session-based access:",
       "url": null,
-      "description": "Modern cloud security recommends session-based access over direct SSH/RDP connections. These services provide audit logging, don't require opening SSH ports, and integrate with your cloud IAM."
+      "description": "Modern cloud security recommends session-based access over direct SSH/RDP connections. These services provide audit logging, don't require opening SSH ports, and integrate with your cloud IAM.",
+      "options": [
+        {
+          "provider": "aws",
+          "title": "AWS Systems Manager Session Manager",
+          "url": "https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager.html",
+          "description": "Connect to your instances without SSH keys or open ports"
+        },
+        {
+          "provider": "azure",
+          "title": "Azure Bastion",
+          "url": "https://learn.microsoft.com/en-us/azure/bastion/",
+          "description": "Secure RDP/SSH connectivity to your VMs directly in the Azure portal"
+        },
+        {
+          "provider": "gcp",
+          "title": "GCP Identity-Aware Proxy",
+          "url": "https://www.youtube.com/watch?v=Vfxf2LdsXfs",
+          "description": "Video walkthrough of using IAP for secure access to GCP resources"
+        }
+      ]
     },
     {
       "order": 2,
-      "text": "AWS Systems Manager Session Manager",
-      "action": "AWS:",
-      "title": "AWS Systems Manager Session Manager",
-      "url": "https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager.html",
-      "description": "Connect to your instances without SSH keys or open ports"
-    },
-    {
-      "order": 3,
-      "text": "Azure Bastion",
-      "action": "Azure:",
-      "title": "Azure Bastion",
-      "url": "https://learn.microsoft.com/en-us/azure/bastion/",
-      "description": "Secure RDP/SSH connectivity to your VMs directly in the Azure portal"
-    },
-    {
-      "order": 4,
-      "text": "GCP Identity-Aware Proxy (IAP)",
-      "action": "GCP:",
-      "title": "GCP Identity-Aware Proxy",
-      "url": "https://www.youtube.com/watch?v=Vfxf2LdsXfs",
-      "description": "Video walkthrough of using IAP for secure access to GCP resources"
-    },
-    {
-      "order": 5,
       "text": "Why Session-Based Access?",
       "action": "Why Session-Based Access?:",
       "url": null,
-      "description": "Advantages over direct SSH/RDP:\n\n\u2022 No exposed SSH ports (port 22/3389) on security groups\n\u2022 Integrated with cloud IAM - use your existing identity\n\u2022 Full audit logging of all sessions\n\u2022 No need to manage SSH keys\n\u2022 Browser-based access - no local SSH client needed"
+      "description": "Advantages over direct SSH/RDP:\n\n• No exposed SSH ports (port 22/3389) on security groups\n• Integrated with cloud IAM - use your existing identity\n• Full audit logging of all sessions\n• No need to manage SSH keys\n• Browser-based access - no local SSH client needed"
     },
     {
-      "order": 6,
+      "order": 3,
       "text": "Additional Reading",
       "action": "Additional Reading:",
       "title": "Don't SSH into Your Bastion - Use SSM Instead",
@@ -54,7 +50,7 @@
       "description": "Practical guide explaining why Session Manager is preferred over traditional bastion hosts"
     },
     {
-      "order": 7,
+      "order": 4,
       "text": "Hands-on Tasks",
       "action": "Hands-on Tasks:",
       "url": null,
@@ -101,12 +97,12 @@
   "learning_objectives": [
     {
       "id": "phase3-topic4-check1",
-      "text": "Configured session-based access on my cloud provider",
+      "text": "How to configure session-based access on your cloud provider",
       "order": 1
     },
     {
       "id": "phase3-topic4-check2",
-      "text": "Applied least privilege IAM policies for remote access",
+      "text": "How to apply least privilege IAM policies for remote access",
       "order": 2
     }
   ]

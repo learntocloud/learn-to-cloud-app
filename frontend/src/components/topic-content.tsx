@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import type { Topic, TopicWithProgress, LearningObjective, TopicQuestionsStatus } from "@/lib/types";
+import type { Topic, TopicWithProgress, TopicQuestionsStatus } from "@/lib/types";
 import { useApi } from "@/lib/use-api";
 import { KnowledgeQuestion } from "./knowledge-question";
+import { ProviderOptions } from "./provider-options";
 
 interface TopicContentProps {
   topic: Topic | TopicWithProgress;
@@ -12,11 +13,6 @@ interface TopicContentProps {
 
 export function TopicContent({ topic, isAuthenticated }: TopicContentProps) {
   const api = useApi();
-  
-  // Get learning objectives (static display, not tracked)
-  const learningObjectives: LearningObjective[] = 'learning_objectives' in topic 
-    ? topic.learning_objectives 
-    : [];
   
   // State for knowledge questions
   const [questionsStatus, setQuestionsStatus] = useState<TopicQuestionsStatus | null>(null);
@@ -129,31 +125,15 @@ export function TopicContent({ topic, isAuthenticated }: TopicContentProps) {
                       </button>
                     </div>
                   )}
+
+                  {/* Cloud provider options (tabbed interface) */}
+                  {step.options && step.options.length > 0 && (
+                    <ProviderOptions options={step.options} />
+                  )}
                 </div>
               </li>
             ))}
           </ol>
-        </div>
-      )}
-
-      {/* What You'll Learn - Static display */}
-      {learningObjectives.length > 0 && (
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl border border-blue-200 dark:border-blue-800 p-6">
-          <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">
-            🎯 What You&apos;ll Learn
-          </h2>
-          <ul className="space-y-2">
-            {learningObjectives.map((item) => (
-              <li key={item.id} className="flex items-start gap-3">
-                <svg className="w-5 h-5 text-blue-500 dark:text-blue-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span className="text-gray-700 dark:text-gray-300">
-                  {item.text}
-                </span>
-              </li>
-            ))}
-          </ul>
         </div>
       )}
 

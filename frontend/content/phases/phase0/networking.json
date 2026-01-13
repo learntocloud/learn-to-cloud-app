@@ -73,12 +73,12 @@
   "learning_objectives": [
     {
       "id": "phase0-topic2-check1",
-      "text": "Completed the networking learning materials",
+      "text": "Understand how IP addresses, DNS, and routing work",
       "order": 1
     },
     {
       "id": "phase0-topic2-check2",
-      "text": "Answered the knowledge check questions",
+      "text": "Know the OSI model and common networking protocols",
       "order": 2
     }
   ]

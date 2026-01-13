@@ -122,52 +122,52 @@
   "learning_objectives": [
     {
       "id": "phase3-topic9-check1",
-      "text": "Designed a secure 2-tier architecture",
+      "text": "How to design a secure 2-tier cloud architecture",
       "order": 1
     },
     {
       "id": "phase3-topic9-check2",
-      "text": "Deployed API server in public tier",
+      "text": "How to deploy an API server in the public tier",
       "order": 2
     },
     {
       "id": "phase3-topic9-check3",
-      "text": "Deployed PostgreSQL in private tier",
+      "text": "How to deploy PostgreSQL in the private tier",
       "order": 3
     },
     {
       "id": "phase3-topic9-check4",
-      "text": "Database only accessible from API server",
+      "text": "How to restrict database access to the API server only",
       "order": 4
     },
     {
       "id": "phase3-topic9-check5",
-      "text": "All CRUD operations working via API",
+      "text": "How to implement all CRUD operations via your API",
       "order": 5
     },
     {
       "id": "phase3-topic9-check6",
-      "text": "AI analysis endpoint returning results",
+      "text": "How to add AI analysis endpoints to your API",
       "order": 6
     },
     {
       "id": "phase3-topic9-check7",
-      "text": "LLM API key stored securely",
+      "text": "How to store API keys and secrets securely",
       "order": 7
     },
     {
       "id": "phase3-topic9-check8",
-      "text": "Data persisting between restarts",
+      "text": "How to ensure data persistence between restarts",
       "order": 8
     },
     {
       "id": "phase3-topic9-check9",
-      "text": "Security following least privilege principles",
+      "text": "How to apply least privilege security principles",
       "order": 9
     },
     {
       "id": "phase3-topic9-check10",
-      "text": "Created technical documentation of my deployment",
+      "text": "How to create technical documentation for your deployment",
       "order": 10
     }
   ]

@@ -74,12 +74,12 @@
   "learning_objectives": [
     {
       "id": "phase0-topic1-check1",
-      "text": "Completed the Linux learning materials",
+      "text": "Understand what Linux is and why it powers cloud infrastructure",
       "order": 1
     },
     {
       "id": "phase0-topic1-check2",
-      "text": "Answered the knowledge check questions",
+      "text": "Know the differences between popular Linux distributions",
       "order": 2
     }
   ]

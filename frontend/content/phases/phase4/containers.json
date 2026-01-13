@@ -163,22 +163,22 @@
   "learning_objectives": [
     {
       "id": "phase4-topic1-check1",
-      "text": "Written a Dockerfile for an application",
+      "text": "How to write a Dockerfile for an application",
       "order": 1
     },
     {
       "id": "phase4-topic1-check2",
-      "text": "Built and ran a container locally",
+      "text": "How to build and run containers locally",
       "order": 2
     },
     {
       "id": "phase4-topic1-check3",
-      "text": "Pushed an image to a container registry",
+      "text": "How to push images to a container registry",
       "order": 3
     },
     {
       "id": "phase4-topic1-check4",
-      "text": "Set up and tested the GitHub MCP Server",
+      "text": "How to set up and use the GitHub MCP Server",
       "order": 4
     }
   ]

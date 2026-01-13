@@ -208,22 +208,22 @@
   "learning_objectives": [
     {
       "id": "phase5-topic3-check1",
-      "text": "Completed the network security learning materials",
+      "text": "Understand network security principles for cloud",
       "order": 1
     },
     {
       "id": "phase5-topic3-check2",
-      "text": "Reviewed cloud provider networking documentation",
+      "text": "Know your cloud provider's networking security features",
       "order": 2
     },
     {
       "id": "phase5-topic3-check3",
-      "text": "Answered the knowledge check questions",
+      "text": "Understand VPC security and segmentation",
       "order": 3
     },
     {
       "id": "phase5-topic3-check4",
-      "text": "(Optional) Completed VPC/networking workshops",
+      "text": "(Optional) How to complete VPC/networking workshops",
       "order": 4
     }
   ]

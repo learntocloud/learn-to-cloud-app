@@ -61,22 +61,22 @@
   "learning_objectives": [
     {
       "id": "phase2-topic3-check1",
-      "text": "Created a FastAPI application with basic endpoints",
+      "text": "How to create a FastAPI application with basic endpoints",
       "order": 1
     },
     {
       "id": "phase2-topic3-check2",
-      "text": "Used path and query parameters",
+      "text": "How to use path and query parameters",
       "order": 2
     },
     {
       "id": "phase2-topic3-check3",
-      "text": "Used Pydantic models for request/response validation",
+      "text": "How to use Pydantic models for request/response validation",
       "order": 3
     },
     {
       "id": "phase2-topic3-check4",
-      "text": "Tested endpoints using Swagger UI (/docs)",
+      "text": "How to test endpoints using Swagger UI (/docs)",
       "order": 4
     }
   ]

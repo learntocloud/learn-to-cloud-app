@@ -193,62 +193,62 @@
   "learning_objectives": [
     {
       "id": "phase5-capstone-check1",
-      "text": "Implemented IAM with least privilege",
+      "text": "How to implement IAM with least privilege principles",
       "order": 1
     },
     {
       "id": "phase5-capstone-check2",
-      "text": "All secrets migrated to secrets manager",
+      "text": "How to migrate secrets to a secrets manager",
       "order": 2
     },
     {
       "id": "phase5-capstone-check3",
-      "text": "Encryption enabled at rest and in transit",
+      "text": "How to enable encryption at rest and in transit",
       "order": 3
     },
     {
       "id": "phase5-capstone-check4",
-      "text": "VPC with proper network segmentation",
+      "text": "How to configure VPC with proper network segmentation",
       "order": 4
     },
     {
       "id": "phase5-capstone-check5",
-      "text": "Security groups configured correctly",
+      "text": "How to configure security groups correctly",
       "order": 5
     },
     {
       "id": "phase5-capstone-check6",
-      "text": "Audit logging enabled for all services",
+      "text": "How to enable audit logging for all services",
       "order": 6
     },
     {
       "id": "phase5-capstone-check7",
-      "text": "Security dashboard created",
+      "text": "How to create a security monitoring dashboard",
       "order": 7
     },
     {
       "id": "phase5-capstone-check8",
-      "text": "Alerts configured for critical events",
+      "text": "How to configure alerts for critical security events",
       "order": 8
     },
     {
       "id": "phase5-capstone-check9",
-      "text": "Threat detection service enabled",
+      "text": "How to enable threat detection services",
       "order": 9
     },
     {
       "id": "phase5-capstone-check10",
-      "text": "Incident response runbook documented",
+      "text": "How to document an incident response runbook",
       "order": 10
     },
     {
       "id": "phase5-capstone-check11",
-      "text": "Security architecture diagram completed",
+      "text": "How to create a security architecture diagram",
       "order": 11
     },
     {
       "id": "phase5-capstone-check12",
-      "text": "Security assessment report written",
+      "text": "How to write a security assessment report",
       "order": 12
     }
   ]

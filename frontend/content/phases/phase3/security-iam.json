@@ -12,72 +12,64 @@
       "text": "Learn IAM concepts across cloud providers",
       "action": "Learn IAM concepts:",
       "url": null,
-      "description": "Identity and Access Management (IAM) is how you control who can do what in your cloud environment. Master these core concepts: Users, Groups, Roles, and Policies."
+      "description": "Identity and Access Management (IAM) is how you control who can do what in your cloud environment. Master these core concepts: Users, Groups, Roles, and Policies.",
+      "options": [
+        {
+          "provider": "aws",
+          "title": "Getting Started with AWS IAM",
+          "url": "https://medium.com/@MadhavPraapati/getting-started-with-aws-iam-users-groups-policies-and-role-fee140ed1e93",
+          "description": "Comprehensive guide to AWS IAM users, groups, policies, and roles"
+        },
+        {
+          "provider": "azure",
+          "title": "Azure Role-Based Access Control",
+          "url": "https://learn.microsoft.com/en-us/azure/role-based-access-control/role-assignments-portal",
+          "description": "Learn how to assign roles in Azure using the portal"
+        },
+        {
+          "provider": "gcp",
+          "title": "GCP IAM Overview",
+          "url": "https://cloud.google.com/iam/docs/overview",
+          "description": "Understanding Identity and Access Management in Google Cloud"
+        }
+      ]
     },
     {
       "order": 2,
-      "text": "AWS IAM",
-      "action": "AWS IAM:",
-      "title": "Getting Started with AWS IAM",
-      "url": "https://medium.com/@MadhavPraapati/getting-started-with-aws-iam-users-groups-policies-and-role-fee140ed1e93",
-      "description": "Comprehensive guide to AWS IAM users, groups, policies, and roles"
-    },
-    {
-      "order": 3,
-      "text": "Azure RBAC",
-      "action": "Azure RBAC:",
-      "title": "Azure Role-Based Access Control",
-      "url": "https://learn.microsoft.com/en-us/azure/role-based-access-control/role-assignments-portal",
-      "description": "Learn how to assign roles in Azure using the portal"
-    },
-    {
-      "order": 4,
-      "text": "GCP IAM",
-      "action": "GCP IAM:",
-      "title": "GCP IAM Overview",
-      "url": "https://cloud.google.com/iam/docs/overview",
-      "description": "Understanding Identity and Access Management in Google Cloud"
-    },
-    {
-      "order": 5,
       "text": "Understand Security Groups & Firewall Rules",
       "action": "Understand Security Groups & Firewall Rules:",
       "url": null,
-      "description": "Security groups act as virtual firewalls for your cloud resources, controlling inbound and outbound traffic."
+      "description": "Security groups act as virtual firewalls for your cloud resources, controlling inbound and outbound traffic.",
+      "options": [
+        {
+          "provider": "aws",
+          "title": "AWS Security Groups Explained",
+          "url": "https://www.youtube.com/watch?v=uYDT2SsHImQ",
+          "description": "Video walkthrough of AWS Security Groups"
+        },
+        {
+          "provider": "azure",
+          "title": "Azure Network Security Groups",
+          "url": "https://learn.microsoft.com/en-us/azure/virtual-network/network-security-groups-overview",
+          "description": "Overview of Network Security Groups in Azure"
+        },
+        {
+          "provider": "gcp",
+          "title": "GCP Firewall Rules",
+          "url": "https://cloud.google.com/firewall/docs/firewalls",
+          "description": "Understanding firewall rules in Google Cloud"
+        }
+      ]
     },
     {
-      "order": 6,
-      "text": "AWS Security Groups",
-      "action": "Watch:",
-      "title": "AWS Security Groups Explained",
-      "url": "https://www.youtube.com/watch?v=uYDT2SsHImQ",
-      "description": "Video walkthrough of AWS Security Groups"
-    },
-    {
-      "order": 7,
-      "text": "Azure NSGs",
-      "action": "Study:",
-      "title": "Azure Network Security Groups",
-      "url": "https://learn.microsoft.com/en-us/azure/virtual-network/network-security-groups-overview",
-      "description": "Overview of Network Security Groups in Azure"
-    },
-    {
-      "order": 8,
-      "text": "GCP Firewall Rules",
-      "action": "Study:",
-      "title": "GCP Firewall Rules",
-      "url": "https://cloud.google.com/firewall/docs/firewalls",
-      "description": "Understanding firewall rules in Google Cloud"
-    },
-    {
-      "order": 9,
+      "order": 3,
       "text": "Key Security Principles",
       "action": "Key Security Principles:",
       "url": null,
       "description": "\u2022 Least Privilege Principle - Grant only the minimum permissions needed\n\u2022 RBAC (Role-Based Access Control) - Assign permissions based on job roles\n\u2022 Stateful vs Stateless rules - Security groups are stateful, network ACLs are stateless\n\u2022 Inbound vs Outbound rules - Control traffic in both directions"
     },
     {
-      "order": 10,
+      "order": 4,
       "text": "Hands-on Tasks",
       "action": "Hands-on Tasks:",
       "url": null,
@@ -130,27 +122,27 @@
   "learning_objectives": [
     {
       "id": "phase3-topic2-check1",
-      "text": "Created IAM users and groups with specific permissions",
+      "text": "How to create IAM users and groups with specific permissions",
       "order": 1
     },
     {
       "id": "phase3-topic2-check2",
-      "text": "Implemented IAM roles for secure access",
+      "text": "How to implement IAM roles for secure access",
       "order": 2
     },
     {
       "id": "phase3-topic2-check3",
-      "text": "Created and configured security groups",
+      "text": "How to create and configure security groups",
       "order": 3
     },
     {
       "id": "phase3-topic2-check4",
-      "text": "Tested inbound and outbound rules",
+      "text": "How to configure inbound and outbound rules",
       "order": 4
     },
     {
       "id": "phase3-topic2-check5",
-      "text": "Verified access restrictions work correctly",
+      "text": "How to verify access restrictions work correctly",
       "order": 5
     }
   ]

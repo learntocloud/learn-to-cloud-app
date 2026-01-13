@@ -20,28 +20,27 @@
       "text": "Practice connecting to a VM",
       "action": "Practice connecting to a VM:",
       "url": null,
-      "description": "Follow your cloud provider's guide to connect to a VM via SSH:"
-    },
-    {
-      "order": 3,
-      "text": "AWS: Connect to your Linux instance",
-      "action": "AWS:",
-      "title": "Connect to your Linux instance",
-      "url": "https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/connect-linux-inst-ssh.html"
-    },
-    {
-      "order": 4,
-      "text": "Azure: Develop on a remote machine",
-      "action": "Azure:",
-      "title": "Develop on a remote machine",
-      "url": "https://learn.microsoft.com/training/modules/develop-on-remote-machine/"
-    },
-    {
-      "order": 5,
-      "text": "GCP: SSH into a VM",
-      "action": "GCP:",
-      "title": "SSH into a VM",
-      "url": "https://cloud.google.com/compute/docs/connect/standard-ssh"
+      "description": "Follow your cloud provider's guide to connect to a VM via SSH:",
+      "options": [
+        {
+          "provider": "aws",
+          "title": "Connect to your Linux instance",
+          "url": "https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/connect-linux-inst-ssh.html",
+          "description": "AWS guide to connecting to EC2 instances via SSH."
+        },
+        {
+          "provider": "azure",
+          "title": "Develop on a remote machine",
+          "url": "https://learn.microsoft.com/training/modules/develop-on-remote-machine/",
+          "description": "Learn to connect and develop on Azure VMs remotely."
+        },
+        {
+          "provider": "gcp",
+          "title": "SSH into a VM",
+          "url": "https://cloud.google.com/compute/docs/connect/standard-ssh",
+          "description": "GCP documentation for SSH access to Compute Engine instances."
+        }
+      ]
     }
   ],
   "questions": [
@@ -75,12 +74,12 @@
   "learning_objectives": [
     {
       "id": "phase1-topic4-check1",
-      "text": "Completed the SSH learning materials",
+      "text": "Understand how SSH works and its importance for cloud",
       "order": 1
     },
     {
       "id": "phase1-topic4-check2",
-      "text": "Successfully SSHed into a VM from my terminal",
+      "text": "How to SSH into a virtual machine from your terminal",
       "order": 2
     }
   ]

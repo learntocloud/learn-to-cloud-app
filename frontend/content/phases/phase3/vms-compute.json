@@ -35,34 +35,30 @@
       "text": "Deploy a VM on your cloud provider",
       "action": "Deploy a VM on your cloud provider:",
       "url": null,
-      "description": "Choose your cloud platform and follow the official guide to deploy your first virtual machine:"
+      "description": "Choose your cloud platform and follow the official guide to deploy your first virtual machine:",
+      "options": [
+        {
+          "provider": "aws",
+          "title": "Get Started with Amazon EC2",
+          "url": "https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/EC2_GetStarted.html",
+          "description": "Launch your first Linux instance on AWS Elastic Compute Cloud"
+        },
+        {
+          "provider": "azure",
+          "title": "Azure Virtual Machines Documentation",
+          "url": "https://learn.microsoft.com/en-us/azure/virtual-machines/",
+          "description": "Create and manage virtual machines in Azure"
+        },
+        {
+          "provider": "gcp",
+          "title": "Create Your First VM on GCP",
+          "url": "https://cloud.google.com/products/compute#create-your-first-vm",
+          "description": "Get started with Google Compute Engine"
+        }
+      ]
     },
     {
       "order": 5,
-      "text": "AWS EC2",
-      "action": "AWS EC2:",
-      "title": "Get Started with Amazon EC2",
-      "url": "https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/EC2_GetStarted.html",
-      "description": "Launch your first Linux instance on AWS Elastic Compute Cloud"
-    },
-    {
-      "order": 6,
-      "text": "Azure Virtual Machines",
-      "action": "Azure VMs:",
-      "title": "Azure Virtual Machines Documentation",
-      "url": "https://learn.microsoft.com/en-us/azure/virtual-machines/",
-      "description": "Create and manage virtual machines in Azure"
-    },
-    {
-      "order": 7,
-      "text": "GCP Compute Engine",
-      "action": "GCP Compute Engine:",
-      "title": "Create Your First VM on GCP",
-      "url": "https://cloud.google.com/products/compute#create-your-first-vm",
-      "description": "Get started with Google Compute Engine"
-    },
-    {
-      "order": 8,
       "text": "Hands-on: Deploy a VM using default configuration",
       "action": "Hands-on Task:",
       "url": null,
@@ -112,12 +108,12 @@
   "learning_objectives": [
     {
       "id": "phase3-topic1-check1",
-      "text": "Successfully deployed a VM on my chosen cloud provider",
+      "text": "How to deploy a virtual machine on your cloud provider",
       "order": 1
     },
     {
       "id": "phase3-topic1-check2",
-      "text": "Verified VM is accessible and running",
+      "text": "How to verify and access your running VM",
       "order": 2
     }
   ]

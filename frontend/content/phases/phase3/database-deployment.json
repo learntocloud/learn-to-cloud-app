@@ -28,42 +28,38 @@
       "text": "Install PostgreSQL on a VM",
       "action": "Install PostgreSQL on a VM:",
       "url": null,
-      "description": "Learn how to install PostgreSQL on a virtual machine for your cloud provider:"
+      "description": "Learn how to install PostgreSQL on a virtual machine for your cloud provider:",
+      "options": [
+        {
+          "provider": "aws",
+          "title": "Install PostgreSQL on AWS EC2",
+          "url": "https://www.youtube.com/watch?v=KQ4eIv6h7Sk",
+          "description": "Video guide for installing PostgreSQL on an EC2 instance"
+        },
+        {
+          "provider": "azure",
+          "title": "Install PostgreSQL on Azure VM",
+          "url": "https://www.youtube.com/watch?v=_f1gKlV60Iw",
+          "description": "Video guide for installing PostgreSQL on Azure Virtual Machine"
+        },
+        {
+          "provider": "gcp",
+          "title": "Set Up PostgreSQL on GCP VM",
+          "url": "https://dev.to/vishalpaalakurthi/how-to-set-up-a-postgresql-server-on-a-virtual-machine-473f",
+          "description": "Step-by-step guide for PostgreSQL on Google Compute Engine"
+        }
+      ]
     },
     {
       "order": 4,
-      "text": "AWS Installation",
-      "action": "AWS:",
-      "title": "Install PostgreSQL on AWS EC2",
-      "url": "https://www.youtube.com/watch?v=KQ4eIv6h7Sk",
-      "description": "Video guide for installing PostgreSQL on an EC2 instance"
-    },
-    {
-      "order": 5,
-      "text": "Azure Installation",
-      "action": "Azure:",
-      "title": "Install PostgreSQL on Azure VM",
-      "url": "https://www.youtube.com/watch?v=_f1gKlV60Iw",
-      "description": "Video guide for installing PostgreSQL on Azure Virtual Machine"
-    },
-    {
-      "order": 6,
-      "text": "GCP Installation",
-      "action": "GCP:",
-      "title": "Set Up PostgreSQL on GCP VM",
-      "url": "https://dev.to/vishalpaalakurthi/how-to-set-up-a-postgresql-server-on-a-virtual-machine-473f",
-      "description": "Step-by-step guide for PostgreSQL on Google Compute Engine"
-    },
-    {
-      "order": 7,
       "text": "Access Control & Authentication",
       "action": "Access Control & Authentication:",
       "url": null,
-      "description": "Learn how to use pg_hba.conf to manage authentication and enforce secure database access. This file controls:\n\n\u2022 Which hosts can connect\n\u2022 Which database users can connect\n\u2022 Which databases they can access\n\u2022 What authentication method is required",
+      "description": "Learn how to use pg_hba.conf to manage authentication and enforce secure database access. This file controls:\n\n• Which hosts can connect\n• Which database users can connect\n• Which databases they can access\n• What authentication method is required",
       "code": "# Example pg_hba.conf entries:\n# TYPE  DATABASE        USER            ADDRESS                 METHOD\nlocal   all             postgres                                peer\nhost    all             all             10.0.0.0/8              md5\nhost    all             all             0.0.0.0/0               reject"
     },
     {
-      "order": 8,
+      "order": 5,
       "text": "Hands-on Task",
       "action": "Hands-on Task:",
       "url": null,
@@ -113,22 +109,22 @@
   "learning_objectives": [
     {
       "id": "phase3-topic5-check1",
-      "text": "Installed PostgreSQL on a VM",
+      "text": "How to install PostgreSQL on a virtual machine",
       "order": 1
     },
     {
       "id": "phase3-topic5-check2",
-      "text": "Deployed PostgreSQL in a private subnet",
+      "text": "How to deploy PostgreSQL in a private subnet",
       "order": 2
     },
     {
       "id": "phase3-topic5-check3",
-      "text": "Configured secure remote access to the database",
+      "text": "How to configure secure remote access to your database",
       "order": 3
     },
     {
       "id": "phase3-topic5-check4",
-      "text": "Created database users with appropriate permissions",
+      "text": "How to create database users with appropriate permissions",
       "order": 4
     }
   ]

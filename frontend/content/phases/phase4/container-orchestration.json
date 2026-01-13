@@ -156,27 +156,27 @@
   "learning_objectives": [
     {
       "id": "phase4-topic4-check1",
-      "text": "Installed Minikube or Kind locally",
+      "text": "How to install Minikube or Kind for local Kubernetes",
       "order": 1
     },
     {
       "id": "phase4-topic4-check2",
-      "text": "Created and deployed a Kubernetes deployment",
+      "text": "How to create and deploy Kubernetes deployments",
       "order": 2
     },
     {
       "id": "phase4-topic4-check3",
-      "text": "Exposed a deployment as a service",
+      "text": "How to expose deployments as services",
       "order": 3
     },
     {
       "id": "phase4-topic4-check4",
-      "text": "Used kubectl commands for cluster management",
+      "text": "How to use kubectl for cluster management",
       "order": 4
     },
     {
       "id": "phase4-topic4-check5",
-      "text": "(Optional) Explored managed Kubernetes services",
+      "text": "(Optional) Understand managed Kubernetes services",
       "order": 5
     }
   ]

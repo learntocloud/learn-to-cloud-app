@@ -197,32 +197,32 @@
   "learning_objectives": [
     {
       "id": "phase4-topic5-check1",
-      "text": "Set up Prometheus with basic configuration",
+      "text": "How to set up Prometheus for metrics collection",
       "order": 1
     },
     {
       "id": "phase4-topic5-check2",
-      "text": "Deployed Grafana and connected to Prometheus",
+      "text": "How to deploy Grafana and connect to Prometheus",
       "order": 2
     },
     {
       "id": "phase4-topic5-check3",
-      "text": "Created dashboards with PromQL queries",
+      "text": "How to create dashboards with PromQL queries",
       "order": 3
     },
     {
       "id": "phase4-topic5-check4",
-      "text": "Instrumented a sample application with metrics",
+      "text": "How to instrument applications with metrics",
       "order": 4
     },
     {
       "id": "phase4-topic5-check5",
-      "text": "Built an AI agent with n8n for automated responses",
+      "text": "How to build AI agents with n8n for automated responses",
       "order": 5
     },
     {
       "id": "phase4-topic5-check6",
-      "text": "Tested agent detection and alerting",
+      "text": "How to configure agent detection and alerting",
       "order": 6
     }
   ]

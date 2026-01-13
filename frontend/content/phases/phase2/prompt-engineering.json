@@ -131,32 +131,32 @@
   "learning_objectives": [
     {
       "id": "phase2-topic6-check1",
-      "text": "Learned the 5 core prompting principles",
+      "text": "Understand the 5 core prompting principles",
       "order": 1
     },
     {
       "id": "phase2-topic6-check2",
-      "text": "Practiced simple sentiment analysis prompts",
+      "text": "How to write effective sentiment analysis prompts",
       "order": 2
     },
     {
       "id": "phase2-topic6-check3",
-      "text": "Created prompts that return structured JSON",
+      "text": "How to create prompts that return structured JSON",
       "order": 3
     },
     {
       "id": "phase2-topic6-check4",
-      "text": "Used few-shot examples to guide model behavior",
+      "text": "How to use few-shot examples to guide model behavior",
       "order": 4
     },
     {
       "id": "phase2-topic6-check5",
-      "text": "Practiced chain-of-thought prompting",
+      "text": "How to apply chain-of-thought prompting",
       "order": 5
     },
     {
       "id": "phase2-topic6-check6",
-      "text": "Tested prompts with edge cases",
+      "text": "How to test prompts with edge cases",
       "order": 6
     }
   ]

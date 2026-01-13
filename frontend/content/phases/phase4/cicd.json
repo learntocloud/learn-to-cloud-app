@@ -127,27 +127,27 @@
   "learning_objectives": [
     {
       "id": "phase4-topic2-check1",
-      "text": "Set up a basic CI/CD pipeline (GitHub Actions or similar)",
+      "text": "How to set up a CI/CD pipeline with GitHub Actions",
       "order": 1
     },
     {
       "id": "phase4-topic2-check2",
-      "text": "Configured automatic builds on code commits",
+      "text": "How to configure automatic builds on code commits",
       "order": 2
     },
     {
       "id": "phase4-topic2-check3",
-      "text": "Implemented Docker image building and pushing",
+      "text": "How to automate Docker image building and pushing",
       "order": 3
     },
     {
       "id": "phase4-topic2-check4",
-      "text": "Added notifications for success/failure",
+      "text": "How to add notifications for pipeline success/failure",
       "order": 4
     },
     {
       "id": "phase4-topic2-check5",
-      "text": "(Optional) Implemented multi-environment deployment",
+      "text": "(Optional) How to implement multi-environment deployment",
       "order": 5
     }
   ]

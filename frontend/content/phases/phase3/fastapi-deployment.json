@@ -12,34 +12,30 @@
       "text": "Learn FastAPI deployment on your cloud provider",
       "action": "Learn FastAPI deployment on your cloud provider:",
       "url": null,
-      "description": "Each cloud provider has slightly different approaches. Follow the guide for your chosen platform:"
+      "description": "Each cloud provider has slightly different approaches. Follow the guide for your chosen platform:",
+      "options": [
+        {
+          "provider": "aws",
+          "title": "Deploy FastAPI on AWS EC2",
+          "url": "https://www.youtube.com/watch?v=SgSnz7kW-Ko",
+          "description": "Video walkthrough of deploying FastAPI to an EC2 instance"
+        },
+        {
+          "provider": "azure",
+          "title": "Deploy FastAPI to Azure Virtual Machine",
+          "url": "https://medium.com/@swamynathanayyappan/how-to-deploy-a-fast-api-python-web-application-to-azure-virtual-machine-c5eb84284a81",
+          "description": "Step-by-step guide for deploying FastAPI to Azure VM"
+        },
+        {
+          "provider": "gcp",
+          "title": "Deploy FastAPI on Google Compute Engine",
+          "url": "https://www.youtube.com/watch?v=Lcuas-20g1g",
+          "description": "Video guide for deploying FastAPI to GCP"
+        }
+      ]
     },
     {
       "order": 2,
-      "text": "AWS EC2 Deployment",
-      "action": "AWS EC2:",
-      "title": "Deploy FastAPI on AWS EC2",
-      "url": "https://www.youtube.com/watch?v=SgSnz7kW-Ko",
-      "description": "Video walkthrough of deploying FastAPI to an EC2 instance"
-    },
-    {
-      "order": 3,
-      "text": "Azure VM Deployment",
-      "action": "Azure VM:",
-      "title": "Deploy FastAPI to Azure Virtual Machine",
-      "url": "https://medium.com/@swamynathanayyappan/how-to-deploy-a-fast-api-python-web-application-to-azure-virtual-machine-c5eb84284a81",
-      "description": "Step-by-step guide for deploying FastAPI to Azure VM"
-    },
-    {
-      "order": 4,
-      "text": "GCP Compute Engine Deployment",
-      "action": "GCP Compute Engine:",
-      "title": "Deploy FastAPI on Google Compute Engine",
-      "url": "https://www.youtube.com/watch?v=Lcuas-20g1g",
-      "description": "Video guide for deploying FastAPI to GCP"
-    },
-    {
-      "order": 5,
       "text": "Environment Variables",
       "action": "Environment Variables:",
       "url": null,
@@ -47,14 +43,14 @@
       "code": "# On Linux, add to /etc/environment or use systemd\nexport DATABASE_URL=\"postgresql://user:pass@db-server:5432/journal\"\nexport LLM_API_KEY=\"your-api-key\"\n\n# In your FastAPI app\nimport os\ndb_url = os.getenv(\"DATABASE_URL\")\napi_key = os.getenv(\"LLM_API_KEY\")"
     },
     {
-      "order": 6,
+      "order": 3,
       "text": "Configure Security Groups/Firewall",
       "action": "Configure Security Groups/Firewall:",
       "url": null,
-      "description": "Set up rules to allow external HTTP traffic to your FastAPI application:\n\n\u2022 Allow inbound TCP port 80 (HTTP) or 443 (HTTPS)\n\u2022 Allow inbound TCP port 8000 (FastAPI default) if not using a reverse proxy\n\u2022 Restrict SSH access to your IP only\n\u2022 Ensure the database port (5432) is NOT exposed to the internet"
+      "description": "Set up rules to allow external HTTP traffic to your FastAPI application:\n\n• Allow inbound TCP port 80 (HTTP) or 443 (HTTPS)\n• Allow inbound TCP port 8000 (FastAPI default) if not using a reverse proxy\n• Restrict SSH access to your IP only\n• Ensure the database port (5432) is NOT exposed to the internet"
     },
     {
-      "order": 7,
+      "order": 4,
       "text": "Running FastAPI in Production",
       "action": "Running FastAPI in Production:",
       "url": null,
@@ -62,7 +58,7 @@
       "code": "# Install uvicorn with standard extras\npip install 'uvicorn[standard]'\n\n# Run with multiple workers\nuvicorn main:app --host 0.0.0.0 --port 8000 --workers 4\n\n# Or use a systemd service for persistence\n# Create /etc/systemd/system/fastapi.service"
     },
     {
-      "order": 8,
+      "order": 5,
       "text": "Hands-on Task",
       "action": "Hands-on Task:",
       "url": null,
@@ -110,22 +106,22 @@
   "learning_objectives": [
     {
       "id": "phase3-topic6-check1",
-      "text": "Reviewed FastAPI deployment resources for my cloud provider",
+      "text": "How to plan FastAPI deployment for your cloud provider",
       "order": 1
     },
     {
       "id": "phase3-topic6-check2",
-      "text": "Configured security groups/firewall rules for HTTP traffic",
+      "text": "How to configure security groups/firewall rules for HTTP traffic",
       "order": 2
     },
     {
       "id": "phase3-topic6-check3",
-      "text": "Deployed FastAPI on a VM in the public subnet",
+      "text": "How to deploy FastAPI on a VM in the public subnet",
       "order": 3
     },
     {
       "id": "phase3-topic6-check4",
-      "text": "Verified the API is accessible from the internet",
+      "text": "How to verify your API is accessible from the internet",
       "order": 4
     }
   ]

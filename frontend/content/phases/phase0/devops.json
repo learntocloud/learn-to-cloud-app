@@ -66,12 +66,12 @@
   "learning_objectives": [
     {
       "id": "phase0-topic5-check1",
-      "text": "Completed the DevOps learning materials",
+      "text": "Understand DevOps culture and practices",
       "order": 1
     },
     {
       "id": "phase0-topic5-check2",
-      "text": "Answered the knowledge check questions",
+      "text": "Know key DevOps concepts like CI/CD and automation",
       "order": 2
     }
   ]

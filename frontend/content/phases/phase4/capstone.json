@@ -119,32 +119,32 @@
   "learning_objectives": [
     {
       "id": "phase4-topic6-check1",
-      "text": "Dockerfile and containerization complete",
+      "text": "How to containerize applications with Docker",
       "order": 1
     },
     {
       "id": "phase4-topic6-check2",
-      "text": "Infrastructure as Code (Terraform) configured",
+      "text": "How to manage infrastructure with Terraform",
       "order": 2
     },
     {
       "id": "phase4-topic6-check3",
-      "text": "CI/CD pipeline setup and working",
+      "text": "How to set up automated CI/CD pipelines",
       "order": 3
     },
     {
       "id": "phase4-topic6-check4",
-      "text": "Kubernetes manifests created and deployed",
+      "text": "How to deploy with Kubernetes manifests",
       "order": 4
     },
     {
       "id": "phase4-topic6-check5",
-      "text": "Monitoring and observability (Prometheus + Grafana) configured",
+      "text": "How to implement monitoring with Prometheus and Grafana",
       "order": 5
     },
     {
       "id": "phase4-topic6-check6",
-      "text": "Documentation complete",
+      "text": "How to write comprehensive documentation",
       "order": 6
     }
   ]

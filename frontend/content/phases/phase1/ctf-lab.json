@@ -70,17 +70,17 @@
   "learning_objectives": [
     {
       "id": "phase1-topic6-check1",
-      "text": "I deployed the CTF lab environment",
+      "text": "How to deploy a cloud lab environment",
       "order": 1
     },
     {
       "id": "phase1-topic6-check2",
-      "text": "I completed all CTF challenges",
+      "text": "How to solve CTF challenges using cloud skills",
       "order": 2
     },
     {
       "id": "phase1-topic6-check3",
-      "text": "I destroyed the lab resources to avoid charges",
+      "text": "How to properly clean up cloud resources to avoid charges",
       "order": 3
     }
   ]

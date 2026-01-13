@@ -2,6 +2,14 @@
 
 export type CompletionStatus = 'not_started' | 'in_progress' | 'completed';
 
+// Cloud provider option for steps with multiple provider paths
+export interface ProviderOption {
+  provider: 'aws' | 'azure' | 'gcp';
+  title: string;
+  url: string;
+  description?: string;
+}
+
 export interface LearningStep {
   order: number;
   text: string;
@@ -12,6 +20,7 @@ export interface LearningStep {
   description?: string;    // Additional context paragraph below
   code?: string;           // Code block content
   secondary_links?: { text: string; url: string }[];  // Additional links in the description
+  options?: ProviderOption[];  // Cloud provider-specific options (renders as tabs)
 }
 
 // Learning objectives displayed at top of topic (not tracked)

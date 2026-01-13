@@ -161,47 +161,47 @@
   "learning_objectives": [
     {
       "id": "phase2-topic7-check1",
-      "text": "Forked the journal-starter repository",
+      "text": "How to fork and set up a starter repository",
       "order": 1
     },
     {
       "id": "phase2-topic7-check2",
-      "text": "Set up Dev Container environment",
+      "text": "How to use Dev Containers for development",
       "order": 2
     },
     {
       "id": "phase2-topic7-check3",
-      "text": "Implemented all CRUD endpoints for entries",
+      "text": "How to implement CRUD endpoints in FastAPI",
       "order": 3
     },
     {
       "id": "phase2-topic7-check4",
-      "text": "Connected to database and created schema",
+      "text": "How to connect to a database and create schemas",
       "order": 4
     },
     {
       "id": "phase2-topic7-check5",
-      "text": "Integrated LLM API for analysis",
+      "text": "How to integrate LLM APIs for intelligent features",
       "order": 5
     },
     {
       "id": "phase2-topic7-check6",
-      "text": "Added proper error handling",
+      "text": "How to add proper error handling",
       "order": 6
     },
     {
       "id": "phase2-topic7-check7",
-      "text": "Tested all endpoints via /docs",
+      "text": "How to test API endpoints using Swagger UI",
       "order": 7
     },
     {
       "id": "phase2-topic7-check8",
-      "text": "Updated README documentation",
+      "text": "How to write effective README documentation",
       "order": 8
     },
     {
       "id": "phase2-topic7-check9",
-      "text": "Pushed completed project to GitHub",
+      "text": "How to push and share your project on GitHub",
       "order": 9
     }
   ]

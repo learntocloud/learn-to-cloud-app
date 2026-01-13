@@ -98,12 +98,12 @@
   "learning_objectives": [
     {
       "id": "phase1-topic3-check1",
-      "text": "Terraform is installed on my computer",
+      "text": "How to install Terraform on your system",
       "order": 1
     },
     {
       "id": "phase1-topic3-check2",
-      "text": "Answered the knowledge check questions",
+      "text": "Understand the basics of Infrastructure as Code",
       "order": 2
     }
   ]

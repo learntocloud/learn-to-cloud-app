@@ -201,22 +201,22 @@
   "learning_objectives": [
     {
       "id": "phase5-topic1-check1",
-      "text": "Completed the IAM learning materials",
+      "text": "Understand IAM principles and best practices",
       "order": 1
     },
     {
       "id": "phase5-topic1-check2",
-      "text": "Reviewed cloud provider IAM documentation",
+      "text": "Know your cloud provider's IAM capabilities",
       "order": 2
     },
     {
       "id": "phase5-topic1-check3",
-      "text": "Answered the knowledge check questions",
+      "text": "Understand role-based access control (RBAC)",
       "order": 3
     },
     {
       "id": "phase5-topic1-check4",
-      "text": "(Optional) Completed hands-on IAM workshops",
+      "text": "(Optional) How to complete hands-on IAM workshops",
       "order": 4
     }
   ]

@@ -65,12 +65,12 @@
   "learning_objectives": [
     {
       "id": "phase0-topic3-check1",
-      "text": "Completed the programming learning materials",
+      "text": "Understand why programming is essential for cloud engineers",
       "order": 1
     },
     {
       "id": "phase0-topic3-check2",
-      "text": "Answered the knowledge check questions",
+      "text": "Know the basics of programming concepts and paradigms",
       "order": 2
     }
   ]

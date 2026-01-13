@@ -82,17 +82,17 @@
   "learning_objectives": [
     {
       "id": "phase1-topic5-check1",
-      "text": "I can navigate the file system using cd, ls, and pwd",
+      "text": "How to navigate the file system using cd, ls, and pwd",
       "order": 1
     },
     {
       "id": "phase1-topic5-check2",
-      "text": "I can create and view files using touch, cat, and echo",
+      "text": "How to create and view files using touch, cat, and echo",
       "order": 2
     },
     {
       "id": "phase1-topic5-check3",
-      "text": "I can use pipes and redirects",
+      "text": "How to use pipes and redirects effectively",
       "order": 3
     }
   ]

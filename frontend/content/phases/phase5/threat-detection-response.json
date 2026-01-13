@@ -226,22 +226,22 @@
   "learning_objectives": [
     {
       "id": "phase5-topic5-check1",
-      "text": "Completed the threat detection learning materials",
+      "text": "Understand threat detection concepts and services",
       "order": 1
     },
     {
       "id": "phase5-topic5-check2",
-      "text": "Reviewed threat intelligence sources",
+      "text": "Know how to use threat intelligence sources",
       "order": 2
     },
     {
       "id": "phase5-topic5-check3",
-      "text": "Answered the knowledge check questions",
+      "text": "Understand incident response processes",
       "order": 3
     },
     {
       "id": "phase5-topic5-check4",
-      "text": "(Optional) Completed incident response workshops",
+      "text": "(Optional) How to complete incident response workshops",
       "order": 4
     }
   ]

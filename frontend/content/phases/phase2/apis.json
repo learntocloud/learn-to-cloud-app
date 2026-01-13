@@ -78,12 +78,12 @@
   "learning_objectives": [
     {
       "id": "phase2-topic2-check1",
-      "text": "Completed the API learning materials",
+      "text": "Understand what APIs are and how they work",
       "order": 1
     },
     {
       "id": "phase2-topic2-check2",
-      "text": "Answered the knowledge check questions",
+      "text": "Know the difference between REST, GraphQL, and other API styles",
       "order": 2
     }
   ]

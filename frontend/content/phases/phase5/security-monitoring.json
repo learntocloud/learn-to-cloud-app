@@ -153,17 +153,17 @@
   "learning_objectives": [
     {
       "id": "phase5-topic4-check1",
-      "text": "Completed the security monitoring learning materials",
+      "text": "Understand security monitoring concepts and tools",
       "order": 1
     },
     {
       "id": "phase5-topic4-check2",
-      "text": "Reviewed cloud provider monitoring documentation",
+      "text": "Know your cloud provider's monitoring capabilities",
       "order": 2
     },
     {
       "id": "phase5-topic4-check3",
-      "text": "Answered the knowledge check questions",
+      "text": "Understand logging and audit trail best practices",
       "order": 3
     }
   ]

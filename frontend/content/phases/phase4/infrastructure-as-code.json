@@ -185,27 +185,27 @@
   "learning_objectives": [
     {
       "id": "phase4-topic3-check1",
-      "text": "Installed Terraform on my system",
+      "text": "How to install and configure Terraform",
       "order": 1
     },
     {
       "id": "phase4-topic3-check2",
-      "text": "Written Terraform configuration for a VM or static site",
+      "text": "How to write Terraform configuration for cloud resources",
       "order": 2
     },
     {
       "id": "phase4-topic3-check3",
-      "text": "Deployed and verified resources in my cloud platform",
+      "text": "How to deploy and verify resources with Terraform",
       "order": 3
     },
     {
       "id": "phase4-topic3-check4",
-      "text": "Destroyed resources to clean up",
+      "text": "How to destroy resources to clean up",
       "order": 4
     },
     {
       "id": "phase4-topic3-check5",
-      "text": "(Optional) Created modular Terraform design with GitHub Copilot",
+      "text": "(Optional) How to create modular Terraform designs",
       "order": 5
     }
   ]

@@ -171,22 +171,22 @@
   "learning_objectives": [
     {
       "id": "phase3-topic8-check1",
-      "text": "Explored available models on my chosen platform",
+      "text": "How to explore available AI models on cloud platforms",
       "order": 1
     },
     {
       "id": "phase3-topic8-check2",
-      "text": "Tested multiple models in my platform's playground",
+      "text": "How to test models in your platform's playground",
       "order": 2
     },
     {
       "id": "phase3-topic8-check3",
-      "text": "Reviewed safety/guardrail features",
+      "text": "Understand AI safety and guardrail features",
       "order": 3
     },
     {
       "id": "phase3-topic8-check4",
-      "text": "Made an informed decision about which model to use",
+      "text": "How to choose the right model for your use case",
       "order": 4
     }
   ]

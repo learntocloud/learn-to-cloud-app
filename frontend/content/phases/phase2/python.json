@@ -74,32 +74,32 @@
   "learning_objectives": [
     {
       "id": "phase2-topic1-check1",
-      "text": "Worked with lists, tuples, and dictionaries",
+      "text": "How to work with lists, tuples, and dictionaries",
       "order": 1
     },
     {
       "id": "phase2-topic1-check2",
-      "text": "Defined and used functions",
+      "text": "How to define and use functions",
       "order": 2
     },
     {
       "id": "phase2-topic1-check3",
-      "text": "Handled exceptions properly",
+      "text": "How to handle exceptions properly",
       "order": 3
     },
     {
       "id": "phase2-topic1-check4",
-      "text": "Worked with classes and OOP basics",
+      "text": "How to work with classes and OOP basics",
       "order": 4
     },
     {
       "id": "phase2-topic1-check5",
-      "text": "Read and wrote files in Python",
+      "text": "How to read and write files in Python",
       "order": 5
     },
     {
       "id": "phase2-topic1-check6",
-      "text": "Completed the CS50 Python lecture",
+      "text": "Understand Python fundamentals from CS50",
       "order": 6
     }
   ]

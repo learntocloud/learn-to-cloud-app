@@ -151,37 +151,37 @@
   "learning_objectives": [
     {
       "id": "phase1-topic1-check1",
-      "text": "Git is installed on my computer",
+      "text": "How to install and configure Git",
       "order": 1
     },
     {
       "id": "phase1-topic1-check2",
-      "text": "VS Code is installed on my computer",
+      "text": "How to set up VS Code as your development environment",
       "order": 2
     },
     {
       "id": "phase1-topic1-check3",
-      "text": "WSL is set up (Windows users)",
+      "text": "How to configure WSL for Windows development",
       "order": 3
     },
     {
       "id": "phase1-topic1-check4",
-      "text": "I created the l2c folder using mkdir",
+      "text": "How to create folders and navigate using the terminal",
       "order": 4
     },
     {
       "id": "phase1-topic1-check5",
-      "text": "The lab repo is cloned locally",
+      "text": "How to clone repositories from GitHub",
       "order": 5
     },
     {
       "id": "phase1-topic1-check6",
-      "text": "My README repo is cloned locally",
+      "text": "How to work with Git repositories locally",
       "order": 6
     },
     {
       "id": "phase1-topic1-check7",
-      "text": "I starred the Learn to Cloud repository",
+      "text": "How to engage with open source projects",
       "order": 7
     }
   ]
