@@ -1,0 +1,3 @@
+---
+applyTo: '.github/workflows/*.yml'
+---

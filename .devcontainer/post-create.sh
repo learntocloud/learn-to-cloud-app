@@ -3,14 +3,18 @@ set -e
 
 echo "🚀 Setting up Learn to Cloud development environment..."
 
-# Install uv
-echo "📦 Installing uv..."
-curl -LsSf https://astral.sh/uv/install.sh | sh
+# Install uv (skip if already installed)
+if ! command -v uv &> /dev/null; then
+    echo "📦 Installing uv..."
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+fi
 export PATH="$HOME/.local/bin:$PATH"
 
 # Setup API (Python/FastAPI)
 echo "🐍 Setting up API..."
 cd api
+# Remove existing venv to avoid interactive prompt
+rm -rf .venv
 uv venv
 uv sync
 cd ..
