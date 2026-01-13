@@ -69,6 +69,18 @@
       "description": "Deploy a Virtual Machine on any cloud provider using the default configuration. Don't worry about custom networking or security groups yet - just get comfortable with the deployment process and verify your VM is running and accessible."
     }
   ],
+  "questions": [
+    {
+      "id": "phase3-topic1-q1",
+      "prompt": "What is virtualization and how does it enable cloud computing?",
+      "expected_concepts": ["hypervisor", "virtual machine", "physical server", "isolation", "multiple VMs", "hardware abstraction", "resource sharing", "efficiency", "scalability"]
+    },
+    {
+      "id": "phase3-topic1-q2",
+      "prompt": "What factors should you consider when choosing a VM instance type for your workload?",
+      "expected_concepts": ["CPU", "memory", "storage", "network", "cost", "workload", "general purpose", "compute optimized", "memory optimized", "sizing"]
+    }
+  ],
   "test_knowledge_prompts": [
     "Can you explain what Compute Services are and why they are important in cloud computing?",
     "Can you describe how virtualization works and its role in cloud infrastructure?",
@@ -77,10 +89,7 @@
     "Can you explain what a hypervisor is, how it works, and why it is essential for virtualization?"
   ],
   "checklist": [
-    { "id": "phase3-topic1-check1", "text": "Understood what compute services are and their importance", "order": 1 },
-    { "id": "phase3-topic1-check2", "text": "Learned how virtualization works", "order": 2 },
-    { "id": "phase3-topic1-check3", "text": "Understood instance types and OS selection criteria", "order": 3 },
-    { "id": "phase3-topic1-check4", "text": "Successfully deployed a VM on my chosen cloud provider", "order": 4 },
-    { "id": "phase3-topic1-check5", "text": "Verified VM is accessible and running", "order": 5 }
+    { "id": "phase3-topic1-check1", "text": "Successfully deployed a VM on my chosen cloud provider", "order": 1 },
+    { "id": "phase3-topic1-check2", "text": "Verified VM is accessible and running", "order": 2 }
   ]
 }

@@ -87,6 +87,18 @@
       ]
     }
   ],
+  "questions": [
+    {
+      "id": "phase4-topic4-q1",
+      "prompt": "What is a Kubernetes Pod and how does it differ from a Docker container?",
+      "expected_concepts": ["pod", "smallest unit", "one or more containers", "shared network", "shared storage", "co-located", "scheduling", "lifecycle", "abstraction"]
+    },
+    {
+      "id": "phase4-topic4-q2",
+      "prompt": "Explain the purpose of Kubernetes Services and the different types available.",
+      "expected_concepts": ["service", "expose", "pods", "ClusterIP", "NodePort", "LoadBalancer", "stable IP", "DNS", "load balancing", "network"]
+    }
+  ],
   "test_knowledge_prompts": [
     "Can you quiz me on what Kubernetes is and why it's used in modern development?",
     "Can you explain the key components of a Kubernetes cluster?",
@@ -100,12 +112,10 @@
     "Can you quiz me on the benefits of managed Kubernetes services (EKS, AKS, GKE)?"
   ],
   "checklist": [
-    { "id": "phase4-topic4-check1", "text": "Understood Kubernetes core concepts (Pods, Services, Deployments)", "order": 1 },
-    { "id": "phase4-topic4-check2", "text": "Installed Minikube or Kind locally", "order": 2 },
-    { "id": "phase4-topic4-check3", "text": "Created and deployed a Kubernetes deployment", "order": 3 },
-    { "id": "phase4-topic4-check4", "text": "Exposed a deployment as a service", "order": 4 },
-    { "id": "phase4-topic4-check5", "text": "Used kubectl commands for cluster management", "order": 5 },
-    { "id": "phase4-topic4-check6", "text": "Understood ConfigMaps and Secrets", "order": 6 },
-    { "id": "phase4-topic4-check7", "text": "(Optional) Explored managed Kubernetes services", "order": 7 }
+    { "id": "phase4-topic4-check1", "text": "Installed Minikube or Kind locally", "order": 1 },
+    { "id": "phase4-topic4-check2", "text": "Created and deployed a Kubernetes deployment", "order": 2 },
+    { "id": "phase4-topic4-check3", "text": "Exposed a deployment as a service", "order": 3 },
+    { "id": "phase4-topic4-check4", "text": "Used kubectl commands for cluster management", "order": 4 },
+    { "id": "phase4-topic4-check5", "text": "(Optional) Explored managed Kubernetes services", "order": 5 }
   ]
 }

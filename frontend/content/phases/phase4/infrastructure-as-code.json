@@ -102,6 +102,18 @@
       ]
     }
   ],
+  "questions": [
+    {
+      "id": "phase4-topic3-q1",
+      "prompt": "What is the Terraform state file and why is it important?",
+      "expected_concepts": ["state file", "tfstate", "tracks resources", "current state", "desired state", "remote backend", "locking", "source of truth", "drift detection"]
+    },
+    {
+      "id": "phase4-topic3-q2",
+      "prompt": "Explain the difference between terraform plan and terraform apply.",
+      "expected_concepts": ["plan", "preview", "dry run", "show changes", "apply", "execute", "create resources", "modify", "destroy", "confirmation"]
+    }
+  ],
   "test_knowledge_prompts": [
     "Can you quiz me on the benefits of using Infrastructure as Code?",
     "Can you explain how Terraform ensures idempotency in resource management?",
@@ -114,12 +126,10 @@
     "Can you ask me how to ensure quality and security when using AI-generated IaC?"
   ],
   "checklist": [
-    { "id": "phase4-topic3-check1", "text": "Understood Infrastructure as Code concepts", "order": 1 },
-    { "id": "phase4-topic3-check2", "text": "Installed Terraform on my system", "order": 2 },
-    { "id": "phase4-topic3-check3", "text": "Learned basic Terraform commands (init, plan, apply, destroy)", "order": 3 },
-    { "id": "phase4-topic3-check4", "text": "Written Terraform configuration for a VM or static site", "order": 4 },
-    { "id": "phase4-topic3-check5", "text": "Deployed and verified resources in my cloud platform", "order": 5 },
-    { "id": "phase4-topic3-check6", "text": "Destroyed resources to clean up", "order": 6 },
-    { "id": "phase4-topic3-check7", "text": "(Optional) Created modular Terraform design with GitHub Copilot", "order": 7 }
+    { "id": "phase4-topic3-check1", "text": "Installed Terraform on my system", "order": 1 },
+    { "id": "phase4-topic3-check2", "text": "Written Terraform configuration for a VM or static site", "order": 2 },
+    { "id": "phase4-topic3-check3", "text": "Deployed and verified resources in my cloud platform", "order": 3 },
+    { "id": "phase4-topic3-check4", "text": "Destroyed resources to clean up", "order": 4 },
+    { "id": "phase4-topic3-check5", "text": "(Optional) Created modular Terraform design with GitHub Copilot", "order": 5 }
   ]
 }

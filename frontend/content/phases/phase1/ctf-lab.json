@@ -24,6 +24,18 @@
       "description": "• Use `man` pages to learn commands (e.g., `man find`)\n• Combine commands with pipes (`|`) to process output\n• Use `verify hint [num]` when stuck on a challenge\n• Experiment freely—you can't break anything permanently\n• Don't share solutions publicly—share your learning journey instead"
     }
   ],
+  "questions": [
+    {
+      "id": "phase1-topic6-q1",
+      "prompt": "How would you use the find command to locate files on a Linux system?",
+      "expected_concepts": ["find", "path", "name", "type", "size", "mtime", "exec", "search", "recursive", "criteria", "locate"]
+    },
+    {
+      "id": "phase1-topic6-q2",
+      "prompt": "What are some common Linux commands for inspecting running processes and network connections?",
+      "expected_concepts": ["ps", "top", "htop", "netstat", "ss", "lsof", "processes", "ports", "connections", "PID", "kill"]
+    }
+  ],
   "test_knowledge_prompts": [
     "I just completed the Linux CTF challenges. Can you quiz me on what I learned about file navigation and hidden files?",
     "Can you ask me about Linux file permissions and how chmod works?",

@@ -47,14 +47,15 @@ from shared.database import cleanup_old_webhooks, init_db
 from shared.ratelimit import limiter, rate_limit_exceeded_handler
 from shared.telemetry import RequestTimingMiddleware, SecurityHeadersMiddleware
 
-logging.basicConfig(level=logging.INFO)
+log_level = os.environ.get("LOG_LEVEL", "INFO").upper()
+logging.basicConfig(level=getattr(logging, log_level, logging.INFO))
 logger = logging.getLogger(__name__)
 
 
 async def _background_init():
     """Background initialization tasks (non-blocking for faster cold start)."""
     await init_db()
-    
+
     # Cleanup old processed webhooks (older than 7 days)
     try:
         deleted = await cleanup_old_webhooks(days=7)

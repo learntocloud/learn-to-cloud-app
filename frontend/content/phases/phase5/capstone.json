@@ -125,6 +125,18 @@
       ]
     }
   ],
+  "questions": [
+    {
+      "id": "phase5-capstone-q1",
+      "prompt": "Walk me through the security architecture you implemented for your Journal API. What are the key security controls at each layer?",
+      "expected_concepts": ["IAM", "least privilege", "encryption", "at rest", "in transit", "VPC", "security groups", "secrets management", "monitoring", "logging"]
+    },
+    {
+      "id": "phase5-capstone-q2",
+      "prompt": "How would you respond to a potential credential compromise in your cloud environment?",
+      "expected_concepts": ["detect", "investigate", "contain", "revoke", "rotate", "assess impact", "audit logs", "notify", "document", "prevent future"]
+    }
+  ],
   "test_knowledge_prompts": [
     "Can you review my IAM implementation and suggest improvements?",
     "Can you quiz me on encryption best practices for my Journal API?",

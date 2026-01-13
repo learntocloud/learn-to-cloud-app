@@ -82,6 +82,18 @@
       "description": "Explore your cloud AI platform and deploy a model:\n\n1. Compare at least 2 different models in your platform's playground\n2. Test different prompts and observe quality, speed, and cost differences\n3. Analyze the available deployment options and their trade-offs\n4. Decide which model you'll use for your journal application and why\n5. Deploy a model that you will utilize for the capstone"
     }
   ],
+  "questions": [
+    {
+      "id": "phase3-topic8-q1",
+      "prompt": "What factors should you consider when choosing an LLM model for your application?",
+      "expected_concepts": ["cost per token", "latency", "context window", "accuracy", "capability", "speed", "use case", "complexity", "size", "pricing"]
+    },
+    {
+      "id": "phase3-topic8-q2",
+      "prompt": "What are AI guardrails and why are they important for production applications?",
+      "expected_concepts": ["content filtering", "safety", "responsible AI", "harmful content", "prevent abuse", "moderation", "compliance", "limits", "protection"]
+    }
+  ],
   "test_knowledge_prompts": [
     "Can you quiz me on what models my chosen platform offers and their key differences?",
     "Can you explain when I would choose a smaller, faster model vs. a larger, more capable model for journal analysis?",
@@ -91,11 +103,9 @@
     "Can you ask me how I would test different models and prompts before deploying to production?"
   ],
   "checklist": [
-    { "id": "phase3-topic8-check1", "text": "Understood what my platform offers", "order": 1 },
-    { "id": "phase3-topic8-check2", "text": "Explored available models on my chosen platform", "order": 2 },
-    { "id": "phase3-topic8-check3", "text": "Tested multiple models in my platform's playground", "order": 3 },
-    { "id": "phase3-topic8-check4", "text": "Understood deployment options and their differences", "order": 4 },
-    { "id": "phase3-topic8-check5", "text": "Reviewed safety/guardrail features", "order": 5 },
-    { "id": "phase3-topic8-check6", "text": "Made an informed decision about which model to use", "order": 6 }
+    { "id": "phase3-topic8-check1", "text": "Explored available models on my chosen platform", "order": 1 },
+    { "id": "phase3-topic8-check2", "text": "Tested multiple models in my platform's playground", "order": 2 },
+    { "id": "phase3-topic8-check3", "text": "Reviewed safety/guardrail features", "order": 3 },
+    { "id": "phase3-topic8-check4", "text": "Made an informed decision about which model to use", "order": 4 }
   ]
 }

@@ -1,10 +1,10 @@
 """Pydantic schemas for API request/response validation."""
 
-from datetime import datetime, date
+from datetime import date, datetime
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from .models import SubmissionType, ActivityType
+from .models import ActivityType, SubmissionType
 
 # ============ User Schemas ============
 
@@ -289,6 +289,17 @@ class ActivityHeatmapResponse(BaseModel):
 # ============ User Profile Schemas ============
 
 
+class PublicSubmission(BaseModel):
+    """A validated submission for public display."""
+
+    requirement_id: str
+    submission_type: SubmissionType
+    phase_id: int
+    submitted_url: str
+    name: str  # Human-readable name from requirements
+    validated_at: datetime | None = None
+
+
 class PublicProfileResponse(BaseModel):
     """Public user profile information."""
 
@@ -301,3 +312,4 @@ class PublicProfileResponse(BaseModel):
     streak: StreakResponse
     activity_heatmap: ActivityHeatmapResponse
     member_since: datetime
+    submissions: list[PublicSubmission] = []  # Validated GitHub submissions

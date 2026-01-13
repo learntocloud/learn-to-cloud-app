@@ -119,6 +119,18 @@
       ]
     }
   ],
+  "questions": [
+    {
+      "id": "phase5-topic5-q1",
+      "prompt": "Describe the four phases of the incident response lifecycle.",
+      "expected_concepts": ["preparation", "detection", "analysis", "containment", "eradication", "recovery", "post-incident", "lessons learned", "improve", "lifecycle"]
+    },
+    {
+      "id": "phase5-topic5-q2",
+      "prompt": "What are some common cloud security threats and how can you detect them?",
+      "expected_concepts": ["credential compromise", "data breach", "misconfiguration", "unauthorized access", "resource hijacking", "detection", "logging", "alerting", "anomaly", "monitoring"]
+    }
+  ],
   "test_knowledge_prompts": [
     "Can you quiz me on the incident response lifecycle phases?",
     "Can you ask me about common cloud security threats and attack vectors?",
@@ -130,11 +142,9 @@
     "Can you ask me about post-incident activities and lessons learned?"
   ],
   "checklist": [
-    { "id": "phase5-topic5-check1", "text": "Understood incident response lifecycle phases", "order": 1 },
-    { "id": "phase5-topic5-check2", "text": "Learned about common cloud security threats", "order": 2 },
-    { "id": "phase5-topic5-check3", "text": "Understood automated response concepts", "order": 3 },
-    { "id": "phase5-topic5-check4", "text": "Learned incident severity classification", "order": 4 },
-    { "id": "phase5-topic5-check5", "text": "Reviewed threat intelligence sources", "order": 5 },
-    { "id": "phase5-topic5-check6", "text": "(Optional) Completed incident response workshops", "order": 6 }
+    { "id": "phase5-topic5-check1", "text": "Completed the threat detection learning materials", "order": 1 },
+    { "id": "phase5-topic5-check2", "text": "Reviewed threat intelligence sources", "order": 2 },
+    { "id": "phase5-topic5-check3", "text": "Answered the knowledge check questions", "order": 3 },
+    { "id": "phase5-topic5-check4", "text": "(Optional) Completed incident response workshops", "order": 4 }
   ]
 }

@@ -70,6 +70,18 @@
       "description": "Deploy a PostgreSQL Database in a Private Subnet:\n\n1. Deploy a VM in a private subnet\n2. Install and configure PostgreSQL\n3. Configure pg_hba.conf for secure remote access\n4. Create database users with appropriate permissions\n5. Test connection from your API server (in public subnet)\n6. Verify the database is NOT accessible from the internet"
     }
   ],
+  "questions": [
+    {
+      "id": "phase3-topic5-q1",
+      "prompt": "What is pg_hba.conf and how does it control PostgreSQL authentication?",
+      "expected_concepts": ["pg_hba.conf", "host-based authentication", "connection type", "database", "user", "address", "method", "md5", "peer", "access control"]
+    },
+    {
+      "id": "phase3-topic5-q2",
+      "prompt": "Why should a database server be deployed in a private subnet instead of a public subnet?",
+      "expected_concepts": ["private subnet", "no direct internet", "security", "isolation", "API server only", "attack surface", "least privilege", "internal access"]
+    }
+  ],
   "test_knowledge_prompts": [
     "Can you explain the key components of PostgreSQL architecture?",
     "Can you quiz me on how tables, schemas, and roles interact in PostgreSQL?",
@@ -79,11 +91,9 @@
     "Can you ask me how to create and manage PostgreSQL users and roles with appropriate permissions?"
   ],
   "checklist": [
-    { "id": "phase3-topic5-check1", "text": "Understood PostgreSQL basics and architecture", "order": 1 },
-    { "id": "phase3-topic5-check2", "text": "Learned how to install PostgreSQL on a VM", "order": 2 },
-    { "id": "phase3-topic5-check3", "text": "Understood access control with pg_hba.conf", "order": 3 },
-    { "id": "phase3-topic5-check4", "text": "Deployed PostgreSQL in a private subnet", "order": 4 },
-    { "id": "phase3-topic5-check5", "text": "Configured secure remote access to the database", "order": 5 },
-    { "id": "phase3-topic5-check6", "text": "Created database users with appropriate permissions", "order": 6 }
+    { "id": "phase3-topic5-check1", "text": "Installed PostgreSQL on a VM", "order": 1 },
+    { "id": "phase3-topic5-check2", "text": "Deployed PostgreSQL in a private subnet", "order": 2 },
+    { "id": "phase3-topic5-check3", "text": "Configured secure remote access to the database", "order": 3 },
+    { "id": "phase3-topic5-check4", "text": "Created database users with appropriate permissions", "order": 4 }
   ]
 }

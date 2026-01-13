@@ -32,15 +32,25 @@
       "description": "Learn how DNS translates domain names into IP addresses—the phonebook of the internet."
     }
   ],
+  "questions": [
+    {
+      "id": "phase0-topic2-q1",
+      "prompt": "What is an IP address and what is the difference between public and private IP addresses?",
+      "expected_concepts": ["unique identifier", "device", "network", "public", "private", "internet", "internal", "NAT", "routable", "address"]
+    },
+    {
+      "id": "phase0-topic2-q2",
+      "prompt": "What is DNS and how does it work at a high level?",
+      "expected_concepts": ["domain name system", "translates", "domain names", "IP addresses", "phonebook", "resolver", "lookup", "human readable", "records"]
+    }
+  ],
   "test_knowledge_prompts": [
     "Can you ask me what an IP address is and how it's used?",
     "Can you quiz me on what DNS does and why it's important?",
     "Can you ask me to explain the difference between public and private IP addresses?"
   ],
   "checklist": [
-    { "id": "phase0-topic2-check1", "text": "I understand the basics of networking", "order": 1 },
-    { "id": "phase0-topic2-check2", "text": "I know what IP addresses are", "order": 2 },
-    { "id": "phase0-topic2-check3", "text": "I understand what DNS does", "order": 3 },
-    { "id": "phase0-topic2-check4", "text": "I know what ports are used for", "order": 4 }
+    { "id": "phase0-topic2-check1", "text": "Completed the networking learning materials", "order": 1 },
+    { "id": "phase0-topic2-check2", "text": "Answered the knowledge check questions", "order": 2 }
   ]
 }

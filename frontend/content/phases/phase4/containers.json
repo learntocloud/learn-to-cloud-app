@@ -97,6 +97,18 @@
       ]
     }
   ],
+  "questions": [
+    {
+      "id": "phase4-topic1-q1",
+      "prompt": "What is the difference between a container and a virtual machine?",
+      "expected_concepts": ["lightweight", "shared kernel", "isolated", "hypervisor", "faster startup", "less resources", "portability", "operating system", "overhead"]
+    },
+    {
+      "id": "phase4-topic1-q2",
+      "prompt": "Explain the purpose of a Dockerfile and describe the key instructions used in one.",
+      "expected_concepts": ["Dockerfile", "FROM", "base image", "COPY", "RUN", "CMD", "EXPOSE", "WORKDIR", "build", "layers", "instructions"]
+    }
+  ],
   "test_knowledge_prompts": [
     "I'm learning about containers and Docker. Can you act as an interviewer and ask me questions about containerization concepts?",
     "Can you quiz me on the differences between containers and virtual machines?",
@@ -106,12 +118,9 @@
     "Can you ask me about security considerations when using containers?"
   ],
   "checklist": [
-    { "id": "phase4-topic1-check1", "text": "Understood containerization concepts vs virtualization", "order": 1 },
-    { "id": "phase4-topic1-check2", "text": "Learned Docker basics and architecture", "order": 2 },
-    { "id": "phase4-topic1-check3", "text": "Written a Dockerfile for an application", "order": 3 },
-    { "id": "phase4-topic1-check4", "text": "Built and ran a container locally", "order": 4 },
-    { "id": "phase4-topic1-check5", "text": "Pushed an image to a container registry", "order": 5 },
-    { "id": "phase4-topic1-check6", "text": "Set up and tested the GitHub MCP Server", "order": 6 },
-    { "id": "phase4-topic1-check7", "text": "Understood container networking and storage", "order": 7 }
+    { "id": "phase4-topic1-check1", "text": "Written a Dockerfile for an application", "order": 1 },
+    { "id": "phase4-topic1-check2", "text": "Built and ran a container locally", "order": 2 },
+    { "id": "phase4-topic1-check3", "text": "Pushed an image to a container registry", "order": 3 },
+    { "id": "phase4-topic1-check4", "text": "Set up and tested the GitHub MCP Server", "order": 4 }
   ]
 }

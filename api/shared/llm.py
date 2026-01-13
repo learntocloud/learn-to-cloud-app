@@ -68,7 +68,7 @@ EVALUATION CRITERIA:
 4. Partial understanding can still pass if the core concept is grasped
 
 EXPECTED CONCEPTS the answer should touch on:
-{', '.join(expected_concepts)}
+{", ".join(expected_concepts)}
 
 SCORING:
 - PASS: Answer demonstrates understanding of the main concept(s)

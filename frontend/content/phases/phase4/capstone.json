@@ -73,6 +73,18 @@
       "description": "Once you've completed this capstone, you'll have demonstrated practical DevOps skills by taking an app from code to production with automation, infrastructure as code, container orchestration, and monitoring. This gives you a strong portfolio project to showcase for job applications and discuss during interviews!"
     }
   ],
+  "questions": [
+    {
+      "id": "phase4-topic6-q1",
+      "prompt": "Describe your complete DevOps pipeline from code commit to production deployment.",
+      "expected_concepts": ["commit", "trigger", "build", "test", "Docker", "push", "registry", "deploy", "Kubernetes", "CI/CD", "automated"]
+    },
+    {
+      "id": "phase4-topic6-q2",
+      "prompt": "How do you securely manage secrets in your Kubernetes deployment?",
+      "expected_concepts": ["Kubernetes Secret", "base64", "environment variables", "mounted", "not in code", "encrypted", "RBAC", "access control", "rotation"]
+    }
+  ],
   "test_knowledge_prompts": [
     "Can you review my Dockerfile and suggest improvements?",
     "Can you help me debug my CI/CD pipeline that's failing?",

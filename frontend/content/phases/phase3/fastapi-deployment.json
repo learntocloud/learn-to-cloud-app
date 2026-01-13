@@ -69,6 +69,18 @@
       "description": "Deploy a FastAPI application on a cloud-based VM within the Public Subnet:\n\n1. Deploy a VM in the public subnet\n2. Install Python and dependencies\n3. Clone your FastAPI application code\n4. Configure environment variables for secrets\n5. Set up security groups for HTTP traffic\n6. Start the application with uvicorn\n7. Verify the API is accessible from the internet via /docs"
     }
   ],
+  "questions": [
+    {
+      "id": "phase3-topic6-q1",
+      "prompt": "How should you manage sensitive configuration like API keys and database credentials when deploying an application?",
+      "expected_concepts": ["environment variables", "never hardcode", "secrets", "os.getenv", "configuration", "secure", "separate from code", "rotation"]
+    },
+    {
+      "id": "phase3-topic6-q2",
+      "prompt": "What security group rules do you need to configure for a public-facing API server?",
+      "expected_concepts": ["inbound", "HTTP", "HTTPS", "port 80", "port 443", "SSH restricted", "your IP", "outbound", "database port", "internal only"]
+    }
+  ],
   "test_knowledge_prompts": [
     "Can you quiz me on how to store and manage environment variables securely on a cloud VM for FastAPI?",
     "Can you explain how to set up a firewall rule or security group to allow external HTTP traffic to my FastAPI application?",
@@ -77,9 +89,8 @@
   ],
   "checklist": [
     { "id": "phase3-topic6-check1", "text": "Reviewed FastAPI deployment resources for my cloud provider", "order": 1 },
-    { "id": "phase3-topic6-check2", "text": "Understood how to manage environment variables securely", "order": 2 },
-    { "id": "phase3-topic6-check3", "text": "Configured security groups/firewall rules for HTTP traffic", "order": 3 },
-    { "id": "phase3-topic6-check4", "text": "Deployed FastAPI on a VM in the public subnet", "order": 4 },
-    { "id": "phase3-topic6-check5", "text": "Verified the API is accessible from the internet", "order": 5 }
+    { "id": "phase3-topic6-check2", "text": "Configured security groups/firewall rules for HTTP traffic", "order": 2 },
+    { "id": "phase3-topic6-check3", "text": "Deployed FastAPI on a VM in the public subnet", "order": 3 },
+    { "id": "phase3-topic6-check4", "text": "Verified the API is accessible from the internet", "order": 4 }
   ]
 }

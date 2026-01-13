@@ -16,6 +16,18 @@
       "description": "Work through the official FastAPI tutorial by the framework creator. This comprehensive guide covers everything from basic setup to advanced features."
     }
   ],
+  "questions": [
+    {
+      "id": "phase2-topic3-q1",
+      "prompt": "What is FastAPI and what makes it different from other Python web frameworks?",
+      "expected_concepts": ["fast", "modern", "async", "type hints", "automatic documentation", "Swagger", "OpenAPI", "Pydantic", "validation", "high performance"]
+    },
+    {
+      "id": "phase2-topic3-q2",
+      "prompt": "How do path parameters and query parameters work in FastAPI?",
+      "expected_concepts": ["path parameter", "URL", "dynamic", "query parameter", "optional", "filtering", "function arguments", "type annotation", "default values"]
+    }
+  ],
   "test_knowledge_prompts": [
     "Can you ask me to explain what FastAPI is and how it works?",
     "Can you quiz me on how to create a FastAPI application and define endpoints?",
@@ -26,9 +38,9 @@
     "Can you ask me to explain how to use FastAPI with asynchronous code?"
   ],
   "checklist": [
-    { "id": "phase2-topic3-check1", "text": "I can create a FastAPI application with basic endpoints", "order": 1 },
-    { "id": "phase2-topic3-check2", "text": "I understand path and query parameters", "order": 2 },
-    { "id": "phase2-topic3-check3", "text": "I can use Pydantic models for request/response validation", "order": 3 },
-    { "id": "phase2-topic3-check4", "text": "I understand FastAPI's automatic documentation (Swagger UI)", "order": 4 }
+    { "id": "phase2-topic3-check1", "text": "Created a FastAPI application with basic endpoints", "order": 1 },
+    { "id": "phase2-topic3-check2", "text": "Used path and query parameters", "order": 2 },
+    { "id": "phase2-topic3-check3", "text": "Used Pydantic models for request/response validation", "order": 3 },
+    { "id": "phase2-topic3-check4", "text": "Tested endpoints using Swagger UI (/docs)", "order": 4 }
   ]
 }

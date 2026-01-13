@@ -93,22 +93,32 @@
       "description": "Complete this networking lab on your cloud provider:\n\n1. Set up a Cloud Network (VPC/VNet)\n2. Create two subnets - one public, one private\n3. Configure Internet Access with proper routing\n4. Associate subnets with appropriate route tables\n5. Set up Security Groups for each subnet\n6. Deploy a VM in the Public Subnet\n7. Deploy a VM in the Private Subnet\n8. Verify the public VM is accessible and the private VM is not directly accessible from internet"
     }
   ],
+  "questions": [
+    {
+      "id": "phase3-topic3-q1",
+      "prompt": "What is a Virtual Private Cloud (VPC) and what are subnets used for?",
+      "expected_concepts": ["VPC", "isolated network", "private", "subnets", "IP ranges", "CIDR", "public subnet", "private subnet", "segmentation", "routing"]
+    },
+    {
+      "id": "phase3-topic3-q2",
+      "prompt": "What is the purpose of a NAT Gateway and when would you use one?",
+      "expected_concepts": ["NAT", "private subnet", "internet access", "outbound", "no inbound", "IP translation", "software updates", "secure", "gateway"]
+    }
+  ],
   "test_knowledge_prompts": [
     "Can you quiz me on the purpose of Route Tables and how they impact network traffic?",
     "Can you explain how a route table controls the flow of traffic in a cloud network?",
     "Can you ask me how CIDR notation defines IP address ranges?",
     "Can you quiz me on how public and private subnets differ and when each should be used?",
+    "Can you ask me about the role of an Internet Gateway in a VPC?",
+    "Can you quiz me on what a NAT Gateway does and when it's needed?",
     "Can you explain how traffic flows between public and private subnets within a VPC?",
     "Can you ask me about the significance of the 0.0.0.0/0 route in a route table?",
     "Can you explain the difference between NAT Gateway and Internet Gateway?"
   ],
   "checklist": [
-    { "id": "phase3-topic3-check1", "text": "Understood VPC concepts (AWS VPC, Azure VNet, GCP VPC)", "order": 1 },
-    { "id": "phase3-topic3-check2", "text": "Learned about subnetting and CIDR blocks", "order": 2 },
-    { "id": "phase3-topic3-check3", "text": "Understood the difference between public and private subnets", "order": 3 },
-    { "id": "phase3-topic3-check4", "text": "Learned about gateways (Internet Gateway, NAT Gateway)", "order": 4 },
-    { "id": "phase3-topic3-check5", "text": "Created a VPC with public and private subnets", "order": 5 },
-    { "id": "phase3-topic3-check6", "text": "Configured route tables correctly", "order": 6 },
-    { "id": "phase3-topic3-check7", "text": "Deployed VMs in both public and private subnets", "order": 7 }
+    { "id": "phase3-topic3-check1", "text": "Created a VPC with public and private subnets", "order": 1 },
+    { "id": "phase3-topic3-check2", "text": "Configured route tables correctly", "order": 2 },
+    { "id": "phase3-topic3-check3", "text": "Deployed VMs in both public and private subnets", "order": 3 }
   ]
 }

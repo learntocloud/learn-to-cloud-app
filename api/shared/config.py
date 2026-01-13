@@ -32,7 +32,7 @@ class Settings(BaseSettings):
 
     # Google Gemini API
     google_api_key: str = ""
-    gemini_model: str = "gemini-1.5-flash"
+    gemini_model: str = "gemini-2.0-flash"
 
     # HTTP client settings
     http_timeout: float = 10.0  # Timeout for external API calls (Clerk, GitHub)

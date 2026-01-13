@@ -109,6 +109,18 @@
       ]
     }
   ],
+  "questions": [
+    {
+      "id": "phase4-topic5-q1",
+      "prompt": "What is the difference between monitoring and observability?",
+      "expected_concepts": ["monitoring", "known problems", "metrics", "thresholds", "observability", "unknown problems", "logs", "traces", "understand system", "debugging"]
+    },
+    {
+      "id": "phase4-topic5-q2",
+      "prompt": "How do Prometheus and Grafana work together for application monitoring?",
+      "expected_concepts": ["Prometheus", "collect", "scrape", "metrics", "time series", "Grafana", "visualize", "dashboards", "queries", "PromQL", "alerts"]
+    }
+  ],
   "test_knowledge_prompts": [
     "Can you quiz me on the difference between monitoring and observability?",
     "Can you explain how Prometheus collects metrics from applications?",
@@ -121,12 +133,11 @@
     "Can you ask me how an LLM helps an agent make decisions?"
   ],
   "checklist": [
-    { "id": "phase4-topic5-check1", "text": "Understood monitoring vs observability concepts", "order": 1 },
-    { "id": "phase4-topic5-check2", "text": "Set up Prometheus with basic configuration", "order": 2 },
-    { "id": "phase4-topic5-check3", "text": "Deployed Grafana and connected to Prometheus", "order": 3 },
-    { "id": "phase4-topic5-check4", "text": "Created dashboards with PromQL queries", "order": 4 },
-    { "id": "phase4-topic5-check5", "text": "Instrumented a sample application with metrics", "order": 5 },
-    { "id": "phase4-topic5-check6", "text": "Built an AI agent with n8n for automated responses", "order": 6 },
-    { "id": "phase4-topic5-check7", "text": "Tested agent detection and alerting", "order": 7 }
+    { "id": "phase4-topic5-check1", "text": "Set up Prometheus with basic configuration", "order": 1 },
+    { "id": "phase4-topic5-check2", "text": "Deployed Grafana and connected to Prometheus", "order": 2 },
+    { "id": "phase4-topic5-check3", "text": "Created dashboards with PromQL queries", "order": 3 },
+    { "id": "phase4-topic5-check4", "text": "Instrumented a sample application with metrics", "order": 4 },
+    { "id": "phase4-topic5-check5", "text": "Built an AI agent with n8n for automated responses", "order": 5 },
+    { "id": "phase4-topic5-check6", "text": "Tested agent detection and alerting", "order": 6 }
   ]
 }

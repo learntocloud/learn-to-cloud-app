@@ -55,16 +55,25 @@
       "description": "Windows users: Make sure you're installing Terraform inside Ubuntu via WSL."
     }
   ],
+  "questions": [
+    {
+      "id": "phase1-topic3-q1",
+      "prompt": "What is Infrastructure as Code (IaC) and why is it better than manually configuring resources?",
+      "expected_concepts": ["code", "automate", "repeatable", "consistent", "version control", "declarative", "reproducible", "documentation", "scalable", "auditable"]
+    },
+    {
+      "id": "phase1-topic3-q2",
+      "prompt": "What do the terraform init and terraform apply commands do?",
+      "expected_concepts": ["init", "initialize", "providers", "plugins", "backend", "apply", "create", "provision", "resources", "state", "configuration"]
+    }
+  ],
   "test_knowledge_prompts": [
     "Can you ask me what Infrastructure as Code is and why it's better than manual setup?",
     "Can you quiz me on what terraform init and terraform apply do?",
     "Can you ask me what a Terraform state file is used for?"
   ],
   "checklist": [
-    { "id": "phase1-topic3-check1", "text": "I understand what Infrastructure as Code is", "order": 1 },
-    { "id": "phase1-topic3-check2", "text": "I understand what Terraform is and why it's useful", "order": 2 },
-    { "id": "phase1-topic3-check3", "text": "I know what terraform init does", "order": 3 },
-    { "id": "phase1-topic3-check4", "text": "I know what terraform apply does", "order": 4 },
-    { "id": "phase1-topic3-check5", "text": "Terraform is installed on my computer", "order": 5 }
+    { "id": "phase1-topic3-check1", "text": "Terraform is installed on my computer", "order": 1 },
+    { "id": "phase1-topic3-check2", "text": "Answered the knowledge check questions", "order": 2 }
   ]
 }

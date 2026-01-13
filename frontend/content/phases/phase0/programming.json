@@ -24,14 +24,25 @@
       "description": "Understand the difference between programming and scripting—both are useful in cloud engineering."
     }
   ],
+  "questions": [
+    {
+      "id": "phase0-topic3-q1",
+      "prompt": "What is programming and why is it important for cloud engineers to learn?",
+      "expected_concepts": ["instructions", "computer", "automate", "tasks", "infrastructure", "scripts", "efficiency", "repeatable", "code", "logic"]
+    },
+    {
+      "id": "phase0-topic3-q2",
+      "prompt": "What is the difference between a programming language and a scripting language?",
+      "expected_concepts": ["compiled", "interpreted", "runtime", "automation", "Python", "Bash", "quick tasks", "full applications", "execution"]
+    }
+  ],
   "test_knowledge_prompts": [
     "Can you ask me what programming is in simple terms?",
     "Can you quiz me on why cloud engineers need to know programming?",
     "Can you ask me what the difference is between programming and scripting?"
   ],
   "checklist": [
-    { "id": "phase0-topic3-check1", "text": "I understand what programming is", "order": 1 },
-    { "id": "phase0-topic3-check2", "text": "I know why programming is useful for cloud engineering", "order": 2 },
-    { "id": "phase0-topic3-check3", "text": "I understand the difference between programming and scripting", "order": 3 }
+    { "id": "phase0-topic3-check1", "text": "Completed the programming learning materials", "order": 1 },
+    { "id": "phase0-topic3-check2", "text": "Answered the knowledge check questions", "order": 2 }
   ]
 }

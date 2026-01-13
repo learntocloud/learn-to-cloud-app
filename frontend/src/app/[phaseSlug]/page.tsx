@@ -165,9 +165,24 @@ export default async function PhasePage({ params }: PhasePageProps) {
           </h2>
           <div className="space-y-4">
             {isAuthenticated && topics ? (
-              topics.map((topic) => (
-                <TopicCard key={topic.id} topic={topic} phaseSlug={phaseSlug} />
-              ))
+              topics.map((topic, index) => {
+                // First topic is always unlocked, subsequent topics require previous to be completed
+                const previousTopic = index > 0 ? topics[index - 1] : null;
+                const isPreviousCompleted = previousTopic 
+                  ? previousTopic.items_completed === previousTopic.items_total && previousTopic.items_total > 0
+                  : true;
+                const isTopicLocked = index > 0 && !isPreviousCompleted;
+                
+                return (
+                  <TopicCard 
+                    key={topic.id} 
+                    topic={topic} 
+                    phaseSlug={phaseSlug}
+                    isLocked={isTopicLocked}
+                    previousTopicName={previousTopic?.name}
+                  />
+                );
+              })
             ) : (
               phase.topics.map((topic) => (
                 <Link 

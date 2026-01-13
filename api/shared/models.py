@@ -1,6 +1,6 @@
 """SQLAlchemy models for Learn to Cloud progress tracking."""
 
-from datetime import UTC, datetime, date
+from datetime import UTC, date, datetime
 from enum import Enum as PyEnum
 
 from sqlalchemy import (

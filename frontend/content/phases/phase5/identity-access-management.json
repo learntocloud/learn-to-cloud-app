@@ -106,6 +106,18 @@
       ]
     }
   ],
+  "questions": [
+    {
+      "id": "phase5-topic1-q1",
+      "prompt": "Explain the difference between authentication and authorization in cloud security.",
+      "expected_concepts": ["authentication", "identity", "who you are", "login", "credentials", "authorization", "permissions", "what you can do", "access control", "policies"]
+    },
+    {
+      "id": "phase5-topic1-q2",
+      "prompt": "When should you use a service account versus a user account in cloud environments?",
+      "expected_concepts": ["service account", "applications", "automated", "no human", "user account", "people", "interactive", "MFA", "credentials", "programmatic"]
+    }
+  ],
   "test_knowledge_prompts": [
     "Can you quiz me on the difference between IAM users, groups, and roles?",
     "Can you ask me to explain the principle of least privilege with examples?",
@@ -117,11 +129,9 @@
     "Can you ask me about workload identity and why it's better than long-lived keys?"
   ],
   "checklist": [
-    { "id": "phase5-topic1-check1", "text": "Understood IAM concepts (users, groups, roles, policies)", "order": 1 },
-    { "id": "phase5-topic1-check2", "text": "Learned the principle of least privilege", "order": 2 },
-    { "id": "phase5-topic1-check3", "text": "Understood service accounts vs user accounts", "order": 3 },
-    { "id": "phase5-topic1-check4", "text": "Learned about MFA and when to use it", "order": 4 },
-    { "id": "phase5-topic1-check5", "text": "Reviewed cloud provider IAM documentation", "order": 5 },
-    { "id": "phase5-topic1-check6", "text": "(Optional) Completed hands-on IAM workshops", "order": 6 }
+    { "id": "phase5-topic1-check1", "text": "Completed the IAM learning materials", "order": 1 },
+    { "id": "phase5-topic1-check2", "text": "Reviewed cloud provider IAM documentation", "order": 2 },
+    { "id": "phase5-topic1-check3", "text": "Answered the knowledge check questions", "order": 3 },
+    { "id": "phase5-topic1-check4", "text": "(Optional) Completed hands-on IAM workshops", "order": 4 }
   ]
 }
