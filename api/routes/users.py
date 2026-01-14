@@ -31,15 +31,8 @@ async def get_public_profile_endpoint(
     db: DbSession,
     user_id: OptionalUserId = None,
 ) -> PublicProfileResponse:
-    """Get a user's public profile by username (GitHub username).
-
-    If the viewing user is the profile owner, always show the profile.
-    Otherwise, check if the profile is public.
-    """
-    try:
-        result = await get_public_profile(db, username, user_id)
-    except PermissionError as e:
-        raise HTTPException(status_code=403, detail=str(e))
+    """Get a user's public profile by username (GitHub username)."""
+    result = await get_public_profile(db, username, user_id)
 
     if result is None:
         raise HTTPException(status_code=404, detail="User not found")

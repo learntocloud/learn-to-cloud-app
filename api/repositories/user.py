@@ -98,7 +98,6 @@ class UserRepository:
         last_name: str | None = None,
         avatar_url: str | None = None,
         github_username: str | None = None,
-        is_profile_public: bool | None = None,
         is_admin: bool | None = None,
     ) -> User:
         """Update user fields. Only non-None values are updated."""
@@ -112,8 +111,6 @@ class UserRepository:
             user.avatar_url = avatar_url
         if github_username is not None:
             user.github_username = github_username
-        if is_profile_public is not None:
-            user.is_profile_public = is_profile_public
         if is_admin is not None:
             user.is_admin = is_admin
 

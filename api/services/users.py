@@ -89,7 +89,6 @@ async def get_public_profile(
     """Build complete public profile data for a user.
 
     Returns None if user not found.
-    Raises PermissionError if profile is private and viewer is not owner.
     """
     user_repo = UserRepository(db)
     submission_repo = SubmissionRepository(db)
@@ -97,10 +96,6 @@ async def get_public_profile(
     profile_user = await user_repo.get_by_github_username(username)
     if not profile_user:
         return None
-
-    is_owner = viewer_user_id == profile_user.id if viewer_user_id else False
-    if not is_owner and not profile_user.is_profile_public:
-        raise PermissionError("This profile is private")
 
     streak = await get_streak_data(db, profile_user.id)
     activity_heatmap = await get_heatmap_data(db, profile_user.id, days=270)

@@ -57,7 +57,6 @@ class User(TimestampMixin, Base):
         nullable=True,
         index=True,
     )
-    is_profile_public: Mapped[bool] = mapped_column(Boolean, default=False)
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
 
     submissions: Mapped[list["Submission"]] = relationship(
