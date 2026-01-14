@@ -104,4 +104,5 @@ jobs:
           AZURE_LOCATION: ${{ vars.AZURE_LOCATION }}
           AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
           CLERK_PUBLISHABLE_KEY: ${{ secrets.CLERK_PUBLISHABLE_KEY }}
-        # Note: Database migrations run automatically on container startup via entrypoint.sh
+        # Note: Database migrations are run manually via scripts or az containerapp exec
+        # SQLAlchemy create_all() is idempotent - only creates missing tables
