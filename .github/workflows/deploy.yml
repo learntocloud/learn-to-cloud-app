@@ -104,13 +104,4 @@ jobs:
           AZURE_LOCATION: ${{ vars.AZURE_LOCATION }}
           AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
           CLERK_PUBLISHABLE_KEY: ${{ secrets.CLERK_PUBLISHABLE_KEY }}
-
-      - name: Run Database Migrations
-        run: |
-          set -euo pipefail
-          echo "Running database migrations..."
-          az containerapp exec \
-            --name ca-learntocloud-api-${{ vars.AZURE_ENV_NAME }} \
-            --resource-group rg-learntocloud-${{ vars.AZURE_ENV_NAME }} \
-            --command "python -m scripts.create_tables"
-          echo "Database migrations completed"
+        # Note: Database migrations run automatically on container startup via entrypoint.sh

@@ -38,6 +38,9 @@ ENV VIRTUAL_ENV="/app/.venv"
 # Copy application code
 COPY --chown=appuser:appuser . .
 
+# Make entrypoint executable
+RUN chmod +x entrypoint.sh
+
 # Switch to non-root user
 USER appuser
 
@@ -48,6 +51,6 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"
 
-# Run with multiple workers for better concurrency
-# Workers = 2-4 x CPU cores, but Container Apps typically has 0.5-2 vCPU
+# Run migrations on startup, then start app
+ENTRYPOINT ["./entrypoint.sh"]
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
