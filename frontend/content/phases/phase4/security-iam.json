@@ -1,5 +1,5 @@
 {
-  "id": "phase3-topic2",
+  "id": "phase4-topic2",
   "slug": "security-iam",
   "name": "Security & Identity Management",
   "description": "This section focuses on identity and access management (IAM) to control permissions and protect cloud resources, as well as securing cloud instances using security groups and firewall rules.",
@@ -17,8 +17,8 @@
         {
           "provider": "aws",
           "title": "Getting Started with AWS IAM",
-          "url": "https://medium.com/@MadhavPraapati/getting-started-with-aws-iam-users-groups-policies-and-role-fee140ed1e93",
-          "description": "Comprehensive guide to AWS IAM users, groups, policies, and roles"
+          "url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/getting-started.html",
+          "description": "Official AWS guide to IAM users, groups, policies, and roles"
         },
         {
           "provider": "azure",
@@ -43,9 +43,9 @@
       "options": [
         {
           "provider": "aws",
-          "title": "AWS Security Groups Explained",
-          "url": "https://www.youtube.com/watch?v=uYDT2SsHImQ",
-          "description": "Video walkthrough of AWS Security Groups"
+          "title": "AWS Security Groups",
+          "url": "https://docs.aws.amazon.com/vpc/latest/userguide/vpc-security-groups.html",
+          "description": "Official documentation for controlling inbound and outbound traffic"
         },
         {
           "provider": "azure",
@@ -78,7 +78,7 @@
   ],
   "questions": [
     {
-      "id": "phase3-topic2-q1",
+      "id": "phase4-topic2-q1",
       "prompt": "What is the principle of least privilege and why is it important in cloud security?",
       "expected_concepts": [
         "minimum permissions",
@@ -93,7 +93,7 @@
       ]
     },
     {
-      "id": "phase3-topic2-q2",
+      "id": "phase4-topic2-q2",
       "prompt": "What is the difference between a security group and a network ACL?",
       "expected_concepts": [
         "security group",
@@ -121,27 +121,27 @@
   ],
   "learning_objectives": [
     {
-      "id": "phase3-topic2-check1",
+      "id": "phase4-topic2-check1",
       "text": "How to create IAM users and groups with specific permissions",
       "order": 1
     },
     {
-      "id": "phase3-topic2-check2",
+      "id": "phase4-topic2-check2",
       "text": "How to implement IAM roles for secure access",
       "order": 2
     },
     {
-      "id": "phase3-topic2-check3",
+      "id": "phase4-topic2-check3",
       "text": "How to create and configure security groups",
       "order": 3
     },
     {
-      "id": "phase3-topic2-check4",
+      "id": "phase4-topic2-check4",
       "text": "How to configure inbound and outbound rules",
       "order": 4
     },
     {
-      "id": "phase3-topic2-check5",
+      "id": "phase4-topic2-check5",
       "text": "How to verify access restrictions work correctly",
       "order": 5
     }

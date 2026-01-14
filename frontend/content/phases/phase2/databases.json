@@ -2,7 +2,7 @@
   "id": "phase2-topic4",
   "slug": "databases",
   "name": "Databases",
-  "description": "We will be using a database to store our application data. For this we need to first understand how databases work and how to interact with them.",
+  "description": "We will be using a PostgreSQL database to store our application data. You'll learn SQL fundamentals, run PostgreSQL locally using Docker, and connect to it from Python.",
   "order": 4,
   "estimated_time": "3-4 days",
   "is_capstone": false,
@@ -13,71 +13,35 @@
       "action": "Study SQL basics:",
       "title": "Intro to SQL",
       "url": "https://www.khanacademy.org/computing/computer-programming/sql",
-      "description": "Learn the fundamentals of SQL with Khan Academy's interactive course."
+      "description": "Learn the fundamentals of SQL with Khan Academy's interactive course. Focus on SELECT, INSERT, UPDATE, DELETE, and basic joins."
     },
     {
       "order": 2,
-      "text": "Choose your cloud database",
-      "action": "Learn your cloud database:",
-      "url": null,
-      "description": "Select the database service for your cloud provider and complete the tutorial:",
-      "options": [
-        {
-          "provider": "aws",
-          "title": "DynamoDB Tutorial For Beginners",
-          "url": "https://www.youtube.com/watch?v=2k2GINpO308",
-          "description": "Learn the basics of AWS DynamoDB, a fully managed NoSQL database."
-        },
-        {
-          "provider": "azure",
-          "title": "Cosmos DB Essentials Playlist",
-          "url": "https://youtube.com/playlist?list=PLLasX02E8BPDd2fKwLCHnmWoyo4bL-oKr&feature=shared/",
-          "description": "Learn the basics of Azure Cosmos DB, a globally distributed database service."
-        }
-      ]
+      "text": "Run PostgreSQL locally with Docker",
+      "action": "Run PostgreSQL locally:",
+      "title": "PostgreSQL in Docker",
+      "url": "https://www.docker.com/blog/how-to-use-the-postgres-docker-official-image/",
+      "description": "Learn how to run PostgreSQL in a Docker container. This is the easiest way to get a database running locally without installing PostgreSQL on your system."
     },
     {
       "order": 3,
-      "text": "Complete the Python quickstart for your database",
-      "action": "Complete the Python quickstart:",
+      "text": "Connect to PostgreSQL from Python",
+      "action": "Connect from Python:",
+      "title": "SQLAlchemy Tutorial",
+      "url": "https://docs.sqlalchemy.org/en/20/tutorial/index.html",
+      "description": "Learn how to connect to PostgreSQL from Python using SQLAlchemy, the most popular Python ORM. This is the same library used in the capstone project."
+    },
+    {
+      "order": 4,
+      "text": "Practice with hands-on exercises",
+      "action": "Hands-on practice:",
       "url": null,
-      "description": "Follow your cloud provider's Python quickstart guide:",
-      "options": [
-        {
-          "provider": "aws",
-          "title": "DynamoDB Python Quickstart",
-          "url": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/example_dynamodb_Scenario_GettingStartedMovies_section.html",
-          "description": "Build a simple movie database with Python and DynamoDB."
-        },
-        {
-          "provider": "azure",
-          "title": "Cosmos DB Python Quickstart",
-          "url": "https://learn.microsoft.com/en-us/azure/cosmos-db/nosql/quickstart-python",
-          "description": "Get started with Azure Cosmos DB using Python."
-        }
-      ]
+      "description": "Try these exercises with your local PostgreSQL:\n\n1. Create a database and a table for storing notes\n2. Write Python code to insert, read, update, and delete notes\n3. Add a second table (e.g., categories) and practice joins\n4. Experiment with SQLAlchemy models and relationships"
     }
   ],
   "questions": [
     {
       "id": "phase2-topic4-q1",
-      "prompt": "What is the difference between SQL and NoSQL databases, and when would you choose one over the other?",
-      "expected_concepts": [
-        "SQL",
-        "relational",
-        "structured",
-        "schema",
-        "NoSQL",
-        "document",
-        "flexible",
-        "scalable",
-        "unstructured",
-        "joins",
-        "key-value"
-      ]
-    },
-    {
-      "id": "phase2-topic4-q2",
       "prompt": "What are CRUD operations and how do they map to SQL commands?",
       "expected_concepts": [
         "create",
@@ -92,28 +56,49 @@
         "operations",
         "data manipulation"
       ]
+    },
+    {
+      "id": "phase2-topic4-q2",
+      "prompt": "What is an ORM and why would you use one instead of writing raw SQL?",
+      "expected_concepts": [
+        "ORM",
+        "object-relational mapping",
+        "SQLAlchemy",
+        "models",
+        "classes",
+        "abstraction",
+        "security",
+        "SQL injection",
+        "productivity",
+        "maintainability"
+      ]
     }
   ],
   "test_knowledge_prompts": [
-    "Can you ask me to explain what a database is and how it works?",
-    "Can you quiz me on the difference between SQL and NoSQL databases?",
-    "Can you ask me to explain the concept of CRUD operations in databases?",
+    "Can you ask me to explain what a relational database is and how tables relate to each other?",
+    "Can you quiz me on CRUD operations and their SQL equivalents?",
+    "Can you ask me to explain how to run PostgreSQL in a Docker container?",
     "Can you ask me to explain how to connect to a database from a Python application?",
-    "Can you quiz me on how to perform CRUD operations in a database using Python?",
-    "Can you ask me to explain how to use an ORM (Object-Relational Mapping) library in Python?",
-    "Can you ask me to explain how to use a NoSQL database like DynamoDB or Cosmos DB?",
-    "Can you quiz me on how to model data in a NoSQL database like DynamoDB or Cosmos DB?"
+    "Can you quiz me on how to perform CRUD operations using SQLAlchemy?",
+    "Can you ask me to explain what an ORM is and why we use SQLAlchemy?",
+    "Can you ask me to explain the difference between raw SQL and using an ORM?",
+    "Can you quiz me on database relationships and foreign keys?"
   ],
   "learning_objectives": [
     {
       "id": "phase2-topic4-check1",
-      "text": "How to get started with your cloud provider's database",
+      "text": "How to run PostgreSQL locally using Docker",
       "order": 1
     },
     {
       "id": "phase2-topic4-check2",
-      "text": "How to connect to a database from Python",
+      "text": "How to connect to PostgreSQL from Python using SQLAlchemy",
       "order": 2
+    },
+    {
+      "id": "phase2-topic4-check3",
+      "text": "How to perform CRUD operations with an ORM",
+      "order": 3
     }
   ]
 }

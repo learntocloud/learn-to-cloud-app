@@ -1,5 +1,5 @@
 {
-  "id": "phase3-topic7",
+  "id": "phase4-topic7",
   "slug": "billing-cost-management",
   "name": "Cloud Billing & Cost Management",
   "description": "Cloud services are billed based on consumption. Every VM, database, and API call has a cost. In this topic, you'll learn to monitor spending, set up cost alerts, and estimate expenses before deploying infrastructure. These skills prevent surprise bills and teach you to make cost-aware architecture decisions.",
@@ -106,7 +106,7 @@
   ],
   "questions": [
     {
-      "id": "phase3-topic7-q1",
+      "id": "phase4-topic7-q1",
       "prompt": "How does cloud billing work and what are the main factors that affect your monthly cloud costs?",
       "expected_concepts": [
         "pay-as-you-go",
@@ -121,7 +121,7 @@
       ]
     },
     {
-      "id": "phase3-topic7-q2",
+      "id": "phase4-topic7-q2",
       "prompt": "What strategies can you use to reduce cloud costs without sacrificing performance?",
       "expected_concepts": [
         "right-sizing",
@@ -146,27 +146,27 @@
   ],
   "learning_objectives": [
     {
-      "id": "phase3-topic7-check1",
+      "id": "phase4-topic7-check1",
       "text": "Understand your cloud provider's billing structure",
       "order": 1
     },
     {
-      "id": "phase3-topic7-check2",
+      "id": "phase4-topic7-check2",
       "text": "How to navigate the billing dashboard and review costs",
       "order": 2
     },
     {
-      "id": "phase3-topic7-check3",
+      "id": "phase4-topic7-check3",
       "text": "How to create budgets and set up cost alerts",
       "order": 3
     },
     {
-      "id": "phase3-topic7-check4",
+      "id": "phase4-topic7-check4",
       "text": "How to use pricing calculators to estimate costs",
       "order": 4
     },
     {
-      "id": "phase3-topic7-check5",
+      "id": "phase4-topic7-check5",
       "text": "Understand cost optimization strategies",
       "order": 5
     }

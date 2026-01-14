@@ -1,5 +1,5 @@
 {
-  "id": "phase4-topic4",
+  "id": "phase5-topic4",
   "slug": "container-orchestration",
   "name": "Container Orchestration - Kubernetes",
   "description": "As applications grow in complexity, managing containers manually becomes challenging. Kubernetes (K8s) is an open-source container orchestration platform that automates the deployment, scaling, and management of containerized applications. It's widely used in modern cloud-native environments to ensure applications are highly available, scalable, and resilient.",
@@ -110,7 +110,7 @@
   ],
   "questions": [
     {
-      "id": "phase4-topic4-q1",
+      "id": "phase5-topic4-q1",
       "prompt": "What is a Kubernetes Pod and how does it differ from a Docker container?",
       "expected_concepts": [
         "pod",
@@ -125,7 +125,7 @@
       ]
     },
     {
-      "id": "phase4-topic4-q2",
+      "id": "phase5-topic4-q2",
       "prompt": "Explain the purpose of Kubernetes Services and the different types available.",
       "expected_concepts": [
         "service",
@@ -155,27 +155,27 @@
   ],
   "learning_objectives": [
     {
-      "id": "phase4-topic4-check1",
+      "id": "phase5-topic4-check1",
       "text": "How to install Minikube or Kind for local Kubernetes",
       "order": 1
     },
     {
-      "id": "phase4-topic4-check2",
+      "id": "phase5-topic4-check2",
       "text": "How to create and deploy Kubernetes deployments",
       "order": 2
     },
     {
-      "id": "phase4-topic4-check3",
+      "id": "phase5-topic4-check3",
       "text": "How to expose deployments as services",
       "order": 3
     },
     {
-      "id": "phase4-topic4-check4",
+      "id": "phase5-topic4-check4",
       "text": "How to use kubectl for cluster management",
       "order": 4
     },
     {
-      "id": "phase4-topic4-check5",
+      "id": "phase5-topic4-check5",
       "text": "(Optional) Understand managed Kubernetes services",
       "order": 5
     }

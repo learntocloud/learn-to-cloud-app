@@ -1,5 +1,5 @@
 {
-  "id": "phase5-topic1",
+  "id": "phase6-topic1",
   "slug": "identity-access-management",
   "name": "Identity and Access Management (IAM)",
   "description": "Identity and Access Management (IAM) is your frontline defense for controlling who can access your cloud environment and what they can do once they're in. Before you secure your Journal API, you need to understand IAM fundamentals.",
@@ -156,7 +156,7 @@
   ],
   "questions": [
     {
-      "id": "phase5-topic1-q1",
+      "id": "phase6-topic1-q1",
       "prompt": "Explain the difference between authentication and authorization in cloud security.",
       "expected_concepts": [
         "authentication",
@@ -172,7 +172,7 @@
       ]
     },
     {
-      "id": "phase5-topic1-q2",
+      "id": "phase6-topic1-q2",
       "prompt": "When should you use a service account versus a user account in cloud environments?",
       "expected_concepts": [
         "service account",
@@ -200,22 +200,22 @@
   ],
   "learning_objectives": [
     {
-      "id": "phase5-topic1-check1",
+      "id": "phase6-topic1-check1",
       "text": "Understand IAM principles and best practices",
       "order": 1
     },
     {
-      "id": "phase5-topic1-check2",
+      "id": "phase6-topic1-check2",
       "text": "Know your cloud provider's IAM capabilities",
       "order": 2
     },
     {
-      "id": "phase5-topic1-check3",
+      "id": "phase6-topic1-check3",
       "text": "Understand role-based access control (RBAC)",
       "order": 3
     },
     {
-      "id": "phase5-topic1-check4",
+      "id": "phase6-topic1-check4",
       "text": "(Optional) How to complete hands-on IAM workshops",
       "order": 4
     }

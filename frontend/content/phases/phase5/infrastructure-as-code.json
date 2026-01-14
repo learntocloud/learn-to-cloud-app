@@ -1,5 +1,5 @@
 {
-  "id": "phase4-topic3",
+  "id": "phase5-topic3",
   "slug": "infrastructure-as-code",
   "name": "Infrastructure as Code (IaC)",
   "description": "Infrastructure as Code (IaC) is a key DevOps practice that allows you to manage and provision infrastructure using code, rather than manual processes like using the console. It ensures consistency, repeatability, and scalability in managing cloud resources.",
@@ -140,7 +140,7 @@
   ],
   "questions": [
     {
-      "id": "phase4-topic3-q1",
+      "id": "phase5-topic3-q1",
       "prompt": "What is the Terraform state file and why is it important?",
       "expected_concepts": [
         "state file",
@@ -155,7 +155,7 @@
       ]
     },
     {
-      "id": "phase4-topic3-q2",
+      "id": "phase5-topic3-q2",
       "prompt": "Explain the difference between terraform plan and terraform apply.",
       "expected_concepts": [
         "plan",
@@ -184,27 +184,27 @@
   ],
   "learning_objectives": [
     {
-      "id": "phase4-topic3-check1",
+      "id": "phase5-topic3-check1",
       "text": "How to install and configure Terraform",
       "order": 1
     },
     {
-      "id": "phase4-topic3-check2",
+      "id": "phase5-topic3-check2",
       "text": "How to write Terraform configuration for cloud resources",
       "order": 2
     },
     {
-      "id": "phase4-topic3-check3",
+      "id": "phase5-topic3-check3",
       "text": "How to deploy and verify resources with Terraform",
       "order": 3
     },
     {
-      "id": "phase4-topic3-check4",
+      "id": "phase5-topic3-check4",
       "text": "How to destroy resources to clean up",
       "order": 4
     },
     {
-      "id": "phase4-topic3-check5",
+      "id": "phase5-topic3-check5",
       "text": "(Optional) How to create modular Terraform designs",
       "order": 5
     }

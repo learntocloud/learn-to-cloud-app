@@ -1,5 +1,5 @@
 {
-  "id": "phase3-topic5",
+  "id": "phase4-topic5",
   "slug": "database-deployment",
   "name": "Database Deployment & Configuration",
   "description": "Learn to deploy and configure PostgreSQL databases in the cloud. This topic covers the fundamentals of relational database deployment, including architecture, installation, and secure remote access configuration.",
@@ -11,9 +11,9 @@
       "order": 1,
       "text": "Learn PostgreSQL Basics",
       "action": "Learn PostgreSQL Basics:",
-      "title": "Getting to Know PostgreSQL",
-      "url": "https://www.prisma.io/dataguide/postgresql/getting-to-know-postgresql",
-      "description": "Understand the architecture of PostgreSQL, including tables, schemas, and users."
+      "title": "PostgreSQL Introduction",
+      "url": "https://www.postgresql.org/docs/current/intro-whatis.html",
+      "description": "Official PostgreSQL documentation covering architecture, tables, schemas, and users."
     },
     {
       "order": 2,
@@ -33,20 +33,20 @@
         {
           "provider": "aws",
           "title": "Install PostgreSQL on AWS EC2",
-          "url": "https://www.youtube.com/watch?v=KQ4eIv6h7Sk",
-          "description": "Video guide for installing PostgreSQL on an EC2 instance"
+          "url": "https://docs.aws.amazon.com/linux/al2023/ug/ec2-lamp-amazon-linux-2023.html",
+          "description": "AWS guide for installing server software on EC2 instances"
         },
         {
           "provider": "azure",
           "title": "Install PostgreSQL on Azure VM",
-          "url": "https://www.youtube.com/watch?v=_f1gKlV60Iw",
-          "description": "Video guide for installing PostgreSQL on Azure Virtual Machine"
+          "url": "https://learn.microsoft.com/en-us/azure/virtual-machines/linux/tutorial-lamp-stack",
+          "description": "Microsoft Learn guide for installing PostgreSQL on Azure VMs"
         },
         {
           "provider": "gcp",
           "title": "Set Up PostgreSQL on GCP VM",
-          "url": "https://dev.to/vishalpaalakurthi/how-to-set-up-a-postgresql-server-on-a-virtual-machine-473f",
-          "description": "Step-by-step guide for PostgreSQL on Google Compute Engine"
+          "url": "https://cloud.google.com/sql/docs/postgres/connect-compute-engine",
+          "description": "Google Cloud guide for PostgreSQL on Compute Engine"
         }
       ]
     },
@@ -68,7 +68,7 @@
   ],
   "questions": [
     {
-      "id": "phase3-topic5-q1",
+      "id": "phase4-topic5-q1",
       "prompt": "What is pg_hba.conf and how does it control PostgreSQL authentication?",
       "expected_concepts": [
         "pg_hba.conf",
@@ -84,7 +84,7 @@
       ]
     },
     {
-      "id": "phase3-topic5-q2",
+      "id": "phase4-topic5-q2",
       "prompt": "Why should a database server be deployed in a private subnet instead of a public subnet?",
       "expected_concepts": [
         "private subnet",
@@ -108,22 +108,22 @@
   ],
   "learning_objectives": [
     {
-      "id": "phase3-topic5-check1",
+      "id": "phase4-topic5-check1",
       "text": "How to install PostgreSQL on a virtual machine",
       "order": 1
     },
     {
-      "id": "phase3-topic5-check2",
+      "id": "phase4-topic5-check2",
       "text": "How to deploy PostgreSQL in a private subnet",
       "order": 2
     },
     {
-      "id": "phase3-topic5-check3",
+      "id": "phase4-topic5-check3",
       "text": "How to configure secure remote access to your database",
       "order": 3
     },
     {
-      "id": "phase3-topic5-check4",
+      "id": "phase4-topic5-check4",
       "text": "How to create database users with appropriate permissions",
       "order": 4
     }

@@ -1,5 +1,5 @@
 {
-  "id": "phase5-topic4",
+  "id": "phase6-topic4",
   "slug": "security-monitoring",
   "name": "Security Monitoring",
   "description": "Security monitoring is your early warning system for detecting threats and understanding what's happening in your cloud environment. Before implementing monitoring for your Journal API, you need to understand logging, alerting, and monitoring fundamentals.",
@@ -109,7 +109,7 @@
   ],
   "questions": [
     {
-      "id": "phase5-topic4-q1",
+      "id": "phase6-topic4-q1",
       "prompt": "What types of logs should you collect for effective security monitoring in cloud environments?",
       "expected_concepts": [
         "authentication logs",
@@ -124,7 +124,7 @@
       ]
     },
     {
-      "id": "phase5-topic4-q2",
+      "id": "phase6-topic4-q2",
       "prompt": "What is a SIEM and how does it help with security monitoring?",
       "expected_concepts": [
         "SIEM",
@@ -152,17 +152,17 @@
   ],
   "learning_objectives": [
     {
-      "id": "phase5-topic4-check1",
+      "id": "phase6-topic4-check1",
       "text": "Understand security monitoring concepts and tools",
       "order": 1
     },
     {
-      "id": "phase5-topic4-check2",
+      "id": "phase6-topic4-check2",
       "text": "Know your cloud provider's monitoring capabilities",
       "order": 2
     },
     {
-      "id": "phase5-topic4-check3",
+      "id": "phase6-topic4-check3",
       "text": "Understand logging and audit trail best practices",
       "order": 3
     }

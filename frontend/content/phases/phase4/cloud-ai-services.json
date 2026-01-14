@@ -1,5 +1,5 @@
 {
-  "id": "phase3-topic8",
+  "id": "phase4-topic8",
   "slug": "cloud-ai-services",
   "name": "Cloud AI Service Platforms",
   "description": "Cloud providers offer comprehensive AI service platforms. In this topic, you'll learn about model options, deployment strategies, and operational features. Understanding these platforms helps you make informed architectural decisions when integrating AI into applications.",
@@ -129,7 +129,7 @@
   ],
   "questions": [
     {
-      "id": "phase3-topic8-q1",
+      "id": "phase4-topic8-q1",
       "prompt": "What factors should you consider when choosing an LLM model for your application?",
       "expected_concepts": [
         "cost per token",
@@ -145,7 +145,7 @@
       ]
     },
     {
-      "id": "phase3-topic8-q2",
+      "id": "phase4-topic8-q2",
       "prompt": "What are AI guardrails and why are they important for production applications?",
       "expected_concepts": [
         "content filtering",
@@ -170,22 +170,22 @@
   ],
   "learning_objectives": [
     {
-      "id": "phase3-topic8-check1",
+      "id": "phase4-topic8-check1",
       "text": "How to explore available AI models on cloud platforms",
       "order": 1
     },
     {
-      "id": "phase3-topic8-check2",
+      "id": "phase4-topic8-check2",
       "text": "How to test models in your platform's playground",
       "order": 2
     },
     {
-      "id": "phase3-topic8-check3",
+      "id": "phase4-topic8-check3",
       "text": "Understand AI safety and guardrail features",
       "order": 3
     },
     {
-      "id": "phase3-topic8-check4",
+      "id": "phase4-topic8-check4",
       "text": "How to choose the right model for your use case",
       "order": 4
     }

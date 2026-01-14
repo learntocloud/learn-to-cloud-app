@@ -46,6 +46,7 @@ class User(Base):
         nullable=True,
     )  # From Clerk OAuth
     is_profile_public: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_admin: Mapped[bool] = mapped_column(Boolean, default=False)  # Admin bypass
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=utcnow,
@@ -96,8 +97,10 @@ class ProcessedWebhook(Base):
 class SubmissionType(str, PyEnum):
     """Type of submission for hands-on verification."""
 
+    GITHUB_PROFILE = "github_profile"  # GitHub profile URL (github.com/username)
     PROFILE_README = "profile_readme"  # GitHub profile README
     REPO_FORK = "repo_fork"  # Fork of a required repository
+    REPO_URL = "repo_url"  # Any GitHub repository URL
     DEPLOYED_APP = "deployed_app"  # Deployed application URL
     CTF_TOKEN = "ctf_token"  # CTF completion token verification
 

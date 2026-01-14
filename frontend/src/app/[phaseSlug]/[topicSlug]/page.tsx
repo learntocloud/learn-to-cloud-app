@@ -14,7 +14,7 @@ interface TopicPageProps {
 }
 
 // Valid phase slugs
-const VALID_PHASE_SLUGS = ["phase0", "phase1", "phase2", "phase3", "phase4", "phase5"];
+const VALID_PHASE_SLUGS = ["phase0", "phase1", "phase2", "phase3", "phase4", "phase5", "phase6"];
 
 export default async function TopicPage({ params }: TopicPageProps) {
   const { phaseSlug, topicSlug } = await params;

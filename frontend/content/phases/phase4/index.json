@@ -1,31 +1,60 @@
 {
   "id": 4,
   "slug": "phase4",
-  "name": "DevOps Fundamentals",
-  "description": "This phase covers DevOps fundamentals - the practices and tools that enable teams to deliver software faster and more reliably. You'll learn containerization, CI/CD pipelines, Infrastructure as Code, and monitoring.",
-  "short_description": "Master Docker containers, Kubernetes orchestration, CI/CD pipelines, Terraform IaC, and monitoring with Prometheus and Grafana.",
+  "name": "Cloud Platform Fundamentals",
+  "description": "This phase focuses on cloud platform fundamentals - the core concepts and skills you need to work effectively with cloud services. You'll learn everything from virtual machines and networking to security and application deployment. Through hands-on practice and real-world projects, you'll build the practical experience needed to work with cloud platforms professionally.",
+  "short_description": "Deploy on AWS, Azure, or GCP: virtual machines, cloud networking, IAM security, databases, and application hosting. Prep for cloud certifications.",
   "order": 4,
   "estimated_weeks": "4-5 weeks",
   "topics": [
-    "containers",
-    "cicd",
-    "infrastructure-as-code",
-    "container-orchestration",
-    "monitoring-observability",
+    "vms-compute",
+    "security-iam",
+    "cloud-networking",
+    "secure-remote-access",
+    "database-deployment",
+    "fastapi-deployment",
+    "billing-cost-management",
+    "cloud-ai-services",
     "capstone"
   ],
   "objectives": [
-    "Understand core DevOps practices and their benefits",
-    "Implement CI/CD pipelines for automated testing and deployment",
-    "Create infrastructure as code using Terraform",
-    "Build and manage containers with Docker",
-    "Set up monitoring and observability for applications",
-    "Use AI tools to optimize DevOps tasks and workflows",
-    "Complete a capstone project demonstrating DevOps skills"
+    "Understand core cloud platform services and infrastructure",
+    "Deploy and manage virtual machines and compute resources",
+    "Configure secure networking and access controls",
+    "Set up and manage databases and API applications",
+    "Complete hands-on projects demonstrating cloud skills",
+    "Prepare for associate-level cloud certification"
   ],
   "prerequisites": [
-    "Completed Phase 2: Programming & AI Integration (capstone)",
-    "Completed Phase 3: Cloud Platform Fundamentals (capstone)",
-    "This phase builds on the project from previous phases"
+    "Completed Phase 1: Linux and Bash",
+    "Completed Phase 2: Programming Fundamentals",
+    "Completed Phase 3: AI Tools & Intentional Learning",
+    "A cloud platform account (AWS, Azure, or GCP)"
+  ],
+  "certifications": [
+    {
+      "provider": "AWS",
+      "title": "AWS Certified Cloud Practitioner",
+      "url": "https://aws.amazon.com/certification/certified-cloud-practitioner/",
+      "description": "Entry-level certification covering AWS fundamentals",
+      "is_necessary": false,
+      "recommendation": "Good for validating foundational AWS knowledge"
+    },
+    {
+      "provider": "Azure",
+      "title": "AZ-900: Azure Fundamentals",
+      "url": "https://learn.microsoft.com/en-us/certifications/azure-fundamentals/",
+      "description": "Entry-level certification covering Azure fundamentals",
+      "is_necessary": false,
+      "recommendation": "Great starting point for Azure learners"
+    },
+    {
+      "provider": "GCP",
+      "title": "Cloud Digital Leader",
+      "url": "https://cloud.google.com/learn/certification/cloud-digital-leader",
+      "description": "Entry-level certification covering GCP fundamentals",
+      "is_necessary": false,
+      "recommendation": "Good for validating foundational GCP knowledge"
+    }
   ]
 }

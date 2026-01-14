@@ -68,28 +68,16 @@ export function PhaseCard({ phase, showProgress = false }: PhaseCardProps) {
         )}
       </div>
       
-      {!isLocked && (
-        <>
-          <p className="text-sm text-gray-600 dark:text-gray-400 mt-3 line-clamp-2 leading-relaxed">
-            {phase.description}
-          </p>
-          <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100 dark:border-gray-700/50">
-            <span className="text-sm text-gray-500 dark:text-gray-400">
-              📚 {phase.topics.length} topics
-            </span>
-            {showProgress && phase.progress && (
-              <div className="flex items-center gap-2">
-                <div className="w-20 h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full rounded-full transition-all duration-300 ${status === 'completed' ? 'bg-gradient-to-r from-green-400 to-emerald-500' : 'bg-gradient-to-r from-blue-400 to-blue-600'}`}
-                    style={{ width: `${phase.progress.percentage}%` }}
-                  />
-                </div>
-                <span className="text-sm font-medium text-gray-600 dark:text-gray-300">{Math.round(phase.progress.percentage)}%</span>
-              </div>
-            )}
+      {!isLocked && showProgress && phase.progress && (
+        <div className="flex items-center justify-end gap-2 mt-4">
+          <div className="w-24 h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+            <div
+              className={`h-full rounded-full transition-all duration-300 ${status === 'completed' ? 'bg-gradient-to-r from-green-400 to-emerald-500' : 'bg-gradient-to-r from-blue-400 to-blue-600'}`}
+              style={{ width: `${phase.progress.percentage}%` }}
+            />
           </div>
-        </>
+          <span className="text-sm font-medium text-gray-600 dark:text-gray-300">{Math.round(phase.progress.percentage)}%</span>
+        </div>
       )}
       
       {isLocked && (

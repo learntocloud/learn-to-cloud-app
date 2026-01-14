@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@clerk/nextjs";
 import type { GitHubRequirement, GitHubSubmission, GitHubValidationResult } from "@/lib/types";
 
@@ -9,6 +9,7 @@ interface GitHubSubmissionFormProps {
   submissions: GitHubSubmission[];
   githubUsername: string | null;
   onSubmissionSuccess?: () => void;
+  onAllVerificationsComplete?: () => void;
 }
 
 // In dev containers/Codespaces, use same-origin proxy (Next.js rewrites /api/* to backend)
@@ -25,6 +26,7 @@ export function GitHubSubmissionForm({
   submissions,
   githubUsername,
   onSubmissionSuccess,
+  onAllVerificationsComplete,
 }: GitHubSubmissionFormProps) {
   const { getToken } = useAuth();
   const [urls, setUrls] = useState<Record<string, string>>(() => {
@@ -38,6 +40,22 @@ export function GitHubSubmissionForm({
   const [loading, setLoading] = useState<Record<string, boolean>>({});
   const [results, setResults] = useState<Record<string, GitHubValidationResult | null>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [hasCelebratedCompletion, setHasCelebratedCompletion] = useState(false);
+
+  // Check if all verifications are already complete on mount
+  useEffect(() => {
+    if (hasCelebratedCompletion || !onAllVerificationsComplete) return;
+    
+    const allAlreadyValidated = requirements.every((req) => {
+      const existingSub = submissions.find((s) => s.requirement_id === req.id);
+      return existingSub?.is_validated;
+    });
+    
+    if (allAlreadyValidated && requirements.length > 0) {
+      setHasCelebratedCompletion(true);
+      // Don't auto-trigger on page load - only trigger when user completes the last one
+    }
+  }, [requirements, submissions, onAllVerificationsComplete, hasCelebratedCompletion]);
 
   const getSubmissionForRequirement = (requirementId: string): GitHubSubmission | undefined => {
     return submissions.find((s) => s.requirement_id === requirementId);
@@ -78,7 +96,25 @@ export function GitHubSubmissionForm({
         return;
       }
 
-      setResults((prev) => ({ ...prev, [requirementId]: data }));
+      setResults((prev) => {
+        const newResults = { ...prev, [requirementId]: data };
+        
+        // Check if ALL requirements are now validated
+        if (data.is_valid && onAllVerificationsComplete) {
+          const allValidated = requirements.every((req) => {
+            const existingSub = submissions.find((s) => s.requirement_id === req.id);
+            const result = newResults[req.id];
+            return existingSub?.is_validated || result?.is_valid;
+          });
+          
+          if (allValidated) {
+            // Small delay to let UI update first
+            setTimeout(() => onAllVerificationsComplete(), 500);
+          }
+        }
+        
+        return newResults;
+      });
       
       if (data.is_valid && onSubmissionSuccess) {
         onSubmissionSuccess();

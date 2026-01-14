@@ -121,32 +121,28 @@ export function ActivityHeatmap({ days, startDate, endDate }: ActivityHeatmapPro
   }, [grid]);
 
   return (
-    <div ref={scrollContainerRef} className="overflow-x-auto">
+    <div className="w-full">
       {/* Month labels */}
-      <div className="flex text-xs text-gray-500 dark:text-gray-400 mb-1 pl-8">
-        {monthLabels.map(({ month, weekIndex }) => (
-          <span
-            key={`${month}-${weekIndex}`}
-            className="absolute"
-            style={{ marginLeft: `${weekIndex * 14}px` }}
-          >
+      <div className="flex text-xs text-gray-500 dark:text-gray-400 mb-1 ml-7 justify-between pr-1">
+        {monthLabels.map(({ month, weekIndex }, index) => (
+          <span key={`${month}-${weekIndex}`} className={index === 0 ? "" : "flex-1 text-center"}>
             {month}
           </span>
         ))}
       </div>
       
-      <div className="flex gap-[2px] relative mt-4">
+      <div className="flex gap-0">
         {/* Weekday labels */}
-        <div className="flex flex-col gap-[2px] text-xs text-gray-500 dark:text-gray-400 pr-1">
+        <div className="flex flex-col justify-between text-xs text-gray-500 dark:text-gray-400 pr-1 py-[2px]">
           {WEEKDAYS.map((day, i) => (
-            <div key={day} className="h-3 w-6 flex items-center justify-end text-[10px]">
+            <div key={day} className="h-2 flex items-center justify-end text-[10px]">
               {i % 2 === 1 ? day : ""}
             </div>
           ))}
         </div>
         
-        {/* Activity grid */}
-        <div className="flex gap-[2px]">
+        {/* Activity grid - full width */}
+        <div className="flex-1 flex justify-between">
           {grid.map((week, weekIndex) => (
             <div key={weekIndex} className="flex flex-col gap-[2px]">
               {week.map((day, dayIndex) => {
@@ -162,7 +158,7 @@ export function ActivityHeatmap({ days, startDate, endDate }: ActivityHeatmapPro
                 return (
                   <div
                     key={`${weekIndex}-${dayIndex}`}
-                    className={`w-3 h-3 rounded-sm ${color} ${level >= 0 ? "cursor-default" : ""} ${hasActivity ? "ring-1 ring-green-400 dark:ring-green-600" : ""}`}
+                    className={`w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-sm ${color} ${level >= 0 ? "cursor-default" : ""} ${hasActivity ? "ring-1 ring-green-400 dark:ring-green-600" : ""}`}
                     title={level >= 0 ? `${day.count} activities on ${dateStr}` : undefined}
                   />
                 );
@@ -173,12 +169,12 @@ export function ActivityHeatmap({ days, startDate, endDate }: ActivityHeatmapPro
       </div>
       
       {/* Legend */}
-      <div className="flex items-center gap-2 mt-4 text-xs text-gray-500 dark:text-gray-400">
+      <div className="flex items-center justify-end gap-2 mt-3 text-xs text-gray-500 dark:text-gray-400">
         <span>Less</span>
         {LEVEL_COLORS.map((color, i) => (
           <div
             key={i}
-            className={`w-3 h-3 rounded-sm ${color}`}
+            className={`w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-sm ${color}`}
             title={i === 0 ? "No activity" : `${ACTIVITY_LEVELS[i]}+ activities`}
           />
         ))}

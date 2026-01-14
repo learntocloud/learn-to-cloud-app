@@ -11,13 +11,14 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from shared.auth import OptionalUserId, UserId
-from shared.badges import compute_all_badges
+from shared.badges import compute_all_badges, count_completed_phases
 from shared.config import get_settings
 from shared.database import DbSession
-from shared.github import get_requirement_by_id
+from shared.github import get_requirement_by_id, get_requirements_for_phase
 from shared.models import (
     GitHubSubmission,
     QuestionAttempt,
+    StepProgress,
     User,
     UserActivity,
 )
@@ -293,19 +294,6 @@ async def get_public_profile(
     if not is_owner and not profile_user.is_profile_public:
         raise HTTPException(status_code=403, detail="This profile is private")
 
-    # Get passed questions count (unique question_ids that have passed=True)
-    questions_result = await db.execute(
-        select(func.count(func.distinct(QuestionAttempt.question_id))).where(
-            QuestionAttempt.user_id == profile_user.id,
-            QuestionAttempt.is_passed.is_(True),
-        )
-    )
-    passed_questions = int(questions_result.scalar() or 0)
-
-    # Progress is now based on questions only (80 total)
-    completed_topics = passed_questions
-    total_topics = 80
-
     # Get streak info
     activity_result = await db.execute(
         select(UserActivity.activity_date)
@@ -379,7 +367,6 @@ async def get_public_profile(
         total_activities=total_activities,
     )
 
-    # Calculate current phase from passed questions
     # Get passed questions grouped by phase (question_id format: phase{N}-topic{M}-q{X})
     passed_questions_result = await db.execute(
         select(func.distinct(QuestionAttempt.question_id)).where(
@@ -389,39 +376,40 @@ async def get_public_profile(
     )
     passed_question_ids = [row[0] for row in passed_questions_result.all()]
 
-    # Questions per phase (2 per topic)
-    phase_totals = {0: 12, 1: 12, 2: 14, 3: 18, 4: 12, 5: 12}
-    phase_completed: dict[int, int] = {}
-
     # Count passed questions per phase
+    phase_questions_completed: dict[int, int] = {}
     for question_id in passed_question_ids:
-        # Extract phase number from ID like "phase0-topic1-q1"
         if question_id.startswith("phase"):
             try:
                 phase_num = int(question_id.split("-")[0].replace("phase", ""))
-                phase_completed[phase_num] = phase_completed.get(phase_num, 0) + 1
+                phase_questions_completed[phase_num] = (
+                    phase_questions_completed.get(phase_num, 0) + 1
+                )
             except (ValueError, IndexError):
                 continue
 
-    # Determine current phase (first in-progress, or first not-started)
-    current_phase = 0
-    for phase_id in sorted(phase_totals.keys()):
-        total = phase_totals[phase_id]
-        completed = phase_completed.get(phase_id, 0)
-        if completed == 0:
-            # Not started - this is the current phase
-            current_phase = phase_id
-            break
-        elif completed < total:
-            # In progress - this is the current phase
-            current_phase = phase_id
-            break
-        # else: completed == total, move to next phase
-    else:
-        # All phases completed, show last phase
-        current_phase = max(phase_totals.keys())
+    # Query completed steps per phase
+    steps_result = await db.execute(
+        select(StepProgress.topic_id).where(
+            StepProgress.user_id == profile_user.id,
+        )
+    )
+    completed_step_rows = steps_result.all()
 
-    # Get validated GitHub submissions
+    # Count completed steps per phase (topic_id format: "phase{N}-topic{M}")
+    phase_steps_completed: dict[int, int] = {}
+    for row in completed_step_rows:
+        topic_id = row[0]
+        if topic_id.startswith("phase"):
+            try:
+                phase_num = int(topic_id.split("-")[0].replace("phase", ""))
+                phase_steps_completed[phase_num] = (
+                    phase_steps_completed.get(phase_num, 0) + 1
+                )
+            except (ValueError, IndexError):
+                continue
+
+    # Get validated GitHub submissions per phase
     submissions_result = await db.execute(
         select(GitHubSubmission)
         .where(
@@ -432,7 +420,9 @@ async def get_public_profile(
     )
     db_submissions = submissions_result.scalars().all()
 
+    # Build submissions list for display
     submissions = []
+    validated_by_phase: dict[int, set[str]] = {}
     for sub in db_submissions:
         requirement = get_requirement_by_id(sub.requirement_id)
         submissions.append(
@@ -445,10 +435,37 @@ async def get_public_profile(
                 validated_at=sub.validated_at,
             )
         )
+        # Track validated requirements per phase
+        if sub.phase_id not in validated_by_phase:
+            validated_by_phase[sub.phase_id] = set()
+        validated_by_phase[sub.phase_id].add(sub.requirement_id)
+
+    # Check GitHub validation status per phase
+    # A phase's GitHub is validated if it has no requirements OR all requirements are validated
+    phase_github_validated: dict[int, bool] = {}
+    for phase_id in range(7):  # Phases 0-6
+        requirements = get_requirements_for_phase(phase_id)
+        if not requirements:
+            # No GitHub requirements for this phase
+            phase_github_validated[phase_id] = True
+        else:
+            # Check if all requirements are validated
+            required_ids = {r.id for r in requirements}
+            validated_ids = validated_by_phase.get(phase_id, set())
+            phase_github_validated[phase_id] = required_ids.issubset(validated_ids)
+
+    # Combine steps, questions, and GitHub into tuple format for badge computation
+    # Format: (steps_completed, questions_passed, github_validated)
+    phase_completion_counts: dict[int, tuple[int, int, bool]] = {}
+    for phase_num in range(7):  # Phases 0-6
+        steps = phase_steps_completed.get(phase_num, 0)
+        questions = phase_questions_completed.get(phase_num, 0)
+        github_ok = phase_github_validated.get(phase_num, True)
+        phase_completion_counts[phase_num] = (steps, questions, github_ok)
 
     # Compute badges from progress and streak data
     earned_badges = compute_all_badges(
-        phase_passed_counts=phase_completed,
+        phase_completion_counts=phase_completion_counts,
         longest_streak=longest_streak,
     )
     badges = [
@@ -461,13 +478,34 @@ async def get_public_profile(
         for badge in earned_badges
     ]
 
+    # Count completed phases (used for profile display)
+    phases_completed = count_completed_phases(phase_completion_counts)
+
+    # Determine current phase (first incomplete phase, or last if all done)
+    from shared.badges import PHASE_REQUIREMENTS
+
+    current_phase = 0
+    for phase_id in sorted(PHASE_REQUIREMENTS.keys()):
+        requirements = PHASE_REQUIREMENTS[phase_id]
+        steps, questions, github_ok = phase_completion_counts.get(phase_id, (0, 0, True))
+        is_complete = (
+            steps >= requirements.steps
+            and questions >= requirements.questions
+            and github_ok
+        )
+        if not is_complete:
+            current_phase = phase_id
+            break
+    else:
+        # All phases completed
+        current_phase = max(PHASE_REQUIREMENTS.keys())
+
     return PublicProfileResponse(
         username=profile_user.github_username,
         first_name=profile_user.first_name,
         avatar_url=profile_user.avatar_url,
         current_phase=current_phase,
-        completed_topics=completed_topics,
-        total_topics=total_topics,
+        phases_completed=phases_completed,
         streak=streak,
         activity_heatmap=activity_heatmap,
         member_since=profile_user.created_at,

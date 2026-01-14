@@ -33,7 +33,7 @@
       "text": "Set up an AI learning assistant",
       "action": "Set up an AI learning assistant",
       "url": null,
-      "description": "Here at L2C we are big fans of GenAI abilities to help with learning. We leverage it a lot to dive deeper and clarify concepts. It's a good time for you to setup an account with any tool you'd like and start using it for your own learning. Try it out first with testing your knowledge on what version control is. Use this prompt as a template:",
+      "description": "AI assistants can help you learn by asking questions and clarifying concepts—but they should never replace your own thinking. In Phase 3, you'll learn how to use these tools effectively. For now, use AI **only** for the specific prompts we provide. The key rule: AI should quiz *you*, not answer *for* you. Set up an account with ChatGPT, Claude, or another AI assistant and try it with this prompt:",
       "code": "I'm studying cloud engineering and recently learned about version control. I will provide you an explanation about it and please ask me any questions if my explanation is not clear. I want to make sure I really understand this concept so please do not correct me, simply ask questions until I get the explanation right. Here is my explanation: version control is..."
     },
     {

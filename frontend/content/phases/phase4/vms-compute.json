@@ -1,5 +1,5 @@
 {
-  "id": "phase3-topic1",
+  "id": "phase4-topic1",
   "slug": "vms-compute",
   "name": "Virtual Machines & Compute Services",
   "description": "Virtualization and compute services are fundamental to cloud engineering, enabling scalable and flexible infrastructure. In this topic, you will focus on deploying virtual machines on various cloud providers (such as AWS, Azure, and GCP).",
@@ -67,7 +67,7 @@
   ],
   "questions": [
     {
-      "id": "phase3-topic1-q1",
+      "id": "phase4-topic1-q1",
       "prompt": "What is virtualization and how does it enable cloud computing?",
       "expected_concepts": [
         "hypervisor",
@@ -82,7 +82,7 @@
       ]
     },
     {
-      "id": "phase3-topic1-q2",
+      "id": "phase4-topic1-q2",
       "prompt": "What factors should you consider when choosing a VM instance type for your workload?",
       "expected_concepts": [
         "CPU",
@@ -107,12 +107,12 @@
   ],
   "learning_objectives": [
     {
-      "id": "phase3-topic1-check1",
+      "id": "phase4-topic1-check1",
       "text": "How to deploy a virtual machine on your cloud provider",
       "order": 1
     },
     {
-      "id": "phase3-topic1-check2",
+      "id": "phase4-topic1-check2",
       "text": "How to verify and access your running VM",
       "order": 2
     }

@@ -1,5 +1,5 @@
 {
-  "id": "phase4-topic2",
+  "id": "phase5-topic2",
   "slug": "cicd",
   "name": "CI/CD Pipelines",
   "description": "One challenge you'll face after containerizing your application is the need to manually rebuild and push for every code change. CI/CD pipelines automate this entire process - building, testing, and deploying your application every time changes are made, ensuring a smooth and reliable development workflow.",
@@ -82,7 +82,7 @@
   ],
   "questions": [
     {
-      "id": "phase4-topic2-q1",
+      "id": "phase5-topic2-q1",
       "prompt": "What is the difference between Continuous Integration, Continuous Delivery, and Continuous Deployment?",
       "expected_concepts": [
         "continuous integration",
@@ -98,7 +98,7 @@
       ]
     },
     {
-      "id": "phase4-topic2-q2",
+      "id": "phase5-topic2-q2",
       "prompt": "Describe the typical stages in a CI/CD pipeline for a containerized application.",
       "expected_concepts": [
         "checkout",
@@ -126,27 +126,27 @@
   ],
   "learning_objectives": [
     {
-      "id": "phase4-topic2-check1",
+      "id": "phase5-topic2-check1",
       "text": "How to set up a CI/CD pipeline with GitHub Actions",
       "order": 1
     },
     {
-      "id": "phase4-topic2-check2",
+      "id": "phase5-topic2-check2",
       "text": "How to configure automatic builds on code commits",
       "order": 2
     },
     {
-      "id": "phase4-topic2-check3",
+      "id": "phase5-topic2-check3",
       "text": "How to automate Docker image building and pushing",
       "order": 3
     },
     {
-      "id": "phase4-topic2-check4",
+      "id": "phase5-topic2-check4",
       "text": "How to add notifications for pipeline success/failure",
       "order": 4
     },
     {
-      "id": "phase4-topic2-check5",
+      "id": "phase5-topic2-check5",
       "text": "(Optional) How to implement multi-environment deployment",
       "order": 5
     }

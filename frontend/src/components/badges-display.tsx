@@ -10,11 +10,11 @@ interface BadgesDisplayProps {
 
 // All available badges (for showing locked state)
 const ALL_BADGES: Badge[] = [
-  // Phase badges
+  // Phase badges (7 phases: 0-6)
   {
     id: "phase_0_complete",
     name: "Cloud Seedling",
-    description: "Completed Phase 0: Starting from Zero",
+    description: "Completed Phase 0: IT Fundamentals",
     icon: "🌱",
   },
   {
@@ -31,20 +31,26 @@ const ALL_BADGES: Badge[] = [
   },
   {
     id: "phase_3_complete",
-    name: "Cloud Explorer",
-    description: "Completed Phase 3: Cloud Platform Fundamentals",
-    icon: "☁️",
+    name: "AI Apprentice",
+    description: "Completed Phase 3: AI & Productivity",
+    icon: "🤖",
   },
   {
     id: "phase_4_complete",
-    name: "DevOps Rocketeer",
-    description: "Completed Phase 4: DevOps & Containers",
-    icon: "🚀",
+    name: "Cloud Explorer",
+    description: "Completed Phase 4: Cloud Deployment",
+    icon: "☁️",
   },
   {
     id: "phase_5_complete",
+    name: "DevOps Rocketeer",
+    description: "Completed Phase 5: DevOps & Containers",
+    icon: "🚀",
+  },
+  {
+    id: "phase_6_complete",
     name: "Security Guardian",
-    description: "Completed Phase 5: Cloud Security",
+    description: "Completed Phase 6: Cloud Security",
     icon: "🔐",
   },
   // Streak badges

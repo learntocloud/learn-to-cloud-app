@@ -1,5 +1,5 @@
 {
-  "id": "phase4-topic5",
+  "id": "phase5-topic5",
   "slug": "monitoring-observability",
   "name": "Monitoring & Observability",
   "description": "Monitoring and observability are essential DevOps practices that help you understand the health, performance, and reliability of your applications and infrastructure. In this topic, you'll learn how to set up monitoring using Prometheus and visualize metrics with Grafana. You'll then explore AI agents with n8n to automate incident response.",
@@ -150,7 +150,7 @@
   ],
   "questions": [
     {
-      "id": "phase4-topic5-q1",
+      "id": "phase5-topic5-q1",
       "prompt": "What is the difference between monitoring and observability?",
       "expected_concepts": [
         "monitoring",
@@ -166,7 +166,7 @@
       ]
     },
     {
-      "id": "phase4-topic5-q2",
+      "id": "phase5-topic5-q2",
       "prompt": "How do Prometheus and Grafana work together for application monitoring?",
       "expected_concepts": [
         "Prometheus",
@@ -196,32 +196,32 @@
   ],
   "learning_objectives": [
     {
-      "id": "phase4-topic5-check1",
+      "id": "phase5-topic5-check1",
       "text": "How to set up Prometheus for metrics collection",
       "order": 1
     },
     {
-      "id": "phase4-topic5-check2",
+      "id": "phase5-topic5-check2",
       "text": "How to deploy Grafana and connect to Prometheus",
       "order": 2
     },
     {
-      "id": "phase4-topic5-check3",
+      "id": "phase5-topic5-check3",
       "text": "How to create dashboards with PromQL queries",
       "order": 3
     },
     {
-      "id": "phase4-topic5-check4",
+      "id": "phase5-topic5-check4",
       "text": "How to instrument applications with metrics",
       "order": 4
     },
     {
-      "id": "phase4-topic5-check5",
+      "id": "phase5-topic5-check5",
       "text": "How to build AI agents with n8n for automated responses",
       "order": 5
     },
     {
-      "id": "phase4-topic5-check6",
+      "id": "phase5-topic5-check6",
       "text": "How to configure agent detection and alerting",
       "order": 6
     }

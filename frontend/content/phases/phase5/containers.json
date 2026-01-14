@@ -1,5 +1,5 @@
 {
-  "id": "phase4-topic1",
+  "id": "phase5-topic1",
   "slug": "containers",
   "name": "Containerization",
   "description": "Containerization is a modern approach to deploying and managing applications across various environments. It allows you to package software, tools, and their dependencies into lightweight, portable units called containers. Key benefits include consistency across environments, efficient resource utilization, simplified deployment, and isolation between applications.",
@@ -120,7 +120,7 @@
   ],
   "questions": [
     {
-      "id": "phase4-topic1-q1",
+      "id": "phase5-topic1-q1",
       "prompt": "What is the difference between a container and a virtual machine?",
       "expected_concepts": [
         "lightweight",
@@ -135,7 +135,7 @@
       ]
     },
     {
-      "id": "phase4-topic1-q2",
+      "id": "phase5-topic1-q2",
       "prompt": "Explain the purpose of a Dockerfile and describe the key instructions used in one.",
       "expected_concepts": [
         "Dockerfile",
@@ -162,22 +162,22 @@
   ],
   "learning_objectives": [
     {
-      "id": "phase4-topic1-check1",
+      "id": "phase5-topic1-check1",
       "text": "How to write a Dockerfile for an application",
       "order": 1
     },
     {
-      "id": "phase4-topic1-check2",
+      "id": "phase5-topic1-check2",
       "text": "How to build and run containers locally",
       "order": 2
     },
     {
-      "id": "phase4-topic1-check3",
+      "id": "phase5-topic1-check3",
       "text": "How to push images to a container registry",
       "order": 3
     },
     {
-      "id": "phase4-topic1-check4",
+      "id": "phase5-topic1-check4",
       "text": "How to set up and use the GitHub MCP Server",
       "order": 4
     }

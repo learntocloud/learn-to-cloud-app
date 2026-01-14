@@ -116,7 +116,25 @@ async def _validate_public_https_url(url: str) -> str:
 # ============ GitHub Requirements Configuration ============
 
 # Define all GitHub requirements by phase
+# Phase structure:
+#   0: IT Fundamentals - GitHub account setup
+#   1: Linux & CLI - Profile README, Linux CTFs
+#   2: Programming & APIs - Journal Starter fork
+#   3: AI Tooling - GitHub Copilot demonstration
+#   4: Cloud Deployment - Deploy Journal API
+#   5: DevOps & Containers - Dockerize and CI/CD
+#   6: Cloud Security - Security scan and IAM setup
 GITHUB_REQUIREMENTS: dict[int, list[GitHubRequirement]] = {
+    0: [
+        GitHubRequirement(
+            id="phase0-github-profile",
+            phase_id=0,
+            submission_type=SubmissionType.GITHUB_PROFILE,
+            name="GitHub Profile",
+            description="Create a GitHub account and submit your profile URL. This is where you'll store all your code and projects throughout your cloud journey.",
+            example_url="https://github.com/madebygps",
+        ),
+    ],
     1: [
         GitHubRequirement(
             id="phase1-profile-readme",
@@ -157,13 +175,51 @@ GITHUB_REQUIREMENTS: dict[int, list[GitHubRequirement]] = {
     ],
     3: [
         GitHubRequirement(
-            id="phase3-deployed-journal-api",
+            id="phase3-copilot-demo",
             phase_id=3,
+            submission_type=SubmissionType.REPO_URL,
+            name="GitHub Copilot Assisted Project",
+            description="Create a small project demonstrating your use of GitHub Copilot or another AI coding assistant. Include comments showing AI-generated code and your refinements.",
+            example_url="https://github.com/yourusername/copilot-demo",
+        ),
+    ],
+    4: [
+        GitHubRequirement(
+            id="phase4-deployed-journal-api",
+            phase_id=4,
             submission_type=SubmissionType.DEPLOYED_APP,
             name="Deployed Learning Journal API",
             description="Deploy your Learning Journal API to the cloud. We'll verify it's running by making a GET request to your /entries endpoint.",
             example_url="https://your-app.azurewebsites.net/entries",
             expected_endpoint="/entries",
+        ),
+    ],
+    5: [
+        GitHubRequirement(
+            id="phase5-dockerfile",
+            phase_id=5,
+            submission_type=SubmissionType.REPO_URL,
+            name="Dockerized Application",
+            description="Containerize your Learning Journal API or another project with a Dockerfile. Push the image to a container registry (Docker Hub, GitHub Container Registry, or cloud registry).",
+            example_url="https://github.com/yourusername/journal-api",
+        ),
+        GitHubRequirement(
+            id="phase5-cicd-pipeline",
+            phase_id=5,
+            submission_type=SubmissionType.REPO_URL,
+            name="CI/CD Pipeline",
+            description="Set up a CI/CD pipeline using GitHub Actions (or similar) that builds, tests, and deploys your application automatically.",
+            example_url="https://github.com/yourusername/journal-api/actions",
+        ),
+    ],
+    6: [
+        GitHubRequirement(
+            id="phase6-security-scan",
+            phase_id=6,
+            submission_type=SubmissionType.REPO_URL,
+            name="Security Scanning Setup",
+            description="Enable security scanning on one of your repositories (Dependabot, CodeQL, or cloud security tools) and show resolved or triaged findings.",
+            example_url="https://github.com/yourusername/journal-api/security",
         ),
     ],
 }
@@ -343,6 +399,120 @@ class ValidationResult:
     message: str
     username_match: bool
     repo_exists: bool
+
+
+async def validate_github_profile(
+    github_url: str, expected_username: str
+) -> ValidationResult:
+    """
+    Validate a GitHub profile URL submission.
+
+    The URL should be like: https://github.com/username
+    And the username should match the expected_username (case-insensitive).
+    """
+    url = github_url.strip().rstrip("/")
+    
+    # Parse the URL to extract username
+    if not url.startswith("https://github.com/"):
+        return ValidationResult(
+            is_valid=False,
+            message="URL must be a GitHub profile URL (https://github.com/username)",
+            username_match=False,
+            repo_exists=False,
+        )
+    
+    # Extract username from URL
+    path = url.replace("https://github.com/", "")
+    parts = path.split("/")
+    username = parts[0] if parts else ""
+    
+    if not username:
+        return ValidationResult(
+            is_valid=False,
+            message="Could not extract username from URL",
+            username_match=False,
+            repo_exists=False,
+        )
+    
+    # Check if username matches (case-insensitive)
+    username_match = username.lower() == expected_username.lower()
+    
+    if not username_match:
+        return ValidationResult(
+            is_valid=False,
+            message=f"GitHub username '{username}' does not match your account username '{expected_username}'",
+            username_match=False,
+            repo_exists=False,
+        )
+    
+    # Check if the profile exists
+    profile_url = f"https://github.com/{username}"
+    exists, exists_msg = await check_github_url_exists(profile_url)
+    
+    if not exists:
+        return ValidationResult(
+            is_valid=False,
+            message=f"Could not find GitHub profile. {exists_msg}",
+            username_match=True,
+            repo_exists=False,
+        )
+    
+    return ValidationResult(
+        is_valid=True,
+        message=f"GitHub profile verified for @{username}",
+        username_match=True,
+        repo_exists=True,
+    )
+
+
+async def validate_repo_url(
+    github_url: str, expected_username: str
+) -> ValidationResult:
+    """
+    Validate a GitHub repository URL submission.
+
+    The URL should be like: https://github.com/username/repo-name
+    And the username should match the expected_username (case-insensitive).
+    """
+    parsed = parse_github_url(github_url)
+
+    if not parsed.is_valid:
+        return ValidationResult(
+            is_valid=False,
+            message=parsed.error or "Invalid URL",
+            username_match=False,
+            repo_exists=False,
+        )
+
+    # Check if username matches (case-insensitive)
+    username_match = parsed.username.lower() == expected_username.lower()
+
+    if not username_match:
+        return ValidationResult(
+            is_valid=False,
+            message=f"GitHub username '{parsed.username}' does not match your account username '{expected_username}'",
+            username_match=False,
+            repo_exists=False,
+        )
+
+    # Check if the repository exists
+    repo_url = f"https://github.com/{parsed.username}/{parsed.repo_name}"
+    exists, exists_msg = await check_github_url_exists(repo_url)
+
+    if not exists:
+        return ValidationResult(
+            is_valid=False,
+            message=f"Could not find repository. {exists_msg}",
+            username_match=True,
+            repo_exists=False,
+        )
+
+    return ValidationResult(
+        is_valid=True,
+        message=f"Repository verified: {parsed.username}/{parsed.repo_name}",
+        username_match=True,
+        repo_exists=True,
+    )
 
 
 async def validate_profile_readme(
@@ -636,6 +806,24 @@ async def validate_submission(
                 repo_exists=False,
             )
         return validate_ctf_token_submission(submitted_url, expected_username)
+    elif requirement.submission_type == SubmissionType.GITHUB_PROFILE:
+        if not expected_username:
+            return ValidationResult(
+                is_valid=False,
+                message="GitHub username is required for profile validation",
+                username_match=False,
+                repo_exists=False,
+            )
+        return await validate_github_profile(submitted_url, expected_username)
+    elif requirement.submission_type == SubmissionType.REPO_URL:
+        if not expected_username:
+            return ValidationResult(
+                is_valid=False,
+                message="GitHub username is required for repository validation",
+                username_match=False,
+                repo_exists=False,
+            )
+        return await validate_repo_url(submitted_url, expected_username)
     else:
         return ValidationResult(
             is_valid=False,

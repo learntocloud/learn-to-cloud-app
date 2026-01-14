@@ -1,5 +1,5 @@
 {
-  "id": "phase5-topic5",
+  "id": "phase6-topic5",
   "slug": "threat-detection-response",
   "name": "Threat Detection & Incident Response",
   "description": "Incident response is about being prepared to handle security events when they occur. Before implementing automated threat detection for your Journal API, you need to understand threat detection principles and incident response workflows.",
@@ -181,7 +181,7 @@
   ],
   "questions": [
     {
-      "id": "phase5-topic5-q1",
+      "id": "phase6-topic5-q1",
       "prompt": "Describe the four phases of the incident response lifecycle.",
       "expected_concepts": [
         "preparation",
@@ -197,7 +197,7 @@
       ]
     },
     {
-      "id": "phase5-topic5-q2",
+      "id": "phase6-topic5-q2",
       "prompt": "What are some common cloud security threats and how can you detect them?",
       "expected_concepts": [
         "credential compromise",
@@ -225,22 +225,22 @@
   ],
   "learning_objectives": [
     {
-      "id": "phase5-topic5-check1",
+      "id": "phase6-topic5-check1",
       "text": "Understand threat detection concepts and services",
       "order": 1
     },
     {
-      "id": "phase5-topic5-check2",
+      "id": "phase6-topic5-check2",
       "text": "Know how to use threat intelligence sources",
       "order": 2
     },
     {
-      "id": "phase5-topic5-check3",
+      "id": "phase6-topic5-check3",
       "text": "Understand incident response processes",
       "order": 3
     },
     {
-      "id": "phase5-topic5-check4",
+      "id": "phase6-topic5-check4",
       "text": "(Optional) How to complete incident response workshops",
       "order": 4
     }

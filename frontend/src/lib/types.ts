@@ -113,18 +113,9 @@ export interface DashboardResponse {
   user: User;
   phases: PhaseWithProgress[];
   overall_progress: number;
-  // Granular stats
+  // Simplified progress - just phases
   phases_completed: number;
   phases_total: number;
-  topics_completed: number;
-  topics_total: number;
-  steps_completed: number;
-  steps_total: number;
-  questions_completed: number;
-  questions_total: number;
-  // Legacy fields for backward compatibility
-  total_completed: number;
-  total_items: number;
   current_phase: number | null;
 }
 
@@ -265,8 +256,7 @@ export interface PublicProfileResponse {
   first_name: string | null;
   avatar_url: string | null;
   current_phase: number;
-  completed_topics: number;
-  total_topics: number;
+  phases_completed: number;  // Count of fully completed phases (steps + questions + GitHub)
   streak: StreakResponse;
   activity_heatmap: ActivityHeatmapResponse;
   member_since: string;

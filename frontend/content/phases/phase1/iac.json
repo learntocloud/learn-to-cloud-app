@@ -43,7 +43,7 @@
       "text": "Test your understanding with an AI assistant",
       "action": "Test your understanding with an AI assistant:",
       "url": null,
-      "description": "Use this prompt to verify you understand IaC concepts:",
+      "description": "Remember: The goal is for AI to challenge your understanding, not give you the answer. Use this prompt to verify you understand IaC concepts:",
       "code": "I'm studying cloud engineering and recently learned about Infrastructure as Code. I will provide you an explanation about it and please ask me any questions if my explanation is not clear. I want to make sure I really understand this concept so please do not correct me, simply ask questions until I get the explanation right. Here is my explanation: IaC is..."
     },
     {

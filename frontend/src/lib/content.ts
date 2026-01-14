@@ -7,6 +7,7 @@ import phase2Index from '../../content/phases/phase2/index.json';
 import phase3Index from '../../content/phases/phase3/index.json';
 import phase4Index from '../../content/phases/phase4/index.json';
 import phase5Index from '../../content/phases/phase5/index.json';
+import phase6Index from '../../content/phases/phase6/index.json';
 
 // Import Phase 0 topics
 import phase0Linux from '../../content/phases/phase0/linux.json';
@@ -30,35 +31,40 @@ import phase2Apis from '../../content/phases/phase2/apis.json';
 import phase2Fastapi from '../../content/phases/phase2/fastapi.json';
 import phase2Databases from '../../content/phases/phase2/databases.json';
 import phase2GenaiApis from '../../content/phases/phase2/genai-apis.json';
-import phase2PromptEngineering from '../../content/phases/phase2/prompt-engineering.json';
 import phase2BuildTheApp from '../../content/phases/phase2/build-the-app.json';
 
-// Import Phase 3 topics
-import phase3VmsCompute from '../../content/phases/phase3/vms-compute.json';
-import phase3SecurityIam from '../../content/phases/phase3/security-iam.json';
-import phase3CloudNetworking from '../../content/phases/phase3/cloud-networking.json';
-import phase3SecureRemoteAccess from '../../content/phases/phase3/secure-remote-access.json';
-import phase3DatabaseDeployment from '../../content/phases/phase3/database-deployment.json';
-import phase3FastapiDeployment from '../../content/phases/phase3/fastapi-deployment.json';
-import phase3BillingCostManagement from '../../content/phases/phase3/billing-cost-management.json';
-import phase3CloudAiServices from '../../content/phases/phase3/cloud-ai-services.json';
+// Import Phase 3 topics (AI & Productivity)
+import phase3PromptEngineering from '../../content/phases/phase3/prompt-engineering.json';
+import phase3GithubCopilot from '../../content/phases/phase3/github-copilot.json';
+import phase3AiForLearning from '../../content/phases/phase3/ai-for-learning.json';
 import phase3Capstone from '../../content/phases/phase3/capstone.json';
 
-// Import Phase 4 topics
-import phase4Containers from '../../content/phases/phase4/containers.json';
-import phase4Cicd from '../../content/phases/phase4/cicd.json';
-import phase4InfrastructureAsCode from '../../content/phases/phase4/infrastructure-as-code.json';
-import phase4ContainerOrchestration from '../../content/phases/phase4/container-orchestration.json';
-import phase4MonitoringObservability from '../../content/phases/phase4/monitoring-observability.json';
+// Import Phase 4 topics (Cloud Deployment)
+import phase4VmsCompute from '../../content/phases/phase4/vms-compute.json';
+import phase4SecurityIam from '../../content/phases/phase4/security-iam.json';
+import phase4CloudNetworking from '../../content/phases/phase4/cloud-networking.json';
+import phase4SecureRemoteAccess from '../../content/phases/phase4/secure-remote-access.json';
+import phase4DatabaseDeployment from '../../content/phases/phase4/database-deployment.json';
+import phase4FastapiDeployment from '../../content/phases/phase4/fastapi-deployment.json';
+import phase4BillingCostManagement from '../../content/phases/phase4/billing-cost-management.json';
+import phase4CloudAiServices from '../../content/phases/phase4/cloud-ai-services.json';
 import phase4Capstone from '../../content/phases/phase4/capstone.json';
 
-// Import Phase 5 topics
-import phase5IdentityAccessManagement from '../../content/phases/phase5/identity-access-management.json';
-import phase5DataProtectionSecrets from '../../content/phases/phase5/data-protection-secrets.json';
-import phase5NetworkSecurity from '../../content/phases/phase5/network-security.json';
-import phase5SecurityMonitoring from '../../content/phases/phase5/security-monitoring.json';
-import phase5ThreatDetectionResponse from '../../content/phases/phase5/threat-detection-response.json';
+// Import Phase 5 topics (DevOps & Containers)
+import phase5Containers from '../../content/phases/phase5/containers.json';
+import phase5Cicd from '../../content/phases/phase5/cicd.json';
+import phase5InfrastructureAsCode from '../../content/phases/phase5/infrastructure-as-code.json';
+import phase5ContainerOrchestration from '../../content/phases/phase5/container-orchestration.json';
+import phase5MonitoringObservability from '../../content/phases/phase5/monitoring-observability.json';
 import phase5Capstone from '../../content/phases/phase5/capstone.json';
+
+// Import Phase 6 topics (Security)
+import phase6IdentityAccessManagement from '../../content/phases/phase6/identity-access-management.json';
+import phase6DataProtectionSecrets from '../../content/phases/phase6/data-protection-secrets.json';
+import phase6NetworkSecurity from '../../content/phases/phase6/network-security.json';
+import phase6SecurityMonitoring from '../../content/phases/phase6/security-monitoring.json';
+import phase6ThreatDetectionResponse from '../../content/phases/phase6/threat-detection-response.json';
+import phase6Capstone from '../../content/phases/phase6/capstone.json';
 
 // Topic maps by phase slug
 const topicsByPhase: Record<string, Record<string, Topic>> = {
@@ -84,35 +90,40 @@ const topicsByPhase: Record<string, Record<string, Topic>> = {
     'fastapi': phase2Fastapi as Topic,
     'databases': phase2Databases as Topic,
     'genai-apis': phase2GenaiApis as Topic,
-    'prompt-engineering': phase2PromptEngineering as Topic,
     'build-the-app': phase2BuildTheApp as Topic,
   },
   phase3: {
-    'vms-compute': phase3VmsCompute as Topic,
-    'security-iam': phase3SecurityIam as Topic,
-    'cloud-networking': phase3CloudNetworking as Topic,
-    'secure-remote-access': phase3SecureRemoteAccess as Topic,
-    'database-deployment': phase3DatabaseDeployment as Topic,
-    'fastapi-deployment': phase3FastapiDeployment as Topic,
-    'billing-cost-management': phase3BillingCostManagement as Topic,
-    'cloud-ai-services': phase3CloudAiServices as Topic,
+    'prompt-engineering': phase3PromptEngineering as Topic,
+    'github-copilot': phase3GithubCopilot as Topic,
+    'ai-for-learning': phase3AiForLearning as Topic,
     'capstone': phase3Capstone as Topic,
   },
   phase4: {
-    'containers': phase4Containers as Topic,
-    'cicd': phase4Cicd as Topic,
-    'infrastructure-as-code': phase4InfrastructureAsCode as Topic,
-    'container-orchestration': phase4ContainerOrchestration as Topic,
-    'monitoring-observability': phase4MonitoringObservability as Topic,
+    'vms-compute': phase4VmsCompute as Topic,
+    'security-iam': phase4SecurityIam as Topic,
+    'cloud-networking': phase4CloudNetworking as Topic,
+    'secure-remote-access': phase4SecureRemoteAccess as Topic,
+    'database-deployment': phase4DatabaseDeployment as Topic,
+    'fastapi-deployment': phase4FastapiDeployment as Topic,
+    'billing-cost-management': phase4BillingCostManagement as Topic,
+    'cloud-ai-services': phase4CloudAiServices as Topic,
     'capstone': phase4Capstone as Topic,
   },
   phase5: {
-    'identity-access-management': phase5IdentityAccessManagement as Topic,
-    'data-protection-secrets': phase5DataProtectionSecrets as Topic,
-    'network-security': phase5NetworkSecurity as Topic,
-    'security-monitoring': phase5SecurityMonitoring as Topic,
-    'threat-detection-response': phase5ThreatDetectionResponse as Topic,
+    'containers': phase5Containers as Topic,
+    'cicd': phase5Cicd as Topic,
+    'infrastructure-as-code': phase5InfrastructureAsCode as Topic,
+    'container-orchestration': phase5ContainerOrchestration as Topic,
+    'monitoring-observability': phase5MonitoringObservability as Topic,
     'capstone': phase5Capstone as Topic,
+  },
+  phase6: {
+    'identity-access-management': phase6IdentityAccessManagement as Topic,
+    'data-protection-secrets': phase6DataProtectionSecrets as Topic,
+    'network-security': phase6NetworkSecurity as Topic,
+    'security-monitoring': phase6SecurityMonitoring as Topic,
+    'threat-detection-response': phase6ThreatDetectionResponse as Topic,
+    'capstone': phase6Capstone as Topic,
   },
 };
 
@@ -137,6 +148,7 @@ const phaseIndices: PhaseIndex[] = [
   phase3Index as PhaseIndex,
   phase4Index as PhaseIndex,
   phase5Index as PhaseIndex,
+  phase6Index as PhaseIndex,
 ];
 
 /**

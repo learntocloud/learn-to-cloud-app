@@ -25,6 +25,7 @@ class UserResponse(UserBase):
     model_config = ConfigDict(from_attributes=True)
 
     id: str
+    is_admin: bool = False
     created_at: datetime
 
 
@@ -283,14 +284,19 @@ class PublicSubmission(BaseModel):
 
 
 class PublicProfileResponse(BaseModel):
-    """Public user profile information."""
+    """Public user profile information.
+
+    Progress is tracked at the phase level:
+    - A phase is complete when all steps + questions + GitHub requirements are done
+    - phases_completed counts fully completed phases
+    - current_phase is the first incomplete phase (or highest if all done)
+    """
 
     username: str | None = None  # github_username or derived
     first_name: str | None = None
     avatar_url: str | None = None
-    current_phase: int  # Highest unlocked phase
-    completed_topics: int
-    total_topics: int
+    current_phase: int  # First incomplete phase (or highest if all done)
+    phases_completed: int  # Count of fully completed phases (steps + questions + GitHub)
     streak: StreakResponse
     activity_heatmap: ActivityHeatmapResponse
     member_since: datetime

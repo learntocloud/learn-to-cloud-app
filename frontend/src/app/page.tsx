@@ -53,7 +53,7 @@ export default async function Home() {
 
         {/* Phases header */}
         <h2 className="text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-3">
-          6 Phases
+          7 Phases
         </h2>
 
         {/* Phases - 3 column grid */}
@@ -103,39 +103,6 @@ export default async function Home() {
             </>
           )}
         </div>
-
-        {/* Footer */}
-        <footer className="pt-8 mt-8 border-t border-gray-200 dark:border-gray-800 text-center">
-          <p className="text-xs text-gray-400 dark:text-gray-500">
-            © 2026 Learn to Cloud by{" "}
-            <a
-              href="https://x.com/madebygps"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hover:text-gray-600 dark:hover:text-gray-300"
-            >
-              Gwyneth Peña-Siguenza
-            </a>
-            {" & "}
-            <a
-              href="https://x.com/rishabincloud"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hover:text-gray-600 dark:hover:text-gray-300"
-            >
-              Rishab Kumar
-            </a>
-            {" · "}
-            <a
-              href="https://creativecommons.org/licenses/by/4.0/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hover:text-gray-600 dark:hover:text-gray-300"
-            >
-              CC BY 4.0
-            </a>
-          </p>
-        </footer>
       </div>
     </div>
   );

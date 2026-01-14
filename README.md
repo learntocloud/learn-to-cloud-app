@@ -6,7 +6,7 @@ A web application for tracking your progress through the [Learn to Cloud](https:
 
 ## Features
 
-- 📚 All 6 phases of the Learn to Cloud curriculum
+- 📚 All 7 phases of the Learn to Cloud curriculum
 - ✅ Progress tracking for topics and checklist items
 - 🔐 Authentication via Clerk
 - 📊 Dashboard with overall progress visualization

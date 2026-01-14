@@ -19,6 +19,7 @@ export interface UserInfo {
   last_name: string | null;
   avatar_url: string | null;
   github_username: string | null;
+  is_admin: boolean;
   created_at: string;
 }
 

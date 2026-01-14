@@ -43,6 +43,7 @@ interface UserInfo {
   last_name: string | null;
   avatar_url: string | null;
   github_username: string | null;
+  is_admin: boolean;
   created_at: string;
 }
 
@@ -102,6 +103,24 @@ export async function getActivityHeatmap(days: number = 365): Promise<ActivityHe
   }
   
   return res.json();
+}
+
+// ============ Badge API Calls ============
+
+export async function getCurrentUserBadges(): Promise<{ id: string; name: string; icon: string }[]> {
+  // Get user info first to get github_username
+  const userInfo = await getUserInfo();
+  if (!userInfo?.github_username) {
+    return [];
+  }
+  
+  // Then fetch profile which includes badges
+  const profile = await getPublicProfile(userInfo.github_username);
+  if (!profile?.badges) {
+    return [];
+  }
+  
+  return profile.badges.map(b => ({ id: b.id, name: b.name, icon: b.icon }));
 }
 
 // ============ Public Profile API Calls ============
@@ -180,7 +199,9 @@ function calculatePhaseProgress(
   phaseId: number,
   topics: { questions?: { id: string }[]; learning_steps: { order: number }[]; id: string }[],
   questionsStatusMap: Record<string, TopicQuestionsStatus>,
-  stepsStatusMap: Record<string, number[]>
+  stepsStatusMap: Record<string, number[]>,
+  githubValidated: boolean = true,  // Whether all GitHub requirements for this phase are validated
+  hasGitHubRequirements: boolean = false  // Whether this phase has GitHub requirements
 ): PhaseProgress {
   // Count both questions and steps for progress calculation
   let totalItems = 0;
@@ -200,17 +221,31 @@ function calculatePhaseProgress(
     completedItems += status?.passed_questions ?? 0;
   }
   
+  // If phase has GitHub requirements, include it in the percentage calculation
+  // GitHub verification counts as 1 additional item toward completion
+  if (hasGitHubRequirements) {
+    totalItems += 1;
+    if (githubValidated) {
+      completedItems += 1;
+    }
+  }
+  
   const percentage = totalItems > 0 ? (completedItems / totalItems) * 100 : 0;
   
+  // Status logic:
+  // - "completed" only if all steps + questions done AND GitHub validated (if required)
+  // - "in_progress" if any progress made
+  // - "not_started" otherwise
   let status: 'not_started' | 'in_progress' | 'completed' = 'not_started';
-  if (completedItems === totalItems && totalItems > 0) {
+  const allDone = completedItems === totalItems && totalItems > 0;
+  if (allDone) {
     status = 'completed';
   } else if (completedItems > 0) {
     status = 'in_progress';
   }
   
   // Note: We keep questions_passed/questions_total for backward compatibility
-  // but the percentage now includes both steps AND questions
+  // but the percentage now includes steps, questions, AND GitHub verification
   let totalQuestions = 0;
   let passedQuestions = 0;
   for (const topic of topics) {
@@ -234,20 +269,31 @@ function calculatePhaseProgress(
 export async function getPhasesWithProgress(): Promise<PhaseWithProgress[]> {
   const phases = getAllPhases();
   
-  // Fetch GitHub requirements, questions status, AND steps status in parallel
-  const [githubRequirementsMap, questionsStatusMap, stepsStatusMap] = await Promise.all([
+  // Fetch GitHub requirements, questions status, steps status, AND user info in parallel
+  const [githubRequirementsMap, questionsStatusMap, stepsStatusMap, userInfo] = await Promise.all([
     getAllGitHubRequirements(),
     getAllQuestionsStatus(),
     getAllStepsStatus(),
+    getUserInfo().catch(() => null), // Don't fail if user info unavailable
   ]);
   
-  // First pass: calculate progress for all phases (steps + questions)
+  // Admins bypass all content locks
+  const isAdmin = userInfo?.is_admin ?? false;
+  
+  // First pass: calculate progress for all phases (steps + questions + GitHub)
   const phasesWithProgress = phases.map(phase => {
+    // Check if GitHub requirements are validated for this phase
+    const githubReqs = githubRequirementsMap.get(phase.id);
+    const hasGitHubRequirements = githubReqs?.has_requirements ?? false;
+    const githubValidated = !hasGitHubRequirements || githubReqs!.all_validated;
+    
     const progress = calculatePhaseProgress(
       phase.id,
       phase.topics,
       questionsStatusMap,
-      stepsStatusMap
+      stepsStatusMap,
+      githubValidated,
+      hasGitHubRequirements  // Include GitHub in percentage calculation
     );
     
     return {
@@ -257,30 +303,35 @@ export async function getPhasesWithProgress(): Promise<PhaseWithProgress[]> {
     };
   });
   
-  // Second pass: determine locked status based on previous phase completion AND GitHub requirements
-  // Phase 0 is always unlocked, subsequent phases require previous phase to be completed
-  for (let i = 1; i < phasesWithProgress.length; i++) {
-    const previousPhase = phasesWithProgress[i - 1];
-    const isPreviousCompleted = previousPhase.progress?.status === 'completed';
-    
-    // Also check if GitHub requirements are validated for the previous phase
-    const previousGithubReqs = githubRequirementsMap.get(previousPhase.id);
-    const areGithubReqsValidated = !previousGithubReqs || previousGithubReqs.all_validated;
-    
-    // Lock cascades: if previous phase is locked OR not completed, this phase is locked
-    phasesWithProgress[i].isLocked = previousPhase.isLocked || !isPreviousCompleted || !areGithubReqsValidated;
+  // Second pass: determine locked status based on previous phase completion
+  // Phase 0 is always unlocked, subsequent phases require previous phase to be "completed"
+  // (which now includes GitHub validation)
+  // Admins bypass all locks
+  if (!isAdmin) {
+    for (let i = 1; i < phasesWithProgress.length; i++) {
+      const previousPhase = phasesWithProgress[i - 1];
+      const isPreviousCompleted = previousPhase.progress?.status === 'completed';
+      
+      // Lock cascades: if previous phase is locked OR not completed, this phase is locked
+      phasesWithProgress[i].isLocked = previousPhase.isLocked || !isPreviousCompleted;
+    }
   }
   
   return phasesWithProgress;
 }
 
-// Helper to check if a phase is locked based on previous phases' progress and GitHub requirements
+// Helper to check if a phase is locked based on previous phases' completion
+// A phase is locked if ANY previous phase is not "completed" (steps + questions + GitHub)
 async function checkPhaseLocked(
   phaseId: number,
   githubRequirementsMap?: Map<number, PhaseGitHubRequirements>,
   questionsStatusMap?: Record<string, TopicQuestionsStatus>,
-  stepsStatusMap?: Record<string, number[]>
+  stepsStatusMap?: Record<string, number[]>,
+  isAdmin?: boolean
 ): Promise<boolean> {
+  // Admins bypass all content locks
+  if (isAdmin) return false;
+  
   if (phaseId === 0) return false;
   
   const phases = getAllPhases();
@@ -288,23 +339,27 @@ async function checkPhaseLocked(
   const questionsStatus = questionsStatusMap ?? await getAllQuestionsStatus();
   const stepsStatus = stepsStatusMap ?? await getAllStepsStatus();
   
+  // Check all previous phases are completed
   for (let i = 0; i < phaseId; i++) {
     const prevPhase = phases.find(p => p.id === i);
     if (!prevPhase) continue;
+    
+    // Check if GitHub requirements are validated for this phase
+    const prevGithubReqs = githubReqs.get(prevPhase.id);
+    const hasGitHubRequirements = prevGithubReqs?.has_requirements ?? false;
+    const githubValidated = !hasGitHubRequirements || prevGithubReqs!.all_validated;
     
     const prevProgress = calculatePhaseProgress(
       prevPhase.id,
       prevPhase.topics,
       questionsStatus,
-      stepsStatus
+      stepsStatus,
+      githubValidated,
+      hasGitHubRequirements  // Include GitHub in percentage
     );
     
+    // If previous phase is not completed, this phase is locked
     if (prevProgress.status !== 'completed') {
-      return true;
-    }
-    
-    const prevGithubReqs = githubReqs.get(prevPhase.id);
-    if (prevGithubReqs && prevGithubReqs.has_requirements && !prevGithubReqs.all_validated) {
       return true;
     }
   }
@@ -316,14 +371,18 @@ export async function getPhaseWithProgressBySlug(slug: string): Promise<(PhaseDe
   const phase = getPhaseBySlugFromContent(slug);
   if (!phase) return null;
   
-  // Fetch GitHub requirements, questions status, and steps status in parallel
-  const [githubRequirementsMap, questionsStatusMap, stepsStatusMap] = await Promise.all([
+  // Fetch GitHub requirements, questions status, steps status, AND user info in parallel
+  const [githubRequirementsMap, questionsStatusMap, stepsStatusMap, userInfo] = await Promise.all([
     getAllGitHubRequirements(),
     getAllQuestionsStatus(),
     getAllStepsStatus(),
+    getUserInfo().catch(() => null), // Don't fail if user info unavailable
   ]);
   
-  const isLocked = await checkPhaseLocked(phase.id, githubRequirementsMap, questionsStatusMap, stepsStatusMap);
+  // Admins bypass all content locks
+  const isAdmin = userInfo?.is_admin ?? false;
+  
+  const isLocked = await checkPhaseLocked(phase.id, githubRequirementsMap, questionsStatusMap, stepsStatusMap, isAdmin);
   
   // Add progress to topics (steps + questions)
   const topics: TopicWithProgress[] = phase.topics.map(topic => {
@@ -342,11 +401,18 @@ export async function getPhaseWithProgressBySlug(slug: string): Promise<(PhaseDe
     };
   });
   
+  // Include GitHub validation in phase progress
+  const githubReqs = githubRequirementsMap.get(phase.id);
+  const hasGitHubRequirements = githubReqs?.has_requirements ?? false;
+  const githubValidated = !hasGitHubRequirements || githubReqs!.all_validated;
+  
   const progress = calculatePhaseProgress(
     phase.id,
     phase.topics,
     questionsStatusMap,
-    stepsStatusMap
+    stepsStatusMap,
+    githubValidated,
+    hasGitHubRequirements  // Include GitHub in percentage
   );
   
   return {
@@ -364,21 +430,26 @@ export async function getTopicWithProgressBySlug(phaseSlug: string, topicSlug: s
   const topic = getTopicBySlugFromContent(phaseSlug, topicSlug);
   if (!topic) return null;
   
-  // Fetch GitHub requirements, questions status, and steps status in parallel
-  const [githubRequirementsMap, questionsStatusMap, stepsStatusMap] = await Promise.all([
+  // Fetch GitHub requirements, questions status, steps status, AND user info in parallel
+  const [githubRequirementsMap, questionsStatusMap, stepsStatusMap, userInfo] = await Promise.all([
     getAllGitHubRequirements(),
     getAllQuestionsStatus(),
     getAllStepsStatus(),
+    getUserInfo().catch(() => null), // Don't fail if user info unavailable
   ]);
   
-  const isLocked = await checkPhaseLocked(phase.id, githubRequirementsMap, questionsStatusMap, stepsStatusMap);
+  // Admins bypass all content locks
+  const isAdmin = userInfo?.is_admin ?? false;
+  
+  const isLocked = await checkPhaseLocked(phase.id, githubRequirementsMap, questionsStatusMap, stepsStatusMap, isAdmin);
   
   // Calculate topic-level locking: previous topic must have all steps AND questions complete
+  // Admins bypass topic-level locks too
   const topicIndex = phase.topics.findIndex(t => t.slug === topicSlug);
   let isTopicLocked = false;
   let previousTopicName: string | undefined;
   
-  if (topicIndex > 0) {
+  if (topicIndex > 0 && !isAdmin) {
     const previousTopic = phase.topics[topicIndex - 1];
     previousTopicName = previousTopic.name;
     
@@ -414,14 +485,12 @@ export async function getTopicWithProgressBySlug(phaseSlug: string, topicSlug: s
 }
 
 export async function getDashboard(): Promise<DashboardResponse> {
-  const [userInfo, phasesWithProgress, stepsStatus, questionsStatus] = await Promise.all([
+  const [userInfo, phasesWithProgress] = await Promise.all([
     getUserInfo(),
     getPhasesWithProgress(),
-    getAllStepsStatus(),
-    getAllQuestionsStatus(),
   ]);
   
-  // Calculate overall progress from phase percentages (which include steps + questions)
+  // Calculate overall progress from phase percentages (which include steps + questions + GitHub)
   const phasesWithContent = phasesWithProgress.filter(p => (p.progress?.percentage ?? 0) >= 0);
   const totalPercentage = phasesWithContent.reduce(
     (sum, p) => sum + (p.progress?.percentage ?? 0), 
@@ -431,42 +500,9 @@ export async function getDashboard(): Promise<DashboardResponse> {
     ? totalPercentage / phasesWithContent.length 
     : 0;
   
-  // Calculate granular stats
+  // Simplified progress - just phases (phase complete = steps + questions + GitHub validated)
   const phasesCompleted = phasesWithProgress.filter(p => p.progress?.status === 'completed').length;
   const phasesTotal = phasesWithProgress.length;
-  
-  // Count topics, steps, questions
-  let topicsCompleted = 0;
-  let topicsTotal = 0;
-  let stepsCompletedCount = 0;
-  let stepsTotalCount = 0;
-  let questionsCompletedCount = 0;
-  let questionsTotalCount = 0;
-  
-  for (const phase of phasesWithProgress) {
-    for (const topic of phase.topics) {
-      topicsTotal++;
-      
-      // Count steps
-      const topicStepCount = topic.learning_steps?.length ?? 0;
-      stepsTotalCount += topicStepCount;
-      const completedSteps = stepsStatus[topic.id] ?? [];
-      stepsCompletedCount += completedSteps.length;
-      
-      // Count questions  
-      const topicQuestionCount = topic.questions?.length ?? 0;
-      questionsTotalCount += topicQuestionCount;
-      const questionsStatusData = questionsStatus[topic.id];
-      questionsCompletedCount += questionsStatusData?.passed_questions ?? 0;
-      
-      // Topic is complete if all steps and questions are done
-      const allStepsDone = completedSteps.length >= topicStepCount;
-      const allQuestionsDone = (questionsStatusData?.passed_questions ?? 0) >= topicQuestionCount;
-      if (allStepsDone && allQuestionsDone && (topicStepCount + topicQuestionCount) > 0) {
-        topicsCompleted++;
-      }
-    }
-  }
   
   // Find current phase (first in-progress, or first not-started)
   let currentPhase: number | null = null;
@@ -484,18 +520,8 @@ export async function getDashboard(): Promise<DashboardResponse> {
     user: userInfo,
     phases: phasesWithProgress,
     overall_progress: Math.round(overallProgress * 10) / 10,
-    // Granular stats
     phases_completed: phasesCompleted,
     phases_total: phasesTotal,
-    topics_completed: topicsCompleted,
-    topics_total: topicsTotal,
-    steps_completed: stepsCompletedCount,
-    steps_total: stepsTotalCount,
-    questions_completed: questionsCompletedCount,
-    questions_total: questionsTotalCount,
-    // Legacy fields
-    total_completed: questionsCompletedCount,
-    total_items: questionsTotalCount,
     current_phase: currentPhase,
   };
 }

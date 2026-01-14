@@ -1,42 +1,31 @@
 {
   "id": 5,
   "slug": "phase5",
-  "name": "Securing Your Cloud Applications",
-  "description": "This phase focuses on securing the cloud applications and infrastructure you've built throughout your journey. You'll take the Journal API application from previous phases and implement enterprise-grade security controls, monitoring, and incident response capabilities.",
-  "short_description": "Implement cloud security: IAM policies, secrets management, network security, threat detection, and incident response. Enterprise-grade protection.",
+  "name": "DevOps Fundamentals",
+  "description": "This phase covers DevOps fundamentals - the practices and tools that enable teams to deliver software faster and more reliably. You'll learn containerization, CI/CD pipelines, Infrastructure as Code, and monitoring.",
+  "short_description": "Master Docker containers, Kubernetes orchestration, CI/CD pipelines, Terraform IaC, and monitoring with Prometheus and Grafana.",
   "order": 5,
-  "estimated_weeks": "3-4 weeks",
+  "estimated_weeks": "4-5 weeks",
   "topics": [
-    "identity-access-management",
-    "data-protection-secrets",
-    "network-security",
-    "security-monitoring",
-    "threat-detection-response",
+    "containers",
+    "cicd",
+    "infrastructure-as-code",
+    "container-orchestration",
+    "monitoring-observability",
     "capstone"
   ],
   "objectives": [
-    "Secure the Journal API application with proper IAM controls",
-    "Implement data protection and secrets management",
-    "Configure network security and secure connectivity",
-    "Set up security monitoring and alerting systems",
-    "Build automated threat detection and incident response",
-    "Complete a comprehensive security implementation project"
+    "Understand core DevOps practices and their benefits",
+    "Implement CI/CD pipelines for automated testing and deployment",
+    "Create infrastructure as code using Terraform",
+    "Build and manage containers with Docker",
+    "Set up monitoring and observability for applications",
+    "Use AI tools to optimize DevOps tasks and workflows",
+    "Complete a capstone project demonstrating DevOps skills"
   ],
   "prerequisites": [
-    "Completed Phase 3: Cloud Platform Fundamentals",
-    "Completed Phase 4: DevOps Fundamentals (recommended but not required)",
-    "Access to the Journal API application and infrastructure from previous phases",
-    "A cloud platform account (AWS, Azure, or GCP) with administrative permissions"
-  ],
-  "connections": [
-    { "phase": "Phase 1-2", "description": "Use your Linux and programming skills to configure security tools" },
-    { "phase": "Phase 3", "description": "Secure the cloud resources and networking you deployed" },
-    { "phase": "Phase 4", "description": "Add security scanning and monitoring to your CI/CD pipelines" },
-    { "phase": "Phase 5", "description": "Make everything production-ready with enterprise security controls" }
-  ],
-  "security_overviews": [
-    { "text": "AWS Security Pillar - Well Architected Framework", "url": "https://docs.aws.amazon.com/wellarchitected/latest/security-pillar/welcome.html" },
-    { "text": "Microsoft Azure - Secure", "url": "https://learn.microsoft.com/en-us/azure/architecture/framework/security/overview" },
-    { "text": "Google Cloud - Security Foundations", "url": "https://cloud.google.com/architecture/security-foundations" }
+    "Completed Phase 2: Programming Fundamentals (capstone)",
+    "Completed Phase 4: Cloud Platform Fundamentals (capstone)",
+    "This phase builds on the project from previous phases"
   ]
 }

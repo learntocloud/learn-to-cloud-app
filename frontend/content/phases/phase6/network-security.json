@@ -1,5 +1,5 @@
 {
-  "id": "phase5-topic3",
+  "id": "phase6-topic3",
   "slug": "network-security",
   "name": "Network Security",
   "description": "Network security in the cloud is about building secure connections, creating logical separations between resources, and defending against network-based threats. Before securing your Journal API's network, you need to understand cloud networking fundamentals.",
@@ -163,7 +163,7 @@
   ],
   "questions": [
     {
-      "id": "phase5-topic3-q1",
+      "id": "phase6-topic3-q1",
       "prompt": "Explain the concept of network segmentation and why you would use public, private, and isolated subnets.",
       "expected_concepts": [
         "segmentation",
@@ -179,7 +179,7 @@
       ]
     },
     {
-      "id": "phase5-topic3-q2",
+      "id": "phase6-topic3-q2",
       "prompt": "What is the difference between a security group and a network ACL in terms of how they process traffic?",
       "expected_concepts": [
         "security group",
@@ -207,22 +207,22 @@
   ],
   "learning_objectives": [
     {
-      "id": "phase5-topic3-check1",
+      "id": "phase6-topic3-check1",
       "text": "Understand network security principles for cloud",
       "order": 1
     },
     {
-      "id": "phase5-topic3-check2",
+      "id": "phase6-topic3-check2",
       "text": "Know your cloud provider's networking security features",
       "order": 2
     },
     {
-      "id": "phase5-topic3-check3",
+      "id": "phase6-topic3-check3",
       "text": "Understand VPC security and segmentation",
       "order": 3
     },
     {
-      "id": "phase5-topic3-check4",
+      "id": "phase6-topic3-check4",
       "text": "(Optional) How to complete VPC/networking workshops",
       "order": 4
     }

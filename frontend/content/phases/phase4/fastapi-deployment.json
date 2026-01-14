@@ -1,5 +1,5 @@
 {
-  "id": "phase3-topic6",
+  "id": "phase4-topic6",
   "slug": "fastapi-deployment",
   "name": "FastAPI Deployment & API Hosting",
   "description": "With your prior knowledge of FastAPI from the previous phases, you will now focus on deploying that FastAPI application on a cloud-based VM. This topic covers the practical aspects of hosting web applications in the cloud.",
@@ -16,21 +16,21 @@
       "options": [
         {
           "provider": "aws",
-          "title": "Deploy FastAPI on AWS EC2",
-          "url": "https://www.youtube.com/watch?v=SgSnz7kW-Ko",
-          "description": "Video walkthrough of deploying FastAPI to an EC2 instance"
+          "title": "Deploy Python App on AWS EC2",
+          "url": "https://docs.aws.amazon.com/elasticbeanstalk/latest/dg/create-deploy-python-apps.html",
+          "description": "AWS guide for deploying Python web applications"
         },
         {
           "provider": "azure",
-          "title": "Deploy FastAPI to Azure Virtual Machine",
-          "url": "https://medium.com/@swamynathanayyappan/how-to-deploy-a-fast-api-python-web-application-to-azure-virtual-machine-c5eb84284a81",
-          "description": "Step-by-step guide for deploying FastAPI to Azure VM"
+          "title": "Deploy Python App to Azure VM",
+          "url": "https://learn.microsoft.com/en-us/azure/developer/python/configure-python-web-app-local-environment",
+          "description": "Microsoft Learn guide for deploying Python apps to Azure"
         },
         {
           "provider": "gcp",
-          "title": "Deploy FastAPI on Google Compute Engine",
-          "url": "https://www.youtube.com/watch?v=Lcuas-20g1g",
-          "description": "Video guide for deploying FastAPI to GCP"
+          "title": "Deploy Python App on Google Compute Engine",
+          "url": "https://cloud.google.com/python/docs/getting-started",
+          "description": "Google Cloud guide for deploying Python applications"
         }
       ]
     },
@@ -67,7 +67,7 @@
   ],
   "questions": [
     {
-      "id": "phase3-topic6-q1",
+      "id": "phase4-topic6-q1",
       "prompt": "How should you manage sensitive configuration like API keys and database credentials when deploying an application?",
       "expected_concepts": [
         "environment variables",
@@ -81,7 +81,7 @@
       ]
     },
     {
-      "id": "phase3-topic6-q2",
+      "id": "phase4-topic6-q2",
       "prompt": "What security group rules do you need to configure for a public-facing API server?",
       "expected_concepts": [
         "inbound",
@@ -105,22 +105,22 @@
   ],
   "learning_objectives": [
     {
-      "id": "phase3-topic6-check1",
+      "id": "phase4-topic6-check1",
       "text": "How to plan FastAPI deployment for your cloud provider",
       "order": 1
     },
     {
-      "id": "phase3-topic6-check2",
+      "id": "phase4-topic6-check2",
       "text": "How to configure security groups/firewall rules for HTTP traffic",
       "order": 2
     },
     {
-      "id": "phase3-topic6-check3",
+      "id": "phase4-topic6-check3",
       "text": "How to deploy FastAPI on a VM in the public subnet",
       "order": 3
     },
     {
-      "id": "phase3-topic6-check4",
+      "id": "phase4-topic6-check4",
       "text": "How to verify your API is accessible from the internet",
       "order": 4
     }

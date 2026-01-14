@@ -5,7 +5,7 @@ import { getPhaseWithProgressBySlug, getPhaseGitHubRequirements, getUserInfo } f
 import { getPhaseBySlug } from "@/lib/content";
 import { TopicCard } from "@/components/topic-card";
 import { ProgressBar, StatusBadge } from "@/components/progress";
-import { GitHubSubmissionForm } from "@/components/github-submission";
+import { PhaseVerificationForm } from "@/components/phase-verification-form";
 import type { PhaseDetailWithProgress, Phase, TopicWithProgress, PhaseGitHubRequirements } from "@/lib/types";
 
 // Disable static generation - fetch data at runtime for progress
@@ -16,16 +16,17 @@ interface PhasePageProps {
 }
 
 // Valid phase slugs
-const VALID_PHASE_SLUGS = ["phase0", "phase1", "phase2", "phase3", "phase4", "phase5"];
+const VALID_PHASE_SLUGS = ["phase0", "phase1", "phase2", "phase3", "phase4", "phase5", "phase6"];
 
-// Phase slug to previous/next mapping
-const PHASE_NAV: Record<string, { prev?: string; next?: string }> = {
-  phase0: { next: "phase1" },
-  phase1: { prev: "phase0", next: "phase2" },
-  phase2: { prev: "phase1", next: "phase3" },
-  phase3: { prev: "phase2", next: "phase4" },
-  phase4: { prev: "phase3", next: "phase5" },
-  phase5: { prev: "phase4" },
+// Phase slug to next phase mapping (for celebration modal navigation)
+const NEXT_PHASE: Record<string, string | undefined> = {
+  phase0: "phase1",
+  phase1: "phase2",
+  phase2: "phase3",
+  phase3: "phase4",
+  phase4: "phase5",
+  phase5: "phase6",
+  phase6: undefined,
 };
 
 export default async function PhasePage({ params }: PhasePageProps) {
@@ -50,6 +51,7 @@ export default async function PhasePage({ params }: PhasePageProps) {
   let isLocked = false;
   let githubRequirements: PhaseGitHubRequirements | null = null;
   let githubUsername: string | null = null;
+  let allTopicsComplete = false;
 
   if (userId) {
     // Fetch each resource independently so one failure doesn't break the others
@@ -65,6 +67,15 @@ export default async function PhasePage({ params }: PhasePageProps) {
       topics = phaseResult.value.topics;
       isAuthenticated = true;
       isLocked = phaseResult.value.isLocked;
+      
+      // Check if all topics are complete (all steps AND all questions done)
+      if (topics && topics.length > 0) {
+        allTopicsComplete = topics.every((t) => {
+          const stepsComplete = t.steps_completed === t.steps_total || t.steps_total === 0;
+          const questionsComplete = t.questions_passed === t.questions_total || t.questions_total === 0;
+          return stepsComplete && questionsComplete && (t.steps_total > 0 || t.questions_total > 0);
+        });
+      }
     }
     
     // Handle GitHub requirements
@@ -108,8 +119,6 @@ export default async function PhasePage({ params }: PhasePageProps) {
     );
   }
 
-  const nav = PHASE_NAV[phaseSlug];
-
   return (
     <div className="min-h-screen py-8">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -142,6 +151,7 @@ export default async function PhasePage({ params }: PhasePageProps) {
           {isAuthenticated && (phase as PhaseDetailWithProgress).progress && (
             <ProgressBar 
               percentage={(phase as PhaseDetailWithProgress).progress!.percentage} 
+              status={(phase as PhaseDetailWithProgress).progress!.status}
               size="lg" 
             />
           )}
@@ -168,8 +178,11 @@ export default async function PhasePage({ params }: PhasePageProps) {
               topics.map((topic, index) => {
                 // First topic is always unlocked, subsequent topics require previous to be completed
                 const previousTopic = index > 0 ? topics[index - 1] : null;
+                // Topic is complete when ALL steps AND ALL questions are done
                 const isPreviousCompleted = previousTopic 
-                  ? previousTopic.questions_passed === previousTopic.questions_total && previousTopic.questions_total > 0
+                  ? (previousTopic.steps_completed === previousTopic.steps_total || previousTopic.steps_total === 0) &&
+                    (previousTopic.questions_passed === previousTopic.questions_total || previousTopic.questions_total === 0) &&
+                    (previousTopic.steps_total > 0 || previousTopic.questions_total > 0)
                   : true;
                 const isTopicLocked = index > 0 && !isPreviousCompleted;
                 
@@ -206,37 +219,47 @@ export default async function PhasePage({ params }: PhasePageProps) {
           </div>
         </section>
 
-        {/* GitHub Submissions (for phases with requirements) */}
+        {/* GitHub Submissions / Hands-on Verification (for phases with requirements) */}
         {isAuthenticated && githubRequirements && githubRequirements.requirements.length > 0 && (
           <section className="mb-8">
-            <GitHubSubmissionForm
-              requirements={githubRequirements.requirements}
-              submissions={githubRequirements.submissions}
-              githubUsername={githubUsername}
-            />
+            {allTopicsComplete ? (
+              <PhaseVerificationForm
+                phaseNumber={phaseContent.id}
+                requirements={githubRequirements.requirements}
+                submissions={githubRequirements.submissions}
+                githubUsername={githubUsername}
+                nextPhaseSlug={NEXT_PHASE[phaseSlug]}
+              />
+            ) : (
+              <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="text-3xl">🔒</div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                      Hands-on Verification Locked
+                    </h3>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      Complete all topics above to unlock hands-on verification
+                    </p>
+                  </div>
+                </div>
+                <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4">
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                    {githubRequirements.requirements.length} verification{githubRequirements.requirements.length > 1 ? 's' : ''} to complete:
+                  </p>
+                  <ul className="space-y-2">
+                    {githubRequirements.requirements.map((req) => (
+                      <li key={req.id} className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                        <span className="text-gray-300 dark:text-gray-600">○</span>
+                        {req.name}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            )}
           </section>
         )}
-
-        {/* Navigation */}
-        <div className="flex justify-between">
-          {nav.prev && (
-            <Link
-              href={`/${nav.prev}`}
-              className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-medium"
-            >
-              ← Previous Phase
-            </Link>
-          )}
-          <div /> {/* Spacer */}
-          {nav.next && (
-            <Link
-              href={`/${nav.next}`}
-              className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-medium"
-            >
-              Next Phase →
-            </Link>
-          )}
-        </div>
       </div>
     </div>
   );
