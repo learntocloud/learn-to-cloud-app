@@ -1,4 +1,4 @@
-"""One-time migration: Clean up database - drop orphaned constraints and invalid data."""
+"""One-time migration: Clean up production database to match local schema."""
 
 import asyncio
 
@@ -8,20 +8,23 @@ from core.database import get_engine
 
 
 async def main():
-    """Clean up database: drop orphaned constraints and invalid data."""
+    """Clean up database to match local schema."""
     engine = get_engine()
     async with engine.begin() as conn:
-        # Drop orphaned constraint if it exists (from old table)
+        # Rename github_submissions to submissions if it exists
         await conn.execute(
-            text("ALTER TABLE IF EXISTS submissions DROP CONSTRAINT IF EXISTS uq_user_requirement")
+            text("ALTER TABLE IF EXISTS github_submissions RENAME TO submissions")
         )
-        # Also try dropping by itself in case the table doesn't exist
-        await conn.execute(
-            text("DROP INDEX IF EXISTS uq_user_requirement")
-        )
-        print("✅ Cleaned up orphaned constraints")
+        print("✅ Renamed github_submissions -> submissions")
         
-        # Drop the is_profile_public column
+        # Drop tables that shouldn't exist
+        await conn.execute(text("DROP TABLE IF EXISTS checklist_progress CASCADE"))
+        print("✅ Dropped checklist_progress")
+        
+        await conn.execute(text("DROP TABLE IF EXISTS daily_reflections CASCADE"))
+        print("✅ Dropped daily_reflections")
+        
+        # Drop the is_profile_public column if it exists
         await conn.execute(
             text("ALTER TABLE users DROP COLUMN IF EXISTS is_profile_public")
         )
