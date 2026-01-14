@@ -30,7 +30,7 @@ echo "Creating database tables..."
 az containerapp exec \
     --name "$AZURE_API_CONTAINER_APP" \
     --resource-group "$AZURE_RESOURCE_GROUP" \
-    --command "python -c 'import asyncio; from core.database import create_tables; asyncio.run(create_tables())'"
+    --command "python -m scripts.create_tables"
 
 echo ""
 echo "✅ Done! Tables created (existing tables were not modified)."

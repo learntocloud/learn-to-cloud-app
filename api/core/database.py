@@ -217,17 +217,6 @@ async def init_db() -> None:
         raise
 
 
-async def create_tables() -> None:
-    """Create all database tables. Run this once for initial setup.
-    
-    Usage: python -c "import asyncio; from core.database import create_tables; asyncio.run(create_tables())"
-    """
-    engine = get_engine()
-    logger.info("Creating database tables...")
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    logger.info("Tables created successfully")
-
 async def check_db_connection() -> None:
     """Verify the database is reachable.
 
