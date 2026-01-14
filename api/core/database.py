@@ -195,18 +195,39 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 DbSession = Annotated[AsyncSession, Depends(get_db)]
 
 async def init_db() -> None:
-    """Initialize database tables (create all)."""
+    """Initialize database tables (create all).
+    
+    Uses asyncio.wait_for to prevent hanging indefinitely on database operations.
+    """
     settings = get_settings()
     engine = get_engine()
-    async with engine.begin() as conn:
-        if settings.reset_db_on_startup:
-            if settings.environment != "development":
-                logger.warning(
-                    "reset_db_on_startup is enabled but environment is not development; skipping drop_all"
-                )
-            else:
-                await conn.run_sync(Base.metadata.drop_all)
-        await conn.run_sync(Base.metadata.create_all)
+    
+    logger.info("Starting database initialization...")
+    
+    try:
+        async with asyncio.timeout(60):  # 60 second timeout for entire init
+            async with engine.begin() as conn:
+                if settings.reset_db_on_startup:
+                    if settings.environment != "development":
+                        logger.warning(
+                            "reset_db_on_startup is enabled but environment is not development; skipping drop_all"
+                        )
+                    else:
+                        logger.info("Dropping all tables (reset_db_on_startup=true)...")
+                        await conn.run_sync(Base.metadata.drop_all)
+                        logger.info("Tables dropped successfully")
+                
+                logger.info("Creating tables...")
+                await conn.run_sync(Base.metadata.create_all)
+                logger.info("Tables created successfully")
+    except TimeoutError:
+        logger.error("Database initialization timed out after 60 seconds")
+        raise
+    except Exception as e:
+        logger.error(f"Database initialization failed: {e}")
+        raise
+    
+    logger.info("Database initialization complete")
 
 async def check_db_connection() -> None:
     """Verify the database is reachable.
