@@ -173,6 +173,7 @@ class ActivityType(str, PyEnum):
     HANDS_ON_VALIDATED = "hands_on_validated"
     PHASE_COMPLETE = "phase_complete"
     CERTIFICATE_EARNED = "certificate_earned"
+    REFLECTION = "reflection"
 
 class Certificate(TimestampMixin, Base):
     """Tracks completion certificates issued to users."""
