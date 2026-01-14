@@ -173,10 +173,11 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
     async with session_maker() as session:
         try:
             yield session
-            if session.new or session.dirty or session.deleted:
+            # Always commit if we're in a transaction - flush() may have written
+            # data that needs to be committed, and the session.new/dirty/deleted
+            # attributes are cleared after flush()
+            if session.in_transaction():
                 await session.commit()
-            elif session.in_transaction():
-                await session.rollback()
         except Exception:
             await session.rollback()
             raise

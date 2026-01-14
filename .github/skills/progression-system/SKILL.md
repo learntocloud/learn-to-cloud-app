@@ -103,13 +103,47 @@ for phase_id in sorted(HANDS_ON_REQUIREMENTS.keys()):
 
 ## Key Files
 
+### API (Backend)
+
 | Purpose | File |
 |---------|------|
 | Progress calculation | `api/services/progress.py` |
 | Hands-on requirements | `api/services/hands_on_verification.py` |
+| GitHub validations | `api/services/github_hands_on_verification.py` |
 | Badge computation | `api/services/badges.py` |
-| Verification types | `api/models.py` (SubmissionType enum) |
-| Certificate eligibility | `api/routes/certificates.py` |
+| Verification types | `api/models.py` (SubmissionType, ActivityType enums) |
+| Certificate eligibility | `api/services/certificates.py` |
+| Question grading | `api/services/questions.py` |
+| Step tracking | `api/services/steps.py` |
+
+### Routes (API Endpoints)
+
+| Endpoint Prefix | File | Purpose |
+|-----------------|------|---------|
+| `/api/user` | `api/routes/users.py` | User info, public profiles |
+| `/api/github` | `api/routes/github.py` | Hands-on submissions |
+| `/api/questions` | `api/routes/questions.py` | Question submission & status |
+| `/api/steps` | `api/routes/steps.py` | Step completion tracking |
+| `/api/activity` | `api/routes/activity.py` | Streaks & heatmap |
+| `/api/certificates` | `api/routes/certificates.py` | Certificate generation |
+
+### Repositories (Database Layer)
+
+| Purpose | File |
+|---------|------|
+| Progress queries | `api/repositories/progress.py` |
+| Submissions | `api/repositories/submission.py` |
+| User operations | `api/repositories/user.py` |
+| Activity tracking | `api/repositories/activity.py` |
+| Certificate storage | `api/repositories/certificate.py` |
+
+### Frontend
+
+| Purpose | File |
+|---------|------|
+| API calls | `frontend/src/lib/api.ts` |
+| Type definitions | `frontend/src/lib/types.ts` |
+| Progress calculation | `frontend/src/lib/api.ts` (`calculatePhaseProgress`) |
 
 ## Troubleshooting
 
@@ -123,3 +157,4 @@ for phase_id in sorted(HANDS_ON_REQUIREMENTS.keys()):
 1. Check previous topic/phase completion
 2. Verify steps AND questions are done (not just one)
 3. Check hands-on validation for phase unlocking
+4. Check `is_admin` flag if admin bypass not working

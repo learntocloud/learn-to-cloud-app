@@ -236,20 +236,6 @@ export function TopicContent({
             )}
           </div>
 
-          {/* Progress bar */}
-          {isAuthenticated && stepProgress && (
-            <div className="mb-4">
-              <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                <div
-                  className={`h-full transition-all duration-300 ${
-                    progressPercentage === 100 ? "bg-green-500" : "bg-blue-500"
-                  }`}
-                  style={{ width: `${progressPercentage}%` }}
-                />
-              </div>
-            </div>
-          )}
-
           {loadingSteps ? (
             <div className="flex items-center gap-2 text-gray-500 py-4">
               <svg className="animate-spin w-5 h-5" viewBox="0 0 24 24">

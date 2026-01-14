@@ -201,7 +201,8 @@ function calculatePhaseProgress(
   questionsStatusMap: Record<string, TopicQuestionsStatus>,
   stepsStatusMap: Record<string, number[]>,
   githubValidated: boolean = true,  // Whether all GitHub requirements for this phase are validated
-  hasGitHubRequirements: boolean = false  // Whether this phase has GitHub requirements
+  handsOnRequiredCount: number = 0,  // Number of hands-on requirements for this phase
+  handsOnValidatedCount: number = 0  // Number of validated hands-on submissions
 ): PhaseProgress {
   // Count both questions and steps for progress calculation
   let totalItems = 0;
@@ -221,13 +222,11 @@ function calculatePhaseProgress(
     completedItems += status?.passed_questions ?? 0;
   }
   
-  // If phase has GitHub requirements, include it in the percentage calculation
-  // GitHub verification counts as 1 additional item toward completion
-  if (hasGitHubRequirements) {
-    totalItems += 1;
-    if (githubValidated) {
-      completedItems += 1;
-    }
+  // Include each hands-on requirement individually in the progress calculation
+  // Per SKILL.md: Phase Progress = (Steps + Questions + Hands-on Validated) / (Total Steps + Total Questions + Total Hands-on)
+  if (handsOnRequiredCount > 0) {
+    totalItems += handsOnRequiredCount;
+    completedItems += handsOnValidatedCount;
   }
   
   const percentage = totalItems > 0 ? (completedItems / totalItems) * 100 : 0;
@@ -282,10 +281,11 @@ export async function getPhasesWithProgress(): Promise<PhaseWithProgress[]> {
   
   // First pass: calculate progress for all phases (steps + questions + GitHub)
   const phasesWithProgress = phases.map(phase => {
-    // Check if GitHub requirements are validated for this phase
+    // Get hands-on requirements and count validated submissions for this phase
     const githubReqs = githubRequirementsMap.get(phase.id);
-    const hasGitHubRequirements = githubReqs?.has_requirements ?? false;
-    const githubValidated = !hasGitHubRequirements || githubReqs!.all_validated;
+    const handsOnRequiredCount = githubReqs?.requirements.length ?? 0;
+    const handsOnValidatedCount = githubReqs?.submissions.filter(s => s.is_validated).length ?? 0;
+    const githubValidated = handsOnRequiredCount === 0 || handsOnValidatedCount >= handsOnRequiredCount;
     
     const progress = calculatePhaseProgress(
       phase.id,
@@ -293,7 +293,8 @@ export async function getPhasesWithProgress(): Promise<PhaseWithProgress[]> {
       questionsStatusMap,
       stepsStatusMap,
       githubValidated,
-      hasGitHubRequirements  // Include GitHub in percentage calculation
+      handsOnRequiredCount,
+      handsOnValidatedCount
     );
     
     return {
@@ -344,10 +345,11 @@ async function checkPhaseLocked(
     const prevPhase = phases.find(p => p.id === i);
     if (!prevPhase) continue;
     
-    // Check if GitHub requirements are validated for this phase
+    // Get hands-on requirements and count validated submissions for this phase
     const prevGithubReqs = githubReqs.get(prevPhase.id);
-    const hasGitHubRequirements = prevGithubReqs?.has_requirements ?? false;
-    const githubValidated = !hasGitHubRequirements || prevGithubReqs!.all_validated;
+    const handsOnRequiredCount = prevGithubReqs?.requirements.length ?? 0;
+    const handsOnValidatedCount = prevGithubReqs?.submissions.filter(s => s.is_validated).length ?? 0;
+    const githubValidated = handsOnRequiredCount === 0 || handsOnValidatedCount >= handsOnRequiredCount;
     
     const prevProgress = calculatePhaseProgress(
       prevPhase.id,
@@ -355,7 +357,8 @@ async function checkPhaseLocked(
       questionsStatus,
       stepsStatus,
       githubValidated,
-      hasGitHubRequirements  // Include GitHub in percentage
+      handsOnRequiredCount,
+      handsOnValidatedCount
     );
     
     // If previous phase is not completed, this phase is locked
@@ -403,8 +406,9 @@ export async function getPhaseWithProgressBySlug(slug: string): Promise<(PhaseDe
   
   // Include GitHub validation in phase progress
   const githubReqs = githubRequirementsMap.get(phase.id);
-  const hasGitHubRequirements = githubReqs?.has_requirements ?? false;
-  const githubValidated = !hasGitHubRequirements || githubReqs!.all_validated;
+  const handsOnRequiredCount = githubReqs?.requirements.length ?? 0;
+  const handsOnValidatedCount = githubReqs?.submissions.filter(s => s.is_validated).length ?? 0;
+  const githubValidated = handsOnRequiredCount === 0 || handsOnValidatedCount >= handsOnRequiredCount;
   
   const progress = calculatePhaseProgress(
     phase.id,
@@ -412,7 +416,8 @@ export async function getPhaseWithProgressBySlug(slug: string): Promise<(PhaseDe
     questionsStatusMap,
     stepsStatusMap,
     githubValidated,
-    hasGitHubRequirements  // Include GitHub in percentage
+    handsOnRequiredCount,
+    handsOnValidatedCount
   );
   
   return {

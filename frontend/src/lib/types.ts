@@ -121,7 +121,14 @@ export interface DashboardResponse {
 
 // ============ GitHub Submission Types ============
 
-export type SubmissionType = 'profile_readme' | 'repo_fork' | 'deployed_app';
+export type SubmissionType = 
+  | 'github_profile'   // GitHub profile URL
+  | 'profile_readme'   // GitHub profile README
+  | 'repo_fork'        // Fork of a required repository
+  | 'repo_url'         // Any repository URL
+  | 'deployed_app'     // Live deployed application
+  | 'ctf_token'        // CTF challenge completion token
+  | 'api_challenge';   // API-based challenge response
 
 export interface GitHubRequirement {
   id: string;
@@ -218,7 +225,13 @@ export interface StreakResponse {
   streak_alive: boolean;
 }
 
-export type ActivityType = 'question_attempt' | 'topic_complete' | 'certificate_earned';
+export type ActivityType = 
+  | 'question_attempt' 
+  | 'step_complete'
+  | 'topic_complete' 
+  | 'hands_on_validated'
+  | 'phase_complete'
+  | 'certificate_earned';
 
 export interface ActivityHeatmapDay {
   date: string;
