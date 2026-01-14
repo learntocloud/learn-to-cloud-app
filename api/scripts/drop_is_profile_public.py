@@ -9,7 +9,7 @@ from core.database import get_engine
 
 async def main():
     """Drop the is_profile_public column if it exists."""
-    engine = await get_engine()
+    engine = get_engine()
     async with engine.begin() as conn:
         await conn.execute(
             text("ALTER TABLE users DROP COLUMN IF EXISTS is_profile_public")
