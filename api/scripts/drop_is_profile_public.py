@@ -1,4 +1,4 @@
-"""One-time migration: Clean up database - drop is_profile_public column and remove invalid activity types."""
+"""One-time migration: Clean up database - drop orphaned constraints and invalid data."""
 
 import asyncio
 
@@ -8,9 +8,19 @@ from core.database import get_engine
 
 
 async def main():
-    """Clean up database: drop unused column and invalid data."""
+    """Clean up database: drop orphaned constraints and invalid data."""
     engine = get_engine()
     async with engine.begin() as conn:
+        # Drop orphaned constraint if it exists (from old table)
+        await conn.execute(
+            text("ALTER TABLE IF EXISTS submissions DROP CONSTRAINT IF EXISTS uq_user_requirement")
+        )
+        # Also try dropping by itself in case the table doesn't exist
+        await conn.execute(
+            text("DROP INDEX IF EXISTS uq_user_requirement")
+        )
+        print("✅ Cleaned up orphaned constraints")
+        
         # Drop the is_profile_public column
         await conn.execute(
             text("ALTER TABLE users DROP COLUMN IF EXISTS is_profile_public")
