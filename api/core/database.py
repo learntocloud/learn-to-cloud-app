@@ -119,11 +119,16 @@ def get_engine() -> AsyncEngine:
                 {}
                 if is_sqlite
                 else {
-                    "pool_size": 5,
-                    "max_overflow": 5,
-                    "pool_timeout": 30,
-                    "pool_recycle": 300,
+                    "pool_size": settings.db_pool_size,
+                    "max_overflow": settings.db_pool_max_overflow,
+                    "pool_timeout": settings.db_pool_timeout,
+                    "pool_recycle": settings.db_pool_recycle,
                     "pool_pre_ping": True,
+                    "connect_args": {
+                        "server_settings": {
+                            "statement_timeout": str(settings.db_statement_timeout_ms)
+                        }
+                    },
                 }
             ),
             **({} if async_creator is None else {"async_creator": async_creator}),
@@ -163,21 +168,26 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """
     FastAPI dependency that provides a database session.
 
+    Handles transaction lifecycle automatically:
+    - Commits on successful completion (no-op for read-only requests)
+    - Rolls back on any exception
+
     Usage:
         @app.get("/items")
         async def get_items(db: DbSession):
             result = await db.execute(select(Item))
             return result.scalars().all()
+
+    Notes:
+        - Use flush() within a request if you need auto-generated IDs
+        - Use refresh() after flush if you need DB-side defaults
+        - Do NOT call commit() in route handlers - this dependency handles it
     """
     session_maker = get_session_maker()
     async with session_maker() as session:
         try:
             yield session
-            # Always commit if we're in a transaction - flush() may have written
-            # data that needs to be committed, and the session.new/dirty/deleted
-            # attributes are cleared after flush()
-            if session.in_transaction():
-                await session.commit()
+            await session.commit()
         except Exception:
             await session.rollback()
             raise
@@ -276,8 +286,10 @@ async def upsert_on_conflict(
         index_elements: Column names that form the unique constraint
         update_fields: Column names to update on conflict
 
-    Note: This function commits the transaction since raw SQL executes
-    don't track changes in session.new/dirty/deleted.
+    Note:
+        This function does NOT commit. The caller (typically the get_db
+        dependency) is responsible for committing the transaction. This
+        allows multiple upserts to be composed atomically.
     """
     bind = db.get_bind()
     dialect_name = bind.dialect.name if bind is not None else ""
@@ -293,7 +305,6 @@ async def upsert_on_conflict(
             set_=update_set,
         )
         await db.execute(stmt)
-        await db.commit()
 
     elif dialect_name == "sqlite":
         from sqlalchemy.dialects.sqlite import insert as sqlite_insert
@@ -304,7 +315,6 @@ async def upsert_on_conflict(
             set_=update_set,
         )
         await db.execute(stmt)
-        await db.commit()
 
     else:
         from sqlalchemy import and_, select
@@ -319,3 +329,4 @@ async def upsert_on_conflict(
                     setattr(existing, field, values[field])
         else:
             db.add(model(**values))
+        await db.flush()

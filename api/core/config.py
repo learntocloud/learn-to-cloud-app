@@ -34,6 +34,13 @@ class Settings(BaseSettings):
 
     frontend_url: str = "http://localhost:4280"
 
+    # Database pool settings (PostgreSQL only)
+    db_pool_size: int = 5
+    db_pool_max_overflow: int = 5
+    db_pool_timeout: int = 30
+    db_pool_recycle: int = 300
+    db_statement_timeout_ms: int = 30000  # 30 seconds
+
     environment: str = "development"
 
     reset_db_on_startup: bool = False
