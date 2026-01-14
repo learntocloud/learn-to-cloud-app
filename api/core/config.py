@@ -43,8 +43,6 @@ class Settings(BaseSettings):
 
     environment: str = "development"
 
-    reset_db_on_startup: bool = False
-
     @property
     def use_azure_postgres(self) -> bool:
         """Check if Azure PostgreSQL with managed identity should be used."""

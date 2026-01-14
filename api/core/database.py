@@ -195,39 +195,38 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 DbSession = Annotated[AsyncSession, Depends(get_db)]
 
 async def init_db() -> None:
-    """Initialize database tables (create all).
+    """Verify database connectivity at startup.
     
-    Uses asyncio.wait_for to prevent hanging indefinitely on database operations.
+    This only checks that the database is reachable. Schema management should be
+    handled separately via migrations or the create_tables() function.
     """
-    settings = get_settings()
     engine = get_engine()
     
-    logger.info("Starting database initialization...")
+    logger.info("Verifying database connectivity...")
     
     try:
-        async with asyncio.timeout(60):  # 60 second timeout for entire init
-            async with engine.begin() as conn:
-                if settings.reset_db_on_startup:
-                    if settings.environment != "development":
-                        logger.warning(
-                            "reset_db_on_startup is enabled but environment is not development; skipping drop_all"
-                        )
-                    else:
-                        logger.info("Dropping all tables (reset_db_on_startup=true)...")
-                        await conn.run_sync(Base.metadata.drop_all)
-                        logger.info("Tables dropped successfully")
-                
-                logger.info("Creating tables...")
-                await conn.run_sync(Base.metadata.create_all)
-                logger.info("Tables created successfully")
+        async with asyncio.timeout(30):
+            async with engine.connect() as conn:
+                await conn.execute(text("SELECT 1"))
+        logger.info("Database connection verified")
     except TimeoutError:
-        logger.error("Database initialization timed out after 60 seconds")
+        logger.error("Database connection timed out after 30 seconds")
         raise
     except Exception as e:
-        logger.error(f"Database initialization failed: {e}")
+        logger.error(f"Database connection failed: {e}")
         raise
+
+
+async def create_tables() -> None:
+    """Create all database tables. Run this once for initial setup.
     
-    logger.info("Database initialization complete")
+    Usage: python -c "import asyncio; from core.database import create_tables; asyncio.run(create_tables())"
+    """
+    engine = get_engine()
+    logger.info("Creating database tables...")
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    logger.info("Tables created successfully")
 
 async def check_db_connection() -> None:
     """Verify the database is reachable.
