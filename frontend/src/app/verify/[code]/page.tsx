@@ -178,9 +178,9 @@ export default async function VerifyPage({ params }: VerifyPageProps) {
                 <p className="text-xs uppercase tracking-wider text-gray-500 dark:text-slate-400 font-medium mb-1">Progress</p>
                 <div className="flex items-center gap-2">
                   <p className="text-gray-900 dark:text-slate-100 font-semibold">
-                    {result.certificate.topics_completed}/{result.certificate.total_topics} topics
+                    {result.certificate.phases_completed}/{result.certificate.total_phases} phases
                   </p>
-                  {result.certificate.topics_completed === result.certificate.total_topics && (
+                  {result.certificate.phases_completed === result.certificate.total_phases && (
                     <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 font-medium">
                       100%
                     </span>

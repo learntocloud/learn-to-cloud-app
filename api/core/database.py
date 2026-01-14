@@ -28,20 +28,15 @@ from .config import get_settings
 
 logger = logging.getLogger(__name__)
 
-# Cache the Azure credential instance (creating it can be expensive).
 _azure_credential = None
-
 
 class Base(DeclarativeBase):
     """Base class for all SQLAlchemy models."""
 
     pass
 
-
-# Module-level state (lazy initialized)
 _engine: AsyncEngine | None = None
 _async_session_maker: async_sessionmaker[AsyncSession] | None = None
-
 
 def _get_azure_credential():
     """Get or create the cached DefaultAzureCredential instance."""
@@ -52,18 +47,15 @@ def _get_azure_credential():
         _azure_credential = DefaultAzureCredential()
     return _azure_credential
 
-
 def _get_azure_token_sync() -> str:
     """Get an Azure AD token for PostgreSQL authentication (sync, may block)."""
     credential = _get_azure_credential()
     token = credential.get_token("https://ossrdbms-aad.database.windows.net/.default")
     return token.token
 
-
 async def _get_azure_token() -> str:
     """Get an Azure AD token for PostgreSQL authentication without blocking the event loop."""
     return await asyncio.to_thread(_get_azure_token_sync)
-
 
 def _build_azure_database_url() -> str:
     """Build a PostgreSQL SQLAlchemy URL for Azure (password provided dynamically)."""
@@ -73,7 +65,6 @@ def _build_azure_database_url() -> str:
         f"@{settings.postgres_host}:5432/{settings.postgres_database}"
         f"?ssl=require"
     )
-
 
 async def _azure_asyncpg_creator():
     """Create an asyncpg connection using a fresh AAD token.
@@ -96,7 +87,6 @@ async def _azure_asyncpg_creator():
         timeout=30,
     )
 
-
 def get_engine() -> AsyncEngine:
     """
     Get or create the database engine (lazy initialization).
@@ -112,14 +102,11 @@ def get_engine() -> AsyncEngine:
     if _engine is None:
         settings = get_settings()
 
-        # Determine which database URL to use
         if settings.use_azure_postgres:
-            # Azure: Use managed identity token (fetched per new connection)
             database_url = _build_azure_database_url()
             is_sqlite = False
             async_creator = _azure_asyncpg_creator
         else:
-            # Local: Use DATABASE_URL from environment
             database_url = settings.database_url
             is_sqlite = "sqlite" in database_url
             async_creator = None
@@ -127,34 +114,29 @@ def get_engine() -> AsyncEngine:
         _engine = create_async_engine(
             database_url,
             echo=settings.environment == "development",
-            # SQLite doesn't support connection pooling
             poolclass=NullPool if is_sqlite else None,
-            # Connection pool settings for PostgreSQL (asyncpg)
             **(
                 {}
                 if is_sqlite
                 else {
-                    "pool_size": 5,  # Base connections to keep open
-                    "max_overflow": 5,  # Extra connections when busy (max 10 total)
-                    "pool_timeout": 30,  # Wait time for available connection
-                    "pool_recycle": 300,  # Recycle connections every 5 min (tokens expire)
-                    "pool_pre_ping": True,  # Verify connections before use
+                    "pool_size": 5,
+                    "max_overflow": 5,
+                    "pool_timeout": 30,
+                    "pool_recycle": 300,
+                    "pool_pre_ping": True,
                 }
             ),
             **({} if async_creator is None else {"async_creator": async_creator}),
         )
 
-        # SQLite does not enforce foreign keys unless explicitly enabled.
-        # We rely on ON DELETE CASCADE for user deletion.
         if is_sqlite:
 
             @event.listens_for(_engine.sync_engine, "connect")
-            def _set_sqlite_pragma(dbapi_connection, connection_record) -> None:  # type: ignore[no-redef]
+            def _set_sqlite_pragma(dbapi_connection, connection_record) -> None:
                 cursor = dbapi_connection.cursor()
                 cursor.execute("PRAGMA foreign_keys=ON")
                 cursor.close()
 
-        # Instrument SQLAlchemy for query performance tracking
         try:
             from .telemetry import instrument_sqlalchemy_engine
 
@@ -163,7 +145,6 @@ def get_engine() -> AsyncEngine:
             logger.warning(f"Failed to instrument SQLAlchemy for telemetry: {e}")
 
     return _engine
-
 
 def get_session_maker() -> async_sessionmaker[AsyncSession]:
     """Get or create the session factory (lazy initialization)."""
@@ -177,7 +158,6 @@ def get_session_maker() -> async_sessionmaker[AsyncSession]:
             autoflush=False,
         )
     return _async_session_maker
-
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """
@@ -196,16 +176,12 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
             if session.new or session.dirty or session.deleted:
                 await session.commit()
             elif session.in_transaction():
-                # End any implicit read-only transaction cleanly.
                 await session.rollback()
         except Exception:
             await session.rollback()
             raise
 
-
-# Type alias for cleaner dependency injection
 DbSession = Annotated[AsyncSession, Depends(get_db)]
-
 
 async def init_db() -> None:
     """Initialize database tables (create all)."""
@@ -221,7 +197,6 @@ async def init_db() -> None:
                 await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
 
-
 async def check_db_connection() -> None:
     """Verify the database is reachable.
 
@@ -231,7 +206,6 @@ async def check_db_connection() -> None:
     engine = get_engine()
     async with engine.connect() as conn:
         await conn.execute(text("SELECT 1"))
-
 
 async def cleanup_old_webhooks(days: int = 7) -> int:
     """
@@ -250,7 +224,7 @@ async def cleanup_old_webhooks(days: int = 7) -> int:
 
     from sqlalchemy import delete
 
-    from .models import ProcessedWebhook
+    from models import ProcessedWebhook
 
     cutoff = datetime.now(timezone.utc) - timedelta(days=days)
     session_maker = get_session_maker()
@@ -261,7 +235,6 @@ async def cleanup_old_webhooks(days: int = 7) -> int:
         )
         await session.commit()
         return result.rowcount or 0
-
 
 def reset_db_state() -> None:
     """
@@ -281,7 +254,6 @@ def reset_db_state() -> None:
     global _engine, _async_session_maker
     _engine = None
     _async_session_maker = None
-
 
 async def upsert_on_conflict(
     db: AsyncSession,
@@ -334,8 +306,6 @@ async def upsert_on_conflict(
         await db.commit()
 
     else:
-        # Fallback for other dialects: select then insert/update
-        # These use ORM methods so session tracking works
         from sqlalchemy import and_, select
 
         conditions = [getattr(model, elem) == values[elem] for elem in index_elements]

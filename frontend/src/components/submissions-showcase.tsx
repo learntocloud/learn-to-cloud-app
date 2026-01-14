@@ -109,7 +109,7 @@ export function SubmissionsShowcase({ submissions }: SubmissionsShowcaseProps) {
           return (
             <a
               key={submission.requirement_id}
-              href={submission.submitted_url}
+              href={submission.submitted_value}
               target="_blank"
               rel="noopener noreferrer"
               className={`block p-4 rounded-xl border ${colors.border} ${colors.bg} hover:shadow-md transition-all group`}

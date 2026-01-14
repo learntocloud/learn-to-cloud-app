@@ -16,7 +16,7 @@ export function ShareProfileCard({ profile, username }: ShareProfileCardProps) {
     ? `${window.location.origin}/user/${username}`
     : `/user/${username}`;
 
-  const shareText = `Check out my Learn to Cloud progress! ${profile.completed_topics} items completed, Phase ${profile.current_phase}, ${profile.streak.current_streak} day streak 🔥`;
+  const shareText = `Check out my Learn to Cloud progress! ${profile.phases_completed} phases completed, Phase ${profile.current_phase}, ${profile.streak.current_streak} day streak 🔥`;
 
   const handleCopyLink = async () => {
     try {

@@ -6,39 +6,38 @@ from typing import Annotated
 from fastapi import APIRouter, HTTPException, Path, Request
 from slowapi import Limiter
 from slowapi.util import get_remote_address
-from sqlalchemy import func, select
 
-from shared.auth import UserId
-from shared.database import DbSession
-from shared.llm import grade_answer
-from shared.models import ActivityType, QuestionAttempt, UserActivity
-from shared.schemas import (
+from core.auth import UserId
+from core.database import DbSession
+from schemas import (
     QuestionStatusResponse,
     QuestionSubmitRequest,
     QuestionSubmitResponse,
     TopicQuestionsStatusResponse,
 )
-
-from .users import get_or_create_user
+from services.questions import (
+    LLMGradingError,
+    LLMServiceUnavailableError,
+    get_all_questions_status,
+    get_topic_questions_status,
+    submit_question_answer,
+)
+from services.users import get_or_create_user
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/questions", tags=["questions"])
 
-# Rate limiter for LLM calls (more restrictive than default)
 limiter = Limiter(key_func=get_remote_address)
 
-
-# Validated topic_id: e.g., "phase1-topic4"
 ValidatedTopicId = Annotated[
     str,
     Path(max_length=100, pattern=r"^phase\d+-topic\d+$"),
 ]
 
-
 @router.post("/submit", response_model=QuestionSubmitResponse)
-@limiter.limit("10/minute")  # Stricter rate limit for LLM calls
-async def submit_question_answer(
+@limiter.limit("10/minute")
+async def submit_question_answer_endpoint(
     request: Request,
     submission: QuestionSubmitRequest,
     user_id: UserId,
@@ -51,8 +50,6 @@ async def submit_question_answer(
     """
     await get_or_create_user(db, user_id)
 
-    # Extract topic and question info from IDs
-    # question_id format: "phase1-topic4-q1"
     parts = submission.question_id.split("-")
     if len(parts) < 3:
         raise HTTPException(
@@ -60,76 +57,39 @@ async def submit_question_answer(
             detail="Invalid question_id format. Expected: phase{N}-topic{M}-q{X}",
         )
 
-    # For now, we'll use placeholder question data
-    # In production, this would come from the frontend content or a questions API
-    # The frontend will pass the question prompt and expected concepts
-    # For MVP, we'll grade based on the answer alone with generic expectations
-
-    # TODO: Fetch question details from content or add a questions endpoint
-    # For now, use a generic grading approach
-    question_prompt = "Explain the concept in your own words."
-    expected_concepts = ["understanding", "explanation", "concept"]
-    topic_name = submission.topic_id
-
     try:
-        grade_result = await grade_answer(
-            question_prompt=question_prompt,
-            expected_concepts=expected_concepts,
+        result = await submit_question_answer(
+            db=db,
+            user_id=user_id,
+            topic_id=submission.topic_id,
+            question_id=submission.question_id,
             user_answer=submission.user_answer,
-            topic_name=topic_name,
         )
-    except ValueError as e:
-        # API key not configured
-        logger.error(f"LLM configuration error: {e}")
+    except LLMServiceUnavailableError:
         raise HTTPException(
             status_code=503,
             detail="Question grading service is temporarily unavailable",
         )
-    except Exception as e:
-        logger.exception(f"LLM grading failed: {e}")
+    except LLMGradingError:
         raise HTTPException(
             status_code=500,
             detail="Failed to grade your answer. Please try again.",
         )
 
-    # Save the attempt
-    attempt = QuestionAttempt(
-        user_id=user_id,
-        topic_id=submission.topic_id,
-        question_id=submission.question_id,
-        user_answer=submission.user_answer,
-        is_passed=grade_result.is_passed,
-        llm_feedback=grade_result.feedback,
-        confidence_score=grade_result.confidence_score,
-    )
-    db.add(attempt)
-
-    # Log activity for streak tracking
-    activity = UserActivity(
-        user_id=user_id,
-        activity_type=ActivityType.QUESTION_ATTEMPT,
-        reference_id=submission.question_id,
-    )
-    db.add(activity)
-
-    await db.commit()
-    await db.refresh(attempt)
-
     return QuestionSubmitResponse(
-        question_id=submission.question_id,
-        is_passed=grade_result.is_passed,
-        llm_feedback=grade_result.feedback,
-        confidence_score=grade_result.confidence_score,
-        attempt_id=attempt.id,
+        question_id=result.question_id,
+        is_passed=result.is_passed,
+        llm_feedback=result.feedback,
+        confidence_score=result.confidence_score,
+        attempt_id=result.attempt_id,
     )
-
 
 @router.post(
     "/submit-with-context",
     response_model=QuestionSubmitResponse,
 )
 @limiter.limit("10/minute")
-async def submit_question_with_context(
+async def submit_question_with_context_endpoint(
     request: Request,
     topic_id: str,
     question_id: str,
@@ -148,59 +108,37 @@ async def submit_question_with_context(
     await get_or_create_user(db, user_id)
 
     try:
-        grade_result = await grade_answer(
+        result = await submit_question_answer(
+            db=db,
+            user_id=user_id,
+            topic_id=topic_id,
+            question_id=question_id,
+            user_answer=user_answer,
             question_prompt=question_prompt,
             expected_concepts=expected_concepts,
-            user_answer=user_answer,
             topic_name=topic_name,
         )
-    except ValueError as e:
-        logger.error(f"LLM configuration error: {e}")
+    except LLMServiceUnavailableError:
         raise HTTPException(
             status_code=503,
             detail="Question grading service is temporarily unavailable",
         )
-    except Exception as e:
-        logger.exception(f"LLM grading failed: {e}")
+    except LLMGradingError:
         raise HTTPException(
             status_code=500,
             detail="Failed to grade your answer. Please try again.",
         )
 
-    # Save the attempt
-    attempt = QuestionAttempt(
-        user_id=user_id,
-        topic_id=topic_id,
-        question_id=question_id,
-        user_answer=user_answer,
-        is_passed=grade_result.is_passed,
-        llm_feedback=grade_result.feedback,
-        confidence_score=grade_result.confidence_score,
-    )
-    db.add(attempt)
-
-    # Log activity
-    activity = UserActivity(
-        user_id=user_id,
-        activity_type=ActivityType.QUESTION_ATTEMPT,
-        reference_id=question_id,
-    )
-    db.add(activity)
-
-    await db.commit()
-    await db.refresh(attempt)
-
     return QuestionSubmitResponse(
-        question_id=question_id,
-        is_passed=grade_result.is_passed,
-        llm_feedback=grade_result.feedback,
-        confidence_score=grade_result.confidence_score,
-        attempt_id=attempt.id,
+        question_id=result.question_id,
+        is_passed=result.is_passed,
+        llm_feedback=result.feedback,
+        confidence_score=result.confidence_score,
+        attempt_id=result.attempt_id,
     )
-
 
 @router.get("/topic/{topic_id}/status", response_model=TopicQuestionsStatusResponse)
-async def get_topic_questions_status(
+async def get_topic_questions_status_endpoint(
     topic_id: ValidatedTopicId,
     user_id: UserId,
     db: DbSession,
@@ -211,61 +149,26 @@ async def get_topic_questions_status(
     """
     await get_or_create_user(db, user_id)
 
-    # Get all attempts for this topic, grouped by question_id
-    result = await db.execute(
-        select(
-            QuestionAttempt.question_id,
-            func.count(QuestionAttempt.id).label("attempts_count"),
-            func.max(QuestionAttempt.created_at).label("last_attempt_at"),
-        )
-        .where(
-            QuestionAttempt.user_id == user_id,
-            QuestionAttempt.topic_id == topic_id,
-        )
-        .group_by(QuestionAttempt.question_id)
-    )
-
-    rows = result.all()
-
-    # Also check if any attempt passed (simpler query)
-    passed_result = await db.execute(
-        select(QuestionAttempt.question_id)
-        .where(
-            QuestionAttempt.user_id == user_id,
-            QuestionAttempt.topic_id == topic_id,
-            QuestionAttempt.is_passed == True,  # noqa: E712
-        )
-        .distinct()
-    )
-    passed_questions = {row[0] for row in passed_result.all()}
-
-    questions = []
-    for row in rows:
-        questions.append(
-            QuestionStatusResponse(
-                question_id=row.question_id,
-                is_passed=row.question_id in passed_questions,
-                attempts_count=int(row.attempts_count),
-                last_attempt_at=row.last_attempt_at,
-            )
-        )
-
-    # Note: total_questions should come from the content JSON
-    # For now, we only know about questions that have been attempted
-    passed_count = len(passed_questions)
-    total = len(questions) if questions else 0
+    status = await get_topic_questions_status(db, user_id, topic_id)
 
     return TopicQuestionsStatusResponse(
-        topic_id=topic_id,
-        questions=questions,
-        all_passed=passed_count == total and total > 0,
-        total_questions=total,
-        passed_questions=passed_count,
+        topic_id=status.topic_id,
+        questions=[
+            QuestionStatusResponse(
+                question_id=q.question_id,
+                is_passed=q.is_passed,
+                attempts_count=q.attempts_count,
+                last_attempt_at=q.last_attempt_at,
+            )
+            for q in status.questions
+        ],
+        all_passed=status.all_passed,
+        total_questions=status.total_questions,
+        passed_questions=status.passed_questions,
     )
 
-
 @router.get("/user/all-status")
-async def get_all_questions_status(
+async def get_all_questions_status_endpoint(
     user_id: UserId,
     db: DbSession,
 ) -> dict[str, TopicQuestionsStatusResponse]:
@@ -275,45 +178,24 @@ async def get_all_questions_status(
     """
     await get_or_create_user(db, user_id)
 
-    # Get all passed questions grouped by topic
-    result = await db.execute(
-        select(
-            QuestionAttempt.topic_id,
-            QuestionAttempt.question_id,
-        )
-        .where(
-            QuestionAttempt.user_id == user_id,
-            QuestionAttempt.is_passed == True,  # noqa: E712
-        )
-        .distinct()
-    )
+    all_status = await get_all_questions_status(db, user_id)
 
-    # Group by topic
-    topic_passed: dict[str, set[str]] = {}
-    for row in result.all():
-        topic_id = row.topic_id
-        if topic_id not in topic_passed:
-            topic_passed[topic_id] = set()
-        topic_passed[topic_id].add(row.question_id)
-
-    # Build response
     response = {}
-    for topic_id, passed_questions in topic_passed.items():
-        passed_count = len(passed_questions)
+    for topic_id, status in all_status.items():
         response[topic_id] = TopicQuestionsStatusResponse(
-            topic_id=topic_id,
+            topic_id=status.topic_id,
             questions=[
                 QuestionStatusResponse(
-                    question_id=q,
-                    is_passed=True,
-                    attempts_count=1,  # Simplified
-                    last_attempt_at=None,
+                    question_id=q.question_id,
+                    is_passed=q.is_passed,
+                    attempts_count=q.attempts_count,
+                    last_attempt_at=q.last_attempt_at,
                 )
-                for q in passed_questions
+                for q in status.questions
             ],
-            all_passed=True,  # Only returned if passed
-            total_questions=passed_count,
-            passed_questions=passed_count,
+            all_passed=status.all_passed,
+            total_questions=status.total_questions,
+            passed_questions=status.passed_questions,
         )
 
     return response

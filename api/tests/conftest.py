@@ -5,6 +5,7 @@ Provides isolated test database and async session fixtures.
 
 import asyncio
 from collections.abc import AsyncGenerator
+from datetime import UTC, datetime
 from typing import Any
 
 import pytest
@@ -13,13 +14,19 @@ from sqlalchemy import event
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
-from shared.database import Base
-from shared.models import Certificate, QuestionAttempt, User
+from core.database import Base
+from services.hands_on_verification import get_requirements_for_phase
+from models import (
+    Certificate,
+    QuestionAttempt,
+    StepProgress,
+    Submission,
+    SubmissionType,
+    User,
+)
+from services.progress import PHASE_REQUIREMENTS, TOTAL_PHASES
 
-
-# Use in-memory SQLite for tests (isolated from dev database)
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
-
 
 @pytest.fixture(scope="session")
 def event_loop():
@@ -28,33 +35,28 @@ def event_loop():
     yield loop
     loop.close()
 
-
 @pytest_asyncio.fixture(scope="function")
 async def test_engine():
     """Create a fresh in-memory database engine for each test."""
     engine = create_async_engine(
         TEST_DATABASE_URL,
         connect_args={"check_same_thread": False},
-        poolclass=StaticPool,  # Required for in-memory SQLite with async
+        poolclass=StaticPool,
         echo=False,
     )
     
-    # Enable foreign keys for SQLite
     @event.listens_for(engine.sync_engine, "connect")
     def set_sqlite_pragma(dbapi_connection: Any, connection_record: Any) -> None:
         cursor = dbapi_connection.cursor()
         cursor.execute("PRAGMA foreign_keys=ON")
         cursor.close()
     
-    # Create all tables
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     
     yield engine
     
-    # Cleanup
     await engine.dispose()
-
 
 @pytest_asyncio.fixture(scope="function")
 async def db_session(test_engine) -> AsyncGenerator[AsyncSession, None]:
@@ -71,9 +73,7 @@ async def db_session(test_engine) -> AsyncGenerator[AsyncSession, None]:
     
     async with session_maker() as session:
         yield session
-        # Rollback any uncommitted changes
         await session.rollback()
-
 
 @pytest_asyncio.fixture
 async def test_user(db_session: AsyncSession) -> User:
@@ -90,75 +90,88 @@ async def test_user(db_session: AsyncSession) -> User:
     await db_session.refresh(user)
     return user
 
+async def _add_submissions_for_phase(
+    db: AsyncSession, user_id: str, phase_id: int
+) -> None:
+    """Add validated submissions for all requirements in a phase."""
+    requirements = get_requirements_for_phase(phase_id)
+    for req in requirements:
+        submission = Submission(
+            user_id=user_id,
+            requirement_id=req.id,
+            submission_type=SubmissionType.GITHUB_PROFILE,
+            phase_id=phase_id,
+            submitted_value="https://github.com/testuser/test",
+            extracted_username="testuser",
+            is_validated=True,
+            validated_at=datetime.now(UTC),
+        )
+        db.add(submission)
 
 @pytest_asyncio.fixture
 async def test_user_with_progress(db_session: AsyncSession, test_user: User) -> User:
-    """Create a test user with some question progress.
-    
-    Adds passed questions for phase0 topics (simulating partial completion).
+    """Create a test user with some phase progress.
+
+    Adds passed questions, steps, and GitHub submissions for 3 complete phases.
     """
-    # Add passed questions for 3 topics in phase0 (2 questions each = 6 questions)
-    topics = ["phase0-linux", "phase0-networking", "phase0-programming"]
-    for topic_id in topics:
-        for q_num in [1, 2]:
+    for phase_id in [0, 1, 2]:
+        req = PHASE_REQUIREMENTS[phase_id]
+
+        for step_num in range(req.steps):
+            step = StepProgress(
+                user_id=test_user.id,
+                topic_id=f"phase{phase_id}-topic{step_num // 3}",
+                step_order=step_num % 3,
+            )
+            db_session.add(step)
+
+        for q_num in range(req.questions):
+            topic_num = q_num // 2
+            q_in_topic = (q_num % 2) + 1
             attempt = QuestionAttempt(
                 user_id=test_user.id,
-                topic_id=topic_id,
-                question_id=f"{topic_id}-q{q_num}",
+                topic_id=f"phase{phase_id}-topic{topic_num}",
+                question_id=f"phase{phase_id}-topic{topic_num}-q{q_in_topic}",
                 user_answer="Test answer",
                 is_passed=True,
                 llm_feedback="Good answer!",
             )
             db_session.add(attempt)
-    
+
+        await _add_submissions_for_phase(db_session, test_user.id, phase_id)
+
     await db_session.commit()
     return test_user
 
-
 @pytest_asyncio.fixture
 async def test_user_full_completion(db_session: AsyncSession, test_user: User) -> User:
-    """Create a test user with all topics completed.
-    
-    Adds passed questions for all 40 topics (2 questions each = 80 questions).
+    """Create a test user with all phases completed.
+
+    Adds passed questions, steps, and GitHub submissions for all 7 phases.
     """
-    # All topics across all phases
-    all_topics = [
-        # Phase 0
-        "phase0-linux", "phase0-networking", "phase0-programming",
-        "phase0-cloud-computing", "phase0-cloud-engineer", "phase0-devops",
-        # Phase 1
-        "phase1-cli-basics", "phase1-cloud-cli", "phase1-ctf-lab",
-        "phase1-iac", "phase1-ssh", "phase1-version-control",
-        # Phase 2
-        "phase2-python", "phase2-apis", "phase2-databases",
-        "phase2-fastapi", "phase2-genai-apis", "phase2-prompt-engineering",
-        "phase2-build-the-app",
-        # Phase 3
-        "phase3-vms-compute", "phase3-cloud-networking", "phase3-security-iam",
-        "phase3-database-deployment", "phase3-fastapi-deployment",
-        "phase3-billing-cost-management", "phase3-secure-remote-access",
-        "phase3-cloud-ai-services", "phase3-capstone",
-        # Phase 4
-        "phase4-containers", "phase4-container-orchestration", "phase4-cicd",
-        "phase4-infrastructure-as-code", "phase4-monitoring-observability",
-        "phase4-capstone",
-        # Phase 5
-        "phase5-identity-access-management", "phase5-network-security",
-        "phase5-data-protection-secrets", "phase5-security-monitoring",
-        "phase5-threat-detection-response", "phase5-capstone",
-    ]
-    
-    for topic_id in all_topics:
-        for q_num in [1, 2]:
+    for phase_id, req in PHASE_REQUIREMENTS.items():
+        for step_num in range(req.steps):
+            step = StepProgress(
+                user_id=test_user.id,
+                topic_id=f"phase{phase_id}-topic{step_num // 3}",
+                step_order=step_num % 3,
+            )
+            db_session.add(step)
+
+        for q_num in range(req.questions):
+            topic_num = q_num // 2
+            q_in_topic = (q_num % 2) + 1
             attempt = QuestionAttempt(
                 user_id=test_user.id,
-                topic_id=topic_id,
-                question_id=f"{topic_id}-q{q_num}",
+                topic_id=f"phase{phase_id}-topic{topic_num}",
+                question_id=f"phase{phase_id}-topic{topic_num}-q{q_in_topic}",
                 user_answer="Test answer",
                 is_passed=True,
                 llm_feedback="Good answer!",
             )
             db_session.add(attempt)
-    
+
+        await _add_submissions_for_phase(db_session, test_user.id, phase_id)
+
     await db_session.commit()
     return test_user

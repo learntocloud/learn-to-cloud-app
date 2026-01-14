@@ -70,6 +70,9 @@ export function TopicContent({
   onQuestionProgressChange,
 }: TopicContentProps) {
   const api = useApi();
+
+  // Admins should have all content unlocked (including step-level ordering).
+  const [isAdmin, setIsAdmin] = useState(false);
   
   // State for step progress
   const [stepProgress, setStepProgress] = useState<TopicStepProgress | null>(null);
@@ -106,6 +109,19 @@ export function TopicContent({
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, topic.id, topic.learning_steps.length]);
+
+  // Fetch admin status (used to bypass step-level locks)
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setIsAdmin(false);
+      return;
+    }
+
+    api.getUserInfo()
+      .then((user) => setIsAdmin(Boolean(user.is_admin)))
+      .catch(() => setIsAdmin(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated]);
 
   // Fetch question status for authenticated users
   useEffect(() => {
@@ -180,6 +196,7 @@ export function TopicContent({
   // Helper to determine if a step is unlocked
   const isStepUnlocked = (stepOrder: number): boolean => {
     if (!isAuthenticated) return true; // Show all steps when not authenticated (no checkboxes)
+    if (isAdmin) return true;
     if (!stepProgress) return stepOrder === 1; // While loading, only first is unlocked
     
     // Step is unlocked if:

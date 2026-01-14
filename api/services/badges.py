@@ -9,60 +9,60 @@ No separate database table is needed - badges are derived from:
 from dataclasses import dataclass
 from datetime import date
 
-# Phase badge definitions (updated for 7-phase curriculum)
+from .progress import PHASE_REQUIREMENTS as _PROGRESS_REQUIREMENTS
+
 PHASE_BADGES = {
     0: {
         "id": "phase_0_complete",
-        "name": "Cloud Seedling",
-        "description": "Completed Phase 0: IT Fundamentals",
-        "icon": "🌱",
+        "name": "Explorer",
+        "description": "Completed Phase 0",
+        "icon": "🥉",
         "phase_name": "IT Fundamentals & Cloud Overview",
     },
     1: {
         "id": "phase_1_complete",
-        "name": "Terminal Ninja",
-        "description": "Completed Phase 1: Linux & Bash",
-        "icon": "🐧",
-        "phase_name": "Command Line, Version Control & Infrastructure Basics",
+        "name": "Practitioner",
+        "description": "Completed Phase 1",
+        "icon": "🥈",
+        "phase_name": "Linux, CLI & Version Control",
     },
     2: {
         "id": "phase_2_complete",
-        "name": "Code Crafter",
-        "description": "Completed Phase 2: Programming & APIs",
-        "icon": "🐍",
-        "phase_name": "Python, FastAPI, Databases & AI Integration",
+        "name": "Builder",
+        "description": "Completed Phase 2",
+        "icon": "🔵",
+        "phase_name": "Programming & APIs",
     },
     3: {
         "id": "phase_3_complete",
-        "name": "AI Apprentice",
-        "description": "Completed Phase 3: AI & Productivity",
-        "icon": "🤖",
-        "phase_name": "Prompt Engineering, GitHub Copilot & AI Tools",
+        "name": "Specialist",
+        "description": "Completed Phase 3",
+        "icon": "🟣",
+        "phase_name": "AI & Productivity",
     },
     4: {
         "id": "phase_4_complete",
-        "name": "Cloud Explorer",
-        "description": "Completed Phase 4: Cloud Deployment",
-        "icon": "☁️",
-        "phase_name": "VMs, Networking, Security & Deployment",
+        "name": "Architect",
+        "description": "Completed Phase 4",
+        "icon": "🥇",
+        "phase_name": "Cloud Deployment",
     },
     5: {
         "id": "phase_5_complete",
-        "name": "DevOps Rocketeer",
-        "description": "Completed Phase 5: DevOps & Containers",
-        "icon": "🚀",
-        "phase_name": "Docker, CI/CD, Kubernetes & Monitoring",
+        "name": "Master",
+        "description": "Completed Phase 5",
+        "icon": "🔴",
+        "phase_name": "DevOps & Containers",
     },
     6: {
         "id": "phase_6_complete",
-        "name": "Security Guardian",
-        "description": "Completed Phase 6: Cloud Security",
-        "icon": "🔐",
-        "phase_name": "IAM, Data Protection & Threat Detection",
+        "name": "Legend",
+        "description": "Completed Phase 6",
+        "icon": "🌈",
+        "phase_name": "Cloud Security",
     },
 }
 
-# Streak badge definitions (ordered by requirement)
 STREAK_BADGES = [
     {
         "id": "streak_7",
@@ -87,7 +87,6 @@ STREAK_BADGES = [
     },
 ]
 
-
 @dataclass
 class Badge:
     """A badge that a user has earned."""
@@ -98,33 +97,6 @@ class Badge:
     icon: str
     earned_at: date | None = None
 
-
-@dataclass
-class PhaseRequirements:
-    """Requirements to complete a phase (steps + questions)."""
-
-    steps: int
-    questions: int
-
-    @property
-    def total(self) -> int:
-        return self.steps + self.questions
-
-
-# Phase requirements: (steps, questions) per phase
-# These are computed from the content files - update when content changes
-# Last updated: 2026-01-14 from count_content.sh
-PHASE_REQUIREMENTS: dict[int, PhaseRequirements] = {
-    0: PhaseRequirements(steps=15, questions=12),  # 6 topics (IT Fundamentals)
-    1: PhaseRequirements(steps=36, questions=12),  # 6 topics (CLI, Git, IaC)
-    2: PhaseRequirements(steps=30, questions=12),  # 6 topics (Python, APIs)
-    3: PhaseRequirements(steps=31, questions=8),   # 4 topics (AI phase)
-    4: PhaseRequirements(steps=51, questions=18),  # 9 topics (Cloud deployment)
-    5: PhaseRequirements(steps=55, questions=12),  # 6 topics (DevOps)
-    6: PhaseRequirements(steps=64, questions=12),  # 6 topics (Security)
-}
-
-
 def compute_phase_badges(
     phase_completion_counts: dict[int, tuple[int, int, bool]],
 ) -> list[Badge]:
@@ -133,10 +105,10 @@ def compute_phase_badges(
     A phase badge is earned when ALL of the following are true:
     - All steps in the phase are completed
     - All questions in the phase are passed
-    - All GitHub requirements are validated (if any exist)
+    - All hands-on requirements are validated (if any exist)
 
     Args:
-        phase_completion_counts: Dict mapping phase_id -> (completed_steps, passed_questions, github_validated)
+        phase_completion_counts: Dict mapping phase_id -> (completed_steps, passed_questions, hands_on_validated)
 
     Returns:
         List of earned Badge objects
@@ -144,19 +116,18 @@ def compute_phase_badges(
     earned_badges = []
 
     for phase_id, badge_info in PHASE_BADGES.items():
-        requirements = PHASE_REQUIREMENTS.get(phase_id)
+        requirements = _PROGRESS_REQUIREMENTS.get(phase_id)
         if not requirements:
             continue
 
-        completed_steps, passed_questions, github_validated = phase_completion_counts.get(
-            phase_id, (0, 0, True)  # Default github_validated to True (no requirements)
+        completed_steps, passed_questions, hands_on_validated = phase_completion_counts.get(
+            phase_id, (0, 0, True)
         )
         
-        # Phase is complete when all steps AND all questions are done AND GitHub is validated
         if (
             completed_steps >= requirements.steps
             and passed_questions >= requirements.questions
-            and github_validated
+            and hands_on_validated
         ):
             earned_badges.append(
                 Badge(
@@ -168,7 +139,6 @@ def compute_phase_badges(
             )
 
     return earned_badges
-
 
 def compute_streak_badges(
     longest_streak: int,
@@ -196,7 +166,6 @@ def compute_streak_badges(
 
     return earned_badges
 
-
 def compute_all_badges(
     phase_completion_counts: dict[int, tuple[int, int, bool]],
     longest_streak: int,
@@ -204,7 +173,7 @@ def compute_all_badges(
     """Compute all badges a user has earned.
 
     Args:
-        phase_completion_counts: Dict mapping phase_id -> (completed_steps, passed_questions, github_validated)
+        phase_completion_counts: Dict mapping phase_id -> (completed_steps, passed_questions, hands_on_validated)
         longest_streak: User's longest streak (all-time)
 
     Returns:
@@ -215,33 +184,31 @@ def compute_all_badges(
     badges.extend(compute_streak_badges(longest_streak))
     return badges
 
-
 def count_completed_phases(
     phase_completion_counts: dict[int, tuple[int, int, bool]],
 ) -> int:
     """Count how many phases are fully completed.
 
-    A phase is complete when all steps, questions, AND GitHub requirements are done.
+    A phase is complete when all steps, questions, AND hands-on requirements are done.
 
     Args:
-        phase_completion_counts: Dict mapping phase_id -> (completed_steps, passed_questions, github_validated)
+        phase_completion_counts: Dict mapping phase_id -> (completed_steps, passed_questions, hands_on_validated)
 
     Returns:
         Number of completed phases
     """
     completed = 0
-    for phase_id, requirements in PHASE_REQUIREMENTS.items():
-        completed_steps, passed_questions, github_validated = phase_completion_counts.get(
+    for phase_id, requirements in _PROGRESS_REQUIREMENTS.items():
+        completed_steps, passed_questions, hands_on_validated = phase_completion_counts.get(
             phase_id, (0, 0, True)
         )
         if (
             completed_steps >= requirements.steps
             and passed_questions >= requirements.questions
-            and github_validated
+            and hands_on_validated
         ):
             completed += 1
     return completed
-
 
 def get_all_available_badges() -> list[dict]:
     """Get all available badges (for displaying locked/unlocked states).
@@ -251,17 +218,27 @@ def get_all_available_badges() -> list[dict]:
     """
     badges = []
 
-    # Phase badges
     for phase_id, badge_info in PHASE_BADGES.items():
-        requirements = PHASE_REQUIREMENTS.get(phase_id)
+        requirements = _PROGRESS_REQUIREMENTS.get(phase_id)
         if requirements:
+            from services.hands_on_verification import get_requirements_for_phase
+
+            hands_on_count = len(get_requirements_for_phase(phase_id))
+            if hands_on_count:
+                requirement_str = (
+                    f"Complete all {requirements.steps} steps, {requirements.questions} questions, "
+                    f"and {hands_on_count} hands-on requirements in Phase {phase_id}"
+                )
+            else:
+                requirement_str = (
+                    f"Complete all {requirements.steps} steps and {requirements.questions} questions in Phase {phase_id}"
+                )
             badges.append({
                 **badge_info,
                 "category": "phase",
-                "requirement": f"Complete all {requirements.steps} steps and {requirements.questions} questions in Phase {phase_id}",
+                "requirement": requirement_str,
             })
 
-    # Streak badges
     for badge_info in STREAK_BADGES:
         badges.append({
             **badge_info,

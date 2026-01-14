@@ -68,7 +68,7 @@ export function CertificateEligibilityCard({ eligibility, userName }: Certificat
         <div className="flex justify-between text-sm mb-2">
           <span className="text-gray-600 dark:text-slate-400">Progress</span>
           <span className="text-gray-900 dark:text-white font-medium">
-            {eligibility.topics_completed} / {eligibility.total_topics} topics ({progressPercentage}%)
+            {eligibility.phases_completed} / {eligibility.total_phases} phases ({progressPercentage}%)
           </span>
         </div>
         <div className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-3 overflow-hidden">
@@ -81,7 +81,7 @@ export function CertificateEligibilityCard({ eligibility, userName }: Certificat
         </div>
         {!eligibility.is_eligible && (
           <p className="text-gray-500 dark:text-slate-500 text-xs mt-2">
-            Need 100% completion ({eligibility.total_topics} topics) to earn this certificate
+            Need 100% completion ({eligibility.total_phases} phases) to earn this certificate
           </p>
         )}
       </div>

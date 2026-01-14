@@ -7,13 +7,11 @@ from dataclasses import dataclass
 from google import genai
 from google.genai import types
 
-from .config import get_settings
+from core.config import get_settings
 
 logger = logging.getLogger(__name__)
 
-# Lazy-initialized client
 _client: genai.Client | None = None
-
 
 def get_gemini_client() -> genai.Client:
     """Get or create the Gemini client (lazy initialization)."""
@@ -25,7 +23,6 @@ def get_gemini_client() -> genai.Client:
         _client = genai.Client(api_key=settings.google_api_key)
     return _client
 
-
 @dataclass
 class GradeResult:
     """Result of grading a knowledge question answer."""
@@ -33,7 +30,6 @@ class GradeResult:
     is_passed: bool
     feedback: str
     confidence_score: float
-
 
 async def grade_answer(
     question_prompt: str,
@@ -101,7 +97,6 @@ Please evaluate this answer."""
             ),
         )
 
-        # Parse the JSON response
         response_text = response.text or "{}"
         result = json.loads(response_text)
 

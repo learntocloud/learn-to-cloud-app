@@ -12,11 +12,9 @@ from .config import get_settings
 
 logger = logging.getLogger(__name__)
 
-
 def _get_authorized_parties() -> list[str]:
     """Get authorized parties for Clerk authentication from centralized config."""
     return get_settings().allowed_origins
-
 
 def get_user_id_from_request(req: Request) -> str | None:
     """
@@ -29,7 +27,6 @@ def get_user_id_from_request(req: Request) -> str | None:
         logger.warning("No CLERK_SECRET_KEY configured")
         return None
 
-    # Debug: check if Authorization header is present
     auth_header = req.headers.get("authorization", "")
     logger.info(
         f"Auth header present: {bool(auth_header)}, starts with Bearer: {auth_header.startswith('Bearer ')}"
@@ -73,7 +70,6 @@ def get_user_id_from_request(req: Request) -> str | None:
         logger.exception(f"Failed to authenticate request: {e}")
         return None
 
-
 def require_auth(request: Request) -> str:
     """
     FastAPI dependency that requires authentication.
@@ -90,10 +86,8 @@ def require_auth(request: Request) -> str:
     if not user_id:
         raise HTTPException(status_code=401, detail="Unauthorized")
 
-    # Store user_id in request state for rate limiting identification
     request.state.user_id = user_id
     return user_id
-
 
 def optional_auth(request: Request) -> str | None:
     """
@@ -111,11 +105,8 @@ def optional_auth(request: Request) -> str | None:
     """
     user_id = get_user_id_from_request(request)
     if user_id:
-        # Store user_id in request state for rate limiting identification
         request.state.user_id = user_id
     return user_id
 
-
-# Type alias for cleaner dependency injection in routes
 UserId = Annotated[str, Depends(require_auth)]
 OptionalUserId = Annotated[str | None, Depends(optional_auth)]

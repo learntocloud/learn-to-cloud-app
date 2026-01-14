@@ -16,27 +16,38 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
 )
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, declared_attr, mapped_column, relationship
 
-from .database import Base
-
+from core.database import Base
 
 def utcnow() -> datetime:
     """Return current UTC time (timezone-aware)."""
     return datetime.now(UTC)
 
-
 def today() -> date:
     """Return current UTC date."""
     return datetime.now(UTC).date()
 
+class TimestampMixin:
+    """Mixin that adds created_at and updated_at timestamp columns.
 
-class User(Base):
+    Use this for any model that needs audit timestamps.
+    """
+
+    @declared_attr
+    def created_at(cls) -> Mapped[datetime]:
+        return mapped_column(DateTime(timezone=True), default=utcnow)
+
+    @declared_attr
+    def updated_at(cls) -> Mapped[datetime]:
+        return mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+
+class User(TimestampMixin, Base):
     """User model - synced from Clerk via webhooks."""
 
     __tablename__ = "users"
 
-    id: Mapped[str] = mapped_column(String(255), primary_key=True)  # Clerk user ID
+    id: Mapped[str] = mapped_column(String(255), primary_key=True)
     email: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     first_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     last_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
@@ -44,21 +55,12 @@ class User(Base):
     github_username: Mapped[str | None] = mapped_column(
         String(255),
         nullable=True,
-    )  # From Clerk OAuth
+        index=True,
+    )
     is_profile_public: Mapped[bool] = mapped_column(Boolean, default=False)
-    is_admin: Mapped[bool] = mapped_column(Boolean, default=False)  # Admin bypass
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        default=utcnow,
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        default=utcnow,
-        onupdate=utcnow,
-    )
+    is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
 
-    # Relationships
-    github_submissions: Mapped[list["GitHubSubmission"]] = relationship(
+    submissions: Mapped[list["Submission"]] = relationship(
         back_populates="user",
         cascade="all, delete-orphan",
     )
@@ -79,13 +81,12 @@ class User(Base):
         cascade="all, delete-orphan",
     )
 
-
 class ProcessedWebhook(Base):
     """Tracks processed webhooks for idempotency."""
 
     __tablename__ = "processed_webhooks"
 
-    id: Mapped[str] = mapped_column(String(255), primary_key=True)  # svix-id
+    id: Mapped[str] = mapped_column(String(255), primary_key=True)
     event_type: Mapped[str] = mapped_column(String(100), nullable=False)
     processed_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -93,25 +94,39 @@ class ProcessedWebhook(Base):
         index=True,
     )
 
-
 class SubmissionType(str, PyEnum):
-    """Type of submission for hands-on verification."""
+    """Type of submission for hands-on verification.
 
-    GITHUB_PROFILE = "github_profile"  # GitHub profile URL (github.com/username)
-    PROFILE_README = "profile_readme"  # GitHub profile README
-    REPO_FORK = "repo_fork"  # Fork of a required repository
-    REPO_URL = "repo_url"  # Any GitHub repository URL
-    DEPLOYED_APP = "deployed_app"  # Deployed application URL
-    CTF_TOKEN = "ctf_token"  # CTF completion token verification
+    To add a new verification type:
+    1. Add the enum value here
+    2. Add a validator function in the appropriate module:
+       - GitHub-based: api/shared/github_hands_on_verification.py
+       - Deployment/External: api/shared/hands_on_verification.py
+       - Or create a new module for complex verification types
+    3. Add the routing case in validate_submission() in hands_on_verification.py
+    4. Add optional fields to HandsOnRequirement schema if needed (e.g., expected_endpoint)
+    """
 
+    GITHUB_PROFILE = "github_profile"
+    PROFILE_README = "profile_readme"
+    REPO_FORK = "repo_fork"
+    REPO_URL = "repo_url"
 
-class GitHubSubmission(Base):
-    """Tracks validated GitHub submissions for hands-on verification."""
+    DEPLOYED_APP = "deployed_app"
 
-    __tablename__ = "github_submissions"
+    CTF_TOKEN = "ctf_token"
+    API_CHALLENGE = "api_challenge"
+
+class Submission(TimestampMixin, Base):
+    """Tracks validated submissions for hands-on verification.
+
+    Supports multiple submission types: GitHub URLs, deployed apps, CTF tokens, etc.
+    """
+
+    __tablename__ = "submissions"
     __table_args__ = (
         UniqueConstraint("user_id", "requirement_id", name="uq_user_requirement"),
-        Index("ix_github_submissions_user_phase", "user_id", "phase_id"),
+        Index("ix_submissions_user_phase", "user_id", "phase_id"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -123,7 +138,7 @@ class GitHubSubmission(Base):
     requirement_id: Mapped[str] = mapped_column(
         String(100),
         nullable=False,
-    )  # e.g., "phase1-profile-readme", "phase1-linux-ctfs-fork"
+    )
     submission_type: Mapped[SubmissionType] = mapped_column(
         Enum(
             SubmissionType,
@@ -134,43 +149,33 @@ class GitHubSubmission(Base):
         nullable=False,
     )
     phase_id: Mapped[int] = mapped_column(Integer, nullable=False)
-    submitted_url: Mapped[str] = mapped_column(
+    submitted_value: Mapped[str] = mapped_column(
         Text,
         nullable=False,
-    )  # The submitted URL (GitHub or deployed app)
-    github_username: Mapped[str | None] = mapped_column(
+    )
+    extracted_username: Mapped[str | None] = mapped_column(
         String(255),
         nullable=True,
-    )  # Username extracted from URL (null for deployed apps)
+    )
     is_validated: Mapped[bool] = mapped_column(Boolean, default=False)
     validated_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         nullable=True,
     )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        default=utcnow,
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        default=utcnow,
-        onupdate=utcnow,
-    )
 
-    # Relationships
-    user: Mapped["User"] = relationship(back_populates="github_submissions")
-
+    user: Mapped["User"] = relationship(back_populates="submissions")
 
 class ActivityType(str, PyEnum):
-    """Type of user activity for streak tracking."""
+    """Type of user activity for streak and progress tracking."""
 
-    QUESTION_ATTEMPT = "question_attempt"  # Attempted a knowledge question
-    STEP_COMPLETE = "step_complete"  # Completed a learning step
-    TOPIC_COMPLETE = "topic_complete"  # Completed all questions for a topic
-    CERTIFICATE_EARNED = "certificate_earned"  # Earned a completion certificate
+    QUESTION_ATTEMPT = "question_attempt"
+    STEP_COMPLETE = "step_complete"
+    TOPIC_COMPLETE = "topic_complete"
+    HANDS_ON_VALIDATED = "hands_on_validated"
+    PHASE_COMPLETE = "phase_complete"
+    CERTIFICATE_EARNED = "certificate_earned"
 
-
-class Certificate(Base):
+class Certificate(TimestampMixin, Base):
     """Tracks completion certificates issued to users."""
 
     __tablename__ = "certificates"
@@ -189,33 +194,30 @@ class Certificate(Base):
     certificate_type: Mapped[str] = mapped_column(
         String(50),
         nullable=False,
-    )  # "full_completion" or "phase_X"
+    )
     verification_code: Mapped[str] = mapped_column(
         String(64),
         nullable=False,
         unique=True,
-    )  # Unique code for certificate verification
+    )
     recipient_name: Mapped[str] = mapped_column(
         String(255),
         nullable=False,
-    )  # Name as it appears on certificate
+    )
     issued_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=utcnow,
     )
-    topics_completed: Mapped[int] = mapped_column(Integer, nullable=False)
-    total_topics: Mapped[int] = mapped_column(Integer, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        default=utcnow,
-    )
+    phases_completed: Mapped[int] = mapped_column(Integer, nullable=False)
+    total_phases: Mapped[int] = mapped_column(Integer, nullable=False)
 
-    # Relationships
     user: Mapped["User"] = relationship(back_populates="certificates")
 
-
 class QuestionAttempt(Base):
-    """Tracks user attempts at LLM-graded knowledge questions."""
+    """Tracks user attempts at LLM-graded knowledge questions.
+
+    Note: Only has created_at, no updated_at since attempts are immutable.
+    """
 
     __tablename__ = "question_attempts"
     __table_args__ = (
@@ -232,11 +234,11 @@ class QuestionAttempt(Base):
     topic_id: Mapped[str] = mapped_column(
         String(100),
         nullable=False,
-    )  # e.g., "phase1-topic4"
+    )
     question_id: Mapped[str] = mapped_column(
         String(100),
         nullable=False,
-    )  # e.g., "phase1-topic4-q1"
+    )
     user_answer: Mapped[str] = mapped_column(Text, nullable=False)
     is_passed: Mapped[bool] = mapped_column(Boolean, default=False)
     llm_feedback: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -246,12 +248,13 @@ class QuestionAttempt(Base):
         default=utcnow,
     )
 
-    # Relationships
     user: Mapped["User"] = relationship(back_populates="question_attempts")
 
-
 class StepProgress(Base):
-    """Tracks completion of learning steps within topics."""
+    """Tracks completion of learning steps within topics.
+
+    Note: Only has completed_at timestamp since steps are immutable once done.
+    """
 
     __tablename__ = "step_progress"
     __table_args__ = (
@@ -268,22 +271,23 @@ class StepProgress(Base):
     topic_id: Mapped[str] = mapped_column(
         String(100),
         nullable=False,
-    )  # e.g., "phase1-topic5"
+    )
     step_order: Mapped[int] = mapped_column(
         Integer,
         nullable=False,
-    )  # The order/number of the step (1, 2, 3, etc.)
+    )
     completed_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=utcnow,
     )
 
-    # Relationships
     user: Mapped["User"] = relationship(back_populates="step_progress")
 
-
 class UserActivity(Base):
-    """Tracks user activities for streak calculation."""
+    """Tracks user activities for streak calculation.
+
+    Note: Only has created_at since activities are immutable event logs.
+    """
 
     __tablename__ = "user_activities"
     __table_args__ = (
@@ -310,11 +314,10 @@ class UserActivity(Base):
     reference_id: Mapped[str | None] = mapped_column(
         String(100),
         nullable=True,
-    )  # e.g., topic_id or question_id for context
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=utcnow,
     )
 
-    # Relationships
     user: Mapped["User"] = relationship(back_populates="activities")

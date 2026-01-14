@@ -1,94 +1,29 @@
-"""Certificate generation utilities for Learn to Cloud."""
+"""Certificate rendering - SVG and PDF generation.
+
+This module handles the visual/presentation aspects of certificates:
+- SVG template rendering
+- PDF conversion
+- Visual styling and formatting
+
+This is separated from certificate business logic (eligibility, creation, verification)
+which remains in services/certificates.py.
+"""
 
 import base64
-import hashlib
 import re
-import secrets
-from datetime import UTC, datetime
+from datetime import datetime
 from functools import lru_cache
 from pathlib import Path
 
-# Certificate configuration
 CERTIFICATE_TITLE = "Learn to Cloud"
 CERTIFICATE_SUBTITLE = "Certificate of Completion"
 ISSUER_NAME = "Learn to Cloud"
 ISSUER_URL = "https://learntocloud.guide"
 
-_ASSETS_DIR = Path(__file__).resolve().parent / "assets"
+_ASSETS_DIR = Path(__file__).resolve().parent.parent / "assets"
 _LOGO_SVG_PATH = _ASSETS_DIR / "Logo-03.svg"
 
-
-@lru_cache(maxsize=1)
-def _get_logo_inline_svg() -> str | None:
-    """Return a self-contained inline SVG block for the brand logo.
-
-    Why inline instead of <image href="data:image/svg+xml;base64,...">?
-    Some browsers/viewers refuse to render nested SVG images for security reasons,
-    which makes the logo disappear in previews and downloaded files.
-
-    This function extracts the inner SVG markup, removes scripts, and prefixes IDs
-    to avoid collisions with the certificate's own defs.
-    """
-
-    try:
-        logo_svg = _LOGO_SVG_PATH.read_text(encoding="utf-8")
-    except OSError:
-        return None
-
-    if not logo_svg.strip():
-        return None
-
-    # Find the outer <svg ...> ... </svg> wrapper.
-    open_tag_match = re.search(r"<svg\b[^>]*>", logo_svg, flags=re.IGNORECASE | re.DOTALL)
-    close_tag_index = logo_svg.lower().rfind("</svg>")
-    if not open_tag_match or close_tag_index == -1:
-        return None
-
-    svg_open_tag = open_tag_match.group(0)
-    inner = logo_svg[open_tag_match.end() : close_tag_index]
-
-    view_box_match = re.search(r'\bviewBox="([^"]+)"', svg_open_tag)
-    view_box = view_box_match.group(1) if view_box_match else "0 0 800 600"
-
-    # Strip scripts defensively.
-    inner = re.sub(r"<script\b[^>]*>.*?</script>", "", inner, flags=re.IGNORECASE | re.DOTALL)
-
-    # The exported logo wordmark uses a dark blue fill that can be hard to see on
-    # the certificate's black background. Recolor the primary wordmark class to
-    # use a bright blue gradient visible on black.
-    inner = re.sub(
-      r"\.st0\{fill:\s*#124D99;\}",
-      ".st0{fill:url(#ltcLogoTextGradient);}",
-      inner,
-      flags=re.IGNORECASE,
-    )
-
-    # Prefix IDs to avoid collisions with certificate defs (SVG IDs are document-global).
-    prefix = "ltcLogo-"
-    ids = set(re.findall(r'\bid="([^"]+)"', inner))
-    for old_id in sorted(ids, key=len, reverse=True):
-        new_id = f"{prefix}{old_id}"
-        inner = inner.replace(f'id="{old_id}"', f'id="{new_id}"')
-        inner = inner.replace(f"url(#{old_id})", f"url(#{new_id})")
-        inner = inner.replace(f'href="#{old_id}"', f'href="#{new_id}"')
-        inner = inner.replace(f'xlink:href="#{old_id}"', f'xlink:href="#{new_id}"')
-
-    # Add gradient definition inside the nested SVG (nested SVGs can't reference parent defs)
-    gradient_def = """<defs>
-      <linearGradient id="ltcLogoTextGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0" stop-color="#83DCFF"/>
-        <stop offset="1" stop-color="#0076F7"/>
-      </linearGradient>
-    </defs>"""
-
-    # Positioned/sized for the 800x600 certificate viewBox.
-    return (
-        f'<svg x="280" y="40" width="240" height="130" '
-        f'viewBox="{view_box}" preserveAspectRatio="xMidYMid meet">{gradient_def}{inner}</svg>'
-    )
-
-# Phase information for certificates
-PHASE_INFO = {
+PHASE_DISPLAY_INFO = {
     "phase_0": {
         "name": "Starting from Zero",
         "description": "IT Fundamentals & Cloud Overview",
@@ -119,41 +54,95 @@ PHASE_INFO = {
     },
 }
 
+@lru_cache(maxsize=1)
+def _get_logo_inline_svg() -> str | None:
+    """Return a self-contained inline SVG block for the brand logo.
 
-def generate_verification_code(user_id: str, certificate_type: str) -> str:
-    """Generate a unique, verifiable certificate code.
+    Why inline instead of <image href="data:image/svg+xml;base64,...">?
+    Some browsers/viewers refuse to render nested SVG images for security reasons,
+    which makes the logo disappear in previews and downloaded files.
 
-    Format: LTC-{hash}-{random}
-    The hash includes user_id, certificate_type, and timestamp for uniqueness.
+    This function extracts the inner SVG markup, removes scripts, and prefixes IDs
+    to avoid collisions with the certificate's own defs.
     """
-    timestamp = datetime.now(UTC).isoformat()
-    data = f"{user_id}:{certificate_type}:{timestamp}"
-    hash_part = hashlib.sha256(data.encode()).hexdigest()[:12].upper()
-    random_part = secrets.token_hex(4).upper()
-    return f"LTC-{hash_part}-{random_part}"
 
+    try:
+        logo_svg = _LOGO_SVG_PATH.read_text(encoding="utf-8")
+    except OSError:
+        return None
 
-def get_certificate_info(certificate_type: str) -> dict:
+    if not logo_svg.strip():
+        return None
+
+    open_tag_match = re.search(r"<svg\b[^>]*>", logo_svg, flags=re.IGNORECASE | re.DOTALL)
+    close_tag_index = logo_svg.lower().rfind("</svg>")
+    if not open_tag_match or close_tag_index == -1:
+        return None
+
+    svg_open_tag = open_tag_match.group(0)
+    inner = logo_svg[open_tag_match.end() : close_tag_index]
+
+    view_box_match = re.search(r'\bviewBox="([^"]+)"', svg_open_tag)
+    view_box = view_box_match.group(1) if view_box_match else "0 0 800 600"
+
+    inner = re.sub(r"<script\b[^>]*>.*?</script>", "", inner, flags=re.IGNORECASE | re.DOTALL)
+
+    inner = re.sub(
+      r"\.st0\{fill:\s*#124D99;\}",
+      ".st0{fill:url(#ltcLogoTextGradient);}",
+      inner,
+      flags=re.IGNORECASE,
+    )
+
+    prefix = "ltcLogo-"
+    ids = set(re.findall(r'\bid="([^"]+)"', inner))
+    for old_id in sorted(ids, key=len, reverse=True):
+        new_id = f"{prefix}{old_id}"
+        inner = inner.replace(f'id="{old_id}"', f'id="{new_id}"')
+        inner = inner.replace(f"url(#{old_id})", f"url(#{new_id})")
+        inner = inner.replace(f'href="#{old_id}"', f'href="#{new_id}"')
+        inner = inner.replace(f'xlink:href="#{old_id}"', f'xlink:href="#{new_id}"')
+
+    gradient_def = """<defs>
+      <linearGradient id="ltcLogoTextGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0" stop-color="#83DCFF"/>
+        <stop offset="1" stop-color="#0076F7"/>
+      </linearGradient>
+    </defs>"""
+
+    return (
+        f'<svg x="280" y="40" width="240" height="130" '
+        f'viewBox="{view_box}" preserveAspectRatio="xMidYMid meet">{gradient_def}{inner}</svg>'
+    )
+
+def get_certificate_display_info(certificate_type: str) -> dict:
     """Get display information for a certificate type."""
-    return PHASE_INFO.get(certificate_type, PHASE_INFO["full_completion"])
-
+    return PHASE_DISPLAY_INFO.get(certificate_type, PHASE_DISPLAY_INFO["full_completion"])
 
 def generate_certificate_svg(
     recipient_name: str,
     certificate_type: str,
     verification_code: str,
     issued_at: datetime,
-    topics_completed: int,
-    total_topics: int,
+    phases_completed: int,
+    total_phases: int,
 ) -> str:
     """Generate an SVG certificate.
 
-    Returns the SVG as a string that can be rendered or converted to PDF.
+    Args:
+        recipient_name: Name to display on certificate
+        certificate_type: Type of certificate
+        verification_code: Unique verification code
+        issued_at: When certificate was issued
+        phases_completed: Number of phases completed
+        total_phases: Total number of phases
+
+    Returns:
+        SVG content as a string
     """
-    cert_info = get_certificate_info(certificate_type)
+    cert_info = get_certificate_display_info(certificate_type)
     issued_date = issued_at.strftime("%B %d, %Y")
 
-    # Escape any special characters in the name
     safe_name = (
         recipient_name.replace("&", "&amp;")
         .replace("<", "&lt;")
@@ -261,7 +250,7 @@ def generate_certificate_svg(
     <!-- Checkmark as path for better PDF compatibility -->
     <path d="M-8 -4 L-3 2 L8 -10" fill="none" stroke="url(#blueGradient)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
     <text x="0" y="12" font-family="Arial, Helvetica, sans-serif" font-size="9" fill="#83DCFF" text-anchor="middle" font-weight="600">
-      {topics_completed}/{total_topics}
+      {phases_completed}/{total_phases}
     </text>
     <text x="0" y="24" font-family="Arial, Helvetica, sans-serif" font-size="7" fill="#64748b" text-anchor="middle">
       COMPLETE
@@ -299,46 +288,10 @@ def generate_certificate_svg(
 
     return svg
 
-
 def svg_to_base64_data_uri(svg_content: str) -> str:
     """Convert SVG string to base64 data URI for embedding."""
     encoded = base64.b64encode(svg_content.encode("utf-8")).decode("utf-8")
     return f"data:image/svg+xml;base64,{encoded}"
-
-
-# Total topics per phase (should match frontend content)
-PHASE_TOPIC_COUNTS = {
-    0: 6,  # phase0
-    1: 6,  # phase1
-    2: 7,  # phase2
-    3: 9,  # phase3
-    4: 6,  # phase4
-    5: 6,  # phase5
-}
-
-TOTAL_TOPICS = sum(PHASE_TOPIC_COUNTS.values())  # 40 total
-
-
-def get_completion_requirements(certificate_type: str) -> dict:
-    """Get the completion requirements for a certificate type.
-
-    Returns dict with:
-    - required_phases: list of phase IDs that must be completed
-    - min_completion_percentage: minimum percentage (0-100) required
-
-    Note: Only full_completion is supported. Phase achievements are tracked via badges.
-    """
-    if certificate_type == "full_completion":
-        return {
-            "required_phases": [0, 1, 2, 3, 4, 5],
-            "min_completion_percentage": 100,  # Must complete everything
-        }
-    else:
-        raise ValueError(
-            f"Unknown certificate type: {certificate_type}. "
-            "Only 'full_completion' is supported. Phase achievements are tracked via badges."
-        )
-
 
 def svg_to_pdf(svg_content: str) -> bytes:
     """Convert SVG string to PDF bytes using CairoSVG.

@@ -16,26 +16,22 @@ import logging
 from dataclasses import dataclass
 from datetime import datetime
 
-from .config import get_settings
+from core.config import get_settings
 
 logger = logging.getLogger(__name__)
 
-# Number of challenges required for completion
 REQUIRED_CHALLENGES = 18
-
 
 def _get_master_secret() -> str:
     """Get the CTF master secret from settings."""
     settings = get_settings()
     return settings.ctf_master_secret
 
-
 def _derive_secret(instance_id: str) -> str:
     """Derive the verification secret from master secret and instance ID."""
     master_secret = _get_master_secret()
     data = f"{master_secret}:{instance_id}"
     return hashlib.sha256(data.encode()).hexdigest()
-
 
 @dataclass
 class CTFVerificationResult:
@@ -47,7 +43,6 @@ class CTFVerificationResult:
     completion_date: str | None = None
     completion_time: str | None = None
     challenges_completed: int | None = None
-
 
 def verify_ctf_token(token: str, oauth_github_username: str) -> CTFVerificationResult:
     """
@@ -61,7 +56,6 @@ def verify_ctf_token(token: str, oauth_github_username: str) -> CTFVerificationR
         CTFVerificationResult with verification status and data
     """
     try:
-        # Step 1: Decode base64
         try:
             decoded = base64.b64decode(token).decode("utf-8")
             token_data = json.loads(decoded)
@@ -81,7 +75,6 @@ def verify_ctf_token(token: str, oauth_github_username: str) -> CTFVerificationR
                 message="Invalid token structure. Missing payload or signature.",
             )
 
-        # Step 2: Verify GitHub username matches OAuth user
         token_username = (payload.get("github_username") or "").lower()
         oauth_username_lower = oauth_github_username.lower()
 
@@ -100,7 +93,6 @@ def verify_ctf_token(token: str, oauth_github_username: str) -> CTFVerificationR
                 ),
             )
 
-        # Step 3: Get instance ID and derive the secret
         instance_id = payload.get("instance_id")
         if not instance_id:
             return CTFVerificationResult(
@@ -110,8 +102,6 @@ def verify_ctf_token(token: str, oauth_github_username: str) -> CTFVerificationR
 
         verification_secret = _derive_secret(instance_id)
 
-        # Step 4: Recreate the payload string and compute signature
-        # Use separators to match the token generation
         payload_str = json.dumps(payload, separators=(",", ":"))
 
         expected_sig = hmac.new(
@@ -120,7 +110,6 @@ def verify_ctf_token(token: str, oauth_github_username: str) -> CTFVerificationR
             hashlib.sha256,
         ).hexdigest()
 
-        # Step 5: Constant-time comparison to prevent timing attacks
         if not hmac.compare_digest(signature, expected_sig):
             logger.warning("CTF token signature verification failed")
             return CTFVerificationResult(
@@ -130,7 +119,6 @@ def verify_ctf_token(token: str, oauth_github_username: str) -> CTFVerificationR
                 ),
             )
 
-        # Step 6: Validate challenge count
         challenges = payload.get("challenges", 0)
         if challenges != REQUIRED_CHALLENGES:
             return CTFVerificationResult(
@@ -141,17 +129,14 @@ def verify_ctf_token(token: str, oauth_github_username: str) -> CTFVerificationR
                 ),
             )
 
-        # Step 7: Check timestamp is reasonable (not in the future)
         timestamp = payload.get("timestamp", 0)
         now = datetime.now().timestamp()
-        # Allow 1 hour clock skew
         if timestamp > now + 3600:
             return CTFVerificationResult(
                 is_valid=False,
                 message="Invalid timestamp. The token appears to be from the future.",
             )
 
-        # All validations passed!
         logger.info(
             f"CTF token verified for user '{oauth_github_username}' "
             f"with {challenges} challenges"

@@ -85,9 +85,9 @@ export function CertificateCard({ certificate }: CertificateCardProps) {
             <p className="text-gray-900 dark:text-white">{issuedDate}</p>
           </div>
           <div>
-            <span className="text-gray-500 dark:text-slate-500">Topics Completed</span>
+            <span className="text-gray-500 dark:text-slate-500">Phases Completed</span>
             <p className="text-gray-900 dark:text-white">
-              {certificate.topics_completed} / {certificate.total_topics}
+              {certificate.phases_completed} / {certificate.total_phases}
             </p>
           </div>
         </div>

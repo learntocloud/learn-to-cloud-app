@@ -8,21 +8,18 @@ import time
 
 import pytest
 
-from shared.ctf import (
+from services.ctf import (
     REQUIRED_CHALLENGES,
     CTFVerificationResult,
     verify_ctf_token,
 )
 
-# Test master secret (matches the default in config)
 TEST_MASTER_SECRET = "L2C_CTF_MASTER_2024"
-
 
 def derive_secret(instance_id: str) -> str:
     """Derive verification secret (same as in ctf.py)."""
     data = f"{TEST_MASTER_SECRET}:{instance_id}"
     return hashlib.sha256(data.encode()).hexdigest()
-
 
 def create_token(
     github_username: str = "testuser",
@@ -61,7 +58,6 @@ def create_token(
         "timestamp": timestamp,
     }
 
-    # Create signature
     verification_secret = derive_secret(instance_id)
     payload_str = json.dumps(payload, separators=(",", ":"))
     signature = hmac.new(
@@ -74,11 +70,10 @@ def create_token(
         signature = "tampered" + signature[8:]
 
     if tamper_payload:
-        payload["challenges"] = 99  # Modify after signing
+        payload["challenges"] = 99
 
     token_data = {"payload": payload, "signature": signature}
     return base64.b64encode(json.dumps(token_data).encode()).decode()
-
 
 class TestVerifyCtfToken:
     """Tests for verify_ctf_token function."""
@@ -100,7 +95,6 @@ class TestVerifyCtfToken:
 
         assert result.is_valid is True
 
-        # Also test the reverse
         token2 = create_token(github_username="testuser")
         result2 = verify_ctf_token(token2, "TESTUSER")
 
@@ -154,7 +148,6 @@ class TestVerifyCtfToken:
         payload = {
             "github_username": "testuser",
             "challenges": 18,
-            # No instance_id
         }
         token_data = {"payload": payload, "signature": "fake"}
         token = base64.b64encode(json.dumps(token_data).encode()).decode()
@@ -198,7 +191,7 @@ class TestVerifyCtfToken:
 
     def test_future_timestamp(self):
         """Token with future timestamp should fail."""
-        future_time = time.time() + 7200  # 2 hours in the future
+        future_time = time.time() + 7200
         token = create_token(timestamp=future_time)
         result = verify_ctf_token(token, "testuser")
 
@@ -207,7 +200,7 @@ class TestVerifyCtfToken:
 
     def test_past_timestamp_ok(self):
         """Token with past timestamp should be fine."""
-        past_time = time.time() - 86400  # 1 day ago
+        past_time = time.time() - 86400
         token = create_token(timestamp=past_time)
         result = verify_ctf_token(token, "testuser")
 
@@ -239,10 +232,8 @@ class TestVerifyCtfToken:
         token = create_token(github_username="testuser")
         result = verify_ctf_token(token, "")
 
-        # Should fail username mismatch
         assert result.is_valid is False
         assert "mismatch" in result.message.lower()
-
 
 class TestCtfVerificationResult:
     """Tests for CTFVerificationResult dataclass."""

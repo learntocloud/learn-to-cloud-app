@@ -2,12 +2,12 @@
 
 import { GitHubSubmissionForm } from "./github-submission";
 import { useCelebration } from "./celebration-provider";
-import type { GitHubRequirement, GitHubSubmission } from "@/lib/types";
+import type { GitHubRequirement, Submission } from "@/lib/types";
 
 interface PhaseVerificationFormProps {
   phaseNumber: number;
   requirements: GitHubRequirement[];
-  submissions: GitHubSubmission[];
+  submissions: Submission[];
   githubUsername: string | null;
   nextPhaseSlug?: string;
 }

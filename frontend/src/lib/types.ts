@@ -134,13 +134,13 @@ export interface GitHubRequirement {
   expected_endpoint: string | null;
 }
 
-export interface GitHubSubmission {
+export interface Submission {
   id: number;
   requirement_id: string;
   submission_type: string;
   phase_id: number;
-  submitted_url: string;
-  github_username: string | null;
+  submitted_value: string;
+  extracted_username: string | null;
   is_validated: boolean;
   validated_at: string | null;
   created_at: string;
@@ -151,13 +151,13 @@ export interface GitHubValidationResult {
   message: string;
   username_match: boolean;
   repo_exists: boolean;
-  submission: GitHubSubmission | null;
+  submission: Submission | null;
 }
 
 export interface PhaseGitHubRequirements {
   phase_id: number;
   requirements: GitHubRequirement[];
-  submissions: GitHubSubmission[];
+  submissions: Submission[];
   has_requirements: boolean;  // False if phase has no requirements defined
   all_validated: boolean;
 }
@@ -237,7 +237,7 @@ export interface PublicSubmission {
   requirement_id: string;
   submission_type: SubmissionType;
   phase_id: number;
-  submitted_url: string;
+  submitted_value: string;
   name: string;
   validated_at: string | null;
 }
@@ -281,8 +281,8 @@ export interface TopicWithProgressAndQuestions extends TopicWithProgress {
 export interface CertificateEligibility {
   is_eligible: boolean;
   certificate_type: string;
-  topics_completed: number;
-  total_topics: number;
+  phases_completed: number;
+  total_phases: number;
   completion_percentage: number;
   already_issued: boolean;
   existing_certificate_id: number | null;
@@ -295,8 +295,8 @@ export interface Certificate {
   verification_code: string;
   recipient_name: string;
   issued_at: string;
-  topics_completed: number;
-  total_topics: number;
+  phases_completed: number;
+  total_phases: number;
 }
 
 export interface CertificateVerifyResponse {

@@ -4,10 +4,7 @@ from datetime import date, datetime
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from .models import ActivityType, SubmissionType
-
-# ============ User Schemas ============
-
+from models import ActivityType, SubmissionType
 
 class UserBase(BaseModel):
     """Base user schema."""
@@ -18,7 +15,6 @@ class UserBase(BaseModel):
     avatar_url: str | None = None
     github_username: str | None = None
 
-
 class UserResponse(UserBase):
     """User response schema."""
 
@@ -28,49 +24,61 @@ class UserResponse(UserBase):
     is_admin: bool = False
     created_at: datetime
 
+class HandsOnRequirement(BaseModel):
+    """A hands-on requirement for phase completion.
 
-# ============ GitHub Submission Schemas ============
+    NOTE: This model serves dual purposes:
+    1. API schema: Returned in API responses (e.g., /api/github/requirements)
+    2. Business configuration: Used in services/hands_on_verification.py to
+       define phase requirements (HANDS_ON_REQUIREMENTS constant)
 
+    Using Pydantic for both is intentional - it ensures the same structure
+    is used for configuration and API responses, reducing inconsistencies.
 
-class GitHubRequirement(BaseModel):
-    """A requirement for phase completion (GitHub or deployed app)."""
+    Supports multiple verification types including GitHub-based validations,
+    deployed application checks, CTF tokens, and API challenges.
 
-    id: str  # e.g., "phase1-profile-readme"
+    To add a new verification type:
+    1. Add the SubmissionType enum value in models.py
+    2. Add optional fields here if needed (e.g., challenge_config)
+    3. Implement the validator in hands_on_verification.py
+    """
+
+    id: str
     phase_id: int
     submission_type: SubmissionType
     name: str
     description: str
     example_url: str | None = None
+
     required_repo: str | None = (
-        None  # e.g., "learntocloud/linux-ctfs" for fork validation
+        None
     )
-    expected_endpoint: str | None = None  # e.g., "/entries" for deployed app validation
 
+    expected_endpoint: str | None = None
 
-class GitHubSubmissionRequest(BaseModel):
-    """Request to submit a URL or CTF token for validation."""
+    challenge_config: dict | None = None
+
+class HandsOnSubmissionRequest(BaseModel):
+    """Request to submit a value for hands-on validation."""
 
     requirement_id: str = Field(max_length=100)
-    submitted_url: str = Field(max_length=4096)  # Increased for base64 CTF tokens
+    submitted_value: str = Field(max_length=4096)
 
-    @field_validator("submitted_url")
+    @field_validator("submitted_value")
     @classmethod
-    def validate_submission_value(cls, v: str) -> str:
-        """Validate the submitted value (URL or CTF token).
+    def validate_submitted_value(cls, v: str) -> str:
+        """Validate the submitted value.
 
-        For URLs: must use HTTPS
-        For CTF tokens: base64 encoded string (no protocol check)
+        Accepts URLs, CTF tokens, or challenge responses.
         """
         v = v.strip()
-        # Allow base64 CTF tokens (they don't start with a protocol)
-        # CTF tokens are base64 encoded JSON, so they contain alphanumeric, +, /, =
         if not v:
             raise ValueError("Submission value cannot be empty")
         return v
 
-
-class GitHubSubmissionResponse(BaseModel):
-    """Response for a submission."""
+class HandsOnSubmissionResponse(BaseModel):
+    """Response for a hands-on submission."""
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -78,41 +86,34 @@ class GitHubSubmissionResponse(BaseModel):
     requirement_id: str
     submission_type: SubmissionType
     phase_id: int
-    submitted_url: str
-    github_username: str | None = None
+    submitted_value: str
+    extracted_username: str | None = None
     is_validated: bool
     validated_at: datetime | None = None
     created_at: datetime
 
-
-class GitHubValidationResult(BaseModel):
-    """Result of validating a GitHub submission."""
+class HandsOnValidationResult(BaseModel):
+    """Result of validating a hands-on submission."""
 
     is_valid: bool
     message: str
     username_match: bool
     repo_exists: bool
-    submission: GitHubSubmissionResponse | None = None
+    submission: HandsOnSubmissionResponse | None = None
 
-
-class PhaseGitHubRequirementsResponse(BaseModel):
-    """GitHub requirements for a phase with user's submission status."""
+class PhaseHandsOnRequirementsResponse(BaseModel):
+    """Hands-on requirements for a phase with user's submission status."""
 
     phase_id: int
-    requirements: list[GitHubRequirement]
-    submissions: list[GitHubSubmissionResponse]
-    has_requirements: bool  # False if phase has no requirements defined
-    all_validated: bool  # True if all requirements are validated (or no requirements)
+    requirements: list[HandsOnRequirement]
+    submissions: list[HandsOnSubmissionResponse]
+    has_requirements: bool
+    all_validated: bool
 
+class AllPhasesHandsOnRequirementsResponse(BaseModel):
+    """Hands-on requirements for all phases (bulk endpoint)."""
 
-class AllPhasesGitHubRequirementsResponse(BaseModel):
-    """GitHub requirements for all phases (bulk endpoint)."""
-
-    phases: list[PhaseGitHubRequirementsResponse]
-
-
-# ============ Health Check Schema ============
-
+    phases: list[PhaseHandsOnRequirementsResponse]
 
 class HealthResponse(BaseModel):
     """Health check response."""
@@ -120,16 +121,11 @@ class HealthResponse(BaseModel):
     status: str
     service: str
 
-
 class WebhookResponse(BaseModel):
     """Response for webhook processing."""
 
     status: str
     event_type: str | None = None
-
-
-# ============ Question Attempt Schemas ============
-
 
 class QuestionSubmitRequest(BaseModel):
     """Request to submit an answer to a knowledge question."""
@@ -147,7 +143,6 @@ class QuestionSubmitRequest(BaseModel):
             raise ValueError("Answer must be at least 10 characters")
         return stripped
 
-
 class QuestionSubmitResponse(BaseModel):
     """Response for a question submission."""
 
@@ -159,7 +154,6 @@ class QuestionSubmitResponse(BaseModel):
     confidence_score: float | None = None
     attempt_id: int
 
-
 class QuestionStatusResponse(BaseModel):
     """Status of a single question for a user."""
 
@@ -167,7 +161,6 @@ class QuestionStatusResponse(BaseModel):
     is_passed: bool
     attempts_count: int
     last_attempt_at: datetime | None = None
-
 
 class TopicQuestionsStatusResponse(BaseModel):
     """Status of all questions in a topic for a user."""
@@ -178,16 +171,11 @@ class TopicQuestionsStatusResponse(BaseModel):
     total_questions: int
     passed_questions: int
 
-
-# ============ Activity & Streak Schemas ============
-
-
 class ActivityLogRequest(BaseModel):
     """Request to log a user activity."""
 
     activity_type: ActivityType
     reference_id: str | None = Field(default=None, max_length=100)
-
 
 class ActivityResponse(BaseModel):
     """Response for a logged activity."""
@@ -200,16 +188,11 @@ class ActivityResponse(BaseModel):
     reference_id: str | None = None
     created_at: datetime
 
-
-# ============ Step Progress Schemas ============
-
-
 class StepCompleteRequest(BaseModel):
     """Request to mark a learning step as complete."""
 
     topic_id: str = Field(max_length=100)
     step_order: int = Field(ge=1)
-
 
 class StepProgressResponse(BaseModel):
     """Response for a single step's progress."""
@@ -220,68 +203,65 @@ class StepProgressResponse(BaseModel):
     step_order: int
     completed_at: datetime
 
-
 class TopicStepProgressResponse(BaseModel):
     """Progress of all steps in a topic for a user."""
 
     topic_id: str
-    completed_steps: list[int]  # List of step_order numbers that are complete
+    completed_steps: list[int]
     total_steps: int
-    next_unlocked_step: int  # The next step that can be completed (1-indexed)
-
+    next_unlocked_step: int
 
 class StreakResponse(BaseModel):
     """Response containing user's streak information."""
 
-    current_streak: int  # Days in current streak
-    longest_streak: int  # All-time longest streak
-    total_activity_days: int  # Total days with any activity
-    last_activity_date: date | None = None
-    streak_alive: bool  # Is the streak still active (within forgiveness window)?
+    model_config = ConfigDict(from_attributes=True)
 
+    current_streak: int
+    longest_streak: int
+    total_activity_days: int
+    last_activity_date: date | None = None
+    streak_alive: bool
 
 class ActivityHeatmapDay(BaseModel):
     """Activity count for a single day (for heatmap display)."""
+
+    model_config = ConfigDict(from_attributes=True)
 
     date: date
     count: int
     activity_types: list[ActivityType]
 
-
 class ActivityHeatmapResponse(BaseModel):
     """Activity heatmap data for profile display."""
+
+    model_config = ConfigDict(from_attributes=True)
 
     days: list[ActivityHeatmapDay]
     start_date: date
     end_date: date
     total_activities: int
 
-
-# ============ Badge Schemas ============
-
-
 class BadgeResponse(BaseModel):
     """A badge earned by a user."""
+
+    model_config = ConfigDict(from_attributes=True)
 
     id: str
     name: str
     description: str
     icon: str
 
-
-# ============ User Profile Schemas ============
-
-
 class PublicSubmission(BaseModel):
     """A validated submission for public display."""
+
+    model_config = ConfigDict(from_attributes=True)
 
     requirement_id: str
     submission_type: SubmissionType
     phase_id: int
-    submitted_url: str
-    name: str  # Human-readable name from requirements
+    submitted_value: str
+    name: str
     validated_at: datetime | None = None
-
 
 class PublicProfileResponse(BaseModel):
     """Public user profile information.
@@ -292,40 +272,35 @@ class PublicProfileResponse(BaseModel):
     - current_phase is the first incomplete phase (or highest if all done)
     """
 
-    username: str | None = None  # github_username or derived
+    username: str | None = None
     first_name: str | None = None
     avatar_url: str | None = None
-    current_phase: int  # First incomplete phase (or highest if all done)
-    phases_completed: int  # Count of fully completed phases (steps + questions + GitHub)
+    current_phase: int
+    phases_completed: int
     streak: StreakResponse
     activity_heatmap: ActivityHeatmapResponse
     member_since: datetime
-    submissions: list[PublicSubmission] = []  # Validated GitHub submissions
-    badges: list[BadgeResponse] = []  # Earned badges
-
-
-# ============ Certificate Schemas ============
-
+    submissions: list[PublicSubmission] = []
+    badges: list[BadgeResponse] = []
 
 class CertificateEligibilityResponse(BaseModel):
     """Response for checking certificate eligibility."""
 
     is_eligible: bool
-    certificate_type: str  # "full_completion"
-    topics_completed: int  # Actually questions passed, kept for API compatibility
-    total_topics: int  # Actually total questions, kept for API compatibility
+    certificate_type: str
+    phases_completed: int
+    total_phases: int
     completion_percentage: float
     already_issued: bool
     existing_certificate_id: int | None = None
     message: str
-
 
 class CertificateRequest(BaseModel):
     """Request to generate a certificate."""
 
     certificate_type: str = Field(
         default="full_completion",
-        pattern=r"^full_completion$",  # Only full completion certificate is supported
+        pattern=r"^full_completion$",
     )
     recipient_name: str = Field(min_length=2, max_length=100)
 
@@ -338,7 +313,6 @@ class CertificateRequest(BaseModel):
             raise ValueError("Name must be at least 2 characters")
         return cleaned
 
-
 class CertificateResponse(BaseModel):
     """Response containing certificate data."""
 
@@ -349,9 +323,8 @@ class CertificateResponse(BaseModel):
     verification_code: str
     recipient_name: str
     issued_at: datetime
-    topics_completed: int
-    total_topics: int
-
+    phases_completed: int
+    total_phases: int
 
 class CertificateVerifyResponse(BaseModel):
     """Response for certificate verification."""
@@ -359,7 +332,6 @@ class CertificateVerifyResponse(BaseModel):
     is_valid: bool
     certificate: CertificateResponse | None = None
     message: str
-
 
 class UserCertificatesResponse(BaseModel):
     """All certificates for a user."""

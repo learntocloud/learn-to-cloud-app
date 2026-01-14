@@ -2,11 +2,11 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "@clerk/nextjs";
-import type { GitHubRequirement, GitHubSubmission, GitHubValidationResult } from "@/lib/types";
+import type { GitHubRequirement, Submission, GitHubValidationResult } from "@/lib/types";
 
 interface GitHubSubmissionFormProps {
   requirements: GitHubRequirement[];
-  submissions: GitHubSubmission[];
+  submissions: Submission[];
   githubUsername: string | null;
   onSubmissionSuccess?: () => void;
   onAllVerificationsComplete?: () => void;
@@ -33,7 +33,7 @@ export function GitHubSubmissionForm({
     // Pre-fill with existing submissions
     const initial: Record<string, string> = {};
     for (const sub of submissions) {
-      initial[sub.requirement_id] = sub.submitted_url;
+      initial[sub.requirement_id] = sub.submitted_value;
     }
     return initial;
   });
@@ -57,7 +57,7 @@ export function GitHubSubmissionForm({
     }
   }, [requirements, submissions, onAllVerificationsComplete, hasCelebratedCompletion]);
 
-  const getSubmissionForRequirement = (requirementId: string): GitHubSubmission | undefined => {
+  const getSubmissionForRequirement = (requirementId: string): Submission | undefined => {
     return submissions.find((s) => s.requirement_id === requirementId);
   };
 
@@ -82,7 +82,7 @@ export function GitHubSubmissionForm({
         },
         body: JSON.stringify({
           requirement_id: requirementId,
-          submitted_url: url,
+          submitted_value: url,
         }),
       });
 

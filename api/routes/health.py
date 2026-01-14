@@ -3,18 +3,16 @@
 from fastapi import APIRouter, HTTPException, Request
 from starlette import status
 
-from shared.database import check_db_connection
-from shared.schemas import HealthResponse
+from core.database import check_db_connection
+from schemas import HealthResponse
 
 router = APIRouter(tags=["health"])
-
 
 @router.get("/", response_model=HealthResponse)
 @router.get("/health", response_model=HealthResponse)
 async def health() -> HealthResponse:
     """Health check endpoint."""
     return HealthResponse(status="healthy", service="learn-to-cloud-api")
-
 
 @router.get("/ready", response_model=HealthResponse)
 async def ready(request: Request) -> HealthResponse:

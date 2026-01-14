@@ -18,26 +18,21 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 logger = logging.getLogger(__name__)
 
-# Check if telemetry is enabled (Azure environment)
 TELEMETRY_ENABLED = bool(os.getenv("APPLICATIONINSIGHTS_CONNECTION_STRING"))
 
-# OpenTelemetry imports (only available when telemetry is enabled)
-# These are conditionally imported based on Azure environment
 if TELEMETRY_ENABLED:
-    from opentelemetry import trace  # type: ignore[import-untyped]
-    from opentelemetry.trace import Status, StatusCode  # type: ignore[import-untyped]
+    from opentelemetry import trace
+    from opentelemetry.trace import Status, StatusCode
 
     tracer = trace.get_tracer(__name__)
 else:
-    trace = None  # type: ignore[assignment]
+    trace = None
     tracer = None
-    Status = None  # type: ignore[assignment,misc]
-    StatusCode = None  # type: ignore[assignment,misc]
-
+    Status = None
+    StatusCode = None
 
 P = ParamSpec("P")
 R = TypeVar("R")
-
 
 def instrument_sqlalchemy_engine(engine: Any) -> None:
     """
@@ -55,19 +50,17 @@ def instrument_sqlalchemy_engine(engine: Any) -> None:
         return
 
     try:
-        from opentelemetry.instrumentation.sqlalchemy import (  # type: ignore[import-not-found]
+        from opentelemetry.instrumentation.sqlalchemy import (
             SQLAlchemyInstrumentor,
         )
 
-        # Get the sync engine from async engine for instrumentation
         SQLAlchemyInstrumentor().instrument(
             engine=engine.sync_engine,
-            enable_commenter=True,  # Add SQL comments with trace context
+            enable_commenter=True,
         )
         logger.info("SQLAlchemy instrumentation enabled")
     except Exception as e:
         logger.warning(f"Failed to instrument SQLAlchemy: {e}")
-
 
 class SecurityHeadersMiddleware:
     """
@@ -81,7 +74,6 @@ class SecurityHeadersMiddleware:
     - Content-Security-Policy: Restricts resource loading (API-appropriate policy)
     """
 
-    # Security headers to add to all responses
     SECURITY_HEADERS: list[tuple[bytes, bytes]] = [
         (b"x-content-type-options", b"nosniff"),
         (b"x-frame-options", b"DENY"),
@@ -106,7 +98,6 @@ class SecurityHeadersMiddleware:
             await send(message)
 
         await self.app(scope, receive, send_wrapper)
-
 
 class RequestTimingMiddleware:
     """
@@ -142,8 +133,6 @@ class RequestTimingMiddleware:
             if message.get("type") == "http.response.start":
                 response_status = int(message.get("status", 0))
                 headers: list[tuple[bytes, bytes]] = list(message.get("headers", []))
-                # This header is primarily for debugging. It measures time-to-first-byte
-                # (TTFB) for streaming responses.
                 duration_ms = (time.perf_counter() - start_time) * 1000
                 headers.append(
                     (b"x-request-duration-ms", f"{duration_ms:.2f}".encode())
@@ -206,7 +195,6 @@ class RequestTimingMiddleware:
 
         await self.app(scope, receive, send_wrapper)
 
-
 def track_dependency(name: str, dependency_type: str = "custom"):
     """
     Decorator to track external dependency calls (APIs, services, etc.).
@@ -251,7 +239,6 @@ def track_dependency(name: str, dependency_type: str = "custom"):
         return wrapper
     return decorator
 
-
 def track_operation(operation_name: str):
     """
     Decorator to track custom business operations.
@@ -292,7 +279,6 @@ def track_operation(operation_name: str):
         return wrapper
     return decorator
 
-
 def add_custom_attribute(key: str, value: str | int | float | bool) -> None:
     """
     Add a custom attribute to the current span.
@@ -314,7 +300,6 @@ def add_custom_attribute(key: str, value: str | int | float | bool) -> None:
     if span:
         span.set_attribute(key, value)
 
-
 def log_metric(
     name: str, value: float, properties: dict[str, str] | None = None
 ) -> None:
@@ -332,7 +317,6 @@ def log_metric(
     if not TELEMETRY_ENABLED:
         return
 
-    # Log as structured data that Azure Monitor can pick up
     extra = {"custom_metric": name, "metric_value": value}
     if properties:
         extra.update(properties)

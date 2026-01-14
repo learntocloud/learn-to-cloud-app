@@ -26,8 +26,8 @@ export default async function CertificatesPage() {
     getCertificateEligibility("full_completion").catch(() => ({
       is_eligible: false,
       certificate_type: "full_completion",
-      topics_completed: 0,
-      total_topics: 40,
+      phases_completed: 0,
+      total_phases: 7,
       completion_percentage: 0,
       already_issued: false,
       existing_certificate_id: null,
@@ -106,7 +106,7 @@ export default async function CertificatesPage() {
               Keep learning! Complete phases to earn certificates and showcase your cloud skills.
             </p>
             <p className="text-gray-500 dark:text-slate-500 text-sm">
-              Progress: {fullCompletionEligibility.topics_completed} / {fullCompletionEligibility.total_topics} topics completed
+              Progress: {fullCompletionEligibility.phases_completed} / {fullCompletionEligibility.total_phases} phases completed
               ({fullCompletionEligibility.completion_percentage}%)
             </p>
           </div>
