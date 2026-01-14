@@ -109,6 +109,133 @@ async def _validate_public_https_url(url: str) -> str:
 
     return parts._replace(fragment="").geturl()
 
+
+def validate_journal_api_response(response_text: str) -> ValidationResult:
+    """
+    Validate a Journal API GET /entries response.
+
+    Checks that the response is valid JSON with the expected structure:
+    - Must be a JSON array
+    - Must contain at least one entry
+    - Each entry must have: id, work, struggle, intention, created_at
+
+    Args:
+        response_text: The JSON response text pasted by the user
+
+    Returns:
+        ValidationResult indicating if the response is valid
+    """
+    import json
+    import re
+
+    response_text = response_text.strip()
+
+    if not response_text:
+        return ValidationResult(
+            is_valid=False,
+            message="Please paste your GET /entries JSON response.",
+            username_match=True,
+            repo_exists=False,
+        )
+
+    # Try to parse as JSON
+    try:
+        data = json.loads(response_text)
+    except json.JSONDecodeError as e:
+        return ValidationResult(
+            is_valid=False,
+            message=f"Invalid JSON format. Make sure you copied the entire response. Error: {e.msg}",
+            username_match=True,
+            repo_exists=False,
+        )
+
+    # Handle both formats:
+    # 1. Wrapped response: {"entries": [...], "count": N}
+    # 2. Raw array: [...]
+    entries: list
+    if isinstance(data, dict) and "entries" in data:
+        entries = data["entries"]
+        if not isinstance(entries, list):
+            return ValidationResult(
+                is_valid=False,
+                message="The 'entries' field should be a list.",
+                username_match=True,
+                repo_exists=False,
+            )
+    elif isinstance(data, list):
+        entries = data
+    else:
+        return ValidationResult(
+            is_valid=False,
+            message="Response should be a JSON array or an object with 'entries' key. Did you call GET /entries?",
+            username_match=True,
+            repo_exists=False,
+        )
+
+    # Must have at least one entry
+    if len(entries) == 0:
+        return ValidationResult(
+            is_valid=False,
+            message="No entries found. Create at least one journal entry using POST /entries first, then try GET /entries again.",
+            username_match=True,
+            repo_exists=False,
+        )
+
+    # Validate each entry has required fields
+    required_fields = ["id", "work", "struggle", "intention", "created_at"]
+    uuid_pattern = re.compile(
+        r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", re.IGNORECASE
+    )
+
+    for i, entry in enumerate(entries):
+        if not isinstance(entry, dict):
+            return ValidationResult(
+                is_valid=False,
+                message=f"Entry {i + 1} is not a valid object.",
+                username_match=True,
+                repo_exists=False,
+            )
+
+        missing_fields = [f for f in required_fields if f not in entry]
+        if missing_fields:
+            return ValidationResult(
+                is_valid=False,
+                message=f"Entry {i + 1} is missing required fields: {', '.join(missing_fields)}. "
+                        f"Make sure your Entry model has all the required fields.",
+                username_match=True,
+                repo_exists=False,
+            )
+
+        # Validate UUID format for id
+        entry_id = entry.get("id", "")
+        if not uuid_pattern.match(str(entry_id)):
+            return ValidationResult(
+                is_valid=False,
+                message=f"Entry {i + 1} has an invalid ID format. Expected UUID format (e.g., 123e4567-e89b-12d3-a456-426614174000).",
+                username_match=True,
+                repo_exists=False,
+            )
+
+        # Validate work, struggle, intention are non-empty strings
+        for field in ["work", "struggle", "intention"]:
+            value = entry.get(field, "")
+            if not isinstance(value, str) or not value.strip():
+                return ValidationResult(
+                    is_valid=False,
+                    message=f"Entry {i + 1} has an empty or invalid '{field}' field.",
+                    username_match=True,
+                    repo_exists=False,
+                )
+
+    entry_count = len(entries)
+    return ValidationResult(
+        is_valid=True,
+        message=f"Verified! Your Journal API is working correctly with {entry_count} {'entry' if entry_count == 1 else 'entries'}. 🎉",
+        username_match=True,
+        repo_exists=True,
+    )
+
+
 HANDS_ON_REQUIREMENTS: dict[int, list[HandsOnRequirement]] = {
     0: [
         HandsOnRequirement(
@@ -156,6 +283,14 @@ HANDS_ON_REQUIREMENTS: dict[int, list[HandsOnRequirement]] = {
             description="Fork the journal-starter repository and build your Learning Journal API with FastAPI, PostgreSQL, and AI-powered entry analysis.",
             example_url="https://github.com/learntocloud/journal-starter",
             required_repo="learntocloud/journal-starter",
+        ),
+        HandsOnRequirement(
+            id="phase2-journal-api-working",
+            phase_id=2,
+            submission_type=SubmissionType.JOURNAL_API_RESPONSE,
+            name="Working Journal API",
+            description="Verify your Journal API is working locally. Create at least one journal entry using POST /entries, then call GET /entries and paste the JSON response below.",
+            example_url=None,
         ),
     ],
     3: [
@@ -452,6 +587,9 @@ async def validate_submission(
             username_match=False,
             repo_exists=False,
         )
+
+    elif requirement.submission_type == SubmissionType.JOURNAL_API_RESPONSE:
+        return validate_journal_api_response(submitted_value)
 
     else:
         return ValidationResult(

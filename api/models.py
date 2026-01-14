@@ -116,6 +116,9 @@ class SubmissionType(str, PyEnum):
     CTF_TOKEN = "ctf_token"
     API_CHALLENGE = "api_challenge"
 
+    # Local API response validation (paste JSON output)
+    JOURNAL_API_RESPONSE = "journal_api_response"
+
 class Submission(TimestampMixin, Base):
     """Tracks validated submissions for hands-on verification.
 

@@ -212,31 +212,59 @@ export function GitHubSubmissionForm({
                 </p>
               )}
 
-              <div className="mt-4 flex gap-2">
-                <input
-                  type="url"
-                  placeholder={
-                    req.submission_type === "deployed_app"
-                      ? "https://your-app.azurewebsites.net"
-                      : `https://github.com/${githubUsername}/...`
-                  }
-                  value={urls[req.id] || ""}
-                  onChange={(e) => setUrls((prev) => ({ ...prev, [req.id]: e.target.value }))}
-                  disabled={isLoading}
-                  className={`flex-1 px-3 py-2 text-sm rounded-lg border ${
-                    error
-                      ? "border-red-300 dark:border-red-600"
-                      : "border-gray-300 dark:border-gray-600"
-                  } bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50`}
-                />
-                <button
-                  onClick={() => handleSubmit(req.id)}
-                  disabled={isLoading}
-                  className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  {isLoading ? "Validating..." : isValidated ? "Re-verify" : "Verify"}
-                </button>
-              </div>
+              {/* JSON response textarea for journal_api_response type */}
+              {req.submission_type === "journal_api_response" ? (
+                <div className="mt-4 space-y-2">
+                  <textarea
+                    placeholder='Paste your GET /entries JSON response here, e.g.:
+[{"id": "123e4567-e89b-12d3-a456-426614174000", "work": "...", "struggle": "...", "intention": "...", "created_at": "..."}]'
+                    value={urls[req.id] || ""}
+                    onChange={(e) => setUrls((prev) => ({ ...prev, [req.id]: e.target.value }))}
+                    disabled={isLoading}
+                    rows={5}
+                    className={`w-full px-3 py-2 text-sm font-mono rounded-lg border ${
+                      error
+                        ? "border-red-300 dark:border-red-600"
+                        : "border-gray-300 dark:border-gray-600"
+                    } bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 resize-y`}
+                  />
+                  <button
+                    onClick={() => handleSubmit(req.id)}
+                    disabled={isLoading}
+                    className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {isLoading ? "Validating..." : isValidated ? "Re-verify" : "Verify"}
+                  </button>
+                </div>
+              ) : (
+                <div className="mt-4 flex gap-2">
+                  <input
+                    type={req.submission_type === "ctf_token" ? "text" : "url"}
+                    placeholder={
+                      req.submission_type === "deployed_app"
+                        ? "https://your-app.azurewebsites.net"
+                        : req.submission_type === "ctf_token"
+                        ? "Paste your CTF token here"
+                        : `https://github.com/${githubUsername}/...`
+                    }
+                    value={urls[req.id] || ""}
+                    onChange={(e) => setUrls((prev) => ({ ...prev, [req.id]: e.target.value }))}
+                    disabled={isLoading}
+                    className={`flex-1 px-3 py-2 text-sm rounded-lg border ${
+                      error
+                        ? "border-red-300 dark:border-red-600"
+                        : "border-gray-300 dark:border-gray-600"
+                    } bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50`}
+                  />
+                  <button
+                    onClick={() => handleSubmit(req.id)}
+                    disabled={isLoading}
+                    className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {isLoading ? "Validating..." : isValidated ? "Re-verify" : "Verify"}
+                  </button>
+                </div>
+              )}
 
               {/* Error message */}
               {error && (

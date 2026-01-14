@@ -128,7 +128,8 @@ export type SubmissionType =
   | 'repo_url'         // Any repository URL
   | 'deployed_app'     // Live deployed application
   | 'ctf_token'        // CTF challenge completion token
-  | 'api_challenge';   // API-based challenge response
+  | 'api_challenge'    // API-based challenge response
+  | 'journal_api_response'; // Local API JSON response validation
 
 export interface GitHubRequirement {
   id: string;
