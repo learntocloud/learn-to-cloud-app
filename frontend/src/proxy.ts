@@ -1,8 +1,8 @@
 /**
  * Clerk Authentication Middleware
  * 
- * Named "proxy.ts" per Next.js 16 convention (formerly middleware.ts).
- * This is NOT an HTTP proxy - it intercepts requests to protect private routes.
+ * Protects private routes and allows public access to specified paths.
+ * Authentication is handled by Clerk, with route-level privacy controlled at the API level.
  */
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
 
