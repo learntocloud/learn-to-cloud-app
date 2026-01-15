@@ -6,6 +6,10 @@ terraform {
       source  = "hashicorp/azurerm"
       version = "~> 4.0"
     }
+    time = {
+      source  = "hashicorp/time"
+      version = "~> 0.9"
+    }
   }
 }
 
@@ -75,4 +79,12 @@ resource "azurerm_role_assignment" "container_app_identity_kv_secrets_user" {
   role_definition_name = "Key Vault Secrets User"
   principal_id         = var.container_app_identity_principal_id
   principal_type       = "ServicePrincipal"
+}
+
+# Wait for RBAC to propagate before Container Apps can use the identity
+# Azure RBAC can take up to 10 minutes to propagate
+resource "time_sleep" "wait_for_rbac_propagation" {
+  depends_on = [azurerm_role_assignment.container_app_identity_kv_secrets_user]
+
+  create_duration = "60s"
 }
