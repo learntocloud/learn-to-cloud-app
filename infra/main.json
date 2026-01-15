@@ -6,7 +6,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.39.26.7824",
-      "templateHash": "9903202888602768536"
+      "templateHash": "4266462268575613714"
     }
   },
   "parameters": {
@@ -45,6 +45,12 @@
       "type": "string",
       "metadata": {
         "description": "Clerk Publishable Key"
+      }
+    },
+    "googleApiKey": {
+      "type": "securestring",
+      "metadata": {
+        "description": "Google Gemini API key for LLM features"
       }
     },
     "frontendCustomDomain": {
@@ -116,6 +122,9 @@
           "clerkPublishableKey": {
             "value": "[parameters('clerkPublishableKey')]"
           },
+          "googleApiKey": {
+            "value": "[parameters('googleApiKey')]"
+          },
           "frontendCustomDomain": {
             "value": "[parameters('frontendCustomDomain')]"
           },
@@ -133,7 +142,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.39.26.7824",
-              "templateHash": "16517909568972730846"
+              "templateHash": "12056839968983911182"
             }
           },
           "parameters": {
@@ -177,6 +186,12 @@
               "type": "string",
               "metadata": {
                 "description": "Clerk publishable key for frontend authentication"
+              }
+            },
+            "googleApiKey": {
+              "type": "securestring",
+              "metadata": {
+                "description": "Google Gemini API key for LLM features"
               }
             },
             "frontendCustomDomain": {
@@ -388,6 +403,17 @@
               ]
             },
             {
+              "type": "Microsoft.KeyVault/vaults/secrets",
+              "apiVersion": "2024-04-01-preview",
+              "name": "[format('{0}/{1}', format('kv-ltc-{0}-{1}', parameters('environment'), variables('uniqueSuffix')), 'google-api-key')]",
+              "properties": {
+                "value": "[parameters('googleApiKey')]"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.KeyVault/vaults', format('kv-ltc-{0}-{1}', parameters('environment'), variables('uniqueSuffix')))]"
+              ]
+            },
+            {
               "type": "Microsoft.Authorization/roleAssignments",
               "apiVersion": "2022-04-01",
               "scope": "[format('Microsoft.KeyVault/vaults/{0}', format('kv-ltc-{0}-{1}', parameters('environment'), variables('uniqueSuffix')))]",
@@ -453,6 +479,11 @@
                       "name": "clerk-webhook-signing-secret",
                       "keyVaultUrl": "[reference(resourceId('Microsoft.KeyVault/vaults/secrets', format('kv-ltc-{0}-{1}', parameters('environment'), variables('uniqueSuffix')), 'clerk-webhook-signing-secret'), '2024-04-01-preview').secretUri]",
                       "identity": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('id-{0}-{1}', variables('appName'), parameters('environment')))]"
+                    },
+                    {
+                      "name": "google-api-key",
+                      "keyVaultUrl": "[reference(resourceId('Microsoft.KeyVault/vaults/secrets', format('kv-ltc-{0}-{1}', parameters('environment'), variables('uniqueSuffix')), 'google-api-key'), '2024-04-01-preview').secretUri]",
+                      "identity": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('id-{0}-{1}', variables('appName'), parameters('environment')))]"
                     }
                   ]
                 },
@@ -465,44 +496,7 @@
                         "cpu": "[json('0.5')]",
                         "memory": "1Gi"
                       },
-                      "env": [
-                        {
-                          "name": "POSTGRES_HOST",
-                          "value": "[reference(resourceId('Microsoft.DBforPostgreSQL/flexibleServers', format('psql-{0}-{1}-{2}', variables('appName'), parameters('environment'), variables('uniqueSuffix'))), '2023-12-01-preview').fullyQualifiedDomainName]"
-                        },
-                        {
-                          "name": "POSTGRES_DATABASE",
-                          "value": "learntocloud"
-                        },
-                        {
-                          "name": "POSTGRES_USER",
-                          "value": "[variables('apiAppName')]"
-                        },
-                        {
-                          "name": "CLERK_SECRET_KEY",
-                          "secretRef": "clerk-secret-key"
-                        },
-                        {
-                          "name": "CLERK_WEBHOOK_SIGNING_SECRET",
-                          "secretRef": "clerk-webhook-signing-secret"
-                        },
-                        {
-                          "name": "CLERK_PUBLISHABLE_KEY",
-                          "value": "[parameters('clerkPublishableKey')]"
-                        },
-                        {
-                          "name": "ENVIRONMENT",
-                          "value": "[parameters('environment')]"
-                        },
-                        {
-                          "name": "FRONTEND_URL",
-                          "value": "[if(not(empty(parameters('frontendCustomDomain'))), format('https://{0}', parameters('frontendCustomDomain')), format('https://{0}.{1}', variables('frontendAppName'), reference(resourceId('Microsoft.App/managedEnvironments', format('cae-{0}-{1}', variables('appName'), parameters('environment'))), '2024-03-01').defaultDomain))]"
-                        },
-                        {
-                          "name": "APPLICATIONINSIGHTS_CONNECTION_STRING",
-                          "value": "[reference(resourceId('Microsoft.Insights/components', format('appi-{0}-{1}', variables('appName'), parameters('environment'))), '2020-02-02').ConnectionString]"
-                        }
-                      ],
+                      "env": "[concat(createArray(createObject('name', 'POSTGRES_HOST', 'value', reference(resourceId('Microsoft.DBforPostgreSQL/flexibleServers', format('psql-{0}-{1}-{2}', variables('appName'), parameters('environment'), variables('uniqueSuffix'))), '2023-12-01-preview').fullyQualifiedDomainName), createObject('name', 'POSTGRES_DATABASE', 'value', 'learntocloud'), createObject('name', 'POSTGRES_USER', 'value', variables('apiAppName')), createObject('name', 'CLERK_SECRET_KEY', 'secretRef', 'clerk-secret-key'), createObject('name', 'CLERK_WEBHOOK_SIGNING_SECRET', 'secretRef', 'clerk-webhook-signing-secret'), createObject('name', 'CLERK_PUBLISHABLE_KEY', 'value', parameters('clerkPublishableKey')), createObject('name', 'GOOGLE_API_KEY', 'secretRef', 'google-api-key'), createObject('name', 'ENVIRONMENT', 'value', parameters('environment')), createObject('name', 'FRONTEND_URL', 'value', if(not(empty(parameters('frontendCustomDomain'))), format('https://{0}', parameters('frontendCustomDomain')), format('https://{0}.{1}', variables('frontendAppName'), reference(resourceId('Microsoft.App/managedEnvironments', format('cae-{0}-{1}', variables('appName'), parameters('environment'))), '2024-03-01').defaultDomain))), createObject('name', 'APPLICATIONINSIGHTS_CONNECTION_STRING', 'value', reference(resourceId('Microsoft.Insights/components', format('appi-{0}-{1}', variables('appName'), parameters('environment'))), '2020-02-02').ConnectionString)))]",
                       "probes": [
                         {
                           "type": "Startup",
@@ -564,7 +558,8 @@
                 "[resourceId('Microsoft.ContainerRegistry/registries', format('crltc{0}', variables('uniqueSuffix')))]",
                 "[resourceId('Microsoft.DBforPostgreSQL/flexibleServers', format('psql-{0}-{1}-{2}', variables('appName'), parameters('environment'), variables('uniqueSuffix')))]",
                 "[resourceId('Microsoft.KeyVault/vaults/secrets', format('kv-ltc-{0}-{1}', parameters('environment'), variables('uniqueSuffix')), 'clerk-secret-key')]",
-                "[resourceId('Microsoft.KeyVault/vaults/secrets', format('kv-ltc-{0}-{1}', parameters('environment'), variables('uniqueSuffix')), 'clerk-webhook-signing-secret')]"
+                "[resourceId('Microsoft.KeyVault/vaults/secrets', format('kv-ltc-{0}-{1}', parameters('environment'), variables('uniqueSuffix')), 'clerk-webhook-signing-secret')]",
+                "[resourceId('Microsoft.KeyVault/vaults/secrets', format('kv-ltc-{0}-{1}', parameters('environment'), variables('uniqueSuffix')), 'google-api-key')]"
               ]
             },
             {
@@ -584,7 +579,7 @@
                 "configuration": {
                   "ingress": {
                     "external": true,
-                    "targetPort": 3000,
+                    "targetPort": 80,
                     "transport": "http",
                     "allowInsecure": false,
                     "customDomains": "[if(and(not(empty(parameters('frontendCustomDomain'))), not(empty(parameters('frontendManagedCertificateName')))), createArray(createObject('name', parameters('frontendCustomDomain'), 'bindingType', 'SniEnabled', 'certificateId', resourceId('Microsoft.App/managedEnvironments/managedCertificates', format('cae-{0}-{1}', variables('appName'), parameters('environment')), parameters('frontendManagedCertificateName')))), createArray())]"
@@ -593,13 +588,6 @@
                     {
                       "server": "[reference(resourceId('Microsoft.ContainerRegistry/registries', format('crltc{0}', variables('uniqueSuffix'))), '2023-07-01').loginServer]",
                       "identity": "system"
-                    }
-                  ],
-                  "secrets": [
-                    {
-                      "name": "clerk-secret-key",
-                      "keyVaultUrl": "[reference(resourceId('Microsoft.KeyVault/vaults/secrets', format('kv-ltc-{0}-{1}', parameters('environment'), variables('uniqueSuffix')), 'clerk-secret-key'), '2024-04-01-preview').secretUri]",
-                      "identity": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('id-{0}-{1}', variables('appName'), parameters('environment')))]"
                     }
                   ]
                 },
@@ -614,51 +602,35 @@
                       },
                       "env": [
                         {
-                          "name": "NEXT_PUBLIC_API_URL",
+                          "name": "VITE_API_URL",
                           "value": "[format('https://{0}.{1}', variables('apiAppName'), reference(resourceId('Microsoft.App/managedEnvironments', format('cae-{0}-{1}', variables('appName'), parameters('environment'))), '2024-03-01').defaultDomain)]"
                         },
                         {
-                          "name": "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY",
+                          "name": "VITE_CLERK_PUBLISHABLE_KEY",
                           "value": "[parameters('clerkPublishableKey')]"
                         },
                         {
-                          "name": "CLERK_SECRET_KEY",
-                          "secretRef": "clerk-secret-key"
-                        },
-                        {
                           "name": "PORT",
-                          "value": "3000"
-                        },
-                        {
-                          "name": "NEXT_PUBLIC_CLERK_SIGN_IN_URL",
-                          "value": "/sign-in"
-                        },
-                        {
-                          "name": "NEXT_PUBLIC_CLERK_SIGN_UP_URL",
-                          "value": "/sign-up"
-                        },
-                        {
-                          "name": "NEXT_PUBLIC_APPLICATIONINSIGHTS_CONNECTION_STRING",
-                          "value": "[reference(resourceId('Microsoft.Insights/components', format('appi-{0}-{1}', variables('appName'), parameters('environment'))), '2020-02-02').ConnectionString]"
+                          "value": "80"
                         }
                       ],
                       "probes": [
                         {
                           "type": "Startup",
                           "httpGet": {
-                            "path": "/",
-                            "port": 3000
+                            "path": "/health",
+                            "port": 80
                           },
-                          "initialDelaySeconds": 5,
-                          "periodSeconds": 10,
-                          "failureThreshold": 30,
-                          "timeoutSeconds": 3
+                          "initialDelaySeconds": 2,
+                          "periodSeconds": 5,
+                          "failureThreshold": 6,
+                          "timeoutSeconds": 2
                         },
                         {
                           "type": "Liveness",
                           "httpGet": {
-                            "path": "/",
-                            "port": 3000
+                            "path": "/health",
+                            "port": 80
                           },
                           "initialDelaySeconds": 0,
                           "periodSeconds": 30,
@@ -668,8 +640,8 @@
                         {
                           "type": "Readiness",
                           "httpGet": {
-                            "path": "/",
-                            "port": 3000
+                            "path": "/health",
+                            "port": 80
                           },
                           "initialDelaySeconds": 0,
                           "periodSeconds": 10,
@@ -697,19 +669,17 @@
               },
               "dependsOn": [
                 "[resourceId('Microsoft.App/containerApps', variables('apiAppName'))]",
-                "[resourceId('Microsoft.Insights/components', format('appi-{0}-{1}', variables('appName'), parameters('environment')))]",
                 "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('id-{0}-{1}', variables('appName'), parameters('environment')))]",
                 "[extensionResourceId(resourceId('Microsoft.KeyVault/vaults', format('kv-ltc-{0}-{1}', parameters('environment'), variables('uniqueSuffix'))), 'Microsoft.Authorization/roleAssignments', guid(resourceId('Microsoft.KeyVault/vaults', format('kv-ltc-{0}-{1}', parameters('environment'), variables('uniqueSuffix'))), resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('id-{0}-{1}', variables('appName'), parameters('environment'))), 'keyVaultSecretsUser'))]",
                 "[resourceId('Microsoft.App/managedEnvironments', format('cae-{0}-{1}', variables('appName'), parameters('environment')))]",
-                "[resourceId('Microsoft.ContainerRegistry/registries', format('crltc{0}', variables('uniqueSuffix')))]",
-                "[resourceId('Microsoft.KeyVault/vaults/secrets', format('kv-ltc-{0}-{1}', parameters('environment'), variables('uniqueSuffix')), 'clerk-secret-key')]"
+                "[resourceId('Microsoft.ContainerRegistry/registries', format('crltc{0}', variables('uniqueSuffix')))]"
               ]
             },
             {
               "type": "Microsoft.Authorization/roleAssignments",
               "apiVersion": "2022-04-01",
               "scope": "[format('Microsoft.ContainerRegistry/registries/{0}', format('crltc{0}', variables('uniqueSuffix')))]",
-              "name": "[guid(resourceId('Microsoft.ContainerRegistry/registries', format('crltc{0}', variables('uniqueSuffix'))), resourceId('Microsoft.App/containerApps', variables('apiAppName')), 'acrPull')]",
+              "name": "[guid(resourceId('Microsoft.ContainerRegistry/registries', format('crltc{0}', variables('uniqueSuffix'))), resourceId('Microsoft.App/containerApps', variables('apiAppName')), variables('acrPullRoleDefinitionId'), 'v2')]",
               "properties": {
                 "roleDefinitionId": "[variables('acrPullRoleDefinitionId')]",
                 "principalId": "[reference(resourceId('Microsoft.App/containerApps', variables('apiAppName')), '2024-03-01', 'full').identity.principalId]",
@@ -724,7 +694,7 @@
               "type": "Microsoft.Authorization/roleAssignments",
               "apiVersion": "2022-04-01",
               "scope": "[format('Microsoft.ContainerRegistry/registries/{0}', format('crltc{0}', variables('uniqueSuffix')))]",
-              "name": "[guid(resourceId('Microsoft.ContainerRegistry/registries', format('crltc{0}', variables('uniqueSuffix'))), resourceId('Microsoft.App/containerApps', variables('frontendAppName')), 'acrPull')]",
+              "name": "[guid(resourceId('Microsoft.ContainerRegistry/registries', format('crltc{0}', variables('uniqueSuffix'))), resourceId('Microsoft.App/containerApps', variables('frontendAppName')), variables('acrPullRoleDefinitionId'), 'v2')]",
               "properties": {
                 "roleDefinitionId": "[variables('acrPullRoleDefinitionId')]",
                 "principalId": "[reference(resourceId('Microsoft.App/containerApps', variables('frontendAppName')), '2024-03-01', 'full').identity.principalId]",
