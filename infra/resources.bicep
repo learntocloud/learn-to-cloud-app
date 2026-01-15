@@ -262,7 +262,7 @@ resource apiApp 'Microsoft.App/containerApps@2024-03-01' = {
     configuration: {
       ingress: {
         external: true
-        targetPort: 8000
+        targetPort: 80  // Placeholder image uses 80; azd deploy updates to 8000
         transport: 'http'
         allowInsecure: false
         corsPolicy: {
@@ -348,12 +348,14 @@ resource apiApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
           ])
           // Health probes - allow longer startup for cold starts
+          // Note: Using port 80 and / path for placeholder image (containerapps-helloworld)
+          // azd deploy will update to real image with correct port 8000 and /health path
           probes: [
             {
               type: 'Startup'
               httpGet: {
-                path: '/health'
-                port: 8000
+                path: '/'
+                port: 80
               }
               initialDelaySeconds: 5
               periodSeconds: 10
@@ -363,8 +365,8 @@ resource apiApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               type: 'Liveness'
               httpGet: {
-                path: '/health'
-                port: 8000
+                path: '/'
+                port: 80
               }
               initialDelaySeconds: 0
               periodSeconds: 30
@@ -374,8 +376,8 @@ resource apiApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               type: 'Readiness'
               httpGet: {
-                path: '/ready'
-                port: 8000
+                path: '/'
+                port: 80
               }
               initialDelaySeconds: 0
               periodSeconds: 10
@@ -473,12 +475,13 @@ resource frontendApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: '80'
             }
           ]
-          // Health probes for frontend (nginx serves static files - fast startup)
+          // Health probes for frontend - using / for placeholder compatibility
+          // azd deploy will update to real image with /health endpoint
           probes: [
             {
               type: 'Startup'
               httpGet: {
-                path: '/health'
+                path: '/'
                 port: 80
               }
               initialDelaySeconds: 2
@@ -489,7 +492,7 @@ resource frontendApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               type: 'Liveness'
               httpGet: {
-                path: '/health'
+                path: '/'
                 port: 80
               }
               initialDelaySeconds: 0
@@ -500,7 +503,7 @@ resource frontendApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               type: 'Readiness'
               httpGet: {
-                path: '/health'
+                path: '/'
                 port: 80
               }
               initialDelaySeconds: 0

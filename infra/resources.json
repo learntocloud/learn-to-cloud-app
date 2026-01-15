@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.39.26.7824",
-      "templateHash": "12051402615915430539"
+      "templateHash": "13939396052494088449"
     }
   },
   "parameters": {
@@ -308,7 +308,7 @@
         "configuration": {
           "ingress": {
             "external": true,
-            "targetPort": 8000,
+            "targetPort": 80,
             "transport": "http",
             "allowInsecure": false,
             "corsPolicy": {
@@ -364,8 +364,8 @@
                 {
                   "type": "Startup",
                   "httpGet": {
-                    "path": "/health",
-                    "port": 8000
+                    "path": "/",
+                    "port": 80
                   },
                   "initialDelaySeconds": 5,
                   "periodSeconds": 10,
@@ -375,8 +375,8 @@
                 {
                   "type": "Liveness",
                   "httpGet": {
-                    "path": "/health",
-                    "port": 8000
+                    "path": "/",
+                    "port": 80
                   },
                   "initialDelaySeconds": 0,
                   "periodSeconds": 30,
@@ -386,8 +386,8 @@
                 {
                   "type": "Readiness",
                   "httpGet": {
-                    "path": "/ready",
-                    "port": 8000
+                    "path": "/",
+                    "port": 80
                   },
                   "initialDelaySeconds": 0,
                   "periodSeconds": 10,
@@ -481,7 +481,7 @@
                 {
                   "type": "Startup",
                   "httpGet": {
-                    "path": "/health",
+                    "path": "/",
                     "port": 80
                   },
                   "initialDelaySeconds": 2,
@@ -492,7 +492,7 @@
                 {
                   "type": "Liveness",
                   "httpGet": {
-                    "path": "/health",
+                    "path": "/",
                     "port": 80
                   },
                   "initialDelaySeconds": 0,
@@ -503,7 +503,7 @@
                 {
                   "type": "Readiness",
                   "httpGet": {
-                    "path": "/health",
+                    "path": "/",
                     "port": 80
                   },
                   "initialDelaySeconds": 0,
