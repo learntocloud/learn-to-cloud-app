@@ -44,13 +44,6 @@ variable "clerk_publishable_key" {
   type        = string
 }
 
-# Optional Features
-variable "enable_redis" {
-  description = "Enable Azure Cache for Redis for distributed rate limiting"
-  type        = bool
-  default     = true
-}
-
 # Google API Key (Optional)
 variable "google_api_key" {
   description = "Google API key for AI features (optional)"

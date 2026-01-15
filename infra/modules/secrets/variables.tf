@@ -48,19 +48,6 @@ variable "postgres_admin_password" {
   sensitive   = true
 }
 
-variable "enable_redis" {
-  description = "Whether Redis is enabled"
-  type        = bool
-  default     = false
-}
-
-variable "redis_connection_string" {
-  description = "Redis connection string (if Redis is enabled)"
-  type        = string
-  sensitive   = true
-  default     = null
-}
-
 variable "google_api_key" {
   description = "Google API key for AI features"
   type        = string

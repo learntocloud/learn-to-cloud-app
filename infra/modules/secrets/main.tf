@@ -58,16 +58,6 @@ resource "azurerm_key_vault_secret" "postgres_admin_password" {
   depends_on = [azurerm_role_assignment.container_app_identity_kv_secrets_user]
 }
 
-# Redis connection string secret (conditional)
-resource "azurerm_key_vault_secret" "redis_connection_string" {
-  count        = var.enable_redis ? 1 : 0
-  name         = "redis-connection-string"
-  value        = var.redis_connection_string
-  key_vault_id = azurerm_key_vault.main.id
-
-  depends_on = [azurerm_role_assignment.container_app_identity_kv_secrets_user]
-}
-
 # Google API key secret (conditional)
 resource "azurerm_key_vault_secret" "google_api_key" {
   count        = var.google_api_key != "" ? 1 : 0

@@ -55,12 +55,6 @@ variable "clerk_webhook_signing_secret_kv_id" {
   type        = string
 }
 
-variable "redis_connection_string_kv_id" {
-  description = "Key Vault secret ID for Redis connection string (if enabled)"
-  type        = string
-  default     = null
-}
-
 variable "google_api_key_kv_id" {
   description = "Key Vault secret ID for Google API key (if provided)"
   type        = string

@@ -73,19 +73,6 @@ module "database" {
   tags                    = local.tags
 }
 
-# Cache Module: Azure Cache for Redis (conditional)
-module "cache" {
-  source = "./modules/cache"
-
-  app_name            = local.app_name
-  environment         = var.environment
-  location            = var.location
-  resource_group_name = module.foundation.resource_group_name
-  unique_suffix       = module.foundation.unique_suffix
-  enable_redis        = var.enable_redis
-  tags                = local.tags
-}
-
 # Secrets Module: Key Vault, Secrets, and RBAC
 module "secrets" {
   source = "./modules/secrets"
@@ -99,8 +86,6 @@ module "secrets" {
   clerk_secret_key                    = var.clerk_secret_key
   clerk_webhook_signing_secret        = var.clerk_webhook_signing_secret
   postgres_admin_password             = var.postgres_admin_password
-  enable_redis                        = var.enable_redis
-  redis_connection_string             = module.cache.redis_connection_string
   google_api_key                      = var.google_api_key
   tags                                = local.tags
 }
@@ -120,7 +105,6 @@ module "container_apps" {
   clerk_publishable_key               = var.clerk_publishable_key
   clerk_secret_key_kv_id              = module.secrets.clerk_secret_key_id
   clerk_webhook_signing_secret_kv_id  = module.secrets.clerk_webhook_signing_secret_id
-  redis_connection_string_kv_id       = module.secrets.redis_connection_string_id
   google_api_key_kv_id                = module.secrets.google_api_key_id
   app_insights_connection_string      = module.observability.app_insights_connection_string
   frontend_custom_domain              = var.frontend_custom_domain

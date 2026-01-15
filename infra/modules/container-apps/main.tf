@@ -71,15 +71,6 @@ resource "azurerm_container_app" "api" {
   }
 
   dynamic "secret" {
-    for_each = var.redis_connection_string_kv_id != null ? [1] : []
-    content {
-      name                = "redis-connection-string"
-      key_vault_secret_id = var.redis_connection_string_kv_id
-      identity            = var.user_assigned_identity_id
-    }
-  }
-
-  dynamic "secret" {
     for_each = var.google_api_key_kv_id != null ? [1] : []
     content {
       name                = "google-api-key"
@@ -146,14 +137,6 @@ resource "azurerm_container_app" "api" {
       env {
         name  = "APPLICATIONINSIGHTS_CONNECTION_STRING"
         value = var.app_insights_connection_string
-      }
-
-      dynamic "env" {
-        for_each = var.redis_connection_string_kv_id != null ? [1] : []
-        content {
-          name        = "REDIS_URL"
-          secret_name = "redis-connection-string"
-        }
       }
 
       dynamic "env" {
@@ -232,7 +215,7 @@ resource "azurerm_container_app" "api" {
   }
 }
 
-# Frontend Container App (Next.js)
+# Frontend Container App (Vite/React)
 resource "azurerm_container_app" "frontend" {
   name                         = local.frontend_app_name
   container_app_environment_id = azurerm_container_app_environment.main.id
@@ -251,100 +234,62 @@ resource "azurerm_container_app" "frontend" {
     identity = "system"
   }
 
-  secret {
-    name                = "clerk-secret-key"
-    key_vault_secret_id = var.clerk_secret_key_kv_id
-    identity            = var.user_assigned_identity_id
-  }
+  # Note: Vite env vars (VITE_*) are baked in at Docker build time via --build-arg
+  # They cannot be set at runtime. The deploy workflow passes these as build args.
 
   template {
-    min_replicas = 0 # Scale to zero when idle (frontend cold starts are acceptable)
+    min_replicas = 0 # Scale to zero when idle (nginx cold starts are very fast)
     max_replicas = 10
 
     http_scale_rule {
       name                = "http-scaling"
-      concurrent_requests = "50"
+      concurrent_requests = "100" # nginx can handle more concurrent requests
     }
 
     container {
       name   = "frontend"
       image  = "mcr.microsoft.com/azuredocs/containerapps-helloworld:latest"
-      cpu    = 0.5
-      memory = "1Gi"
+      cpu    = 0.25 # nginx serving static files needs minimal CPU
+      memory = "0.5Gi"
 
-      env {
-        name  = "NEXT_PUBLIC_API_URL"
-        value = "https://${azurerm_container_app.api.ingress[0].fqdn}"
-      }
-
-      env {
-        name  = "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY"
-        value = var.clerk_publishable_key
-      }
-
-      env {
-        name        = "CLERK_SECRET_KEY"
-        secret_name = "clerk-secret-key"
-      }
-
-      env {
-        name  = "PORT"
-        value = "3000"
-      }
-
-      env {
-        name  = "NEXT_PUBLIC_CLERK_SIGN_IN_URL"
-        value = "/sign-in"
-      }
-
-      env {
-        name  = "NEXT_PUBLIC_CLERK_SIGN_UP_URL"
-        value = "/sign-up"
-      }
-
-      env {
-        name  = "NEXT_PUBLIC_APPLICATIONINSIGHTS_CONNECTION_STRING"
-        value = var.app_insights_connection_string
-      }
-
-      # Startup probe - allow longer startup for Next.js cold starts
+      # Startup probe - nginx starts almost instantly
       startup_probe {
-        transport              = "HTTP"
-        path                   = "/"
-        port                   = 3000
-        initial_delay          = 5
-        interval_seconds       = 10
-        failure_count_threshold = 30 # Allow up to 5 minutes for Next.js cold start
-        timeout                = 3
+        transport               = "HTTP"
+        path                    = "/health"
+        port                    = 80
+        initial_delay           = 0
+        interval_seconds        = 2
+        failure_count_threshold = 5
+        timeout                 = 1
       }
 
       # Liveness probe
       liveness_probe {
-        transport              = "HTTP"
-        path                   = "/"
-        port                   = 3000
-        initial_delay          = 0
-        interval_seconds       = 30
+        transport               = "HTTP"
+        path                    = "/health"
+        port                    = 80
+        initial_delay           = 0
+        interval_seconds        = 30
         failure_count_threshold = 3
-        timeout                = 5
+        timeout                 = 3
       }
 
       # Readiness probe
       readiness_probe {
-        transport              = "HTTP"
-        path                   = "/"
-        port                   = 3000
-        initial_delay          = 0
-        interval_seconds       = 10
+        transport               = "HTTP"
+        path                    = "/health"
+        port                    = 80
+        initial_delay           = 0
+        interval_seconds        = 5
         failure_count_threshold = 3
-        timeout                = 3
+        timeout                 = 1
       }
     }
   }
 
   ingress {
     external_enabled           = true
-    target_port                = 3000
+    target_port                = 80
     transport                  = "http"
     allow_insecure_connections = false
 

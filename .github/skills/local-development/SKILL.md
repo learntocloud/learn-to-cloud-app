@@ -26,8 +26,10 @@ DATABASE_URL=postgresql://postgres:postgres@localhost:5432/learn_to_cloud
 **Frontend** (`frontend/.env.local`):
 ```bash
 # Required - get from Clerk dashboard
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...
-CLERK_SECRET_KEY=sk_test_...
+VITE_CLERK_PUBLISHABLE_KEY=pk_test_...
+
+# API URL (defaults to localhost:8000)
+VITE_API_URL=http://localhost:8000
 ```
 
 ## Running Services
@@ -72,7 +74,7 @@ Database URL: `postgresql://postgres:postgres@localhost:5432/learn_to_cloud`
 **Port already in use:**
 ```bash
 pkill -f "uvicorn main:app"  # Kill API
-pkill -f "next-server"        # Kill frontend
+pkill -f "vite"               # Kill frontend
 ```
 
 **Module not found:**

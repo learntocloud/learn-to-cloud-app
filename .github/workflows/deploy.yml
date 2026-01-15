@@ -86,6 +86,7 @@ jobs:
       resource_group_name: ${{ steps.tf-outputs.outputs.resource_group_name }}
       container_registry_name: ${{ steps.tf-outputs.outputs.container_registry_name }}
       container_registry_endpoint: ${{ steps.tf-outputs.outputs.container_registry_endpoint }}
+      api_url: ${{ steps.tf-outputs.outputs.api_url }}
     steps:
       - uses: actions/checkout@v4
 
@@ -126,6 +127,7 @@ jobs:
           echo "resource_group_name=$(terraform output -raw AZURE_RESOURCE_GROUP)" >> "$GITHUB_OUTPUT"
           echo "container_registry_name=$(terraform output -raw AZURE_CONTAINER_REGISTRY_NAME)" >> "$GITHUB_OUTPUT"
           echo "container_registry_endpoint=$(terraform output -raw AZURE_CONTAINER_REGISTRY_ENDPOINT)" >> "$GITHUB_OUTPUT"
+          echo "api_url=$(terraform output -raw apiUrl)" >> "$GITHUB_OUTPUT"
 
   configure-database:
     needs: terraform
@@ -195,7 +197,11 @@ jobs:
 
       - name: Build and Push Frontend Image
         run: |
-          docker build -t ${{ needs.terraform.outputs.container_registry_endpoint }}/frontend:${{ github.sha }} ./frontend
+          docker build \
+            --build-arg VITE_API_URL=${{ needs.terraform.outputs.api_url }} \
+            --build-arg VITE_CLERK_PUBLISHABLE_KEY=${{ secrets.CLERK_PUBLISHABLE_KEY }} \
+            -t ${{ needs.terraform.outputs.container_registry_endpoint }}/frontend:${{ github.sha }} \
+            ./frontend
           docker push ${{ needs.terraform.outputs.container_registry_endpoint }}/frontend:${{ github.sha }}
 
       - name: Deploy API Container App
