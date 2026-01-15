@@ -67,3 +67,17 @@ frontend/public/.swa/
 *-swa-oryx/
 *-api.zip
 *-app.zip
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!terraform.tfvars.example
+.terraform.lock.hcl
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json

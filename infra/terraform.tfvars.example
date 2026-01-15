@@ -1,0 +1,43 @@
+# Terraform Variables Example
+# Copy this file to terraform.tfvars and fill in your values
+# DO NOT commit terraform.tfvars to git (it's in .gitignore)
+
+# Environment Configuration
+environment = "dev"
+location    = "eastus"
+
+# Unique Suffix (IMPORTANT for imports)
+# When importing existing Bicep resources, set this to the actual suffix
+# from your deployment. Leave empty for new deployments.
+# Find your suffix by running: ./scripts/export-bicep-state.sh dev
+existing_unique_suffix = ""
+
+# Database Configuration
+postgres_admin_password = "REPLACE_WITH_SECURE_PASSWORD"
+
+# Clerk Authentication
+# Get these from your Clerk dashboard: https://dashboard.clerk.com
+clerk_secret_key              = "sk_test_..."
+clerk_webhook_signing_secret  = "whsec_..."
+clerk_publishable_key         = "pk_test_..."
+
+# Optional Features
+enable_redis = true
+
+# Custom Domain (Optional)
+# Leave empty if not using a custom domain
+frontend_custom_domain              = ""
+frontend_managed_certificate_name   = ""
+
+# Example with custom domain:
+# frontend_custom_domain              = "app.learntocloud.guide"
+# frontend_managed_certificate_name   = "app.learntocloud.guide-cae-lear-260111200430"
+
+# Monitoring
+# Email address for alert notifications (optional)
+alert_email_address = "learntocloudguide@gmail.com"
+
+# Notes:
+# - For production, use Azure Key Vault or environment variables for secrets
+# - Never commit terraform.tfvars with real values to git
+# - Use different tfvars files for different environments (dev.tfvars, prod.tfvars)
