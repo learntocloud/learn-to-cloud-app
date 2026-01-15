@@ -72,7 +72,7 @@ export function Footer() {
               Rishab Kumar
             </a>
           </p>
-          
+
           <div className="flex items-center gap-4 text-xs text-gray-400 dark:text-gray-500">
             <a
               href="https://creativecommons.org/licenses/by/4.0/"

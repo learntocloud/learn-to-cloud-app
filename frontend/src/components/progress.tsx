@@ -19,7 +19,7 @@ export function ProgressBar({ percentage, size = "md", showLabel = true, status 
     if (completionStatus === 'completed') return "bg-green-500";
     if (completionStatus === 'in_progress') return "bg-blue-500";
     if (completionStatus === 'not_started') return "bg-gray-300 dark:bg-gray-600";
-    
+
     // Fallback to percentage-based coloring
     if (pct === 100) return "bg-green-500";
     if (pct > 50) return "bg-blue-500";

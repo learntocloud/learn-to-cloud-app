@@ -47,11 +47,11 @@ export function App() {
             <Route path="/user/:username" element={<ProfilePage />} />
             <Route path="/verify" element={<VerifyPage />} />
             <Route path="/verify/:code" element={<VerifyPage />} />
-            
+
             {/* Phase and topic routes - show content but progress requires auth */}
             <Route path="/:phaseSlug" element={<PhasePage />} />
             <Route path="/:phaseSlug/:topicSlug" element={<TopicPage />} />
-            
+
             {/* Protected routes */}
             <Route
               path="/dashboard"
@@ -69,7 +69,7 @@ export function App() {
                 </ProtectedRoute>
               }
             />
-            
+
             {/* 404 */}
             <Route path="*" element={<NotFoundPage />} />
           </Routes>

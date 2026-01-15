@@ -18,11 +18,11 @@ export function PhaseRoadmap({ phases }: PhaseRoadmapProps) {
         const isCompleted = status === 'completed';
         const isInProgress = status === 'in_progress';
         const isLast = index === phases.length - 1;
-        
+
         const node = (
           <div className={`flex-1 px-4 py-3 rounded-lg border-2 text-sm font-medium transition-all duration-200 ${
-            isLocked 
-              ? 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed' 
+            isLocked
+              ? 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
               : isCompleted
                 ? 'bg-emerald-50 dark:bg-emerald-900/30 border-emerald-400 dark:border-emerald-500 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 cursor-pointer'
                 : isInProgress
@@ -66,7 +66,7 @@ export function PhaseRoadmap({ phases }: PhaseRoadmapProps) {
             )}
           </div>
         );
-        
+
         return (
           <div key={phase.id} className="flex items-stretch gap-4">
             {/* Month label on left */}
@@ -77,13 +77,13 @@ export function PhaseRoadmap({ phases }: PhaseRoadmapProps) {
               {/* Connecting line */}
               {!isLast && (
                 <div className={`flex-1 w-0.5 mt-2 ${
-                  isCompleted 
-                    ? 'bg-emerald-300 dark:bg-emerald-600' 
+                  isCompleted
+                    ? 'bg-emerald-300 dark:bg-emerald-600'
                     : 'bg-gray-200 dark:bg-gray-700'
                 }`} />
               )}
             </div>
-            
+
             {/* Phase node */}
             {isLocked ? (
               node

@@ -121,7 +121,7 @@ export interface DashboardResponse {
 
 // ============ GitHub Submission Types ============
 
-export type SubmissionType = 
+export type SubmissionType =
   | 'github_profile'   // GitHub profile URL
   | 'profile_readme'   // GitHub profile README
   | 'repo_fork'        // Fork of a required repository
@@ -231,10 +231,10 @@ export interface StreakResponse {
   streak_alive: boolean;
 }
 
-export type ActivityType = 
-  | 'question_attempt' 
+export type ActivityType =
+  | 'question_attempt'
   | 'step_complete'
-  | 'topic_complete' 
+  | 'topic_complete'
   | 'hands_on_validated'
   | 'phase_complete'
   | 'certificate_earned';

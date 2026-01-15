@@ -30,7 +30,7 @@ export function PhasesPage() {
             Your Cloud Engineering Journey
           </h1>
           <p className="text-gray-600 dark:text-gray-300 mt-3 text-lg max-w-2xl mx-auto">
-            A structured roadmap to take you from beginner to cloud professional. 
+            A structured roadmap to take you from beginner to cloud professional.
             Complete each phase to unlock the next.
           </p>
         </div>

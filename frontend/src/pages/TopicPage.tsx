@@ -80,9 +80,9 @@ function TopicPublicView({ phaseSlug, topicSlug }: { phaseSlug: string; topicSlu
         </nav>
 
         <TopicHeader topic={topic} isAuthenticated={false} />
-        
-        <TopicContent 
-          topic={topic} 
+
+        <TopicContent
+          topic={topic}
           isAuthenticated={false}
           onStepProgressChange={() => {}}
           onQuestionProgressChange={() => {}}
@@ -98,7 +98,7 @@ function TopicPublicView({ phaseSlug, topicSlug }: { phaseSlug: string; topicSlu
           </p>
         </div>
 
-        <TopicNavigation 
+        <TopicNavigation
           phaseSlug={phaseSlug}
           prevTopic={prevTopic}
           nextTopic={nextTopic}
@@ -215,7 +215,7 @@ function TopicAuthenticatedView({ phaseSlug, topicSlug }: { phaseSlug: string; t
           <span className="text-gray-600 dark:text-gray-300">{topic.name}</span>
         </nav>
 
-        <TopicPageContent 
+        <TopicPageContent
           topic={topic}
           phaseSlug={phaseSlug}
           prevTopic={prevTopic}
@@ -227,8 +227,8 @@ function TopicAuthenticatedView({ phaseSlug, topicSlug }: { phaseSlug: string; t
 }
 
 // Topic header component - matches old Next.js styling
-function TopicHeader({ topic, isAuthenticated, stepsCompleted = 0, questionsCompleted = 0 }: { 
-  topic: TopicDetailSchema; 
+function TopicHeader({ topic, isAuthenticated, stepsCompleted = 0, questionsCompleted = 0 }: {
+  topic: TopicDetailSchema;
   isAuthenticated: boolean;
   stepsCompleted?: number;
   questionsCompleted?: number;
@@ -257,7 +257,7 @@ function TopicHeader({ topic, isAuthenticated, stepsCompleted = 0, questionsComp
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{topic.name}</h1>
         </div>
       </div>
-      
+
       <p className="text-gray-600 dark:text-gray-300 mb-4">{topic.description}</p>
 
       {/* What You'll Learn - Learning Objectives */}
@@ -367,10 +367,10 @@ function TopicPageContent({
 }) {
   const initialStepsCompleted = topic.completed_step_orders?.length ?? 0;
   const initialQuestionsCompleted = topic.passed_question_ids?.length ?? 0;
-  
+
   const [stepsCompleted, setStepsCompleted] = useState(initialStepsCompleted);
   const [questionsCompleted, setQuestionsCompleted] = useState(initialQuestionsCompleted);
-  
+
   const onStepProgressChange = useCallback((completed: number) => {
     setStepsCompleted(completed);
   }, []);
@@ -381,21 +381,21 @@ function TopicPageContent({
 
   return (
     <>
-      <TopicHeader 
-        topic={topic} 
+      <TopicHeader
+        topic={topic}
         isAuthenticated={true}
         stepsCompleted={stepsCompleted}
         questionsCompleted={questionsCompleted}
       />
-      
-      <TopicContent 
-        topic={topic} 
+
+      <TopicContent
+        topic={topic}
         isAuthenticated={true}
         onStepProgressChange={onStepProgressChange}
         onQuestionProgressChange={onQuestionProgressChange}
       />
 
-      <TopicNavigation 
+      <TopicNavigation
         phaseSlug={phaseSlug}
         prevTopic={prevTopic}
         nextTopic={nextTopic}

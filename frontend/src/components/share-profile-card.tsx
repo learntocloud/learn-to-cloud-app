@@ -12,7 +12,7 @@ export function ShareProfileCard({ profile, username }: ShareProfileCardProps) {
   const [showShareMenu, setShowShareMenu] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  const profileUrl = typeof window !== "undefined" 
+  const profileUrl = typeof window !== "undefined"
     ? `${window.location.origin}/user/${username}`
     : `/user/${username}`;
 
@@ -68,11 +68,11 @@ export function ShareProfileCard({ profile, username }: ShareProfileCardProps) {
       {showShareMenu && (
         <>
           {/* Backdrop */}
-          <div 
-            className="fixed inset-0 z-10" 
+          <div
+            className="fixed inset-0 z-10"
             onClick={() => setShowShareMenu(false)}
           />
-          
+
           {/* Menu */}
           <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-20 py-1">
             {/* Native share (mobile) */}

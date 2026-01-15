@@ -13,7 +13,7 @@ import type { TopicStepProgress, TopicQuestionsStatus } from "@/lib/types";
 function FormattedDescription({ text }: { text: string }) {
   // Check if text contains bullet points (• or lines starting with -)
   const hasBullets = text.includes('•') || /\n\s*-\s/.test(text);
-  
+
   if (hasBullets) {
     // Split by newlines and render each line
     const lines = text.split('\n');
@@ -22,13 +22,13 @@ function FormattedDescription({ text }: { text: string }) {
         {lines.map((line, i) => {
           const trimmed = line.trim();
           if (!trimmed) return null;
-          
+
           // Check if line starts with bullet
           const isBullet = trimmed.startsWith('•') || trimmed.startsWith('-');
-          
+
           if (isBullet) {
             // Remove the bullet character and render as list item
-            const content = trimmed.replace(/^[•\-]\s*/, '');
+            const content = trimmed.replace(/^[•-]\s*/, '');
             return (
               <div key={i} className="flex items-start gap-2 ml-2">
                 <span className="text-blue-500 dark:text-blue-400 mt-0.5">•</span>
@@ -36,14 +36,14 @@ function FormattedDescription({ text }: { text: string }) {
               </div>
             );
           }
-          
+
           // Regular paragraph line
           return <p key={i}>{trimmed}</p>;
         })}
       </div>
     );
   }
-  
+
   // No bullets - check if has newlines for numbered lists or paragraphs
   if (text.includes('\n')) {
     return (
@@ -54,7 +54,7 @@ function FormattedDescription({ text }: { text: string }) {
       </div>
     );
   }
-  
+
   // Simple text
   return <span>{text}</span>;
 }
@@ -66,8 +66,8 @@ interface TopicContentProps {
   onQuestionProgressChange?: (completedCount: number) => void;
 }
 
-export function TopicContent({ 
-  topic, 
+export function TopicContent({
+  topic,
   isAuthenticated,
   onStepProgressChange,
   onQuestionProgressChange,
@@ -76,12 +76,12 @@ export function TopicContent({
 
   // Admins should have all content unlocked (including step-level ordering).
   const [isAdmin, setIsAdmin] = useState(false);
-  
+
   // State for step progress
   const [stepProgress, setStepProgress] = useState<TopicStepProgress | null>(null);
   const [loadingSteps, setLoadingSteps] = useState(false);
   const [togglingStep, setTogglingStep] = useState<number | null>(null);
-  
+
   // State for knowledge questions
   const [questionsStatus, setQuestionsStatus] = useState<TopicQuestionsStatus | null>(null);
   const [loadingQuestions, setLoadingQuestions] = useState(false);
@@ -161,10 +161,10 @@ export function TopicContent({
 
   const handleStepToggle = async (stepOrder: number) => {
     if (!isAuthenticated || !stepProgress) return;
-    
+
     const isCompleted = stepProgress.completed_steps.includes(stepOrder);
     setTogglingStep(stepOrder);
-    
+
     try {
       if (isCompleted) {
         // Uncomplete this step (and all after it)
@@ -201,12 +201,12 @@ export function TopicContent({
     if (!isAuthenticated) return true; // Show all steps when not authenticated (no checkboxes)
     if (isAdmin) return true;
     if (!stepProgress) return stepOrder === 1; // While loading, only first is unlocked
-    
+
     // Step is unlocked if:
     // 1. It's already completed, OR
     // 2. All previous steps are completed
     if (stepProgress.completed_steps.includes(stepOrder)) return true;
-    
+
     // Check if all previous steps are done
     for (let i = 1; i < stepOrder; i++) {
       if (!stepProgress.completed_steps.includes(i)) return false;
@@ -215,7 +215,7 @@ export function TopicContent({
   };
 
   // Calculate progress percentage
-  const progressPercentage = stepProgress 
+  const progressPercentage = stepProgress
     ? Math.round((stepProgress.completed_steps.length / topic.learning_steps.length) * 100)
     : 0;
 
@@ -255,8 +255,8 @@ export function TopicContent({
                 const isToggling = togglingStep === step.order;
 
                 return (
-                  <li 
-                    key={step.order} 
+                  <li
+                    key={step.order}
                     className={`flex items-start gap-3 ${!isUnlocked ? 'opacity-50' : ''}`}
                   >
                     {/* Checkbox or number indicator */}
@@ -272,10 +272,10 @@ export function TopicContent({
                             : "bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed"
                         }`}
                         title={
-                          !isUnlocked 
-                            ? "Complete previous steps first" 
-                            : isCompleted 
-                            ? "Click to uncomplete" 
+                          !isUnlocked
+                            ? "Complete previous steps first"
+                            : isCompleted
+                            ? "Click to uncomplete"
                             : "Click to mark complete"
                         }
                       >
@@ -389,7 +389,7 @@ export function TopicContent({
             </h2>
             {questionsStatus && (
               <span className={`text-sm font-medium px-2 py-1 rounded ${
-                questionsStatus.all_passed 
+                questionsStatus.all_passed
                   ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300"
                   : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400"
               }`}>
@@ -397,7 +397,7 @@ export function TopicContent({
               </span>
             )}
           </div>
-          
+
           {!isAuthenticated ? (
             <p className="text-gray-600 dark:text-gray-400 text-sm">
               Sign in to answer knowledge questions and track your progress.

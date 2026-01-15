@@ -137,8 +137,8 @@ class TestValidJournalResponses:
 
     def test_whitespace_in_response(self):
         """Response with leading/trailing whitespace should pass."""
-        response = """  
-        [{"id": "123e4567-e89b-12d3-a456-426614174000", 
+        response = """
+        [{"id": "123e4567-e89b-12d3-a456-426614174000",
           "work": "test", "struggle": "test", "intention": "test",
           "created_at": "2025-01-14T10:00:00Z"}]
         """

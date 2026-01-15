@@ -80,7 +80,7 @@ export function usePhaseGitHubRequirements(phaseId: number | undefined) {
 export function useSubmitGitHubUrl() {
   const api = useApi();
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: ({ requirementId, url }: { requirementId: string; url: string }) =>
       api.submitGitHubUrl(requirementId, url),
@@ -107,7 +107,7 @@ export function useTopicQuestionsStatus(topicId: string) {
 export function useSubmitAnswer() {
   const api = useApi();
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: ({
       topicId,
@@ -142,7 +142,7 @@ export function useTopicStepProgress(topicId: string, totalSteps: number) {
 export function useCompleteStep() {
   const api = useApi();
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: ({
       topicId,
@@ -203,9 +203,9 @@ export function useCertificateEligibility(certificateType: string) {
 export function useGenerateCertificate() {
   const api = useApi();
   const queryClient = useQueryClient();
-  
+
   return useMutation({
-    mutationFn: ({ certificateType, recipientName }: { certificateType: string; recipientName: string }) => 
+    mutationFn: ({ certificateType, recipientName }: { certificateType: string; recipientName: string }) =>
       api.generateCertificate(certificateType, recipientName),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['userCertificates'] });

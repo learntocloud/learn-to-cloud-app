@@ -180,7 +180,7 @@ function BadgeCollection({ badges }: { badges: Badge[] }) {
             <span className={`text-[8px] font-mono mt-0.5 ${isEarned ? 'text-amber-700 dark:text-amber-400' : 'text-gray-400 dark:text-gray-600'}`}>
               {badge.num}
             </span>
-            
+
             {/* Tooltip - appears below */}
             <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50 shadow-lg">
               <div className="font-semibold">{badge.name}</div>
@@ -250,11 +250,11 @@ function ShareProfileButton({ profile, username }: ShareProfileButtonProps) {
       {showShareMenu && (
         <>
           {/* Backdrop */}
-          <div 
-            className="fixed inset-0 z-10" 
+          <div
+            className="fixed inset-0 z-10"
             onClick={() => setShowShareMenu(false)}
           />
-          
+
           {/* Menu */}
           <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-20 py-1">
             {/* Copy link */}

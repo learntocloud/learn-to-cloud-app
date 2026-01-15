@@ -16,7 +16,7 @@ export function TopicCard({ topic, phaseSlug, isLocked = false, previousTopicNam
   const stepsTotal = topic.steps_total ?? 0;
   const questionsCompleted = topic.questions_passed;
   const questionsTotal = topic.questions_total;
-  
+
   const completedCount = stepsCompleted + questionsCompleted;
   const totalCount = stepsTotal + questionsTotal;
   const progressPercent = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;

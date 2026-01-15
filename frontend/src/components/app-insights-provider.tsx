@@ -21,8 +21,8 @@ export function AppInsightsProvider({ children }: { children: React.ReactNode })
 
     // Global handler for unhandled promise rejections
     const handleRejection = (event: PromiseRejectionEvent) => {
-      const error = event.reason instanceof Error 
-        ? event.reason 
+      const error = event.reason instanceof Error
+        ? event.reason
         : new Error(String(event.reason));
       trackException(error, { source: "unhandledrejection" });
     };

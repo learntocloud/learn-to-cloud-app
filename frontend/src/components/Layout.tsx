@@ -21,7 +21,7 @@ function Navbar() {
   const { isSignedIn, isLoaded } = useUser();
   const { getToken } = useAuth();
   const [githubUsername, setGithubUsername] = useState<string | null>(null);
-  
+
   useEffect(() => {
     if (isSignedIn) {
       const api = createApiClient(getToken);

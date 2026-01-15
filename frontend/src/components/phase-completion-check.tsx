@@ -77,7 +77,7 @@ export function PhaseCompletionCheck({
     // Check if user has the badge for this phase
     const badgeId = `phase_${phaseNumber}_complete`;
     const hasBadge = earnedBadges.some((b) => b.id === badgeId);
-    
+
     if (!hasBadge) return;
 
     // Check if we've already celebrated this phase

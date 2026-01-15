@@ -12,7 +12,7 @@ import { KnowledgeQuestion } from './KnowledgeQuestion';
 // Provider Options Tab Component
 function ProviderOptions({ options }: { options: ProviderOptionSchema[] }) {
   const [selectedProvider, setSelectedProvider] = useState<string>(options[0]?.provider || "aws");
-  
+
   const selectedOption = options.find(o => o.provider === selectedProvider);
 
   const providerLabels: Record<string, { name: string }> = {
@@ -28,7 +28,7 @@ function ProviderOptions({ options }: { options: ProviderOptionSchema[] }) {
         {options.map((option) => {
           const provider = providerLabels[option.provider] || { name: option.provider };
           const isSelected = selectedProvider === option.provider;
-          
+
           return (
             <button
               key={option.provider}
@@ -44,7 +44,7 @@ function ProviderOptions({ options }: { options: ProviderOptionSchema[] }) {
           );
         })}
       </div>
-      
+
       {/* Selected option content */}
       {selectedOption && (
         <div className="p-4 bg-white dark:bg-gray-800">
@@ -77,8 +77,8 @@ interface TopicContentProps {
   onQuestionProgressChange?: (completedCount: number) => void;
 }
 
-export function TopicContent({ 
-  topic, 
+export function TopicContent({
+  topic,
   isAuthenticated,
   onStepProgressChange,
   onQuestionProgressChange,
@@ -99,9 +99,9 @@ export function TopicContent({
 
   const handleStepToggle = async (stepOrder: number) => {
     if (!isAuthenticated) return;
-    
+
     const isCurrentlyCompleted = completedSteps.includes(stepOrder);
-    
+
     setTogglingStep(stepOrder);
     try {
       // Use topic.id (e.g., "phase0-topic1") for the API call
@@ -124,17 +124,17 @@ export function TopicContent({
 
   const handleQuestionAnswer = async (questionId: string, answer: string) => {
     if (!isAuthenticated) return { is_passed: false, llm_feedback: 'Not authenticated' };
-    
+
     try {
       // Use topic.id (e.g., "phase0-topic1") for the API call
       const result = await api.submitAnswer(topic.id, questionId, answer);
-      
+
       // Update local state if passed
       if (result.is_passed) {
         setPassedQuestions(prev => [...prev, questionId]);
         onQuestionProgressChange?.(passedQuestions.length + 1);
       }
-      
+
       return result;
     } catch (err) {
       console.error("Failed to submit answer:", err);
@@ -158,18 +158,18 @@ export function TopicContent({
               </span>
             </h3>
           </div>
-          
+
           <div className="divide-y divide-gray-200 dark:divide-gray-700">
             {topic.learning_steps.map((step) => {
               const completed = isStepCompleted(step.order);
               const isToggling = togglingStep === step.order;
-              
+
               return (
                 <div
                   key={step.order}
                   className={`p-4 transition-colors ${
-                    completed 
-                      ? 'bg-emerald-50/50 dark:bg-emerald-900/10' 
+                    completed
+                      ? 'bg-emerald-50/50 dark:bg-emerald-900/10'
                       : ''
                   }`}
                 >
@@ -264,7 +264,7 @@ export function TopicContent({
               </span>
             </h3>
           </div>
-          
+
           <div className="p-4 space-y-4">
             {!isAuthenticated ? (
               <p className="text-sm text-gray-500 dark:text-gray-400 italic">

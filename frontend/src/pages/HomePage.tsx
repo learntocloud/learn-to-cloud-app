@@ -29,7 +29,7 @@ export function HomePage() {
             className="mx-auto mb-4 dark:invert"
           />
           <p className="text-base text-gray-600 dark:text-gray-400 mb-6 max-w-2xl mx-auto">
-            A free, open-source guide to help you land your first cloud engineering role. 
+            A free, open-source guide to help you land your first cloud engineering role.
             Learn at your own pace with hands-on projects and real-world skills.
           </p>
           <HeroCTA isSignedIn={isSignedIn} isLoaded={isLoaded} onDashboard={() => navigate('/dashboard')} />
@@ -50,7 +50,7 @@ export function HomePage() {
           <div className="relative">
             {/* Connection line - hidden on mobile */}
             <div className="hidden md:block absolute top-8 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-200 via-blue-400 to-blue-600 dark:from-blue-900 dark:via-blue-700 dark:to-blue-500" />
-            
+
             {/* Phases - horizontal scroll on mobile, grid on desktop */}
             <div className="flex md:grid md:grid-cols-7 gap-4 overflow-x-auto pb-4 md:pb-0 snap-x snap-mandatory">
               {PHASES.map((phase) => (
@@ -98,8 +98,8 @@ export function HomePage() {
 }
 
 // Hero CTA component
-function HeroCTA({ isSignedIn, isLoaded, onDashboard }: { 
-  isSignedIn: boolean | undefined; 
+function HeroCTA({ isSignedIn, isLoaded, onDashboard }: {
+  isSignedIn: boolean | undefined;
   isLoaded: boolean;
   onDashboard: () => void;
 }) {

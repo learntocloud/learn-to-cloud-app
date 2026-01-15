@@ -24,11 +24,11 @@ async def fix_submission():
         # Update the submission
         result = await session.execute(
             text("""
-                UPDATE submissions 
-                SET is_validated = true, 
+                UPDATE submissions
+                SET is_validated = true,
                     extracted_username = 'madebygps',
                     submitted_value = 'https://github.com/madebygps/journal-starter'
-                WHERE requirement_id = 'phase2-journal-starter-fork' 
+                WHERE requirement_id = 'phase2-journal-starter-fork'
                 AND is_validated = false
             """)
         )

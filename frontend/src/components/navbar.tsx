@@ -9,8 +9,8 @@ export function Navbar() {
   const { isSignedIn, isLoaded } = useUser();
   const api = useApi();
   const [githubUsername, setGithubUsername] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
-  
+  const [_isPending, startTransition] = useTransition();
+
   // Fetch GitHub username from backend when user is signed in
   // Use startTransition to make this non-blocking for initial render
   useEffect(() => {
@@ -27,6 +27,7 @@ export function Navbar() {
     } else {
       setGithubUsername(null);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSignedIn]);
 
   return (

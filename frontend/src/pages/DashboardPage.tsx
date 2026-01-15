@@ -5,7 +5,7 @@ import type { PhaseSummarySchema } from '@/lib/api-client';
 
 export function DashboardPage() {
   const { isSignedIn, isLoaded } = useUser();
-  
+
   if (isLoaded && !isSignedIn) {
     return <Navigate to="/" replace />;
   }
@@ -52,14 +52,14 @@ function DashboardContent() {
               Keep up the great work on your cloud journey!
             </p>
           </div>
-          
+
           {streakData && streakData.current_streak > 0 && (
             <span className="text-orange-500 dark:text-orange-400 text-sm font-medium shrink-0">
               🔥 {streakData.current_streak} day streak
             </span>
           )}
         </div>
-        
+
         {/* Progress bar */}
         <div className="flex items-center gap-3">
           <div className="flex-1 bg-gray-100 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
@@ -104,11 +104,11 @@ function PhaseRoadmap({ phases }: { phases: PhaseSummarySchema[] }) {
         const isCompleted = status === 'completed';
         const isInProgress = status === 'in_progress';
         const isLast = index === phases.length - 1;
-        
+
         const node = (
           <div className={`flex-1 px-4 py-3 rounded-lg border-2 text-sm font-medium transition-all duration-200 ${
-            isLocked 
-              ? 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed' 
+            isLocked
+              ? 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
               : isCompleted
                 ? 'bg-emerald-50 dark:bg-emerald-900/30 border-emerald-400 dark:border-emerald-500 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 cursor-pointer'
                 : isInProgress
@@ -152,7 +152,7 @@ function PhaseRoadmap({ phases }: { phases: PhaseSummarySchema[] }) {
             )}
           </div>
         );
-        
+
         return (
           <div key={phase.id} className="flex items-stretch gap-4">
             {/* Month label on left */}
@@ -163,13 +163,13 @@ function PhaseRoadmap({ phases }: { phases: PhaseSummarySchema[] }) {
               {/* Connecting line */}
               {!isLast && (
                 <div className={`flex-1 w-0.5 mt-2 ${
-                  isCompleted 
-                    ? 'bg-emerald-300 dark:bg-emerald-600' 
+                  isCompleted
+                    ? 'bg-emerald-300 dark:bg-emerald-600'
                     : 'bg-gray-200 dark:bg-gray-700'
                 }`} />
               )}
             </div>
-            
+
             {/* Phase node */}
             {isLocked ? (
               node

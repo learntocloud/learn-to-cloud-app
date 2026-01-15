@@ -65,7 +65,7 @@ export function CertificatesPage() {
                 </p>
               </div>
             </div>
-            
+
             <div className="flex gap-4">
               <a
                 href={api.getCertificateSvgUrl(certificate.id)}
@@ -118,7 +118,7 @@ export function CertificatesPage() {
             <p className="text-gray-600 dark:text-gray-300 mb-6 text-center">
               Complete all phases to earn your Learn to Cloud completion certificate.
             </p>
-            
+
             {eligibility && (
               <div className="space-y-2">
                 <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Progress:</p>
@@ -127,7 +127,7 @@ export function CertificatesPage() {
                 </p>
               </div>
             )}
-            
+
             <div className="mt-6 text-center">
               <Link
                 to="/dashboard"

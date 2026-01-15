@@ -9,7 +9,7 @@ description: Understand how Learn to Cloud tracks progress, awards badges, unloc
 
 A **Phase is Complete** when ALL three requirements are met:
 1. ✅ All **Learning Steps** completed
-2. ✅ All **Knowledge Questions** passed  
+2. ✅ All **Knowledge Questions** passed
 3. ✅ All **Hands-on Requirements** validated
 
 This single definition drives: badges, unlocking, profile stats, and certificates.

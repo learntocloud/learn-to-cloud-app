@@ -122,7 +122,6 @@ export function CertificateCard({ certificate }: CertificateCardProps) {
 
       {showPreview && (
         <div className="border-t border-gray-200 dark:border-slate-700 p-4 bg-gray-50 dark:bg-slate-900/50">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={svgUrl}
             alt={`Certificate: ${certificate.recipient_name}`}

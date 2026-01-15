@@ -34,18 +34,18 @@ function getStatusLabel(status: string) {
 export function PhaseCard({ phase, showProgress = false }: PhaseCardProps) {
   const isLocked = phase.isLocked;
   const status = phase.progress?.status;
-  
+
   const cardContent = (
     <div className={`group p-5 rounded-xl border transition-all duration-200 ${
-      isLocked 
-        ? 'bg-gray-50 dark:bg-gray-800/30 border-gray-200 dark:border-gray-700 opacity-60 cursor-not-allowed' 
+      isLocked
+        ? 'bg-gray-50 dark:bg-gray-800/30 border-gray-200 dark:border-gray-700 opacity-60 cursor-not-allowed'
         : 'bg-white dark:bg-gray-800/50 border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600 hover:shadow-md cursor-pointer'
     }`}>
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-4 min-w-0">
           <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-xl font-bold ${
-            isLocked 
-              ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500' 
+            isLocked
+              ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500'
               : status === 'completed'
                 ? 'bg-gradient-to-br from-green-400 to-emerald-500 text-white shadow-sm'
                 : status === 'in_progress'
@@ -67,7 +67,7 @@ export function PhaseCard({ phase, showProgress = false }: PhaseCardProps) {
           </span>
         )}
       </div>
-      
+
       {!isLocked && showProgress && phase.progress && (
         <div className="flex items-center justify-end gap-2 mt-4">
           <div className="w-24 h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
@@ -79,7 +79,7 @@ export function PhaseCard({ phase, showProgress = false }: PhaseCardProps) {
           <span className="text-sm font-medium text-gray-600 dark:text-gray-300">{Math.round(phase.progress.percentage)}%</span>
         </div>
       )}
-      
+
       {isLocked && (
         <p className="text-sm text-gray-400 dark:text-gray-500 mt-3">
           Complete Phase {phase.id - 1} to unlock
@@ -87,11 +87,11 @@ export function PhaseCard({ phase, showProgress = false }: PhaseCardProps) {
       )}
     </div>
   );
-  
+
   if (isLocked) {
     return cardContent;
   }
-  
+
   return (
     <Link href={`/${phase.slug}`}>
       {cardContent}

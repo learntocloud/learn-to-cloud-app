@@ -27,13 +27,13 @@ export function TopicPageContent({
   // Track step progress locally for real-time UI updates
   const initialStepsCompleted = 'steps_completed' in topic ? topic.steps_completed : 0;
   const initialQuestionsCompleted = 'questions_passed' in topic ? topic.questions_passed : 0;
-  
+
   const [stepsCompleted, setStepsCompleted] = useState(initialStepsCompleted);
   const [questionsCompleted, setQuestionsCompleted] = useState(initialQuestionsCompleted);
-  
+
   const stepsTotal = topic.learning_steps?.length ?? 0;
   const questionsTotal = topic.questions?.length ?? 0;
-  
+
   const totalItems = stepsTotal + questionsTotal;
   const completedItems = stepsCompleted + questionsCompleted;
   const isComplete = completedItems === totalItems && totalItems > 0;
@@ -67,7 +67,7 @@ export function TopicPageContent({
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{topic.name}</h1>
           </div>
         </div>
-        
+
         <p className="text-gray-600 dark:text-gray-300 mb-4">{topic.description}</p>
 
         {/* What You'll Learn - Learning Objectives */}
@@ -125,8 +125,8 @@ export function TopicPageContent({
       </div>
 
       {/* Topic Content (Learning Steps & Questions) */}
-      <TopicContent 
-        topic={topic} 
+      <TopicContent
+        topic={topic}
         isAuthenticated={isAuthenticated}
         onStepProgressChange={onStepProgressChange}
         onQuestionProgressChange={onQuestionProgressChange}

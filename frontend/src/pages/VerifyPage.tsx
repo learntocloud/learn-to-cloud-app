@@ -106,7 +106,7 @@ export function VerifyPage() {
                 For completing
               </p>
               <p className="text-lg font-semibold text-gray-900 dark:text-white">
-                {cert.certificate_type === 'full_completion' 
+                {cert.certificate_type === 'full_completion'
                   ? 'Learn to Cloud Full Curriculum'
                   : cert.certificate_type}
               </p>

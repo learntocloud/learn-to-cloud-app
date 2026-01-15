@@ -25,7 +25,7 @@ DATABASE_URL=postgresql://postgres:postgres@localhost:5432/learn_to_cloud
 
 **Frontend** (`frontend/.env.local`):
 ```bash
-# Required - get from Clerk dashboard  
+# Required - get from Clerk dashboard
 NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...
 CLERK_SECRET_KEY=sk_test_...
 ```

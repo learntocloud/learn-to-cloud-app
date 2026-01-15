@@ -10,9 +10,9 @@ let initPromise: Promise<ApplicationInsightsType | null> | null = null;
 export async function initAppInsights(): Promise<ApplicationInsightsType | null> {
   // Only initialize in browser and if connection string is available
   if (typeof window === "undefined") return null;
-  
+
   const connectionString = process.env.NEXT_PUBLIC_APPLICATIONINSIGHTS_CONNECTION_STRING;
-  
+
   if (!connectionString) {
     console.log("Application Insights not configured - skipping initialization");
     return null;
@@ -30,7 +30,7 @@ export async function initAppInsights(): Promise<ApplicationInsightsType | null>
   initPromise = (async () => {
     // Dynamically import the heavy SDK only when needed
     const { ApplicationInsights } = await import("@microsoft/applicationinsights-web");
-    
+
     appInsights = new ApplicationInsights({
       config: {
         connectionString,

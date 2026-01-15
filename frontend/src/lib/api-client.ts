@@ -1,7 +1,7 @@
 /**
  * API client for Learn to Cloud backend.
  * Uses Clerk for authentication.
- * 
+ *
  * This is a simple client that calls the API endpoints.
  * All business logic (progress calculation, locking) is handled server-side.
  */
@@ -210,7 +210,7 @@ export interface BadgeSchema {
 export function createApiClient(getToken: () => Promise<string | null>) {
   async function fetchWithAuth(url: string, options: RequestInit = {}) {
     const token = await getToken();
-    
+
     const response = await fetch(`${API_URL}${url}`, {
       ...options,
       headers: {
@@ -219,7 +219,7 @@ export function createApiClient(getToken: () => Promise<string | null>) {
         ...options.headers,
       },
     });
-    
+
     return response;
   }
 
@@ -314,9 +314,9 @@ export function createApiClient(getToken: () => Promise<string | null>) {
     ): Promise<QuestionSubmitResponse> {
       const res = await fetchWithAuth('/api/questions/submit', {
         method: 'POST',
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           topic_id: topicId,
-          question_id: questionId, 
+          question_id: questionId,
           user_answer: answer,
         }),
       });

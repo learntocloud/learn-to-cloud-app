@@ -115,12 +115,12 @@ az containerapp revision restart \
 ## Common Issues
 
 ### Database Schema Mismatch
-**Error**: `column X does not exist`  
-**Cause**: Model changed but production DB not migrated  
+**Error**: `column X does not exist`
+**Cause**: Model changed but production DB not migrated
 **Fix**: Run [reset-database.sh](./reset-database.sh) (pre-launch only)
 
-### Authentication Errors  
-**Error**: `AuthorizationFailed`  
+### Authentication Errors
+**Error**: `AuthorizationFailed`
 **Fix**: Re-login and set subscription:
 ```bash
 az login
@@ -128,11 +128,11 @@ az account set --subscription "$AZURE_SUBSCRIPTION_ID"
 ```
 
 ### Container App Not Found
-**Error**: `ResourceNotFound`  
+**Error**: `ResourceNotFound`
 **Fix**: Verify names with `az containerapp list`
 
 ### Image Pull Errors (401 Unauthorized)
-**Error**: `ImagePullBackOff`, `401 Unauthorized`, `failed to fetch oauth token`  
+**Error**: `ImagePullBackOff`, `401 Unauthorized`, `failed to fetch oauth token`
 **Cause**: Container App's managed identity doesn't have AcrPull role on ACR. This can happen when Container Apps are recreated or their managed identities change - the Bicep role assignment GUID is based on the app resource ID, not the principal ID (which is only known at runtime).
 
 **Diagnose**:

@@ -1,6 +1,6 @@
 /**
  * Clerk Authentication Middleware
- * 
+ *
  * Protects private routes and allows public access to specified paths.
  * Authentication is handled by Clerk, with route-level privacy controlled at the API level.
  */

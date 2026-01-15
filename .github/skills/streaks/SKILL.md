@@ -39,15 +39,15 @@ def calculate_streak_with_forgiveness(activity_dates, max_skip_days=2):
     """
     # 1. Dedupe and sort dates (most recent first)
     unique_dates = sorted(set(activity_dates), reverse=True)
-    
+
     # 2. Check if streak is alive (last activity within max_skip_days)
     days_since_last = (today - most_recent).days
     streak_alive = days_since_last <= max_skip_days
-    
+
     # 3. Walk through dates, counting streak length
     # Gap of 0-2 days = streak continues
     # Gap of 3+ days = streak breaks
-    
+
     # 4. Return current (if alive) or 0, plus longest ever
 ```
 

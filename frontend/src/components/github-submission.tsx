@@ -20,13 +20,13 @@ function shouldUseSharedUrl(requirements: HandsOnRequirement[]): boolean {
   const repoRequirements = requirements.filter(
     (r) => r.submission_type !== 'container_image'
   );
-  
+
   if (repoRequirements.length <= 1) return false;
-  
+
   const shareableTypes = new Set(['repo_with_files', 'workflow_run', 'repo_url', 'repo_fork']);
   const allShareable = repoRequirements.every((r) => shareableTypes.has(r.submission_type));
   if (!allShareable) return false;
-  
+
   const phases = new Set(repoRequirements.map((r) => r.phase_id));
   return phases.size === 1;
 }
@@ -48,7 +48,7 @@ export function GitHubSubmissionForm({
 }: GitHubSubmissionFormProps) {
   const api = useApiClient();
   const useSharedUrl = shouldUseSharedUrl(requirements);
-  
+
   const [urls, setUrls] = useState<Record<string, string>>(() => {
     const initial: Record<string, string> = {};
     for (const sub of submissions) {
@@ -56,12 +56,12 @@ export function GitHubSubmissionForm({
     }
     return initial;
   });
-  
+
   const [sharedUrl, setSharedUrl] = useState<string>(() => {
     const existingSub = submissions.find((s) => s.submitted_value);
     return existingSub?.submitted_value || "";
   });
-  
+
   const [loading, setLoading] = useState<Record<string, boolean>>({});
   const [results, setResults] = useState<Record<string, GitHubValidationResult | null>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -72,12 +72,12 @@ export function GitHubSubmissionForm({
   // Check if all verifications are already complete on mount
   useEffect(() => {
     if (hasCelebratedCompletion || !onAllVerificationsComplete) return;
-    
+
     const allAlreadyValidated = requirements.every((req) => {
       const existingSub = submissions.find((s) => s.requirement_id === req.id);
       return existingSub?.is_validated;
     });
-    
+
     if (allAlreadyValidated && requirements.length > 0) {
       setHasCelebratedCompletion(true);
     }
@@ -89,7 +89,7 @@ export function GitHubSubmissionForm({
 
   const handleSubmit = async (requirementId: string) => {
     if (!api) return;
-    
+
     const url = urls[requirementId]?.trim();
     if (!url) {
       setErrors((prev) => ({ ...prev, [requirementId]: "Please enter a URL" }));
@@ -102,26 +102,26 @@ export function GitHubSubmissionForm({
 
     try {
       const data = await api.submitGitHubUrl(requirementId, url);
-      
+
       setResults((prev) => {
         const newResults = { ...prev, [requirementId]: data };
-        
+
         if (data.is_valid && onAllVerificationsComplete) {
           const allValidated = requirements.every((req) => {
             const existingSub = submissions.find((s) => s.requirement_id === req.id);
             const result = newResults[req.id];
             return existingSub?.is_validated || result?.is_valid;
           });
-          
+
           if (allValidated && !hasCelebratedCompletion) {
             setHasCelebratedCompletion(true);
             setTimeout(() => onAllVerificationsComplete(), 500);
           }
         }
-        
+
         return newResults;
       });
-      
+
       if (data.is_valid && onSubmissionSuccess) {
         onSubmissionSuccess();
       }
@@ -137,7 +137,7 @@ export function GitHubSubmissionForm({
 
   const handleVerifyAll = async () => {
     if (!api) return;
-    
+
     const url = sharedUrl.trim();
     if (!url) {
       setSharedError("Please enter a repository URL");
@@ -146,9 +146,9 @@ export function GitHubSubmissionForm({
 
     setIsVerifyingAll(true);
     setSharedError("");
-    
+
     const repoReqs = getRepoRequirements(requirements);
-    
+
     const clearedResults: Record<string, GitHubValidationResult | null> = { ...results };
     const clearedErrors: Record<string, string> = { ...errors };
     for (const req of repoReqs) {
@@ -194,7 +194,7 @@ export function GitHubSubmissionForm({
         const result = newResults[req.id] || results[req.id];
         return existingSub?.is_validated || result?.is_valid;
       });
-      
+
       if (allValidated) {
         setHasCelebratedCompletion(true);
         setTimeout(() => onAllVerificationsComplete(), 500);
@@ -252,7 +252,7 @@ export function GitHubSubmissionForm({
           </label>
         </div>
         <p className="text-xs text-gray-500 dark:text-gray-400 mb-3 ml-6">{req.description}</p>
-        
+
         {!isValidated && (
           <div className="flex gap-2 ml-6">
             <input
@@ -337,7 +337,7 @@ export function GitHubSubmissionForm({
                 </button>
               )}
             </div>
-            
+
             {sharedError && (
               <p className="text-red-600 dark:text-red-400 text-sm mb-4">{sharedError}</p>
             )}
@@ -398,7 +398,7 @@ export function GitHubSubmissionForm({
       <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
         Submit your work below for verification.
       </p>
-      
+
       <div className="space-y-4">
         {requirements.map(renderRequirementForm)}
       </div>

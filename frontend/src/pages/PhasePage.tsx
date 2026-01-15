@@ -1,8 +1,8 @@
 import { Link, useParams, Navigate } from 'react-router-dom';
 import { useUser } from '@clerk/clerk-react';
 import { usePhaseDetail, useUserInfo, useDashboard } from '@/lib/hooks';
-import type { 
-  TopicSummarySchema, 
+import type {
+  TopicSummarySchema,
 } from '@/lib/api-client';
 import { PhaseVerificationForm } from '@/components/PhaseVerificationForm';
 import { PhaseCompletionCheck } from '@/components/phase-completion-check';
@@ -24,7 +24,7 @@ const NEXT_PHASE: Record<string, string | undefined> = {
 export function PhasePage() {
   const { phaseSlug } = useParams<{ phaseSlug: string }>();
   const { isSignedIn, isLoaded } = useUser();
-  
+
   // Validate phase slug
   if (!phaseSlug || !VALID_PHASE_SLUGS.includes(phaseSlug)) {
     return <Navigate to="/404" replace />;
@@ -92,7 +92,7 @@ function PhasePublicView({ phaseSlug }: { phaseSlug: string }) {
               <p className="text-gray-500 dark:text-gray-400">{phase.estimated_weeks}</p>
             </div>
           </div>
-          
+
           <p className="text-gray-600 dark:text-gray-300 mb-6">{phase.description}</p>
         </div>
 
@@ -103,8 +103,8 @@ function PhasePublicView({ phaseSlug }: { phaseSlug: string }) {
           </h2>
           <div className="space-y-4">
             {phase.topics.map((topic) => (
-              <Link 
-                key={topic.id} 
+              <Link
+                key={topic.id}
                 to={`/${phaseSlug}/${topic.slug}`}
                 className="block bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 hover:border-blue-300 hover:shadow-sm transition-all"
               >
@@ -219,14 +219,14 @@ function PhaseAuthenticatedView({ phaseSlug }: { phaseSlug: string }) {
               <StatusBadge status={phase.progress.status} />
             )}
           </div>
-          
+
           <p className="text-gray-600 dark:text-gray-300 mb-6">{phase.description}</p>
 
           {phase.progress && (
-            <ProgressBar 
-              percentage={phase.progress.percentage} 
+            <ProgressBar
+              percentage={phase.progress.percentage}
               status={phase.progress.status}
-              size="lg" 
+              size="lg"
             />
           )}
 
@@ -250,11 +250,11 @@ function PhaseAuthenticatedView({ phaseSlug }: { phaseSlug: string }) {
           <div className="space-y-4">
             {phase.topics.map((topic, index) => {
               const previousTopic = index > 0 ? phase.topics[index - 1] : null;
-              
+
               return (
-                <TopicCard 
-                  key={topic.id} 
-                  topic={topic} 
+                <TopicCard
+                  key={topic.id}
+                  topic={topic}
                   phaseSlug={phaseSlug}
                   previousTopicName={previousTopic?.name}
                 />
@@ -324,7 +324,7 @@ function StatusBadge({ status }: { status: string }) {
     in_progress: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
     completed: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
   };
-  
+
   const statusLabels = {
     not_started: 'Not Started',
     in_progress: 'In Progress',
@@ -357,8 +357,8 @@ function ProgressBar({ percentage, status, size = 'md' }: { percentage: number; 
 }
 
 // Topic card component - matches old Next.js styling
-function TopicCard({ topic, phaseSlug, previousTopicName }: { 
-  topic: TopicSummarySchema; 
+function TopicCard({ topic, phaseSlug, previousTopicName }: {
+  topic: TopicSummarySchema;
   phaseSlug: string;
   previousTopicName?: string;
 }) {
@@ -367,7 +367,7 @@ function TopicCard({ topic, phaseSlug, previousTopicName }: {
   const stepsTotal = topic.steps_count ?? 0;
   const questionsCompleted = topic.progress?.questions_passed ?? 0;
   const questionsTotal = topic.questions_count ?? 0;
-  
+
   const completedCount = stepsCompleted + questionsCompleted;
   const totalCount = stepsTotal + questionsTotal;
   const progressPercent = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
@@ -404,7 +404,7 @@ function TopicCard({ topic, phaseSlug, previousTopicName }: {
   }
 
   return (
-    <Link 
+    <Link
       to={`/${phaseSlug}/${topic.slug}`}
       className="block bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden hover:border-blue-300 dark:hover:border-blue-600 hover:shadow-md transition-all"
     >

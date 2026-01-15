@@ -67,7 +67,7 @@ function getPhaseColors(phaseId: number) {
 
 export function SubmissionsShowcase({ submissions }: SubmissionsShowcaseProps) {
   const [showAll, setShowAll] = useState(false);
-  
+
   if (!submissions || submissions.length === 0) {
     return null;
   }
@@ -75,7 +75,7 @@ export function SubmissionsShowcase({ submissions }: SubmissionsShowcaseProps) {
   // Filter out CTF token if fork exists (they'll be combined)
   const hasCTFToken = submissions.some(s => s.requirement_id === "phase1-linux-ctf-token");
   const hasCTFFork = submissions.some(s => s.requirement_id === "phase1-linux-ctfs-fork");
-  
+
   const filteredSubmissions = submissions.filter(s => {
     if (s.requirement_id === "phase1-linux-ctf-token" && hasCTFFork) {
       return false;
@@ -105,7 +105,7 @@ export function SubmissionsShowcase({ submissions }: SubmissionsShowcaseProps) {
           const colors = getPhaseColors(submission.phase_id);
           const showVerified = submission.requirement_id === "phase1-linux-ctfs-fork" && hasCTFToken;
           const description = PROJECT_DESCRIPTIONS[submission.requirement_id] || "Completed project submission";
-          
+
           return (
             <a
               key={submission.requirement_id}

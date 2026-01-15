@@ -177,7 +177,7 @@ def generate_certificate_svg(
       <stop offset="0" stop-color="#83DCFF"/>
       <stop offset="1" stop-color="#0076F7"/>
     </linearGradient>
-    
+
     <!-- Vertical blue gradient for text -->
     <linearGradient id="blueGradientV" x1="0%" y1="0%" x2="0%" y2="100%">
       <stop offset="0" stop-color="#83DCFF"/>
@@ -246,7 +246,7 @@ def generate_certificate_svg(
   <text x="400" y="360" font-family="Arial, Helvetica, sans-serif" font-size="24" fill="url(#blueGradientV)" text-anchor="middle" font-weight="bold">
     {cert_info["name"]}
   </text>
-  
+
   <!-- Achievement description -->
   <text x="400" y="395" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#64748b" text-anchor="middle">
     {cert_info["description"]}

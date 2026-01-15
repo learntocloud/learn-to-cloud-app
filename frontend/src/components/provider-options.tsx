@@ -6,18 +6,18 @@ interface ProviderOptionsProps {
 }
 
 const providerLabels: Record<string, { name: string; icon: string; color: string }> = {
-  aws: { 
-    name: "AWS", 
+  aws: {
+    name: "AWS",
     icon: "☁️",
     color: "bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 border-orange-200 dark:border-orange-800"
   },
-  azure: { 
-    name: "Azure", 
+  azure: {
+    name: "Azure",
     icon: "☁️",
     color: "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800"
   },
-  gcp: { 
-    name: "GCP", 
+  gcp: {
+    name: "GCP",
     icon: "☁️",
     color: "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800"
   },
@@ -25,7 +25,7 @@ const providerLabels: Record<string, { name: string; icon: string; color: string
 
 export function ProviderOptions({ options }: ProviderOptionsProps) {
   const [selectedProvider, setSelectedProvider] = useState<string>(options[0]?.provider || "aws");
-  
+
   const selectedOption = options.find(o => o.provider === selectedProvider);
 
   return (
@@ -35,7 +35,7 @@ export function ProviderOptions({ options }: ProviderOptionsProps) {
         {options.map((option) => {
           const provider = providerLabels[option.provider] || { name: option.provider, icon: "☁️", color: "" };
           const isSelected = selectedProvider === option.provider;
-          
+
           return (
             <button
               key={option.provider}
@@ -51,7 +51,7 @@ export function ProviderOptions({ options }: ProviderOptionsProps) {
           );
         })}
       </div>
-      
+
       {/* Selected option content */}
       {selectedOption && (
         <div className="p-4 bg-white dark:bg-gray-800">

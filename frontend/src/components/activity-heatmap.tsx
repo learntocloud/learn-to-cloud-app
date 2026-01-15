@@ -32,14 +32,14 @@ const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "
 
 export function ActivityHeatmap({ days, startDate, endDate }: ActivityHeatmapProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  
+
   // Scroll to the right (most recent activity) on mount
   useEffect(() => {
     if (scrollContainerRef.current) {
       scrollContainerRef.current.scrollLeft = scrollContainerRef.current.scrollWidth;
     }
   }, []);
-  
+
   // Build a map of date -> count for quick lookup
   const activityMap = useMemo(() => {
     const map = new Map<string, number>();
@@ -54,50 +54,50 @@ export function ActivityHeatmap({ days, startDate, endDate }: ActivityHeatmapPro
     // Parse dates as UTC to avoid timezone issues
     const [startYear, startMonth, startDay] = startDate.split('-').map(Number);
     const [endYear, endMonth, endDay] = endDate.split('-').map(Number);
-    
+
     const start = new Date(Date.UTC(startYear, startMonth - 1, startDay));
     const end = new Date(Date.UTC(endYear, endMonth - 1, endDay));
-    
+
     // Adjust start to the previous Sunday (in UTC)
     const adjustedStart = new Date(start);
     adjustedStart.setUTCDate(start.getUTCDate() - start.getUTCDay());
-    
+
     const weeks: { date: Date; count: number }[][] = [];
     let currentWeek: { date: Date; count: number }[] = [];
-    let currentDate = new Date(adjustedStart);
-    
+    const currentDate = new Date(adjustedStart);
+
     while (currentDate <= end || currentWeek.length > 0) {
       // Format date as YYYY-MM-DD in UTC
       const year = currentDate.getUTCFullYear();
       const month = String(currentDate.getUTCMonth() + 1).padStart(2, '0');
       const day = String(currentDate.getUTCDate()).padStart(2, '0');
       const dateStr = `${year}-${month}-${day}`;
-      
+
       const isInRange = currentDate >= start && currentDate <= end;
-      
+
       currentWeek.push({
         date: new Date(currentDate),
         count: isInRange ? (activityMap.get(dateStr) || 0) : -1, // -1 for out of range
       });
-      
+
       if (currentWeek.length === 7) {
         weeks.push(currentWeek);
         currentWeek = [];
       }
-      
+
       currentDate.setUTCDate(currentDate.getUTCDate() + 1);
-      
+
       // Break if we've gone past end date and completed the week
       if (currentDate > end && currentWeek.length === 0) {
         break;
       }
     }
-    
+
     // Add any remaining partial week
     if (currentWeek.length > 0) {
       weeks.push(currentWeek);
     }
-    
+
     return weeks;
   }, [startDate, endDate, activityMap]);
 
@@ -105,7 +105,7 @@ export function ActivityHeatmap({ days, startDate, endDate }: ActivityHeatmapPro
   const monthLabels = useMemo(() => {
     const labels: { month: string; weekIndex: number }[] = [];
     let lastMonth = -1;
-    
+
     grid.forEach((week, weekIndex) => {
       const firstDayOfWeek = week[0]?.date;
       if (firstDayOfWeek) {
@@ -116,7 +116,7 @@ export function ActivityHeatmap({ days, startDate, endDate }: ActivityHeatmapPro
         }
       }
     });
-    
+
     return labels;
   }, [grid]);
 
@@ -130,7 +130,7 @@ export function ActivityHeatmap({ days, startDate, endDate }: ActivityHeatmapPro
           </span>
         ))}
       </div>
-      
+
       <div className="flex gap-0">
         {/* Weekday labels */}
         <div className="flex flex-col justify-between text-xs text-gray-500 dark:text-gray-400 pr-1 py-[2px]">
@@ -140,7 +140,7 @@ export function ActivityHeatmap({ days, startDate, endDate }: ActivityHeatmapPro
             </div>
           ))}
         </div>
-        
+
         {/* Activity grid - full width */}
         <div className="flex-1 flex justify-between">
           {grid.map((week, weekIndex) => (
@@ -154,7 +154,7 @@ export function ActivityHeatmap({ days, startDate, endDate }: ActivityHeatmapPro
                   day: "numeric",
                   year: "numeric",
                 });
-                
+
                 return (
                   <div
                     key={`${weekIndex}-${dayIndex}`}
@@ -167,7 +167,7 @@ export function ActivityHeatmap({ days, startDate, endDate }: ActivityHeatmapPro
           ))}
         </div>
       </div>
-      
+
       {/* Legend */}
       <div className="flex items-center justify-end gap-2 mt-3 text-xs text-gray-500 dark:text-gray-400">
         <span>Less</span>

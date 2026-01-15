@@ -37,7 +37,7 @@ export function KnowledgeQuestion({
 
     try {
       const result = await onSubmit(answer);
-      
+
       if (result.is_passed) {
         setIsPassed(true);
         setFeedback(result.llm_feedback || "Great job! You've demonstrated understanding of this concept.");
@@ -58,14 +58,14 @@ export function KnowledgeQuestion({
 
   return (
     <div className={`border rounded-lg p-4 ${
-      isPassed 
-        ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800' 
+      isPassed
+        ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'
         : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700'
     }`}>
       <div className="flex items-start gap-3 mb-3">
         <div className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center ${
-          isPassed 
-            ? 'bg-green-500 text-white' 
+          isPassed
+            ? 'bg-green-500 text-white'
             : 'bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-300'
         }`}>
           {isPassed ? (
@@ -103,9 +103,9 @@ export function KnowledgeQuestion({
               rows={4}
               maxLength={MAX_CHARS + 100}
               disabled={isSubmitting}
-              className={`w-full px-3 py-2 border rounded-lg resize-none focus:outline-none focus:ring-2 
-                ${isOverLimit 
-                  ? 'border-red-300 focus:ring-red-500' 
+              className={`w-full px-3 py-2 border rounded-lg resize-none focus:outline-none focus:ring-2
+                ${isOverLimit
+                  ? 'border-red-300 focus:ring-red-500'
                   : 'border-gray-300 dark:border-gray-600 focus:ring-blue-500'
                 }
                 bg-white dark:bg-gray-700 text-gray-900 dark:text-white
