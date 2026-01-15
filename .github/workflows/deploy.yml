@@ -62,7 +62,7 @@ jobs:
           args: "format --check"
 
       - name: Type check (ty)
-        run: ty check
+        run: ty check --python $(which python)
 
       - name: Run tests
         run: pytest tests/ -v --tb=short

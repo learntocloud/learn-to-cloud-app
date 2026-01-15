@@ -53,6 +53,10 @@ select = ["E", "F", "I", "UP"]
 # SVG templates have long attribute strings that can't be broken
 "rendering/certificates.py" = ["E501"]
 
+[tool.ty.environment]
+# Use the current Python interpreter to resolve third-party imports
+python-platform = "linux"
+
 [tool.ty.rules]
 # Starlette middleware has incomplete type stubs - these are false positives
 invalid-argument-type = "warn"
