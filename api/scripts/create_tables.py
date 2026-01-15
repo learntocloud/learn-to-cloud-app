@@ -30,10 +30,10 @@ async def create_tables() -> None:
 
     engine = get_engine()
     logger.info("Creating database tables...")
-    
+
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-    
+
     logger.info("Tables created successfully")
 
 

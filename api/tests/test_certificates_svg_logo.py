@@ -2,10 +2,11 @@ from datetime import UTC, datetime
 
 from rendering.certificates import generate_certificate_svg
 
+
 def test_certificate_svg_inlines_brand_logo() -> None:
     """Test that the certificate SVG rendering correctly inlines the brand logo.
-    
-    This test uses the rendering module directly since it's testing the 
+
+    This test uses the rendering module directly since it's testing the
     low-level SVG generation, not the service-layer business logic.
     """
     svg = generate_certificate_svg(

@@ -20,13 +20,16 @@ from sqlalchemy.orm import Mapped, declared_attr, mapped_column, relationship
 
 from core.database import Base
 
+
 def utcnow() -> datetime:
     """Return current UTC time (timezone-aware)."""
     return datetime.now(UTC)
 
+
 def today() -> date:
     """Return current UTC date."""
     return datetime.now(UTC).date()
+
 
 class TimestampMixin:
     """Mixin that adds created_at and updated_at timestamp columns.
@@ -41,6 +44,7 @@ class TimestampMixin:
     @declared_attr
     def updated_at(cls) -> Mapped[datetime]:
         return mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+
 
 class User(TimestampMixin, Base):
     """User model - synced from Clerk via webhooks."""
@@ -80,6 +84,7 @@ class User(TimestampMixin, Base):
         cascade="all, delete-orphan",
     )
 
+
 class ProcessedWebhook(Base):
     """Tracks processed webhooks for idempotency."""
 
@@ -93,6 +98,7 @@ class ProcessedWebhook(Base):
         index=True,
     )
 
+
 class SubmissionType(str, PyEnum):
     """Type of submission for hands-on verification.
 
@@ -103,7 +109,8 @@ class SubmissionType(str, PyEnum):
        - Deployment/External: api/shared/hands_on_verification.py
        - Or create a new module for complex verification types
     3. Add the routing case in validate_submission() in hands_on_verification.py
-    4. Add optional fields to HandsOnRequirement schema if needed (e.g., expected_endpoint)
+    4. Add optional fields to HandsOnRequirement schema if needed
+       (e.g., expected_endpoint)
     """
 
     GITHUB_PROFILE = "github_profile"
@@ -118,6 +125,12 @@ class SubmissionType(str, PyEnum):
 
     # Local API response validation (paste JSON output)
     JOURNAL_API_RESPONSE = "journal_api_response"
+
+    # DevOps verification types (Phase 5)
+    WORKFLOW_RUN = "workflow_run"  # Verify GitHub Actions ran successfully
+    REPO_WITH_FILES = "repo_with_files"  # Verify repo contains specific files
+    CONTAINER_IMAGE = "container_image"  # Verify public container image exists
+
 
 class Submission(TimestampMixin, Base):
     """Tracks validated submissions for hands-on verification.
@@ -167,6 +180,7 @@ class Submission(TimestampMixin, Base):
 
     user: Mapped["User"] = relationship(back_populates="submissions")
 
+
 class ActivityType(str, PyEnum):
     """Type of user activity for streak and progress tracking."""
 
@@ -176,6 +190,7 @@ class ActivityType(str, PyEnum):
     HANDS_ON_VALIDATED = "hands_on_validated"
     PHASE_COMPLETE = "phase_complete"
     CERTIFICATE_EARNED = "certificate_earned"
+
 
 class Certificate(TimestampMixin, Base):
     """Tracks completion certificates issued to users."""
@@ -215,6 +230,7 @@ class Certificate(TimestampMixin, Base):
 
     user: Mapped["User"] = relationship(back_populates="certificates")
 
+
 class QuestionAttempt(Base):
     """Tracks user attempts at LLM-graded knowledge questions.
 
@@ -252,6 +268,7 @@ class QuestionAttempt(Base):
 
     user: Mapped["User"] = relationship(back_populates="question_attempts")
 
+
 class StepProgress(Base):
     """Tracks completion of learning steps within topics.
 
@@ -260,7 +277,9 @@ class StepProgress(Base):
 
     __tablename__ = "step_progress"
     __table_args__ = (
-        UniqueConstraint("user_id", "topic_id", "step_order", name="uq_user_topic_step"),
+        UniqueConstraint(
+            "user_id", "topic_id", "step_order", name="uq_user_topic_step"
+        ),
         Index("ix_step_progress_user_topic", "user_id", "topic_id"),
     )
 
@@ -284,6 +303,7 @@ class StepProgress(Base):
     )
 
     user: Mapped["User"] = relationship(back_populates="step_progress")
+
 
 class UserActivity(Base):
     """Tracks user activities for streak calculation.

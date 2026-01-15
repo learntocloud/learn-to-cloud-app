@@ -29,6 +29,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from slowapi.errors import RateLimitExceeded
 
+from core.config import get_settings
+from core.database import cleanup_old_webhooks, init_db
+from core.ratelimit import limiter, rate_limit_exceeded_handler
+from core.telemetry import RequestTimingMiddleware, SecurityHeadersMiddleware
 from routes import (
     activity_router,
     certificates_router,
@@ -40,14 +44,11 @@ from routes import (
     webhooks_router,
 )
 from services.clerk import close_http_client
-from core.config import get_settings
-from core.database import cleanup_old_webhooks, init_db
-from core.ratelimit import limiter, rate_limit_exceeded_handler
-from core.telemetry import RequestTimingMiddleware, SecurityHeadersMiddleware
 
 log_level = os.environ.get("LOG_LEVEL", "INFO").upper()
 logging.basicConfig(level=getattr(logging, log_level, logging.INFO))
 logger = logging.getLogger(__name__)
+
 
 async def _background_init():
     """Background initialization tasks (non-blocking for faster cold start)."""
@@ -59,6 +60,7 @@ async def _background_init():
             logger.info(f"Cleaned up {deleted} old processed webhook entries")
     except Exception as e:
         logger.warning(f"Failed to cleanup old webhooks: {e}")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -92,6 +94,7 @@ async def lifespan(app: FastAPI):
         except Exception:
             logger.exception("Background initialization failed")
 
+
 app = FastAPI(
     title="Learn to Cloud API",
     version="1.0.0",
@@ -99,16 +102,17 @@ app = FastAPI(
 )
 
 app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
+# ty has incomplete ParamSpec+Protocol support (astral-sh/ty#2382)
+app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)  # ty: ignore[invalid-argument-type]
 
-app.add_middleware(GZipMiddleware, minimum_size=500)
+app.add_middleware(GZipMiddleware, minimum_size=500)  # ty: ignore[invalid-argument-type]
 
-app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(SecurityHeadersMiddleware)  # ty: ignore[invalid-argument-type]
 
-app.add_middleware(RequestTimingMiddleware)
+app.add_middleware(RequestTimingMiddleware)  # ty: ignore[invalid-argument-type]
 
 app.add_middleware(
-    CORSMiddleware,
+    CORSMiddleware,  # ty: ignore[invalid-argument-type]
     allow_origins=get_settings().allowed_origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "OPTIONS"],

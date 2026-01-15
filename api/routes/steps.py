@@ -19,12 +19,12 @@ from services.steps import (
     get_topic_step_progress,
     uncomplete_step,
 )
-
 from services.users import get_or_create_user
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/steps", tags=["steps"])
+
 
 @router.get("/{topic_id}", response_model=TopicStepProgressResponse)
 async def get_topic_step_progress_endpoint(
@@ -34,7 +34,7 @@ async def get_topic_step_progress_endpoint(
     db: DbSession,
 ) -> TopicStepProgressResponse:
     """Get the step progress for a topic.
-    
+
     Args:
         topic_id: The topic ID (e.g., "phase1-topic5")
         total_steps: Total number of steps in this topic (from frontend)
@@ -56,6 +56,7 @@ async def get_topic_step_progress_endpoint(
         next_unlocked_step=progress.next_unlocked_step,
     )
 
+
 @router.post("/complete", response_model=StepProgressResponse)
 async def complete_step_endpoint(
     request: StepCompleteRequest,
@@ -63,7 +64,7 @@ async def complete_step_endpoint(
     db: DbSession,
 ) -> StepProgressResponse:
     """Mark a learning step as complete.
-    
+
     Steps must be completed in order - you can only complete step N
     if steps 1 through N-1 are already complete.
     """
@@ -88,6 +89,7 @@ async def complete_step_endpoint(
         completed_at=result.completed_at,
     )
 
+
 @router.delete("/{topic_id}/{step_order}")
 async def uncomplete_step_endpoint(
     topic_id: str,
@@ -96,7 +98,7 @@ async def uncomplete_step_endpoint(
     db: DbSession,
 ) -> dict:
     """Mark a learning step as incomplete (uncomplete it).
-    
+
     Also removes any steps after this one (cascading uncomplete).
     """
     await get_or_create_user(db, user_id)
@@ -107,6 +109,7 @@ async def uncomplete_step_endpoint(
         "status": "success",
         "deleted_count": deleted_count,
     }
+
 
 @router.get("/user/all-status")
 async def get_all_steps_status_endpoint(

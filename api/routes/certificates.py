@@ -3,6 +3,15 @@
 from fastapi import APIRouter, HTTPException, Path, Response
 
 from core.auth import OptionalUserId, UserId
+from core.config import get_settings
+from core.database import DbSession
+from schemas import (
+    CertificateEligibilityResponse,
+    CertificateRequest,
+    CertificateResponse,
+    CertificateVerifyResponse,
+    UserCertificatesResponse,
+)
 from services.certificates import (
     CertificateAlreadyExistsError,
     NotEligibleError,
@@ -15,19 +24,10 @@ from services.certificates import (
     verify_certificate,
     verify_certificate_with_message,
 )
-from core.config import get_settings
-from core.database import DbSession
-from schemas import (
-    CertificateEligibilityResponse,
-    CertificateRequest,
-    CertificateResponse,
-    CertificateVerifyResponse,
-    UserCertificatesResponse,
-)
-
 from services.users import get_or_create_user
 
 router = APIRouter(prefix="/api/certificates", tags=["certificates"])
+
 
 def _get_cache_control() -> str:
     """Get appropriate Cache-Control header value based on environment."""
@@ -35,6 +35,7 @@ def _get_cache_control() -> str:
     if settings.environment.lower() == "development":
         return "no-store"
     return "public, max-age=3600"
+
 
 @router.get(
     "/eligibility/{certificate_type}",
@@ -66,9 +67,12 @@ async def check_certificate_eligibility(
         total_phases=eligibility.total_phases,
         completion_percentage=round(eligibility.completion_percentage, 1),
         already_issued=eligibility.existing_certificate is not None,
-        existing_certificate_id=eligibility.existing_certificate.id if eligibility.existing_certificate else None,
+        existing_certificate_id=eligibility.existing_certificate.id
+        if eligibility.existing_certificate
+        else None,
         message=eligibility.message,
     )
+
 
 @router.post("", response_model=CertificateResponse)
 async def generate_certificate_endpoint(
@@ -99,6 +103,7 @@ async def generate_certificate_endpoint(
 
     return CertificateResponse.model_validate(result.certificate)
 
+
 @router.get("", response_model=UserCertificatesResponse)
 async def get_user_certificates(
     user_id: UserId,
@@ -107,14 +112,16 @@ async def get_user_certificates(
     """Get all certificates for the authenticated user."""
     await get_or_create_user(db, user_id)
 
-    certificates, full_completion_eligible = await get_user_certificates_with_eligibility(
-        db, user_id
-    )
+    (
+        certificates,
+        full_completion_eligible,
+    ) = await get_user_certificates_with_eligibility(db, user_id)
 
     return UserCertificatesResponse(
         certificates=[CertificateResponse.model_validate(c) for c in certificates],
         full_completion_eligible=full_completion_eligible,
     )
+
 
 @router.get("/{certificate_id}", response_model=CertificateResponse)
 async def get_certificate(
@@ -129,6 +136,7 @@ async def get_certificate(
         raise HTTPException(status_code=404, detail="Certificate not found")
 
     return CertificateResponse.model_validate(certificate)
+
 
 @router.get("/{certificate_id}/svg")
 async def get_certificate_svg_endpoint(
@@ -156,6 +164,7 @@ async def get_certificate_svg_endpoint(
         },
     )
 
+
 @router.get("/{certificate_id}/pdf")
 async def get_certificate_pdf_endpoint(
     certificate_id: int,
@@ -182,6 +191,7 @@ async def get_certificate_pdf_endpoint(
         },
     )
 
+
 @router.get("/verify/{verification_code}", response_model=CertificateVerifyResponse)
 async def verify_certificate_endpoint(
     db: DbSession,
@@ -193,9 +203,12 @@ async def verify_certificate_endpoint(
 
     return CertificateVerifyResponse(
         is_valid=result.is_valid,
-        certificate=CertificateResponse.model_validate(result.certificate) if result.certificate else None,
+        certificate=CertificateResponse.model_validate(result.certificate)
+        if result.certificate
+        else None,
         message=result.message,
     )
+
 
 @router.get("/verify/{verification_code}/svg")
 async def get_verified_certificate_svg_endpoint(
@@ -222,6 +235,7 @@ async def get_verified_certificate_svg_endpoint(
             "Cache-Control": _get_cache_control(),
         },
     )
+
 
 @router.get("/verify/{verification_code}/pdf")
 async def get_verified_certificate_pdf_endpoint(

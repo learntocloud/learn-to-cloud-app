@@ -7,6 +7,7 @@ import pytest
 
 from services.steps import StepNotUnlockedError, complete_step, get_topic_step_progress
 
+
 @pytest.mark.asyncio
 async def test_non_admin_cannot_complete_step_out_of_order(db_session, test_user):
     with pytest.raises(StepNotUnlockedError):
@@ -17,6 +18,7 @@ async def test_non_admin_cannot_complete_step_out_of_order(db_session, test_user
             3,
             is_admin=False,
         )
+
 
 @pytest.mark.asyncio
 async def test_admin_can_complete_step_out_of_order(db_session, test_user):
@@ -34,6 +36,7 @@ async def test_admin_can_complete_step_out_of_order(db_session, test_user):
 
     assert result.topic_id == "phase0-topic0"
     assert result.step_order == 3
+
 
 @pytest.mark.asyncio
 async def test_admin_step_progress_unlocks_all_steps(db_session, test_user):

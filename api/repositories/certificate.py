@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from models import Certificate
 
+
 class CertificateRepository:
     """Repository for certificate CRUD operations."""
 

@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/webhooks", tags=["webhooks"])
 
+
 @router.post("/clerk", response_model=WebhookResponse)
 async def clerk_webhook(request: Request, db: DbSession) -> WebhookResponse:
     """Handle Clerk webhooks for user sync."""

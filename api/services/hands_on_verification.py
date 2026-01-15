@@ -1,9 +1,10 @@
 """Hands-on verification orchestration module.
 
 This module provides the central orchestration for all hands-on verification:
-- Defines all hands-on requirements per phase (HANDS_ON_REQUIREMENTS)
 - Routes submissions to appropriate validators
-- Provides lookup functions for requirements
+- Contains validation functions for deployed apps and Journal API responses
+
+Phase requirements are defined in phase_requirements.py.
 
 EXTENSIBILITY:
 To add a new verification type:
@@ -15,6 +16,7 @@ To add a new verification type:
 
 For GitHub-specific validations, see github_hands_on_verification.py
 For CTF token validation, see ctf.py
+For phase requirements, see phase_requirements.py
 """
 
 import asyncio
@@ -25,19 +27,40 @@ from urllib.parse import urljoin, urlsplit
 
 import httpx
 
+from core.telemetry import track_dependency
+from models import SubmissionType
+from schemas import HandsOnRequirement
+
 from .ctf import verify_ctf_token
 from .github_hands_on_verification import (
     ValidationResult,
+    validate_container_image,
     validate_github_profile,
     validate_profile_readme,
     validate_repo_fork,
+    validate_repo_has_files,
     validate_repo_url,
+    validate_workflow_run,
 )
-from models import SubmissionType
-from schemas import HandsOnRequirement
-from core.telemetry import track_dependency
+from .phase_requirements import (
+    HANDS_ON_REQUIREMENTS,
+    get_requirement_by_id,
+    get_requirements_for_phase,
+)
+
+# Re-export for backwards compatibility
+__all__ = [
+    "HANDS_ON_REQUIREMENTS",
+    "get_requirement_by_id",
+    "get_requirements_for_phase",
+    "validate_submission",
+    "validate_deployed_app",
+    "validate_journal_api_response",
+    "ValidationResult",
+]
 
 logger = logging.getLogger(__name__)
+
 
 def _is_public_ip(ip_str: str) -> bool:
     """Return True if the IP is publicly routable (not private/loopback/etc)."""
@@ -59,6 +82,7 @@ def _is_public_ip(ip_str: str) -> bool:
         or ip_obj.is_unspecified
     )
 
+
 async def _host_resolves_to_public_ip(host: str) -> bool:
     """Resolve host and ensure all A/AAAA records are publicly routable."""
     try:
@@ -72,9 +96,9 @@ async def _host_resolves_to_public_ip(host: str) -> bool:
         addrs: set[str] = set()
         for family, _, _, _, sockaddr in results:
             if family == socket.AF_INET:
-                addrs.add(sockaddr[0])
+                addrs.add(str(sockaddr[0]))
             elif family == socket.AF_INET6:
-                addrs.add(sockaddr[0])
+                addrs.add(str(sockaddr[0]))
         return sorted(addrs)
 
     try:
@@ -86,6 +110,7 @@ async def _host_resolves_to_public_ip(host: str) -> bool:
         return False
 
     return all(_is_public_ip(addr) for addr in addresses)
+
 
 async def _validate_public_https_url(url: str) -> str:
     """Validate an untrusted URL is HTTPS and resolves to public IPs."""
@@ -144,7 +169,10 @@ def validate_journal_api_response(response_text: str) -> ValidationResult:
     except json.JSONDecodeError as e:
         return ValidationResult(
             is_valid=False,
-            message=f"Invalid JSON format. Make sure you copied the entire response. Error: {e.msg}",
+            message=(
+                "Invalid JSON format. Make sure you copied the entire "
+                f"response. Error: {e.msg}"
+            ),
             username_match=True,
             repo_exists=False,
         )
@@ -167,7 +195,10 @@ def validate_journal_api_response(response_text: str) -> ValidationResult:
     else:
         return ValidationResult(
             is_valid=False,
-            message="Response should be a JSON array or an object with 'entries' key. Did you call GET /entries?",
+            message=(
+                "Response should be a JSON array or an object with "
+                "'entries' key. Did you call GET /entries?"
+            ),
             username_match=True,
             repo_exists=False,
         )
@@ -176,7 +207,10 @@ def validate_journal_api_response(response_text: str) -> ValidationResult:
     if len(entries) == 0:
         return ValidationResult(
             is_valid=False,
-            message="No entries found. Create at least one journal entry using POST /entries first, then try GET /entries again.",
+            message=(
+                "No entries found. Create at least one journal entry "
+                "using POST /entries first, then try GET /entries again."
+            ),
             username_match=True,
             repo_exists=False,
         )
@@ -200,8 +234,11 @@ def validate_journal_api_response(response_text: str) -> ValidationResult:
         if missing_fields:
             return ValidationResult(
                 is_valid=False,
-                message=f"Entry {i + 1} is missing required fields: {', '.join(missing_fields)}. "
-                        f"Make sure your Entry model has all the required fields.",
+                message=(
+                    f"Entry {i + 1} is missing required fields: "
+                    f"{', '.join(missing_fields)}. Make sure your Entry "
+                    "model has all the required fields."
+                ),
                 username_match=True,
                 repo_exists=False,
             )
@@ -211,7 +248,10 @@ def validate_journal_api_response(response_text: str) -> ValidationResult:
         if not uuid_pattern.match(str(entry_id)):
             return ValidationResult(
                 is_valid=False,
-                message=f"Entry {i + 1} has an invalid ID format. Expected UUID format (e.g., 123e4567-e89b-12d3-a456-426614174000).",
+                message=(
+                    f"Entry {i + 1} has an invalid ID format. Expected "
+                    "UUID format (e.g., 123e4567-e89b-12d3-a456-426614174000)."
+                ),
                 username_match=True,
                 repo_exists=False,
             )
@@ -228,147 +268,127 @@ def validate_journal_api_response(response_text: str) -> ValidationResult:
                 )
 
     entry_count = len(entries)
+    entry_word = "entry" if entry_count == 1 else "entries"
     return ValidationResult(
         is_valid=True,
-        message=f"Verified! Your Journal API is working correctly with {entry_count} {'entry' if entry_count == 1 else 'entries'}. 🎉",
+        message=(
+            f"Verified! Your Journal API is working correctly "
+            f"with {entry_count} {entry_word}. 🎉"
+        ),
         username_match=True,
         repo_exists=True,
     )
 
 
-HANDS_ON_REQUIREMENTS: dict[int, list[HandsOnRequirement]] = {
-    0: [
-        HandsOnRequirement(
-            id="phase0-github-profile",
-            phase_id=0,
-            submission_type=SubmissionType.GITHUB_PROFILE,
-            name="GitHub Profile",
-            description="Create a GitHub account and submit your profile URL. This is where you'll store all your code and projects throughout your cloud journey.",
-            example_url="https://github.com/madebygps",
-        ),
-    ],
-    1: [
-        HandsOnRequirement(
-            id="phase1-profile-readme",
-            phase_id=1,
-            submission_type=SubmissionType.PROFILE_README,
-            name="GitHub Profile README",
-            description="Create a GitHub profile README to introduce yourself. This should be in a repo named after your username.",
-            example_url="https://github.com/madebygps/madebygps/blob/main/README.md",
-        ),
-        HandsOnRequirement(
-            id="phase1-linux-ctfs-fork",
-            phase_id=1,
-            submission_type=SubmissionType.REPO_FORK,
-            name="Linux CTFs Repository Fork",
-            description="Fork the Linux CTFs repository to complete the hands-on challenges.",
-            example_url="https://github.com/madebygps/linux-ctfs",
-            required_repo="learntocloud/linux-ctfs",
-        ),
-        HandsOnRequirement(
-            id="phase1-linux-ctf-token",
-            phase_id=1,
-            submission_type=SubmissionType.CTF_TOKEN,
-            name="Linux CTF Completion Token",
-            description="Complete all 18 Linux CTF challenges and submit your verification token. The token is generated after completing all challenges in the CTF environment.",
-            example_url=None,
-        ),
-    ],
-    2: [
-        HandsOnRequirement(
-            id="phase2-journal-starter-fork",
-            phase_id=2,
-            submission_type=SubmissionType.REPO_FORK,
-            name="Learning Journal Capstone Project",
-            description="Fork the journal-starter repository and build your Learning Journal API with FastAPI, PostgreSQL, and AI-powered entry analysis.",
-            example_url="https://github.com/learntocloud/journal-starter",
-            required_repo="learntocloud/journal-starter",
-        ),
-        HandsOnRequirement(
-            id="phase2-journal-api-working",
-            phase_id=2,
-            submission_type=SubmissionType.JOURNAL_API_RESPONSE,
-            name="Working Journal API",
-            description="Verify your Journal API is working locally. Create at least one journal entry using POST /entries, then call GET /entries and paste the JSON response below.",
-            example_url=None,
-        ),
-    ],
-    3: [
-        HandsOnRequirement(
-            id="phase3-copilot-demo",
-            phase_id=3,
-            submission_type=SubmissionType.REPO_URL,
-            name="GitHub Copilot Demonstration",
-            description="Create a repository demonstrating GitHub Copilot usage with documented examples of AI-assisted coding.",
-            example_url="https://github.com/yourusername/copilot-demo",
-        ),
-    ],
-    4: [
-        HandsOnRequirement(
-            id="phase4-deployed-journal",
-            phase_id=4,
-            submission_type=SubmissionType.DEPLOYED_APP,
-            name="Deployed Journal API",
-            description="Deploy your Learning Journal API to Azure (or another cloud provider) and submit the live URL. The app should have a working /entries endpoint.",
-            example_url="https://my-journal-api.azurewebsites.net",
-            expected_endpoint="/entries",
-        ),
-    ],
-    5: [
-        HandsOnRequirement(
-            id="phase5-dockerized-app",
-            phase_id=5,
-            submission_type=SubmissionType.REPO_URL,
-            name="Dockerized Application",
-            description="Containerize your Journal API with a Dockerfile and docker-compose.yml. Submit the repository URL.",
-            example_url="https://github.com/yourusername/journal-api",
-        ),
-        HandsOnRequirement(
-            id="phase5-cicd-pipeline",
-            phase_id=5,
-            submission_type=SubmissionType.REPO_URL,
-            name="CI/CD Pipeline",
-            description="Set up a CI/CD pipeline (GitHub Actions, Azure DevOps, etc.) that builds, tests, and deploys your application.",
-            example_url="https://github.com/yourusername/journal-api/actions",
-        ),
-    ],
-    6: [
-        HandsOnRequirement(
-            id="phase6-security-scanning",
-            phase_id=6,
-            submission_type=SubmissionType.REPO_URL,
-            name="Security Scanning Setup",
-            description="Enable security scanning on one of your repositories (Dependabot, CodeQL, or cloud security tools) and show resolved or triaged findings.",
-            example_url="https://github.com/yourusername/journal-api/security",
-        ),
-    ],
-}
+def _validate_deployed_journal_response(
+    response_text: str, url: str
+) -> ValidationResult:
+    """
+    Validate a deployed Journal API response.
 
-def get_requirements_for_phase(phase_id: int) -> list[HandsOnRequirement]:
-    """Get all hands-on requirements for a specific phase."""
-    return HANDS_ON_REQUIREMENTS.get(phase_id, [])
+    This is used for Phase 4 verification where we call the user's deployed API
+    and validate the response structure matches the expected Journal API format.
 
-def get_requirement_by_id(requirement_id: str) -> HandsOnRequirement | None:
-    """Get a specific requirement by its ID."""
-    for requirements in HANDS_ON_REQUIREMENTS.values():
-        for req in requirements:
-            if req.id == requirement_id:
-                return req
-    return None
+    Args:
+        response_text: The response body from the deployed API
+        url: The URL that was called (for error messages)
+
+    Returns:
+        ValidationResult with deployment-specific messaging
+    """
+    import json
+
+    # Try to parse as JSON first
+    try:
+        json.loads(response_text)  # Validate JSON is parseable
+    except json.JSONDecodeError:
+        return ValidationResult(
+            is_valid=False,
+            message=(
+                "Your API returned a response but it's not valid JSON. "
+                "Make sure your /entries endpoint returns JSON."
+            ),
+            username_match=True,
+            repo_exists=True,
+        )
+
+    # Use the same validation logic as the local validator
+    result = validate_journal_api_response(response_text)
+
+    if result.is_valid:
+        # Customize success message for deployed app
+        return ValidationResult(
+            is_valid=True,
+            message=f"Your deployed Journal API is working! {result.message}",
+            username_match=True,
+            repo_exists=True,
+        )
+
+    # Customize error messages for deployment context
+    error_msg = result.message
+
+    # Add deployment-specific hints
+    if "No entries found" in error_msg:
+        return ValidationResult(
+            is_valid=False,
+            message=(
+                "Your API is running but has no journal entries. "
+                "Create at least one entry using POST /entries on your deployed app, "
+                "then try verification again."
+            ),
+            username_match=True,
+            repo_exists=True,
+        )
+
+    if "missing required fields" in error_msg:
+        return ValidationResult(
+            is_valid=False,
+            message=(
+                f"Your API returned entries but they're missing fields. {error_msg} "
+                "Check your Entry model matches the expected schema."
+            ),
+            username_match=True,
+            repo_exists=True,
+        )
+
+    if "invalid ID format" in error_msg:
+        return ValidationResult(
+            is_valid=False,
+            message=(
+                f"{error_msg} Make sure your Entry model generates "
+                "UUIDs for the id field."
+            ),
+            username_match=True,
+            repo_exists=True,
+        )
+
+    # Return the original error with deployment context
+    return ValidationResult(
+        is_valid=False,
+        message=f"API response validation failed: {error_msg}",
+        username_match=True,
+        repo_exists=True,
+    )
+
 
 @track_dependency("deployed_app_check", "HTTP")
 async def validate_deployed_app(
-    app_url: str, expected_endpoint: str | None = None
+    app_url: str,
+    expected_endpoint: str | None = None,
+    validate_journal_response: bool = False,
 ) -> ValidationResult:
     """
     Validate a deployed application by making a GET request.
 
     Args:
-        app_url: The base URL of the deployed app (e.g., https://my-app.azurewebsites.net)
+        app_url: The base URL of the deployed app
+            (e.g., https://my-app.azurewebsites.net)
         expected_endpoint: Optional endpoint to append (e.g., "/entries")
+        validate_journal_response: If True, also validate the response is a
+            valid Journal API
 
     Returns:
-        ValidationResult indicating if the app is accessible
+        ValidationResult indicating if the app is accessible and valid
     """
     app_url = app_url.strip().rstrip("/")
 
@@ -387,15 +407,17 @@ async def validate_deployed_app(
             for redirect_count in range(max_redirects + 1):
                 safe_url = await _validate_public_https_url(current_url)
 
-                async with client.stream("GET", safe_url) as response:
-                    status_code = response.status_code
-                    location = response.headers.get("location")
+                response = await client.get(safe_url)
+                status_code = response.status_code
+                location = response.headers.get("location")
 
                 if status_code in (301, 302, 303, 307, 308):
                     if not location:
                         return ValidationResult(
                             is_valid=False,
-                            message="App returned a redirect without a Location header.",
+                            message=(
+                                "App returned a redirect without a Location header."
+                            ),
                             username_match=True,
                             repo_exists=False,
                         )
@@ -403,6 +425,12 @@ async def validate_deployed_app(
                     continue
 
                 if status_code == 200:
+                    # If we need to validate the Journal API response
+                    if validate_journal_response:
+                        return _validate_deployed_journal_response(
+                            response.text, safe_url
+                        )
+
                     return ValidationResult(
                         is_valid=True,
                         message=f"App is live! Successfully reached {safe_url}",
@@ -411,21 +439,25 @@ async def validate_deployed_app(
                     )
 
                 if status_code in (401, 403):
+                    endpoint = expected_endpoint or "/"
                     return ValidationResult(
                         is_valid=False,
                         message=(
-                            f"App is running but {expected_endpoint or '/'} requires authentication. "
-                            "Make sure the endpoint is publicly accessible without auth."
+                            f"App is running but {endpoint} requires "
+                            "authentication. Make sure the endpoint is "
+                            "publicly accessible without auth."
                         ),
                         username_match=True,
                         repo_exists=True,
                     )
 
                 if status_code == 404:
+                    endpoint = expected_endpoint or "/"
                     return ValidationResult(
                         is_valid=False,
                         message=(
-                            f"Endpoint not found (404). Make sure your app has a {expected_endpoint or '/'} endpoint."
+                            "Endpoint not found (404). Make sure your app "
+                            f"has a {endpoint} endpoint."
                         ),
                         username_match=True,
                         repo_exists=False,
@@ -448,14 +480,20 @@ async def validate_deployed_app(
     except httpx.TimeoutException:
         return ValidationResult(
             is_valid=False,
-            message="Request timed out. Is your app running and accessible from the internet?",
+            message=(
+                "Request timed out. Is your app running and "
+                "accessible from the internet?"
+            ),
             username_match=True,
             repo_exists=False,
         )
     except httpx.ConnectError:
         return ValidationResult(
             is_valid=False,
-            message="Could not connect to your app. Check that the URL is correct and the app is deployed.",
+            message=(
+                "Could not connect to your app. Check that the URL is "
+                "correct and the app is deployed."
+            ),
             username_match=True,
             repo_exists=False,
         )
@@ -474,6 +512,7 @@ async def validate_deployed_app(
             username_match=True,
             repo_exists=False,
         )
+
 
 def validate_ctf_token_submission(
     token: str, expected_username: str
@@ -497,6 +536,7 @@ def validate_ctf_token_submission(
         repo_exists=ctf_result.is_valid,
     )
 
+
 async def validate_submission(
     requirement: HandsOnRequirement,
     submitted_value: str,
@@ -515,8 +555,10 @@ async def validate_submission(
 
     Args:
         requirement: The requirement being validated
-        submitted_value: The value submitted by the user (URL, token, or challenge response)
-        expected_username: The expected GitHub username (required for GitHub-based validations)
+        submitted_value: The value submitted by the user
+            (URL, token, or challenge response)
+        expected_username: The expected GitHub username
+            (required for GitHub-based validations)
     """
     if requirement.submission_type == SubmissionType.PROFILE_README:
         if not expected_username:
@@ -548,7 +590,11 @@ async def validate_submission(
         )
 
     elif requirement.submission_type == SubmissionType.DEPLOYED_APP:
-        return await validate_deployed_app(submitted_value, requirement.expected_endpoint)
+        return await validate_deployed_app(
+            submitted_value,
+            requirement.expected_endpoint,
+            validate_journal_response=requirement.validate_response_body,
+        )
 
     elif requirement.submission_type == SubmissionType.CTF_TOKEN:
         if not expected_username:
@@ -590,6 +636,52 @@ async def validate_submission(
 
     elif requirement.submission_type == SubmissionType.JOURNAL_API_RESPONSE:
         return validate_journal_api_response(submitted_value)
+
+    elif requirement.submission_type == SubmissionType.WORKFLOW_RUN:
+        if not expected_username:
+            return ValidationResult(
+                is_valid=False,
+                message="GitHub username is required for workflow run validation",
+                username_match=False,
+                repo_exists=False,
+            )
+        return await validate_workflow_run(submitted_value, expected_username)
+
+    elif requirement.submission_type == SubmissionType.REPO_WITH_FILES:
+        if not expected_username:
+            return ValidationResult(
+                is_valid=False,
+                message="GitHub username is required for repository file validation",
+                username_match=False,
+                repo_exists=False,
+            )
+        if not requirement.required_file_patterns:
+            return ValidationResult(
+                is_valid=False,
+                message=(
+                    "Requirement configuration error: missing required_file_patterns"
+                ),
+                username_match=False,
+                repo_exists=False,
+            )
+        return await validate_repo_has_files(
+            submitted_value,
+            expected_username,
+            requirement.required_file_patterns,
+            requirement.file_description or "required files",
+        )
+
+    elif requirement.submission_type == SubmissionType.CONTAINER_IMAGE:
+        if not expected_username:
+            return ValidationResult(
+                is_valid=False,
+                message=(
+                    "GitHub/Docker username is required for container image validation"
+                ),
+                username_match=False,
+                repo_exists=False,
+            )
+        return await validate_container_image(submitted_value, expected_username)
 
     else:
         return ValidationResult(

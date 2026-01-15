@@ -68,10 +68,10 @@ Defined in `api/services/progress.py` (PHASE_REQUIREMENTS) and `api/services/han
 |-------|-------|-----------|----------|
 | 0 | 15 | 12 | 1 |
 | 1 | 36 | 12 | 3 |
-| 2 | 30 | 12 | 1 |
+| 2 | 30 | 12 | 2 |
 | 3 | 31 | 8 | 1 |
 | 4 | 51 | 18 | 1 |
-| 5 | 55 | 12 | 2 |
+| 5 | 55 | 12 | 4 |
 | 6 | 64 | 12 | 1 |
 
 ## Verification Commands

@@ -2,9 +2,10 @@
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from repositories.webhook import ProcessedWebhookRepository
 from repositories.user import UserRepository
+from repositories.webhook import ProcessedWebhookRepository
 from services.clerk import extract_github_username, extract_primary_email
+
 
 async def handle_user_created(db: AsyncSession, data: dict) -> None:
     """Handle user.created webhook event.
@@ -42,6 +43,7 @@ async def handle_user_created(db: AsyncSession, data: dict) -> None:
             github_username=github_username,
         )
 
+
 async def handle_user_updated(db: AsyncSession, data: dict) -> None:
     """Handle user.updated webhook event.
 
@@ -70,6 +72,7 @@ async def handle_user_updated(db: AsyncSession, data: dict) -> None:
         github_username=github_username,
     )
 
+
 async def handle_user_deleted(db: AsyncSession, data: dict) -> None:
     """Handle user.deleted webhook event.
 
@@ -82,6 +85,7 @@ async def handle_user_deleted(db: AsyncSession, data: dict) -> None:
 
     user_repo = UserRepository(db)
     await user_repo.delete(user_id)
+
 
 async def handle_clerk_event(
     db: AsyncSession,

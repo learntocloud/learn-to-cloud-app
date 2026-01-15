@@ -7,17 +7,16 @@ so they don't affect your development database.
 import pytest
 from sqlalchemy import select
 
-from services.certificates import generate_verification_code
 from models import Certificate
+from services.certificates import generate_verification_code
 from services.progress import TOTAL_PHASES
+
 
 class TestCertificateEligibility:
     """Test certificate eligibility checking logic."""
 
     @pytest.mark.asyncio
-    async def test_user_not_eligible_with_no_progress(
-        self, db_session, test_user
-    ):
+    async def test_user_not_eligible_with_no_progress(self, db_session, test_user):
         """User with no progress should not be eligible for certificate."""
         from services.certificates import check_eligibility
 
@@ -62,6 +61,7 @@ class TestCertificateEligibility:
         assert result.total_phases == TOTAL_PHASES
         assert result.completion_percentage == 100.0
         assert result.existing_certificate is None
+
 
 class TestCertificateGeneration:
     """Test certificate generation."""
@@ -129,6 +129,7 @@ class TestCertificateGeneration:
         assert result.existing_certificate is not None
         assert result.existing_certificate.verification_code == "LTC-EXISTING-TEST"
 
+
 class TestVerificationCode:
     """Test verification code generation."""
 
@@ -147,7 +148,6 @@ class TestVerificationCode:
     def test_verification_codes_are_unique(self):
         """Each call should generate a unique code."""
         codes = [
-            generate_verification_code("user123", "full_completion")
-            for _ in range(10)
+            generate_verification_code("user123", "full_completion") for _ in range(10)
         ]
         assert len(set(codes)) == 10

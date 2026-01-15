@@ -7,7 +7,7 @@ interface PhaseRoadmapProps {
   phases: PhaseWithProgress[];
 }
 
-const PHASE_LABELS = ["Phase 1", "Phase 2", "Phase 3", "Phase 4", "Phase 5", "Phase 6", "Phase 7"];
+const PHASE_LABELS = ["Phase 0", "Phase 1", "Phase 2", "Phase 3", "Phase 4", "Phase 5", "Phase 6"];
 
 export function PhaseRoadmap({ phases }: PhaseRoadmapProps) {
   return (

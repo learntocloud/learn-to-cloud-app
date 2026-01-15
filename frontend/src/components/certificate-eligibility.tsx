@@ -127,7 +127,7 @@ export function CertificateEligibilityCard({ eligibility, userName }: Certificat
 
       {eligibility.already_issued && (
         <div className="text-gray-600 dark:text-slate-400 text-sm bg-gray-100 dark:bg-slate-700/50 rounded-lg p-3">
-          ✓ Certificate already issued. Check your certificates above.
+          ✓ Certificate already issued. Check your certificate above.
         </div>
       )}
     </div>

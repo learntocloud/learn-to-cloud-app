@@ -34,15 +34,16 @@ else:
 P = ParamSpec("P")
 R = TypeVar("R")
 
+
 def instrument_sqlalchemy_engine(engine: Any) -> None:
     """
     Instrument a SQLAlchemy engine for query tracing.
-    
+
     This adds OpenTelemetry instrumentation to track:
     - Query execution time
     - Query text (parameterized)
     - Database connection info
-    
+
     Args:
         engine: SQLAlchemy AsyncEngine to instrument
     """
@@ -62,10 +63,11 @@ def instrument_sqlalchemy_engine(engine: Any) -> None:
     except Exception as e:
         logger.warning(f"Failed to instrument SQLAlchemy: {e}")
 
+
 class SecurityHeadersMiddleware:
     """
     Middleware to add security headers to all responses.
-    
+
     Adds headers to protect against common web vulnerabilities:
     - X-Content-Type-Options: Prevents MIME sniffing
     - X-Frame-Options: Prevents clickjacking
@@ -99,10 +101,11 @@ class SecurityHeadersMiddleware:
 
         await self.app(scope, receive, send_wrapper)
 
+
 class RequestTimingMiddleware:
     """
     Middleware to add detailed request timing information.
-    
+
     Adds custom spans and attributes for:
     - Total request duration
     - Route information
@@ -195,19 +198,21 @@ class RequestTimingMiddleware:
 
         await self.app(scope, receive, send_wrapper)
 
+
 def track_dependency(name: str, dependency_type: str = "custom"):
     """
     Decorator to track external dependency calls (APIs, services, etc.).
-    
+
     Usage:
         @track_dependency("github_api", "HTTP")
         async def call_github(repo: str):
             ...
-    
+
     Args:
         name: Name of the dependency (e.g., "github_api", "clerk_auth")
         dependency_type: Type of dependency (e.g., "HTTP", "Database", "Cache")
     """
+
     def decorator(func: Callable[P, Awaitable[R]]) -> Callable[P, Awaitable[R]]:
         @wraps(func)
         async def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
@@ -237,20 +242,23 @@ def track_dependency(name: str, dependency_type: str = "custom"):
                     span.set_attribute("dependency.duration_ms", duration_ms)
 
         return wrapper
+
     return decorator
+
 
 def track_operation(operation_name: str):
     """
     Decorator to track custom business operations.
-    
+
     Usage:
         @track_operation("user_registration")
         async def register_user(data: UserCreate):
             ...
-    
+
     Args:
         operation_name: Name of the operation for tracking
     """
+
     def decorator(func: Callable[P, Awaitable[R]]) -> Callable[P, Awaitable[R]]:
         @wraps(func)
         async def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
@@ -277,18 +285,20 @@ def track_operation(operation_name: str):
                     span.set_attribute("operation.duration_ms", duration_ms)
 
         return wrapper
+
     return decorator
+
 
 def add_custom_attribute(key: str, value: str | int | float | bool) -> None:
     """
     Add a custom attribute to the current span.
-    
+
     Useful for adding business context to traces.
-    
+
     Usage:
         add_custom_attribute("user.tier", "premium")
         add_custom_attribute("items.count", len(items))
-    
+
     Args:
         key: Attribute key
         value: Attribute value
@@ -300,15 +310,16 @@ def add_custom_attribute(key: str, value: str | int | float | bool) -> None:
     if span:
         span.set_attribute(key, value)
 
+
 def log_metric(
     name: str, value: float, properties: dict[str, str] | None = None
 ) -> None:
     """
     Log a custom metric for aggregation in Application Insights.
-    
+
     Usage:
         log_metric("questions.passed", 5, {"phase": "phase1"})
-    
+
     Args:
         name: Metric name
         value: Metric value
@@ -320,5 +331,5 @@ def log_metric(
     extra = {"custom_metric": name, "metric_value": value}
     if properties:
         extra.update(properties)
-    
+
     logger.info(f"Metric: {name}={value}", extra=extra)

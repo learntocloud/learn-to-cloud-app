@@ -6,6 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from models import ActivityType, SubmissionType
 
+
 class UserBase(BaseModel):
     """Base user schema."""
 
@@ -15,6 +16,7 @@ class UserBase(BaseModel):
     avatar_url: str | None = None
     github_username: str | None = None
 
+
 class UserResponse(UserBase):
     """User response schema."""
 
@@ -23,6 +25,7 @@ class UserResponse(UserBase):
     id: str
     is_admin: bool = False
     created_at: datetime
+
 
 class HandsOnRequirement(BaseModel):
     """A hands-on requirement for phase completion.
@@ -51,13 +54,21 @@ class HandsOnRequirement(BaseModel):
     description: str
     example_url: str | None = None
 
-    required_repo: str | None = (
-        None
-    )
+    required_repo: str | None = None
 
     expected_endpoint: str | None = None
 
+    # If True, validate the response body matches Journal API structure
+    validate_response_body: bool = False
+
     challenge_config: dict | None = None
+
+    # For REPO_WITH_FILES: file patterns to search for
+    # (e.g., ["Dockerfile", "docker-compose"])
+    required_file_patterns: list[str] | None = None
+    # Human-readable description of the files being searched for
+    file_description: str | None = None
+
 
 class HandsOnSubmissionRequest(BaseModel):
     """Request to submit a value for hands-on validation."""
@@ -77,6 +88,7 @@ class HandsOnSubmissionRequest(BaseModel):
             raise ValueError("Submission value cannot be empty")
         return v
 
+
 class HandsOnSubmissionResponse(BaseModel):
     """Response for a hands-on submission."""
 
@@ -92,6 +104,7 @@ class HandsOnSubmissionResponse(BaseModel):
     validated_at: datetime | None = None
     created_at: datetime
 
+
 class HandsOnValidationResult(BaseModel):
     """Result of validating a hands-on submission."""
 
@@ -100,6 +113,7 @@ class HandsOnValidationResult(BaseModel):
     username_match: bool
     repo_exists: bool
     submission: HandsOnSubmissionResponse | None = None
+
 
 class PhaseHandsOnRequirementsResponse(BaseModel):
     """Hands-on requirements for a phase with user's submission status."""
@@ -110,10 +124,12 @@ class PhaseHandsOnRequirementsResponse(BaseModel):
     has_requirements: bool
     all_validated: bool
 
+
 class AllPhasesHandsOnRequirementsResponse(BaseModel):
     """Hands-on requirements for all phases (bulk endpoint)."""
 
     phases: list[PhaseHandsOnRequirementsResponse]
+
 
 class HealthResponse(BaseModel):
     """Health check response."""
@@ -121,11 +137,13 @@ class HealthResponse(BaseModel):
     status: str
     service: str
 
+
 class WebhookResponse(BaseModel):
     """Response for webhook processing."""
 
     status: str
     event_type: str | None = None
+
 
 class QuestionSubmitRequest(BaseModel):
     """Request to submit an answer to a knowledge question."""
@@ -143,6 +161,7 @@ class QuestionSubmitRequest(BaseModel):
             raise ValueError("Answer must be at least 10 characters")
         return stripped
 
+
 class QuestionSubmitResponse(BaseModel):
     """Response for a question submission."""
 
@@ -154,6 +173,7 @@ class QuestionSubmitResponse(BaseModel):
     confidence_score: float | None = None
     attempt_id: int
 
+
 class QuestionStatusResponse(BaseModel):
     """Status of a single question for a user."""
 
@@ -161,6 +181,7 @@ class QuestionStatusResponse(BaseModel):
     is_passed: bool
     attempts_count: int
     last_attempt_at: datetime | None = None
+
 
 class TopicQuestionsStatusResponse(BaseModel):
     """Status of all questions in a topic for a user."""
@@ -171,11 +192,13 @@ class TopicQuestionsStatusResponse(BaseModel):
     total_questions: int
     passed_questions: int
 
+
 class ActivityLogRequest(BaseModel):
     """Request to log a user activity."""
 
     activity_type: ActivityType
     reference_id: str | None = Field(default=None, max_length=100)
+
 
 class ActivityResponse(BaseModel):
     """Response for a logged activity."""
@@ -188,11 +211,13 @@ class ActivityResponse(BaseModel):
     reference_id: str | None = None
     created_at: datetime
 
+
 class StepCompleteRequest(BaseModel):
     """Request to mark a learning step as complete."""
 
     topic_id: str = Field(max_length=100)
     step_order: int = Field(ge=1)
+
 
 class StepProgressResponse(BaseModel):
     """Response for a single step's progress."""
@@ -203,6 +228,7 @@ class StepProgressResponse(BaseModel):
     step_order: int
     completed_at: datetime
 
+
 class TopicStepProgressResponse(BaseModel):
     """Progress of all steps in a topic for a user."""
 
@@ -210,6 +236,7 @@ class TopicStepProgressResponse(BaseModel):
     completed_steps: list[int]
     total_steps: int
     next_unlocked_step: int
+
 
 class StreakResponse(BaseModel):
     """Response containing user's streak information."""
@@ -222,6 +249,7 @@ class StreakResponse(BaseModel):
     last_activity_date: date | None = None
     streak_alive: bool
 
+
 class ActivityHeatmapDay(BaseModel):
     """Activity count for a single day (for heatmap display)."""
 
@@ -230,6 +258,7 @@ class ActivityHeatmapDay(BaseModel):
     date: date
     count: int
     activity_types: list[ActivityType]
+
 
 class ActivityHeatmapResponse(BaseModel):
     """Activity heatmap data for profile display."""
@@ -241,6 +270,7 @@ class ActivityHeatmapResponse(BaseModel):
     end_date: date
     total_activities: int
 
+
 class BadgeResponse(BaseModel):
     """A badge earned by a user."""
 
@@ -250,6 +280,7 @@ class BadgeResponse(BaseModel):
     name: str
     description: str
     icon: str
+
 
 class PublicSubmission(BaseModel):
     """A validated submission for public display."""
@@ -262,6 +293,7 @@ class PublicSubmission(BaseModel):
     submitted_value: str
     name: str
     validated_at: datetime | None = None
+
 
 class PublicProfileResponse(BaseModel):
     """Public user profile information.
@@ -283,6 +315,7 @@ class PublicProfileResponse(BaseModel):
     submissions: list[PublicSubmission] = []
     badges: list[BadgeResponse] = []
 
+
 class CertificateEligibilityResponse(BaseModel):
     """Response for checking certificate eligibility."""
 
@@ -294,6 +327,7 @@ class CertificateEligibilityResponse(BaseModel):
     already_issued: bool
     existing_certificate_id: int | None = None
     message: str
+
 
 class CertificateRequest(BaseModel):
     """Request to generate a certificate."""
@@ -313,6 +347,7 @@ class CertificateRequest(BaseModel):
             raise ValueError("Name must be at least 2 characters")
         return cleaned
 
+
 class CertificateResponse(BaseModel):
     """Response containing certificate data."""
 
@@ -326,12 +361,14 @@ class CertificateResponse(BaseModel):
     phases_completed: int
     total_phases: int
 
+
 class CertificateVerifyResponse(BaseModel):
     """Response for certificate verification."""
 
     is_valid: bool
     certificate: CertificateResponse | None = None
     message: str
+
 
 class UserCertificatesResponse(BaseModel):
     """All certificates for a user."""

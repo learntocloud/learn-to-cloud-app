@@ -15,18 +15,18 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlalchemy.pool import StaticPool
 
 from core.database import Base
-from services.hands_on_verification import get_requirements_for_phase
 from models import (
-    Certificate,
     QuestionAttempt,
     StepProgress,
     Submission,
     SubmissionType,
     User,
 )
-from services.progress import PHASE_REQUIREMENTS, TOTAL_PHASES
+from services.hands_on_verification import get_requirements_for_phase
+from services.progress import PHASE_REQUIREMENTS
 
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
+
 
 @pytest.fixture(scope="session")
 def event_loop():
@@ -34,6 +34,7 @@ def event_loop():
     loop = asyncio.get_event_loop_policy().new_event_loop()
     yield loop
     loop.close()
+
 
 @pytest_asyncio.fixture(scope="function")
 async def test_engine():
@@ -44,24 +45,25 @@ async def test_engine():
         poolclass=StaticPool,
         echo=False,
     )
-    
+
     @event.listens_for(engine.sync_engine, "connect")
     def set_sqlite_pragma(dbapi_connection: Any, connection_record: Any) -> None:
         cursor = dbapi_connection.cursor()
         cursor.execute("PRAGMA foreign_keys=ON")
         cursor.close()
-    
+
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-    
+
     yield engine
-    
+
     await engine.dispose()
 
+
 @pytest_asyncio.fixture(scope="function")
-async def db_session(test_engine) -> AsyncGenerator[AsyncSession, None]:
+async def db_session(test_engine) -> AsyncGenerator[AsyncSession]:
     """Provide a database session for each test.
-    
+
     Each test gets a fresh database with all tables created.
     Changes are automatically rolled back after each test.
     """
@@ -70,10 +72,11 @@ async def db_session(test_engine) -> AsyncGenerator[AsyncSession, None]:
         class_=AsyncSession,
         expire_on_commit=False,
     )
-    
+
     async with session_maker() as session:
         yield session
         await session.rollback()
+
 
 @pytest_asyncio.fixture
 async def test_user(db_session: AsyncSession) -> User:
@@ -89,6 +92,7 @@ async def test_user(db_session: AsyncSession) -> User:
     await db_session.commit()
     await db_session.refresh(user)
     return user
+
 
 async def _add_submissions_for_phase(
     db: AsyncSession, user_id: str, phase_id: int
@@ -107,6 +111,7 @@ async def _add_submissions_for_phase(
             validated_at=datetime.now(UTC),
         )
         db.add(submission)
+
 
 @pytest_asyncio.fixture
 async def test_user_with_progress(db_session: AsyncSession, test_user: User) -> User:
@@ -142,6 +147,7 @@ async def test_user_with_progress(db_session: AsyncSession, test_user: User) -> 
 
     await db_session.commit()
     return test_user
+
 
 @pytest_asyncio.fixture
 async def test_user_full_completion(db_session: AsyncSession, test_user: User) -> User:

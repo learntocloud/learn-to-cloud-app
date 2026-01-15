@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 from models import ActivityType
 from repositories import ActivityRepository, StepProgressRepository
 
+
 @dataclass
 class StepProgressData:
     """Step progress data for a topic."""
@@ -15,6 +16,7 @@ class StepProgressData:
     total_steps: int
     next_unlocked_step: int
 
+
 @dataclass
 class StepCompletionResult:
     """Result of completing a step."""
@@ -23,15 +25,18 @@ class StepCompletionResult:
     step_order: int
     completed_at: datetime
 
+
 class StepValidationError(Exception):
     """Raised when step validation fails."""
 
     pass
 
+
 class StepAlreadyCompletedError(StepValidationError):
     """Raised when trying to complete an already completed step."""
 
     pass
+
 
 class StepNotUnlockedError(StepValidationError):
     """Raised when trying to complete a step that isn't unlocked."""
@@ -44,6 +49,7 @@ class StepNotUnlockedError(StepValidationError):
             f"Complete: {sorted(completed_steps)}, "
             f"required: {sorted(required_steps)}"
         )
+
 
 async def get_topic_step_progress(
     db,
@@ -91,6 +97,7 @@ async def get_topic_step_progress(
         total_steps=total_steps,
         next_unlocked_step=next_unlocked,
     )
+
 
 async def complete_step(
     db,
@@ -154,9 +161,8 @@ async def complete_step(
         completed_at=step_progress.completed_at,
     )
 
-async def uncomplete_step(
-    db, user_id: str, topic_id: str, step_order: int
-) -> int:
+
+async def uncomplete_step(db, user_id: str, topic_id: str, step_order: int) -> int:
     """Mark a learning step as incomplete (uncomplete it).
 
     Also removes any steps after this one (cascading uncomplete).
@@ -172,6 +178,7 @@ async def uncomplete_step(
     """
     step_repo = StepProgressRepository(db)
     return await step_repo.delete_from_step(user_id, topic_id, step_order)
+
 
 async def get_all_user_steps(db, user_id: str) -> dict[str, list[int]]:
     """Get all completed steps across all topics for a user.

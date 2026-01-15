@@ -6,8 +6,6 @@ import hmac
 import json
 import time
 
-import pytest
-
 from services.ctf import (
     REQUIRED_CHALLENGES,
     CTFVerificationResult,
@@ -16,10 +14,12 @@ from services.ctf import (
 
 TEST_MASTER_SECRET = "L2C_CTF_MASTER_2024"
 
+
 def derive_secret(instance_id: str) -> str:
     """Derive verification secret (same as in ctf.py)."""
     data = f"{TEST_MASTER_SECRET}:{instance_id}"
     return hashlib.sha256(data.encode()).hexdigest()
+
 
 def create_token(
     github_username: str = "testuser",
@@ -74,6 +74,7 @@ def create_token(
 
     token_data = {"payload": payload, "signature": signature}
     return base64.b64encode(json.dumps(token_data).encode()).decode()
+
 
 class TestVerifyCtfToken:
     """Tests for verify_ctf_token function."""
@@ -234,6 +235,7 @@ class TestVerifyCtfToken:
 
         assert result.is_valid is False
         assert "mismatch" in result.message.lower()
+
 
 class TestCtfVerificationResult:
     """Tests for CTFVerificationResult dataclass."""

@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from models import User
 
+
 class UserRepository:
     """Repository for User database operations."""
 
@@ -128,7 +129,5 @@ class UserRepository:
     def needs_sync(self, user: User) -> bool:
         """Check if user needs data sync from Clerk."""
         return (
-            self.is_placeholder(user)
-            or not user.avatar_url
-            or not user.github_username
+            self.is_placeholder(user) or not user.avatar_url or not user.github_username
         )

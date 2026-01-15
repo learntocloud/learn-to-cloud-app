@@ -21,6 +21,7 @@ from services.llm import grade_answer
 
 logger = logging.getLogger(__name__)
 
+
 @dataclass
 class QuestionGradeResult:
     """Result of grading a question answer."""
@@ -31,6 +32,7 @@ class QuestionGradeResult:
     confidence_score: float
     attempt_id: int
 
+
 @dataclass
 class QuestionStatus:
     """Status of a single question."""
@@ -39,6 +41,7 @@ class QuestionStatus:
     is_passed: bool
     attempts_count: int
     last_attempt_at: datetime | None
+
 
 @dataclass
 class TopicQuestionsStatus:
@@ -50,15 +53,18 @@ class TopicQuestionsStatus:
     total_questions: int
     passed_questions: int
 
+
 class LLMServiceUnavailableError(Exception):
     """Raised when LLM service is not configured or unavailable."""
 
     pass
 
+
 class LLMGradingError(Exception):
     """Raised when LLM grading fails."""
 
     pass
+
 
 async def submit_question_answer(
     db: AsyncSession,
@@ -138,6 +144,7 @@ async def submit_question_answer(
         attempt_id=attempt.id,
     )
 
+
 async def get_topic_questions_status(
     db: AsyncSession,
     user_id: str,
@@ -179,6 +186,7 @@ async def get_topic_questions_status(
         total_questions=total,
         passed_questions=passed_count,
     )
+
 
 async def get_all_questions_status(
     db: AsyncSession,

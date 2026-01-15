@@ -1,6 +1,7 @@
 """User service for user-related business logic."""
 
 from dataclasses import dataclass
+from datetime import datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -9,7 +10,6 @@ from repositories.submission import SubmissionRepository
 from repositories.user import UserRepository
 from services.activity import (
     HeatmapData,
-    HeatmapDay,
     StreakData,
     get_heatmap_data,
     get_streak_data,
@@ -22,6 +22,7 @@ from services.progress import fetch_user_progress, get_phase_completion_counts
 StreakInfo = StreakData
 HeatmapInfo = HeatmapData
 
+
 @dataclass
 class PublicSubmissionInfo:
     """Public submission information for profile display."""
@@ -33,6 +34,7 @@ class PublicSubmissionInfo:
     name: str
     validated_at: object | None
 
+
 @dataclass
 class BadgeInfo:
     """Badge information."""
@@ -41,6 +43,7 @@ class BadgeInfo:
     name: str
     description: str
     icon: str
+
 
 @dataclass
 class PublicProfileData:
@@ -53,9 +56,10 @@ class PublicProfileData:
     phases_completed: int
     streak: StreakInfo
     activity_heatmap: HeatmapInfo
-    member_since: object
+    member_since: datetime
     submissions: list[PublicSubmissionInfo]
     badges: list[BadgeInfo]
+
 
 async def get_or_create_user(db: AsyncSession, user_id: str) -> User:
     """Get user from DB or create placeholder (will be synced via webhook).
@@ -73,13 +77,22 @@ async def get_or_create_user(db: AsyncSession, user_id: str) -> User:
             await user_repo.update(
                 user,
                 email=clerk_data.email if clerk_data.email and is_placeholder else None,
-                first_name=clerk_data.first_name if clerk_data.first_name and not user.first_name else None,
-                last_name=clerk_data.last_name if clerk_data.last_name and not user.last_name else None,
-                avatar_url=clerk_data.avatar_url if clerk_data.avatar_url and not user.avatar_url else None,
-                github_username=clerk_data.github_username if clerk_data.github_username and not user.github_username else None,
+                first_name=clerk_data.first_name
+                if clerk_data.first_name and not user.first_name
+                else None,
+                last_name=clerk_data.last_name
+                if clerk_data.last_name and not user.last_name
+                else None,
+                avatar_url=clerk_data.avatar_url
+                if clerk_data.avatar_url and not user.avatar_url
+                else None,
+                github_username=clerk_data.github_username
+                if clerk_data.github_username and not user.github_username
+                else None,
             )
 
     return user
+
 
 async def get_public_profile(
     db: AsyncSession,
@@ -108,7 +121,9 @@ async def get_public_profile(
         submissions.append(
             PublicSubmissionInfo(
                 requirement_id=sub.requirement_id,
-                submission_type=sub.submission_type.value if hasattr(sub.submission_type, 'value') else str(sub.submission_type),
+                submission_type=sub.submission_type.value
+                if hasattr(sub.submission_type, "value")
+                else str(sub.submission_type),
                 phase_id=sub.phase_id,
                 submitted_value=sub.submitted_value,
                 name=requirement.name if requirement else sub.requirement_id,

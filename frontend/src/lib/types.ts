@@ -129,7 +129,10 @@ export type SubmissionType =
   | 'deployed_app'     // Live deployed application
   | 'ctf_token'        // CTF challenge completion token
   | 'api_challenge'    // API-based challenge response
-  | 'journal_api_response'; // Local API JSON response validation
+  | 'journal_api_response'  // Local API JSON response validation
+  | 'workflow_run'     // GitHub Actions workflow run verification
+  | 'repo_with_files'  // Repository with specific files (Dockerfile, *.tf, etc.)
+  | 'container_image'; // Public container image (Docker Hub, GHCR)
 
 export interface GitHubRequirement {
   id: string;
@@ -140,6 +143,8 @@ export interface GitHubRequirement {
   example_url: string | null;
   required_repo: string | null;
   expected_endpoint: string | null;
+  required_file_patterns: string[] | null;
+  file_description: string | null;
 }
 
 export interface Submission {

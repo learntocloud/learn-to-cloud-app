@@ -24,6 +24,7 @@ from services.hands_on_verification import (
     validate_submission,
 )
 
+
 def group_submissions_by_phase(
     submissions: list[Submission],
 ) -> dict[int, list[Submission]]:
@@ -39,12 +40,14 @@ def group_submissions_by_phase(
         by_phase[sub.phase_id].append(sub)
     return by_phase
 
+
 def get_validated_requirement_ids(submissions: list[Submission]) -> set[str]:
     """Get set of requirement IDs that are validated.
 
     Used for checking which requirements a user has completed.
     """
     return {s.requirement_id for s in submissions if s.is_validated}
+
 
 def get_validated_ids_by_phase(
     submissions: list[Submission],
@@ -61,6 +64,7 @@ def get_validated_ids_by_phase(
             by_phase[sub.phase_id].add(sub.requirement_id)
     return by_phase
 
+
 @dataclass
 class SubmissionResult:
     """Result of a hands-on submission."""
@@ -71,15 +75,18 @@ class SubmissionResult:
     username_match: bool | None
     repo_exists: bool | None
 
+
 class RequirementNotFoundError(Exception):
     """Raised when a requirement ID doesn't exist."""
 
     pass
 
+
 class GitHubUsernameRequiredError(Exception):
     """Raised when GitHub username is required but not provided."""
 
     pass
+
 
 @dataclass
 class PhaseSubmissionStatus:
@@ -90,6 +97,7 @@ class PhaseSubmissionStatus:
     requirements: list[HandsOnRequirement]
     has_requirements: bool
     all_validated: bool
+
 
 async def submit_validation(
     db: AsyncSession,
@@ -161,6 +169,7 @@ async def submit_validation(
         repo_exists=validation_result.repo_exists,
     )
 
+
 async def get_all_submissions_by_user(
     db: AsyncSession,
     user_id: str,
@@ -176,6 +185,7 @@ async def get_all_submissions_by_user(
     """
     submission_repo = SubmissionRepository(db)
     return await submission_repo.get_all_by_user(user_id)
+
 
 async def get_phase_submission_status(
     db: AsyncSession,
@@ -219,6 +229,7 @@ async def get_phase_submission_status(
         has_requirements=True,
         all_validated=all_validated,
     )
+
 
 async def get_all_phases_submission_status(
     db: AsyncSession,

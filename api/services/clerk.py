@@ -15,12 +15,14 @@ _http_client: httpx.AsyncClient | None = None
 _clerk_lookup_backoff_until: dict[str, float] = {}
 _CLERK_LOOKUP_BACKOFF_SECONDS = 300.0
 
+
 def _cleanup_expired_backoffs() -> None:
     """Remove expired backoff entries to prevent unbounded memory growth."""
     now = time.time()
     expired = [k for k, v in _clerk_lookup_backoff_until.items() if v <= now]
     for k in expired:
         del _clerk_lookup_backoff_until[k]
+
 
 async def get_http_client() -> httpx.AsyncClient:
     """Get or create a reusable HTTP client with connection pooling."""
@@ -33,6 +35,7 @@ async def get_http_client() -> httpx.AsyncClient:
         )
     return _http_client
 
+
 async def close_http_client() -> None:
     """Close the reusable HTTP client (called on application shutdown)."""
     global _http_client
@@ -41,6 +44,7 @@ async def close_http_client() -> None:
     if not _http_client.is_closed:
         await _http_client.aclose()
     _http_client = None
+
 
 @dataclass
 class ClerkUserData:
@@ -51,6 +55,7 @@ class ClerkUserData:
     last_name: str | None = None
     avatar_url: str | None = None
     github_username: str | None = None
+
 
 def extract_github_username(data: dict) -> str | None:
     """Extract GitHub username from Clerk webhook/API data.
@@ -70,6 +75,7 @@ def extract_github_username(data: dict) -> str | None:
         None,
     )
 
+
 def extract_primary_email(data: dict, fallback: str | None = None) -> str | None:
     """Extract primary email from Clerk webhook/API data."""
     email_addresses = data.get("email_addresses", [])
@@ -81,6 +87,7 @@ def extract_primary_email(data: dict, fallback: str | None = None) -> str | None
         ),
         email_addresses[0].get("email_address") if email_addresses else fallback,
     )
+
 
 async def fetch_user_data(user_id: str) -> ClerkUserData | None:
     """Fetch full user data from Clerk API.
@@ -129,6 +136,7 @@ async def fetch_user_data(user_id: str) -> ClerkUserData | None:
         )
         logger.warning(f"Error fetching user data from Clerk: {e}")
         return None
+
 
 async def fetch_github_username(user_id: str) -> str | None:
     """Fetch GitHub username directly from Clerk API.

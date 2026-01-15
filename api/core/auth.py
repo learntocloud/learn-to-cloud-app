@@ -12,9 +12,11 @@ from .config import get_settings
 
 logger = logging.getLogger(__name__)
 
+
 def _get_authorized_parties() -> list[str]:
     """Get authorized parties for Clerk authentication from centralized config."""
     return get_settings().allowed_origins
+
 
 def get_user_id_from_request(req: Request) -> str | None:
     """
@@ -29,7 +31,8 @@ def get_user_id_from_request(req: Request) -> str | None:
 
     auth_header = req.headers.get("authorization", "")
     logger.info(
-        f"Auth header present: {bool(auth_header)}, starts with Bearer: {auth_header.startswith('Bearer ')}"
+        f"Auth header present: {bool(auth_header)}, "
+        f"starts with Bearer: {auth_header.startswith('Bearer ')}"
     )
 
     httpx_request = httpx.Request(
@@ -53,9 +56,9 @@ def get_user_id_from_request(req: Request) -> str | None:
             logger.info(f"Clerk auth result: is_signed_in={request_state.is_signed_in}")
 
             if not request_state.is_signed_in:
-                logger.info(
-                    f"Not signed in. Reason: {getattr(request_state, 'reason', 'unknown')}, message: {getattr(request_state, 'message', 'none')}"
-                )
+                reason = getattr(request_state, "reason", "unknown")
+                message = getattr(request_state, "message", "none")
+                logger.info(f"Not signed in. Reason: {reason}, message: {message}")
                 return None
 
             if request_state.payload is None:
@@ -69,6 +72,7 @@ def get_user_id_from_request(req: Request) -> str | None:
     except Exception as e:
         logger.exception(f"Failed to authenticate request: {e}")
         return None
+
 
 def require_auth(request: Request) -> str:
     """
@@ -89,6 +93,7 @@ def require_auth(request: Request) -> str:
     request.state.user_id = user_id
     return user_id
 
+
 def optional_auth(request: Request) -> str | None:
     """
     FastAPI dependency that provides optional authentication.
@@ -107,6 +112,7 @@ def optional_auth(request: Request) -> str | None:
     if user_id:
         request.state.user_id = user_id
     return user_id
+
 
 UserId = Annotated[str, Depends(require_auth)]
 OptionalUserId = Annotated[str | None, Depends(optional_auth)]

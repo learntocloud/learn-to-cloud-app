@@ -10,6 +10,7 @@ from starlette.responses import JSONResponse
 
 logger = logging.getLogger(__name__)
 
+
 def _get_request_identifier(request: Request) -> str:
     """
     Get a unique identifier for rate limiting.
@@ -23,11 +24,13 @@ def _get_request_identifier(request: Request) -> str:
 
     return get_remote_address(request)
 
+
 limiter = Limiter(
     key_func=_get_request_identifier,
     default_limits=["100/minute"],
     storage_uri="memory://",
 )
+
 
 def rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded) -> Response:
     """Custom handler for rate limit exceeded errors."""
@@ -42,6 +45,7 @@ def rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded) -> Res
         },
         headers={"Retry-After": str(getattr(exc, "retry_after", 60))},
     )
+
 
 EXTERNAL_API_LIMIT = "10/minute"
 

@@ -19,11 +19,13 @@ __all__ = ["router", "get_or_create_user"]
 
 router = APIRouter(prefix="/api/user", tags=["users"])
 
+
 @router.get("/me", response_model=UserResponse)
 async def get_current_user(user_id: UserId, db: DbSession) -> UserResponse:
     """Get current user info."""
     user = await get_or_create_user(db, user_id)
     return UserResponse.model_validate(user)
+
 
 @router.get("/profile/{username}", response_model=PublicProfileResponse)
 async def get_public_profile_endpoint(
@@ -41,7 +43,10 @@ async def get_public_profile_endpoint(
 
     streak = StreakResponse.model_validate(profile_data.streak)
 
-    heatmap_days = [ActivityHeatmapDay.model_validate(day) for day in profile_data.activity_heatmap.days]
+    heatmap_days = [
+        ActivityHeatmapDay.model_validate(day)
+        for day in profile_data.activity_heatmap.days
+    ]
     activity_heatmap = ActivityHeatmapResponse(
         days=heatmap_days,
         start_date=profile_data.activity_heatmap.start_date,
@@ -49,7 +54,9 @@ async def get_public_profile_endpoint(
         total_activities=profile_data.activity_heatmap.total_activities,
     )
 
-    submissions = [PublicSubmission.model_validate(sub) for sub in profile_data.submissions]
+    submissions = [
+        PublicSubmission.model_validate(sub) for sub in profile_data.submissions
+    ]
     badges = [BadgeResponse.model_validate(badge) for badge in profile_data.badges]
 
     return PublicProfileResponse(

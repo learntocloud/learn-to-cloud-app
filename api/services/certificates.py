@@ -18,15 +18,19 @@ from datetime import UTC, datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models import ActivityType, Certificate
+from rendering.certificates import (
+    generate_certificate_svg as _render_certificate_svg,
+)
+from rendering.certificates import (
+    get_certificate_display_info as get_certificate_info,
+)
+from rendering.certificates import (
+    svg_to_pdf as _svg_to_pdf,
+)
 from repositories.activity import ActivityRepository
 from repositories.certificate import CertificateRepository
 from services.progress import fetch_user_progress
 
-from rendering.certificates import (
-    generate_certificate_svg as _render_certificate_svg,
-    get_certificate_display_info as get_certificate_info,
-    svg_to_pdf as _svg_to_pdf,
-)
 
 def generate_verification_code(user_id: str, certificate_type: str) -> str:
     """Generate a unique, verifiable certificate code.
@@ -40,6 +44,7 @@ def generate_verification_code(user_id: str, certificate_type: str) -> str:
     random_part = secrets.token_hex(4).upper()
     return f"LTC-{hash_part}-{random_part}"
 
+
 @dataclass
 class EligibilityResult:
     """Result of certificate eligibility check."""
@@ -50,6 +55,7 @@ class EligibilityResult:
     completion_percentage: float
     existing_certificate: Certificate | None
     message: str
+
 
 async def check_eligibility(
     db: AsyncSession,
@@ -80,7 +86,9 @@ async def check_eligibility(
         message = "Certificate already issued"
     elif progress.is_program_complete:
         cert_info = get_certificate_info(certificate_type)
-        message = f"Congratulations! You are eligible for the {cert_info['name']} certificate"
+        message = (
+            f"Congratulations! You are eligible for the {cert_info['name']} certificate"
+        )
     else:
         message = "Complete all phases to earn this certificate"
 
@@ -93,6 +101,7 @@ async def check_eligibility(
         message=message,
     )
 
+
 @dataclass
 class CreateCertificateResult:
     """Result of certificate creation."""
@@ -100,10 +109,12 @@ class CreateCertificateResult:
     certificate: Certificate
     verification_code: str
 
+
 class CertificateAlreadyExistsError(Exception):
     """Raised when certificate already exists for user."""
 
     pass
+
 
 class NotEligibleError(Exception):
     """Raised when user is not eligible for certificate."""
@@ -117,6 +128,7 @@ class NotEligibleError(Exception):
             message
             or f"Not eligible: {phases_completed}/{total_phases} phases completed"
         )
+
 
 async def create_certificate(
     db: AsyncSession,
@@ -189,6 +201,7 @@ async def create_certificate(
         verification_code=verification_code,
     )
 
+
 async def get_user_certificates_with_eligibility(
     db: AsyncSession,
     user_id: str,
@@ -212,6 +225,7 @@ async def get_user_certificates_with_eligibility(
 
     return list(certificates), full_completion_eligible
 
+
 async def get_certificate_by_id(
     db: AsyncSession,
     certificate_id: int,
@@ -230,6 +244,7 @@ async def get_certificate_by_id(
     cert_repo = CertificateRepository(db)
     return await cert_repo.get_by_id_and_user(certificate_id, user_id)
 
+
 async def verify_certificate(
     db: AsyncSession,
     verification_code: str,
@@ -246,6 +261,7 @@ async def verify_certificate(
     cert_repo = CertificateRepository(db)
     return await cert_repo.get_by_verification_code(verification_code)
 
+
 @dataclass
 class VerificationResult:
     """Result of certificate verification."""
@@ -253,6 +269,7 @@ class VerificationResult:
     is_valid: bool
     certificate: Certificate | None
     message: str
+
 
 async def verify_certificate_with_message(
     db: AsyncSession,
@@ -285,6 +302,7 @@ async def verify_certificate_with_message(
         message=f"Valid certificate for {cert_info['name']} issued on {issued_date}",
     )
 
+
 def generate_certificate_svg(certificate: Certificate) -> str:
     """Generate SVG content for a certificate.
 
@@ -305,6 +323,7 @@ def generate_certificate_svg(certificate: Certificate) -> str:
         phases_completed=certificate.phases_completed,
         total_phases=certificate.total_phases,
     )
+
 
 def generate_certificate_pdf(certificate: Certificate) -> bytes:
     """Generate PDF content for a certificate.

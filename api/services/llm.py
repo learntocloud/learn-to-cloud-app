@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 
 _client: genai.Client | None = None
 
+
 def get_gemini_client() -> genai.Client:
     """Get or create the Gemini client (lazy initialization)."""
     global _client
@@ -23,6 +24,7 @@ def get_gemini_client() -> genai.Client:
         _client = genai.Client(api_key=settings.google_api_key)
     return _client
 
+
 @dataclass
 class GradeResult:
     """Result of grading a knowledge question answer."""
@@ -30,6 +32,7 @@ class GradeResult:
     is_passed: bool
     feedback: str
     confidence_score: float
+
 
 async def grade_answer(
     question_prompt: str,

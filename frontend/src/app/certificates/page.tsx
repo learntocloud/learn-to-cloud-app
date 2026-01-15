@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 
 export const metadata = {
   title: "Certificates | Learn to Cloud",
-  description: "View and download your Learn to Cloud completion certificates",
+  description: "View and download your Learn to Cloud program completion certificate",
 };
 
 export default async function CertificatesPage() {
@@ -49,9 +49,9 @@ export default async function CertificatesPage() {
           >
             ← Back to Dashboard
           </Link>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Your Certificates</h1>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Your Certificate</h1>
           <p className="text-gray-600 dark:text-slate-400">
-            Earn certificates by completing Learn to Cloud phases and the full program.
+            Complete all phases to earn your program completion certificate.
           </p>
         </div>
 
@@ -77,40 +77,6 @@ export default async function CertificatesPage() {
             />
           )}
         </div>
-
-        {/* Issued Certificates (excluding full_completion which is shown above) */}
-        {issuedCertificates.filter(c => c.certificate_type !== "full_completion").length > 0 && (
-          <div className="mb-10">
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-              <span className="text-2xl">📜</span>
-              Issued Certificates
-            </h2>
-            <div className="space-y-4">
-              {issuedCertificates
-                .filter(c => c.certificate_type !== "full_completion")
-                .map(cert => (
-                  <CertificateCard key={cert.id} certificate={cert} />
-                ))}
-            </div>
-          </div>
-        )}
-
-        {/* Empty State */}
-        {issuedCertificates.length === 0 && !fullCompletionEligibility.is_eligible && (
-          <div className="bg-white dark:bg-slate-800/50 rounded-xl p-8 text-center border border-gray-200 dark:border-slate-700">
-            <div className="text-4xl mb-4">🎓</div>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-              No Certificates Yet
-            </h3>
-            <p className="text-gray-600 dark:text-slate-400 mb-4">
-              Keep learning! Complete phases to earn certificates and showcase your cloud skills.
-            </p>
-            <p className="text-gray-500 dark:text-slate-500 text-sm">
-              Progress: {fullCompletionEligibility.phases_completed} / {fullCompletionEligibility.total_phases} phases completed
-              ({fullCompletionEligibility.completion_percentage}%)
-            </p>
-          </div>
-        )}
 
         {/* Info Section */}
         <div className="mt-10 bg-gray-50 dark:bg-slate-800/30 rounded-xl p-6 border border-gray-200 dark:border-slate-700">

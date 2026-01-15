@@ -13,9 +13,11 @@ from dataclasses import dataclass
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from .hands_on_verification import get_requirements_for_phase
 from repositories.progress import QuestionAttemptRepository, StepProgressRepository
 from repositories.submission import SubmissionRepository
+
+from .hands_on_verification import get_requirements_for_phase
+
 
 @dataclass
 class PhaseRequirements:
@@ -31,6 +33,7 @@ class PhaseRequirements:
     def questions_per_topic(self) -> int:
         """Each topic has 2 questions."""
         return 2
+
 
 @dataclass
 class PhaseProgress:
@@ -61,16 +64,20 @@ class PhaseProgress:
         """Percentage of hands-on requirements validated for this phase."""
         if self.hands_on_required_count == 0:
             return 100.0
-        return min(100.0, (self.hands_on_validated_count / self.hands_on_required_count) * 100)
+        return min(
+            100.0, (self.hands_on_validated_count / self.hands_on_required_count) * 100
+        )
 
     @property
     def overall_percentage(self) -> float:
         """Phase completion percentage (steps + questions + hands-on).
 
         SKILL.md source of truth:
-          (Steps + Questions + Hands-on Validated) / (Total Steps + Total Questions + Total Hands-on)
+          (Steps + Questions + Hands-on) / (Total Steps + Questions + Hands-on)
         """
-        total = self.steps_required + self.questions_required + self.hands_on_required_count
+        total = (
+            self.steps_required + self.questions_required + self.hands_on_required_count
+        )
         if total == 0:
             return 0.0
 
@@ -94,6 +101,7 @@ class PhaseProgress:
         if self.questions_required == 0:
             return 100.0
         return min(100.0, (self.questions_passed / self.questions_required) * 100)
+
 
 @dataclass
 class UserProgress:
@@ -136,7 +144,9 @@ class UserProgress:
         total_hands_on = sum(p.hands_on_required_count for p in self.phases.values())
         completed_steps = sum(p.steps_completed for p in self.phases.values())
         passed_questions = sum(p.questions_passed for p in self.phases.values())
-        completed_hands_on = sum(p.hands_on_validated_count for p in self.phases.values())
+        completed_hands_on = sum(
+            p.hands_on_validated_count for p in self.phases.values()
+        )
 
         if total_steps + total_questions + total_hands_on == 0:
             return 0.0
@@ -148,6 +158,7 @@ class UserProgress:
             + min(completed_hands_on, total_hands_on)
         )
         return (completed / total) * 100
+
 
 PHASE_REQUIREMENTS: dict[int, PhaseRequirements] = {
     0: PhaseRequirements(
@@ -206,13 +217,16 @@ TOTAL_TOPICS = sum(r.topics for r in PHASE_REQUIREMENTS.values())
 TOTAL_STEPS = sum(r.steps for r in PHASE_REQUIREMENTS.values())
 TOTAL_QUESTIONS = sum(r.questions for r in PHASE_REQUIREMENTS.values())
 
+
 def get_phase_requirements(phase_id: int) -> PhaseRequirements | None:
     """Get requirements for a specific phase."""
     return PHASE_REQUIREMENTS.get(phase_id)
 
+
 def get_all_phase_ids() -> list[int]:
     """Get all phase IDs in order."""
     return sorted(PHASE_REQUIREMENTS.keys())
+
 
 async def fetch_user_progress(
     db: AsyncSession,
@@ -248,7 +262,11 @@ async def fetch_user_progress(
         hands_on_required_count = len(required_ids)
         hands_on_validated_count = len(required_ids.intersection(validated_ids))
         has_hands_on_requirements = hands_on_required_count > 0
-        hands_on_validated = (hands_on_validated_count >= hands_on_required_count) if has_hands_on_requirements else True
+        hands_on_validated = (
+            (hands_on_validated_count >= hands_on_required_count)
+            if has_hands_on_requirements
+            else True
+        )
 
         phases[phase_id] = PhaseProgress(
             phase_id=phase_id,
@@ -263,6 +281,7 @@ async def fetch_user_progress(
         )
 
     return UserProgress(user_id=user_id, phases=phases)
+
 
 def get_phase_completion_counts(
     progress: UserProgress,

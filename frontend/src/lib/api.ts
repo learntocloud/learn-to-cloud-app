@@ -273,11 +273,15 @@ export async function getPhasesWithProgress(): Promise<PhaseWithProgress[]> {
     getAllGitHubRequirements(),
     getAllQuestionsStatus(),
     getAllStepsStatus(),
-    getUserInfo().catch(() => null), // Don't fail if user info unavailable
+    getUserInfo().catch((err) => {
+      console.error('[DEBUG] getUserInfo failed:', err);
+      return null;
+    }),
   ]);
   
   // Admins bypass all content locks
   const isAdmin = userInfo?.is_admin ?? false;
+  console.log('[DEBUG] getPhasesWithProgress - userInfo:', userInfo, 'isAdmin:', isAdmin);
   
   // First pass: calculate progress for all phases (steps + questions + GitHub)
   const phasesWithProgress = phases.map(phase => {

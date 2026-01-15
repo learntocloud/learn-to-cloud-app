@@ -2,12 +2,11 @@
 
 from collections.abc import Sequence
 
-from sqlalchemy import distinct
-
-from sqlalchemy import func, select
+from sqlalchemy import distinct, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models import QuestionAttempt, StepProgress
+
 
 class StepProgressRepository:
     """Repository for step progress (learning steps completion)."""
@@ -124,7 +123,9 @@ class StepProgressRepository:
     async def get_all_topic_ids(self, user_id: str) -> list[str]:
         """Get all topic IDs where user has completed at least one step."""
         result = await self.db.execute(
-            select(distinct(StepProgress.topic_id)).where(StepProgress.user_id == user_id)
+            select(distinct(StepProgress.topic_id)).where(
+                StepProgress.user_id == user_id
+            )
         )
         return [row[0] for row in result.all()]
 
@@ -149,6 +150,7 @@ class StepProgressRepository:
             phase_counts[phase_num] = phase_counts.get(phase_num, 0) + 1
 
         return phase_counts
+
 
 class QuestionAttemptRepository:
     """Repository for question attempts (quiz/knowledge check progress)."""
@@ -183,7 +185,7 @@ class QuestionAttemptRepository:
             .where(
                 QuestionAttempt.user_id == user_id,
                 QuestionAttempt.topic_id == topic_id,
-                QuestionAttempt.is_passed == True,
+                QuestionAttempt.is_passed,
             )
             .distinct()
         )
@@ -201,7 +203,7 @@ class QuestionAttemptRepository:
             select(QuestionAttempt.topic_id, QuestionAttempt.question_id)
             .where(
                 QuestionAttempt.user_id == user_id,
-                QuestionAttempt.is_passed == True,
+                QuestionAttempt.is_passed,
             )
             .distinct()
         )

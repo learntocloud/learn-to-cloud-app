@@ -22,16 +22,19 @@ logger = logging.getLogger(__name__)
 
 REQUIRED_CHALLENGES = 18
 
+
 def _get_master_secret() -> str:
     """Get the CTF master secret from settings."""
     settings = get_settings()
     return settings.ctf_master_secret
+
 
 def _derive_secret(instance_id: str) -> str:
     """Derive the verification secret from master secret and instance ID."""
     master_secret = _get_master_secret()
     data = f"{master_secret}:{instance_id}"
     return hashlib.sha256(data.encode()).hexdigest()
+
 
 @dataclass
 class CTFVerificationResult:
@@ -43,6 +46,7 @@ class CTFVerificationResult:
     completion_date: str | None = None
     completion_time: str | None = None
     challenges_completed: int | None = None
+
 
 def verify_ctf_token(token: str, oauth_github_username: str) -> CTFVerificationResult:
     """

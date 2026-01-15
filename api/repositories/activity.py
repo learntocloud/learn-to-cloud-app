@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from models import ActivityType, UserActivity
 
+
 class ActivityRepository:
     """Repository for user activity operations (streak tracking, etc.)."""
 

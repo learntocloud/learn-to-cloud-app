@@ -54,6 +54,7 @@ PHASE_DISPLAY_INFO = {
     },
 }
 
+
 @lru_cache(maxsize=1)
 def _get_logo_inline_svg() -> str | None:
     """Return a self-contained inline SVG block for the brand logo.
@@ -74,7 +75,9 @@ def _get_logo_inline_svg() -> str | None:
     if not logo_svg.strip():
         return None
 
-    open_tag_match = re.search(r"<svg\b[^>]*>", logo_svg, flags=re.IGNORECASE | re.DOTALL)
+    open_tag_match = re.search(
+        r"<svg\b[^>]*>", logo_svg, flags=re.IGNORECASE | re.DOTALL
+    )
     close_tag_index = logo_svg.lower().rfind("</svg>")
     if not open_tag_match or close_tag_index == -1:
         return None
@@ -85,13 +88,15 @@ def _get_logo_inline_svg() -> str | None:
     view_box_match = re.search(r'\bviewBox="([^"]+)"', svg_open_tag)
     view_box = view_box_match.group(1) if view_box_match else "0 0 800 600"
 
-    inner = re.sub(r"<script\b[^>]*>.*?</script>", "", inner, flags=re.IGNORECASE | re.DOTALL)
+    inner = re.sub(
+        r"<script\b[^>]*>.*?</script>", "", inner, flags=re.IGNORECASE | re.DOTALL
+    )
 
     inner = re.sub(
-      r"\.st0\{fill:\s*#124D99;\}",
-      ".st0{fill:url(#ltcLogoTextGradient);}",
-      inner,
-      flags=re.IGNORECASE,
+        r"\.st0\{fill:\s*#124D99;\}",
+        ".st0{fill:url(#ltcLogoTextGradient);}",
+        inner,
+        flags=re.IGNORECASE,
     )
 
     prefix = "ltcLogo-"
@@ -115,9 +120,13 @@ def _get_logo_inline_svg() -> str | None:
         f'viewBox="{view_box}" preserveAspectRatio="xMidYMid meet">{gradient_def}{inner}</svg>'
     )
 
+
 def get_certificate_display_info(certificate_type: str) -> dict:
     """Get display information for a certificate type."""
-    return PHASE_DISPLAY_INFO.get(certificate_type, PHASE_DISPLAY_INFO["full_completion"])
+    return PHASE_DISPLAY_INFO.get(
+        certificate_type, PHASE_DISPLAY_INFO["full_completion"]
+    )
+
 
 def generate_certificate_svg(
     recipient_name: str,
@@ -288,10 +297,12 @@ def generate_certificate_svg(
 
     return svg
 
+
 def svg_to_base64_data_uri(svg_content: str) -> str:
     """Convert SVG string to base64 data URI for embedding."""
     encoded = base64.b64encode(svg_content.encode("utf-8")).decode("utf-8")
     return f"data:image/svg+xml;base64,{encoded}"
+
 
 def svg_to_pdf(svg_content: str) -> bytes:
     """Convert SVG string to PDF bytes using CairoSVG.

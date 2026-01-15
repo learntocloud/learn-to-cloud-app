@@ -11,6 +11,7 @@ Supports two authentication modes:
 import asyncio
 import logging
 from collections.abc import AsyncGenerator
+from datetime import UTC
 from typing import Annotated
 
 from fastapi import Depends
@@ -30,13 +31,16 @@ logger = logging.getLogger(__name__)
 
 _azure_credential = None
 
+
 class Base(DeclarativeBase):
     """Base class for all SQLAlchemy models."""
 
     pass
 
+
 _engine: AsyncEngine | None = None
 _async_session_maker: async_sessionmaker[AsyncSession] | None = None
+
 
 def _get_azure_credential():
     """Get or create the cached DefaultAzureCredential instance."""
@@ -47,15 +51,18 @@ def _get_azure_credential():
         _azure_credential = DefaultAzureCredential()
     return _azure_credential
 
+
 def _get_azure_token_sync() -> str:
     """Get an Azure AD token for PostgreSQL authentication (sync, may block)."""
     credential = _get_azure_credential()
     token = credential.get_token("https://ossrdbms-aad.database.windows.net/.default")
     return token.token
 
+
 async def _get_azure_token() -> str:
-    """Get an Azure AD token for PostgreSQL authentication without blocking the event loop."""
+    """Get Azure AD token for PostgreSQL auth without blocking event loop."""
     return await asyncio.to_thread(_get_azure_token_sync)
+
 
 def _build_azure_database_url() -> str:
     """Build a PostgreSQL SQLAlchemy URL for Azure (password provided dynamically)."""
@@ -65,6 +72,7 @@ def _build_azure_database_url() -> str:
         f"@{settings.postgres_host}:5432/{settings.postgres_database}"
         f"?ssl=require"
     )
+
 
 async def _azure_asyncpg_creator():
     """Create an asyncpg connection using a fresh AAD token.
@@ -86,6 +94,7 @@ async def _azure_asyncpg_creator():
         ssl="require",
         timeout=30,
     )
+
 
 def get_engine() -> AsyncEngine:
     """
@@ -151,6 +160,7 @@ def get_engine() -> AsyncEngine:
 
     return _engine
 
+
 def get_session_maker() -> async_sessionmaker[AsyncSession]:
     """Get or create the session factory (lazy initialization)."""
     global _async_session_maker
@@ -164,7 +174,8 @@ def get_session_maker() -> async_sessionmaker[AsyncSession]:
         )
     return _async_session_maker
 
-async def get_db() -> AsyncGenerator[AsyncSession, None]:
+
+async def get_db() -> AsyncGenerator[AsyncSession]:
     """
     FastAPI dependency that provides a database session.
 
@@ -192,18 +203,20 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
             await session.rollback()
             raise
 
+
 DbSession = Annotated[AsyncSession, Depends(get_db)]
+
 
 async def init_db() -> None:
     """Verify database connectivity at startup.
-    
+
     This only checks that the database is reachable. Schema management should be
     handled separately via migrations or the create_tables() function.
     """
     engine = get_engine()
-    
+
     logger.info("Verifying database connectivity...")
-    
+
     try:
         async with asyncio.timeout(30):
             async with engine.connect() as conn:
@@ -227,6 +240,7 @@ async def check_db_connection() -> None:
     async with engine.connect() as conn:
         await conn.execute(text("SELECT 1"))
 
+
 async def cleanup_old_webhooks(days: int = 7) -> int:
     """
     Remove ProcessedWebhook entries older than the specified days.
@@ -240,13 +254,13 @@ async def cleanup_old_webhooks(days: int = 7) -> int:
     Returns:
         Number of deleted entries
     """
-    from datetime import datetime, timedelta, timezone
+    from datetime import datetime, timedelta
 
     from sqlalchemy import delete
 
     from models import ProcessedWebhook
 
-    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+    cutoff = datetime.now(UTC) - timedelta(days=days)
     session_maker = get_session_maker()
 
     async with session_maker() as session:
@@ -255,6 +269,7 @@ async def cleanup_old_webhooks(days: int = 7) -> int:
         )
         await session.commit()
         return result.rowcount or 0
+
 
 def reset_db_state() -> None:
     """
@@ -274,6 +289,7 @@ def reset_db_state() -> None:
     global _engine, _async_session_maker
     _engine = None
     _async_session_maker = None
+
 
 async def upsert_on_conflict(
     db: AsyncSession,

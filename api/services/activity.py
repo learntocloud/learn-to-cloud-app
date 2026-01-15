@@ -17,6 +17,7 @@ from models import ActivityType
 from repositories.activity import ActivityRepository
 from services.streaks import MAX_SKIP_DAYS, calculate_streak_with_forgiveness
 
+
 @dataclass
 class StreakData:
     """User's streak information."""
@@ -27,6 +28,7 @@ class StreakData:
     last_activity_date: date | None
     streak_alive: bool
 
+
 @dataclass
 class HeatmapDay:
     """Activity data for a single day."""
@@ -34,6 +36,7 @@ class HeatmapDay:
     date: date
     count: int
     activity_types: list[str]
+
 
 @dataclass
 class HeatmapData:
@@ -43,6 +46,7 @@ class HeatmapData:
     start_date: date
     end_date: date
     total_activities: int
+
 
 async def get_streak_data(db, user_id: str) -> StreakData:
     """Calculate user's streak information.
@@ -68,6 +72,7 @@ async def get_streak_data(db, user_id: str) -> StreakData:
         last_activity_date=last_activity_date,
         streak_alive=streak_alive,
     )
+
 
 async def get_heatmap_data(db, user_id: str, days: int = 365) -> HeatmapData:
     """Get activity heatmap data for profile display.
@@ -109,6 +114,7 @@ async def get_heatmap_data(db, user_id: str, days: int = 365) -> HeatmapData:
         total_activities=total_activities,
     )
 
+
 @dataclass
 class ActivityResult:
     """Result of logging an activity."""
@@ -118,6 +124,7 @@ class ActivityResult:
     activity_date: date
     reference_id: str | None
     created_at: datetime
+
 
 async def log_activity(
     db: AsyncSession,

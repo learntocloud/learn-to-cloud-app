@@ -12,7 +12,10 @@ async def main():
     engine = get_engine()
     async with engine.connect() as conn:
         result = await conn.execute(
-            text("SELECT table_name FROM information_schema.tables WHERE table_schema='public' ORDER BY table_name")
+            text(
+                "SELECT table_name FROM information_schema.tables "
+                "WHERE table_schema='public' ORDER BY table_name"
+            )
         )
         tables = [row[0] for row in result.fetchall()]
         print("Tables in database:")

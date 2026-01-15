@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.database import upsert_on_conflict
 from models import Submission, SubmissionType
 
+
 class SubmissionRepository:
     """Repository for Submission database operations."""
 
@@ -101,4 +102,7 @@ class SubmissionRepository:
             ],
         )
 
-        return await self.get_by_user_and_requirement(user_id, requirement_id)
+        submission = await self.get_by_user_and_requirement(user_id, requirement_id)
+        # After upsert, the submission must exist
+        assert submission is not None
+        return submission

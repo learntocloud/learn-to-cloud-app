@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from models import ProcessedWebhook
 
+
 class ProcessedWebhookRepository:
     """Repository for ProcessedWebhook (svix-id) tracking."""
 

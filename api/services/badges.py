@@ -8,8 +8,20 @@ No separate database table is needed - badges are derived from:
 
 from dataclasses import dataclass
 from datetime import date
+from typing import TypedDict
 
 from .progress import PHASE_REQUIREMENTS as _PROGRESS_REQUIREMENTS
+
+
+class StreakBadgeInfo(TypedDict):
+    """Type definition for streak badge configuration."""
+
+    id: str
+    name: str
+    description: str
+    icon: str
+    required_streak: int
+
 
 PHASE_BADGES = {
     0: {
@@ -63,7 +75,7 @@ PHASE_BADGES = {
     },
 }
 
-STREAK_BADGES = [
+STREAK_BADGES: list[StreakBadgeInfo] = [
     {
         "id": "streak_7",
         "name": "Week Warrior",
@@ -87,6 +99,7 @@ STREAK_BADGES = [
     },
 ]
 
+
 @dataclass
 class Badge:
     """A badge that a user has earned."""
@@ -96,6 +109,7 @@ class Badge:
     description: str
     icon: str
     earned_at: date | None = None
+
 
 def compute_phase_badges(
     phase_completion_counts: dict[int, tuple[int, int, bool]],
@@ -108,7 +122,8 @@ def compute_phase_badges(
     - All hands-on requirements are validated (if any exist)
 
     Args:
-        phase_completion_counts: Dict mapping phase_id -> (completed_steps, passed_questions, hands_on_validated)
+        phase_completion_counts: Dict mapping phase_id ->
+            (completed_steps, passed_questions, hands_on_validated)
 
     Returns:
         List of earned Badge objects
@@ -120,10 +135,10 @@ def compute_phase_badges(
         if not requirements:
             continue
 
-        completed_steps, passed_questions, hands_on_validated = phase_completion_counts.get(
-            phase_id, (0, 0, True)
+        completed_steps, passed_questions, hands_on_validated = (
+            phase_completion_counts.get(phase_id, (0, 0, True))
         )
-        
+
         if (
             completed_steps >= requirements.steps
             and passed_questions >= requirements.questions
@@ -140,9 +155,8 @@ def compute_phase_badges(
 
     return earned_badges
 
-def compute_streak_badges(
-    longest_streak: int,
-) -> list[Badge]:
+
+def compute_streak_badges(longest_streak: int) -> list[Badge]:
     """Compute which streak badges a user has earned.
 
     Args:
@@ -166,6 +180,7 @@ def compute_streak_badges(
 
     return earned_badges
 
+
 def compute_all_badges(
     phase_completion_counts: dict[int, tuple[int, int, bool]],
     longest_streak: int,
@@ -173,7 +188,8 @@ def compute_all_badges(
     """Compute all badges a user has earned.
 
     Args:
-        phase_completion_counts: Dict mapping phase_id -> (completed_steps, passed_questions, hands_on_validated)
+        phase_completion_counts: Dict mapping phase_id ->
+            (completed_steps, passed_questions, hands_on_validated)
         longest_streak: User's longest streak (all-time)
 
     Returns:
@@ -184,23 +200,25 @@ def compute_all_badges(
     badges.extend(compute_streak_badges(longest_streak))
     return badges
 
+
 def count_completed_phases(
     phase_completion_counts: dict[int, tuple[int, int, bool]],
 ) -> int:
     """Count how many phases are fully completed.
 
-    A phase is complete when all steps, questions, AND hands-on requirements are done.
+    A phase is complete when all steps, questions, AND hands-on are done.
 
     Args:
-        phase_completion_counts: Dict mapping phase_id -> (completed_steps, passed_questions, hands_on_validated)
+        phase_completion_counts: Dict mapping phase_id ->
+            (completed_steps, passed_questions, hands_on_validated)
 
     Returns:
         Number of completed phases
     """
     completed = 0
     for phase_id, requirements in _PROGRESS_REQUIREMENTS.items():
-        completed_steps, passed_questions, hands_on_validated = phase_completion_counts.get(
-            phase_id, (0, 0, True)
+        completed_steps, passed_questions, hands_on_validated = (
+            phase_completion_counts.get(phase_id, (0, 0, True))
         )
         if (
             completed_steps >= requirements.steps
@@ -209,6 +227,7 @@ def count_completed_phases(
         ):
             completed += 1
     return completed
+
 
 def get_all_available_badges() -> list[dict]:
     """Get all available badges (for displaying locked/unlocked states).
@@ -226,24 +245,33 @@ def get_all_available_badges() -> list[dict]:
             hands_on_count = len(get_requirements_for_phase(phase_id))
             if hands_on_count:
                 requirement_str = (
-                    f"Complete all {requirements.steps} steps, {requirements.questions} questions, "
+                    f"Complete all {requirements.steps} steps, "
+                    f"{requirements.questions} questions, "
                     f"and {hands_on_count} hands-on requirements in Phase {phase_id}"
                 )
             else:
                 requirement_str = (
-                    f"Complete all {requirements.steps} steps and {requirements.questions} questions in Phase {phase_id}"
+                    f"Complete all {requirements.steps} steps and "
+                    f"{requirements.questions} questions in Phase {phase_id}"
                 )
-            badges.append({
-                **badge_info,
-                "category": "phase",
-                "requirement": requirement_str,
-            })
+            badges.append(
+                {
+                    **badge_info,
+                    "category": "phase",
+                    "requirement": requirement_str,
+                }
+            )
 
-    for badge_info in STREAK_BADGES:
-        badges.append({
-            **badge_info,
-            "category": "streak",
-            "requirement": f"Reach a {badge_info['required_streak']}-day streak",
-        })
+    for streak_badge in STREAK_BADGES:
+        badges.append(
+            {
+                "id": streak_badge["id"],
+                "name": streak_badge["name"],
+                "description": streak_badge["description"],
+                "icon": streak_badge["icon"],
+                "category": "streak",
+                "requirement": f"Reach a {streak_badge['required_streak']}-day streak",
+            }
+        )
 
     return badges

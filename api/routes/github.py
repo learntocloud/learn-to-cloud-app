@@ -24,6 +24,7 @@ from services.users import get_or_create_user
 
 router = APIRouter(prefix="/api/github", tags=["github"])
 
+
 @router.get("/requirements", response_model=AllPhasesHandsOnRequirementsResponse)
 async def get_all_github_requirements(
     user_id: UserId, db: DbSession
@@ -46,6 +47,7 @@ async def get_all_github_requirements(
 
     return AllPhasesHandsOnRequirementsResponse(phases=phases_response)
 
+
 @router.get("/requirements/{phase_id}", response_model=PhaseHandsOnRequirementsResponse)
 async def get_phase_github_requirements(
     phase_id: int, user_id: UserId, db: DbSession
@@ -62,6 +64,7 @@ async def get_phase_github_requirements(
         has_requirements=status.has_requirements,
         all_validated=status.all_validated,
     )
+
 
 @router.post("/submit", response_model=HandsOnValidationResult)
 @limiter.limit(EXTERNAL_API_LIMIT)
@@ -90,10 +93,13 @@ async def submit_github_validation(
     return HandsOnValidationResult(
         is_valid=result.is_valid,
         message=result.message,
-        username_match=result.username_match,
-        repo_exists=result.repo_exists,
+        username_match=result.username_match
+        if result.username_match is not None
+        else False,
+        repo_exists=result.repo_exists if result.repo_exists is not None else False,
         submission=HandsOnSubmissionResponse.model_validate(result.submission),
     )
+
 
 @router.get("/submissions", response_model=list[HandsOnSubmissionResponse])
 async def get_user_submissions(

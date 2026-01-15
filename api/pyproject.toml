@@ -23,6 +23,7 @@ dependencies = [
     "svix==1.45.1",
     "uvicorn[standard]==0.34.0",
     "cairosvg>=2.7.0",
+    "starlette>=0.41.3",
 ]
 
 [project.optional-dependencies]
@@ -39,6 +40,14 @@ target-version = "py313"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP"]
+
+[tool.ruff.lint.per-file-ignores]
+# SVG templates have long attribute strings that can't be broken
+"rendering/certificates.py" = ["E501"]
+
+[tool.ty.rules]
+# Starlette middleware has incomplete type stubs - these are false positives
+invalid-argument-type = "warn"
 
 [dependency-groups]
 dev = [

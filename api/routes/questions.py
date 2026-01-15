@@ -35,6 +35,7 @@ ValidatedTopicId = Annotated[
     Path(max_length=100, pattern=r"^phase\d+-topic\d+$"),
 ]
 
+
 @router.post("/submit", response_model=QuestionSubmitResponse)
 @limiter.limit("10/minute")
 async def submit_question_answer_endpoint(
@@ -83,6 +84,7 @@ async def submit_question_answer_endpoint(
         confidence_score=result.confidence_score,
         attempt_id=result.attempt_id,
     )
+
 
 @router.post(
     "/submit-with-context",
@@ -137,6 +139,7 @@ async def submit_question_with_context_endpoint(
         attempt_id=result.attempt_id,
     )
 
+
 @router.get("/topic/{topic_id}/status", response_model=TopicQuestionsStatusResponse)
 async def get_topic_questions_status_endpoint(
     topic_id: ValidatedTopicId,
@@ -166,6 +169,7 @@ async def get_topic_questions_status_endpoint(
         total_questions=status.total_questions,
         passed_questions=status.passed_questions,
     )
+
 
 @router.get("/user/all-status")
 async def get_all_questions_status_endpoint(

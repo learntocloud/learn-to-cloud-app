@@ -52,6 +52,7 @@ export default async function PhasePage({ params }: PhasePageProps) {
   let githubRequirements: PhaseGitHubRequirements | null = null;
   let githubUsername: string | null = null;
   let allTopicsComplete = false;
+  let isAdmin = false;
 
   if (userId) {
     // Fetch each resource independently so one failure doesn't break the others
@@ -86,6 +87,12 @@ export default async function PhasePage({ params }: PhasePageProps) {
     // Handle user info
     if (userResult.status === "fulfilled") {
       githubUsername = userResult.value.github_username;
+      isAdmin = userResult.value.is_admin ?? false;
+    }
+    
+    // Admin bypass: admins can access hands-on verification without completing topics
+    if (isAdmin) {
+      allTopicsComplete = true;
     }
   }
 
