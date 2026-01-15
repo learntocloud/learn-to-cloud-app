@@ -1,6 +1,6 @@
 # Learn to Cloud - Terraform Infrastructure
 
-This directory contains the Terraform infrastructure-as-code for the Learn to Cloud application, migrated from Azure Bicep.
+This directory contains the Terraform infrastructure-as-code for the Learn to Cloud application.
 
 ## Architecture
 
@@ -23,7 +23,7 @@ The infrastructure is organized into modular Terraform modules:
 - [Azure Developer CLI (azd)](https://learn.microsoft.com/en-us/azure/developer/azure-developer-cli/install-azd)
 - Azure subscription with appropriate permissions
 
-## Quick Start (New Deployment)
+## Quick Start
 
 1. **Login to Azure**:
    ```bash
@@ -31,7 +31,7 @@ The infrastructure is organized into modular Terraform modules:
    azd auth login
    ```
 
-2. **Setup Terraform backend**:
+2. **Setup Terraform backend** (first time only):
    ```bash
    cd infra/scripts
    ./setup-backend.sh
@@ -46,78 +46,17 @@ The infrastructure is organized into modular Terraform modules:
    # Edit terraform.tfvars with your values
    ```
 
-4. **Deploy infrastructure**:
+4. **Deploy with azd** (recommended):
    ```bash
    azd up
-   # Or manually:
+   ```
+
+   Or manually with Terraform:
+   ```bash
    terraform init
    terraform plan
    terraform apply
    ```
-
-## Importing Existing Bicep Resources
-
-If you're migrating from Bicep, follow these steps to import existing resources:
-
-### Step 1: Extract Resource IDs
-
-```bash
-cd infra/scripts
-./export-bicep-state.sh dev
-# This creates import-map-dev.json with all resource IDs
-```
-
-### Step 2: Update terraform.tfvars
-
-```bash
-cd ..
-cp terraform.tfvars.example terraform.tfvars
-
-# IMPORTANT: Set the existing_unique_suffix
-# Get it from: jq -r '.unique_suffix' scripts/import-map-dev.json
-# Add to terraform.tfvars:
-existing_unique_suffix = "abc123def456g"
-```
-
-### Step 3: Initialize Terraform
-
-```bash
-terraform init
-```
-
-### Step 4: Import Resources (Phase by Phase)
-
-Follow the detailed import steps in the migration plan:
-
-**Phase 1: Foundation** (Low risk)
-```bash
-ENVIRONMENT=dev
-UNIQUE_SUFFIX=$(jq -r '.unique_suffix' scripts/import-map-${ENVIRONMENT}.json)
-
-# Import unique suffix
-terraform import random_string.unique_suffix "$UNIQUE_SUFFIX"
-
-# Import resource group
-terraform import \
-  -var="environment=$ENVIRONMENT" \
-  module.foundation.azurerm_resource_group.main \
-  "/subscriptions/<sub-id>/resourceGroups/rg-learntocloud-$ENVIRONMENT"
-
-# Verify no drift
-terraform plan -target=module.foundation
-```
-
-**Phase 2-7**: Continue with database, cache, secrets, registry, container-apps, and monitoring
-
-See `/Users/rishabkumar/.claude/plans/eventual-dancing-goose.md` for complete import commands.
-
-### Step 5: Validate Parity
-
-```bash
-terraform plan -detailed-exitcode
-# Exit code 0 = success (no changes)
-# Exit code 2 = drift detected (must fix)
-```
 
 ## Using with Azure Developer CLI (azd)
 
@@ -131,133 +70,100 @@ azd provision
 azd deploy api
 azd deploy frontend
 
-# Full deployment
+# Full deployment (provision + deploy)
 azd up
 ```
 
 The `azd` commands automatically run Terraform via hooks defined in `azure.yaml`.
 
-## Environment Variables
+## Configuration
 
-Required environment variables:
+### terraform.tfvars
+
+Copy `terraform.tfvars.example` to `terraform.tfvars` and configure:
+
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `environment` | Environment name (dev, staging, prod) | Yes |
+| `location` | Azure region | Yes |
+| `postgres_admin_password` | PostgreSQL admin password | Yes |
+| `clerk_secret_key` | Clerk secret key | Yes |
+| `clerk_webhook_signing_secret` | Clerk webhook signing secret | Yes |
+| `clerk_publishable_key` | Clerk publishable key | Yes |
+| `enable_redis` | Enable Redis cache | No (default: true) |
+| `frontend_custom_domain` | Custom domain for frontend | No |
+| `alert_email_address` | Email for alerts | No |
+| `google_api_key` | Google API key for AI features | No |
+
+### Environment Variables
+
+Alternatively, use environment variables:
 
 ```bash
-# Azure configuration (set by azd)
-export AZURE_ENV_NAME=dev
-export AZURE_LOCATION=eastus
-export AZURE_SUBSCRIPTION_ID=xxx
-
-# Secrets (set manually or via .azure/<env>/.env)
-export TF_VAR_postgres_admin_password="<password>"
-export TF_VAR_clerk_secret_key="sk_test_..."
-export TF_VAR_clerk_webhook_signing_secret="whsec_..."
-export TF_VAR_clerk_publishable_key="pk_test_..."
-
-# Optional
-export TF_VAR_frontend_custom_domain="app.example.com"
-export TF_VAR_alert_email_address="alerts@example.com"
-export TF_VAR_enable_redis=true
-
-# Backend authentication
+export ARM_SUBSCRIPTION_ID="<subscription-id>"
 export ARM_ACCESS_KEY="<storage-account-key>"
+
+# Or use TF_VAR_ prefix for Terraform variables
+export TF_VAR_postgres_admin_password="<password>"
+export TF_VAR_clerk_secret_key="sk_live_..."
 ```
 
 ## Outputs
 
-After deployment, Terraform provides these outputs (compatible with `azd`):
+After deployment, Terraform provides these outputs:
 
-- `AZURE_RESOURCE_GROUP` - Resource group name
-- `AZURE_LOCATION` - Azure region
-- `apiUrl` - API Container App URL
-- `frontendUrl` - Frontend Container App URL
-- `postgresHost` - PostgreSQL server FQDN
-- `keyVaultName` - Key Vault name
-- `keyVaultUri` - Key Vault URI
-- `AZURE_CONTAINER_REGISTRY_NAME` - Container Registry name
-- `AZURE_CONTAINER_REGISTRY_ENDPOINT` - Container Registry login server
-
-## Helper Scripts
-
-Located in `scripts/`:
-
-- `setup-backend.sh` - Create Azure Storage for Terraform state
-- `export-bicep-state.sh` - Extract resource IDs from existing Bicep deployment
-- `rollback.sh` - Emergency rollback to Bicep (if needed)
+| Output | Description |
+|--------|-------------|
+| `AZURE_RESOURCE_GROUP` | Resource group name |
+| `AZURE_LOCATION` | Azure region |
+| `apiUrl` | API Container App URL |
+| `frontendUrl` | Frontend Container App URL |
+| `postgresHost` | PostgreSQL server FQDN |
+| `keyVaultName` | Key Vault name |
+| `keyVaultUri` | Key Vault URI |
+| `AZURE_CONTAINER_REGISTRY_NAME` | Container Registry name |
+| `AZURE_CONTAINER_REGISTRY_ENDPOINT` | Container Registry login server |
 
 ## Troubleshooting
 
-### Import Issues
+### State Lock Error
 
-**Problem**: Resource already managed by Terraform
 ```bash
-# Solution: Remove from state, then re-import
-terraform state rm <resource-address>
-terraform import <resource-address> <resource-id>
-```
-
-**Problem**: Drift detected after import
-```bash
-# Solution: Review differences
-terraform plan
-# Adjust Terraform code to match Azure, or use lifecycle ignore_changes
-```
-
-### State Issues
-
-**Problem**: State lock error
-```bash
-# Solution: Break lease on Azure Storage blob
+# Break lease on Azure Storage blob
 az storage blob lease break \
   --account-name <storage-account> \
   --container-name tfstate \
   --blob-name <state-file>.tfstate
 ```
 
-**Problem**: Lost state file
+### Drift Detection
+
 ```bash
-# Solution: Restore from Azure Storage version history
-az storage blob list \
-  --account-name <storage-account> \
-  --container-name tfstate \
-  --include v
+# Check for configuration drift
+terraform plan
+
+# Refresh state from Azure
+terraform refresh
+```
+
+### Resource Import
+
+If a resource exists in Azure but not in Terraform state:
+
+```bash
+terraform import <resource-address> <azure-resource-id>
 ```
 
 ## Security Best Practices
 
-1. **Never commit secrets**: Use `.gitignore` to exclude `terraform.tfvars`
-2. **Use Key Vault**: Store secrets in Azure Key Vault, not in tfvars
-3. **Enable state encryption**: Backend uses Azure Storage encryption by default
+1. **Never commit secrets**: `terraform.tfvars` is in `.gitignore`
+2. **Use Key Vault**: Secrets are stored in Azure Key Vault
+3. **State encryption**: Backend uses Azure Storage encryption
 4. **Rotate secrets**: Regularly rotate Clerk keys and database passwords
-5. **Review RBAC**: Ensure proper role assignments for managed identities
-
-## Module Details
-
-See individual module README files for details:
-- `modules/foundation/README.md` (if exists)
-- `modules/secrets/README.md` (if exists)
-- etc.
-
-## Support
-
-For migration issues or questions:
-1. Review the migration plan: `/Users/rishabkumar/.claude/plans/eventual-dancing-goose.md`
-2. Check Azure resources: `az resource list --resource-group rg-learntocloud-dev`
-3. Verify Terraform state: `terraform state list`
-4. Run validation: `terraform plan`
-
-## Rollback
-
-If critical issues occur during migration:
-
-```bash
-cd scripts
-./rollback.sh dev
-```
-
-This removes Terraform state (keeping Azure resources intact) and restores Bicep files.
+5. **Review RBAC**: Ensure minimal required permissions
 
 ## Additional Resources
 
 - [Terraform Azure Provider Docs](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs)
 - [Azure Developer CLI Docs](https://learn.microsoft.com/en-us/azure/developer/azure-developer-cli/)
-- [Migration Plan](../../../.claude/plans/eventual-dancing-goose.md)
+- [Azure Container Apps Docs](https://learn.microsoft.com/en-us/azure/container-apps/)
