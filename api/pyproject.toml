@@ -1,3 +1,11 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["core*", "routes*", "services*", "repositories*", "rendering*"]
+exclude = ["tests*", "assets*", "scripts*"]
+
 [project]
 name = "learn-to-cloud-api"
 version = "0.1.0"
