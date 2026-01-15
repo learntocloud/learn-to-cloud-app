@@ -217,7 +217,7 @@ resource secretGoogleApiKey 'Microsoft.KeyVault/vaults/secrets@2024-04-01-previe
 var keyVaultSecretsUserRoleDefinitionId = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '4633458b-17de-408a-b874-0445c86b69e6')
 
 resource containerAppIdentityKeyVaultRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(keyVault.id, containerAppIdentity.id, keyVaultSecretsUserRoleDefinitionId)
+  name: guid(keyVault.id, containerAppIdentity.id, 'keyVaultSecretsUser')
   scope: keyVault
   properties: {
     roleDefinitionId: keyVaultSecretsUserRoleDefinitionId
@@ -536,9 +536,8 @@ resource frontendApp 'Microsoft.App/containerApps@2024-03-01' = {
 // AcrPull role assignment for Container Apps to pull images using managed identity
 var acrPullRoleDefinitionId = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '7f951dda-4ed3-4680-a7ca-43fe172d538d')
 
-// Use unique suffix to avoid conflicts with soft-deleted role assignments
 resource apiAcrPullRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(containerRegistry.id, apiApp.id, acrPullRoleDefinitionId, 'v2')
+  name: guid(containerRegistry.id, apiApp.id, 'acrPull')
   scope: containerRegistry
   properties: {
     roleDefinitionId: acrPullRoleDefinitionId
@@ -548,7 +547,7 @@ resource apiAcrPullRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-
 }
 
 resource frontendAcrPullRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(containerRegistry.id, frontendApp.id, acrPullRoleDefinitionId, 'v2')
+  name: guid(containerRegistry.id, frontendApp.id, 'acrPull')
   scope: containerRegistry
   properties: {
     roleDefinitionId: acrPullRoleDefinitionId

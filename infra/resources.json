@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.39.26.7824",
-      "templateHash": "12056839968983911182"
+      "templateHash": "12051402615915430539"
     }
   },
   "parameters": {
@@ -542,7 +542,7 @@
       "type": "Microsoft.Authorization/roleAssignments",
       "apiVersion": "2022-04-01",
       "scope": "[format('Microsoft.ContainerRegistry/registries/{0}', format('crltc{0}', variables('uniqueSuffix')))]",
-      "name": "[guid(resourceId('Microsoft.ContainerRegistry/registries', format('crltc{0}', variables('uniqueSuffix'))), resourceId('Microsoft.App/containerApps', variables('apiAppName')), variables('acrPullRoleDefinitionId'), 'v2')]",
+      "name": "[guid(resourceId('Microsoft.ContainerRegistry/registries', format('crltc{0}', variables('uniqueSuffix'))), resourceId('Microsoft.App/containerApps', variables('apiAppName')), 'acrPull')]",
       "properties": {
         "roleDefinitionId": "[variables('acrPullRoleDefinitionId')]",
         "principalId": "[reference(resourceId('Microsoft.App/containerApps', variables('apiAppName')), '2024-03-01', 'full').identity.principalId]",
@@ -557,7 +557,7 @@
       "type": "Microsoft.Authorization/roleAssignments",
       "apiVersion": "2022-04-01",
       "scope": "[format('Microsoft.ContainerRegistry/registries/{0}', format('crltc{0}', variables('uniqueSuffix')))]",
-      "name": "[guid(resourceId('Microsoft.ContainerRegistry/registries', format('crltc{0}', variables('uniqueSuffix'))), resourceId('Microsoft.App/containerApps', variables('frontendAppName')), variables('acrPullRoleDefinitionId'), 'v2')]",
+      "name": "[guid(resourceId('Microsoft.ContainerRegistry/registries', format('crltc{0}', variables('uniqueSuffix'))), resourceId('Microsoft.App/containerApps', variables('frontendAppName')), 'acrPull')]",
       "properties": {
         "roleDefinitionId": "[variables('acrPullRoleDefinitionId')]",
         "principalId": "[reference(resourceId('Microsoft.App/containerApps', variables('frontendAppName')), '2024-03-01', 'full').identity.principalId]",
