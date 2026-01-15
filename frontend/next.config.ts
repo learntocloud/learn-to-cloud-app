@@ -22,6 +22,17 @@ const nextConfig: NextConfig = {
   generateEtags: true,
   // Production optimizations
   poweredByHeader: false, // Remove X-Powered-By header (security + tiny perf)
+  
+  // === COLD START OPTIMIZATIONS ===
+  // Experimental features for faster startup
+  experimental: {
+    // Optimize package imports to reduce cold start time
+    optimizePackageImports: [
+      '@clerk/nextjs',
+      '@microsoft/applicationinsights-web',
+    ],
+  },
+  
   // Cache static pages aggressively
   headers: async () => [
     {

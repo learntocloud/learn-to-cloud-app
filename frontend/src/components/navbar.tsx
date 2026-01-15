@@ -3,23 +3,27 @@
 import Link from "next/link";
 import { UserButton, SignInButton, useUser } from "@clerk/nextjs";
 import { useApi } from "@/lib/use-api";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 
 export function Navbar() {
   const { isSignedIn, isLoaded } = useUser();
   const api = useApi();
   const [githubUsername, setGithubUsername] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
   
   // Fetch GitHub username from backend when user is signed in
+  // Use startTransition to make this non-blocking for initial render
   useEffect(() => {
     if (isSignedIn) {
-      api.getUserInfo()
-        .then((userInfo) => {
-          setGithubUsername(userInfo.github_username);
-        })
-        .catch((error) => {
-          console.error("Failed to fetch user info:", error);
-        });
+      startTransition(() => {
+        api.getUserInfo()
+          .then((userInfo) => {
+            setGithubUsername(userInfo.github_username);
+          })
+          .catch((error) => {
+            console.error("Failed to fetch user info:", error);
+          });
+      });
     } else {
       setGithubUsername(null);
     }

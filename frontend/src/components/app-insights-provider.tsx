@@ -5,8 +5,9 @@ import { initAppInsights, trackException } from "@/lib/app-insights";
 
 export function AppInsightsProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
-    // Initialize Application Insights on mount
-    initAppInsights();
+    // Initialize Application Insights asynchronously (non-blocking)
+    // This defers loading the ~100KB SDK until after hydration
+    initAppInsights().catch(console.error);
 
     // Global error handler for uncaught errors
     const handleError = (event: ErrorEvent) => {
