@@ -10,11 +10,10 @@ All progress calculation and locking logic follows
 """
 
 import logging
-from typing import Optional
 
 from fastapi import APIRouter, HTTPException
 
-from core.auth import UserId, OptionalUserId
+from core.auth import OptionalUserId, UserId
 from core.database import DbSession
 from schemas import (
     DashboardResponse,
@@ -98,7 +97,7 @@ async def get_phase_detail_endpoint(
     - Phase info and objectives
     - Topics with progress and locking status
     - Hands-on requirements and submissions
-    
+
     For unauthenticated users:
     - No progress data
     - First topic unlocked, rest locked (if phase is accessible)
@@ -107,7 +106,7 @@ async def get_phase_detail_endpoint(
     if user_id:
         user = await get_or_create_user(db, user_id)
         is_admin = user.is_admin
-    
+
     result = await get_phase_detail(db, user_id, phase_slug, is_admin)
 
     if result is None:
@@ -134,7 +133,7 @@ async def get_topic_detail_endpoint(
     - Knowledge questions
     - Progress (completed steps, passed questions)
     - Locking status
-    
+
     For unauthenticated users:
     - No progress data
     - Content shown but cannot be interacted with
@@ -143,7 +142,7 @@ async def get_topic_detail_endpoint(
     if user_id:
         user = await get_or_create_user(db, user_id)
         is_admin = user.is_admin
-    
+
     result = await get_topic_detail(db, user_id, phase_slug, topic_slug, is_admin)
 
     if result is None:
