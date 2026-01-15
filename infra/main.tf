@@ -94,22 +94,22 @@ module "secrets" {
 module "container_apps" {
   source = "./modules/container-apps"
 
-  app_name                            = local.app_name
-  environment                         = var.environment
-  location                            = var.location
-  resource_group_name                 = module.foundation.resource_group_name
-  log_analytics_workspace_id          = module.observability.log_analytics_workspace_id
-  user_assigned_identity_id           = module.identity.identity_id
-  container_registry_login_server     = module.registry.container_registry_login_server
-  postgres_fqdn                       = module.database.postgres_fqdn
-  clerk_publishable_key               = var.clerk_publishable_key
-  clerk_secret_key_kv_id              = module.secrets.clerk_secret_key_id
-  clerk_webhook_signing_secret_kv_id  = module.secrets.clerk_webhook_signing_secret_id
-  google_api_key_kv_id                = module.secrets.google_api_key_id
-  app_insights_connection_string      = module.observability.app_insights_connection_string
-  frontend_custom_domain              = var.frontend_custom_domain
-  frontend_managed_certificate_name   = var.frontend_managed_certificate_name
-  tags                                = local.tags
+  app_name                           = local.app_name
+  environment                        = var.environment
+  location                           = var.location
+  resource_group_name                = module.foundation.resource_group_name
+  log_analytics_workspace_id         = module.observability.log_analytics_workspace_id
+  user_assigned_identity_id          = module.identity.identity_id
+  container_registry_login_server    = module.registry.container_registry_login_server
+  postgres_fqdn                      = module.database.postgres_fqdn
+  clerk_publishable_key              = var.clerk_publishable_key
+  clerk_secret_key_kv_id             = module.secrets.clerk_secret_key_id
+  clerk_webhook_signing_secret_kv_id = module.secrets.clerk_webhook_signing_secret_id
+  google_api_key_kv_id               = module.secrets.google_api_key_id
+  app_insights_connection_string     = module.observability.app_insights_connection_string
+  frontend_custom_domain             = var.frontend_custom_domain
+  frontend_managed_certificate_name  = var.frontend_managed_certificate_name
+  tags                               = local.tags
 
   depends_on = [module.secrets]
 }

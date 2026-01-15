@@ -19,7 +19,7 @@ locals {
     "https://*.azurecontainerapps.io",
     "http://localhost:3000",
     "https://${var.frontend_custom_domain}"
-  ] : [
+    ] : [
     "https://*.azurecontainerapps.io",
     "http://localhost:3000"
   ]
@@ -90,9 +90,11 @@ resource "azurerm_container_app" "api" {
 
     container {
       name   = "api"
-      image  = "mcr.microsoft.com/azuredocs/containerapps-helloworld:latest"
+      image  = "python:3.13-alpine"
       cpu    = 0.5
       memory = "1Gi"
+
+      command = ["python", "-m", "http.server", "8000"]
 
       env {
         name  = "POSTGRES_HOST"
@@ -147,38 +149,6 @@ resource "azurerm_container_app" "api" {
         }
       }
 
-      # Startup probe - allow longer startup for cold starts
-      startup_probe {
-        transport              = "HTTP"
-        path                   = "/health"
-        port                   = 8000
-        initial_delay          = 5
-        interval_seconds       = 10
-        failure_count_threshold = 30 # Allow up to 5 minutes for cold start
-        timeout                = 3
-      }
-
-      # Liveness probe
-      liveness_probe {
-        transport              = "HTTP"
-        path                   = "/health"
-        port                   = 8000
-        initial_delay          = 0
-        interval_seconds       = 30
-        failure_count_threshold = 3
-        timeout                = 5
-      }
-
-      # Readiness probe
-      readiness_probe {
-        transport              = "HTTP"
-        path                   = "/ready"
-        port                   = 8000
-        initial_delay          = 0
-        interval_seconds       = 10
-        failure_count_threshold = 3
-        timeout                = 3
-      }
     }
   }
 
@@ -251,39 +221,6 @@ resource "azurerm_container_app" "frontend" {
       image  = "mcr.microsoft.com/azuredocs/containerapps-helloworld:latest"
       cpu    = 0.25 # nginx serving static files needs minimal CPU
       memory = "0.5Gi"
-
-      # Startup probe - nginx starts almost instantly
-      startup_probe {
-        transport               = "HTTP"
-        path                    = "/health"
-        port                    = 80
-        initial_delay           = 0
-        interval_seconds        = 2
-        failure_count_threshold = 5
-        timeout                 = 1
-      }
-
-      # Liveness probe
-      liveness_probe {
-        transport               = "HTTP"
-        path                    = "/health"
-        port                    = 80
-        initial_delay           = 0
-        interval_seconds        = 30
-        failure_count_threshold = 3
-        timeout                 = 3
-      }
-
-      # Readiness probe
-      readiness_probe {
-        transport               = "HTTP"
-        path                    = "/health"
-        port                    = 80
-        initial_delay           = 0
-        interval_seconds        = 5
-        failure_count_threshold = 3
-        timeout                 = 1
-      }
     }
   }
 
