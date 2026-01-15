@@ -15,18 +15,18 @@ resource "azurerm_postgresql_flexible_server" "main" {
   location            = var.location
   resource_group_name = var.resource_group_name
 
-  sku_name        = "B_Standard_B1ms"
-  version         = "16"
-  storage_mb      = 32768
+  sku_name          = "B_Standard_B1ms"
+  version           = "16"
+  storage_mb        = 32768
   auto_grow_enabled = true
-  zone            = "3"
+  zone              = "1" # Match existing server zone
 
   administrator_login    = "ltcadmin"
   administrator_password = var.postgres_admin_password
 
   authentication {
     active_directory_auth_enabled = true
-    password_auth_enabled         = false  # Using Entra ID auth only
+    password_auth_enabled         = false # Using Entra ID auth only
   }
 
   backup_retention_days        = 7
@@ -35,6 +35,12 @@ resource "azurerm_postgresql_flexible_server" "main" {
   # Note: high_availability block is omitted when HA is disabled
 
   tags = var.tags
+
+  lifecycle {
+    ignore_changes = [
+      zone, # Zone cannot be changed without HA standby swap
+    ]
+  }
 }
 
 # PostgreSQL Database
