@@ -542,4 +542,3 @@ class DashboardResponse(BaseModel):
     phases_total: int
     current_phase: int | None = None
     badges: list[BadgeResponse] = []
-

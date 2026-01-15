@@ -5,6 +5,7 @@ Usage:
     cd api
     python -m scripts.fix_submission
 """
+
 import asyncio
 import sys
 
