@@ -28,6 +28,12 @@ env:
   AZURE_ENV_NAME: ${{ vars.AZURE_ENV_NAME }}
   AZURE_LOCATION: ${{ vars.AZURE_LOCATION }}
   AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+  TF_VAR_environment: ${{ vars.AZURE_ENV_NAME }}
+  TF_VAR_location: ${{ vars.AZURE_LOCATION }}
+  ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+  ARM_TENANT_ID: ${{ fromJson(secrets.AZURE_CREDENTIALS).tenantId }}
+  ARM_CLIENT_ID: ${{ fromJson(secrets.AZURE_CREDENTIALS).clientId }}
+  ARM_CLIENT_SECRET: ${{ fromJson(secrets.AZURE_CREDENTIALS).clientSecret }}
 
 jobs:
   lint-and-test:
@@ -67,83 +73,143 @@ jobs:
       - name: Run tests
         run: pytest tests/ -v --tb=short
 
-  deploy:
+  terraform:
     needs: lint-and-test
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infra
+    outputs:
+      api_container_app_name: ${{ steps.tf-outputs.outputs.api_container_app_name }}
+      frontend_container_app_name: ${{ steps.tf-outputs.outputs.frontend_container_app_name }}
+      resource_group_name: ${{ steps.tf-outputs.outputs.resource_group_name }}
+      container_registry_name: ${{ steps.tf-outputs.outputs.container_registry_name }}
+      container_registry_endpoint: ${{ steps.tf-outputs.outputs.container_registry_endpoint }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install azd
-        uses: Azure/setup-azd@v2
-
-      - name: Log in with Azure
-        run: |
-          set -euo pipefail
-          azd auth login \
-            --client-id "${{ fromJson(secrets.AZURE_CREDENTIALS).clientId }}" \
-            --client-secret "${{ fromJson(secrets.AZURE_CREDENTIALS).clientSecret }}" \
-            --tenant-id "${{ fromJson(secrets.AZURE_CREDENTIALS).tenantId }}"
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "~1.5"
+          terraform_wrapper: false
 
       - name: Azure CLI Login
         uses: azure/login@v2
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Provision Infrastructure
-        run: |
-          set -euo pipefail
-          azd provision --no-prompt
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Validate
+        run: terraform validate
+
+      - name: Terraform Plan
+        run: terraform plan -out=tfplan -input=false
         env:
-          AZURE_ENV_NAME: ${{ vars.AZURE_ENV_NAME }}
-          AZURE_LOCATION: ${{ vars.AZURE_LOCATION }}
-          AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
-          CLERK_PUBLISHABLE_KEY: ${{ secrets.CLERK_PUBLISHABLE_KEY }}
-          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
-          CLERK_WEBHOOK_SIGNING_SECRET: ${{ secrets.CLERK_WEBHOOK_SIGNING_SECRET }}
-          POSTGRES_ADMIN_PASSWORD: ${{ secrets.POSTGRES_ADMIN_PASSWORD }}
-          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          TF_VAR_postgres_admin_password: ${{ secrets.POSTGRES_ADMIN_PASSWORD }}
+          TF_VAR_clerk_secret_key: ${{ secrets.CLERK_SECRET_KEY }}
+          TF_VAR_clerk_webhook_signing_secret: ${{ secrets.CLERK_WEBHOOK_SIGNING_SECRET }}
+          TF_VAR_clerk_publishable_key: ${{ secrets.CLERK_PUBLISHABLE_KEY }}
+          TF_VAR_google_api_key: ${{ secrets.GOOGLE_API_KEY }}
+
+      - name: Terraform Apply
+        run: terraform apply -auto-approve tfplan
+
+      - name: Get Terraform Outputs
+        id: tf-outputs
+        run: |
+          echo "api_container_app_name=ca-learntocloud-api-${{ vars.AZURE_ENV_NAME }}" >> "$GITHUB_OUTPUT"
+          echo "frontend_container_app_name=ca-learntocloud-frontend-${{ vars.AZURE_ENV_NAME }}" >> "$GITHUB_OUTPUT"
+          echo "resource_group_name=$(terraform output -raw AZURE_RESOURCE_GROUP)" >> "$GITHUB_OUTPUT"
+          echo "container_registry_name=$(terraform output -raw AZURE_CONTAINER_REGISTRY_NAME)" >> "$GITHUB_OUTPUT"
+          echo "container_registry_endpoint=$(terraform output -raw AZURE_CONTAINER_REGISTRY_ENDPOINT)" >> "$GITHUB_OUTPUT"
+
+  configure-database:
+    needs: terraform
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure CLI Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Configure PostgreSQL Entra Admin
         run: |
           set -euo pipefail
+          RESOURCE_GROUP="${{ needs.terraform.outputs.resource_group_name }}"
+          API_APP_NAME="${{ needs.terraform.outputs.api_container_app_name }}"
+
           # Get the API container app's managed identity principal ID
           API_PRINCIPAL_ID=$(az containerapp show \
-            --name ca-learntocloud-api-${{ vars.AZURE_ENV_NAME }} \
-            --resource-group rg-learntocloud-${{ vars.AZURE_ENV_NAME }} \
-            --query "identity.principalId" -o tsv)
+            --name "$API_APP_NAME" \
+            --resource-group "$RESOURCE_GROUP" \
+            --query "identity.userAssignedIdentities.*.principalId | [0]" -o tsv)
 
           # Get the PostgreSQL server name (it has a unique suffix)
           POSTGRES_SERVER=$(az postgres flexible-server list \
-            --resource-group rg-learntocloud-${{ vars.AZURE_ENV_NAME }} \
+            --resource-group "$RESOURCE_GROUP" \
             --query "[0].name" -o tsv)
 
           # Check if Entra admin is already configured
           EXISTING_ADMIN=$(az postgres flexible-server microsoft-entra-admin list \
             --server-name "$POSTGRES_SERVER" \
-            --resource-group rg-learntocloud-${{ vars.AZURE_ENV_NAME }} \
+            --resource-group "$RESOURCE_GROUP" \
             --query "[?objectId=='$API_PRINCIPAL_ID'].objectId" -o tsv)
 
           if [ -z "$EXISTING_ADMIN" ]; then
             echo "Configuring PostgreSQL Entra admin for managed identity..."
             az postgres flexible-server microsoft-entra-admin create \
               --server-name "$POSTGRES_SERVER" \
-              --resource-group rg-learntocloud-${{ vars.AZURE_ENV_NAME }} \
+              --resource-group "$RESOURCE_GROUP" \
               --object-id "$API_PRINCIPAL_ID" \
-              --display-name ca-learntocloud-api-${{ vars.AZURE_ENV_NAME }} \
+              --display-name "$API_APP_NAME" \
               --type ServicePrincipal
           else
             echo "PostgreSQL Entra admin already configured"
           fi
 
-      - name: Deploy Application
+  deploy:
+    needs: [terraform, configure-database]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure CLI Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Log in to Azure Container Registry
         run: |
-          set -euo pipefail
-          azd deploy --no-prompt
-        env:
-          AZURE_ENV_NAME: ${{ vars.AZURE_ENV_NAME }}
-          AZURE_LOCATION: ${{ vars.AZURE_LOCATION }}
-          AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
-          CLERK_PUBLISHABLE_KEY: ${{ secrets.CLERK_PUBLISHABLE_KEY }}
+          az acr login --name ${{ needs.terraform.outputs.container_registry_name }}
+
+      - name: Build and Push API Image
+        run: |
+          docker build -t ${{ needs.terraform.outputs.container_registry_endpoint }}/api:${{ github.sha }} ./api
+          docker push ${{ needs.terraform.outputs.container_registry_endpoint }}/api:${{ github.sha }}
+
+      - name: Build and Push Frontend Image
+        run: |
+          docker build -t ${{ needs.terraform.outputs.container_registry_endpoint }}/frontend:${{ github.sha }} ./frontend
+          docker push ${{ needs.terraform.outputs.container_registry_endpoint }}/frontend:${{ github.sha }}
+
+      - name: Deploy API Container App
+        run: |
+          az containerapp update \
+            --name ${{ needs.terraform.outputs.api_container_app_name }} \
+            --resource-group ${{ needs.terraform.outputs.resource_group_name }} \
+            --image ${{ needs.terraform.outputs.container_registry_endpoint }}/api:${{ github.sha }}
+
+      - name: Deploy Frontend Container App
+        run: |
+          az containerapp update \
+            --name ${{ needs.terraform.outputs.frontend_container_app_name }} \
+            --resource-group ${{ needs.terraform.outputs.resource_group_name }} \
+            --image ${{ needs.terraform.outputs.container_registry_endpoint }}/frontend:${{ github.sha }}
         # Note: Database migrations are run manually via scripts or az containerapp exec
         # SQLAlchemy create_all() is idempotent - only creates missing tables
