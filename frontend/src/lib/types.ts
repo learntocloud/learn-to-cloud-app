@@ -329,4 +329,26 @@ export interface UserCertificates {
   full_completion_eligible: boolean;
 }
 
+// ============ Hands-On Types (from new API) ============
 
+// These match the API schemas for phase detail
+export interface HandsOnRequirement {
+  id: string;
+  phase_id: number;
+  submission_type: string;
+  name: string;
+  description: string;
+  example_url: string | null;
+}
+
+export interface HandsOnSubmission {
+  id: number;
+  requirement_id: string;
+  submission_type: string;
+  phase_id: number;
+  submitted_value: string;
+  extracted_username: string | null;
+  is_validated: boolean;
+  validated_at: string | null;
+  created_at: string;
+}

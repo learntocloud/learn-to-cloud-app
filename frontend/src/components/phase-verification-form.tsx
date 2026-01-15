@@ -1,13 +1,16 @@
-"use client";
+/**
+ * Phase verification form component for Vite SPA.
+ * Wraps the GitHubSubmissionForm and handles celebration on completion.
+ */
 
 import { GitHubSubmissionForm } from "./github-submission";
 import { useCelebration } from "./celebration-provider";
-import type { GitHubRequirement, Submission } from "@/lib/types";
+import type { HandsOnRequirement, HandsOnSubmission } from "@/lib/types";
 
 interface PhaseVerificationFormProps {
   phaseNumber: number;
-  requirements: GitHubRequirement[];
-  submissions: Submission[];
+  requirements: HandsOnRequirement[];
+  submissions: HandsOnSubmission[];
   githubUsername: string | null;
   nextPhaseSlug?: string;
 }

@@ -1,10 +1,13 @@
-"use client";
+/**
+ * Topic content component for displaying learning steps and knowledge questions.
+ */
 
 import { useState, useEffect } from "react";
-import type { Topic, TopicWithProgress, TopicQuestionsStatus, TopicStepProgress } from "@/lib/types";
-import { useApi } from "@/lib/use-api";
+import { useApiClient } from "@/lib/hooks";
 import { KnowledgeQuestion } from "./knowledge-question";
 import { ProviderOptions } from "./provider-options";
+import type { TopicDetailSchema } from "@/lib/api-client";
+import type { TopicStepProgress, TopicQuestionsStatus } from "@/lib/types";
 
 // Helper to render description text with proper formatting for bullet points
 function FormattedDescription({ text }: { text: string }) {
@@ -57,7 +60,7 @@ function FormattedDescription({ text }: { text: string }) {
 }
 
 interface TopicContentProps {
-  topic: Topic | TopicWithProgress;
+  topic: TopicDetailSchema;
   isAuthenticated: boolean;
   onStepProgressChange?: (completedCount: number) => void;
   onQuestionProgressChange?: (completedCount: number) => void;
@@ -69,7 +72,7 @@ export function TopicContent({
   onStepProgressChange,
   onQuestionProgressChange,
 }: TopicContentProps) {
-  const api = useApi();
+  const api = useApiClient();
 
   // Admins should have all content unlocked (including step-level ordering).
   const [isAdmin, setIsAdmin] = useState(false);
@@ -418,7 +421,6 @@ export function TopicContent({
                     key={question.id}
                     question={question}
                     topicId={topic.id}
-                    topicName={topic.name}
                     isPassed={questionStatus?.is_passed ?? false}
                     onPass={handleQuestionPass}
                   />

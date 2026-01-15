@@ -18,8 +18,8 @@ services:
     docker:
       path: ./Dockerfile
       buildArgs:
-        - "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${CLERK_PUBLISHABLE_KEY}"
-        - "NEXT_PUBLIC_API_URL=${apiUrl}"
+        - "VITE_CLERK_PUBLISHABLE_KEY=${CLERK_PUBLISHABLE_KEY}"
+        - "VITE_API_URL=${apiUrl}"
 
 infra:
   provider: bicep

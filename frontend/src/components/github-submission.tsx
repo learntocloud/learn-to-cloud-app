@@ -1,53 +1,41 @@
-"use client";
+/**
+ * GitHub Submission Form component for Vite SPA.
+ * Handles hands-on verification by submitting GitHub URLs.
+ */
 
 import { useState, useEffect } from "react";
-import { useAuth } from "@clerk/nextjs";
-import type { GitHubRequirement, Submission, GitHubValidationResult } from "@/lib/types";
+import { useApiClient } from "@/lib/hooks";
+import type { HandsOnRequirement, HandsOnSubmission, GitHubValidationResult } from "@/lib/types";
 
 interface GitHubSubmissionFormProps {
-  requirements: GitHubRequirement[];
-  submissions: Submission[];
+  requirements: HandsOnRequirement[];
+  submissions: HandsOnSubmission[];
   githubUsername: string | null;
   onSubmissionSuccess?: () => void;
   onAllVerificationsComplete?: () => void;
 }
 
-// In dev containers/Codespaces, use same-origin proxy (Next.js rewrites /api/* to backend)
-// In production, use the explicit API URL
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
-const isUsingProxy = !API_URL || API_URL.includes('localhost') || API_URL.includes('127.0.0.1');
-
-function getApiUrl(path: string): string {
-  return isUsingProxy ? path : `${API_URL}${path}`;
-}
-
 // Check if requirements should share a single URL input
-// (e.g., Phase 5 where repo-based checks are against the same repo)
-function shouldUseSharedUrl(requirements: GitHubRequirement[]): boolean {
-  // Filter to only repo-based requirements (exclude container_image which needs separate input)
+function shouldUseSharedUrl(requirements: HandsOnRequirement[]): boolean {
   const repoRequirements = requirements.filter(
     (r) => r.submission_type !== 'container_image'
   );
   
   if (repoRequirements.length <= 1) return false;
   
-  // All repo requirements must be types that can share a URL
   const shareableTypes = new Set(['repo_with_files', 'workflow_run', 'repo_url', 'repo_fork']);
   const allShareable = repoRequirements.every((r) => shareableTypes.has(r.submission_type));
   if (!allShareable) return false;
   
-  // All requirements must be from the same phase
   const phases = new Set(repoRequirements.map((r) => r.phase_id));
   return phases.size === 1;
 }
 
-// Get repo-based requirements (for shared URL handling)
-function getRepoRequirements(requirements: GitHubRequirement[]): GitHubRequirement[] {
+function getRepoRequirements(requirements: HandsOnRequirement[]): HandsOnRequirement[] {
   return requirements.filter((r) => r.submission_type !== 'container_image');
 }
 
-// Get container image requirements (need separate input)
-function getContainerImageRequirements(requirements: GitHubRequirement[]): GitHubRequirement[] {
+function getContainerImageRequirements(requirements: HandsOnRequirement[]): HandsOnRequirement[] {
   return requirements.filter((r) => r.submission_type === 'container_image');
 }
 
@@ -58,22 +46,22 @@ export function GitHubSubmissionForm({
   onSubmissionSuccess,
   onAllVerificationsComplete,
 }: GitHubSubmissionFormProps) {
-  const { getToken } = useAuth();
+  const api = useApiClient();
   const useSharedUrl = shouldUseSharedUrl(requirements);
   
   const [urls, setUrls] = useState<Record<string, string>>(() => {
-    // Pre-fill with existing submissions
     const initial: Record<string, string> = {};
     for (const sub of submissions) {
       initial[sub.requirement_id] = sub.submitted_value;
     }
     return initial;
   });
+  
   const [sharedUrl, setSharedUrl] = useState<string>(() => {
-    // Pre-fill shared URL from any existing submission
     const existingSub = submissions.find((s) => s.submitted_value);
     return existingSub?.submitted_value || "";
   });
+  
   const [loading, setLoading] = useState<Record<string, boolean>>({});
   const [results, setResults] = useState<Record<string, GitHubValidationResult | null>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -92,15 +80,16 @@ export function GitHubSubmissionForm({
     
     if (allAlreadyValidated && requirements.length > 0) {
       setHasCelebratedCompletion(true);
-      // Don't auto-trigger on page load - only trigger when user completes the last one
     }
   }, [requirements, submissions, onAllVerificationsComplete, hasCelebratedCompletion]);
 
-  const getSubmissionForRequirement = (requirementId: string): Submission | undefined => {
+  const getSubmissionForRequirement = (requirementId: string): HandsOnSubmission | undefined => {
     return submissions.find((s) => s.requirement_id === requirementId);
   };
 
   const handleSubmit = async (requirementId: string) => {
+    if (!api) return;
+    
     const url = urls[requirementId]?.trim();
     if (!url) {
       setErrors((prev) => ({ ...prev, [requirementId]: "Please enter a URL" }));
@@ -112,33 +101,11 @@ export function GitHubSubmissionForm({
     setResults((prev) => ({ ...prev, [requirementId]: null }));
 
     try {
-      const token = await getToken();
-      const res = await fetch(getApiUrl("/api/github/submit"), {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({
-          requirement_id: requirementId,
-          submitted_value: url,
-        }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        setErrors((prev) => ({
-          ...prev,
-          [requirementId]: data.detail || "Failed to validate submission",
-        }));
-        return;
-      }
-
+      const data = await api.submitGitHubUrl(requirementId, url);
+      
       setResults((prev) => {
         const newResults = { ...prev, [requirementId]: data };
         
-        // Check if ALL requirements are now validated
         if (data.is_valid && onAllVerificationsComplete) {
           const allValidated = requirements.every((req) => {
             const existingSub = submissions.find((s) => s.requirement_id === req.id);
@@ -146,8 +113,8 @@ export function GitHubSubmissionForm({
             return existingSub?.is_validated || result?.is_valid;
           });
           
-          if (allValidated) {
-            // Small delay to let UI update first
+          if (allValidated && !hasCelebratedCompletion) {
+            setHasCelebratedCompletion(true);
             setTimeout(() => onAllVerificationsComplete(), 500);
           }
         }
@@ -158,18 +125,19 @@ export function GitHubSubmissionForm({
       if (data.is_valid && onSubmissionSuccess) {
         onSubmissionSuccess();
       }
-    } catch {
+    } catch (err) {
       setErrors((prev) => ({
         ...prev,
-        [requirementId]: "Network error. Please try again.",
+        [requirementId]: err instanceof Error ? err.message : "Network error. Please try again.",
       }));
     } finally {
       setLoading((prev) => ({ ...prev, [requirementId]: false }));
     }
   };
 
-  // Verify all requirements with the shared URL (for phases like Phase 5)
   const handleVerifyAll = async () => {
+    if (!api) return;
+    
     const url = sharedUrl.trim();
     if (!url) {
       setSharedError("Please enter a repository URL");
@@ -179,10 +147,8 @@ export function GitHubSubmissionForm({
     setIsVerifyingAll(true);
     setSharedError("");
     
-    // Only verify repo-based requirements with the shared URL
     const repoReqs = getRepoRequirements(requirements);
     
-    // Clear previous results and errors for repo requirements only
     const clearedResults: Record<string, GitHubValidationResult | null> = { ...results };
     const clearedErrors: Record<string, string> = { ...errors };
     for (const req of repoReqs) {
@@ -192,51 +158,27 @@ export function GitHubSubmissionForm({
     setResults(clearedResults);
     setErrors(clearedErrors);
 
-    // Set repo requirements to loading state
     const loadingState: Record<string, boolean> = {};
     for (const req of repoReqs) {
       loadingState[req.id] = true;
     }
     setLoading(loadingState);
 
-    const token = await getToken();
     let allPassed = true;
     const newResults: Record<string, GitHubValidationResult | null> = {};
 
-    // Verify each repo requirement sequentially (to avoid rate limits and show progress)
     for (const req of repoReqs) {
       try {
-        const res = await fetch(getApiUrl("/api/github/submit"), {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-          body: JSON.stringify({
-            requirement_id: req.id,
-            submitted_value: url,
-          }),
-        });
-
-        const data = await res.json();
-
-        if (!res.ok) {
-          setErrors((prev) => ({
-            ...prev,
-            [req.id]: data.detail || "Failed to validate",
-          }));
+        const data = await api.submitGitHubUrl(req.id, url);
+        newResults[req.id] = data;
+        setResults((prev) => ({ ...prev, [req.id]: data }));
+        if (!data.is_valid) {
           allPassed = false;
-        } else {
-          newResults[req.id] = data;
-          setResults((prev) => ({ ...prev, [req.id]: data }));
-          if (!data.is_valid) {
-            allPassed = false;
-          }
         }
-      } catch {
+      } catch (err) {
         setErrors((prev) => ({
           ...prev,
-          [req.id]: "Network error",
+          [req.id]: err instanceof Error ? err.message : "Network error",
         }));
         allPassed = false;
       } finally {
@@ -246,8 +188,7 @@ export function GitHubSubmissionForm({
 
     setIsVerifyingAll(false);
 
-    // Check if ALL requirements (including container images) are validated for celebration
-    if (allPassed && onAllVerificationsComplete) {
+    if (allPassed && onAllVerificationsComplete && !hasCelebratedCompletion) {
       const allValidated = requirements.every((req) => {
         const existingSub = submissions.find((s) => s.requirement_id === req.id);
         const result = newResults[req.id] || results[req.id];
@@ -255,6 +196,7 @@ export function GitHubSubmissionForm({
       });
       
       if (allValidated) {
+        setHasCelebratedCompletion(true);
         setTimeout(() => onAllVerificationsComplete(), 500);
       }
     }
@@ -285,29 +227,78 @@ export function GitHubSubmissionForm({
     return null;
   }
 
-  // Check if this phase has any deployed app requirements
-  const hasDeployedAppReqs = requirements.some((r) => r.submission_type === "deployed_app");
-  
-  // Separate repo-based and container image requirements
   const repoRequirements = getRepoRequirements(requirements);
   const containerRequirements = getContainerImageRequirements(requirements);
 
-  // For shared URL mode (e.g., Phase 5), show single input with all repo verifications
-  // plus separate input for container image
+  // Render a single requirement form
+  const renderRequirementForm = (req: HandsOnRequirement) => {
+    const existingSubmission = getSubmissionForRequirement(req.id);
+    const result = results[req.id];
+    const error = errors[req.id];
+    const isLoading = loading[req.id];
+    const isValidated = existingSubmission?.is_validated || result?.is_valid;
+
+    return (
+      <div key={req.id} className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600">
+        <div className="flex items-center gap-2 mb-2">
+          {isValidated ? (
+            <span className="text-green-600 dark:text-green-400 text-lg">✓</span>
+          ) : (
+            <span className="text-gray-400 text-lg">○</span>
+          )}
+          <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+            {req.name}
+            {isValidated && <span className="ml-2 text-green-600 dark:text-green-400 text-xs">Verified</span>}
+          </label>
+        </div>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mb-3 ml-6">{req.description}</p>
+        
+        {!isValidated && (
+          <div className="flex gap-2 ml-6">
+            <input
+              type="text"
+              placeholder={req.example_url || "https://github.com/username/repo"}
+              value={urls[req.id] || ""}
+              onChange={(e) => setUrls((prev) => ({ ...prev, [req.id]: e.target.value }))}
+              disabled={isLoading}
+              className="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+            />
+            <button
+              onClick={() => handleSubmit(req.id)}
+              disabled={isLoading || !urls[req.id]?.trim()}
+              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {isLoading ? "Verifying..." : "Verify"}
+            </button>
+          </div>
+        )}
+
+        {error && (
+          <p className="text-red-600 dark:text-red-400 text-sm mt-2 ml-6">{error}</p>
+        )}
+
+        {result && !result.is_valid && result.message && (
+          <div className="mt-2 ml-6 p-2 bg-red-50 dark:bg-red-900/20 rounded text-sm text-red-700 dark:text-red-300">
+            {result.message}
+          </div>
+        )}
+
+        {isValidated && existingSubmission && (
+          <p className="text-gray-500 dark:text-gray-400 text-xs mt-2 ml-6">
+            Submitted: {existingSubmission.submitted_value}
+          </p>
+        )}
+      </div>
+    );
+  };
+
+  // For shared URL mode
   if (useSharedUrl) {
     const repoAllValidated = repoRequirements.every((req) => {
       const existingSub = getSubmissionForRequirement(req.id);
       const result = results[req.id];
       return existingSub?.is_validated || result?.is_valid;
     });
-    
-    const containerAllValidated = containerRequirements.every((req) => {
-      const existingSub = getSubmissionForRequirement(req.id);
-      const result = results[req.id];
-      return existingSub?.is_validated || result?.is_valid;
-    });
-    
-    const allValidated = repoAllValidated && containerAllValidated;
 
     return (
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
@@ -318,292 +309,98 @@ export function GitHubSubmissionForm({
           Complete all verifications below to finish this phase.
         </p>
 
-        {/* Container Image Section (if any) */}
-        {containerRequirements.length > 0 && (
-          <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600">
-            {containerRequirements.map((req) => {
-              const existingSubmission = getSubmissionForRequirement(req.id);
-              const result = results[req.id];
-              const error = errors[req.id];
-              const isLoading = loading[req.id];
-              const isValidated = existingSubmission?.is_validated || result?.is_valid;
-
-              return (
-                <div key={req.id}>
-                  <div className="flex items-center gap-2 mb-2">
-                    {isValidated ? (
-                      <span className="text-green-600 dark:text-green-400">✓</span>
-                    ) : (
-                      <span className="text-gray-400">○</span>
-                    )}
-                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                      {req.name}
-                      {isValidated && <span className="ml-2 text-green-600 dark:text-green-400 text-xs">Verified</span>}
-                    </label>
-                  </div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-2 ml-6">{req.description}</p>
-                  <div className="flex gap-2 ml-6">
-                    <input
-                      type="text"
-                      placeholder={req.example_url || `${githubUsername}/journal-api:latest`}
-                      value={urls[req.id] || ""}
-                      onChange={(e) => setUrls((prev) => ({ ...prev, [req.id]: e.target.value }))}
-                      disabled={isLoading}
-                      className={`flex-1 px-3 py-2 text-sm rounded-lg border ${
-                        error ? "border-red-300 dark:border-red-600" : "border-gray-300 dark:border-gray-600"
-                      } bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50`}
-                    />
-                    <button
-                      onClick={() => handleSubmit(req.id)}
-                      disabled={isLoading}
-                      className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    >
-                      {isLoading ? "Verifying..." : isValidated ? "Re-verify" : "Verify"}
-                    </button>
-                  </div>
-                  {error && <p className="mt-2 ml-6 text-sm text-red-600 dark:text-red-400">{error}</p>}
-                  {result && (
-                    <p className={`mt-2 ml-6 text-sm ${result.is_valid ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
-                      {result.is_valid ? "✓ " : "✗ "}{result.message}
-                    </p>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Repository URL Section */}
+        {/* Shared URL input for repo requirements */}
         {repoRequirements.length > 0 && (
-          <>
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Repository URL
-              </label>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
-                We&apos;ll verify all {repoRequirements.length} repository requirements against this URL.
-              </p>
-              <div className="flex gap-2">
-                <input
-                  type="url"
-                  placeholder={`https://github.com/${githubUsername || 'yourusername'}/journal-api`}
-                  value={sharedUrl}
-                  onChange={(e) => setSharedUrl(e.target.value)}
-                  disabled={isVerifyingAll}
-                  className={`flex-1 px-3 py-2 text-sm rounded-lg border ${
-                    sharedError ? "border-red-300 dark:border-red-600" : "border-gray-300 dark:border-gray-600"
-                  } bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50`}
-                />
+          <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Repository URL
+            </label>
+            <div className="flex gap-2 mb-4">
+              <input
+                type="text"
+                placeholder="https://github.com/username/repository"
+                value={sharedUrl}
+                onChange={(e) => {
+                  setSharedUrl(e.target.value);
+                  setSharedError("");
+                }}
+                disabled={isVerifyingAll || repoAllValidated}
+                className="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+              />
+              {!repoAllValidated && (
                 <button
                   onClick={handleVerifyAll}
-                  disabled={isVerifyingAll}
-                  className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
+                  disabled={isVerifyingAll || !sharedUrl.trim()}
+                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
-                  {isVerifyingAll ? "Verifying..." : repoAllValidated ? "Re-verify All" : "Verify All"}
+                  {isVerifyingAll ? "Verifying..." : "Verify All"}
                 </button>
-              </div>
-              {sharedError && (
-                <p className="mt-2 text-sm text-red-600 dark:text-red-400">{sharedError}</p>
               )}
             </div>
+            
+            {sharedError && (
+              <p className="text-red-600 dark:text-red-400 text-sm mb-4">{sharedError}</p>
+            )}
 
-            {/* Repository Requirements checklist with results */}
-            <div className="space-y-3">
-              <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                Repository requirements:
-              </p>
+            {/* Show status for each repo requirement */}
+            <div className="space-y-2">
               {repoRequirements.map((req) => {
-                const existingSubmission = getSubmissionForRequirement(req.id);
+                const existingSub = getSubmissionForRequirement(req.id);
                 const result = results[req.id];
                 const error = errors[req.id];
                 const isLoading = loading[req.id];
-                const isValidated = existingSubmission?.is_validated || result?.is_valid;
+                const isValidated = existingSub?.is_validated || result?.is_valid;
 
                 return (
-                  <div
-                    key={req.id}
-                    className={`p-3 rounded-lg border ${
-                      isValidated
-                        ? "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800"
-                        : error || (result && !result.is_valid)
-                        ? "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800"
-                        : "bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      {isLoading ? (
-                        <span className="text-blue-500 animate-spin">⟳</span>
-                      ) : isValidated ? (
-                        <span className="text-green-600 dark:text-green-400">✓</span>
-                      ) : error || (result && !result.is_valid) ? (
-                        <span className="text-red-600 dark:text-red-400">✗</span>
-                      ) : (
-                        <span className="text-gray-400">○</span>
-                      )}
-                      <span className={`text-sm font-medium ${
-                        isValidated 
-                          ? "text-green-800 dark:text-green-200" 
-                          : error || (result && !result.is_valid)
-                          ? "text-red-800 dark:text-red-200"
-                          : "text-gray-700 dark:text-gray-300"
-                      }`}>
-                        {req.name}
-                      </span>
-                    </div>
-                    {(error || (result && !result.is_valid)) && (
-                      <p className="mt-1 ml-6 text-xs text-red-600 dark:text-red-400">
-                        {error || result?.message}
-                      </p>
+                  <div key={req.id} className="flex items-center gap-2 text-sm">
+                    {isLoading ? (
+                      <svg className="animate-spin w-4 h-4 text-blue-500" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                    ) : isValidated ? (
+                      <span className="text-green-500">✓</span>
+                    ) : error || (result && !result.is_valid) ? (
+                      <span className="text-red-500">✗</span>
+                    ) : (
+                      <span className="text-gray-400">○</span>
                     )}
-                    {result?.is_valid && result.message && (
-                      <p className="mt-1 ml-6 text-xs text-green-600 dark:text-green-400">
-                        {result.message}
-                      </p>
+                    <span className={isValidated ? "text-green-700 dark:text-green-300" : "text-gray-700 dark:text-gray-300"}>
+                      {req.name}
+                    </span>
+                    {error && <span className="text-red-500 text-xs ml-2">{error}</span>}
+                    {result && !result.is_valid && result.message && (
+                      <span className="text-red-500 text-xs ml-2">{result.message}</span>
                     )}
                   </div>
                 );
               })}
             </div>
-          </>
+          </div>
+        )}
+
+        {/* Container image requirements need separate inputs */}
+        {containerRequirements.length > 0 && (
+          <div className="space-y-4">
+            {containerRequirements.map(renderRequirementForm)}
+          </div>
         )}
       </div>
     );
   }
 
+  // Standard mode: separate input for each requirement
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
       <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">
         🔗 Hands-On Verification
       </h3>
-      <p className="text-sm text-gray-600 dark:text-gray-300 mb-6">
-        {hasDeployedAppReqs && !hasGitHubRequirements
-          ? "Submit the URL of your deployed application to verify you've completed the hands-on work."
-          : hasDeployedAppReqs && hasGitHubRequirements
-          ? "Submit links to your GitHub repositories or deployed applications to verify you've completed the hands-on work."
-          : "Submit links to your GitHub repositories to verify you've completed the hands-on work."}
-        {githubUsername && hasGitHubRequirements && (
-          <>
-            {" "}Your GitHub username: <span className="font-mono text-blue-600 dark:text-blue-400">@{githubUsername}</span>
-          </>
-        )}
+      <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
+        Submit your work below for verification.
       </p>
-
-      <div className="space-y-6">
-        {requirements.map((req) => {
-          const existingSubmission = getSubmissionForRequirement(req.id);
-          const result = results[req.id];
-          const error = errors[req.id];
-          const isLoading = loading[req.id];
-          const isValidated = existingSubmission?.is_validated || result?.is_valid;
-
-          return (
-            <div
-              key={req.id}
-              className={`p-4 rounded-lg border ${
-                isValidated
-                  ? "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800"
-                  : "bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600"
-              }`}
-            >
-              <div className="flex items-start justify-between mb-2">
-                <div>
-                  <h4 className="font-medium text-gray-900 dark:text-white flex items-center gap-2">
-                    {req.name}
-                    {isValidated && (
-                      <span className="text-green-600 dark:text-green-400 text-sm">✓ Verified</span>
-                    )}
-                  </h4>
-                  <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
-                    {req.description}
-                  </p>
-                </div>
-              </div>
-
-              {req.example_url && (
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                  Example: <code className="text-blue-600 dark:text-blue-400">{req.example_url}</code>
-                </p>
-              )}
-
-              {/* JSON response textarea for journal_api_response type */}
-              {req.submission_type === "journal_api_response" ? (
-                <div className="mt-4 space-y-2">
-                  <textarea
-                    placeholder='Paste your GET /entries JSON response here, e.g.:
-[{"id": "123e4567-e89b-12d3-a456-426614174000", "work": "...", "struggle": "...", "intention": "...", "created_at": "..."}]'
-                    value={urls[req.id] || ""}
-                    onChange={(e) => setUrls((prev) => ({ ...prev, [req.id]: e.target.value }))}
-                    disabled={isLoading}
-                    rows={5}
-                    className={`w-full px-3 py-2 text-sm font-mono rounded-lg border ${
-                      error
-                        ? "border-red-300 dark:border-red-600"
-                        : "border-gray-300 dark:border-gray-600"
-                    } bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 resize-y`}
-                  />
-                  <button
-                    onClick={() => handleSubmit(req.id)}
-                    disabled={isLoading}
-                    className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    {isLoading ? "Validating..." : isValidated ? "Re-verify" : "Verify"}
-                  </button>
-                </div>
-              ) : (
-                <div className="mt-4 flex gap-2">
-                  <input
-                    type={req.submission_type === "ctf_token" ? "text" : "url"}
-                    placeholder={
-                      req.submission_type === "deployed_app"
-                        ? "https://your-app.azurewebsites.net"
-                        : req.submission_type === "ctf_token"
-                        ? "Paste your CTF token here"
-                        : `https://github.com/${githubUsername}/...`
-                    }
-                    value={urls[req.id] || ""}
-                    onChange={(e) => setUrls((prev) => ({ ...prev, [req.id]: e.target.value }))}
-                    disabled={isLoading}
-                    className={`flex-1 px-3 py-2 text-sm rounded-lg border ${
-                      error
-                        ? "border-red-300 dark:border-red-600"
-                        : "border-gray-300 dark:border-gray-600"
-                    } bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50`}
-                  />
-                  <button
-                    onClick={() => handleSubmit(req.id)}
-                    disabled={isLoading}
-                    className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    {isLoading ? "Validating..." : isValidated ? "Re-verify" : "Verify"}
-                  </button>
-                </div>
-              )}
-
-              {/* Error message */}
-              {error && (
-                <p className="mt-2 text-sm text-red-600 dark:text-red-400">{error}</p>
-              )}
-
-              {/* Result message */}
-              {result && (
-                <div
-                  className={`mt-3 p-3 rounded-lg text-sm ${
-                    result.is_valid
-                      ? "bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-200"
-                      : "bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-200"
-                  }`}
-                >
-                  <p className="font-medium">{result.is_valid ? "✓ " : "✗ "}{result.message}</p>
-                  {!result.is_valid && !result.username_match && req.submission_type !== "deployed_app" && (
-                    <p className="mt-1 text-xs opacity-80">
-                      Make sure the repository belongs to your GitHub account (@{githubUsername})
-                    </p>
-                  )}
-                </div>
-              )}
-            </div>
-          );
-        })}
+      
+      <div className="space-y-4">
+        {requirements.map(renderRequirementForm)}
       </div>
     </div>
   );

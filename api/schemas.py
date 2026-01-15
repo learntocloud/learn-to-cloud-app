@@ -375,3 +375,171 @@ class UserCertificatesResponse(BaseModel):
 
     certificates: list[CertificateResponse]
     full_completion_eligible: bool
+
+
+# ============ Dashboard & Content Schemas ============
+
+
+class SecondaryLinkSchema(BaseModel):
+    """A secondary link in a learning step description."""
+
+    text: str
+    url: str
+
+
+class ProviderOptionSchema(BaseModel):
+    """Cloud provider-specific option for a learning step."""
+
+    provider: str  # "aws", "azure", "gcp"
+    title: str
+    url: str
+    description: str | None = None
+
+
+class LearningStepSchema(BaseModel):
+    """A learning step within a topic."""
+
+    order: int
+    text: str
+    action: str | None = None
+    title: str | None = None
+    url: str | None = None
+    description: str | None = None
+    code: str | None = None
+    secondary_links: list[SecondaryLinkSchema] = []
+    options: list[ProviderOptionSchema] = []
+
+
+class QuestionSchema(BaseModel):
+    """A knowledge check question."""
+
+    id: str
+    prompt: str
+    expected_concepts: list[str]
+
+
+class TopicProgressSchema(BaseModel):
+    """Progress status for a topic."""
+
+    steps_completed: int
+    steps_total: int
+    questions_passed: int
+    questions_total: int
+    percentage: float
+    status: str  # "not_started", "in_progress", "completed"
+
+
+class TopicSummarySchema(BaseModel):
+    """Topic summary for phase listings."""
+
+    id: str
+    slug: str
+    name: str
+    description: str
+    order: int
+    estimated_time: str
+    is_capstone: bool
+    steps_count: int
+    questions_count: int
+    progress: TopicProgressSchema | None = None
+    is_locked: bool = False
+
+
+class TopicDetailSchema(BaseModel):
+    """Full topic detail with steps and questions."""
+
+    id: str
+    slug: str
+    name: str
+    description: str
+    order: int
+    estimated_time: str
+    is_capstone: bool
+    learning_steps: list[LearningStepSchema]
+    questions: list[QuestionSchema]
+    learning_objectives: list["LearningObjectiveSchema"] = []
+    progress: TopicProgressSchema | None = None
+    completed_step_orders: list[int] = []
+    passed_question_ids: list[str] = []
+    is_locked: bool = False
+    is_topic_locked: bool = False
+    previous_topic_name: str | None = None
+
+
+class LearningObjectiveSchema(BaseModel):
+    """A learning objective for a topic."""
+
+    id: str
+    text: str
+    order: int
+
+
+class PhaseProgressSchema(BaseModel):
+    """Progress status for a phase."""
+
+    steps_completed: int
+    steps_required: int
+    questions_passed: int
+    questions_required: int
+    hands_on_validated: int
+    hands_on_required: int
+    percentage: float
+    status: str  # "not_started", "in_progress", "completed"
+
+
+class PhaseSummarySchema(BaseModel):
+    """Phase summary for dashboard/listings."""
+
+    id: int
+    name: str
+    slug: str
+    description: str
+    short_description: str
+    estimated_weeks: str
+    order: int
+    topics_count: int
+    progress: PhaseProgressSchema | None = None
+    is_locked: bool = False
+
+
+class PhaseDetailSchema(BaseModel):
+    """Full phase detail with topics."""
+
+    id: int
+    name: str
+    slug: str
+    description: str
+    short_description: str
+    estimated_weeks: str
+    order: int
+    objectives: list[str]
+    topics: list[TopicSummarySchema]
+    progress: PhaseProgressSchema | None = None
+    hands_on_requirements: list[HandsOnRequirement] = []
+    hands_on_submissions: list[HandsOnSubmissionResponse] = []
+    is_locked: bool = False
+
+
+class UserSummarySchema(BaseModel):
+    """User summary for dashboard."""
+
+    id: str
+    email: str
+    first_name: str | None = None
+    last_name: str | None = None
+    avatar_url: str | None = None
+    github_username: str | None = None
+    is_admin: bool = False
+
+
+class DashboardResponse(BaseModel):
+    """Complete dashboard data for a user."""
+
+    user: UserSummarySchema
+    phases: list[PhaseSummarySchema]
+    overall_progress: float
+    phases_completed: int
+    phases_total: int
+    current_phase: int | None = None
+    badges: list[BadgeResponse] = []
+

@@ -36,6 +36,7 @@ from core.telemetry import RequestTimingMiddleware, SecurityHeadersMiddleware
 from routes import (
     activity_router,
     certificates_router,
+    dashboard_router,
     github_router,
     health_router,
     questions_router,
@@ -115,13 +116,14 @@ app.add_middleware(
     CORSMiddleware,  # ty: ignore[invalid-argument-type]
     allow_origins=get_settings().allowed_origins,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type"],
     expose_headers=["X-Request-Duration-Ms"],
 )
 
 app.include_router(health_router)
 app.include_router(users_router)
+app.include_router(dashboard_router)
 app.include_router(github_router)
 app.include_router(webhooks_router)
 app.include_router(questions_router)

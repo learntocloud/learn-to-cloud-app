@@ -1,0 +1,469 @@
+/**
+ * API client for Learn to Cloud backend.
+ * Uses Clerk for authentication.
+ * 
+ * This is a simple client that calls the API endpoints.
+ * All business logic (progress calculation, locking) is handled server-side.
+ */
+
+import type {
+  PhaseGitHubRequirements,
+  TopicQuestionsStatus,
+  QuestionSubmitResponse,
+  TopicStepProgress,
+  StreakResponse,
+  ActivityHeatmapResponse,
+  PublicProfileResponse,
+  CertificateEligibility,
+  Certificate,
+  CertificateVerifyResponse,
+  UserCertificates,
+  GitHubValidationResult,
+} from './types';
+
+// Re-export types that components need
+export type { GitHubValidationResult } from './types';
+
+const API_URL = import.meta.env.VITE_API_URL || '';
+
+export interface UserInfo {
+  id: string;
+  email: string;
+  first_name: string | null;
+  last_name: string | null;
+  avatar_url: string | null;
+  github_username: string | null;
+  is_admin: boolean;
+  created_at: string;
+}
+
+// New schema types from API
+export interface TopicProgressSchema {
+  steps_completed: number;
+  steps_total: number;
+  questions_passed: number;
+  questions_total: number;
+  percentage: number;
+  status: 'not_started' | 'in_progress' | 'completed';
+}
+
+export interface TopicSummarySchema {
+  id: string;
+  slug: string;
+  name: string;
+  description: string;
+  order: number;
+  estimated_time: string;
+  is_capstone: boolean;
+  steps_count: number;
+  questions_count: number;
+  progress: TopicProgressSchema | null;
+  is_locked: boolean;
+}
+
+export interface SecondaryLinkSchema {
+  text: string;
+  url: string;
+}
+
+export interface ProviderOptionSchema {
+  provider: string;
+  title: string;
+  url: string;
+  description: string | null;
+}
+
+export interface LearningStepSchema {
+  order: number;
+  text: string;
+  action: string | null;
+  title: string | null;
+  url: string | null;
+  description: string | null;
+  code: string | null;
+  secondary_links: SecondaryLinkSchema[];
+  options: ProviderOptionSchema[];
+}
+
+export interface QuestionSchema {
+  id: string;
+  prompt: string;
+  expected_concepts: string[];
+}
+
+export interface LearningObjectiveSchema {
+  id: string;
+  text: string;
+  order: number;
+}
+
+export interface TopicDetailSchema {
+  id: string;
+  slug: string;
+  name: string;
+  description: string;
+  order: number;
+  estimated_time: string;
+  is_capstone: boolean;
+  learning_steps: LearningStepSchema[];
+  questions: QuestionSchema[];
+  learning_objectives: LearningObjectiveSchema[];
+  progress: TopicProgressSchema | null;
+  completed_step_orders: number[];
+  passed_question_ids: string[];
+  is_locked: boolean;
+  is_topic_locked: boolean;
+  previous_topic_name: string | null;
+}
+
+export interface PhaseProgressSchema {
+  steps_completed: number;
+  steps_required: number;
+  questions_passed: number;
+  questions_required: number;
+  hands_on_validated: number;
+  hands_on_required: number;
+  percentage: number;
+  status: 'not_started' | 'in_progress' | 'completed';
+}
+
+export interface PhaseSummarySchema {
+  id: number;
+  name: string;
+  slug: string;
+  description: string;
+  short_description: string;
+  estimated_weeks: string;
+  order: number;
+  topics_count: number;
+  progress: PhaseProgressSchema | null;
+  is_locked: boolean;
+}
+
+export interface HandsOnRequirement {
+  id: string;
+  phase_id: number;
+  submission_type: string;
+  name: string;
+  description: string;
+  example_url: string | null;
+}
+
+export interface HandsOnSubmission {
+  id: number;
+  requirement_id: string;
+  submission_type: string;
+  phase_id: number;
+  submitted_value: string;
+  extracted_username: string | null;
+  is_validated: boolean;
+  validated_at: string | null;
+  created_at: string;
+}
+
+export interface PhaseDetailSchema {
+  id: number;
+  name: string;
+  slug: string;
+  description: string;
+  short_description: string;
+  estimated_weeks: string;
+  order: number;
+  objectives: string[];
+  topics: TopicSummarySchema[];
+  progress: PhaseProgressSchema | null;
+  hands_on_requirements: HandsOnRequirement[];
+  hands_on_submissions: HandsOnSubmission[];
+  is_locked: boolean;
+}
+
+export interface UserSummarySchema {
+  id: string;
+  email: string;
+  first_name: string | null;
+  last_name: string | null;
+  avatar_url: string | null;
+  github_username: string | null;
+  is_admin: boolean;
+}
+
+export interface DashboardResponseNew {
+  user: UserSummarySchema;
+  phases: PhaseSummarySchema[];
+  overall_progress: number;
+  phases_completed: number;
+  phases_total: number;
+  current_phase: number | null;
+  badges: BadgeSchema[];
+}
+
+export interface BadgeSchema {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+}
+
+/**
+ * Create an API client with the given auth token getter.
+ */
+export function createApiClient(getToken: () => Promise<string | null>) {
+  async function fetchWithAuth(url: string, options: RequestInit = {}) {
+    const token = await getToken();
+    
+    const response = await fetch(`${API_URL}${url}`, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...options.headers,
+      },
+    });
+    
+    return response;
+  }
+
+  return {
+    // ============ User Info ============
+    async getUserInfo(): Promise<UserInfo> {
+      const res = await fetchWithAuth('/api/user/me');
+      if (!res.ok) throw new Error('Failed to fetch user info');
+      return res.json();
+    },
+
+    // ============ Dashboard ============
+    async getDashboard(): Promise<DashboardResponseNew> {
+      const res = await fetchWithAuth('/api/user/dashboard');
+      if (!res.ok) throw new Error('Failed to fetch dashboard');
+      return res.json();
+    },
+
+    // ============ Phases ============
+    async getPhasesWithProgress(): Promise<PhaseSummarySchema[]> {
+      const res = await fetchWithAuth('/api/user/phases');
+      if (!res.ok) throw new Error('Failed to fetch phases');
+      return res.json();
+    },
+
+    async getPhaseDetail(phaseSlug: string): Promise<PhaseDetailSchema | null> {
+      const res = await fetchWithAuth(`/api/user/phases/${phaseSlug}`);
+      if (res.status === 404) return null;
+      if (!res.ok) throw new Error('Failed to fetch phase');
+      return res.json();
+    },
+
+    async getTopicDetail(
+      phaseSlug: string,
+      topicSlug: string
+    ): Promise<TopicDetailSchema | null> {
+      const res = await fetchWithAuth(`/api/user/phases/${phaseSlug}/topics/${topicSlug}`);
+      if (res.status === 404) return null;
+      if (!res.ok) throw new Error('Failed to fetch topic');
+      return res.json();
+    },
+
+    // ============ GitHub Requirements ============
+    async getPhaseGitHubRequirements(phaseId: number): Promise<PhaseGitHubRequirements> {
+      const res = await fetchWithAuth(`/api/github/requirements/${phaseId}`);
+      if (!res.ok) {
+        return {
+          phase_id: phaseId,
+          requirements: [],
+          submissions: [],
+          has_requirements: false,
+          all_validated: true,
+        };
+      }
+      return res.json();
+    },
+
+    async submitGitHubUrl(
+      requirementId: string,
+      url: string
+    ): Promise<GitHubValidationResult> {
+      const res = await fetchWithAuth('/api/github/submit', {
+        method: 'POST',
+        body: JSON.stringify({ requirement_id: requirementId, submitted_value: url }),
+      });
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({ detail: 'Submission failed' }));
+        throw new Error(error.detail || 'Submission failed');
+      }
+      return res.json();
+    },
+
+    // ============ Questions ============
+    async getTopicQuestionsStatus(topicId: string): Promise<TopicQuestionsStatus> {
+      const res = await fetchWithAuth(`/api/questions/topic/${topicId}/status`);
+      if (!res.ok) {
+        return {
+          topic_id: topicId,
+          questions: [],
+          all_passed: false,
+          total_questions: 0,
+          passed_questions: 0,
+        };
+      }
+      return res.json();
+    },
+
+    async submitAnswer(
+      topicId: string,
+      questionId: string,
+      answer: string
+    ): Promise<QuestionSubmitResponse> {
+      const res = await fetchWithAuth('/api/questions/submit', {
+        method: 'POST',
+        body: JSON.stringify({ 
+          topic_id: topicId,
+          question_id: questionId, 
+          user_answer: answer,
+        }),
+      });
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({ detail: 'Submission failed' }));
+        throw new Error(error.detail || 'Submission failed');
+      }
+      return res.json();
+    },
+
+    // ============ Steps ============
+    async getTopicStepProgress(topicId: string, totalSteps: number): Promise<TopicStepProgress> {
+      const res = await fetchWithAuth(`/api/steps/${topicId}?total_steps=${totalSteps}`);
+      if (!res.ok) {
+        return {
+          topic_id: topicId,
+          completed_steps: [],
+          total_steps: totalSteps,
+          next_unlocked_step: 1,
+        };
+      }
+      return res.json();
+    },
+
+    async completeStep(
+      topicId: string,
+      stepOrder: number
+    ): Promise<TopicStepProgress> {
+      const res = await fetchWithAuth('/api/steps/complete', {
+        method: 'POST',
+        body: JSON.stringify({ topic_id: topicId, step_order: stepOrder }),
+      });
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({ detail: 'Failed to complete step' }));
+        throw new Error(error.detail || 'Failed to complete step');
+      }
+      // The API returns StepProgressResponse, but we need to fetch full topic progress after
+      const totalSteps = 20; // Max expected steps per topic
+      return this.getTopicStepProgress(topicId, totalSteps);
+    },
+
+    async uncompleteStep(
+      topicId: string,
+      stepOrder: number
+    ): Promise<TopicStepProgress> {
+      const res = await fetchWithAuth(`/api/steps/${topicId}/${stepOrder}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({ detail: 'Failed to uncomplete step' }));
+        throw new Error(error.detail || 'Failed to uncomplete step');
+      }
+      // Refetch the full progress
+      const totalSteps = 20;
+      return this.getTopicStepProgress(topicId, totalSteps);
+    },
+
+    // ============ Streaks & Activity ============
+    async getStreak(): Promise<StreakResponse> {
+      const res = await fetchWithAuth('/api/activity/streak');
+      if (!res.ok) {
+        return {
+          current_streak: 0,
+          longest_streak: 0,
+          total_activity_days: 0,
+          last_activity_date: null,
+          streak_alive: false,
+        };
+      }
+      return res.json();
+    },
+
+    async getActivityHeatmap(days: number = 365): Promise<ActivityHeatmapResponse> {
+      const res = await fetchWithAuth(`/api/activity/heatmap?days=${days}`);
+      if (!res.ok) {
+        const today = new Date().toISOString().split('T')[0];
+        return {
+          days: [],
+          start_date: today,
+          end_date: today,
+          total_activities: 0,
+        };
+      }
+      return res.json();
+    },
+
+    // ============ Public Profile ============
+    async getPublicProfile(username: string): Promise<PublicProfileResponse | null> {
+      const res = await fetch(`${API_URL}/api/user/profile/${username}`);
+      if (res.status === 404) return null;
+      if (!res.ok) throw new Error('Failed to fetch profile');
+      return res.json();
+    },
+
+    // ============ Certificates ============
+    async getCertificateEligibility(certificateType: string): Promise<CertificateEligibility> {
+      const res = await fetchWithAuth(
+        `/api/certificates/eligibility?certificate_type=${certificateType}`
+      );
+      if (!res.ok) throw new Error('Failed to check eligibility');
+      return res.json();
+    },
+
+    async generateCertificate(certificateType: string, recipientName: string): Promise<Certificate> {
+      const res = await fetchWithAuth('/api/certificates', {
+        method: 'POST',
+        body: JSON.stringify({ certificate_type: certificateType, recipient_name: recipientName }),
+      });
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({ detail: 'Failed to generate' }));
+        throw new Error(error.detail || 'Failed to generate certificate');
+      }
+      return res.json();
+    },
+
+    async getUserCertificates(): Promise<UserCertificates> {
+      const res = await fetchWithAuth('/api/certificates');
+      if (!res.ok) throw new Error('Failed to fetch certificates');
+      return res.json();
+    },
+
+    async verifyCertificate(code: string): Promise<CertificateVerifyResponse> {
+      const res = await fetch(`${API_URL}/api/certificates/verify/${code}`);
+      if (!res.ok) {
+        return {
+          is_valid: false,
+          certificate: null,
+          message: 'Certificate not found',
+        };
+      }
+      return res.json();
+    },
+
+    getCertificateSvgUrl(certificateId: number): string {
+      return `${API_URL}/api/certificates/${certificateId}/svg`;
+    },
+
+    getCertificatePdfUrl(certificateId: number): string {
+      return `${API_URL}/api/certificates/${certificateId}/pdf`;
+    },
+
+    getVerifiedCertificateSvgUrl(code: string): string {
+      return `${API_URL}/api/certificates/verify/${code}/svg`;
+    },
+
+    getVerifiedCertificatePdfUrl(code: string): string {
+      return `${API_URL}/api/certificates/verify/${code}/pdf`;
+    },
+  };
+}

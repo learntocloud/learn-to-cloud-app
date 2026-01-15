@@ -1,0 +1,12 @@
+export { HomePage } from './HomePage';
+export { DashboardPage } from './DashboardPage';
+export { PhasesPage } from './PhasesPage';
+export { PhasePage } from './PhasePage';
+export { TopicPage } from './TopicPage';
+export { FAQPage } from './FAQPage';
+export { CertificatesPage } from './CertificatesPage';
+export { ProfilePage } from './ProfilePage';
+export { VerifyPage } from './VerifyPage';
+export { SignInPage } from './SignInPage';
+export { SignUpPage } from './SignUpPage';
+export { NotFoundPage } from './NotFoundPage';

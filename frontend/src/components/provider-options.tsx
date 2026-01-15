@@ -1,10 +1,8 @@
-"use client";
-
 import { useState } from "react";
-import type { ProviderOption } from "@/lib/types";
+import type { ProviderOptionSchema } from "@/lib/api-client";
 
 interface ProviderOptionsProps {
-  options: ProviderOption[];
+  options: ProviderOptionSchema[];
 }
 
 const providerLabels: Record<string, { name: string; icon: string; color: string }> = {

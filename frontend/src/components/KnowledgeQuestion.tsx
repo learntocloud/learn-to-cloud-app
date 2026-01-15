@@ -1,17 +1,14 @@
 /**
- * Knowledge Question component for Vite SPA.
- * Uses the API client from context.
+ * KnowledgeQuestion component for answering topic questions.
  */
 
-import { useState } from "react";
-import { useApiClient } from "@/lib/hooks";
-import type { QuestionSchema } from "@/lib/api-client";
+import { useState } from 'react';
+import type { QuestionSchema } from '@/lib/api-client';
 
 interface KnowledgeQuestionProps {
   question: QuestionSchema;
-  topicId: string;
-  isPassed: boolean;
-  onPass?: () => void;
+  isAnswered: boolean;
+  onSubmit: (answer: string) => Promise<{ is_passed: boolean; llm_feedback?: string | null }>;
 }
 
 const MAX_CHARS = 2000;
@@ -19,21 +16,16 @@ const MIN_CHARS = 10;
 
 export function KnowledgeQuestion({
   question,
-  topicId,
-  isPassed: initialIsPassed,
-  onPass,
+  isAnswered: initialIsAnswered,
+  onSubmit,
 }: KnowledgeQuestionProps) {
-  const api = useApiClient();
-  
-  const [answer, setAnswer] = useState("");
+  const [answer, setAnswer] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isPassed, setIsPassed] = useState(initialIsPassed);
+  const [isPassed, setIsPassed] = useState(initialIsAnswered);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async () => {
-    if (!api) return;
-    
     if (answer.length < MIN_CHARS) {
       setError(`Answer must be at least ${MIN_CHARS} characters.`);
       return;
@@ -44,18 +36,17 @@ export function KnowledgeQuestion({
     setFeedback(null);
 
     try {
-      const result = await api.submitAnswer(topicId, question.id, answer);
-
+      const result = await onSubmit(answer);
+      
       if (result.is_passed) {
         setIsPassed(true);
         setFeedback(result.llm_feedback || "Great job! You've demonstrated understanding of this concept.");
-        onPass?.();
       } else {
         setFeedback(result.llm_feedback || "Not quite. Review the material and try again.");
       }
     } catch (err) {
-      console.error("Failed to submit answer:", err);
-      setError("Failed to submit your answer. Please try again.");
+      console.error('Failed to submit answer:', err);
+      setError('Failed to submit your answer. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -68,14 +59,14 @@ export function KnowledgeQuestion({
   return (
     <div className={`border rounded-lg p-4 ${
       isPassed 
-        ? "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800" 
-        : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700"
+        ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800' 
+        : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700'
     }`}>
       <div className="flex items-start gap-3 mb-3">
         <div className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center ${
           isPassed 
-            ? "bg-green-500 text-white" 
-            : "bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-300"
+            ? 'bg-green-500 text-white' 
+            : 'bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-300'
         }`}>
           {isPassed ? (
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -114,15 +105,15 @@ export function KnowledgeQuestion({
               disabled={isSubmitting}
               className={`w-full px-3 py-2 border rounded-lg resize-none focus:outline-none focus:ring-2 
                 ${isOverLimit 
-                  ? "border-red-300 focus:ring-red-500" 
-                  : "border-gray-300 dark:border-gray-600 focus:ring-blue-500"
+                  ? 'border-red-300 focus:ring-red-500' 
+                  : 'border-gray-300 dark:border-gray-600 focus:ring-blue-500'
                 }
                 bg-white dark:bg-gray-700 text-gray-900 dark:text-white
                 placeholder-gray-400 dark:placeholder-gray-500
                 disabled:opacity-50 disabled:cursor-not-allowed`}
             />
             <div className={`absolute bottom-2 right-2 text-xs ${
-              isOverLimit ? "text-red-500" : "text-gray-400"
+              isOverLimit ? 'text-red-500' : 'text-gray-400'
             }`}>
               {charCount}/{MAX_CHARS}
             </div>
@@ -145,8 +136,8 @@ export function KnowledgeQuestion({
             disabled={!canSubmit}
             className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
               canSubmit
-                ? "bg-blue-600 hover:bg-blue-700 text-white"
-                : "bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed"
+                ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed'
             }`}
           >
             {isSubmitting ? (
@@ -158,7 +149,7 @@ export function KnowledgeQuestion({
                 Checking...
               </span>
             ) : (
-              "Submit Answer"
+              'Submit Answer'
             )}
           </button>
         </div>

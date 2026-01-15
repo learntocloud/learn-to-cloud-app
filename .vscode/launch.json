@@ -17,7 +17,7 @@
       "justMyCode": true
     },
     {
-      "name": "Frontend: Next.js",
+      "name": "Frontend: Vite",
       "type": "node",
       "request": "launch",
       "cwd": "${workspaceFolder}/frontend",
@@ -25,28 +25,16 @@
       "runtimeArgs": ["run", "dev"],
       "console": "integratedTerminal",
       "serverReadyAction": {
-        "pattern": "- Local:.+(https?://\\S+)",
+        "pattern": "Local:.+(https?://\\S+)",
         "uriFormat": "%s",
         "action": "openExternally"
       }
-    },
-    {
-      "name": "Frontend: Next.js (Server-side)",
-      "type": "node",
-      "request": "launch",
-      "cwd": "${workspaceFolder}/frontend",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
-      "env": {
-        "NODE_OPTIONS": "--inspect"
-      },
-      "console": "integratedTerminal"
     }
   ],
   "compounds": [
     {
       "name": "Full Stack: API + Frontend",
-      "configurations": ["API: FastAPI (uvicorn)", "Frontend: Next.js"],
+      "configurations": ["API: FastAPI (uvicorn)", "Frontend: Vite"],
       "stopAll": true
     }
   ]

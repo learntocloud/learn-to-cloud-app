@@ -32,20 +32,5 @@
     "esModuleInterop": true
   },
   "include": ["src", "content"],
-  "exclude": [
-    "node_modules", 
-    "dist",
-    "src/_old_nextjs",
-    "src/app", 
-    "src/lib/api.ts", 
-    "src/lib/content.ts", 
-    "src/proxy.ts",
-    "src/components/footer.tsx",
-    "src/components/hero-cta.tsx",
-    "src/components/navbar.tsx",
-    "src/components/phase-card.tsx",
-    "src/components/phase-roadmap.tsx",
-    "src/components/topic-card.tsx",
-    "src/components/topic-page-content.tsx"
-  ]
+  "exclude": ["node_modules", "dist"]
 }

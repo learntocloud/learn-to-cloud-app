@@ -82,9 +82,8 @@ export function BadgesDisplay({ badges, showEmpty = true, compact = false }: Bad
     return null;
   }
 
-  // Separate earned and unearned badges
+  // Separate earned and unearned badges (only need earned for display)
   const earnedBadges = ALL_BADGES.filter((b) => earnedIds.has(b.id));
-  const unearnedBadges = ALL_BADGES.filter((b) => !earnedIds.has(b.id));
 
   if (badges.length === 0) {
     return null;

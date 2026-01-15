@@ -54,12 +54,29 @@ def parse_github_url(url: str) -> ParsedGitHubUrl:
     - Profile README: https://github.com/username/username/blob/main/README.md
     - Repository: https://github.com/username/repo-name
     - Repository with path: https://github.com/username/repo-name/tree/main/folder
+    
+    Also handles common URL variations:
+    - Missing https:// prefix (auto-prepends)
+    - http:// prefix (converts to https://)
+    - www.github.com (normalizes)
     """
     url = url.strip().rstrip("/")
 
+    # Normalize common URL variations
+    if url.startswith("http://github.com/"):
+        url = url.replace("http://", "https://")
+    elif url.startswith("http://www.github.com/"):
+        url = url.replace("http://www.", "https://")
+    elif url.startswith("https://www.github.com/"):
+        url = url.replace("https://www.", "https://")
+    elif url.startswith("www.github.com/"):
+        url = "https://" + url[4:]  # Remove 'www.' and add https://
+    elif url.startswith("github.com/"):
+        url = "https://" + url
+
     if not url.startswith("https://github.com/"):
         return ParsedGitHubUrl(
-            username="", is_valid=False, error="URL must start with https://github.com/"
+            username="", is_valid=False, error="URL must be a GitHub URL (e.g., https://github.com/username/repo)"
         )
 
     path = url.replace("https://github.com/", "")

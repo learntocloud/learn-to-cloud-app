@@ -12,35 +12,27 @@ RUN npm ci
 # Copy source code
 COPY . .
 
-# Build arguments for public env vars (needed at build time)
-ARG NEXT_PUBLIC_API_URL
-ARG NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+# Build arguments for public env vars (needed at build time for Vite)
+ARG VITE_API_URL
+ARG VITE_CLERK_PUBLISHABLE_KEY
 
-ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
-ENV NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=$NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+ENV VITE_API_URL=$VITE_API_URL
+ENV VITE_CLERK_PUBLISHABLE_KEY=$VITE_CLERK_PUBLISHABLE_KEY
 
 # Build the application
 RUN npm run build
 
-# Production stage
-FROM node:20-alpine AS runner
+# Production stage - serve static files with nginx
+FROM nginx:alpine AS runner
 
-WORKDIR /app
+# Copy custom nginx config
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-ENV NODE_ENV=production
-ENV PORT=3000
+# Copy built static files from builder
+COPY --from=builder /app/dist /usr/share/nginx/html
 
-# Create non-root user
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
+# Expose port 80
+EXPOSE 80
 
-# Copy built assets from builder
-COPY --from=builder /app/public ./public
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-
-USER nextjs
-
-EXPOSE 3000
-
-CMD ["node", "server.js"]
+# Start nginx
+CMD ["nginx", "-g", "daemon off;"]

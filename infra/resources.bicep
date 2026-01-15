@@ -1,5 +1,5 @@
 // Azure Resources for Learn to Cloud App
-// Dual Container Apps architecture: frontend (Next.js) + api (FastAPI)
+// Dual Container Apps architecture: frontend (Vite SPA + nginx) + api (FastAPI)
 
 @description('The environment name')
 param environment string
@@ -415,7 +415,7 @@ resource apiApp 'Microsoft.App/containerApps@2024-03-01' = {
 //     --object-id <api-app-principal-id> \
 //     --type ServicePrincipal
 
-// Frontend Container App (Next.js)
+// Frontend Container App (Vite SPA with nginx)
 resource frontendApp 'Microsoft.App/containerApps@2024-03-01' = {
   name: frontendAppName
   location: location
@@ -431,7 +431,7 @@ resource frontendApp 'Microsoft.App/containerApps@2024-03-01' = {
     configuration: {
       ingress: {
         external: true
-        targetPort: 3000
+        targetPort: 80
         transport: 'http'
         allowInsecure: false
         customDomains: (!empty(frontendCustomDomain) && !empty(frontendManagedCertificateName)) ? [
@@ -448,13 +448,7 @@ resource frontendApp 'Microsoft.App/containerApps@2024-03-01' = {
           identity: 'system'
         }
       ]
-      secrets: [
-        {
-          name: 'clerk-secret-key'
-          keyVaultUrl: secretClerkSecretKey.properties.secretUri
-          identity: containerAppIdentity.id
-        }
-      ]
+      // No secrets needed - Vite SPA uses only public env vars baked at build time
     }
     template: {
       containers: [
@@ -467,52 +461,36 @@ resource frontendApp 'Microsoft.App/containerApps@2024-03-01' = {
           }
           env: [
             {
-              name: 'NEXT_PUBLIC_API_URL'
+              name: 'VITE_API_URL'
               value: apiDefaultUrl
             }
             {
-              name: 'NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY'
+              name: 'VITE_CLERK_PUBLISHABLE_KEY'
               value: clerkPublishableKey
             }
             {
-              name: 'CLERK_SECRET_KEY'
-              secretRef: 'clerk-secret-key'
-            }
-            {
               name: 'PORT'
-              value: '3000'
-            }
-            {
-              name: 'NEXT_PUBLIC_CLERK_SIGN_IN_URL'
-              value: '/sign-in'
-            }
-            {
-              name: 'NEXT_PUBLIC_CLERK_SIGN_UP_URL'
-              value: '/sign-up'
-            }
-            {
-              name: 'NEXT_PUBLIC_APPLICATIONINSIGHTS_CONNECTION_STRING'
-              value: appInsights.properties.ConnectionString
+              value: '80'
             }
           ]
-          // Health probes for frontend
+          // Health probes for frontend (nginx serves static files - fast startup)
           probes: [
             {
               type: 'Startup'
               httpGet: {
-                path: '/'
-                port: 3000
+                path: '/health'
+                port: 80
               }
-              initialDelaySeconds: 5
-              periodSeconds: 10
-              failureThreshold: 30  // Allow up to 5 minutes for Next.js cold start
-              timeoutSeconds: 3
+              initialDelaySeconds: 2
+              periodSeconds: 5
+              failureThreshold: 6  // 30 seconds max startup
+              timeoutSeconds: 2
             }
             {
               type: 'Liveness'
               httpGet: {
-                path: '/'
-                port: 3000
+                path: '/health'
+                port: 80
               }
               initialDelaySeconds: 0
               periodSeconds: 30
@@ -522,8 +500,8 @@ resource frontendApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               type: 'Readiness'
               httpGet: {
-                path: '/'
-                port: 3000
+                path: '/health'
+                port: 80
               }
               initialDelaySeconds: 0
               periodSeconds: 10
@@ -534,7 +512,7 @@ resource frontendApp 'Microsoft.App/containerApps@2024-03-01' = {
         }
       ]
       scale: {
-        minReplicas: 0  // Scale to zero when idle (frontend cold starts are acceptable)
+        minReplicas: 1  // Keep 1 instance always running to avoid cold starts
         maxReplicas: 10
         rules: [
           {
