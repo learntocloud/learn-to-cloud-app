@@ -559,7 +559,7 @@ resource frontendApp 'Microsoft.App/containerApps@2024-03-01' = {
 var acrPullRoleDefinitionId = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '7f951dda-4ed3-4680-a7ca-43fe172d538d')
 
 resource apiAcrPullRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(containerRegistry.id, apiApp.id, 'acrPull')
+  name: guid(containerRegistry.id, apiApp.identity.principalId, 'acrPull')
   scope: containerRegistry
   properties: {
     roleDefinitionId: acrPullRoleDefinitionId
@@ -569,7 +569,7 @@ resource apiAcrPullRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-
 }
 
 resource frontendAcrPullRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(containerRegistry.id, frontendApp.id, 'acrPull')
+  name: guid(containerRegistry.id, frontendApp.identity.principalId, 'acrPull')
   scope: containerRegistry
   properties: {
     roleDefinitionId: acrPullRoleDefinitionId
