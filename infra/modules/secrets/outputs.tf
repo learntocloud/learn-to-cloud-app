@@ -19,13 +19,13 @@ output "key_vault_uri" {
 # These depend on RBAC propagation delay to ensure Container Apps can read them
 output "clerk_secret_key_id" {
   description = "ID of the Clerk secret key in Key Vault"
-  value       = azurerm_key_vault_secret.clerk_secret_key.id
+  value       = azurerm_key_vault_secret.clerk_secret_key.versionless_id
   depends_on  = [time_sleep.wait_for_rbac_propagation]
 }
 
 output "clerk_webhook_signing_secret_id" {
   description = "ID of the Clerk webhook signing secret in Key Vault"
-  value       = azurerm_key_vault_secret.clerk_webhook_signing_secret.id
+  value       = azurerm_key_vault_secret.clerk_webhook_signing_secret.versionless_id
   depends_on  = [time_sleep.wait_for_rbac_propagation]
 }
 
@@ -36,6 +36,6 @@ output "postgres_admin_password_id" {
 
 output "google_api_key_id" {
   description = "ID of the Google API key in Key Vault (if provided)"
-  value       = var.google_api_key != "" ? azurerm_key_vault_secret.google_api_key[0].id : null
+  value       = var.google_api_key != "" ? azurerm_key_vault_secret.google_api_key[0].versionless_id : null
   depends_on  = [time_sleep.wait_for_rbac_propagation]
 }
