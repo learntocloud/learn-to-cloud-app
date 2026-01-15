@@ -131,6 +131,36 @@ az account set --subscription "$AZURE_SUBSCRIPTION_ID"
 **Error**: `ResourceNotFound`  
 **Fix**: Verify names with `az containerapp list`
 
+### Image Pull Errors (401 Unauthorized)
+**Error**: `ImagePullBackOff`, `401 Unauthorized`, `failed to fetch oauth token`  
+**Cause**: Container App's managed identity doesn't have AcrPull role on ACR. This can happen when Container Apps are recreated or their managed identities change - the Bicep role assignment GUID is based on the app resource ID, not the principal ID (which is only known at runtime).
+
+**Diagnose**:
+```bash
+# Check what principal IDs have AcrPull on ACR
+az role assignment list \
+  --scope "/subscriptions/$AZURE_SUBSCRIPTION_ID/resourceGroups/$AZURE_RESOURCE_GROUP/providers/Microsoft.ContainerRegistry/registries/$AZURE_ACR_NAME" \
+  --query "[].{principalId:principalId, role:roleDefinitionName}" -o table
+
+# Get Container App's current principal ID
+az containerapp show \
+  --name "$AZURE_API_CONTAINER_APP" \
+  --resource-group "$AZURE_RESOURCE_GROUP" \
+  --query "identity.principalId" -o tsv
+```
+
+**Fix**: Add AcrPull role for the Container App's managed identity:
+```bash
+API_PRINCIPAL=$(az containerapp show --name "$AZURE_API_CONTAINER_APP" --resource-group "$AZURE_RESOURCE_GROUP" --query "identity.principalId" -o tsv)
+FRONTEND_PRINCIPAL=$(az containerapp show --name "$AZURE_FRONTEND_CONTAINER_APP" --resource-group "$AZURE_RESOURCE_GROUP" --query "identity.principalId" -o tsv)
+
+az role assignment create --assignee "$API_PRINCIPAL" --role "AcrPull" \
+  --scope "/subscriptions/$AZURE_SUBSCRIPTION_ID/resourceGroups/$AZURE_RESOURCE_GROUP/providers/Microsoft.ContainerRegistry/registries/$AZURE_ACR_NAME"
+
+az role assignment create --assignee "$FRONTEND_PRINCIPAL" --role "AcrPull" \
+  --scope "/subscriptions/$AZURE_SUBSCRIPTION_ID/resourceGroups/$AZURE_RESOURCE_GROUP/providers/Microsoft.ContainerRegistry/registries/$AZURE_ACR_NAME"
+```
+
 ## Log Output Format
 
 Logs are JSON lines:
