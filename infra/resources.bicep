@@ -347,44 +347,8 @@ resource apiApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: appInsights.properties.ConnectionString
             }
           ])
-          // Health probes - allow longer startup for cold starts
-          // Note: Using port 80 and / path for placeholder image (containerapps-helloworld)
-          // azd deploy will update to real image with correct port 8000 and /health path
-          probes: [
-            {
-              type: 'Startup'
-              httpGet: {
-                path: '/'
-                port: 80
-              }
-              initialDelaySeconds: 5
-              periodSeconds: 10
-              failureThreshold: 30  // Allow up to 5 minutes for cold start
-              timeoutSeconds: 3
-            }
-            {
-              type: 'Liveness'
-              httpGet: {
-                path: '/'
-                port: 80
-              }
-              initialDelaySeconds: 0
-              periodSeconds: 30
-              failureThreshold: 3
-              timeoutSeconds: 5
-            }
-            {
-              type: 'Readiness'
-              httpGet: {
-                path: '/'
-                port: 80
-              }
-              initialDelaySeconds: 0
-              periodSeconds: 10
-              failureThreshold: 3
-              timeoutSeconds: 3
-            }
-          ]
+          // No probes for placeholder image - azd deploy will configure proper probes
+          // when deploying the real application image
         }
       ]
       scale: {
@@ -475,43 +439,7 @@ resource frontendApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: '80'
             }
           ]
-          // Health probes for frontend - using / for placeholder compatibility
-          // azd deploy will update to real image with /health endpoint
-          probes: [
-            {
-              type: 'Startup'
-              httpGet: {
-                path: '/'
-                port: 80
-              }
-              initialDelaySeconds: 2
-              periodSeconds: 5
-              failureThreshold: 6  // 30 seconds max startup
-              timeoutSeconds: 2
-            }
-            {
-              type: 'Liveness'
-              httpGet: {
-                path: '/'
-                port: 80
-              }
-              initialDelaySeconds: 0
-              periodSeconds: 30
-              failureThreshold: 3
-              timeoutSeconds: 5
-            }
-            {
-              type: 'Readiness'
-              httpGet: {
-                path: '/'
-                port: 80
-              }
-              initialDelaySeconds: 0
-              periodSeconds: 10
-              failureThreshold: 3
-              timeoutSeconds: 3
-            }
-          ]
+          // No probes for placeholder image - azd deploy will configure proper probes
         }
       ]
       scale: {

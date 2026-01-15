@@ -6,7 +6,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.39.26.7824",
-      "templateHash": "2187670228258248475"
+      "templateHash": "8986689107735622182"
     }
   },
   "parameters": {
@@ -142,7 +142,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.39.26.7824",
-              "templateHash": "13939396052494088449"
+              "templateHash": "13640595810232244508"
             }
           },
           "parameters": {
@@ -496,42 +496,7 @@
                         "cpu": "[json('0.5')]",
                         "memory": "1Gi"
                       },
-                      "env": "[concat(createArray(createObject('name', 'POSTGRES_HOST', 'value', reference(resourceId('Microsoft.DBforPostgreSQL/flexibleServers', format('psql-{0}-{1}-{2}', variables('appName'), parameters('environment'), variables('uniqueSuffix'))), '2023-12-01-preview').fullyQualifiedDomainName), createObject('name', 'POSTGRES_DATABASE', 'value', 'learntocloud'), createObject('name', 'POSTGRES_USER', 'value', variables('apiAppName')), createObject('name', 'CLERK_SECRET_KEY', 'secretRef', 'clerk-secret-key'), createObject('name', 'CLERK_WEBHOOK_SIGNING_SECRET', 'secretRef', 'clerk-webhook-signing-secret'), createObject('name', 'CLERK_PUBLISHABLE_KEY', 'value', parameters('clerkPublishableKey')), createObject('name', 'GOOGLE_API_KEY', 'secretRef', 'google-api-key'), createObject('name', 'ENVIRONMENT', 'value', parameters('environment')), createObject('name', 'FRONTEND_URL', 'value', if(not(empty(parameters('frontendCustomDomain'))), format('https://{0}', parameters('frontendCustomDomain')), format('https://{0}.{1}', variables('frontendAppName'), reference(resourceId('Microsoft.App/managedEnvironments', format('cae-{0}-{1}', variables('appName'), parameters('environment'))), '2024-03-01').defaultDomain))), createObject('name', 'APPLICATIONINSIGHTS_CONNECTION_STRING', 'value', reference(resourceId('Microsoft.Insights/components', format('appi-{0}-{1}', variables('appName'), parameters('environment'))), '2020-02-02').ConnectionString)))]",
-                      "probes": [
-                        {
-                          "type": "Startup",
-                          "httpGet": {
-                            "path": "/",
-                            "port": 80
-                          },
-                          "initialDelaySeconds": 5,
-                          "periodSeconds": 10,
-                          "failureThreshold": 30,
-                          "timeoutSeconds": 3
-                        },
-                        {
-                          "type": "Liveness",
-                          "httpGet": {
-                            "path": "/",
-                            "port": 80
-                          },
-                          "initialDelaySeconds": 0,
-                          "periodSeconds": 30,
-                          "failureThreshold": 3,
-                          "timeoutSeconds": 5
-                        },
-                        {
-                          "type": "Readiness",
-                          "httpGet": {
-                            "path": "/",
-                            "port": 80
-                          },
-                          "initialDelaySeconds": 0,
-                          "periodSeconds": 10,
-                          "failureThreshold": 3,
-                          "timeoutSeconds": 3
-                        }
-                      ]
+                      "env": "[concat(createArray(createObject('name', 'POSTGRES_HOST', 'value', reference(resourceId('Microsoft.DBforPostgreSQL/flexibleServers', format('psql-{0}-{1}-{2}', variables('appName'), parameters('environment'), variables('uniqueSuffix'))), '2023-12-01-preview').fullyQualifiedDomainName), createObject('name', 'POSTGRES_DATABASE', 'value', 'learntocloud'), createObject('name', 'POSTGRES_USER', 'value', variables('apiAppName')), createObject('name', 'CLERK_SECRET_KEY', 'secretRef', 'clerk-secret-key'), createObject('name', 'CLERK_WEBHOOK_SIGNING_SECRET', 'secretRef', 'clerk-webhook-signing-secret'), createObject('name', 'CLERK_PUBLISHABLE_KEY', 'value', parameters('clerkPublishableKey')), createObject('name', 'GOOGLE_API_KEY', 'secretRef', 'google-api-key'), createObject('name', 'ENVIRONMENT', 'value', parameters('environment')), createObject('name', 'FRONTEND_URL', 'value', if(not(empty(parameters('frontendCustomDomain'))), format('https://{0}', parameters('frontendCustomDomain')), format('https://{0}.{1}', variables('frontendAppName'), reference(resourceId('Microsoft.App/managedEnvironments', format('cae-{0}-{1}', variables('appName'), parameters('environment'))), '2024-03-01').defaultDomain))), createObject('name', 'APPLICATIONINSIGHTS_CONNECTION_STRING', 'value', reference(resourceId('Microsoft.Insights/components', format('appi-{0}-{1}', variables('appName'), parameters('environment'))), '2020-02-02').ConnectionString)))]"
                     }
                   ],
                   "scale": {
@@ -612,41 +577,6 @@
                         {
                           "name": "PORT",
                           "value": "80"
-                        }
-                      ],
-                      "probes": [
-                        {
-                          "type": "Startup",
-                          "httpGet": {
-                            "path": "/",
-                            "port": 80
-                          },
-                          "initialDelaySeconds": 2,
-                          "periodSeconds": 5,
-                          "failureThreshold": 6,
-                          "timeoutSeconds": 2
-                        },
-                        {
-                          "type": "Liveness",
-                          "httpGet": {
-                            "path": "/",
-                            "port": 80
-                          },
-                          "initialDelaySeconds": 0,
-                          "periodSeconds": 30,
-                          "failureThreshold": 3,
-                          "timeoutSeconds": 5
-                        },
-                        {
-                          "type": "Readiness",
-                          "httpGet": {
-                            "path": "/",
-                            "port": 80
-                          },
-                          "initialDelaySeconds": 0,
-                          "periodSeconds": 10,
-                          "failureThreshold": 3,
-                          "timeoutSeconds": 3
                         }
                       ]
                     }
