@@ -72,7 +72,7 @@ class PhaseProgress:
     def overall_percentage(self) -> float:
         """Phase completion percentage (steps + questions + hands-on).
 
-        SKILL.md source of truth:
+        Skill source of truth:
           (Steps + Questions + Hands-on) / (Total Steps + Questions + Hands-on)
         """
         total = (

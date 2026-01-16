@@ -6,7 +6,7 @@ These endpoints provide:
 - Topic details with steps and questions
 
 All progress calculation and locking logic follows
-.github/skills/progression-system/SKILL.md
+.github/skills/progression-system/progression-system.md
 """
 
 import logging

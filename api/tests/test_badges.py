@@ -1,10 +1,10 @@
 """Tests for badge computation.
 
 Source of truth:
-- .github/skills/progression-system/SKILL.md (phase badges)
-- .github/skills/streaks/SKILL.md (streak badges)
+- .github/skills/progression-system/progression-system.md (phase badges)
+- .github/skills/streaks/streaks.md (streak badges)
 
-Key rules from SKILL.md:
+Key rules from skill file:
 - Phase badge awarded when phase reaches 100% completion
 - 100% completion requires ALL: steps + questions + hands-on
 - Streak badges use longest_streak (all-time), not current_streak
@@ -24,15 +24,15 @@ from services.progress import PHASE_REQUIREMENTS
 
 
 class TestPhaseBadgeDefinitions:
-    """Verify phase badges match SKILL.md source of truth."""
+    """Verify phase badges match skill file source of truth."""
 
     def test_seven_phase_badges_exist(self):
-        """SKILL.md: 7 phases (0-6), each has a badge."""
+        """skill file: 7 phases (0-6), each has a badge."""
         assert len(PHASE_BADGES) == 7
         assert set(PHASE_BADGES.keys()) == {0, 1, 2, 3, 4, 5, 6}
 
     def test_phase_badge_names_match_skill_md(self):
-        """SKILL.md badge names: Explorer, Practitioner, Builder, etc."""
+        """skill file badge names: Explorer, Practitioner, Builder, etc."""
         expected_names = {
             0: "Explorer",
             1: "Practitioner",
@@ -46,7 +46,7 @@ class TestPhaseBadgeDefinitions:
             assert PHASE_BADGES[phase_id]["name"] == expected_name
 
     def test_phase_badge_tiers_match_skill_md(self):
-        """SKILL.md tiers: Bronze, Silver, Blue, Purple, Gold, Red, Rainbow."""
+        """skill file tiers: Bronze, Silver, Blue, Purple, Gold, Red, Rainbow."""
         # Tiers are represented by icons
         expected_icons = {
             0: "🥉",  # Bronze
@@ -62,14 +62,14 @@ class TestPhaseBadgeDefinitions:
 
 
 class TestStreakBadgeDefinitions:
-    """Verify streak badges match SKILL.md source of truth."""
+    """Verify streak badges match skill file source of truth."""
 
     def test_three_streak_badges_exist(self):
-        """SKILL.md: 3 streak badges at 7, 30, 100 days."""
+        """skill file: 3 streak badges at 7, 30, 100 days."""
         assert len(STREAK_BADGES) == 3
 
     def test_streak_badge_thresholds(self):
-        """SKILL.md: Week Warrior (7), Monthly Master (30), Century Club (100)."""
+        """skill file: Week Warrior (7), Monthly Master (30), Century Club (100)."""
         badge_by_streak = {b["required_streak"]: b for b in STREAK_BADGES}
 
         assert 7 in badge_by_streak
@@ -88,7 +88,7 @@ class TestStreakBadgeDefinitions:
 class TestPhaseCompletion:
     """Test phase completion badge logic.
 
-    SKILL.md: A Phase is Complete when ALL three requirements are met:
+    skill file: A Phase is Complete when ALL three requirements are met:
     1. All Learning Steps completed
     2. All Knowledge Questions passed
     3. All Hands-on Requirements validated
@@ -101,7 +101,7 @@ class TestPhaseCompletion:
         assert badges == []
 
     def test_no_badge_with_partial_steps(self):
-        """SKILL.md: All steps must be completed."""
+        """skill file: All steps must be completed."""
         # Phase 0 requires 15 steps, 12 questions
         phase_counts = {
             0: (10, 12, True),  # Only 10/15 steps
@@ -110,7 +110,7 @@ class TestPhaseCompletion:
         assert badges == []
 
     def test_no_badge_with_partial_questions(self):
-        """SKILL.md: All questions must be passed."""
+        """skill file: All questions must be passed."""
         phase_counts = {
             0: (15, 8, True),  # Only 8/12 questions
         }
@@ -118,7 +118,7 @@ class TestPhaseCompletion:
         assert badges == []
 
     def test_no_badge_without_hands_on(self):
-        """SKILL.md: All hands-on requirements must be validated."""
+        """skill file: All hands-on requirements must be validated."""
         phase_counts = {
             0: (15, 12, False),  # Hands-on not validated
         }
@@ -178,7 +178,7 @@ class TestPhaseCompletion:
 class TestStreakBadgeComputation:
     """Test streak badge computation.
 
-    SKILL.md: Badges use longest_streak (all-time), not current_streak.
+    skill file: Badges use longest_streak (all-time), not current_streak.
     """
 
     def test_no_badges_with_zero_streak(self):
@@ -192,7 +192,7 @@ class TestStreakBadgeComputation:
         assert badges == []
 
     def test_week_warrior_at_7(self):
-        """SKILL.md: Week Warrior at 7 days."""
+        """skill file: Week Warrior at 7 days."""
         badges = compute_streak_badges(7)
 
         assert len(badges) == 1
@@ -207,7 +207,7 @@ class TestStreakBadgeComputation:
         assert badges[0].name == "Week Warrior"
 
     def test_monthly_master_at_30(self):
-        """SKILL.md: Monthly Master at 30 days (includes Week Warrior)."""
+        """skill file: Monthly Master at 30 days (includes Week Warrior)."""
         badges = compute_streak_badges(30)
 
         assert len(badges) == 2
@@ -221,7 +221,7 @@ class TestStreakBadgeComputation:
         assert len(badges) == 2
 
     def test_century_club_at_100(self):
-        """SKILL.md: Century Club at 100 days (includes all previous)."""
+        """skill file: Century Club at 100 days (includes all previous)."""
         badges = compute_streak_badges(100)
 
         assert len(badges) == 3
@@ -308,46 +308,46 @@ class TestCountCompletedPhases:
 
 
 class TestPhaseRequirementsMatchSkillMd:
-    """Verify PHASE_REQUIREMENTS matches SKILL.md table."""
+    """Verify PHASE_REQUIREMENTS matches skill file table."""
 
     def test_phase_0_requirements(self):
-        """SKILL.md: Phase 0 = 15 steps, 12 questions."""
+        """skill file: Phase 0 = 15 steps, 12 questions."""
         req = PHASE_REQUIREMENTS[0]
         assert req.steps == 15
         assert req.questions == 12
 
     def test_phase_1_requirements(self):
-        """SKILL.md: Phase 1 = 36 steps, 12 questions."""
+        """skill file: Phase 1 = 36 steps, 12 questions."""
         req = PHASE_REQUIREMENTS[1]
         assert req.steps == 36
         assert req.questions == 12
 
     def test_phase_2_requirements(self):
-        """SKILL.md: Phase 2 = 30 steps, 12 questions."""
+        """skill file: Phase 2 = 30 steps, 12 questions."""
         req = PHASE_REQUIREMENTS[2]
         assert req.steps == 30
         assert req.questions == 12
 
     def test_phase_3_requirements(self):
-        """SKILL.md: Phase 3 = 31 steps, 8 questions."""
+        """skill file: Phase 3 = 31 steps, 8 questions."""
         req = PHASE_REQUIREMENTS[3]
         assert req.steps == 31
         assert req.questions == 8
 
     def test_phase_4_requirements(self):
-        """SKILL.md: Phase 4 = 51 steps, 18 questions."""
+        """skill file: Phase 4 = 51 steps, 18 questions."""
         req = PHASE_REQUIREMENTS[4]
         assert req.steps == 51
         assert req.questions == 18
 
     def test_phase_5_requirements(self):
-        """SKILL.md: Phase 5 = 55 steps, 12 questions."""
+        """skill file: Phase 5 = 55 steps, 12 questions."""
         req = PHASE_REQUIREMENTS[5]
         assert req.steps == 55
         assert req.questions == 12
 
     def test_phase_6_requirements(self):
-        """SKILL.md: Phase 6 = 64 steps, 12 questions."""
+        """skill file: Phase 6 = 64 steps, 12 questions."""
         req = PHASE_REQUIREMENTS[6]
         assert req.steps == 64
         assert req.questions == 12

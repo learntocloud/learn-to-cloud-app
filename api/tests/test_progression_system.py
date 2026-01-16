@@ -1,13 +1,13 @@
 """Comprehensive tests for the progression system.
 
-Source of truth: .github/skills/progression-system/SKILL.md
+Source of truth: .github/skills/progression-system/progression-system.md
 
 This test file validates that the API implementation honors all rules
-defined in the progression system skill documentation. The SKILL.md file
-is authoritative - if tests fail, the API should be updated, not the SKILL.md.
+defined in the progression system skill documentation. The skill file
+is authoritative - if tests fail, the API should be updated, not the skill file.
 
 Test organization:
-1. SKILL.md Validation - Content hierarchy, requirements table, badges
+1. Skill Validation - Content hierarchy, requirements table, badges
 2. Completion & Progress - Phase completion rules, progress calculation
 3. Badge System - Badge definitions, awarding rules, streak badges
 4. Unlocking Rules - Sequential unlocking, admin bypass
@@ -59,11 +59,11 @@ fake = Faker()
 
 
 # =============================================================================
-# SKILL.MD VALIDATION: Content Hierarchy & Requirements Table
+# SKILL VALIDATION: Content Hierarchy & Requirements Table
 # =============================================================================
 
-# The SKILL.md table is the source of truth for all phase requirements
-SKILL_MD_REQUIREMENTS = {
+# The skill file table is the source of truth for all phase requirements
+SKILL_REQUIREMENTS = {
     0: {"steps": 15, "questions": 12, "hands_on": 1},
     1: {"steps": 36, "questions": 12, "hands_on": 3},
     2: {"steps": 30, "questions": 12, "hands_on": 2},
@@ -73,8 +73,8 @@ SKILL_MD_REQUIREMENTS = {
     6: {"steps": 64, "questions": 12, "hands_on": 1},
 }
 
-# The SKILL.md badge definitions
-SKILL_MD_BADGES = {
+# The skill file badge definitions
+SKILL_BADGES = {
     0: {"name": "Explorer", "tier": "Bronze", "icon": "🥉"},
     1: {"name": "Practitioner", "tier": "Silver", "icon": "🥈"},
     2: {"name": "Builder", "tier": "Blue", "icon": "🔵"},
@@ -86,14 +86,14 @@ SKILL_MD_BADGES = {
 
 
 class TestContentHierarchy:
-    """SKILL.md: Phases (7 total: 0-6)."""
+    """skill file: Phases (7 total: 0-6)."""
 
     def test_total_phases_is_7(self):
-        """SKILL.md specifies 7 total phases numbered 0-6."""
+        """skill file specifies 7 total phases numbered 0-6."""
         assert TOTAL_PHASES == 7
 
     def test_phase_ids_are_0_through_6(self):
-        """SKILL.md: Phase IDs are 0, 1, 2, 3, 4, 5, 6."""
+        """skill file: Phase IDs are 0, 1, 2, 3, 4, 5, 6."""
         expected_ids = [0, 1, 2, 3, 4, 5, 6]
         actual_ids = get_all_phase_ids()
         assert actual_ids == expected_ids
@@ -107,58 +107,58 @@ class TestContentHierarchy:
 
 
 class TestPhaseRequirementsTable:
-    """SKILL.md: Phase Requirements table must match exactly."""
+    """skill file: Phase Requirements table must match exactly."""
 
     @pytest.mark.parametrize("phase_id", [0, 1, 2, 3, 4, 5, 6])
-    def test_phase_steps_match_skill_md(self, phase_id: int):
-        """Steps for each phase must match SKILL.md table."""
-        expected = SKILL_MD_REQUIREMENTS[phase_id]["steps"]
+    def test_phase_steps_match_skill(self, phase_id: int):
+        """Steps for each phase must match skill file table."""
+        expected = SKILL_REQUIREMENTS[phase_id]["steps"]
         actual = PHASE_REQUIREMENTS[phase_id].steps
         assert actual == expected, (
             f"Phase {phase_id} steps mismatch: "
-            f"SKILL.md says {expected}, API has {actual}"
+            f"skill file says {expected}, API has {actual}"
         )
 
     @pytest.mark.parametrize("phase_id", [0, 1, 2, 3, 4, 5, 6])
-    def test_phase_questions_match_skill_md(self, phase_id: int):
-        """Questions for each phase must match SKILL.md table."""
-        expected = SKILL_MD_REQUIREMENTS[phase_id]["questions"]
+    def test_phase_questions_match_skill(self, phase_id: int):
+        """Questions for each phase must match skill file table."""
+        expected = SKILL_REQUIREMENTS[phase_id]["questions"]
         actual = PHASE_REQUIREMENTS[phase_id].questions
         assert actual == expected, (
             f"Phase {phase_id} questions mismatch: "
-            f"SKILL.md says {expected}, API has {actual}"
+            f"skill file says {expected}, API has {actual}"
         )
 
     @pytest.mark.parametrize("phase_id", [0, 1, 2, 3, 4, 5, 6])
-    def test_phase_hands_on_count_matches_skill_md(self, phase_id: int):
-        """Hands-on requirements count must match SKILL.md table."""
-        expected = SKILL_MD_REQUIREMENTS[phase_id]["hands_on"]
+    def test_phase_hands_on_count_matches_skill(self, phase_id: int):
+        """Hands-on requirements count must match skill file table."""
+        expected = SKILL_REQUIREMENTS[phase_id]["hands_on"]
         actual = len(get_requirements_for_phase(phase_id))
         assert actual == expected, (
             f"Phase {phase_id} hands-on count mismatch: "
-            f"SKILL.md says {expected}, API has {actual}"
+            f"skill file says {expected}, API has {actual}"
         )
 
     def test_total_steps_is_sum_of_all_phases(self):
         """TOTAL_STEPS should equal sum of all phase steps."""
-        expected_total = sum(SKILL_MD_REQUIREMENTS[p]["steps"] for p in range(7))
+        expected_total = sum(SKILL_REQUIREMENTS[p]["steps"] for p in range(7))
         assert TOTAL_STEPS == expected_total
 
     def test_total_questions_is_sum_of_all_phases(self):
         """TOTAL_QUESTIONS should equal sum of all phase questions."""
-        expected_total = sum(SKILL_MD_REQUIREMENTS[p]["questions"] for p in range(7))
+        expected_total = sum(SKILL_REQUIREMENTS[p]["questions"] for p in range(7))
         assert TOTAL_QUESTIONS == expected_total
 
 
 class TestBadgeDefinitions:
-    """SKILL.md: Badge definitions must match exactly."""
+    """skill file: Badge definitions must match exactly."""
 
     def test_seven_phase_badges_defined(self):
-        """SKILL.md: 7 phase badges (one per phase)."""
+        """skill file: 7 phase badges (one per phase)."""
         assert len(PHASE_BADGES) == 7
 
     def test_three_streak_badges_defined(self):
-        """SKILL.md (streaks skill): 3 streak badges."""
+        """skill file (streaks skill): 3 streak badges."""
         assert len(STREAK_BADGES) == 3
 
     def test_total_available_badges_is_10(self):
@@ -167,19 +167,19 @@ class TestBadgeDefinitions:
         assert len(all_badges) == 10
 
     @pytest.mark.parametrize("phase_id", [0, 1, 2, 3, 4, 5, 6])
-    def test_phase_badge_names_match_skill_md(self, phase_id: int):
-        """Badge names must match SKILL.md table."""
-        expected = SKILL_MD_BADGES[phase_id]["name"]
+    def test_phase_badge_names_match_skill(self, phase_id: int):
+        """Badge names must match skill file table."""
+        expected = SKILL_BADGES[phase_id]["name"]
         actual = PHASE_BADGES[phase_id]["name"]
         assert actual == expected, (
             f"Phase {phase_id} badge name mismatch: "
-            f"SKILL.md says '{expected}', API has '{actual}'"
+            f"skill file says '{expected}', API has '{actual}'"
         )
 
     @pytest.mark.parametrize("phase_id", [0, 1, 2, 3, 4, 5, 6])
-    def test_phase_badge_icons_match_skill_md(self, phase_id: int):
-        """Badge icons should represent SKILL.md tier colors."""
-        expected_icon = SKILL_MD_BADGES[phase_id]["icon"]
+    def test_phase_badge_icons_match_skill(self, phase_id: int):
+        """Badge icons should represent skill file tier colors."""
+        expected_icon = SKILL_BADGES[phase_id]["icon"]
         actual_icon = PHASE_BADGES[phase_id]["icon"]
         assert actual_icon == expected_icon
 
@@ -195,7 +195,7 @@ class TestBadgeDefinitions:
 
 
 class TestPhaseCompletionDefinition:
-    """SKILL.md: Phase is complete when ALL three requirements are met."""
+    """skill file: Phase is complete when ALL three requirements are met."""
 
     def _make_phase_progress(
         self,
@@ -228,14 +228,14 @@ class TestPhaseCompletionDefinition:
         assert progress.is_complete is False
 
     def test_incomplete_when_only_steps_done(self):
-        """SKILL.md: ALL requirements must be met, not just steps."""
+        """skill file: ALL requirements must be met, not just steps."""
         progress = self._make_phase_progress(
             steps_completed=15, questions_passed=0, hands_on_validated_count=0
         )
         assert progress.is_complete is False
 
     def test_incomplete_when_only_questions_done(self):
-        """SKILL.md: ALL requirements must be met, not just questions."""
+        """skill file: ALL requirements must be met, not just questions."""
         progress = self._make_phase_progress(
             steps_completed=0, questions_passed=12, hands_on_validated_count=0
         )
@@ -302,7 +302,7 @@ class TestPhaseCompletionDefinition:
 
 
 class TestProgressCalculation:
-    """SKILL.md: Progress calculation formulas."""
+    """skill file: Progress calculation formulas."""
 
     def test_zero_progress_equals_zero_percent(self):
         """0 completed / total = 0%."""
@@ -335,7 +335,7 @@ class TestProgressCalculation:
         assert progress.overall_percentage == 100.0
 
     def test_phase_progress_formula(self):
-        """SKILL.md formula: (Steps + Questions + Hands-on) / Total.
+        """skill file formula: (Steps + Questions + Hands-on) / Total.
 
         Phase 0: 15 steps + 12 questions + 1 hands-on = 28 total
         If: 10 steps + 6 questions + 0 hands-on = 16 completed
@@ -448,7 +448,7 @@ class TestUserProgressAggregation:
 
 
 class TestBadgeAwardingRules:
-    """SKILL.md: Badges awarded when phase reaches 100% completion."""
+    """skill file: Badges awarded when phase reaches 100% completion."""
 
     def test_no_badge_with_zero_progress(self):
         """No progress = no badge."""
@@ -508,7 +508,7 @@ class TestBadgeAwardingRules:
 
 
 class TestStreakBadgeRules:
-    """SKILL.md (streaks): Streak badge awarding rules."""
+    """skill file (streaks): Streak badge awarding rules."""
 
     def test_no_streak_badge_below_7(self):
         """No badge for streaks less than 7."""
@@ -557,7 +557,7 @@ class TestCombinedBadgeComputation:
 
 
 class TestUnlockingRules:
-    """SKILL.md: Content unlocking rules."""
+    """skill file: Content unlocking rules."""
 
     @pytest.mark.asyncio
     async def test_non_admin_cannot_skip_steps(self, db_session, test_user):
@@ -573,7 +573,7 @@ class TestUnlockingRules:
 
     @pytest.mark.asyncio
     async def test_admin_bypasses_step_locks(self, db_session, test_user):
-        """SKILL.md: Admin users bypass all locks."""
+        """skill file: Admin users bypass all locks."""
         test_user.is_admin = True
         db_session.add(test_user)
         await db_session.commit()
@@ -589,7 +589,7 @@ class TestUnlockingRules:
 
     @pytest.mark.asyncio
     async def test_admin_unlocks_all_steps_in_progress(self, db_session, test_user):
-        """SKILL.md: Admin users have all steps unlocked."""
+        """skill file: Admin users have all steps unlocked."""
         progress = await get_topic_step_progress(
             db_session,
             test_user.id,
@@ -956,9 +956,9 @@ class TestProgressCalculationProperties:
 
 
 class TestTopicUnlocking:
-    """SKILL.md: Topic unlocking rules.
+    """skill file: Topic unlocking rules.
 
-    From SKILL.md:
+    From skill file:
     - First topic in phase: Always unlocked (if phase is unlocked)
     - Subsequent topics: Previous topic must be complete
     """
@@ -1033,7 +1033,7 @@ class TestTopicUnlocking:
             assert topic_is_locked is True
 
     def test_admin_bypasses_topic_locks(self):
-        """SKILL.md: Admin users bypass all topic locks."""
+        """skill file: Admin users bypass all topic locks."""
         is_admin = True
 
         # Admin always gets topic_is_locked = False
@@ -1044,9 +1044,9 @@ class TestTopicUnlocking:
 
 
 class TestPhaseUnlocking:
-    """SKILL.md: Phase unlocking rules.
+    """skill file: Phase unlocking rules.
 
-    From SKILL.md:
+    From skill file:
     - Phase 0: Always unlocked
     - Phases 1-6: Previous phase must be complete
     - Admin users: Bypass all locks
@@ -1113,7 +1113,7 @@ class TestPhaseUnlocking:
         assert is_locked is False, f"Phase {phase_id} should be unlocked"
 
     def test_admin_bypasses_all_phase_locks(self):
-        """SKILL.md: Admin users bypass all phase locks."""
+        """skill file: Admin users bypass all phase locks."""
         is_admin = True
 
         for phase_id in range(7):

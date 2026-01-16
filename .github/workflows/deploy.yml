@@ -60,12 +60,14 @@ jobs:
         with:
           src: "./api"
           args: "check"
+          version: "0.8.6"
 
       - name: Ruff format check
         uses: astral-sh/ruff-action@v3
         with:
           src: "./api"
           args: "format --check"
+          version: "0.8.6"
 
       - name: Type check (ty)
         run: ty check --python $(which python)

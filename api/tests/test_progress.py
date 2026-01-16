@@ -1,8 +1,8 @@
 """Tests for progress calculation.
 
-Source of truth: .github/skills/progression-system/SKILL.md
+Source of truth: .github/skills/progression-system/progression-system.md
 
-Key rules from SKILL.md:
+Key rules from skill file:
 - Phase Progress = (Steps + Questions + Hands-on) / (Total Steps + Questions + Hands-on)
 - Topic Progress = (Steps Completed + Questions Passed) / (Total Steps + Questions)
 - Phase is complete when ALL: steps + questions + hands-on are done
@@ -25,14 +25,14 @@ from services.progress import (
 
 
 class TestPhaseRequirementsMatchSkillMd:
-    """Verify constants match SKILL.md source of truth."""
+    """Verify constants match skill file source of truth."""
 
     def test_total_phases_is_7(self):
-        """SKILL.md: Phases (7 total: 0-6)."""
+        """skill file: Phases (7 total: 0-6)."""
         assert TOTAL_PHASES == 7
 
     def test_phase_ids_are_0_to_6(self):
-        """SKILL.md: Phase IDs are 0-6."""
+        """skill file: Phase IDs are 0-6."""
         assert get_all_phase_ids() == [0, 1, 2, 3, 4, 5, 6]
 
     def test_all_phases_have_requirements(self):
@@ -46,10 +46,10 @@ class TestPhaseRequirementsMatchSkillMd:
 
 
 class TestPhaseRequirementsTable:
-    """Test requirements match SKILL.md table exactly."""
+    """Test requirements match skill file table exactly."""
 
     def test_phase_requirements_table(self):
-        """SKILL.md Phase Requirements table:
+        """skill file Phase Requirements table:
 
         | Phase | Steps | Questions | Hands-on |
         |-------|-------|-----------|----------|
@@ -89,7 +89,7 @@ class TestPhaseRequirementsTable:
 class TestPhaseProgressIsComplete:
     """Test PhaseProgress.is_complete property.
 
-    SKILL.md: A Phase is Complete when ALL three requirements are met:
+    skill file: A Phase is Complete when ALL three requirements are met:
     1. All Learning Steps completed
     2. All Knowledge Questions passed
     3. All Hands-on Requirements validated
@@ -189,7 +189,7 @@ class TestPhaseProgressIsComplete:
 class TestPhaseProgressPercentage:
     """Test PhaseProgress.overall_percentage property.
 
-    SKILL.md Phase Progress formula:
+    skill file Phase Progress formula:
     (Steps + Questions + Hands-on) / (Total Steps + Questions + Hands-on)
     """
 
@@ -224,7 +224,7 @@ class TestPhaseProgressPercentage:
         assert progress.overall_percentage == 100.0
 
     def test_partial_progress_calculation(self):
-        """SKILL.md formula: (Steps + Questions + Hands-on) / Total.
+        """skill file formula: (Steps + Questions + Hands-on) / Total.
 
         Phase 0: 15 steps, 12 questions, 1 hands-on = 28 total
         If: 10 steps + 6 questions + 0 hands-on = 16 completed
@@ -391,7 +391,7 @@ class TestPhaseRequirementsDataclass:
     """Test PhaseRequirements dataclass."""
 
     def test_questions_per_topic_is_2(self):
-        """SKILL.md implies 2 questions per topic."""
+        """skill file implies 2 questions per topic."""
         req = PhaseRequirements(
             phase_id=0,
             name="Test",

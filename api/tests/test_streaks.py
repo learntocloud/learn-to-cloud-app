@@ -1,8 +1,8 @@
 """Tests for streak calculation with forgiveness rules.
 
-Source of truth: .github/skills/streaks/SKILL.md
+Source of truth: .github/skills/streaks/streaks.md
 
-Key rules from SKILL.md:
+Key rules from skill file:
 - MAX_SKIP_DAYS = 2 (can skip up to 2 consecutive days)
 - streak_alive = True if last activity within 2 days
 - streak_alive = False (broken) if no activity for 3+ days
@@ -17,10 +17,10 @@ from services.streaks import MAX_SKIP_DAYS, calculate_streak_with_forgiveness
 
 
 class TestForgivenessBoundary:
-    """Test the 2-day forgiveness boundary from SKILL.md."""
+    """Test the 2-day forgiveness boundary from skill file."""
 
     def test_max_skip_days_is_2(self):
-        """SKILL.md: MAX_SKIP_DAYS = 2."""
+        """skill file: MAX_SKIP_DAYS = 2."""
         assert MAX_SKIP_DAYS == 2
 
     def test_streak_alive_within_0_days(self):
@@ -45,7 +45,7 @@ class TestForgivenessBoundary:
         assert streak_alive is True
 
     def test_streak_broken_after_3_days(self):
-        """SKILL.md: No activity for 3+ days = broken."""
+        """skill file: No activity for 3+ days = broken."""
         today = datetime.now(UTC).date()
         dates = [today - timedelta(days=3)]
         _, _, streak_alive = calculate_streak_with_forgiveness(dates)
@@ -63,7 +63,7 @@ class TestStreakCounting:
     """Test streak counting with forgiveness gaps."""
 
     def test_perfect_consecutive_days(self):
-        """SKILL.md Scenario 1: Perfect week with no gaps."""
+        """skill file Scenario 1: Perfect week with no gaps."""
         today = datetime.now(UTC).date()
         # 7 consecutive days including today
         dates = [today - timedelta(days=i) for i in range(7)]
@@ -74,7 +74,7 @@ class TestStreakCounting:
         assert alive is True
 
     def test_weekend_break_forgiven(self):
-        """SKILL.md Scenario 2: 2-day gap is forgiven.
+        """skill file Scenario 2: 2-day gap is forgiven.
 
         Mon ✓  Tue ✓  Wed ✓  Thu ✓  Fri ✓  Sat ✗  Sun ✗  Mon ✓
         → current_streak = 6, streak_alive = True (2-day gap forgiven)
@@ -96,7 +96,7 @@ class TestStreakCounting:
         assert longest == 6
 
     def test_three_day_break_resets_streak(self):
-        """SKILL.md Scenario 3: 3-day gap breaks streak.
+        """skill file Scenario 3: 3-day gap breaks streak.
 
         Mon ✓  Tue ✓  Wed ✓  ... Sat ✗  Sun ✗  Mon ✗  Tue ✓
         → current_streak = 1, longest_streak = 3, streak_alive = True
@@ -120,7 +120,7 @@ class TestBrokenStreakBehavior:
     """Test behavior when streak is broken."""
 
     def test_broken_streak_has_zero_current(self):
-        """SKILL.md: When streak breaks, current_streak → 0."""
+        """skill file: When streak breaks, current_streak → 0."""
         today = datetime.now(UTC).date()
         # Activity 5 days ago (beyond 2-day forgiveness)
         dates = [
@@ -135,7 +135,7 @@ class TestBrokenStreakBehavior:
         assert longest == 3
 
     def test_longest_streak_preserved_when_broken(self):
-        """SKILL.md: longest_streak is preserved (all-time high)."""
+        """skill file: longest_streak is preserved (all-time high)."""
         today = datetime.now(UTC).date()
         # Had a 10-day streak that ended 5 days ago
         dates = [today - timedelta(days=5 + i) for i in range(10)]
@@ -147,10 +147,10 @@ class TestBrokenStreakBehavior:
 
 
 class TestMultipleActivitiesSameDay:
-    """SKILL.md: Multiple activities on same day count as 1 day."""
+    """skill file: Multiple activities on same day count as 1 day."""
 
     def test_duplicate_dates_counted_once(self):
-        """SKILL.md Scenario 4: Multiple activities same day = 1 day.
+        """skill file Scenario 4: Multiple activities same day = 1 day.
 
         Day 1: 5 steps + 2 questions + 1 hands-on
         Day 2: 1 step

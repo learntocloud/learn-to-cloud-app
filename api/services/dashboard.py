@@ -5,7 +5,7 @@ This module provides dashboard data by combining:
 - User progress from the database
 - Locking logic based on the progression system
 
-Source of truth: .github/skills/progression-system/SKILL.md
+Source of truth: .github/skills/progression-system/progression-system.md
 """
 
 import logging
@@ -140,7 +140,7 @@ async def get_dashboard(
     3. Computes phase/topic completion status
     4. Determines locking based on progression rules
 
-    Locking rules from SKILL.md:
+    Locking rules from skill file:
     - Phase 0: Always unlocked
     - Phases 1-6: Previous phase must be complete
     - Admin users: Bypass all locks
@@ -300,7 +300,7 @@ async def get_phase_detail(
 ) -> PhaseDetailSchema | None:
     """Get detailed phase info with topics and progress.
 
-    Topic locking rules from SKILL.md:
+    Topic locking rules from skill file:
     - First topic in phase: Always unlocked (if phase is unlocked)
     - Subsequent topics: Previous topic must be complete
     - Admin users: Bypass all locks

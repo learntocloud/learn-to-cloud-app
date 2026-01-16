@@ -17,6 +17,7 @@ repos:
       - id: check-merge-conflict
 
   # Python - Ruff (linting + formatting)
+  # NOTE: Keep version in sync with api/pyproject.toml [project.optional-dependencies] dev ruff
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.8.6
     hooks:

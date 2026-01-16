@@ -11,7 +11,7 @@ def calculate_streak_with_forgiveness(
 ) -> tuple[int, int, bool]:
     """Calculate streak with forgiveness for skipped days.
 
-    SKILL.md source of truth (.github/skills/streaks/SKILL.md):
+    Skill source of truth (.github/skills/streaks/streaks.md):
     - MAX_SKIP_DAYS = 2 (can skip up to 2 consecutive days)
     - streak_alive = True if last activity within max_skip_days of today
     - current_streak = streak from today going backward until 3+ day gap
