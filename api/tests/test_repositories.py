@@ -465,6 +465,7 @@ class TestUserRepository:
         """get_by_github_username returns user by GitHub username."""
         repo = UserRepository(db_session)
 
+        assert test_user.github_username is not None
         user = await repo.get_by_github_username(test_user.github_username)
 
         assert user is not None

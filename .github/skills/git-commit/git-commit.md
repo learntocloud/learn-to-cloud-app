@@ -86,6 +86,27 @@ Or push and set upstream for new branches:
 git push -u origin <branch-name>
 ```
 
+### Step 5: Watch CI Workflow
+
+After pushing, monitor the GitHub Actions workflow:
+```bash
+gh run watch
+```
+
+This will stream the workflow output in real-time. If the run fails, report the errors to the user.
+
+**Alternative commands:**
+```bash
+# List recent runs
+gh run list --limit 5
+
+# View a specific run
+gh run view <run-id>
+
+# View failed run logs
+gh run view <run-id> --log-failed
+```
+
 ## Complete Workflow Example
 
 ```bash
@@ -105,6 +126,9 @@ git commit -m "feat(api): add new badge verification endpoint"
 
 # 6. Push
 git push
+
+# 7. Watch CI
+gh run watch
 ```
 
 ## Troubleshooting
@@ -115,13 +139,19 @@ pip install pre-commit
 pre-commit install
 ```
 
+**ty (type checker) not installed:**
+```bash
+pip install ty
+```
+
 **Pre-commit fails repeatedly:**
 ```bash
 # Skip specific hooks temporarily
-SKIP=mypy pre-commit run --all-files
+SKIP=ty pre-commit run --all-files
 
 # Or run specific hook only
 pre-commit run ruff --all-files
+pre-commit run ty --all-files
 ```
 
 **Nothing to commit after pre-commit:**

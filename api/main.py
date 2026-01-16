@@ -106,19 +106,17 @@ app.state.limiter = limiter
 # ty has incomplete ParamSpec+Protocol support (astral-sh/ty#2382)
 app.add_exception_handler(
     RateLimitExceeded,
-    rate_limit_exceeded_handler,
-)  # ty: ignore[invalid-argument-type]
+    rate_limit_exceeded_handler,  # ty: ignore[invalid-argument-type]
+)
 
 app.add_middleware(
-    GZipMiddleware,
+    GZipMiddleware,  # ty: ignore[invalid-argument-type]
     minimum_size=500,
-)  # ty: ignore[invalid-argument-type]
+)
 
-# ty: ignore[invalid-argument-type]
-app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(SecurityHeadersMiddleware)  # ty: ignore[invalid-argument-type]
 
-# ty: ignore[invalid-argument-type]
-app.add_middleware(RequestTimingMiddleware)
+app.add_middleware(RequestTimingMiddleware)  # ty: ignore[invalid-argument-type]
 
 app.add_middleware(
     CORSMiddleware,  # ty: ignore[invalid-argument-type]

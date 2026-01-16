@@ -4,6 +4,8 @@ Tests the full request/response cycle using FastAPI's TestClient with
 dependency overrides for authentication and database session.
 """
 
+from collections.abc import Generator
+
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -20,7 +22,7 @@ from models import User
 
 
 @pytest.fixture
-def test_app(db_session: AsyncSession, test_user: User) -> FastAPI:
+def test_app(db_session: AsyncSession, test_user: User) -> Generator[FastAPI]:
     """Create a test app with dependency overrides."""
 
     # Override database dependency - must commit like the real get_db does
@@ -56,7 +58,7 @@ def client(test_app: FastAPI) -> TestClient:
 
 
 @pytest.fixture
-def unauthenticated_client(db_session: AsyncSession) -> TestClient:
+def unauthenticated_client(db_session: AsyncSession) -> Generator[TestClient]:
     """Create a test client without authentication."""
 
     async def override_get_db():

@@ -27,6 +27,16 @@ repos:
       - id: ruff-format
         files: ^api/
 
+  # Python - ty (type checking)
+  - repo: local
+    hooks:
+      - id: ty
+        name: ty type check
+        entry: bash -c 'cd api && uv run ty check'
+        language: system
+        files: ^api/.*\.py$
+        pass_filenames: false
+
   # Frontend - ESLint + Prettier
   - repo: local
     hooks:
