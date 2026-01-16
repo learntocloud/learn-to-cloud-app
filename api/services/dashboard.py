@@ -20,7 +20,9 @@ from schemas import (
     HandsOnRequirement,
     HandsOnSubmissionResponse,
     LearningObjectiveSchema,
+    PhaseCapstoneOverviewSchema,
     PhaseDetailSchema,
+    PhaseHandsOnVerificationOverviewSchema,
     PhaseProgressSchema,
     PhaseSummarySchema,
     TopicDetailSchema,
@@ -44,6 +46,22 @@ from services.progress import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _capstone_to_schema(
+    capstone: object | None,
+) -> PhaseCapstoneOverviewSchema | None:
+    if capstone is None:
+        return None
+    return PhaseCapstoneOverviewSchema.model_validate(capstone)
+
+
+def _hands_on_overview_to_schema(
+    overview: object | None,
+) -> PhaseHandsOnVerificationOverviewSchema | None:
+    if overview is None:
+        return None
+    return PhaseHandsOnVerificationOverviewSchema.model_validate(overview)
 
 
 def _compute_topic_progress(
@@ -173,6 +191,11 @@ async def get_dashboard(
                 estimated_weeks=phase.estimated_weeks,
                 order=phase.order,
                 topics_count=len(phase.topics),
+                objectives=list(phase.objectives),
+                capstone=_capstone_to_schema(phase.capstone),
+                hands_on_verification=_hands_on_overview_to_schema(
+                    phase.hands_on_verification
+                ),
                 progress=progress_schema,
                 is_locked=is_locked,
             )
@@ -250,6 +273,11 @@ async def get_phases_list(
                 estimated_weeks=phase.estimated_weeks,
                 order=phase.order,
                 topics_count=len(phase.topics),
+                objectives=list(phase.objectives),
+                capstone=_capstone_to_schema(phase.capstone),
+                hands_on_verification=_hands_on_overview_to_schema(
+                    phase.hands_on_verification
+                ),
                 progress=None,
                 is_locked=(phase.id != 0),  # Only phase 0 unlocked for visitors
             )
@@ -282,6 +310,11 @@ async def get_phases_list(
                 estimated_weeks=phase.estimated_weeks,
                 order=phase.order,
                 topics_count=len(phase.topics),
+                objectives=list(phase.objectives),
+                capstone=_capstone_to_schema(phase.capstone),
+                hands_on_verification=_hands_on_overview_to_schema(
+                    phase.hands_on_verification
+                ),
                 progress=progress_schema,
                 is_locked=is_locked,
             )
@@ -352,6 +385,10 @@ async def get_phase_detail(
             estimated_weeks=phase.estimated_weeks,
             order=phase.order,
             objectives=list(phase.objectives),
+            capstone=_capstone_to_schema(phase.capstone),
+            hands_on_verification=_hands_on_overview_to_schema(
+                phase.hands_on_verification
+            ),
             topics=topic_summaries,
             progress=None,
             hands_on_requirements=[
@@ -484,6 +521,8 @@ async def get_phase_detail(
         estimated_weeks=phase.estimated_weeks,
         order=phase.order,
         objectives=list(phase.objectives),
+        capstone=_capstone_to_schema(phase.capstone),
+        hands_on_verification=_hands_on_overview_to_schema(phase.hands_on_verification),
         topics=topic_summaries,
         progress=progress_schema,
         hands_on_requirements=list(hands_on_reqs),

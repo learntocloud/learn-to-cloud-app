@@ -123,21 +123,6 @@ async def get_user_certificates(
     )
 
 
-@router.get("/{certificate_id}", response_model=CertificateResponse)
-async def get_certificate(
-    certificate_id: int,
-    user_id: UserId,
-    db: DbSession,
-) -> CertificateResponse:
-    """Get a specific certificate by ID (must belong to authenticated user)."""
-    certificate = await get_certificate_by_id(db, certificate_id, user_id)
-
-    if not certificate:
-        raise HTTPException(status_code=404, detail="Certificate not found")
-
-    return CertificateResponse.model_validate(certificate)
-
-
 @router.get("/{certificate_id}/svg")
 async def get_certificate_svg_endpoint(
     certificate_id: int,

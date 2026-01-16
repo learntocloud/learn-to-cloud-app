@@ -30,9 +30,8 @@ import httpx
 from core.telemetry import track_dependency
 from models import SubmissionType
 from schemas import HandsOnRequirement
-
-from .ctf import verify_ctf_token
-from .github_hands_on_verification import (
+from services.ctf import verify_ctf_token
+from services.github_hands_on_verification import (
     ValidationResult,
     validate_container_image,
     validate_github_profile,
@@ -42,7 +41,7 @@ from .github_hands_on_verification import (
     validate_repo_url,
     validate_workflow_run,
 )
-from .phase_requirements import (
+from services.phase_requirements import (
     HANDS_ON_REQUIREMENTS,
     get_requirement_by_id,
     get_requirements_for_phase,

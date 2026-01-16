@@ -18,5 +18,23 @@
     "Build and access the lab environment",
     "Complete the CTF challenges to test your Linux skills"
   ],
+  "capstone": {
+    "title": "Linux CTF Lab",
+    "summary": "Deploy the Linux CTF lab and complete 18 progressive challenges to validate your command line skills in a real cloud environment.",
+    "includes": [
+      "Deploy the cloud lab environment",
+      "Complete 18 Linux CTF challenges",
+      "Practice troubleshooting, permissions, and basic networking"
+    ],
+    "topic_slug": "ctf-lab"
+  },
+  "hands_on_verification": {
+    "summary": "Submit proof of your GitHub setup and CTF completion.",
+    "includes": [
+      "Create a GitHub Profile README repository",
+      "Fork the Linux CTFs repository",
+      "Submit your Linux CTF completion token"
+    ]
+  },
   "topics": ["version-control", "cloud-cli", "iac", "ssh", "cli-basics", "ctf-lab"]
 }

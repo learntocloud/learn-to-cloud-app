@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from datetime import date
 from typing import TypedDict
 
-from .progress import PHASE_REQUIREMENTS as _PROGRESS_REQUIREMENTS
+from services.progress import PHASE_REQUIREMENTS as _PROGRESS_REQUIREMENTS
 
 
 class StreakBadgeInfo(TypedDict):

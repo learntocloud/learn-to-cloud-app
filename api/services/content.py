@@ -89,6 +89,24 @@ class Topic:
 
 
 @dataclass(frozen=True)
+class PhaseCapstoneOverview:
+    """High-level capstone overview for a phase (public summary)."""
+
+    title: str
+    summary: str
+    includes: tuple[str, ...] = ()
+    topic_slug: str | None = None
+
+
+@dataclass(frozen=True)
+class PhaseHandsOnVerificationOverview:
+    """High-level hands-on verification overview for a phase (public summary)."""
+
+    summary: str
+    includes: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
 class Phase:
     """A phase in the curriculum."""
 
@@ -100,6 +118,8 @@ class Phase:
     estimated_weeks: str
     order: int
     objectives: tuple[str, ...]
+    capstone: PhaseCapstoneOverview | None
+    hands_on_verification: PhaseHandsOnVerificationOverview | None
     topic_slugs: tuple[str, ...]
     topics: tuple[Topic, ...]
 
@@ -191,6 +211,24 @@ def _load_phase(phase_slug: str) -> Phase | None:
 
         topic_slugs = tuple(data.get("topics", []))
 
+        capstone: PhaseCapstoneOverview | None = None
+        capstone_data = data.get("capstone")
+        if isinstance(capstone_data, dict):
+            capstone = PhaseCapstoneOverview(
+                title=str(capstone_data.get("title", "")).strip(),
+                summary=str(capstone_data.get("summary", "")).strip(),
+                includes=tuple(capstone_data.get("includes", []) or ()),
+                topic_slug=capstone_data.get("topic_slug"),
+            )
+
+        hands_on_verification: PhaseHandsOnVerificationOverview | None = None
+        hov_data = data.get("hands_on_verification")
+        if isinstance(hov_data, dict):
+            hands_on_verification = PhaseHandsOnVerificationOverview(
+                summary=str(hov_data.get("summary", "")).strip(),
+                includes=tuple(hov_data.get("includes", []) or ()),
+            )
+
         # Load all topics for this phase
         topics = []
         for topic_slug in topic_slugs:
@@ -207,6 +245,8 @@ def _load_phase(phase_slug: str) -> Phase | None:
             estimated_weeks=data.get("estimated_weeks", ""),
             order=data.get("order", data["id"]),
             objectives=tuple(data.get("objectives", [])),
+            capstone=capstone,
+            hands_on_verification=hands_on_verification,
             topic_slugs=topic_slugs,
             topics=tuple(topics),
         )

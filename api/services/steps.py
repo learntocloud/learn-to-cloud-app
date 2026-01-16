@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 
 from models import ActivityType
 from repositories import ActivityRepository, StepProgressRepository
+from services.content import get_topic_by_id
 
 
 @dataclass
@@ -51,11 +52,35 @@ class StepNotUnlockedError(StepValidationError):
         )
 
 
+class StepUnknownTopicError(StepValidationError):
+    """Raised when a topic_id doesn't exist in content."""
+
+
+class StepInvalidStepOrderError(StepValidationError):
+    """Raised when step_order is out of range for the topic."""
+
+
+def _resolve_total_steps(topic_id: str) -> int:
+    topic = get_topic_by_id(topic_id)
+    if topic is None:
+        raise StepUnknownTopicError(f"Unknown topic_id: {topic_id}")
+    return len(topic.learning_steps)
+
+
+def _validate_step_order(topic_id: str, step_order: int) -> int:
+    total_steps = _resolve_total_steps(topic_id)
+    if step_order < 1 or step_order > total_steps:
+        raise StepInvalidStepOrderError(
+            f"Invalid step_order {step_order} for {topic_id}. "
+            f"Must be between 1 and {total_steps}."
+        )
+    return total_steps
+
+
 async def get_topic_step_progress(
     db,
     user_id: str,
     topic_id: str,
-    total_steps: int,
     *,
     is_admin: bool = False,
 ) -> StepProgressData:
@@ -65,11 +90,11 @@ async def get_topic_step_progress(
         db: Database session
         user_id: The user's ID
         topic_id: The topic ID (e.g., "phase1-topic5")
-        total_steps: Total number of steps in this topic (from frontend)
-
     Returns:
         StepProgressData with completed steps and next unlocked step
     """
+    total_steps = _resolve_total_steps(topic_id)
+
     step_repo = StepProgressRepository(db)
     completed_step_orders = await step_repo.get_completed_step_orders(user_id, topic_id)
     completed_steps = sorted(completed_step_orders)
@@ -125,6 +150,8 @@ async def complete_step(
         StepAlreadyCompletedError: If step is already completed
         StepNotUnlockedError: If previous steps are not completed
     """
+    _validate_step_order(topic_id, step_order)
+
     step_repo = StepProgressRepository(db)
     activity_repo = ActivityRepository(db)
 
@@ -176,15 +203,7 @@ async def uncomplete_step(db, user_id: str, topic_id: str, step_order: int) -> i
     Returns:
         Number of steps deleted
     """
+    _validate_step_order(topic_id, step_order)
+
     step_repo = StepProgressRepository(db)
     return await step_repo.delete_from_step(user_id, topic_id, step_order)
-
-
-async def get_all_user_steps(db, user_id: str) -> dict[str, list[int]]:
-    """Get all completed steps across all topics for a user.
-
-    Returns:
-        Dict mapping topic_id to list of completed step_order numbers
-    """
-    step_repo = StepProgressRepository(db)
-    return await step_repo.get_all_by_user(user_id)

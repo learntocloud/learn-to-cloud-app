@@ -2,7 +2,7 @@
 
 from collections.abc import Sequence
 
-from sqlalchemy import distinct, func, select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models import QuestionAttempt, StepProgress
@@ -97,38 +97,6 @@ class StepProgressRepository:
         )
         return result.rowcount or 0
 
-    async def get_all_by_user(
-        self,
-        user_id: str,
-    ) -> dict[str, list[int]]:
-        """Get all completed steps for a user, grouped by topic.
-
-        Returns a dict mapping topic_id to list of completed step orders.
-        """
-        result = await self.db.execute(
-            select(StepProgress.topic_id, StepProgress.step_order)
-            .where(StepProgress.user_id == user_id)
-            .order_by(StepProgress.topic_id, StepProgress.step_order)
-        )
-
-        topic_steps: dict[str, list[int]] = {}
-        for row in result.all():
-            topic_id = row.topic_id
-            if topic_id not in topic_steps:
-                topic_steps[topic_id] = []
-            topic_steps[topic_id].append(row.step_order)
-
-        return topic_steps
-
-    async def get_all_topic_ids(self, user_id: str) -> list[str]:
-        """Get all topic IDs where user has completed at least one step."""
-        result = await self.db.execute(
-            select(distinct(StepProgress.topic_id)).where(
-                StepProgress.user_id == user_id
-            )
-        )
-        return [row[0] for row in result.all()]
-
     async def count_by_phase(self, user_id: str) -> dict[int, int]:
         """Count completed steps per phase for a user.
 
@@ -216,37 +184,6 @@ class QuestionAttemptRepository:
             topic_passed[topic_id].add(row.question_id)
 
         return topic_passed
-
-    async def get_topic_stats(
-        self,
-        user_id: str,
-        topic_id: str,
-    ) -> list[dict]:
-        """Get question statistics for a topic.
-
-        Returns list of dicts with question_id, attempts_count, last_attempt_at.
-        """
-        result = await self.db.execute(
-            select(
-                QuestionAttempt.question_id,
-                func.count(QuestionAttempt.id).label("attempts_count"),
-                func.max(QuestionAttempt.created_at).label("last_attempt_at"),
-            )
-            .where(
-                QuestionAttempt.user_id == user_id,
-                QuestionAttempt.topic_id == topic_id,
-            )
-            .group_by(QuestionAttempt.question_id)
-        )
-
-        return [
-            {
-                "question_id": row.question_id,
-                "attempts_count": int(row.attempts_count),
-                "last_attempt_at": row.last_attempt_at,
-            }
-            for row in result.all()
-        ]
 
     async def create(
         self,

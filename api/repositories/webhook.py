@@ -1,5 +1,8 @@
 """Repository for webhook idempotency tracking."""
 
+from datetime import UTC, datetime, timedelta
+
+from sqlalchemy import delete
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -29,3 +32,15 @@ class ProcessedWebhookRepository:
         except IntegrityError:
             return False
         return True
+
+    async def delete_older_than(self, *, days: int = 7) -> int:
+        """Delete processed webhook rows older than `days`.
+
+        Notes:
+            This does not commit; the caller controls the transaction.
+        """
+        cutoff = datetime.now(UTC) - timedelta(days=days)
+        result = await self.db.execute(
+            delete(ProcessedWebhook).where(ProcessedWebhook.processed_at < cutoff)
+        )
+        return result.rowcount or 0

@@ -124,6 +124,18 @@ export interface PhaseProgressSchema {
   status: 'not_started' | 'in_progress' | 'completed';
 }
 
+export interface PhaseCapstoneOverviewSchema {
+  title: string;
+  summary: string;
+  includes: string[];
+  topic_slug: string | null;
+}
+
+export interface PhaseHandsOnVerificationOverviewSchema {
+  summary: string;
+  includes: string[];
+}
+
 export interface PhaseSummarySchema {
   id: number;
   name: string;
@@ -133,6 +145,9 @@ export interface PhaseSummarySchema {
   estimated_weeks: string;
   order: number;
   topics_count: number;
+  objectives: string[];
+  capstone: PhaseCapstoneOverviewSchema | null;
+  hands_on_verification: PhaseHandsOnVerificationOverviewSchema | null;
   progress: PhaseProgressSchema | null;
   is_locked: boolean;
 }
@@ -167,6 +182,8 @@ interface PhaseDetailSchema {
   estimated_weeks: string;
   order: number;
   objectives: string[];
+  capstone: PhaseCapstoneOverviewSchema | null;
+  hands_on_verification: PhaseHandsOnVerificationOverviewSchema | null;
   topics: TopicSummarySchema[];
   progress: PhaseProgressSchema | null;
   hands_on_requirements: HandsOnRequirement[];
@@ -301,15 +318,11 @@ export function createApiClient(getToken: () => Promise<string | null>) {
     },
 
     // ============ Steps ============
-    async getTopicStepProgress(topicId: string, totalSteps: number): Promise<TopicStepProgress> {
-      const res = await fetchWithAuth(`/api/steps/${topicId}?total_steps=${totalSteps}`);
+    async getTopicStepProgress(topicId: string): Promise<TopicStepProgress> {
+      const res = await fetchWithAuth(`/api/steps/${topicId}`);
       if (!res.ok) {
-        return {
-          topic_id: topicId,
-          completed_steps: [],
-          total_steps: totalSteps,
-          next_unlocked_step: 1,
-        };
+        const error = await res.json().catch(() => ({ detail: 'Failed to fetch step progress' }));
+        throw new Error(error.detail || 'Failed to fetch step progress');
       }
       return res.json();
     },
@@ -327,8 +340,7 @@ export function createApiClient(getToken: () => Promise<string | null>) {
         throw new Error(error.detail || 'Failed to complete step');
       }
       // The API returns StepProgressResponse, but we need to fetch full topic progress after
-      const totalSteps = 20; // Max expected steps per topic
-      return this.getTopicStepProgress(topicId, totalSteps);
+      return this.getTopicStepProgress(topicId);
     },
 
     async uncompleteStep(
@@ -343,8 +355,7 @@ export function createApiClient(getToken: () => Promise<string | null>) {
         throw new Error(error.detail || 'Failed to uncomplete step');
       }
       // Refetch the full progress
-      const totalSteps = 20;
-      return this.getTopicStepProgress(topicId, totalSteps);
+      return this.getTopicStepProgress(topicId);
     },
 
     // ============ Streaks & Activity ============
@@ -372,9 +383,7 @@ export function createApiClient(getToken: () => Promise<string | null>) {
 
     // ============ Certificates ============
     async getCertificateEligibility(certificateType: string): Promise<CertificateEligibility> {
-      const res = await fetchWithAuth(
-        `/api/certificates/eligibility?certificate_type=${certificateType}`
-      );
+      const res = await fetchWithAuth(`/api/certificates/eligibility/${certificateType}`);
       if (!res.ok) throw new Error('Failed to check eligibility');
       return res.json();
     },

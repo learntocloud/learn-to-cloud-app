@@ -8,7 +8,7 @@ from clerk_backend_api import Clerk
 from clerk_backend_api.security.types import AuthenticateRequestOptions
 from fastapi import Depends, HTTPException, Request
 
-from .config import get_settings
+from core.config import get_settings
 
 logger = logging.getLogger(__name__)
 

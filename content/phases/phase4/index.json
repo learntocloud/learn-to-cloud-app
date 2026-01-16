@@ -25,6 +25,23 @@
     "Complete hands-on projects demonstrating cloud skills",
     "Prepare for associate-level cloud certification"
   ],
+  "capstone": {
+    "title": "Cloud Deployment Capstone",
+    "summary": "Deploy your Journal API to a secure 2-tier cloud architecture and document your design decisions.",
+    "includes": [
+      "Deploy the API to an internet-accessible compute layer",
+      "Use a private database tier (managed or VM-based)",
+      "Apply least-privilege networking and security controls"
+    ],
+    "topic_slug": "capstone"
+  },
+  "hands_on_verification": {
+    "summary": "Submit a publicly reachable deployment so the system can validate your API endpoint.",
+    "includes": [
+      "Submit your live Journal API base URL",
+      "Ensure GET /entries is publicly accessible and returns valid data"
+    ]
+  },
   "prerequisites": [
     "Completed Phase 1: Linux and Bash",
     "Completed Phase 2: Programming Fundamentals",

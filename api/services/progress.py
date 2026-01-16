@@ -15,8 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from repositories.progress import QuestionAttemptRepository, StepProgressRepository
 from repositories.submission import SubmissionRepository
-
-from .hands_on_verification import get_requirements_for_phase
+from services.hands_on_verification import get_requirements_for_phase
 
 
 @dataclass

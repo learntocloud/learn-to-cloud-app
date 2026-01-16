@@ -9,7 +9,6 @@ from schemas import HealthResponse
 router = APIRouter(tags=["health"])
 
 
-@router.get("/", response_model=HealthResponse)
 @router.get("/health", response_model=HealthResponse)
 async def health() -> HealthResponse:
     """Health check endpoint."""

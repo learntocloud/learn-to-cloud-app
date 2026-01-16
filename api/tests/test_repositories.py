@@ -108,22 +108,6 @@ class TestStepProgressRepository:
         remaining = await repo.get_completed_step_orders(test_user.id, "phase0-topic0")
         assert remaining == {1, 2}
 
-    async def test_get_all_by_user(self, db_session: AsyncSession, test_user: User):
-        """get_all_by_user returns steps grouped by topic."""
-        repo = StepProgressRepository(db_session)
-
-        await repo.create(test_user.id, "phase0-topic0", 1)
-        await repo.create(test_user.id, "phase0-topic0", 2)
-        await repo.create(test_user.id, "phase1-topic0", 1)
-        await db_session.commit()
-
-        all_steps = await repo.get_all_by_user(test_user.id)
-
-        assert "phase0-topic0" in all_steps
-        assert "phase1-topic0" in all_steps
-        assert all_steps["phase0-topic0"] == [1, 2]
-        assert all_steps["phase1-topic0"] == [1]
-
     async def test_count_by_phase(self, db_session: AsyncSession, test_user: User):
         """count_by_phase returns step counts per phase."""
         repo = StepProgressRepository(db_session)
@@ -201,25 +185,6 @@ class TestQuestionAttemptRepository:
         assert "phase1-topic0" in all_passed
         assert all_passed["phase0-topic0"] == {"q1", "q2"}
         assert all_passed["phase1-topic0"] == {"q1"}
-
-    async def test_get_topic_stats(self, db_session: AsyncSession, test_user: User):
-        """get_topic_stats returns attempt counts per question."""
-        repo = QuestionAttemptRepository(db_session)
-
-        # Multiple attempts on same question
-        await repo.create(test_user.id, "phase0-topic0", "q1", is_passed=False)
-        await repo.create(test_user.id, "phase0-topic0", "q1", is_passed=False)
-        await repo.create(test_user.id, "phase0-topic0", "q1", is_passed=True)
-        await repo.create(test_user.id, "phase0-topic0", "q2", is_passed=True)
-        await db_session.commit()
-
-        stats = await repo.get_topic_stats(test_user.id, "phase0-topic0")
-
-        q1_stats = next(s for s in stats if s["question_id"] == "q1")
-        q2_stats = next(s for s in stats if s["question_id"] == "q2")
-
-        assert q1_stats["attempts_count"] == 3
-        assert q2_stats["attempts_count"] == 1
 
     async def test_count_passed_by_phase(
         self, db_session: AsyncSession, test_user: User

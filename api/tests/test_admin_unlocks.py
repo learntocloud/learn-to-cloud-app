@@ -14,7 +14,7 @@ async def test_non_admin_cannot_complete_step_out_of_order(db_session, test_user
         await complete_step(
             db_session,
             test_user.id,
-            "phase0-topic0",
+            "phase0-topic1",
             3,
             is_admin=False,
         )
@@ -29,12 +29,12 @@ async def test_admin_can_complete_step_out_of_order(db_session, test_user):
     result = await complete_step(
         db_session,
         test_user.id,
-        "phase0-topic0",
+        "phase0-topic1",
         3,
         is_admin=True,
     )
 
-    assert result.topic_id == "phase0-topic0"
+    assert result.topic_id == "phase0-topic1"
     assert result.step_order == 3
 
 
@@ -43,10 +43,9 @@ async def test_admin_step_progress_unlocks_all_steps(db_session, test_user):
     progress = await get_topic_step_progress(
         db_session,
         test_user.id,
-        "phase0-topic0",
-        10,
+        "phase0-topic1",
         is_admin=True,
     )
 
-    assert progress.total_steps == 10
-    assert progress.next_unlocked_step == 10
+    assert progress.total_steps >= 1
+    assert progress.next_unlocked_step == progress.total_steps

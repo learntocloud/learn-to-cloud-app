@@ -19,6 +19,23 @@
     "Use AI to deepen understanding, not replace thinking",
     "Improve your Phase 2 capstone with better prompts and system messages"
   ],
+  "capstone": {
+    "title": "Improve Your Journal API",
+    "summary": "Revisit your Phase 2 Journal API and improve it using prompt engineering and AI-assisted review — without outsourcing your understanding.",
+    "includes": [
+      "Review and improve your LLM prompts and system messages",
+      "Use Copilot for targeted code review and refactoring",
+      "Document what changed and what you learned"
+    ],
+    "topic_slug": "capstone"
+  },
+  "hands_on_verification": {
+    "summary": "Demonstrate that you can use AI tools intentionally and communicate your work clearly.",
+    "includes": [
+      "Create a repository demonstrating GitHub Copilot usage",
+      "Include documented examples of AI-assisted coding and your decisions"
+    ]
+  },
   "warning": "The goal of this phase is NOT to have AI write code for you. It's to learn how to use AI tools as a multiplier for your existing skills. If you find yourself accepting suggestions without understanding them, stop and reconsider. AI should help you learn faster, not skip learning entirely.",
   "topics": ["ai-for-learning", "github-copilot", "prompt-engineering", "capstone"]
 }

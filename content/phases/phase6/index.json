@@ -22,6 +22,24 @@
     "Build automated threat detection and incident response",
     "Complete a comprehensive security implementation project"
   ],
+  "capstone": {
+    "title": "Comprehensive Security Implementation",
+    "summary": "Harden your Journal API and cloud environment with practical, production-minded security controls.",
+    "includes": [
+      "IAM and least-privilege access controls",
+      "Secrets management and data protection",
+      "Network security and secure connectivity",
+      "Monitoring, detection, and incident response"
+    ],
+    "topic_slug": "capstone"
+  },
+  "hands_on_verification": {
+    "summary": "Demonstrate security hygiene with scanning and remediation evidence.",
+    "includes": [
+      "Enable security scanning (Dependabot, CodeQL, etc.)",
+      "Show resolved or triaged findings"
+    ]
+  },
   "prerequisites": [
     "Completed Phase 4: Cloud Platform Fundamentals",
     "Completed Phase 5: DevOps Fundamentals (recommended but not required)",

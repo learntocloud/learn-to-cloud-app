@@ -1,8 +1,9 @@
 """Step progress tracking endpoints."""
 
 import logging
+from typing import Annotated
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Path
 
 from core.auth import UserId
 from core.database import DbSession
@@ -13,9 +14,10 @@ from schemas import (
 )
 from services.steps import (
     StepAlreadyCompletedError,
+    StepInvalidStepOrderError,
     StepNotUnlockedError,
+    StepUnknownTopicError,
     complete_step,
-    get_all_user_steps,
     get_topic_step_progress,
     uncomplete_step,
 )
@@ -25,11 +27,17 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/steps", tags=["steps"])
 
+ValidatedTopicId = Annotated[
+    str,
+    Path(max_length=100, pattern=r"^phase\d+-topic\d+$"),
+]
+
+ValidatedStepOrder = Annotated[int, Path(ge=1)]
+
 
 @router.get("/{topic_id}", response_model=TopicStepProgressResponse)
 async def get_topic_step_progress_endpoint(
-    topic_id: str,
-    total_steps: int,
+    topic_id: ValidatedTopicId,
     user_id: UserId,
     db: DbSession,
 ) -> TopicStepProgressResponse:
@@ -37,17 +45,18 @@ async def get_topic_step_progress_endpoint(
 
     Args:
         topic_id: The topic ID (e.g., "phase1-topic5")
-        total_steps: Total number of steps in this topic (from frontend)
     """
     user = await get_or_create_user(db, user_id)
 
-    progress = await get_topic_step_progress(
-        db,
-        user_id,
-        topic_id,
-        total_steps,
-        is_admin=user.is_admin,
-    )
+    try:
+        progress = await get_topic_step_progress(
+            db,
+            user_id,
+            topic_id,
+            is_admin=user.is_admin,
+        )
+    except StepUnknownTopicError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
     return TopicStepProgressResponse(
         topic_id=progress.topic_id,
@@ -82,6 +91,8 @@ async def complete_step_endpoint(
         raise HTTPException(status_code=400, detail="Step already completed")
     except StepNotUnlockedError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except (StepUnknownTopicError, StepInvalidStepOrderError) as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
     return StepProgressResponse(
         topic_id=result.topic_id,
@@ -92,8 +103,8 @@ async def complete_step_endpoint(
 
 @router.delete("/{topic_id}/{step_order}")
 async def uncomplete_step_endpoint(
-    topic_id: str,
-    step_order: int,
+    topic_id: ValidatedTopicId,
+    step_order: ValidatedStepOrder,
     user_id: UserId,
     db: DbSession,
 ) -> dict:
@@ -103,23 +114,12 @@ async def uncomplete_step_endpoint(
     """
     await get_or_create_user(db, user_id)
 
-    deleted_count = await uncomplete_step(db, user_id, topic_id, step_order)
+    try:
+        deleted_count = await uncomplete_step(db, user_id, topic_id, step_order)
+    except (StepUnknownTopicError, StepInvalidStepOrderError) as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
     return {
         "status": "success",
         "deleted_count": deleted_count,
     }
-
-
-@router.get("/user/all-status")
-async def get_all_steps_status_endpoint(
-    user_id: UserId,
-    db: DbSession,
-) -> dict[str, list[int]]:
-    """Get the status of all completed steps across all topics for the current user.
-
-    Returns a dict mapping topic_id to list of completed step_order numbers.
-    """
-    await get_or_create_user(db, user_id)
-
-    return await get_all_user_steps(db, user_id)

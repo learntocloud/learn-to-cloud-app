@@ -126,7 +126,7 @@ async def test_user_with_progress(db_session: AsyncSession, test_user: User) -> 
             step = StepProgress(
                 user_id=test_user.id,
                 topic_id=f"phase{phase_id}-topic{step_num // 3}",
-                step_order=step_num % 3,
+                step_order=(step_num % 3) + 1,
             )
             db_session.add(step)
 
@@ -160,7 +160,7 @@ async def test_user_full_completion(db_session: AsyncSession, test_user: User) -
             step = StepProgress(
                 user_id=test_user.id,
                 topic_id=f"phase{phase_id}-topic{step_num // 3}",
-                step_order=step_num % 3,
+                step_order=(step_num % 3) + 1,
             )
             db_session.add(step)
 

@@ -19,6 +19,25 @@
     "Learned how to call external APIs (including LLM APIs)",
     "Completed the Capstone project"
   ],
+  "capstone": {
+    "title": "Learning Journal API",
+    "summary": "Build a working FastAPI + PostgreSQL API and integrate an LLM for entry analysis. This project becomes the foundation for later phases.",
+    "includes": [
+      "Fork the starter repo and implement the Journal API",
+      "Persist entries in a database",
+      "Integrate an LLM provider for analysis",
+      "Write clear README documentation"
+    ],
+    "topic_slug": "build-the-app"
+  },
+  "hands_on_verification": {
+    "summary": "Prove your Journal API works locally and that you can use basic API workflows.",
+    "includes": [
+      "Fork the journal-starter repository",
+      "Create at least one entry via POST /entries",
+      "Paste a valid JSON response from GET /entries"
+    ]
+  },
   "warning": "As learners finish this phase, many will share their code. We recommend you do not copy and paste anybody's solution. You are only doing a disservice to yourself and will not make it in this field if that is the mentality you have. Additionally, we recommend you turn off any AI assistants for code completion\u2014you need to build muscle memory and understanding first. Using AI to ask for explanations is fine, but write your own code.",
   "topics": ["python", "apis", "fastapi", "databases", "genai-apis", "build-the-app"]
 }

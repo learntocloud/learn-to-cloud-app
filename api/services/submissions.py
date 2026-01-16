@@ -2,9 +2,7 @@
 
 This module handles:
 - Submission creation/update with validation
-- Retrieving submission status by user/phase
-- Business logic for submission processing
-- Data transformation for submissions
+- Data transformation helpers used by other services (e.g. progress/badges)
 
 Routes should delegate submission business logic to this module.
 """
@@ -15,38 +13,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from models import Submission, SubmissionType
 from repositories.submission import SubmissionRepository
-from schemas import HandsOnRequirement
 from services.github_hands_on_verification import parse_github_url
-from services.hands_on_verification import (
-    HANDS_ON_REQUIREMENTS,
-    get_requirement_by_id,
-    get_requirements_for_phase,
-    validate_submission,
-)
-
-
-def group_submissions_by_phase(
-    submissions: list[Submission],
-) -> dict[int, list[Submission]]:
-    """Group submissions by phase_id.
-
-    This is business logic that transforms raw submission data
-    into a structure useful for phase-based progress tracking.
-    """
-    by_phase: dict[int, list[Submission]] = {}
-    for sub in submissions:
-        if sub.phase_id not in by_phase:
-            by_phase[sub.phase_id] = []
-        by_phase[sub.phase_id].append(sub)
-    return by_phase
-
-
-def get_validated_requirement_ids(submissions: list[Submission]) -> set[str]:
-    """Get set of requirement IDs that are validated.
-
-    Used for checking which requirements a user has completed.
-    """
-    return {s.requirement_id for s in submissions if s.is_validated}
+from services.hands_on_verification import get_requirement_by_id, validate_submission
 
 
 def get_validated_ids_by_phase(
@@ -86,17 +54,6 @@ class GitHubUsernameRequiredError(Exception):
     """Raised when GitHub username is required but not provided."""
 
     pass
-
-
-@dataclass
-class PhaseSubmissionStatus:
-    """Status of submissions for a phase."""
-
-    phase_id: int
-    submissions: list[Submission]
-    requirements: list[HandsOnRequirement]
-    has_requirements: bool
-    all_validated: bool
 
 
 async def submit_validation(
@@ -168,109 +125,3 @@ async def submit_validation(
         username_match=validation_result.username_match,
         repo_exists=validation_result.repo_exists,
     )
-
-
-async def get_all_submissions_by_user(
-    db: AsyncSession,
-    user_id: str,
-) -> list[Submission]:
-    """Get all submissions for a user.
-
-    Args:
-        db: Database session
-        user_id: The user's ID
-
-    Returns:
-        List of all submissions
-    """
-    submission_repo = SubmissionRepository(db)
-    return await submission_repo.get_all_by_user(user_id)
-
-
-async def get_phase_submission_status(
-    db: AsyncSession,
-    user_id: str,
-    phase_id: int,
-) -> PhaseSubmissionStatus:
-    """Get submission status for a specific phase.
-
-    Args:
-        db: Database session
-        user_id: The user's ID
-        phase_id: The phase ID
-
-    Returns:
-        PhaseSubmissionStatus with requirements and submissions
-    """
-    requirements = get_requirements_for_phase(phase_id)
-
-    if not requirements:
-        return PhaseSubmissionStatus(
-            phase_id=phase_id,
-            submissions=[],
-            requirements=[],
-            has_requirements=False,
-            all_validated=True,
-        )
-
-    submission_repo = SubmissionRepository(db)
-    submissions = await submission_repo.get_by_user_and_phase(user_id, phase_id)
-
-    validated_requirement_ids = {
-        s.requirement_id for s in submissions if s.is_validated
-    }
-    required_ids = {r.id for r in requirements}
-    all_validated = required_ids.issubset(validated_requirement_ids)
-
-    return PhaseSubmissionStatus(
-        phase_id=phase_id,
-        submissions=submissions,
-        requirements=requirements,
-        has_requirements=True,
-        all_validated=all_validated,
-    )
-
-
-async def get_all_phases_submission_status(
-    db: AsyncSession,
-    user_id: str,
-) -> list[PhaseSubmissionStatus]:
-    """Get submission status for all phases in a single query.
-
-    Args:
-        db: Database session
-        user_id: The user's ID
-
-    Returns:
-        List of PhaseSubmissionStatus for each phase with requirements
-    """
-    submission_repo = SubmissionRepository(db)
-
-    all_submissions = await submission_repo.get_all_by_user(user_id)
-
-    submissions_by_phase = group_submissions_by_phase(all_submissions)
-
-    phases_status = []
-    for phase_id, requirements in HANDS_ON_REQUIREMENTS.items():
-        if not requirements:
-            continue
-
-        phase_submissions = submissions_by_phase.get(phase_id, [])
-
-        validated_requirement_ids = {
-            s.requirement_id for s in phase_submissions if s.is_validated
-        }
-        required_ids = {r.id for r in requirements}
-        all_validated = required_ids.issubset(validated_requirement_ids)
-
-        phases_status.append(
-            PhaseSubmissionStatus(
-                phase_id=phase_id,
-                submissions=phase_submissions,
-                requirements=requirements,
-                has_requirements=True,
-                all_validated=all_validated,
-            )
-        )
-
-    return phases_status

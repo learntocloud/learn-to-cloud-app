@@ -3,7 +3,6 @@
 This module handles:
 - Question submission and grading via LLM
 - Recording question attempts with activity logging
-- Retrieving question status and statistics
 
 Routes should delegate question business logic to this module.
 """
@@ -17,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from models import ActivityType
 from repositories.activity import ActivityRepository
 from repositories.progress import QuestionAttemptRepository
+from services.content import get_topic_by_id
 from services.llm import grade_answer
 
 logger = logging.getLogger(__name__)
@@ -33,27 +33,6 @@ class QuestionGradeResult:
     attempt_id: int
 
 
-@dataclass
-class QuestionStatus:
-    """Status of a single question."""
-
-    question_id: str
-    is_passed: bool
-    attempts_count: int
-    last_attempt_at: datetime | None
-
-
-@dataclass
-class TopicQuestionsStatus:
-    """Status of all questions in a topic."""
-
-    topic_id: str
-    questions: list[QuestionStatus]
-    all_passed: bool
-    total_questions: int
-    passed_questions: int
-
-
 class LLMServiceUnavailableError(Exception):
     """Raised when LLM service is not configured or unavailable."""
 
@@ -66,15 +45,24 @@ class LLMGradingError(Exception):
     pass
 
 
+class QuestionValidationError(Exception):
+    """Raised when question submission validation fails."""
+
+
+class QuestionUnknownTopicError(QuestionValidationError):
+    """Raised when a topic_id doesn't exist in content."""
+
+
+class QuestionUnknownQuestionError(QuestionValidationError):
+    """Raised when a question_id doesn't exist in the given topic."""
+
+
 async def submit_question_answer(
     db: AsyncSession,
     user_id: str,
     topic_id: str,
     question_id: str,
     user_answer: str,
-    question_prompt: str | None = None,
-    expected_concepts: list[str] | None = None,
-    topic_name: str | None = None,
 ) -> QuestionGradeResult:
     """Submit an answer for LLM grading and record the attempt.
 
@@ -84,10 +72,6 @@ async def submit_question_answer(
         topic_id: The topic ID (e.g., "phase1-topic4")
         question_id: The question ID (e.g., "phase1-topic4-q1")
         user_answer: The user's answer text
-        question_prompt: Optional question prompt (defaults to generic)
-        expected_concepts: Optional list of expected concepts
-        topic_name: Optional topic name for context
-
     Returns:
         QuestionGradeResult with grading details
 
@@ -98,9 +82,19 @@ async def submit_question_answer(
     question_repo = QuestionAttemptRepository(db)
     activity_repo = ActivityRepository(db)
 
-    prompt = question_prompt or "Explain the concept in your own words."
-    concepts = expected_concepts or ["understanding", "explanation", "concept"]
-    name = topic_name or topic_id
+    topic = get_topic_by_id(topic_id)
+    if topic is None:
+        raise QuestionUnknownTopicError(f"Unknown topic_id: {topic_id}")
+
+    question = next((q for q in topic.questions if q.id == question_id), None)
+    if question is None:
+        raise QuestionUnknownQuestionError(
+            f"Unknown question_id: {question_id} for topic_id: {topic_id}"
+        )
+
+    prompt = question.prompt
+    concepts = list(question.expected_concepts)
+    name = topic.name
 
     try:
         grade_result = await grade_answer(
@@ -143,84 +137,3 @@ async def submit_question_answer(
         confidence_score=grade_result.confidence_score,
         attempt_id=attempt.id,
     )
-
-
-async def get_topic_questions_status(
-    db: AsyncSession,
-    user_id: str,
-    topic_id: str,
-) -> TopicQuestionsStatus:
-    """Get the status of all questions in a topic for a user.
-
-    Args:
-        db: Database session
-        user_id: The user's ID
-        topic_id: The topic ID
-
-    Returns:
-        TopicQuestionsStatus with question statuses
-    """
-    question_repo = QuestionAttemptRepository(db)
-
-    stats = await question_repo.get_topic_stats(user_id, topic_id)
-    passed_questions = await question_repo.get_passed_question_ids(user_id, topic_id)
-
-    questions = []
-    for stat in stats:
-        questions.append(
-            QuestionStatus(
-                question_id=stat["question_id"],
-                is_passed=stat["question_id"] in passed_questions,
-                attempts_count=stat["attempts_count"],
-                last_attempt_at=stat["last_attempt_at"],
-            )
-        )
-
-    passed_count = len(passed_questions)
-    total = len(questions) if questions else 0
-
-    return TopicQuestionsStatus(
-        topic_id=topic_id,
-        questions=questions,
-        all_passed=passed_count == total and total > 0,
-        total_questions=total,
-        passed_questions=passed_count,
-    )
-
-
-async def get_all_questions_status(
-    db: AsyncSession,
-    user_id: str,
-) -> dict[str, TopicQuestionsStatus]:
-    """Get the status of all questions across all topics for a user.
-
-    Args:
-        db: Database session
-        user_id: The user's ID
-
-    Returns:
-        Dict mapping topic_id to TopicQuestionsStatus
-    """
-    question_repo = QuestionAttemptRepository(db)
-    topic_passed = await question_repo.get_all_passed_by_user(user_id)
-
-    response = {}
-    for topic_id, passed_questions in topic_passed.items():
-        passed_count = len(passed_questions)
-        response[topic_id] = TopicQuestionsStatus(
-            topic_id=topic_id,
-            questions=[
-                QuestionStatus(
-                    question_id=q,
-                    is_passed=True,
-                    attempts_count=1,
-                    last_attempt_at=None,
-                )
-                for q in passed_questions
-            ],
-            all_passed=True,
-            total_questions=passed_count,
-            passed_questions=passed_count,
-        )
-
-    return response

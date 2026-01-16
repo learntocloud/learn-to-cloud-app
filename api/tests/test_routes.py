@@ -145,24 +145,45 @@ class TestStepEndpoints:
 
     def test_get_topic_step_progress(self, client: TestClient):
         """GET /api/steps/{topic_id} returns step progress."""
-        response = client.get("/api/steps/phase0-topic0?total_steps=5")
+        response = client.get("/api/steps/phase0-topic1")
         assert response.status_code == 200
         data = response.json()
-        assert data["topic_id"] == "phase0-topic0"
-        assert data["total_steps"] == 5
+        assert data["topic_id"] == "phase0-topic1"
+        assert isinstance(data["total_steps"], int)
+        assert data["total_steps"] >= 1
         assert "completed_steps" in data
         assert "next_unlocked_step" in data
+        assert 1 <= data["next_unlocked_step"] <= data["total_steps"]
+
+    def test_get_topic_step_progress_unknown_topic_rejected(self, client: TestClient):
+        """GET /api/steps/{topic_id} rejects unknown topic_id."""
+        response = client.get("/api/steps/phase0-topic0")
+        assert response.status_code == 400
 
     def test_complete_step(self, client: TestClient):
         """POST /api/steps/complete marks a step as complete."""
         response = client.post(
-            "/api/steps/complete", json={"topic_id": "phase0-topic0", "step_order": 1}
+            "/api/steps/complete", json={"topic_id": "phase0-topic1", "step_order": 1}
         )
         assert response.status_code == 200
         data = response.json()
-        assert data["topic_id"] == "phase0-topic0"
+        assert data["topic_id"] == "phase0-topic1"
         assert data["step_order"] == 1
         assert "completed_at" in data
+
+    def test_complete_step_unknown_topic_rejected(self, client: TestClient):
+        """POST /api/steps/complete rejects unknown topic_id."""
+        response = client.post(
+            "/api/steps/complete", json={"topic_id": "phase0-topic0", "step_order": 1}
+        )
+        assert response.status_code == 400
+
+    def test_complete_step_out_of_range_rejected(self, client: TestClient):
+        """POST /api/steps/complete rejects step_order outside topic bounds."""
+        response = client.post(
+            "/api/steps/complete", json={"topic_id": "phase0-topic1", "step_order": 999}
+        )
+        assert response.status_code == 400
 
     def test_complete_step_sequential_required(self, client: TestClient):
         """POST /api/steps/complete fails when skipping steps."""
@@ -202,6 +223,11 @@ class TestStepEndpoints:
         data = response.json()
         assert data["status"] == "success"
 
+    def test_uncomplete_step_unknown_topic_rejected(self, client: TestClient):
+        """DELETE /api/steps/{topic_id}/{step_order} rejects unknown topic_id."""
+        response = client.delete("/api/steps/phase0-topic0/1")
+        assert response.status_code == 400
+
     def test_uncomplete_step_persists(self, client: TestClient):
         """Verify that uncomplete step actually removes the completion.
 
@@ -217,7 +243,7 @@ class TestStepEndpoints:
         assert response.status_code == 200
 
         # Verify step 1 is complete
-        response = client.get(f"/api/steps/{topic_id}?total_steps=5")
+        response = client.get(f"/api/steps/{topic_id}")
         assert response.status_code == 200
         data = response.json()
         assert 1 in data["completed_steps"]
@@ -228,7 +254,7 @@ class TestStepEndpoints:
         assert response.json()["deleted_count"] >= 1
 
         # CRITICAL: Verify step 1 is NO LONGER in completed_steps
-        response = client.get(f"/api/steps/{topic_id}?total_steps=5")
+        response = client.get(f"/api/steps/{topic_id}")
         assert response.status_code == 200
         data = response.json()
         assert (
@@ -236,11 +262,9 @@ class TestStepEndpoints:
         ), f"Step 1 should be uncompleted but still in completed_steps: {data}"
 
     def test_get_all_steps_status(self, client: TestClient):
-        """GET /api/steps/user/all-status returns all step progress."""
+        """Deprecated endpoint removed."""
         response = client.get("/api/steps/user/all-status")
-        assert response.status_code == 200
-        data = response.json()
-        assert isinstance(data, dict)
+        assert response.status_code == 405
 
 
 # =============================================================================
@@ -251,39 +275,51 @@ class TestStepEndpoints:
 class TestQuestionEndpoints:
     """Tests for /api/questions endpoints."""
 
-    def test_get_topic_questions_status(self, client: TestClient):
-        """GET /api/questions/topic/{topic_id}/status returns question status."""
-        response = client.get("/api/questions/topic/phase0-topic0/status")
-        assert response.status_code == 200
-        data = response.json()
-        assert data["topic_id"] == "phase0-topic0"
-        assert "questions" in data
-        assert "all_passed" in data
+    def test_get_topic_questions_status_removed(self, client: TestClient):
+        """GET /api/questions/topic/{topic_id}/status was removed (unused)."""
+        response = client.get("/api/questions/topic/phase0-topic1/status")
+        assert response.status_code == 404
 
-    def test_get_topic_questions_invalid_format(self, client: TestClient):
-        """GET /api/questions/topic/{topic_id}/status validates topic_id format."""
-        response = client.get("/api/questions/topic/invalid-format/status")
-        assert response.status_code == 422  # Validation error
-
-    def test_get_all_questions_status(self, client: TestClient):
-        """GET /api/questions/user/all-status returns all question progress."""
+    def test_get_all_questions_status_removed(self, client: TestClient):
+        """GET /api/questions/user/all-status was removed (unused)."""
         response = client.get("/api/questions/user/all-status")
-        assert response.status_code == 200
-        data = response.json()
-        assert isinstance(data, dict)
+        assert response.status_code == 404
 
     def test_submit_question_invalid_format(self, client: TestClient):
         """POST /api/questions/submit validates question_id format."""
         response = client.post(
             "/api/questions/submit",
             json={
-                "topic_id": "phase0-topic0",
+                "topic_id": "phase0-topic1",
                 "question_id": "invalid",  # Missing proper format
                 "user_answer": "Test answer",
             },
         )
+        assert response.status_code == 422  # Validation error
+
+    def test_submit_question_unknown_topic_rejected(self, client: TestClient):
+        """POST /api/questions/submit rejects unknown topic_id."""
+        response = client.post(
+            "/api/questions/submit",
+            json={
+                "topic_id": "phase0-topic0",
+                "question_id": "phase0-topic0-q1",
+                "user_answer": "This is a sufficiently long answer.",
+            },
+        )
         assert response.status_code == 400
-        assert "format" in response.json()["detail"].lower()
+
+    def test_submit_question_unknown_question_rejected(self, client: TestClient):
+        """POST /api/questions/submit rejects unknown question_id for a real topic."""
+        response = client.post(
+            "/api/questions/submit",
+            json={
+                "topic_id": "phase0-topic1",
+                "question_id": "phase0-topic1-q999",
+                "user_answer": "This is a sufficiently long answer.",
+            },
+        )
+        assert response.status_code == 400
 
 
 # =============================================================================
@@ -293,30 +329,6 @@ class TestQuestionEndpoints:
 
 class TestGitHubEndpoints:
     """Tests for /api/github endpoints."""
-
-    def test_get_all_requirements(self, client: TestClient):
-        """GET /api/github/requirements returns all phase requirements."""
-        response = client.get("/api/github/requirements")
-        assert response.status_code == 200
-        data = response.json()
-        assert "phases" in data
-        assert len(data["phases"]) == 7  # 7 phases
-
-    def test_get_phase_requirements(self, client: TestClient):
-        """GET /api/github/requirements/{phase_id} returns phase requirements."""
-        response = client.get("/api/github/requirements/0")
-        assert response.status_code == 200
-        data = response.json()
-        assert data["phase_id"] == 0
-        assert "requirements" in data
-        assert "submissions" in data
-
-    def test_get_user_submissions(self, client: TestClient):
-        """GET /api/github/submissions returns user submissions."""
-        response = client.get("/api/github/submissions")
-        assert response.status_code == 200
-        data = response.json()
-        assert isinstance(data, list)
 
     def test_submit_validation_requirement_not_found(self, client: TestClient):
         """POST /api/github/submit returns 404 for invalid requirement."""
@@ -364,13 +376,6 @@ class TestActivityEndpoints:
         data = response.json()
         assert "current_streak" in data
         assert "longest_streak" in data
-
-    def test_get_heatmap(self, client: TestClient):
-        """GET /api/activity/heatmap returns activity heatmap."""
-        response = client.get("/api/activity/heatmap")
-        assert response.status_code == 200
-        data = response.json()
-        assert "days" in data
 
 
 # =============================================================================

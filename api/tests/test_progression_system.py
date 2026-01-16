@@ -566,7 +566,7 @@ class TestUnlockingRules:
             await complete_step(
                 db_session,
                 test_user.id,
-                "phase0-topic0",
+                "phase0-topic1",
                 3,
                 is_admin=False,
             )
@@ -581,7 +581,7 @@ class TestUnlockingRules:
         result = await complete_step(
             db_session,
             test_user.id,
-            "phase0-topic0",
+            "phase0-topic1",
             3,
             is_admin=True,
         )
@@ -593,11 +593,10 @@ class TestUnlockingRules:
         progress = await get_topic_step_progress(
             db_session,
             test_user.id,
-            "phase0-topic0",
-            10,
+            "phase0-topic1",
             is_admin=True,
         )
-        assert progress.next_unlocked_step == 10
+        assert progress.next_unlocked_step == progress.total_steps
 
     @pytest.mark.asyncio
     async def test_non_admin_sequential_unlock(self, db_session, test_user):
@@ -605,8 +604,7 @@ class TestUnlockingRules:
         progress = await get_topic_step_progress(
             db_session,
             test_user.id,
-            "phase0-topic0",
-            10,
+            "phase0-topic1",
             is_admin=False,
         )
         assert progress.next_unlocked_step == 1

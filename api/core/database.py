@@ -11,7 +11,6 @@ Supports two authentication modes:
 import asyncio
 import logging
 from collections.abc import AsyncGenerator
-from datetime import UTC
 from typing import Annotated
 
 from fastapi import Depends
@@ -25,7 +24,7 @@ from sqlalchemy.ext.asyncio import (
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.pool import NullPool
 
-from .config import get_settings
+from core.config import get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -239,36 +238,6 @@ async def check_db_connection() -> None:
     engine = get_engine()
     async with engine.connect() as conn:
         await conn.execute(text("SELECT 1"))
-
-
-async def cleanup_old_webhooks(days: int = 7) -> int:
-    """
-    Remove ProcessedWebhook entries older than the specified days.
-
-    This prevents the table from growing indefinitely. Webhooks older
-    than 7 days are unlikely to be replayed, so they can be safely removed.
-
-    Args:
-        days: Number of days to retain webhooks (default: 7)
-
-    Returns:
-        Number of deleted entries
-    """
-    from datetime import datetime, timedelta
-
-    from sqlalchemy import delete
-
-    from models import ProcessedWebhook
-
-    cutoff = datetime.now(UTC) - timedelta(days=days)
-    session_maker = get_session_maker()
-
-    async with session_maker() as session:
-        result = await session.execute(
-            delete(ProcessedWebhook).where(ProcessedWebhook.processed_at < cutoff)
-        )
-        await session.commit()
-        return result.rowcount or 0
 
 
 def reset_db_state() -> None:

@@ -1,5 +1,6 @@
 """Pydantic schemas for API request/response validation."""
 
+import re
 from datetime import date, datetime
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -31,7 +32,7 @@ class HandsOnRequirement(BaseModel):
     """A hands-on requirement for phase completion.
 
     NOTE: This model serves dual purposes:
-    1. API schema: Returned in API responses (e.g., /api/github/requirements)
+    1. API schema: Returned in API responses
     2. Business configuration: Used in services/hands_on_verification.py to
        define phase requirements (HANDS_ON_REQUIREMENTS constant)
 
@@ -115,22 +116,6 @@ class HandsOnValidationResult(BaseModel):
     submission: HandsOnSubmissionResponse | None = None
 
 
-class PhaseHandsOnRequirementsResponse(BaseModel):
-    """Hands-on requirements for a phase with user's submission status."""
-
-    phase_id: int
-    requirements: list[HandsOnRequirement]
-    submissions: list[HandsOnSubmissionResponse]
-    has_requirements: bool
-    all_validated: bool
-
-
-class AllPhasesHandsOnRequirementsResponse(BaseModel):
-    """Hands-on requirements for all phases (bulk endpoint)."""
-
-    phases: list[PhaseHandsOnRequirementsResponse]
-
-
 class HealthResponse(BaseModel):
     """Health check response."""
 
@@ -151,6 +136,24 @@ class QuestionSubmitRequest(BaseModel):
     topic_id: str = Field(max_length=100)
     question_id: str = Field(max_length=100)
     user_answer: str = Field(min_length=10, max_length=2000)
+
+    @field_validator("topic_id")
+    @classmethod
+    def validate_topic_id_format(cls, v: str) -> str:
+        v = v.strip()
+        if not re.fullmatch(r"^phase\d+-topic\d+$", v):
+            raise ValueError("Invalid topic_id format. Expected: phase{N}-topic{M}")
+        return v
+
+    @field_validator("question_id")
+    @classmethod
+    def validate_question_id_format(cls, v: str) -> str:
+        v = v.strip()
+        if not re.fullmatch(r"^phase\d+-topic\d+-q\d+$", v):
+            raise ValueError(
+                "Invalid question_id format. Expected: phase{N}-topic{M}-q{X}"
+            )
+        return v
 
     @field_validator("user_answer")
     @classmethod
@@ -174,49 +177,19 @@ class QuestionSubmitResponse(BaseModel):
     attempt_id: int
 
 
-class QuestionStatusResponse(BaseModel):
-    """Status of a single question for a user."""
-
-    question_id: str
-    is_passed: bool
-    attempts_count: int
-    last_attempt_at: datetime | None = None
-
-
-class TopicQuestionsStatusResponse(BaseModel):
-    """Status of all questions in a topic for a user."""
-
-    topic_id: str
-    questions: list[QuestionStatusResponse]
-    all_passed: bool
-    total_questions: int
-    passed_questions: int
-
-
-class ActivityLogRequest(BaseModel):
-    """Request to log a user activity."""
-
-    activity_type: ActivityType
-    reference_id: str | None = Field(default=None, max_length=100)
-
-
-class ActivityResponse(BaseModel):
-    """Response for a logged activity."""
-
-    model_config = ConfigDict(from_attributes=True)
-
-    id: int
-    activity_type: ActivityType
-    activity_date: date
-    reference_id: str | None = None
-    created_at: datetime
-
-
 class StepCompleteRequest(BaseModel):
     """Request to mark a learning step as complete."""
 
     topic_id: str = Field(max_length=100)
     step_order: int = Field(ge=1)
+
+    @field_validator("topic_id")
+    @classmethod
+    def validate_topic_id_format(cls, v: str) -> str:
+        v = v.strip()
+        if not re.fullmatch(r"^phase\d+-topic\d+$", v):
+            raise ValueError("Invalid topic_id format. Expected: phase{N}-topic{M}")
+        return v
 
 
 class StepProgressResponse(BaseModel):
@@ -487,6 +460,26 @@ class PhaseProgressSchema(BaseModel):
     status: str  # "not_started", "in_progress", "completed"
 
 
+class PhaseCapstoneOverviewSchema(BaseModel):
+    """Public-friendly capstone overview for a phase."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    title: str
+    summary: str
+    includes: list[str] = []
+    topic_slug: str | None = None
+
+
+class PhaseHandsOnVerificationOverviewSchema(BaseModel):
+    """Public-friendly hands-on verification overview for a phase."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    summary: str
+    includes: list[str] = []
+
+
 class PhaseSummarySchema(BaseModel):
     """Phase summary for dashboard/listings."""
 
@@ -498,6 +491,9 @@ class PhaseSummarySchema(BaseModel):
     estimated_weeks: str
     order: int
     topics_count: int
+    objectives: list[str] = []
+    capstone: PhaseCapstoneOverviewSchema | None = None
+    hands_on_verification: PhaseHandsOnVerificationOverviewSchema | None = None
     progress: PhaseProgressSchema | None = None
     is_locked: bool = False
 
@@ -513,6 +509,8 @@ class PhaseDetailSchema(BaseModel):
     estimated_weeks: str
     order: int
     objectives: list[str]
+    capstone: PhaseCapstoneOverviewSchema | None = None
+    hands_on_verification: PhaseHandsOnVerificationOverviewSchema | None = None
     topics: list[TopicSummarySchema]
     progress: PhaseProgressSchema | None = None
     hands_on_requirements: list[HandsOnRequirement] = []

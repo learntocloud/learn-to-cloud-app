@@ -8,7 +8,7 @@ This module handles all presentation/rendering logic:
 This separates presentation concerns from business logic in services.
 """
 
-from .certificates import (
+from rendering.certificates import (
     generate_certificate_svg,
     svg_to_base64_data_uri,
     svg_to_pdf,
