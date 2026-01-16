@@ -109,7 +109,11 @@ class UserRepository:
         github_username: str | None = None,
         is_admin: bool | None = None,
     ) -> User:
-        """Update user fields. Only non-None values are updated."""
+        """Update user fields. Only non-None values are updated.
+
+        If github_username is being set and another user already has it,
+        clears the github_username from the other user first.
+        """
         if email is not None:
             user.email = email
         if first_name is not None:
@@ -119,7 +123,13 @@ class UserRepository:
         if avatar_url is not None:
             user.avatar_url = avatar_url
         if github_username is not None:
-            user.github_username = github_username.lower()
+            normalized = github_username.lower()
+            # Check if another user has this github_username
+            existing = await self.get_by_github_username(normalized)
+            if existing and existing.id != user.id:
+                # Clear it from the old user (they likely deleted their Clerk account)
+                existing.github_username = None
+            user.github_username = normalized
         if is_admin is not None:
             user.is_admin = is_admin
 
