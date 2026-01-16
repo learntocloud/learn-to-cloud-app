@@ -214,7 +214,7 @@ resource "azurerm_container_app" "api" {
   }
 
   template {
-    min_replicas = 0
+    min_replicas = 1
     max_replicas = 3
 
     container {
@@ -275,7 +275,7 @@ resource "azurerm_container_app" "api" {
 
       env {
         name  = "FRONTEND_URL"
-        value = "https://ca-ltc-frontend-${var.environment}.${azurerm_container_app_environment.main.default_domain}"
+        value = var.frontend_custom_domain != "" ? "https://${var.frontend_custom_domain}" : "https://ca-ltc-frontend-${var.environment}.${azurerm_container_app_environment.main.default_domain}"
       }
 
       liveness_probe {
@@ -369,13 +369,31 @@ resource "azurerm_container_app" "frontend" {
 # -----------------------------------------------------------------------------
 # Custom Domain for Frontend (app.learntocloud.guide)
 # -----------------------------------------------------------------------------
-# Steps to add custom domain:
-# 1. Add CNAME record: app.learntocloud.guide → ca-ltc-frontend-dev.<env-domain>
-# 2. Add TXT record for verification: asuid.app → <custom-domain-verification-id>
-# 3. Run: az containerapp hostname add --name ca-ltc-frontend-dev -g rg-ltc-dev --hostname app.learntocloud.guide
-# 4. Run: az containerapp hostname bind --name ca-ltc-frontend-dev -g rg-ltc-dev --hostname app.learntocloud.guide --environment cae-ltc-dev --validation-method CNAME
+# Prerequisites: DNS records must be configured BEFORE applying:
+#   - CNAME: app → <frontend_fqdn>
+#   - TXT: asuid.app → <custom_domain_verification_id>
+#
+# Azure will auto-provision a FREE managed SSL certificate when the custom
+# domain is added without specifying a certificate ID.
+
+resource "azurerm_container_app_custom_domain" "frontend" {
+  count                = var.frontend_custom_domain != "" ? 1 : 0
+  name                 = var.frontend_custom_domain
+  container_app_id     = azurerm_container_app.frontend.id
+  certificate_binding_type = "SniEnabled"
+
+  # Managed certificate provisioning can take a few minutes
+  timeouts {
+    create = "10m"
+  }
+}
 
 output "custom_domain_verification_id" {
-  description = "TXT record value for custom domain verification (asuid.app)"
+  description = "TXT record value for custom domain verification (asuid.app → this value)"
   value       = azurerm_container_app_environment.main.custom_domain_verification_id
+}
+
+output "frontend_fqdn" {
+  description = "Frontend FQDN for CNAME record (app → this value)"
+  value       = azurerm_container_app.frontend.ingress[0].fqdn
 }
