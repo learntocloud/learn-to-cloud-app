@@ -98,8 +98,6 @@ resource "azurerm_postgresql_flexible_server" "main" {
   resource_group_name           = azurerm_resource_group.main.name
   location                      = azurerm_resource_group.main.location
   version                       = "16"
-  administrator_login           = "ltcadmin"
-  administrator_password        = var.postgres_admin_password
   storage_mb                    = 32768
   sku_name                      = "B_Standard_B1ms"
   backup_retention_days         = 7
@@ -109,7 +107,8 @@ resource "azurerm_postgresql_flexible_server" "main" {
   tags                          = local.tags
 
   authentication {
-    password_auth_enabled = true
+    active_directory_auth_enabled = true
+    password_auth_enabled         = false
   }
 }
 
@@ -125,6 +124,16 @@ resource "azurerm_postgresql_flexible_server_firewall_rule" "allow_azure" {
   server_id        = azurerm_postgresql_flexible_server.main.id
   start_ip_address = "0.0.0.0"
   end_ip_address   = "0.0.0.0"
+}
+
+# -----------------------------------------------------------------------------
+# Managed Identity for API
+# -----------------------------------------------------------------------------
+resource "azurerm_user_assigned_identity" "api" {
+  name                = "id-ltc-api-${var.environment}"
+  resource_group_name = azurerm_resource_group.main.name
+  location            = azurerm_resource_group.main.location
+  tags                = local.tags
 }
 
 # -----------------------------------------------------------------------------
@@ -148,6 +157,11 @@ resource "azurerm_container_app" "api" {
   revision_mode                = "Single"
   tags                         = local.tags
 
+  identity {
+    type         = "UserAssigned"
+    identity_ids = [azurerm_user_assigned_identity.api.id]
+  }
+
   registry {
     server               = azurerm_container_registry.main.login_server
     username             = azurerm_container_registry.main.admin_username
@@ -157,11 +171,6 @@ resource "azurerm_container_app" "api" {
   secret {
     name  = "acr-password"
     value = azurerm_container_registry.main.admin_password
-  }
-
-  secret {
-    name  = "database-url"
-    value = "postgresql+asyncpg://${azurerm_postgresql_flexible_server.main.administrator_login}:${var.postgres_admin_password}@${azurerm_postgresql_flexible_server.main.fqdn}:5432/${azurerm_postgresql_flexible_server_database.main.name}?ssl=require"
   }
 
   secret {
@@ -201,8 +210,23 @@ resource "azurerm_container_app" "api" {
       memory = "1Gi"
 
       env {
-        name        = "DATABASE_URL"
-        secret_name = "database-url"
+        name  = "POSTGRES_HOST"
+        value = azurerm_postgresql_flexible_server.main.fqdn
+      }
+
+      env {
+        name  = "POSTGRES_USER"
+        value = azurerm_user_assigned_identity.api.name
+      }
+
+      env {
+        name  = "POSTGRES_DATABASE"
+        value = azurerm_postgresql_flexible_server_database.main.name
+      }
+
+      env {
+        name  = "AZURE_CLIENT_ID"
+        value = azurerm_user_assigned_identity.api.client_id
       }
 
       env {

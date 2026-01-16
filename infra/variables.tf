@@ -6,12 +6,6 @@ variable "subscription_id" {
   type        = string
 }
 
-variable "postgres_admin_password" {
-  description = "PostgreSQL administrator password"
-  type        = string
-  sensitive   = true
-}
-
 variable "clerk_publishable_key" {
   description = "Clerk publishable key"
   type        = string

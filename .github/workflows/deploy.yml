@@ -87,6 +87,7 @@ jobs:
       container_registry_name: ${{ steps.tf-outputs.outputs.container_registry_name }}
       container_registry_endpoint: ${{ steps.tf-outputs.outputs.container_registry_endpoint }}
       api_url: ${{ steps.tf-outputs.outputs.api_url }}
+      api_identity_name: ${{ steps.tf-outputs.outputs.api_identity_name }}
     steps:
       - uses: actions/checkout@v4
 
@@ -111,7 +112,6 @@ jobs:
         run: terraform plan -out=tfplan -input=false
         env:
           TF_VAR_subscription_id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
-          TF_VAR_postgres_admin_password: ${{ secrets.POSTGRES_ADMIN_PASSWORD }}
           TF_VAR_clerk_secret_key: ${{ secrets.CLERK_SECRET_KEY }}
           TF_VAR_clerk_webhook_signing_secret: ${{ secrets.CLERK_WEBHOOK_SIGNING_SECRET }}
           TF_VAR_clerk_publishable_key: ${{ secrets.CLERK_PUBLISHABLE_KEY }}
@@ -123,15 +123,62 @@ jobs:
       - name: Get Terraform Outputs
         id: tf-outputs
         run: |
-          echo "api_container_app_name=ca-learntocloud-api-${{ vars.AZURE_ENV_NAME }}" >> "$GITHUB_OUTPUT"
-          echo "frontend_container_app_name=ca-learntocloud-frontend-${{ vars.AZURE_ENV_NAME }}" >> "$GITHUB_OUTPUT"
+          echo "api_container_app_name=ca-ltc-api-${{ vars.AZURE_ENV_NAME }}" >> "$GITHUB_OUTPUT"
+          echo "frontend_container_app_name=ca-ltc-frontend-${{ vars.AZURE_ENV_NAME }}" >> "$GITHUB_OUTPUT"
           echo "resource_group_name=$(terraform output -raw AZURE_RESOURCE_GROUP)" >> "$GITHUB_OUTPUT"
           echo "container_registry_name=$(terraform output -raw AZURE_CONTAINER_REGISTRY_NAME)" >> "$GITHUB_OUTPUT"
           echo "container_registry_endpoint=$(terraform output -raw AZURE_CONTAINER_REGISTRY_ENDPOINT)" >> "$GITHUB_OUTPUT"
           echo "api_url=$(terraform output -raw apiUrl)" >> "$GITHUB_OUTPUT"
+          echo "api_identity_name=id-ltc-api-${{ vars.AZURE_ENV_NAME }}" >> "$GITHUB_OUTPUT"
+
+  configure-database:
+    needs: terraform
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure CLI Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Configure PostgreSQL Entra Admin
+        run: |
+          set -euo pipefail
+          RESOURCE_GROUP="${{ needs.terraform.outputs.resource_group_name }}"
+          IDENTITY_NAME="${{ needs.terraform.outputs.api_identity_name }}"
+
+          # Get the managed identity principal ID
+          PRINCIPAL_ID=$(az identity show \
+            --name "$IDENTITY_NAME" \
+            --resource-group "$RESOURCE_GROUP" \
+            --query "principalId" -o tsv)
+
+          # Get the PostgreSQL server name
+          POSTGRES_SERVER=$(az postgres flexible-server list \
+            --resource-group "$RESOURCE_GROUP" \
+            --query "[0].name" -o tsv)
+
+          # Check if Entra admin is already configured
+          EXISTING_ADMIN=$(az postgres flexible-server ad-admin list \
+            --server-name "$POSTGRES_SERVER" \
+            --resource-group "$RESOURCE_GROUP" \
+            --query "[?objectId=='$PRINCIPAL_ID'].objectId" -o tsv 2>/dev/null || true)
+
+          if [ -z "$EXISTING_ADMIN" ]; then
+            echo "Configuring PostgreSQL Entra admin for managed identity..."
+            az postgres flexible-server ad-admin create \
+              --server-name "$POSTGRES_SERVER" \
+              --resource-group "$RESOURCE_GROUP" \
+              --object-id "$PRINCIPAL_ID" \
+              --display-name "$IDENTITY_NAME" \
+              --type ServicePrincipal
+          else
+            echo "PostgreSQL Entra admin already configured"
+          fi
 
   deploy:
-    needs: terraform
+    needs: [terraform, configure-database]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
