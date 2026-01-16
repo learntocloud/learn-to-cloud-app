@@ -88,19 +88,17 @@ git push -u origin <branch-name>
 
 ### Step 5: Watch CI Workflow
 
-After pushing, monitor the GitHub Actions workflow:
+After pushing, the deploy workflow is automatically triggered. Get the latest run and monitor it:
 ```bash
-gh run watch
+gh run list --limit 1
+gh run watch <run-id>
 ```
 
 This will stream the workflow output in real-time. If the run fails, report the errors to the user.
 
 **Alternative commands:**
 ```bash
-# List recent runs
-gh run list --limit 5
-
-# View a specific run
+# View a specific run details
 gh run view <run-id>
 
 # View failed run logs
@@ -127,8 +125,9 @@ git commit -m "feat(api): add new badge verification endpoint"
 # 6. Push
 git push
 
-# 7. Watch CI
-gh run watch
+# 7. Watch CI (get latest run ID first)
+gh run list --limit 1
+gh run watch <run-id>
 ```
 
 ## Troubleshooting
