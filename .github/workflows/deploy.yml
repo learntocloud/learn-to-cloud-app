@@ -88,6 +88,8 @@ jobs:
       container_registry_endpoint: ${{ steps.tf-outputs.outputs.container_registry_endpoint }}
       api_url: ${{ steps.tf-outputs.outputs.api_url }}
       api_identity_name: ${{ steps.tf-outputs.outputs.api_identity_name }}
+      api_identity_principal_id: ${{ steps.tf-outputs.outputs.api_identity_principal_id }}
+      postgres_server_name: ${{ steps.tf-outputs.outputs.postgres_server_name }}
     steps:
       - uses: actions/checkout@v4
 
@@ -130,6 +132,8 @@ jobs:
           echo "container_registry_endpoint=$(terraform output -raw AZURE_CONTAINER_REGISTRY_ENDPOINT)" >> "$GITHUB_OUTPUT"
           echo "api_url=$(terraform output -raw apiUrl)" >> "$GITHUB_OUTPUT"
           echo "api_identity_name=id-ltc-api-${{ vars.AZURE_ENV_NAME }}" >> "$GITHUB_OUTPUT"
+          echo "api_identity_principal_id=$(terraform output -raw api_identity_principal_id)" >> "$GITHUB_OUTPUT"
+          echo "postgres_server_name=$(terraform output -raw postgres_server_name)" >> "$GITHUB_OUTPUT"
 
   configure-database:
     needs: terraform
@@ -147,17 +151,8 @@ jobs:
           set -euo pipefail
           RESOURCE_GROUP="${{ needs.terraform.outputs.resource_group_name }}"
           IDENTITY_NAME="${{ needs.terraform.outputs.api_identity_name }}"
-
-          # Get the managed identity principal ID
-          PRINCIPAL_ID=$(az identity show \
-            --name "$IDENTITY_NAME" \
-            --resource-group "$RESOURCE_GROUP" \
-            --query "principalId" -o tsv)
-
-          # Get the PostgreSQL server name
-          POSTGRES_SERVER=$(az postgres flexible-server list \
-            --resource-group "$RESOURCE_GROUP" \
-            --query "[0].name" -o tsv)
+          PRINCIPAL_ID="${{ needs.terraform.outputs.api_identity_principal_id }}"
+          POSTGRES_SERVER="${{ needs.terraform.outputs.postgres_server_name }}"
 
           # Check if Entra admin is already configured
           EXISTING_ADMIN=$(az postgres flexible-server ad-admin list \
