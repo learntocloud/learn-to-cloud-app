@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { usePublicProfile } from '@/lib/hooks';
-import { ActivityHeatmap } from '@/components/activity-heatmap';
-import { SubmissionsShowcase } from '@/components/submissions-showcase';
+import { ActivityHeatmap } from '@/components/ActivityHeatmap';
+import { SubmissionsShowcase } from '@/components/SubmissionsShowcase';
 import { Badge } from '@/lib/types';
 
 export function ProfilePage() {

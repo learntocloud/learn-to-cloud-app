@@ -74,15 +74,11 @@ function ProviderOptions({ options }: { options: ProviderOptionSchema[] }) {
 interface TopicContentProps {
   topic: TopicDetailSchema;
   isAuthenticated: boolean;
-  onStepProgressChange?: (completedCount: number) => void;
-  onQuestionProgressChange?: (completedCount: number) => void;
 }
 
 export function TopicContent({
   topic,
   isAuthenticated,
-  onStepProgressChange,
-  onQuestionProgressChange,
 }: TopicContentProps) {
   const { getToken } = useAuth();
   const api = createApiClient(getToken);
@@ -125,7 +121,6 @@ export function TopicContent({
         });
       }
       setCompletedSteps(response.completed_steps);
-      onStepProgressChange?.(response.completed_steps.length);
     } catch (err) {
       console.error("Failed to toggle step:", err);
     } finally {
@@ -143,7 +138,6 @@ export function TopicContent({
       // Update local state if passed
       if (result.is_passed) {
         setPassedQuestions(prev => [...prev, questionId]);
-        onQuestionProgressChange?.(passedQuestions.length + 1);
       }
 
       return result;

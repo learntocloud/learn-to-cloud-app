@@ -5,7 +5,7 @@ import type {
   TopicSummarySchema,
 } from '@/lib/api-client';
 import { PhaseVerificationForm } from '@/components/PhaseVerificationForm';
-import { PhaseCompletionCheck } from '@/components/phase-completion-check';
+import { PhaseCompletionCheck } from '@/components/PhaseCompletionCheck';
 
 // Valid phase slugs
 const VALID_PHASE_SLUGS = ["phase0", "phase1", "phase2", "phase3", "phase4", "phase5", "phase6"];
@@ -361,16 +361,12 @@ function TopicCard({ topic, phaseSlug, previousTopicName }: {
   phaseSlug: string;
   previousTopicName?: string;
 }) {
-  // Calculate progress
-  const stepsCompleted = topic.progress?.steps_completed ?? 0;
-  const stepsTotal = topic.steps_count ?? 0;
-  const questionsCompleted = topic.progress?.questions_passed ?? 0;
-  const questionsTotal = topic.questions_count ?? 0;
-
-  const completedCount = stepsCompleted + questionsCompleted;
-  const totalCount = stepsTotal + questionsTotal;
-  const progressPercent = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
-  const isComplete = completedCount === totalCount && totalCount > 0;
+  // Use API-provided progress values - business logic lives in API, not frontend
+  const progress = topic.progress;
+  const completedCount = (progress?.steps_completed ?? 0) + (progress?.questions_passed ?? 0);
+  const totalCount = (progress?.steps_total ?? 0) + (progress?.questions_total ?? 0);
+  const progressPercent = progress?.percentage ?? 0;
+  const isComplete = progress?.status === 'completed';
 
   // Locked state
   if (topic.is_locked) {

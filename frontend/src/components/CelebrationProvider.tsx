@@ -4,7 +4,7 @@
  */
 
 import { ReactNode, createContext, useContext, useCallback, useState } from 'react';
-import { PhaseCelebrationModal, PHASE_BADGE_DATA } from './phase-celebration-modal';
+import { PhaseCelebrationModal, PHASE_BADGE_DATA } from './PhaseCelebrationModal';
 
 interface CelebrationContextType {
   triggerCelebration: (phaseNumber: number, nextPhaseSlug?: string) => void;

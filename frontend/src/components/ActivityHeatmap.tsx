@@ -1,5 +1,3 @@
-"use client";
-
 import { useEffect, useMemo, useRef } from "react";
 import type { ActivityHeatmapDay } from "@/lib/types";
 

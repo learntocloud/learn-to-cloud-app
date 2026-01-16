@@ -191,21 +191,15 @@ jobs:
             --image ${{ needs.terraform.outputs.container_registry_endpoint }}/frontend:${{ github.sha }}
 
 # =============================================================================
-# DEBUGGING NOTES
+# NOTES
 # =============================================================================
 # Database migrations:
 #   - Run manually via scripts or az containerapp exec
 #   - SQLAlchemy create_all() is idempotent - only creates missing tables
 #
-# Custom domain (app.learntocloud.guide) not working after deployment?
-#   - The custom domain and managed SSL certificate are managed by Terraform
-#   - If the certificate binding shows "Disabled", run:
-#       az containerapp hostname bind \
-#         -n ca-ltc-frontend-dev -g rg-ltc-dev \
-#         --hostname app.learntocloud.guide \
-#         --environment cae-ltc-dev \
-#         --validation-method CNAME
-#   - Or re-run: cd infra && terraform apply
-#   - Root cause: Azure managed certs have provisioning delays that can cause
-#     Terraform state drift on container app recreation
+# Custom domain (app.learntocloud.guide):
+#   - Managed by Terraform with Azure's free managed SSL certificate
+#   - The lifecycle.ignore_changes block in main.tf prevents Terraform from
+#     recreating the domain binding when Azure modifies certificate attributes
+#   - If domain issues occur, check: az containerapp hostname list -n ca-ltc-frontend-dev -g rg-ltc-dev
 # =============================================================================

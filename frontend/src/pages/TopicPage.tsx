@@ -1,6 +1,5 @@
 import { Link, useParams, Navigate } from 'react-router-dom';
 import { useUser } from '@clerk/clerk-react';
-import { useState, useCallback } from 'react';
 import { useTopicDetail, usePhaseDetail } from '@/lib/hooks';
 import type { TopicDetailSchema } from '@/lib/api-client';
 import { TopicContent } from '@/components/TopicContent';
@@ -84,8 +83,6 @@ function TopicPublicView({ phaseSlug, topicSlug }: { phaseSlug: string; topicSlu
         <TopicContent
           topic={topic}
           isAuthenticated={false}
-          onStepProgressChange={() => {}}
-          onQuestionProgressChange={() => {}}
         />
 
         {/* Sign in prompt */}
@@ -227,18 +224,16 @@ function TopicAuthenticatedView({ phaseSlug, topicSlug }: { phaseSlug: string; t
 }
 
 // Topic header component - matches old Next.js styling
-function TopicHeader({ topic, isAuthenticated, stepsCompleted = 0, questionsCompleted = 0 }: {
+function TopicHeader({ topic, isAuthenticated }: {
   topic: TopicDetailSchema;
   isAuthenticated: boolean;
-  stepsCompleted?: number;
-  questionsCompleted?: number;
 }) {
-  const stepsTotal = topic.learning_steps?.length ?? 0;
-  const questionsTotal = topic.questions?.length ?? 0;
-  const totalItems = stepsTotal + questionsTotal;
-  const completedItems = stepsCompleted + questionsCompleted;
-  const isComplete = completedItems === totalItems && totalItems > 0;
-  const percentage = totalItems > 0 ? (completedItems / totalItems) * 100 : 0;
+  // Use API-provided progress values - business logic lives in API, not frontend
+  const progress = topic.progress;
+  const completedItems = (progress?.steps_completed ?? 0) + (progress?.questions_passed ?? 0);
+  const totalItems = (progress?.steps_total ?? 0) + (progress?.questions_total ?? 0);
+  const isComplete = progress?.status === 'completed';
+  const percentage = progress?.percentage ?? 0;
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-8 mb-8">
@@ -365,34 +360,16 @@ function TopicPageContent({
   prevTopic: { slug: string; name: string } | null;
   nextTopic: { slug: string; name: string } | null;
 }) {
-  const initialStepsCompleted = topic.completed_step_orders?.length ?? 0;
-  const initialQuestionsCompleted = topic.passed_question_ids?.length ?? 0;
-
-  const [stepsCompleted, setStepsCompleted] = useState(initialStepsCompleted);
-  const [questionsCompleted, setQuestionsCompleted] = useState(initialQuestionsCompleted);
-
-  const onStepProgressChange = useCallback((completed: number) => {
-    setStepsCompleted(completed);
-  }, []);
-
-  const onQuestionProgressChange = useCallback((completed: number) => {
-    setQuestionsCompleted(completed);
-  }, []);
-
   return (
     <>
       <TopicHeader
         topic={topic}
         isAuthenticated={true}
-        stepsCompleted={stepsCompleted}
-        questionsCompleted={questionsCompleted}
       />
 
       <TopicContent
         topic={topic}
         isAuthenticated={true}
-        onStepProgressChange={onStepProgressChange}
-        onQuestionProgressChange={onQuestionProgressChange}
       />
 
       <TopicNavigation

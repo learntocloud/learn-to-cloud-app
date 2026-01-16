@@ -1,7 +1,5 @@
-"use client";
-
 import { useEffect, useState } from "react";
-import { PhaseCelebrationModal, PHASE_BADGE_DATA } from "./phase-celebration-modal";
+import { PhaseCelebrationModal, PHASE_BADGE_DATA } from "./PhaseCelebrationModal";
 
 interface PhaseCompletionCheckProps {
   phaseNumber: number;

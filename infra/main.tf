@@ -373,16 +373,29 @@ resource "azurerm_container_app" "frontend" {
 #   - CNAME: app → <frontend_fqdn>
 #   - TXT: asuid.app → <custom_domain_verification_id>
 #
-# Azure will auto-provision a FREE managed SSL certificate when the custom
-# domain is added without specifying a certificate ID.
+# This uses Azure's FREE managed SSL certificate. The certificate is provisioned
+# asynchronously by Azure after the custom domain is created.
+#
+# IMPORTANT: The lifecycle.ignore_changes block is REQUIRED because Azure modifies
+# certificate_binding_type and container_app_environment_certificate_id outside
+# of Terraform after the managed cert is provisioned. Without this, Terraform
+# would try to recreate the resource on every apply, breaking the domain binding.
 
 resource "azurerm_container_app_custom_domain" "frontend" {
-  count                = var.frontend_custom_domain != "" ? 1 : 0
-  name                 = var.frontend_custom_domain
-  container_app_id     = azurerm_container_app.frontend.id
-  certificate_binding_type = "SniEnabled"
+  count            = var.frontend_custom_domain != "" ? 1 : 0
+  name             = var.frontend_custom_domain
+  container_app_id = azurerm_container_app.frontend.id
 
-  # Managed certificate provisioning can take a few minutes
+  # Let Azure manage the certificate binding - don't specify certificate_binding_type
+  # or container_app_environment_certificate_id for managed certs
+
+  lifecycle {
+    # Required for Azure Managed Certificates - these values are set asynchronously
+    # by Azure after the cert is provisioned. Without ignore_changes, Terraform
+    # detects drift and tries to recreate the resource, breaking the binding.
+    ignore_changes = [certificate_binding_type, container_app_environment_certificate_id]
+  }
+
   timeouts {
     create = "10m"
   }
