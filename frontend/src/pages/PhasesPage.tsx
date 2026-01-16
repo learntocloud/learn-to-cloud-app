@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { SignUpButton, useUser } from '@clerk/clerk-react';
 import { usePhasesWithProgress } from '@/lib/hooks';
 import type { PhaseSummarySchema } from '@/lib/api-client';
 
 export function PhasesPage() {
   const { data: phases, isLoading, error } = usePhasesWithProgress();
   const [openSlugs, setOpenSlugs] = useState<Set<string>>(() => new Set());
+  const { isSignedIn, isLoaded } = useUser();
 
   if (isLoading) {
     return (
@@ -35,15 +37,37 @@ export function PhasesPage() {
             A curated curriculum overview to help you understand what you'll learn and how the projects build over time.
           </p>
           <div className="mt-6">
-            <Link
-              to="/phase0"
-              className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
-            >
-              Get Started
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-              </svg>
-            </Link>
+            {!isLoaded ? (
+              <button
+                type="button"
+                disabled
+                className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white font-medium rounded-lg transition-colors opacity-70 cursor-not-allowed"
+              >
+                Loading...
+              </button>
+            ) : isSignedIn ? (
+              <Link
+                to="/dashboard"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
+              >
+                Go to Dashboard
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                </svg>
+              </Link>
+            ) : (
+              <SignUpButton mode="modal">
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
+                >
+                  Get Started
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                  </svg>
+                </button>
+              </SignUpButton>
+            )}
           </div>
         </div>
 
