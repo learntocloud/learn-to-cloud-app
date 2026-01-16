@@ -1,4 +1,3 @@
-# syntax=docker/dockerfile:1.14
 # Build stage - compile dependencies
 # Build context should be repo root: docker build -f api/Dockerfile -t api .
 FROM python:3.13-slim AS builder
