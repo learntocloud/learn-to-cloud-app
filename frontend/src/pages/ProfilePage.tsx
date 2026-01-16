@@ -43,6 +43,8 @@ export function ProfilePage() {
     );
   }
 
+  const badges = Array.isArray(profile.badges) ? profile.badges : [];
+
   return (
     <div className="py-8 bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-950 min-h-screen">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 space-y-4">
@@ -110,10 +112,10 @@ export function ProfilePage() {
               Badge Collection
             </h2>
             <span className="text-xs text-gray-400 dark:text-gray-500">
-              {profile.badges?.length || 0}/10
+              {badges.length}/10
             </span>
           </div>
-          <BadgeCollection badges={profile.badges || []} />
+          <BadgeCollection badges={badges} />
         </div>
 
         {/* Activity Heatmap Card */}

@@ -23,7 +23,7 @@ export type { GitHubValidationResult } from './types';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
 
-export interface UserInfo {
+interface UserInfo {
   id: string;
   email: string;
   first_name: string | null;
@@ -35,7 +35,7 @@ export interface UserInfo {
 }
 
 // New schema types from API
-export interface TopicProgressSchema {
+interface TopicProgressSchema {
   steps_completed: number;
   steps_total: number;
   questions_passed: number;
@@ -58,7 +58,7 @@ export interface TopicSummarySchema {
   is_locked: boolean;
 }
 
-export interface SecondaryLinkSchema {
+interface SecondaryLinkSchema {
   text: string;
   url: string;
 }
@@ -70,7 +70,7 @@ export interface ProviderOptionSchema {
   description: string | null;
 }
 
-export interface LearningStepSchema {
+interface LearningStepSchema {
   order: number;
   text: string;
   action: string | null;
@@ -88,7 +88,7 @@ export interface QuestionSchema {
   expected_concepts: string[];
 }
 
-export interface LearningObjectiveSchema {
+interface LearningObjectiveSchema {
   id: string;
   text: string;
   order: number;
@@ -158,7 +158,7 @@ export interface HandsOnSubmission {
   created_at: string;
 }
 
-export interface PhaseDetailSchema {
+interface PhaseDetailSchema {
   id: number;
   name: string;
   slug: string;
@@ -178,7 +178,7 @@ export interface PhaseDetailSchema {
   is_phase_complete: boolean;
 }
 
-export interface UserSummarySchema {
+interface UserSummarySchema {
   id: string;
   email: string;
   first_name: string | null;
@@ -188,7 +188,7 @@ export interface UserSummarySchema {
   is_admin: boolean;
 }
 
-export interface DashboardResponseNew {
+interface DashboardResponseNew {
   user: UserSummarySchema;
   phases: PhaseSummarySchema[];
   overall_progress: number;
@@ -198,7 +198,7 @@ export interface DashboardResponseNew {
   badges: BadgeSchema[];
 }
 
-export interface BadgeSchema {
+interface BadgeSchema {
   id: string;
   name: string;
   description: string;

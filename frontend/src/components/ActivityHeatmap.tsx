@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useMemo } from "react";
 import type { ActivityHeatmapDay } from "@/lib/types";
 
 interface ActivityHeatmapProps {
@@ -29,14 +29,6 @@ const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 export function ActivityHeatmap({ days, startDate, endDate }: ActivityHeatmapProps) {
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
-
-  // Scroll to the right (most recent activity) on mount
-  useEffect(() => {
-    if (scrollContainerRef.current) {
-      scrollContainerRef.current.scrollLeft = scrollContainerRef.current.scrollWidth;
-    }
-  }, []);
 
   // Build a map of date -> count for quick lookup
   const activityMap = useMemo(() => {

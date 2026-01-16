@@ -73,7 +73,7 @@ export interface ActivityHeatmapDay {
   activity_types: string[];
 }
 
-export interface ActivityHeatmapResponse {
+interface ActivityHeatmapResponse {
   days: ActivityHeatmapDay[];
   start_date: string;
   end_date: string;
