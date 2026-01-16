@@ -21,10 +21,17 @@ class UserRepository:
         return result.scalar_one_or_none()
 
     async def get_by_github_username(self, username: str) -> User | None:
-        """Get a user by their GitHub username."""
+        """Get a user by their GitHub username.
+
+        Returns the first matching user if duplicates exist.
+        Uses case-insensitive comparison for robustness.
+        """
         normalized = username.lower()
         result = await self.db.execute(
-            select(User).where(User.github_username == normalized)
+            select(User)
+            .where(User.github_username == normalized)
+            .order_by(User.created_at.desc())
+            .limit(1)
         )
         return result.scalar_one_or_none()
 
