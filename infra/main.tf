@@ -137,6 +137,20 @@ resource "azurerm_user_assigned_identity" "api" {
 }
 
 # -----------------------------------------------------------------------------
+# PostgreSQL Entra Admin (Managed Identity)
+# -----------------------------------------------------------------------------
+data "azurerm_client_config" "current" {}
+
+resource "azurerm_postgresql_flexible_server_active_directory_administrator" "api" {
+  server_name         = azurerm_postgresql_flexible_server.main.name
+  resource_group_name = azurerm_resource_group.main.name
+  tenant_id           = data.azurerm_client_config.current.tenant_id
+  object_id           = azurerm_user_assigned_identity.api.principal_id
+  principal_name      = azurerm_user_assigned_identity.api.name
+  principal_type      = "ServicePrincipal"
+}
+
+# -----------------------------------------------------------------------------
 # Container Apps Environment
 # -----------------------------------------------------------------------------
 resource "azurerm_container_app_environment" "main" {
