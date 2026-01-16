@@ -48,13 +48,18 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.13"
+          python-version-file: "api/pyproject.toml"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.9.26"
+          enable-cache: true
 
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[dev]"
-          pip install ty
+          uv sync --extra dev --group dev
+          uv tool install ty
 
       - name: Ruff lint
         uses: astral-sh/ruff-action@v3
@@ -71,10 +76,10 @@ jobs:
           version: "0.8.6"
 
       - name: Type check (ty)
-        run: ty check --python $(which python)
+        run: uv tool run ty check --python $(which python)
 
       - name: Run tests
-        run: pytest tests/ -v --tb=short
+        run: uv run pytest tests/ -v --tb=short
 
   terraform:
     needs: lint-and-test
@@ -90,6 +95,8 @@ jobs:
       container_registry_name: ${{ steps.tf-outputs.outputs.container_registry_name }}
       container_registry_endpoint: ${{ steps.tf-outputs.outputs.container_registry_endpoint }}
       api_url: ${{ steps.tf-outputs.outputs.api_url }}
+      frontend_url: ${{ steps.tf-outputs.outputs.frontend_url }}
+      frontend_custom_domain: ${{ steps.tf-outputs.outputs.frontend_custom_domain }}
     steps:
       - uses: actions/checkout@v4
 
@@ -119,6 +126,8 @@ jobs:
           echo "container_registry_name=$(terraform output -raw AZURE_CONTAINER_REGISTRY_NAME)" >> "$GITHUB_OUTPUT"
           echo "container_registry_endpoint=$(terraform output -raw AZURE_CONTAINER_REGISTRY_ENDPOINT)" >> "$GITHUB_OUTPUT"
           echo "api_url=$(terraform output -raw apiUrl)" >> "$GITHUB_OUTPUT"
+          echo "frontend_url=$(terraform output -raw frontend_url)" >> "$GITHUB_OUTPUT"
+          echo "frontend_custom_domain=${{ vars.FRONTEND_CUSTOM_DOMAIN }}" >> "$GITHUB_OUTPUT"
 
   deploy:
     needs: terraform
@@ -151,10 +160,15 @@ jobs:
 
       - name: Deploy API Container App
         run: |
+          FRONTEND_URL="${{ needs.terraform.outputs.frontend_url }}"
+          if [[ -n "${{ needs.terraform.outputs.frontend_custom_domain }}" ]]; then
+            FRONTEND_URL="https://${{ needs.terraform.outputs.frontend_custom_domain }}"
+          fi
           az containerapp update \
             --name ${{ needs.terraform.outputs.api_container_app_name }} \
             --resource-group ${{ needs.terraform.outputs.resource_group_name }} \
-            --image ${{ needs.terraform.outputs.container_registry_endpoint }}/api:${{ github.sha }}
+            --image ${{ needs.terraform.outputs.container_registry_endpoint }}/api:${{ github.sha }} \
+            --set-env-vars FRONTEND_URL="$FRONTEND_URL"
 
       - name: Deploy Frontend Container App
         run: |
