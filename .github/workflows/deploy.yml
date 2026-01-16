@@ -45,14 +45,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Detect infra changes
-        id: changes
-        uses: dorny/paths-filter@v3
-        with:
-          filters: |
-            infra:
-              - 'infra/**'
-
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -117,36 +109,6 @@ jobs:
 
       - name: Terraform Validate
         run: terraform validate
-
-      - name: Terraform Plan
-        if: steps.changes.outputs.infra == 'true'
-        run: |
-          # Retry logic for state lock issues (up to 3 attempts with 30s delay)
-          for i in 1 2 3; do
-            echo "Attempt $i of 3..."
-            if terraform plan -out=tfplan -input=false -lock-timeout=120s; then
-              echo "Terraform plan succeeded"
-              break
-            else
-              if [ $i -lt 3 ]; then
-                echo "Terraform plan failed, waiting 30s before retry..."
-                sleep 30
-              else
-                echo "Terraform plan failed after 3 attempts"
-                exit 1
-              fi
-            fi
-          done
-        env:
-          TF_VAR_subscription_id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
-          TF_VAR_clerk_secret_key: ${{ secrets.CLERK_SECRET_KEY }}
-          TF_VAR_clerk_webhook_signing_secret: ${{ secrets.CLERK_WEBHOOK_SIGNING_SECRET }}
-          TF_VAR_clerk_publishable_key: ${{ secrets.CLERK_PUBLISHABLE_KEY }}
-          TF_VAR_google_api_key: ${{ secrets.GOOGLE_API_KEY }}
-
-      - name: Terraform Apply
-        if: steps.changes.outputs.infra == 'true'
-        run: terraform apply -auto-approve -lock-timeout=120s tfplan
 
       - name: Get Terraform Outputs
         id: tf-outputs
