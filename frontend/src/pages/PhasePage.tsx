@@ -42,7 +42,7 @@ export function PhasePage() {
 
   // Loading state
   return (
-    <div className="min-h-screen py-8">
+    <div className="min-h-screen py-8 bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-950">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-center py-20">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -57,7 +57,7 @@ function PhasePublicView({ phaseSlug }: { phaseSlug: string }) {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen py-8">
+      <div className="min-h-screen py-8 bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-950">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-center py-20">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -72,7 +72,7 @@ function PhasePublicView({ phaseSlug }: { phaseSlug: string }) {
   }
 
   return (
-    <div className="min-h-screen py-8">
+    <div className="min-h-screen py-8 bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-950">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Breadcrumb */}
         <nav className="mb-6">
@@ -141,7 +141,7 @@ function PhaseAuthenticatedView({ phaseSlug }: { phaseSlug: string }) {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen py-8">
+      <div className="min-h-screen py-8 bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-950">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-center py-20">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -167,7 +167,7 @@ function PhaseAuthenticatedView({ phaseSlug }: { phaseSlug: string }) {
   if (phase.is_locked) {
     const prevPhaseNum = phase.id - 1;
     return (
-      <div className="min-h-screen py-8">
+      <div className="min-h-screen py-8 bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-950">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <nav className="mb-6">
             <Link to="/dashboard" className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 text-sm">
@@ -194,7 +194,7 @@ function PhaseAuthenticatedView({ phaseSlug }: { phaseSlug: string }) {
   }
 
   return (
-    <div className="min-h-screen py-8">
+    <div className="min-h-screen py-8 bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-950">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Breadcrumb */}
         <nav className="mb-6">

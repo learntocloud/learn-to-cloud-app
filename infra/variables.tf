@@ -1,6 +1,43 @@
-# Root Module Variables
+# -----------------------------------------------------------------------------
+# Required Variables
+# -----------------------------------------------------------------------------
+variable "subscription_id" {
+  description = "Azure subscription ID"
+  type        = string
+}
 
-# Environment Configuration
+variable "postgres_admin_password" {
+  description = "PostgreSQL administrator password"
+  type        = string
+  sensitive   = true
+}
+
+variable "clerk_publishable_key" {
+  description = "Clerk publishable key"
+  type        = string
+}
+
+variable "clerk_secret_key" {
+  description = "Clerk secret key"
+  type        = string
+  sensitive   = true
+}
+
+variable "clerk_webhook_signing_secret" {
+  description = "Clerk webhook signing secret"
+  type        = string
+  sensitive   = true
+}
+
+variable "google_api_key" {
+  description = "Google API key for Gemini"
+  type        = string
+  sensitive   = true
+}
+
+# -----------------------------------------------------------------------------
+# Optional Variables with Defaults
+# -----------------------------------------------------------------------------
 variable "environment" {
   description = "Environment name (dev, staging, prod)"
   type        = string
@@ -8,66 +45,7 @@ variable "environment" {
 }
 
 variable "location" {
-  description = "Azure region for resources"
+  description = "Azure region"
   type        = string
-}
-
-# Unique Suffix (for imports)
-variable "existing_unique_suffix" {
-  description = "Existing unique suffix from Bicep deployment (for import). Leave empty for new deployments."
-  type        = string
-  default     = ""
-}
-
-# Database Configuration
-variable "postgres_admin_password" {
-  description = "PostgreSQL administrator password"
-  type        = string
-  sensitive   = true
-}
-
-# Clerk Authentication
-variable "clerk_secret_key" {
-  description = "Clerk secret key for backend authentication"
-  type        = string
-  sensitive   = true
-}
-
-variable "clerk_webhook_signing_secret" {
-  description = "Clerk webhook signing secret for verifying webhook payloads"
-  type        = string
-  sensitive   = true
-}
-
-variable "clerk_publishable_key" {
-  description = "Clerk publishable key for frontend authentication"
-  type        = string
-}
-
-# Google API Key (Optional)
-variable "google_api_key" {
-  description = "Google API key for AI features (optional)"
-  type        = string
-  sensitive   = true
-  default     = ""
-}
-
-# Custom Domain (Optional)
-variable "frontend_custom_domain" {
-  description = "Custom domain for the frontend app (optional)"
-  type        = string
-  default     = ""
-}
-
-variable "frontend_managed_certificate_name" {
-  description = "Name of the existing managed certificate resource (required when binding a custom domain)"
-  type        = string
-  default     = ""
-}
-
-# Monitoring
-variable "alert_email_address" {
-  description = "Email address for alert notifications (optional)"
-  type        = string
-  default     = ""
+  default     = "centralus"
 }

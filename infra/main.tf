@@ -1,6 +1,3 @@
-# Learn to Cloud - Terraform Root Module
-# Orchestrates all infrastructure modules
-
 terraform {
   required_version = ">= 1.5.0"
 
@@ -14,158 +11,319 @@ terraform {
       version = "~> 3.6"
     }
   }
+
+  backend "azurerm" {
+    resource_group_name  = "rg-terraform-state"
+    storage_account_name = "stterraformstateb1ac9ddc"
+    container_name       = "tfstate"
+    key                  = "learn-to-cloud-dev.tfstate"
+  }
 }
 
-# Local variables
-locals {
-  app_name = "learntocloud"
+provider "azurerm" {
+  features {
+    key_vault {
+      purge_soft_delete_on_destroy = true
+    }
+  }
+  subscription_id = var.subscription_id
+}
 
+# -----------------------------------------------------------------------------
+# Random suffix for unique names
+# -----------------------------------------------------------------------------
+resource "random_string" "suffix" {
+  length  = 6
+  special = false
+  upper   = false
+}
+
+locals {
+  suffix              = random_string.suffix.result
+  resource_group_name = "rg-ltc-${var.environment}"
   tags = {
     environment = var.environment
-    project     = "learn-to-cloud"
+    project     = "learntocloud"
     managed_by  = "terraform"
   }
 }
 
-# Foundation Module: Resource Group and Naming
-module "foundation" {
-  source = "./modules/foundation"
-
-  app_name               = local.app_name
-  environment            = var.environment
-  location               = var.location
-  tags                   = local.tags
-  existing_unique_suffix = var.existing_unique_suffix
+# -----------------------------------------------------------------------------
+# Resource Group
+# -----------------------------------------------------------------------------
+resource "azurerm_resource_group" "main" {
+  name     = local.resource_group_name
+  location = var.location
+  tags     = local.tags
 }
 
-# Identity Module: User-Assigned Managed Identity
-module "identity" {
-  source = "./modules/identity"
-
-  app_name            = local.app_name
-  environment         = var.environment
-  location            = var.location
-  resource_group_name = module.foundation.resource_group_name
+# -----------------------------------------------------------------------------
+# Log Analytics & Application Insights
+# -----------------------------------------------------------------------------
+resource "azurerm_log_analytics_workspace" "main" {
+  name                = "log-ltc-${var.environment}-${local.suffix}"
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+  sku                 = "PerGB2018"
+  retention_in_days   = 30
   tags                = local.tags
 }
 
-# Observability Module: Log Analytics and Application Insights
-module "observability" {
-  source = "./modules/observability"
-
-  app_name            = local.app_name
-  environment         = var.environment
-  location            = var.location
-  resource_group_name = module.foundation.resource_group_name
+resource "azurerm_application_insights" "main" {
+  name                = "appi-ltc-${var.environment}-${local.suffix}"
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+  workspace_id        = azurerm_log_analytics_workspace.main.id
+  application_type    = "web"
   tags                = local.tags
 }
 
-# Database Module: PostgreSQL Flexible Server
-module "database" {
-  source = "./modules/database"
-
-  app_name                = local.app_name
-  environment             = var.environment
-  location                = var.location
-  resource_group_name     = module.foundation.resource_group_name
-  unique_suffix           = module.foundation.unique_suffix
-  postgres_admin_password = var.postgres_admin_password
-  tags                    = local.tags
-}
-
-# Secrets Module: Key Vault, Secrets, and RBAC
-module "secrets" {
-  source = "./modules/secrets"
-
-  app_name                            = local.app_name
-  environment                         = var.environment
-  location                            = var.location
-  resource_group_name                 = module.foundation.resource_group_name
-  unique_suffix                       = module.foundation.unique_suffix
-  container_app_identity_principal_id = module.identity.identity_principal_id
-  clerk_secret_key                    = var.clerk_secret_key
-  clerk_webhook_signing_secret        = var.clerk_webhook_signing_secret
-  postgres_admin_password             = var.postgres_admin_password
-  google_api_key                      = var.google_api_key
-  tags                                = local.tags
-}
-
-# Container Apps Module: Environment, API, and Frontend
-module "container_apps" {
-  source = "./modules/container-apps"
-
-  app_name                           = local.app_name
-  environment                        = var.environment
-  location                           = var.location
-  resource_group_name                = module.foundation.resource_group_name
-  log_analytics_workspace_id         = module.observability.log_analytics_workspace_id
-  user_assigned_identity_id          = module.identity.identity_id
-  container_registry_login_server    = module.registry.container_registry_login_server
-  postgres_fqdn                      = module.database.postgres_fqdn
-  clerk_publishable_key              = var.clerk_publishable_key
-  clerk_secret_key_kv_id             = module.secrets.clerk_secret_key_id
-  clerk_webhook_signing_secret_kv_id = module.secrets.clerk_webhook_signing_secret_id
-  google_api_key_kv_id               = module.secrets.google_api_key_id
-  app_insights_connection_string     = module.observability.app_insights_connection_string
-  frontend_custom_domain             = var.frontend_custom_domain
-  frontend_managed_certificate_name  = var.frontend_managed_certificate_name
-  tags                               = local.tags
-
-  depends_on = [module.secrets]
-}
-
-# Registry Module: Container Registry
-module "registry" {
-  source = "./modules/registry"
-
-  app_name            = local.app_name
-  environment         = var.environment
-  location            = var.location
-  resource_group_name = module.foundation.resource_group_name
-  unique_suffix       = module.foundation.unique_suffix
+# -----------------------------------------------------------------------------
+# Container Registry
+# -----------------------------------------------------------------------------
+resource "azurerm_container_registry" "main" {
+  name                = "crltc${local.suffix}"
+  resource_group_name = azurerm_resource_group.main.name
+  location            = azurerm_resource_group.main.location
+  sku                 = "Basic"
+  admin_enabled       = true
   tags                = local.tags
 }
 
-# Monitoring Module: Action Groups and Metric Alerts
-module "monitoring" {
-  source = "./modules/monitoring"
+# -----------------------------------------------------------------------------
+# PostgreSQL Flexible Server
+# -----------------------------------------------------------------------------
+resource "azurerm_postgresql_flexible_server" "main" {
+  name                          = "psql-ltc-${var.environment}-${local.suffix}"
+  resource_group_name           = azurerm_resource_group.main.name
+  location                      = azurerm_resource_group.main.location
+  version                       = "16"
+  administrator_login           = "ltcadmin"
+  administrator_password        = var.postgres_admin_password
+  storage_mb                    = 32768
+  sku_name                      = "B_Standard_B1ms"
+  backup_retention_days         = 7
+  geo_redundant_backup_enabled  = false
+  public_network_access_enabled = true
+  zone                          = "3"
+  tags                          = local.tags
 
-  app_name                    = local.app_name
-  environment                 = var.environment
-  location                    = var.location
-  resource_group_name         = module.foundation.resource_group_name
-  api_container_app_id        = module.container_apps.api_container_app_id
-  api_container_app_name      = module.container_apps.api_container_app_name
-  frontend_container_app_id   = module.container_apps.frontend_container_app_id
-  frontend_container_app_name = module.container_apps.frontend_container_app_name
-  postgres_server_id          = module.database.postgres_server_id
-  app_insights_id             = module.observability.app_insights_id
-  alert_email_address         = var.alert_email_address
-  tags                        = local.tags
+  authentication {
+    password_auth_enabled = true
+  }
 }
 
-# ACR Pull Role Assignments
-# These are at root level to avoid circular dependency between registry and container_apps modules
-resource "azurerm_role_assignment" "api_acr_pull" {
-  scope                = module.registry.container_registry_id
-  role_definition_name = "AcrPull"
-  principal_id         = module.container_apps.api_container_app_principal_id
-  principal_type       = "ServicePrincipal"
-
-  depends_on = [
-    module.registry,
-    module.container_apps
-  ]
+resource "azurerm_postgresql_flexible_server_database" "main" {
+  name      = "learntocloud"
+  server_id = azurerm_postgresql_flexible_server.main.id
+  charset   = "UTF8"
+  collation = "en_US.utf8"
 }
 
-resource "azurerm_role_assignment" "frontend_acr_pull" {
-  scope                = module.registry.container_registry_id
-  role_definition_name = "AcrPull"
-  principal_id         = module.container_apps.frontend_container_app_principal_id
-  principal_type       = "ServicePrincipal"
+resource "azurerm_postgresql_flexible_server_firewall_rule" "allow_azure" {
+  name             = "AllowAzureServices"
+  server_id        = azurerm_postgresql_flexible_server.main.id
+  start_ip_address = "0.0.0.0"
+  end_ip_address   = "0.0.0.0"
+}
 
-  depends_on = [
-    module.registry,
-    module.container_apps
-  ]
+# -----------------------------------------------------------------------------
+# Container Apps Environment
+# -----------------------------------------------------------------------------
+resource "azurerm_container_app_environment" "main" {
+  name                       = "cae-ltc-${var.environment}"
+  location                   = azurerm_resource_group.main.location
+  resource_group_name        = azurerm_resource_group.main.name
+  log_analytics_workspace_id = azurerm_log_analytics_workspace.main.id
+  tags                       = local.tags
+}
+
+# -----------------------------------------------------------------------------
+# API Container App
+# -----------------------------------------------------------------------------
+resource "azurerm_container_app" "api" {
+  name                         = "ca-ltc-api-${var.environment}"
+  container_app_environment_id = azurerm_container_app_environment.main.id
+  resource_group_name          = azurerm_resource_group.main.name
+  revision_mode                = "Single"
+  tags                         = local.tags
+
+  registry {
+    server               = azurerm_container_registry.main.login_server
+    username             = azurerm_container_registry.main.admin_username
+    password_secret_name = "acr-password"
+  }
+
+  secret {
+    name  = "acr-password"
+    value = azurerm_container_registry.main.admin_password
+  }
+
+  secret {
+    name  = "database-url"
+    value = "postgresql+asyncpg://${azurerm_postgresql_flexible_server.main.administrator_login}:${var.postgres_admin_password}@${azurerm_postgresql_flexible_server.main.fqdn}:5432/${azurerm_postgresql_flexible_server_database.main.name}?ssl=require"
+  }
+
+  secret {
+    name  = "clerk-secret-key"
+    value = var.clerk_secret_key
+  }
+
+  secret {
+    name  = "clerk-webhook-secret"
+    value = var.clerk_webhook_signing_secret
+  }
+
+  secret {
+    name  = "google-api-key"
+    value = var.google_api_key
+  }
+
+  ingress {
+    external_enabled = true
+    target_port      = 8000
+    transport        = "http"
+
+    traffic_weight {
+      percentage      = 100
+      latest_revision = true
+    }
+  }
+
+  template {
+    min_replicas = 0
+    max_replicas = 3
+
+    container {
+      name   = "api"
+      image  = "${azurerm_container_registry.main.login_server}/api:v2"
+      cpu    = 0.5
+      memory = "1Gi"
+
+      env {
+        name        = "DATABASE_URL"
+        secret_name = "database-url"
+      }
+
+      env {
+        name  = "CLERK_PUBLISHABLE_KEY"
+        value = var.clerk_publishable_key
+      }
+
+      env {
+        name        = "CLERK_SECRET_KEY"
+        secret_name = "clerk-secret-key"
+      }
+
+      env {
+        name        = "CLERK_WEBHOOK_SIGNING_SECRET"
+        secret_name = "clerk-webhook-secret"
+      }
+
+      env {
+        name        = "GOOGLE_API_KEY"
+        secret_name = "google-api-key"
+      }
+
+      env {
+        name  = "APPLICATIONINSIGHTS_CONNECTION_STRING"
+        value = azurerm_application_insights.main.connection_string
+      }
+
+      env {
+        name  = "ENVIRONMENT"
+        value = var.environment
+      }
+
+      env {
+        name  = "FRONTEND_URL"
+        value = "https://ca-ltc-frontend-${var.environment}.${azurerm_container_app_environment.main.default_domain}"
+      }
+
+      liveness_probe {
+        transport = "HTTP"
+        path      = "/health"
+        port      = 8000
+        initial_delay            = 30
+        interval_seconds         = 30
+        timeout                  = 5
+        failure_count_threshold  = 3
+      }
+
+      readiness_probe {
+        transport = "HTTP"
+        path      = "/health"
+        port      = 8000
+        interval_seconds         = 10
+        timeout                  = 5
+        failure_count_threshold  = 3
+      }
+
+      startup_probe {
+        transport = "HTTP"
+        path      = "/health"
+        port      = 8000
+        interval_seconds         = 10
+        timeout                  = 5
+        failure_count_threshold  = 30
+      }
+    }
+  }
+
+  depends_on = [azurerm_postgresql_flexible_server_database.main]
+}
+
+# -----------------------------------------------------------------------------
+# Frontend Container App
+# -----------------------------------------------------------------------------
+resource "azurerm_container_app" "frontend" {
+  name                         = "ca-ltc-frontend-${var.environment}"
+  container_app_environment_id = azurerm_container_app_environment.main.id
+  resource_group_name          = azurerm_resource_group.main.name
+  revision_mode                = "Single"
+  tags                         = local.tags
+
+  registry {
+    server               = azurerm_container_registry.main.login_server
+    username             = azurerm_container_registry.main.admin_username
+    password_secret_name = "acr-password"
+  }
+
+  secret {
+    name  = "acr-password"
+    value = azurerm_container_registry.main.admin_password
+  }
+
+  ingress {
+    external_enabled = true
+    target_port      = 80
+    transport        = "http"
+
+    traffic_weight {
+      percentage      = 100
+      latest_revision = true
+    }
+  }
+
+  template {
+    min_replicas = 0
+    max_replicas = 3
+
+    container {
+      name   = "frontend"
+      image  = "${azurerm_container_registry.main.login_server}/frontend:v6"
+      cpu    = 0.25
+      memory = "0.5Gi"
+
+      liveness_probe {
+        transport = "HTTP"
+        path      = "/"
+        port      = 80
+        initial_delay            = 10
+        interval_seconds         = 30
+        timeout                  = 5
+        failure_count_threshold  = 3
+      }
+    }
+  }
 }

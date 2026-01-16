@@ -3,20 +3,22 @@
 This module loads course content from JSON files and provides
 a clean interface for accessing phases and topics.
 
-Content files are located in ../frontend/content/phases/ and are
-loaded once at startup for performance.
+Content files are located in ../content/phases/ (dev) or
+/app/content/phases/ (Docker) and are loaded once at startup for performance.
 """
 
 import json
 import logging
+import os
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-# Content directory relative to this file
-CONTENT_DIR = Path(__file__).parent.parent.parent / "frontend" / "content" / "phases"
+# Content directory - configurable via env var, defaults to relative path for local dev
+_default_content_dir = Path(__file__).parent.parent.parent / "content" / "phases"
+CONTENT_DIR = Path(os.environ.get("CONTENT_DIR", str(_default_content_dir)))
 
 
 @dataclass(frozen=True)

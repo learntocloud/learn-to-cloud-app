@@ -1,5 +1,6 @@
 # syntax=docker/dockerfile:1.14
 # Build stage - compile dependencies
+# Build context should be repo root: docker build -f api/Dockerfile -t api .
 FROM python:3.13-slim AS builder
 
 WORKDIR /app
@@ -8,7 +9,7 @@ WORKDIR /app
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
 # Copy dependency files first for caching
-COPY pyproject.toml ./
+COPY api/pyproject.toml ./
 
 # Install dependencies to virtual environment
 ENV UV_PROJECT_ENVIRONMENT=/app/.venv
@@ -35,8 +36,14 @@ COPY --from=builder /app/.venv /app/.venv
 ENV PATH="/app/.venv/bin:$PATH"
 ENV VIRTUAL_ENV="/app/.venv"
 
-# Copy application code
-COPY --chown=appuser:appuser . .
+# Set content directory for Docker
+ENV CONTENT_DIR="/app/content/phases"
+
+# Copy application code from api/
+COPY --chown=appuser:appuser api/ .
+
+# Copy content from repo root
+COPY --chown=appuser:appuser content /app/content
 
 # Switch to non-root user
 USER appuser

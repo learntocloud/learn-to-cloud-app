@@ -1,51 +1,38 @@
-# Root Module Outputs
-# These outputs are used by azd for deployment
-
-# Resource Group
-output "AZURE_RESOURCE_GROUP" {
-  description = "Resource group name"
-  value       = module.foundation.resource_group_name
+# -----------------------------------------------------------------------------
+# Outputs
+# -----------------------------------------------------------------------------
+output "resource_group_name" {
+  description = "Name of the resource group"
+  value       = azurerm_resource_group.main.name
 }
 
-output "AZURE_LOCATION" {
-  description = "Azure region"
-  value       = module.foundation.location
+output "api_url" {
+  description = "URL of the API container app"
+  value       = "https://${azurerm_container_app.api.ingress[0].fqdn}"
 }
 
-# Service Endpoints
-output "apiUrl" {
-  description = "API Container App URL"
-  value       = module.container_apps.api_container_app_url
+output "frontend_url" {
+  description = "URL of the frontend container app"
+  value       = "https://${azurerm_container_app.frontend.ingress[0].fqdn}"
 }
 
-output "frontendUrl" {
-  description = "Frontend Container App URL"
-  value       = module.container_apps.frontend_container_app_url
+output "container_registry" {
+  description = "Container registry login server"
+  value       = azurerm_container_registry.main.login_server
 }
 
-output "postgresHost" {
-  description = "PostgreSQL server FQDN"
-  value       = module.database.postgres_fqdn
+output "database_host" {
+  description = "PostgreSQL server hostname"
+  value       = azurerm_postgresql_flexible_server.main.fqdn
 }
 
-# Key Vault
-output "keyVaultName" {
-  description = "Key Vault name"
-  value       = module.secrets.key_vault_name
+output "application_insights_connection_string" {
+  description = "Application Insights connection string"
+  value       = azurerm_application_insights.main.connection_string
+  sensitive   = true
 }
 
-output "keyVaultUri" {
-  description = "Key Vault URI"
-  value       = module.secrets.key_vault_uri
-}
-
-# Container Registry (for azd deploy)
-output "AZURE_CONTAINER_REGISTRY_NAME" {
-  description = "Container Registry name"
-  value       = module.registry.container_registry_name
-}
-
-output "AZURE_CONTAINER_REGISTRY_ENDPOINT" {
-  description = "Container Registry login server"
-  value       = module.registry.container_registry_login_server
+output "azure_portal_url" {
+  description = "Link to the resource group in Azure Portal"
+  value       = "https://portal.azure.com/#@/resource/subscriptions/${var.subscription_id}/resourceGroups/${azurerm_resource_group.main.name}/overview"
 }

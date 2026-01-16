@@ -192,7 +192,7 @@ jobs:
 
       - name: Build and Push API Image
         run: |
-          docker build -t ${{ needs.terraform.outputs.container_registry_endpoint }}/api:${{ github.sha }} ./api
+          docker build -f api/Dockerfile -t ${{ needs.terraform.outputs.container_registry_endpoint }}/api:${{ github.sha }} .
           docker push ${{ needs.terraform.outputs.container_registry_endpoint }}/api:${{ github.sha }}
 
       - name: Build and Push Frontend Image

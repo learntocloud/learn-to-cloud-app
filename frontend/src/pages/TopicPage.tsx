@@ -29,7 +29,7 @@ export function TopicPage() {
 
   // Loading
   return (
-    <div className="min-h-screen py-8">
+    <div className="min-h-screen py-8 bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-950">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-center py-20">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -45,7 +45,7 @@ function TopicPublicView({ phaseSlug, topicSlug }: { phaseSlug: string; topicSlu
 
   if (topicLoading || phaseLoading) {
     return (
-      <div className="min-h-screen py-8">
+      <div className="min-h-screen py-8 bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-950">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-center py-20">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -65,7 +65,7 @@ function TopicPublicView({ phaseSlug, topicSlug }: { phaseSlug: string; topicSlu
   const nextTopic = currentIndex < phase.topics.length - 1 ? phase.topics[currentIndex + 1] : null;
 
   return (
-    <div className="min-h-screen py-8">
+    <div className="min-h-screen py-8 bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-950">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <nav className="mb-6 flex items-center gap-2 text-sm">
           <Link to="/" className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">
@@ -114,7 +114,7 @@ function TopicAuthenticatedView({ phaseSlug, topicSlug }: { phaseSlug: string; t
 
   if (topicLoading || phaseLoading) {
     return (
-      <div className="min-h-screen py-8">
+      <div className="min-h-screen py-8 bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-950">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-center py-20">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -132,7 +132,7 @@ function TopicAuthenticatedView({ phaseSlug, topicSlug }: { phaseSlug: string; t
   if (topic.is_locked) {
     const prevPhaseNum = phase.id - 1;
     return (
-      <div className="min-h-screen py-8">
+      <div className="min-h-screen py-8 bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-950">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <nav className="mb-6 flex items-center gap-2 text-sm">
             <Link to="/dashboard" className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">
@@ -165,7 +165,7 @@ function TopicAuthenticatedView({ phaseSlug, topicSlug }: { phaseSlug: string; t
   // If topic is locked
   if (topic.is_topic_locked) {
     return (
-      <div className="min-h-screen py-8">
+      <div className="min-h-screen py-8 bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-950">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <nav className="mb-6 flex items-center gap-2 text-sm">
             <Link to="/dashboard" className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">
@@ -201,7 +201,7 @@ function TopicAuthenticatedView({ phaseSlug, topicSlug }: { phaseSlug: string; t
   const nextTopic = currentIndex < phase.topics.length - 1 ? phase.topics[currentIndex + 1] : null;
 
   return (
-    <div className="min-h-screen py-8">
+    <div className="min-h-screen py-8 bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-950">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <nav className="mb-6 flex items-center gap-2 text-sm">
           <Link to="/dashboard" className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">

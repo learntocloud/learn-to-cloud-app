@@ -11,7 +11,7 @@ export function ProfilePage() {
 
   if (isLoading) {
     return (
-      <div className="py-8">
+      <div className="py-8 bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-950 min-h-screen">
         <div className="max-w-3xl mx-auto px-4 sm:px-6">
           <div className="flex items-center justify-center py-20">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -23,7 +23,7 @@ export function ProfilePage() {
 
   if (error || !profile) {
     return (
-      <div className="py-8">
+      <div className="py-8 bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-950 min-h-screen">
         <div className="max-w-3xl mx-auto px-4 sm:px-6">
           <div className="bg-white dark:bg-gray-800/50 rounded-2xl border border-gray-200 dark:border-gray-700 p-8 text-center shadow-sm">
             <div className="text-6xl mb-4">👤</div>
@@ -44,7 +44,7 @@ export function ProfilePage() {
   }
 
   return (
-    <div className="py-8">
+    <div className="py-8 bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-950 min-h-screen">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 space-y-4">
         {/* Profile Header Card */}
         <div className="bg-white dark:bg-gray-800/50 rounded-2xl border border-gray-200 dark:border-gray-700 p-5 shadow-sm">

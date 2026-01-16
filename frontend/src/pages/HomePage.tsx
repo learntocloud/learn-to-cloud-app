@@ -17,7 +17,7 @@ export function HomePage() {
   const navigate = useNavigate();
 
   return (
-    <div>
+    <div className="bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-950">
       {/* Hero with subtle gradient background */}
       <div className="bg-gradient-to-b from-blue-50 to-white dark:from-gray-900 dark:to-gray-950 pt-12 pb-8">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 text-center">
