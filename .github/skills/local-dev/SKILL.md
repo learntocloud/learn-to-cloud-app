@@ -1,6 +1,6 @@
 ---
-name: local-development
-description: Set up and run the Learn to Cloud application locally for development. Use when starting the dev environment, debugging startup issues, configuring environment variables, or troubleshooting database/port problems.
+name: local-dev
+description: Set up and run the app locally for development. Use when starting dev environment, configuring env vars, fixing port conflicts, or database connection issues.
 ---
 
 # Local Development

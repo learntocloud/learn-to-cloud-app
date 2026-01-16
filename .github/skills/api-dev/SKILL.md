@@ -1,6 +1,6 @@
 ---
-name: python-api
-description: Develop and run the Learn to Cloud FastAPI backend. Use when running the API server, debugging Python code, adding endpoints, modifying database models, or troubleshooting API issues.
+name: api-dev
+description: Develop the FastAPI backend: add endpoints, modify models, run tests. Use when creating routes, updating models, writing tests, or debugging API issues.
 ---
 
 # Python API Development

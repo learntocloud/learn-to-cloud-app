@@ -1,6 +1,6 @@
 ---
-name: custom-domain
-description: Troubleshoot and fix Azure Container Apps custom domain issues, including SSL certificate binding problems for app.learntocloud.guide. Use when the custom domain is not working after deployment.
+name: domain-ssl
+description: Fix custom domain and SSL certificate issues for app.learntocloud.guide. Use when domain not resolving, SSL certificate errors, certificate pending, or binding broken after deployment.
 ---
 
 # Custom Domain Troubleshooting

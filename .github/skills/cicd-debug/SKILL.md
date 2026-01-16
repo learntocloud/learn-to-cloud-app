@@ -1,6 +1,6 @@
 ---
-name: debug-deploy
-description: Debug GitHub Actions deploy workflow failures. Use when the user asks about failed deployments, Terraform errors, state lock issues, CI/CD failures, or wants to troubleshoot the deploy.yml workflow.
+name: cicd-debug
+description: Debug GitHub Actions workflow failures and Terraform errors. Use when deployment failed, Terraform state lock, CI/CD pipeline errors, or troubleshooting deploy.yml.
 ---
 
 # Debug Deploy Workflow Skill

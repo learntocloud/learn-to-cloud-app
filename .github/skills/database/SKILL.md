@@ -1,6 +1,6 @@
 ---
-name: db-query
-description: Query the Learn to Cloud PostgreSQL database directly using Azure AD authentication. Use when investigating data issues, checking user records, debugging duplicates, or running ad-hoc SQL queries on the production database.
+name: database
+description: Query the production PostgreSQL database using Azure AD auth. Use when investigating user data, debugging duplicates, checking submissions, or running ad-hoc SQL queries.
 ---
 
 # Database Query Skill

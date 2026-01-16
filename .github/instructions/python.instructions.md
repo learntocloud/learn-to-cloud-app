@@ -2,37 +2,30 @@
 applyTo: '**/*.py'
 ---
 
-## Running the API
+# Python Coding Standards
 
-1. Navigate to the api directory first:
-   ```bash
-   cd /Users/gps/Developer/learn-to-cloud-app/api
-   ```
+## Style
+- Follow PEP 8
+- Use type hints for all function signatures
+- Use async/await for all database operations
+- Maximum line length: 88 characters (ruff default)
 
-2. Run the API using the venv python directly:
-   ```bash
-   .venv/bin/python -m uvicorn main:app --reload --port 8000
-   ```
+## Imports
+- Group imports: stdlib → third-party → local
+- Use absolute imports within the api package
+- Sort imports alphabetically within groups
 
-3. API will be available at:
-   - Liveness: http://localhost:8000/health
-   - Readiness: http://localhost:8000/ready
-   - Swagger docs: http://localhost:8000/docs
+## Naming
+- Functions/variables: `snake_case`
+- Classes: `PascalCase`
+- Constants: `UPPER_SNAKE_CASE`
 
-## Virtual Environment
+## Dependencies
+- Managed with `uv` (not pip)
+- Add to `pyproject.toml`, not requirements.txt
+- Run `uv sync` to install
 
-- Location: `api/.venv`
-- Managed with `uv`
-- To sync dependencies: `uv sync` (from api directory)
-- To add packages: `uv add <package>` (from api directory)
-
-## Common Issues
-
-- **Port already in use**: Kill existing process first:
-  ```bash
-  pkill -f "uvicorn main:app"
-  ```
-
-- **Module not found errors**: Ensure you're using the venv python (`.venv/bin/python`), not system python
-
-- **`uv run` not finding modules**: Use `.venv/bin/python -m uvicorn` instead of `uv run uvicorn`
+## Testing
+- Test files: `test_*.py`
+- Use pytest fixtures from `conftest.py`
+- Mock external services (Clerk, LLM, GitHub API)

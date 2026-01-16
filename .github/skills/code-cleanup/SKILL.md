@@ -1,6 +1,6 @@
 ---
-name: code-review
-description: Guidelines for reviewing and cleaning up code in the Learn to Cloud app. Use when asked to review code, find unused code, clean up dead code, or audit the codebase.
+name: code-cleanup
+description: Find and remove unused/dead code from the codebase. Use when auditing for unused imports, finding dead API methods, removing duplicate files, or doing a code cleanup pass.
 ---
 
 # Frontend Code Review Guidelines

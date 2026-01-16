@@ -1,6 +1,6 @@
 ---
-name: azure-debug
-description: Debug Azure Container Apps by fetching logs, checking status, and managing resources. Use when investigating production errors, checking API health, or viewing deployment status.
+name: azure-logs
+description: Fetch and analyze Azure Container Apps logs, check container status, and troubleshoot production issues. Use when viewing API/frontend logs, checking deployment health, investigating errors, or restarting containers.
 ---
 
 # Azure Debug Skill

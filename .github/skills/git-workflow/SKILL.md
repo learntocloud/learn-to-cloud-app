@@ -1,6 +1,6 @@
 ---
-name: git-commit
-description: Run pre-commit hooks, generate a meaningful commit message from changed files, and push code. Use when committing and pushing changes, running pre-commit checks, or generating commit messages.
+name: git-workflow
+description: Automate git workflow: run pre-commit hooks, generate commit messages, and push code. Use when committing changes, running linters, generating commit messages, or pushing to remote.
 ---
 
 # Git Commit Workflow
