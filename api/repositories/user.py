@@ -22,8 +22,9 @@ class UserRepository:
 
     async def get_by_github_username(self, username: str) -> User | None:
         """Get a user by their GitHub username."""
+        normalized = username.lower()
         result = await self.db.execute(
-            select(User).where(User.github_username == username)
+            select(User).where(User.github_username == normalized)
         )
         return result.scalar_one_or_none()
 
@@ -85,7 +86,7 @@ class UserRepository:
             first_name=first_name,
             last_name=last_name,
             avatar_url=avatar_url,
-            github_username=github_username,
+            github_username=github_username.lower() if github_username else None,
         )
         self.db.add(user)
         return user
@@ -111,7 +112,7 @@ class UserRepository:
         if avatar_url is not None:
             user.avatar_url = avatar_url
         if github_username is not None:
-            user.github_username = github_username
+            user.github_username = github_username.lower()
         if is_admin is not None:
             user.is_admin = is_admin
 

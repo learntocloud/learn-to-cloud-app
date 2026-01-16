@@ -50,6 +50,9 @@ class User(TimestampMixin, Base):
     """User model - synced from Clerk via webhooks."""
 
     __tablename__ = "users"
+    __table_args__ = (
+        UniqueConstraint("github_username", name="uq_users_github_username"),
+    )
 
     id: Mapped[str] = mapped_column(String(255), primary_key=True)
     email: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
