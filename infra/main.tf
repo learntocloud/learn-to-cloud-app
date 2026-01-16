@@ -365,3 +365,17 @@ resource "azurerm_container_app" "frontend" {
     }
   }
 }
+
+# -----------------------------------------------------------------------------
+# Custom Domain for Frontend (app.learntocloud.guide)
+# -----------------------------------------------------------------------------
+# Steps to add custom domain:
+# 1. Add CNAME record: app.learntocloud.guide → ca-ltc-frontend-dev.<env-domain>
+# 2. Add TXT record for verification: asuid.app → <custom-domain-verification-id>
+# 3. Run: az containerapp hostname add --name ca-ltc-frontend-dev -g rg-ltc-dev --hostname app.learntocloud.guide
+# 4. Run: az containerapp hostname bind --name ca-ltc-frontend-dev -g rg-ltc-dev --hostname app.learntocloud.guide --environment cae-ltc-dev --validation-method CNAME
+
+output "custom_domain_verification_id" {
+  description = "TXT record value for custom domain verification (asuid.app)"
+  value       = azurerm_container_app_environment.main.custom_domain_verification_id
+}
