@@ -130,54 +130,8 @@ jobs:
           echo "container_registry_endpoint=$(terraform output -raw AZURE_CONTAINER_REGISTRY_ENDPOINT)" >> "$GITHUB_OUTPUT"
           echo "api_url=$(terraform output -raw apiUrl)" >> "$GITHUB_OUTPUT"
 
-  configure-database:
-    needs: terraform
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Azure CLI Login
-        uses: azure/login@v2
-        with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
-
-      - name: Configure PostgreSQL Entra Admin
-        run: |
-          set -euo pipefail
-          RESOURCE_GROUP="${{ needs.terraform.outputs.resource_group_name }}"
-          API_APP_NAME="${{ needs.terraform.outputs.api_container_app_name }}"
-
-          # Get the API container app's managed identity principal ID
-          API_PRINCIPAL_ID=$(az containerapp show \
-            --name "$API_APP_NAME" \
-            --resource-group "$RESOURCE_GROUP" \
-            --query "identity.userAssignedIdentities.*.principalId | [0]" -o tsv)
-
-          # Get the PostgreSQL server name (it has a unique suffix)
-          POSTGRES_SERVER=$(az postgres flexible-server list \
-            --resource-group "$RESOURCE_GROUP" \
-            --query "[0].name" -o tsv)
-
-          # Check if Entra admin is already configured
-          EXISTING_ADMIN=$(az postgres flexible-server microsoft-entra-admin list \
-            --server-name "$POSTGRES_SERVER" \
-            --resource-group "$RESOURCE_GROUP" \
-            --query "[?objectId=='$API_PRINCIPAL_ID'].objectId" -o tsv)
-
-          if [ -z "$EXISTING_ADMIN" ]; then
-            echo "Configuring PostgreSQL Entra admin for managed identity..."
-            az postgres flexible-server microsoft-entra-admin create \
-              --server-name "$POSTGRES_SERVER" \
-              --resource-group "$RESOURCE_GROUP" \
-              --object-id "$API_PRINCIPAL_ID" \
-              --display-name "$API_APP_NAME" \
-              --type ServicePrincipal
-          else
-            echo "PostgreSQL Entra admin already configured"
-          fi
-
   deploy:
-    needs: [terraform, configure-database]
+    needs: terraform
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
