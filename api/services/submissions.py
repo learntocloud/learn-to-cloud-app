@@ -8,13 +8,44 @@ Routes should delegate submission business logic to this module.
 """
 
 from dataclasses import dataclass
+from datetime import datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models import Submission, SubmissionType
 from repositories.submission import SubmissionRepository
 from services.github_hands_on_verification import parse_github_url
-from services.hands_on_verification import get_requirement_by_id, validate_submission
+from services.hands_on_verification import validate_submission
+from services.phase_requirements import get_requirement_by_id
+
+
+@dataclass(frozen=True)
+class SubmissionData:
+    """DTO for a hands-on submission (service-layer return type)."""
+
+    id: int
+    requirement_id: str
+    submission_type: SubmissionType
+    phase_id: int
+    submitted_value: str
+    extracted_username: str | None
+    is_validated: bool
+    validated_at: datetime | None
+    created_at: datetime
+
+
+def _to_submission_data(submission: Submission) -> SubmissionData:
+    return SubmissionData(
+        id=submission.id,
+        requirement_id=submission.requirement_id,
+        submission_type=submission.submission_type,
+        phase_id=submission.phase_id,
+        submitted_value=submission.submitted_value,
+        extracted_username=submission.extracted_username,
+        is_validated=submission.is_validated,
+        validated_at=submission.validated_at,
+        created_at=submission.created_at,
+    )
 
 
 def get_validated_ids_by_phase(
@@ -37,7 +68,7 @@ def get_validated_ids_by_phase(
 class SubmissionResult:
     """Result of a hands-on submission."""
 
-    submission: Submission
+    submission: SubmissionData
     is_valid: bool
     message: str
     username_match: bool | None
@@ -119,7 +150,7 @@ async def submit_validation(
     )
 
     return SubmissionResult(
-        submission=db_submission,
+        submission=_to_submission_data(db_submission),
         is_valid=validation_result.is_valid,
         message=validation_result.message,
         username_match=validation_result.username_match,

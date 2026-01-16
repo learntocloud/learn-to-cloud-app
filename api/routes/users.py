@@ -1,5 +1,7 @@
 """User-related endpoints."""
 
+from dataclasses import asdict
+
 from fastapi import APIRouter, HTTPException
 
 from core.auth import OptionalUserId, UserId
@@ -24,7 +26,7 @@ router = APIRouter(prefix="/api/user", tags=["users"])
 async def get_current_user(user_id: UserId, db: DbSession) -> UserResponse:
     """Get current user info."""
     user = await get_or_create_user(db, user_id)
-    return UserResponse.model_validate(user)
+    return UserResponse.model_validate(asdict(user))
 
 
 @router.get("/profile/{username}", response_model=PublicProfileResponse)
@@ -39,12 +41,12 @@ async def get_public_profile_endpoint(
     if result is None:
         raise HTTPException(status_code=404, detail="User not found")
 
-    _, profile_data = result
+    profile_data = result
 
-    streak = StreakResponse.model_validate(profile_data.streak)
+    streak = StreakResponse.model_validate(asdict(profile_data.streak))
 
     heatmap_days = [
-        ActivityHeatmapDay.model_validate(day)
+        ActivityHeatmapDay.model_validate(asdict(day))
         for day in profile_data.activity_heatmap.days
     ]
     activity_heatmap = ActivityHeatmapResponse(
@@ -55,9 +57,11 @@ async def get_public_profile_endpoint(
     )
 
     submissions = [
-        PublicSubmission.model_validate(sub) for sub in profile_data.submissions
+        PublicSubmission.model_validate(asdict(sub)) for sub in profile_data.submissions
     ]
-    badges = [BadgeResponse.model_validate(badge) for badge in profile_data.badges]
+    badges = [
+        BadgeResponse.model_validate(asdict(badge)) for badge in profile_data.badges
+    ]
 
     return PublicProfileResponse(
         username=profile_data.username,

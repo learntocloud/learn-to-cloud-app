@@ -9,27 +9,15 @@ Source of truth: .github/skills/progression-system/progression-system.md
 """
 
 import logging
+from dataclasses import dataclass
+from datetime import datetime
+from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from models import Submission
 from repositories.progress import QuestionAttemptRepository, StepProgressRepository
 from repositories.submission import SubmissionRepository
-from schemas import (
-    BadgeResponse,
-    DashboardResponse,
-    HandsOnRequirement,
-    HandsOnSubmissionResponse,
-    LearningObjectiveSchema,
-    PhaseCapstoneOverviewSchema,
-    PhaseDetailSchema,
-    PhaseHandsOnVerificationOverviewSchema,
-    PhaseProgressSchema,
-    PhaseSummarySchema,
-    TopicDetailSchema,
-    TopicProgressSchema,
-    TopicSummarySchema,
-    UserSummarySchema,
-)
 from services.activity import get_streak_data
 from services.badges import compute_all_badges
 from services.content import (
@@ -38,7 +26,10 @@ from services.content import (
     get_phase_by_slug,
     get_topic_by_slugs,
 )
-from services.hands_on_verification import get_requirements_for_phase
+from services.phase_requirements import (
+    HandsOnRequirementData,
+    get_requirements_for_phase,
+)
 from services.progress import (
     PhaseProgress,
     fetch_user_progress,
@@ -48,27 +39,150 @@ from services.progress import (
 logger = logging.getLogger(__name__)
 
 
-def _capstone_to_schema(
-    capstone: object | None,
-) -> PhaseCapstoneOverviewSchema | None:
-    if capstone is None:
-        return None
-    return PhaseCapstoneOverviewSchema.model_validate(capstone)
+@dataclass(frozen=True)
+class BadgeData:
+    id: str
+    name: str
+    description: str
+    icon: str
 
 
-def _hands_on_overview_to_schema(
-    overview: object | None,
-) -> PhaseHandsOnVerificationOverviewSchema | None:
-    if overview is None:
-        return None
-    return PhaseHandsOnVerificationOverviewSchema.model_validate(overview)
+@dataclass(frozen=True)
+class UserSummaryData:
+    id: str
+    email: str
+    first_name: str | None
+    last_name: str | None
+    avatar_url: str | None
+    github_username: str | None
+    is_admin: bool
+
+
+@dataclass(frozen=True)
+class TopicProgressData:
+    steps_completed: int
+    steps_total: int
+    questions_passed: int
+    questions_total: int
+    percentage: float
+    status: str
+
+
+@dataclass(frozen=True)
+class TopicSummaryData:
+    id: str
+    slug: str
+    name: str
+    description: str
+    order: int
+    estimated_time: str
+    is_capstone: bool
+    steps_count: int
+    questions_count: int
+    progress: TopicProgressData | None
+    is_locked: bool
+
+
+@dataclass(frozen=True)
+class PhaseProgressData:
+    steps_completed: int
+    steps_required: int
+    questions_passed: int
+    questions_required: int
+    hands_on_validated: int
+    hands_on_required: int
+    percentage: float
+    status: str
+
+
+@dataclass(frozen=True)
+class PhaseSummaryData:
+    id: int
+    name: str
+    slug: str
+    description: str
+    short_description: str
+    estimated_weeks: str
+    order: int
+    topics_count: int
+    objectives: list[str]
+    capstone: object | None
+    hands_on_verification: object | None
+    progress: PhaseProgressData | None
+    is_locked: bool
+
+
+@dataclass(frozen=True)
+class HandsOnSubmissionData:
+    id: int
+    requirement_id: str
+    submission_type: object
+    phase_id: int
+    submitted_value: str
+    extracted_username: str | None
+    is_validated: bool
+    validated_at: datetime | None
+    created_at: datetime
+
+
+@dataclass(frozen=True)
+class PhaseDetailData:
+    id: int
+    name: str
+    slug: str
+    description: str
+    short_description: str
+    estimated_weeks: str
+    order: int
+    objectives: list[str]
+    capstone: object | None
+    hands_on_verification: object | None
+    topics: list[TopicSummaryData]
+    progress: PhaseProgressData | None
+    hands_on_requirements: list[HandsOnRequirementData]
+    hands_on_submissions: list[HandsOnSubmissionData]
+    is_locked: bool
+    all_topics_complete: bool
+    all_hands_on_validated: bool
+    is_phase_complete: bool
+
+
+@dataclass(frozen=True)
+class TopicDetailData:
+    id: str
+    slug: str
+    name: str
+    description: str
+    order: int
+    estimated_time: str
+    is_capstone: bool
+    learning_steps: list[Any]
+    questions: list[Any]
+    learning_objectives: list[Any]
+    progress: TopicProgressData | None
+    completed_step_orders: list[int]
+    passed_question_ids: list[str]
+    is_locked: bool
+    is_topic_locked: bool
+    previous_topic_name: str | None
+
+
+@dataclass(frozen=True)
+class DashboardData:
+    user: UserSummaryData
+    phases: list[PhaseSummaryData]
+    overall_progress: float
+    phases_completed: int
+    phases_total: int
+    current_phase: int | None
+    badges: list[BadgeData]
 
 
 def _compute_topic_progress(
     topic: Topic,
     completed_steps: set[int],
     passed_question_ids: set[str],
-) -> TopicProgressSchema:
+) -> TopicProgressData:
     """Compute progress for a single topic.
 
     Topic Progress = (Steps Completed + Questions Passed) /
@@ -94,7 +208,7 @@ def _compute_topic_progress(
         else:
             status = "not_started"
 
-    return TopicProgressSchema(
+    return TopicProgressData(
         steps_completed=steps_completed,
         steps_total=steps_total,
         questions_passed=questions_passed,
@@ -115,8 +229,8 @@ def _is_topic_complete(
     ) >= len(topic.questions)
 
 
-def _phase_progress_to_schema(progress: PhaseProgress) -> PhaseProgressSchema:
-    """Convert PhaseProgress dataclass to schema."""
+def _phase_progress_to_data(progress: PhaseProgress) -> PhaseProgressData:
+    """Convert PhaseProgress dataclass to a DTO."""
     if progress.is_complete:
         status = "completed"
     elif (
@@ -128,7 +242,7 @@ def _phase_progress_to_schema(progress: PhaseProgress) -> PhaseProgressSchema:
     else:
         status = "not_started"
 
-    return PhaseProgressSchema(
+    return PhaseProgressData(
         steps_completed=progress.steps_completed,
         steps_required=progress.steps_required,
         questions_passed=progress.questions_passed,
@@ -137,6 +251,21 @@ def _phase_progress_to_schema(progress: PhaseProgress) -> PhaseProgressSchema:
         hands_on_required=progress.hands_on_required_count,
         percentage=round(progress.overall_percentage, 1),
         status=status,
+    )
+
+
+def _to_hands_on_submission_data(submission: Submission) -> HandsOnSubmissionData:
+    # Avoid importing ORM models into the routes layer; service returns a DTO.
+    return HandsOnSubmissionData(
+        id=submission.id,
+        requirement_id=submission.requirement_id,
+        submission_type=submission.submission_type,
+        phase_id=submission.phase_id,
+        submitted_value=submission.submitted_value,
+        extracted_username=submission.extracted_username,
+        is_validated=submission.is_validated,
+        validated_at=submission.validated_at,
+        created_at=submission.created_at,
     )
 
 
@@ -149,7 +278,7 @@ async def get_dashboard(
     user_avatar_url: str | None,
     user_github_username: str | None,
     is_admin: bool,
-) -> DashboardResponse:
+) -> DashboardData:
     """Get complete dashboard data for a user.
 
     This is the main entry point for dashboard data. It:
@@ -166,12 +295,12 @@ async def get_dashboard(
     phases = get_all_phases()
     user_progress = await fetch_user_progress(db, user_id)
 
-    phase_summaries: list[PhaseSummarySchema] = []
+    phase_summaries: list[PhaseSummaryData] = []
     prev_phase_complete = True  # Phase 0 is always "unlocked"
 
     for phase in phases:
         progress = user_progress.phases.get(phase.id)
-        progress_schema = _phase_progress_to_schema(progress) if progress else None
+        progress_data = _phase_progress_to_data(progress) if progress else None
 
         # Locking logic
         if is_admin:
@@ -182,7 +311,7 @@ async def get_dashboard(
             is_locked = not prev_phase_complete
 
         phase_summaries.append(
-            PhaseSummarySchema(
+            PhaseSummaryData(
                 id=phase.id,
                 name=phase.name,
                 slug=phase.slug,
@@ -192,11 +321,9 @@ async def get_dashboard(
                 order=phase.order,
                 topics_count=len(phase.topics),
                 objectives=list(phase.objectives),
-                capstone=_capstone_to_schema(phase.capstone),
-                hands_on_verification=_hands_on_overview_to_schema(
-                    phase.hands_on_verification
-                ),
-                progress=progress_schema,
+                capstone=phase.capstone,
+                hands_on_verification=phase.hands_on_verification,
+                progress=progress_data,
                 is_locked=is_locked,
             )
         )
@@ -220,7 +347,7 @@ async def get_dashboard(
         longest_streak=streak_data.longest_streak,
     )
     badges = [
-        BadgeResponse(
+        BadgeData(
             id=badge.id,
             name=badge.name,
             description=badge.description,
@@ -229,8 +356,8 @@ async def get_dashboard(
         for badge in earned_badges
     ]
 
-    return DashboardResponse(
-        user=UserSummarySchema(
+    return DashboardData(
+        user=UserSummaryData(
             id=user_id,
             email=user_email,
             first_name=user_first_name,
@@ -252,7 +379,7 @@ async def get_phases_list(
     db: AsyncSession,
     user_id: str | None,
     is_admin: bool,
-) -> list[PhaseSummarySchema]:
+) -> list[PhaseSummaryData]:
     """Get all phases with progress for a user.
 
     If user_id is None (unauthenticated):
@@ -264,7 +391,7 @@ async def get_phases_list(
     # For unauthenticated users, no progress data
     if user_id is None:
         return [
-            PhaseSummarySchema(
+            PhaseSummaryData(
                 id=phase.id,
                 name=phase.name,
                 slug=phase.slug,
@@ -274,10 +401,8 @@ async def get_phases_list(
                 order=phase.order,
                 topics_count=len(phase.topics),
                 objectives=list(phase.objectives),
-                capstone=_capstone_to_schema(phase.capstone),
-                hands_on_verification=_hands_on_overview_to_schema(
-                    phase.hands_on_verification
-                ),
+                capstone=phase.capstone,
+                hands_on_verification=phase.hands_on_verification,
                 progress=None,
                 is_locked=(phase.id != 0),  # Only phase 0 unlocked for visitors
             )
@@ -286,12 +411,12 @@ async def get_phases_list(
 
     user_progress = await fetch_user_progress(db, user_id)
 
-    phase_summaries: list[PhaseSummarySchema] = []
+    phase_summaries: list[PhaseSummaryData] = []
     prev_phase_complete = True
 
     for phase in phases:
         progress = user_progress.phases.get(phase.id)
-        progress_schema = _phase_progress_to_schema(progress) if progress else None
+        progress_data = _phase_progress_to_data(progress) if progress else None
 
         if is_admin:
             is_locked = False
@@ -301,7 +426,7 @@ async def get_phases_list(
             is_locked = not prev_phase_complete
 
         phase_summaries.append(
-            PhaseSummarySchema(
+            PhaseSummaryData(
                 id=phase.id,
                 name=phase.name,
                 slug=phase.slug,
@@ -311,11 +436,9 @@ async def get_phases_list(
                 order=phase.order,
                 topics_count=len(phase.topics),
                 objectives=list(phase.objectives),
-                capstone=_capstone_to_schema(phase.capstone),
-                hands_on_verification=_hands_on_overview_to_schema(
-                    phase.hands_on_verification
-                ),
-                progress=progress_schema,
+                capstone=phase.capstone,
+                hands_on_verification=phase.hands_on_verification,
+                progress=progress_data,
                 is_locked=is_locked,
             )
         )
@@ -330,7 +453,7 @@ async def get_phase_detail(
     user_id: str | None,
     phase_slug: str,
     is_admin: bool,
-) -> PhaseDetailSchema | None:
+) -> PhaseDetailData | None:
     """Get detailed phase info with topics and progress.
 
     Topic locking rules from skill file:
@@ -352,13 +475,13 @@ async def get_phase_detail(
         # Only Phase 0 is accessible
         phase_is_locked = phase.id != 0
 
-        topic_summaries: list[TopicSummarySchema] = []
+        topic_summaries: list[TopicSummaryData] = []
         for topic in phase.topics:
             # Only first topic unlocked for Phase 0
             topic_is_locked = phase_is_locked or topic.order != 1
 
             topic_summaries.append(
-                TopicSummarySchema(
+                TopicSummaryData(
                     id=topic.id,
                     slug=topic.slug,
                     name=topic.name,
@@ -376,7 +499,7 @@ async def get_phase_detail(
         # Get hands-on requirements (but no submissions for unauthenticated)
         hands_on_reqs = get_requirements_for_phase(phase.id)
 
-        return PhaseDetailSchema(
+        return PhaseDetailData(
             id=phase.id,
             name=phase.name,
             slug=phase.slug,
@@ -385,23 +508,11 @@ async def get_phase_detail(
             estimated_weeks=phase.estimated_weeks,
             order=phase.order,
             objectives=list(phase.objectives),
-            capstone=_capstone_to_schema(phase.capstone),
-            hands_on_verification=_hands_on_overview_to_schema(
-                phase.hands_on_verification
-            ),
+            capstone=phase.capstone,
+            hands_on_verification=phase.hands_on_verification,
             topics=topic_summaries,
             progress=None,
-            hands_on_requirements=[
-                HandsOnRequirement(
-                    id=r.id,
-                    phase_id=r.phase_id,
-                    submission_type=r.submission_type,
-                    name=r.name,
-                    description=r.description,
-                    example_url=r.example_url,
-                )
-                for r in hands_on_reqs
-            ],
+            hands_on_requirements=list(hands_on_reqs),
             hands_on_submissions=[],
             is_locked=phase_is_locked,
             # Unauthenticated users: all computed fields are False
@@ -440,7 +551,7 @@ async def get_phase_detail(
         )
 
     # Build topic summaries with locking
-    topic_summaries: list[TopicSummarySchema] = []
+    topic_summaries: list[TopicSummaryData] = []
     prev_topic_complete = True
 
     for topic in phase.topics:
@@ -462,7 +573,7 @@ async def get_phase_detail(
             topic_is_locked = not prev_topic_complete
 
         topic_summaries.append(
-            TopicSummarySchema(
+            TopicSummaryData(
                 id=topic.id,
                 slug=topic.slug,
                 name=topic.name,
@@ -485,14 +596,12 @@ async def get_phase_detail(
     hands_on_reqs = get_requirements_for_phase(phase.id)
     submission_repo = SubmissionRepository(db)
     db_submissions = await submission_repo.get_by_user_and_phase(user_id, phase.id)
-    hands_on_submissions = [
-        HandsOnSubmissionResponse.model_validate(sub) for sub in db_submissions
-    ]
+    hands_on_submissions = [_to_hands_on_submission_data(sub) for sub in db_submissions]
 
     if phase_progress:
-        progress_schema = _phase_progress_to_schema(phase_progress)
+        progress_data = _phase_progress_to_data(phase_progress)
     else:
-        progress_schema = None
+        progress_data = None
 
     # Compute completion status fields (business logic lives here, NOT in frontend)
     all_topics_complete = is_admin or all(
@@ -508,11 +617,11 @@ async def get_phase_detail(
 
     # Phase is complete when: steps+questions done AND all hands-on validated
     steps_and_questions_complete = (
-        progress_schema is not None and progress_schema.status == "completed"
+        progress_data is not None and progress_data.status == "completed"
     )
     is_phase_complete = steps_and_questions_complete and all_hands_on_validated
 
-    return PhaseDetailSchema(
+    return PhaseDetailData(
         id=phase.id,
         name=phase.name,
         slug=phase.slug,
@@ -521,10 +630,10 @@ async def get_phase_detail(
         estimated_weeks=phase.estimated_weeks,
         order=phase.order,
         objectives=list(phase.objectives),
-        capstone=_capstone_to_schema(phase.capstone),
-        hands_on_verification=_hands_on_overview_to_schema(phase.hands_on_verification),
+        capstone=phase.capstone,
+        hands_on_verification=phase.hands_on_verification,
         topics=topic_summaries,
-        progress=progress_schema,
+        progress=progress_data,
         hands_on_requirements=list(hands_on_reqs),
         hands_on_submissions=hands_on_submissions,
         is_locked=phase_is_locked,
@@ -540,7 +649,7 @@ async def get_topic_detail(
     phase_slug: str,
     topic_slug: str,
     is_admin: bool,
-) -> TopicDetailSchema | None:
+) -> TopicDetailData | None:
     """Get detailed topic info with steps, questions, and progress.
 
     Includes locking status and previous topic name for UI messaging.
@@ -557,49 +666,10 @@ async def get_topic_detail(
     if not topic:
         return None
 
-    # Import schemas
-    from schemas import (
-        LearningStepSchema,
-        ProviderOptionSchema,
-        QuestionSchema,
-        SecondaryLinkSchema,
-    )
-
     # Build learning steps and questions (same for all users)
-    learning_steps = [
-        LearningStepSchema(
-            order=s.order,
-            text=s.text,
-            action=s.action,
-            title=s.title,
-            url=s.url,
-            description=s.description,
-            code=s.code,
-            secondary_links=[
-                SecondaryLinkSchema(text=link.text, url=link.url)
-                for link in s.secondary_links
-            ],
-            options=[
-                ProviderOptionSchema(
-                    provider=opt.provider,
-                    title=opt.title,
-                    url=opt.url,
-                    description=opt.description,
-                )
-                for opt in s.options
-            ],
-        )
-        for s in topic.learning_steps
-    ]
-
-    questions = [
-        QuestionSchema(
-            id=q.id,
-            prompt=q.prompt,
-            expected_concepts=list(q.expected_concepts),
-        )
-        for q in topic.questions
-    ]
+    learning_steps = list(topic.learning_steps)
+    questions = list(topic.questions)
+    learning_objectives = list(topic.learning_objectives)
 
     # For unauthenticated users
     if user_id is None:
@@ -615,7 +685,7 @@ async def get_topic_detail(
         else:
             previous_topic_name = None
 
-        return TopicDetailSchema(
+        return TopicDetailData(
             id=topic.id,
             slug=topic.slug,
             name=topic.name,
@@ -625,10 +695,7 @@ async def get_topic_detail(
             is_capstone=topic.is_capstone,
             learning_steps=learning_steps,
             questions=questions,
-            learning_objectives=[
-                LearningObjectiveSchema(id=obj.id, text=obj.text, order=obj.order)
-                for obj in topic.learning_objectives
-            ],
+            learning_objectives=learning_objectives,
             progress=None,
             completed_step_orders=[],
             passed_question_ids=[],
@@ -681,7 +748,7 @@ async def get_topic_detail(
         ):
             topic_is_locked = True
 
-    return TopicDetailSchema(
+    return TopicDetailData(
         id=topic.id,
         slug=topic.slug,
         name=topic.name,
@@ -691,10 +758,7 @@ async def get_topic_detail(
         is_capstone=topic.is_capstone,
         learning_steps=learning_steps,
         questions=questions,
-        learning_objectives=[
-            LearningObjectiveSchema(id=obj.id, text=obj.text, order=obj.order)
-            for obj in topic.learning_objectives
-        ],
+        learning_objectives=learning_objectives,
         progress=topic_progress,
         completed_step_orders=sorted(completed_steps),
         passed_question_ids=sorted(passed_question_ids),

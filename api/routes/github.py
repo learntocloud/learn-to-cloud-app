@@ -1,5 +1,7 @@
 """GitHub submission endpoints."""
 
+from dataclasses import asdict
+
 from fastapi import APIRouter, HTTPException, Request
 
 from core.auth import UserId
@@ -51,5 +53,5 @@ async def submit_github_validation(
         if result.username_match is not None
         else False,
         repo_exists=result.repo_exists if result.repo_exists is not None else False,
-        submission=HandsOnSubmissionResponse.model_validate(result.submission),
+        submission=HandsOnSubmissionResponse.model_validate(asdict(result.submission)),
     )

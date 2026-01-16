@@ -1,5 +1,7 @@
 """Certificate generation and verification endpoints."""
 
+from dataclasses import asdict
+
 from fastapi import APIRouter, HTTPException, Path, Response
 
 from core.auth import OptionalUserId, UserId
@@ -101,7 +103,7 @@ async def generate_certificate_endpoint(
             detail=str(e),
         )
 
-    return CertificateResponse.model_validate(result.certificate)
+    return CertificateResponse.model_validate(asdict(result.certificate))
 
 
 @router.get("", response_model=UserCertificatesResponse)
@@ -118,7 +120,9 @@ async def get_user_certificates(
     ) = await get_user_certificates_with_eligibility(db, user_id)
 
     return UserCertificatesResponse(
-        certificates=[CertificateResponse.model_validate(c) for c in certificates],
+        certificates=[
+            CertificateResponse.model_validate(asdict(c)) for c in certificates
+        ],
         full_completion_eligible=full_completion_eligible,
     )
 

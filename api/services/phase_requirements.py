@@ -19,12 +19,43 @@ To add a new requirement:
 3. If needed, add fields to HandsOnRequirement in schemas.py
 """
 
-from models import SubmissionType
-from schemas import HandsOnRequirement
+from dataclasses import dataclass
 
-HANDS_ON_REQUIREMENTS: dict[int, list[HandsOnRequirement]] = {
+from models import SubmissionType
+
+
+@dataclass(frozen=True)
+class HandsOnRequirementData:
+    """Hands-on requirement definition used by the services layer.
+
+    NOTE: This is intentionally a dataclass (not a Pydantic schema) to keep
+    the services layer independent from the routes/schema layer.
+    """
+
+    id: str
+    phase_id: int
+    submission_type: SubmissionType
+    name: str
+    description: str
+    example_url: str | None = None
+
+    required_repo: str | None = None
+    expected_endpoint: str | None = None
+
+    # If True, validate the response body matches Journal API structure
+    validate_response_body: bool = False
+
+    challenge_config: dict | None = None
+
+    # For REPO_WITH_FILES: file patterns to search for
+    required_file_patterns: list[str] | None = None
+    # Human-readable description of the files being searched for
+    file_description: str | None = None
+
+
+HANDS_ON_REQUIREMENTS: dict[int, list[HandsOnRequirementData]] = {
     0: [
-        HandsOnRequirement(
+        HandsOnRequirementData(
             id="phase0-github-profile",
             phase_id=0,
             submission_type=SubmissionType.GITHUB_PROFILE,
@@ -38,7 +69,7 @@ HANDS_ON_REQUIREMENTS: dict[int, list[HandsOnRequirement]] = {
         ),
     ],
     1: [
-        HandsOnRequirement(
+        HandsOnRequirementData(
             id="phase1-profile-readme",
             phase_id=1,
             submission_type=SubmissionType.PROFILE_README,
@@ -49,7 +80,7 @@ HANDS_ON_REQUIREMENTS: dict[int, list[HandsOnRequirement]] = {
             ),
             example_url="https://github.com/madebygps/madebygps/blob/main/README.md",
         ),
-        HandsOnRequirement(
+        HandsOnRequirementData(
             id="phase1-linux-ctfs-fork",
             phase_id=1,
             submission_type=SubmissionType.REPO_FORK,
@@ -60,7 +91,7 @@ HANDS_ON_REQUIREMENTS: dict[int, list[HandsOnRequirement]] = {
             example_url="https://github.com/madebygps/linux-ctfs",
             required_repo="learntocloud/linux-ctfs",
         ),
-        HandsOnRequirement(
+        HandsOnRequirementData(
             id="phase1-linux-ctf-token",
             phase_id=1,
             submission_type=SubmissionType.CTF_TOKEN,
@@ -74,7 +105,7 @@ HANDS_ON_REQUIREMENTS: dict[int, list[HandsOnRequirement]] = {
         ),
     ],
     2: [
-        HandsOnRequirement(
+        HandsOnRequirementData(
             id="phase2-journal-starter-fork",
             phase_id=2,
             submission_type=SubmissionType.REPO_FORK,
@@ -87,7 +118,7 @@ HANDS_ON_REQUIREMENTS: dict[int, list[HandsOnRequirement]] = {
             example_url="https://github.com/learntocloud/journal-starter",
             required_repo="learntocloud/journal-starter",
         ),
-        HandsOnRequirement(
+        HandsOnRequirementData(
             id="phase2-journal-api-working",
             phase_id=2,
             submission_type=SubmissionType.JOURNAL_API_RESPONSE,
@@ -101,7 +132,7 @@ HANDS_ON_REQUIREMENTS: dict[int, list[HandsOnRequirement]] = {
         ),
     ],
     3: [
-        HandsOnRequirement(
+        HandsOnRequirementData(
             id="phase3-copilot-demo",
             phase_id=3,
             submission_type=SubmissionType.REPO_URL,
@@ -114,7 +145,7 @@ HANDS_ON_REQUIREMENTS: dict[int, list[HandsOnRequirement]] = {
         ),
     ],
     4: [
-        HandsOnRequirement(
+        HandsOnRequirementData(
             id="phase4-deployed-journal",
             phase_id=4,
             submission_type=SubmissionType.DEPLOYED_APP,
@@ -132,7 +163,7 @@ HANDS_ON_REQUIREMENTS: dict[int, list[HandsOnRequirement]] = {
         ),
     ],
     5: [
-        HandsOnRequirement(
+        HandsOnRequirementData(
             id="phase5-container-image",
             phase_id=5,
             submission_type=SubmissionType.CONTAINER_IMAGE,
@@ -145,7 +176,7 @@ HANDS_ON_REQUIREMENTS: dict[int, list[HandsOnRequirement]] = {
             ),
             example_url="docker.io/yourusername/journal-api:latest",
         ),
-        HandsOnRequirement(
+        HandsOnRequirementData(
             id="phase5-cicd-pipeline",
             phase_id=5,
             submission_type=SubmissionType.WORKFLOW_RUN,
@@ -158,7 +189,7 @@ HANDS_ON_REQUIREMENTS: dict[int, list[HandsOnRequirement]] = {
             ),
             example_url="https://github.com/yourusername/journal-api",
         ),
-        HandsOnRequirement(
+        HandsOnRequirementData(
             id="phase5-terraform-iac",
             phase_id=5,
             submission_type=SubmissionType.REPO_WITH_FILES,
@@ -172,7 +203,7 @@ HANDS_ON_REQUIREMENTS: dict[int, list[HandsOnRequirement]] = {
             required_file_patterns=["infra/main.tf", "infra/variables.tf", "infra/"],
             file_description="Terraform files in infra/ directory",
         ),
-        HandsOnRequirement(
+        HandsOnRequirementData(
             id="phase5-kubernetes-manifests",
             phase_id=5,
             submission_type=SubmissionType.REPO_WITH_FILES,
@@ -188,7 +219,7 @@ HANDS_ON_REQUIREMENTS: dict[int, list[HandsOnRequirement]] = {
         ),
     ],
     6: [
-        HandsOnRequirement(
+        HandsOnRequirementData(
             id="phase6-security-scanning",
             phase_id=6,
             submission_type=SubmissionType.REPO_URL,
@@ -204,12 +235,12 @@ HANDS_ON_REQUIREMENTS: dict[int, list[HandsOnRequirement]] = {
 }
 
 
-def get_requirements_for_phase(phase_id: int) -> list[HandsOnRequirement]:
+def get_requirements_for_phase(phase_id: int) -> list[HandsOnRequirementData]:
     """Get all hands-on requirements for a specific phase."""
     return HANDS_ON_REQUIREMENTS.get(phase_id, [])
 
 
-def get_requirement_by_id(requirement_id: str) -> HandsOnRequirement | None:
+def get_requirement_by_id(requirement_id: str) -> HandsOnRequirementData | None:
     """Get a specific requirement by its ID."""
     for requirements in HANDS_ON_REQUIREMENTS.values():
         for req in requirements:

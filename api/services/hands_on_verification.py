@@ -29,7 +29,6 @@ import httpx
 
 from core.telemetry import track_dependency
 from models import SubmissionType
-from schemas import HandsOnRequirement
 from services.ctf import verify_ctf_token
 from services.github_hands_on_verification import (
     ValidationResult,
@@ -43,6 +42,7 @@ from services.github_hands_on_verification import (
 )
 from services.phase_requirements import (
     HANDS_ON_REQUIREMENTS,
+    HandsOnRequirementData,
     get_requirement_by_id,
     get_requirements_for_phase,
 )
@@ -537,7 +537,7 @@ def validate_ctf_token_submission(
 
 
 async def validate_submission(
-    requirement: HandsOnRequirement,
+    requirement: HandsOnRequirementData,
     submitted_value: str,
     expected_username: str | None = None,
 ) -> ValidationResult:

@@ -10,6 +10,7 @@ All progress calculation and locking logic follows
 """
 
 import logging
+from dataclasses import asdict
 
 from fastapi import APIRouter, HTTPException
 
@@ -48,7 +49,7 @@ async def get_dashboard_endpoint(
     """
     user = await get_or_create_user(db, user_id)
 
-    return await get_dashboard(
+    dto = await get_dashboard(
         db=db,
         user_id=user_id,
         user_email=user.email,
@@ -58,6 +59,8 @@ async def get_dashboard_endpoint(
         user_github_username=user.github_username,
         is_admin=user.is_admin,
     )
+
+    return DashboardResponse.model_validate(asdict(dto))
 
 
 @router.get("/phases", response_model=list[PhaseSummarySchema])
@@ -79,10 +82,12 @@ async def get_phases_endpoint(
     """
     if user_id:
         user = await get_or_create_user(db, user_id)
-        return await get_phases_list(db, user_id, user.is_admin)
+        dtos = await get_phases_list(db, user_id, user.is_admin)
     else:
         # Unauthenticated: return phases without progress
-        return await get_phases_list(db, None, False)
+        dtos = await get_phases_list(db, None, False)
+
+    return [PhaseSummarySchema.model_validate(asdict(dto)) for dto in dtos]
 
 
 @router.get("/phases/{phase_slug}", response_model=PhaseDetailSchema)
@@ -107,12 +112,12 @@ async def get_phase_detail_endpoint(
         user = await get_or_create_user(db, user_id)
         is_admin = user.is_admin
 
-    result = await get_phase_detail(db, user_id, phase_slug, is_admin)
+    dto = await get_phase_detail(db, user_id, phase_slug, is_admin)
 
-    if result is None:
+    if dto is None:
         raise HTTPException(status_code=404, detail="Phase not found")
 
-    return result
+    return PhaseDetailSchema.model_validate(asdict(dto))
 
 
 @router.get(
@@ -143,9 +148,9 @@ async def get_topic_detail_endpoint(
         user = await get_or_create_user(db, user_id)
         is_admin = user.is_admin
 
-    result = await get_topic_detail(db, user_id, phase_slug, topic_slug, is_admin)
+    dto = await get_topic_detail(db, user_id, phase_slug, topic_slug, is_admin)
 
-    if result is None:
+    if dto is None:
         raise HTTPException(status_code=404, detail="Topic not found")
 
-    return result
+    return TopicDetailSchema.model_validate(asdict(dto))

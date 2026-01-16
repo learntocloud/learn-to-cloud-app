@@ -32,6 +32,31 @@ from repositories.certificate import CertificateRepository
 from services.progress import fetch_user_progress
 
 
+@dataclass(frozen=True)
+class CertificateData:
+    """DTO for a certificate (service-layer return type)."""
+
+    id: int
+    certificate_type: str
+    verification_code: str
+    recipient_name: str
+    issued_at: datetime
+    phases_completed: int
+    total_phases: int
+
+
+def _to_certificate_data(certificate: Certificate) -> CertificateData:
+    return CertificateData(
+        id=certificate.id,
+        certificate_type=certificate.certificate_type,
+        verification_code=certificate.verification_code,
+        recipient_name=certificate.recipient_name,
+        issued_at=certificate.issued_at,
+        phases_completed=certificate.phases_completed,
+        total_phases=certificate.total_phases,
+    )
+
+
 def generate_verification_code(user_id: str, certificate_type: str) -> str:
     """Generate a unique, verifiable certificate code.
 
@@ -53,7 +78,7 @@ class EligibilityResult:
     phases_completed: int
     total_phases: int
     completion_percentage: float
-    existing_certificate: Certificate | None
+    existing_certificate: CertificateData | None
     message: str
 
 
@@ -82,7 +107,9 @@ async def check_eligibility(
     total_phases = progress.total_phases
     percentage = (phases_completed / total_phases) * 100 if total_phases > 0 else 0.0
 
-    if existing_cert:
+    existing_cert_data = _to_certificate_data(existing_cert) if existing_cert else None
+
+    if existing_cert_data:
         message = "Certificate already issued"
     elif progress.is_program_complete:
         cert_info = get_certificate_info(certificate_type)
@@ -97,7 +124,7 @@ async def check_eligibility(
         phases_completed=phases_completed,
         total_phases=total_phases,
         completion_percentage=percentage,
-        existing_certificate=existing_cert,
+        existing_certificate=existing_cert_data,
         message=message,
     )
 
@@ -106,7 +133,7 @@ async def check_eligibility(
 class CreateCertificateResult:
     """Result of certificate creation."""
 
-    certificate: Certificate
+    certificate: CertificateData
     verification_code: str
 
 
@@ -197,7 +224,7 @@ async def create_certificate(
     )
 
     return CreateCertificateResult(
-        certificate=certificate,
+        certificate=_to_certificate_data(certificate),
         verification_code=verification_code,
     )
 
@@ -205,7 +232,7 @@ async def create_certificate(
 async def get_user_certificates_with_eligibility(
     db: AsyncSession,
     user_id: str,
-) -> tuple[list[Certificate], bool]:
+) -> tuple[list[CertificateData], bool]:
     """Get all certificates for a user plus eligibility status.
 
     Args:
@@ -223,14 +250,14 @@ async def get_user_certificates_with_eligibility(
         eligibility.is_eligible and eligibility.existing_certificate is None
     )
 
-    return list(certificates), full_completion_eligible
+    return [_to_certificate_data(c) for c in certificates], full_completion_eligible
 
 
 async def get_certificate_by_id(
     db: AsyncSession,
     certificate_id: int,
     user_id: str,
-) -> Certificate | None:
+) -> CertificateData | None:
     """Get a specific certificate by ID (must belong to user).
 
     Args:
@@ -242,13 +269,14 @@ async def get_certificate_by_id(
         Certificate if found and owned by user, else None
     """
     cert_repo = CertificateRepository(db)
-    return await cert_repo.get_by_id_and_user(certificate_id, user_id)
+    cert = await cert_repo.get_by_id_and_user(certificate_id, user_id)
+    return _to_certificate_data(cert) if cert else None
 
 
 async def verify_certificate(
     db: AsyncSession,
     verification_code: str,
-) -> Certificate | None:
+) -> CertificateData | None:
     """Verify a certificate by its verification code.
 
     Args:
@@ -259,7 +287,8 @@ async def verify_certificate(
         Certificate if valid, else None
     """
     cert_repo = CertificateRepository(db)
-    return await cert_repo.get_by_verification_code(verification_code)
+    cert = await cert_repo.get_by_verification_code(verification_code)
+    return _to_certificate_data(cert) if cert else None
 
 
 @dataclass
@@ -267,7 +296,7 @@ class VerificationResult:
     """Result of certificate verification."""
 
     is_valid: bool
-    certificate: Certificate | None
+    certificate: CertificateData | None
     message: str
 
 
@@ -303,7 +332,7 @@ async def verify_certificate_with_message(
     )
 
 
-def generate_certificate_svg(certificate: Certificate) -> str:
+def generate_certificate_svg(certificate: CertificateData) -> str:
     """Generate SVG content for a certificate.
 
     This is a service-layer function that delegates to the rendering module.
@@ -325,7 +354,7 @@ def generate_certificate_svg(certificate: Certificate) -> str:
     )
 
 
-def generate_certificate_pdf(certificate: Certificate) -> bytes:
+def generate_certificate_pdf(certificate: CertificateData) -> bytes:
     """Generate PDF content for a certificate.
 
     This is a service-layer function that delegates to the rendering module.

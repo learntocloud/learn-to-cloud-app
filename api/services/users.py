@@ -23,6 +23,33 @@ StreakInfo = StreakData
 HeatmapInfo = HeatmapData
 
 
+@dataclass(frozen=True)
+class UserData:
+    """DTO for a user (service-layer return type)."""
+
+    id: str
+    email: str
+    first_name: str | None
+    last_name: str | None
+    avatar_url: str | None
+    github_username: str | None
+    is_admin: bool
+    created_at: datetime
+
+
+def _to_user_data(user: User) -> UserData:
+    return UserData(
+        id=user.id,
+        email=user.email,
+        first_name=user.first_name,
+        last_name=user.last_name,
+        avatar_url=user.avatar_url,
+        github_username=user.github_username,
+        is_admin=user.is_admin,
+        created_at=user.created_at,
+    )
+
+
 @dataclass
 class PublicSubmissionInfo:
     """Public submission information for profile display."""
@@ -61,7 +88,7 @@ class PublicProfileData:
     badges: list[BadgeInfo]
 
 
-async def get_or_create_user(db: AsyncSession, user_id: str) -> User:
+async def get_or_create_user(db: AsyncSession, user_id: str) -> UserData:
     """Get user from DB or create placeholder (will be synced via webhook).
 
     Uses repository pattern for database operations.
@@ -91,14 +118,14 @@ async def get_or_create_user(db: AsyncSession, user_id: str) -> User:
                 else None,
             )
 
-    return user
+    return _to_user_data(user)
 
 
 async def get_public_profile(
     db: AsyncSession,
     username: str,
     viewer_user_id: str | None = None,
-) -> tuple[User, PublicProfileData] | None:
+) -> PublicProfileData | None:
     """Build complete public profile data for a user.
 
     Returns None if user not found.
@@ -164,4 +191,4 @@ async def get_public_profile(
         badges=badges,
     )
 
-    return profile_user, profile_data
+    return profile_data
