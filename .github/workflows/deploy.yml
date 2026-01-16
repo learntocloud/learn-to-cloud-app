@@ -110,6 +110,7 @@ jobs:
       - name: Terraform Plan
         run: terraform plan -out=tfplan -input=false
         env:
+          TF_VAR_subscription_id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
           TF_VAR_postgres_admin_password: ${{ secrets.POSTGRES_ADMIN_PASSWORD }}
           TF_VAR_clerk_secret_key: ${{ secrets.CLERK_SECRET_KEY }}
           TF_VAR_clerk_webhook_signing_secret: ${{ secrets.CLERK_WEBHOOK_SIGNING_SECRET }}
