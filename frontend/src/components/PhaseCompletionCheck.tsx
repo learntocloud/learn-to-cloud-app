@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { PhaseCelebrationModal, PHASE_BADGE_DATA } from "./PhaseCelebrationModal";
+import { PhaseCelebrationModal } from "./PhaseCelebrationModal";
+import { PHASE_BADGE_DATA } from "./phase-badge-data";
 
 interface PhaseCompletionCheckProps {
   phaseNumber: number;
