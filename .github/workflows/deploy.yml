@@ -76,7 +76,7 @@ jobs:
           version: "0.8.6"
 
       - name: Type check (ty)
-        run: uv tool run ty check --python $(which python)
+        run: uv tool run ty check --python .venv/bin/python
 
       - name: Run tests
         run: uv run pytest tests/ -v --tb=short
