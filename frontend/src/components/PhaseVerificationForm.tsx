@@ -9,6 +9,9 @@ interface PhaseVerificationFormProps {
   githubUsername: string | null;
   nextPhaseSlug?: string;
   phaseProgress?: PhaseProgressSchema | null;
+  // Computed values from API - DO NOT recalculate
+  allHandsOnValidated: boolean;
+  isPhaseComplete: boolean;
 }
 
 export function PhaseVerificationForm({
@@ -18,6 +21,8 @@ export function PhaseVerificationForm({
   githubUsername,
   nextPhaseSlug,
   phaseProgress,
+  allHandsOnValidated,
+  isPhaseComplete,
 }: PhaseVerificationFormProps) {
   const [urls, setUrls] = useState<Record<string, string>>({});
   const [validationMessages, setValidationMessages] = useState<Record<string, { message: string; isValid: boolean }>>({});
@@ -46,18 +51,8 @@ export function PhaseVerificationForm({
     }
   };
 
-  const allHandsOnPassed = requirements.every((req) => {
-    const sub = getSubmissionForRequirement(req.id);
-    return sub?.is_validated === true;
-  });
-
-  // Phase is complete when ALL three requirements are met:
-  // 1. All learning steps completed
-  // 2. All knowledge questions passed
-  // 3. All hands-on requirements validated
-  // The phaseProgress.status === 'completed' means steps + questions are done
+  // Use API-computed values - business logic lives in API, not frontend
   const stepsAndQuestionsComplete = phaseProgress?.status === 'completed';
-  const phaseComplete = stepsAndQuestionsComplete && allHandsOnPassed;
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
@@ -180,7 +175,7 @@ export function PhaseVerificationForm({
         })}
       </div>
 
-      {phaseComplete && nextPhaseSlug && (
+      {isPhaseComplete && nextPhaseSlug && (
         <div className="mt-6 p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg border border-emerald-200 dark:border-emerald-800 text-center">
           <p className="text-emerald-700 dark:text-emerald-300 font-medium mb-3">
             🎉 All verifications complete! Phase {phaseNumber} finished!
@@ -195,7 +190,7 @@ export function PhaseVerificationForm({
       )}
 
       {/* Show hands-on complete but steps/questions incomplete */}
-      {allHandsOnPassed && !stepsAndQuestionsComplete && (
+      {allHandsOnValidated && !stepsAndQuestionsComplete && (
         <div className="mt-6 p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800 text-center">
           <p className="text-amber-700 dark:text-amber-300 font-medium">
             ✅ All hands-on requirements verified! Complete all learning steps and questions to finish Phase {phaseNumber}.

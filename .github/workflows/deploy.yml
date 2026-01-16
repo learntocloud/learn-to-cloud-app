@@ -10,12 +10,12 @@ on:
 # Concurrency settings for the workflow
 # - group: Creates a concurrency group named "deploy-{AZURE_ENV_NAME}" to ensure only one deployment
 #   runs at a time for each Azure environment. Multiple workflow runs with the same group name
-#   will be queued or cancelled based on the cancel-in-progress setting.
-# - cancel-in-progress: When set to true, any currently running workflow in this concurrency group
-#   will be cancelled when a new workflow run is triggered, ensuring only the latest deployment proceeds.
+#   will be queued instead of cancelled to prevent Terraform state lock issues.
+# - cancel-in-progress: Set to false to let Terraform operations complete and release state locks
+#   properly. New runs will queue and wait for the current run to finish.
 concurrency:
   group: deploy-${{ vars.AZURE_ENV_NAME }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -110,7 +110,23 @@ jobs:
         run: terraform validate
 
       - name: Terraform Plan
-        run: terraform plan -out=tfplan -input=false
+        run: |
+          # Retry logic for state lock issues (up to 3 attempts with 30s delay)
+          for i in 1 2 3; do
+            echo "Attempt $i of 3..."
+            if terraform plan -out=tfplan -input=false -lock-timeout=120s; then
+              echo "Terraform plan succeeded"
+              break
+            else
+              if [ $i -lt 3 ]; then
+                echo "Terraform plan failed, waiting 30s before retry..."
+                sleep 30
+              else
+                echo "Terraform plan failed after 3 attempts"
+                exit 1
+              fi
+            fi
+          done
         env:
           TF_VAR_subscription_id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
           TF_VAR_clerk_secret_key: ${{ secrets.CLERK_SECRET_KEY }}
@@ -119,7 +135,7 @@ jobs:
           TF_VAR_google_api_key: ${{ secrets.GOOGLE_API_KEY }}
 
       - name: Terraform Apply
-        run: terraform apply -auto-approve tfplan
+        run: terraform apply -auto-approve -lock-timeout=120s tfplan
 
       - name: Get Terraform Outputs
         id: tf-outputs

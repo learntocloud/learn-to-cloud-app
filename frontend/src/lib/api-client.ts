@@ -7,12 +7,9 @@
  */
 
 import type {
-  PhaseGitHubRequirements,
-  TopicQuestionsStatus,
   QuestionSubmitResponse,
   TopicStepProgress,
   StreakResponse,
-  ActivityHeatmapResponse,
   PublicProfileResponse,
   CertificateEligibility,
   Certificate,
@@ -175,6 +172,10 @@ export interface PhaseDetailSchema {
   hands_on_requirements: HandsOnRequirement[];
   hands_on_submissions: HandsOnSubmission[];
   is_locked: boolean;
+  // Computed fields from API - DO NOT recalculate in frontend
+  all_topics_complete: boolean;
+  all_hands_on_validated: boolean;
+  is_phase_complete: boolean;
 }
 
 export interface UserSummarySchema {
@@ -262,21 +263,7 @@ export function createApiClient(getToken: () => Promise<string | null>) {
       return res.json();
     },
 
-    // ============ GitHub Requirements ============
-    async getPhaseGitHubRequirements(phaseId: number): Promise<PhaseGitHubRequirements> {
-      const res = await fetchWithAuth(`/api/github/requirements/${phaseId}`);
-      if (!res.ok) {
-        return {
-          phase_id: phaseId,
-          requirements: [],
-          submissions: [],
-          has_requirements: false,
-          all_validated: true,
-        };
-      }
-      return res.json();
-    },
-
+    // ============ GitHub Submissions ============
     async submitGitHubUrl(
       requirementId: string,
       url: string
@@ -293,20 +280,6 @@ export function createApiClient(getToken: () => Promise<string | null>) {
     },
 
     // ============ Questions ============
-    async getTopicQuestionsStatus(topicId: string): Promise<TopicQuestionsStatus> {
-      const res = await fetchWithAuth(`/api/questions/topic/${topicId}/status`);
-      if (!res.ok) {
-        return {
-          topic_id: topicId,
-          questions: [],
-          all_passed: false,
-          total_questions: 0,
-          passed_questions: 0,
-        };
-      }
-      return res.json();
-    },
-
     async submitAnswer(
       topicId: string,
       questionId: string,
@@ -384,20 +357,6 @@ export function createApiClient(getToken: () => Promise<string | null>) {
           total_activity_days: 0,
           last_activity_date: null,
           streak_alive: false,
-        };
-      }
-      return res.json();
-    },
-
-    async getActivityHeatmap(days: number = 365): Promise<ActivityHeatmapResponse> {
-      const res = await fetchWithAuth(`/api/activity/heatmap?days=${days}`);
-      if (!res.ok) {
-        const today = new Date().toISOString().split('T')[0];
-        return {
-          days: [],
-          start_date: today,
-          end_date: today,
-          total_activities: 0,
         };
       }
       return res.json();

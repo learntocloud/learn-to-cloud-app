@@ -367,6 +367,10 @@ async def get_phase_detail(
             ],
             hands_on_submissions=[],
             is_locked=phase_is_locked,
+            # Unauthenticated users: all computed fields are False
+            all_topics_complete=False,
+            all_hands_on_validated=False,
+            is_phase_complete=False,
         )
 
     # Get user progress for this phase and previous phase
@@ -453,6 +457,24 @@ async def get_phase_detail(
     else:
         progress_schema = None
 
+    # Compute completion status fields (business logic lives here, NOT in frontend)
+    all_topics_complete = is_admin or all(
+        t.progress and t.progress.status == "completed" for t in topic_summaries
+    )
+
+    # Check if all hands-on requirements are validated
+    validated_req_ids = {
+        sub.requirement_id for sub in db_submissions if sub.is_validated
+    }
+    required_ids = {req.id for req in hands_on_reqs}
+    all_hands_on_validated = required_ids.issubset(validated_req_ids)
+
+    # Phase is complete when: steps+questions done AND all hands-on validated
+    steps_and_questions_complete = (
+        progress_schema is not None and progress_schema.status == "completed"
+    )
+    is_phase_complete = steps_and_questions_complete and all_hands_on_validated
+
     return PhaseDetailSchema(
         id=phase.id,
         name=phase.name,
@@ -467,6 +489,9 @@ async def get_phase_detail(
         hands_on_requirements=list(hands_on_reqs),
         hands_on_submissions=hands_on_submissions,
         is_locked=phase_is_locked,
+        all_topics_complete=all_topics_complete,
+        all_hands_on_validated=all_hands_on_validated,
+        is_phase_complete=is_phase_complete,
     )
 
 

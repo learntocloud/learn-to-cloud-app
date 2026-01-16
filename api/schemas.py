@@ -518,6 +518,10 @@ class PhaseDetailSchema(BaseModel):
     hands_on_requirements: list[HandsOnRequirement] = []
     hands_on_submissions: list[HandsOnSubmissionResponse] = []
     is_locked: bool = False
+    # Computed fields - frontend should NOT recalculate these
+    all_topics_complete: bool = False
+    all_hands_on_validated: bool = False
+    is_phase_complete: bool = False
 
 
 class UserSummarySchema(BaseModel):

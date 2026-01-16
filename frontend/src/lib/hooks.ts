@@ -13,11 +13,6 @@ function useApi() {
   return createApiClient(getToken);
 }
 
-// Export the API client hook for direct use
-export function useApiClient() {
-  return useApi();
-}
-
 // ============ Dashboard ============
 
 export function useDashboard() {
@@ -68,15 +63,6 @@ export function useTopicDetail(phaseSlug: string, topicSlug: string) {
 
 // ============ GitHub Requirements ============
 
-export function usePhaseGitHubRequirements(phaseId: number | undefined) {
-  const api = useApi();
-  return useQuery({
-    queryKey: ['githubRequirements', phaseId],
-    queryFn: () => api.getPhaseGitHubRequirements(phaseId!),
-    enabled: !!phaseId,
-  });
-}
-
 export function useSubmitGitHubUrl() {
   const api = useApi();
   const queryClient = useQueryClient();
@@ -93,51 +79,7 @@ export function useSubmitGitHubUrl() {
   });
 }
 
-// ============ Questions ============
-
-export function useTopicQuestionsStatus(topicId: string) {
-  const api = useApi();
-  return useQuery({
-    queryKey: ['questionsStatus', topicId],
-    queryFn: () => api.getTopicQuestionsStatus(topicId),
-    enabled: !!topicId,
-  });
-}
-
-export function useSubmitAnswer() {
-  const api = useApi();
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({
-      topicId,
-      questionId,
-      answer,
-    }: {
-      topicId: string;
-      questionId: string;
-      answer: string;
-    }) => api.submitAnswer(topicId, questionId, answer),
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['questionsStatus', variables.topicId] });
-      queryClient.invalidateQueries({ queryKey: ['topic'] });
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-      queryClient.invalidateQueries({ queryKey: ['phase'] });
-      queryClient.invalidateQueries({ queryKey: ['streak'] });
-    },
-  });
-}
-
 // ============ Steps ============
-
-export function useTopicStepProgress(topicId: string, totalSteps: number) {
-  const api = useApi();
-  return useQuery({
-    queryKey: ['stepProgress', topicId],
-    queryFn: () => api.getTopicStepProgress(topicId, totalSteps),
-    enabled: !!topicId && totalSteps > 0,
-  });
-}
 
 export function useCompleteStep() {
   const api = useApi();
@@ -190,14 +132,6 @@ export function useStreak() {
   return useQuery({
     queryKey: ['streak'],
     queryFn: () => api.getStreak(),
-  });
-}
-
-export function useActivityHeatmap(days: number = 365) {
-  const api = useApi();
-  return useQuery({
-    queryKey: ['activityHeatmap', days],
-    queryFn: () => api.getActivityHeatmap(days),
   });
 }
 

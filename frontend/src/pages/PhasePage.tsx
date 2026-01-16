@@ -156,12 +156,9 @@ function PhaseAuthenticatedView({ phaseSlug }: { phaseSlug: string }) {
   }
 
   const githubUsername = userInfo?.github_username ?? null;
-  const isAdmin = userInfo?.is_admin ?? false;
 
-  // Check if all topics are complete (based on progress status)
-  const allTopicsComplete = isAdmin || phase.topics.every(
-    (t) => t.progress?.status === 'completed'
-  );
+  // Use API-computed value - business logic lives in API, not frontend
+  const allTopicsComplete = phase.all_topics_complete;
 
   // If phase is locked, show locked page
   if (phase.is_locked) {
@@ -274,6 +271,8 @@ function PhaseAuthenticatedView({ phaseSlug }: { phaseSlug: string }) {
                 githubUsername={githubUsername}
                 nextPhaseSlug={NEXT_PHASE[phaseSlug]}
                 phaseProgress={phase.progress}
+                allHandsOnValidated={phase.all_hands_on_validated}
+                isPhaseComplete={phase.is_phase_complete}
               />
             ) : (
               <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
