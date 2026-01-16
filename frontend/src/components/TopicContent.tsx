@@ -7,6 +7,7 @@ import { useState, useEffect } from 'react';
 import type { TopicDetailSchema, ProviderOptionSchema } from '@/lib/api-client';
 import { useAuth } from '@clerk/clerk-react';
 import { createApiClient } from '@/lib/api-client';
+import { useCompleteStep, useUncompleteStep } from '@/lib/hooks';
 import { KnowledgeQuestion } from './KnowledgeQuestion';
 
 // Provider Options Tab Component
@@ -86,6 +87,10 @@ export function TopicContent({
   const { getToken } = useAuth();
   const api = createApiClient(getToken);
 
+  // Use React Query mutations for proper cache invalidation
+  const completeStepMutation = useCompleteStep();
+  const uncompleteStepMutation = useUncompleteStep();
+
   // Track local state for step completion (from the topic detail response)
   const [completedSteps, setCompletedSteps] = useState<number[]>(topic.completed_step_orders || []);
   const [passedQuestions, setPassedQuestions] = useState<string[]>(topic.passed_question_ids || []);
@@ -104,14 +109,20 @@ export function TopicContent({
 
     setTogglingStep(stepOrder);
     try {
-      // Use topic.id (e.g., "phase0-topic1") for the API call
+      // Use React Query mutations for proper cache invalidation
       let response;
       if (isCurrentlyCompleted) {
         // Uncomplete the step (and any steps after it)
-        response = await api.uncompleteStep(topic.id, stepOrder);
+        response = await uncompleteStepMutation.mutateAsync({
+          topicId: topic.id,
+          stepOrder,
+        });
       } else {
         // Complete the step
-        response = await api.completeStep(topic.id, stepOrder);
+        response = await completeStepMutation.mutateAsync({
+          topicId: topic.id,
+          stepOrder,
+        });
       }
       setCompletedSteps(response.completed_steps);
       onStepProgressChange?.(response.completed_steps.length);

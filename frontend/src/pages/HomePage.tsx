@@ -3,13 +3,13 @@ import { useUser, SignUpButton } from '@clerk/clerk-react';
 
 // Static phase data for homepage display
 const PHASES = [
-  { id: 0, name: "Cloud Journey Kickoff", short_description: "Set up your learning environment" },
-  { id: 1, name: "Linux & Bash", short_description: "Master the command line" },
-  { id: 2, name: "Programming", short_description: "Python and API basics" },
-  { id: 3, name: "Cloud Platform", short_description: "AWS, Azure, or GCP" },
-  { id: 4, name: "DevOps Fundamentals", short_description: "CI/CD and automation" },
-  { id: 5, name: "Containers", short_description: "Docker and orchestration" },
-  { id: 6, name: "Job Ready", short_description: "Resume and interviews" },
+  { id: 0, name: "Starting from Zero", short_description: "Build your IT foundation" },
+  { id: 1, name: "Linux and Bash", short_description: "Master the command line" },
+  { id: 2, name: "Programming Fundamentals", short_description: "Python, APIs, and databases" },
+  { id: 3, name: "AI Tools & Intentional Learning", short_description: "GitHub Copilot and prompt engineering" },
+  { id: 4, name: "Cloud Platform Fundamentals", short_description: "AWS, Azure, or GCP" },
+  { id: 5, name: "DevOps Fundamentals", short_description: "Containers, CI/CD, and IaC" },
+  { id: 6, name: "Securing Your Cloud Applications", short_description: "Cloud security essentials" },
 ];
 
 export function HomePage() {

@@ -1,6 +1,6 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { UserButton, SignInButton, useUser, useAuth } from '@clerk/clerk-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { createApiClient } from '@/lib/api-client';
 
 interface LayoutProps {
@@ -21,6 +21,22 @@ function Navbar() {
   const { isSignedIn, isLoaded } = useUser();
   const { getToken } = useAuth();
   const [githubUsername, setGithubUsername] = useState<string | null>(null);
+  const navigate = useNavigate();
+  const location = useLocation();
+  const wasSignedIn = useRef(isSignedIn);
+
+  // Redirect to dashboard when user signs in (e.g., via modal)
+  useEffect(() => {
+    if (isLoaded && isSignedIn && !wasSignedIn.current) {
+      // User just signed in - redirect to dashboard if on a public page
+      const publicPages = ['/', '/faq', '/phases', '/sign-in', '/sign-up'];
+      const isOnPublicPage = publicPages.some(page => location.pathname === page || location.pathname.startsWith('/sign-'));
+      if (isOnPublicPage) {
+        navigate('/dashboard');
+      }
+    }
+    wasSignedIn.current = isSignedIn;
+  }, [isSignedIn, isLoaded, navigate, location.pathname]);
 
   useEffect(() => {
     if (isSignedIn) {

@@ -160,6 +160,29 @@ export function useCompleteStep() {
   });
 }
 
+export function useUncompleteStep() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      topicId,
+      stepOrder,
+    }: {
+      topicId: string;
+      stepOrder: number;
+    }) => api.uncompleteStep(topicId, stepOrder),
+    onSuccess: (_, variables) => {
+      // Invalidate cached step progress so navigation shows fresh data
+      queryClient.invalidateQueries({ queryKey: ['stepProgress', variables.topicId] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['phase'] });
+      queryClient.invalidateQueries({ queryKey: ['streak'] });
+      queryClient.invalidateQueries({ queryKey: ['topic'] });
+    },
+  });
+}
+
 // ============ Streaks & Activity ============
 
 export function useStreak() {

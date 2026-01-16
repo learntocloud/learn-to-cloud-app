@@ -1,15 +1,42 @@
 /**
- * Celebration Provider - provides confetti and celebration animations.
- * This wraps the app and listens for celebration events.
+ * Celebration Provider - provides phase completion celebrations with modal.
+ * This wraps the app and manages celebration state with localStorage tracking.
  */
 
 import { ReactNode, createContext, useContext, useCallback, useState } from 'react';
+import { PhaseCelebrationModal, PHASE_BADGE_DATA } from './phase-celebration-modal';
 
 interface CelebrationContextType {
-  celebrate: () => void;
+  triggerCelebration: (phaseNumber: number, nextPhaseSlug?: string) => void;
 }
 
 const CelebrationContext = createContext<CelebrationContextType | null>(null);
+
+const STORAGE_KEY = "ltc_celebrated_phases";
+
+function getCelebratedPhases(): Set<number> {
+  if (typeof window === "undefined") return new Set();
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      return new Set(JSON.parse(stored));
+    }
+  } catch {
+    // Ignore localStorage errors
+  }
+  return new Set();
+}
+
+function markPhaseCelebrated(phaseNumber: number): void {
+  if (typeof window === "undefined") return;
+  try {
+    const celebrated = getCelebratedPhases();
+    celebrated.add(phaseNumber);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify([...celebrated]));
+  } catch {
+    // Ignore localStorage errors
+  }
+}
 
 export function useCelebration() {
   const context = useContext(CelebrationContext);
@@ -24,38 +51,37 @@ interface CelebrationProviderProps {
 }
 
 export function CelebrationProvider({ children }: CelebrationProviderProps) {
-  const [showConfetti, setShowConfetti] = useState(false);
+  const [showCelebration, setShowCelebration] = useState(false);
+  const [celebrationPhase, setCelebrationPhase] = useState<number | null>(null);
+  const [nextPhaseSlug, setNextPhaseSlug] = useState<string | undefined>();
 
-  const celebrate = useCallback(() => {
-    setShowConfetti(true);
-    setTimeout(() => setShowConfetti(false), 3000);
+  const triggerCelebration = useCallback((phaseNumber: number, nextSlug?: string) => {
+    setCelebrationPhase(phaseNumber);
+    setNextPhaseSlug(nextSlug);
+    setShowCelebration(true);
+    markPhaseCelebrated(phaseNumber);
   }, []);
 
+  const handleClose = useCallback(() => {
+    setShowCelebration(false);
+    setCelebrationPhase(null);
+  }, []);
+
+  const badgeData = celebrationPhase !== null ? PHASE_BADGE_DATA[celebrationPhase] : null;
+
   return (
-    <CelebrationContext.Provider value={{ celebrate }}>
+    <CelebrationContext.Provider value={{ triggerCelebration }}>
       {children}
-      {showConfetti && (
-        <div className="fixed inset-0 pointer-events-none z-50">
-          {/* Simple confetti animation */}
-          <div className="absolute inset-0 overflow-hidden">
-            {Array.from({ length: 50 }).map((_, i) => (
-              <div
-                key={i}
-                className="absolute animate-confetti"
-                style={{
-                  left: `${Math.random() * 100}%`,
-                  top: '-10%',
-                  width: '10px',
-                  height: '10px',
-                  backgroundColor: ['#ff0', '#f0f', '#0ff', '#f00', '#0f0', '#00f'][Math.floor(Math.random() * 6)],
-                  borderRadius: Math.random() > 0.5 ? '50%' : '0',
-                  animationDelay: `${Math.random() * 2}s`,
-                  animationDuration: `${2 + Math.random() * 2}s`,
-                }}
-              />
-            ))}
-          </div>
-        </div>
+      {badgeData && celebrationPhase !== null && (
+        <PhaseCelebrationModal
+          isOpen={showCelebration}
+          onClose={handleClose}
+          phaseNumber={celebrationPhase}
+          phaseName={badgeData.phaseName}
+          badgeName={badgeData.name}
+          badgeIcon={badgeData.icon}
+          nextPhaseSlug={nextPhaseSlug}
+        />
       )}
     </CelebrationContext.Provider>
   );

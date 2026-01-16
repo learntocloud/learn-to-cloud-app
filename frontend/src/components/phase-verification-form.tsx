@@ -4,7 +4,7 @@
  */
 
 import { GitHubSubmissionForm } from "./github-submission";
-import { useCelebration } from "./celebration-provider";
+import { useCelebration } from "./CelebrationProvider";
 import type { HandsOnRequirement, HandsOnSubmission } from "@/lib/types";
 
 interface PhaseVerificationFormProps {
