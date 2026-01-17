@@ -33,6 +33,8 @@ class Settings(BaseSettings):
 
     http_timeout: float = 10.0
 
+    ratelimit_storage_uri: str = "memory://"
+
     frontend_url: str = "http://localhost:4280"
 
     # Database pool settings (PostgreSQL only)

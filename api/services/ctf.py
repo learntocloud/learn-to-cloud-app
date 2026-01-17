@@ -26,7 +26,12 @@ REQUIRED_CHALLENGES = 18
 def _get_master_secret() -> str:
     """Get the CTF master secret from settings."""
     settings = get_settings()
-    return settings.ctf_master_secret
+    secret = settings.ctf_master_secret
+    if settings.environment.lower() == "production" and (
+        not secret or secret == "L2C_CTF_MASTER_2024"
+    ):
+        raise RuntimeError("CTF master secret is not configured")
+    return secret
 
 
 def _derive_secret(instance_id: str) -> str:
@@ -104,7 +109,14 @@ def verify_ctf_token(token: str, oauth_github_username: str) -> CTFVerificationR
                 message="Invalid token: missing instance ID.",
             )
 
-        verification_secret = _derive_secret(instance_id)
+        try:
+            verification_secret = _derive_secret(instance_id)
+        except RuntimeError:
+            logger.exception("CTF verification misconfigured")
+            return CTFVerificationResult(
+                is_valid=False,
+                message="CTF verification is not available right now.",
+            )
 
         payload_str = json.dumps(payload, separators=(",", ":"))
 

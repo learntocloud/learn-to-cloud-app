@@ -285,8 +285,8 @@ class PublicProfileResponse(BaseModel):
     streak: StreakResponse
     activity_heatmap: ActivityHeatmapResponse
     member_since: datetime
-    submissions: list[PublicSubmission] = []
-    badges: list[BadgeResponse] = []
+    submissions: list[PublicSubmission] = Field(default_factory=list)
+    badges: list[BadgeResponse] = Field(default_factory=list)
 
 
 class CertificateEligibilityResponse(BaseModel):
@@ -379,8 +379,8 @@ class LearningStepSchema(BaseModel):
     url: str | None = None
     description: str | None = None
     code: str | None = None
-    secondary_links: list[SecondaryLinkSchema] = []
-    options: list[ProviderOptionSchema] = []
+    secondary_links: list[SecondaryLinkSchema] = Field(default_factory=list)
+    options: list[ProviderOptionSchema] = Field(default_factory=list)
 
 
 class QuestionSchema(BaseModel):
@@ -430,10 +430,10 @@ class TopicDetailSchema(BaseModel):
     is_capstone: bool
     learning_steps: list[LearningStepSchema]
     questions: list[QuestionSchema]
-    learning_objectives: list["LearningObjectiveSchema"] = []
+    learning_objectives: list["LearningObjectiveSchema"] = Field(default_factory=list)
     progress: TopicProgressSchema | None = None
-    completed_step_orders: list[int] = []
-    passed_question_ids: list[str] = []
+    completed_step_orders: list[int] = Field(default_factory=list)
+    passed_question_ids: list[str] = Field(default_factory=list)
     is_locked: bool = False
     is_topic_locked: bool = False
     previous_topic_name: str | None = None
@@ -467,7 +467,7 @@ class PhaseCapstoneOverviewSchema(BaseModel):
 
     title: str
     summary: str
-    includes: list[str] = []
+    includes: list[str] = Field(default_factory=list)
     topic_slug: str | None = None
 
 
@@ -477,7 +477,7 @@ class PhaseHandsOnVerificationOverviewSchema(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     summary: str
-    includes: list[str] = []
+    includes: list[str] = Field(default_factory=list)
 
 
 class PhaseSummarySchema(BaseModel):
@@ -491,7 +491,7 @@ class PhaseSummarySchema(BaseModel):
     estimated_weeks: str
     order: int
     topics_count: int
-    objectives: list[str] = []
+    objectives: list[str] = Field(default_factory=list)
     capstone: PhaseCapstoneOverviewSchema | None = None
     hands_on_verification: PhaseHandsOnVerificationOverviewSchema | None = None
     progress: PhaseProgressSchema | None = None
@@ -513,8 +513,8 @@ class PhaseDetailSchema(BaseModel):
     hands_on_verification: PhaseHandsOnVerificationOverviewSchema | None = None
     topics: list[TopicSummarySchema]
     progress: PhaseProgressSchema | None = None
-    hands_on_requirements: list[HandsOnRequirement] = []
-    hands_on_submissions: list[HandsOnSubmissionResponse] = []
+    hands_on_requirements: list[HandsOnRequirement] = Field(default_factory=list)
+    hands_on_submissions: list[HandsOnSubmissionResponse] = Field(default_factory=list)
     is_locked: bool = False
     # Computed fields - frontend should NOT recalculate these
     all_topics_complete: bool = False
@@ -543,4 +543,4 @@ class DashboardResponse(BaseModel):
     phases_completed: int
     phases_total: int
     current_phase: int | None = None
-    badges: list[BadgeResponse] = []
+    badges: list[BadgeResponse] = Field(default_factory=list)

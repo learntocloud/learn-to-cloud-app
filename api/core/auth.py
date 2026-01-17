@@ -30,9 +30,10 @@ def get_user_id_from_request(req: Request) -> str | None:
         return None
 
     auth_header = req.headers.get("authorization", "")
-    logger.info(
-        f"Auth header present: {bool(auth_header)}, "
-        f"starts with Bearer: {auth_header.startswith('Bearer ')}"
+    logger.debug(
+        "Auth header present=%s, bearer=%s",
+        bool(auth_header),
+        auth_header.startswith("Bearer "),
     )
 
     httpx_request = httpx.Request(
@@ -43,7 +44,7 @@ def get_user_id_from_request(req: Request) -> str | None:
 
     try:
         authorized_parties = _get_authorized_parties()
-        logger.info(f"Authorized parties: {authorized_parties}")
+        logger.debug("Authorized parties configured")
 
         with Clerk(bearer_auth=settings.clerk_secret_key) as clerk:
             request_state = clerk.authenticate_request(
@@ -53,20 +54,23 @@ def get_user_id_from_request(req: Request) -> str | None:
                 ),
             )
 
-            logger.info(f"Clerk auth result: is_signed_in={request_state.is_signed_in}")
+            logger.debug(
+                "Clerk auth result: is_signed_in=%s",
+                request_state.is_signed_in,
+            )
 
             if not request_state.is_signed_in:
                 reason = getattr(request_state, "reason", "unknown")
                 message = getattr(request_state, "message", "none")
-                logger.info(f"Not signed in. Reason: {reason}, message: {message}")
+                logger.debug("Not signed in. Reason: %s, message: %s", reason, message)
                 return None
 
             if request_state.payload is None:
-                logger.info("Payload is None")
+                logger.debug("Auth payload is empty")
                 return None
 
             user_id = request_state.payload.get("sub")
-            logger.info(f"Authenticated user: {user_id}")
+            logger.debug("Authenticated user")
             return user_id
 
     except Exception as e:

@@ -4,7 +4,9 @@ Tests the full request/response cycle using FastAPI's TestClient with
 dependency overrides for authentication and database session.
 """
 
+import asyncio
 from collections.abc import Generator
+from datetime import UTC, datetime
 
 import pytest
 from fastapi import FastAPI
@@ -14,7 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.auth import optional_auth, require_auth
 from core.database import get_db
 from main import app
-from models import User
+from models import Submission, SubmissionType, User
 
 # =============================================================================
 # TEST FIXTURES
@@ -133,6 +135,34 @@ class TestUserEndpoints:
         """GET /api/user/profile/{username} returns 404 for non-existent user."""
         response = client.get("/api/user/profile/nonexistent_user_12345")
         assert response.status_code == 404
+
+    def test_public_profile_redacts_sensitive_submissions(
+        self,
+        client: TestClient,
+        db_session: AsyncSession,
+        test_user: User,
+    ):
+        """Public profile should redact sensitive submission values."""
+        submission = Submission(
+            user_id=test_user.id,
+            requirement_id="phase1-linux-ctf-token",
+            submission_type=SubmissionType.CTF_TOKEN,
+            phase_id=1,
+            submitted_value="SUPER-SECRET-TOKEN",
+            extracted_username="testuser",
+            is_validated=True,
+            validated_at=datetime.now(UTC),
+        )
+        db_session.add(submission)
+        asyncio.get_event_loop().run_until_complete(db_session.commit())
+
+        response = client.get(f"/api/user/profile/{test_user.github_username}")
+        assert response.status_code == 200
+        data = response.json()
+        assert "submissions" in data
+        assert any(
+            sub["submitted_value"] == "[redacted]" for sub in data["submissions"]
+        )
 
 
 # =============================================================================

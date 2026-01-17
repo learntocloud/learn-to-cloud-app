@@ -667,17 +667,72 @@ async def validate_repo_has_files(
             repo_exists=False,
         )
 
+    # Normalize patterns (support path-based checks like infra/main.tf)
+    pattern_specs = []
+    for pattern in required_patterns:
+        cleaned = pattern.strip().strip("/")
+        is_dir = pattern.strip().endswith("/")
+        if "/" in cleaned:
+            path, name = cleaned.rsplit("/", 1)
+            pattern_specs.append(
+                {"raw": pattern, "path": path, "name": name, "is_dir": is_dir}
+            )
+        elif is_dir:
+            pattern_specs.append(
+                {"raw": pattern, "path": cleaned, "name": None, "is_dir": True}
+            )
+        else:
+            pattern_specs.append(
+                {"raw": pattern, "path": None, "name": cleaned, "is_dir": False}
+            )
+
+    def _pattern_matches_item(path: str, name: str, item_type: str, spec: dict) -> bool:
+        path_lower = path.lower()
+        name_lower = name.lower()
+        spec_name = (spec.get("name") or "").lower()
+        spec_path = (spec.get("path") or "").lower()
+
+        if spec.get("is_dir"):
+            if path_lower == spec_path:
+                return True
+            return path_lower.startswith(f"{spec_path}/")
+
+        if spec_path:
+            if not path_lower.startswith(f"{spec_path}/"):
+                return False
+
+        if not spec_name:
+            return True
+
+        if spec_name.startswith("."):
+            return name_lower.endswith(spec_name)
+
+        return (
+            name_lower == spec_name
+            or name_lower.startswith(spec_name)
+            or name_lower.endswith(spec_name)
+        )
+
     # Use GitHub's code search API to find files
     settings = get_settings()
     found_files = []
 
     try:
         async with httpx.AsyncClient(timeout=settings.http_timeout) as client:
-            for pattern in required_patterns:
+            for spec in pattern_specs:
+                query_parts = [f"repo:{parsed.username}/{parsed.repo_name}"]
+                if spec.get("path"):
+                    query_parts.append(f"path:{spec['path']}")
+
+                if not (spec.get("is_dir") and not spec.get("name")):
+                    name = spec.get("name") or ""
+                    if name.startswith("."):
+                        query_parts.append(f"extension:{name.lstrip('.')}")
+                    elif name:
+                        query_parts.append(f"filename:{name}")
+
                 # Search for files matching the pattern in the repo
-                search_query = (
-                    f"filename:{pattern} repo:{parsed.username}/{parsed.repo_name}"
-                )
+                search_query = " ".join(query_parts)
                 api_url = "https://api.github.com/search/code"
 
                 response = await client.get(
@@ -702,7 +757,15 @@ async def validate_repo_has_files(
                     if data.get("total_count", 0) > 0:
                         items = data.get("items", [])
                         for item in items:
-                            found_files.append(item.get("name", pattern))
+                            item_path = item.get("path", "")
+                            item_name = item.get("name", "")
+                            if _pattern_matches_item(
+                                item_path,
+                                item_name,
+                                item.get("type", "file"),
+                                spec,
+                            ):
+                                found_files.append(item_name or spec["raw"])
 
             if not found_files:
                 return ValidationResult(
@@ -752,6 +815,50 @@ async def _validate_repo_files_via_contents(
     Checks root directory and common subdirectories for matching files.
     """
     found_files = []
+    pattern_specs = []
+    for pattern in required_patterns:
+        cleaned = pattern.strip().strip("/")
+        is_dir = pattern.strip().endswith("/")
+        if "/" in cleaned:
+            path, name = cleaned.rsplit("/", 1)
+            pattern_specs.append(
+                {"raw": pattern, "path": path, "name": name, "is_dir": is_dir}
+            )
+        elif is_dir:
+            pattern_specs.append(
+                {"raw": pattern, "path": cleaned, "name": None, "is_dir": True}
+            )
+        else:
+            pattern_specs.append(
+                {"raw": pattern, "path": None, "name": cleaned, "is_dir": False}
+            )
+
+    def _pattern_matches_item(path: str, name: str, item_type: str, spec: dict) -> bool:
+        path_lower = path.lower()
+        name_lower = name.lower()
+        spec_name = (spec.get("name") or "").lower()
+        spec_path = (spec.get("path") or "").lower()
+
+        if spec.get("is_dir"):
+            if path_lower == spec_path:
+                return True
+            return path_lower.startswith(f"{spec_path}/")
+
+        if spec_path and not path_lower.startswith(f"{spec_path}/"):
+            return False
+
+        if not spec_name:
+            return True
+
+        if spec_name.startswith("."):
+            return name_lower.endswith(spec_name)
+
+        return (
+            name_lower == spec_name
+            or name_lower.startswith(spec_name)
+            or name_lower.endswith(spec_name)
+        )
+
     directories_to_check = [
         "",
         "infra",
@@ -780,14 +887,12 @@ async def _validate_repo_files_via_contents(
                 continue
 
             for item in contents:
-                item_name = item.get("name", "").lower()
-                for pattern in required_patterns:
-                    pattern_lower = pattern.lower()
-                    # Check if filename matches pattern (partial match)
-                    if pattern_lower in item_name or item_name.startswith(
-                        pattern_lower
-                    ):
-                        found_files.append(item.get("name", pattern))
+                item_path = item.get("path", "")
+                item_name = item.get("name", "")
+                item_type = item.get("type", "file")
+                for spec in pattern_specs:
+                    if _pattern_matches_item(item_path, item_name, item_type, spec):
+                        found_files.append(item_name or spec["raw"])
 
         except (httpx.RequestError, ValueError):
             continue

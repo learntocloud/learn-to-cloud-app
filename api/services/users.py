@@ -5,7 +5,7 @@ from datetime import datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from models import User
+from models import SubmissionType, User
 from repositories.submission import SubmissionRepository
 from repositories.user import UserRepository
 from services.activity import (
@@ -142,9 +142,21 @@ async def get_public_profile(
 
     db_submissions = await submission_repo.get_validated_by_user(profile_user.id)
 
+    sensitive_submission_types = {
+        SubmissionType.CTF_TOKEN,
+        SubmissionType.DEPLOYED_APP,
+        SubmissionType.CONTAINER_IMAGE,
+        SubmissionType.API_CHALLENGE,
+    }
+
     submissions = []
     for sub in db_submissions:
         requirement = get_requirement_by_id(sub.requirement_id)
+        submitted_value = (
+            "[redacted]"
+            if sub.submission_type in sensitive_submission_types
+            else sub.submitted_value
+        )
         submissions.append(
             PublicSubmissionInfo(
                 requirement_id=sub.requirement_id,
@@ -152,7 +164,7 @@ async def get_public_profile(
                 if hasattr(sub.submission_type, "value")
                 else str(sub.submission_type),
                 phase_id=sub.phase_id,
-                submitted_value=sub.submitted_value,
+                submitted_value=submitted_value,
                 name=requirement.name if requirement else sub.requirement_id,
                 validated_at=sub.validated_at,
             )

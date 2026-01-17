@@ -8,6 +8,8 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 from starlette.responses import JSONResponse
 
+from core.config import get_settings
+
 logger = logging.getLogger(__name__)
 
 
@@ -28,7 +30,7 @@ def _get_request_identifier(request: Request) -> str:
 limiter = Limiter(
     key_func=_get_request_identifier,
     default_limits=["100/minute"],
-    storage_uri="memory://",
+    storage_uri=get_settings().ratelimit_storage_uri,
 )
 
 

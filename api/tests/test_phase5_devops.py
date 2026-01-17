@@ -381,6 +381,45 @@ class TestValidateRepoHasFiles:
                 assert "main.tf" in result.message
 
     @pytest.mark.asyncio
+    async def test_path_based_patterns(self):
+        """Test path-based patterns like infra/main.tf and infra/."""
+        terraform_response = {
+            "total_count": 2,
+            "items": [
+                {"name": "main.tf", "path": "infra/main.tf"},
+                {"name": "variables.tf", "path": "infra/variables.tf"},
+            ],
+        }
+
+        with patch(
+            "services.github_hands_on_verification.check_github_url_exists"
+        ) as mock_exists:
+            mock_exists.return_value = (True, "URL exists")
+
+            with patch(
+                "services.github_hands_on_verification.httpx.AsyncClient"
+            ) as mock_client_class:
+                mock_response = MagicMock()
+                mock_response.status_code = 200
+                mock_response.json.return_value = terraform_response
+
+                mock_client = AsyncMock()
+                mock_client.get = AsyncMock(return_value=mock_response)
+                mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+                mock_client.__aexit__ = AsyncMock(return_value=None)
+                mock_client_class.return_value = mock_client
+
+                result = await validate_repo_has_files(
+                    "https://github.com/testuser/myrepo",
+                    "testuser",
+                    ["infra/main.tf", "infra/"],
+                    "Terraform configuration files",
+                )
+
+                assert result.is_valid
+                assert "main.tf" in result.message
+
+    @pytest.mark.asyncio
     async def test_kubernetes_files(self):
         """Test finding Kubernetes manifest files."""
         k8s_response = {
