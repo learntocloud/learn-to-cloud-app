@@ -52,21 +52,25 @@ def run_migrations_offline() -> None:
 def _run_migrations(connection: Connection) -> None:
     dialect_name = getattr(connection.dialect, "name", "")
 
-    context.configure(
-        connection=connection,
-        target_metadata=target_metadata,
-        compare_type=True,
-        render_as_batch=True,
-    )
-
     with context.begin_transaction():
-        # Acquire advisory lock inside transaction to prevent concurrent migrations.
+        # Acquire advisory lock at the START of the transaction, BEFORE checking
+        # current revision. This prevents the race where both workers see no
+        # migrations applied before either has committed.
         # Using pg_advisory_xact_lock which auto-releases on transaction end.
         if dialect_name == "postgresql":
             advisory_lock_key = 743028475
             connection.execute(
                 text("SELECT pg_advisory_xact_lock(:key)"), {"key": advisory_lock_key}
             )
+
+        # Configure context INSIDE the lock so the revision check happens
+        # after we have exclusive access.
+        context.configure(
+            connection=connection,
+            target_metadata=target_metadata,
+            compare_type=True,
+            render_as_batch=True,
+        )
         context.run_migrations()
 
 
