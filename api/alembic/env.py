@@ -51,13 +51,6 @@ def run_migrations_offline() -> None:
 
 def _run_migrations(connection: Connection) -> None:
     dialect_name = getattr(connection.dialect, "name", "")
-    # Ensure only one migration runner executes at a time in PostgreSQL.
-    # This prevents two replicas starting concurrently from racing migrations.
-    advisory_lock_key = 743028475
-    if dialect_name == "postgresql":
-        connection.execute(
-            text("SELECT pg_advisory_lock(:key)"), {"key": advisory_lock_key}
-        )
 
     context.configure(
         connection=connection,
@@ -66,15 +59,15 @@ def _run_migrations(connection: Connection) -> None:
         render_as_batch=True,
     )
 
-    try:
-        with context.begin_transaction():
-            context.run_migrations()
-    finally:
+    with context.begin_transaction():
+        # Acquire advisory lock inside transaction to prevent concurrent migrations.
+        # Using pg_advisory_xact_lock which auto-releases on transaction end.
         if dialect_name == "postgresql":
+            advisory_lock_key = 743028475
             connection.execute(
-                text("SELECT pg_advisory_unlock(:key)"),
-                {"key": advisory_lock_key},
+                text("SELECT pg_advisory_xact_lock(:key)"), {"key": advisory_lock_key}
             )
+        context.run_migrations()
 
 
 async def run_migrations_online() -> None:
