@@ -58,13 +58,16 @@ def _run_migrations(connection: Connection) -> None:
     #
     # We use pg_advisory_lock (session-level) instead of pg_advisory_xact_lock
     # because we need the lock to span across Alembic's internal transaction management.
+    advisory_lock_key = 743028475
     if dialect_name == "postgresql":
-        advisory_lock_key = 743028475
         # Acquire session-level advisory lock (blocks until acquired)
         # This lock is held until explicitly released or session ends
-        connection.execute(
+        result = connection.execute(
             text("SELECT pg_advisory_lock(:key)"), {"key": advisory_lock_key}
         )
+        result.close()  # Ensure the result is consumed
+        # Commit to ensure lock is acquired before proceeding
+        connection.commit()
 
     try:
         context.configure(
@@ -79,9 +82,11 @@ def _run_migrations(connection: Connection) -> None:
     finally:
         # Release the advisory lock for PostgreSQL
         if dialect_name == "postgresql":
-            connection.execute(
+            result = connection.execute(
                 text("SELECT pg_advisory_unlock(:key)"), {"key": advisory_lock_key}
             )
+            result.close()
+            connection.commit()
 
 
 async def run_migrations_online() -> None:
