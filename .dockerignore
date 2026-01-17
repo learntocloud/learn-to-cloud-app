@@ -1,0 +1,38 @@
+# Python virtual environments
+**/.venv/
+**/venv/
+**/__pycache__/
+**/*.py[cod]
+*$py.class
+
+# Environment files with secrets
+.env
+**/.env
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Git
+.git/
+.gitignore
+
+# Node modules (frontend builds separately)
+**/node_modules/
+
+# Test artifacts
+**/.pytest_cache/
+**/.coverage
+**/htmlcov/
+
+# Build artifacts
+**/dist/
+**/build/
+**/*.egg-info/
+
+# Terraform
+infra/.terraform/
+**/*.tfstate*
+infra/tfplan

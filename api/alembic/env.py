@@ -1,15 +1,14 @@
 from __future__ import annotations
 
-import asyncio
 from logging.config import fileConfig
 
-from sqlalchemy import Connection, text
+from sqlalchemy import Connection, create_engine, text
 
 # Import models so they register with Base.metadata
 import models  # noqa: F401
 from alembic import context
 from core.config import get_settings
-from core.database import Base, get_engine
+from core.database import Base
 
 config = context.config
 
@@ -20,23 +19,37 @@ if config.config_file_name is not None:
 target_metadata = Base.metadata
 
 
-def _get_database_url() -> str:
-    """Resolve the database URL to use for migrations."""
+def _get_sync_database_url() -> str:
+    """Get a synchronous database URL for migrations.
+
+    Uses psycopg2 (synchronous driver) instead of asyncpg to avoid
+    event loop conflicts when running in background threads.
+    """
     settings = get_settings()
     if settings.use_azure_postgres:
-        # Match core.database._build_azure_database_url() (token provided dynamically).
+        # For Azure with Entra ID auth, we need to get a token
+        from azure.identity import DefaultAzureCredential
+
+        credential = DefaultAzureCredential()
+        token = credential.get_token(
+            "https://ossrdbms-aad.database.windows.net/.default"
+        )
         return (
-            f"postgresql+asyncpg://{settings.postgres_user}"
+            f"postgresql+psycopg2://{settings.postgres_user}:{token.token}"
             f"@{settings.postgres_host}:5432/{settings.postgres_database}"
-            f"?ssl=require"
+            f"?sslmode=require"
         )
 
-    return settings.database_url
+    # Convert asyncpg URL to psycopg2 URL for local dev
+    url = settings.database_url
+    if "+asyncpg" in url:
+        url = url.replace("+asyncpg", "+psycopg2")
+    return url
 
 
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode."""
-    url = _get_database_url()
+    url = _get_sync_database_url()
     context.configure(
         url=url,
         target_metadata=target_metadata,
@@ -61,11 +74,15 @@ def _run_migrations(connection: Connection) -> None:
     lock_acquired = False
     if dialect_name == "postgresql":
         # Acquire session-level advisory lock (blocks until acquired)
+        # Note: pg_advisory_lock is session-level, not transaction-level,
+        # so it persists across commits
         result = connection.execute(
             text("SELECT pg_advisory_lock(:key)"), {"key": advisory_lock_key}
         )
         result.close()
         lock_acquired = True
+        # Commit the lock acquisition so Alembic starts with a clean transaction
+        connection.commit()
 
     migration_error = None
     try:
@@ -87,18 +104,16 @@ def _run_migrations(connection: Connection) -> None:
             # Migrations were already applied by another process, this is OK
             logger.info("Migrations already applied by another process, continuing...")
             migration_error = None  # Don't re-raise this error
-        # Note: Any other error will be re-raised after unlock attempt
-
-    # Release the advisory lock for PostgreSQL
-    # Use a separate try/except to ensure we attempt unlock even after errors
-    if lock_acquired:
-        try:
-            # Rollback any failed transaction first to allow unlock to work
+        else:
+            # For other errors, rollback the failed transaction
             try:
                 connection.rollback()
             except Exception:
                 pass  # Ignore rollback errors
 
+    # Release the advisory lock for PostgreSQL
+    if lock_acquired:
+        try:
             result = connection.execute(
                 text("SELECT pg_advisory_unlock(:key)"), {"key": advisory_lock_key}
             )
@@ -113,19 +128,25 @@ def _run_migrations(connection: Connection) -> None:
         raise migration_error
 
 
-async def run_migrations_online() -> None:
-    """Run migrations in 'online' mode using the app's async engine."""
-    connectable = get_engine()
+def run_migrations_online() -> None:
+    """Run migrations using a synchronous PostgreSQL connection.
 
-    async with connectable.connect() as connection:
-        await connection.run_sync(_run_migrations)
+    Uses psycopg2 (synchronous driver) to avoid event loop conflicts
+    when running in a background thread during app startup.
+    """
+    url = _get_sync_database_url()
+    engine = create_engine(url)
+
+    with engine.connect() as connection:
+        _run_migrations(connection)
 
 
 def run() -> None:
     if context.is_offline_mode():
         run_migrations_offline()
     else:
-        asyncio.run(run_migrations_online())
+        # run_migrations_online is now synchronous (uses psycopg2)
+        run_migrations_online()
 
 
 run()

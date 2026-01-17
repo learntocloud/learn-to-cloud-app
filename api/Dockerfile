@@ -56,4 +56,5 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 
 # Run with multiple workers for better concurrency
 # Workers = 2-4 x CPU cores, but Container Apps typically has 0.5-2 vCPU
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
+# Use python -m uvicorn instead of direct uvicorn to avoid shebang path issues
+CMD ["python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
