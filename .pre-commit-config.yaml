@@ -3,7 +3,6 @@
 # Run manually: pre-commit run --all-files
 
 repos:
-  # General hooks
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.5.0
     hooks:
@@ -16,7 +15,6 @@ repos:
         args: ['--maxkb=1000']
       - id: check-merge-conflict
 
-  # Python - Ruff (linting + formatting)
   # NOTE: Keep version in sync with api/pyproject.toml [project.optional-dependencies] dev ruff
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.8.6
@@ -27,7 +25,6 @@ repos:
       - id: ruff-format
         files: ^api/
 
-  # Python - ty (type checking)
   - repo: local
     hooks:
       - id: ty
@@ -44,7 +41,6 @@ repos:
         files: ^api/.*\.py$
         pass_filenames: false
 
-  # Frontend - ESLint + TypeScript + Tests
   - repo: local
     hooks:
       - id: eslint

@@ -18,7 +18,6 @@ import type {
   GitHubValidationResult,
 } from './types';
 
-// Re-export types that components need
 export type { GitHubValidationResult } from './types';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
@@ -34,7 +33,6 @@ interface UserInfo {
   created_at: string;
 }
 
-// New schema types from API
 interface TopicProgressSchema {
   steps_completed: number;
   steps_total: number;
@@ -242,21 +240,18 @@ export function createApiClient(getToken: () => Promise<string | null>) {
   }
 
   return {
-    // ============ User Info ============
     async getUserInfo(): Promise<UserInfo> {
       const res = await fetchWithAuth('/api/user/me');
       if (!res.ok) throw new Error('Failed to fetch user info');
       return res.json();
     },
 
-    // ============ Dashboard ============
     async getDashboard(): Promise<DashboardResponseNew> {
       const res = await fetchWithAuth('/api/user/dashboard');
       if (!res.ok) throw new Error('Failed to fetch dashboard');
       return res.json();
     },
 
-    // ============ Phases ============
     async getPhasesWithProgress(): Promise<PhaseSummarySchema[]> {
       const res = await fetchWithAuth('/api/user/phases');
       if (!res.ok) throw new Error('Failed to fetch phases');
@@ -280,7 +275,6 @@ export function createApiClient(getToken: () => Promise<string | null>) {
       return res.json();
     },
 
-    // ============ GitHub Submissions ============
     async submitGitHubUrl(
       requirementId: string,
       url: string
@@ -296,7 +290,6 @@ export function createApiClient(getToken: () => Promise<string | null>) {
       return res.json();
     },
 
-    // ============ Questions ============
     async submitAnswer(
       topicId: string,
       questionId: string,
@@ -317,7 +310,6 @@ export function createApiClient(getToken: () => Promise<string | null>) {
       return res.json();
     },
 
-    // ============ Steps ============
     async getTopicStepProgress(topicId: string): Promise<TopicStepProgress> {
       const res = await fetchWithAuth(`/api/steps/${topicId}`);
       if (!res.ok) {
@@ -358,7 +350,6 @@ export function createApiClient(getToken: () => Promise<string | null>) {
       return this.getTopicStepProgress(topicId);
     },
 
-    // ============ Streaks & Activity ============
     async getStreak(): Promise<StreakResponse> {
       const res = await fetchWithAuth('/api/activity/streak');
       if (!res.ok) {
@@ -373,7 +364,6 @@ export function createApiClient(getToken: () => Promise<string | null>) {
       return res.json();
     },
 
-    // ============ Public Profile ============
     async getPublicProfile(username: string): Promise<PublicProfileResponse | null> {
       const res = await fetch(`${API_URL}/api/user/profile/${username}`);
       if (res.status === 404) return null;
@@ -381,7 +371,6 @@ export function createApiClient(getToken: () => Promise<string | null>) {
       return res.json();
     },
 
-    // ============ Certificates ============
     async getCertificateEligibility(certificateType: string): Promise<CertificateEligibility> {
       const res = await fetchWithAuth(`/api/certificates/eligibility/${certificateType}`);
       if (!res.ok) throw new Error('Failed to check eligibility');
