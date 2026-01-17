@@ -85,6 +85,7 @@ jobs:
     needs: lint-and-test
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: infra
@@ -132,6 +133,7 @@ jobs:
   deploy:
     needs: terraform
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
@@ -170,6 +172,31 @@ jobs:
             --image ${{ needs.terraform.outputs.container_registry_endpoint }}/api:${{ github.sha }} \
             --set-env-vars FRONTEND_URL="$FRONTEND_URL"
 
+      - name: Run database migrations
+        run: |
+          echo "Running Alembic migrations in the API container..."
+
+          # The first exec after a new revision deploy can fail while the container warms up.
+          # Retry a few times to avoid transient deploy flakiness.
+          for i in {1..8}; do
+            if az containerapp exec \
+              --name ${{ needs.terraform.outputs.api_container_app_name }} \
+              --resource-group ${{ needs.terraform.outputs.resource_group_name }} \
+              --command "python -m scripts.migrate upgrade"; then
+              echo "Migrations applied successfully."
+              break
+            fi
+
+            echo "Migration attempt $i failed; retrying in 10s..."
+            sleep 10
+          done
+
+          echo "Current migration revision:"
+          az containerapp exec \
+            --name ${{ needs.terraform.outputs.api_container_app_name }} \
+            --resource-group ${{ needs.terraform.outputs.resource_group_name }} \
+            --command "python -m scripts.migrate current"
+
       - name: Deploy Frontend Container App
         run: |
           az containerapp update \
@@ -181,8 +208,8 @@ jobs:
 # NOTES
 # =============================================================================
 # Database migrations:
-#   - Run manually via scripts or az containerapp exec
-#   - SQLAlchemy create_all() is idempotent - only creates missing tables
+#   - Applied automatically during deploy via `python -m scripts.migrate upgrade`
+#   - Uses Alembic migrations as the source of truth for schema
 #
 # Custom domain (app.learntocloud.guide):
 #   - Managed by Terraform with Azure's free managed SSL certificate

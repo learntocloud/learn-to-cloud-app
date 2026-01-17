@@ -37,13 +37,14 @@ A web application for tracking your progress through the [Learn to Cloud](https:
 ### Local Development
 
 ```bash
-# Start database
+# Start database (required at least once; runs in Docker)
 docker-compose up -d db
 
 # API (terminal 1)
 cd api
 uv sync
-cp .env.example .env  # Add CLERK_SECRET_KEY
+cp .env.example .env  # Or add DATABASE_URL to your existing api/.env
+.venv/bin/python -m scripts.migrate upgrade  # Apply Alembic migrations
 .venv/bin/python -m uvicorn main:app --reload --port 8000
 
 # Frontend (terminal 2)
@@ -52,6 +53,10 @@ npm install
 cp .env.example .env.local  # Add VITE_CLERK_PUBLISHABLE_KEY
 npm run dev
 ```
+
+Notes:
+- The API does not start Postgres for you. You must run `docker compose up -d db` at least once.
+- After that you can use `docker compose start db` / `docker compose stop db` to manage it.
 
 | Service | URL |
 |---------|-----|

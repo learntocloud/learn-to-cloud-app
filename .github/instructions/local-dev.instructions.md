@@ -15,7 +15,13 @@ applyTo: 'docker-compose.yml, .env*, **/Dockerfile'
 **API** (`api/.env`):
 ```bash
 CLERK_SECRET_KEY=sk_test_...
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/learn_to_cloud
+DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/learn_to_cloud
+```
+
+After starting Postgres, apply schema via Alembic:
+```bash
+cd api
+.venv/bin/python -m scripts.migrate upgrade
 ```
 
 **Frontend** (`frontend/.env.local`):
@@ -40,6 +46,10 @@ pkill -f "uvicorn main:app" && pkill -f "vite"
 
 # Start database
 docker-compose up -d db
+
+# Stop / start database later
+docker-compose stop db
+docker-compose start db
 
 # Module not found - use venv python
 cd api && .venv/bin/python -m uvicorn main:app --reload
