@@ -52,26 +52,36 @@ def run_migrations_offline() -> None:
 def _run_migrations(connection: Connection) -> None:
     dialect_name = getattr(connection.dialect, "name", "")
 
-    with context.begin_transaction():
-        # Acquire advisory lock at the START of the transaction, BEFORE checking
-        # current revision. This prevents the race where both workers see no
-        # migrations applied before either has committed.
-        # Using pg_advisory_xact_lock which auto-releases on transaction end.
-        if dialect_name == "postgresql":
-            advisory_lock_key = 743028475
-            connection.execute(
-                text("SELECT pg_advisory_xact_lock(:key)"), {"key": advisory_lock_key}
-            )
+    # For PostgreSQL with multiple workers, we need to serialize migrations using
+    # an advisory lock. The key insight is that we must acquire the lock FIRST,
+    # THEN check alembic_version to see what migrations to run.
+    #
+    # We use pg_advisory_lock (session-level) instead of pg_advisory_xact_lock
+    # because we need the lock to span across Alembic's internal transaction management.
+    if dialect_name == "postgresql":
+        advisory_lock_key = 743028475
+        # Acquire session-level advisory lock (blocks until acquired)
+        # This lock is held until explicitly released or session ends
+        connection.execute(
+            text("SELECT pg_advisory_lock(:key)"), {"key": advisory_lock_key}
+        )
 
-        # Configure context INSIDE the lock so the revision check happens
-        # after we have exclusive access.
+    try:
         context.configure(
             connection=connection,
             target_metadata=target_metadata,
             compare_type=True,
             render_as_batch=True,
         )
-        context.run_migrations()
+
+        with context.begin_transaction():
+            context.run_migrations()
+    finally:
+        # Release the advisory lock for PostgreSQL
+        if dialect_name == "postgresql":
+            connection.execute(
+                text("SELECT pg_advisory_unlock(:key)"), {"key": advisory_lock_key}
+            )
 
 
 async def run_migrations_online() -> None:
