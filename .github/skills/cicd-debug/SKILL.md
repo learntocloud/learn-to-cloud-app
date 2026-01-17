@@ -63,6 +63,16 @@ Look for these common patterns in the logs:
 
 **Fix:** Request quota increase in Azure portal or clean up unused resources.
 
+#### Migration Race Condition (Multi-Worker)
+**Pattern:** `/ready` returns 503 but `/health` returns 200, or `DuplicateTableError: relation already exists`
+
+**Cause:** Multiple uvicorn workers tried to run migrations simultaneously.
+
+**Fix:** This should be handled by `pg_advisory_lock` in `api/alembic/env.py`. If it recurs:
+1. Test locally: `docker compose down -v && docker compose up db api-multiworker`
+2. Check that `alembic/env.py` uses psycopg2 (sync driver) and acquires advisory lock before migrations
+3. Ensure the lock is committed before Alembic runs (so Alembic starts a clean transaction)
+
 #### Test Failures
 **Pattern:** `FAILED`, `pytest`, `AssertionError`
 

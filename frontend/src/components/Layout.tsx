@@ -1,7 +1,7 @@
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { UserButton, SignInButton, useUser, useAuth } from '@clerk/clerk-react';
-import { useEffect, useState, useRef } from 'react';
-import { createApiClient } from '@/lib/api-client';
+import { UserButton, SignInButton, useUser } from '@clerk/clerk-react';
+import { useEffect, useRef } from 'react';
+import { useUserInfo } from '@/lib/hooks';
 import { ThemeToggle } from './ThemeToggle';
 
 interface LayoutProps {
@@ -11,8 +11,15 @@ interface LayoutProps {
 export function Layout({ children }: LayoutProps) {
   return (
     <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-950">
+      {/* Skip to main content link for keyboard navigation accessibility */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-blue-600 focus:text-white focus:rounded-lg focus:shadow-lg"
+      >
+        Skip to main content
+      </a>
       <Navbar />
-      <main className="flex-1">{children}</main>
+      <main id="main-content" className="flex-1">{children}</main>
       <Footer />
     </div>
   );
@@ -20,8 +27,7 @@ export function Layout({ children }: LayoutProps) {
 
 function Navbar() {
   const { isSignedIn, isLoaded } = useUser();
-  const { getToken } = useAuth();
-  const [githubUsername, setGithubUsername] = useState<string | null>(null);
+  const { data: userInfo } = useUserInfo();
   const navigate = useNavigate();
   const location = useLocation();
   const wasSignedIn = useRef<boolean | null>(null);
@@ -50,20 +56,6 @@ function Navbar() {
     wasSignedIn.current = isSignedIn;
   }, [isSignedIn, isLoaded, navigate, location.pathname]);
 
-  useEffect(() => {
-    if (isSignedIn) {
-      const api = createApiClient(getToken);
-      api.getUserInfo()
-        .then((userInfo) => {
-          setGithubUsername(userInfo.github_username);
-        })
-        .catch((error) => {
-          console.error('Failed to fetch user info:', error);
-        });
-    } else {
-      setGithubUsername(null);
-    }
-  }, [isSignedIn, getToken]);
 
   return (
     <nav className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800">
@@ -87,8 +79,8 @@ function Navbar() {
                   <Link to="/dashboard" className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white px-3 py-2 text-sm font-medium">
                     Dashboard
                   </Link>
-                  {githubUsername && (
-                    <Link to={`/user/${githubUsername}`} className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white px-3 py-2 text-sm font-medium">
+                  {userInfo?.github_username && (
+                    <Link to={`/user/${userInfo.github_username}`} className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white px-3 py-2 text-sm font-medium">
                       Profile
                     </Link>
                   )}

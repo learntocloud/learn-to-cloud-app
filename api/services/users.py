@@ -23,6 +23,57 @@ StreakInfo = StreakData
 HeatmapInfo = HeatmapData
 
 
+def _is_placeholder_user(user_email: str) -> bool:
+    """Check if user email indicates placeholder account.
+
+    Placeholder accounts are created on first API access and later
+    synced with Clerk data via webhooks.
+
+    Args:
+        user_email: User's email address
+
+    Returns:
+        True if email is a placeholder (not yet synced from Clerk)
+    """
+    return user_email.endswith("@placeholder.local")
+
+
+def _needs_clerk_sync(user: User) -> bool:
+    """Check if user needs data sync from Clerk.
+
+    Users need sync if:
+    - They have placeholder data
+    - Missing avatar URL
+    - Missing GitHub username
+
+    Args:
+        user: User ORM model
+
+    Returns:
+        True if user should be synced with Clerk
+    """
+    return (
+        _is_placeholder_user(user.email)
+        or not user.avatar_url
+        or not user.github_username
+    )
+
+
+def _normalize_github_username(username: str | None) -> str | None:
+    """Normalize GitHub username to lowercase for consistency.
+
+    GitHub usernames are case-insensitive, so we normalize to lowercase
+    to avoid duplicate accounts and enable case-insensitive lookups.
+
+    Args:
+        username: GitHub username (may be None)
+
+    Returns:
+        Normalized lowercase username or None
+    """
+    return username.lower() if username else None
+
+
 @dataclass(frozen=True)
 class UserData:
     """DTO for a user (service-layer return type)."""
@@ -97,10 +148,18 @@ async def get_or_create_user(db: AsyncSession, user_id: str) -> UserData:
     user_repo = UserRepository(db)
     user = await user_repo.get_or_create(user_id)
 
-    if user_repo.needs_sync(user):
+    if _needs_clerk_sync(user):
         clerk_data = await fetch_user_data(user_id)
         if clerk_data:
-            is_placeholder = user_repo.is_placeholder(user)
+            is_placeholder = _is_placeholder_user(user.email)
+
+            # Normalize GitHub username before passing to repository
+            normalized_github_username = None
+            if clerk_data.github_username and not user.github_username:
+                normalized_github_username = _normalize_github_username(
+                    clerk_data.github_username
+                )
+
             await user_repo.update(
                 user,
                 email=clerk_data.email if clerk_data.email and is_placeholder else None,
@@ -113,9 +172,7 @@ async def get_or_create_user(db: AsyncSession, user_id: str) -> UserData:
                 avatar_url=clerk_data.avatar_url
                 if clerk_data.avatar_url and not user.avatar_url
                 else None,
-                github_username=clerk_data.github_username
-                if clerk_data.github_username and not user.github_username
-                else None,
+                github_username=normalized_github_username,
             )
 
     return _to_user_data(user)

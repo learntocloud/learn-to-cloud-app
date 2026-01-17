@@ -5,8 +5,8 @@ from datetime import UTC, datetime
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core.database import upsert_on_conflict
 from models import Submission, SubmissionType
+from repositories.utils import upsert_on_conflict
 
 
 class SubmissionRepository:

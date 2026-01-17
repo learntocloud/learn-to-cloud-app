@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from repositories.user import UserRepository
 from repositories.webhook import ProcessedWebhookRepository
 from services.clerk import extract_github_username, extract_primary_email
+from services.users import _normalize_github_username
 
 
 async def handle_user_created(db: AsyncSession, data: dict) -> None:
@@ -21,6 +22,8 @@ async def handle_user_created(db: AsyncSession, data: dict) -> None:
 
     primary_email = extract_primary_email(data, f"{user_id}@unknown.local")
     github_username = extract_github_username(data)
+    # Normalize GitHub username before passing to repository
+    normalized_github_username = _normalize_github_username(github_username)
 
     email = primary_email or f"{user_id}@unknown.local"
 
@@ -31,7 +34,7 @@ async def handle_user_created(db: AsyncSession, data: dict) -> None:
             first_name=data.get("first_name"),
             last_name=data.get("last_name"),
             avatar_url=data.get("image_url"),
-            github_username=github_username,
+            github_username=normalized_github_username,
         )
     else:
         await user_repo.create(
@@ -40,7 +43,7 @@ async def handle_user_created(db: AsyncSession, data: dict) -> None:
             first_name=data.get("first_name"),
             last_name=data.get("last_name"),
             avatar_url=data.get("image_url"),
-            github_username=github_username,
+            github_username=normalized_github_username,
         )
 
 
@@ -62,6 +65,8 @@ async def handle_user_updated(db: AsyncSession, data: dict) -> None:
 
     primary_email = extract_primary_email(data, user.email)
     github_username = extract_github_username(data)
+    # Normalize GitHub username before passing to repository
+    normalized_github_username = _normalize_github_username(github_username)
 
     await user_repo.update(
         user,
@@ -69,7 +74,7 @@ async def handle_user_updated(db: AsyncSession, data: dict) -> None:
         first_name=data.get("first_name"),
         last_name=data.get("last_name"),
         avatar_url=data.get("image_url"),
-        github_username=github_username,
+        github_username=normalized_github_username,
     )
 
 

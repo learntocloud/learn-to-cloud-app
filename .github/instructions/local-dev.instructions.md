@@ -38,6 +38,16 @@ VITE_API_URL=http://localhost:8000
 | API | http://localhost:8000 |
 | API Docs | http://localhost:8000/docs |
 
+## Testing Multi-Worker (Production-Like)
+
+The API runs with 2 uvicorn workers in production. To test locally:
+
+```bash
+docker compose down -v && docker compose up db api-multiworker
+```
+
+This validates that migrations serialize correctly across workers. Both workers should start and `/ready` should return 200.
+
 ## Common Fixes
 
 ```bash

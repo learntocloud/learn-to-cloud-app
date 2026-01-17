@@ -108,23 +108,6 @@ class TestStepProgressRepository:
         remaining = await repo.get_completed_step_orders(test_user.id, "phase0-topic0")
         assert remaining == {1, 2}
 
-    async def test_count_by_phase(self, db_session: AsyncSession, test_user: User):
-        """count_by_phase returns step counts per phase."""
-        repo = StepProgressRepository(db_session)
-
-        # Add steps to phase 0
-        await repo.create(test_user.id, "phase0-topic0", 1)
-        await repo.create(test_user.id, "phase0-topic0", 2)
-        await repo.create(test_user.id, "phase0-topic1", 1)
-        # Add steps to phase 1
-        await repo.create(test_user.id, "phase1-topic0", 1)
-        await db_session.commit()
-
-        counts = await repo.count_by_phase(test_user.id)
-
-        assert counts[0] == 3  # 3 steps in phase 0
-        assert counts[1] == 1  # 1 step in phase 1
-
 
 # =============================================================================
 # QUESTION ATTEMPT REPOSITORY TESTS
@@ -185,28 +168,6 @@ class TestQuestionAttemptRepository:
         assert "phase1-topic0" in all_passed
         assert all_passed["phase0-topic0"] == {"q1", "q2"}
         assert all_passed["phase1-topic0"] == {"q1"}
-
-    async def test_count_passed_by_phase(
-        self, db_session: AsyncSession, test_user: User
-    ):
-        """count_passed_by_phase returns passed question counts per phase."""
-        repo = QuestionAttemptRepository(db_session)
-
-        await repo.create(
-            test_user.id, "phase0-topic0", "phase0-topic0-q1", is_passed=True
-        )
-        await repo.create(
-            test_user.id, "phase0-topic0", "phase0-topic0-q2", is_passed=True
-        )
-        await repo.create(
-            test_user.id, "phase1-topic0", "phase1-topic0-q1", is_passed=True
-        )
-        await db_session.commit()
-
-        counts = await repo.count_passed_by_phase(test_user.id)
-
-        assert counts[0] == 2  # 2 passed in phase 0
-        assert counts[1] == 1  # 1 passed in phase 1
 
 
 # =============================================================================

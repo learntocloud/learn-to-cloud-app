@@ -4,15 +4,13 @@
 
 import { useState } from 'react';
 import type { QuestionSchema } from '@/lib/api-client';
+import { QUESTION_ANSWER_MAX_CHARS, QUESTION_ANSWER_MIN_CHARS } from '@/lib/constants';
 
 interface KnowledgeQuestionProps {
   question: QuestionSchema;
   isAnswered: boolean;
   onSubmit: (answer: string) => Promise<{ is_passed: boolean; llm_feedback?: string | null }>;
 }
-
-const MAX_CHARS = 2000;
-const MIN_CHARS = 10;
 
 export function KnowledgeQuestion({
   question,
@@ -26,8 +24,8 @@ export function KnowledgeQuestion({
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async () => {
-    if (answer.length < MIN_CHARS) {
-      setError(`Answer must be at least ${MIN_CHARS} characters.`);
+    if (answer.length < QUESTION_ANSWER_MIN_CHARS) {
+      setError(`Answer must be at least ${QUESTION_ANSWER_MIN_CHARS} characters.`);
       return;
     }
 
@@ -53,8 +51,8 @@ export function KnowledgeQuestion({
   };
 
   const charCount = answer.length;
-  const isOverLimit = charCount > MAX_CHARS;
-  const canSubmit = charCount >= MIN_CHARS && !isOverLimit && !isSubmitting && !isPassed;
+  const isOverLimit = charCount > QUESTION_ANSWER_MAX_CHARS;
+  const canSubmit = charCount >= QUESTION_ANSWER_MIN_CHARS && !isOverLimit && !isSubmitting && !isPassed;
 
   return (
     <div className={`border rounded-lg p-4 ${
@@ -101,7 +99,7 @@ export function KnowledgeQuestion({
               }}
               placeholder="Type your answer here..."
               rows={4}
-              maxLength={MAX_CHARS + 100}
+              maxLength={QUESTION_ANSWER_MAX_CHARS + 100}
               disabled={isSubmitting}
               className={`w-full px-3 py-2 border rounded-lg resize-none focus:outline-none focus:ring-2
                 ${isOverLimit
@@ -115,7 +113,7 @@ export function KnowledgeQuestion({
             <div className={`absolute bottom-2 right-2 text-xs ${
               isOverLimit ? 'text-red-500' : 'text-gray-400'
             }`}>
-              {charCount}/{MAX_CHARS}
+              {charCount}/{QUESTION_ANSWER_MAX_CHARS}
             </div>
           </div>
 

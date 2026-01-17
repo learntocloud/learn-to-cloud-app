@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from datetime import date
 from typing import TypedDict
 
+from services.phase_requirements import get_requirements_for_phase
 from services.progress import PHASE_REQUIREMENTS as _PROGRESS_REQUIREMENTS
 
 
@@ -240,8 +241,6 @@ def get_all_available_badges() -> list[dict]:
     for phase_id, badge_info in PHASE_BADGES.items():
         requirements = _PROGRESS_REQUIREMENTS.get(phase_id)
         if requirements:
-            from services.hands_on_verification import get_requirements_for_phase
-
             hands_on_count = len(get_requirements_for_phase(phase_id))
             if hands_on_count:
                 requirement_str = (

@@ -118,9 +118,9 @@ async def submit_question_answer(
         question_id=question_id,
         is_passed=grade_result.is_passed,
         user_answer=user_answer,
+        llm_feedback=grade_result.feedback,
+        confidence_score=grade_result.confidence_score,
     )
-    attempt.llm_feedback = grade_result.feedback
-    attempt.confidence_score = grade_result.confidence_score
 
     today = datetime.now(UTC).date()
     await activity_repo.log_activity(

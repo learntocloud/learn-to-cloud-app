@@ -615,11 +615,9 @@ async def get_phase_detail(
     required_ids = {req.id for req in hands_on_reqs}
     all_hands_on_validated = required_ids.issubset(validated_req_ids)
 
-    # Phase is complete when: steps+questions done AND all hands-on validated
-    steps_and_questions_complete = (
-        progress_data is not None and progress_data.status == "completed"
-    )
-    is_phase_complete = steps_and_questions_complete and all_hands_on_validated
+    # Use authoritative phase completion from services/progress.py.
+    # Single source of truth for certificates, badges, and other features.
+    is_phase_complete = phase_progress.is_complete if phase_progress else False
 
     return PhaseDetailData(
         id=phase.id,

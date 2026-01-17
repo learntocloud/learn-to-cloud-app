@@ -4,6 +4,7 @@ import { usePublicProfile } from '@/lib/hooks';
 import { ActivityHeatmap } from '@/components/ActivityHeatmap';
 import { SubmissionsShowcase } from '@/components/SubmissionsShowcase';
 import { Badge } from '@/lib/types';
+import { ALL_BADGES, TOTAL_BADGES } from '@/lib/constants';
 
 export function ProfilePage() {
   const { username } = useParams<{ username: string }>();
@@ -112,7 +113,7 @@ export function ProfilePage() {
               Badge Collection
             </h2>
             <span className="text-xs text-gray-400 dark:text-gray-500">
-              {badges.length}/10
+              {badges.length}/{TOTAL_BADGES}
             </span>
           </div>
           <BadgeCollection badges={badges} />
@@ -150,19 +151,6 @@ export function ProfilePage() {
 
 // Pokédex-style Badge Collection
 function BadgeCollection({ badges }: { badges: Badge[] }) {
-  const ALL_BADGES = [
-    { id: 'phase_0_complete', name: 'Cloud Seedling', icon: '🌱', num: '#001', howTo: 'Complete Phase 0: Starting from Zero' },
-    { id: 'phase_1_complete', name: 'Terminal Ninja', icon: '🐧', num: '#002', howTo: 'Complete Phase 1: Linux and Bash' },
-    { id: 'phase_2_complete', name: 'Code Crafter', icon: '🐍', num: '#003', howTo: 'Complete Phase 2: Programming Fundamentals' },
-    { id: 'phase_3_complete', name: 'AI Apprentice', icon: '🤖', num: '#004', howTo: 'Complete Phase 3: AI Tools & Intentional Learning' },
-    { id: 'phase_4_complete', name: 'Cloud Explorer', icon: '☁️', num: '#005', howTo: 'Complete Phase 4: Cloud Platform Fundamentals' },
-    { id: 'phase_5_complete', name: 'DevOps Rocketeer', icon: '🚀', num: '#006', howTo: 'Complete Phase 5: DevOps Fundamentals' },
-    { id: 'phase_6_complete', name: 'Security Guardian', icon: '🔐', num: '#007', howTo: 'Complete Phase 6: Securing Your Cloud Applications' },
-    { id: 'streak_7', name: 'Week Warrior', icon: '🔥', num: '#008', howTo: 'Maintain a 7-day learning streak' },
-    { id: 'streak_30', name: 'Monthly Master', icon: '💪', num: '#009', howTo: 'Maintain a 30-day learning streak' },
-    { id: 'streak_100', name: 'Century Club', icon: '💯', num: '#010', howTo: 'Maintain a 100-day learning streak' },
-  ];
-
   const earnedIds = new Set(badges.map((b) => b.id));
 
   return (

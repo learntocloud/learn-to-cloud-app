@@ -24,12 +24,11 @@ class UserRepository:
         """Get a user by their GitHub username.
 
         Returns the first matching user if duplicates exist.
-        Uses case-insensitive comparison for robustness.
+        Expects username to be pre-normalized (lowercase) by service layer.
         """
-        normalized = username.lower()
         result = await self.db.execute(
             select(User)
-            .where(User.github_username == normalized)
+            .where(User.github_username == username)
             .order_by(User.created_at.desc())
             .limit(1)
         )
@@ -86,14 +85,17 @@ class UserRepository:
         avatar_url: str | None = None,
         github_username: str | None = None,
     ) -> User:
-        """Create a new user."""
+        """Create a new user.
+
+        Expects github_username to be pre-normalized (lowercase) by service layer.
+        """
         user = User(
             id=user_id,
             email=email,
             first_name=first_name,
             last_name=last_name,
             avatar_url=avatar_url,
-            github_username=github_username.lower() if github_username else None,
+            github_username=github_username,
         )
         self.db.add(user)
         return user
@@ -113,6 +115,8 @@ class UserRepository:
 
         If github_username is being set and another user already has it,
         clears the github_username from the other user first.
+
+        Expects github_username to be pre-normalized (lowercase) by service layer.
         """
         if email is not None:
             user.email = email
@@ -123,13 +127,12 @@ class UserRepository:
         if avatar_url is not None:
             user.avatar_url = avatar_url
         if github_username is not None:
-            normalized = github_username.lower()
             # Check if another user has this github_username
-            existing = await self.get_by_github_username(normalized)
+            existing = await self.get_by_github_username(github_username)
             if existing and existing.id != user.id:
                 # Clear it from the old user (they likely deleted their Clerk account)
                 existing.github_username = None
-            user.github_username = normalized
+            user.github_username = github_username
         if is_admin is not None:
             user.is_admin = is_admin
 
@@ -139,13 +142,3 @@ class UserRepository:
     async def delete(self, user_id: str) -> None:
         """Delete a user by ID. Cascades to related records."""
         await self.db.execute(delete(User).where(User.id == user_id))
-
-    def is_placeholder(self, user: User) -> bool:
-        """Check if user has placeholder data (not yet synced from Clerk)."""
-        return user.email.endswith("@placeholder.local")
-
-    def needs_sync(self, user: User) -> bool:
-        """Check if user needs data sync from Clerk."""
-        return (
-            self.is_placeholder(user) or not user.avatar_url or not user.github_username
-        )

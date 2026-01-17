@@ -227,6 +227,40 @@ def get_all_phase_ids() -> list[int]:
     return sorted(PHASE_REQUIREMENTS.keys())
 
 
+def _parse_phase_from_topic_id(topic_id: str) -> int | None:
+    """Extract phase number from topic_id format (phase{N}-topic{M}).
+
+    Args:
+        topic_id: Topic ID in format "phase{N}-topic{M}"
+
+    Returns:
+        Phase number or None if parsing fails
+    """
+    if not isinstance(topic_id, str) or not topic_id.startswith("phase"):
+        return None
+    try:
+        return int(topic_id.split("-")[0].replace("phase", ""))
+    except (ValueError, IndexError):
+        return None
+
+
+def _parse_phase_from_question_id(question_id: str) -> int | None:
+    """Extract phase number from question_id format (phase{N}-topic{M}-q{X}).
+
+    Args:
+        question_id: Question ID in format "phase{N}-topic{M}-q{X}"
+
+    Returns:
+        Phase number or None if parsing fails
+    """
+    if not isinstance(question_id, str) or not question_id.startswith("phase"):
+        return None
+    try:
+        return int(question_id.split("-")[0].replace("phase", ""))
+    except (ValueError, IndexError):
+        return None
+
+
 async def fetch_user_progress(
     db: AsyncSession,
     user_id: str,
@@ -246,9 +280,21 @@ async def fetch_user_progress(
     step_repo = StepProgressRepository(db)
     submission_repo = SubmissionRepository(db)
 
-    phase_questions = await question_repo.count_passed_by_phase(user_id)
+    # Get raw question IDs and parse phase numbers in service layer
+    question_ids = await question_repo.get_all_passed_question_ids(user_id)
+    phase_questions: dict[int, int] = {}
+    for question_id in question_ids:
+        phase_num = _parse_phase_from_question_id(question_id)
+        if phase_num is not None:
+            phase_questions[phase_num] = phase_questions.get(phase_num, 0) + 1
 
-    phase_steps = await step_repo.count_by_phase(user_id)
+    # Get raw topic IDs and parse phase numbers in service layer
+    topic_ids = await step_repo.get_completed_step_topic_ids(user_id)
+    phase_steps: dict[int, int] = {}
+    for topic_id in topic_ids:
+        phase_num = _parse_phase_from_topic_id(topic_id)
+        if phase_num is not None:
+            phase_steps[phase_num] = phase_steps.get(phase_num, 0) + 1
 
     db_submissions = await submission_repo.get_validated_by_user(user_id)
     validated_by_phase = get_validated_ids_by_phase(db_submissions)

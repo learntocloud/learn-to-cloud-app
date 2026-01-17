@@ -97,27 +97,17 @@ class StepProgressRepository:
         )
         return result.rowcount or 0
 
-    async def count_by_phase(self, user_id: str) -> dict[int, int]:
-        """Count completed steps per phase for a user.
+    async def get_completed_step_topic_ids(self, user_id: str) -> list[str]:
+        """Get all topic IDs where user has completed steps.
 
-        Parses topic_id format: phase{N}-topic{M}
-        Returns dict mapping phase number to count.
+        Returns topic_ids in format: phase{N}-topic{M}
         """
         result = await self.db.execute(
-            select(StepProgress.topic_id).where(StepProgress.user_id == user_id)
+            select(StepProgress.topic_id)
+            .where(StepProgress.user_id == user_id)
+            .distinct()
         )
-
-        phase_counts: dict[int, int] = {}
-        for (topic_id,) in result.all():
-            if not isinstance(topic_id, str) or not topic_id.startswith("phase"):
-                continue
-            try:
-                phase_num = int(topic_id.split("-")[0].replace("phase", ""))
-            except (ValueError, IndexError):
-                continue
-            phase_counts[phase_num] = phase_counts.get(phase_num, 0) + 1
-
-        return phase_counts
+        return [row[0] for row in result.all()]
 
 
 class QuestionAttemptRepository:
@@ -192,6 +182,8 @@ class QuestionAttemptRepository:
         question_id: str,
         is_passed: bool,
         user_answer: str | None = None,
+        llm_feedback: str | None = None,
+        confidence_score: float | None = None,
     ) -> QuestionAttempt:
         """Create a new question attempt record."""
         attempt = QuestionAttempt(
@@ -200,6 +192,8 @@ class QuestionAttemptRepository:
             question_id=question_id,
             is_passed=is_passed,
             user_answer=user_answer or "",
+            llm_feedback=llm_feedback,
+            confidence_score=confidence_score,
         )
         self.db.add(attempt)
         await self.db.flush()
@@ -214,20 +208,3 @@ class QuestionAttemptRepository:
             )
         )
         return [row[0] for row in result.all()]
-
-    async def count_passed_by_phase(self, user_id: str) -> dict[int, int]:
-        """Count passed questions per phase for a user.
-
-        Parses question_id format: phase{N}-topic{M}-q{X}
-        Returns dict mapping phase number to count.
-        """
-        question_ids = await self.get_all_passed_question_ids(user_id)
-        phase_counts: dict[int, int] = {}
-        for question_id in question_ids:
-            if question_id.startswith("phase"):
-                try:
-                    phase_num = int(question_id.split("-")[0].replace("phase", ""))
-                    phase_counts[phase_num] = phase_counts.get(phase_num, 0) + 1
-                except (ValueError, IndexError):
-                    continue
-        return phase_counts

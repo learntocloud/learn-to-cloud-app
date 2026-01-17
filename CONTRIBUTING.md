@@ -47,6 +47,16 @@ Or use VS Code's Run & Debug panel.
 cd api && .venv/bin/python -m pytest -v
 ```
 
+### Testing Multi-Worker Scenarios
+
+To test that migrations work correctly with multiple uvicorn workers (as in production):
+
+```bash
+docker compose down -v && docker compose up db api-multiworker
+```
+
+This runs the API with 2 workers and `RUN_MIGRATIONS_ON_STARTUP=true`. Both workers should start successfully and `/ready` should return 200.
+
 ### Pre-commit
 
 ```bash
