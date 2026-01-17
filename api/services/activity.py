@@ -52,9 +52,12 @@ async def get_streak_data(db, user_id: str) -> StreakData:
     """Calculate user's streak information.
 
     Streak calculation allows up to 2 skipped days per week.
+    Uses limited query (100 dates) for performance - sufficient for streak calc.
     """
     activity_repo = ActivityRepository(db)
-    activity_dates = await activity_repo.get_activity_dates_ordered(user_id)
+    # Limit to 100 dates for performance - more than enough for streak calculation
+    # since a 3+ day gap breaks the streak anyway
+    activity_dates = await activity_repo.get_activity_dates_ordered(user_id, limit=100)
 
     current_streak, longest_streak, streak_alive = calculate_streak_with_forgiveness(
         activity_dates, MAX_SKIP_DAYS

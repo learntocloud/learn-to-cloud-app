@@ -17,6 +17,10 @@ To add a new verification type:
 For GitHub-specific validations, see github_hands_on_verification.py
 For CTF token validation, see ctf.py
 For phase requirements, see phase_requirements.py
+
+SCALABILITY:
+- Circuit breaker for deployed app validation
+- Retry logic with exponential backoff for transient failures
 """
 
 import asyncio
@@ -26,6 +30,7 @@ from ipaddress import ip_address
 from urllib.parse import urljoin, urlsplit
 
 import httpx
+from circuitbreaker import circuit
 
 from core.telemetry import track_dependency
 from models import SubmissionType
@@ -371,6 +376,12 @@ def _validate_deployed_journal_response(
 
 
 @track_dependency("deployed_app_check", "HTTP")
+@circuit(
+    failure_threshold=5,
+    recovery_timeout=60,
+    expected_exception=httpx.RequestError,
+    name="deployed_app_circuit",
+)
 async def validate_deployed_app(
     app_url: str,
     expected_endpoint: str | None = None,
@@ -388,6 +399,8 @@ async def validate_deployed_app(
 
     Returns:
         ValidationResult indicating if the app is accessible and valid
+
+    CIRCUIT BREAKER: Opens after 5 consecutive failures, recovers after 60 seconds.
     """
     app_url = app_url.strip().rstrip("/")
 

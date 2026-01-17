@@ -3,7 +3,7 @@
 from collections.abc import Sequence
 from datetime import UTC, datetime
 
-from sqlalchemy import select
+from sqlalchemy import exists, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models import Certificate
@@ -54,12 +54,20 @@ class CertificateRepository:
     async def get_by_user(
         self,
         user_id: str,
+        *,
+        limit: int = 100,
     ) -> Sequence[Certificate]:
-        """Get all certificates for a user, most recent first."""
+        """Get all certificates for a user, most recent first.
+
+        Args:
+            user_id: The user's ID
+            limit: Maximum number of certificates to return (default 100)
+        """
         result = await self.db.execute(
             select(Certificate)
             .where(Certificate.user_id == user_id)
             .order_by(Certificate.issued_at.desc())
+            .limit(limit)
         )
         return result.scalars().all()
 
@@ -82,9 +90,18 @@ class CertificateRepository:
         user_id: str,
         certificate_type: str,
     ) -> bool:
-        """Check if a user already has a specific certificate type."""
-        cert = await self.get_by_user_and_type(user_id, certificate_type)
-        return cert is not None
+        """Check if a user already has a specific certificate type.
+
+        Uses efficient EXISTS query instead of fetching the full row.
+        """
+        stmt = select(
+            exists().where(
+                Certificate.user_id == user_id,
+                Certificate.certificate_type == certificate_type,
+            )
+        )
+        result = await self.db.execute(stmt)
+        return result.scalar() or False
 
     async def create(
         self,

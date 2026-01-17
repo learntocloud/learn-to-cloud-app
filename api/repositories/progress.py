@@ -109,6 +109,22 @@ class StepProgressRepository:
         )
         return [row[0] for row in result.all()]
 
+    async def get_all_completed_by_user(self, user_id: str) -> dict[str, set[int]]:
+        """Get all completed steps for a user, grouped by topic.
+
+        Returns a dict mapping topic_id to set of completed step_orders.
+        """
+        result = await self.db.execute(
+            select(StepProgress.topic_id, StepProgress.step_order).where(
+                StepProgress.user_id == user_id
+            )
+        )
+
+        by_topic: dict[str, set[int]] = {}
+        for row in result.all():
+            by_topic.setdefault(row.topic_id, set()).add(row.step_order)
+        return by_topic
+
 
 class QuestionAttemptRepository:
     """Repository for question attempts (quiz/knowledge check progress)."""

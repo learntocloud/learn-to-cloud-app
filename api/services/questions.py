@@ -13,6 +13,8 @@ from datetime import UTC, datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from core.cache import invalidate_progress_cache
+from core.telemetry import add_custom_attribute, log_metric, track_operation
 from models import ActivityType
 from repositories.activity import ActivityRepository
 from repositories.progress import QuestionAttemptRepository
@@ -57,6 +59,7 @@ class QuestionUnknownQuestionError(QuestionValidationError):
     """Raised when a question_id doesn't exist in the given topic."""
 
 
+@track_operation("question_submission")
 async def submit_question_answer(
     db: AsyncSession,
     user_id: str,
@@ -79,6 +82,8 @@ async def submit_question_answer(
         LLMServiceUnavailableError: If LLM service not configured
         LLMGradingError: If grading fails
     """
+    add_custom_attribute("question.topic_id", topic_id)
+    add_custom_attribute("question.id", question_id)
     question_repo = QuestionAttemptRepository(db)
     activity_repo = ActivityRepository(db)
 
@@ -129,6 +134,15 @@ async def submit_question_answer(
         activity_date=today,
         reference_id=question_id,
     )
+
+    # Extract phase from topic_id (e.g., "phase1-topic4" -> "phase1")
+    phase = topic_id.split("-")[0] if "-" in topic_id else "unknown"
+    if grade_result.is_passed:
+        log_metric("questions.passed", 1, {"phase": phase, "topic_id": topic_id})
+        # Invalidate cache so dashboard/progress refreshes immediately
+        invalidate_progress_cache(user_id)
+    else:
+        log_metric("questions.failed", 1, {"phase": phase, "topic_id": topic_id})
 
     return QuestionGradeResult(
         question_id=question_id,

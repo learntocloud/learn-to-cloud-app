@@ -12,6 +12,8 @@ from datetime import datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from core.cache import invalidate_progress_cache
+from core.telemetry import add_custom_attribute, log_metric, track_operation
 from models import Submission, SubmissionType
 from repositories.submission import SubmissionRepository
 from services.github_hands_on_verification import parse_github_url
@@ -87,6 +89,7 @@ class GitHubUsernameRequiredError(Exception):
     pass
 
 
+@track_operation("hands_on_submission")
 async def submit_validation(
     db: AsyncSession,
     user_id: str,
@@ -110,6 +113,7 @@ async def submit_validation(
         RequirementNotFoundError: If requirement doesn't exist
         GitHubUsernameRequiredError: If GitHub username required but not provided
     """
+    add_custom_attribute("submission.requirement_id", requirement_id)
     requirement = get_requirement_by_id(requirement_id)
     if not requirement:
         raise RequirementNotFoundError(f"Requirement not found: {requirement_id}")
@@ -148,6 +152,23 @@ async def submit_validation(
         extracted_username=extracted_username,
         is_validated=validation_result.is_valid,
     )
+
+    # Log metrics for submission outcomes
+    phase = f"phase{requirement.phase_id}"
+    if validation_result.is_valid:
+        log_metric(
+            "submissions.validated",
+            1,
+            {"phase": phase, "type": requirement.submission_type.value},
+        )
+        # Invalidate cache so dashboard/progress refreshes immediately
+        invalidate_progress_cache(user_id)
+    else:
+        log_metric(
+            "submissions.failed",
+            1,
+            {"phase": phase, "type": requirement.submission_type.value},
+        )
 
     return SubmissionResult(
         submission=_to_submission_data(db_submission),

@@ -244,6 +244,13 @@ class QuestionAttempt(Base):
     __table_args__ = (
         Index("ix_question_attempts_user_topic", "user_id", "topic_id"),
         Index("ix_question_attempts_user_question", "user_id", "question_id"),
+        # Composite index for full lookup pattern (user + topic + question)
+        Index(
+            "ix_question_attempts_lookup",
+            "user_id",
+            "topic_id",
+            "question_id",
+        ),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -284,6 +291,13 @@ class StepProgress(Base):
             "user_id", "topic_id", "step_order", name="uq_user_topic_step"
         ),
         Index("ix_step_progress_user_topic", "user_id", "topic_id"),
+        # Composite index for full lookup pattern (user + topic + step_order)
+        Index(
+            "ix_step_progress_lookup",
+            "user_id",
+            "topic_id",
+            "step_order",
+        ),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)

@@ -2,10 +2,11 @@
 
 import logging
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 
 from core.auth import UserId
 from core.database import DbSession
+from core.ratelimit import limiter
 from schemas import (
     StreakResponse,
 )
@@ -18,7 +19,9 @@ router = APIRouter(prefix="/api/activity", tags=["activity"])
 
 
 @router.get("/streak", response_model=StreakResponse)
+@limiter.limit("60/minute")
 async def get_user_streak(
+    request: Request,
     user_id: UserId,
     db: DbSession,
 ) -> StreakResponse:

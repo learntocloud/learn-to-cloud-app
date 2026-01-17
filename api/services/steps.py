@@ -3,6 +3,8 @@
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
+from core.cache import invalidate_progress_cache
+from core.telemetry import add_custom_attribute, log_metric, track_operation
 from models import ActivityType
 from repositories import ActivityRepository, StepProgressRepository
 from services.content import get_topic_by_id
@@ -124,6 +126,7 @@ async def get_topic_step_progress(
     )
 
 
+@track_operation("step_completion")
 async def complete_step(
     db,
     user_id: str,
@@ -150,6 +153,8 @@ async def complete_step(
         StepAlreadyCompletedError: If step is already completed
         StepNotUnlockedError: If previous steps are not completed
     """
+    add_custom_attribute("step.topic_id", topic_id)
+    add_custom_attribute("step.order", step_order)
     _validate_step_order(topic_id, step_order)
 
     step_repo = StepProgressRepository(db)
@@ -182,6 +187,13 @@ async def complete_step(
         reference_id=f"{topic_id}:step{step_order}",
     )
 
+    # Invalidate cache so dashboard/progress refreshes immediately
+    invalidate_progress_cache(user_id)
+
+    # Extract phase from topic_id (e.g., "phase1-topic4" -> "phase1")
+    phase = topic_id.split("-")[0] if "-" in topic_id else "unknown"
+    log_metric("steps.completed", 1, {"phase": phase, "topic_id": topic_id})
+
     return StepCompletionResult(
         topic_id=step_progress.topic_id,
         step_order=step_progress.step_order,
@@ -206,4 +218,10 @@ async def uncomplete_step(db, user_id: str, topic_id: str, step_order: int) -> i
     _validate_step_order(topic_id, step_order)
 
     step_repo = StepProgressRepository(db)
-    return await step_repo.delete_from_step(user_id, topic_id, step_order)
+    deleted = await step_repo.delete_from_step(user_id, topic_id, step_order)
+
+    # Invalidate cache so dashboard/progress refreshes immediately
+    if deleted > 0:
+        invalidate_progress_cache(user_id)
+
+    return deleted

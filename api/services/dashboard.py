@@ -535,20 +535,24 @@ async def get_phase_detail(
         phase_is_locked = not (prev_progress and prev_progress.is_complete)
 
     # Get step and question progress for topics
+    # Use batched queries to avoid N+1 problem (2 queries total instead of 2*N)
     step_repo = StepProgressRepository(db)
     question_repo = QuestionAttemptRepository(db)
 
-    # Fetch all topic progress data
-    steps_by_topic: dict[str, set[int]] = {}
-    questions_by_topic: dict[str, set[str]] = {}
+    # Batch fetch all completed steps and questions for user in single queries
+    all_steps_by_topic = await step_repo.get_all_completed_by_user(user_id)
+    all_questions_by_topic = await question_repo.get_all_passed_by_user(user_id)
 
-    for topic in phase.topics:
-        steps_by_topic[topic.id] = await step_repo.get_completed_step_orders(
-            user_id, topic.id
-        )
-        questions_by_topic[topic.id] = await question_repo.get_passed_question_ids(
-            user_id, topic.id
-        )
+    # Filter to just topics in this phase
+    phase_topic_ids = {topic.id for topic in phase.topics}
+    steps_by_topic: dict[str, set[int]] = {
+        tid: steps
+        for tid, steps in all_steps_by_topic.items()
+        if tid in phase_topic_ids
+    }
+    questions_by_topic: dict[str, set[str]] = {
+        tid: qs for tid, qs in all_questions_by_topic.items() if tid in phase_topic_ids
+    }
 
     # Build topic summaries with locking
     topic_summaries: list[TopicSummaryData] = []

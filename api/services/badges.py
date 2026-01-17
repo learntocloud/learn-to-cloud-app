@@ -4,12 +4,17 @@ Badges are computed on-the-fly from user progress data.
 No separate database table is needed - badges are derived from:
 - Step completion + Question attempts (phase completion badges)
 - User activities (streak badges)
+
+CACHING:
+- Badge computations are cached for 60 seconds per user+progress combination
+- Cache key includes a hash of phase completion data for invalidation
 """
 
 from dataclasses import dataclass
 from datetime import date
 from typing import TypedDict
 
+from core.cache import get_cached_badges, set_cached_badges
 from services.phase_requirements import get_requirements_for_phase
 from services.progress import PHASE_REQUIREMENTS as _PROGRESS_REQUIREMENTS
 
@@ -185,6 +190,7 @@ def compute_streak_badges(longest_streak: int) -> list[Badge]:
 def compute_all_badges(
     phase_completion_counts: dict[int, tuple[int, int, bool]],
     longest_streak: int,
+    user_id: str | None = None,
 ) -> list[Badge]:
     """Compute all badges a user has earned.
 
@@ -192,13 +198,34 @@ def compute_all_badges(
         phase_completion_counts: Dict mapping phase_id ->
             (completed_steps, passed_questions, hands_on_validated)
         longest_streak: User's longest streak (all-time)
+        user_id: Optional user ID for caching (if provided, results are cached)
 
     Returns:
         List of all earned Badge objects
+
+    CACHING: If user_id is provided, results are cached for 60 seconds.
     """
+    # Create a hash of the input data for cache key
+    if user_id:
+        # Hash the completion counts for cache invalidation
+        progress_hash = hash(
+            (
+                tuple(sorted(phase_completion_counts.items())),
+                longest_streak,
+            )
+        )
+        cached = get_cached_badges(user_id, progress_hash)
+        if cached is not None:
+            return cached
+
     badges = []
     badges.extend(compute_phase_badges(phase_completion_counts))
     badges.extend(compute_streak_badges(longest_streak))
+
+    # Cache the result if user_id was provided
+    if user_id:
+        set_cached_badges(user_id, progress_hash, badges)
+
     return badges
 
 

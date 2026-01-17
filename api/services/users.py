@@ -1,10 +1,12 @@
 """User service for user-related business logic."""
 
+import asyncio
 from dataclasses import dataclass
 from datetime import datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from core.telemetry import log_metric, track_operation
 from models import SubmissionType, User
 from repositories.submission import SubmissionRepository
 from repositories.user import UserRepository
@@ -139,6 +141,7 @@ class PublicProfileData:
     badges: list[BadgeInfo]
 
 
+@track_operation("user_get_or_create")
 async def get_or_create_user(db: AsyncSession, user_id: str) -> UserData:
     """Get user from DB or create placeholder (will be synced via webhook).
 
@@ -147,6 +150,10 @@ async def get_or_create_user(db: AsyncSession, user_id: str) -> UserData:
     """
     user_repo = UserRepository(db)
     user = await user_repo.get_or_create(user_id)
+
+    # Track new user registration
+    if user.created_at == user.updated_at:
+        log_metric("users.registered", 1)
 
     if _needs_clerk_sync(user):
         clerk_data = await fetch_user_data(user_id)
@@ -194,10 +201,13 @@ async def get_public_profile(
     if not profile_user:
         return None
 
-    streak = await get_streak_data(db, profile_user.id)
-    activity_heatmap = await get_heatmap_data(db, profile_user.id, days=270)
-
-    db_submissions = await submission_repo.get_validated_by_user(profile_user.id)
+    # Parallelize the 4 independent data fetches for better performance
+    streak, activity_heatmap, db_submissions, progress = await asyncio.gather(
+        get_streak_data(db, profile_user.id),
+        get_heatmap_data(db, profile_user.id, days=270),
+        submission_repo.get_validated_by_user(profile_user.id),
+        fetch_user_progress(db, profile_user.id),
+    )
 
     sensitive_submission_types = {
         SubmissionType.CTF_TOKEN,
@@ -227,7 +237,7 @@ async def get_public_profile(
             )
         )
 
-    progress = await fetch_user_progress(db, profile_user.id)
+    # progress was already fetched in parallel above
     phase_completion_counts = get_phase_completion_counts(progress)
 
     earned_badges = compute_all_badges(

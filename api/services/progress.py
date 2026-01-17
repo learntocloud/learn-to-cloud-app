@@ -7,12 +7,19 @@ This module provides a single source of truth for:
 
 All progress-related logic (certificates, dashboard, badges) should use this module
 to ensure consistency across the application.
+
+CACHING:
+- User progress is cached for 60 seconds per user_id
+- Cache is per-worker, not distributed (acceptable for read-heavy data)
+- Call invalidate_progress_cache(user_id) after progress modifications
 """
 
+import asyncio
 from dataclasses import dataclass
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from core.cache import get_cached_progress, set_cached_progress
 from repositories.progress import QuestionAttemptRepository, StepProgressRepository
 from repositories.submission import SubmissionRepository
 from services.hands_on_verification import get_requirements_for_phase
@@ -264,6 +271,7 @@ def _parse_phase_from_question_id(question_id: str) -> int | None:
 async def fetch_user_progress(
     db: AsyncSession,
     user_id: str,
+    skip_cache: bool = False,
 ) -> UserProgress:
     """Fetch complete progress data for a user.
 
@@ -272,31 +280,48 @@ async def fetch_user_progress(
     - Completed steps per phase
     - Validated GitHub submissions per phase
 
+    Args:
+        db: Database session
+        user_id: User identifier
+        skip_cache: If True, bypass cache and fetch fresh data
+
     Returns a UserProgress object with all phase completion data.
+
+    CACHING: Results are cached for 60 seconds per user_id.
     """
     from services.submissions import get_validated_ids_by_phase
+
+    # Check cache first (unless skip_cache is True)
+    if not skip_cache:
+        cached = get_cached_progress(user_id)
+        if cached is not None:
+            return cached
 
     question_repo = QuestionAttemptRepository(db)
     step_repo = StepProgressRepository(db)
     submission_repo = SubmissionRepository(db)
 
-    # Get raw question IDs and parse phase numbers in service layer
-    question_ids = await question_repo.get_all_passed_question_ids(user_id)
+    # Parallelize the 3 independent DB queries for better performance
+    question_ids, topic_ids, db_submissions = await asyncio.gather(
+        question_repo.get_all_passed_question_ids(user_id),
+        step_repo.get_completed_step_topic_ids(user_id),
+        submission_repo.get_validated_by_user(user_id),
+    )
+
+    # Parse phase numbers from question IDs in service layer
     phase_questions: dict[int, int] = {}
     for question_id in question_ids:
         phase_num = _parse_phase_from_question_id(question_id)
         if phase_num is not None:
             phase_questions[phase_num] = phase_questions.get(phase_num, 0) + 1
 
-    # Get raw topic IDs and parse phase numbers in service layer
-    topic_ids = await step_repo.get_completed_step_topic_ids(user_id)
+    # Parse phase numbers from topic IDs in service layer
     phase_steps: dict[int, int] = {}
     for topic_id in topic_ids:
         phase_num = _parse_phase_from_topic_id(topic_id)
         if phase_num is not None:
             phase_steps[phase_num] = phase_steps.get(phase_num, 0) + 1
 
-    db_submissions = await submission_repo.get_validated_by_user(user_id)
     validated_by_phase = get_validated_ids_by_phase(db_submissions)
 
     phases: dict[int, PhaseProgress] = {}
@@ -325,7 +350,12 @@ async def fetch_user_progress(
             hands_on_required=has_hands_on_requirements,
         )
 
-    return UserProgress(user_id=user_id, phases=phases)
+    result = UserProgress(user_id=user_id, phases=phases)
+
+    # Cache the result
+    set_cached_progress(user_id, result)
+
+    return result
 
 
 def get_phase_completion_counts(

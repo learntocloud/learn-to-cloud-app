@@ -11,46 +11,33 @@ from services.users import _normalize_github_username
 async def handle_user_created(db: AsyncSession, data: dict) -> None:
     """Handle user.created webhook event.
 
-    Creates or updates user record with data from Clerk.
+    Creates or updates user record with data from Clerk using upsert.
     """
     user_id = data.get("id")
     if not user_id:
         return
 
     user_repo = UserRepository(db)
-    existing_user = await user_repo.get_by_id(user_id)
 
     primary_email = extract_primary_email(data, f"{user_id}@unknown.local")
     github_username = extract_github_username(data)
-    # Normalize GitHub username before passing to repository
     normalized_github_username = _normalize_github_username(github_username)
-
     email = primary_email or f"{user_id}@unknown.local"
 
-    if existing_user:
-        await user_repo.update(
-            existing_user,
-            email=email,
-            first_name=data.get("first_name"),
-            last_name=data.get("last_name"),
-            avatar_url=data.get("image_url"),
-            github_username=normalized_github_username,
-        )
-    else:
-        await user_repo.create(
-            user_id=user_id,
-            email=email,
-            first_name=data.get("first_name"),
-            last_name=data.get("last_name"),
-            avatar_url=data.get("image_url"),
-            github_username=normalized_github_username,
-        )
+    await user_repo.upsert(
+        user_id=user_id,
+        email=email,
+        first_name=data.get("first_name"),
+        last_name=data.get("last_name"),
+        avatar_url=data.get("image_url"),
+        github_username=normalized_github_username,
+    )
 
 
 async def handle_user_updated(db: AsyncSession, data: dict) -> None:
     """Handle user.updated webhook event.
 
-    Updates existing user record or creates if not found.
+    Updates existing user record or creates if not found using upsert.
     """
     user_id = data.get("id")
     if not user_id:
@@ -59,17 +46,14 @@ async def handle_user_updated(db: AsyncSession, data: dict) -> None:
     user_repo = UserRepository(db)
     user = await user_repo.get_by_id(user_id)
 
-    if not user:
-        await handle_user_created(db, data)
-        return
-
-    primary_email = extract_primary_email(data, user.email)
+    primary_email = extract_primary_email(
+        data, user.email if user else f"{user_id}@unknown.local"
+    )
     github_username = extract_github_username(data)
-    # Normalize GitHub username before passing to repository
     normalized_github_username = _normalize_github_username(github_username)
 
-    await user_repo.update(
-        user,
+    await user_repo.upsert(
+        user_id=user_id,
         email=primary_email,
         first_name=data.get("first_name"),
         last_name=data.get("last_name"),

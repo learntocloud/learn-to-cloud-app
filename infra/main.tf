@@ -202,6 +202,11 @@ resource "azurerm_container_app" "api" {
     value = var.google_api_key
   }
 
+  secret {
+    name  = "ctf-master-secret"
+    value = var.ctf_master_secret
+  }
+
   ingress {
     external_enabled = true
     target_port      = 8000
@@ -261,6 +266,11 @@ resource "azurerm_container_app" "api" {
       env {
         name        = "GOOGLE_API_KEY"
         secret_name = "google-api-key"
+      }
+
+      env {
+        name        = "CTF_MASTER_SECRET"
+        secret_name = "ctf-master-secret"
       }
 
       env {

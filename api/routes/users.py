@@ -2,10 +2,11 @@
 
 from dataclasses import asdict
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 
 from core.auth import OptionalUserId, UserId
 from core.database import DbSession
+from core.ratelimit import limiter
 from schemas import (
     ActivityHeatmapDay,
     ActivityHeatmapResponse,
@@ -23,14 +24,19 @@ router = APIRouter(prefix="/api/user", tags=["users"])
 
 
 @router.get("/me", response_model=UserResponse)
-async def get_current_user(user_id: UserId, db: DbSession) -> UserResponse:
+@limiter.limit("30/minute")
+async def get_current_user(
+    request: Request, user_id: UserId, db: DbSession
+) -> UserResponse:
     """Get current user info."""
     user = await get_or_create_user(db, user_id)
     return UserResponse.model_validate(asdict(user))
 
 
 @router.get("/profile/{username}", response_model=PublicProfileResponse)
+@limiter.limit("30/minute")
 async def get_public_profile_endpoint(
+    request: Request,
     username: str,
     db: DbSession,
     user_id: OptionalUserId = None,

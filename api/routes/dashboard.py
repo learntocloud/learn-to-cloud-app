@@ -12,10 +12,11 @@ All progress calculation and locking logic follows
 import logging
 from dataclasses import asdict
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 
 from core.auth import OptionalUserId, UserId
 from core.database import DbSession
+from core.ratelimit import limiter
 from schemas import (
     DashboardResponse,
     PhaseDetailSchema,
@@ -36,7 +37,9 @@ router = APIRouter(prefix="/api/user", tags=["dashboard"])
 
 
 @router.get("/dashboard", response_model=DashboardResponse)
+@limiter.limit("30/minute")
 async def get_dashboard_endpoint(
+    request: Request,
     user_id: UserId,
     db: DbSession,
 ) -> DashboardResponse:
@@ -64,7 +67,9 @@ async def get_dashboard_endpoint(
 
 
 @router.get("/phases", response_model=list[PhaseSummarySchema])
+@limiter.limit("30/minute")
 async def get_phases_endpoint(
+    request: Request,
     user_id: OptionalUserId,
     db: DbSession,
 ) -> list[PhaseSummarySchema]:
@@ -91,7 +96,9 @@ async def get_phases_endpoint(
 
 
 @router.get("/phases/{phase_slug}", response_model=PhaseDetailSchema)
+@limiter.limit("30/minute")
 async def get_phase_detail_endpoint(
+    request: Request,
     phase_slug: str,
     user_id: OptionalUserId,
     db: DbSession,
@@ -124,7 +131,9 @@ async def get_phase_detail_endpoint(
     "/phases/{phase_slug}/topics/{topic_slug}",
     response_model=TopicDetailSchema,
 )
+@limiter.limit("30/minute")
 async def get_topic_detail_endpoint(
+    request: Request,
     phase_slug: str,
     topic_slug: str,
     user_id: OptionalUserId,

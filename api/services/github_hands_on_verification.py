@@ -10,17 +10,63 @@ This module handles all GitHub-specific validations including:
 - Repository file existence checks
 
 For the main hands-on verification orchestration, see hands_on_verification.py
+
+SCALABILITY:
+- Circuit breaker fails fast when GitHub API is unavailable
+- Connection pooling via shared httpx.AsyncClient
+- Retry logic with exponential backoff for transient failures
 """
 
+import asyncio
 import logging
 import re
 from dataclasses import dataclass
 from datetime import UTC
 
 import httpx
+from circuitbreaker import circuit
+from tenacity import (
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential,
+)
 
 from core.config import get_settings
 from core.telemetry import track_dependency
+
+# Shared HTTP client for GitHub API requests (connection pooling)
+_github_http_client: httpx.AsyncClient | None = None
+_github_client_lock: asyncio.Lock | None = None
+
+
+async def _get_github_client() -> httpx.AsyncClient:
+    """Get or create a shared HTTP client for GitHub API requests.
+
+    Uses connection pooling to reduce overhead from per-request client creation.
+    """
+    global _github_http_client, _github_client_lock
+
+    if _github_client_lock is None:
+        _github_client_lock = asyncio.Lock()
+
+    async with _github_client_lock:
+        if _github_http_client is None or _github_http_client.is_closed:
+            settings = get_settings()
+            _github_http_client = httpx.AsyncClient(
+                timeout=settings.http_timeout,
+                follow_redirects=True,
+                limits=httpx.Limits(max_connections=20, max_keepalive_connections=10),
+            )
+    return _github_http_client
+
+
+async def close_github_client() -> None:
+    """Close the shared GitHub HTTP client (called on application shutdown)."""
+    global _github_http_client
+    if _github_http_client is not None and not _github_http_client.is_closed:
+        await _github_http_client.aclose()
+    _github_http_client = None
 
 
 def _get_github_headers() -> dict[str, str]:
@@ -120,26 +166,38 @@ class ValidationResult:
 
 
 @track_dependency("github_url_check", "HTTP")
+@circuit(
+    failure_threshold=5,
+    recovery_timeout=60,
+    expected_exception=httpx.RequestError,
+    name="github_url_circuit",
+)
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, max=10),
+    retry=retry_if_exception_type(httpx.TimeoutException),
+    reraise=True,
+)
 async def check_github_url_exists(url: str) -> tuple[bool, str]:
     """
     Check if a GitHub URL exists by making a HEAD request.
 
     Returns:
         Tuple of (exists: bool, message: str)
-    """
-    settings = get_settings()
-    try:
-        async with httpx.AsyncClient(
-            follow_redirects=True, timeout=settings.http_timeout
-        ) as client:
-            response = await client.head(url)
 
-            if response.status_code == 200:
-                return True, "URL exists"
-            elif response.status_code == 404:
-                return False, "URL not found (404)"
-            else:
-                return False, f"Unexpected status code: {response.status_code}"
+    CIRCUIT BREAKER: Opens after 5 consecutive failures, recovers after 60 seconds.
+    RETRY: Retries up to 3 times with exponential backoff on timeout.
+    """
+    try:
+        client = await _get_github_client()
+        response = await client.head(url)
+
+        if response.status_code == 200:
+            return True, "URL exists"
+        elif response.status_code == 404:
+            return False, "URL not found (404)"
+        else:
+            return False, f"Unexpected status code: {response.status_code}"
 
     except httpx.TimeoutException:
         return False, "Request timed out"
@@ -149,6 +207,18 @@ async def check_github_url_exists(url: str) -> tuple[bool, str]:
 
 
 @track_dependency("github_api_fork_check", "HTTP")
+@circuit(
+    failure_threshold=5,
+    recovery_timeout=60,
+    expected_exception=httpx.RequestError,
+    name="github_api_circuit",
+)
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, max=10),
+    retry=retry_if_exception_type(httpx.TimeoutException),
+    reraise=True,
+)
 async def check_repo_is_fork_of(
     username: str, repo_name: str, original_repo: str
 ) -> tuple[bool, str]:
@@ -162,38 +232,40 @@ async def check_repo_is_fork_of(
 
     Returns:
         Tuple of (is_fork: bool, message: str)
+
+    CIRCUIT BREAKER: Opens after 5 consecutive failures, recovers after 60 seconds.
+    RETRY: Retries up to 3 times with exponential backoff on timeout.
     """
     api_url = f"https://api.github.com/repos/{username}/{repo_name}"
-    settings = get_settings()
 
     try:
-        async with httpx.AsyncClient(timeout=settings.http_timeout) as client:
-            response = await client.get(
-                api_url,
-                headers=_get_github_headers(),
+        client = await _get_github_client()
+        response = await client.get(
+            api_url,
+            headers=_get_github_headers(),
+        )
+
+        if response.status_code == 404:
+            return False, f"Repository {username}/{repo_name} not found"
+
+        if response.status_code != 200:
+            return False, f"GitHub API error: {response.status_code}"
+
+        repo_data = response.json()
+
+        if not repo_data.get("fork", False):
+            return False, "Repository is not a fork"
+
+        parent = repo_data.get("parent", {})
+        parent_full_name = parent.get("full_name", "")
+
+        if parent_full_name.lower() == original_repo.lower():
+            return True, f"Verified fork of {original_repo}"
+        else:
+            return (
+                False,
+                f"Forked from {parent_full_name}, not {original_repo}",
             )
-
-            if response.status_code == 404:
-                return False, f"Repository {username}/{repo_name} not found"
-
-            if response.status_code != 200:
-                return False, f"GitHub API error: {response.status_code}"
-
-            repo_data = response.json()
-
-            if not repo_data.get("fork", False):
-                return False, "Repository is not a fork"
-
-            parent = repo_data.get("parent", {})
-            parent_full_name = parent.get("full_name", "")
-
-            if parent_full_name.lower() == original_repo.lower():
-                return True, f"Verified fork of {original_repo}"
-            else:
-                return (
-                    False,
-                    f"Forked from {parent_full_name}, not {original_repo}",
-                )
 
     except httpx.TimeoutException:
         return False, "GitHub API request timed out"
@@ -435,6 +507,12 @@ async def validate_repo_fork(
 
 
 @track_dependency("github_api_workflow_runs", "HTTP")
+@circuit(
+    failure_threshold=5,
+    recovery_timeout=60,
+    expected_exception=httpx.RequestError,
+    name="github_workflow_circuit",
+)
 async def validate_workflow_run(
     github_url: str, expected_username: str, min_successful_runs: int = 1
 ) -> ValidationResult:
@@ -451,6 +529,8 @@ async def validate_workflow_run(
 
     Returns:
         ValidationResult with details about the workflow run status
+
+    CIRCUIT BREAKER: Opens after 5 consecutive failures, recovers after 60 seconds.
     """
     parsed = parse_github_url(github_url)
 
@@ -497,93 +577,92 @@ async def validate_workflow_run(
 
     # Check GitHub Actions workflow runs
     api_url = f"https://api.github.com/repos/{parsed.username}/{parsed.repo_name}/actions/runs"
-    settings = get_settings()
 
     try:
-        async with httpx.AsyncClient(timeout=settings.http_timeout) as client:
-            response = await client.get(
-                api_url,
-                headers=_get_github_headers(),
-                params={"status": "success", "per_page": 10},
-            )
+        client = await _get_github_client()
+        response = await client.get(
+            api_url,
+            headers=_get_github_headers(),
+            params={"status": "success", "per_page": 10},
+        )
 
-            if response.status_code == 404:
-                return ValidationResult(
-                    is_valid=False,
-                    message=(
-                        "GitHub Actions not found. Make sure Actions is enabled "
-                        "and you have at least one workflow file in .github/workflows/"
-                    ),
-                    username_match=True,
-                    repo_exists=True,
-                )
-
-            if response.status_code != 200:
-                return ValidationResult(
-                    is_valid=False,
-                    message=f"GitHub API error: {response.status_code}",
-                    username_match=True,
-                    repo_exists=True,
-                )
-
-            data = response.json()
-            total_count = data.get("total_count", 0)
-            runs = data.get("workflow_runs", [])
-
-            if total_count == 0 or len(runs) == 0:
-                return ValidationResult(
-                    is_valid=False,
-                    message=(
-                        "No successful workflow runs found. Run your CI/CD pipeline "
-                        "at least once and make sure it passes!"
-                    ),
-                    username_match=True,
-                    repo_exists=True,
-                )
-
-            # Check for recent runs (within last 30 days)
-            from datetime import datetime, timedelta
-
-            cutoff_date = datetime.now(UTC) - timedelta(days=30)
-            recent_successful_runs = []
-
-            for run in runs:
-                run_date_str = run.get("created_at", "")
-                if run_date_str:
-                    try:
-                        run_date = datetime.fromisoformat(
-                            run_date_str.replace("Z", "+00:00")
-                        )
-                        if run_date >= cutoff_date:
-                            recent_successful_runs.append(run)
-                    except ValueError:
-                        continue
-
-            if len(recent_successful_runs) < min_successful_runs:
-                return ValidationResult(
-                    is_valid=False,
-                    message=(
-                        f"Found {len(recent_successful_runs)} successful runs in "
-                        f"the last 30 days, but {min_successful_runs} required. "
-                        "Run your pipeline again!"
-                    ),
-                    username_match=True,
-                    repo_exists=True,
-                )
-
-            # Get the most recent run info for the success message
-            latest_run = recent_successful_runs[0]
-            workflow_name = latest_run.get("name", "workflow")
-
+        if response.status_code == 404:
             return ValidationResult(
-                is_valid=True,
+                is_valid=False,
                 message=(
-                    f"CI/CD verified! Found {len(recent_successful_runs)} "
-                    f"successful run(s) of '{workflow_name}' in the last 30 days."
+                    "GitHub Actions not found. Make sure Actions is enabled "
+                    "and you have at least one workflow file in .github/workflows/"
                 ),
                 username_match=True,
                 repo_exists=True,
             )
+
+        if response.status_code != 200:
+            return ValidationResult(
+                is_valid=False,
+                message=f"GitHub API error: {response.status_code}",
+                username_match=True,
+                repo_exists=True,
+            )
+
+        data = response.json()
+        total_count = data.get("total_count", 0)
+        runs = data.get("workflow_runs", [])
+
+        if total_count == 0 or len(runs) == 0:
+            return ValidationResult(
+                is_valid=False,
+                message=(
+                    "No successful workflow runs found. Run your CI/CD pipeline "
+                    "at least once and make sure it passes!"
+                ),
+                username_match=True,
+                repo_exists=True,
+            )
+
+        # Check for recent runs (within last 30 days)
+        from datetime import datetime, timedelta
+
+        cutoff_date = datetime.now(UTC) - timedelta(days=30)
+        recent_successful_runs = []
+
+        for run in runs:
+            run_date_str = run.get("created_at", "")
+            if run_date_str:
+                try:
+                    run_date = datetime.fromisoformat(
+                        run_date_str.replace("Z", "+00:00")
+                    )
+                    if run_date >= cutoff_date:
+                        recent_successful_runs.append(run)
+                except ValueError:
+                    continue
+
+        if len(recent_successful_runs) < min_successful_runs:
+            return ValidationResult(
+                is_valid=False,
+                message=(
+                    f"Found {len(recent_successful_runs)} successful runs in "
+                    f"the last 30 days, but {min_successful_runs} required. "
+                    "Run your pipeline again!"
+                ),
+                username_match=True,
+                repo_exists=True,
+            )
+
+        # Get the most recent run info for the success message
+        latest_run = recent_successful_runs[0]
+        workflow_name = latest_run.get("name", "workflow")
+
+        return ValidationResult(
+            is_valid=True,
+            message=(
+                f"CI/CD verified! Found {len(recent_successful_runs)} "
+                f"successful run(s) of '{workflow_name}' in the last 30 days."
+            ),
+            username_match=True,
+            repo_exists=True,
+        )
 
     except httpx.TimeoutException:
         return ValidationResult(
@@ -603,6 +682,12 @@ async def validate_workflow_run(
 
 
 @track_dependency("github_api_file_search", "HTTP")
+@circuit(
+    failure_threshold=5,
+    recovery_timeout=60,
+    expected_exception=httpx.RequestError,
+    name="github_file_search_circuit",
+)
 async def validate_repo_has_files(
     github_url: str,
     expected_username: str,
@@ -619,6 +704,8 @@ async def validate_repo_has_files(
         expected_username: Expected GitHub username
         required_patterns: List of file patterns to search for
             (e.g., ["Dockerfile", "docker-compose"])
+
+    CIRCUIT BREAKER: Opens after 5 consecutive failures, recovers after 60 seconds.
         file_description: Human-readable description of what we're looking for
 
     Returns:
@@ -714,76 +801,75 @@ async def validate_repo_has_files(
         )
 
     # Use GitHub's code search API to find files
-    settings = get_settings()
     found_files = []
 
     try:
-        async with httpx.AsyncClient(timeout=settings.http_timeout) as client:
-            for spec in pattern_specs:
-                query_parts = [f"repo:{parsed.username}/{parsed.repo_name}"]
-                if spec.get("path"):
-                    query_parts.append(f"path:{spec['path']}")
+        client = await _get_github_client()
+        for spec in pattern_specs:
+            query_parts = [f"repo:{parsed.username}/{parsed.repo_name}"]
+            if spec.get("path"):
+                query_parts.append(f"path:{spec['path']}")
 
-                if not (spec.get("is_dir") and not spec.get("name")):
-                    name = spec.get("name") or ""
-                    if name.startswith("."):
-                        query_parts.append(f"extension:{name.lstrip('.')}")
-                    elif name:
-                        query_parts.append(f"filename:{name}")
+            if not (spec.get("is_dir") and not spec.get("name")):
+                name = spec.get("name") or ""
+                if name.startswith("."):
+                    query_parts.append(f"extension:{name.lstrip('.')}")
+                elif name:
+                    query_parts.append(f"filename:{name}")
 
-                # Search for files matching the pattern in the repo
-                search_query = " ".join(query_parts)
-                api_url = "https://api.github.com/search/code"
+            # Search for files matching the pattern in the repo
+            search_query = " ".join(query_parts)
+            api_url = "https://api.github.com/search/code"
 
-                response = await client.get(
-                    api_url,
-                    headers=_get_github_headers(),
-                    params={"q": search_query, "per_page": 5},
+            response = await client.get(
+                api_url,
+                headers=_get_github_headers(),
+                params={"q": search_query, "per_page": 5},
+            )
+
+            # Handle rate limiting
+            if response.status_code == 403:
+                # Try alternative: check repo contents directly
+                return await _validate_repo_files_via_contents(
+                    client,
+                    parsed.username,
+                    parsed.repo_name,
+                    required_patterns,
+                    file_description,
                 )
 
-                # Handle rate limiting
-                if response.status_code == 403:
-                    # Try alternative: check repo contents directly
-                    return await _validate_repo_files_via_contents(
-                        client,
-                        parsed.username,
-                        parsed.repo_name,
-                        required_patterns,
-                        file_description,
-                    )
+            if response.status_code == 200:
+                data = response.json()
+                if data.get("total_count", 0) > 0:
+                    items = data.get("items", [])
+                    for item in items:
+                        item_path = item.get("path", "")
+                        item_name = item.get("name", "")
+                        if _pattern_matches_item(
+                            item_path,
+                            item_name,
+                            item.get("type", "file"),
+                            spec,
+                        ):
+                            found_files.append(item_name or spec["raw"])
 
-                if response.status_code == 200:
-                    data = response.json()
-                    if data.get("total_count", 0) > 0:
-                        items = data.get("items", [])
-                        for item in items:
-                            item_path = item.get("path", "")
-                            item_name = item.get("name", "")
-                            if _pattern_matches_item(
-                                item_path,
-                                item_name,
-                                item.get("type", "file"),
-                                spec,
-                            ):
-                                found_files.append(item_name or spec["raw"])
-
-            if not found_files:
-                return ValidationResult(
-                    is_valid=False,
-                    message=(
-                        f"Could not find {file_description} in your repository. "
-                        f"Make sure you have files like: {', '.join(required_patterns)}"
-                    ),
-                    username_match=True,
-                    repo_exists=True,
-                )
-
+        if not found_files:
             return ValidationResult(
-                is_valid=True,
-                message=f"Found {file_description}: {', '.join(set(found_files))}",
+                is_valid=False,
+                message=(
+                    f"Could not find {file_description} in your repository. "
+                    f"Make sure you have files like: {', '.join(required_patterns)}"
+                ),
                 username_match=True,
                 repo_exists=True,
             )
+
+        return ValidationResult(
+            is_valid=True,
+            message=f"Found {file_description}: {', '.join(set(found_files))}",
+            username_match=True,
+            repo_exists=True,
+        )
 
     except httpx.TimeoutException:
         return ValidationResult(
@@ -943,8 +1029,6 @@ async def validate_container_image(
     if image_url.startswith("http://"):
         image_url = image_url[7:]
 
-    settings = get_settings()
-
     # Parse the image reference
     # Docker Hub format: username/image:tag or docker.io/username/image:tag
     # GHCR format: ghcr.io/username/image:tag
@@ -1007,143 +1091,143 @@ async def validate_container_image(
     )
 
     try:
-        async with httpx.AsyncClient(timeout=settings.http_timeout) as client:
-            # Check if image exists by querying the registry API
-            if registry == "docker.io":
-                # Docker Hub API v2
-                # First get a token for the repository
-                token_url = f"https://auth.docker.io/token?service=registry.docker.io&scope=repository:{image_path}:pull"
-                token_resp = await client.get(token_url)
+        client = await _get_github_client()
+        # Check if image exists by querying the registry API
+        if registry == "docker.io":
+            # Docker Hub API v2
+            # First get a token for the repository
+            token_url = f"https://auth.docker.io/token?service=registry.docker.io&scope=repository:{image_path}:pull"
+            token_resp = await client.get(token_url)
 
-                if token_resp.status_code != 200:
-                    return ValidationResult(
-                        is_valid=False,
-                        message=(
-                            "Could not authenticate with Docker Hub "
-                            f"for image '{image_path}'"
-                        ),
-                        username_match=True,
-                        repo_exists=False,
-                    )
-
-                token = token_resp.json().get("token", "")
-
-                # Check if the manifest exists
-                manifest_url = (
-                    f"https://registry-1.docker.io/v2/{image_path}/manifests/{tag}"
-                )
-                manifest_resp = await client.get(
-                    manifest_url,
-                    headers={
-                        "Authorization": f"Bearer {token}",
-                        "Accept": accept_header,
-                    },
+            if token_resp.status_code != 200:
+                return ValidationResult(
+                    is_valid=False,
+                    message=(
+                        "Could not authenticate with Docker Hub "
+                        f"for image '{image_path}'"
+                    ),
+                    username_match=True,
+                    repo_exists=False,
                 )
 
-                if manifest_resp.status_code == 200:
-                    return ValidationResult(
-                        is_valid=True,
-                        message=f"Found public Docker Hub image: {image_path}:{tag}",
-                        username_match=True,
-                        repo_exists=True,
-                    )
-                elif manifest_resp.status_code == 404:
-                    return ValidationResult(
-                        is_valid=False,
-                        message=(
-                            f"Image '{image_path}:{tag}' not found on Docker Hub. "
-                            "Make sure it's pushed and public."
-                        ),
-                        username_match=True,
-                        repo_exists=False,
-                    )
-                else:
-                    return ValidationResult(
-                        is_valid=False,
-                        message=(
-                            "Could not verify image. Docker Hub returned "
-                            f"status {manifest_resp.status_code}"
-                        ),
-                        username_match=True,
-                        repo_exists=False,
-                    )
+            token = token_resp.json().get("token", "")
 
-            elif registry == "ghcr.io":
-                # GitHub Container Registry - check via GitHub API
-                # GHCR images are linked to GitHub repos/users
-                ghcr_api_url = f"https://ghcr.io/v2/{image_path}/manifests/{tag}"
+            # Check if the manifest exists
+            manifest_url = (
+                f"https://registry-1.docker.io/v2/{image_path}/manifests/{tag}"
+            )
+            manifest_resp = await client.get(
+                manifest_url,
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "Accept": accept_header,
+                },
+            )
 
-                # Try anonymous access first (public images)
-                manifest_resp = await client.get(
-                    ghcr_api_url,
-                    headers={
-                        "Accept": accept_header,
-                    },
-                )
-
-                if manifest_resp.status_code == 200:
-                    return ValidationResult(
-                        is_valid=True,
-                        message=f"Found public GHCR image: ghcr.io/{image_path}:{tag}",
-                        username_match=True,
-                        repo_exists=True,
-                    )
-                elif manifest_resp.status_code in [401, 403]:
-                    return ValidationResult(
-                        is_valid=False,
-                        message=(
-                            f"Image 'ghcr.io/{image_path}' exists but is not public. "
-                            "Please make it public in your GitHub package settings."
-                        ),
-                        username_match=True,
-                        repo_exists=True,
-                    )
-                elif manifest_resp.status_code == 404:
-                    return ValidationResult(
-                        is_valid=False,
-                        message=(
-                            f"Image 'ghcr.io/{image_path}:{tag}' not found. "
-                            "Make sure it's pushed to GHCR."
-                        ),
-                        username_match=True,
-                        repo_exists=False,
-                    )
-                else:
-                    return ValidationResult(
-                        is_valid=False,
-                        message=(
-                            "Could not verify GHCR image. "
-                            f"Status: {manifest_resp.status_code}"
-                        ),
-                        username_match=True,
-                        repo_exists=False,
-                    )
-
-            elif ".azurecr.io" in registry:
-                # Azure Container Registry - we can't easily verify without credentials
-                # Just validate the format and inform the user
+            if manifest_resp.status_code == 200:
                 return ValidationResult(
                     is_valid=True,
-                    message=(
-                        f"ACR image reference accepted: "
-                        f"{registry}/{image_path}:{tag}. "
-                        "Note: We cannot verify ACR images "
-                        "are public without credentials."
-                    ),
+                    message=f"Found public Docker Hub image: {image_path}:{tag}",
                     username_match=True,
                     repo_exists=True,
                 )
-
+            elif manifest_resp.status_code == 404:
+                return ValidationResult(
+                    is_valid=False,
+                    message=(
+                        f"Image '{image_path}:{tag}' not found on Docker Hub. "
+                        "Make sure it's pushed and public."
+                    ),
+                    username_match=True,
+                    repo_exists=False,
+                )
             else:
                 return ValidationResult(
                     is_valid=False,
                     message=(
-                        f"Unsupported container registry: {registry}. "
-                        "Please use Docker Hub, GHCR, or Azure ACR."
+                        "Could not verify image. Docker Hub returned "
+                        f"status {manifest_resp.status_code}"
                     ),
-                    username_match=False,
+                    username_match=True,
                     repo_exists=False,
                 )
+
+        elif registry == "ghcr.io":
+            # GitHub Container Registry - check via GitHub API
+            # GHCR images are linked to GitHub repos/users
+            ghcr_api_url = f"https://ghcr.io/v2/{image_path}/manifests/{tag}"
+
+            # Try anonymous access first (public images)
+            manifest_resp = await client.get(
+                ghcr_api_url,
+                headers={
+                    "Accept": accept_header,
+                },
+            )
+
+            if manifest_resp.status_code == 200:
+                return ValidationResult(
+                    is_valid=True,
+                    message=f"Found public GHCR image: ghcr.io/{image_path}:{tag}",
+                    username_match=True,
+                    repo_exists=True,
+                )
+            elif manifest_resp.status_code in [401, 403]:
+                return ValidationResult(
+                    is_valid=False,
+                    message=(
+                        f"Image 'ghcr.io/{image_path}' exists but is not public. "
+                        "Please make it public in your GitHub package settings."
+                    ),
+                    username_match=True,
+                    repo_exists=True,
+                )
+            elif manifest_resp.status_code == 404:
+                return ValidationResult(
+                    is_valid=False,
+                    message=(
+                        f"Image 'ghcr.io/{image_path}:{tag}' not found. "
+                        "Make sure it's pushed to GHCR."
+                    ),
+                    username_match=True,
+                    repo_exists=False,
+                )
+            else:
+                return ValidationResult(
+                    is_valid=False,
+                    message=(
+                        "Could not verify GHCR image. "
+                        f"Status: {manifest_resp.status_code}"
+                    ),
+                    username_match=True,
+                    repo_exists=False,
+                )
+
+        elif ".azurecr.io" in registry:
+            # Azure Container Registry - we can't easily verify without credentials
+            # Just validate the format and inform the user
+            return ValidationResult(
+                is_valid=True,
+                message=(
+                    f"ACR image reference accepted: "
+                    f"{registry}/{image_path}:{tag}. "
+                    "Note: We cannot verify ACR images "
+                    "are public without credentials."
+                ),
+                username_match=True,
+                repo_exists=True,
+            )
+
+        else:
+            return ValidationResult(
+                is_valid=False,
+                message=(
+                    f"Unsupported container registry: {registry}. "
+                    "Please use Docker Hub, GHCR, or Azure ACR."
+                ),
+                username_match=False,
+                repo_exists=False,
+            )
 
     except httpx.TimeoutException:
         return ValidationResult(

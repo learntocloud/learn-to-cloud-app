@@ -24,12 +24,14 @@ class ProcessedWebhookRepository:
 
         Notes:
             Uses an INSERT + flush so idempotency works under concurrency.
+            Rollback on IntegrityError to restore session to a valid state.
         """
         processed = ProcessedWebhook(id=svix_id, event_type=event_type)
         self.db.add(processed)
         try:
             await self.db.flush()
         except IntegrityError:
+            await self.db.rollback()
             return False
         return True
 

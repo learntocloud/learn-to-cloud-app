@@ -10,6 +10,7 @@ This module handles certificate business logic:
 Routes should delegate all certificate business logic to this module.
 """
 
+import asyncio
 import hashlib
 import secrets
 from dataclasses import dataclass
@@ -17,6 +18,7 @@ from datetime import UTC, datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from core.telemetry import add_custom_attribute, log_metric, track_operation
 from models import ActivityType, Certificate
 from rendering.certificates import (
     generate_certificate_svg as _render_certificate_svg,
@@ -160,6 +162,7 @@ class NotEligibleError(Exception):
         )
 
 
+@track_operation("certificate_creation")
 async def create_certificate(
     db: AsyncSession,
     user_id: str,
@@ -187,6 +190,7 @@ async def create_certificate(
         CertificateAlreadyExistsError: If certificate already issued
         NotEligibleError: If user doesn't meet requirements
     """
+    add_custom_attribute("certificate.type", certificate_type)
     eligibility = await check_eligibility(db, user_id, certificate_type)
 
     if eligibility.existing_certificate:
@@ -225,6 +229,8 @@ async def create_certificate(
         activity_date=today,
         reference_id=certificate_type,
     )
+
+    log_metric("certificates.issued", 1, {"type": certificate_type})
 
     return CreateCertificateResult(
         certificate=_to_certificate_data(certificate),
@@ -357,11 +363,14 @@ def generate_certificate_svg(certificate: CertificateData) -> str:
     )
 
 
-def generate_certificate_pdf(certificate: CertificateData) -> bytes:
+async def generate_certificate_pdf(certificate: CertificateData) -> bytes:
     """Generate PDF content for a certificate.
 
     This is a service-layer function that delegates to the rendering module.
     Routes should call this instead of the rendering module directly.
+
+    Runs in a thread pool to avoid blocking the async event loop since
+    CairoSVG rendering is CPU-bound.
 
     Args:
         certificate: The certificate to render
@@ -370,10 +379,11 @@ def generate_certificate_pdf(certificate: CertificateData) -> bytes:
         PDF content as bytes
     """
     svg_content = generate_certificate_svg(certificate)
-    return _svg_to_pdf(svg_content)
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(None, _svg_to_pdf, svg_content)
 
 
-def generate_certificate_png(
+async def generate_certificate_png(
     certificate: CertificateData, *, scale: float = 2.0
 ) -> bytes:
     """Generate PNG content for a certificate.
@@ -381,11 +391,18 @@ def generate_certificate_png(
     This is a service-layer function that delegates to the rendering module.
     Routes should call this instead of the rendering module directly.
 
+    Runs in a thread pool to avoid blocking the async event loop since
+    CairoSVG rendering is CPU-bound.
+
     Args:
         certificate: The certificate to render
+        scale: Output scale factor (default 2.0 for high-DPI)
 
     Returns:
         PNG content as bytes
     """
     svg_content = generate_certificate_svg(certificate)
-    return _svg_to_png(svg_content, scale=scale)
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(
+        None, lambda: _svg_to_png(svg_content, scale=scale)
+    )

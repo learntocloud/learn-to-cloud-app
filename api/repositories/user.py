@@ -23,14 +23,11 @@ class UserRepository:
     async def get_by_github_username(self, username: str) -> User | None:
         """Get a user by their GitHub username.
 
-        Returns the first matching user if duplicates exist.
         Expects username to be pre-normalized (lowercase) by service layer.
+        Uses indexed lookup on github_username (unique constraint ensures one).
         """
         result = await self.db.execute(
-            select(User)
-            .where(User.github_username == username)
-            .order_by(User.created_at.desc())
-            .limit(1)
+            select(User).where(User.github_username == username)
         )
         return result.scalar_one_or_none()
 
@@ -67,14 +64,106 @@ class UserRepository:
             await self.db.execute(stmt)
         else:
             try:
-                user = User(id=user_id, email=f"{user_id}@placeholder.local")
-                self.db.add(user)
-                await self.db.flush()
+                async with self.db.begin_nested():
+                    user = User(id=user_id, email=f"{user_id}@placeholder.local")
+                    self.db.add(user)
+                    await self.db.flush()
             except IntegrityError:
-                await self.db.rollback()
+                pass  # Savepoint rolled back, continue to fetch existing
 
         result = await self.db.execute(select(User).where(User.id == user_id))
         return result.scalar_one()
+
+    async def upsert(
+        self,
+        user_id: str,
+        *,
+        email: str,
+        first_name: str | None = None,
+        last_name: str | None = None,
+        avatar_url: str | None = None,
+        github_username: str | None = None,
+    ) -> User:
+        """Insert or update a user in a single query.
+
+        Uses INSERT ... ON CONFLICT DO UPDATE for PostgreSQL/SQLite.
+        Returns the upserted user. Expects github_username to be pre-normalized.
+        """
+        bind = self.db.get_bind()
+        dialect = bind.dialect.name if bind else ""
+
+        values = {
+            "id": user_id,
+            "email": email,
+            "first_name": first_name,
+            "last_name": last_name,
+            "avatar_url": avatar_url,
+            "github_username": github_username,
+        }
+        update_values = {
+            "email": email,
+            "first_name": first_name,
+            "last_name": last_name,
+            "avatar_url": avatar_url,
+            "github_username": github_username,
+            "updated_at": datetime.now(UTC),
+        }
+
+        if dialect == "postgresql":
+            from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+            stmt = (
+                pg_insert(User)
+                .values(**values)
+                .on_conflict_do_update(index_elements=["id"], set_=update_values)
+                .returning(User)
+            )
+            result = await self.db.execute(stmt)
+            return result.scalar_one()
+
+        elif dialect == "sqlite":
+            from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+
+            stmt = (
+                sqlite_insert(User)
+                .values(**values)
+                .on_conflict_do_update(index_elements=["id"], set_=update_values)
+            )
+            await self.db.execute(stmt)
+            # SQLite doesn't support RETURNING well, fetch separately
+            result = await self.db.execute(select(User).where(User.id == user_id))
+            return result.scalar_one()
+
+        else:
+            # Fallback: get or create then update
+            user = await self.get_by_id(user_id)
+            if user:
+                return await self.update(
+                    user,
+                    email=email,
+                    first_name=first_name,
+                    last_name=last_name,
+                    avatar_url=avatar_url,
+                    github_username=github_username,
+                )
+            return await self.create(
+                user_id=user_id,
+                email=email,
+                first_name=first_name,
+                last_name=last_name,
+                avatar_url=avatar_url,
+                github_username=github_username,
+            )
+
+    async def get_many_by_ids(self, user_ids: list[str]) -> list[User]:
+        """Get multiple users by their IDs in a single query.
+
+        Returns users in no guaranteed order. Missing IDs are silently skipped.
+        """
+        if not user_ids:
+            return []
+        result = await self.db.execute(select(User).where(User.id.in_(user_ids)))
+        return list(result.scalars().all())
 
     async def create(
         self,

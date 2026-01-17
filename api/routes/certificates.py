@@ -2,11 +2,12 @@
 
 from dataclasses import asdict
 
-from fastapi import APIRouter, HTTPException, Path, Query, Response
+from fastapi import APIRouter, HTTPException, Path, Query, Request, Response
 
 from core.auth import OptionalUserId, UserId
 from core.config import get_settings
 from core.database import DbSession
+from core.ratelimit import limiter
 from schemas import (
     CertificateEligibilityResponse,
     CertificateRequest,
@@ -156,7 +157,9 @@ async def get_certificate_svg_endpoint(
 
 
 @router.get("/{certificate_id}/pdf")
+@limiter.limit("10/minute")
 async def get_certificate_pdf_endpoint(
+    request: Request,
     certificate_id: int,
     user_id: UserId,
     db: DbSession,
@@ -167,7 +170,7 @@ async def get_certificate_pdf_endpoint(
     if not certificate:
         raise HTTPException(status_code=404, detail="Certificate not found")
 
-    pdf_content = generate_certificate_pdf(certificate)
+    pdf_content = await generate_certificate_pdf(certificate)
 
     return Response(
         content=pdf_content,
@@ -183,7 +186,9 @@ async def get_certificate_pdf_endpoint(
 
 
 @router.get("/{certificate_id}/png")
+@limiter.limit("10/minute")
 async def get_certificate_png_endpoint(
+    request: Request,
     certificate_id: int,
     user_id: UserId,
     db: DbSession,
@@ -196,7 +201,7 @@ async def get_certificate_png_endpoint(
         raise HTTPException(status_code=404, detail="Certificate not found")
 
     try:
-        png_content = generate_certificate_png(certificate, scale=scale)
+        png_content = await generate_certificate_png(certificate, scale=scale)
     except RuntimeError as e:
         raise HTTPException(status_code=501, detail=str(e)) from e
 
@@ -259,7 +264,9 @@ async def get_verified_certificate_svg_endpoint(
 
 
 @router.get("/verify/{verification_code}/pdf")
+@limiter.limit("10/minute")
 async def get_verified_certificate_pdf_endpoint(
+    request: Request,
     db: DbSession,
     verification_code: str = Path(min_length=10, max_length=64),
     user_id: OptionalUserId = None,
@@ -270,7 +277,7 @@ async def get_verified_certificate_pdf_endpoint(
     if not certificate:
         raise HTTPException(status_code=404, detail="Certificate not found")
 
-    pdf_content = generate_certificate_pdf(certificate)
+    pdf_content = await generate_certificate_pdf(certificate)
 
     return Response(
         content=pdf_content,
@@ -286,7 +293,9 @@ async def get_verified_certificate_pdf_endpoint(
 
 
 @router.get("/verify/{verification_code}/png")
+@limiter.limit("10/minute")
 async def get_verified_certificate_png_endpoint(
+    request: Request,
     db: DbSession,
     verification_code: str = Path(min_length=10, max_length=64),
     user_id: OptionalUserId = None,
@@ -299,7 +308,7 @@ async def get_verified_certificate_png_endpoint(
         raise HTTPException(status_code=404, detail="Certificate not found")
 
     try:
-        png_content = generate_certificate_png(certificate, scale=scale)
+        png_content = await generate_certificate_png(certificate, scale=scale)
     except RuntimeError as e:
         raise HTTPException(status_code=501, detail=str(e)) from e
 

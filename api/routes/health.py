@@ -3,8 +3,11 @@
 from fastapi import APIRouter, HTTPException, Request
 from starlette import status
 
-from core.database import check_db_connection
-from schemas import HealthResponse
+from core.database import (
+    check_db_connection,
+    comprehensive_health_check,
+)
+from schemas import DetailedHealthResponse, HealthResponse, PoolStatusResponse
 
 router = APIRouter(tags=["health"])
 
@@ -13,6 +16,41 @@ router = APIRouter(tags=["health"])
 async def health() -> HealthResponse:
     """Health check endpoint."""
     return HealthResponse(status="healthy", service="learn-to-cloud-api")
+
+
+@router.get("/health/detailed", response_model=DetailedHealthResponse)
+async def health_detailed() -> DetailedHealthResponse:
+    """Detailed health check with component status.
+
+    Returns status of:
+    - database: Can execute queries
+    - azure_auth: Token acquisition working (null if not using Azure)
+    - pool: Connection pool metrics (null if using NullPool/SQLite)
+
+    Always returns 200 - check individual component statuses for health.
+    """
+    result = await comprehensive_health_check()
+
+    pool_status = None
+    if result["pool"] is not None:
+        pool_status = PoolStatusResponse(
+            pool_size=result["pool"].pool_size,
+            checked_out=result["pool"].checked_out,
+            overflow=result["pool"].overflow,
+            checked_in=result["pool"].checked_in,
+        )
+
+    overall_status = "healthy" if result["database"] else "unhealthy"
+    if result["azure_auth"] is False:
+        overall_status = "unhealthy"
+
+    return DetailedHealthResponse(
+        status=overall_status,
+        service="learn-to-cloud-api",
+        database=result["database"],
+        azure_auth=result["azure_auth"],
+        pool=pool_status,
+    )
 
 
 @router.get("/ready", response_model=HealthResponse)

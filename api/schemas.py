@@ -123,6 +123,25 @@ class HealthResponse(BaseModel):
     service: str
 
 
+class PoolStatusResponse(BaseModel):
+    """Connection pool status."""
+
+    pool_size: int
+    checked_out: int
+    overflow: int
+    checked_in: int
+
+
+class DetailedHealthResponse(BaseModel):
+    """Detailed health check response with component status."""
+
+    status: str
+    service: str
+    database: bool
+    azure_auth: bool | None = None
+    pool: PoolStatusResponse | None = None
+
+
 class WebhookResponse(BaseModel):
     """Response for webhook processing."""
 

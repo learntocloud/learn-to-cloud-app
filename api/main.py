@@ -11,6 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from slowapi.errors import RateLimitExceeded
 
+from core.auth import close_clerk_client, init_clerk_client
 from core.config import get_settings
 from core.database import get_session_maker, init_db
 from core.ratelimit import limiter, rate_limit_exceeded_handler
@@ -28,6 +29,7 @@ from routes import (
     webhooks_router,
 )
 from services.clerk import close_http_client
+from services.github_hands_on_verification import close_github_client
 
 _TRUE_VALUES: Final[set[str]] = {"1", "true", "yes", "y", "on"}
 
@@ -96,6 +98,9 @@ async def _background_init():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Initialize database in background for faster cold start."""
+    # Initialize Clerk client synchronously at startup
+    init_clerk_client()
+
     app.state.init_done = False
     app.state.init_error = None
 
@@ -117,7 +122,9 @@ async def lifespan(app: FastAPI):
     try:
         yield
     finally:
+        close_clerk_client()
         await close_http_client()
+        await close_github_client()
 
         try:
             if not init_task.done():

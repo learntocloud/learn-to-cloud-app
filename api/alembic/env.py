@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+import time
 from logging.config import fileConfig
 
 from sqlalchemy import Connection, create_engine, text
@@ -18,6 +20,38 @@ if config.config_file_name is not None:
 # Use SQLAlchemy model metadata for autogenerate
 target_metadata = Base.metadata
 
+# Advisory lock key derived from app name hash for uniqueness
+_ADVISORY_LOCK_KEY = 743028475  # hash("learn-to-cloud-migrations") % (2**31)
+
+# Lock acquisition timeout (seconds) - prevents indefinite blocking
+_LOCK_TIMEOUT_SECONDS = 120
+
+# Azure token retry configuration
+_TOKEN_RETRY_ATTEMPTS = 3
+_TOKEN_RETRY_DELAY_SECONDS = 2
+
+
+def _get_azure_token_with_retry() -> str:
+    """Get Azure AD token with retry logic for transient failures."""
+    from azure.identity import DefaultAzureCredential
+
+    last_error = None
+    for attempt in range(_TOKEN_RETRY_ATTEMPTS):
+        try:
+            credential = DefaultAzureCredential()
+            token = credential.get_token(
+                "https://ossrdbms-aad.database.windows.net/.default"
+            )
+            return token.token
+        except Exception as e:
+            last_error = e
+            if attempt < _TOKEN_RETRY_ATTEMPTS - 1:
+                time.sleep(_TOKEN_RETRY_DELAY_SECONDS * (attempt + 1))
+
+    raise RuntimeError(
+        f"Failed to acquire Azure AD token after {_TOKEN_RETRY_ATTEMPTS} attempts"
+    ) from last_error
+
 
 def _get_sync_database_url() -> str:
     """Get a synchronous database URL for migrations.
@@ -27,15 +61,10 @@ def _get_sync_database_url() -> str:
     """
     settings = get_settings()
     if settings.use_azure_postgres:
-        # For Azure with Entra ID auth, we need to get a token
-        from azure.identity import DefaultAzureCredential
-
-        credential = DefaultAzureCredential()
-        token = credential.get_token(
-            "https://ossrdbms-aad.database.windows.net/.default"
-        )
+        # For Azure with Entra ID auth, we need to get a token with retry
+        token = _get_azure_token_with_retry()
         return (
-            f"postgresql+psycopg2://{settings.postgres_user}:{token.token}"
+            f"postgresql+psycopg2://{settings.postgres_user}:{token}"
             f"@{settings.postgres_host}:5432/{settings.postgres_database}"
             f"?sslmode=require"
         )
@@ -63,26 +92,37 @@ def run_migrations_offline() -> None:
 
 
 def _run_migrations(connection: Connection) -> None:
-    import logging
-
     logger = logging.getLogger("alembic")
     dialect_name = getattr(connection.dialect, "name", "")
 
     # For PostgreSQL with multiple workers, we need to serialize migrations.
-    # We use a session-level advisory lock that blocks until acquired.
-    advisory_lock_key = 743028475
+    # We use a session-level advisory lock with a timeout to prevent deadlocks.
     lock_acquired = False
     if dialect_name == "postgresql":
-        # Acquire session-level advisory lock (blocks until acquired)
-        # Note: pg_advisory_lock is session-level, not transaction-level,
-        # so it persists across commits
-        result = connection.execute(
-            text("SELECT pg_advisory_lock(:key)"), {"key": advisory_lock_key}
-        )
-        result.close()
-        lock_acquired = True
-        # Commit the lock acquisition so Alembic starts with a clean transaction
-        connection.commit()
+        # Try to acquire lock with timeout (prevents indefinite blocking)
+        # pg_try_advisory_lock returns immediately, we poll with timeout
+        start_time = time.time()
+        while time.time() - start_time < _LOCK_TIMEOUT_SECONDS:
+            result = connection.execute(
+                text("SELECT pg_try_advisory_lock(:key)"),
+                {"key": _ADVISORY_LOCK_KEY},
+            )
+            acquired = result.scalar()
+            result.close()
+            if acquired:
+                lock_acquired = True
+                # Commit the lock acquisition so Alembic starts clean
+                connection.commit()
+                logger.info("Acquired migration advisory lock")
+                break
+            # Another process has the lock, wait and retry
+            logger.debug("Waiting for migration lock...")
+            time.sleep(2)
+        else:
+            raise RuntimeError(
+                f"Failed to acquire migration lock within {_LOCK_TIMEOUT_SECONDS}s. "
+                "Another process may be stuck holding the lock."
+            )
 
     migration_error = None
     try:
@@ -110,18 +150,23 @@ def _run_migrations(connection: Connection) -> None:
                 connection.rollback()
             except Exception:
                 pass  # Ignore rollback errors
+    finally:
+        # Always release the advisory lock for PostgreSQL
+        if lock_acquired:
+            try:
+                result = connection.execute(
+                    text("SELECT pg_advisory_unlock(:key)"),
+                    {"key": _ADVISORY_LOCK_KEY},
+                )
+                result.close()
+                logger.info("Released migration advisory lock")
+            except Exception as unlock_error:
+                # Log but don't raise - lock released when session ends anyway
+                logger.warning(f"Failed to release advisory lock: {unlock_error}")
 
-    # Release the advisory lock for PostgreSQL
-    if lock_acquired:
-        try:
-            result = connection.execute(
-                text("SELECT pg_advisory_unlock(:key)"), {"key": advisory_lock_key}
-            )
-            result.close()
-        except Exception as unlock_error:
-            # Log but don't raise unlock errors - the lock will be released when
-            # the session ends anyway
-            logger.warning(f"Failed to release advisory lock: {unlock_error}")
+    # Re-raise the migration error if it wasn't a "table already exists" error
+    if migration_error is not None:
+        raise migration_error
 
     # Re-raise the migration error if it wasn't a "table already exists" error
     if migration_error is not None:

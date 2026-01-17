@@ -20,29 +20,27 @@ class ActivityRepository:
         user_id: str,
         *,
         limit: int | None = None,
+        cursor: int | None = None,
     ) -> Sequence[UserActivity]:
-        """Get activities for a user, most recent first."""
+        """Get activities for a user, most recent first.
+
+        Args:
+            user_id: The user's ID
+            limit: Maximum number of activities to return
+            cursor: Activity ID to start after (for pagination).
+                    Pass the last activity's ID from previous page.
+        """
         query = (
             select(UserActivity)
             .where(UserActivity.user_id == user_id)
-            .order_by(UserActivity.created_at.desc())
+            .order_by(UserActivity.created_at.desc(), UserActivity.id.desc())
         )
+        if cursor:
+            query = query.where(UserActivity.id < cursor)
         if limit:
             query = query.limit(limit)
         result = await self.db.execute(query)
         return result.scalars().all()
-
-    async def get_activity_dates(
-        self,
-        user_id: str,
-    ) -> set[date]:
-        """Get all unique activity dates for a user."""
-        result = await self.db.execute(
-            select(UserActivity.activity_date)
-            .where(UserActivity.user_id == user_id)
-            .distinct()
-        )
-        return set(row[0] for row in result.all() if row[0] is not None)
 
     async def get_activities_in_range(
         self,
@@ -113,13 +111,24 @@ class ActivityRepository:
     async def get_activity_dates_ordered(
         self,
         user_id: str,
+        *,
+        limit: int | None = None,
     ) -> list[date]:
-        """Get all activity dates for a user ordered by date descending."""
-        result = await self.db.execute(
+        """Get activity dates for a user ordered by date descending.
+
+        Args:
+            user_id: The user's ID
+            limit: Maximum number of dates to return (for performance).
+                   For streak calculation, ~100 is typically sufficient.
+        """
+        query = (
             select(UserActivity.activity_date)
             .where(UserActivity.user_id == user_id)
             .order_by(UserActivity.activity_date.desc())
         )
+        if limit:
+            query = query.limit(limit)
+        result = await self.db.execute(query)
         return [row[0] for row in result.all()]
 
     async def get_heatmap_data(

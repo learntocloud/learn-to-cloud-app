@@ -3,10 +3,11 @@
 import logging
 from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Path
+from fastapi import APIRouter, HTTPException, Path, Request
 
 from core.auth import UserId
 from core.database import DbSession
+from core.ratelimit import limiter
 from schemas import (
     StepCompleteRequest,
     StepProgressResponse,
@@ -36,7 +37,9 @@ ValidatedStepOrder = Annotated[int, Path(ge=1)]
 
 
 @router.get("/{topic_id}", response_model=TopicStepProgressResponse)
+@limiter.limit("60/minute")
 async def get_topic_step_progress_endpoint(
+    request: Request,
     topic_id: ValidatedTopicId,
     user_id: UserId,
     db: DbSession,
@@ -67,8 +70,10 @@ async def get_topic_step_progress_endpoint(
 
 
 @router.post("/complete", response_model=StepProgressResponse)
+@limiter.limit("60/minute")
 async def complete_step_endpoint(
-    request: StepCompleteRequest,
+    request: Request,
+    body: StepCompleteRequest,
     user_id: UserId,
     db: DbSession,
 ) -> StepProgressResponse:
@@ -83,8 +88,8 @@ async def complete_step_endpoint(
         result = await complete_step(
             db,
             user_id,
-            request.topic_id,
-            request.step_order,
+            body.topic_id,
+            body.step_order,
             is_admin=user.is_admin,
         )
     except StepAlreadyCompletedError:
@@ -102,7 +107,9 @@ async def complete_step_endpoint(
 
 
 @router.delete("/{topic_id}/{step_order}")
+@limiter.limit("60/minute")
 async def uncomplete_step_endpoint(
+    request: Request,
     topic_id: ValidatedTopicId,
     step_order: ValidatedStepOrder,
     user_id: UserId,

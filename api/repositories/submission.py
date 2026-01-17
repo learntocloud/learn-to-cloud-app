@@ -27,13 +27,6 @@ class SubmissionRepository:
         )
         return result.scalar_one_or_none()
 
-    async def get_all_by_user(self, user_id: str) -> list[Submission]:
-        """Get all submissions for a user."""
-        result = await self.db.execute(
-            select(Submission).where(Submission.user_id == user_id)
-        )
-        return list(result.scalars().all())
-
     async def get_by_user_and_phase(
         self, user_id: str, phase_id: int
     ) -> list[Submission]:
@@ -86,7 +79,8 @@ class SubmissionRepository:
             "updated_at": now,
         }
 
-        await upsert_on_conflict(
+        # Use returning=True to get the row in a single round-trip
+        submission = await upsert_on_conflict(
             db=self.db,
             model=Submission,
             values=values,
@@ -100,9 +94,9 @@ class SubmissionRepository:
                 "validated_at",
                 "updated_at",
             ],
+            returning=True,
         )
 
-        submission = await self.get_by_user_and_requirement(user_id, requirement_id)
-        # After upsert, the submission must exist
+        # After upsert with returning=True, the submission must exist
         assert submission is not None
         return submission

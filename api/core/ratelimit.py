@@ -1,4 +1,10 @@
-"""Rate limiting configuration using slowapi."""
+"""Rate limiting configuration using slowapi.
+
+SCALABILITY NOTES:
+- Production MUST use Redis: set RATELIMIT_STORAGE_URI="redis://host:port/db"
+- memory:// storage does NOT work with multiple workers/replicas
+- Each replica maintains separate counters, effectively multiplying limits by N
+"""
 
 import logging
 
@@ -12,6 +18,20 @@ from core.config import get_settings
 
 logger = logging.getLogger(__name__)
 
+settings = get_settings()
+
+# Validate storage configuration in non-development environments
+if (
+    settings.environment != "development"
+    and settings.ratelimit_storage_uri == "memory://"
+):
+    logger.warning(
+        "SECURITY WARNING: Using in-memory rate limiting in %s environment. "
+        "This does NOT work correctly with multiple workers/replicas. "
+        "Set RATELIMIT_STORAGE_URI to a Redis URL for distributed rate limiting.",
+        settings.environment,
+    )
+
 
 def _get_request_identifier(request: Request) -> str:
     """
@@ -20,6 +40,9 @@ def _get_request_identifier(request: Request) -> str:
     Uses authenticated user ID if available, otherwise falls back to IP address.
     This prevents a single user from bypassing limits by using multiple IPs,
     while still protecting against unauthenticated abuse.
+
+    NOTE: user_id availability depends on auth middleware execution order.
+    For pre-auth endpoints, this will fall back to IP-based limiting.
     """
     if hasattr(request.state, "user_id") and request.state.user_id:
         return f"user:{request.state.user_id}"
@@ -27,10 +50,18 @@ def _get_request_identifier(request: Request) -> str:
     return get_remote_address(request)
 
 
+# Determine if we should enable in-memory fallback (only when using Redis)
+_using_redis = settings.ratelimit_storage_uri.startswith("redis://")
+
 limiter = Limiter(
     key_func=_get_request_identifier,
     default_limits=["100/minute"],
-    storage_uri=get_settings().ratelimit_storage_uri,
+    storage_uri=settings.ratelimit_storage_uri,
+    # Enable graceful fallback to memory when Redis is temporarily unavailable
+    # This prevents complete outage but logs warnings about degraded limiting
+    in_memory_fallback_enabled=_using_redis,
+    # Add key prefix to avoid collisions if sharing Redis with other services
+    key_prefix="ltc:",
 )
 
 
