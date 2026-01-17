@@ -350,9 +350,6 @@ class UserCertificatesResponse(BaseModel):
     full_completion_eligible: bool
 
 
-# ============ Dashboard & Content Schemas ============
-
-
 class SecondaryLinkSchema(BaseModel):
     """A secondary link in a learning step description."""
 

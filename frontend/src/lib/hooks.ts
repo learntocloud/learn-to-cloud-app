@@ -13,8 +13,6 @@ function useApi() {
   return createApiClient(getToken);
 }
 
-// ============ Dashboard ============
-
 export function useDashboard() {
   const api = useApi();
   return useQuery({
@@ -23,8 +21,6 @@ export function useDashboard() {
   });
 }
 
-// ============ User Info ============
-
 export function useUserInfo() {
   const api = useApi();
   return useQuery({
@@ -32,8 +28,6 @@ export function useUserInfo() {
     queryFn: () => api.getUserInfo(),
   });
 }
-
-// ============ Phases ============
 
 export function usePhasesWithProgress() {
   const api = useApi();
@@ -61,8 +55,6 @@ export function useTopicDetail(phaseSlug: string, topicSlug: string) {
   });
 }
 
-// ============ GitHub Requirements ============
-
 export function useSubmitGitHubUrl() {
   const api = useApi();
   const queryClient = useQueryClient();
@@ -78,8 +70,6 @@ export function useSubmitGitHubUrl() {
     },
   });
 }
-
-// ============ Steps ============
 
 export function useCompleteStep() {
   const api = useApi();
@@ -124,8 +114,6 @@ export function useUncompleteStep() {
   });
 }
 
-// ============ Streaks & Activity ============
-
 export function useStreak() {
   const api = useApi();
   return useQuery({
@@ -133,8 +121,6 @@ export function useStreak() {
     queryFn: () => api.getStreak(),
   });
 }
-
-// ============ Public Profile ============
 
 export function usePublicProfile(username: string) {
   const api = useApi();
@@ -144,8 +130,6 @@ export function usePublicProfile(username: string) {
     enabled: !!username,
   });
 }
-
-// ============ Certificates ============
 
 export function useCertificateEligibility(certificateType: string) {
   const api = useApi();

@@ -3,8 +3,6 @@
  * Only includes types actually used by the frontend.
  */
 
-// ============ GitHub Submission Types ============
-
 export type SubmissionType =
   | 'github_profile'   // GitHub profile URL
   | 'profile_readme'   // GitHub profile README
@@ -38,16 +36,12 @@ export interface GitHubValidationResult {
   submission: Submission | null;
 }
 
-// ============ Step Progress Types ============
-
 export interface TopicStepProgress {
   topic_id: string;
   completed_steps: number[];  // List of step_order numbers that are complete
   total_steps: number;
   next_unlocked_step: number;  // The next step that can be completed (1-indexed)
 }
-
-// ============ Question Types ============
 
 export interface QuestionSubmitResponse {
   question_id: string;
@@ -56,8 +50,6 @@ export interface QuestionSubmitResponse {
   confidence_score: number | null;
   attempt_id: number;
 }
-
-// ============ Streak & Activity Types ============
 
 export interface StreakResponse {
   current_streak: number;
@@ -80,8 +72,6 @@ interface ActivityHeatmapResponse {
   total_activities: number;
 }
 
-// ============ Public Profile Types ============
-
 export interface PublicSubmission {
   requirement_id: string;
   submission_type: SubmissionType;
@@ -90,8 +80,6 @@ export interface PublicSubmission {
   name: string;
   validated_at: string | null;
 }
-
-// ============ Badge Types ============
 
 export interface Badge {
   id: string;
@@ -112,8 +100,6 @@ export interface PublicProfileResponse {
   submissions: PublicSubmission[];
   badges: Badge[];
 }
-
-// ============ Certificate Types ============
 
 export interface CertificateEligibility {
   is_eligible: boolean;

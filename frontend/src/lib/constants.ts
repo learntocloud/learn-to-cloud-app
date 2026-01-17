@@ -3,8 +3,6 @@
  * Centralizes magic numbers and configuration values for maintainability.
  */
 
-// ============ Form Validation ============
-
 /**
  * Maximum character limit for knowledge question answers
  */
@@ -14,8 +12,6 @@ export const QUESTION_ANSWER_MAX_CHARS = 2000;
  * Minimum character limit for knowledge question answers
  */
 export const QUESTION_ANSWER_MIN_CHARS = 10;
-
-// ============ Badge Configuration ============
 
 /**
  * Total number of badges available in the application
