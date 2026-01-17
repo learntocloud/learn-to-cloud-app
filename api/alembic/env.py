@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 from logging.config import fileConfig
 
-from sqlalchemy import Connection
+from sqlalchemy import Connection, text
 
 # Import models so they register with Base.metadata
 import models  # noqa: F401
@@ -50,6 +50,15 @@ def run_migrations_offline() -> None:
 
 
 def _run_migrations(connection: Connection) -> None:
+    dialect_name = getattr(connection.dialect, "name", "")
+    # Ensure only one migration runner executes at a time in PostgreSQL.
+    # This prevents two replicas starting concurrently from racing migrations.
+    advisory_lock_key = 743028475
+    if dialect_name == "postgresql":
+        connection.execute(
+            text("SELECT pg_advisory_lock(:key)"), {"key": advisory_lock_key}
+        )
+
     context.configure(
         connection=connection,
         target_metadata=target_metadata,
@@ -57,8 +66,15 @@ def _run_migrations(connection: Connection) -> None:
         render_as_batch=True,
     )
 
-    with context.begin_transaction():
-        context.run_migrations()
+    try:
+        with context.begin_transaction():
+            context.run_migrations()
+    finally:
+        if dialect_name == "postgresql":
+            connection.execute(
+                text("SELECT pg_advisory_unlock(:key)"),
+                {"key": advisory_lock_key},
+            )
 
 
 async def run_migrations_online() -> None:

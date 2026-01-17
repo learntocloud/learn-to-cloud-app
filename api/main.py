@@ -4,6 +4,7 @@ import asyncio
 import logging
 import os
 from contextlib import asynccontextmanager
+from typing import Final
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -27,6 +28,21 @@ from routes import (
     webhooks_router,
 )
 from services.clerk import close_http_client
+
+_TRUE_VALUES: Final[set[str]] = {"1", "true", "yes", "y", "on"}
+
+
+def _run_db_migrations_on_startup_enabled() -> bool:
+    return os.getenv("RUN_MIGRATIONS_ON_STARTUP", "").strip().lower() in _TRUE_VALUES
+
+
+def _run_alembic_upgrade_head_sync() -> None:
+    # Import lazily so Alembic is only required when migrations are enabled.
+    from alembic import command
+    from scripts.migrate import _get_alembic_config
+
+    cfg = _get_alembic_config()
+    command.upgrade(cfg, "head")
 
 
 def _configure_azure_monitor_if_enabled() -> None:
@@ -57,6 +73,11 @@ _configure_azure_monitor_if_enabled()
 
 async def _background_init():
     """Background initialization tasks (non-blocking for faster cold start)."""
+    if _run_db_migrations_on_startup_enabled():
+        logger.info("Running database migrations on startup...")
+        await asyncio.to_thread(_run_alembic_upgrade_head_sync)
+        logger.info("Database migrations complete")
+
     await init_db()
 
     try:

@@ -170,32 +170,28 @@ jobs:
             --name ${{ needs.terraform.outputs.api_container_app_name }} \
             --resource-group ${{ needs.terraform.outputs.resource_group_name }} \
             --image ${{ needs.terraform.outputs.container_registry_endpoint }}/api:${{ github.sha }} \
-            --set-env-vars FRONTEND_URL="$FRONTEND_URL"
+            --set-env-vars FRONTEND_URL="$FRONTEND_URL" RUN_MIGRATIONS_ON_STARTUP=true
 
-      - name: Run database migrations
+      - name: Wait for API readiness
         run: |
-          echo "Running Alembic migrations in the API container..."
+          set -euo pipefail
 
-          # The first exec after a new revision deploy can fail while the container warms up.
-          # Retry a few times to avoid transient deploy flakiness.
-          for i in {1..8}; do
-            if az containerapp exec \
-              --name ${{ needs.terraform.outputs.api_container_app_name }} \
-              --resource-group ${{ needs.terraform.outputs.resource_group_name }} \
-              --command "python -m scripts.migrate upgrade"; then
-              echo "Migrations applied successfully."
-              break
+          READY_URL="${{ needs.terraform.outputs.api_url }}/ready"
+          echo "Waiting for API readiness at: $READY_URL"
+
+          for i in {1..30}; do
+            code=$(curl -s -o /dev/null -w "%{http_code}" "$READY_URL" || true)
+            if [[ "$code" == "200" ]]; then
+              echo "API is ready."
+              exit 0
             fi
 
-            echo "Migration attempt $i failed; retrying in 10s..."
+            echo "Attempt $i: API not ready yet (HTTP $code); retrying in 10s..."
             sleep 10
           done
 
-          echo "Current migration revision:"
-          az containerapp exec \
-            --name ${{ needs.terraform.outputs.api_container_app_name }} \
-            --resource-group ${{ needs.terraform.outputs.resource_group_name }} \
-            --command "python -m scripts.migrate current"
+          echo "API did not become ready within the expected time."
+          exit 1
 
       - name: Deploy Frontend Container App
         run: |
@@ -208,7 +204,7 @@ jobs:
 # NOTES
 # =============================================================================
 # Database migrations:
-#   - Applied automatically during deploy via `python -m scripts.migrate upgrade`
+#   - Applied automatically on startup when RUN_MIGRATIONS_ON_STARTUP=true
 #   - Uses Alembic migrations as the source of truth for schema
 #
 # Custom domain (app.learntocloud.guide):
