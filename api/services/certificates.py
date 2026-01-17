@@ -27,6 +27,9 @@ from rendering.certificates import (
 from rendering.certificates import (
     svg_to_pdf as _svg_to_pdf,
 )
+from rendering.certificates import (
+    svg_to_png as _svg_to_png,
+)
 from repositories.activity import ActivityRepository
 from repositories.certificate import CertificateRepository
 from services.progress import fetch_user_progress
@@ -368,3 +371,21 @@ def generate_certificate_pdf(certificate: CertificateData) -> bytes:
     """
     svg_content = generate_certificate_svg(certificate)
     return _svg_to_pdf(svg_content)
+
+
+def generate_certificate_png(
+    certificate: CertificateData, *, scale: float = 2.0
+) -> bytes:
+    """Generate PNG content for a certificate.
+
+    This is a service-layer function that delegates to the rendering module.
+    Routes should call this instead of the rendering module directly.
+
+    Args:
+        certificate: The certificate to render
+
+    Returns:
+        PNG content as bytes
+    """
+    svg_content = generate_certificate_svg(certificate)
+    return _svg_to_png(svg_content, scale=scale)

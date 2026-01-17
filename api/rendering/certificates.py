@@ -108,12 +108,32 @@ def _get_logo_inline_svg() -> str | None:
         inner = inner.replace(f'href="#{old_id}"', f'href="#{new_id}"')
         inner = inner.replace(f'xlink:href="#{old_id}"', f'xlink:href="#{new_id}"')
 
-    gradient_def = """<defs>
+    # Some renderers are picky about paint servers (gradients) being declared
+    # outside a <defs> block, especially when an SVG is nested/embedded.
+    # The Logo-03.svg asset declares gradients directly under <g>, which can
+    # render as black in some browser contexts when inlined.
+    gradient_blocks: list[str] = []
+
+    gradient_pattern = re.compile(
+        r"<(linearGradient|radialGradient)\b[^>]*>.*?</\1>",
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+    for match in gradient_pattern.finditer(inner):
+        gradient_blocks.append(match.group(0))
+    if gradient_blocks:
+        inner = gradient_pattern.sub("", inner)
+
+    defs_content = """
       <linearGradient id="ltcLogoTextGradient" x1="0%" y1="0%" x2="100%" y2="100%">
         <stop offset="0" stop-color="#83DCFF"/>
         <stop offset="1" stop-color="#0076F7"/>
       </linearGradient>
-    </defs>"""
+    """.strip()
+
+    if gradient_blocks:
+        defs_content = defs_content + "\n" + "\n".join(gradient_blocks)
+
+    gradient_def = f"<defs>{defs_content}</defs>"
 
     return (
         f'<svg x="280" y="40" width="240" height="130" '
@@ -164,7 +184,7 @@ def generate_certificate_svg(
     if logo_inline_svg:
         logo_block = f"""
   <!-- Brand logo (Logo-03.svg) -->
-  <g filter="url(#logoGlow)">
+  <g>
     {logo_inline_svg}
   </g>
 """
@@ -189,17 +209,6 @@ def generate_certificate_svg(
       <stop offset="0%" stop-color="#0a1628"/>
       <stop offset="100%" stop-color="#000000"/>
     </radialGradient>
-
-    <!-- Glow effect for logo -->
-    <filter id="logoGlow" x="-50%" y="-50%" width="200%" height="200%">
-      <feGaussianBlur stdDeviation="8" result="blur"/>
-      <feFlood flood-color="#0076F7" flood-opacity="0.4"/>
-      <feComposite in2="blur" operator="in"/>
-      <feMerge>
-        <feMergeNode/>
-        <feMergeNode in="SourceGraphic"/>
-      </feMerge>
-    </filter>
 
     <!-- Subtle glow for name -->
     <filter id="nameGlow" x="-20%" y="-20%" width="140%" height="140%">
@@ -329,3 +338,35 @@ def svg_to_pdf(svg_content: str) -> bytes:
         raise
 
     return cairosvg.svg2pdf(bytestring=svg_content.encode("utf-8"))
+
+
+def svg_to_png(svg_content: str, *, scale: float = 2.0) -> bytes:
+    """Convert SVG string to PNG bytes using CairoSVG.
+
+    Useful for browser previews and downloads when SVG rendering differs across
+    viewers/browsers.
+
+    Args:
+        svg_content: SVG string to convert
+
+    Returns:
+        PNG content as bytes
+
+    Raises:
+        RuntimeError: If cairo library is not installed on the system
+    """
+    try:
+        import cairosvg
+    except OSError as e:
+        if "cairo" in str(e).lower():
+            raise RuntimeError(
+                "PNG generation requires the Cairo library. "
+                "On macOS: brew install cairo. "
+                "On Ubuntu/Debian: apt-get install libcairo2-dev. "
+                "On Alpine: apk add cairo-dev."
+            ) from e
+        raise
+
+    # Default scale=2.0 renders a 2x raster (e.g. 1600x1200 for an 800x600 SVG),
+    # which looks much sharper on high-DPI screens and when downscaled in CSS.
+    return cairosvg.svg2png(bytestring=svg_content.encode("utf-8"), scale=scale)

@@ -2,6 +2,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { UserButton, SignInButton, useUser, useAuth } from '@clerk/clerk-react';
 import { useEffect, useState, useRef } from 'react';
 import { createApiClient } from '@/lib/api-client';
+import { ThemeToggle } from './ThemeToggle';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -9,7 +10,7 @@ interface LayoutProps {
 
 export function Layout({ children }: LayoutProps) {
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
+    <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-950">
       <Navbar />
       <main className="flex-1">{children}</main>
       <Footer />
@@ -23,11 +24,22 @@ function Navbar() {
   const [githubUsername, setGithubUsername] = useState<string | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
-  const wasSignedIn = useRef(isSignedIn);
+  const wasSignedIn = useRef<boolean | null>(null);
 
   // Redirect to dashboard when user signs in (e.g., via modal)
   useEffect(() => {
-    if (isLoaded && isSignedIn && !wasSignedIn.current) {
+    if (!isLoaded) {
+      return;
+    }
+
+    // Initialize once after auth state is loaded so we don't treat the initial
+    // hydration on page refresh as a "sign-in" event.
+    if (wasSignedIn.current === null) {
+      wasSignedIn.current = isSignedIn;
+      return;
+    }
+
+    if (isSignedIn && !wasSignedIn.current) {
       // User just signed in - redirect to dashboard if on a public page
       const publicPages = ['/', '/faq', '/phases', '/sign-in', '/sign-up'];
       const isOnPublicPage = publicPages.some(page => location.pathname === page || location.pathname.startsWith('/sign-'));
@@ -96,6 +108,7 @@ function Navbar() {
                 <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
               </a>
             </div>
+            <ThemeToggle />
             {isLoaded && (
               <>
                 {isSignedIn ? (

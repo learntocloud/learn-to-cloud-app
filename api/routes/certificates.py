@@ -2,7 +2,7 @@
 
 from dataclasses import asdict
 
-from fastapi import APIRouter, HTTPException, Path, Response
+from fastapi import APIRouter, HTTPException, Path, Query, Response
 
 from core.auth import OptionalUserId, UserId
 from core.config import get_settings
@@ -20,6 +20,7 @@ from services.certificates import (
     check_eligibility,
     create_certificate,
     generate_certificate_pdf,
+    generate_certificate_png,
     generate_certificate_svg,
     get_certificate_by_id,
     get_user_certificates_with_eligibility,
@@ -181,6 +182,37 @@ async def get_certificate_pdf_endpoint(
     )
 
 
+@router.get("/{certificate_id}/png")
+async def get_certificate_png_endpoint(
+    certificate_id: int,
+    user_id: UserId,
+    db: DbSession,
+    scale: float = Query(2.0, ge=1.0, le=4.0),
+) -> Response:
+    """Get a PNG image for a certificate."""
+    certificate = await get_certificate_by_id(db, certificate_id, user_id)
+
+    if not certificate:
+        raise HTTPException(status_code=404, detail="Certificate not found")
+
+    try:
+        png_content = generate_certificate_png(certificate, scale=scale)
+    except RuntimeError as e:
+        raise HTTPException(status_code=501, detail=str(e)) from e
+
+    return Response(
+        content=png_content,
+        media_type="image/png",
+        headers={
+            "Content-Disposition": (
+                f'inline; filename="ltc-certificate-'
+                f'{certificate.verification_code}.png"'
+            ),
+            "Cache-Control": _get_cache_control(),
+        },
+    )
+
+
 @router.get("/verify/{verification_code}", response_model=CertificateVerifyResponse)
 async def verify_certificate_endpoint(
     db: DbSession,
@@ -247,6 +279,37 @@ async def get_verified_certificate_pdf_endpoint(
             "Content-Disposition": (
                 f'attachment; filename="ltc-certificate-'
                 f'{certificate.verification_code}.pdf"'
+            ),
+            "Cache-Control": _get_cache_control(),
+        },
+    )
+
+
+@router.get("/verify/{verification_code}/png")
+async def get_verified_certificate_png_endpoint(
+    db: DbSession,
+    verification_code: str = Path(min_length=10, max_length=64),
+    user_id: OptionalUserId = None,
+    scale: float = Query(2.0, ge=1.0, le=4.0),
+) -> Response:
+    """Get a PNG image for a verified certificate (public endpoint)."""
+    certificate = await verify_certificate(db, verification_code)
+
+    if not certificate:
+        raise HTTPException(status_code=404, detail="Certificate not found")
+
+    try:
+        png_content = generate_certificate_png(certificate, scale=scale)
+    except RuntimeError as e:
+        raise HTTPException(status_code=501, detail=str(e)) from e
+
+    return Response(
+        content=png_content,
+        media_type="image/png",
+        headers={
+            "Content-Disposition": (
+                f'inline; filename="ltc-certificate-'
+                f'{certificate.verification_code}.png"'
             ),
             "Cache-Control": _get_cache_control(),
         },

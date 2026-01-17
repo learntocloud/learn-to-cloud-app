@@ -126,7 +126,7 @@ export function VerifyPage() {
           {/* View/Download Links */}
           <div className="mt-8 flex justify-center gap-4">
             <a
-              href={api.getVerifiedCertificateSvgUrl(code)}
+              href={api.getVerifiedCertificatePngUrl(code, 1.5)}
               target="_blank"
               rel="noopener noreferrer"
               className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
