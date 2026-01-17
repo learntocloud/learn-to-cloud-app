@@ -74,8 +74,22 @@ describe('theme utilities', () => {
       expect(getThemePreference()).toBe('dark');
     });
 
-    it('ignores invalid stored values', () => {
+    it('ignores invalid stored values and falls back to system theme', () => {
       localStorage.setItem('ltc.theme', 'invalid');
+
+      // Mock matchMedia to return light preference
+      Object.defineProperty(window, 'matchMedia', {
+        writable: true,
+        value: vi.fn().mockImplementation((query: string) => ({
+          matches: false, // Light mode
+          media: query,
+          onchange: null,
+          addEventListener: vi.fn(),
+          removeEventListener: vi.fn(),
+          dispatchEvent: vi.fn(),
+        })),
+      });
+
       expect(getThemePreference()).toBe('light');
     });
   });

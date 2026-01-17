@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { KnowledgeQuestion } from './KnowledgeQuestion';
-import { QUESTION_ANSWER_MAX_CHARS, QUESTION_ANSWER_MIN_CHARS } from '@/lib/constants';
+import { QUESTION_ANSWER_MAX_CHARS } from '@/lib/constants';
 
 describe('KnowledgeQuestion', () => {
   const mockQuestion = {
@@ -40,7 +40,7 @@ describe('KnowledgeQuestion', () => {
         />
       );
 
-      expect(screen.getByText("You've passed this question")).toBeInTheDocument();
+      expect(screen.getByText("✓ You've passed this question")).toBeInTheDocument();
       expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
     });
 
@@ -76,7 +76,7 @@ describe('KnowledgeQuestion', () => {
       expect(submitButton).toBeDisabled();
     });
 
-    it('shows error when submitting answer below minimum length', async () => {
+    it('does not allow submitting answer below minimum length', () => {
       render(
         <KnowledgeQuestion
           question={mockQuestion}
@@ -88,15 +88,14 @@ describe('KnowledgeQuestion', () => {
       const textarea = screen.getByPlaceholderText('Type your answer here...');
       const submitButton = screen.getByRole('button', { name: /submit answer/i });
 
+      // Type answer below minimum length
       fireEvent.change(textarea, { target: { value: 'Short' } });
+
+      // Button should be disabled, preventing submission
+      expect(submitButton).toBeDisabled();
+
+      // Clicking disabled button should not call onSubmit
       fireEvent.click(submitButton);
-
-      await waitFor(() => {
-        expect(
-          screen.getByText(`Answer must be at least ${QUESTION_ANSWER_MIN_CHARS} characters.`)
-        ).toBeInTheDocument();
-      });
-
       expect(mockOnSubmit).not.toHaveBeenCalled();
     });
 

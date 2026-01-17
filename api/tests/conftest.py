@@ -1,324 +1,412 @@
-"""Pytest fixtures for API tests.
+"""Shared test fixtures for the Learn to Cloud test suite.
 
-Provides isolated test database and async session fixtures.
+Provides:
+- Faker instance for realistic test data
+- Phase requirements fixtures
+- PhaseProgress fixtures (empty, completed, partial, no hands-on)
+- UserProgress fixtures (empty, completed)
+- Submission fixtures (validated, unvalidated)
+- Parameterized test data (phase IDs, streak thresholds)
 """
 
-import asyncio
-from collections.abc import AsyncGenerator
-from datetime import UTC, datetime
-from typing import Any
-
 import pytest
-import pytest_asyncio
-from sqlalchemy import event
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.pool import StaticPool
+from faker import Faker
 
-from core.database import Base
-from models import (
-    QuestionAttempt,
-    StepProgress,
-    Submission,
-    SubmissionType,
-    User,
-)
-from services.hands_on_verification import get_requirements_for_phase
-from services.progress import PHASE_REQUIREMENTS
+from models import Submission, SubmissionType
+from services.phase_requirements import HandsOnRequirementData
+from services.progress import PhaseProgress, UserProgress
 
-TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
+# Initialize Faker for realistic data generation
+fake = Faker()
 
 
-@pytest.fixture(scope="session")
-def event_loop():
-    """Create event loop for async tests."""
-    loop = asyncio.get_event_loop_policy().new_event_loop()
-    yield loop
-    loop.close()
+@pytest.fixture
+def faker_instance():
+    """Faker instance for generating realistic test data."""
+    return fake
 
 
-@pytest_asyncio.fixture(scope="function")
-async def test_engine():
-    """Create a fresh in-memory database engine for each test."""
-    engine = create_async_engine(
-        TEST_DATABASE_URL,
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-        echo=False,
+@pytest.fixture
+def sample_user_id():
+    """Generate a realistic user ID."""
+    return fake.uuid4()
+
+
+@pytest.fixture
+def sample_github_username():
+    """Generate a realistic GitHub username."""
+    return fake.user_name()
+
+
+@pytest.fixture
+def sample_github_url(sample_github_username):
+    """Generate a realistic GitHub profile URL."""
+    return f"https://github.com/{sample_github_username}"
+
+
+# Phase Requirements Fixtures
+
+
+@pytest.fixture
+def phase_0_requirements():
+    """Phase 0 requirements (IT Fundamentals & Cloud Overview)."""
+    return {"steps": 15, "questions": 12, "hands_on": 1}
+
+
+@pytest.fixture
+def phase_1_requirements():
+    """Phase 1 requirements (Linux, CLI & Version Control)."""
+    return {"steps": 36, "questions": 12, "hands_on": 3}
+
+
+@pytest.fixture
+def phase_5_requirements():
+    """Phase 5 requirements (DevOps & Containers)."""
+    return {"steps": 55, "questions": 12, "hands_on": 4}
+
+
+@pytest.fixture
+def all_phase_ids():
+    """All valid phase IDs (0-6)."""
+    return [0, 1, 2, 3, 4, 5, 6]
+
+
+# PhaseProgress Fixtures
+
+
+@pytest.fixture
+def empty_phase_progress():
+    """Phase with zero progress."""
+    return PhaseProgress(
+        phase_id=0,
+        steps_completed=0,
+        steps_required=15,
+        questions_passed=0,
+        questions_required=12,
+        hands_on_validated_count=0,
+        hands_on_required_count=1,
+        hands_on_validated=False,
+        hands_on_required=True,
     )
 
-    @event.listens_for(engine.sync_engine, "connect")
-    def set_sqlite_pragma(dbapi_connection: Any, connection_record: Any) -> None:
-        cursor = dbapi_connection.cursor()
-        cursor.execute("PRAGMA foreign_keys=ON")
-        cursor.close()
 
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-
-    yield engine
-
-    await engine.dispose()
-
-
-@pytest_asyncio.fixture(scope="function")
-async def db_session(test_engine) -> AsyncGenerator[AsyncSession]:
-    """Provide a database session for each test.
-
-    Each test gets a fresh database with all tables created.
-    Changes are automatically rolled back after each test.
-    """
-    session_maker = async_sessionmaker(
-        test_engine,
-        class_=AsyncSession,
-        expire_on_commit=False,
+@pytest.fixture
+def completed_phase_progress():
+    """Phase with all requirements completed."""
+    return PhaseProgress(
+        phase_id=0,
+        steps_completed=15,
+        steps_required=15,
+        questions_passed=12,
+        questions_required=12,
+        hands_on_validated_count=1,
+        hands_on_required_count=1,
+        hands_on_validated=True,
+        hands_on_required=True,
     )
 
-    async with session_maker() as session:
-        yield session
-        await session.rollback()
 
-
-@pytest_asyncio.fixture
-async def test_user(db_session: AsyncSession) -> User:
-    """Create a test user in the database."""
-    user = User(
-        id="test_user_123",
-        email="test@example.com",
-        first_name="Test",
-        last_name="User",
-        github_username="testuser",
+@pytest.fixture
+def partial_phase_progress():
+    """Phase with partial progress (only steps completed)."""
+    return PhaseProgress(
+        phase_id=1,
+        steps_completed=36,
+        steps_required=36,
+        questions_passed=6,
+        questions_required=12,
+        hands_on_validated_count=0,
+        hands_on_required_count=3,
+        hands_on_validated=False,
+        hands_on_required=True,
     )
-    db_session.add(user)
-    await db_session.commit()
-    await db_session.refresh(user)
-    return user
 
 
-async def _add_submissions_for_phase(
-    db: AsyncSession, user_id: str, phase_id: int
-) -> None:
-    """Add validated submissions for all requirements in a phase."""
-    requirements = get_requirements_for_phase(phase_id)
-    for req in requirements:
-        submission = Submission(
-            user_id=user_id,
-            requirement_id=req.id,
-            submission_type=SubmissionType.GITHUB_PROFILE,
-            phase_id=phase_id,
-            submitted_value="https://github.com/testuser/test",
-            extracted_username="testuser",
-            is_validated=True,
-            validated_at=datetime.now(UTC),
-        )
-        db.add(submission)
+@pytest.fixture
+def no_hands_on_phase_progress():
+    """Phase with no hands-on requirements (hypothetical)."""
+    return PhaseProgress(
+        phase_id=0,
+        steps_completed=15,
+        steps_required=15,
+        questions_passed=12,
+        questions_required=12,
+        hands_on_validated_count=0,
+        hands_on_required_count=0,
+        hands_on_validated=True,
+        hands_on_required=False,
+    )
 
 
-@pytest_asyncio.fixture
-async def test_user_with_progress(db_session: AsyncSession, test_user: User) -> User:
-    """Create a test user with some phase progress.
+@pytest.fixture
+def missing_hands_on_phase_progress():
+    """Phase with steps and questions done but missing hands-on."""
+    return PhaseProgress(
+        phase_id=0,
+        steps_completed=15,
+        steps_required=15,
+        questions_passed=12,
+        questions_required=12,
+        hands_on_validated_count=0,
+        hands_on_required_count=1,
+        hands_on_validated=False,
+        hands_on_required=True,
+    )
 
-    Adds passed questions, steps, and GitHub submissions for 3 complete phases.
-    """
-    for phase_id in [0, 1, 2]:
+
+# UserProgress Fixtures
+
+
+@pytest.fixture
+def empty_user_progress(sample_user_id):
+    """User with no progress in any phase."""
+    phases = {}
+    for phase_id in range(7):
+        from services.progress import PHASE_REQUIREMENTS
+
         req = PHASE_REQUIREMENTS[phase_id]
+        from services.phase_requirements import get_requirements_for_phase
 
-        for step_num in range(req.steps):
-            step = StepProgress(
-                user_id=test_user.id,
-                topic_id=f"phase{phase_id}-topic{step_num // 3}",
-                step_order=(step_num % 3) + 1,
-            )
-            db_session.add(step)
-
-        for q_num in range(req.questions):
-            topic_num = q_num // 2
-            q_in_topic = (q_num % 2) + 1
-            attempt = QuestionAttempt(
-                user_id=test_user.id,
-                topic_id=f"phase{phase_id}-topic{topic_num}",
-                question_id=f"phase{phase_id}-topic{topic_num}-q{q_in_topic}",
-                user_answer="Test answer",
-                is_passed=True,
-                llm_feedback="Good answer!",
-            )
-            db_session.add(attempt)
-
-        await _add_submissions_for_phase(db_session, test_user.id, phase_id)
-
-    await db_session.commit()
-    return test_user
-
-
-@pytest_asyncio.fixture
-async def test_user_full_completion(db_session: AsyncSession, test_user: User) -> User:
-    """Create a test user with all phases completed.
-
-    Adds passed questions, steps, and GitHub submissions for all 7 phases.
-    """
-    for phase_id, req in PHASE_REQUIREMENTS.items():
-        for step_num in range(req.steps):
-            step = StepProgress(
-                user_id=test_user.id,
-                topic_id=f"phase{phase_id}-topic{step_num // 3}",
-                step_order=(step_num % 3) + 1,
-            )
-            db_session.add(step)
-
-        for q_num in range(req.questions):
-            topic_num = q_num // 2
-            q_in_topic = (q_num % 2) + 1
-            attempt = QuestionAttempt(
-                user_id=test_user.id,
-                topic_id=f"phase{phase_id}-topic{topic_num}",
-                question_id=f"phase{phase_id}-topic{topic_num}-q{q_in_topic}",
-                user_answer="Test answer",
-                is_passed=True,
-                llm_feedback="Good answer!",
-            )
-            db_session.add(attempt)
-
-        await _add_submissions_for_phase(db_session, test_user.id, phase_id)
-
-    await db_session.commit()
-    return test_user
-
-
-# =============================================================================
-# HTTP CLIENT FIXTURE
-# =============================================================================
-
-
-@pytest.fixture
-def client(db_session: AsyncSession, test_user: User):
-    """Create a FastAPI TestClient with mocked authentication and test database.
-
-    This fixture provides a TestClient that:
-    - Authenticates requests as the test_user
-    - Uses the isolated test database session instead of real database
-
-    This ensures tests don't touch production/development databases.
-    """
-    from fastapi.testclient import TestClient
-
-    from core.auth import require_auth
-    from core.database import get_db
-    from main import app
-
-    # Override auth to return test user ID
-    def override_require_auth():
-        return test_user.id
-
-    # Override database to use test session
-    async def override_get_db():
-        yield db_session
-
-    app.dependency_overrides[require_auth] = override_require_auth
-    app.dependency_overrides[get_db] = override_get_db
-
-    with TestClient(app) as test_client:
-        yield test_client
-
-    # Clean up overrides
-    app.dependency_overrides.clear()
-
-
-# =============================================================================
-# MOCK EXTERNAL SERVICE FIXTURES
-# =============================================================================
-
-
-@pytest.fixture
-def mock_openai_api():
-    """Mock OpenAI API responses for LLM question evaluation."""
-    from unittest.mock import AsyncMock
-
-    mock = AsyncMock()
-
-    # Default: return passing evaluation
-    mock.create_completion.return_value = {
-        "choices": [
-            {
-                "message": {
-                    "content": (
-                        '{"is_passed": true, '
-                        '"feedback": "Great answer! You demonstrated '
-                        'understanding of key concepts."}'
-                    )
-                }
-            }
-        ]
-    }
-
-    return mock
-
-
-# =============================================================================
-# PERFORMANCE TESTING FIXTURES
-# =============================================================================
-
-
-@pytest.fixture
-def benchmark_threshold():
-    """Standard performance thresholds for benchmarking."""
-    return {
-        "fast": 0.05,  # 50ms
-        "medium": 0.2,  # 200ms
-        "slow": 1.0,  # 1 second
-    }
-
-
-@pytest_asyncio.fixture
-async def large_dataset_user(db_session: AsyncSession) -> User:
-    """User with large amount of progress data for performance testing."""
-    user = User(
-        id="large_data_user",
-        email="largedata@test.com",
-        first_name="Large",
-        last_name="Data",
-        github_username="largedata",
-    )
-    db_session.add(user)
-    await db_session.commit()
-
-    # Add 1000 step completions
-    for i in range(1000):
-        step = StepProgress(
-            user_id=user.id,
-            topic_id=f"phase{i % 7}-topic{i % 10}",
-            step_order=(i % 10) + 1,
+        hands_on_count = len(get_requirements_for_phase(phase_id))
+        phases[phase_id] = PhaseProgress(
+            phase_id=phase_id,
+            steps_completed=0,
+            steps_required=req.steps,
+            questions_passed=0,
+            questions_required=req.questions,
+            hands_on_validated_count=0,
+            hands_on_required_count=hands_on_count,
+            hands_on_validated=hands_on_count == 0,
+            hands_on_required=hands_on_count > 0,
         )
-        db_session.add(step)
+    return UserProgress(user_id=sample_user_id, phases=phases)
 
-    # Add 500 question attempts
-    for i in range(500):
-        attempt = QuestionAttempt(
-            user_id=user.id,
-            topic_id=f"phase{i % 7}-topic{i % 10}",
-            question_id=f"phase{i % 7}-topic{i % 10}-q{i % 5}",
-            user_answer=f"Answer {i}",
-            is_passed=i % 2 == 0,  # 50% pass rate
-            llm_feedback="Feedback",
+
+@pytest.fixture
+def completed_user_progress(sample_user_id):
+    """User with all phases completed."""
+    phases = {}
+    for phase_id in range(7):
+        from services.progress import PHASE_REQUIREMENTS
+
+        req = PHASE_REQUIREMENTS[phase_id]
+        from services.phase_requirements import get_requirements_for_phase
+
+        hands_on_count = len(get_requirements_for_phase(phase_id))
+        phases[phase_id] = PhaseProgress(
+            phase_id=phase_id,
+            steps_completed=req.steps,
+            steps_required=req.steps,
+            questions_passed=req.questions,
+            questions_required=req.questions,
+            hands_on_validated_count=hands_on_count,
+            hands_on_required_count=hands_on_count,
+            hands_on_validated=True,
+            hands_on_required=hands_on_count > 0,
         )
-        db_session.add(attempt)
-
-    await db_session.commit()
-    return user
+    return UserProgress(user_id=sample_user_id, phases=phases)
 
 
-# =============================================================================
-# CUSTOM PYTEST MARKERS
-# =============================================================================
+@pytest.fixture
+def mid_program_user_progress(sample_user_id):
+    """User who has completed phase 0 and is working on phase 1."""
+    from services.phase_requirements import get_requirements_for_phase
+    from services.progress import PHASE_REQUIREMENTS
 
+    phases = {}
 
-def pytest_configure(config):
-    """Register custom markers."""
-    config.addinivalue_line(
-        "markers", "integration: marks tests as integration tests (slow)"
+    # Phase 0: completed
+    req0 = PHASE_REQUIREMENTS[0]
+    hands_on_0 = len(get_requirements_for_phase(0))
+    phases[0] = PhaseProgress(
+        phase_id=0,
+        steps_completed=req0.steps,
+        steps_required=req0.steps,
+        questions_passed=req0.questions,
+        questions_required=req0.questions,
+        hands_on_validated_count=hands_on_0,
+        hands_on_required_count=hands_on_0,
+        hands_on_validated=True,
+        hands_on_required=True,
     )
-    config.addinivalue_line(
-        "markers", "performance: marks tests as performance benchmarks"
+
+    # Phase 1: partial progress
+    req1 = PHASE_REQUIREMENTS[1]
+    hands_on_1 = len(get_requirements_for_phase(1))
+    phases[1] = PhaseProgress(
+        phase_id=1,
+        steps_completed=18,
+        steps_required=req1.steps,
+        questions_passed=6,
+        questions_required=req1.questions,
+        hands_on_validated_count=1,
+        hands_on_required_count=hands_on_1,
+        hands_on_validated=False,
+        hands_on_required=True,
     )
-    config.addinivalue_line("markers", "security: marks tests as security tests")
-    config.addinivalue_line(
-        "markers", "external: marks tests that require external services"
+
+    # Remaining phases: no progress
+    for phase_id in range(2, 7):
+        req = PHASE_REQUIREMENTS[phase_id]
+        hands_on_count = len(get_requirements_for_phase(phase_id))
+        phases[phase_id] = PhaseProgress(
+            phase_id=phase_id,
+            steps_completed=0,
+            steps_required=req.steps,
+            questions_passed=0,
+            questions_required=req.questions,
+            hands_on_validated_count=0,
+            hands_on_required_count=hands_on_count,
+            hands_on_validated=hands_on_count == 0,
+            hands_on_required=hands_on_count > 0,
+        )
+
+    return UserProgress(user_id=sample_user_id, phases=phases)
+
+
+# Submission Fixtures
+
+
+@pytest.fixture
+def validated_submission(sample_user_id, sample_github_username):
+    """A validated hands-on submission."""
+    return Submission(
+        id=1,
+        user_id=sample_user_id,
+        requirement_id="phase0-github-profile",
+        submission_type=SubmissionType.GITHUB_PROFILE,
+        phase_id=0,
+        submitted_value=f"https://github.com/{sample_github_username}",
+        extracted_username=sample_github_username,
+        is_validated=True,
+    )
+
+
+@pytest.fixture
+def unvalidated_submission(sample_user_id):
+    """An unvalidated hands-on submission."""
+    return Submission(
+        id=2,
+        user_id=sample_user_id,
+        requirement_id="phase1-profile-readme",
+        submission_type=SubmissionType.PROFILE_README,
+        phase_id=1,
+        submitted_value="https://github.com/invaliduser/invaliduser",
+        extracted_username="invaliduser",
+        is_validated=False,
+    )
+
+
+@pytest.fixture
+def multiple_submissions(sample_user_id, sample_github_username):
+    """Multiple submissions across different phases."""
+    return [
+        Submission(
+            id=1,
+            user_id=sample_user_id,
+            requirement_id="phase0-github-profile",
+            submission_type=SubmissionType.GITHUB_PROFILE,
+            phase_id=0,
+            submitted_value=f"https://github.com/{sample_github_username}",
+            extracted_username=sample_github_username,
+            is_validated=True,
+        ),
+        Submission(
+            id=2,
+            user_id=sample_user_id,
+            requirement_id="phase1-profile-readme",
+            submission_type=SubmissionType.PROFILE_README,
+            phase_id=1,
+            submitted_value=f"https://github.com/{sample_github_username}/{sample_github_username}",
+            extracted_username=sample_github_username,
+            is_validated=True,
+        ),
+        Submission(
+            id=3,
+            user_id=sample_user_id,
+            requirement_id="phase1-linux-ctfs-fork",
+            submission_type=SubmissionType.REPO_FORK,
+            phase_id=1,
+            submitted_value=f"https://github.com/{sample_github_username}/linux-ctfs",
+            extracted_username=sample_github_username,
+            is_validated=False,
+        ),
+    ]
+
+
+# Parameterized Test Data
+
+
+@pytest.fixture
+def streak_thresholds():
+    """Streak badge thresholds for parameterized tests."""
+    return [
+        (0, []),
+        (6, []),
+        (7, ["streak_7"]),
+        (29, ["streak_7"]),
+        (30, ["streak_7", "streak_30"]),
+        (99, ["streak_7", "streak_30"]),
+        (100, ["streak_7", "streak_30", "streak_100"]),
+        (365, ["streak_7", "streak_30", "streak_100"]),
+    ]
+
+
+@pytest.fixture
+def valid_topic_ids():
+    """Valid topic IDs for testing topic ID parsing."""
+    return [
+        ("phase0-topic1", 0),
+        ("phase1-topic3", 1),
+        ("phase2-topic5", 2),
+        ("phase3-topic2", 3),
+        ("phase4-topic7", 4),
+        ("phase5-topic4", 5),
+        ("phase6-topic6", 6),
+    ]
+
+
+@pytest.fixture
+def valid_question_ids():
+    """Valid question IDs for testing question ID parsing."""
+    return [
+        ("phase0-topic1-q1", 0),
+        ("phase1-topic2-q2", 1),
+        ("phase2-topic3-q1", 2),
+        ("phase3-topic1-q2", 3),
+        ("phase4-topic5-q1", 4),
+        ("phase5-topic2-q2", 5),
+        ("phase6-topic4-q1", 6),
+    ]
+
+
+@pytest.fixture
+def invalid_ids():
+    """Invalid IDs for testing error handling."""
+    return [
+        "",
+        "invalid",
+        "topic1",
+        "phase",
+        "phase-topic1",
+        "phasex-topic1",
+        123,
+        None,
+        [],
+    ]
+
+
+# HandsOnRequirement Fixtures
+
+
+@pytest.fixture
+def sample_hands_on_requirement():
+    """Sample hands-on requirement for testing."""
+    return HandsOnRequirementData(
+        id="test-requirement",
+        phase_id=0,
+        submission_type=SubmissionType.GITHUB_PROFILE,
+        name="Test Requirement",
+        description="This is a test requirement",
+        example_url="https://github.com/example",
     )

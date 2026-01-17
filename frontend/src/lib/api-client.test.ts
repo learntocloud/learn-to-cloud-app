@@ -134,29 +134,47 @@ describe('API Client', () => {
 
   describe('completeStep', () => {
     it('completes a step successfully', async () => {
-      const mockResponse = {
-        step_order: 1,
-        is_completed: true,
-        completed_at: '2024-01-01T00:00:00Z',
+      const mockStepProgress = {
+        topic_id: 'topic-123',
+        completed_steps: [1],
+        total_steps: 5,
+        next_unlocked_step: 2,
       };
 
       mockGetToken.mockResolvedValue('mock-token');
-      mockFetch.mockResolvedValue(
-        makeResponse({
-          ok: true,
-          json: async () => mockResponse,
-        })
-      );
+      // Mock both the complete call and the subsequent getTopicStepProgress call
+      mockFetch
+        .mockResolvedValueOnce(
+          makeResponse({
+            ok: true,
+            json: async () => ({ success: true }),
+          })
+        )
+        .mockResolvedValueOnce(
+          makeResponse({
+            ok: true,
+            json: async () => mockStepProgress,
+          })
+        );
 
       const client = createApiClient(mockGetToken);
       const result = await client.completeStep('topic-123', 1);
 
-      expect(result).toEqual(mockResponse);
+      expect(result).toEqual(mockStepProgress);
+
+      // Verify the complete step call
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8000/api/progress/topics/topic-123/steps/1/complete',
+        'http://localhost:8000/api/steps/complete',
         expect.objectContaining({
           method: 'POST',
+          body: JSON.stringify({ topic_id: 'topic-123', step_order: 1 }),
         })
+      );
+
+      // Verify the get topic progress call
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:8000/api/steps/topic-123',
+        expect.any(Object)
       );
     });
   });
