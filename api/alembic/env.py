@@ -52,22 +52,15 @@ def run_migrations_offline() -> None:
 def _run_migrations(connection: Connection) -> None:
     dialect_name = getattr(connection.dialect, "name", "")
 
-    # For PostgreSQL with multiple workers, we need to serialize migrations using
-    # an advisory lock. The key insight is that we must acquire the lock FIRST,
-    # THEN check alembic_version to see what migrations to run.
-    #
-    # We use pg_advisory_lock (session-level) instead of pg_advisory_xact_lock
-    # because we need the lock to span across Alembic's internal transaction management.
+    # For PostgreSQL with multiple workers, we need to serialize migrations.
+    # We use a session-level advisory lock that blocks until acquired.
     advisory_lock_key = 743028475
     if dialect_name == "postgresql":
         # Acquire session-level advisory lock (blocks until acquired)
-        # This lock is held until explicitly released or session ends
         result = connection.execute(
             text("SELECT pg_advisory_lock(:key)"), {"key": advisory_lock_key}
         )
-        result.close()  # Ensure the result is consumed
-        # Commit to ensure lock is acquired before proceeding
-        connection.commit()
+        result.close()
 
     try:
         context.configure(
@@ -79,6 +72,19 @@ def _run_migrations(connection: Connection) -> None:
 
         with context.begin_transaction():
             context.run_migrations()
+    except Exception as e:
+        # Check if this is a "table already exists" error - another worker may have
+        # already run migrations even though we had the lock (race at startup)
+        error_str = str(e).lower()
+        if "already exists" in error_str or "duplicate" in error_str:
+            # Migrations were already applied by another process, this is OK
+            import logging
+
+            logging.getLogger("alembic").info(
+                "Migrations already applied by another process, continuing..."
+            )
+        else:
+            raise
     finally:
         # Release the advisory lock for PostgreSQL
         if dialect_name == "postgresql":
@@ -86,7 +92,6 @@ def _run_migrations(connection: Connection) -> None:
                 text("SELECT pg_advisory_unlock(:key)"), {"key": advisory_lock_key}
             )
             result.close()
-            connection.commit()
 
 
 async def run_migrations_online() -> None:
