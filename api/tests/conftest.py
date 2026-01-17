@@ -190,22 +190,30 @@ async def test_user_full_completion(db_session: AsyncSession, test_user: User) -
 
 @pytest.fixture
 def client(db_session: AsyncSession, test_user: User):
-    """Create a FastAPI TestClient with mocked authentication.
+    """Create a FastAPI TestClient with mocked authentication and test database.
 
-    This fixture provides a TestClient that automatically authenticates
-    requests as the test_user. It overrides the require_auth dependency
-    to bypass real authentication.
+    This fixture provides a TestClient that:
+    - Authenticates requests as the test_user
+    - Uses the isolated test database session instead of real database
+
+    This ensures tests don't touch production/development databases.
     """
     from fastapi.testclient import TestClient
 
     from core.auth import require_auth
+    from core.database import get_db
     from main import app
 
     # Override auth to return test user ID
     def override_require_auth():
         return test_user.id
 
+    # Override database to use test session
+    async def override_get_db():
+        yield db_session
+
     app.dependency_overrides[require_auth] = override_require_auth
+    app.dependency_overrides[get_db] = override_get_db
 
     with TestClient(app) as test_client:
         yield test_client
