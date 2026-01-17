@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { createApiClient } from './api-client';
 
-// Mock environment variable
-vi.stubEnv('VITE_API_URL', 'http://localhost:8000');
+// Note: VITE_API_URL is typically empty in development (uses proxy) and in production
+// The API client will make relative requests like /api/user/me
 
 describe('API Client', () => {
   let mockGetToken: ReturnType<typeof vi.fn<[], Promise<string | null>>>;
@@ -46,7 +46,7 @@ describe('API Client', () => {
 
       expect(result).toEqual(mockUserInfo);
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8000/api/user/me',
+        '/api/user/me',
         expect.objectContaining({
           headers: expect.objectContaining({
             'Content-Type': 'application/json',
@@ -83,7 +83,7 @@ describe('API Client', () => {
       await client.getUserInfo();
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8000/api/user/me',
+        '/api/user/me',
         expect.objectContaining({
           headers: expect.not.objectContaining({
             'Authorization': expect.anything(),
@@ -126,7 +126,7 @@ describe('API Client', () => {
 
       expect(result).toEqual(mockDashboard);
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8000/api/user/dashboard',
+        '/api/user/dashboard',
         expect.any(Object)
       );
     });
@@ -164,7 +164,7 @@ describe('API Client', () => {
 
       // Verify the complete step call
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8000/api/steps/complete',
+        '/api/steps/complete',
         expect.objectContaining({
           method: 'POST',
           body: JSON.stringify({ topic_id: 'topic-123', step_order: 1 }),
@@ -173,7 +173,7 @@ describe('API Client', () => {
 
       // Verify the get topic progress call
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8000/api/steps/topic-123',
+        '/api/steps/topic-123',
         expect.any(Object)
       );
     });
@@ -202,7 +202,7 @@ describe('API Client', () => {
 
       expect(result).toEqual(mockValidation);
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8000/api/github/submit',
+        '/api/github/submit',
         expect.objectContaining({
           method: 'POST',
           body: JSON.stringify({
