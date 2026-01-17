@@ -8,9 +8,16 @@ import './index.css';
 import { initTheme } from './lib/theme';
 
 const CLERK_PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
+const API_URL = import.meta.env.VITE_API_URL;
 
 if (!CLERK_PUBLISHABLE_KEY) {
   throw new Error('Missing VITE_CLERK_PUBLISHABLE_KEY environment variable');
+}
+
+// In dev, API can be reached via Vite proxy at /api when VITE_API_URL is empty.
+// In production, we require VITE_API_URL so the static site can reach the backend.
+if (import.meta.env.PROD && !API_URL) {
+  throw new Error('Missing VITE_API_URL environment variable');
 }
 
 initTheme();

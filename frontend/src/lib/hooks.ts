@@ -72,9 +72,9 @@ export function useSubmitGitHubUrl() {
       api.submitGitHubUrl(requirementId, url),
     onSuccess: () => {
       // Invalidate related queries
-      queryClient.invalidateQueries({ queryKey: ['githubRequirements'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       queryClient.invalidateQueries({ queryKey: ['phase'] });
+      queryClient.invalidateQueries({ queryKey: ['topic'] });
     },
   });
 }
@@ -93,11 +93,11 @@ export function useCompleteStep() {
       topicId: string;
       stepOrder: number;
     }) => api.completeStep(topicId, stepOrder),
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['stepProgress', variables.topicId] });
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       queryClient.invalidateQueries({ queryKey: ['phase'] });
       queryClient.invalidateQueries({ queryKey: ['streak'] });
+      queryClient.invalidateQueries({ queryKey: ['topic'] });
     },
   });
 }
@@ -114,9 +114,8 @@ export function useUncompleteStep() {
       topicId: string;
       stepOrder: number;
     }) => api.uncompleteStep(topicId, stepOrder),
-    onSuccess: (_, variables) => {
+    onSuccess: () => {
       // Invalidate cached step progress so navigation shows fresh data
-      queryClient.invalidateQueries({ queryKey: ['stepProgress', variables.topicId] });
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       queryClient.invalidateQueries({ queryKey: ['phase'] });
       queryClient.invalidateQueries({ queryKey: ['streak'] });

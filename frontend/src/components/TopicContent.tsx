@@ -91,6 +91,7 @@ export function TopicContent({
   const [completedSteps, setCompletedSteps] = useState<number[]>(topic.completed_step_orders || []);
   const [passedQuestions, setPassedQuestions] = useState<string[]>(topic.passed_question_ids || []);
   const [togglingStep, setTogglingStep] = useState<number | null>(null);
+  const [copiedStep, setCopiedStep] = useState<number | null>(null);
 
   // Update local state when topic changes
   useEffect(() => {
@@ -137,7 +138,7 @@ export function TopicContent({
 
       // Update local state if passed
       if (result.is_passed) {
-        setPassedQuestions(prev => [...prev, questionId]);
+        setPassedQuestions((prev) => (prev.includes(questionId) ? prev : [...prev, questionId]));
       }
 
       return result;
@@ -149,6 +150,18 @@ export function TopicContent({
 
   const isStepCompleted = (order: number) => completedSteps.includes(order);
   const isQuestionPassed = (questionId: string) => passedQuestions.includes(questionId);
+
+  const handleCopyCode = async (stepOrder: number, code: string) => {
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopiedStep(stepOrder);
+      window.setTimeout(() => {
+        setCopiedStep((current) => (current === stepOrder ? null : current));
+      }, 1200);
+    } catch (err) {
+      console.error('Failed to copy to clipboard:', err);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -232,13 +245,20 @@ export function TopicContent({
                                 <code>{step.code}</code>
                               </pre>
                               <button
-                                onClick={() => navigator.clipboard.writeText(step.code!)}
+                                onClick={() => handleCopyCode(step.order, step.code!)}
                                 className="absolute top-2 right-2 p-1.5 text-gray-400 hover:text-white bg-gray-800 hover:bg-gray-700 rounded transition-colors"
-                                title="Copy to clipboard"
+                                title={copiedStep === step.order ? 'Copied' : 'Copy to clipboard'}
+                                aria-label={copiedStep === step.order ? 'Copied to clipboard' : 'Copy code to clipboard'}
                               >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                                </svg>
+                                {copiedStep === step.order ? (
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                  </svg>
+                                ) : (
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                  </svg>
+                                )}
                               </button>
                             </div>
                           )}

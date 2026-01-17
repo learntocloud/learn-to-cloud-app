@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useId, useMemo, useRef } from "react";
 
 interface PhaseCelebrationModalProps {
   isOpen: boolean;
@@ -10,16 +10,37 @@ interface PhaseCelebrationModalProps {
   nextPhaseSlug?: string;
 }
 
+const CONFETTI_COLORS = [
+  "#FF6B6B",
+  "#4ECDC4",
+  "#FFE66D",
+  "#95E1D3",
+  "#F38181",
+  "#AA96DA",
+  "#FCBAD3",
+  "#A8D8EA",
+];
+
 // Confetti particle component
-function ConfettiParticle({ delay, color }: { delay: number; color: string }) {
+function ConfettiParticle({
+  delay,
+  color,
+  left,
+  rotation,
+}: {
+  delay: number;
+  color: string;
+  left: number;
+  rotation: number;
+}) {
   return (
     <div
       className="absolute w-3 h-3 rounded-sm animate-confetti"
       style={{
         backgroundColor: color,
-        left: `${Math.random() * 100}%`,
+        left: `${left}%`,
         animationDelay: `${delay}ms`,
-        transform: `rotate(${Math.random() * 360}deg)`,
+        transform: `rotate(${rotation}deg)`,
       }}
     />
   );
@@ -35,10 +56,17 @@ export function PhaseCelebrationModal({
   nextPhaseSlug,
 }: PhaseCelebrationModalProps) {
   const [showConfetti, setShowConfetti] = useState(false);
+  const [confettiSeed, setConfettiSeed] = useState(0);
+  const titleId = useId();
+  const modalRef = useRef<HTMLDivElement | null>(null);
+  const closeButtonRef = useRef<HTMLButtonElement | null>(null);
+  const previouslyFocusedElementRef = useRef<HTMLElement | null>(null);
+  const previousBodyOverflowRef = useRef<string>("");
 
   useEffect(() => {
     if (isOpen) {
       setShowConfetti(true);
+      setConfettiSeed((seed) => seed + 1);
       // Clean up confetti after animation
       const timer = setTimeout(() => setShowConfetti(false), 3000);
       return () => clearTimeout(timer);
@@ -48,7 +76,42 @@ export function PhaseCelebrationModal({
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
       if (e.key === "Escape") {
+        e.preventDefault();
         onClose();
+        return;
+      }
+
+      if (e.key !== "Tab") return;
+
+      const modal = modalRef.current;
+      if (!modal) return;
+
+      const focusable = Array.from(
+        modal.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        )
+      ).filter((el) => !el.hasAttribute("disabled") && el.tabIndex !== -1);
+
+      if (focusable.length === 0) {
+        e.preventDefault();
+        modal.focus();
+        return;
+      }
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const active = document.activeElement as HTMLElement | null;
+
+      if (e.shiftKey) {
+        if (!active || active === first || !modal.contains(active)) {
+          e.preventDefault();
+          last.focus();
+        }
+      } else {
+        if (!active || active === last || !modal.contains(active)) {
+          e.preventDefault();
+          first.focus();
+        }
       }
     },
     [onClose]
@@ -56,27 +119,39 @@ export function PhaseCelebrationModal({
 
   useEffect(() => {
     if (isOpen) {
+      previouslyFocusedElementRef.current = document.activeElement as HTMLElement | null;
       document.addEventListener("keydown", handleKeyDown);
+
+      previousBodyOverflowRef.current = document.body.style.overflow;
       document.body.style.overflow = "hidden";
+
+      // Move focus into the dialog for a11y.
+      window.setTimeout(() => {
+        closeButtonRef.current?.focus();
+      }, 0);
     }
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
-      document.body.style.overflow = "unset";
+
+      document.body.style.overflow = previousBodyOverflowRef.current;
+
+      // Restore focus to whatever triggered the dialog.
+      previouslyFocusedElementRef.current?.focus?.();
     };
   }, [isOpen, handleKeyDown]);
 
-  if (!isOpen) return null;
+  const confettiParticles = useMemo(() => {
+    // Generate stable particle positions for a given open.
+    return Array.from({ length: 50 }).map((_, i) => ({
+      key: `${confettiSeed}-${i}`,
+      delay: i * 50,
+      color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
+      left: Math.random() * 100,
+      rotation: Math.random() * 360,
+    }));
+  }, [confettiSeed]);
 
-  const confettiColors = [
-    "#FF6B6B",
-    "#4ECDC4",
-    "#FFE66D",
-    "#95E1D3",
-    "#F38181",
-    "#AA96DA",
-    "#FCBAD3",
-    "#A8D8EA",
-  ];
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -90,18 +165,27 @@ export function PhaseCelebrationModal({
       {/* Confetti container */}
       {showConfetti && (
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          {Array.from({ length: 50 }).map((_, i) => (
+          {confettiParticles.map((particle) => (
             <ConfettiParticle
-              key={i}
-              delay={i * 50}
-              color={confettiColors[i % confettiColors.length]}
+              key={particle.key}
+              delay={particle.delay}
+              color={particle.color}
+              left={particle.left}
+              rotation={particle.rotation}
             />
           ))}
         </div>
       )}
 
       {/* Modal content */}
-      <div className="relative bg-white dark:bg-gray-900 rounded-2xl shadow-2xl max-w-md w-full mx-4 p-8 text-center animate-modal-pop">
+      <div
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+        className="relative bg-white dark:bg-gray-900 rounded-2xl shadow-2xl max-w-md w-full mx-4 p-8 text-center animate-modal-pop"
+      >
         {/* Badge icon - large and animated */}
         <div className="mb-6">
           <div className="inline-flex items-center justify-center w-24 h-24 text-6xl animate-bounce-slow bg-gradient-to-br from-yellow-100 to-yellow-200 dark:from-yellow-900/30 dark:to-yellow-800/30 rounded-full shadow-lg">
@@ -110,7 +194,7 @@ export function PhaseCelebrationModal({
         </div>
 
         {/* Celebration text */}
-        <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+        <h2 id={titleId} className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
           🎉 Congratulations! 🎉
         </h2>
 
@@ -152,6 +236,7 @@ export function PhaseCelebrationModal({
             </a>
           )}
           <button
+            ref={closeButtonRef}
             onClick={onClose}
             className={`px-6 py-3 font-semibold rounded-xl transition-colors ${
               nextPhaseSlug
