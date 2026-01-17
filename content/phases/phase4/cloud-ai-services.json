@@ -130,7 +130,7 @@
   "questions": [
     {
       "id": "phase4-topic8-q1",
-      "prompt": "What factors should you consider when choosing an LLM model for your application?",
+      "prompt": "How would you approach choosing an LLM model for your application? What factors would you weigh?",
       "expected_concepts": [
         "cost per token",
         "latency",
@@ -146,7 +146,7 @@
     },
     {
       "id": "phase4-topic8-q2",
-      "prompt": "What are AI guardrails and why are they important for production applications?",
+      "prompt": "Walk me through what AI guardrails are and why they matter for production applications.",
       "expected_concepts": [
         "content filtering",
         "safety",

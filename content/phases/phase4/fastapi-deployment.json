@@ -68,7 +68,7 @@
   "questions": [
     {
       "id": "phase4-topic6-q1",
-      "prompt": "How should you manage sensitive configuration like API keys and database credentials when deploying an application?",
+      "prompt": "How would you handle sensitive configuration like API keys and database credentials when deploying an application?",
       "expected_concepts": [
         "environment variables",
         "never hardcode",
@@ -82,7 +82,7 @@
     },
     {
       "id": "phase4-topic6-q2",
-      "prompt": "What security group rules do you need to configure for a public-facing API server?",
+      "prompt": "Walk me through the security group rules you'd configure for a public-facing API server.",
       "expected_concepts": [
         "inbound",
         "HTTP",

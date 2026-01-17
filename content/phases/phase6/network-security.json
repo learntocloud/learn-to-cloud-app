@@ -164,7 +164,7 @@
   "questions": [
     {
       "id": "phase6-topic3-q1",
-      "prompt": "Explain the concept of network segmentation and why you would use public, private, and isolated subnets.",
+      "prompt": "Walk me through network segmentation and how you would use public, private, and isolated subnets.",
       "expected_concepts": [
         "segmentation",
         "public subnet",
@@ -180,7 +180,7 @@
     },
     {
       "id": "phase6-topic3-q2",
-      "prompt": "What is the difference between a security group and a network ACL in terms of how they process traffic?",
+      "prompt": "How would you explain the difference between a security group and a network ACL to someone new to cloud networking?",
       "expected_concepts": [
         "security group",
         "stateful",

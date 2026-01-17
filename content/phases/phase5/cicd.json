@@ -83,7 +83,7 @@
   "questions": [
     {
       "id": "phase5-topic2-q1",
-      "prompt": "What is the difference between Continuous Integration, Continuous Delivery, and Continuous Deployment?",
+      "prompt": "Walk me through the differences between Continuous Integration, Continuous Delivery, and Continuous Deployment.",
       "expected_concepts": [
         "continuous integration",
         "merge",
@@ -99,7 +99,7 @@
     },
     {
       "id": "phase5-topic2-q2",
-      "prompt": "Describe the typical stages in a CI/CD pipeline for a containerized application.",
+      "prompt": "Walk me through the typical stages in a CI/CD pipeline for a containerized application.",
       "expected_concepts": [
         "checkout",
         "build",

@@ -115,7 +115,7 @@
   "questions": [
     {
       "id": "phase2-topic1-q1",
-      "prompt": "What is the difference between a list and a dictionary in Python? When would you use each?",
+      "prompt": "How would you explain the difference between a list and a dictionary to a junior developer, and when would you choose each?",
       "expected_concepts": [
         "list",
         "dictionary",
@@ -130,7 +130,7 @@
     },
     {
       "id": "phase2-topic1-q2",
-      "prompt": "What is exception handling in Python? Why is try/except important for robust code?",
+      "prompt": "Walk me through exception handling in Python and why try/except is important for production code.",
       "expected_concepts": [
         "try",
         "except",

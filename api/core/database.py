@@ -194,7 +194,7 @@ def get_engine() -> AsyncEngine:
 
         _engine = create_async_engine(
             database_url,
-            echo=settings.environment == "development",
+            echo=settings.db_echo,  # Explicit control - default off (very verbose)
             poolclass=NullPool if is_sqlite else None,
             **(
                 {}

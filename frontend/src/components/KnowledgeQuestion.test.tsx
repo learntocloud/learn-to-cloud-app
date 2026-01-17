@@ -53,7 +53,7 @@ describe('KnowledgeQuestion', () => {
         />
       );
 
-      expect(screen.getByPlaceholderText('Type your answer here...')).toBeInTheDocument();
+      expect(screen.getByPlaceholderText('Answer concisely as you would in an interview (1-2 sentences)...')).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /submit answer/i })).toBeInTheDocument();
     });
   });
@@ -68,7 +68,7 @@ describe('KnowledgeQuestion', () => {
         />
       );
 
-      const textarea = screen.getByPlaceholderText('Type your answer here...');
+      const textarea = screen.getByPlaceholderText('Answer concisely as you would in an interview (1-2 sentences)...');
       const submitButton = screen.getByRole('button', { name: /submit answer/i });
 
       fireEvent.change(textarea, { target: { value: 'Short' } });
@@ -85,7 +85,7 @@ describe('KnowledgeQuestion', () => {
         />
       );
 
-      const textarea = screen.getByPlaceholderText('Type your answer here...');
+      const textarea = screen.getByPlaceholderText('Answer concisely as you would in an interview (1-2 sentences)...');
       const submitButton = screen.getByRole('button', { name: /submit answer/i });
 
       // Type answer below minimum length
@@ -121,7 +121,7 @@ describe('KnowledgeQuestion', () => {
         />
       );
 
-      const textarea = screen.getByPlaceholderText('Type your answer here...');
+      const textarea = screen.getByPlaceholderText('Answer concisely as you would in an interview (1-2 sentences)...');
       await user.type(textarea, 'Cloud computing is...');
 
       expect(screen.getByText(`21/${QUESTION_ANSWER_MAX_CHARS}`)).toBeInTheDocument();
@@ -137,7 +137,7 @@ describe('KnowledgeQuestion', () => {
         />
       );
 
-      const textarea = screen.getByPlaceholderText('Type your answer here...');
+      const textarea = screen.getByPlaceholderText('Answer concisely as you would in an interview (1-2 sentences)...');
       const longText = 'a'.repeat(QUESTION_ANSWER_MAX_CHARS + 1);
       await user.type(textarea, longText);
 
@@ -161,7 +161,7 @@ describe('KnowledgeQuestion', () => {
         />
       );
 
-      const textarea = screen.getByPlaceholderText('Type your answer here...');
+      const textarea = screen.getByPlaceholderText('Answer concisely as you would in an interview (1-2 sentences)...');
       const submitButton = screen.getByRole('button', { name: /submit answer/i });
 
       const validAnswer = 'Cloud computing is a model for enabling ubiquitous access to shared resources.';
@@ -186,7 +186,7 @@ describe('KnowledgeQuestion', () => {
         />
       );
 
-      const textarea = screen.getByPlaceholderText('Type your answer here...');
+      const textarea = screen.getByPlaceholderText('Answer concisely as you would in an interview (1-2 sentences)...');
       const submitButton = screen.getByRole('button', { name: /submit answer/i });
 
       fireEvent.change(textarea, {
@@ -211,7 +211,7 @@ describe('KnowledgeQuestion', () => {
         />
       );
 
-      const textarea = screen.getByPlaceholderText('Type your answer here...');
+      const textarea = screen.getByPlaceholderText('Answer concisely as you would in an interview (1-2 sentences)...');
       const submitButton = screen.getByRole('button', { name: /submit answer/i });
 
       fireEvent.change(textarea, {
@@ -238,7 +238,7 @@ describe('KnowledgeQuestion', () => {
         />
       );
 
-      const textarea = screen.getByPlaceholderText('Type your answer here...');
+      const textarea = screen.getByPlaceholderText('Answer concisely as you would in an interview (1-2 sentences)...');
       const submitButton = screen.getByRole('button', { name: /submit answer/i });
 
       fireEvent.change(textarea, {
@@ -262,7 +262,7 @@ describe('KnowledgeQuestion', () => {
         />
       );
 
-      const textarea = screen.getByPlaceholderText('Type your answer here...');
+      const textarea = screen.getByPlaceholderText('Answer concisely as you would in an interview (1-2 sentences)...');
       const submitButton = screen.getByRole('button', { name: /submit answer/i });
 
       fireEvent.change(textarea, {

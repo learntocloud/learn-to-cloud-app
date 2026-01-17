@@ -79,7 +79,7 @@
   "questions": [
     {
       "id": "phase4-topic2-q1",
-      "prompt": "What is the principle of least privilege and why is it important in cloud security?",
+      "prompt": "How would you explain the principle of least privilege to a new team member, and why is it critical for cloud security?",
       "expected_concepts": [
         "minimum permissions",
         "necessary",
@@ -94,7 +94,7 @@
     },
     {
       "id": "phase4-topic2-q2",
-      "prompt": "What is the difference between a security group and a network ACL?",
+      "prompt": "Walk me through the difference between a security group and a network ACL and when you'd use each.",
       "expected_concepts": [
         "security group",
         "stateful",

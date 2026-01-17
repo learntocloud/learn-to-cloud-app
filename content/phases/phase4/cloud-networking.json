@@ -88,7 +88,7 @@
   "questions": [
     {
       "id": "phase4-topic3-q1",
-      "prompt": "What is a Virtual Private Cloud (VPC) and what are subnets used for?",
+      "prompt": "How would you explain a VPC to someone new to cloud, and what role do subnets play within it?",
       "expected_concepts": [
         "VPC",
         "isolated network",
@@ -104,7 +104,7 @@
     },
     {
       "id": "phase4-topic3-q2",
-      "prompt": "What is the purpose of a NAT Gateway and when would you use one?",
+      "prompt": "Walk me through the purpose of a NAT Gateway and a scenario where you'd deploy one.",
       "expected_concepts": [
         "NAT",
         "private subnet",

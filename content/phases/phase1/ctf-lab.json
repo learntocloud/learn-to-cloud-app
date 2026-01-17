@@ -27,7 +27,7 @@
   "questions": [
     {
       "id": "phase1-topic6-q1",
-      "prompt": "How would you use the find command to locate files on a Linux system?",
+      "prompt": "Walk me through how you would use the find command to locate files on a Linux system.",
       "expected_concepts": [
         "find",
         "path",
@@ -44,7 +44,7 @@
     },
     {
       "id": "phase1-topic6-q2",
-      "prompt": "What are some common Linux commands for inspecting running processes and network connections?",
+      "prompt": "What commands would you use to inspect running processes and network connections on a Linux server?",
       "expected_concepts": [
         "ps",
         "top",

@@ -38,9 +38,9 @@ export function KnowledgeQuestion({
 
       if (result.is_passed) {
         setIsPassed(true);
-        setFeedback(result.llm_feedback || "Great job! You've demonstrated understanding of this concept.");
+        setFeedback(result.llm_feedback || "Correct. You demonstrated solid understanding of the key concepts.");
       } else {
-        setFeedback(result.llm_feedback || "Not quite. Review the material and try again.");
+        setFeedback(result.llm_feedback || "Your answer needs more detail. Address the core concepts and try again.");
       }
     } catch (err) {
       console.error('Failed to submit answer:', err);
@@ -97,7 +97,7 @@ export function KnowledgeQuestion({
                 setAnswer(e.target.value);
                 setError(null);
               }}
-              placeholder="Type your answer here..."
+              placeholder="Answer concisely as you would in an interview (1-2 sentences)..."
               rows={4}
               maxLength={QUESTION_ANSWER_MAX_CHARS + 100}
               disabled={isSubmitting}

@@ -157,7 +157,7 @@
   "questions": [
     {
       "id": "phase6-topic1-q1",
-      "prompt": "Explain the difference between authentication and authorization in cloud security.",
+      "prompt": "Walk me through the difference between authentication and authorization in cloud security.",
       "expected_concepts": [
         "authentication",
         "identity",
@@ -173,7 +173,7 @@
     },
     {
       "id": "phase6-topic1-q2",
-      "prompt": "When should you use a service account versus a user account in cloud environments?",
+      "prompt": "How would you decide between using a service account versus a user account in cloud environments?",
       "expected_concepts": [
         "service account",
         "applications",

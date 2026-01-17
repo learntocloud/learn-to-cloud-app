@@ -111,7 +111,7 @@
   "questions": [
     {
       "id": "phase5-topic4-q1",
-      "prompt": "What is a Kubernetes Pod and how does it differ from a Docker container?",
+      "prompt": "How would you explain a Kubernetes Pod to someone coming from a Docker-only background?",
       "expected_concepts": [
         "pod",
         "smallest unit",
@@ -126,7 +126,7 @@
     },
     {
       "id": "phase5-topic4-q2",
-      "prompt": "Explain the purpose of Kubernetes Services and the different types available.",
+      "prompt": "Walk me through Kubernetes Services and the different types you'd use for various scenarios.",
       "expected_concepts": [
         "service",
         "expose",

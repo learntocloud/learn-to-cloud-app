@@ -27,7 +27,7 @@
   "questions": [
     {
       "id": "phase0-topic3-q1",
-      "prompt": "What is programming and why is it important for cloud engineers to learn?",
+      "prompt": "How would you explain what programming is to someone non-technical, and why is it valuable for cloud engineers?",
       "expected_concepts": [
         "instructions",
         "computer",
@@ -43,7 +43,7 @@
     },
     {
       "id": "phase0-topic3-q2",
-      "prompt": "What is the difference between a programming language and a scripting language?",
+      "prompt": "Walk me through the key differences between a programming language and a scripting language.",
       "expected_concepts": [
         "compiled",
         "interpreted",

@@ -76,7 +76,7 @@
   "questions": [
     {
       "id": "phase5-topic6-q1",
-      "prompt": "Describe your complete DevOps pipeline from code commit to production deployment.",
+      "prompt": "Walk me through your complete DevOps pipeline from code commit to production deployment.",
       "expected_concepts": [
         "commit",
         "trigger",
@@ -93,7 +93,7 @@
     },
     {
       "id": "phase5-topic6-q2",
-      "prompt": "How do you securely manage secrets in your Kubernetes deployment?",
+      "prompt": "How do you handle secrets management in your Kubernetes deployment? Walk me through your approach.",
       "expected_concepts": [
         "Kubernetes Secret",
         "base64",

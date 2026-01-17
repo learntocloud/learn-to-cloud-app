@@ -112,7 +112,7 @@
   "questions": [
     {
       "id": "phase1-topic1-q1",
-      "prompt": "What is version control and why is it essential for software development?",
+      "prompt": "How would you explain version control to a junior developer who's never used it, and why is it essential?",
       "expected_concepts": [
         "track changes",
         "history",
@@ -128,7 +128,7 @@
     },
     {
       "id": "phase1-topic1-q2",
-      "prompt": "Explain the basic Git workflow: staging, committing, and pushing changes.",
+      "prompt": "Walk me through the basic Git workflow: what happens from staging to pushing changes?",
       "expected_concepts": [
         "git add",
         "staging area",

@@ -34,7 +34,7 @@
   "questions": [
     {
       "id": "phase0-topic4-q1",
-      "prompt": "What is cloud computing and what are the main benefits of using it compared to on-premises infrastructure?",
+      "prompt": "How would you explain cloud computing to a business stakeholder, including its key advantages over on-premises infrastructure?",
       "expected_concepts": [
         "on-demand",
         "internet",
@@ -50,7 +50,7 @@
     },
     {
       "id": "phase0-topic4-q2",
-      "prompt": "Explain the three main cloud service models: IaaS, PaaS, and SaaS. Give an example of each.",
+      "prompt": "Walk me through IaaS, PaaS, and SaaS—what each provides and give a real-world example of each.",
       "expected_concepts": [
         "Infrastructure as a Service",
         "Platform as a Service",

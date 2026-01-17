@@ -81,7 +81,7 @@
   "questions": [
     {
       "id": "phase2-topic5-q1",
-      "prompt": "How do LLM APIs differ from traditional REST APIs in terms of how you interact with them?",
+      "prompt": "How do LLM APIs differ from traditional REST APIs in terms of how you structure requests and interact with them?",
       "expected_concepts": [
         "messages",
         "conversation",
@@ -97,7 +97,7 @@
     },
     {
       "id": "phase2-topic5-q2",
-      "prompt": "What is the temperature parameter in LLM APIs and how does it affect the output?",
+      "prompt": "Walk me through the temperature parameter in LLM APIs and how it affects the model's output.",
       "expected_concepts": [
         "temperature",
         "randomness",

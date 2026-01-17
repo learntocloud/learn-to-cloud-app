@@ -107,7 +107,7 @@
   "questions": [
     {
       "id": "phase4-topic7-q1",
-      "prompt": "How does cloud billing work and what are the main factors that affect your monthly cloud costs?",
+      "prompt": "Walk me through how cloud billing works and the main factors that drive monthly costs.",
       "expected_concepts": [
         "pay-as-you-go",
         "consumption",
@@ -122,7 +122,7 @@
     },
     {
       "id": "phase4-topic7-q2",
-      "prompt": "What strategies can you use to reduce cloud costs without sacrificing performance?",
+      "prompt": "What strategies would you use to reduce cloud costs without sacrificing application performance?",
       "expected_concepts": [
         "right-sizing",
         "reserved instances",

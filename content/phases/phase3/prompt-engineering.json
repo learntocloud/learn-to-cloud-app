@@ -97,7 +97,7 @@
   "questions": [
     {
       "id": "phase3-topic3-q1",
-      "prompt": "What is few-shot prompting and why is it one of the most effective prompt engineering techniques?",
+      "prompt": "How would you explain few-shot prompting to a teammate, and why is it one of the most effective techniques?",
       "expected_concepts": [
         "few-shot",
         "examples",
@@ -113,7 +113,7 @@
     },
     {
       "id": "phase3-topic3-q2",
-      "prompt": "Why is it important to use delimiters in prompts when processing user input?",
+      "prompt": "Walk me through why delimiters matter in prompts when processing user input and how they help with security.",
       "expected_concepts": [
         "delimiters",
         "separation",

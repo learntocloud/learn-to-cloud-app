@@ -35,7 +35,7 @@
   "questions": [
     {
       "id": "phase2-topic2-q1",
-      "prompt": "What is a REST API and what are its key principles?",
+      "prompt": "How would you explain REST APIs to a product manager, including the key principles that make them work?",
       "expected_concepts": [
         "representational state transfer",
         "stateless",
@@ -50,7 +50,7 @@
     },
     {
       "id": "phase2-topic2-q2",
-      "prompt": "Explain the difference between GET, POST, PUT, and DELETE HTTP methods.",
+      "prompt": "Walk me through the HTTP methods GET, POST, PUT, and DELETE and when you'd use each one.",
       "expected_concepts": [
         "GET",
         "retrieve",

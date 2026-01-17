@@ -68,7 +68,7 @@
   "questions": [
     {
       "id": "phase4-topic1-q1",
-      "prompt": "What is virtualization and how does it enable cloud computing?",
+      "prompt": "Walk me through what virtualization is and how it enables cloud computing at scale.",
       "expected_concepts": [
         "hypervisor",
         "virtual machine",
@@ -83,7 +83,7 @@
     },
     {
       "id": "phase4-topic1-q2",
-      "prompt": "What factors should you consider when choosing a VM instance type for your workload?",
+      "prompt": "How would you approach choosing a VM instance type for a new workload? What factors matter most?",
       "expected_concepts": [
         "CPU",
         "memory",

@@ -151,7 +151,7 @@
   "questions": [
     {
       "id": "phase5-topic5-q1",
-      "prompt": "What is the difference between monitoring and observability?",
+      "prompt": "How would you explain the difference between monitoring and observability to a team adopting cloud-native practices?",
       "expected_concepts": [
         "monitoring",
         "known problems",
@@ -167,7 +167,7 @@
     },
     {
       "id": "phase5-topic5-q2",
-      "prompt": "How do Prometheus and Grafana work together for application monitoring?",
+      "prompt": "Walk me through how Prometheus and Grafana work together for application monitoring.",
       "expected_concepts": [
         "Prometheus",
         "collect",

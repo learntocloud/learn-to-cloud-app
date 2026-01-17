@@ -110,7 +110,7 @@
   "questions": [
     {
       "id": "phase6-topic4-q1",
-      "prompt": "What types of logs should you collect for effective security monitoring in cloud environments?",
+      "prompt": "Walk me through the types of logs you would collect for effective security monitoring in cloud environments.",
       "expected_concepts": [
         "authentication logs",
         "API logs",
@@ -125,7 +125,7 @@
     },
     {
       "id": "phase6-topic4-q2",
-      "prompt": "What is a SIEM and how does it help with security monitoring?",
+      "prompt": "How would you explain what a SIEM does to a colleague who has never used one?",
       "expected_concepts": [
         "SIEM",
         "security information",

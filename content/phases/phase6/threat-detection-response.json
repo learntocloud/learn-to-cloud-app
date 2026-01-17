@@ -182,7 +182,7 @@
   "questions": [
     {
       "id": "phase6-topic5-q1",
-      "prompt": "Describe the four phases of the incident response lifecycle.",
+      "prompt": "Walk me through the four phases of the incident response lifecycle.",
       "expected_concepts": [
         "preparation",
         "detection",
@@ -198,7 +198,7 @@
     },
     {
       "id": "phase6-topic5-q2",
-      "prompt": "What are some common cloud security threats and how can you detect them?",
+      "prompt": "Tell me about some common cloud security threats and how you would detect them.",
       "expected_concepts": [
         "credential compromise",
         "data breach",

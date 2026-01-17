@@ -27,7 +27,7 @@
   "questions": [
     {
       "id": "phase0-topic5-q1",
-      "prompt": "What is DevOps and why is it important in modern software development?",
+      "prompt": "How would you describe DevOps to a team that's never heard of it, and why does it matter for modern software delivery?",
       "expected_concepts": [
         "development",
         "operations",
@@ -43,7 +43,7 @@
     },
     {
       "id": "phase0-topic5-q2",
-      "prompt": "What does CI/CD stand for and why is it a key practice in DevOps?",
+      "prompt": "Walk me through what CI/CD means and why it's a core DevOps practice.",
       "expected_concepts": [
         "continuous integration",
         "continuous delivery",

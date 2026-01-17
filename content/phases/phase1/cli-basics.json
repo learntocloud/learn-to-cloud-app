@@ -99,7 +99,7 @@
   "questions": [
     {
       "id": "phase1-topic5-q1",
-      "prompt": "Explain the Linux file permission system. What do the read, write, and execute permissions mean for files vs directories?",
+      "prompt": "Walk me through the Linux file permission system and how read, write, and execute differ for files versus directories.",
       "expected_concepts": [
         "read",
         "write",
@@ -117,7 +117,7 @@
     },
     {
       "id": "phase1-topic5-q2",
-      "prompt": "What are pipes and redirects in Linux? Give an example of when you'd use each.",
+      "prompt": "How would you explain pipes and redirects in Linux to someone learning the command line? Give an example of each.",
       "expected_concepts": [
         "pipe",
         "|",

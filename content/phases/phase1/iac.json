@@ -58,7 +58,7 @@
   "questions": [
     {
       "id": "phase1-topic3-q1",
-      "prompt": "What is Infrastructure as Code (IaC) and why is it better than manually configuring resources?",
+      "prompt": "How would you explain Infrastructure as Code to a manager, and what problems does it solve over manual configuration?",
       "expected_concepts": [
         "code",
         "automate",
@@ -74,7 +74,7 @@
     },
     {
       "id": "phase1-topic3-q2",
-      "prompt": "What do the terraform init and terraform apply commands do?",
+      "prompt": "Walk me through what terraform init and terraform apply do when you run them.",
       "expected_concepts": [
         "init",
         "initialize",

@@ -154,7 +154,7 @@ class QuestionSubmitRequest(BaseModel):
 
     topic_id: str = Field(max_length=100)
     question_id: str = Field(max_length=100)
-    user_answer: str = Field(min_length=10, max_length=2000)
+    user_answer: str = Field(min_length=10, max_length=512)
 
     @field_validator("topic_id")
     @classmethod

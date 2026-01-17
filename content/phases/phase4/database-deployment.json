@@ -69,7 +69,7 @@
   "questions": [
     {
       "id": "phase4-topic5-q1",
-      "prompt": "What is pg_hba.conf and how does it control PostgreSQL authentication?",
+      "prompt": "Walk me through what pg_hba.conf does and how it controls PostgreSQL authentication.",
       "expected_concepts": [
         "pg_hba.conf",
         "host-based authentication",
@@ -85,7 +85,7 @@
     },
     {
       "id": "phase4-topic5-q2",
-      "prompt": "Why should a database server be deployed in a private subnet instead of a public subnet?",
+      "prompt": "Why would you deploy a database server in a private subnet rather than a public one? Walk me through your reasoning.",
       "expected_concepts": [
         "private subnet",
         "no direct internet",

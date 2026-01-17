@@ -6,7 +6,7 @@
 /**
  * Maximum character limit for knowledge question answers
  */
-export const QUESTION_ANSWER_MAX_CHARS = 2000;
+export const QUESTION_ANSWER_MAX_CHARS = 512;
 
 /**
  * Minimum character limit for knowledge question answers

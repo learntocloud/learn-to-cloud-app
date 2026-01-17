@@ -42,7 +42,7 @@
   "questions": [
     {
       "id": "phase2-topic4-q1",
-      "prompt": "What are CRUD operations and how do they map to SQL commands?",
+      "prompt": "Walk me through CRUD operations and how they map to SQL commands.",
       "expected_concepts": [
         "create",
         "read",
@@ -59,7 +59,7 @@
     },
     {
       "id": "phase2-topic4-q2",
-      "prompt": "What is an ORM and why would you use one instead of writing raw SQL?",
+      "prompt": "How would you explain an ORM to a junior developer, and why would you use one instead of raw SQL?",
       "expected_concepts": [
         "ORM",
         "object-relational mapping",

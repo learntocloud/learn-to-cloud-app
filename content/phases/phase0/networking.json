@@ -35,7 +35,7 @@
   "questions": [
     {
       "id": "phase0-topic2-q1",
-      "prompt": "What is an IP address and what is the difference between public and private IP addresses?",
+      "prompt": "How would you explain IP addresses to someone new to networking, including the difference between public and private IPs?",
       "expected_concepts": [
         "unique identifier",
         "device",
@@ -51,7 +51,7 @@
     },
     {
       "id": "phase0-topic2-q2",
-      "prompt": "What is DNS and how does it work at a high level?",
+      "prompt": "Walk me through how DNS works when a user types a website URL into their browser.",
       "expected_concepts": [
         "domain name system",
         "translates",

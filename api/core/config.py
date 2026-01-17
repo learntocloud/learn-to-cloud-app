@@ -58,6 +58,7 @@ class Settings(BaseSettings):
     db_pool_timeout: int = 30
     db_pool_recycle: int = 300
     db_statement_timeout_ms: int = 10000  # 10 seconds - prevents pool starvation
+    db_echo: bool = False  # Set True to log all SQL queries (very verbose)
 
     environment: str = "development"
 

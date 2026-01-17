@@ -47,7 +47,7 @@
   "questions": [
     {
       "id": "phase3-topic4-q1",
-      "prompt": "What improvements did you make to your Journal API prompts, and why?",
+      "prompt": "Walk me through the improvements you made to your Journal API prompts and the reasoning behind each change.",
       "expected_concepts": [
         "delimiters",
         "structured output",
@@ -63,7 +63,7 @@
     },
     {
       "id": "phase3-topic4-q2",
-      "prompt": "How did your approach to using AI tools change between Phase 2 and Phase 3?",
+      "prompt": "How did your approach to using AI tools evolve between Phase 2 and Phase 3?",
       "expected_concepts": [
         "understanding",
         "explain",

@@ -82,7 +82,7 @@
   "questions": [
     {
       "id": "phase4-topic9-q1",
-      "prompt": "Describe the 2-tier architecture you deployed and explain why the database should be in a private subnet.",
+      "prompt": "Walk me through the 2-tier architecture you deployed and explain why the database belongs in a private subnet.",
       "expected_concepts": [
         "public subnet",
         "private subnet",
@@ -97,7 +97,7 @@
     },
     {
       "id": "phase4-topic9-q2",
-      "prompt": "How did you configure the security groups to allow the API server to communicate with the database while keeping the database secure?",
+      "prompt": "How did you configure security groups to allow API-to-database communication while keeping the database secure?",
       "expected_concepts": [
         "security group",
         "inbound rules",

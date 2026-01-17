@@ -141,7 +141,7 @@
   "questions": [
     {
       "id": "phase5-topic3-q1",
-      "prompt": "What is the Terraform state file and why is it important?",
+      "prompt": "Walk me through what the Terraform state file is and why it's critical for infrastructure management.",
       "expected_concepts": [
         "state file",
         "tfstate",
@@ -156,7 +156,7 @@
     },
     {
       "id": "phase5-topic3-q2",
-      "prompt": "Explain the difference between terraform plan and terraform apply.",
+      "prompt": "How would you explain the difference between terraform plan and terraform apply to a new team member?",
       "expected_concepts": [
         "plan",
         "preview",

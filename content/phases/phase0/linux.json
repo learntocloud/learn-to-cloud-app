@@ -35,7 +35,7 @@
   "questions": [
     {
       "id": "phase0-topic1-q1",
-      "prompt": "What is Linux and why is it the dominant operating system for cloud servers?",
+      "prompt": "Walk me through what Linux is and why it dominates cloud server environments.",
       "expected_concepts": [
         "open source",
         "free",
@@ -51,7 +51,7 @@
     },
     {
       "id": "phase0-topic1-q2",
-      "prompt": "What is a Linux distribution and can you name a few commonly used in cloud environments?",
+      "prompt": "How would you explain a Linux distribution to a colleague, and which ones are commonly used in cloud environments?",
       "expected_concepts": [
         "distribution",
         "distro",

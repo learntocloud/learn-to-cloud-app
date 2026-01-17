@@ -19,7 +19,7 @@
   "questions": [
     {
       "id": "phase2-topic3-q1",
-      "prompt": "What is FastAPI and what makes it different from other Python web frameworks?",
+      "prompt": "What makes FastAPI different from other Python web frameworks, and why would you choose it?",
       "expected_concepts": [
         "fast",
         "modern",
@@ -35,7 +35,7 @@
     },
     {
       "id": "phase2-topic3-q2",
-      "prompt": "How do path parameters and query parameters work in FastAPI?",
+      "prompt": "Walk me through how path parameters and query parameters work in FastAPI and when you'd use each.",
       "expected_concepts": [
         "path parameter",
         "URL",

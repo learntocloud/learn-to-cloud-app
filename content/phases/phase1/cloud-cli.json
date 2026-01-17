@@ -54,7 +54,7 @@
   "questions": [
     {
       "id": "phase1-topic2-q1",
-      "prompt": "Why do cloud engineers prefer using the command line interface (CLI) over the web console?",
+      "prompt": "Why would you use the cloud CLI instead of the web console, and when does CLI become essential?",
       "expected_concepts": [
         "automation",
         "scripting",
@@ -69,7 +69,7 @@
     },
     {
       "id": "phase1-topic2-q2",
-      "prompt": "How do you authenticate with your cloud provider using the CLI?",
+      "prompt": "Walk me through how authentication works with cloud CLIs and the different methods available.",
       "expected_concepts": [
         "login",
         "configure",

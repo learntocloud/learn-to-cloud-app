@@ -22,8 +22,8 @@ describe('TestQuestionAnswerLimits', () => {
     expect(QUESTION_ANSWER_MIN_CHARS).toBe(10);
   });
 
-  it('should have maximum character limit of 2000', () => {
-    expect(QUESTION_ANSWER_MAX_CHARS).toBe(2000);
+  it('should have maximum character limit of 512', () => {
+    expect(QUESTION_ANSWER_MAX_CHARS).toBe(512);
   });
 });
 

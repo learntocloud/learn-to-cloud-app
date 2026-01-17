@@ -46,7 +46,7 @@
   "questions": [
     {
       "id": "phase1-topic4-q1",
-      "prompt": "What is SSH and what is it primarily used for in cloud computing?",
+      "prompt": "How would you explain SSH to a teammate, and why is it fundamental for cloud computing?",
       "expected_concepts": [
         "secure shell",
         "encrypted",
@@ -59,7 +59,7 @@
     },
     {
       "id": "phase1-topic4-q2",
-      "prompt": "Why are SSH keys more secure than passwords for authentication?",
+      "prompt": "Walk me through why SSH keys are more secure than passwords for server authentication.",
       "expected_concepts": [
         "asymmetric",
         "public key",
