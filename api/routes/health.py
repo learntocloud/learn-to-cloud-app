@@ -27,7 +27,7 @@ async def ready(request: Request) -> HealthResponse:
     if init_error:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Initialization failed",
+            detail=f"Initialization failed: {init_error}",
         )
 
     init_done = bool(getattr(request.app.state, "init_done", False))
