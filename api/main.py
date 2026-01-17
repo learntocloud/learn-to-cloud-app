@@ -106,9 +106,11 @@ async def lifespan(app: FastAPI):
             task.result()
             app.state.init_done = True
             app.state.init_error = None
+            logger.info("Background initialization completed successfully")
         except Exception as e:
             app.state.init_done = False
             app.state.init_error = str(e)
+            logger.error(f"Background initialization failed: {e}", exc_info=True)
 
     init_task.add_done_callback(_record_init_result)
 
