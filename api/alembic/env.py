@@ -50,18 +50,24 @@ def run_migrations_offline() -> None:
 
 
 def _run_migrations(connection: Connection) -> None:
+    import logging
+
+    logger = logging.getLogger("alembic")
     dialect_name = getattr(connection.dialect, "name", "")
 
     # For PostgreSQL with multiple workers, we need to serialize migrations.
     # We use a session-level advisory lock that blocks until acquired.
     advisory_lock_key = 743028475
+    lock_acquired = False
     if dialect_name == "postgresql":
         # Acquire session-level advisory lock (blocks until acquired)
         result = connection.execute(
             text("SELECT pg_advisory_lock(:key)"), {"key": advisory_lock_key}
         )
         result.close()
+        lock_acquired = True
 
+    migration_error = None
     try:
         context.configure(
             connection=connection,
@@ -73,25 +79,38 @@ def _run_migrations(connection: Connection) -> None:
         with context.begin_transaction():
             context.run_migrations()
     except Exception as e:
+        migration_error = e
         # Check if this is a "table already exists" error - another worker may have
         # already run migrations even though we had the lock (race at startup)
         error_str = str(e).lower()
         if "already exists" in error_str or "duplicate" in error_str:
             # Migrations were already applied by another process, this is OK
-            import logging
+            logger.info("Migrations already applied by another process, continuing...")
+            migration_error = None  # Don't re-raise this error
+        # Note: Any other error will be re-raised after unlock attempt
 
-            logging.getLogger("alembic").info(
-                "Migrations already applied by another process, continuing..."
-            )
-        else:
-            raise
-    finally:
-        # Release the advisory lock for PostgreSQL
-        if dialect_name == "postgresql":
+    # Release the advisory lock for PostgreSQL
+    # Use a separate try/except to ensure we attempt unlock even after errors
+    if lock_acquired:
+        try:
+            # Rollback any failed transaction first to allow unlock to work
+            try:
+                connection.rollback()
+            except Exception:
+                pass  # Ignore rollback errors
+
             result = connection.execute(
                 text("SELECT pg_advisory_unlock(:key)"), {"key": advisory_lock_key}
             )
             result.close()
+        except Exception as unlock_error:
+            # Log but don't raise unlock errors - the lock will be released when
+            # the session ends anyway
+            logger.warning(f"Failed to release advisory lock: {unlock_error}")
+
+    # Re-raise the migration error if it wasn't a "table already exists" error
+    if migration_error is not None:
+        raise migration_error
 
 
 async def run_migrations_online() -> None:
