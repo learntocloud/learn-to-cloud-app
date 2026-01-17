@@ -181,3 +181,136 @@ async def test_user_full_completion(db_session: AsyncSession, test_user: User) -
 
     await db_session.commit()
     return test_user
+
+
+# =============================================================================
+# HTTP CLIENT FIXTURE
+# =============================================================================
+
+
+@pytest.fixture
+def client(db_session: AsyncSession, test_user: User):
+    """Create a FastAPI TestClient with mocked authentication.
+
+    This fixture provides a TestClient that automatically authenticates
+    requests as the test_user. It overrides the require_auth dependency
+    to bypass real authentication.
+    """
+    from fastapi.testclient import TestClient
+
+    from core.auth import require_auth
+    from main import app
+
+    # Override auth to return test user ID
+    def override_require_auth():
+        return test_user.id
+
+    app.dependency_overrides[require_auth] = override_require_auth
+
+    with TestClient(app) as test_client:
+        yield test_client
+
+    # Clean up overrides
+    app.dependency_overrides.clear()
+
+
+# =============================================================================
+# MOCK EXTERNAL SERVICE FIXTURES
+# =============================================================================
+
+
+@pytest.fixture
+def mock_openai_api():
+    """Mock OpenAI API responses for LLM question evaluation."""
+    from unittest.mock import AsyncMock
+
+    mock = AsyncMock()
+
+    # Default: return passing evaluation
+    mock.create_completion.return_value = {
+        "choices": [
+            {
+                "message": {
+                    "content": (
+                        '{"is_passed": true, '
+                        '"feedback": "Great answer! You demonstrated '
+                        'understanding of key concepts."}'
+                    )
+                }
+            }
+        ]
+    }
+
+    return mock
+
+
+# =============================================================================
+# PERFORMANCE TESTING FIXTURES
+# =============================================================================
+
+
+@pytest.fixture
+def benchmark_threshold():
+    """Standard performance thresholds for benchmarking."""
+    return {
+        "fast": 0.05,  # 50ms
+        "medium": 0.2,  # 200ms
+        "slow": 1.0,  # 1 second
+    }
+
+
+@pytest_asyncio.fixture
+async def large_dataset_user(db_session: AsyncSession) -> User:
+    """User with large amount of progress data for performance testing."""
+    user = User(
+        id="large_data_user",
+        email="largedata@test.com",
+        first_name="Large",
+        last_name="Data",
+        github_username="largedata",
+    )
+    db_session.add(user)
+    await db_session.commit()
+
+    # Add 1000 step completions
+    for i in range(1000):
+        step = StepProgress(
+            user_id=user.id,
+            topic_id=f"phase{i % 7}-topic{i % 10}",
+            step_order=(i % 10) + 1,
+        )
+        db_session.add(step)
+
+    # Add 500 question attempts
+    for i in range(500):
+        attempt = QuestionAttempt(
+            user_id=user.id,
+            topic_id=f"phase{i % 7}-topic{i % 10}",
+            question_id=f"phase{i % 7}-topic{i % 10}-q{i % 5}",
+            user_answer=f"Answer {i}",
+            is_passed=i % 2 == 0,  # 50% pass rate
+            llm_feedback="Feedback",
+        )
+        db_session.add(attempt)
+
+    await db_session.commit()
+    return user
+
+
+# =============================================================================
+# CUSTOM PYTEST MARKERS
+# =============================================================================
+
+
+def pytest_configure(config):
+    """Register custom markers."""
+    config.addinivalue_line(
+        "markers", "integration: marks tests as integration tests (slow)"
+    )
+    config.addinivalue_line(
+        "markers", "performance: marks tests as performance benchmarks"
+    )
+    config.addinivalue_line("markers", "security: marks tests as security tests")
+    config.addinivalue_line(
+        "markers", "external: marks tests that require external services"
+    )
