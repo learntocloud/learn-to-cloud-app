@@ -322,14 +322,17 @@ jobs:
           echo "=== index.html content ==="
           head -30 frontend/dist/index.html
 
+      - name: Copy staticwebapp.config.json to dist
+        run: cp frontend/staticwebapp.config.json frontend/dist/
+
       - name: Deploy to Azure Static Web Apps
         uses: Azure/static-web-apps-deploy@v1
         with:
           azure_static_web_apps_api_token: ${{ secrets.SWA_DEPLOYMENT_TOKEN }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           action: "upload"
-          app_location: "frontend"
-          output_location: "dist"
+          app_location: "frontend/dist"
+          output_location: ""
           skip_app_build: true  # We already built above
           skip_api_build: true  # API is a separate Container App
 
