@@ -81,6 +81,7 @@ jobs:
       - name: Run database migrations
         env:
           DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/learn_to_cloud
+          PYTHONPATH: ${{ github.workspace }}/api
         run: |
           cd api
           alembic upgrade head
@@ -92,6 +93,7 @@ jobs:
           CLERK_SECRET_KEY: test_secret
           GITHUB_TOKEN: test_token
           GOOGLE_API_KEY: test_key
+          PYTHONPATH: ${{ github.workspace }}/api
         run: |
           cd api
           pytest --cov=. --cov-report=xml --cov-report=html --cov-report=term-missing --junitxml=junit/test-results.xml -v
