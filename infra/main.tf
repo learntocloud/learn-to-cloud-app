@@ -378,6 +378,12 @@ resource "azapi_resource" "swa_backend_link" {
 #   - CNAME: app → <swa_default_host_name>
 #   - TXT: Validation handled automatically by SWA
 
+# Import existing custom domain that was created outside Terraform
+import {
+  to = azurerm_static_web_app_custom_domain.frontend[0]
+  id = "/subscriptions/${var.subscription_id}/resourceGroups/${local.resource_group_name}/providers/Microsoft.Web/staticSites/swa-ltc-frontend-${var.environment}/customDomains/app.learntocloud.guide"
+}
+
 resource "azurerm_static_web_app_custom_domain" "frontend" {
   count             = var.frontend_custom_domain != "" ? 1 : 0
   static_web_app_id = azurerm_static_web_app.frontend.id
@@ -653,20 +659,14 @@ resource "azurerm_monitor_metric_alert" "db_high_cpu" {
 # -----------------------------------------------------------------------------
 # Monitoring - Smart Detection (AI-powered anomaly detection)
 # -----------------------------------------------------------------------------
-resource "azurerm_monitor_smart_detector_alert_rule" "failure_anomalies" {
-  name                = "alert-ltc-failure-anomalies-${var.environment}"
-  resource_group_name = azurerm_resource_group.main.name
-  description         = "AI-powered detection of unusual failure patterns"
-  severity            = "Sev1"
-  frequency           = "PT1M"
-  detector_type       = "FailureAnomaliesDetector"
-  scope_resource_ids  = [azurerm_application_insights.main.id]
-  tags                = local.tags
-
-  action_group {
-    ids = [azurerm_monitor_action_group.critical.id]
-  }
-}
+# NOTE: Azure automatically creates a default FailureAnomaliesDetector for
+# Application Insights. We use a data source to reference it and update its
+# action group via Azure CLI in CI/CD instead of creating a new one.
+# To link the existing detector to our action group, run:
+#   az monitor smart-detector alert-rule update \
+#     --name "Failure Anomalies - appi-ltc-dev-8v4tyz" \
+#     --resource-group rg-ltc-dev \
+#     --action-groups $(terraform output -raw action_group_id)
 
 # -----------------------------------------------------------------------------
 # Monitoring - Dashboard
