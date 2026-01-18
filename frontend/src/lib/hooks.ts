@@ -23,9 +23,11 @@ export function useDashboard() {
 
 export function useUserInfo() {
   const api = useApi();
+  const { isSignedIn } = useAuth();
   return useQuery({
     queryKey: ['userInfo'],
     queryFn: () => api.getUserInfo(),
+    enabled: !!isSignedIn,
   });
 }
 

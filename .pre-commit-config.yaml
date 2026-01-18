@@ -20,7 +20,7 @@ repos:
     rev: v0.8.6
     hooks:
       - id: ruff
-        args: [--fix]
+        args: [--fix, --exit-non-zero-on-fix]
         files: ^api/
       - id: ruff-format
         files: ^api/
