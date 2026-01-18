@@ -1,0 +1,26 @@
+{
+  "phase6-topic3-q1": [
+    "segmentation",
+    "public subnet",
+    "internet facing",
+    "private subnet",
+    "no direct access",
+    "isolated",
+    "no internet",
+    "separation",
+    "security",
+    "blast radius"
+  ],
+  "phase6-topic3-q2": [
+    "security group",
+    "stateful",
+    "instance",
+    "return traffic",
+    "network ACL",
+    "stateless",
+    "subnet",
+    "explicit rules",
+    "allow",
+    "deny"
+  ]
+}

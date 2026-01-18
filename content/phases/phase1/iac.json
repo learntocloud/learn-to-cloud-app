@@ -58,36 +58,11 @@
   "questions": [
     {
       "id": "phase1-topic3-q1",
-      "prompt": "How would you explain Infrastructure as Code to a manager, and what problems does it solve over manual configuration?",
-      "expected_concepts": [
-        "code",
-        "automate",
-        "repeatable",
-        "consistent",
-        "version control",
-        "declarative",
-        "reproducible",
-        "documentation",
-        "scalable",
-        "auditable"
-      ]
+      "prompt": "How would you explain Infrastructure as Code to a manager, and what problems does it solve over manual configuration?"
     },
     {
       "id": "phase1-topic3-q2",
-      "prompt": "Walk me through what terraform init and terraform apply do when you run them.",
-      "expected_concepts": [
-        "init",
-        "initialize",
-        "providers",
-        "plugins",
-        "backend",
-        "apply",
-        "create",
-        "provision",
-        "resources",
-        "state",
-        "configuration"
-      ]
+      "prompt": "Walk me through what terraform init and terraform apply do when you run them."
     }
   ],
   "test_knowledge_prompts": [

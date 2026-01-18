@@ -46,29 +46,11 @@
   "questions": [
     {
       "id": "phase1-topic4-q1",
-      "prompt": "How would you explain SSH to a teammate, and why is it fundamental for cloud computing?",
-      "expected_concepts": [
-        "secure shell",
-        "encrypted",
-        "remote access",
-        "server",
-        "command line",
-        "terminal",
-        "secure connection"
-      ]
+      "prompt": "How would you explain SSH to a teammate, and why is it fundamental for cloud computing?"
     },
     {
       "id": "phase1-topic4-q2",
-      "prompt": "Walk me through why SSH keys are more secure than passwords for server authentication.",
-      "expected_concepts": [
-        "asymmetric",
-        "public key",
-        "private key",
-        "cannot be guessed",
-        "brute force",
-        "cryptographic",
-        "no password transmission"
-      ]
+      "prompt": "Walk me through why SSH keys are more secure than passwords for server authentication."
     }
   ],
   "learning_objectives": [

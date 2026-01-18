@@ -62,7 +62,7 @@
       "order": 7,
       "text": "Learn command line basics",
       "action": "Learn command line basics:",
-      "title": "Command Line for Beginners \u2013 How to Use the Terminal Like a Pro",
+      "title": "Command Line for Beginners – How to Use the Terminal Like a Pro",
       "url": "https://www.freecodecamp.org/news/command-line-for-beginners/#heading-most-common-and-useful-commands-to-use"
     },
     {
@@ -100,7 +100,7 @@
       "text": "Practice Git workflow",
       "action": "Practice Git workflow",
       "url": null,
-      "description": "Clone your README repo to your local machine. Use VS Code to edit it and push changes back to GitHub from the terminal. Don't feel like you have to make a very fancy README\u2014write a brief description on who you are and add links to your socials.",
+      "description": "Clone your README repo to your local machine. Use VS Code to edit it and push changes back to GitHub from the terminal. Don't feel like you have to make a very fancy README—write a brief description on who you are and add links to your socials.",
       "secondary_links": [
         {
           "text": "Great guide on using markdown with VS Code",
@@ -112,35 +112,11 @@
   "questions": [
     {
       "id": "phase1-topic1-q1",
-      "prompt": "How would you explain version control to a junior developer who's never used it, and why is it essential?",
-      "expected_concepts": [
-        "track changes",
-        "history",
-        "collaboration",
-        "rollback",
-        "branches",
-        "repository",
-        "commits",
-        "backup",
-        "team",
-        "code"
-      ]
+      "prompt": "How would you explain version control to a junior developer who's never used it, and why is it essential?"
     },
     {
       "id": "phase1-topic1-q2",
-      "prompt": "Walk me through the basic Git workflow: what happens from staging to pushing changes?",
-      "expected_concepts": [
-        "git add",
-        "staging area",
-        "git commit",
-        "local repository",
-        "git push",
-        "remote",
-        "message",
-        "snapshot",
-        "changes",
-        "history"
-      ]
+      "prompt": "Walk me through the basic Git workflow: what happens from staging to pushing changes?"
     }
   ],
   "test_knowledge_prompts": [

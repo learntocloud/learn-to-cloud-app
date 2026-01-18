@@ -115,32 +115,11 @@
   "questions": [
     {
       "id": "phase2-topic1-q1",
-      "prompt": "How would you explain the difference between a list and a dictionary to a junior developer, and when would you choose each?",
-      "expected_concepts": [
-        "list",
-        "dictionary",
-        "ordered",
-        "key",
-        "value",
-        "index",
-        "lookup",
-        "sequence",
-        "pair"
-      ]
+      "prompt": "How would you explain the difference between a list and a dictionary to a junior developer, and when would you choose each?"
     },
     {
       "id": "phase2-topic1-q2",
-      "prompt": "Walk me through exception handling in Python and why try/except is important for production code.",
-      "expected_concepts": [
-        "try",
-        "except",
-        "error",
-        "exception",
-        "handle",
-        "crash",
-        "graceful",
-        "robust"
-      ]
+      "prompt": "Walk me through exception handling in Python and why try/except is important for production code."
     }
   ],
   "test_knowledge_prompts": [

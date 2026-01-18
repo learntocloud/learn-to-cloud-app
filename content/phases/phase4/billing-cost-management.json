@@ -107,33 +107,11 @@
   "questions": [
     {
       "id": "phase4-topic7-q1",
-      "prompt": "Walk me through how cloud billing works and the main factors that drive monthly costs.",
-      "expected_concepts": [
-        "pay-as-you-go",
-        "consumption",
-        "compute hours",
-        "storage",
-        "data transfer",
-        "region",
-        "instance type",
-        "resources",
-        "usage"
-      ]
+      "prompt": "Walk me through how cloud billing works and the main factors that drive monthly costs."
     },
     {
       "id": "phase4-topic7-q2",
-      "prompt": "What strategies would you use to reduce cloud costs without sacrificing application performance?",
-      "expected_concepts": [
-        "right-sizing",
-        "reserved instances",
-        "spot instances",
-        "auto-scaling",
-        "stop unused",
-        "delete orphaned",
-        "schedule",
-        "optimize",
-        "monitoring"
-      ]
+      "prompt": "What strategies would you use to reduce cloud costs without sacrificing application performance?"
     }
   ],
   "test_knowledge_prompts": [

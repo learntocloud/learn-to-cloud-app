@@ -19,12 +19,27 @@ from dataclasses import dataclass
 
 from circuitbreaker import circuit
 from google import genai
+from google.genai import errors as genai_errors
 from google.genai import types
+from tenacity import (
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential_jitter,
+)
 
 from core.config import get_settings
 from core.telemetry import track_dependency
 
 logger = logging.getLogger(__name__)
+
+# Exceptions that indicate Gemini API issues (retriable)
+RETRIABLE_GEMINI_EXCEPTIONS: tuple[type[Exception], ...] = (
+    genai_errors.ServerError,
+    genai_errors.APIError,
+    TimeoutError,
+    asyncio.TimeoutError,
+)
 
 _client: genai.Client | None = None
 
@@ -119,8 +134,14 @@ class GradeResult:
 @circuit(
     failure_threshold=5,
     recovery_timeout=60,
-    expected_exception=Exception,
+    expected_exception=RETRIABLE_GEMINI_EXCEPTIONS,
     name="gemini_circuit",
+)
+@retry(
+    retry=retry_if_exception_type(RETRIABLE_GEMINI_EXCEPTIONS),
+    stop=stop_after_attempt(3),
+    wait=wait_exponential_jitter(initial=0.5, max=4),
+    reraise=True,
 )
 async def grade_answer(
     question_prompt: str,
@@ -141,8 +162,9 @@ async def grade_answer(
 
     Raises:
         GeminiServiceUnavailable: When circuit breaker is open (too many failures)
-        asyncio.TimeoutError: When API call exceeds 30 seconds
+        asyncio.TimeoutError: When API call exceeds 30 seconds (after retries)
 
+    RETRY: 3 attempts with exponential backoff + jitter for transient failures.
     CIRCUIT BREAKER: Opens after 5 consecutive failures, recovers after 60 seconds.
     """
     settings = get_settings()

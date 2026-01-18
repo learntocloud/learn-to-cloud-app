@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Seed grading_concepts table from content JSON files.
+"""Seed grading_concepts table from grading JSON files.
 
-This script extracts expected_concepts from all topic JSON files
-and populates the grading_concepts table. Run this after the migration.
+This script loads expected_concepts from *.grading.json files
+and populates the grading_concepts table. Grading files use a minimal
+format: {"question_id": ["concept1", "concept2", ...]}.
 
 Usage:
     python -m scripts.seed_grading_concepts
@@ -27,30 +28,25 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Content directory
-CONTENT_DIR = Path(__file__).parent.parent.parent / "content" / "phases"
+# Grading directory (separate from public content)
+GRADING_DIR = Path(__file__).parent.parent.parent / "content" / "grading"
 
 
 def extract_grading_concepts() -> list[dict]:
-    """Extract all question_id -> expected_concepts mappings from content."""
+    """Load all question_id -> expected_concepts mappings from grading files."""
     concepts = []
 
-    for phase_dir in sorted(CONTENT_DIR.iterdir()):
+    for phase_dir in sorted(GRADING_DIR.iterdir()):
         if not phase_dir.is_dir() or phase_dir.name.startswith("."):
             continue
 
-        for topic_file in sorted(phase_dir.glob("*.json")):
-            if topic_file.name == "index.json":
-                continue
-
+        for grading_file in sorted(phase_dir.glob("*.grading.json")):
             try:
-                with open(topic_file, encoding="utf-8") as f:
+                with open(grading_file, encoding="utf-8") as f:
                     data = json.load(f)
 
-                for question in data.get("questions", []):
-                    question_id = question.get("id")
-                    expected = question.get("expected_concepts", [])
-
+                # Grading files have format: {"question_id": ["concept1", "concept2", ...]}
+                for question_id, expected in data.items():
                     if question_id and expected:
                         concepts.append(
                             {
@@ -59,10 +55,10 @@ def extract_grading_concepts() -> list[dict]:
                             }
                         )
                         count = len(expected)
-                        logger.info(f"Extracted: {question_id} ({count} concepts)")
+                        logger.info(f"Loaded: {question_id} ({count} concepts)")
 
             except (json.JSONDecodeError, KeyError) as e:
-                logger.error(f"Error reading {topic_file}: {e}")
+                logger.error(f"Error reading {grading_file}: {e}")
                 continue
 
     return concepts
@@ -118,7 +114,7 @@ async def seed_database(concepts: list[dict]) -> None:
 
 def main() -> None:
     """Main entry point."""
-    logger.info(f"Extracting grading concepts from {CONTENT_DIR}")
+    logger.info(f"Loading grading concepts from {GRADING_DIR}")
     concepts = extract_grading_concepts()
     logger.info(f"Found {len(concepts)} questions with expected_concepts")
 

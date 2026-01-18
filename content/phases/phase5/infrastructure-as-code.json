@@ -82,7 +82,7 @@
       "text": "Basic IaC Project",
       "action": "Hands-on: Basic IaC Project",
       "url": null,
-      "description": "1. Write a Terraform configuration file to:\n   \u2022 Create a virtual machine in your preferred cloud platform\n   \u2022 Configure a security group to allow SSH access\n   \u2022 (Or deploy a static site)\n2. Run `terraform init` to set up the working directory\n3. Run `terraform plan` to preview changes\n4. Run `terraform apply` to create the resources\n5. Verify the resources in your cloud platform\n6. Run `terraform destroy` to clean up"
+      "description": "1. Write a Terraform configuration file to:\n   • Create a virtual machine in your preferred cloud platform\n   • Configure a security group to allow SSH access\n   • (Or deploy a static site)\n2. Run `terraform init` to set up the working directory\n3. Run `terraform plan` to preview changes\n4. Run `terraform apply` to create the resources\n5. Verify the resources in your cloud platform\n6. Run `terraform destroy` to clean up"
     },
     {
       "order": 7,
@@ -118,7 +118,7 @@
       "text": "Advanced Challenge with Copilot",
       "action": "Advanced Challenge (Optional):",
       "url": null,
-      "description": "Use GitHub Copilot to design a modular Terraform configuration for a multi-tier application:\n\n1. Organize infrastructure into reusable modules:\n   \u2022 VPC \u2014 public and private subnets, routing\n   \u2022 Web server tier \u2014 compute, load balancing\n   \u2022 Database tier \u2014 managed database, backup configuration\n   \u2022 Security \u2014 security groups, IAM roles, encryption\n2. Use variables to parameterize your configuration\n3. Create module outputs for cross-module communication\n4. Implement backend state management\n5. Deploy and verify your resources"
+      "description": "Use GitHub Copilot to design a modular Terraform configuration for a multi-tier application:\n\n1. Organize infrastructure into reusable modules:\n   • VPC — public and private subnets, routing\n   • Web server tier — compute, load balancing\n   • Database tier — managed database, backup configuration\n   • Security — security groups, IAM roles, encryption\n2. Use variables to parameterize your configuration\n3. Create module outputs for cross-module communication\n4. Implement backend state management\n5. Deploy and verify your resources"
     },
     {
       "order": 10,
@@ -141,34 +141,11 @@
   "questions": [
     {
       "id": "phase5-topic3-q1",
-      "prompt": "Walk me through what the Terraform state file is and why it's critical for infrastructure management.",
-      "expected_concepts": [
-        "state file",
-        "tfstate",
-        "tracks resources",
-        "current state",
-        "desired state",
-        "remote backend",
-        "locking",
-        "source of truth",
-        "drift detection"
-      ]
+      "prompt": "Walk me through what the Terraform state file is and why it's critical for infrastructure management."
     },
     {
       "id": "phase5-topic3-q2",
-      "prompt": "How would you explain the difference between terraform plan and terraform apply to a new team member?",
-      "expected_concepts": [
-        "plan",
-        "preview",
-        "dry run",
-        "show changes",
-        "apply",
-        "execute",
-        "create resources",
-        "modify",
-        "destroy",
-        "confirmation"
-      ]
+      "prompt": "How would you explain the difference between terraform plan and terraform apply to a new team member?"
     }
   ],
   "test_knowledge_prompts": [

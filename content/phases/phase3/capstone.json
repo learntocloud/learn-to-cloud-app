@@ -47,34 +47,11 @@
   "questions": [
     {
       "id": "phase3-topic4-q1",
-      "prompt": "Walk me through the improvements you made to your Journal API prompts and the reasoning behind each change.",
-      "expected_concepts": [
-        "delimiters",
-        "structured output",
-        "few-shot",
-        "edge cases",
-        "testing",
-        "security",
-        "clear",
-        "specific",
-        "JSON",
-        "format"
-      ]
+      "prompt": "Walk me through the improvements you made to your Journal API prompts and the reasoning behind each change."
     },
     {
       "id": "phase3-topic4-q2",
-      "prompt": "How did your approach to using AI tools evolve between Phase 2 and Phase 3?",
-      "expected_concepts": [
-        "understanding",
-        "explain",
-        "accept",
-        "reject",
-        "review",
-        "learning",
-        "thinking",
-        "discipline",
-        "ownership"
-      ]
+      "prompt": "How did your approach to using AI tools evolve between Phase 2 and Phase 3?"
     }
   ],
   "test_knowledge_prompts": [

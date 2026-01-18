@@ -1,0 +1,25 @@
+{
+  "phase1-topic2-q1": [
+    "automation",
+    "scripting",
+    "faster",
+    "repeatable",
+    "infrastructure as code",
+    "batch operations",
+    "version control",
+    "consistency",
+    "efficiency"
+  ],
+  "phase1-topic2-q2": [
+    "login",
+    "configure",
+    "credentials",
+    "access key",
+    "secret key",
+    "token",
+    "service principal",
+    "profile",
+    "session",
+    "secure"
+  ]
+}

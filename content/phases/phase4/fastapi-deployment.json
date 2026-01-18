@@ -68,33 +68,11 @@
   "questions": [
     {
       "id": "phase4-topic6-q1",
-      "prompt": "How would you handle sensitive configuration like API keys and database credentials when deploying an application?",
-      "expected_concepts": [
-        "environment variables",
-        "never hardcode",
-        "secrets",
-        "os.getenv",
-        "configuration",
-        "secure",
-        "separate from code",
-        "rotation"
-      ]
+      "prompt": "How would you handle sensitive configuration like API keys and database credentials when deploying an application?"
     },
     {
       "id": "phase4-topic6-q2",
-      "prompt": "Walk me through the security group rules you'd configure for a public-facing API server.",
-      "expected_concepts": [
-        "inbound",
-        "HTTP",
-        "HTTPS",
-        "port 80",
-        "port 443",
-        "SSH restricted",
-        "your IP",
-        "outbound",
-        "database port",
-        "internal only"
-      ]
+      "prompt": "Walk me through the security group rules you'd configure for a public-facing API server."
     }
   ],
   "test_knowledge_prompts": [

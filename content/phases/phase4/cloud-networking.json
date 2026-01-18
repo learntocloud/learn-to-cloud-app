@@ -88,34 +88,11 @@
   "questions": [
     {
       "id": "phase4-topic3-q1",
-      "prompt": "How would you explain a VPC to someone new to cloud, and what role do subnets play within it?",
-      "expected_concepts": [
-        "VPC",
-        "isolated network",
-        "private",
-        "subnets",
-        "IP ranges",
-        "CIDR",
-        "public subnet",
-        "private subnet",
-        "segmentation",
-        "routing"
-      ]
+      "prompt": "How would you explain a VPC to someone new to cloud, and what role do subnets play within it?"
     },
     {
       "id": "phase4-topic3-q2",
-      "prompt": "Walk me through the purpose of a NAT Gateway and a scenario where you'd deploy one.",
-      "expected_concepts": [
-        "NAT",
-        "private subnet",
-        "internet access",
-        "outbound",
-        "no inbound",
-        "IP translation",
-        "software updates",
-        "secure",
-        "gateway"
-      ]
+      "prompt": "Walk me through the purpose of a NAT Gateway and a scenario where you'd deploy one."
     }
   ],
   "test_knowledge_prompts": [

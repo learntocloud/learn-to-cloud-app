@@ -9,9 +9,6 @@ venv/
 ENV/
 .python_packages/
 
-# uv
-uv.lock
-
 # Environment files
 .env
 .env.local
@@ -46,8 +43,12 @@ build/
 .pytest_cache/
 .hypothesis/
 .coverage
+coverage.xml
 htmlcov/
 coverage/
+
+# Alembic temp files
+.alembic_tmp.db
 
 # Logs
 *.log

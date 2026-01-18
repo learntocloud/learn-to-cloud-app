@@ -1,0 +1,24 @@
+{
+  "phase4-topic6-q1": [
+    "environment variables",
+    "never hardcode",
+    "secrets",
+    "os.getenv",
+    "configuration",
+    "secure",
+    "separate from code",
+    "rotation"
+  ],
+  "phase4-topic6-q2": [
+    "inbound",
+    "HTTP",
+    "HTTPS",
+    "port 80",
+    "port 443",
+    "SSH restricted",
+    "your IP",
+    "outbound",
+    "database port",
+    "internal only"
+  ]
+}

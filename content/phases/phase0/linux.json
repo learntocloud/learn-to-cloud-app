@@ -35,35 +35,11 @@
   "questions": [
     {
       "id": "phase0-topic1-q1",
-      "prompt": "Walk me through what Linux is and why it dominates cloud server environments.",
-      "expected_concepts": [
-        "open source",
-        "free",
-        "kernel",
-        "stable",
-        "secure",
-        "customizable",
-        "server",
-        "command line",
-        "no licensing fees",
-        "community"
-      ]
+      "prompt": "Walk me through what Linux is and why it dominates cloud server environments."
     },
     {
       "id": "phase0-topic1-q2",
-      "prompt": "How would you explain a Linux distribution to a colleague, and which ones are commonly used in cloud environments?",
-      "expected_concepts": [
-        "distribution",
-        "distro",
-        "Ubuntu",
-        "CentOS",
-        "Debian",
-        "Red Hat",
-        "Amazon Linux",
-        "kernel",
-        "package manager",
-        "different purposes"
-      ]
+      "prompt": "How would you explain a Linux distribution to a colleague, and which ones are commonly used in cloud environments?"
     }
   ],
   "test_knowledge_prompts": [

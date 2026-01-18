@@ -1,0 +1,26 @@
+{
+  "phase5-topic6-q1": [
+    "commit",
+    "trigger",
+    "build",
+    "test",
+    "Docker",
+    "push",
+    "registry",
+    "deploy",
+    "Kubernetes",
+    "CI/CD",
+    "automated"
+  ],
+  "phase5-topic6-q2": [
+    "Kubernetes Secret",
+    "base64",
+    "environment variables",
+    "mounted",
+    "not in code",
+    "encrypted",
+    "RBAC",
+    "access control",
+    "rotation"
+  ]
+}

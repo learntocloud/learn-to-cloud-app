@@ -1,0 +1,25 @@
+{
+  "phase6-topic4-q1": [
+    "authentication logs",
+    "API logs",
+    "network logs",
+    "audit logs",
+    "application logs",
+    "access logs",
+    "CloudTrail",
+    "CloudWatch",
+    "activity log"
+  ],
+  "phase6-topic4-q2": [
+    "SIEM",
+    "security information",
+    "event management",
+    "collect",
+    "correlate",
+    "analyze",
+    "alert",
+    "centralized",
+    "patterns",
+    "threats"
+  ]
+}

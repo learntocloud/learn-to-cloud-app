@@ -35,36 +35,11 @@
   "questions": [
     {
       "id": "phase2-topic2-q1",
-      "prompt": "How would you explain REST APIs to a product manager, including the key principles that make them work?",
-      "expected_concepts": [
-        "representational state transfer",
-        "stateless",
-        "HTTP",
-        "resources",
-        "endpoints",
-        "uniform interface",
-        "client-server",
-        "cacheable",
-        "standard methods"
-      ]
+      "prompt": "How would you explain REST APIs to a product manager, including the key principles that make them work?"
     },
     {
       "id": "phase2-topic2-q2",
-      "prompt": "Walk me through the HTTP methods GET, POST, PUT, and DELETE and when you'd use each one.",
-      "expected_concepts": [
-        "GET",
-        "retrieve",
-        "read",
-        "POST",
-        "create",
-        "PUT",
-        "update",
-        "replace",
-        "DELETE",
-        "remove",
-        "CRUD",
-        "idempotent"
-      ]
+      "prompt": "Walk me through the HTTP methods GET, POST, PUT, and DELETE and when you'd use each one."
     }
   ],
   "test_knowledge_prompts": [

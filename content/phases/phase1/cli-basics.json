@@ -99,37 +99,11 @@
   "questions": [
     {
       "id": "phase1-topic5-q1",
-      "prompt": "Walk me through the Linux file permission system and how read, write, and execute differ for files versus directories.",
-      "expected_concepts": [
-        "read",
-        "write",
-        "execute",
-        "chmod",
-        "owner",
-        "group",
-        "others",
-        "rwx",
-        "directory",
-        "file",
-        "list",
-        "enter"
-      ]
+      "prompt": "Walk me through the Linux file permission system and how read, write, and execute differ for files versus directories."
     },
     {
       "id": "phase1-topic5-q2",
-      "prompt": "How would you explain pipes and redirects in Linux to someone learning the command line? Give an example of each.",
-      "expected_concepts": [
-        "pipe",
-        "|",
-        "redirect",
-        ">",
-        ">>",
-        "output",
-        "input",
-        "command",
-        "chain",
-        "file"
-      ]
+      "prompt": "How would you explain pipes and redirects in Linux to someone learning the command line? Give an example of each."
     }
   ],
   "test_knowledge_prompts": [

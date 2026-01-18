@@ -1,0 +1,28 @@
+{
+  "phase1-topic5-q1": [
+    "read",
+    "write",
+    "execute",
+    "chmod",
+    "owner",
+    "group",
+    "others",
+    "rwx",
+    "directory",
+    "file",
+    "list",
+    "enter"
+  ],
+  "phase1-topic5-q2": [
+    "pipe",
+    "|",
+    "redirect",
+    ">",
+    ">>",
+    "output",
+    "input",
+    "command",
+    "chain",
+    "file"
+  ]
+}

@@ -121,35 +121,11 @@
   "questions": [
     {
       "id": "phase5-topic1-q1",
-      "prompt": "Walk me through the difference between a container and a virtual machine and when you'd choose each.",
-      "expected_concepts": [
-        "lightweight",
-        "shared kernel",
-        "isolated",
-        "hypervisor",
-        "faster startup",
-        "less resources",
-        "portability",
-        "operating system",
-        "overhead"
-      ]
+      "prompt": "Walk me through the difference between a container and a virtual machine and when you'd choose each."
     },
     {
       "id": "phase5-topic1-q2",
-      "prompt": "Walk me through a Dockerfile and explain the key instructions you'd use to containerize an application.",
-      "expected_concepts": [
-        "Dockerfile",
-        "FROM",
-        "base image",
-        "COPY",
-        "RUN",
-        "CMD",
-        "EXPOSE",
-        "WORKDIR",
-        "build",
-        "layers",
-        "instructions"
-      ]
+      "prompt": "Walk me through a Dockerfile and explain the key instructions you'd use to containerize an application."
     }
   ],
   "test_knowledge_prompts": [

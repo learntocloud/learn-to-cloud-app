@@ -69,33 +69,11 @@
   "questions": [
     {
       "id": "phase4-topic5-q1",
-      "prompt": "Walk me through what pg_hba.conf does and how it controls PostgreSQL authentication.",
-      "expected_concepts": [
-        "pg_hba.conf",
-        "host-based authentication",
-        "connection type",
-        "database",
-        "user",
-        "address",
-        "method",
-        "md5",
-        "peer",
-        "access control"
-      ]
+      "prompt": "Walk me through what pg_hba.conf does and how it controls PostgreSQL authentication."
     },
     {
       "id": "phase4-topic5-q2",
-      "prompt": "Why would you deploy a database server in a private subnet rather than a public one? Walk me through your reasoning.",
-      "expected_concepts": [
-        "private subnet",
-        "no direct internet",
-        "security",
-        "isolation",
-        "API server only",
-        "attack surface",
-        "least privilege",
-        "internal access"
-      ]
+      "prompt": "Why would you deploy a database server in a private subnet rather than a public one? Walk me through your reasoning."
     }
   ],
   "test_knowledge_prompts": [

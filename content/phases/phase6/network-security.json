@@ -71,35 +71,35 @@
       "text": "Virtual Private Clouds",
       "action": "Key Concept - Virtual Private Clouds (VPCs):",
       "url": null,
-      "description": "\u2022 Isolation: Your own private network in the cloud\n\u2022 Subnets: Divide your VPC into smaller network segments\n\u2022 Route Tables: Control where network traffic can go\n\u2022 Internet Gateways: Allow internet access where needed"
+      "description": "• Isolation: Your own private network in the cloud\n• Subnets: Divide your VPC into smaller network segments\n• Route Tables: Control where network traffic can go\n• Internet Gateways: Allow internet access where needed"
     },
     {
       "order": 5,
       "text": "Security Groups vs Network ACLs",
       "action": "Key Concept - Security Groups vs Network ACLs:",
       "url": null,
-      "description": "Security Groups (Stateful):\n\u2022 Act like firewalls for individual instances\n\u2022 Allow rules only (deny by default)\n\u2022 Stateful (return traffic automatically allowed)\n\u2022 Apply at the instance level\n\nNetwork ACLs (Stateless):\n\u2022 Act like firewalls for entire subnets\n\u2022 Allow and deny rules\n\u2022 Stateless (must explicitly allow return traffic)\n\u2022 Apply at the subnet level"
+      "description": "Security Groups (Stateful):\n• Act like firewalls for individual instances\n• Allow rules only (deny by default)\n• Stateful (return traffic automatically allowed)\n• Apply at the instance level\n\nNetwork ACLs (Stateless):\n• Act like firewalls for entire subnets\n• Allow and deny rules\n• Stateless (must explicitly allow return traffic)\n• Apply at the subnet level"
     },
     {
       "order": 6,
       "text": "Network Segmentation",
       "action": "Key Concept - Network Segmentation:",
       "url": null,
-      "description": "\u2022 Public Subnets: For resources that need internet access (load balancers)\n\u2022 Private Subnets: For application servers and databases\n\u2022 Isolated Subnets: For highly sensitive resources with no internet access"
+      "description": "• Public Subnets: For resources that need internet access (load balancers)\n• Private Subnets: For application servers and databases\n• Isolated Subnets: For highly sensitive resources with no internet access"
     },
     {
       "order": 7,
       "text": "Load Balancers and Traffic Management",
       "action": "Key Concept - Load Balancers:",
       "url": null,
-      "description": "\u2022 Application Load Balancers: Handle HTTP/HTTPS traffic with security features\n\u2022 Network Load Balancers: Handle TCP/UDP traffic at high performance\n\u2022 Security Features: SSL termination, DDoS protection, access logging"
+      "description": "• Application Load Balancers: Handle HTTP/HTTPS traffic with security features\n• Network Load Balancers: Handle TCP/UDP traffic at high performance\n• Security Features: SSL termination, DDoS protection, access logging"
     },
     {
       "order": 8,
       "text": "Physical vs Cloud Network Security",
       "action": "Physical vs Cloud Network Security:",
       "url": null,
-      "description": "Understanding the differences:\n\n\u2022 Physical routers/switches \u2192 Virtual routers, VPC gateways (software-defined)\n\u2022 Hardware firewalls \u2192 Security Groups, NACLs (rules via console/API)\n\u2022 Physical network segmentation \u2192 Subnets, VPCs (logical boundaries)\n\u2022 Network cables \u2192 Virtual connections, peering (no physical connections)"
+      "description": "Understanding the differences:\n\n• Physical routers/switches → Virtual routers, VPC gateways (software-defined)\n• Hardware firewalls → Security Groups, NACLs (rules via console/API)\n• Physical network segmentation → Subnets, VPCs (logical boundaries)\n• Network cables → Virtual connections, peering (no physical connections)"
     },
     {
       "order": 9,
@@ -164,35 +164,11 @@
   "questions": [
     {
       "id": "phase6-topic3-q1",
-      "prompt": "Walk me through network segmentation and how you would use public, private, and isolated subnets.",
-      "expected_concepts": [
-        "segmentation",
-        "public subnet",
-        "internet facing",
-        "private subnet",
-        "no direct access",
-        "isolated",
-        "no internet",
-        "separation",
-        "security",
-        "blast radius"
-      ]
+      "prompt": "Walk me through network segmentation and how you would use public, private, and isolated subnets."
     },
     {
       "id": "phase6-topic3-q2",
-      "prompt": "How would you explain the difference between a security group and a network ACL to someone new to cloud networking?",
-      "expected_concepts": [
-        "security group",
-        "stateful",
-        "instance",
-        "return traffic",
-        "network ACL",
-        "stateless",
-        "subnet",
-        "explicit rules",
-        "allow",
-        "deny"
-      ]
+      "prompt": "How would you explain the difference between a security group and a network ACL to someone new to cloud networking?"
     }
   ],
   "test_knowledge_prompts": [

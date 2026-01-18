@@ -1,0 +1,27 @@
+{
+  "phase1-topic3-q1": [
+    "code",
+    "automate",
+    "repeatable",
+    "consistent",
+    "version control",
+    "declarative",
+    "reproducible",
+    "documentation",
+    "scalable",
+    "auditable"
+  ],
+  "phase1-topic3-q2": [
+    "init",
+    "initialize",
+    "providers",
+    "plugins",
+    "backend",
+    "apply",
+    "create",
+    "provision",
+    "resources",
+    "state",
+    "configuration"
+  ]
+}

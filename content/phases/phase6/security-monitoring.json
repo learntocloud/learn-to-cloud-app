@@ -83,61 +83,38 @@
       "text": "Essential Log Sources",
       "action": "Key Concept - Essential Log Sources:",
       "url": null,
-      "description": "\u2022 Authentication Logs: Who's logging in, when, and from where\n\u2022 API Call Logs: What actions are being performed on your resources\n\u2022 Network Logs: Traffic patterns and potential intrusions\n\u2022 Application Logs: Your application's security-relevant events\n\u2022 Infrastructure Logs: Changes to your cloud resources"
+      "description": "• Authentication Logs: Who's logging in, when, and from where\n• API Call Logs: What actions are being performed on your resources\n• Network Logs: Traffic patterns and potential intrusions\n• Application Logs: Your application's security-relevant events\n• Infrastructure Logs: Changes to your cloud resources"
     },
     {
       "order": 5,
       "text": "Security Metrics to Track",
       "action": "Key Concept - Security Metrics to Track:",
       "url": null,
-      "description": "\u2022 Failed authentication attempts\n\u2022 Unusual API call patterns\n\u2022 Network traffic anomalies\n\u2022 Resource configuration changes\n\u2022 Data access patterns"
+      "description": "• Failed authentication attempts\n• Unusual API call patterns\n• Network traffic anomalies\n• Resource configuration changes\n• Data access patterns"
     },
     {
       "order": 6,
       "text": "SIEM Concepts",
       "action": "Key Concept - SIEM (Security Information and Event Management):",
       "url": null,
-      "description": "\u2022 Collect: Gather logs from multiple sources\n\u2022 Correlate: Find patterns across different log sources\n\u2022 Alert: Notify when suspicious patterns are detected\n\u2022 Investigate: Provide tools to analyze security events"
+      "description": "• Collect: Gather logs from multiple sources\n• Correlate: Find patterns across different log sources\n• Alert: Notify when suspicious patterns are detected\n• Investigate: Provide tools to analyze security events"
     },
     {
       "order": 7,
       "text": "Alert Design Principles",
       "action": "Key Concept - Alert Design Principles:",
       "url": null,
-      "description": "\u2022 High Signal-to-Noise Ratio: Alerts should indicate real problems\n\u2022 Actionable: Each alert should have a clear response procedure\n\u2022 Escalation: Different severity levels with appropriate response times\n\u2022 Context: Provide enough information to understand the issue"
+      "description": "• High Signal-to-Noise Ratio: Alerts should indicate real problems\n• Actionable: Each alert should have a clear response procedure\n• Escalation: Different severity levels with appropriate response times\n• Context: Provide enough information to understand the issue"
     }
   ],
   "questions": [
     {
       "id": "phase6-topic4-q1",
-      "prompt": "Walk me through the types of logs you would collect for effective security monitoring in cloud environments.",
-      "expected_concepts": [
-        "authentication logs",
-        "API logs",
-        "network logs",
-        "audit logs",
-        "application logs",
-        "access logs",
-        "CloudTrail",
-        "CloudWatch",
-        "activity log"
-      ]
+      "prompt": "Walk me through the types of logs you would collect for effective security monitoring in cloud environments."
     },
     {
       "id": "phase6-topic4-q2",
-      "prompt": "How would you explain what a SIEM does to a colleague who has never used one?",
-      "expected_concepts": [
-        "SIEM",
-        "security information",
-        "event management",
-        "collect",
-        "correlate",
-        "analyze",
-        "alert",
-        "centralized",
-        "patterns",
-        "threats"
-      ]
+      "prompt": "How would you explain what a SIEM does to a colleague who has never used one?"
     }
   ],
   "test_knowledge_prompts": [

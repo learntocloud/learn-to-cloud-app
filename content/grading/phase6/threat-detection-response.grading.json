@@ -1,0 +1,26 @@
+{
+  "phase6-topic5-q1": [
+    "preparation",
+    "detection",
+    "analysis",
+    "containment",
+    "eradication",
+    "recovery",
+    "post-incident",
+    "lessons learned",
+    "improve",
+    "lifecycle"
+  ],
+  "phase6-topic5-q2": [
+    "credential compromise",
+    "data breach",
+    "misconfiguration",
+    "unauthorized access",
+    "resource hijacking",
+    "detection",
+    "logging",
+    "alerting",
+    "anomaly",
+    "monitoring"
+  ]
+}

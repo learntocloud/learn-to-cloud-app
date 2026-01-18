@@ -60,32 +60,11 @@
   "questions": [
     {
       "id": "phase4-topic4-q1",
-      "prompt": "Walk me through why session-based access like AWS SSM or Azure Bastion is preferred over direct SSH access.",
-      "expected_concepts": [
-        "no open ports",
-        "audit logging",
-        "IAM integration",
-        "no SSH keys",
-        "browser-based",
-        "secure",
-        "session manager",
-        "bastion",
-        "port 22"
-      ]
+      "prompt": "Walk me through why session-based access like AWS SSM or Azure Bastion is preferred over direct SSH access."
     },
     {
       "id": "phase4-topic4-q2",
-      "prompt": "What security benefits does a cloud-native remote access solution provide over traditional methods?",
-      "expected_concepts": [
-        "audit trail",
-        "identity-based",
-        "no key management",
-        "centralized",
-        "access control",
-        "temporary sessions",
-        "compliance",
-        "monitoring"
-      ]
+      "prompt": "What security benefits does a cloud-native remote access solution provide over traditional methods?"
     }
   ],
   "test_knowledge_prompts": [

@@ -1,0 +1,23 @@
+{
+  "phase2-topic1-q1": [
+    "list",
+    "dictionary",
+    "ordered",
+    "key",
+    "value",
+    "index",
+    "lookup",
+    "sequence",
+    "pair"
+  ],
+  "phase2-topic1-q2": [
+    "try",
+    "except",
+    "error",
+    "exception",
+    "handle",
+    "crash",
+    "graceful",
+    "robust"
+  ]
+}

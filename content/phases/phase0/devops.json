@@ -27,35 +27,11 @@
   "questions": [
     {
       "id": "phase0-topic5-q1",
-      "prompt": "How would you describe DevOps to a team that's never heard of it, and why does it matter for modern software delivery?",
-      "expected_concepts": [
-        "development",
-        "operations",
-        "collaboration",
-        "automation",
-        "faster delivery",
-        "continuous",
-        "culture",
-        "communication",
-        "feedback",
-        "reliability"
-      ]
+      "prompt": "How would you describe DevOps to a team that's never heard of it, and why does it matter for modern software delivery?"
     },
     {
       "id": "phase0-topic5-q2",
-      "prompt": "Walk me through what CI/CD means and why it's a core DevOps practice.",
-      "expected_concepts": [
-        "continuous integration",
-        "continuous delivery",
-        "continuous deployment",
-        "automate",
-        "testing",
-        "build",
-        "deploy",
-        "faster",
-        "quality",
-        "pipeline"
-      ]
+      "prompt": "Walk me through what CI/CD means and why it's a core DevOps practice."
     }
   ],
   "test_knowledge_prompts": [

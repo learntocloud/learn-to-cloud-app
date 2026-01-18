@@ -86,32 +86,11 @@
   "questions": [
     {
       "id": "phase3-topic2-q1",
-      "prompt": "When should you reject a GitHub Copilot suggestion even if it appears to be correct code?",
-      "expected_concepts": [
-        "understand",
-        "explain",
-        "line by line",
-        "edge cases",
-        "intended",
-        "guessing",
-        "learn",
-        "ownership"
-      ]
+      "prompt": "When should you reject a GitHub Copilot suggestion even if it appears to be correct code?"
     },
     {
       "id": "phase3-topic2-q2",
-      "prompt": "Walk me through the effective and ineffective uses of GitHub Copilot Chat for development.",
-      "expected_concepts": [
-        "explain",
-        "review",
-        "understand",
-        "errors",
-        "improve",
-        "not",
-        "write",
-        "entire",
-        "fix without understanding"
-      ]
+      "prompt": "Walk me through the effective and ineffective uses of GitHub Copilot Chat for development."
     }
   ],
   "test_knowledge_prompts": [

@@ -60,7 +60,6 @@ class Question:
 
     id: str
     prompt: str
-    expected_concepts: tuple[str, ...]
 
 
 @dataclass(frozen=True)
@@ -165,7 +164,6 @@ def _load_topic(phase_dir: Path, topic_slug: str) -> Topic | None:
             Question(
                 id=q["id"],
                 prompt=q["prompt"],
-                expected_concepts=tuple(q.get("expected_concepts", [])),
             )
             for q in data.get("questions", [])
         )

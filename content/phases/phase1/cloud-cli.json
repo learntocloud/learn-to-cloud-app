@@ -54,34 +54,11 @@
   "questions": [
     {
       "id": "phase1-topic2-q1",
-      "prompt": "Why would you use the cloud CLI instead of the web console, and when does CLI become essential?",
-      "expected_concepts": [
-        "automation",
-        "scripting",
-        "faster",
-        "repeatable",
-        "infrastructure as code",
-        "batch operations",
-        "version control",
-        "consistency",
-        "efficiency"
-      ]
+      "prompt": "Why would you use the cloud CLI instead of the web console, and when does CLI become essential?"
     },
     {
       "id": "phase1-topic2-q2",
-      "prompt": "Walk me through how authentication works with cloud CLIs and the different methods available.",
-      "expected_concepts": [
-        "login",
-        "configure",
-        "credentials",
-        "access key",
-        "secret key",
-        "token",
-        "service principal",
-        "profile",
-        "session",
-        "secure"
-      ]
+      "prompt": "Walk me through how authentication works with cloud CLIs and the different methods available."
     }
   ],
   "test_knowledge_prompts": [

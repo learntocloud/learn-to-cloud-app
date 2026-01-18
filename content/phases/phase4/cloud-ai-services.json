@@ -117,7 +117,7 @@
       "text": "Model Selection for Your Journal App",
       "action": "Model Selection for Your Journal App:",
       "url": null,
-      "description": "For the capstone project, consider:\n\n\u2022 Smaller, faster models for simple sentiment analysis\n\u2022 Larger models if you need complex reasoning\n\u2022 Cost per token - some models are 10x more expensive\n\u2022 Latency requirements - how fast do you need responses?\n\u2022 Context window - how much text can the model handle?"
+      "description": "For the capstone project, consider:\n\n• Smaller, faster models for simple sentiment analysis\n• Larger models if you need complex reasoning\n• Cost per token - some models are 10x more expensive\n• Latency requirements - how fast do you need responses?\n• Context window - how much text can the model handle?"
     },
     {
       "order": 7,
@@ -130,34 +130,11 @@
   "questions": [
     {
       "id": "phase4-topic8-q1",
-      "prompt": "How would you approach choosing an LLM model for your application? What factors would you weigh?",
-      "expected_concepts": [
-        "cost per token",
-        "latency",
-        "context window",
-        "accuracy",
-        "capability",
-        "speed",
-        "use case",
-        "complexity",
-        "size",
-        "pricing"
-      ]
+      "prompt": "How would you approach choosing an LLM model for your application? What factors would you weigh?"
     },
     {
       "id": "phase4-topic8-q2",
-      "prompt": "Walk me through what AI guardrails are and why they matter for production applications.",
-      "expected_concepts": [
-        "content filtering",
-        "safety",
-        "responsible AI",
-        "harmful content",
-        "prevent abuse",
-        "moderation",
-        "compliance",
-        "limits",
-        "protection"
-      ]
+      "prompt": "Walk me through what AI guardrails are and why they matter for production applications."
     }
   ],
   "test_knowledge_prompts": [

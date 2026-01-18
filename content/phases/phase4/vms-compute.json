@@ -28,7 +28,7 @@
       "text": "Instance Types & OS Selection",
       "action": "Study Instance Types & OS Selection:",
       "url": null,
-      "description": "Learn to choose the right VM specs (CPU, RAM, storage) based on workload requirements. Different instance types are optimized for:\n\n\u2022 General purpose - balanced compute, memory, networking\n\u2022 Compute optimized - CPU-intensive workloads\n\u2022 Memory optimized - large datasets in memory\n\u2022 Storage optimized - high sequential read/write"
+      "description": "Learn to choose the right VM specs (CPU, RAM, storage) based on workload requirements. Different instance types are optimized for:\n\n• General purpose - balanced compute, memory, networking\n• Compute optimized - CPU-intensive workloads\n• Memory optimized - large datasets in memory\n• Storage optimized - high sequential read/write"
     },
     {
       "order": 4,
@@ -68,34 +68,11 @@
   "questions": [
     {
       "id": "phase4-topic1-q1",
-      "prompt": "Walk me through what virtualization is and how it enables cloud computing at scale.",
-      "expected_concepts": [
-        "hypervisor",
-        "virtual machine",
-        "physical server",
-        "isolation",
-        "multiple VMs",
-        "hardware abstraction",
-        "resource sharing",
-        "efficiency",
-        "scalability"
-      ]
+      "prompt": "Walk me through what virtualization is and how it enables cloud computing at scale."
     },
     {
       "id": "phase4-topic1-q2",
-      "prompt": "How would you approach choosing a VM instance type for a new workload? What factors matter most?",
-      "expected_concepts": [
-        "CPU",
-        "memory",
-        "storage",
-        "network",
-        "cost",
-        "workload",
-        "general purpose",
-        "compute optimized",
-        "memory optimized",
-        "sizing"
-      ]
+      "prompt": "How would you approach choosing a VM instance type for a new workload? What factors matter most?"
     }
   ],
   "test_knowledge_prompts": [

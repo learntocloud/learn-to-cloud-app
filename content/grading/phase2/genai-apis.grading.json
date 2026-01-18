@@ -1,0 +1,26 @@
+{
+  "phase2-topic5-q1": [
+    "messages",
+    "conversation",
+    "system message",
+    "user message",
+    "assistant",
+    "completion",
+    "tokens",
+    "context",
+    "prompt",
+    "stateless"
+  ],
+  "phase2-topic5-q2": [
+    "temperature",
+    "randomness",
+    "creativity",
+    "deterministic",
+    "zero",
+    "one",
+    "consistent",
+    "varied",
+    "sampling",
+    "probability"
+  ]
+}

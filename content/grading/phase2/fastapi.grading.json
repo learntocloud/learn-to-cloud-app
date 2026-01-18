@@ -1,0 +1,25 @@
+{
+  "phase2-topic3-q1": [
+    "fast",
+    "modern",
+    "async",
+    "type hints",
+    "automatic documentation",
+    "Swagger",
+    "OpenAPI",
+    "Pydantic",
+    "validation",
+    "high performance"
+  ],
+  "phase2-topic3-q2": [
+    "path parameter",
+    "URL",
+    "dynamic",
+    "query parameter",
+    "optional",
+    "filtering",
+    "function arguments",
+    "type annotation",
+    "default values"
+  ]
+}

@@ -57,35 +57,11 @@
   "questions": [
     {
       "id": "phase3-topic1-q1",
-      "prompt": "How would you distinguish between using AI to accelerate learning versus using it to skip learning? Give examples of each.",
-      "expected_concepts": [
-        "explain",
-        "understand",
-        "quiz",
-        "question",
-        "Socratic",
-        "active",
-        "passive",
-        "copy",
-        "paste",
-        "think",
-        "independent"
-      ]
+      "prompt": "How would you distinguish between using AI to accelerate learning versus using it to skip learning? Give examples of each."
     },
     {
       "id": "phase3-topic1-q2",
-      "prompt": "Walk me through how you would use AI to help debug code without having it solve the problem for you.",
-      "expected_concepts": [
-        "questions",
-        "expected",
-        "actual",
-        "tried",
-        "narrow down",
-        "understand",
-        "root cause",
-        "rubber duck",
-        "explain"
-      ]
+      "prompt": "Walk me through how you would use AI to help debug code without having it solve the problem for you."
     }
   ],
   "test_knowledge_prompts": [

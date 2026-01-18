@@ -1,0 +1,26 @@
+{
+  "phase6-topic1-q1": [
+    "authentication",
+    "identity",
+    "who you are",
+    "login",
+    "credentials",
+    "authorization",
+    "permissions",
+    "what you can do",
+    "access control",
+    "policies"
+  ],
+  "phase6-topic1-q2": [
+    "service account",
+    "applications",
+    "automated",
+    "no human",
+    "user account",
+    "people",
+    "interactive",
+    "MFA",
+    "credentials",
+    "programmatic"
+  ]
+}

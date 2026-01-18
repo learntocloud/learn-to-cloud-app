@@ -21,40 +21,17 @@
       "action": "Read:",
       "title": "Programming vs Scripting Languages",
       "url": "https://www.geeksforgeeks.org/whats-the-difference-between-scripting-and-programming-languages/",
-      "description": "Understand the difference between programming and scripting\u2014both are useful in cloud engineering."
+      "description": "Understand the difference between programming and scripting—both are useful in cloud engineering."
     }
   ],
   "questions": [
     {
       "id": "phase0-topic3-q1",
-      "prompt": "How would you explain what programming is to someone non-technical, and why is it valuable for cloud engineers?",
-      "expected_concepts": [
-        "instructions",
-        "computer",
-        "automate",
-        "tasks",
-        "infrastructure",
-        "scripts",
-        "efficiency",
-        "repeatable",
-        "code",
-        "logic"
-      ]
+      "prompt": "How would you explain what programming is to someone non-technical, and why is it valuable for cloud engineers?"
     },
     {
       "id": "phase0-topic3-q2",
-      "prompt": "Walk me through the key differences between a programming language and a scripting language.",
-      "expected_concepts": [
-        "compiled",
-        "interpreted",
-        "runtime",
-        "automation",
-        "Python",
-        "Bash",
-        "quick tasks",
-        "full applications",
-        "execution"
-      ]
+      "prompt": "Walk me through the key differences between a programming language and a scripting language."
     }
   ],
   "test_knowledge_prompts": [

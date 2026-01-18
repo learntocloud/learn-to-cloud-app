@@ -1,0 +1,25 @@
+{
+  "phase0-topic2-q1": [
+    "unique identifier",
+    "device",
+    "network",
+    "public",
+    "private",
+    "internet",
+    "internal",
+    "NAT",
+    "routable",
+    "address"
+  ],
+  "phase0-topic2-q2": [
+    "domain name system",
+    "translates",
+    "domain names",
+    "IP addresses",
+    "phonebook",
+    "resolver",
+    "lookup",
+    "human readable",
+    "records"
+  ]
+}

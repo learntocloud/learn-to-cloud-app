@@ -66,7 +66,7 @@
       "text": "Key Security Principles",
       "action": "Key Security Principles:",
       "url": null,
-      "description": "\u2022 Least Privilege Principle - Grant only the minimum permissions needed\n\u2022 RBAC (Role-Based Access Control) - Assign permissions based on job roles\n\u2022 Stateful vs Stateless rules - Security groups are stateful, network ACLs are stateless\n\u2022 Inbound vs Outbound rules - Control traffic in both directions"
+      "description": "• Least Privilege Principle - Grant only the minimum permissions needed\n• RBAC (Role-Based Access Control) - Assign permissions based on job roles\n• Stateful vs Stateless rules - Security groups are stateful, network ACLs are stateless\n• Inbound vs Outbound rules - Control traffic in both directions"
     },
     {
       "order": 4,
@@ -79,34 +79,11 @@
   "questions": [
     {
       "id": "phase4-topic2-q1",
-      "prompt": "How would you explain the principle of least privilege to a new team member, and why is it critical for cloud security?",
-      "expected_concepts": [
-        "minimum permissions",
-        "necessary",
-        "reduce risk",
-        "compromise",
-        "limit access",
-        "attack surface",
-        "security",
-        "roles",
-        "policies"
-      ]
+      "prompt": "How would you explain the principle of least privilege to a new team member, and why is it critical for cloud security?"
     },
     {
       "id": "phase4-topic2-q2",
-      "prompt": "Walk me through the difference between a security group and a network ACL and when you'd use each.",
-      "expected_concepts": [
-        "security group",
-        "stateful",
-        "instance level",
-        "network ACL",
-        "stateless",
-        "subnet level",
-        "allow",
-        "deny",
-        "return traffic",
-        "firewall"
-      ]
+      "prompt": "Walk me through the difference between a security group and a network ACL and when you'd use each."
     }
   ],
   "test_knowledge_prompts": [

@@ -34,36 +34,11 @@
   "questions": [
     {
       "id": "phase0-topic4-q1",
-      "prompt": "How would you explain cloud computing to a business stakeholder, including its key advantages over on-premises infrastructure?",
-      "expected_concepts": [
-        "on-demand",
-        "internet",
-        "scalable",
-        "pay-as-you-go",
-        "no upfront costs",
-        "flexible",
-        "managed",
-        "remote",
-        "resources",
-        "servers"
-      ]
+      "prompt": "How would you explain cloud computing to a business stakeholder, including its key advantages over on-premises infrastructure?"
     },
     {
       "id": "phase0-topic4-q2",
-      "prompt": "Walk me through IaaS, PaaS, and SaaS—what each provides and give a real-world example of each.",
-      "expected_concepts": [
-        "Infrastructure as a Service",
-        "Platform as a Service",
-        "Software as a Service",
-        "virtual machines",
-        "EC2",
-        "app hosting",
-        "Heroku",
-        "Gmail",
-        "Office 365",
-        "managed",
-        "responsibility"
-      ]
+      "prompt": "Walk me through IaaS, PaaS, and SaaS—what each provides and give a real-world example of each."
     }
   ],
   "test_knowledge_prompts": [

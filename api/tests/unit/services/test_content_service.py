@@ -85,10 +85,9 @@ class TestDataclasses:
         q = Question(
             id="q1",
             prompt="What is the cloud?",
-            expected_concepts=("iaas", "paas", "saas"),
         )
         assert q.id == "q1"
-        assert "iaas" in q.expected_concepts
+        assert q.prompt == "What is the cloud?"
 
     def test_learning_objective(self):
         obj = LearningObjective(id="obj1", text="Understand cloud basics", order=1)

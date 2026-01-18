@@ -1,0 +1,25 @@
+{
+  "phase4-topic1-q1": [
+    "hypervisor",
+    "virtual machine",
+    "physical server",
+    "isolation",
+    "multiple VMs",
+    "hardware abstraction",
+    "resource sharing",
+    "efficiency",
+    "scalability"
+  ],
+  "phase4-topic1-q2": [
+    "CPU",
+    "memory",
+    "storage",
+    "network",
+    "cost",
+    "workload",
+    "general purpose",
+    "compute optimized",
+    "memory optimized",
+    "sizing"
+  ]
+}

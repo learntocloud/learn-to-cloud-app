@@ -19,34 +19,11 @@
   "questions": [
     {
       "id": "phase2-topic3-q1",
-      "prompt": "What makes FastAPI different from other Python web frameworks, and why would you choose it?",
-      "expected_concepts": [
-        "fast",
-        "modern",
-        "async",
-        "type hints",
-        "automatic documentation",
-        "Swagger",
-        "OpenAPI",
-        "Pydantic",
-        "validation",
-        "high performance"
-      ]
+      "prompt": "What makes FastAPI different from other Python web frameworks, and why would you choose it?"
     },
     {
       "id": "phase2-topic3-q2",
-      "prompt": "Walk me through how path parameters and query parameters work in FastAPI and when you'd use each.",
-      "expected_concepts": [
-        "path parameter",
-        "URL",
-        "dynamic",
-        "query parameter",
-        "optional",
-        "filtering",
-        "function arguments",
-        "type annotation",
-        "default values"
-      ]
+      "prompt": "Walk me through how path parameters and query parameters work in FastAPI and when you'd use each."
     }
   ],
   "test_knowledge_prompts": [

@@ -1,0 +1,20 @@
+{
+  "phase1-topic4-q1": [
+    "secure shell",
+    "encrypted",
+    "remote access",
+    "server",
+    "command line",
+    "terminal",
+    "secure connection"
+  ],
+  "phase1-topic4-q2": [
+    "asymmetric",
+    "public key",
+    "private key",
+    "cannot be guessed",
+    "brute force",
+    "cryptographic",
+    "no password transmission"
+  ]
+}

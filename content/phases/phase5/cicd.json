@@ -62,7 +62,7 @@
       "text": "Basic CI/CD Pipeline Setup",
       "action": "Hands-on: Basic CI/CD Pipeline Setup",
       "url": null,
-      "description": "Set up a basic CI/CD pipeline for your containerized application:\n\n1. Use GitHub Actions (or your preferred tool) to automatically:\n   \u2022 Build your application\n   \u2022 Run tests\n   \u2022 Build a Docker image\n   \u2022 Push the image to a container registry\n2. Configure the pipeline to trigger on code commits to your main branch\n3. Add a notification system for successful deployments or failures"
+      "description": "Set up a basic CI/CD pipeline for your containerized application:\n\n1. Use GitHub Actions (or your preferred tool) to automatically:\n   • Build your application\n   • Run tests\n   • Build a Docker image\n   • Push the image to a container registry\n2. Configure the pipeline to trigger on code commits to your main branch\n3. Add a notification system for successful deployments or failures"
     },
     {
       "order": 5,
@@ -83,36 +83,11 @@
   "questions": [
     {
       "id": "phase5-topic2-q1",
-      "prompt": "Walk me through the differences between Continuous Integration, Continuous Delivery, and Continuous Deployment.",
-      "expected_concepts": [
-        "continuous integration",
-        "merge",
-        "build",
-        "test",
-        "continuous delivery",
-        "ready to deploy",
-        "manual approval",
-        "continuous deployment",
-        "automatic",
-        "production"
-      ]
+      "prompt": "Walk me through the differences between Continuous Integration, Continuous Delivery, and Continuous Deployment."
     },
     {
       "id": "phase5-topic2-q2",
-      "prompt": "Walk me through the typical stages in a CI/CD pipeline for a containerized application.",
-      "expected_concepts": [
-        "checkout",
-        "build",
-        "test",
-        "Docker build",
-        "push",
-        "registry",
-        "deploy",
-        "stages",
-        "pipeline",
-        "trigger",
-        "artifacts"
-      ]
+      "prompt": "Walk me through the typical stages in a CI/CD pipeline for a containerized application."
     }
   ],
   "test_knowledge_prompts": [

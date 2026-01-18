@@ -12,14 +12,14 @@
       "text": "Why Kubernetes?",
       "action": "Why Kubernetes?:",
       "url": null,
-      "description": "Kubernetes provides:\n\n\u2022 Automated Deployment and Scaling - Automatically deploy and scale containers based on resource usage\n\u2022 Self-Healing - Restarts failed containers, replaces unresponsive ones\n\u2022 Load Balancing - Distributes traffic across containers for high availability\n\u2022 Service Discovery - Automatically assigns DNS names and IPs to services\n\u2022 Declarative Configuration - Uses YAML manifests to define desired state"
+      "description": "Kubernetes provides:\n\n• Automated Deployment and Scaling - Automatically deploy and scale containers based on resource usage\n• Self-Healing - Restarts failed containers, replaces unresponsive ones\n• Load Balancing - Distributes traffic across containers for high availability\n• Service Discovery - Automatically assigns DNS names and IPs to services\n• Declarative Configuration - Uses YAML manifests to define desired state"
     },
     {
       "order": 2,
       "text": "Core Concepts",
       "action": "Core Concepts:",
       "url": null,
-      "description": "Understanding Kubernetes requires familiarity with these components:\n\n\u2022 Cluster - Master node (manages cluster) + Worker nodes (run apps)\n\u2022 Pods - Smallest deployable unit, can contain one or more containers\n\u2022 Services - Expose your application (ClusterIP, NodePort, LoadBalancer)\n\u2022 Deployments - Manage desired state, handle rolling updates and scaling\n\u2022 ConfigMaps/Secrets - Store configuration and sensitive data"
+      "description": "Understanding Kubernetes requires familiarity with these components:\n\n• Cluster - Master node (manages cluster) + Worker nodes (run apps)\n• Pods - Smallest deployable unit, can contain one or more containers\n• Services - Expose your application (ClusterIP, NodePort, LoadBalancer)\n• Deployments - Manage desired state, handle rolling updates and scaling\n• ConfigMaps/Secrets - Store configuration and sensitive data"
     },
     {
       "order": 3,
@@ -111,34 +111,11 @@
   "questions": [
     {
       "id": "phase5-topic4-q1",
-      "prompt": "How would you explain a Kubernetes Pod to someone coming from a Docker-only background?",
-      "expected_concepts": [
-        "pod",
-        "smallest unit",
-        "one or more containers",
-        "shared network",
-        "shared storage",
-        "co-located",
-        "scheduling",
-        "lifecycle",
-        "abstraction"
-      ]
+      "prompt": "How would you explain a Kubernetes Pod to someone coming from a Docker-only background?"
     },
     {
       "id": "phase5-topic4-q2",
-      "prompt": "Walk me through Kubernetes Services and the different types you'd use for various scenarios.",
-      "expected_concepts": [
-        "service",
-        "expose",
-        "pods",
-        "ClusterIP",
-        "NodePort",
-        "LoadBalancer",
-        "stable IP",
-        "DNS",
-        "load balancing",
-        "network"
-      ]
+      "prompt": "Walk me through Kubernetes Services and the different types you'd use for various scenarios."
     }
   ],
   "test_knowledge_prompts": [

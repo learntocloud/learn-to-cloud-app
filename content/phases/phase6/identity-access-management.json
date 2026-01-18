@@ -71,7 +71,7 @@
       "text": "IAM Components",
       "action": "Key Concepts - IAM Components:",
       "url": null,
-      "description": "\u2022 Users - Individual people or applications\n\u2022 Groups - Collections of users with similar permissions\n\u2022 Roles - Set of permissions that can be assumed\n\u2022 Policies - Documents that define permissions"
+      "description": "• Users - Individual people or applications\n• Groups - Collections of users with similar permissions\n• Roles - Set of permissions that can be assumed\n• Policies - Documents that define permissions"
     },
     {
       "order": 5,
@@ -85,14 +85,14 @@
       "text": "Service Accounts vs User Accounts",
       "action": "Service Accounts vs User Accounts:",
       "url": null,
-      "description": "\u2022 User accounts - For people who need to access resources\n\u2022 Service accounts - For applications and services to access resources"
+      "description": "• User accounts - For people who need to access resources\n• Service accounts - For applications and services to access resources"
     },
     {
       "order": 7,
       "text": "Authentication vs Authorization",
       "action": "Authentication vs Authorization:",
       "url": null,
-      "description": "\u2022 Authentication - Who are you? (login, MFA)\n\u2022 Authorization - What can you do? (permissions, policies)"
+      "description": "• Authentication - Who are you? (login, MFA)\n• Authorization - What can you do? (permissions, policies)"
     },
     {
       "order": 8,
@@ -157,35 +157,11 @@
   "questions": [
     {
       "id": "phase6-topic1-q1",
-      "prompt": "Walk me through the difference between authentication and authorization in cloud security.",
-      "expected_concepts": [
-        "authentication",
-        "identity",
-        "who you are",
-        "login",
-        "credentials",
-        "authorization",
-        "permissions",
-        "what you can do",
-        "access control",
-        "policies"
-      ]
+      "prompt": "Walk me through the difference between authentication and authorization in cloud security."
     },
     {
       "id": "phase6-topic1-q2",
-      "prompt": "How would you decide between using a service account versus a user account in cloud environments?",
-      "expected_concepts": [
-        "service account",
-        "applications",
-        "automated",
-        "no human",
-        "user account",
-        "people",
-        "interactive",
-        "MFA",
-        "credentials",
-        "programmatic"
-      ]
+      "prompt": "How would you decide between using a service account versus a user account in cloud environments?"
     }
   ],
   "test_knowledge_prompts": [

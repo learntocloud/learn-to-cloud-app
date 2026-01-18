@@ -1,0 +1,27 @@
+{
+  "phase5-topic5-q1": [
+    "monitoring",
+    "known problems",
+    "metrics",
+    "thresholds",
+    "observability",
+    "unknown problems",
+    "logs",
+    "traces",
+    "understand system",
+    "debugging"
+  ],
+  "phase5-topic5-q2": [
+    "Prometheus",
+    "collect",
+    "scrape",
+    "metrics",
+    "time series",
+    "Grafana",
+    "visualize",
+    "dashboards",
+    "queries",
+    "PromQL",
+    "alerts"
+  ]
+}

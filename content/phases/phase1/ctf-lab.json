@@ -21,43 +21,17 @@
       "text": "Tips for success",
       "action": "Tips for success:",
       "url": null,
-      "description": "\u2022 Use `man` pages to learn commands (e.g., `man find`)\n\u2022 Combine commands with pipes (`|`) to process output\n\u2022 Use `verify hint [num]` when stuck on a challenge\n\u2022 Experiment freely\u2014you can't break anything permanently\n\u2022 Don't share solutions publicly\u2014share your learning journey instead"
+      "description": "• Use `man` pages to learn commands (e.g., `man find`)\n• Combine commands with pipes (`|`) to process output\n• Use `verify hint [num]` when stuck on a challenge\n• Experiment freely—you can't break anything permanently\n• Don't share solutions publicly—share your learning journey instead"
     }
   ],
   "questions": [
     {
       "id": "phase1-topic6-q1",
-      "prompt": "Walk me through how you would use the find command to locate files on a Linux system.",
-      "expected_concepts": [
-        "find",
-        "path",
-        "name",
-        "type",
-        "size",
-        "mtime",
-        "exec",
-        "search",
-        "recursive",
-        "criteria",
-        "locate"
-      ]
+      "prompt": "Walk me through how you would use the find command to locate files on a Linux system."
     },
     {
       "id": "phase1-topic6-q2",
-      "prompt": "What commands would you use to inspect running processes and network connections on a Linux server?",
-      "expected_concepts": [
-        "ps",
-        "top",
-        "htop",
-        "netstat",
-        "ss",
-        "lsof",
-        "processes",
-        "ports",
-        "connections",
-        "PID",
-        "kill"
-      ]
+      "prompt": "What commands would you use to inspect running processes and network connections on a Linux server?"
     }
   ],
   "test_knowledge_prompts": [
