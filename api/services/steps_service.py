@@ -7,7 +7,7 @@ from core.cache import invalidate_progress_cache
 from core.telemetry import add_custom_attribute, log_metric, track_operation
 from models import ActivityType
 from repositories import ActivityRepository, StepProgressRepository
-from services.content import get_topic_by_id
+from services.content_service import get_topic_by_id
 
 
 @dataclass

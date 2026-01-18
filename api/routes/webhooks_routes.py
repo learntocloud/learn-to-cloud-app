@@ -8,7 +8,7 @@ from svix.webhooks import Webhook, WebhookVerificationError
 from core.config import get_settings
 from core.database import DbSession
 from schemas import WebhookResponse
-from services.webhooks import handle_clerk_event
+from services.webhooks_service import handle_clerk_event
 
 logger = logging.getLogger(__name__)
 

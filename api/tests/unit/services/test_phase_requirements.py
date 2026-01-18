@@ -11,7 +11,7 @@ Total test cases: 20
 
 import pytest
 
-from services.phase_requirements import (
+from services.phase_requirements_service import (
     HANDS_ON_REQUIREMENTS,
     get_requirement_by_id,
     get_requirements_for_phase,

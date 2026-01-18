@@ -15,7 +15,7 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from services.progress import (
+from services.progress_service import (
     PHASE_REQUIREMENTS,
     PhaseProgress,
 )
@@ -123,7 +123,7 @@ class TestPhaseProgressIsComplete:
     @pytest.mark.parametrize("phase_id", [0, 1, 2, 3, 4, 5, 6])
     def test_complete_for_all_phases(self, phase_id):
         """Phase complete works for all 7 phases when requirements met."""
-        from services.phase_requirements import get_requirements_for_phase
+        from services.phase_requirements_service import get_requirements_for_phase
 
         req = PHASE_REQUIREMENTS[phase_id]
         hands_on_count = len(get_requirements_for_phase(phase_id))

@@ -16,21 +16,24 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models import Submission
-from repositories.progress import QuestionAttemptRepository, StepProgressRepository
-from repositories.submission import SubmissionRepository
-from services.activity import get_streak_data
-from services.badges import compute_all_badges
-from services.content import (
+from repositories.progress_repository import (
+    QuestionAttemptRepository,
+    StepProgressRepository,
+)
+from repositories.submission_repository import SubmissionRepository
+from services.activity_service import get_streak_data
+from services.badges_service import compute_all_badges
+from services.content_service import (
     Topic,
     get_all_phases,
     get_phase_by_slug,
     get_topic_by_slugs,
 )
-from services.phase_requirements import (
+from services.phase_requirements_service import (
     HandsOnRequirementData,
     get_requirements_for_phase,
 )
-from services.progress import (
+from services.progress_service import (
     PhaseProgress,
     fetch_user_progress,
     get_phase_completion_counts,

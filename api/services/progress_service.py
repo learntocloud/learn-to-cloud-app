@@ -20,9 +20,12 @@ from dataclasses import dataclass
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.cache import get_cached_progress, set_cached_progress
-from repositories.progress import QuestionAttemptRepository, StepProgressRepository
-from repositories.submission import SubmissionRepository
-from services.hands_on_verification import get_requirements_for_phase
+from repositories.progress_repository import (
+    QuestionAttemptRepository,
+    StepProgressRepository,
+)
+from repositories.submission_repository import SubmissionRepository
+from services.hands_on_verification_service import get_requirements_for_phase
 
 
 @dataclass
@@ -289,7 +292,7 @@ async def fetch_user_progress(
 
     CACHING: Results are cached for 60 seconds per user_id.
     """
-    from services.submissions import get_validated_ids_by_phase
+    from services.submissions_service import get_validated_ids_by_phase
 
     # Check cache first (unless skip_cache is True)
     if not skip_cache:

@@ -9,13 +9,13 @@ from schemas import (
     QuestionSubmitRequest,
     QuestionSubmitResponse,
 )
-from services.questions import (
+from services.questions_service import (
     LLMGradingError,
     LLMServiceUnavailableError,
     QuestionValidationError,
     submit_question_answer,
 )
-from services.users import get_or_create_user
+from services.users_service import get_or_create_user
 
 router = APIRouter(prefix="/api/questions", tags=["questions"])
 

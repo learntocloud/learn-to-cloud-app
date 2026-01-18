@@ -8,18 +8,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.telemetry import log_metric, track_operation
 from models import SubmissionType, User
-from repositories.submission import SubmissionRepository
-from repositories.user import UserRepository
-from services.activity import (
+from repositories.submission_repository import SubmissionRepository
+from repositories.user_repository import UserRepository
+from services.activity_service import (
     HeatmapData,
     StreakData,
     get_heatmap_data,
     get_streak_data,
 )
-from services.badges import compute_all_badges
-from services.clerk import fetch_user_data
-from services.hands_on_verification import get_requirement_by_id
-from services.progress import fetch_user_progress, get_phase_completion_counts
+from services.badges_service import compute_all_badges
+from services.clerk_service import fetch_user_data
+from services.hands_on_verification_service import get_requirement_by_id
+from services.progress_service import fetch_user_progress, get_phase_completion_counts
 
 StreakInfo = StreakData
 HeatmapInfo = HeatmapData

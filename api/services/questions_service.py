@@ -16,10 +16,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.cache import invalidate_progress_cache
 from core.telemetry import add_custom_attribute, log_metric, track_operation
 from models import ActivityType
-from repositories.activity import ActivityRepository
-from repositories.progress import QuestionAttemptRepository
-from services.content import get_topic_by_id
-from services.llm import grade_answer
+from repositories.activity_repository import ActivityRepository
+from repositories.progress_repository import QuestionAttemptRepository
+from services.content_service import get_topic_by_id
+from services.llm_service import grade_answer
 
 logger = logging.getLogger(__name__)
 

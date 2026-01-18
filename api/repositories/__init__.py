@@ -8,11 +8,14 @@ on HTTP handling. This separation provides:
 - Reusable queries across multiple endpoints
 """
 
-from repositories.activity import ActivityRepository
-from repositories.certificate import CertificateRepository
-from repositories.progress import QuestionAttemptRepository, StepProgressRepository
-from repositories.submission import SubmissionRepository
-from repositories.user import UserRepository
+from repositories.activity_repository import ActivityRepository
+from repositories.certificate_repository import CertificateRepository
+from repositories.progress_repository import (
+    QuestionAttemptRepository,
+    StepProgressRepository,
+)
+from repositories.submission_repository import SubmissionRepository
+from repositories.user_repository import UserRepository
 
 __all__ = [
     "ActivityRepository",

@@ -13,7 +13,7 @@ from schemas import (
     StepProgressResponse,
     TopicStepProgressResponse,
 )
-from services.steps import (
+from services.steps_service import (
     StepAlreadyCompletedError,
     StepInvalidStepOrderError,
     StepNotUnlockedError,
@@ -22,7 +22,7 @@ from services.steps import (
     get_topic_step_progress,
     uncomplete_step,
 )
-from services.users import get_or_create_user
+from services.users_service import get_or_create_user
 
 logger = logging.getLogger(__name__)
 

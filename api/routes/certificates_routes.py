@@ -15,7 +15,7 @@ from schemas import (
     CertificateVerifyResponse,
     UserCertificatesResponse,
 )
-from services.certificates import (
+from services.certificates_service import (
     CertificateAlreadyExistsError,
     NotEligibleError,
     check_eligibility,
@@ -28,7 +28,7 @@ from services.certificates import (
     verify_certificate,
     verify_certificate_with_message,
 )
-from services.users import get_or_create_user
+from services.users_service import get_or_create_user
 
 router = APIRouter(prefix="/api/certificates", tags=["certificates"])
 

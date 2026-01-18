@@ -14,8 +14,8 @@ from datetime import UTC, date, datetime, timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models import ActivityType
-from repositories.activity import ActivityRepository
-from services.streaks import MAX_SKIP_DAYS, calculate_streak_with_forgiveness
+from repositories.activity_repository import ActivityRepository
+from services.streaks_service import MAX_SKIP_DAYS, calculate_streak_with_forgiveness
 
 
 @dataclass

@@ -32,9 +32,9 @@ from rendering.certificates import (
 from rendering.certificates import (
     svg_to_png as _svg_to_png,
 )
-from repositories.activity import ActivityRepository
-from repositories.certificate import CertificateRepository
-from services.progress import fetch_user_progress
+from repositories.activity_repository import ActivityRepository
+from repositories.certificate_repository import CertificateRepository
+from services.progress_service import fetch_user_progress
 
 
 @dataclass(frozen=True)

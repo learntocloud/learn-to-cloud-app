@@ -12,12 +12,12 @@ from schemas import (
     HandsOnSubmissionResponse,
     HandsOnValidationResult,
 )
-from services.submissions import (
+from services.submissions_service import (
     GitHubUsernameRequiredError,
     RequirementNotFoundError,
     submit_validation,
 )
-from services.users import get_or_create_user
+from services.users_service import get_or_create_user
 
 router = APIRouter(prefix="/api/github", tags=["github"])
 

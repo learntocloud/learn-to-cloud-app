@@ -12,7 +12,7 @@ Total test cases: 35
 
 import pytest
 
-from services.badges import (
+from services.badges_service import (
     PHASE_BADGES,
     compute_all_badges,
     compute_phase_badges,
@@ -20,7 +20,7 @@ from services.badges import (
     count_completed_phases,
     get_all_available_badges,
 )
-from services.progress import PHASE_REQUIREMENTS
+from services.progress_service import PHASE_REQUIREMENTS
 
 
 class TestComputePhaseBadges:

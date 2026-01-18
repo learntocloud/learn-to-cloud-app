@@ -15,8 +15,8 @@ from datetime import date
 from typing import TypedDict
 
 from core.cache import get_cached_badges, set_cached_badges
-from services.phase_requirements import get_requirements_for_phase
-from services.progress import PHASE_REQUIREMENTS as _PROGRESS_REQUIREMENTS
+from services.phase_requirements_service import get_requirements_for_phase
+from services.progress_service import PHASE_REQUIREMENTS as _PROGRESS_REQUIREMENTS
 
 
 class StreakBadgeInfo(TypedDict):

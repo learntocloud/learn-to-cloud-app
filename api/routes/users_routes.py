@@ -16,7 +16,7 @@ from schemas import (
     StreakResponse,
     UserResponse,
 )
-from services.users import get_or_create_user, get_public_profile
+from services.users_service import get_or_create_user, get_public_profile
 
 __all__ = ["router", "get_or_create_user"]
 

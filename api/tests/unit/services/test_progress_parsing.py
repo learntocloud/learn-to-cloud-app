@@ -12,7 +12,10 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from services.progress import _parse_phase_from_question_id, _parse_phase_from_topic_id
+from services.progress_service import (
+    _parse_phase_from_question_id,
+    _parse_phase_from_topic_id,
+)
 
 
 class TestParsePhaseFromTopicId:
@@ -45,8 +48,8 @@ class TestParsePhaseFromTopicId:
 
     def test_non_string_returns_none(self):
         """Non-string input returns None."""
-        assert _parse_phase_from_topic_id(123) is None
-        assert _parse_phase_from_topic_id(None) is None
+        assert _parse_phase_from_topic_id(123) is None  # type: ignore[arg-type]
+        assert _parse_phase_from_topic_id(None) is None  # type: ignore[arg-type]
 
     def test_empty_string_returns_none(self):
         """Empty string returns None."""
@@ -108,8 +111,8 @@ class TestParsePhaseFromQuestionId:
 
     def test_non_string_returns_none(self):
         """Non-string input returns None."""
-        assert _parse_phase_from_question_id(123) is None
-        assert _parse_phase_from_question_id(None) is None
+        assert _parse_phase_from_question_id(123) is None  # type: ignore[arg-type]
+        assert _parse_phase_from_question_id(None) is None  # type: ignore[arg-type]
 
     def test_empty_string_returns_none(self):
         """Empty string returns None."""

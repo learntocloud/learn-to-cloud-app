@@ -15,10 +15,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.cache import invalidate_progress_cache
 from core.telemetry import add_custom_attribute, log_metric, track_operation
 from models import Submission, SubmissionType
-from repositories.submission import SubmissionRepository
-from services.github_hands_on_verification import parse_github_url
-from services.hands_on_verification import validate_submission
-from services.phase_requirements import get_requirement_by_id
+from repositories.submission_repository import SubmissionRepository
+from services.github_hands_on_verification_service import parse_github_url
+from services.hands_on_verification_service import validate_submission
+from services.phase_requirements_service import get_requirement_by_id
 
 
 @dataclass(frozen=True)

@@ -7,7 +7,7 @@ Total test cases: 6
 """
 
 from models import Submission, SubmissionType
-from services.submissions import get_validated_ids_by_phase
+from services.submissions_service import get_validated_ids_by_phase
 
 
 class TestGetValidatedIdsByPhase:

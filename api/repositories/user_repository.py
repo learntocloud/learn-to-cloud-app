@@ -219,8 +219,10 @@ class UserRepository:
             # Check if another user has this github_username
             existing = await self.get_by_github_username(github_username)
             if existing and existing.id != user.id:
-                # Clear it from the old user (they likely deleted their Clerk account)
+                # Clear it from the old user and flush BEFORE setting on new user
+                # to avoid unique constraint violation on autoflush
                 existing.github_username = None
+                await self.db.flush()
             user.github_username = github_username
         if is_admin is not None:
             user.is_admin = is_admin

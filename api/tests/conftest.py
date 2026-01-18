@@ -1,6 +1,8 @@
 """Shared test fixtures for the Learn to Cloud test suite.
 
 Provides:
+- PostgreSQL database session fixtures with transaction rollback
+- Model factories using factory-boy
 - Faker instance for realistic test data
 - Phase requirements fixtures
 - PhaseProgress fixtures (empty, completed, partial, no hands-on)
@@ -9,17 +11,256 @@ Provides:
 - Parameterized test data (phase IDs, streak thresholds)
 """
 
+import os
+from collections.abc import AsyncGenerator
+from datetime import UTC, datetime
+
+import factory
 import pytest
 from faker import Faker
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from models import Submission, SubmissionType
-from services.phase_requirements import HandsOnRequirementData
-from services.progress import PhaseProgress, UserProgress
+from core.config import get_settings
+from core.database import Base
+from models import (
+    ActivityType,
+    Certificate,
+    ProcessedWebhook,
+    QuestionAttempt,
+    StepProgress,
+    Submission,
+    SubmissionType,
+    User,
+    UserActivity,
+)
+from services.phase_requirements_service import HandsOnRequirementData
+from services.progress_service import PhaseProgress, UserProgress
 
 # Initialize Faker for realistic data generation
 fake = Faker()
 
 
+# =============================================================================
+# Database Fixtures - PostgreSQL with Transaction Rollback
+# =============================================================================
+
+# Test database URL - use PostgreSQL for realistic testing
+# Locally: docker compose up db (port 5432)
+# CI: GitHub Actions postgres service (port 5432)
+TEST_DATABASE_URL = os.environ.get(
+    "TEST_DATABASE_URL",
+    "postgresql+asyncpg://postgres:postgres@localhost:5432/learn_to_cloud",
+)
+
+
+@pytest.fixture
+async def db_session() -> AsyncGenerator[AsyncSession]:
+    """Create a database session with transaction rollback.
+
+    Each test gets its own engine, connection, and transaction.
+    The transaction is rolled back after the test for isolation.
+    Uses PostgreSQL for realistic testing (same as production).
+    """
+    from sqlalchemy.pool import NullPool
+
+    # Create engine per test to avoid event loop issues
+    engine = create_async_engine(
+        TEST_DATABASE_URL,
+        echo=False,
+        poolclass=NullPool,  # No connection pooling for tests
+    )
+
+    # Create all tables
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    # Create a connection and start a transaction
+    async with engine.connect() as conn:
+        # Start a transaction
+        await conn.begin()
+
+        # Create session bound to this connection
+        async_session_maker = async_sessionmaker(
+            bind=conn,
+            class_=AsyncSession,
+            expire_on_commit=False,
+        )
+
+        async with async_session_maker() as session:
+            yield session
+
+        # Rollback the transaction (undo all changes from this test)
+        await conn.rollback()
+
+    # Dispose engine
+    await engine.dispose()
+
+
+@pytest.fixture
+def clear_settings_cache():
+    """Clear the settings cache before and after each test.
+
+    This ensures tests can use different settings without interference.
+    """
+    get_settings.cache_clear()
+    yield
+    get_settings.cache_clear()
+
+
+# =============================================================================
+# Model Factories using factory-boy
+# =============================================================================
+
+
+class UserFactory(factory.Factory):
+    """Factory for creating User instances."""
+
+    class Meta:
+        model = User
+
+    id = factory.LazyFunction(lambda: fake.uuid4())
+    email = factory.LazyFunction(lambda: fake.email())
+    first_name = factory.LazyFunction(lambda: fake.first_name())
+    last_name = factory.LazyFunction(lambda: fake.last_name())
+    avatar_url = factory.LazyFunction(lambda: fake.image_url())
+    github_username = factory.LazyFunction(lambda: fake.user_name())
+    is_admin = False
+
+
+class SubmissionFactory(factory.Factory):
+    """Factory for creating Submission instances."""
+
+    class Meta:
+        model = Submission
+
+    id = factory.Sequence(lambda n: n + 1)
+    user_id = factory.LazyFunction(lambda: fake.uuid4())
+    requirement_id = "phase0-github-profile"
+    submission_type = SubmissionType.GITHUB_PROFILE
+    phase_id = 0
+    submitted_value = factory.LazyFunction(
+        lambda: f"https://github.com/{fake.user_name()}"
+    )
+    extracted_username = factory.LazyFunction(lambda: fake.user_name())
+    is_validated = True
+    validated_at = factory.LazyFunction(lambda: datetime.now(UTC))
+
+
+class StepProgressFactory(factory.Factory):
+    """Factory for creating StepProgress instances."""
+
+    class Meta:
+        model = StepProgress
+
+    id = factory.Sequence(lambda n: n + 1)
+    user_id = factory.LazyFunction(lambda: fake.uuid4())
+    topic_id = "phase0-topic1"
+    step_order = factory.Sequence(lambda n: n)
+    completed_at = factory.LazyFunction(lambda: datetime.now(UTC))
+
+
+class QuestionAttemptFactory(factory.Factory):
+    """Factory for creating QuestionAttempt instances."""
+
+    class Meta:
+        model = QuestionAttempt
+
+    id = factory.Sequence(lambda n: n + 1)
+    user_id = factory.LazyFunction(lambda: fake.uuid4())
+    topic_id = "phase0-topic1"
+    question_id = "phase0-topic1-q1"
+    user_answer = factory.LazyFunction(lambda: fake.paragraph())
+    is_passed = True
+    llm_feedback = "Good answer!"
+    confidence_score = 0.95
+    created_at = factory.LazyFunction(lambda: datetime.now(UTC))
+
+
+class UserActivityFactory(factory.Factory):
+    """Factory for creating UserActivity instances."""
+
+    class Meta:
+        model = UserActivity
+
+    id = factory.Sequence(lambda n: n + 1)
+    user_id = factory.LazyFunction(lambda: fake.uuid4())
+    activity_type = ActivityType.STEP_COMPLETE
+    activity_date = factory.LazyFunction(lambda: datetime.now(UTC).date())
+    reference_id = factory.LazyFunction(lambda: fake.uuid4())
+    created_at = factory.LazyFunction(lambda: datetime.now(UTC))
+
+
+class CertificateFactory(factory.Factory):
+    """Factory for creating Certificate instances."""
+
+    class Meta:
+        model = Certificate
+
+    id = factory.Sequence(lambda n: n + 1)
+    user_id = factory.LazyFunction(lambda: fake.uuid4())
+    certificate_type = "completion"
+    verification_code = factory.LazyFunction(lambda: fake.sha256()[:64])
+    recipient_name = factory.LazyFunction(lambda: fake.name())
+    issued_at = factory.LazyFunction(lambda: datetime.now(UTC))
+    phases_completed = 7
+    total_phases = 7
+
+
+class ProcessedWebhookFactory(factory.Factory):
+    """Factory for creating ProcessedWebhook instances."""
+
+    class Meta:
+        model = ProcessedWebhook
+
+    id = factory.LazyFunction(lambda: fake.uuid4())
+    event_type = "user.created"
+    processed_at = factory.LazyFunction(lambda: datetime.now(UTC))
+
+
+# =============================================================================
+# Factory Fixtures (for easy use in tests)
+# =============================================================================
+
+
+@pytest.fixture
+def user_factory():
+    """UserFactory for creating test users."""
+    return UserFactory
+
+
+@pytest.fixture
+def submission_factory():
+    """SubmissionFactory for creating test submissions."""
+    return SubmissionFactory
+
+
+@pytest.fixture
+def step_progress_factory():
+    """StepProgressFactory for creating test step progress."""
+    return StepProgressFactory
+
+
+@pytest.fixture
+def question_attempt_factory():
+    """QuestionAttemptFactory for creating test question attempts."""
+    return QuestionAttemptFactory
+
+
+@pytest.fixture
+def activity_factory():
+    """UserActivityFactory for creating test activities."""
+    return UserActivityFactory
+
+
+@pytest.fixture
+def certificate_factory():
+    """CertificateFactory for creating test certificates."""
+    return CertificateFactory
+
+
+# =============================================================================
+# Existing Fixtures (preserved from original)
+# =============================================================================
 @pytest.fixture
 def faker_instance():
     """Faker instance for generating realistic test data."""
@@ -162,10 +403,10 @@ def empty_user_progress(sample_user_id):
     """User with no progress in any phase."""
     phases = {}
     for phase_id in range(7):
-        from services.progress import PHASE_REQUIREMENTS
+        from services.progress_service import PHASE_REQUIREMENTS
 
         req = PHASE_REQUIREMENTS[phase_id]
-        from services.phase_requirements import get_requirements_for_phase
+        from services.phase_requirements_service import get_requirements_for_phase
 
         hands_on_count = len(get_requirements_for_phase(phase_id))
         phases[phase_id] = PhaseProgress(
@@ -187,10 +428,10 @@ def completed_user_progress(sample_user_id):
     """User with all phases completed."""
     phases = {}
     for phase_id in range(7):
-        from services.progress import PHASE_REQUIREMENTS
+        from services.progress_service import PHASE_REQUIREMENTS
 
         req = PHASE_REQUIREMENTS[phase_id]
-        from services.phase_requirements import get_requirements_for_phase
+        from services.phase_requirements_service import get_requirements_for_phase
 
         hands_on_count = len(get_requirements_for_phase(phase_id))
         phases[phase_id] = PhaseProgress(
@@ -210,8 +451,8 @@ def completed_user_progress(sample_user_id):
 @pytest.fixture
 def mid_program_user_progress(sample_user_id):
     """User who has completed phase 0 and is working on phase 1."""
-    from services.phase_requirements import get_requirements_for_phase
-    from services.progress import PHASE_REQUIREMENTS
+    from services.phase_requirements_service import get_requirements_for_phase
+    from services.progress_service import PHASE_REQUIREMENTS
 
     phases = {}
 

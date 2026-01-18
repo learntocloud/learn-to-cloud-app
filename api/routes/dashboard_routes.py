@@ -23,13 +23,13 @@ from schemas import (
     PhaseSummarySchema,
     TopicDetailSchema,
 )
-from services.dashboard import (
+from services.dashboard_service import (
     get_dashboard,
     get_phase_detail,
     get_phases_list,
     get_topic_detail,
 )
-from services.users import get_or_create_user
+from services.users_service import get_or_create_user
 
 logger = logging.getLogger(__name__)
 

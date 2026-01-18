@@ -1,0 +1,25 @@
+[run]
+source = .
+omit =
+    tests/*
+    alembic/*
+    scripts/*
+    __pycache__/*
+    .venv/*
+    *.pyc
+
+[report]
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    raise NotImplementedError
+    if TYPE_CHECKING:
+    if __name__ == .__main__.:
+    @abstractmethod
+    @abc.abstractmethod
+
+[html]
+directory = htmlcov
+
+[xml]
+output = coverage.xml

@@ -16,7 +16,7 @@ from core.config import get_settings
 from core.database import get_session_maker, init_db
 from core.ratelimit import limiter, rate_limit_exceeded_handler
 from core.telemetry import RequestTimingMiddleware, SecurityHeadersMiddleware
-from repositories.webhook import ProcessedWebhookRepository
+from repositories.webhook_repository import ProcessedWebhookRepository
 from routes import (
     activity_router,
     certificates_router,
@@ -28,8 +28,8 @@ from routes import (
     users_router,
     webhooks_router,
 )
-from services.clerk import close_http_client
-from services.github_hands_on_verification import close_github_client
+from services.clerk_service import close_http_client
+from services.github_hands_on_verification_service import close_github_client
 
 _TRUE_VALUES: Final[set[str]] = {"1", "true", "yes", "y", "on"}
 

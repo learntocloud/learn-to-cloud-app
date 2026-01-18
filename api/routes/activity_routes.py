@@ -10,8 +10,8 @@ from core.ratelimit import limiter
 from schemas import (
     StreakResponse,
 )
-from services.activity import get_streak_data
-from services.users import get_or_create_user
+from services.activity_service import get_streak_data
+from services.users_service import get_or_create_user
 
 logger = logging.getLogger(__name__)
 

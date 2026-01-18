@@ -2,10 +2,10 @@
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from repositories.user import UserRepository
-from repositories.webhook import ProcessedWebhookRepository
-from services.clerk import extract_github_username, extract_primary_email
-from services.users import _normalize_github_username
+from repositories.user_repository import UserRepository
+from repositories.webhook_repository import ProcessedWebhookRepository
+from services.clerk_service import extract_github_username, extract_primary_email
+from services.users_service import _normalize_github_username
 
 
 async def handle_user_created(db: AsyncSession, data: dict) -> None:
@@ -54,7 +54,7 @@ async def handle_user_updated(db: AsyncSession, data: dict) -> None:
 
     await user_repo.upsert(
         user_id=user_id,
-        email=primary_email,
+        email=primary_email or f"{user_id}@unknown.local",
         first_name=data.get("first_name"),
         last_name=data.get("last_name"),
         avatar_url=data.get("image_url"),
