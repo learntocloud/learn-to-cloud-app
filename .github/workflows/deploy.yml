@@ -299,6 +299,9 @@ jobs:
         working-directory: frontend
         run: npm ci
 
+      - name: Prepare frontend content
+        run: python scripts/prepare_frontend_content.py
+
       - name: Build frontend
         working-directory: frontend
         run: npm run build
