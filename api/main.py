@@ -35,7 +35,8 @@ _TRUE_VALUES: Final[set[str]] = {"1", "true", "yes", "y", "on"}
 
 
 def _sync_grading_concepts_on_startup_enabled() -> bool:
-    return os.getenv("SYNC_GRADING_CONCEPTS_ON_STARTUP", "").strip().lower() in _TRUE_VALUES
+    env_val = os.getenv("SYNC_GRADING_CONCEPTS_ON_STARTUP", "").strip().lower()
+    return env_val in _TRUE_VALUES
 
 
 def _run_db_migrations_on_startup_enabled() -> bool:
