@@ -309,6 +309,19 @@ jobs:
           VITE_API_URL: ""  # API calls go through SWA proxy to /api
           VITE_CLERK_PUBLISHABLE_KEY: ${{ secrets.CLERK_PUBLISHABLE_KEY }}
 
+      - name: Debug - List dist contents
+        run: |
+          echo "=== dist root ==="
+          ls -la frontend/dist/
+          echo "=== dist/assets ==="
+          ls -la frontend/dist/assets/ | head -20
+          echo "=== dist/content ==="
+          ls -la frontend/dist/content/ | head -10
+          echo "=== dist/content/phase0 ==="
+          ls -la frontend/dist/content/phase0/
+          echo "=== index.html content ==="
+          head -30 frontend/dist/index.html
+
       - name: Deploy to Azure Static Web Apps
         uses: Azure/static-web-apps-deploy@v1
         with:
