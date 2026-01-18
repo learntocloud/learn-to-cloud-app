@@ -2,9 +2,8 @@
   "navigationFallback": {
     "rewrite": "/index.html",
     "exclude": [
-      "/content/*.json",
       "/assets/*",
-      "*.{css,js,svg,png,jpg,jpeg,gif,ico,woff,woff2,ttf,eot,json}"
+      "/.json"
     ]
   },
   "routes": [
@@ -34,5 +33,8 @@
   "platform": {
     "apiRuntime": "node:20"
   },
-  "trailingSlash": "never"
+  "trailingSlash": "never",
+  "mimeTypes": {
+    ".json": "application/json"
+  }
 }
