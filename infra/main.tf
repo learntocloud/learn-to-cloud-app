@@ -657,14 +657,28 @@ resource "azurerm_monitor_metric_alert" "db_high_cpu" {
 # -----------------------------------------------------------------------------
 # Monitoring - Smart Detection (AI-powered anomaly detection)
 # -----------------------------------------------------------------------------
-# NOTE: Azure automatically creates a default FailureAnomaliesDetector for
-# Application Insights. We use a data source to reference it and update its
-# action group via Azure CLI in CI/CD instead of creating a new one.
-# To link the existing detector to our action group, run:
-#   az monitor smart-detector alert-rule update \
-#     --name "Failure Anomalies - appi-ltc-dev-8v4tyz" \
-#     --resource-group rg-ltc-dev \
-#     --action-groups $(terraform output -raw action_group_id)
+# Azure automatically creates a FailureAnomaliesDetector when Application Insights
+# is created. We import and manage the existing one to link our action group.
+# The name follows Azure's convention: "Failure Anomalies - {app_insights_name}"
+
+resource "azurerm_monitor_smart_detector_alert_rule" "failure_anomalies" {
+  name                = "Failure Anomalies - ${azurerm_application_insights.main.name}"
+  resource_group_name = azurerm_resource_group.main.name
+  description         = "Failure Anomalies notifies you of an unusual rise in the rate of failed HTTP requests or dependency calls."
+  severity            = "Sev3"
+  frequency           = "PT1M"
+  detector_type       = "FailureAnomaliesDetector"
+  scope_resource_ids  = [azurerm_application_insights.main.id]
+
+  action_group {
+    ids = [azurerm_monitor_action_group.critical.id]
+  }
+
+  lifecycle {
+    # Prevent Terraform from trying to recreate if Azure changes the description
+    ignore_changes = [description]
+  }
+}
 
 # -----------------------------------------------------------------------------
 # Monitoring - Dashboard
