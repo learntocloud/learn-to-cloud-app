@@ -2,8 +2,9 @@
   "navigationFallback": {
     "rewrite": "/index.html",
     "exclude": [
-      "*.json",
-      "*.{css,js,svg,png,jpg,jpeg,gif,ico,woff,woff2,ttf,eot}"
+      "/content/*.json",
+      "/assets/*",
+      "*.{css,js,svg,png,jpg,jpeg,gif,ico,woff,woff2,ttf,eot,json}"
     ]
   },
   "routes": [
