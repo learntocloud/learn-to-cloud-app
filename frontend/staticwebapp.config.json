@@ -1,10 +1,6 @@
 {
   "navigationFallback": {
-    "rewrite": "/index.html",
-    "exclude": [
-      "/assets/*",
-      "/.json"
-    ]
+    "rewrite": "/index.html"
   },
   "routes": [
     {
@@ -24,12 +20,6 @@
       }
     }
   ],
-  "responseOverrides": {
-    "404": {
-      "rewrite": "/index.html",
-      "statusCode": 200
-    }
-  },
   "platform": {
     "apiRuntime": "node:20"
   },
