@@ -7,18 +7,36 @@ description: Commit changes and monitor the deploy workflow. Use when pushing co
 
 ## Workflow
 
-```bash
-# 1. Run pre-commit
-pre-commit run --all-files
+### Step 1: Run pre-commit (REQUIRED)
 
-# 2. Stage and commit (use conventional commits)
+**Always run pre-commit locally before committing.** Do not proceed until it passes.
+
+```bash
+pre-commit run --all-files
+```
+
+If pre-commit fails:
+- Review the output to see which hooks failed
+- Many hooks auto-fix files (ruff, prettier) - check `git diff` for changes
+- Re-run `pre-commit run --all-files` until all hooks pass
+- Only then proceed to commit
+
+### Step 2: Stage and commit
+
+```bash
 git add -A
 git commit -m "type(scope): description"
+```
 
-# 3. Push
+### Step 3: Push
+
+```bash
 git push
+```
 
-# 4. Watch deploy workflow
+### Step 4: Watch deploy workflow
+
+```bash
 gh run list --workflow=deploy.yml --limit 1
 gh run watch <run-id>
 ```

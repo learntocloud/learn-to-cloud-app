@@ -284,6 +284,11 @@ resource "azurerm_container_app" "api" {
       }
 
       env {
+        name  = "SYNC_GRADING_CONCEPTS_ON_STARTUP"
+        value = "true"
+      }
+
+      env {
         name  = "APPLICATIONINSIGHTS_CONNECTION_STRING"
         value = azurerm_application_insights.main.connection_string
       }

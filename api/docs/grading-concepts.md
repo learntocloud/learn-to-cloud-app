@@ -116,13 +116,9 @@ CREATE TABLE grading_concepts (
 # Local development
 cd api
 uv run python -m cli sync-grading-concepts
-
-# Production (via Azure Container Apps)
-az containerapp exec \
-  --name ca-ltc-api-dev \
-  --resource-group rg-ltc-dev \
-  --command "python -m cli sync-grading-concepts"
 ```
+
+**Production**: Grading concepts are synced automatically on container startup via the `SYNC_GRADING_CONCEPTS_ON_STARTUP=true` environment variable. This runs after database migrations complete.
 
 ### Run Migrations
 
@@ -143,6 +139,7 @@ uv run alembic upgrade head
 | `services/questions_service.py` | Uses repository to get concepts for grading |
 | `scripts/seed_grading_concepts.py` | Extract concepts from content, upsert to DB |
 | `cli.py` | CLI entry point for sync command |
+| `main.py` | Startup sync when `SYNC_GRADING_CONCEPTS_ON_STARTUP=true` |
 | `alembic/versions/add_grading_concepts_table.py` | Migration (creates table + initial seed) |
 
 ## Security Benefits

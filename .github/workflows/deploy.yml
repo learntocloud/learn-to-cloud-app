@@ -284,13 +284,8 @@ jobs:
           echo "API did not become ready within the expected time."
           exit 1
 
-      # Sync grading concepts from content files to database (runs after migrations)
-      - name: Sync grading concepts
-        run: |
-          az containerapp exec \
-            --name ${{ needs.terraform.outputs.api_container_app_name }} \
-            --resource-group ${{ needs.terraform.outputs.resource_group_name }} \
-            --command "python -m cli sync-grading-concepts"
+      # Note: Grading concepts sync now runs automatically on container startup
+      # via SYNC_GRADING_CONCEPTS_ON_STARTUP=true environment variable
 
       # Frontend deployment to Azure Static Web Apps
       - name: Set up Node.js
