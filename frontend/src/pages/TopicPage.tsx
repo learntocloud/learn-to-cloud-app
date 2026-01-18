@@ -223,7 +223,6 @@ function TopicAuthenticatedView({ phaseSlug, topicSlug }: { phaseSlug: string; t
   );
 }
 
-// Topic header component - matches old Next.js styling
 function TopicHeader({ topic, isAuthenticated }: {
   topic: TopicDetailSchema;
   isAuthenticated: boolean;

@@ -179,12 +179,9 @@ git push origin main
    }
    ```
 
-4. Update frontend constants if needed:
-   - Check `frontend/src/lib/content.ts` for any hardcoded topic lists
+4. Commit and push to `main`
 
-5. Commit and push to `main`
-
-6. Trigger full deploy (new topic = structural change)
+5. Trigger full deploy (new topic = structural change)
 
 ### Add a New Phase
 
@@ -209,19 +206,9 @@ git push origin main
 
 4. Update `index.json` with topic references
 
-5. **Update frontend phase list** in `frontend/src/lib/content.ts`:
-   ```typescript
-   export const PHASE_SLUGS = [
-     'phase0',
-     'phase1',
-     // ...
-     'phase7',  // Add new phase
-   ] as const;
-   ```
+5. Commit and push to `main`
 
-6. Commit and push to `main`
-
-7. Full deploy triggers automatically (code change in `content.ts`)
+6. Full deploy triggers automatically (structural change)
 
 ## Content Validation
 

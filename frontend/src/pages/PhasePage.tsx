@@ -355,7 +355,6 @@ function ProgressBar({ percentage, status, size = 'md' }: { percentage: number; 
   );
 }
 
-// Topic card component - matches old Next.js styling
 function TopicCard({ topic, phaseSlug, previousTopicName }: {
   topic: TopicSummarySchema;
   phaseSlug: string;
