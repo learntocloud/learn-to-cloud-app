@@ -371,7 +371,7 @@ resource "azurerm_container_app" "frontend" {
         transport = "HTTP"
         path      = "/"
         port      = 80
-        initial_delay            = 10
+        initial_delay            = 2
         interval_seconds         = 30
         timeout                  = 5
         failure_count_threshold  = 3
