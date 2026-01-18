@@ -1,0 +1,85 @@
+{
+  "id": "phase1-topic3",
+  "slug": "iac",
+  "name": "Infrastructure as Code",
+  "description": "We will spend a lot more time on Infrastructure as Code and other DevOps practices later as all of our labs use them. For now, you need to familiarize yourself with a few Terraform concepts.",
+  "order": 3,
+  "estimated_time": "2-3 days",
+  "is_capstone": false,
+  "learning_steps": [
+    {
+      "order": 1,
+      "text": "Study: What is IaC",
+      "action": "Study:",
+      "title": "What is IaC",
+      "url": "https://www.hashicorp.com/resources/what-is-infrastructure-as-code",
+      "description": "Learn the fundamentals of Infrastructure as Code and why it's important."
+    },
+    {
+      "order": 2,
+      "text": "Study: What is Infrastructure as Code with Terraform?",
+      "action": "Study:",
+      "title": "What is Infrastructure as Code with Terraform?",
+      "url": "https://developer.hashicorp.com/terraform/intro"
+    },
+    {
+      "order": 3,
+      "text": "Study: Terraform init",
+      "action": "Study:",
+      "title": "Terraform init",
+      "url": "https://developer.hashicorp.com/terraform/cli/commands/init",
+      "description": "Learn what terraform init does and why it's the first command you run."
+    },
+    {
+      "order": 4,
+      "text": "Study: Terraform apply",
+      "action": "Study:",
+      "title": "Terraform apply",
+      "url": "https://developer.hashicorp.com/terraform/cli/commands/apply",
+      "description": "Learn how terraform apply creates and updates infrastructure."
+    },
+    {
+      "order": 5,
+      "text": "Test your understanding with an AI assistant",
+      "action": "Test your understanding with an AI assistant:",
+      "url": null,
+      "description": "Remember: The goal is for AI to challenge your understanding, not give you the answer. Use this prompt to verify you understand IaC concepts:",
+      "code": "I'm studying cloud engineering and recently learned about Infrastructure as Code. I will provide you an explanation about it and please ask me any questions if my explanation is not clear. I want to make sure I really understand this concept so please do not correct me, simply ask questions until I get the explanation right. Here is my explanation: IaC is..."
+    },
+    {
+      "order": 6,
+      "text": "Install Terraform",
+      "action": "Install Terraform:",
+      "title": "Install Terraform",
+      "url": "https://developer.hashicorp.com/terraform/install",
+      "description": "Windows users: Make sure you're installing Terraform inside Ubuntu via WSL."
+    }
+  ],
+  "questions": [
+    {
+      "id": "phase1-topic3-q1",
+      "prompt": "How would you explain Infrastructure as Code to a manager, and what problems does it solve over manual configuration?"
+    },
+    {
+      "id": "phase1-topic3-q2",
+      "prompt": "Walk me through what terraform init and terraform apply do when you run them."
+    }
+  ],
+  "test_knowledge_prompts": [
+    "Can you ask me what Infrastructure as Code is and why it's better than manual setup?",
+    "Can you quiz me on what terraform init and terraform apply do?",
+    "Can you ask me what a Terraform state file is used for?"
+  ],
+  "learning_objectives": [
+    {
+      "id": "phase1-topic3-check1",
+      "text": "How to install Terraform on your system",
+      "order": 1
+    },
+    {
+      "id": "phase1-topic3-check2",
+      "text": "Understand the basics of Infrastructure as Code",
+      "order": 2
+    }
+  ]
+}

@@ -10,6 +10,10 @@
 7. [Code Review Checklist](#code-review-checklist)
 8. [Examples](#examples)
 
+### Related Documentation
+- [Grading Concepts System](grading-concepts.md) - How expected answers are stored securely
+- [Progression System](progression-system.md) - Phase unlocking and badge logic
+
 ---
 
 ## Overview

@@ -6,6 +6,10 @@ terraform {
       source  = "hashicorp/azurerm"
       version = "~> 4.0"
     }
+    azapi = {
+      source  = "Azure/azapi"
+      version = "~> 2.0"
+    }
     random = {
       source  = "hashicorp/random"
       version = "~> 3.6"
@@ -28,6 +32,8 @@ provider "azurerm" {
   }
   subscription_id = var.subscription_id
 }
+
+provider "azapi" {}
 
 # -----------------------------------------------------------------------------
 # Random suffix for unique names
@@ -326,101 +332,61 @@ resource "azurerm_container_app" "api" {
 }
 
 # -----------------------------------------------------------------------------
-# Frontend Container App
+# Frontend Static Web App
 # -----------------------------------------------------------------------------
-resource "azurerm_container_app" "frontend" {
-  name                         = "ca-ltc-frontend-${var.environment}"
-  container_app_environment_id = azurerm_container_app_environment.main.id
-  resource_group_name          = azurerm_resource_group.main.name
-  revision_mode                = "Single"
-  tags                         = local.tags
+# Azure Static Web Apps provides global CDN, automatic HTTPS, and instant deploys.
+# Standard tier required for Container Apps backend linking.
 
-  registry {
-    server               = azurerm_container_registry.main.login_server
-    username             = azurerm_container_registry.main.admin_username
-    password_secret_name = "acr-password"
-  }
+resource "azurerm_static_web_app" "frontend" {
+  name                = "swa-ltc-frontend-${var.environment}"
+  resource_group_name = azurerm_resource_group.main.name
+  location            = azurerm_resource_group.main.location
+  sku_tier            = "Standard"
+  sku_size            = "Standard"
+  tags                = local.tags
+}
 
-  secret {
-    name  = "acr-password"
-    value = azurerm_container_registry.main.admin_password
-  }
+# Link the API Container App as the backend for /api/* routes
+# Uses AzAPI because azurerm doesn't support Container Apps linking yet
+resource "azapi_resource" "swa_backend_link" {
+  type      = "Microsoft.Web/staticSites/linkedBackends@2023-01-01"
+  name      = "api"
+  parent_id = azurerm_static_web_app.frontend.id
 
-  ingress {
-    external_enabled = true
-    target_port      = 80
-    transport        = "http"
-
-    traffic_weight {
-      percentage      = 100
-      latest_revision = true
+  body = {
+    properties = {
+      backendResourceId = azurerm_container_app.api.id
+      region            = azurerm_resource_group.main.location
     }
   }
 
-  template {
-    min_replicas = 0
-    max_replicas = 3
-
-    container {
-      name   = "frontend"
-      image  = "${azurerm_container_registry.main.login_server}/frontend:v6"
-      cpu    = 0.25
-      memory = "0.5Gi"
-
-      liveness_probe {
-        transport = "HTTP"
-        path      = "/"
-        port      = 80
-        initial_delay            = 2
-        interval_seconds         = 30
-        timeout                  = 5
-        failure_count_threshold  = 3
-      }
-    }
-  }
+  depends_on = [
+    azurerm_static_web_app.frontend,
+    azurerm_container_app.api
+  ]
 }
 
 # -----------------------------------------------------------------------------
 # Custom Domain for Frontend (app.learntocloud.guide)
 # -----------------------------------------------------------------------------
 # Prerequisites: DNS records must be configured BEFORE applying:
-#   - CNAME: app → <frontend_fqdn>
-#   - TXT: asuid.app → <custom_domain_verification_id>
-#
-# This uses Azure's FREE managed SSL certificate. The certificate is provisioned
-# asynchronously by Azure after the custom domain is created.
-#
-# IMPORTANT: The lifecycle.ignore_changes block is REQUIRED because Azure modifies
-# certificate_binding_type and container_app_environment_certificate_id outside
-# of Terraform after the managed cert is provisioned. Without this, Terraform
-# would try to recreate the resource on every apply, breaking the domain binding.
+#   - CNAME: app → <swa_default_host_name>
+#   - TXT: Validation handled automatically by SWA
 
-resource "azurerm_container_app_custom_domain" "frontend" {
-  count            = var.frontend_custom_domain != "" ? 1 : 0
-  name             = var.frontend_custom_domain
-  container_app_id = azurerm_container_app.frontend.id
-
-  # Let Azure manage the certificate binding - don't specify certificate_binding_type
-  # or container_app_environment_certificate_id for managed certs
-
-  lifecycle {
-    # Required for Azure Managed Certificates - these values are set asynchronously
-    # by Azure after the cert is provisioned. Without ignore_changes, Terraform
-    # detects drift and tries to recreate the resource, breaking the binding.
-    ignore_changes = [certificate_binding_type, container_app_environment_certificate_id]
-  }
-
-  timeouts {
-    create = "10m"
-  }
+resource "azurerm_static_web_app_custom_domain" "frontend" {
+  count             = var.frontend_custom_domain != "" ? 1 : 0
+  static_web_app_id = azurerm_static_web_app.frontend.id
+  domain_name       = var.frontend_custom_domain
+  validation_type   = "cname-delegation"
 }
 
-output "custom_domain_verification_id" {
-  description = "TXT record value for custom domain verification (asuid.app → this value)"
-  value       = azurerm_container_app_environment.main.custom_domain_verification_id
+output "swa_default_hostname" {
+  description = "Static Web App default hostname for DNS CNAME record"
+  value       = azurerm_static_web_app.frontend.default_host_name
 }
 
-output "frontend_fqdn" {
-  description = "Frontend FQDN for CNAME record (app → this value)"
-  value       = azurerm_container_app.frontend.ingress[0].fqdn
+output "swa_api_key" {
+  description = "Static Web App deployment token (for CI/CD)"
+  value       = azurerm_static_web_app.frontend.api_key
+  sensitive   = true
 }

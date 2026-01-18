@@ -1,0 +1,46 @@
+{
+  "id": 3,
+  "name": "AI Tools & Intentional Learning",
+  "slug": "phase3",
+  "description": "You've now written code from scratch, debugged your own errors, and built a working API. That struggle was intentional—it built mental models you can't get any other way. Now you're ready to use AI tools effectively. The difference between a beginner who uses Copilot and an experienced dev who uses Copilot is massive: the experienced dev knows when Copilot is wrong, when to reject suggestions, and how to guide it. This phase teaches you to use AI as a learning accelerator, not a crutch.",
+  "short_description": "Learn to use AI tools effectively: GitHub Copilot, prompt engineering, and AI-assisted learning. Improve your Phase 2 capstone with better prompts.",
+  "additional_context": "This phase is about developing discipline with AI tools. You'll use them to deepen your understanding—not to skip learning. The goal is to become a developer who can leverage AI while maintaining critical thinking and code ownership.",
+  "estimated_weeks": "2-3 weeks",
+  "order": 3,
+  "prerequisites": [
+    "Completed Phase 1: Linux and Bash",
+    "Completed Phase 2: Programming Fundamentals (including capstone)",
+    "Your Journal API project from Phase 2"
+  ],
+  "objectives": [
+    "Understand when and how to use AI coding assistants effectively",
+    "Learn GitHub Copilot setup and best practices",
+    "Master prompt engineering patterns for consistent results",
+    "Use AI to deepen understanding, not replace thinking",
+    "Improve your Phase 2 capstone with better prompts and system messages"
+  ],
+  "capstone": {
+    "title": "Improve Your Journal API",
+    "summary": "Revisit your Phase 2 Journal API and improve it using prompt engineering and AI-assisted review — without outsourcing your understanding.",
+    "includes": [
+      "Review and improve your LLM prompts and system messages",
+      "Use Copilot for targeted code review and refactoring",
+      "Document what changed and what you learned"
+    ],
+    "topic_slug": "capstone"
+  },
+  "hands_on_verification": {
+    "summary": "Demonstrate that you can use AI tools intentionally and communicate your work clearly.",
+    "includes": [
+      "Create a repository demonstrating GitHub Copilot usage",
+      "Include documented examples of AI-assisted coding and your decisions"
+    ]
+  },
+  "warning": "The goal of this phase is NOT to have AI write code for you. It's to learn how to use AI tools as a multiplier for your existing skills. If you find yourself accepting suggestions without understanding them, stop and reconsider. AI should help you learn faster, not skip learning entirely.",
+  "topics": [
+    "ai-for-learning",
+    "github-copilot",
+    "prompt-engineering",
+    "capstone"
+  ]
+}

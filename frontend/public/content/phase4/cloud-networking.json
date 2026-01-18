@@ -1,0 +1,131 @@
+{
+  "id": "phase4-topic3",
+  "slug": "cloud-networking",
+  "name": "Cloud Networking Fundamentals",
+  "description": "In the previous topic you worked on deploying a VM in the cloud, using default configurations like the VPC, Security Groups etc. This topic focuses on deepening your understanding of cloud networking concepts essential for secure deployments.",
+  "order": 3,
+  "estimated_time": "3-4 days",
+  "is_capstone": false,
+  "learning_steps": [
+    {
+      "order": 1,
+      "text": "Understand Virtual Private Cloud (VPC/VNet)",
+      "action": "Understand Virtual Private Cloud:",
+      "url": null,
+      "description": "A VPC is your private network in the cloud - an isolated section where you can launch resources with full control over IP addressing, subnets, and routing.",
+      "options": [
+        {
+          "provider": "aws",
+          "title": "What is Amazon VPC?",
+          "url": "https://docs.aws.amazon.com/vpc/latest/userguide/what-is-amazon-vpc.html",
+          "description": "Amazon Virtual Private Cloud documentation"
+        },
+        {
+          "provider": "azure",
+          "title": "Azure Virtual Network Overview",
+          "url": "https://learn.microsoft.com/en-us/azure/virtual-network/virtual-networks-overview",
+          "description": "Azure Virtual Network fundamentals"
+        },
+        {
+          "provider": "gcp",
+          "title": "GCP Virtual Private Cloud",
+          "url": "https://cloud.google.com/vpc/docs/overview",
+          "description": "Google Cloud VPC documentation"
+        }
+      ]
+    },
+    {
+      "order": 2,
+      "text": "Learn Subnetting",
+      "action": "Learn Subnetting:",
+      "title": "AWS VPC CIDR Blocks and Subnetting",
+      "url": "https://docs.aws.amazon.com/vpc/latest/userguide/vpc-cidr-blocks.html",
+      "description": "Understand public vs. private subnets and CIDR block notation. This is fundamental to designing secure cloud architectures."
+    },
+    {
+      "order": 3,
+      "text": "Understand Gateways",
+      "action": "Understand Gateways:",
+      "url": null,
+      "description": "Learn about different types of gateways for secure internet access:\n\n• Internet Gateway (IGW) - Allows internet access for public subnets\n• NAT Gateway - Enables private subnet resources to access internet without being directly accessible\n• VPN Gateway - Secure connection between cloud and on-premises networks",
+      "options": [
+        {
+          "provider": "aws",
+          "title": "Extend Your VPC Resources",
+          "url": "https://docs.aws.amazon.com/vpc/latest/userguide/extend-intro.html",
+          "description": "Connect your VPC to the internet and other networks"
+        },
+        {
+          "provider": "azure",
+          "title": "Azure NAT Gateway Overview",
+          "url": "https://learn.microsoft.com/en-us/azure/nat-gateway/nat-overview",
+          "description": "Understand Network Address Translation in Azure"
+        },
+        {
+          "provider": "gcp",
+          "title": "Cloud NAT Overview",
+          "url": "https://cloud.google.com/nat/docs/overview",
+          "description": "Learn about NAT in Google Cloud"
+        }
+      ]
+    },
+    {
+      "order": 4,
+      "text": "Verify your understanding",
+      "action": "Verify your understanding:",
+      "title": "AWS Networking Fundamentals",
+      "url": "https://docs.aws.amazon.com/whitepapers/latest/aws-overview/networking-services.html",
+      "description": "Review AWS networking concepts. Make sure you understand VPCs, subnets, IP addressing, and routing before moving on."
+    },
+    {
+      "order": 5,
+      "text": "Hands-on Task",
+      "action": "Hands-on Task:",
+      "url": null,
+      "description": "Complete this networking lab on your cloud provider:\n\n1. Set up a Cloud Network (VPC/VNet)\n2. Create two subnets - one public, one private\n3. Configure Internet Access with proper routing\n4. Associate subnets with appropriate route tables\n5. Set up Security Groups for each subnet\n6. Deploy a VM in the Public Subnet\n7. Deploy a VM in the Private Subnet\n8. Verify the public VM is accessible and the private VM is not directly accessible from internet"
+    }
+  ],
+  "questions": [
+    {
+      "id": "phase4-topic3-q1",
+      "prompt": "How would you explain a VPC to someone new to cloud, and what role do subnets play within it?"
+    },
+    {
+      "id": "phase4-topic3-q2",
+      "prompt": "Walk me through the purpose of a NAT Gateway and a scenario where you'd deploy one."
+    }
+  ],
+  "test_knowledge_prompts": [
+    "Can you quiz me on the purpose of Route Tables and how they impact network traffic?",
+    "Can you explain how a route table controls the flow of traffic in a cloud network?",
+    "Can you ask me how CIDR notation defines IP address ranges?",
+    "Can you quiz me on how public and private subnets differ and when each should be used?",
+    "Can you ask me about the role of an Internet Gateway in a VPC?",
+    "Can you quiz me on what a NAT Gateway does and when it's needed?",
+    "Can you explain how traffic flows between public and private subnets within a VPC?",
+    "Can you ask me about the significance of the 0.0.0.0/0 route in a route table?",
+    "Can you explain the difference between NAT Gateway and Internet Gateway?"
+  ],
+  "learning_objectives": [
+    {
+      "id": "phase4-topic3-check1",
+      "text": "How to create a VPC with public and private subnets",
+      "order": 1
+    },
+    {
+      "id": "phase4-topic3-check2",
+      "text": "How to configure route tables correctly",
+      "order": 2
+    },
+    {
+      "id": "phase4-topic3-check3",
+      "text": "How to set up internet/NAT gateways",
+      "order": 3
+    },
+    {
+      "id": "phase4-topic3-check4",
+      "text": "How to verify network connectivity",
+      "order": 4
+    }
+  ]
+}

@@ -1,0 +1,231 @@
+{
+  "id": "phase5-capstone",
+  "slug": "capstone",
+  "name": "Capstone: Comprehensive Security Implementation",
+  "description": "Apply everything you've learned to implement comprehensive cloud security for your Journal API. This capstone covers IAM, data protection, network security, monitoring, and incident response - creating a production-ready security posture.",
+  "short_description": "Secure your Journal API with IAM policies, secrets management, network controls, and automated threat detection.",
+  "order": 6,
+  "estimated_time": "5-7 days",
+  "is_capstone": true,
+  "learning_steps": [
+    {
+      "order": 1,
+      "text": "Project Overview",
+      "action": "Project Overview:",
+      "url": null,
+      "description": "Secure your Journal API across all five security domains: Identity & Access Management, Data Protection, Network Security, Security Monitoring, and Incident Response."
+    },
+    {
+      "order": 2,
+      "text": "Part 1: IAM Security",
+      "action": "Part 1: IAM Security",
+      "url": null,
+      "description": "Implement proper identity and access controls:\n\n• Create service accounts with minimal permissions\n• Implement role-based access control (RBAC)\n• Enable MFA for all administrative access\n• Set up API authentication and authorization\n• Remove any hardcoded credentials"
+    },
+    {
+      "order": 3,
+      "text": "IAM Implementation Tasks",
+      "action": "IAM Implementation Tasks:",
+      "url": null,
+      "description": "□ Create dedicated service account for API\n□ Define IAM roles with least privilege\n□ Configure API key rotation\n□ Set up conditional access policies\n□ Enable audit logging for IAM changes"
+    },
+    {
+      "order": 4,
+      "text": "Part 2: Data Protection",
+      "action": "Part 2: Data Protection",
+      "url": null,
+      "description": "Protect data at rest and in transit:\n\n• Enable encryption for database storage\n• Configure TLS for all API endpoints\n• Implement secrets management for credentials\n• Set up backup encryption\n• Classify and protect sensitive user data"
+    },
+    {
+      "order": 5,
+      "text": "Data Protection Tasks",
+      "action": "Data Protection Implementation Tasks:",
+      "url": null,
+      "description": "□ Enable database encryption at rest\n□ Configure HTTPS/TLS for API\n□ Migrate secrets to secrets manager\n□ Implement encrypted backups\n□ Document data classification schema"
+    },
+    {
+      "order": 6,
+      "text": "Part 3: Network Security",
+      "action": "Part 3: Network Security",
+      "url": null,
+      "description": "Implement network isolation and controls:\n\n• Configure VPC with public/private subnets\n• Set up security groups for API and database\n• Implement network ACLs\n• Configure load balancer with WAF\n• Set up private endpoints where available"
+    },
+    {
+      "order": 7,
+      "text": "Network Security Tasks",
+      "action": "Network Security Implementation Tasks:",
+      "url": null,
+      "description": "□ Design VPC architecture with subnets\n□ Configure security groups (API, DB, bastion)\n□ Set up network ACLs for subnet protection\n□ Configure load balancer with SSL termination\n□ Document network architecture diagram"
+    },
+    {
+      "order": 8,
+      "text": "Part 4: Security Monitoring",
+      "action": "Part 4: Security Monitoring",
+      "url": null,
+      "description": "Set up comprehensive security monitoring:\n\n• Enable audit logging for all services\n• Configure log aggregation and analysis\n• Create security dashboards\n• Set up alerting for security events\n• Implement metrics for security KPIs"
+    },
+    {
+      "order": 9,
+      "text": "Security Monitoring Tasks",
+      "action": "Security Monitoring Implementation Tasks:",
+      "url": null,
+      "description": "□ Enable CloudWatch/Azure Monitor logging\n□ Configure log retention policies\n□ Create security event dashboard\n□ Set up alerts for critical events\n□ Define security metrics and thresholds"
+    },
+    {
+      "order": 10,
+      "text": "Part 5: Incident Response",
+      "action": "Part 5: Incident Response",
+      "url": null,
+      "description": "Prepare for security incidents:\n\n• Enable threat detection services\n• Create incident response runbooks\n• Set up automated response actions\n• Document escalation procedures\n• Plan for incident communication"
+    },
+    {
+      "order": 11,
+      "text": "Incident Response Tasks",
+      "action": "Incident Response Implementation Tasks:",
+      "url": null,
+      "description": "□ Enable GuardDuty/Sentinel threat detection\n□ Create runbook for credential compromise\n□ Set up automated isolation for threats\n□ Document incident severity matrix\n□ Create communication templates"
+    },
+    {
+      "order": 12,
+      "text": "Success Criteria",
+      "action": "Success Criteria:",
+      "url": null,
+      "description": "Your implementation should meet these benchmarks:\n\n✓ Zero secrets in code or environment variables\n✓ Network isolation between API and database\n✓ Encryption enabled everywhere (transit + rest)\n✓ Monitoring functional with active alerts\n✓ At least one automated response configured\n✓ Complete documentation of security posture\n✓ Cost under budget with monitoring alerts"
+    },
+    {
+      "order": 13,
+      "text": "Deliverables",
+      "action": "Deliverables:",
+      "url": null,
+      "description": "Document and demonstrate:\n\n1. Security architecture diagram\n2. IAM roles and policies documentation\n3. Network architecture with security controls\n4. Monitoring dashboard screenshots\n5. Incident response runbook\n6. Security assessment report"
+    },
+    {
+      "order": 14,
+      "text": "Reference Documentation",
+      "action": "Reference Documentation:",
+      "url": null,
+      "description": "Security frameworks and best practices:",
+      "secondary_links": [
+        {
+          "text": "AWS Well-Architected Security Pillar",
+          "url": "https://docs.aws.amazon.com/wellarchitected/latest/security-pillar/welcome.html"
+        },
+        {
+          "text": "Azure Security Best Practices",
+          "url": "https://learn.microsoft.com/en-us/azure/security/fundamentals/best-practices-and-patterns"
+        },
+        {
+          "text": "Google Cloud Security Foundations",
+          "url": "https://cloud.google.com/architecture/security-foundations"
+        },
+        {
+          "text": "CIS Cloud Security Benchmarks",
+          "url": "https://www.cisecurity.org/benchmark"
+        }
+      ]
+    },
+    {
+      "order": 15,
+      "text": "Provider-Specific Guides",
+      "action": "Provider-Specific Implementation Guides:",
+      "url": null,
+      "description": "Step-by-step tutorials:",
+      "secondary_links": [
+        {
+          "text": "AWS Security Workshop",
+          "url": "https://catalog.workshops.aws/well-architected-security/"
+        },
+        {
+          "text": "Azure Security Workshop",
+          "url": "https://learn.microsoft.com/en-us/azure/cloud-adoption-framework/secure/"
+        },
+        {
+          "text": "GCP Security Workshop",
+          "url": "https://cloud.google.com/architecture/security-foundations"
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "phase5-capstone-q1",
+      "prompt": "Walk me through the security architecture you implemented for your Journal API. What are the key security controls at each layer?"
+    },
+    {
+      "id": "phase5-capstone-q2",
+      "prompt": "How would you respond to a potential credential compromise in your cloud environment?"
+    }
+  ],
+  "test_knowledge_prompts": [
+    "Can you review my IAM implementation and suggest improvements?",
+    "Can you quiz me on encryption best practices for my Journal API?",
+    "Can you help me design the network security architecture?",
+    "Can you review my security monitoring setup and alert configuration?",
+    "Can you quiz me on incident response procedures?",
+    "Can you help me create an incident response runbook?",
+    "Can you assess whether my implementation meets the success criteria?",
+    "Can you suggest ways to improve my security posture?"
+  ],
+  "learning_objectives": [
+    {
+      "id": "phase5-capstone-check1",
+      "text": "How to implement IAM with least privilege principles",
+      "order": 1
+    },
+    {
+      "id": "phase5-capstone-check2",
+      "text": "How to migrate secrets to a secrets manager",
+      "order": 2
+    },
+    {
+      "id": "phase5-capstone-check3",
+      "text": "How to enable encryption at rest and in transit",
+      "order": 3
+    },
+    {
+      "id": "phase5-capstone-check4",
+      "text": "How to configure VPC with proper network segmentation",
+      "order": 4
+    },
+    {
+      "id": "phase5-capstone-check5",
+      "text": "How to configure security groups correctly",
+      "order": 5
+    },
+    {
+      "id": "phase5-capstone-check6",
+      "text": "How to enable audit logging for all services",
+      "order": 6
+    },
+    {
+      "id": "phase5-capstone-check7",
+      "text": "How to create a security monitoring dashboard",
+      "order": 7
+    },
+    {
+      "id": "phase5-capstone-check8",
+      "text": "How to configure alerts for critical security events",
+      "order": 8
+    },
+    {
+      "id": "phase5-capstone-check9",
+      "text": "How to enable threat detection services",
+      "order": 9
+    },
+    {
+      "id": "phase5-capstone-check10",
+      "text": "How to document an incident response runbook",
+      "order": 10
+    },
+    {
+      "id": "phase5-capstone-check11",
+      "text": "How to create a security architecture diagram",
+      "order": 11
+    },
+    {
+      "id": "phase5-capstone-check12",
+      "text": "How to write a security assessment report",
+      "order": 12
+    }
+  ]
+}

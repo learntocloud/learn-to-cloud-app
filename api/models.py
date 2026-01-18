@@ -16,6 +16,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, declared_attr, mapped_column, relationship
 
 from core.database import Base
@@ -320,6 +321,23 @@ class StepProgress(Base):
     )
 
     user: Mapped["User"] = relationship(back_populates="step_progress")
+
+
+class GradingConcept(TimestampMixin, Base):
+    """Stores expected concepts for question grading.
+
+    This table holds the grading criteria (expected_concepts) that are used
+    by the LLM to evaluate user answers. These are kept server-side only
+    and never exposed to the frontend for security.
+    """
+
+    __tablename__ = "grading_concepts"
+
+    question_id: Mapped[str] = mapped_column(String(100), primary_key=True)
+    expected_concepts: Mapped[list[str]] = mapped_column(
+        JSONB,
+        nullable=False,
+    )
 
 
 class UserActivity(Base):

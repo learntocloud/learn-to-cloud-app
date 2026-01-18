@@ -1,0 +1,68 @@
+{
+  "id": "phase1-topic4",
+  "slug": "ssh",
+  "name": "SSH",
+  "description": "Now you need to learn how to access a virtual machine via SSH. This is a fundamental skill for working with cloud servers.",
+  "order": 4,
+  "estimated_time": "1 day",
+  "is_capstone": false,
+  "learning_steps": [
+    {
+      "order": 1,
+      "text": "Study: What is SSH",
+      "action": "Study:",
+      "title": "What is SSH",
+      "url": "https://www.cloudflare.com/learning/access-management/what-is-ssh/",
+      "description": "Learn what SSH is and why it's used for secure remote access."
+    },
+    {
+      "order": 2,
+      "text": "Practice connecting to a VM",
+      "action": "Practice connecting to a VM:",
+      "url": null,
+      "description": "Follow your cloud provider's guide to connect to a VM via SSH:",
+      "options": [
+        {
+          "provider": "aws",
+          "title": "Connect to your Linux instance",
+          "url": "https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/connect-linux-inst-ssh.html",
+          "description": "AWS guide to connecting to EC2 instances via SSH."
+        },
+        {
+          "provider": "azure",
+          "title": "Develop on a remote machine",
+          "url": "https://learn.microsoft.com/training/modules/develop-on-remote-machine/",
+          "description": "Learn to connect and develop on Azure VMs remotely."
+        },
+        {
+          "provider": "gcp",
+          "title": "SSH into a VM",
+          "url": "https://cloud.google.com/compute/docs/connect/standard-ssh",
+          "description": "GCP documentation for SSH access to Compute Engine instances."
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "phase1-topic4-q1",
+      "prompt": "How would you explain SSH to a teammate, and why is it fundamental for cloud computing?"
+    },
+    {
+      "id": "phase1-topic4-q2",
+      "prompt": "Walk me through why SSH keys are more secure than passwords for server authentication."
+    }
+  ],
+  "learning_objectives": [
+    {
+      "id": "phase1-topic4-check1",
+      "text": "Understand how SSH works and its importance for cloud",
+      "order": 1
+    },
+    {
+      "id": "phase1-topic4-check2",
+      "text": "How to SSH into a virtual machine from your terminal",
+      "order": 2
+    }
+  ]
+}

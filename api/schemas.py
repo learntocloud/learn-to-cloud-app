@@ -400,11 +400,15 @@ class LearningStepSchema(BaseModel):
 
 
 class QuestionSchema(BaseModel):
-    """A knowledge check question."""
+    """A knowledge check question.
+
+    Note: expected_concepts is intentionally excluded for security.
+    Grading concepts are stored server-side in the grading_concepts table
+    and never exposed to the frontend.
+    """
 
     id: str
     prompt: str
-    expected_concepts: list[str]
 
 
 class TopicProgressSchema(BaseModel):

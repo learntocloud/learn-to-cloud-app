@@ -1,0 +1,152 @@
+{
+  "id": "phase4-topic9",
+  "slug": "capstone",
+  "name": "Cloud Deployment Capstone",
+  "description": "Deploy your Journal API from the Phase 2 Capstone to a secure 2-tier cloud architecture. This capstone challenges you to research, design, and implement a production-ready environment with proper networking and security.",
+  "short_description": "Deploy your Journal API to a secure 2-tier cloud architecture with VMs, networking, and managed database.",
+  "order": 9,
+  "estimated_time": "1 week",
+  "is_capstone": true,
+  "learning_steps": [
+    {
+      "order": 1,
+      "text": "Challenge Overview",
+      "action": "Challenge Overview:",
+      "url": null,
+      "description": "Create a secure 2-tier architecture:\n\n• Tier 1: FastAPI application server (internet-accessible)\n• Tier 2: PostgreSQL database server (private, secure)"
+    },
+    {
+      "order": 2,
+      "text": "Learning Objectives",
+      "action": "Learning Objectives:",
+      "url": null,
+      "description": "• Design secure cloud networking with public/private subnets\n• Implement security groups following least privilege principles\n• Configure remote database access securely\n• Deploy a production-ready multi-tier application"
+    },
+    {
+      "order": 3,
+      "text": "Prerequisites",
+      "action": "Prerequisites:",
+      "url": null,
+      "description": "Before starting, ensure you have:\n\n• Completed Phase 2 Capstone (Journal API with AI analysis working locally)\n• Cloud provider account with appropriate permissions\n• SSH key pair for server access\n• LLM API key from your chosen provider (OpenAI, Anthropic, Azure OpenAI, AWS Bedrock, or GCP Vertex AI)"
+    },
+    {
+      "order": 4,
+      "text": "Mission 1: Design Your Architecture",
+      "action": "Mission 1: Design Your Architecture",
+      "url": null,
+      "description": "Research and plan your cloud infrastructure:\n\n• How will you separate public and private resources?\n• What networking components do you need?\n• How will you secure communication between tiers?"
+    },
+    {
+      "order": 5,
+      "text": "Mission 2: Deploy the API Server",
+      "action": "Mission 2: Deploy the API Server",
+      "url": null,
+      "description": "Set up your application server in the public tier:\n\n• Choose appropriate compute resources\n• Deploy your Journal API application\n• Configure secure access and networking"
+    },
+    {
+      "order": 6,
+      "text": "Mission 3: Deploy the Database Server",
+      "action": "Mission 3: Deploy the Database Server",
+      "url": null,
+      "description": "Set up PostgreSQL in the private tier:\n\n• Ensure it's NOT directly accessible from the internet\n• Configure it to accept connections from your API server only\n• Implement proper security measures"
+    },
+    {
+      "order": 7,
+      "text": "Mission 4: Test Your Deployment",
+      "action": "Mission 4: Test Your Deployment",
+      "url": null,
+      "description": "Validate your architecture:\n\n• All API endpoints work correctly\n• Database is properly secured\n• Data persists between restarts"
+    },
+    {
+      "order": 8,
+      "text": "Success Criteria",
+      "action": "Success Criteria:",
+      "url": null,
+      "description": "Your deployment succeeds when you can demonstrate:\n\n✅ API accessible from the internet\n✅ Database only accessible from API server (not internet)\n✅ All CRUD operations work via API endpoints\n✅ AI analysis endpoint returns sentiment and summary\n✅ LLM API key stored securely (environment variable, not in code)\n✅ Data persists between server restarts\n✅ Security follows least privilege principles"
+    },
+    {
+      "order": 9,
+      "text": "Document Your Learning",
+      "action": "Document Your Learning:",
+      "url": null,
+      "description": "Create a technical writeup covering:\n\n• Your architecture design and reasoning\n• Security decisions and trade-offs\n• Challenges encountered and solutions\n• Key learnings about cloud deployment\n\nShare your progress in the cloud phase Discord channel!"
+    },
+    {
+      "order": 10,
+      "text": "Remember",
+      "action": "Remember:",
+      "url": null,
+      "description": "This is about understanding cloud patterns, not following a recipe. Research, experiment, and learn from the journey. Every cloud provider has different tools - figure out what works best for your chosen platform."
+    }
+  ],
+  "questions": [
+    {
+      "id": "phase4-topic9-q1",
+      "prompt": "Walk me through the 2-tier architecture you deployed and explain why the database belongs in a private subnet."
+    },
+    {
+      "id": "phase4-topic9-q2",
+      "prompt": "How did you configure security groups to allow API-to-database communication while keeping the database secure?"
+    }
+  ],
+  "test_knowledge_prompts": [
+    "Can you help me design a secure 2-tier architecture for my journal app?",
+    "Can you review my security group rules and check if they follow least privilege?",
+    "Can you explain how to configure PostgreSQL to only accept connections from my API server?",
+    "Can you help me troubleshoot why my API can't connect to the database?",
+    "Can you quiz me on the differences between public and private subnets?",
+    "Can you review my deployment and suggest security improvements?"
+  ],
+  "learning_objectives": [
+    {
+      "id": "phase4-topic9-check1",
+      "text": "How to design a secure 2-tier cloud architecture",
+      "order": 1
+    },
+    {
+      "id": "phase4-topic9-check2",
+      "text": "How to deploy an API server in the public tier",
+      "order": 2
+    },
+    {
+      "id": "phase4-topic9-check3",
+      "text": "How to deploy PostgreSQL in the private tier",
+      "order": 3
+    },
+    {
+      "id": "phase4-topic9-check4",
+      "text": "How to restrict database access to the API server only",
+      "order": 4
+    },
+    {
+      "id": "phase4-topic9-check5",
+      "text": "How to implement all CRUD operations via your API",
+      "order": 5
+    },
+    {
+      "id": "phase4-topic9-check6",
+      "text": "How to add AI analysis endpoints to your API",
+      "order": 6
+    },
+    {
+      "id": "phase4-topic9-check7",
+      "text": "How to store API keys and secrets securely",
+      "order": 7
+    },
+    {
+      "id": "phase4-topic9-check8",
+      "text": "How to ensure data persistence between restarts",
+      "order": 8
+    },
+    {
+      "id": "phase4-topic9-check9",
+      "text": "How to apply least privilege security principles",
+      "order": 9
+    },
+    {
+      "id": "phase4-topic9-check10",
+      "text": "How to create technical documentation for your deployment",
+      "order": 10
+    }
+  ]
+}

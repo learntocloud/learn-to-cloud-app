@@ -65,13 +65,18 @@ class TestSubmitQuestionAnswer:
         mock_question = MagicMock()
         mock_question.id = "phase1-topic1-q1"
         mock_question.prompt = "What is cloud computing?"
-        mock_question.expected_concepts = ("iaas", "paas", "saas")
+        # Note: expected_concepts now comes from GradingConceptRepository, not content
 
         mock_topic = MagicMock()
         mock_topic.id = "phase1-topic1"
         mock_topic.name = "Cloud Basics"
         mock_topic.questions = [mock_question]
         return mock_topic
+
+    @pytest.fixture
+    def mock_grading_concepts(self):
+        """Create mock grading concepts (stored in database)."""
+        return ["iaas", "paas", "saas"]
 
     @pytest.fixture
     def mock_grade_result(self):
@@ -117,13 +122,21 @@ class TestSubmitQuestionAnswer:
                 )
 
     @pytest.mark.asyncio
-    async def test_llm_config_error_raises_unavailable(self, mock_topic):
+    async def test_llm_config_error_raises_unavailable(
+        self, mock_topic, mock_grading_concepts
+    ):
         """LLM configuration error raises LLMServiceUnavailableError."""
         mock_db = MagicMock()
+        mock_grading_repo = AsyncMock()
+        mock_grading_repo.get_by_question_id.return_value = mock_grading_concepts
 
         with (
             patch(
                 "services.questions_service.get_topic_by_id", return_value=mock_topic
+            ),
+            patch(
+                "services.questions_service.GradingConceptRepository",
+                return_value=mock_grading_repo,
             ),
             patch(
                 "services.questions_service.grade_answer",
@@ -140,13 +153,21 @@ class TestSubmitQuestionAnswer:
                 )
 
     @pytest.mark.asyncio
-    async def test_llm_generic_error_raises_grading_error(self, mock_topic):
+    async def test_llm_generic_error_raises_grading_error(
+        self, mock_topic, mock_grading_concepts
+    ):
         """Generic LLM error raises LLMGradingError."""
         mock_db = MagicMock()
+        mock_grading_repo = AsyncMock()
+        mock_grading_repo.get_by_question_id.return_value = mock_grading_concepts
 
         with (
             patch(
                 "services.questions_service.get_topic_by_id", return_value=mock_topic
+            ),
+            patch(
+                "services.questions_service.GradingConceptRepository",
+                return_value=mock_grading_repo,
             ),
             patch(
                 "services.questions_service.grade_answer",
@@ -163,11 +184,15 @@ class TestSubmitQuestionAnswer:
                 )
 
     @pytest.mark.asyncio
-    async def test_successful_submission_passed(self, mock_topic, mock_grade_result):
+    async def test_successful_submission_passed(
+        self, mock_topic, mock_grade_result, mock_grading_concepts
+    ):
         """Successful submission returns QuestionGradeResult."""
         mock_db = MagicMock()
         mock_question_repo = AsyncMock()
         mock_activity_repo = AsyncMock()
+        mock_grading_repo = AsyncMock()
+        mock_grading_repo.get_by_question_id.return_value = mock_grading_concepts
 
         mock_attempt = MagicMock()
         mock_attempt.id = 456
@@ -176,6 +201,10 @@ class TestSubmitQuestionAnswer:
         with (
             patch(
                 "services.questions_service.get_topic_by_id", return_value=mock_topic
+            ),
+            patch(
+                "services.questions_service.GradingConceptRepository",
+                return_value=mock_grading_repo,
             ),
             patch(
                 "services.questions_service.grade_answer",
@@ -213,12 +242,14 @@ class TestSubmitQuestionAnswer:
 
     @pytest.mark.asyncio
     async def test_submission_creates_attempt_record(
-        self, mock_topic, mock_grade_result
+        self, mock_topic, mock_grade_result, mock_grading_concepts
     ):
         """Submission creates a question attempt record."""
         mock_db = MagicMock()
         mock_question_repo = AsyncMock()
         mock_activity_repo = AsyncMock()
+        mock_grading_repo = AsyncMock()
+        mock_grading_repo.get_by_question_id.return_value = mock_grading_concepts
 
         mock_attempt = MagicMock()
         mock_attempt.id = 789
@@ -227,6 +258,10 @@ class TestSubmitQuestionAnswer:
         with (
             patch(
                 "services.questions_service.get_topic_by_id", return_value=mock_topic
+            ),
+            patch(
+                "services.questions_service.GradingConceptRepository",
+                return_value=mock_grading_repo,
             ),
             patch(
                 "services.questions_service.grade_answer",
@@ -263,11 +298,15 @@ class TestSubmitQuestionAnswer:
         )
 
     @pytest.mark.asyncio
-    async def test_submission_logs_activity(self, mock_topic, mock_grade_result):
+    async def test_submission_logs_activity(
+        self, mock_topic, mock_grade_result, mock_grading_concepts
+    ):
         """Submission logs activity for streak tracking."""
         mock_db = MagicMock()
         mock_question_repo = AsyncMock()
         mock_activity_repo = AsyncMock()
+        mock_grading_repo = AsyncMock()
+        mock_grading_repo.get_by_question_id.return_value = mock_grading_concepts
 
         mock_attempt = MagicMock()
         mock_attempt.id = 1
@@ -278,6 +317,10 @@ class TestSubmitQuestionAnswer:
         with (
             patch(
                 "services.questions_service.get_topic_by_id", return_value=mock_topic
+            ),
+            patch(
+                "services.questions_service.GradingConceptRepository",
+                return_value=mock_grading_repo,
             ),
             patch(
                 "services.questions_service.grade_answer",
@@ -310,11 +353,15 @@ class TestSubmitQuestionAnswer:
         assert call_kwargs["reference_id"] == "phase1-topic1-q1"
 
     @pytest.mark.asyncio
-    async def test_passed_answer_invalidates_cache(self, mock_topic, mock_grade_result):
+    async def test_passed_answer_invalidates_cache(
+        self, mock_topic, mock_grade_result, mock_grading_concepts
+    ):
         """Passed answer invalidates progress cache."""
         mock_db = MagicMock()
         mock_question_repo = AsyncMock()
         mock_activity_repo = AsyncMock()
+        mock_grading_repo = AsyncMock()
+        mock_grading_repo.get_by_question_id.return_value = mock_grading_concepts
 
         mock_attempt = MagicMock()
         mock_attempt.id = 1
@@ -325,6 +372,10 @@ class TestSubmitQuestionAnswer:
         with (
             patch(
                 "services.questions_service.get_topic_by_id", return_value=mock_topic
+            ),
+            patch(
+                "services.questions_service.GradingConceptRepository",
+                return_value=mock_grading_repo,
             ),
             patch(
                 "services.questions_service.grade_answer",
@@ -356,11 +407,15 @@ class TestSubmitQuestionAnswer:
         mock_invalidate.assert_called_once_with("user-123")
 
     @pytest.mark.asyncio
-    async def test_failed_answer_does_not_invalidate_cache(self, mock_topic):
+    async def test_failed_answer_does_not_invalidate_cache(
+        self, mock_topic, mock_grading_concepts
+    ):
         """Failed answer does not invalidate progress cache."""
         mock_db = MagicMock()
         mock_question_repo = AsyncMock()
         mock_activity_repo = AsyncMock()
+        mock_grading_repo = AsyncMock()
+        mock_grading_repo.get_by_question_id.return_value = mock_grading_concepts
 
         mock_attempt = MagicMock()
         mock_attempt.id = 1
@@ -376,6 +431,10 @@ class TestSubmitQuestionAnswer:
         with (
             patch(
                 "services.questions_service.get_topic_by_id", return_value=mock_topic
+            ),
+            patch(
+                "services.questions_service.GradingConceptRepository",
+                return_value=mock_grading_repo,
             ),
             patch(
                 "services.questions_service.grade_answer",
@@ -407,11 +466,15 @@ class TestSubmitQuestionAnswer:
         mock_invalidate.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_logs_metrics_for_passed(self, mock_topic, mock_grade_result):
+    async def test_logs_metrics_for_passed(
+        self, mock_topic, mock_grade_result, mock_grading_concepts
+    ):
         """Logs questions.passed metric when answer passes."""
         mock_db = MagicMock()
         mock_question_repo = AsyncMock()
         mock_activity_repo = AsyncMock()
+        mock_grading_repo = AsyncMock()
+        mock_grading_repo.get_by_question_id.return_value = mock_grading_concepts
 
         mock_attempt = MagicMock()
         mock_attempt.id = 1
@@ -422,6 +485,10 @@ class TestSubmitQuestionAnswer:
         with (
             patch(
                 "services.questions_service.get_topic_by_id", return_value=mock_topic
+            ),
+            patch(
+                "services.questions_service.GradingConceptRepository",
+                return_value=mock_grading_repo,
             ),
             patch(
                 "services.questions_service.grade_answer",
@@ -454,11 +521,13 @@ class TestSubmitQuestionAnswer:
         )
 
     @pytest.mark.asyncio
-    async def test_logs_metrics_for_failed(self, mock_topic):
+    async def test_logs_metrics_for_failed(self, mock_topic, mock_grading_concepts):
         """Logs questions.failed metric when answer fails."""
         mock_db = MagicMock()
         mock_question_repo = AsyncMock()
         mock_activity_repo = AsyncMock()
+        mock_grading_repo = AsyncMock()
+        mock_grading_repo.get_by_question_id.return_value = mock_grading_concepts
 
         mock_attempt = MagicMock()
         mock_attempt.id = 1
@@ -474,6 +543,10 @@ class TestSubmitQuestionAnswer:
         with (
             patch(
                 "services.questions_service.get_topic_by_id", return_value=mock_topic
+            ),
+            patch(
+                "services.questions_service.GradingConceptRepository",
+                return_value=mock_grading_repo,
             ),
             patch(
                 "services.questions_service.grade_answer",

@@ -83,7 +83,7 @@ interface LearningStepSchema {
 export interface QuestionSchema {
   id: string;
   prompt: string;
-  expected_concepts: string[];
+  // Note: expected_concepts removed for security - grading data is server-side only
 }
 
 interface LearningObjectiveSchema {

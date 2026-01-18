@@ -1,0 +1,127 @@
+{
+  "id": "phase2-topic5",
+  "slug": "genai-apis",
+  "name": "Generative AI APIs",
+  "description": "Generative AI and Large Language Models (LLMs) are transforming how we build applications. In this topic, you'll learn how to integrate LLM APIs into your Python applications. These skills are essential for modern cloud engineering as AI services are becoming core components of cloud platforms.",
+  "order": 5,
+  "estimated_time": "4-5 days",
+  "is_capstone": false,
+  "learning_steps": [
+    {
+      "order": 1,
+      "text": "Understand LLM API Basics",
+      "action": "Understand LLM API Basics:",
+      "url": null,
+      "description": "Before coding, understand these core concepts:\n\n• Messages format: LLMs work with conversation-style inputs (system, user, assistant messages)\n• Completions: The API generates text based on your input\n• Parameters: temperature (0 = deterministic, 1 = creative), max_tokens (response length), model (which LLM version)\n• Structured outputs: Getting JSON instead of free text"
+    },
+    {
+      "order": 2,
+      "text": "Hands-On: Python OpenAI Demos",
+      "action": "Hands-On:",
+      "title": "Python OpenAI Demos",
+      "url": "https://aka.ms/python-openai-demos",
+      "description": "Start with this free hands-on practice using GitHub Models. This repository teaches you the OpenAI Python SDK through progressively complex examples—the same SDK used by Azure OpenAI. You can run it completely free using GitHub Models in GitHub Codespaces.",
+      "secondary_links": [
+        {
+          "text": "Video Walkthrough",
+          "url": "https://www.youtube.com/watch?v=_daw48A-RZI"
+        }
+      ]
+    },
+    {
+      "order": 3,
+      "text": "Work through examples in order",
+      "action": "Work through examples in order:",
+      "url": null,
+      "description": "1. Chat Completions - Start with chat.py, then try chat_stream.py and chat_history.py\n2. Structured Outputs - Learn to get JSON responses with structured_outputs_basic.py\n3. Function Calling - See how LLMs can call your code with function_calling_basic.py"
+    },
+    {
+      "order": 4,
+      "text": "Choose your cloud provider",
+      "action": "Choose your cloud provider:",
+      "url": null,
+      "description": "Once you've completed the demos, apply your skills to your cloud provider's AI service:",
+      "options": [
+        {
+          "provider": "azure",
+          "title": "Azure OpenAI Chat Completions Quickstart",
+          "url": "https://learn.microsoft.com/en-us/azure/ai-foundry/openai/chatgpt-quickstart",
+          "description": "If you're focusing on Azure (accessed via Azure AI Foundry)"
+        },
+        {
+          "provider": "aws",
+          "title": "AWS Bedrock Getting Started",
+          "url": "https://docs.aws.amazon.com/bedrock/latest/userguide/getting-started.html",
+          "description": "If you're focusing on AWS (supports Claude, Llama, and other models)"
+        },
+        {
+          "provider": "gcp",
+          "title": "Vertex AI Generative AI Overview",
+          "url": "https://cloud.google.com/vertex-ai/generative-ai/docs/learn/overview",
+          "description": "If you're focusing on Google Cloud (supports Gemini and other models)"
+        }
+      ]
+    },
+    {
+      "order": 5,
+      "text": "Test in the playground first",
+      "action": "Test in the playground first:",
+      "url": null,
+      "description": "IMPORTANT: Test prompts in your provider's web interface before writing code. Try these exercises:\n\n1. Simple completion: 'Analyze the sentiment of this text: I learned so much today!'\n2. Structured output: Request JSON with sentiment and summary fields\n3. System message test: Add a system message that sets a 'learning coach' persona"
+    },
+    {
+      "order": 6,
+      "text": "Create a Python test script",
+      "action": "Create a Python test script",
+      "url": null,
+      "description": "Create a simple Python script llm_test.py that loads API credentials from environment variables, sends a journal entry to the LLM, requests sentiment analysis, and prints the results.",
+      "code": "# Example journal entry to test:\n\"Today I learned about FastAPI and built my first endpoint.\nThe automatic documentation is amazing! I struggled a bit with\nasync functions but the official tutorial helped. Tomorrow I'll\ntackle database integration.\""
+    }
+  ],
+  "questions": [
+    {
+      "id": "phase2-topic5-q1",
+      "prompt": "How do LLM APIs differ from traditional REST APIs in terms of how you structure requests and interact with them?"
+    },
+    {
+      "id": "phase2-topic5-q2",
+      "prompt": "Walk me through the temperature parameter in LLM APIs and how it affects the model's output."
+    }
+  ],
+  "test_knowledge_prompts": [
+    "Can you explain what an LLM API is and how it differs from a traditional REST API?",
+    "Can you explain the role of system messages, user messages, and assistant messages?",
+    "Can you quiz me on what the temperature parameter controls in LLM APIs?",
+    "Can you explain how to securely store API keys in a Python application?",
+    "Can you ask me to explain the difference between synchronous and asynchronous LLM API calls?",
+    "Can you quiz me on how to handle errors and rate limits when calling LLM APIs?",
+    "Can you explain how to get structured JSON output from an LLM instead of plain text?"
+  ],
+  "learning_objectives": [
+    {
+      "id": "phase2-topic5-check1",
+      "text": "How to use OpenAI-compatible APIs in Python",
+      "order": 1
+    },
+    {
+      "id": "phase2-topic5-check2",
+      "text": "How to test prompts in cloud provider playgrounds",
+      "order": 2
+    },
+    {
+      "id": "phase2-topic5-check3",
+      "text": "How to get structured JSON outputs from LLMs",
+      "order": 3
+    },
+    {
+      "id": "phase2-topic5-check4",
+      "text": "How to create a Python script that calls an LLM API",
+      "order": 4
+    },
+    {
+      "id": "phase2-topic5-check5",
+      "text": "How to store API keys securely in environment variables",
+      "order": 5
+    }
+  ]
+}

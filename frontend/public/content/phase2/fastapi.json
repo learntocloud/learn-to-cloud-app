@@ -1,0 +1,60 @@
+{
+  "id": "phase2-topic3",
+  "slug": "fastapi",
+  "name": "FastAPI",
+  "description": "FastAPI is a modern, fast (high-performance) web framework for building APIs with Python 3.6+ based on standard Python type hints. It is the framework we use to build the L2C Journal application and what you will use as well.",
+  "order": 3,
+  "estimated_time": "3-4 days",
+  "is_capstone": false,
+  "learning_steps": [
+    {
+      "order": 1,
+      "text": "Study: FastAPI official tutorial",
+      "action": "Study:",
+      "title": "FastAPI official tutorial",
+      "url": "https://fastapi.tiangolo.com/tutorial/",
+      "description": "Work through the official FastAPI tutorial by the framework creator. This comprehensive guide covers everything from basic setup to advanced features."
+    }
+  ],
+  "questions": [
+    {
+      "id": "phase2-topic3-q1",
+      "prompt": "What makes FastAPI different from other Python web frameworks, and why would you choose it?"
+    },
+    {
+      "id": "phase2-topic3-q2",
+      "prompt": "Walk me through how path parameters and query parameters work in FastAPI and when you'd use each."
+    }
+  ],
+  "test_knowledge_prompts": [
+    "Can you ask me to explain what FastAPI is and how it works?",
+    "Can you quiz me on how to create a FastAPI application and define endpoints?",
+    "Can you ask me to explain how to handle request and response models in FastAPI?",
+    "Can you ask me to explain how to use path parameters and query parameters in FastAPI?",
+    "Can you quiz me on how to use dependency injection in FastAPI?",
+    "Can you ask me to explain how to use Pydantic models in FastAPI?",
+    "Can you ask me to explain how to use FastAPI with asynchronous code?"
+  ],
+  "learning_objectives": [
+    {
+      "id": "phase2-topic3-check1",
+      "text": "How to create a FastAPI application with basic endpoints",
+      "order": 1
+    },
+    {
+      "id": "phase2-topic3-check2",
+      "text": "How to use path and query parameters",
+      "order": 2
+    },
+    {
+      "id": "phase2-topic3-check3",
+      "text": "How to use Pydantic models for request/response validation",
+      "order": 3
+    },
+    {
+      "id": "phase2-topic3-check4",
+      "text": "How to test endpoints using Swagger UI (/docs)",
+      "order": 4
+    }
+  ]
+}

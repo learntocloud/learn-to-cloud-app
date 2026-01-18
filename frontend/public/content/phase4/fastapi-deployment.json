@@ -1,0 +1,106 @@
+{
+  "id": "phase4-topic6",
+  "slug": "fastapi-deployment",
+  "name": "FastAPI Deployment & API Hosting",
+  "description": "With your prior knowledge of FastAPI from the previous phases, you will now focus on deploying that FastAPI application on a cloud-based VM. This topic covers the practical aspects of hosting web applications in the cloud.",
+  "order": 6,
+  "estimated_time": "2-3 days",
+  "is_capstone": false,
+  "learning_steps": [
+    {
+      "order": 1,
+      "text": "Learn FastAPI deployment on your cloud provider",
+      "action": "Learn FastAPI deployment on your cloud provider:",
+      "url": null,
+      "description": "Each cloud provider has slightly different approaches. Follow the guide for your chosen platform:",
+      "options": [
+        {
+          "provider": "aws",
+          "title": "Deploy Python App on AWS EC2",
+          "url": "https://docs.aws.amazon.com/elasticbeanstalk/latest/dg/create-deploy-python-apps.html",
+          "description": "AWS guide for deploying Python web applications"
+        },
+        {
+          "provider": "azure",
+          "title": "Deploy Python App to Azure VM",
+          "url": "https://learn.microsoft.com/en-us/azure/developer/python/configure-python-web-app-local-environment",
+          "description": "Microsoft Learn guide for deploying Python apps to Azure"
+        },
+        {
+          "provider": "gcp",
+          "title": "Deploy Python App on Google Compute Engine",
+          "url": "https://cloud.google.com/python/docs/getting-started",
+          "description": "Google Cloud guide for deploying Python applications"
+        }
+      ]
+    },
+    {
+      "order": 2,
+      "text": "Environment Variables",
+      "action": "Environment Variables:",
+      "url": null,
+      "description": "Never hardcode secrets! Store sensitive configuration like database credentials and API keys in environment variables:",
+      "code": "# On Linux, add to /etc/environment or use systemd\nexport DATABASE_URL=\"postgresql://user:pass@db-server:5432/journal\"\nexport LLM_API_KEY=\"your-api-key\"\n\n# In your FastAPI app\nimport os\ndb_url = os.getenv(\"DATABASE_URL\")\napi_key = os.getenv(\"LLM_API_KEY\")"
+    },
+    {
+      "order": 3,
+      "text": "Configure Security Groups/Firewall",
+      "action": "Configure Security Groups/Firewall:",
+      "url": null,
+      "description": "Set up rules to allow external HTTP traffic to your FastAPI application:\n\n• Allow inbound TCP port 80 (HTTP) or 443 (HTTPS)\n• Allow inbound TCP port 8000 (FastAPI default) if not using a reverse proxy\n• Restrict SSH access to your IP only\n• Ensure the database port (5432) is NOT exposed to the internet"
+    },
+    {
+      "order": 4,
+      "text": "Running FastAPI in Production",
+      "action": "Running FastAPI in Production:",
+      "url": null,
+      "description": "Use a process manager to keep your app running:",
+      "code": "# Install uvicorn with standard extras\npip install 'uvicorn[standard]'\n\n# Run with multiple workers\nuvicorn main:app --host 0.0.0.0 --port 8000 --workers 4\n\n# Or use a systemd service for persistence\n# Create /etc/systemd/system/fastapi.service"
+    },
+    {
+      "order": 5,
+      "text": "Hands-on Task",
+      "action": "Hands-on Task:",
+      "url": null,
+      "description": "Deploy a FastAPI application on a cloud-based VM within the Public Subnet:\n\n1. Deploy a VM in the public subnet\n2. Install Python and dependencies\n3. Clone your FastAPI application code\n4. Configure environment variables for secrets\n5. Set up security groups for HTTP traffic\n6. Start the application with uvicorn\n7. Verify the API is accessible from the internet via /docs"
+    }
+  ],
+  "questions": [
+    {
+      "id": "phase4-topic6-q1",
+      "prompt": "How would you handle sensitive configuration like API keys and database credentials when deploying an application?"
+    },
+    {
+      "id": "phase4-topic6-q2",
+      "prompt": "Walk me through the security group rules you'd configure for a public-facing API server."
+    }
+  ],
+  "test_knowledge_prompts": [
+    "Can you quiz me on how to store and manage environment variables securely on a cloud VM for FastAPI?",
+    "Can you explain how to set up a firewall rule or security group to allow external HTTP traffic to my FastAPI application?",
+    "Can you ask me about the difference between running FastAPI in development vs production?",
+    "Can you quiz me on how to use systemd to keep my FastAPI application running?"
+  ],
+  "learning_objectives": [
+    {
+      "id": "phase4-topic6-check1",
+      "text": "How to plan FastAPI deployment for your cloud provider",
+      "order": 1
+    },
+    {
+      "id": "phase4-topic6-check2",
+      "text": "How to configure security groups/firewall rules for HTTP traffic",
+      "order": 2
+    },
+    {
+      "id": "phase4-topic6-check3",
+      "text": "How to deploy FastAPI on a VM in the public subnet",
+      "order": 3
+    },
+    {
+      "id": "phase4-topic6-check4",
+      "text": "How to verify your API is accessible from the internet",
+      "order": 4
+    }
+  ]
+}

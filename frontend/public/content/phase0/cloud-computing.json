@@ -1,0 +1,61 @@
+{
+  "id": "phase0-topic4",
+  "slug": "cloud-computing",
+  "name": "What is Cloud Computing",
+  "description": "Cloud computing is the foundation of modern infrastructure. Learn about IaaS, PaaS, SaaS, and different service models.",
+  "order": 4,
+  "estimated_time": "1-2 hours",
+  "is_capstone": false,
+  "learning_steps": [
+    {
+      "order": 1,
+      "text": "Watch: What is Cloud Computing",
+      "action": "Watch:",
+      "title": "What is Cloud Computing",
+      "url": "https://youtu.be/eZLcyTxi8ZI",
+      "description": "Learn about IaaS, PaaS, SaaS and the different service models that make up cloud computing."
+    },
+    {
+      "order": 2,
+      "text": "Read: Cloud Service Models",
+      "action": "Read:",
+      "title": "IaaS vs PaaS vs SaaS",
+      "url": "https://www.cloudflare.com/learning/cloud/what-is-iaas-vs-paas-vs-saas/",
+      "description": "Dive deeper into the three main cloud service models and when to use each."
+    },
+    {
+      "order": 3,
+      "text": "Explore: Major Cloud Providers",
+      "action": "Explore:",
+      "url": null,
+      "description": "The three major cloud providers are AWS (Amazon), Azure (Microsoft), and GCP (Google). You'll choose one to focus on throughout this guide, but the concepts you learn apply to all of them."
+    }
+  ],
+  "questions": [
+    {
+      "id": "phase0-topic4-q1",
+      "prompt": "How would you explain cloud computing to a business stakeholder, including its key advantages over on-premises infrastructure?"
+    },
+    {
+      "id": "phase0-topic4-q2",
+      "prompt": "Walk me through IaaS, PaaS, and SaaS—what each provides and give a real-world example of each."
+    }
+  ],
+  "test_knowledge_prompts": [
+    "Can you ask me what cloud computing is and why companies use it?",
+    "Can you quiz me on the differences between IaaS, PaaS, and SaaS with examples?",
+    "Can you ask me to name the major cloud providers and one service each offers?"
+  ],
+  "learning_objectives": [
+    {
+      "id": "phase0-topic4-check1",
+      "text": "Understand IaaS, PaaS, and SaaS service models",
+      "order": 1
+    },
+    {
+      "id": "phase0-topic4-check2",
+      "text": "Know the major cloud providers and their core services",
+      "order": 2
+    }
+  ]
+}

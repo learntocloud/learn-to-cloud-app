@@ -1,0 +1,58 @@
+{
+  "id": "phase0-topic6",
+  "slug": "cloud-engineer",
+  "name": "What is a Cloud Engineer",
+  "description": "Learn about the cloud engineer role, what they do day-to-day, and how to become one.",
+  "order": 6,
+  "estimated_time": "1-2 hours",
+  "is_capstone": false,
+  "learning_steps": [
+    {
+      "order": 1,
+      "text": "Watch: What is a Cloud Engineer",
+      "action": "Watch:",
+      "title": "What is a Cloud Engineer",
+      "url": "https://youtu.be/7i1WMGxyt4Q",
+      "description": "Discover what cloud engineers do, what skills they need, and the path to becoming one."
+    },
+    {
+      "order": 2,
+      "text": "Reflect: Is this for me?",
+      "action": "Reflect:",
+      "url": null,
+      "description": "Cloud engineering requires continuous learning and problem-solving. Consider: Do you enjoy figuring out how things work? Are you comfortable with change? Can you commit to learning new technologies regularly?"
+    }
+  ],
+  "questions": [
+    {
+      "id": "phase0-topic6-q1",
+      "prompt": "Describe what a cloud engineer does day-to-day and the typical responsibilities of the role."
+    },
+    {
+      "id": "phase0-topic6-q2",
+      "prompt": "What technical skills would you prioritize when building toward a cloud engineering career?"
+    }
+  ],
+  "test_knowledge_prompts": [
+    "Can you ask me what a cloud engineer does day-to-day?",
+    "Can you quiz me on the skills needed to become a cloud engineer?",
+    "Can you ask me why I want to become a cloud engineer?"
+  ],
+  "learning_objectives": [
+    {
+      "id": "phase0-topic6-check1",
+      "text": "Understand what cloud engineers do day-to-day",
+      "order": 1
+    },
+    {
+      "id": "phase0-topic6-check2",
+      "text": "Know the skills and certifications that matter",
+      "order": 2
+    },
+    {
+      "id": "phase0-topic6-check3",
+      "text": "Understand the career path and growth opportunities",
+      "order": 3
+    }
+  ]
+}

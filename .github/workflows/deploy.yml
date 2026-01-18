@@ -3,6 +3,8 @@ name: Deploy to Azure
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - 'frontend/public/content/**'  # Content-only changes use deploy-content.yml
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -134,13 +136,13 @@ jobs:
         working-directory: infra
     outputs:
       api_container_app_name: ${{ steps.tf-outputs.outputs.api_container_app_name }}
-      frontend_container_app_name: ${{ steps.tf-outputs.outputs.frontend_container_app_name }}
       resource_group_name: ${{ steps.tf-outputs.outputs.resource_group_name }}
       container_registry_name: ${{ steps.tf-outputs.outputs.container_registry_name }}
       container_registry_endpoint: ${{ steps.tf-outputs.outputs.container_registry_endpoint }}
       api_url: ${{ steps.tf-outputs.outputs.api_url }}
       frontend_url: ${{ steps.tf-outputs.outputs.frontend_url }}
       frontend_custom_domain: ${{ steps.tf-outputs.outputs.frontend_custom_domain }}
+      swa_name: ${{ steps.tf-outputs.outputs.swa_name }}
     steps:
       - uses: actions/checkout@v4
 
@@ -165,13 +167,13 @@ jobs:
         id: tf-outputs
         run: |
           echo "api_container_app_name=ca-ltc-api-${{ vars.AZURE_ENV_NAME }}" >> "$GITHUB_OUTPUT"
-          echo "frontend_container_app_name=ca-ltc-frontend-${{ vars.AZURE_ENV_NAME }}" >> "$GITHUB_OUTPUT"
           echo "resource_group_name=$(terraform output -raw AZURE_RESOURCE_GROUP)" >> "$GITHUB_OUTPUT"
           echo "container_registry_name=$(terraform output -raw AZURE_CONTAINER_REGISTRY_NAME)" >> "$GITHUB_OUTPUT"
           echo "container_registry_endpoint=$(terraform output -raw AZURE_CONTAINER_REGISTRY_ENDPOINT)" >> "$GITHUB_OUTPUT"
           echo "api_url=$(terraform output -raw apiUrl)" >> "$GITHUB_OUTPUT"
           echo "frontend_url=$(terraform output -raw frontend_url)" >> "$GITHUB_OUTPUT"
           echo "frontend_custom_domain=${{ vars.FRONTEND_CUSTOM_DOMAIN }}" >> "$GITHUB_OUTPUT"
+          echo "swa_name=$(terraform output -raw swa_name)" >> "$GITHUB_OUTPUT"
 
   deploy:
     needs: terraform
@@ -202,12 +204,11 @@ jobs:
             echo "use_cache=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Pull existing images for cache warming
+      - name: Pull existing API image for cache warming
         if: steps.build-flags.outputs.use_cache == 'true'
         continue-on-error: true
         run: |
           docker pull ${{ needs.terraform.outputs.container_registry_endpoint }}/api:latest || true
-          docker pull ${{ needs.terraform.outputs.container_registry_endpoint }}/frontend:latest || true
 
       - name: Build and Push API Image
         run: |
@@ -237,26 +238,6 @@ jobs:
           curl -f http://localhost:8000/health || (docker logs smoke-test && exit 1)
           docker stop smoke-test
 
-      - name: Build and Push Frontend Image
-        run: |
-          CACHE_FROM=""
-          if [[ "${{ steps.build-flags.outputs.use_cache }}" == "true" ]]; then
-            CACHE_FROM="--cache-from=${{ needs.terraform.outputs.container_registry_endpoint }}/frontend:latest"
-          fi
-          docker build \
-            ${{ steps.build-flags.outputs.cache_flags }} \
-            $CACHE_FROM \
-            --build-arg BUILDKIT_INLINE_CACHE=1 \
-            --build-arg VITE_API_URL=${{ needs.terraform.outputs.api_url }} \
-            --build-arg VITE_CLERK_PUBLISHABLE_KEY=${{ secrets.CLERK_PUBLISHABLE_KEY }} \
-            --label git-commit=${{ github.sha }} \
-            --label git-branch=${{ github.ref_name }} \
-            -t ${{ needs.terraform.outputs.container_registry_endpoint }}/frontend:${{ github.sha }} \
-            -t ${{ needs.terraform.outputs.container_registry_endpoint }}/frontend:latest \
-            ./frontend
-          docker push ${{ needs.terraform.outputs.container_registry_endpoint }}/frontend:${{ github.sha }}
-          docker push ${{ needs.terraform.outputs.container_registry_endpoint }}/frontend:latest
-
       - name: Install Trivy
         run: |
           sudo apt-get install -y wget apt-transport-https gnupg lsb-release
@@ -269,12 +250,6 @@ jobs:
           trivy image --ignore-unfixed --exit-code 1 --severity HIGH,CRITICAL \
             ${{ needs.terraform.outputs.container_registry_endpoint }}/api:${{ github.sha }} || \
             echo "::warning::Trivy found vulnerabilities in API image. Review the scan results above."
-
-      - name: Security Scan Frontend Image
-        run: |
-          trivy image --ignore-unfixed --exit-code 1 --severity HIGH,CRITICAL \
-            ${{ needs.terraform.outputs.container_registry_endpoint }}/frontend:${{ github.sha }} || \
-            echo "::warning::Trivy found vulnerabilities in Frontend image. Review the scan results above."
 
       - name: Deploy API Container App
         run: |
@@ -309,30 +284,71 @@ jobs:
           echo "API did not become ready within the expected time."
           exit 1
 
-      - name: Deploy Frontend Container App
+      # Sync grading concepts from content files to database (runs after migrations)
+      - name: Sync grading concepts
         run: |
-          az containerapp update \
-            --name ${{ needs.terraform.outputs.frontend_container_app_name }} \
+          az containerapp exec \
+            --name ${{ needs.terraform.outputs.api_container_app_name }} \
             --resource-group ${{ needs.terraform.outputs.resource_group_name }} \
-            --image ${{ needs.terraform.outputs.container_registry_endpoint }}/frontend:${{ github.sha }}
+            --command "python -m cli sync-grading-concepts"
+
+      # Frontend deployment to Azure Static Web Apps
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+        env:
+          VITE_API_URL: ""  # API calls go through SWA proxy to /api
+          VITE_CLERK_PUBLISHABLE_KEY: ${{ secrets.CLERK_PUBLISHABLE_KEY }}
+
+      - name: Deploy to Azure Static Web Apps
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.SWA_DEPLOYMENT_TOKEN }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: "upload"
+          app_location: "frontend"
+          output_location: "dist"
+          skip_app_build: true  # We already built above
+          skip_api_build: true  # API is a separate Container App
 
 # =============================================================================
 # NOTES
 # =============================================================================
+# Architecture:
+#   - Frontend: Azure Static Web Apps (CDN, ~30s deploys)
+#   - API: Azure Container Apps (containerized FastAPI)
+#   - Content: Served statically from SWA CDN via /content/ path
+#
 # Database migrations:
 #   - Applied automatically on startup when RUN_MIGRATIONS_ON_STARTUP=true
 #   - Uses Alembic migrations as the source of truth for schema
 #
 # Custom domain (app.learntocloud.guide):
-#   - Managed by Terraform with Azure's free managed SSL certificate
-#   - The lifecycle.ignore_changes block in main.tf prevents Terraform from
-#     recreating the domain binding when Azure modifies certificate attributes
-#   - If domain issues occur, check: az containerapp hostname list -n ca-ltc-frontend-dev -g rg-ltc-dev
+#   - Managed by Terraform with Azure SWA's automatic SSL
+#   - CNAME record: app → <swa_default_hostname>
+#
+# Content-only updates:
+#   - Changes to frontend/public/content/** trigger deploy-content.yml instead
+#   - Much faster (~30s) than full deploy
+#
+# SWA Deployment Token:
+#   - Get from: terraform output -raw swa_deployment_token
+#   - Store in GitHub secrets as SWA_DEPLOYMENT_TOKEN
 #
 # Security scanning:
-#   - Trivy scans both API and Frontend images for vulnerabilities
+#   - Trivy scans API image for vulnerabilities
 #   - Scans warn but don't fail the build to avoid blocking deployments
-#   - Review warnings and address HIGH/CRITICAL vulnerabilities promptly
 #
 # Cache warming:
 #   - Pulls :latest tags before building to reuse cached layers

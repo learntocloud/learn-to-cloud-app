@@ -1,0 +1,62 @@
+{
+  "id": "phase0-topic1",
+  "slug": "linux",
+  "name": "What is Linux",
+  "description": "Linux is the backbone of many cloud environments. Understanding what it is and why it matters is essential for cloud engineering.",
+  "order": 1,
+  "estimated_time": "1-2 hours",
+  "is_capstone": false,
+  "learning_steps": [
+    {
+      "order": 1,
+      "text": "Watch: What is Linux",
+      "action": "Watch:",
+      "title": "What is Linux",
+      "url": "https://youtu.be/PwugmcN1hf8",
+      "description": "This video introduces Linux and explains why it's so important in the tech industry, especially for cloud computing."
+    },
+    {
+      "order": 2,
+      "text": "Read: Linux Overview",
+      "action": "Read:",
+      "title": "What is Linux?",
+      "url": "https://opensource.com/resources/linux",
+      "description": "A quick overview of Linux, its history, and why it powers most of the internet."
+    },
+    {
+      "order": 3,
+      "text": "Explore: Linux Distributions",
+      "action": "Explore:",
+      "title": "Popular Linux Distributions",
+      "url": "https://www.linux.com/what-is-linux/",
+      "description": "Learn about Ubuntu, CentOS, Debian, and other popular distributions used in cloud environments."
+    }
+  ],
+  "questions": [
+    {
+      "id": "phase0-topic1-q1",
+      "prompt": "Walk me through what Linux is and why it dominates cloud server environments."
+    },
+    {
+      "id": "phase0-topic1-q2",
+      "prompt": "How would you explain a Linux distribution to a colleague, and which ones are commonly used in cloud environments?"
+    }
+  ],
+  "test_knowledge_prompts": [
+    "Can you ask me what Linux is and why it's important for cloud computing?",
+    "Can you quiz me on the differences between Linux and Windows?",
+    "Can you ask me why most cloud servers run Linux?"
+  ],
+  "learning_objectives": [
+    {
+      "id": "phase0-topic1-check1",
+      "text": "Understand what Linux is and why it powers cloud infrastructure",
+      "order": 1
+    },
+    {
+      "id": "phase0-topic1-check2",
+      "text": "Know the differences between popular Linux distributions",
+      "order": 2
+    }
+  ]
+}

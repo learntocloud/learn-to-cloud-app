@@ -12,8 +12,8 @@ output "api_url" {
 }
 
 output "frontend_url" {
-  description = "URL of the frontend container app"
-  value       = "https://${azurerm_container_app.frontend.ingress[0].fqdn}"
+  description = "URL of the frontend static web app"
+  value       = "https://${azurerm_static_web_app.frontend.default_host_name}"
 }
 
 output "container_registry" {
@@ -66,4 +66,15 @@ output "api_identity_principal_id" {
 output "postgres_server_name" {
   description = "PostgreSQL server name"
   value       = azurerm_postgresql_flexible_server.main.name
+}
+
+output "swa_deployment_token" {
+  description = "Static Web App deployment token (for CI/CD)"
+  value       = azurerm_static_web_app.frontend.api_key
+  sensitive   = true
+}
+
+output "swa_name" {
+  description = "Static Web App name"
+  value       = azurerm_static_web_app.frontend.name
 }
