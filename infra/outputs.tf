@@ -78,3 +78,13 @@ output "swa_name" {
   description = "Static Web App name"
   value       = azurerm_static_web_app.frontend.name
 }
+
+output "dashboard_url" {
+  description = "URL to the monitoring dashboard in Azure Portal"
+  value       = "https://portal.azure.com/#@/dashboard/arm${azurerm_portal_dashboard.main.id}"
+}
+
+output "action_group_id" {
+  description = "Action group ID for alerts"
+  value       = azurerm_monitor_action_group.critical.id
+}
