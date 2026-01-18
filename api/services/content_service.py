@@ -16,7 +16,8 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-# Content directory - configurable via env var, defaults to frontend's static assets for local dev
+# Content directory - configurable via env var.
+# Defaults to frontend's static assets for local dev.
 _default_content_dir = (
     Path(__file__).parent.parent.parent / "frontend" / "public" / "content" / "phases"
 )
