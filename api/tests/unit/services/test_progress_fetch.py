@@ -27,7 +27,8 @@ class TestGetPhaseRequirements:
         result = get_phase_requirements(0)
         assert result is not None
         assert result.phase_id == 0
-        assert result.name == "IT Fundamentals & Cloud Overview"
+        # Name comes from content JSON now, not hardcoded
+        assert result.name == "Starting from Zero"
         assert result.topics == 6
         assert result.steps == 15
         assert result.questions == 12

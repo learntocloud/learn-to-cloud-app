@@ -1,0 +1,151 @@
+{
+  "id": "phase5-topic6",
+  "slug": "capstone",
+  "name": "DevOps Capstone Project",
+  "description": "Now that you've learned the fundamentals of DevOps, it's time to apply these practices to the Journal API app you built in Phase 2 and deployed in Phase 3. In this capstone, you'll containerize the app, automate its deployment, manage infrastructure as code, set up monitoring, and orchestrate containers with Kubernetes\u2014demonstrating your end-to-end DevOps skills.",
+  "short_description": "Containerize your app with Docker, deploy to Kubernetes, automate with CI/CD, and monitor with Prometheus/Grafana.",
+  "order": 6,
+  "estimated_time": "1 week",
+  "is_capstone": true,
+  "learning_steps": [
+    {
+      "order": 1,
+      "text": "Step 1: Containerize the Application",
+      "action": "Step 1: Containerize the Application",
+      "url": null,
+      "description": "\u2022 Write a `Dockerfile` in the root of your repository\n\u2022 Build and run the container locally to verify it works\n\u2022 Ensure LLM API credentials are passed via environment variables (not baked into image)\n\u2022 Push your image to a public container registry:\n  - Docker Hub: `docker.io/yourusername/journal-api:latest`\n  - GitHub Container Registry: `ghcr.io/yourusername/journal-api:latest`"
+    },
+    {
+      "order": 2,
+      "text": "Step 2: Infrastructure as Code",
+      "action": "Step 2: Infrastructure as Code",
+      "url": null,
+      "description": "\u2022 Create an `infra/` directory in your repository\n\u2022 Write Terraform configuration files:\n  - `infra/main.tf` - Main resource definitions\n  - `infra/variables.tf` - Variable declarations\n  - `infra/outputs.tf` - Output values (optional)\n\u2022 Define and provision:\n  - Compute resources (container services)\n  - Networking (VPC, subnets, security groups)\n  - Database (PostgreSQL)"
+    },
+    {
+      "order": 3,
+      "text": "Step 3: CI/CD Pipeline",
+      "action": "Step 3: CI/CD Pipeline",
+      "url": null,
+      "description": "\u2022 Create a `.github/workflows/` directory\n\u2022 Set up a GitHub Actions workflow that:\n  - Builds and tests your app on every commit\n  - Builds and pushes your Docker image to a registry\n  - Deploys your app automatically to your cloud environment\n\u2022 Make sure at least one workflow run completes successfully"
+    },
+    {
+      "order": 4,
+      "text": "Step 4: Container Orchestration",
+      "action": "Step 4: Container Orchestration with Kubernetes",
+      "url": null,
+      "description": "\u2022 Create a `k8s/` directory in your repository\n\u2022 Write Kubernetes manifests:\n  - `k8s/deployment.yaml` - Deployment for your app\n  - `k8s/service.yaml` - Service to expose your app\n  - `k8s/configmap.yaml` - ConfigMap for configuration (optional)\n  - `k8s/secret.yaml` - Secret for sensitive data (optional)\n\u2022 Deploy to a local cluster (Minikube/Kind) or managed service (EKS, AKS, GKE)\n\u2022 (Optional) Use Helm to package and deploy your app"
+    },
+    {
+      "order": 5,
+      "text": "Step 5: Monitoring & Observability",
+      "action": "Step 5: Monitoring & Observability",
+      "url": null,
+      "description": "\u2022 Deploy Prometheus and Grafana\n\u2022 Instrument your FastAPI app to expose metrics\n\u2022 Track LLM API calls: latency, error rate, token usage for /analyze endpoint\n\u2022 Configure Prometheus to scrape your app's metrics endpoint\n\u2022 Create a Grafana dashboard for key metrics"
+    },
+    {
+      "order": 6,
+      "text": "Step 6: Documentation",
+      "action": "Step 6: Documentation",
+      "url": null,
+      "description": "\u2022 Document your setup and deployment process in README.md\n\u2022 Include diagrams or screenshots of:\n  - CI/CD pipeline\n  - Kubernetes setup\n  - Monitoring dashboards"
+    },
+    {
+      "order": 7,
+      "text": "Required Project Structure",
+      "action": "Required Project Structure:",
+      "url": null,
+      "description": "Your repository must have this structure for verification:",
+      "code": "/journal-api\n  \u251c\u2500\u2500 Dockerfile              # Container definition\n  \u251c\u2500\u2500 .github/\n  \u2502   \u2514\u2500\u2500 workflows/           # CI/CD pipeline configs\n  \u2502       \u2514\u2500\u2500 *.yml\n  \u251c\u2500\u2500 infra/                   # Terraform IaC configs\n  \u2502   \u251c\u2500\u2500 main.tf\n  \u2502   \u2514\u2500\u2500 variables.tf\n  \u251c\u2500\u2500 k8s/                     # Kubernetes manifests\n  \u2502   \u251c\u2500\u2500 deployment.yaml\n  \u2502   \u2514\u2500\u2500 service.yaml\n  \u251c\u2500\u2500 app/                     # FastAPI app code\n  \u2514\u2500\u2500 README.md"
+    },
+    {
+      "order": 8,
+      "text": "Testing & Validation",
+      "action": "Testing & Validation:",
+      "url": null,
+      "description": "Verify your deployment:\n\n\u2022 Make a code change and push to your repo\u2014verify the pipeline builds, tests, and deploys\n\u2022 Access your deployed app and confirm it works with the database\n\u2022 Visit Grafana and confirm you see live metrics from your app\n\u2022 Use `kubectl` to verify your app and database are running in the cluster"
+    },
+    {
+      "order": 9,
+      "text": "Next Steps",
+      "action": "Next Steps:",
+      "url": null,
+      "description": "Once you've completed this capstone, you'll have demonstrated practical DevOps skills by taking an app from code to production with automation, infrastructure as code, container orchestration, and monitoring. This gives you a strong portfolio project to showcase for job applications and discuss during interviews!"
+    }
+  ],
+  "questions": [
+    {
+      "id": "phase5-topic6-q1",
+      "prompt": "Walk me through your complete DevOps pipeline from code commit to production deployment.",
+      "expected_concepts": [
+        "commit",
+        "trigger",
+        "build",
+        "test",
+        "Docker",
+        "push",
+        "registry",
+        "deploy",
+        "Kubernetes",
+        "CI/CD",
+        "automated"
+      ]
+    },
+    {
+      "id": "phase5-topic6-q2",
+      "prompt": "How do you handle secrets management in your Kubernetes deployment? Walk me through your approach.",
+      "expected_concepts": [
+        "Kubernetes Secret",
+        "base64",
+        "environment variables",
+        "mounted",
+        "not in code",
+        "encrypted",
+        "RBAC",
+        "access control",
+        "rotation"
+      ]
+    }
+  ],
+  "test_knowledge_prompts": [
+    "Can you review my Dockerfile and suggest improvements?",
+    "Can you help me debug my CI/CD pipeline that's failing?",
+    "Can you review my Kubernetes manifests for best practices?",
+    "Can you help me set up Prometheus to scrape my FastAPI metrics?",
+    "Can you explain how to store secrets securely in Kubernetes?",
+    "Can you review my Terraform configuration for security issues?",
+    "Can you help me design a Grafana dashboard for my LLM API metrics?"
+  ],
+  "learning_objectives": [
+    {
+      "id": "phase5-topic6-check1",
+      "text": "How to containerize applications with Docker",
+      "order": 1
+    },
+    {
+      "id": "phase5-topic6-check2",
+      "text": "How to manage infrastructure with Terraform",
+      "order": 2
+    },
+    {
+      "id": "phase5-topic6-check3",
+      "text": "How to set up automated CI/CD pipelines",
+      "order": 3
+    },
+    {
+      "id": "phase5-topic6-check4",
+      "text": "How to deploy with Kubernetes manifests",
+      "order": 4
+    },
+    {
+      "id": "phase5-topic6-check5",
+      "text": "How to implement monitoring with Prometheus and Grafana",
+      "order": 5
+    },
+    {
+      "id": "phase5-topic6-check6",
+      "text": "How to write comprehensive documentation",
+      "order": 6
+    }
+  ]
+}

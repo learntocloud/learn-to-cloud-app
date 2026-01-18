@@ -589,13 +589,9 @@ async def validate_repo_fork(
     retry=retry_if_exception_type(RETRIABLE_EXCEPTIONS),
     reraise=True,
 )
-async def _fetch_workflow_runs_with_retry(
-    username: str, repo_name: str
-) -> dict | None:
+async def _fetch_workflow_runs_with_retry(username: str, repo_name: str) -> dict | None:
     """Internal: Fetch workflow runs with retry. Returns None on 404."""
-    api_url = (
-        f"https://api.github.com/repos/{username}/{repo_name}/actions/runs"
-    )
+    api_url = f"https://api.github.com/repos/{username}/{repo_name}/actions/runs"
     client = await _get_github_client()
     response = await client.get(
         api_url,
@@ -686,9 +682,7 @@ async def validate_workflow_run(
 
     # Check GitHub Actions workflow runs
     try:
-        data = await _fetch_workflow_runs_with_retry(
-            parsed.username, parsed.repo_name
-        )
+        data = await _fetch_workflow_runs_with_retry(parsed.username, parsed.repo_name)
     except RETRIABLE_EXCEPTIONS as e:
         logger.warning(f"All retries exhausted checking workflow runs: {e}")
         return ValidationResult(
@@ -741,9 +735,7 @@ async def validate_workflow_run(
         run_date_str = run.get("created_at", "")
         if run_date_str:
             try:
-                run_date = datetime.fromisoformat(
-                    run_date_str.replace("Z", "+00:00")
-                )
+                run_date = datetime.fromisoformat(run_date_str.replace("Z", "+00:00"))
                 if run_date >= cutoff_date:
                     recent_successful_runs.append(run)
             except ValueError:
@@ -1179,9 +1171,7 @@ async def _check_container_image_with_retry(
         token = token_resp.json().get("token", "")
 
         # Check if the manifest exists
-        manifest_url = (
-            f"https://registry-1.docker.io/v2/{image_path}/manifests/{tag}"
-        )
+        manifest_url = f"https://registry-1.docker.io/v2/{image_path}/manifests/{tag}"
         manifest_resp = await client.get(
             manifest_url,
             headers={
@@ -1191,14 +1181,10 @@ async def _check_container_image_with_retry(
         )
 
         if manifest_resp.status_code >= 500:
-            raise GitHubServerError(
-                f"Docker Hub returned {manifest_resp.status_code}"
-            )
+            raise GitHubServerError(f"Docker Hub returned {manifest_resp.status_code}")
 
         if manifest_resp.status_code == 429:
-            retry_after = _parse_retry_after(
-                manifest_resp.headers.get("Retry-After")
-            )
+            retry_after = _parse_retry_after(manifest_resp.headers.get("Retry-After"))
             raise GitHubServerError(
                 "Docker Hub rate limited (429)", retry_after=retry_after
             )
@@ -1245,12 +1231,8 @@ async def _check_container_image_with_retry(
             raise GitHubServerError(f"GHCR returned {manifest_resp.status_code}")
 
         if manifest_resp.status_code == 429:
-            retry_after = _parse_retry_after(
-                manifest_resp.headers.get("Retry-After")
-            )
-            raise GitHubServerError(
-                "GHCR rate limited (429)", retry_after=retry_after
-            )
+            retry_after = _parse_retry_after(manifest_resp.headers.get("Retry-After"))
+            raise GitHubServerError("GHCR rate limited (429)", retry_after=retry_after)
 
         if manifest_resp.status_code == 200:
             return ValidationResult(

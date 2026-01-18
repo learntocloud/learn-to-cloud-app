@@ -1,0 +1,217 @@
+{
+  "id": "phase2-topic1",
+  "slug": "python",
+  "name": "Python Basics",
+  "description": "Python is the most popular programming language in cloud engineering. Work through Python Crash Course chapter by chapter to build a solid foundation.",
+  "order": 1,
+  "estimated_time": "3-4 weeks (1 chapter every 1-2 days)",
+  "is_capstone": false,
+  "learning_steps": [
+    {
+      "order": 1,
+      "text": "Get the book",
+      "action": "Get the book:",
+      "title": "Python Crash Course, 3rd Edition",
+      "url": "https://nostarch.com/python-crash-course-3rd-edition",
+      "description": "Purchase or borrow Python Crash Course by Eric Matthes. We'll work through Part I (chapters 1-11), which covers all the Python fundamentals you need."
+    },
+    {
+      "order": 2,
+      "text": "Chapter 1: Getting Started",
+      "action": "Read Chapter 1:",
+      "title": "Getting Started",
+      "url": null,
+      "description": "Set up your Python environment, install VS Code, and write your first 'Hello World' program."
+    },
+    {
+      "order": 3,
+      "text": "Chapter 2: Variables and Simple Data Types",
+      "action": "Read Chapter 2:",
+      "title": "Variables and Simple Data Types",
+      "url": "https://nostarch.com/download/PCC3e_ch2sample_8.17.22.pdf",
+      "description": "Learn about variables, strings, integers, and floats. Free sample chapter available!"
+    },
+    {
+      "order": 4,
+      "text": "Chapter 3: Introducing Lists",
+      "action": "Read Chapter 3:",
+      "title": "Introducing Lists",
+      "url": null,
+      "description": "Create lists, access elements by index, and use methods like append, insert, and remove."
+    },
+    {
+      "order": 5,
+      "text": "Chapter 4: Working with Lists",
+      "action": "Read Chapter 4:",
+      "title": "Working with Lists",
+      "url": null,
+      "description": "Master for loops, list comprehensions, slicing, and tuples."
+    },
+    {
+      "order": 6,
+      "text": "Chapter 5: if Statements",
+      "action": "Read Chapter 5:",
+      "title": "if Statements",
+      "url": null,
+      "description": "Learn conditional logic: if, elif, else, and boolean expressions."
+    },
+    {
+      "order": 7,
+      "text": "Chapter 6: Dictionaries",
+      "action": "Read Chapter 6:",
+      "title": "Dictionaries",
+      "url": null,
+      "description": "Understand key-value pairs\u2014essential for working with JSON and APIs."
+    },
+    {
+      "order": 8,
+      "text": "Chapter 7: User Input and while Loops",
+      "action": "Read Chapter 7:",
+      "title": "User Input and while Loops",
+      "url": null,
+      "description": "Accept user input and control program flow with while loops."
+    },
+    {
+      "order": 9,
+      "text": "Chapter 8: Functions",
+      "action": "Read Chapter 8:",
+      "title": "Functions",
+      "url": null,
+      "description": "Define functions, pass arguments, and return values. The building blocks of clean code."
+    },
+    {
+      "order": 10,
+      "text": "Chapter 9: Classes",
+      "action": "Read Chapter 9:",
+      "title": "Classes",
+      "url": null,
+      "description": "Introduction to object-oriented programming: classes, instances, attributes, and methods."
+    },
+    {
+      "order": 11,
+      "text": "Chapter 10: Files and Exceptions",
+      "action": "Read Chapter 10:",
+      "title": "Files and Exceptions",
+      "url": null,
+      "description": "Read and write files, handle errors gracefully with try/except."
+    },
+    {
+      "order": 12,
+      "text": "Chapter 11: Testing Your Code",
+      "action": "Read Chapter 11:",
+      "title": "Testing Your Code",
+      "url": null,
+      "description": "Write tests with pytest\u2014a professional skill that catches bugs early."
+    },
+    {
+      "order": 13,
+      "text": "Watch CS50 Python Lecture",
+      "action": "Watch:",
+      "title": "CS50 Lecture on Python",
+      "url": "https://youtu.be/LfaMVlDaQ24?feature=shared&t=49364",
+      "description": "Harvard's CS50 lecture on Python. Everything should make sense\u2014if not, revisit the relevant chapters."
+    }
+  ],
+  "questions": [
+    {
+      "id": "phase2-topic1-q1",
+      "prompt": "How would you explain the difference between a list and a dictionary to a junior developer, and when would you choose each?",
+      "expected_concepts": [
+        "list",
+        "dictionary",
+        "ordered",
+        "key",
+        "value",
+        "index",
+        "lookup",
+        "sequence",
+        "pair"
+      ]
+    },
+    {
+      "id": "phase2-topic1-q2",
+      "prompt": "Walk me through exception handling in Python and why try/except is important for production code.",
+      "expected_concepts": [
+        "try",
+        "except",
+        "error",
+        "exception",
+        "handle",
+        "crash",
+        "graceful",
+        "robust"
+      ]
+    }
+  ],
+  "test_knowledge_prompts": [
+    "Can you quiz me on lists vs dictionaries?",
+    "Can you ask me about exception handling?"
+  ],
+  "learning_objectives": [
+    {
+      "id": "phase2-topic1-check1",
+      "text": "Get Python Crash Course book",
+      "order": 1
+    },
+    {
+      "id": "phase2-topic1-check2",
+      "text": "Chapter 1: Environment setup",
+      "order": 2
+    },
+    {
+      "id": "phase2-topic1-check3",
+      "text": "Chapter 2: Variables and data types",
+      "order": 3
+    },
+    {
+      "id": "phase2-topic1-check4",
+      "text": "Chapter 3: Introducing lists",
+      "order": 4
+    },
+    {
+      "id": "phase2-topic1-check5",
+      "text": "Chapter 4: Working with lists",
+      "order": 5
+    },
+    {
+      "id": "phase2-topic1-check6",
+      "text": "Chapter 5: if statements",
+      "order": 6
+    },
+    {
+      "id": "phase2-topic1-check7",
+      "text": "Chapter 6: Dictionaries",
+      "order": 7
+    },
+    {
+      "id": "phase2-topic1-check8",
+      "text": "Chapter 7: Input and while loops",
+      "order": 8
+    },
+    {
+      "id": "phase2-topic1-check9",
+      "text": "Chapter 8: Functions",
+      "order": 9
+    },
+    {
+      "id": "phase2-topic1-check10",
+      "text": "Chapter 9: Classes",
+      "order": 10
+    },
+    {
+      "id": "phase2-topic1-check11",
+      "text": "Chapter 10: Files and exceptions",
+      "order": 11
+    },
+    {
+      "id": "phase2-topic1-check12",
+      "text": "Chapter 11: Testing",
+      "order": 12
+    },
+    {
+      "id": "phase2-topic1-check13",
+      "text": "CS50 Python lecture",
+      "order": 13
+    }
+  ]
+}

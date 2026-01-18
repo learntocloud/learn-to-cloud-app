@@ -1,0 +1,185 @@
+{
+  "id": "phase5-topic1",
+  "slug": "containers",
+  "name": "Containerization",
+  "description": "Containerization is a modern approach to deploying and managing applications across various environments. It allows you to package software, tools, and their dependencies into lightweight, portable units called containers. Key benefits include consistency across environments, efficient resource utilization, simplified deployment, and isolation between applications.",
+  "order": 1,
+  "estimated_time": "3-4 days",
+  "is_capstone": false,
+  "learning_steps": [
+    {
+      "order": 1,
+      "text": "Understand Containerization",
+      "action": "Understand:",
+      "title": "What is Containerization?",
+      "url": "https://github.com/resources/articles/devops/containerization",
+      "description": "Learn how containers package applications with their dependencies for consistent deployment."
+    },
+    {
+      "order": 2,
+      "text": "Containers vs Virtual Machines",
+      "action": "Learn:",
+      "title": "Containerization vs Virtualization",
+      "url": "https://kodekloud.com/blog/virtualization-vs-containerization/",
+      "description": "Understand the key differences between containers and virtual machines."
+    },
+    {
+      "order": 3,
+      "text": "Docker Deep Dive",
+      "action": "Watch:",
+      "title": "What is Docker?",
+      "url": "https://youtu.be/3c-iBn73dDE",
+      "description": "Comprehensive video introduction to Docker and containerization."
+    },
+    {
+      "order": 4,
+      "text": "MCP - Model Context Protocol",
+      "action": "Learn:",
+      "title": "What is MCP (Model Context Protocol)?",
+      "url": "https://modelcontextprotocol.io/docs/getting-started/intro",
+      "description": "Learn how containers enable running MCP servers that integrate with LLMs and AI tools."
+    },
+    {
+      "order": 5,
+      "text": "Container Registries",
+      "action": "Container Registries:",
+      "title": "What is a Container Registry?",
+      "url": "https://docs.docker.com/get-started/docker-concepts/the-basics/what-is-a-registry/",
+      "description": "Learn how container registries store and distribute Docker images."
+    },
+    {
+      "order": 6,
+      "text": "Push to Container Registries",
+      "action": "Push to Container Registries:",
+      "url": null,
+      "description": "Learn how to containerize an application and deploy to different registries:",
+      "secondary_links": [
+        {
+          "text": "DockerHub",
+          "url": "https://docs.docker.com/get-started/workshop/04_sharing_app/"
+        },
+        {
+          "text": "AWS ECR",
+          "url": "https://docs.aws.amazon.com/AmazonECR/latest/userguide/docker-push-ecr-image.html"
+        },
+        {
+          "text": "Azure Container Registry",
+          "url": "https://learn.microsoft.com/en-us/training/modules/deploy-use-azure-container-registry/"
+        },
+        {
+          "text": "Google Container Registry",
+          "url": "https://www.youtube.com/watch?v=D1_FC6pGutQ"
+        }
+      ]
+    },
+    {
+      "order": 7,
+      "text": "Basic Containerization Project",
+      "action": "Hands-on: Basic Containerization Project",
+      "url": null,
+      "description": "1. Create a simple application (or use an existing one)\n2. Write a Dockerfile for the application\n3. Build the Docker image\n4. Run the container locally and test functionality\n5. Create an account on DockerHub or another container registry\n6. Tag and push your image to the registry\n7. Pull and run your image on a different machine to verify portability"
+    },
+    {
+      "order": 8,
+      "text": "Sample Dockerfile",
+      "action": "Sample Dockerfile:",
+      "url": null,
+      "description": "Here's a basic Dockerfile for a FastAPI application:",
+      "code": "FROM python:3.11-slim\n\nWORKDIR /app\n\nCOPY requirements.txt .\nRUN pip install --no-cache-dir -r requirements.txt\n\nCOPY . .\n\nEXPOSE 8000\n\nCMD [\"uvicorn\", \"main:app\", \"--host\", \"0.0.0.0\", \"--port\", \"8000\"]"
+    },
+    {
+      "order": 9,
+      "text": "Run GitHub MCP Server",
+      "action": "Advanced: Run the GitHub MCP Server Locally",
+      "url": null,
+      "description": "1. Ensure you have Docker Desktop and GitHub Copilot installed\n2. Install the official GitHub MCP Server in Docker Desktop\n3. Create a GitHub Personal Access Token and provide it to the server\n4. Enable MCP Gateway in VSCode with `docker mcp gateway run`\n5. Enable Agent mode in GitHub Copilot\n6. Explore and test - Query your repos and perform GitHub operations",
+      "secondary_links": [
+        {
+          "text": "GitHub MCP Server",
+          "url": "https://github.com/github/github-mcp-server"
+        }
+      ]
+    },
+    {
+      "order": 10,
+      "text": "Troubleshooting",
+      "action": "Troubleshooting:",
+      "url": null,
+      "description": "Common issues and solutions:",
+      "secondary_links": [
+        {
+          "text": "Docker Common Issues & Solutions",
+          "url": "https://docs.docker.com/engine/reference/troubleshoot/"
+        },
+        {
+          "text": "Dockerfile Best Practices",
+          "url": "https://docs.docker.com/develop/develop-images/dockerfile_best-practices/"
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "phase5-topic1-q1",
+      "prompt": "Walk me through the difference between a container and a virtual machine and when you'd choose each.",
+      "expected_concepts": [
+        "lightweight",
+        "shared kernel",
+        "isolated",
+        "hypervisor",
+        "faster startup",
+        "less resources",
+        "portability",
+        "operating system",
+        "overhead"
+      ]
+    },
+    {
+      "id": "phase5-topic1-q2",
+      "prompt": "Walk me through a Dockerfile and explain the key instructions you'd use to containerize an application.",
+      "expected_concepts": [
+        "Dockerfile",
+        "FROM",
+        "base image",
+        "COPY",
+        "RUN",
+        "CMD",
+        "EXPOSE",
+        "WORKDIR",
+        "build",
+        "layers",
+        "instructions"
+      ]
+    }
+  ],
+  "test_knowledge_prompts": [
+    "I'm learning about containers and Docker. Can you act as an interviewer and ask me questions about containerization concepts?",
+    "Can you quiz me on the differences between containers and virtual machines?",
+    "Can you ask me about Docker architecture and components?",
+    "Can you quiz me on Dockerfile structure and best practices?",
+    "Can you explain container networking and storage concepts?",
+    "Can you ask me about security considerations when using containers?"
+  ],
+  "learning_objectives": [
+    {
+      "id": "phase5-topic1-check1",
+      "text": "How to write a Dockerfile for an application",
+      "order": 1
+    },
+    {
+      "id": "phase5-topic1-check2",
+      "text": "How to build and run containers locally",
+      "order": 2
+    },
+    {
+      "id": "phase5-topic1-check3",
+      "text": "How to push images to a container registry",
+      "order": 3
+    },
+    {
+      "id": "phase5-topic1-check4",
+      "text": "How to set up and use the GitHub MCP Server",
+      "order": 4
+    }
+  ]
+}

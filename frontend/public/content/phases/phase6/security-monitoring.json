@@ -1,0 +1,170 @@
+{
+  "id": "phase6-topic4",
+  "slug": "security-monitoring",
+  "name": "Security Monitoring",
+  "description": "Security monitoring is your early warning system for detecting threats and understanding what's happening in your cloud environment. Before implementing monitoring for your Journal API, you need to understand logging, alerting, and monitoring fundamentals.",
+  "order": 4,
+  "estimated_time": "2-3 days",
+  "is_capstone": false,
+  "learning_steps": [
+    {
+      "order": 1,
+      "text": "Cloud Monitoring Fundamentals",
+      "action": "Read: Cloud Monitoring Fundamentals",
+      "url": null,
+      "description": "Start with your cloud provider's monitoring documentation:",
+      "secondary_links": [
+        {
+          "text": "AWS CloudWatch",
+          "url": "https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/"
+        },
+        {
+          "text": "AWS CloudTrail",
+          "url": "https://docs.aws.amazon.com/awscloudtrail/latest/userguide/"
+        },
+        {
+          "text": "Azure Monitor Overview",
+          "url": "https://learn.microsoft.com/en-us/azure/azure-monitor/overview"
+        },
+        {
+          "text": "Azure Activity Log",
+          "url": "https://learn.microsoft.com/en-us/azure/azure-monitor/essentials/activity-log"
+        },
+        {
+          "text": "GCP Cloud Logging",
+          "url": "https://cloud.google.com/logging/docs"
+        },
+        {
+          "text": "GCP Cloud Monitoring",
+          "url": "https://cloud.google.com/monitoring/docs"
+        }
+      ]
+    },
+    {
+      "order": 2,
+      "text": "Watch: Security Monitoring in Practice",
+      "action": "Watch: Security Monitoring in Practice",
+      "url": null,
+      "description": "Video tutorials on monitoring:",
+      "secondary_links": [
+        {
+          "text": "AWS Security Monitoring (35 min)",
+          "url": "https://www.youtube.com/watch?v=VhEhcWp-m8s"
+        },
+        {
+          "text": "Azure Sentinel Overview (25 min)",
+          "url": "https://www.youtube.com/watch?v=hwahlJy9Ibw"
+        },
+        {
+          "text": "SIEM Fundamentals (40 min)",
+          "url": "https://www.youtube.com/watch?v=G8PFCd2OhJ8"
+        }
+      ]
+    },
+    {
+      "order": 3,
+      "text": "Security Monitoring Best Practices",
+      "action": "Learn: Security Monitoring Best Practices",
+      "url": null,
+      "description": "Industry standards and guidelines:",
+      "secondary_links": [
+        {
+          "text": "NIST Incident Handling Guide",
+          "url": "https://csrc.nist.gov/publications/detail/sp/800-61/rev-2/final"
+        },
+        {
+          "text": "SANS Security Monitoring Guide",
+          "url": "https://www.sans.org/white-papers/35066/"
+        }
+      ]
+    },
+    {
+      "order": 4,
+      "text": "Essential Log Sources",
+      "action": "Key Concept - Essential Log Sources:",
+      "url": null,
+      "description": "\u2022 Authentication Logs: Who's logging in, when, and from where\n\u2022 API Call Logs: What actions are being performed on your resources\n\u2022 Network Logs: Traffic patterns and potential intrusions\n\u2022 Application Logs: Your application's security-relevant events\n\u2022 Infrastructure Logs: Changes to your cloud resources"
+    },
+    {
+      "order": 5,
+      "text": "Security Metrics to Track",
+      "action": "Key Concept - Security Metrics to Track:",
+      "url": null,
+      "description": "\u2022 Failed authentication attempts\n\u2022 Unusual API call patterns\n\u2022 Network traffic anomalies\n\u2022 Resource configuration changes\n\u2022 Data access patterns"
+    },
+    {
+      "order": 6,
+      "text": "SIEM Concepts",
+      "action": "Key Concept - SIEM (Security Information and Event Management):",
+      "url": null,
+      "description": "\u2022 Collect: Gather logs from multiple sources\n\u2022 Correlate: Find patterns across different log sources\n\u2022 Alert: Notify when suspicious patterns are detected\n\u2022 Investigate: Provide tools to analyze security events"
+    },
+    {
+      "order": 7,
+      "text": "Alert Design Principles",
+      "action": "Key Concept - Alert Design Principles:",
+      "url": null,
+      "description": "\u2022 High Signal-to-Noise Ratio: Alerts should indicate real problems\n\u2022 Actionable: Each alert should have a clear response procedure\n\u2022 Escalation: Different severity levels with appropriate response times\n\u2022 Context: Provide enough information to understand the issue"
+    }
+  ],
+  "questions": [
+    {
+      "id": "phase6-topic4-q1",
+      "prompt": "Walk me through the types of logs you would collect for effective security monitoring in cloud environments.",
+      "expected_concepts": [
+        "authentication logs",
+        "API logs",
+        "network logs",
+        "audit logs",
+        "application logs",
+        "access logs",
+        "CloudTrail",
+        "CloudWatch",
+        "activity log"
+      ]
+    },
+    {
+      "id": "phase6-topic4-q2",
+      "prompt": "How would you explain what a SIEM does to a colleague who has never used one?",
+      "expected_concepts": [
+        "SIEM",
+        "security information",
+        "event management",
+        "collect",
+        "correlate",
+        "analyze",
+        "alert",
+        "centralized",
+        "patterns",
+        "threats"
+      ]
+    }
+  ],
+  "test_knowledge_prompts": [
+    "Can you quiz me on the different types of logs I should monitor for security?",
+    "Can you ask me about SIEM concepts and how they work together?",
+    "Can you test my knowledge of creating effective security alerts?",
+    "Can you quiz me on key security metrics for cloud applications?",
+    "Can you ask me about the difference between logging and monitoring?",
+    "Can you test my understanding of log correlation and analysis?",
+    "Can you quiz me on common security monitoring mistakes?",
+    "Can you ask me about incident response workflows for security events?"
+  ],
+  "learning_objectives": [
+    {
+      "id": "phase6-topic4-check1",
+      "text": "Understand security monitoring concepts and tools",
+      "order": 1
+    },
+    {
+      "id": "phase6-topic4-check2",
+      "text": "Know your cloud provider's monitoring capabilities",
+      "order": 2
+    },
+    {
+      "id": "phase6-topic4-check3",
+      "text": "Understand logging and audit trail best practices",
+      "order": 3
+    }
+  ]
+}

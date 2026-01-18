@@ -1,0 +1,230 @@
+{
+  "id": "phase6-topic3",
+  "slug": "network-security",
+  "name": "Network Security",
+  "description": "Network security in the cloud is about building secure connections, creating logical separations between resources, and defending against network-based threats. Before securing your Journal API's network, you need to understand cloud networking fundamentals.",
+  "order": 3,
+  "estimated_time": "2-3 days",
+  "is_capstone": false,
+  "learning_steps": [
+    {
+      "order": 1,
+      "text": "Cloud Networking Fundamentals",
+      "action": "Read: Cloud Networking Fundamentals",
+      "url": null,
+      "description": "Start with your cloud provider's networking documentation:",
+      "secondary_links": [
+        {
+          "text": "AWS VPC User Guide",
+          "url": "https://docs.aws.amazon.com/vpc/latest/userguide/what-is-amazon-vpc.html"
+        },
+        {
+          "text": "Azure Virtual Network Overview",
+          "url": "https://learn.microsoft.com/en-us/azure/virtual-network/virtual-networks-overview"
+        },
+        {
+          "text": "GCP VPC Network Overview",
+          "url": "https://cloud.google.com/vpc/docs/vpc"
+        }
+      ]
+    },
+    {
+      "order": 2,
+      "text": "Watch: Network Security in Action",
+      "action": "Watch: Network Security in Action",
+      "url": null,
+      "description": "Video tutorials for your cloud provider:",
+      "secondary_links": [
+        {
+          "text": "AWS VPC Deep Dive (45 min)",
+          "url": "https://www.youtube.com/watch?v=fnxXNZdf6ew"
+        },
+        {
+          "text": "Azure Networking Explained (35 min)",
+          "url": "https://www.youtube.com/watch?v=5NMcM4zJPM4"
+        },
+        {
+          "text": "GCP Networking Fundamentals (40 min)",
+          "url": "https://www.youtube.com/watch?v=cNb4xzAyTiQ"
+        }
+      ]
+    },
+    {
+      "order": 3,
+      "text": "Network Security Best Practices",
+      "action": "Learn: Network Security Best Practices",
+      "url": null,
+      "description": "Security standards and guidelines:",
+      "secondary_links": [
+        {
+          "text": "NIST Network Security Guide",
+          "url": "https://csrc.nist.gov/publications/detail/sp/800-41/rev-1/final"
+        },
+        {
+          "text": "Cloud Security Alliance Network Security",
+          "url": "https://cloudsecurityalliance.org/research/working-groups/network-security/"
+        }
+      ]
+    },
+    {
+      "order": 4,
+      "text": "Virtual Private Clouds",
+      "action": "Key Concept - Virtual Private Clouds (VPCs):",
+      "url": null,
+      "description": "\u2022 Isolation: Your own private network in the cloud\n\u2022 Subnets: Divide your VPC into smaller network segments\n\u2022 Route Tables: Control where network traffic can go\n\u2022 Internet Gateways: Allow internet access where needed"
+    },
+    {
+      "order": 5,
+      "text": "Security Groups vs Network ACLs",
+      "action": "Key Concept - Security Groups vs Network ACLs:",
+      "url": null,
+      "description": "Security Groups (Stateful):\n\u2022 Act like firewalls for individual instances\n\u2022 Allow rules only (deny by default)\n\u2022 Stateful (return traffic automatically allowed)\n\u2022 Apply at the instance level\n\nNetwork ACLs (Stateless):\n\u2022 Act like firewalls for entire subnets\n\u2022 Allow and deny rules\n\u2022 Stateless (must explicitly allow return traffic)\n\u2022 Apply at the subnet level"
+    },
+    {
+      "order": 6,
+      "text": "Network Segmentation",
+      "action": "Key Concept - Network Segmentation:",
+      "url": null,
+      "description": "\u2022 Public Subnets: For resources that need internet access (load balancers)\n\u2022 Private Subnets: For application servers and databases\n\u2022 Isolated Subnets: For highly sensitive resources with no internet access"
+    },
+    {
+      "order": 7,
+      "text": "Load Balancers and Traffic Management",
+      "action": "Key Concept - Load Balancers:",
+      "url": null,
+      "description": "\u2022 Application Load Balancers: Handle HTTP/HTTPS traffic with security features\n\u2022 Network Load Balancers: Handle TCP/UDP traffic at high performance\n\u2022 Security Features: SSL termination, DDoS protection, access logging"
+    },
+    {
+      "order": 8,
+      "text": "Physical vs Cloud Network Security",
+      "action": "Physical vs Cloud Network Security:",
+      "url": null,
+      "description": "Understanding the differences:\n\n\u2022 Physical routers/switches \u2192 Virtual routers, VPC gateways (software-defined)\n\u2022 Hardware firewalls \u2192 Security Groups, NACLs (rules via console/API)\n\u2022 Physical network segmentation \u2192 Subnets, VPCs (logical boundaries)\n\u2022 Network cables \u2192 Virtual connections, peering (no physical connections)"
+    },
+    {
+      "order": 9,
+      "text": "Cloud Provider Documentation",
+      "action": "Reference Documentation:",
+      "url": null,
+      "description": "Security best practices for networking:",
+      "secondary_links": [
+        {
+          "text": "AWS VPC Security Best Practices",
+          "url": "https://docs.aws.amazon.com/vpc/latest/userguide/vpc-security-best-practices.html"
+        },
+        {
+          "text": "Azure Network Security Best Practices",
+          "url": "https://learn.microsoft.com/en-us/azure/security/fundamentals/network-best-practices"
+        },
+        {
+          "text": "GCP VPC Security",
+          "url": "https://cloud.google.com/vpc/docs/using-vpc"
+        }
+      ]
+    },
+    {
+      "order": 10,
+      "text": "Network Security Tools",
+      "action": "Network Security Tools:",
+      "url": null,
+      "description": "Cloud-native firewalls:",
+      "secondary_links": [
+        {
+          "text": "AWS Network Firewall",
+          "url": "https://docs.aws.amazon.com/network-firewall/"
+        },
+        {
+          "text": "Azure Firewall",
+          "url": "https://learn.microsoft.com/en-us/azure/firewall/"
+        },
+        {
+          "text": "GCP Cloud Firewall",
+          "url": "https://cloud.google.com/firewall"
+        }
+      ]
+    },
+    {
+      "order": 11,
+      "text": "Practice Resources",
+      "action": "Practice Resources (Optional):",
+      "url": null,
+      "description": "Hands-on workshops:",
+      "secondary_links": [
+        {
+          "text": "AWS VPC Workshop",
+          "url": "https://catalog.workshops.aws/networking/en-US"
+        },
+        {
+          "text": "Azure Network Security Workshop",
+          "url": "https://github.com/Azure/azure-network-security"
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "phase6-topic3-q1",
+      "prompt": "Walk me through network segmentation and how you would use public, private, and isolated subnets.",
+      "expected_concepts": [
+        "segmentation",
+        "public subnet",
+        "internet facing",
+        "private subnet",
+        "no direct access",
+        "isolated",
+        "no internet",
+        "separation",
+        "security",
+        "blast radius"
+      ]
+    },
+    {
+      "id": "phase6-topic3-q2",
+      "prompt": "How would you explain the difference between a security group and a network ACL to someone new to cloud networking?",
+      "expected_concepts": [
+        "security group",
+        "stateful",
+        "instance",
+        "return traffic",
+        "network ACL",
+        "stateless",
+        "subnet",
+        "explicit rules",
+        "allow",
+        "deny"
+      ]
+    }
+  ],
+  "test_knowledge_prompts": [
+    "Can you quiz me on the difference between Security Groups and Network ACLs?",
+    "Can you ask me to explain VPC concepts like subnets and route tables?",
+    "Can you test my knowledge of when to use public vs private subnets?",
+    "Can you quiz me on load balancer types and their security features?",
+    "Can you ask me about network segmentation best practices?",
+    "Can you test my understanding of stateful vs stateless firewalls?",
+    "Can you quiz me on VPN types and when to use them?",
+    "Can you ask me about common network security mistakes in the cloud?"
+  ],
+  "learning_objectives": [
+    {
+      "id": "phase6-topic3-check1",
+      "text": "Understand network security principles for cloud",
+      "order": 1
+    },
+    {
+      "id": "phase6-topic3-check2",
+      "text": "Know your cloud provider's networking security features",
+      "order": 2
+    },
+    {
+      "id": "phase6-topic3-check3",
+      "text": "Understand VPC security and segmentation",
+      "order": 3
+    },
+    {
+      "id": "phase6-topic3-check4",
+      "text": "(Optional) How to complete VPC/networking workshops",
+      "order": 4
+    }
+  ]
+}

@@ -1,0 +1,109 @@
+{
+  "id": "phase1-topic2",
+  "slug": "cloud-cli",
+  "name": "Cloud CLI",
+  "description": "Learn to interact with cloud platforms through the command line. The CLI is essential for automation and scripting.",
+  "order": 2,
+  "estimated_time": "2-3 days",
+  "is_capstone": false,
+  "learning_steps": [
+    {
+      "order": 1,
+      "text": "Install your cloud provider's CLI",
+      "action": "Install your cloud provider's CLI:",
+      "url": null,
+      "description": "Choose and install the CLI for your preferred cloud platform:",
+      "options": [
+        {
+          "provider": "aws",
+          "title": "Install the AWS CLI",
+          "url": "https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html",
+          "description": "Follow the official guide to install the AWS CLI on your system."
+        },
+        {
+          "provider": "azure",
+          "title": "Install the Azure CLI",
+          "url": "https://learn.microsoft.com/en-us/cli/azure/install-azure-cli",
+          "description": "Follow the official guide to install the Azure CLI on your system."
+        },
+        {
+          "provider": "gcp",
+          "title": "Install the Google Cloud CLI",
+          "url": "https://cloud.google.com/sdk/docs/install",
+          "description": "Follow the official guide to install the gcloud CLI on your system."
+        }
+      ]
+    },
+    {
+      "order": 2,
+      "text": "Test your CLI installation",
+      "action": "Test your installation",
+      "url": null,
+      "description": "Run a simple command to verify your CLI is working correctly:",
+      "code": "# AWS\naws --version\n\n# Azure\naz --version\n\n# GCP\ngcloud --version"
+    },
+    {
+      "order": 3,
+      "text": "Configure authentication",
+      "action": "Configure authentication",
+      "url": null,
+      "description": "Set up your credentials to authenticate with your cloud provider:",
+      "code": "# AWS\naws configure\n\n# Azure\naz login\n\n# GCP\ngcloud auth login"
+    }
+  ],
+  "questions": [
+    {
+      "id": "phase1-topic2-q1",
+      "prompt": "Why would you use the cloud CLI instead of the web console, and when does CLI become essential?",
+      "expected_concepts": [
+        "automation",
+        "scripting",
+        "faster",
+        "repeatable",
+        "infrastructure as code",
+        "batch operations",
+        "version control",
+        "consistency",
+        "efficiency"
+      ]
+    },
+    {
+      "id": "phase1-topic2-q2",
+      "prompt": "Walk me through how authentication works with cloud CLIs and the different methods available.",
+      "expected_concepts": [
+        "login",
+        "configure",
+        "credentials",
+        "access key",
+        "secret key",
+        "token",
+        "service principal",
+        "profile",
+        "session",
+        "secure"
+      ]
+    }
+  ],
+  "test_knowledge_prompts": [
+    "Can you ask me why cloud engineers use CLI instead of the web console?",
+    "Can you quiz me on how to authenticate with my cloud provider via CLI?",
+    "Can you ask me what advantages CLI has for automation and scripting?"
+  ],
+  "learning_objectives": [
+    {
+      "id": "phase1-topic2-check1",
+      "text": "How to install your cloud provider's CLI",
+      "order": 1
+    },
+    {
+      "id": "phase1-topic2-check2",
+      "text": "How to verify your CLI installation with version commands",
+      "order": 2
+    },
+    {
+      "id": "phase1-topic2-check3",
+      "text": "How to authenticate with your cloud provider",
+      "order": 3
+    }
+  ]
+}

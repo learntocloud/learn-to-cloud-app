@@ -1,0 +1,113 @@
+{
+  "id": "phase3-topic1",
+  "slug": "ai-for-learning",
+  "name": "AI for Learning",
+  "description": "AI assistants like ChatGPT and Claude are powerful learning tools\u2014but only if you use them correctly. This topic teaches you how to use AI to deepen your understanding, not bypass it. You'll learn the difference between asking AI to explain something vs. asking it to do something for you.",
+  "order": 1,
+  "estimated_time": "2-3 days",
+  "is_capstone": false,
+  "learning_steps": [
+    {
+      "order": 1,
+      "text": "Watch: Responsible AI with GitHub Copilot",
+      "action": "Watch:",
+      "title": "Responsible AI with GitHub Copilot",
+      "url": "https://learn.microsoft.com/en-us/training/modules/responsible-ai-with-github-copilot/",
+      "description": "This Microsoft Learn module covers responsible AI usage\u2014understanding the risks, limitations, and ethical considerations when using AI coding tools. Takes about 15 minutes."
+    },
+    {
+      "order": 2,
+      "text": "The Right Mindset",
+      "action": "The Right Mindset:",
+      "url": null,
+      "description": "Before using AI tools, internalize these principles:\n\n\u2022 AI should quiz YOU, not answer FOR you\n\u2022 If you can't explain what AI suggested, you don't understand it\n\u2022 Struggle is part of learning\u2014don't eliminate it entirely\n\u2022 Use AI to go deeper on topics you've already attempted\n\u2022 The goal is to become independent, not dependent"
+    },
+    {
+      "order": 3,
+      "text": "The Socratic Method with AI",
+      "action": "The Socratic Method with AI:",
+      "url": null,
+      "description": "Instead of asking AI for answers, ask it to question you. This builds real understanding.",
+      "code": "WRONG: \"Explain how Python decorators work\"\n\nRIGHT: \"I think I understand Python decorators. I'm going to explain them to you, and please ask me clarifying questions if my explanation is unclear or incorrect. Don't give me the answer\u2014just ask questions until I get it right.\n\nMy explanation: A decorator is...\""
+    },
+    {
+      "order": 4,
+      "text": "The Explain-Back Technique",
+      "action": "The Explain-Back Technique:",
+      "url": null,
+      "description": "After AI explains something, explain it back in your own words and ask if you got it right.",
+      "code": "Step 1: Ask AI to explain a concept you're struggling with\nStep 2: Read the explanation carefully\nStep 3: Close the AI response and write your own explanation\nStep 4: Ask AI: \"Here's my understanding of [concept]. Is this correct? What am I missing?\"\n\nThis forces active processing instead of passive reading."
+    },
+    {
+      "order": 5,
+      "text": "Debug Together, Don't Copy Solutions",
+      "action": "Debug Together, Don't Copy Solutions:",
+      "url": null,
+      "description": "When your code has a bug, don't paste it and ask \"fix this.\" Instead:",
+      "code": "WRONG: \"Fix this code: [paste code]\"\n\nRIGHT: \"I have a bug in my code. Here's what I expected to happen: [expected]. Here's what actually happens: [actual]. I've tried: [your attempts]. Can you ask me questions to help me find the issue?\"\n\nThis keeps you in the driver's seat of debugging."
+    },
+    {
+      "order": 6,
+      "text": "Practice: Review Your Phase 2 Code",
+      "action": "Practice: Review Your Phase 2 Code:",
+      "url": null,
+      "description": "Open your Journal API from Phase 2. Pick a function you wrote and:\n\n1. Explain to AI what the function does (without showing the code)\n2. Ask AI to quiz you on edge cases you might have missed\n3. Ask AI what improvements an experienced developer might suggest\n4. Implement the improvements YOURSELF based on the feedback\n\nDon't let AI write the improved code\u2014you write it."
+    }
+  ],
+  "questions": [
+    {
+      "id": "phase3-topic1-q1",
+      "prompt": "How would you distinguish between using AI to accelerate learning versus using it to skip learning? Give examples of each.",
+      "expected_concepts": [
+        "explain",
+        "understand",
+        "quiz",
+        "question",
+        "Socratic",
+        "active",
+        "passive",
+        "copy",
+        "paste",
+        "think",
+        "independent"
+      ]
+    },
+    {
+      "id": "phase3-topic1-q2",
+      "prompt": "Walk me through how you would use AI to help debug code without having it solve the problem for you.",
+      "expected_concepts": [
+        "questions",
+        "expected",
+        "actual",
+        "tried",
+        "narrow down",
+        "understand",
+        "root cause",
+        "rubber duck",
+        "explain"
+      ]
+    }
+  ],
+  "test_knowledge_prompts": [
+    "Can you quiz me on when to use AI for learning vs. when to struggle on my own?",
+    "Can you ask me to demonstrate the Socratic method for learning a concept?",
+    "Can you challenge me on how I would debug code with AI assistance?"
+  ],
+  "learning_objectives": [
+    {
+      "id": "phase3-topic1-check1",
+      "text": "Understand when AI helps learning vs. hinders it",
+      "order": 1
+    },
+    {
+      "id": "phase3-topic1-check2",
+      "text": "Practice the Socratic method with an AI assistant",
+      "order": 2
+    },
+    {
+      "id": "phase3-topic1-check3",
+      "text": "Review Phase 2 code using AI as a learning partner",
+      "order": 3
+    }
+  ]
+}

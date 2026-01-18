@@ -34,11 +34,6 @@ from services.github_hands_on_verification_service import close_github_client
 _TRUE_VALUES: Final[set[str]] = {"1", "true", "yes", "y", "on"}
 
 
-def _sync_grading_concepts_on_startup_enabled() -> bool:
-    env_val = os.getenv("SYNC_GRADING_CONCEPTS_ON_STARTUP", "").strip().lower()
-    return env_val in _TRUE_VALUES
-
-
 def _run_db_migrations_on_startup_enabled() -> bool:
     return os.getenv("RUN_MIGRATIONS_ON_STARTUP", "").strip().lower() in _TRUE_VALUES
 
@@ -86,24 +81,6 @@ async def _background_init():
         logger.info("Database migrations complete")
 
     await init_db()
-
-    # Sync grading concepts after migrations and DB init
-    if _sync_grading_concepts_on_startup_enabled():
-        try:
-            from scripts.seed_grading_concepts import (
-                extract_grading_concepts,
-                seed_database,
-            )
-
-            logger.info("Syncing grading concepts on startup...")
-            concepts = extract_grading_concepts()
-            if concepts:
-                await seed_database(concepts)
-                logger.info(f"Synced {len(concepts)} grading concepts")
-            else:
-                logger.warning("No grading concepts found in content files")
-        except Exception as e:
-            logger.error(f"Failed to sync grading concepts: {e}")
 
     try:
         session_maker = get_session_maker()

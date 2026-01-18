@@ -1,7 +1,7 @@
 """Centralized progress tracking module.
 
 This module provides a single source of truth for:
-- Phase requirements (steps, questions, topics)
+- Phase requirements (steps, questions, topics) - derived from content JSON
 - User progress calculation
 - Phase completion status
 
@@ -15,7 +15,9 @@ CACHING:
 """
 
 import asyncio
+import logging
 from dataclasses import dataclass
+from functools import lru_cache
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -26,6 +28,8 @@ from repositories.progress_repository import (
 )
 from repositories.submission_repository import SubmissionRepository
 from services.hands_on_verification_service import get_requirements_for_phase
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -127,7 +131,7 @@ class UserProgress:
     @property
     def total_phases(self) -> int:
         """Total number of phases."""
-        return len(PHASE_REQUIREMENTS)
+        return len(_ensure_requirements_loaded())
 
     @property
     def current_phase(self) -> int:
@@ -169,72 +173,84 @@ class UserProgress:
         return (completed / total) * 100
 
 
-PHASE_REQUIREMENTS: dict[int, PhaseRequirements] = {
-    0: PhaseRequirements(
-        phase_id=0,
-        name="IT Fundamentals & Cloud Overview",
-        topics=6,
-        steps=15,
-        questions=12,
-    ),
-    1: PhaseRequirements(
-        phase_id=1,
-        name="Linux, CLI & Version Control",
-        topics=6,
-        steps=36,
-        questions=12,
-    ),
-    2: PhaseRequirements(
-        phase_id=2,
-        name="Programming & APIs",
-        topics=6,
-        steps=30,
-        questions=12,
-    ),
-    3: PhaseRequirements(
-        phase_id=3,
-        name="AI & Productivity",
-        topics=4,
-        steps=31,
-        questions=8,
-    ),
-    4: PhaseRequirements(
-        phase_id=4,
-        name="Cloud Deployment",
-        topics=9,
-        steps=51,
-        questions=18,
-    ),
-    5: PhaseRequirements(
-        phase_id=5,
-        name="DevOps & Containers",
-        topics=6,
-        steps=55,
-        questions=12,
-    ),
-    6: PhaseRequirements(
-        phase_id=6,
-        name="Cloud Security",
-        topics=6,
-        steps=64,
-        questions=12,
-    ),
-}
+@lru_cache(maxsize=1)
+def _build_phase_requirements() -> dict[int, PhaseRequirements]:
+    """Build PHASE_REQUIREMENTS from content JSON files at startup.
 
-TOTAL_PHASES = len(PHASE_REQUIREMENTS)
-TOTAL_TOPICS = sum(r.topics for r in PHASE_REQUIREMENTS.values())
-TOTAL_STEPS = sum(r.steps for r in PHASE_REQUIREMENTS.values())
-TOTAL_QUESTIONS = sum(r.questions for r in PHASE_REQUIREMENTS.values())
+    This derives step/question/topic counts from the actual content,
+    eliminating the need for hardcoded values that can get out of sync.
+    """
+    from services.content_service import get_all_phases
+
+    requirements: dict[int, PhaseRequirements] = {}
+    phases = get_all_phases()
+
+    for phase in phases:
+        total_steps = 0
+        total_questions = 0
+        for topic in phase.topics:
+            total_steps += len(topic.learning_steps)
+            total_questions += len(topic.questions)
+
+        requirements[phase.id] = PhaseRequirements(
+            phase_id=phase.id,
+            name=phase.name,
+            topics=len(phase.topics),
+            steps=total_steps,
+            questions=total_questions,
+        )
+
+    logger.info(
+        f"Built PHASE_REQUIREMENTS from content: {len(requirements)} phases, "
+        f"{sum(r.steps for r in requirements.values())} steps, "
+        f"{sum(r.questions for r in requirements.values())} questions"
+    )
+    return requirements
+
+
+# Module-level accessor that lazily builds requirements on first access
+def _get_phase_requirements() -> dict[int, PhaseRequirements]:
+    return _build_phase_requirements()
+
+
+# For backward compatibility, expose as a property-like accessor
+# Code should use get_phase_requirements() or _get_phase_requirements()
+PHASE_REQUIREMENTS: dict[int, PhaseRequirements] = {}  # Populated on first access
+
+
+def _ensure_requirements_loaded() -> dict[int, PhaseRequirements]:
+    """Ensure PHASE_REQUIREMENTS is populated and return it."""
+    global PHASE_REQUIREMENTS
+    if not PHASE_REQUIREMENTS:
+        PHASE_REQUIREMENTS.update(_get_phase_requirements())
+    return PHASE_REQUIREMENTS
+
+
+# Computed at module load time after first access
+def _get_total_phases() -> int:
+    return len(_ensure_requirements_loaded())
+
+
+def _get_total_topics() -> int:
+    return sum(r.topics for r in _ensure_requirements_loaded().values())
+
+
+def _get_total_steps() -> int:
+    return sum(r.steps for r in _ensure_requirements_loaded().values())
+
+
+def _get_total_questions() -> int:
+    return sum(r.questions for r in _ensure_requirements_loaded().values())
 
 
 def get_phase_requirements(phase_id: int) -> PhaseRequirements | None:
     """Get requirements for a specific phase."""
-    return PHASE_REQUIREMENTS.get(phase_id)
+    return _ensure_requirements_loaded().get(phase_id)
 
 
 def get_all_phase_ids() -> list[int]:
     """Get all phase IDs in order."""
-    return sorted(PHASE_REQUIREMENTS.keys())
+    return sorted(_ensure_requirements_loaded().keys())
 
 
 def _parse_phase_from_topic_id(topic_id: str) -> int | None:
@@ -328,7 +344,10 @@ async def fetch_user_progress(
     validated_by_phase = get_validated_ids_by_phase(db_submissions)
 
     phases: dict[int, PhaseProgress] = {}
-    for phase_id, requirements in PHASE_REQUIREMENTS.items():
+    for phase_id in get_all_phase_ids():
+        requirements = get_phase_requirements(phase_id)
+        if not requirements:
+            continue
         hands_on_requirements = get_requirements_for_phase(phase_id)
         required_ids = {r.id for r in hands_on_requirements}
         validated_ids = validated_by_phase.get(phase_id, set())

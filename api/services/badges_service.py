@@ -16,7 +16,10 @@ from typing import TypedDict
 
 from core.cache import get_cached_badges, set_cached_badges
 from services.phase_requirements_service import get_requirements_for_phase
-from services.progress_service import PHASE_REQUIREMENTS as _PROGRESS_REQUIREMENTS
+from services.progress_service import (
+    get_all_phase_ids,
+    get_phase_requirements,
+)
 
 
 class StreakBadgeInfo(TypedDict):
@@ -137,7 +140,7 @@ def compute_phase_badges(
     earned_badges = []
 
     for phase_id, badge_info in PHASE_BADGES.items():
-        requirements = _PROGRESS_REQUIREMENTS.get(phase_id)
+        requirements = get_phase_requirements(phase_id)
         if not requirements:
             continue
 
@@ -244,7 +247,10 @@ def count_completed_phases(
         Number of completed phases
     """
     completed = 0
-    for phase_id, requirements in _PROGRESS_REQUIREMENTS.items():
+    for phase_id in get_all_phase_ids():
+        requirements = get_phase_requirements(phase_id)
+        if not requirements:
+            continue
         completed_steps, passed_questions, hands_on_validated = (
             phase_completion_counts.get(phase_id, (0, 0, True))
         )
@@ -266,7 +272,7 @@ def get_all_available_badges() -> list[dict]:
     badges = []
 
     for phase_id, badge_info in PHASE_BADGES.items():
-        requirements = _PROGRESS_REQUIREMENTS.get(phase_id)
+        requirements = get_phase_requirements(phase_id)
         if requirements:
             hands_on_count = len(get_requirements_for_phase(phase_id))
             if hands_on_count:

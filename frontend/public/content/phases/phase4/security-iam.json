@@ -1,0 +1,149 @@
+{
+  "id": "phase4-topic2",
+  "slug": "security-iam",
+  "name": "Security & Identity Management",
+  "description": "This section focuses on identity and access management (IAM) to control permissions and protect cloud resources, as well as securing cloud instances using security groups and firewall rules.",
+  "order": 2,
+  "estimated_time": "2-3 days",
+  "is_capstone": false,
+  "learning_steps": [
+    {
+      "order": 1,
+      "text": "Learn IAM concepts across cloud providers",
+      "action": "Learn IAM concepts:",
+      "url": null,
+      "description": "Identity and Access Management (IAM) is how you control who can do what in your cloud environment. Master these core concepts: Users, Groups, Roles, and Policies.",
+      "options": [
+        {
+          "provider": "aws",
+          "title": "Getting Started with AWS IAM",
+          "url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/getting-started.html",
+          "description": "Official AWS guide to IAM users, groups, policies, and roles"
+        },
+        {
+          "provider": "azure",
+          "title": "Azure Role-Based Access Control",
+          "url": "https://learn.microsoft.com/en-us/azure/role-based-access-control/role-assignments-portal",
+          "description": "Learn how to assign roles in Azure using the portal"
+        },
+        {
+          "provider": "gcp",
+          "title": "GCP IAM Overview",
+          "url": "https://cloud.google.com/iam/docs/overview",
+          "description": "Understanding Identity and Access Management in Google Cloud"
+        }
+      ]
+    },
+    {
+      "order": 2,
+      "text": "Understand Security Groups & Firewall Rules",
+      "action": "Understand Security Groups & Firewall Rules:",
+      "url": null,
+      "description": "Security groups act as virtual firewalls for your cloud resources, controlling inbound and outbound traffic.",
+      "options": [
+        {
+          "provider": "aws",
+          "title": "AWS Security Groups",
+          "url": "https://docs.aws.amazon.com/vpc/latest/userguide/vpc-security-groups.html",
+          "description": "Official documentation for controlling inbound and outbound traffic"
+        },
+        {
+          "provider": "azure",
+          "title": "Azure Network Security Groups",
+          "url": "https://learn.microsoft.com/en-us/azure/virtual-network/network-security-groups-overview",
+          "description": "Overview of Network Security Groups in Azure"
+        },
+        {
+          "provider": "gcp",
+          "title": "GCP Firewall Rules",
+          "url": "https://cloud.google.com/firewall/docs/firewalls",
+          "description": "Understanding firewall rules in Google Cloud"
+        }
+      ]
+    },
+    {
+      "order": 3,
+      "text": "Key Security Principles",
+      "action": "Key Security Principles:",
+      "url": null,
+      "description": "\u2022 Least Privilege Principle - Grant only the minimum permissions needed\n\u2022 RBAC (Role-Based Access Control) - Assign permissions based on job roles\n\u2022 Stateful vs Stateless rules - Security groups are stateful, network ACLs are stateless\n\u2022 Inbound vs Outbound rules - Control traffic in both directions"
+    },
+    {
+      "order": 4,
+      "text": "Hands-on Tasks",
+      "action": "Hands-on Tasks:",
+      "url": null,
+      "description": "Complete these security exercises on your cloud platform:\n\n1. Create IAM users and groups with specific permissions\n2. Implement IAM roles for secure access management\n3. Define and apply IAM policies to restrict access to sensitive resources\n4. Create a security group for a VM instance\n5. Define inbound rules to allow specific traffic (e.g., HTTP, SSH, RDP)\n6. Define outbound rules to control external communication\n7. Apply security group rules to a VM and verify access restrictions\n8. Test traffic flow by attempting to connect from allowed and restricted IPs"
+    }
+  ],
+  "questions": [
+    {
+      "id": "phase4-topic2-q1",
+      "prompt": "How would you explain the principle of least privilege to a new team member, and why is it critical for cloud security?",
+      "expected_concepts": [
+        "minimum permissions",
+        "necessary",
+        "reduce risk",
+        "compromise",
+        "limit access",
+        "attack surface",
+        "security",
+        "roles",
+        "policies"
+      ]
+    },
+    {
+      "id": "phase4-topic2-q2",
+      "prompt": "Walk me through the difference between a security group and a network ACL and when you'd use each.",
+      "expected_concepts": [
+        "security group",
+        "stateful",
+        "instance level",
+        "network ACL",
+        "stateless",
+        "subnet level",
+        "allow",
+        "deny",
+        "return traffic",
+        "firewall"
+      ]
+    }
+  ],
+  "test_knowledge_prompts": [
+    "Can you quiz me on the difference between IAM Users, Groups, and Roles?",
+    "Can you explain how RBAC differs from ABAC in cloud identity management?",
+    "Can you ask me how IAM policies control access to cloud resources?",
+    "Can you quiz me on steps to enforce the Least Privilege Principle in IAM?",
+    "Can you explain the difference between inbound and outbound rules?",
+    "Can you quiz me on the difference between security groups and traditional firewalls?",
+    "Can you ask me how security groups differ from network ACLs?",
+    "Can you explain stateful vs. stateless rules in cloud security?"
+  ],
+  "learning_objectives": [
+    {
+      "id": "phase4-topic2-check1",
+      "text": "How to create IAM users and groups with specific permissions",
+      "order": 1
+    },
+    {
+      "id": "phase4-topic2-check2",
+      "text": "How to implement IAM roles for secure access",
+      "order": 2
+    },
+    {
+      "id": "phase4-topic2-check3",
+      "text": "How to create and configure security groups",
+      "order": 3
+    },
+    {
+      "id": "phase4-topic2-check4",
+      "text": "How to configure inbound and outbound rules",
+      "order": 4
+    },
+    {
+      "id": "phase4-topic2-check5",
+      "text": "How to verify access restrictions work correctly",
+      "order": 5
+    }
+  ]
+}

@@ -1,0 +1,77 @@
+{
+  "id": "phase0-topic3",
+  "slug": "programming",
+  "name": "What is Programming",
+  "description": "Programming enables you to automate tasks and manage cloud resources efficiently. Understanding the basics will help you throughout your cloud journey.",
+  "order": 3,
+  "estimated_time": "1-2 hours",
+  "is_capstone": false,
+  "learning_steps": [
+    {
+      "order": 1,
+      "text": "Watch: What is Programming",
+      "action": "Watch:",
+      "title": "What is Programming",
+      "url": "https://youtu.be/ifo76VyrBYo",
+      "description": "Discover what programming is and how it's used to automate tasks and build applications in cloud environments."
+    },
+    {
+      "order": 2,
+      "text": "Read: Programming vs Scripting",
+      "action": "Read:",
+      "title": "Programming vs Scripting Languages",
+      "url": "https://www.geeksforgeeks.org/whats-the-difference-between-scripting-and-programming-languages/",
+      "description": "Understand the difference between programming and scripting\u2014both are useful in cloud engineering."
+    }
+  ],
+  "questions": [
+    {
+      "id": "phase0-topic3-q1",
+      "prompt": "How would you explain what programming is to someone non-technical, and why is it valuable for cloud engineers?",
+      "expected_concepts": [
+        "instructions",
+        "computer",
+        "automate",
+        "tasks",
+        "infrastructure",
+        "scripts",
+        "efficiency",
+        "repeatable",
+        "code",
+        "logic"
+      ]
+    },
+    {
+      "id": "phase0-topic3-q2",
+      "prompt": "Walk me through the key differences between a programming language and a scripting language.",
+      "expected_concepts": [
+        "compiled",
+        "interpreted",
+        "runtime",
+        "automation",
+        "Python",
+        "Bash",
+        "quick tasks",
+        "full applications",
+        "execution"
+      ]
+    }
+  ],
+  "test_knowledge_prompts": [
+    "Can you ask me what programming is in simple terms?",
+    "Can you quiz me on why cloud engineers need to know programming?",
+    "Can you ask me what the difference is between programming and scripting?"
+  ],
+  "learning_objectives": [
+    {
+      "id": "phase0-topic3-check1",
+      "text": "Understand why programming is essential for cloud engineers",
+      "order": 1
+    },
+    {
+      "id": "phase0-topic3-check2",
+      "text": "Know the basics of programming concepts and paradigms",
+      "order": 2
+    }
+  ]
+}

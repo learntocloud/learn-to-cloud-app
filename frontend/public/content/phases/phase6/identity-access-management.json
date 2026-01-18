@@ -1,0 +1,223 @@
+{
+  "id": "phase6-topic1",
+  "slug": "identity-access-management",
+  "name": "Identity and Access Management (IAM)",
+  "description": "Identity and Access Management (IAM) is your frontline defense for controlling who can access your cloud environment and what they can do once they're in. Before you secure your Journal API, you need to understand IAM fundamentals.",
+  "order": 1,
+  "estimated_time": "3-4 days",
+  "is_capstone": false,
+  "learning_steps": [
+    {
+      "order": 1,
+      "text": "IAM Fundamentals",
+      "action": "Read: IAM Fundamentals",
+      "url": null,
+      "description": "Start with your cloud provider's IAM documentation:",
+      "secondary_links": [
+        {
+          "text": "AWS IAM User Guide",
+          "url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/introduction.html"
+        },
+        {
+          "text": "Azure RBAC Documentation",
+          "url": "https://learn.microsoft.com/en-us/azure/role-based-access-control/overview"
+        },
+        {
+          "text": "GCP IAM Overview",
+          "url": "https://cloud.google.com/iam/docs/overview"
+        }
+      ]
+    },
+    {
+      "order": 2,
+      "text": "Watch: IAM in Action",
+      "action": "Watch: IAM in Action",
+      "url": null,
+      "description": "Video tutorials for your cloud provider:",
+      "secondary_links": [
+        {
+          "text": "AWS IAM Tutorial (30 min)",
+          "url": "https://www.youtube.com/watch?v=Ul6FW4UANGc"
+        },
+        {
+          "text": "Azure RBAC Explained (25 min)",
+          "url": "https://www.youtube.com/watch?v=C7hJ3oGHrhM"
+        },
+        {
+          "text": "GCP IAM Deep Dive (40 min)",
+          "url": "https://www.youtube.com/watch?v=96HlT4f2AUU"
+        }
+      ]
+    },
+    {
+      "order": 3,
+      "text": "Security Best Practices",
+      "action": "Learn: Security Best Practices",
+      "url": null,
+      "description": "Read these essential security guides:",
+      "secondary_links": [
+        {
+          "text": "OWASP Cloud Security Cheat Sheet",
+          "url": "https://cheatsheetseries.owasp.org/cheatsheets/Cloud_Security_Cheat_Sheet.html"
+        },
+        {
+          "text": "CIS Cloud Security Controls",
+          "url": "https://www.cisecurity.org/controls/cloud-security-controls"
+        }
+      ]
+    },
+    {
+      "order": 4,
+      "text": "IAM Components",
+      "action": "Key Concepts - IAM Components:",
+      "url": null,
+      "description": "\u2022 Users - Individual people or applications\n\u2022 Groups - Collections of users with similar permissions\n\u2022 Roles - Set of permissions that can be assumed\n\u2022 Policies - Documents that define permissions"
+    },
+    {
+      "order": 5,
+      "text": "Principle of Least Privilege",
+      "action": "Principle of Least Privilege:",
+      "url": null,
+      "description": "Give users and services only the minimum permissions needed to do their job. This reduces the impact if credentials are compromised."
+    },
+    {
+      "order": 6,
+      "text": "Service Accounts vs User Accounts",
+      "action": "Service Accounts vs User Accounts:",
+      "url": null,
+      "description": "\u2022 User accounts - For people who need to access resources\n\u2022 Service accounts - For applications and services to access resources"
+    },
+    {
+      "order": 7,
+      "text": "Authentication vs Authorization",
+      "action": "Authentication vs Authorization:",
+      "url": null,
+      "description": "\u2022 Authentication - Who are you? (login, MFA)\n\u2022 Authorization - What can you do? (permissions, policies)"
+    },
+    {
+      "order": 8,
+      "text": "Hands-on Practice",
+      "action": "Hands-on Practice:",
+      "url": null,
+      "description": "Complete IAM workshops:",
+      "secondary_links": [
+        {
+          "text": "AWS IAM Workshop",
+          "url": "https://catalog.workshops.aws/general-immersionday/en-US/basic-modules/30-iam"
+        },
+        {
+          "text": "Azure RBAC Tutorial",
+          "url": "https://learn.microsoft.com/en-us/azure/role-based-access-control/tutorial-role-assignments-user-powershell"
+        },
+        {
+          "text": "GCP IAM Tutorial",
+          "url": "https://cloud.google.com/iam/docs/quickstart"
+        }
+      ]
+    },
+    {
+      "order": 9,
+      "text": "Security Labs",
+      "action": "Security Labs (Optional):",
+      "url": null,
+      "description": "Practice with real-world scenarios:",
+      "secondary_links": [
+        {
+          "text": "PwnedLabs - AWS IAM Enumeration",
+          "url": "https://pwnedlabs.io/labs/intro-to-aws-iam-enumeration"
+        },
+        {
+          "text": "PwnedLabs - IAM Breaches with CloudTrail",
+          "url": "https://pwnedlabs.io/labs/identify-iam-breaches-with-cloudtrail-and-athena"
+        }
+      ]
+    },
+    {
+      "order": 10,
+      "text": "Reference Documentation",
+      "action": "Reference Documentation:",
+      "url": null,
+      "description": "Best practices guides:",
+      "secondary_links": [
+        {
+          "text": "AWS IAM Best Practices",
+          "url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/best-practices.html"
+        },
+        {
+          "text": "Azure Security Best Practices",
+          "url": "https://learn.microsoft.com/en-us/azure/security/fundamentals/best-practices-and-patterns"
+        },
+        {
+          "text": "GCP Security Best Practices",
+          "url": "https://cloud.google.com/security/best-practices"
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "phase6-topic1-q1",
+      "prompt": "Walk me through the difference between authentication and authorization in cloud security.",
+      "expected_concepts": [
+        "authentication",
+        "identity",
+        "who you are",
+        "login",
+        "credentials",
+        "authorization",
+        "permissions",
+        "what you can do",
+        "access control",
+        "policies"
+      ]
+    },
+    {
+      "id": "phase6-topic1-q2",
+      "prompt": "How would you decide between using a service account versus a user account in cloud environments?",
+      "expected_concepts": [
+        "service account",
+        "applications",
+        "automated",
+        "no human",
+        "user account",
+        "people",
+        "interactive",
+        "MFA",
+        "credentials",
+        "programmatic"
+      ]
+    }
+  ],
+  "test_knowledge_prompts": [
+    "Can you quiz me on the difference between IAM users, groups, and roles?",
+    "Can you ask me to explain the principle of least privilege with examples?",
+    "Can you test my knowledge of when to use service accounts vs user accounts?",
+    "Can you quiz me on the difference between authentication and authorization?",
+    "Can you ask me about common IAM security mistakes and how to prevent them?",
+    "Can you test my understanding of IAM policies and how they work?",
+    "Can you quiz me on when and why to use multi-factor authentication?",
+    "Can you ask me about workload identity and why it's better than long-lived keys?"
+  ],
+  "learning_objectives": [
+    {
+      "id": "phase6-topic1-check1",
+      "text": "Understand IAM principles and best practices",
+      "order": 1
+    },
+    {
+      "id": "phase6-topic1-check2",
+      "text": "Know your cloud provider's IAM capabilities",
+      "order": 2
+    },
+    {
+      "id": "phase6-topic1-check3",
+      "text": "Understand role-based access control (RBAC)",
+      "order": 3
+    },
+    {
+      "id": "phase6-topic1-check4",
+      "text": "(Optional) How to complete hands-on IAM workshops",
+      "order": 4
+    }
+  ]
+}

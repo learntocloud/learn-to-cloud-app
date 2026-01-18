@@ -1,0 +1,125 @@
+{
+  "id": "phase2-topic7",
+  "slug": "build-the-app",
+  "name": "Build the App",
+  "description": "Time to put everything together! In this capstone project, you'll build a working Learning Journal API that combines Python, FastAPI, databases, and LLM integration. This project synthesizes all Phase 2 skills into a complete application.",
+  "short_description": "Build a Learning Journal API with FastAPI, PostgreSQL, and AI-powered entry analysis using LLMs.",
+  "order": 7,
+  "estimated_time": "5-7 days",
+  "is_capstone": true,
+  "learning_steps": [
+    {
+      "order": 1,
+      "text": "Go to the Journal Starter Repository",
+      "action": "Go to the",
+      "title": "Journal Starter Repository",
+      "url": "https://github.com/learntocloud/journal-starter",
+      "description": "The repository README has everything you need: Dev Container setup, development tasks using feature branches, LLM provider configuration, and troubleshooting tips. Fork the repo and follow the instructions there to build your Journal API."
+    },
+    {
+      "order": 2,
+      "text": "Tips for success",
+      "action": "Tips for success:",
+      "url": null,
+      "description": "\u2022 Read the entire README before starting\u2014it's comprehensive\n\u2022 Use feature branches and PRs for each task (great practice for real projects)\n\u2022 Start with the API endpoints before tackling LLM integration\n\u2022 Test frequently using the /docs endpoint\n\u2022 Store API keys in your .env file, never in code\n\u2022 Don't rush\u2014understanding beats completion speed"
+    },
+    {
+      "order": 3,
+      "text": "Share your project",
+      "action": "Share your project:",
+      "url": null,
+      "description": "When you've completed the capstone, push your work to GitHub! This becomes part of your portfolio. Consider sharing it on LinkedIn or the Learn to Cloud community Discord to get feedback and celebrate your progress."
+    }
+  ],
+  "questions": [
+    {
+      "id": "phase2-topic7-q1",
+      "prompt": "Walk me through the architecture of your Journal API and how the different components integrate.",
+      "expected_concepts": [
+        "FastAPI",
+        "endpoints",
+        "database",
+        "LLM",
+        "CRUD",
+        "entries",
+        "analysis",
+        "PostgreSQL",
+        "schema",
+        "API",
+        "integration"
+      ]
+    },
+    {
+      "id": "phase2-topic7-q2",
+      "prompt": "How did you implement LLM analysis for journal entries, and what prompt engineering techniques did you apply?",
+      "expected_concepts": [
+        "prompt",
+        "sentiment",
+        "topics",
+        "summary",
+        "JSON",
+        "structured output",
+        "system message",
+        "API call",
+        "parse",
+        "response"
+      ]
+    }
+  ],
+  "test_knowledge_prompts": [
+    "Can you review my FastAPI code and check if I'm following best practices?",
+    "Can you help me debug why my LLM analysis isn't returning structured JSON?",
+    "Can you explain how to set up environment variables for my API keys?",
+    "Can you quiz me on REST API design principles?",
+    "Can you help me write better error handling for my endpoints?",
+    "Can you explain the difference between sync and async database calls in FastAPI?",
+    "Can you review my prompt engineering for the journal analysis feature?"
+  ],
+  "learning_objectives": [
+    {
+      "id": "phase2-topic7-check1",
+      "text": "How to fork and set up a starter repository",
+      "order": 1
+    },
+    {
+      "id": "phase2-topic7-check2",
+      "text": "How to use Dev Containers for development",
+      "order": 2
+    },
+    {
+      "id": "phase2-topic7-check3",
+      "text": "How to implement CRUD endpoints in FastAPI",
+      "order": 3
+    },
+    {
+      "id": "phase2-topic7-check4",
+      "text": "How to connect to a database and create schemas",
+      "order": 4
+    },
+    {
+      "id": "phase2-topic7-check5",
+      "text": "How to integrate LLM APIs for intelligent features",
+      "order": 5
+    },
+    {
+      "id": "phase2-topic7-check6",
+      "text": "How to add proper error handling",
+      "order": 6
+    },
+    {
+      "id": "phase2-topic7-check7",
+      "text": "How to test API endpoints using Swagger UI",
+      "order": 7
+    },
+    {
+      "id": "phase2-topic7-check8",
+      "text": "How to write effective README documentation",
+      "order": 8
+    },
+    {
+      "id": "phase2-topic7-check9",
+      "text": "How to push and share your project on GitHub",
+      "order": 9
+    }
+  ]
+}

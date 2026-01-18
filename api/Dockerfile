@@ -51,8 +51,8 @@ ENV CONTENT_DIR="/app/content/phases"
 # Copy application code from api/
 COPY --chown=appuser:appuser api/ .
 
-# Copy content from repo root
-COPY --chown=appuser:appuser content /app/content
+# Copy content from frontend's static assets (single source of truth)
+COPY --chown=appuser:appuser frontend/public/content /app/content
 
 # Switch to non-root user
 USER appuser

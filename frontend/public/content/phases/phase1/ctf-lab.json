@@ -1,0 +1,87 @@
+{
+  "id": "phase1-topic6",
+  "slug": "ctf-lab",
+  "name": "CTF Lab",
+  "description": "Time to put your Linux skills to the test! Complete 18 progressive Capture The Flag challenges covering file navigation, permissions, networking, and more.",
+  "short_description": "Complete 18 hands-on Linux CTF challenges in a real cloud environment to prove your command line skills.",
+  "order": 6,
+  "estimated_time": "3-4 hours",
+  "is_capstone": true,
+  "learning_steps": [
+    {
+      "order": 1,
+      "text": "Go to the Linux CTFs Repository",
+      "action": "Go to the",
+      "title": "Linux CTFs Repository",
+      "url": "https://github.com/learntocloud/linux-ctfs",
+      "description": "The repository README has everything you need: setup instructions for AWS/Azure/GCP, challenge descriptions, and tips. Follow the instructions there to deploy and complete the challenges."
+    },
+    {
+      "order": 2,
+      "text": "Tips for success",
+      "action": "Tips for success:",
+      "url": null,
+      "description": "\u2022 Use `man` pages to learn commands (e.g., `man find`)\n\u2022 Combine commands with pipes (`|`) to process output\n\u2022 Use `verify hint [num]` when stuck on a challenge\n\u2022 Experiment freely\u2014you can't break anything permanently\n\u2022 Don't share solutions publicly\u2014share your learning journey instead"
+    }
+  ],
+  "questions": [
+    {
+      "id": "phase1-topic6-q1",
+      "prompt": "Walk me through how you would use the find command to locate files on a Linux system.",
+      "expected_concepts": [
+        "find",
+        "path",
+        "name",
+        "type",
+        "size",
+        "mtime",
+        "exec",
+        "search",
+        "recursive",
+        "criteria",
+        "locate"
+      ]
+    },
+    {
+      "id": "phase1-topic6-q2",
+      "prompt": "What commands would you use to inspect running processes and network connections on a Linux server?",
+      "expected_concepts": [
+        "ps",
+        "top",
+        "htop",
+        "netstat",
+        "ss",
+        "lsof",
+        "processes",
+        "ports",
+        "connections",
+        "PID",
+        "kill"
+      ]
+    }
+  ],
+  "test_knowledge_prompts": [
+    "I just completed the Linux CTF challenges. Can you quiz me on what I learned about file navigation and hidden files?",
+    "Can you ask me about Linux file permissions and how chmod works?",
+    "Can you quiz me on how to find files using the find command?",
+    "Can you ask me about Linux processes and how to inspect them?",
+    "Can you quiz me on basic networking commands like netstat and ss?"
+  ],
+  "learning_objectives": [
+    {
+      "id": "phase1-topic6-check1",
+      "text": "How to deploy a cloud lab environment",
+      "order": 1
+    },
+    {
+      "id": "phase1-topic6-check2",
+      "text": "How to solve CTF challenges using cloud skills",
+      "order": 2
+    },
+    {
+      "id": "phase1-topic6-check3",
+      "text": "How to properly clean up cloud resources to avoid charges",
+      "order": 3
+    }
+  ]
+}

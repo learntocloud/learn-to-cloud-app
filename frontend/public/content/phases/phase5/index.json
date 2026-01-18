@@ -1,0 +1,51 @@
+{
+  "id": 5,
+  "slug": "phase5",
+  "name": "DevOps Fundamentals",
+  "description": "This phase covers DevOps fundamentals - the practices and tools that enable teams to deliver software faster and more reliably. You'll learn containerization, CI/CD pipelines, Infrastructure as Code, and monitoring.",
+  "short_description": "Master Docker containers, Kubernetes orchestration, CI/CD pipelines, Terraform IaC, and monitoring with Prometheus and Grafana.",
+  "order": 5,
+  "estimated_weeks": "4-5 weeks",
+  "topics": [
+    "containers",
+    "cicd",
+    "infrastructure-as-code",
+    "container-orchestration",
+    "monitoring-observability",
+    "capstone"
+  ],
+  "objectives": [
+    "Understand core DevOps practices and their benefits",
+    "Implement CI/CD pipelines for automated testing and deployment",
+    "Create infrastructure as code using Terraform",
+    "Build and manage containers with Docker",
+    "Set up monitoring and observability for applications",
+    "Use AI tools to optimize DevOps tasks and workflows",
+    "Complete a capstone project demonstrating DevOps skills"
+  ],
+  "capstone": {
+    "title": "DevOps Capstone Project",
+    "summary": "Apply DevOps practices end-to-end on your Journal API: containerization, automation, infrastructure as code, and orchestration.",
+    "includes": [
+      "Containerize your application and publish an image",
+      "Build a CI/CD pipeline that runs reliably",
+      "Provision infrastructure with Terraform",
+      "Deploy with Kubernetes manifests"
+    ],
+    "topic_slug": "capstone"
+  },
+  "hands_on_verification": {
+    "summary": "Submit proof that you've built real DevOps artifacts that can be validated automatically.",
+    "includes": [
+      "Publish a public container image for your app",
+      "Show a successful GitHub Actions workflow run",
+      "Include Terraform config in an infra/ directory",
+      "Include Kubernetes manifests in a k8s/ directory"
+    ]
+  },
+  "prerequisites": [
+    "Completed Phase 2: Programming Fundamentals (capstone)",
+    "Completed Phase 4: Cloud Platform Fundamentals (capstone)",
+    "This phase builds on the project from previous phases"
+  ]
+}

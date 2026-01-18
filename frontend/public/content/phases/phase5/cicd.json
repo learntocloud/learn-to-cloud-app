@@ -1,0 +1,154 @@
+{
+  "id": "phase5-topic2",
+  "slug": "cicd",
+  "name": "CI/CD Pipelines",
+  "description": "One challenge you'll face after containerizing your application is the need to manually rebuild and push for every code change. CI/CD pipelines automate this entire process - building, testing, and deploying your application every time changes are made, ensuring a smooth and reliable development workflow.",
+  "order": 2,
+  "estimated_time": "3-4 days",
+  "is_capstone": false,
+  "learning_steps": [
+    {
+      "order": 1,
+      "text": "Understand CI/CD",
+      "action": "Understand CI/CD:",
+      "url": null,
+      "description": "Learn the fundamentals of continuous integration and continuous deployment.",
+      "secondary_links": [
+        {
+          "text": "What is Continuous Integration?",
+          "url": "https://www.ibm.com/think/topics/continuous-integration"
+        },
+        {
+          "text": "What is Continuous Delivery?",
+          "url": "https://www.ibm.com/think/topics/continuous-delivery"
+        }
+      ]
+    },
+    {
+      "order": 2,
+      "text": "CI vs CD vs CD",
+      "action": "Learn:",
+      "title": "CI vs Continuous Delivery vs Continuous Deployment",
+      "url": "https://www.jetbrains.com/teamcity/ci-cd-guide/continuous-integration-vs-delivery-vs-deployment/",
+      "description": "Understand the differences between continuous integration, continuous delivery, and continuous deployment."
+    },
+    {
+      "order": 3,
+      "text": "Choose a CI/CD Tool",
+      "action": "Choose a CI/CD Tool:",
+      "url": null,
+      "description": "Learn about implementing CI/CD pipelines with these tools:",
+      "secondary_links": [
+        {
+          "text": "GitHub Actions",
+          "url": "https://www.youtube.com/watch?v=R8_veQiYBjI"
+        },
+        {
+          "text": "AWS CodePipeline",
+          "url": "https://www.youtube.com/watch?v=zZt-LTY9hAE"
+        },
+        {
+          "text": "Azure DevOps",
+          "url": "https://www.youtube.com/watch?v=4BibQ69MD8c"
+        },
+        {
+          "text": "GCP Cloud Build",
+          "url": "https://www.youtube.com/watch?v=vCt5zMvgV5s"
+        }
+      ]
+    },
+    {
+      "order": 4,
+      "text": "Basic CI/CD Pipeline Setup",
+      "action": "Hands-on: Basic CI/CD Pipeline Setup",
+      "url": null,
+      "description": "Set up a basic CI/CD pipeline for your containerized application:\n\n1. Use GitHub Actions (or your preferred tool) to automatically:\n   \u2022 Build your application\n   \u2022 Run tests\n   \u2022 Build a Docker image\n   \u2022 Push the image to a container registry\n2. Configure the pipeline to trigger on code commits to your main branch\n3. Add a notification system for successful deployments or failures"
+    },
+    {
+      "order": 5,
+      "text": "Sample GitHub Actions Workflow",
+      "action": "Sample GitHub Actions Workflow:",
+      "url": null,
+      "description": "Basic workflow for building and pushing Docker images:",
+      "code": "name: Build and Push\n\non:\n  push:\n    branches: [main]\n\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      \n      - name: Build Docker image\n        run: docker build -t myapp:${{ github.sha }} .\n      \n      - name: Login to Registry\n        run: echo ${{ secrets.REGISTRY_PASSWORD }} | docker login -u ${{ secrets.REGISTRY_USER }} --password-stdin\n      \n      - name: Push image\n        run: docker push myapp:${{ github.sha }}"
+    },
+    {
+      "order": 6,
+      "text": "Advanced Challenge",
+      "action": "Advanced Challenge (Optional):",
+      "url": null,
+      "description": "Implement a multi-environment deployment pipeline:\n\n1. Deploy to staging first\n2. Run automated tests against staging\n3. Require manual approval for production\n4. Promote to production after approval"
+    }
+  ],
+  "questions": [
+    {
+      "id": "phase5-topic2-q1",
+      "prompt": "Walk me through the differences between Continuous Integration, Continuous Delivery, and Continuous Deployment.",
+      "expected_concepts": [
+        "continuous integration",
+        "merge",
+        "build",
+        "test",
+        "continuous delivery",
+        "ready to deploy",
+        "manual approval",
+        "continuous deployment",
+        "automatic",
+        "production"
+      ]
+    },
+    {
+      "id": "phase5-topic2-q2",
+      "prompt": "Walk me through the typical stages in a CI/CD pipeline for a containerized application.",
+      "expected_concepts": [
+        "checkout",
+        "build",
+        "test",
+        "Docker build",
+        "push",
+        "registry",
+        "deploy",
+        "stages",
+        "pipeline",
+        "trigger",
+        "artifacts"
+      ]
+    }
+  ],
+  "test_knowledge_prompts": [
+    "I'm learning about CI/CD pipelines. Can you act as an interviewer and ask me questions about CI/CD concepts?",
+    "Can you quiz me on CI/CD fundamentals and the differences between CI, CD (delivery), and CD (deployment)?",
+    "Can you ask me about pipeline components and stages?",
+    "Can you quiz me on version control integration with CI/CD?",
+    "Can you explain quality gates and testing in CI/CD pipelines?",
+    "Can you ask me about deployment strategies like blue-green and canary?",
+    "Can you quiz me on security considerations in CI/CD pipelines?"
+  ],
+  "learning_objectives": [
+    {
+      "id": "phase5-topic2-check1",
+      "text": "How to set up a CI/CD pipeline with GitHub Actions",
+      "order": 1
+    },
+    {
+      "id": "phase5-topic2-check2",
+      "text": "How to configure automatic builds on code commits",
+      "order": 2
+    },
+    {
+      "id": "phase5-topic2-check3",
+      "text": "How to automate Docker image building and pushing",
+      "order": 3
+    },
+    {
+      "id": "phase5-topic2-check4",
+      "text": "How to add notifications for pipeline success/failure",
+      "order": 4
+    },
+    {
+      "id": "phase5-topic2-check5",
+      "text": "(Optional) How to implement multi-environment deployment",
+      "order": 5
+    }
+  ]
+}

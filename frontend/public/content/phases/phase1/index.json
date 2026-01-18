@@ -1,0 +1,47 @@
+{
+  "id": 1,
+  "name": "Linux and Bash",
+  "slug": "phase1",
+  "description": "Here at Learn to Cloud, we like to get hands-on as soon as possible. So, we've prepared a Capture The Flag (CTF) lab for you to practice your Linux and Bash. Before you can access them, you'll spend time learning about the lab and setting it up. Don't worry \u2013 along the way, we'll provide tips, documentation links, resources, and more to help you succeed.",
+  "short_description": "Master Linux command line, Bash scripting, Git version control, and Infrastructure as Code basics through hands-on CTF challenges.",
+  "estimated_weeks": "2-3 weeks",
+  "order": 1,
+  "prerequisites": [
+    "Mac OS or an Ubuntu based computer. If you're on Windows, you'll use WSL.",
+    "Join the Learn to Cloud Discord - Here you can ask questions, just make sure to ask in the right phase channel."
+  ],
+  "objectives": [
+    "Set up your computer for all our labs",
+    "Learn the basics of version control",
+    "Gain familiarity with the cloud CLI",
+    "Understand the concept of Infrastructure as Code",
+    "Build and access the lab environment",
+    "Complete the CTF challenges to test your Linux skills"
+  ],
+  "capstone": {
+    "title": "Linux CTF Lab",
+    "summary": "Deploy the Linux CTF lab and complete 18 progressive challenges to validate your command line skills in a real cloud environment.",
+    "includes": [
+      "Deploy the cloud lab environment",
+      "Complete 18 Linux CTF challenges",
+      "Practice troubleshooting, permissions, and basic networking"
+    ],
+    "topic_slug": "ctf-lab"
+  },
+  "hands_on_verification": {
+    "summary": "Submit proof of your GitHub setup and CTF completion.",
+    "includes": [
+      "Create a GitHub Profile README repository",
+      "Fork the Linux CTFs repository",
+      "Submit your Linux CTF completion token"
+    ]
+  },
+  "topics": [
+    "version-control",
+    "cloud-cli",
+    "iac",
+    "ssh",
+    "cli-basics",
+    "ctf-lab"
+  ]
+}

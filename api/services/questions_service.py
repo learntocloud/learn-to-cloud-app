@@ -6,9 +6,9 @@ This module handles:
 
 Routes should delegate question business logic to this module.
 
-Grading concepts (expected_concepts) are stored in the database for security,
-not loaded from content files. This prevents users from seeing the grading
-criteria in frontend-served content.
+Grading concepts (expected_concepts) are embedded in the content JSON files
+alongside question prompts. This simplifies the architecture by keeping all
+content in one place (frontend/public/content/).
 """
 
 import logging
@@ -21,7 +21,6 @@ from core.cache import invalidate_progress_cache
 from core.telemetry import add_custom_attribute, log_metric, track_operation
 from models import ActivityType
 from repositories.activity_repository import ActivityRepository
-from repositories.grading_repository import GradingConceptRepository
 from repositories.progress_repository import QuestionAttemptRepository
 from services.content_service import get_topic_by_id
 from services.llm_service import grade_answer
@@ -95,9 +94,8 @@ async def submit_question_answer(
     add_custom_attribute("question.id", question_id)
     question_repo = QuestionAttemptRepository(db)
     activity_repo = ActivityRepository(db)
-    grading_repo = GradingConceptRepository(db)
 
-    # Get topic for prompt (still from content for now)
+    # Get topic and question from content (includes expected_concepts)
     topic = get_topic_by_id(topic_id)
     if topic is None:
         raise QuestionUnknownTopicError(f"Unknown topic_id: {topic_id}")
@@ -108,23 +106,19 @@ async def submit_question_answer(
             f"Unknown question_id: {question_id} for topic_id: {topic_id}"
         )
 
-    # Get grading concepts from database (secure, not exposed to frontend)
-    concepts = await grading_repo.get_by_question_id(question_id)
-    if concepts is None:
+    # Get grading concepts from content JSON (embedded in question)
+    if not question.expected_concepts:
         logger.error(f"Grading concepts not found for question: {question_id}")
         raise GradingConceptsNotFoundError(
             f"Grading data not configured for question: {question_id}"
         )
 
-    prompt = question.prompt
-    name = topic.name
-
     try:
         grade_result = await grade_answer(
-            question_prompt=prompt,
-            expected_concepts=concepts,
+            question_prompt=question.prompt,
+            expected_concepts=list(question.expected_concepts),
             user_answer=user_answer,
-            topic_name=name,
+            topic_name=topic.name,
         )
     except ValueError as e:
         logger.error(f"LLM configuration error: {e}")
