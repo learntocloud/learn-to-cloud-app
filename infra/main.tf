@@ -377,12 +377,10 @@ resource "azapi_resource" "swa_backend_link" {
 # Prerequisites: DNS records must be configured BEFORE applying:
 #   - CNAME: app → <swa_default_host_name>
 #   - TXT: Validation handled automatically by SWA
-
-# Import existing custom domain that was created outside Terraform
-import {
-  to = azurerm_static_web_app_custom_domain.frontend[0]
-  id = "/subscriptions/${var.subscription_id}/resourceGroups/${local.resource_group_name}/providers/Microsoft.Web/staticSites/swa-ltc-frontend-${var.environment}/customDomains/app.learntocloud.guide"
-}
+#
+# NOTE: The custom domain was imported into state with:
+#   terraform import 'azurerm_static_web_app_custom_domain.frontend[0]' \
+#     "/subscriptions/96e40cb1-d5eb-46c6-b0fd-8e64eb9c119d/resourceGroups/rg-ltc-dev/providers/Microsoft.Web/staticSites/swa-ltc-frontend-dev/customDomains/app.learntocloud.guide"
 
 resource "azurerm_static_web_app_custom_domain" "frontend" {
   count             = var.frontend_custom_domain != "" ? 1 : 0
