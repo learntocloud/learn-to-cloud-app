@@ -308,12 +308,16 @@ class TestFetchUserData:
         assert result is None
 
     @pytest.mark.asyncio
-    async def test_exception_sets_backoff_and_returns_none(self):
-        """Exception sets backoff and returns None."""
+    async def test_unexpected_exception_does_not_set_backoff(self):
+        """Unexpected exception returns None but does NOT set backoff.
+
+        Only retriable exceptions (network errors, rate limits) set backoff.
+        Unexpected exceptions might be bugs in our code - we want to see them.
+        """
         _backoff_state.clear()
 
         mock_client = AsyncMock()
-        mock_client.get.side_effect = Exception("Network error")
+        mock_client.get.side_effect = Exception("Unexpected bug")
 
         with (
             patch("services.clerk_service.get_settings") as mock_settings,
@@ -324,7 +328,8 @@ class TestFetchUserData:
             result = await fetch_user_data("error-user")
 
         assert result is None
-        assert _is_in_backoff("error-user") is True
+        # Unexpected exceptions do NOT set backoff - only retriable ones do
+        assert _is_in_backoff("error-user") is False
 
 
 class TestFetchGithubUsername:
