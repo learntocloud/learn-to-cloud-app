@@ -40,10 +40,14 @@ def _run_db_migrations_on_startup_enabled() -> bool:
 
 def _run_alembic_upgrade_head_sync() -> None:
     # Import lazily so Alembic is only required when migrations are enabled.
-    from alembic import command
-    from scripts.migrate import _get_alembic_config
+    from pathlib import Path
 
-    cfg = _get_alembic_config()
+    from alembic import command
+    from alembic.config import Config
+
+    api_dir = Path(__file__).resolve().parent
+    cfg = Config(str(api_dir / "alembic.ini"))
+    cfg.set_main_option("script_location", str(api_dir / "alembic"))
     command.upgrade(cfg, "head")
 
 

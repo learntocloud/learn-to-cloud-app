@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
     paths-ignore:
-      - 'frontend/public/content/**'  # Content-only changes use deploy-content.yml
+      - 'infra/**'  # Infra-only changes handled by infra.yml
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -326,7 +326,7 @@ jobs:
 # Architecture:
 #   - Frontend: Azure Static Web Apps (CDN, ~30s deploys)
 #   - API: Azure Container Apps (containerized FastAPI)
-#   - Content: Served statically from SWA CDN via /content/ path
+#   - Content: Baked into API image + served from SWA CDN
 #
 # Database migrations:
 #   - Applied automatically on startup when RUN_MIGRATIONS_ON_STARTUP=true
@@ -336,9 +336,9 @@ jobs:
 #   - Managed by Terraform with Azure SWA's automatic SSL
 #   - CNAME record: app → <swa_default_hostname>
 #
-# Content-only updates:
-#   - Changes to frontend/public/content/** trigger deploy-content.yml instead
-#   - Much faster (~30s) than full deploy
+# Infrastructure changes:
+#   - Changes to infra/** trigger infra.yml instead (paths-ignore above)
+#   - This avoids race conditions between Terraform apply and output reads
 #
 # SWA Deployment Token:
 #   - Get from: terraform output -raw swa_deployment_token

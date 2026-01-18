@@ -44,7 +44,7 @@ docker-compose up -d db
 cd api
 uv sync
 cp .env.example .env  # Or add DATABASE_URL to your existing api/.env
-.venv/bin/python -m scripts.migrate upgrade  # Apply Alembic migrations
+.venv/bin/alembic upgrade head  # Apply Alembic migrations
 .venv/bin/python -m uvicorn main:app --reload --port 8000
 
 # Frontend (terminal 2)
