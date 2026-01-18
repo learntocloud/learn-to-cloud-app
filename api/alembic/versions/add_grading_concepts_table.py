@@ -9,7 +9,7 @@ Create Date: 2026-01-18 12:00:00.000000
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
 
 from alembic import op
@@ -53,10 +53,12 @@ def _extract_grading_concepts() -> list[dict]:
                     expected = question.get("expected_concepts", [])
 
                     if question_id and expected:
-                        concepts.append({
-                            "question_id": question_id,
-                            "expected_concepts": expected,
-                        })
+                        concepts.append(
+                            {
+                                "question_id": question_id,
+                                "expected_concepts": expected,
+                            }
+                        )
 
             except (json.JSONDecodeError, KeyError):
                 continue
@@ -84,7 +86,7 @@ def upgrade() -> None:
     # Seed data from content files
     concepts = _extract_grading_concepts()
     if concepts:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         grading_concepts = sa.table(
             "grading_concepts",
             sa.column("question_id", sa.String),

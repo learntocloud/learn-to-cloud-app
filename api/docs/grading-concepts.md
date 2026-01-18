@@ -52,12 +52,12 @@ The grading concepts system securely stores expected answers for knowledge quest
 2. API Container App is updated
 3. Migrations run (RUN_MIGRATIONS_ON_STARTUP=true)
 4. "Sync grading concepts" step executes:
-   
+
    az containerapp exec \
      --name ca-ltc-api-dev \
      --resource-group rg-ltc-dev \
      --command "python -m cli sync-grading-concepts"
-   
+
 5. CLI reads content/*.json files from the container
 6. Extracts question_id + expected_concepts
 7. Upserts into grading_concepts table

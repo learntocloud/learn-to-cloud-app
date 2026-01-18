@@ -53,10 +53,12 @@ def extract_grading_concepts() -> list[dict]:
                     expected = question.get("expected_concepts", [])
 
                     if question_id and expected:
-                        concepts.append({
-                            "question_id": question_id,
-                            "expected_concepts": expected,
-                        })
+                        concepts.append(
+                            {
+                                "question_id": question_id,
+                                "expected_concepts": expected,
+                            }
+                        )
                         count = len(expected)
                         logger.info(f"Extracted: {question_id} ({count} concepts)")
 
@@ -75,9 +77,7 @@ async def seed_database(concepts: list[dict]) -> None:
 
     # Convert to async URL if needed
     if database_url.startswith("postgresql://"):
-        database_url = database_url.replace(
-            "postgresql://", "postgresql+asyncpg://", 1
-        )
+        database_url = database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
 
     engine = create_async_engine(database_url, echo=False)
     async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
