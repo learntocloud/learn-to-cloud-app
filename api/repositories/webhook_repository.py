@@ -23,15 +23,17 @@ class ProcessedWebhookRepository:
             False if the webhook was already processed.
 
         Notes:
-            Uses an INSERT + flush so idempotency works under concurrency.
-            Rollback on IntegrityError to restore session to a valid state.
+            Uses a savepoint (nested transaction) so that IntegrityError
+            only rolls back this insert, not the entire transaction.
+            This allows the caller to continue with other DB operations.
         """
         processed = ProcessedWebhook(id=svix_id, event_type=event_type)
-        self.db.add(processed)
         try:
-            await self.db.flush()
+            async with self.db.begin_nested():
+                self.db.add(processed)
+                await self.db.flush()
         except IntegrityError:
-            await self.db.rollback()
+            # Savepoint rolled back automatically, session is still valid
             return False
         return True
 

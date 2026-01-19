@@ -40,7 +40,7 @@ logger = logging.getLogger(__name__)
 
 # Shared HTTP client for GitHub API requests (connection pooling)
 _github_http_client: httpx.AsyncClient | None = None
-_github_client_lock: asyncio.Lock | None = None
+_github_client_lock = asyncio.Lock()
 
 
 class GitHubServerError(Exception):
@@ -85,21 +85,25 @@ async def _get_github_client() -> httpx.AsyncClient:
     """Get or create a shared HTTP client for GitHub API requests.
 
     Uses connection pooling to reduce overhead from per-request client creation.
+    Thread-safe via asyncio.Lock to prevent race conditions.
     """
-    global _github_http_client, _github_client_lock
+    global _github_http_client
 
-    if _github_client_lock is None:
-        _github_client_lock = asyncio.Lock()
+    if _github_http_client is not None and not _github_http_client.is_closed:
+        return _github_http_client
 
     async with _github_client_lock:
-        if _github_http_client is None or _github_http_client.is_closed:
-            settings = get_settings()
-            _github_http_client = httpx.AsyncClient(
-                timeout=settings.http_timeout,
-                follow_redirects=True,
-                limits=httpx.Limits(max_connections=20, max_keepalive_connections=10),
-            )
-    return _github_http_client
+        # Double-check after acquiring lock
+        if _github_http_client is not None and not _github_http_client.is_closed:
+            return _github_http_client
+
+        settings = get_settings()
+        _github_http_client = httpx.AsyncClient(
+            timeout=settings.http_timeout,
+            follow_redirects=True,
+            limits=httpx.Limits(max_connections=20, max_keepalive_connections=10),
+        )
+        return _github_http_client
 
 
 async def close_github_client() -> None:
