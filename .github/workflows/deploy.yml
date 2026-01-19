@@ -229,16 +229,28 @@ jobs:
           docker push ${{ needs.terraform.outputs.container_registry_endpoint }}/api:${{ github.sha }}
           docker push ${{ needs.terraform.outputs.container_registry_endpoint }}/api:latest
 
+      - name: Start PostgreSQL for Smoke Test
+        run: |
+          docker run --rm -d --name smoke-test-db \
+            -e POSTGRES_USER=postgres \
+            -e POSTGRES_PASSWORD=postgres \
+            -e POSTGRES_DB=learntocloud \
+            -p 5432:5432 \
+            postgres:16-alpine
+          sleep 5
+
       - name: Smoke Test API Image
         run: |
           docker run --rm -d --name smoke-test -p 8000:8000 \
-            -e DATABASE_URL=sqlite+aiosqlite:///./test.db \
+            --link smoke-test-db:db \
+            -e DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/learntocloud \
             -e CLERK_SECRET_KEY=test \
             -e LLM_API_KEY=test \
             ${{ needs.terraform.outputs.container_registry_endpoint }}/api:${{ github.sha }}
           sleep 10
           curl -f http://localhost:8000/health || (docker logs smoke-test && exit 1)
           docker stop smoke-test
+          docker stop smoke-test-db
 
       - name: Install Trivy
         run: |

@@ -48,7 +48,7 @@ class PhaseRequirements:
         return 2
 
 
-@dataclass
+@dataclass(frozen=True)
 class PhaseProgress:
     """User's progress for a single phase."""
 
@@ -116,7 +116,7 @@ class PhaseProgress:
         return min(100.0, (self.questions_passed / self.questions_required) * 100)
 
 
-@dataclass
+@dataclass(frozen=True)
 class UserProgress:
     """Complete progress summary for a user."""
 

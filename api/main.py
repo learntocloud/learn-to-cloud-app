@@ -13,7 +13,12 @@ from slowapi.errors import RateLimitExceeded
 
 from core.auth import close_clerk_client, init_clerk_client
 from core.config import get_settings
-from core.database import get_session_maker, init_db
+from core.database import (
+    create_engine,
+    create_session_maker,
+    dispose_engine,
+    init_db,
+)
 from core.ratelimit import limiter, rate_limit_exceeded_handler
 from core.telemetry import RequestTimingMiddleware, SecurityHeadersMiddleware
 from repositories.webhook_repository import ProcessedWebhookRepository
@@ -77,18 +82,17 @@ logger = logging.getLogger(__name__)
 _configure_azure_monitor_if_enabled()
 
 
-async def _background_init():
+async def _background_init(app: FastAPI):
     """Background initialization tasks (non-blocking for faster cold start)."""
     if _run_db_migrations_on_startup_enabled():
         logger.info("Running database migrations on startup...")
         await asyncio.to_thread(_run_alembic_upgrade_head_sync)
         logger.info("Database migrations complete")
 
-    await init_db()
+    await init_db(app.state.engine)
 
     try:
-        session_maker = get_session_maker()
-        async with session_maker() as session:
+        async with app.state.session_maker() as session:
             deleted = await ProcessedWebhookRepository(session).delete_older_than(
                 days=7
             )
@@ -101,14 +105,18 @@ async def _background_init():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Initialize database in background for faster cold start."""
+    """Create DB engine at startup, dispose on shutdown."""
     # Initialize Clerk client synchronously at startup
     init_clerk_client()
+
+    # Create database engine and session maker - stored in app.state
+    app.state.engine = create_engine()
+    app.state.session_maker = create_session_maker(app.state.engine)
 
     app.state.init_done = False
     app.state.init_error = None
 
-    init_task = asyncio.create_task(_background_init())
+    init_task = asyncio.create_task(_background_init(app))
 
     def _record_init_result(task: asyncio.Task[None]) -> None:
         try:
@@ -126,9 +134,11 @@ async def lifespan(app: FastAPI):
     try:
         yield
     finally:
+        # Cleanup in reverse order of initialization
         close_clerk_client()
         await close_http_client()
         await close_github_client()
+        await dispose_engine(app.state.engine)  # Close all database connections
 
         try:
             if not init_task.done():

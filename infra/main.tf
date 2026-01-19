@@ -416,6 +416,31 @@ resource "azurerm_monitor_action_group" "critical" {
   }
 }
 
+# Action Group for Warning alerts (Sev2) - email only, no paging
+# For Slack integration, add webhook_receiver with var.slack_webhook_url
+resource "azurerm_monitor_action_group" "warning" {
+  name                = "ag-ltc-warning-${var.environment}"
+  resource_group_name = azurerm_resource_group.main.name
+  short_name          = "ltcwarn"
+  tags                = local.tags
+
+  email_receiver {
+    name                    = "team"
+    email_address           = var.alert_email
+    use_common_alert_schema = true
+  }
+
+  # Optional Slack webhook for warning notifications
+  dynamic "webhook_receiver" {
+    for_each = var.slack_webhook_url != "" ? [1] : []
+    content {
+      name                    = "slack"
+      service_uri             = var.slack_webhook_url
+      use_common_alert_schema = true
+    }
+  }
+}
+
 # -----------------------------------------------------------------------------
 # Monitoring - API Alerts
 # -----------------------------------------------------------------------------
@@ -505,7 +530,7 @@ resource "azurerm_monitor_metric_alert" "api_high_cpu" {
   }
 
   action {
-    action_group_id = azurerm_monitor_action_group.critical.id
+    action_group_id = azurerm_monitor_action_group.warning.id
   }
 }
 
@@ -532,7 +557,7 @@ resource "azurerm_monitor_metric_alert" "api_high_memory" {
   }
 
   action {
-    action_group_id = azurerm_monitor_action_group.critical.id
+    action_group_id = azurerm_monitor_action_group.warning.id
   }
 }
 
@@ -568,7 +593,7 @@ resource "azurerm_monitor_scheduled_query_rules_alert_v2" "api_high_latency" {
   }
 
   action {
-    action_groups = [azurerm_monitor_action_group.critical.id]
+    action_groups = [azurerm_monitor_action_group.warning.id]
   }
 }
 
@@ -624,7 +649,7 @@ resource "azurerm_monitor_metric_alert" "db_storage" {
   }
 
   action {
-    action_group_id = azurerm_monitor_action_group.critical.id
+    action_group_id = azurerm_monitor_action_group.warning.id
   }
 }
 
@@ -650,7 +675,130 @@ resource "azurerm_monitor_metric_alert" "db_high_cpu" {
   }
 
   action {
-    action_group_id = azurerm_monitor_action_group.critical.id
+    action_group_id = azurerm_monitor_action_group.warning.id
+  }
+}
+
+# -----------------------------------------------------------------------------
+# Monitoring - Circuit Breaker Alerts
+# -----------------------------------------------------------------------------
+# These alerts monitor the Clerk auth circuit breaker for infrastructure issues.
+# Circuit breaker opens when JWKS fetching fails repeatedly (Clerk outage).
+
+# Alert: Circuit Breaker Open > 5 min (Sev2 - Warning)
+# Fires when circuit_breaker_open_total metric indicates circuit has been opening
+resource "azurerm_monitor_scheduled_query_rules_alert_v2" "circuit_breaker_open_warning" {
+  name                = "alert-ltc-circuit-open-warning-${var.environment}"
+  resource_group_name = azurerm_resource_group.main.name
+  location            = azurerm_resource_group.main.location
+  description         = "Alert when Clerk auth circuit breaker is open (5+ min of failures)"
+  severity            = 2
+  enabled             = true
+  tags                = local.tags
+
+  scopes                = [azurerm_application_insights.main.id]
+  evaluation_frequency  = "PT5M"
+  window_duration       = "PT5M"
+  target_resource_types = ["microsoft.insights/components"]
+
+  criteria {
+    query = <<-QUERY
+      customMetrics
+      | where name == "circuit_breaker_open_total"
+      | where customDimensions.circuit == "clerk_auth"
+      | summarize OpenCount = sum(value) by bin(timestamp, 5m)
+      | where OpenCount > 0
+    QUERY
+    time_aggregation_method = "Count"
+    operator                = "GreaterThanOrEqual"
+    threshold               = 1
+
+    failing_periods {
+      minimum_failing_periods_to_trigger_alert = 1
+      number_of_evaluation_periods             = 1
+    }
+  }
+
+  action {
+    action_groups = [azurerm_monitor_action_group.warning.id]
+  }
+}
+
+# Alert: Circuit Breaker Open > 15 min (Sev1 - Critical)
+# Extended outage - pages on-call
+resource "azurerm_monitor_scheduled_query_rules_alert_v2" "circuit_breaker_open_critical" {
+  name                = "alert-ltc-circuit-open-critical-${var.environment}"
+  resource_group_name = azurerm_resource_group.main.name
+  location            = azurerm_resource_group.main.location
+  description         = "Alert when Clerk auth circuit breaker is open for extended period (15+ min)"
+  severity            = 1
+  enabled             = true
+  tags                = local.tags
+
+  scopes                = [azurerm_application_insights.main.id]
+  evaluation_frequency  = "PT5M"
+  window_duration       = "PT15M"
+  target_resource_types = ["microsoft.insights/components"]
+
+  criteria {
+    query = <<-QUERY
+      customMetrics
+      | where name == "circuit_breaker_open_total"
+      | where customDimensions.circuit == "clerk_auth"
+      | summarize OpenCount = sum(value) by bin(timestamp, 15m)
+      | where OpenCount > 0
+    QUERY
+    time_aggregation_method = "Count"
+    operator                = "GreaterThanOrEqual"
+    threshold               = 1
+
+    failing_periods {
+      minimum_failing_periods_to_trigger_alert = 3
+      number_of_evaluation_periods             = 3
+    }
+  }
+
+  action {
+    action_groups = [azurerm_monitor_action_group.critical.id]
+  }
+}
+
+# Alert: Circuit Breaker Flapping (Sev1 - Critical)
+# Multiple state transitions indicate instability - pages on-call
+resource "azurerm_monitor_scheduled_query_rules_alert_v2" "circuit_breaker_flapping" {
+  name                = "alert-ltc-circuit-flapping-${var.environment}"
+  resource_group_name = azurerm_resource_group.main.name
+  location            = azurerm_resource_group.main.location
+  description         = "Alert when circuit breaker is flapping (>5 state changes in 10 min)"
+  severity            = 1
+  enabled             = true
+  tags                = local.tags
+
+  scopes                = [azurerm_application_insights.main.id]
+  evaluation_frequency  = "PT5M"
+  window_duration       = "PT10M"
+  target_resource_types = ["microsoft.insights/components"]
+
+  criteria {
+    query = <<-QUERY
+      customMetrics
+      | where name == "circuit_breaker_state_change"
+      | where customDimensions.circuit == "clerk_auth"
+      | summarize StateChanges = sum(value) by bin(timestamp, 10m)
+      | where StateChanges > 5
+    QUERY
+    time_aggregation_method = "Count"
+    operator                = "GreaterThanOrEqual"
+    threshold               = 1
+
+    failing_periods {
+      minimum_failing_periods_to_trigger_alert = 1
+      number_of_evaluation_periods             = 1
+    }
+  }
+
+  action {
+    action_groups = [azurerm_monitor_action_group.critical.id]
   }
 }
 

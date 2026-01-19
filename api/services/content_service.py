@@ -9,19 +9,21 @@ Content files are located in frontend/public/content/phases/ (dev) or
 
 import json
 import logging
-import os
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 
+from core.config import get_settings
+
 logger = logging.getLogger(__name__)
 
-# Content directory - configurable via env var.
-# Defaults to frontend's static assets for local dev.
-_default_content_dir = (
-    Path(__file__).parent.parent.parent / "frontend" / "public" / "content" / "phases"
-)
-CONTENT_DIR = Path(os.environ.get("CONTENT_DIR", str(_default_content_dir)))
+
+def _get_content_dir() -> Path:
+    """Get the content directory from settings.
+
+    Lazily accessed to avoid module-level settings initialization.
+    """
+    return get_settings().content_dir_path
 
 
 @dataclass(frozen=True)
@@ -201,7 +203,7 @@ def _load_topic(phase_dir: Path, topic_slug: str) -> Topic | None:
 
 def _load_phase(phase_slug: str) -> Phase | None:
     """Load a single phase from its directory."""
-    phase_dir = CONTENT_DIR / phase_slug
+    phase_dir = _get_content_dir() / phase_slug
     index_file = phase_dir / "index.json"
 
     if not index_file.exists():

@@ -3,7 +3,7 @@
 from datetime import UTC, datetime
 
 from sqlalchemy import delete, select
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models import User
@@ -41,35 +41,12 @@ class UserRepository:
         if user:
             return user
 
-        bind = self.db.get_bind()
-        dialect = bind.dialect.name if bind else ""
-
-        if dialect == "postgresql":
-            from sqlalchemy.dialects.postgresql import insert as pg_insert
-
-            stmt = (
-                pg_insert(User)
-                .values(id=user_id, email=f"{user_id}@placeholder.local")
-                .on_conflict_do_nothing(index_elements=["id"])
-            )
-            await self.db.execute(stmt)
-        elif dialect == "sqlite":
-            from sqlalchemy.dialects.sqlite import insert as sqlite_insert
-
-            stmt = (
-                sqlite_insert(User)
-                .values(id=user_id, email=f"{user_id}@placeholder.local")
-                .on_conflict_do_nothing(index_elements=["id"])
-            )
-            await self.db.execute(stmt)
-        else:
-            try:
-                async with self.db.begin_nested():
-                    user = User(id=user_id, email=f"{user_id}@placeholder.local")
-                    self.db.add(user)
-                    await self.db.flush()
-            except IntegrityError:
-                pass  # Savepoint rolled back, continue to fetch existing
+        stmt = (
+            pg_insert(User)
+            .values(id=user_id, email=f"{user_id}@placeholder.local")
+            .on_conflict_do_nothing(index_elements=["id"])
+        )
+        await self.db.execute(stmt)
 
         result = await self.db.execute(select(User).where(User.id == user_id))
         return result.scalar_one()
@@ -86,12 +63,8 @@ class UserRepository:
     ) -> User:
         """Insert or update a user in a single query.
 
-        Uses INSERT ... ON CONFLICT DO UPDATE for PostgreSQL/SQLite.
         Returns the upserted user. Expects github_username to be pre-normalized.
         """
-        bind = self.db.get_bind()
-        dialect = bind.dialect.name if bind else ""
-
         values = {
             "id": user_id,
             "email": email,
@@ -109,51 +82,14 @@ class UserRepository:
             "updated_at": datetime.now(UTC),
         }
 
-        if dialect == "postgresql":
-            from sqlalchemy.dialects.postgresql import insert as pg_insert
-
-            stmt = (
-                pg_insert(User)
-                .values(**values)
-                .on_conflict_do_update(index_elements=["id"], set_=update_values)
-                .returning(User)
-            )
-            result = await self.db.execute(stmt)
-            return result.scalar_one()
-
-        elif dialect == "sqlite":
-            from sqlalchemy.dialects.sqlite import insert as sqlite_insert
-
-            stmt = (
-                sqlite_insert(User)
-                .values(**values)
-                .on_conflict_do_update(index_elements=["id"], set_=update_values)
-            )
-            await self.db.execute(stmt)
-            # SQLite doesn't support RETURNING well, fetch separately
-            result = await self.db.execute(select(User).where(User.id == user_id))
-            return result.scalar_one()
-
-        else:
-            # Fallback: get or create then update
-            user = await self.get_by_id(user_id)
-            if user:
-                return await self.update(
-                    user,
-                    email=email,
-                    first_name=first_name,
-                    last_name=last_name,
-                    avatar_url=avatar_url,
-                    github_username=github_username,
-                )
-            return await self.create(
-                user_id=user_id,
-                email=email,
-                first_name=first_name,
-                last_name=last_name,
-                avatar_url=avatar_url,
-                github_username=github_username,
-            )
+        stmt = (
+            pg_insert(User)
+            .values(**values)
+            .on_conflict_do_update(index_elements=["id"], set_=update_values)
+            .returning(User)
+        )
+        result = await self.db.execute(stmt)
+        return result.scalar_one()
 
     async def get_many_by_ids(self, user_ids: list[str]) -> list[User]:
         """Get multiple users by their IDs in a single query.

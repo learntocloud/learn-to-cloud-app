@@ -1,11 +1,16 @@
 """Database connection and session management.
 
-Uses SQLAlchemy 2.0 async patterns with proper dependency injection.
-Supports lazy initialization for testability.
+Uses SQLAlchemy 2.0 async patterns with FastAPI app.state for lifecycle.
+Engine and session maker are created at startup and stored in app.state.
 
 Supports two authentication modes:
-- Local development: SQLite or PostgreSQL with password authentication
+- Local development: PostgreSQL with password authentication (Docker container)
 - Azure: PostgreSQL with managed identity (passwordless) authentication
+
+Architecture:
+- FastAPI app.state holds engine and session_maker (created in lifespan)
+- get_db() dependency accesses state via Request
+- Health checks access state via Request
 """
 
 import asyncio
@@ -13,7 +18,7 @@ import logging
 from collections.abc import AsyncGenerator
 from typing import Annotated, NamedTuple
 
-from fastapi import Depends
+from fastapi import Depends, Request
 from sqlalchemy import event, text
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
@@ -22,7 +27,7 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 from sqlalchemy.orm import DeclarativeBase
-from sqlalchemy.pool import NullPool, QueuePool
+from sqlalchemy.pool import QueuePool
 from tenacity import (
     before_sleep_log,
     retry,
@@ -43,25 +48,33 @@ _AZURE_RETRY_ATTEMPTS = 3
 _AZURE_RETRY_MIN_WAIT = 1  # seconds
 _AZURE_RETRY_MAX_WAIT = 10  # seconds
 
+# Azure PostgreSQL OAuth scope
+_AZURE_PG_SCOPE = "https://ossrdbms-aad.database.windows.net/.default"
+
+# Module-level credential cache (stateless - just caches the credential object)
 _azure_credential = None
 
 
 class Base(DeclarativeBase):
-    """Base class for all SQLAlchemy models."""
-
     pass
 
 
-_engine: AsyncEngine | None = None
-_async_session_maker: async_sessionmaker[AsyncSession] | None = None
+class PoolStatus(NamedTuple):
+    """Connection pool status for health checks."""
+
+    pool_size: int
+    checked_out: int
+    overflow: int
+    checked_in: int
+
+
+# =============================================================================
+# Azure Token Acquisition
+# =============================================================================
 
 
 def _get_azure_credential():
-    """Get or create the cached DefaultAzureCredential instance.
-
-    Note: The credential object is reused, but tokens are fetched fresh
-    per connection to handle expiration (~1 hour).
-    """
+    # Credential reused, but tokens fetched fresh per connection (~1 hour expiry)
     global _azure_credential
     if _azure_credential is None:
         from azure.identity import DefaultAzureCredential
@@ -71,9 +84,19 @@ def _get_azure_credential():
 
 
 def _reset_azure_credential() -> None:
-    """Reset the Azure credential (useful if token acquisition starts failing)."""
     global _azure_credential
     _azure_credential = None
+
+
+def _get_azure_token_sync() -> str:
+    """Get an Azure AD token for PostgreSQL authentication (sync, may block).
+
+    Note: Retry logic is handled by the async wrapper to properly coordinate
+    with asyncio timeout and credential reset.
+    """
+    credential = _get_azure_credential()
+    token = credential.get_token(_AZURE_PG_SCOPE)
+    return token.token
 
 
 @retry(
@@ -81,38 +104,38 @@ def _reset_azure_credential() -> None:
     wait=wait_exponential(
         multiplier=1, min=_AZURE_RETRY_MIN_WAIT, max=_AZURE_RETRY_MAX_WAIT
     ),
-    retry=retry_if_exception_type(Exception),
+    # Retry on transient failures only - not programming errors
+    # TimeoutError: token acquisition timeout
+    # OSError: network issues (includes ConnectionError, socket errors)
+    retry=retry_if_exception_type((TimeoutError, OSError)),
     before_sleep=before_sleep_log(logger, logging.WARNING),
     reraise=True,
 )
-def _get_azure_token_sync() -> str:
-    """Get an Azure AD token for PostgreSQL authentication (sync, may block).
-
-    Includes retry logic for transient Azure AD failures (e.g., IMDS timeouts,
-    network blips). Retries up to 3 times with exponential backoff.
-    """
-    credential = _get_azure_credential()
-    token = credential.get_token("https://ossrdbms-aad.database.windows.net/.default")
-    return token.token
-
-
 async def _get_azure_token() -> str:
     """Get Azure AD token for PostgreSQL auth without blocking event loop.
 
-    Includes a timeout to prevent hanging if Azure AD is unresponsive.
+    Includes retry logic with exponential backoff for transient failures
+    (IMDS timeouts, network blips) and a per-attempt timeout.
     """
     try:
         async with asyncio.timeout(_AZURE_TOKEN_TIMEOUT):
             return await asyncio.to_thread(_get_azure_token_sync)
     except TimeoutError:
-        logger.error(
-            f"Azure AD token acquisition timed out after {_AZURE_TOKEN_TIMEOUT}s"
+        logger.warning(
+            f"Azure AD token acquisition timed out after {_AZURE_TOKEN_TIMEOUT}s, "
+            "will retry if attempts remaining"
         )
+        # Reset credential on timeout in case it's in a bad state
+        _reset_azure_credential()
         raise
 
 
+# =============================================================================
+# Engine Creation (called once at startup)
+# =============================================================================
+
+
 def _build_azure_database_url() -> str:
-    """Build a PostgreSQL SQLAlchemy URL for Azure (password provided dynamically)."""
     settings = get_settings()
     return (
         f"postgresql+asyncpg://{settings.postgres_user}"
@@ -136,12 +159,8 @@ async def _azure_asyncpg_creator():
     """
     settings = get_settings()
 
-    try:
-        token = await _get_azure_token()
-    except TimeoutError:
-        # Reset credential in case it's in a bad state
-        _reset_azure_credential()
-        raise
+    # Token acquisition has its own retry/timeout logic
+    token = await _get_azure_token()
 
     import asyncpg
 
@@ -168,85 +187,13 @@ async def _azure_asyncpg_creator():
         raise
 
 
-def get_engine() -> AsyncEngine:
-    """
-    Get or create the database engine (lazy initialization).
-
-    This allows tests to override settings before the engine is created.
-    Uses connection pooling for PostgreSQL to improve performance.
-
-    Authentication modes:
-    - Azure (POSTGRES_HOST set): Uses managed identity token
-    - Local (DATABASE_URL): Uses provided connection string
-    """
-    global _engine
-    if _engine is None:
-        settings = get_settings()
-
-        if settings.use_azure_postgres:
-            database_url = _build_azure_database_url()
-            is_sqlite = False
-            async_creator = _azure_asyncpg_creator
-        else:
-            database_url = settings.database_url
-            is_sqlite = "sqlite" in database_url
-            async_creator = None
-
-        _engine = create_async_engine(
-            database_url,
-            echo=settings.db_echo,  # Explicit control - default off (very verbose)
-            poolclass=NullPool if is_sqlite else None,
-            **(
-                {}
-                if is_sqlite
-                else {
-                    "pool_size": settings.db_pool_size,
-                    "max_overflow": settings.db_pool_max_overflow,
-                    "pool_timeout": settings.db_pool_timeout,
-                    "pool_recycle": settings.db_pool_recycle,
-                    "pool_pre_ping": True,
-                    "connect_args": {
-                        "server_settings": {
-                            "statement_timeout": str(settings.db_statement_timeout_ms)
-                        }
-                    },
-                }
-            ),
-            **({} if async_creator is None else {"async_creator": async_creator}),
-        )
-
-        if is_sqlite:
-
-            @event.listens_for(_engine.sync_engine, "connect")
-            def _set_sqlite_pragma(dbapi_connection, connection_record) -> None:
-                cursor = dbapi_connection.cursor()
-                cursor.execute("PRAGMA foreign_keys=ON")
-                cursor.close()
-
-        # Add pool event listeners for monitoring (PostgreSQL only)
-        if not is_sqlite:
-            _setup_pool_event_listeners(_engine)
-
-        try:
-            from .telemetry import instrument_sqlalchemy_engine
-
-            instrument_sqlalchemy_engine(_engine)
-        except Exception as e:
-            logger.warning(f"Failed to instrument SQLAlchemy for telemetry: {e}")
-
-    return _engine
-
-
 def _setup_pool_event_listeners(engine: AsyncEngine) -> None:
-    """Set up connection pool event listeners for monitoring.
-
-    Logs pool checkout/checkin events at DEBUG level and warnings when
-    the pool is under pressure (overflow connections being used).
-    """
+    # Note: AsyncAdaptedQueuePool is a subclass of QueuePool
     pool = engine.sync_engine.pool
 
     @event.listens_for(pool, "checkout")
     def _on_checkout(dbapi_conn, connection_record, connection_proxy):
+        # isinstance check provides proper type narrowing for the type checker
         if isinstance(pool, QueuePool):
             checked_out = pool.checkedout()
             overflow = pool.overflow()
@@ -269,40 +216,72 @@ def _setup_pool_event_listeners(engine: AsyncEngine) -> None:
             )
 
 
-def get_session_maker() -> async_sessionmaker[AsyncSession]:
-    """Get or create the session factory (lazy initialization)."""
-    global _async_session_maker
-    if _async_session_maker is None:
-        _async_session_maker = async_sessionmaker(
-            bind=get_engine(),
-            class_=AsyncSession,
-            expire_on_commit=False,
-            autocommit=False,
-            autoflush=False,
-        )
-    return _async_session_maker
+def create_engine() -> AsyncEngine:
+    settings = get_settings()
+
+    if settings.use_azure_postgres:
+        database_url = _build_azure_database_url()
+        async_creator = _azure_asyncpg_creator
+    else:
+        database_url = settings.database_url
+        async_creator = None
+
+    engine_kwargs: dict = {
+        "echo": settings.db_echo,
+        "pool_size": settings.db_pool_size,
+        "max_overflow": settings.db_pool_max_overflow,
+        "pool_timeout": settings.db_pool_timeout,
+        "pool_recycle": settings.db_pool_recycle,
+        "pool_pre_ping": True,
+    }
+
+    # connect_args only applies when NOT using async_creator
+    if async_creator is None:
+        engine_kwargs["connect_args"] = {
+            "server_settings": {
+                "statement_timeout": str(settings.db_statement_timeout_ms)
+            }
+        }
+    else:
+        engine_kwargs["async_creator"] = async_creator
+
+    engine = create_async_engine(database_url, **engine_kwargs)
+
+    _setup_pool_event_listeners(engine)
+
+    try:
+        from .telemetry import instrument_sqlalchemy_engine
+
+        instrument_sqlalchemy_engine(engine)
+    except Exception as e:
+        logger.warning(f"Failed to instrument SQLAlchemy for telemetry: {e}")
+
+    return engine
 
 
-async def get_db() -> AsyncGenerator[AsyncSession]:
-    """
-    FastAPI dependency that provides a database session.
+def create_session_maker(engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
+    return async_sessionmaker(
+        bind=engine,
+        class_=AsyncSession,
+        expire_on_commit=False,
+        autocommit=False,
+        autoflush=False,
+    )
 
-    Handles transaction lifecycle automatically:
-    - Commits on successful completion (no-op for read-only requests)
-    - Rolls back on any exception
 
-    Usage:
-        @app.get("/items")
-        async def get_items(db: DbSession):
-            result = await db.execute(select(Item))
-            return result.scalars().all()
+# =============================================================================
+# FastAPI Dependencies (access state via Request)
+# =============================================================================
+
+
+async def get_db(request: Request) -> AsyncGenerator[AsyncSession]:
+    """Auto-commits on success, rolls back on exception.
 
     Notes:
-        - Use flush() within a request if you need auto-generated IDs
-        - Use refresh() after flush if you need DB-side defaults
-        - Do NOT call commit() in route handlers - this dependency handles it
+        - Use flush() if you need auto-generated IDs mid-request
+        - Do NOT call commit() - this dependency handles it
     """
-    session_maker = get_session_maker()
+    session_maker: async_sessionmaker[AsyncSession] = request.app.state.session_maker
     async with session_maker() as session:
         try:
             yield session
@@ -315,14 +294,13 @@ async def get_db() -> AsyncGenerator[AsyncSession]:
 DbSession = Annotated[AsyncSession, Depends(get_db)]
 
 
-async def init_db() -> None:
-    """Verify database connectivity at startup.
+# =============================================================================
+# Lifecycle Functions (called from lifespan)
+# =============================================================================
 
-    This only checks that the database is reachable. Schema management should be
-    handled separately via migrations or the create_tables() function.
-    """
-    engine = get_engine()
 
+async def init_db(engine: AsyncEngine) -> None:
+    """Verify database is reachable. Schema managed via migrations."""
     logger.info("Verifying database connectivity...")
 
     try:
@@ -338,33 +316,23 @@ async def init_db() -> None:
         raise
 
 
-async def check_db_connection() -> None:
-    """Verify the database is reachable.
+async def dispose_engine(engine: AsyncEngine) -> None:
+    await engine.dispose()
+    logger.info("Database engine disposed")
 
-    Raises:
-        Exception if the database can't be reached.
-    """
-    engine = get_engine()
+
+# =============================================================================
+# Health Check Functions (accept engine parameter)
+# =============================================================================
+
+
+async def check_db_connection(engine: AsyncEngine) -> None:
     async with engine.connect() as conn:
         await conn.execute(text("SELECT 1"))
 
 
-class PoolStatus(NamedTuple):
-    """Connection pool status for health checks."""
-
-    pool_size: int
-    checked_out: int
-    overflow: int
-    checked_in: int
-
-
-def get_pool_status() -> PoolStatus | None:
-    """Get current connection pool status.
-
-    Returns:
-        PoolStatus with pool metrics, or None if using NullPool/SQLite.
-    """
-    engine = get_engine()
+def get_pool_status(engine: AsyncEngine) -> PoolStatus | None:
+    """Returns pool status, or None if pool is not a QueuePool."""
     pool = engine.sync_engine.pool
 
     if isinstance(pool, QueuePool):
@@ -400,15 +368,8 @@ async def check_azure_token_acquisition() -> bool:
     return True
 
 
-async def comprehensive_health_check() -> dict:
-    """Run comprehensive health checks for all database components.
-
-    Returns:
-        Dict with health status for each component:
-        - database: bool - Can execute queries
-        - azure_auth: bool | None - Token acquisition (None if not using Azure)
-        - pool: PoolStatus | None - Pool metrics (None if using NullPool)
-    """
+async def comprehensive_health_check(engine: AsyncEngine) -> dict:
+    """Returns {database: bool, azure_auth: bool|None, pool: PoolStatus|None}."""
     settings = get_settings()
     result: dict = {
         "database": False,
@@ -429,34 +390,24 @@ async def comprehensive_health_check() -> dict:
 
     # Check database connectivity
     try:
-        await check_db_connection()
+        await check_db_connection(engine)
         result["database"] = True
     except Exception as e:
         logger.error(f"Database health check failed: {e}")
         result["database"] = False
 
     # Get pool status
-    result["pool"] = get_pool_status()
+    result["pool"] = get_pool_status(engine)
 
     return result
 
 
-def reset_db_state() -> None:
-    """
-    Reset database state for testing.
+# =============================================================================
+# Testing Utilities
+# =============================================================================
 
-    Call this in test fixtures to ensure a fresh database connection
-    after changing settings.
 
-    Example:
-        @pytest.fixture
-        def test_settings(monkeypatch):
-            get_settings.cache_clear()
-            monkeypatch.setenv("DATABASE_URL", "sqlite+aiosqlite:///:memory:")
-            reset_db_state()
-            yield
-    """
-    global _engine, _async_session_maker, _azure_credential
-    _engine = None
-    _async_session_maker = None
+def reset_azure_credential() -> None:
+    """For testing."""
+    global _azure_credential
     _azure_credential = None

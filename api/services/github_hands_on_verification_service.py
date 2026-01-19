@@ -1126,6 +1126,7 @@ async def _validate_repo_files_via_contents(
     )
 
 
+@track_dependency("container_registry_api", "HTTP")
 @circuit(
     failure_threshold=5,
     recovery_timeout=60,
@@ -1165,8 +1166,7 @@ async def _check_container_image_with_retry(
             return ValidationResult(
                 is_valid=False,
                 message=(
-                    "Could not authenticate with Docker Hub "
-                    f"for image '{image_path}'"
+                    f"Could not authenticate with Docker Hub for image '{image_path}'"
                 ),
                 username_match=True,
                 repo_exists=False,
@@ -1269,8 +1269,7 @@ async def _check_container_image_with_retry(
             return ValidationResult(
                 is_valid=False,
                 message=(
-                    "Could not verify GHCR image. "
-                    f"Status: {manifest_resp.status_code}"
+                    f"Could not verify GHCR image. Status: {manifest_resp.status_code}"
                 ),
                 username_match=True,
                 repo_exists=False,

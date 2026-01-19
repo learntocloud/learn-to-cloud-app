@@ -12,7 +12,6 @@ version = "0.1.0"
 description = "Learn to Cloud API - FastAPI backend for learning cloud computing"
 requires-python = ">=3.13"
 dependencies = [
-    "aiosqlite==0.20.0",
     "alembic==1.14.0",
     "asyncpg==0.30.0",
     "azure-identity==1.19.0",
@@ -77,7 +76,6 @@ invalid-argument-type = "warn"
 
 [dependency-groups]
 dev = [
-    "aiosqlite>=0.20.0",
     "faker>=33.0.0",
     "factory-boy>=3.3.0",
     "httpx>=0.28.0",
