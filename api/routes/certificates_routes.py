@@ -22,7 +22,6 @@ from services.certificates_service import (
     create_certificate,
     generate_certificate_pdf,
     generate_certificate_png,
-    generate_certificate_svg,
     get_certificate_by_id,
     get_user_certificates_with_eligibility,
     verify_certificate,
@@ -129,33 +128,6 @@ async def get_user_certificates(
     )
 
 
-@router.get("/{certificate_id}/svg")
-async def get_certificate_svg_endpoint(
-    certificate_id: int,
-    user_id: UserId,
-    db: DbSession,
-) -> Response:
-    """Get the SVG image for a certificate."""
-    certificate = await get_certificate_by_id(db, certificate_id, user_id)
-
-    if not certificate:
-        raise HTTPException(status_code=404, detail="Certificate not found")
-
-    svg_content = generate_certificate_svg(certificate)
-
-    return Response(
-        content=svg_content,
-        media_type="image/svg+xml",
-        headers={
-            "Content-Disposition": (
-                f'inline; filename="ltc-certificate-'
-                f'{certificate.verification_code}.svg"'
-            ),
-            "Cache-Control": _get_cache_control(),
-        },
-    )
-
-
 @router.get("/{certificate_id}/pdf")
 @limiter.limit("10/minute")
 async def get_certificate_pdf_endpoint(
@@ -233,33 +205,6 @@ async def verify_certificate_endpoint(
         if result.certificate
         else None,
         message=result.message,
-    )
-
-
-@router.get("/verify/{verification_code}/svg")
-async def get_verified_certificate_svg_endpoint(
-    db: DbSession,
-    verification_code: str = Path(min_length=10, max_length=64),
-    user_id: OptionalUserId = None,
-) -> Response:
-    """Get the SVG image for a verified certificate (public endpoint)."""
-    certificate = await verify_certificate(db, verification_code)
-
-    if not certificate:
-        raise HTTPException(status_code=404, detail="Certificate not found")
-
-    svg_content = generate_certificate_svg(certificate)
-
-    return Response(
-        content=svg_content,
-        media_type="image/svg+xml",
-        headers={
-            "Content-Disposition": (
-                f'inline; filename="ltc-certificate-'
-                f'{certificate.verification_code}.svg"'
-            ),
-            "Cache-Control": _get_cache_control(),
-        },
     )
 
 

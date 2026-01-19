@@ -61,3 +61,10 @@ variable "alert_email" {
   type        = string
   default     = "learntocloudguide@gmail.com"
 }
+
+variable "slack_webhook_url" {
+  description = "Optional Slack webhook URL for warning alerts (Sev2). Leave empty to disable."
+  type        = string
+  default     = ""
+  sensitive   = true
+}

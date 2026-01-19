@@ -10,7 +10,12 @@ from sqlalchemy import Connection, create_engine, text
 import models  # noqa: F401
 from alembic import context
 from core.config import get_settings
-from core.database import Base
+from core.database import (
+    _AZURE_PG_SCOPE,
+    _AZURE_RETRY_ATTEMPTS,
+    _AZURE_RETRY_MIN_WAIT,
+    Base,
+)
 
 config = context.config
 
@@ -26,30 +31,29 @@ _ADVISORY_LOCK_KEY = 743028475  # hash("learn-to-cloud-migrations") % (2**31)
 # Lock acquisition timeout (seconds) - prevents indefinite blocking
 _LOCK_TIMEOUT_SECONDS = 120
 
-# Azure token retry configuration
-_TOKEN_RETRY_ATTEMPTS = 3
-_TOKEN_RETRY_DELAY_SECONDS = 2
-
 
 def _get_azure_token_with_retry() -> str:
-    """Get Azure AD token with retry logic for transient failures."""
+    """Get Azure AD token with retry logic for transient failures.
+
+    Uses sync credential since Alembic runs outside asyncio event loop.
+    Reuses retry constants from database module for consistency.
+    """
     from azure.identity import DefaultAzureCredential
 
     last_error = None
-    for attempt in range(_TOKEN_RETRY_ATTEMPTS):
+    for attempt in range(_AZURE_RETRY_ATTEMPTS):
         try:
             credential = DefaultAzureCredential()
-            token = credential.get_token(
-                "https://ossrdbms-aad.database.windows.net/.default"
-            )
+            token = credential.get_token(_AZURE_PG_SCOPE)
             return token.token
         except Exception as e:
             last_error = e
-            if attempt < _TOKEN_RETRY_ATTEMPTS - 1:
-                time.sleep(_TOKEN_RETRY_DELAY_SECONDS * (attempt + 1))
+            if attempt < _AZURE_RETRY_ATTEMPTS - 1:
+                delay = _AZURE_RETRY_MIN_WAIT * (2**attempt)  # Exponential backoff
+                time.sleep(delay)
 
     raise RuntimeError(
-        f"Failed to acquire Azure AD token after {_TOKEN_RETRY_ATTEMPTS} attempts"
+        f"Failed to acquire Azure AD token after {_AZURE_RETRY_ATTEMPTS} attempts"
     ) from last_error
 
 
@@ -163,10 +167,6 @@ def _run_migrations(connection: Connection) -> None:
             except Exception as unlock_error:
                 # Log but don't raise - lock released when session ends anyway
                 logger.warning(f"Failed to release advisory lock: {unlock_error}")
-
-    # Re-raise the migration error if it wasn't a "table already exists" error
-    if migration_error is not None:
-        raise migration_error
 
     # Re-raise the migration error if it wasn't a "table already exists" error
     if migration_error is not None:

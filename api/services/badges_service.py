@@ -15,6 +15,7 @@ from datetime import date
 from typing import TypedDict
 
 from core.cache import get_cached_badges, set_cached_badges
+from core.telemetry import add_custom_attribute
 from services.phase_requirements_service import get_requirements_for_phase
 from services.progress_service import (
     get_all_phase_ids,
@@ -109,7 +110,7 @@ STREAK_BADGES: list[StreakBadgeInfo] = [
 ]
 
 
-@dataclass
+@dataclass(frozen=True)
 class Badge:
     """A badge that a user has earned."""
 
@@ -224,6 +225,15 @@ def compute_all_badges(
     badges = []
     badges.extend(compute_phase_badges(phase_completion_counts))
     badges.extend(compute_streak_badges(longest_streak))
+
+    # Log metrics for badge awards (only on cache miss to avoid duplicate counts)
+    if badges:
+        phase_badges = [b for b in badges if b.id.startswith("phase_")]
+        streak_badges = [b for b in badges if b.id.startswith("streak_")]
+        if phase_badges:
+            add_custom_attribute("badges.phase_count", len(phase_badges))
+        if streak_badges:
+            add_custom_attribute("badges.streak_count", len(streak_badges))
 
     # Cache the result if user_id was provided
     if user_id:

@@ -1,6 +1,8 @@
 """Application configuration using pydantic-settings."""
 
 from functools import cached_property, lru_cache
+from pathlib import Path
+from typing import Self
 
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -13,12 +15,13 @@ class Settings(BaseSettings):
         env_file=".env",
         env_file_encoding="utf-8",
         extra="ignore",
+        frozen=True,
     )
 
-    # SQLite is for local development only - will fail-fast in non-dev environments
-    # For production, set postgres_host + postgres_user (Azure MI)
-    # or override database_url with a PostgreSQL connection string
-    database_url: str = "sqlite+aiosqlite:///./learn_to_cloud.db"
+    # PostgreSQL connection - set via DATABASE_URL env var
+    # For Azure: set postgres_host + postgres_user (Managed Identity)
+    # For local: use "postgresql+asyncpg://postgres:postgres@localhost:5432/learn_to_cloud"
+    database_url: str = ""
 
     # Azure PostgreSQL with Managed Identity - takes precedence over database_url
     # When postgres_host is set, database_url is derived automatically
@@ -50,6 +53,10 @@ class Settings(BaseSettings):
 
     frontend_url: str = "http://localhost:4280"
 
+    # Content directory for course phases JSON files
+    # Defaults to frontend/public/content/phases for local dev
+    content_dir: str = ""
+
     # Database pool settings (PostgreSQL only)
     # Keep pool sizes small for horizontal scaling (multiple workers/replicas)
     # Total connections per worker = pool_size + max_overflow
@@ -63,43 +70,44 @@ class Settings(BaseSettings):
     environment: str = "development"
 
     @model_validator(mode="after")
-    def validate_production_config(self) -> "Settings":
-        """Validate configuration for non-development environments."""
-        if self.environment != "development":
-            # Fail-fast: SQLite is not supported in production
-            if "sqlite" in self.database_url and not self.use_azure_postgres:
-                raise ValueError(
-                    "SQLite is not supported in production. "
-                    "Set POSTGRES_HOST + POSTGRES_USER for Azure, "
-                    "or provide a PostgreSQL DATABASE_URL."
-                )
-            # Require CTF secret in production
-            if not self.ctf_master_secret:
-                raise ValueError(
-                    "CTF_MASTER_SECRET must be set in non-development environments."
-                )
+    def validate_production_config(self) -> Self:
+        # Require PostgreSQL configuration (DATABASE_URL or Azure postgres)
+        if not self.database_url and not self.use_azure_postgres:
+            raise ValueError(
+                "Database configuration required. "
+                "Set DATABASE_URL for direct connection, "
+                "or POSTGRES_HOST + POSTGRES_USER for Azure Managed Identity."
+            )
+
+        # Require CTF secret in production
+        if self.environment != "development" and not self.ctf_master_secret:
+            raise ValueError(
+                "CTF_MASTER_SECRET must be set in non-development environments."
+            )
         return self
 
     @property
     def use_azure_postgres(self) -> bool:
-        """Check if Azure PostgreSQL with managed identity should be used.
-
-        When True, database_url is ignored and connection is built from
-        the postgres_* fields instead.
-        """
+        """When True, connection built from postgres_* fields instead."""
         return bool(self.postgres_host and self.postgres_user)
 
     @cached_property
+    def content_dir_path(self) -> Path:
+        """Defaults to frontend/public/content/phases if CONTENT_DIR not set."""
+        if self.content_dir:
+            return Path(self.content_dir)
+        # Default: assume running from api/ directory
+        return (
+            Path(__file__).parent.parent.parent
+            / "frontend"
+            / "public"
+            / "content"
+            / "phases"
+        )
+
+    @cached_property
     def allowed_origins(self) -> list[str]:
-        """Get list of allowed origins for CORS and auth.
-
-        Combines:
-        - Default localhost origins (development only)
-        - frontend_url (convenience for single frontend)
-        - cors_allowed_origins (comma-separated, for multiple environments)
-
-        Thread-safe via @cached_property (computed once per instance).
-        """
+        """Combines localhost (dev only), frontend_url, and cors_allowed_origins."""
         origins: list[str] = []
 
         # Only include localhost origins in development
@@ -125,7 +133,22 @@ class Settings(BaseSettings):
         return origins
 
 
-@lru_cache
+@lru_cache(maxsize=1)
 def get_settings() -> Settings:
-    """Get cached settings instance."""
     return Settings()
+
+
+def clear_settings_cache() -> None:
+    """Clear the settings cache.
+
+    Call this in tests to reset settings between test cases.
+    After clearing, the next get_settings() call will create
+    a fresh Settings instance with current environment variables.
+
+    Example:
+        def test_something(monkeypatch):
+            monkeypatch.setenv("ENVIRONMENT", "test")
+            clear_settings_cache()
+            settings = get_settings()  # Fresh instance
+    """
+    get_settings.cache_clear()

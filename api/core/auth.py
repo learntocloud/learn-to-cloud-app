@@ -1,17 +1,33 @@
-"""Clerk authentication utilities."""
+"""Clerk authentication utilities.
+
+Provides:
+- Clerk SDK client lifecycle management
+- JWT verification with circuit breaker protection
+- FastAPI dependencies for authenticated routes
+
+Circuit Breaker:
+- Opens after 5 consecutive JWKS infrastructure failures
+- Fails fast for 60 seconds when open (returns None -> 401)
+- Protects against Clerk outages blocking worker threads
+"""
 
 import logging
-import time
 from typing import Annotated
 
+from circuitbreaker import CircuitBreakerError, CircuitBreakerMonitor, circuit
 from clerk_backend_api import Clerk
 from clerk_backend_api.security.types import (
     AuthenticateRequestOptions,
+    RequestState,
     TokenVerificationErrorReason,
 )
 from fastapi import Depends, HTTPException, Request
 
 from core.config import get_settings
+from core.telemetry import (
+    log_metric,
+    track_dependency,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -29,27 +45,30 @@ _JWKS_FAILURE_REASONS = frozenset(
     }
 )
 
-# Rate-limiting for JWKS failure warnings (avoid log spam during incidents)
-_last_jwks_warning_time: float = 0.0
-_JWKS_WARNING_INTERVAL_SECONDS: float = 60.0  # Log at most once per minute
+# Circuit breaker configuration
+_CIRCUIT_NAME = "clerk_auth"
+_CIRCUIT_FAILURE_THRESHOLD = 5  # Open after 5 failures
+_CIRCUIT_RECOVERY_TIMEOUT = 60  # Try again after 60 seconds
+
+
+class ClerkAuthUnavailable(Exception):
+    """Raised when Clerk authentication infrastructure is unavailable.
+
+    This exception triggers the circuit breaker when JWKS fetching fails,
+    indicating Clerk infrastructure issues rather than user authentication errors.
+    """
+
+    def __init__(self, reason: TokenVerificationErrorReason):
+        self.reason = reason
+        super().__init__(f"Clerk auth unavailable: {reason}")
 
 
 def get_clerk_client() -> Clerk | None:
-    """
-    Get the singleton Clerk SDK client instance.
-
-    Returns None if not initialized (auth disabled).
-    """
     return _clerk_client
 
 
 def init_clerk_client() -> None:
-    """
-    Initialize the Clerk SDK client (called on application startup).
-
-    Should be called once during app lifespan startup.
-    If CLERK_SECRET_KEY is not configured, auth will be disabled.
-    """
+    """Initialize Clerk SDK. Auth disabled if CLERK_SECRET_KEY not set."""
     global _clerk_client, _clerk_initialized
     _clerk_initialized = True
 
@@ -65,38 +84,56 @@ def init_clerk_client() -> None:
     logger.info("Clerk SDK client initialized")
 
 
-def close_clerk_client() -> None:
-    """
-    Close the Clerk SDK client (called on application shutdown).
+def _get_circuit_by_name(name: str):
+    """Get a circuit breaker by name from the monitor."""
+    for cb in CircuitBreakerMonitor.get_circuits():
+        if cb.name == name:
+            return cb
+    return None
 
-    Note: The Clerk SDK manages its own httpx client lifecycle.
-    We just clear our reference to allow garbage collection.
-    """
+
+def close_clerk_client() -> None:
+    """Clear Clerk client reference. SDK manages its own httpx lifecycle."""
     global _clerk_client
     _clerk_client = None
 
 
 def _get_authorized_parties() -> list[str]:
-    """Get authorized parties for Clerk authentication from centralized config."""
     return get_settings().allowed_origins
 
 
+@track_dependency("clerk_auth", "Auth")
+@circuit(
+    failure_threshold=_CIRCUIT_FAILURE_THRESHOLD,
+    recovery_timeout=_CIRCUIT_RECOVERY_TIMEOUT,
+    expected_exception=(ClerkAuthUnavailable,),
+    name=_CIRCUIT_NAME,
+)
+def _authenticate_request_with_circuit_breaker(
+    clerk: Clerk, req: Request, authorized_parties: list[str]
+) -> RequestState:
+    """Raises ClerkAuthUnavailable on JWKS failure (triggers circuit breaker)."""
+    request_state = clerk.authenticate_request(
+        req,
+        AuthenticateRequestOptions(
+            authorized_parties=authorized_parties,
+        ),
+    )
+
+    # Check for JWKS infrastructure failures - raise to trigger circuit breaker
+    if not request_state.is_signed_in:
+        reason = getattr(request_state, "reason", None)
+        if reason in _JWKS_FAILURE_REASONS:
+            raise ClerkAuthUnavailable(reason)
+
+    return request_state
+
+
 def get_user_id_from_request(req: Request) -> str | None:
+    """Get authenticated user ID, or None.
+
+    Note: Intentionally synchronous - JWT validation is CPU-bound (cached JWKS).
     """
-    Get the authenticated user ID from the request.
-    Returns None if not authenticated.
-
-    Note: This is intentionally synchronous. Clerk's authenticate_request()
-    is CPU-bound JWT validation (cached JWKS). The rare JWKS fetch on cache
-    miss is acceptable - it's infrequent (every 5 min per key ID) and the
-    SDK handles retries internally.
-
-    WARNING: The Clerk SDK's JWKS fetch has aggressive retries (up to 100)
-    with no timeout configuration. During Clerk outages, this could block
-    worker threads for extended periods. Monitor for JWKS failure warnings.
-    """
-    global _last_jwks_warning_time
-
     # Check if init was called - fail fast with clear error if not
     if not _clerk_initialized:
         logger.error(
@@ -113,48 +150,31 @@ def get_user_id_from_request(req: Request) -> str | None:
 
     authorized_parties = _get_authorized_parties()
 
-    # FastAPI Request satisfies Clerk's Requestish protocol (has .headers Mapping)
-    request_state = clerk.authenticate_request(
-        req,
-        AuthenticateRequestOptions(
-            authorized_parties=authorized_parties,
-        ),
-    )
+    try:
+        request_state = _authenticate_request_with_circuit_breaker(
+            clerk, req, authorized_parties
+        )
+    except CircuitBreakerError:
+        # Circuit is open - fail fast
+        log_metric("clerk_auth_circuit_rejected", 1, {"circuit": _CIRCUIT_NAME})
+        return None
+    except ClerkAuthUnavailable as e:
+        # JWKS failure - already counted by circuit breaker
+        logger.warning("Clerk auth infrastructure issue: %s", e.reason)
+        return None
 
     if request_state.is_signed_in:
         if request_state.payload is not None:
             return request_state.payload.get("sub")
         return None
 
-    # Not signed in - check reason for operational visibility
-    reason = getattr(request_state, "reason", None)
-
-    # Log JWKS failures as warnings (infrastructure issue, not user error)
-    # Rate-limited to avoid log spam during incidents
-    if reason in _JWKS_FAILURE_REASONS:
-        now = time.monotonic()
-        if now - _last_jwks_warning_time >= _JWKS_WARNING_INTERVAL_SECONDS:
-            _last_jwks_warning_time = now
-            logger.warning(
-                "Auth infrastructure issue: %s (rate-limited warning)",
-                reason,
-            )
-
+    # Not signed in - normal auth failure (invalid/expired token, etc.)
+    # Don't log - this is expected for unauthenticated requests
     return None
 
 
 def require_auth(request: Request) -> str:
-    """
-    FastAPI dependency that requires authentication.
-
-    Raises HTTPException 401 if not authenticated.
-    Also sets request.state.user_id for rate limiting identification.
-
-    Usage:
-        @app.get("/protected")
-        async def protected_route(user_id: UserId):
-            return {"user_id": user_id}
-    """
+    """Raises 401 if not authenticated. Sets request.state.user_id."""
     user_id = get_user_id_from_request(request)
     if not user_id:
         raise HTTPException(status_code=401, detail="Unauthorized")
@@ -164,19 +184,7 @@ def require_auth(request: Request) -> str:
 
 
 def optional_auth(request: Request) -> str | None:
-    """
-    FastAPI dependency that provides optional authentication.
-
-    Returns None if not authenticated, user_id otherwise.
-    Does not raise exceptions.
-
-    Usage:
-        @app.get("/optional-protected")
-        async def route(user_id: OptionalUserId = None):
-            if user_id:
-                return {"user_id": user_id}
-            return {"user_id": None}
-    """
+    """Returns user_id or None. Does not raise."""
     user_id = get_user_id_from_request(request)
     if user_id:
         request.state.user_id = user_id

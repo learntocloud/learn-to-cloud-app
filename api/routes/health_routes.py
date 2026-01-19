@@ -19,17 +19,17 @@ async def health() -> HealthResponse:
 
 
 @router.get("/health/detailed", response_model=DetailedHealthResponse)
-async def health_detailed() -> DetailedHealthResponse:
+async def health_detailed(request: Request) -> DetailedHealthResponse:
     """Detailed health check with component status.
 
     Returns status of:
     - database: Can execute queries
     - azure_auth: Token acquisition working (null if not using Azure)
-    - pool: Connection pool metrics (null if using NullPool/SQLite)
+    - pool: Connection pool metrics
 
     Always returns 200 - check individual component statuses for health.
     """
-    result = await comprehensive_health_check()
+    result = await comprehensive_health_check(request.app.state.engine)
 
     pool_status = None
     if result["pool"] is not None:
@@ -76,7 +76,7 @@ async def ready(request: Request) -> HealthResponse:
         )
 
     try:
-        await check_db_connection()
+        await check_db_connection(request.app.state.engine)
     except Exception:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,

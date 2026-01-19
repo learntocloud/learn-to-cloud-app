@@ -407,10 +407,6 @@ export function createApiClient(getToken: () => Promise<string | null>) {
       return res.json();
     },
 
-    getCertificateSvgUrl(certificateId: number): string {
-      return `${API_URL}/api/certificates/${certificateId}/svg`;
-    },
-
     getCertificatePdfUrl(certificateId: number): string {
       return `${API_URL}/api/certificates/${certificateId}/pdf`;
     },
@@ -418,10 +414,6 @@ export function createApiClient(getToken: () => Promise<string | null>) {
     getCertificatePngUrl(certificateId: number, scale?: number): string {
       const suffix = scale ? `?scale=${scale}` : '';
       return `${API_URL}/api/certificates/${certificateId}/png${suffix}`;
-    },
-
-    getVerifiedCertificateSvgUrl(code: string): string {
-      return `${API_URL}/api/certificates/verify/${code}/svg`;
     },
 
     getVerifiedCertificatePdfUrl(code: string): string {

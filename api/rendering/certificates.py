@@ -10,10 +10,12 @@ which remains in services/certificates.py.
 """
 
 import base64
+import html
 import re
 from datetime import datetime
 from functools import lru_cache
 from pathlib import Path
+from typing import TypedDict
 
 CERTIFICATE_TITLE = "Learn to Cloud"
 CERTIFICATE_SUBTITLE = "Certificate of Completion"
@@ -23,7 +25,15 @@ ISSUER_URL = "https://learntocloud.guide"
 _ASSETS_DIR = Path(__file__).resolve().parent.parent / "assets"
 _LOGO_SVG_PATH = _ASSETS_DIR / "Logo-03.svg"
 
-PHASE_DISPLAY_INFO = {
+
+class PhaseInfo(TypedDict):
+    """Type for phase display information."""
+
+    name: str
+    description: str
+
+
+PHASE_DISPLAY_INFO: dict[str, PhaseInfo] = {
     "phase_0": {
         "name": "Starting from Zero",
         "description": "IT Fundamentals & Cloud Overview",
@@ -141,7 +151,7 @@ def _get_logo_inline_svg() -> str | None:
     )
 
 
-def get_certificate_display_info(certificate_type: str) -> dict:
+def get_certificate_display_info(certificate_type: str) -> PhaseInfo:
     """Get display information for a certificate type."""
     return PHASE_DISPLAY_INFO.get(
         certificate_type, PHASE_DISPLAY_INFO["full_completion"]
@@ -172,12 +182,7 @@ def generate_certificate_svg(
     cert_info = get_certificate_display_info(certificate_type)
     issued_date = issued_at.strftime("%B %d, %Y")
 
-    safe_name = (
-        recipient_name.replace("&", "&amp;")
-        .replace("<", "&lt;")
-        .replace(">", "&gt;")
-        .replace('"', "&quot;")
-    )
+    safe_name = html.escape(recipient_name, quote=True)
 
     logo_inline_svg = _get_logo_inline_svg()
     logo_block = ""
@@ -188,6 +193,13 @@ def generate_certificate_svg(
     {logo_inline_svg}
   </g>
 """
+
+    # Font stacks: Helvetica is a PDF base-14 font (always available in PDF viewers).
+    # Times is the serif PDF base-14 font. Courier is the monospace PDF base-14 font.
+    # These ensure consistent rendering across all PDF viewers without font embedding.
+    sans_font = "Helvetica, Arial, sans-serif"
+    serif_font = "Times, 'Times New Roman', Georgia, serif"
+    mono_font = "Courier, 'Courier New', monospace"
 
     svg = f"""<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 800 600" width="800" height="600">
@@ -242,22 +254,22 @@ def generate_certificate_svg(
 {logo_block}
 
   <!-- Certificate subtitle -->
-  <text x="400" y="195" font-family="Arial, Helvetica, sans-serif" font-size="10" fill="#4b5563" text-anchor="middle" letter-spacing="4" font-weight="500">
+  <text x="400" y="195" font-family="{sans_font}" font-size="10" fill="#4b5563" text-anchor="middle" letter-spacing="4" font-weight="500">
     CERTIFICATE OF COMPLETION
   </text>
 
   <!-- Recipient name with glow -->
-  <text x="400" y="280" font-family="Georgia, Times, serif" font-size="48" fill="#ffffff" text-anchor="middle" font-weight="bold" filter="url(#nameGlow)">
+  <text x="400" y="280" font-family="{serif_font}" font-size="48" fill="#ffffff" text-anchor="middle" font-weight="bold" filter="url(#nameGlow)">
     {safe_name}
   </text>
 
   <!-- Achievement name -->
-  <text x="400" y="360" font-family="Arial, Helvetica, sans-serif" font-size="24" fill="url(#blueGradientV)" text-anchor="middle" font-weight="bold">
+  <text x="400" y="360" font-family="{sans_font}" font-size="24" fill="url(#blueGradientV)" text-anchor="middle" font-weight="bold">
     {cert_info["name"]}
   </text>
 
   <!-- Achievement description -->
-  <text x="400" y="395" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#64748b" text-anchor="middle">
+  <text x="400" y="395" font-family="{sans_font}" font-size="13" fill="#64748b" text-anchor="middle">
     {cert_info["description"]}
   </text>
 
@@ -267,10 +279,10 @@ def generate_certificate_svg(
     <circle cx="0" cy="0" r="38" fill="none" stroke="url(#blueGradient)" stroke-width="1" opacity="0.5"/>
     <!-- Checkmark as path for better PDF compatibility -->
     <path d="M-8 -4 L-3 2 L8 -10" fill="none" stroke="url(#blueGradient)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-    <text x="0" y="12" font-family="Arial, Helvetica, sans-serif" font-size="9" fill="#83DCFF" text-anchor="middle" font-weight="600">
+    <text x="0" y="12" font-family="{sans_font}" font-size="9" fill="#83DCFF" text-anchor="middle" font-weight="600">
       {phases_completed}/{total_phases}
     </text>
-    <text x="0" y="24" font-family="Arial, Helvetica, sans-serif" font-size="7" fill="#64748b" text-anchor="middle">
+    <text x="0" y="24" font-family="{sans_font}" font-size="7" fill="#64748b" text-anchor="middle">
       COMPLETE
     </text>
   </g>
@@ -279,27 +291,27 @@ def generate_certificate_svg(
   <g transform="translate(0, 500)">
     <!-- Date -->
     <g transform="translate(150, 0)">
-      <text x="0" y="0" font-family="Arial, Helvetica, sans-serif" font-size="9" fill="#4b5563" text-anchor="middle" letter-spacing="2">
+      <text x="0" y="0" font-family="{sans_font}" font-size="9" fill="#4b5563" text-anchor="middle" letter-spacing="2">
         ISSUED
       </text>
-      <text x="0" y="24" font-family="Georgia, Times, serif" font-size="16" fill="#e5e7eb" text-anchor="middle">
+      <text x="0" y="24" font-family="{serif_font}" font-size="16" fill="#e5e7eb" text-anchor="middle">
         {issued_date}
       </text>
     </g>
 
     <!-- Verification Code -->
     <g transform="translate(400, 0)">
-      <text x="0" y="0" font-family="Arial, Helvetica, sans-serif" font-size="9" fill="#4b5563" text-anchor="middle" letter-spacing="2">
+      <text x="0" y="0" font-family="{sans_font}" font-size="9" fill="#4b5563" text-anchor="middle" letter-spacing="2">
         VERIFICATION
       </text>
-      <text x="0" y="24" font-family="monospace" font-size="13" fill="#83DCFF" text-anchor="middle" font-weight="600">
+      <text x="0" y="24" font-family="{mono_font}" font-size="13" fill="#83DCFF" text-anchor="middle" font-weight="600">
         {verification_code}
       </text>
     </g>
   </g>
 
   <!-- Footer with verification URL -->
-  <text x="400" y="568" font-family="Arial, Helvetica, sans-serif" font-size="9" fill="#374151" text-anchor="middle">
+  <text x="400" y="568" font-family="{sans_font}" font-size="9" fill="#374151" text-anchor="middle">
     Verify at {ISSUER_URL}/verify/{verification_code}
   </text>
 </svg>"""

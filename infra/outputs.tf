@@ -88,8 +88,13 @@ output "dashboard_url" {
 }
 
 output "action_group_id" {
-  description = "Action group ID for alerts"
+  description = "Action group ID for critical alerts (Sev1)"
   value       = azurerm_monitor_action_group.critical.id
+}
+
+output "warning_action_group_id" {
+  description = "Action group ID for warning alerts (Sev2)"
+  value       = azurerm_monitor_action_group.warning.id
 }
 
 # -----------------------------------------------------------------------------

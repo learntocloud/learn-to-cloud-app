@@ -13,6 +13,7 @@ from datetime import UTC, date, datetime, timedelta
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from core.telemetry import add_custom_attribute, log_metric, track_operation
 from models import ActivityType
 from repositories.activity_repository import ActivityRepository
 from services.streaks_service import MAX_SKIP_DAYS, calculate_streak_with_forgiveness
@@ -129,6 +130,7 @@ class ActivityResult:
     created_at: datetime
 
 
+@track_operation("activity_logging")
 async def log_activity(
     db: AsyncSession,
     user_id: str,
@@ -148,6 +150,8 @@ async def log_activity(
     """
     today = datetime.now(UTC).date()
 
+    add_custom_attribute("activity.type", activity_type.value)
+
     activity_repo = ActivityRepository(db)
     activity = await activity_repo.log_activity(
         user_id=user_id,
@@ -155,6 +159,8 @@ async def log_activity(
         activity_date=today,
         reference_id=reference_id,
     )
+
+    log_metric("activities.logged", 1, {"type": activity_type.value})
 
     return ActivityResult(
         id=activity.id,

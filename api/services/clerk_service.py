@@ -28,7 +28,7 @@ from core.telemetry import track_dependency
 logger = logging.getLogger(__name__)
 
 _http_client: httpx.AsyncClient | None = None
-_http_client_lock: asyncio.Lock | None = None
+_http_client_lock = asyncio.Lock()
 
 # Bounded dict for backoff tracking (max 10K entries to prevent memory leaks)
 _CLERK_LOOKUP_BACKOFF_SECONDS = 300.0
@@ -110,15 +110,26 @@ RETRIABLE_EXCEPTIONS: tuple[type[Exception], ...] = (
 
 
 async def get_http_client() -> httpx.AsyncClient:
-    """Get or create a reusable HTTP client with connection pooling."""
+    """Get or create a reusable HTTP client with connection pooling.
+
+    Thread-safe via asyncio.Lock to prevent race conditions where multiple
+    coroutines could create duplicate clients.
+    """
     global _http_client
-    if _http_client is None or _http_client.is_closed:
+    if _http_client is not None and not _http_client.is_closed:
+        return _http_client
+
+    async with _http_client_lock:
+        # Double-check after acquiring lock
+        if _http_client is not None and not _http_client.is_closed:
+            return _http_client
+
         settings = get_settings()
         _http_client = httpx.AsyncClient(
             timeout=settings.http_timeout,
             limits=httpx.Limits(max_connections=20, max_keepalive_connections=10),
         )
-    return _http_client
+        return _http_client
 
 
 async def close_http_client() -> None:
