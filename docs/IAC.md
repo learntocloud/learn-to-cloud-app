@@ -6,6 +6,22 @@ This document describes the Azure infrastructure managed by Terraform in the `in
 
 All infrastructure is defined in Terraform and deployed to Azure. Resources follow the naming convention `{prefix}-ltc-{component}-{environment}` with a random suffix for uniqueness where required.
 
+## File Structure
+
+The Terraform configuration is organized into separate files for better readability and maintainability:
+
+| File | Purpose |
+|------|---------|
+| `provider.tf` | Terraform and provider configuration, random suffix generation, common locals/tags |
+| `variables.tf` | All input variable definitions with descriptions and defaults |
+| `resource-group.tf` | Main resource group for all application resources |
+| `identity.tf` | User-assigned managed identity for API, Azure client config data source |
+| `database.tf` | PostgreSQL Flexible Server, database, firewall rules, Entra ID admin |
+| `container-apps.tf` | Container Registry, Container Apps Environment, API Container App |
+| `static-web-app.tf` | Static Web App, backend linking to Container App, custom domain |
+| `monitoring.tf` | Log Analytics, Application Insights, all alert rules, monitoring dashboard |
+| `outputs.tf` | All output values for use by CI/CD and other tooling |
+
 ## Resource Groups
 
 | Resource | Name Pattern | Purpose |
