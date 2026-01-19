@@ -3,7 +3,7 @@
 from collections.abc import Sequence
 from datetime import UTC, datetime
 
-from sqlalchemy import exists, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models import Certificate
@@ -14,16 +14,6 @@ class CertificateRepository:
 
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
-
-    async def get_by_id(
-        self,
-        certificate_id: int,
-    ) -> Certificate | None:
-        """Get a certificate by ID."""
-        result = await self.db.execute(
-            select(Certificate).where(Certificate.id == certificate_id)
-        )
-        return result.scalar_one_or_none()
 
     async def get_by_id_and_user(
         self,
@@ -85,24 +75,6 @@ class CertificateRepository:
         )
         return result.scalar_one_or_none()
 
-    async def exists_for_user_and_type(
-        self,
-        user_id: str,
-        certificate_type: str,
-    ) -> bool:
-        """Check if a user already has a specific certificate type.
-
-        Uses efficient EXISTS query instead of fetching the full row.
-        """
-        stmt = select(
-            exists().where(
-                Certificate.user_id == user_id,
-                Certificate.certificate_type == certificate_type,
-            )
-        )
-        result = await self.db.execute(stmt)
-        return result.scalar() or False
-
     async def create(
         self,
         user_id: str,
@@ -112,7 +84,11 @@ class CertificateRepository:
         phases_completed: int,
         total_phases: int,
     ) -> Certificate:
-        """Create a new certificate."""
+        """Create a new certificate.
+
+        Sets issued_at to current UTC time. Calls flush() but does NOT commit;
+        the caller is responsible for transaction management.
+        """
         certificate = Certificate(
             user_id=user_id,
             certificate_type=certificate_type,

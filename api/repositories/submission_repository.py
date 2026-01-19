@@ -15,18 +15,6 @@ class SubmissionRepository:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def get_by_user_and_requirement(
-        self, user_id: str, requirement_id: str
-    ) -> Submission | None:
-        """Get a submission by user and requirement ID."""
-        result = await self.db.execute(
-            select(Submission).where(
-                Submission.user_id == user_id,
-                Submission.requirement_id == requirement_id,
-            )
-        )
-        return result.scalar_one_or_none()
-
     async def get_by_user_and_phase(
         self, user_id: str, phase_id: int
     ) -> list[Submission]:
@@ -65,6 +53,11 @@ class SubmissionRepository:
 
         Uses upsert to handle concurrent submissions safely.
         Returns the created/updated submission.
+
+        Raises:
+            ValueError: If update_fields contains keys not in values.
+            IntegrityError: If foreign key constraint violated (user_id not found).
+            RuntimeError: If upsert unexpectedly returns no row.
         """
         now = datetime.now(UTC)
         values = {
@@ -98,5 +91,6 @@ class SubmissionRepository:
         )
 
         # After upsert with returning=True, the submission must exist
-        assert submission is not None
+        if submission is None:
+            raise RuntimeError("Upsert with returning=True returned no row")
         return submission

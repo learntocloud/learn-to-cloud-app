@@ -68,8 +68,6 @@ def get_validated_ids_by_phase(
 
 @dataclass
 class SubmissionResult:
-    """Result of a hands-on submission."""
-
     submission: SubmissionData
     is_valid: bool
     message: str
@@ -78,14 +76,10 @@ class SubmissionResult:
 
 
 class RequirementNotFoundError(Exception):
-    """Raised when a requirement ID doesn't exist."""
-
     pass
 
 
 class GitHubUsernameRequiredError(Exception):
-    """Raised when GitHub username is required but not provided."""
-
     pass
 
 
@@ -99,19 +93,9 @@ async def submit_validation(
 ) -> SubmissionResult:
     """Submit a URL or token for hands-on validation.
 
-    Args:
-        db: Database session
-        user_id: The user's ID
-        requirement_id: The requirement being submitted for
-        submitted_value: The URL or token submitted
-        github_username: The user's GitHub username (if linked)
-
-    Returns:
-        SubmissionResult with validation outcome and saved submission
-
     Raises:
-        RequirementNotFoundError: If requirement doesn't exist
-        GitHubUsernameRequiredError: If GitHub username required but not provided
+        RequirementNotFoundError: If requirement doesn't exist.
+        GitHubUsernameRequiredError: If GitHub username required but not provided.
     """
     add_custom_attribute("submission.requirement_id", requirement_id)
     requirement = get_requirement_by_id(requirement_id)
@@ -153,7 +137,6 @@ async def submit_validation(
         is_validated=validation_result.is_valid,
     )
 
-    # Log metrics for submission outcomes
     phase = f"phase{requirement.phase_id}"
     if validation_result.is_valid:
         log_metric(

@@ -10,7 +10,17 @@ from models import User
 
 
 class UserRepository:
-    """Repository for User database operations."""
+    """Repository for User database operations.
+
+    Transaction Management:
+        This repository does NOT commit. The caller (service layer)
+        owns the transaction boundary. Use flush() for intermediate
+        persistence within a transaction.
+
+    GitHub Username Normalization:
+        All methods expect github_username to be pre-normalized
+        (lowercase) by the service layer.
+    """
 
     def __init__(self, db: AsyncSession):
         self.db = db
@@ -152,11 +162,10 @@ class UserRepository:
         if avatar_url is not None:
             user.avatar_url = avatar_url
         if github_username is not None:
-            # Check if another user has this github_username
             existing = await self.get_by_github_username(github_username)
             if existing and existing.id != user.id:
-                # Clear it from the old user and flush BEFORE setting on new user
-                # to avoid unique constraint violation on autoflush
+                # Flush BEFORE setting on new user to avoid unique constraint
+                # violation on autoflush
                 existing.github_username = None
                 await self.db.flush()
             user.github_username = github_username

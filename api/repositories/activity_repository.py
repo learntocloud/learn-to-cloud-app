@@ -3,7 +3,7 @@
 from collections.abc import Sequence
 from datetime import date
 
-from sqlalchemy import select
+from sqlalchemy import exists, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models import ActivityType, UserActivity
@@ -84,15 +84,13 @@ class ActivityRepository:
         activity_type: ActivityType,
     ) -> int:
         """Count activities of a specific type for a user."""
-        from sqlalchemy import func
-
         result = await self.db.execute(
             select(func.count(UserActivity.id)).where(
                 UserActivity.user_id == user_id,
                 UserActivity.activity_type == activity_type,
             )
         )
-        return result.scalar_one() or 0
+        return result.scalar_one()
 
     async def has_activity_on_date(
         self,
@@ -100,13 +98,12 @@ class ActivityRepository:
         activity_date: date,
     ) -> bool:
         """Check if user has any activity on a specific date."""
-        result = await self.db.execute(
-            select(UserActivity.id).where(
-                UserActivity.user_id == user_id,
-                UserActivity.activity_date == activity_date,
-            )
+        stmt = exists().where(
+            UserActivity.user_id == user_id,
+            UserActivity.activity_date == activity_date,
         )
-        return result.scalar_one_or_none() is not None
+        result = await self.db.execute(select(stmt))
+        return result.scalar_one()
 
     async def get_activity_dates_ordered(
         self,
@@ -114,7 +111,7 @@ class ActivityRepository:
         *,
         limit: int | None = None,
     ) -> list[date]:
-        """Get activity dates for a user ordered by date descending.
+        """Get distinct activity dates for a user ordered by date descending.
 
         Args:
             user_id: The user's ID
@@ -122,7 +119,7 @@ class ActivityRepository:
                    For streak calculation, ~100 is typically sufficient.
         """
         query = (
-            select(UserActivity.activity_date)
+            select(func.distinct(UserActivity.activity_date))
             .where(UserActivity.user_id == user_id)
             .order_by(UserActivity.activity_date.desc())
         )
@@ -140,8 +137,6 @@ class ActivityRepository:
 
         Returns list of (activity_date, activity_type, count) tuples.
         """
-        from sqlalchemy import func
-
         result = await self.db.execute(
             select(
                 UserActivity.activity_date,

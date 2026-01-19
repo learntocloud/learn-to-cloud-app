@@ -19,13 +19,10 @@ class ProcessedWebhookRepository:
         """Attempt to mark a webhook as processed.
 
         Returns:
-            True if this call successfully marked the webhook as processed.
-            False if the webhook was already processed.
+            True if first time processed, False if already seen.
 
-        Notes:
-            Uses a savepoint (nested transaction) so that IntegrityError
-            only rolls back this insert, not the entire transaction.
-            This allows the caller to continue with other DB operations.
+        Note:
+            Uses savepoint so IntegrityError doesn't invalidate the session.
         """
         processed = ProcessedWebhook(id=svix_id, event_type=event_type)
         try:
@@ -38,11 +35,7 @@ class ProcessedWebhookRepository:
         return True
 
     async def delete_older_than(self, *, days: int = 7) -> int:
-        """Delete processed webhook rows older than `days`.
-
-        Notes:
-            This does not commit; the caller controls the transaction.
-        """
+        """Delete processed webhook rows older than `days`. Does not commit."""
         cutoff = datetime.now(UTC) - timedelta(days=days)
         result = await self.db.execute(
             delete(ProcessedWebhook).where(ProcessedWebhook.processed_at < cutoff)

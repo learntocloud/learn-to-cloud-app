@@ -2,7 +2,7 @@
 
 from collections.abc import Sequence
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models import QuestionAttempt, StepProgress
@@ -82,12 +82,7 @@ class StepProgressRepository:
         topic_id: str,
         from_step_order: int,
     ) -> int:
-        """Delete step progress from a given step order onwards (cascading uncomplete).
-
-        Returns the number of deleted rows.
-        """
-        from sqlalchemy import delete
-
+        """Delete step progress from a given step onwards (cascading uncomplete)."""
         result = await self.db.execute(
             delete(StepProgress).where(
                 StepProgress.user_id == user_id,
@@ -110,10 +105,7 @@ class StepProgressRepository:
         return [row[0] for row in result.all()]
 
     async def get_all_completed_by_user(self, user_id: str) -> dict[str, set[int]]:
-        """Get all completed steps for a user, grouped by topic.
-
-        Returns a dict mapping topic_id to set of completed step_orders.
-        """
+        """Get all completed steps for a user, grouped by topic."""
         result = await self.db.execute(
             select(StepProgress.topic_id, StepProgress.step_order).where(
                 StepProgress.user_id == user_id
@@ -169,10 +161,7 @@ class QuestionAttemptRepository:
         self,
         user_id: str,
     ) -> dict[str, set[str]]:
-        """Get all passed questions for a user, grouped by topic.
-
-        Returns a dict mapping topic_id to set of passed question_ids.
-        """
+        """Get all passed questions for a user, grouped by topic."""
         result = await self.db.execute(
             select(QuestionAttempt.topic_id, QuestionAttempt.question_id)
             .where(
@@ -220,7 +209,7 @@ class QuestionAttemptRepository:
         result = await self.db.execute(
             select(func.distinct(QuestionAttempt.question_id)).where(
                 QuestionAttempt.user_id == user_id,
-                QuestionAttempt.is_passed.is_(True),
+                QuestionAttempt.is_passed,
             )
         )
         return [row[0] for row in result.all()]
