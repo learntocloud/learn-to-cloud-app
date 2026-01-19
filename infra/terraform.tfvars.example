@@ -1,0 +1,31 @@
+# -----------------------------------------------------------------------------
+# Learn to Cloud - Terraform Variables Example
+# -----------------------------------------------------------------------------
+# Copy this file to terraform.tfvars.local and fill in your values.
+# The .local file is gitignored and safe for secrets.
+#
+# Usage:
+#   cp terraform.tfvars.example terraform.tfvars.local
+#   # Edit terraform.tfvars.local with your values
+#   terraform plan -var-file="terraform.tfvars.local"
+# -----------------------------------------------------------------------------
+
+# Required - Azure subscription
+subscription_id = "your-azure-subscription-id"
+
+# Required - Clerk authentication (get from https://dashboard.clerk.com)
+clerk_publishable_key        = "pk_live_xxx"
+clerk_secret_key             = "sk_live_xxx"
+clerk_webhook_signing_secret = "whsec_xxx"
+
+# Required - Google API key for Gemini AI features
+google_api_key = "AIzaSyxxx"
+
+# Required - CTF master secret for flag generation
+ctf_master_secret = "your-secure-random-secret"
+
+# Optional - Override defaults
+# location               = "centralus"
+# environment            = "dev"
+# alert_email            = "learntocloud@gmail.com"
+# frontend_custom_domain = "app.yourdomain.com"
