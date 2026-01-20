@@ -1,18 +1,24 @@
 # CI/CD Setup Checklist
 
-## 1. GitHub Repository Variables
 
-**Repository → Settings → Secrets and variables → Actions → Variables**
+## 1. GitHub Environment Variables
 
+Set these in **Repository → Settings → Environments → [dev|production] → Variables**
+
+### Common Variables (set in each environment)
 - `AZURE_LOCATION`
 - `AZURE_SUBSCRIPTION_ID`
 - `CONTAINER_REGISTRY_NAME`
 - `CONTAINER_REGISTRY_ENDPOINT`
+
+### Dev Environment Only
 - `AZURE_RESOURCE_GROUP_DEV`
 - `CONTAINER_APP_NAME_DEV`
 - `API_URL_DEV`
 - `FRONTEND_URL_DEV`
 - `FRONTEND_CUSTOM_DOMAIN_DEV` (optional)
+
+### Production Environment Only
 - `AZURE_RESOURCE_GROUP_PROD`
 - `CONTAINER_APP_NAME_PROD`
 - `API_URL_PROD`
@@ -21,17 +27,21 @@
 
 ---
 
-## 2. GitHub Repository Secrets
 
-**Repository → Settings → Secrets and variables → Actions → Secrets**
+## 2. GitHub Environment Secrets
 
+### Common Secrets (set in each environment)
 - `AZURE_CREDENTIALS`
 - `CLERK_SECRET_KEY`
 - `CLERK_PUBLISHABLE_KEY`
 - `CLERK_WEBHOOK_SIGNING_SECRET`
 - `GOOGLE_API_KEY`
 - `CTF_MASTER_SECRET`
+
+### Dev Environment Only
 - `SWA_DEPLOYMENT_TOKEN_DEV`
+
+### Production Environment Only
 - `SWA_DEPLOYMENT_TOKEN_PROD`
 
 ---
