@@ -41,16 +41,10 @@ async def get_dashboard_endpoint(
     user_id: UserId,
     db: DbSession,
 ) -> DashboardResponse:
-    """Get complete dashboard data for the current user.
-
-    Returns:
-    - User info
-    - All phases with progress and locking status
-    - Overall progress statistics
-    """
+    """Get complete dashboard data for the current user."""
     user = await get_or_create_user(db, user_id)
 
-    dashboard = await get_dashboard(
+    return await get_dashboard(
         db=db,
         user_id=user_id,
         user_email=user.email,
@@ -60,9 +54,6 @@ async def get_dashboard_endpoint(
         user_github_username=user.github_username,
         is_admin=user.is_admin,
     )
-
-    # Service returns Pydantic model
-    return DashboardResponse.model_validate(dashboard.model_dump())
 
 
 @router.get("/phases", response_model=list[PhaseSummarySchema])
@@ -86,13 +77,9 @@ async def get_phases_endpoint(
     """
     if user_id:
         user = await get_or_create_user(db, user_id)
-        phases = await get_phases_list(db, user_id, user.is_admin)
-    else:
-        # Unauthenticated: return phases without progress
-        phases = await get_phases_list(db, None, False)
+        return await get_phases_list(db, user_id, user.is_admin)
 
-    # Service returns list of Pydantic models
-    return [PhaseSummarySchema.model_validate(phase.model_dump()) for phase in phases]
+    return await get_phases_list(db, None, False)
 
 
 @router.get("/phases/{phase_slug}", response_model=PhaseDetailSchema)
@@ -105,14 +92,7 @@ async def get_phase_detail_endpoint(
 ) -> PhaseDetailSchema:
     """Get detailed phase info with topics.
 
-    Returns:
-    - Phase info and objectives
-    - Topics with progress and locking status
-    - Hands-on requirements and submissions
-
-    For unauthenticated users:
-    - No progress data
-    - First topic unlocked, rest locked (if phase is accessible)
+    Unauthenticated: no progress, only first topic unlocked.
     """
     is_admin = False
     if user_id:
@@ -124,8 +104,7 @@ async def get_phase_detail_endpoint(
     if phase_detail is None:
         raise HTTPException(status_code=404, detail="Phase not found")
 
-    # Service returns Pydantic model
-    return PhaseDetailSchema.model_validate(phase_detail.model_dump())
+    return phase_detail
 
 
 @router.get(
@@ -142,16 +121,7 @@ async def get_topic_detail_endpoint(
 ) -> TopicDetailSchema:
     """Get detailed topic info with steps and questions.
 
-    Returns:
-    - Topic info
-    - Learning steps
-    - Knowledge questions
-    - Progress (completed steps, passed questions)
-    - Locking status
-
-    For unauthenticated users:
-    - No progress data
-    - Content shown but cannot be interacted with
+    Unauthenticated: no progress, content is read-only.
     """
     is_admin = False
     if user_id:
@@ -163,5 +133,4 @@ async def get_topic_detail_endpoint(
     if topic_detail is None:
         raise HTTPException(status_code=404, detail="Topic not found")
 
-    # Service returns Pydantic model
-    return TopicDetailSchema.model_validate(topic_detail.model_dump())
+    return topic_detail

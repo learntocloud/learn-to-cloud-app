@@ -15,12 +15,20 @@ from services.questions_service import (
     QuestionValidationError,
     submit_question_answer,
 )
-from services.users_service import get_or_create_user
+from services.users_service import ensure_user_exists
 
 router = APIRouter(prefix="/api/questions", tags=["questions"])
 
 
-@router.post("/submit", response_model=QuestionSubmitResponse)
+@router.post(
+    "/submit",
+    response_model=QuestionSubmitResponse,
+    responses={
+        400: {"description": "Invalid topic_id, question_id, or missing config"},
+        503: {"description": "Question grading service temporarily unavailable"},
+        500: {"description": "Internal grading error - retry suggested"},
+    },
+)
 @limiter.limit(EXTERNAL_API_LIMIT)
 async def submit_question_answer_endpoint(
     request: Request,
@@ -33,7 +41,7 @@ async def submit_question_answer_endpoint(
     The answer will be evaluated by Gemini and the user will receive
     immediate feedback on whether they passed.
     """
-    await get_or_create_user(db, user_id)
+    await ensure_user_exists(db, user_id)
 
     try:
         result = await submit_question_answer(

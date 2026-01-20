@@ -116,6 +116,32 @@ export function useUncompleteStep() {
   });
 }
 
+export function useSubmitQuestionAnswer() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      topicId,
+      questionId,
+      answer,
+    }: {
+      topicId: string;
+      questionId: string;
+      answer: string;
+    }) => api.submitAnswer(topicId, questionId, answer),
+    onSuccess: (result) => {
+      // Only invalidate caches if the answer was correct
+      if (result.is_passed) {
+        queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+        queryClient.invalidateQueries({ queryKey: ['phase'] });
+        queryClient.invalidateQueries({ queryKey: ['streak'] });
+        queryClient.invalidateQueries({ queryKey: ['topic'] });
+      }
+    },
+  });
+}
+
 export function useStreak() {
   const api = useApi();
   return useQuery({

@@ -70,6 +70,20 @@ def _to_user_response(user: User) -> UserResponse:
     )
 
 
+async def ensure_user_exists(db: AsyncSession, user_id: str) -> None:
+    """Ensure user row exists in DB (for FK constraints). Fast path - no Clerk API call.
+
+    Use this for endpoints that only need the user to exist but don't need profile data.
+    The user will be created as a placeholder if they don't exist yet (handles race
+    condition where API request arrives before Clerk webhook).
+
+    For endpoints that need user profile data (email, name, avatar, is_admin),
+    use get_or_create_user() instead.
+    """
+    user_repo = UserRepository(db)
+    await user_repo.get_or_create(user_id)
+
+
 @track_operation("user_get_or_create")
 async def get_or_create_user(db: AsyncSession, user_id: str) -> UserResponse:
     """Get user from DB or create placeholder (will be synced via webhook).

@@ -10,7 +10,7 @@ from schemas import (
     StreakResponse,
 )
 from services.activity_service import get_streak_data
-from services.users_service import get_or_create_user
+from services.users_service import ensure_user_exists
 
 logger = get_logger(__name__)
 
@@ -28,8 +28,12 @@ async def get_user_streak(
 
     Streak calculation allows up to 2 skipped days per week.
     """
-    await get_or_create_user(db, user_id)
+    await ensure_user_exists(db, user_id)
 
     streak_data = await get_streak_data(db, user_id)
+
+    logger.info(
+        "streak.fetched", user_id=user_id, current_streak=streak_data.current_streak
+    )
 
     return StreakResponse.model_validate(streak_data)

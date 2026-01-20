@@ -14,21 +14,36 @@ logger = get_logger(__name__)
 router = APIRouter(prefix="/api/webhooks", tags=["webhooks"])
 
 
-@router.post("/clerk", response_model=WebhookResponse)
+@router.post(
+    "/clerk",
+    response_model=WebhookResponse,
+    summary="Handle Clerk webhooks",
+    description=(
+        "Receives and processes Clerk webhook events for user synchronization. "
+        "Validates Svix signature and handles user.created, user.updated, "
+        "and user.deleted events."
+    ),
+    responses={
+        400: {"description": "Missing webhook headers or invalid signature"},
+        500: {"description": "Webhook signing secret not configured"},
+    },
+)
 async def clerk_webhook(request: Request, db: DbSession) -> WebhookResponse:
-    """Handle Clerk webhooks for user sync."""
     settings = get_settings()
     payload = await request.body()
-    headers = {
-        "svix-id": request.headers.get("svix-id"),
-        "svix-timestamp": request.headers.get("svix-timestamp"),
-        "svix-signature": request.headers.get("svix-signature"),
-    }
 
-    if not all(headers.values()):
+    svix_id = request.headers.get("svix-id")
+    svix_timestamp = request.headers.get("svix-timestamp")
+    svix_signature = request.headers.get("svix-signature")
+
+    if not svix_id or not svix_timestamp or not svix_signature:
         raise HTTPException(status_code=400, detail="Missing webhook headers")
 
-    verified_headers = {k: v for k, v in headers.items() if v is not None}
+    headers = {
+        "svix-id": svix_id,
+        "svix-timestamp": svix_timestamp,
+        "svix-signature": svix_signature,
+    }
 
     if not settings.clerk_webhook_signing_secret:
         raise HTTPException(
@@ -38,11 +53,15 @@ async def clerk_webhook(request: Request, db: DbSession) -> WebhookResponse:
 
     try:
         wh = Webhook(settings.clerk_webhook_signing_secret)
-        event = wh.verify(payload, verified_headers)
+        event = wh.verify(payload, headers)
     except WebhookVerificationError as e:
         logger.warning(
-            f"Webhook verification failed: svix_id={headers.get('svix-id')}, "
-            f"timestamp={headers.get('svix-timestamp')}, error={e}"
+            "Webhook verification failed",
+            extra={
+                "svix_id": svix_id,
+                "timestamp": svix_timestamp,
+                "error_type": type(e).__name__,
+            },
         )
         raise HTTPException(
             status_code=400,
@@ -51,7 +70,6 @@ async def clerk_webhook(request: Request, db: DbSession) -> WebhookResponse:
 
     event_type = event.get("type") or "unknown"
     data = event.get("data", {})
-    svix_id = verified_headers["svix-id"]
 
     status = await handle_clerk_event(
         db,

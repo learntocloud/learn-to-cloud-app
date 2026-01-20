@@ -23,7 +23,7 @@ from services.steps_service import (
     get_topic_step_progress,
     uncomplete_step,
 )
-from services.users_service import get_or_create_user
+from services.users_service import ensure_user_exists, get_or_create_user
 
 logger = get_logger(__name__)
 
@@ -37,41 +37,13 @@ ValidatedTopicId = Annotated[
 ValidatedStepOrder = Annotated[int, Path(ge=1)]
 
 
-@router.get("/{topic_id}", response_model=TopicStepProgressResponse)
-@limiter.limit("60/minute")
-async def get_topic_step_progress_endpoint(
-    request: Request,
-    topic_id: ValidatedTopicId,
-    user_id: UserId,
-    db: DbSession,
-) -> TopicStepProgressResponse:
-    """Get the step progress for a topic.
-
-    Args:
-        topic_id: The topic ID (e.g., "phase1-topic5")
-    """
-    user = await get_or_create_user(db, user_id)
-
-    try:
-        progress = await get_topic_step_progress(
-            db,
-            user_id,
-            topic_id,
-            is_admin=user.is_admin,
-        )
-    except StepUnknownTopicError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-    return TopicStepProgressResponse(
-        topic_id=progress.topic_id,
-        completed_steps=progress.completed_steps,
-        total_steps=progress.total_steps,
-        next_unlocked_step=progress.next_unlocked_step,
-    )
-
-
-@router.post("/complete", response_model=StepProgressResponse)
-@limiter.limit("60/minute")
+@router.post(
+    "/complete",
+    response_model=StepProgressResponse,
+    status_code=201,
+    responses={400: {"description": "Invalid step completion request"}},
+)
+@limiter.limit("30/minute")
 async def complete_step_endpoint(
     request: Request,
     body: StepCompleteRequest,
@@ -107,8 +79,49 @@ async def complete_step_endpoint(
     )
 
 
-@router.delete("/{topic_id}/{step_order}")
+@router.get(
+    "/{topic_id}",
+    response_model=TopicStepProgressResponse,
+    responses={400: {"description": "Unknown topic ID"}},
+)
 @limiter.limit("60/minute")
+async def get_topic_step_progress_endpoint(
+    request: Request,
+    topic_id: ValidatedTopicId,
+    user_id: UserId,
+    db: DbSession,
+) -> TopicStepProgressResponse:
+    """Get the step progress for a topic.
+
+    Args:
+        topic_id: The topic ID (e.g., "phase1-topic5")
+    """
+    user = await get_or_create_user(db, user_id)
+
+    try:
+        progress = await get_topic_step_progress(
+            db,
+            user_id,
+            topic_id,
+            is_admin=user.is_admin,
+        )
+    except StepUnknownTopicError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    return TopicStepProgressResponse(
+        topic_id=progress.topic_id,
+        completed_steps=progress.completed_steps,
+        total_steps=progress.total_steps,
+        next_unlocked_step=progress.next_unlocked_step,
+    )
+
+
+@router.delete(
+    "/{topic_id}/{step_order}",
+    response_model=StepUncompleteResponse,
+    responses={400: {"description": "Invalid topic or step order"}},
+)
+@limiter.limit("30/minute")
 async def uncomplete_step_endpoint(
     request: Request,
     topic_id: ValidatedTopicId,
@@ -120,7 +133,7 @@ async def uncomplete_step_endpoint(
 
     Also removes any steps after this one (cascading uncomplete).
     """
-    await get_or_create_user(db, user_id)
+    await ensure_user_exists(db, user_id)
 
     try:
         deleted_count = await uncomplete_step(db, user_id, topic_id, step_order)

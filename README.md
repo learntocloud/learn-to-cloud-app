@@ -36,27 +36,54 @@ A web application for tracking your progress through the [Learn to Cloud](https:
 
 ### Local Development
 
-```bash
-# Start database (required at least once; runs in Docker)
-docker-compose up -d db
+**1. Start the database (Docker)**
 
-# API (terminal 1)
+```bash
+docker compose up -d db
+```
+
+**2. API setup (terminal 1)**
+
+```bash
 cd api
-uv sync
-cp .env.example .env  # Or add DATABASE_URL to your existing api/.env
-.venv/bin/alembic upgrade head  # Apply Alembic migrations
+uv sync                    # Install Python dependencies
+cp .env.example .env       # Create environment config (edit if needed)
+```
+
+Run database migrations:
+
+```bash
+# macOS/Linux
+.venv/bin/alembic upgrade head
+
+# Windows
+.venv\Scripts\alembic upgrade head
+```
+
+Start the API:
+
+```bash
+# macOS/Linux
 .venv/bin/python -m uvicorn main:app --reload --port 8000
 
-# Frontend (terminal 2)
+# Windows
+.venv\Scripts\python -m uvicorn main:app --reload --port 8000
+```
+
+Or use VS Code's debugger with the **"API: FastAPI (uvicorn)"** launch configuration.
+
+**3. Frontend setup (terminal 2)**
+
+```bash
 cd frontend
 npm install
 cp .env.example .env.local  # Add VITE_CLERK_PUBLISHABLE_KEY
 npm run dev
 ```
 
-Notes:
-- The API does not start Postgres for you. You must run `docker compose up -d db` at least once.
-- After that you can use `docker compose start db` / `docker compose stop db` to manage it.
+**Notes:**
+- The API does not start Postgres for you. Run `docker compose up -d db` first.
+- Manage the database with `docker compose start db` / `docker compose stop db`.
 
 | Service | URL |
 |---------|-----|

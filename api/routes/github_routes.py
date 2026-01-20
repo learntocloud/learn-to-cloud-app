@@ -20,7 +20,15 @@ from services.users_service import get_or_create_user
 router = APIRouter(prefix="/api/github", tags=["github"])
 
 
-@router.post("/submit", response_model=HandsOnValidationResult)
+@router.post(
+    "/submit",
+    response_model=HandsOnValidationResult,
+    status_code=201,
+    responses={
+        400: {"description": "GitHub username required to submit"},
+        404: {"description": "Requirement not found"},
+    },
+)
 @limiter.limit(EXTERNAL_API_LIMIT)
 async def submit_github_validation(
     request: Request,
@@ -44,15 +52,10 @@ async def submit_github_validation(
     except GitHubUsernameRequiredError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-    # Service returns Pydantic models
     return HandsOnValidationResult(
         is_valid=result.is_valid,
         message=result.message,
-        username_match=result.username_match
-        if result.username_match is not None
-        else False,
-        repo_exists=result.repo_exists if result.repo_exists is not None else False,
-        submission=HandsOnSubmissionResponse.model_validate(
-            result.submission.model_dump()
-        ),
+        username_match=result.username_match or False,
+        repo_exists=result.repo_exists or False,
+        submission=HandsOnSubmissionResponse.model_validate(result.submission),
     )

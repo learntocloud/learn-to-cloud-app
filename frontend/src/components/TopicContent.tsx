@@ -5,9 +5,7 @@
 
 import { useState, useEffect } from 'react';
 import type { TopicDetailSchema, ProviderOptionSchema } from '@/lib/api-client';
-import { useAuth } from '@clerk/clerk-react';
-import { createApiClient } from '@/lib/api-client';
-import { useCompleteStep, useUncompleteStep } from '@/lib/hooks';
+import { useCompleteStep, useUncompleteStep, useSubmitQuestionAnswer } from '@/lib/hooks';
 import { KnowledgeQuestion } from './KnowledgeQuestion';
 
 // Provider Options Tab Component
@@ -80,12 +78,10 @@ export function TopicContent({
   topic,
   isAuthenticated,
 }: TopicContentProps) {
-  const { getToken } = useAuth();
-  const api = createApiClient(getToken);
-
   // Use React Query mutations for proper cache invalidation
   const completeStepMutation = useCompleteStep();
   const uncompleteStepMutation = useUncompleteStep();
+  const submitQuestionMutation = useSubmitQuestionAnswer();
 
   // Track local state for step completion (from the topic detail response)
   const [completedSteps, setCompletedSteps] = useState<number[]>(topic.completed_step_orders || []);
@@ -133,10 +129,14 @@ export function TopicContent({
     if (!isAuthenticated) return { is_passed: false, llm_feedback: 'Not authenticated' };
 
     try {
-      // Use topic.id (e.g., "phase0-topic1") for the API call
-      const result = await api.submitAnswer(topic.id, questionId, answer);
+      // Use React Query mutation for proper cache invalidation
+      const result = await submitQuestionMutation.mutateAsync({
+        topicId: topic.id,
+        questionId,
+        answer,
+      });
 
-      // Update local state if passed
+      // Update local state if passed (for immediate UI feedback)
       if (result.is_passed) {
         setPassedQuestions((prev) => (prev.includes(questionId) ? prev : [...prev, questionId]));
       }

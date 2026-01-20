@@ -1,4 +1,8 @@
-"""Certificate generation and verification endpoints."""
+"""Certificate generation and verification endpoints.
+
+Route ordering note: Literal path segments (/verify/, /eligibility/) are defined
+before parameterized segments (/{certificate_id}/) to prevent routing conflicts.
+"""
 
 from fastapi import APIRouter, HTTPException, Path, Query, Request, Response
 
@@ -25,7 +29,7 @@ from services.certificates_service import (
     verify_certificate,
     verify_certificate_with_message,
 )
-from services.users_service import get_or_create_user
+from services.users_service import ensure_user_exists
 
 router = APIRouter(prefix="/api/certificates", tags=["certificates"])
 
@@ -38,6 +42,61 @@ def _get_cache_control() -> str:
     return "public, max-age=3600"
 
 
+# --- Collection endpoints ---
+
+
+@router.post("", response_model=CertificateResponse, status_code=201)
+async def generate_certificate_endpoint(
+    request: CertificateRequest,
+    user_id: UserId,
+    db: DbSession,
+) -> CertificateResponse:
+    """Generate a completion certificate for eligible users."""
+    await ensure_user_exists(db, user_id)
+
+    try:
+        result = await create_certificate(
+            db=db,
+            user_id=user_id,
+            certificate_type=request.certificate_type,
+            recipient_name=request.recipient_name,
+        )
+    except CertificateAlreadyExistsError:
+        raise HTTPException(
+            status_code=409,
+            detail="Certificate already issued. Use GET /certificates to retrieve it.",
+        )
+    except NotEligibleError as e:
+        raise HTTPException(
+            status_code=403,
+            detail=str(e),
+        )
+
+    return result.certificate
+
+
+@router.get("", response_model=UserCertificatesResponse)
+async def get_user_certificates(
+    user_id: UserId,
+    db: DbSession,
+) -> UserCertificatesResponse:
+    """Get all certificates for the authenticated user."""
+    await ensure_user_exists(db, user_id)
+
+    (
+        certificates,
+        full_completion_eligible,
+    ) = await get_user_certificates_with_eligibility(db, user_id)
+
+    return UserCertificatesResponse(
+        certificates=list(certificates),
+        full_completion_eligible=full_completion_eligible,
+    )
+
+
+# --- Literal path routes (before parameterized) ---
+
+
 @router.get(
     "/eligibility/{certificate_type}",
     response_model=CertificateEligibilityResponse,
@@ -48,7 +107,7 @@ async def check_certificate_eligibility(
     db: DbSession,
 ) -> CertificateEligibilityResponse:
     """Check if user is eligible for a specific certificate type."""
-    await get_or_create_user(db, user_id)
+    await ensure_user_exists(db, user_id)
 
     if certificate_type != "full_completion":
         raise HTTPException(
@@ -75,120 +134,6 @@ async def check_certificate_eligibility(
     )
 
 
-@router.post("", response_model=CertificateResponse)
-async def generate_certificate_endpoint(
-    request: CertificateRequest,
-    user_id: UserId,
-    db: DbSession,
-) -> CertificateResponse:
-    """Generate a completion certificate for eligible users."""
-    await get_or_create_user(db, user_id)
-
-    try:
-        result = await create_certificate(
-            db=db,
-            user_id=user_id,
-            certificate_type=request.certificate_type,
-            recipient_name=request.recipient_name,
-        )
-    except CertificateAlreadyExistsError:
-        raise HTTPException(
-            status_code=409,
-            detail="Certificate already issued. Use GET /certificates to retrieve it.",
-        )
-    except NotEligibleError as e:
-        raise HTTPException(
-            status_code=403,
-            detail=str(e),
-        )
-
-    # Service returns CertificateData Pydantic model
-    return CertificateResponse.model_validate(result.certificate.model_dump())
-
-
-@router.get("", response_model=UserCertificatesResponse)
-async def get_user_certificates(
-    user_id: UserId,
-    db: DbSession,
-) -> UserCertificatesResponse:
-    """Get all certificates for the authenticated user."""
-    await get_or_create_user(db, user_id)
-
-    (
-        certificates,
-        full_completion_eligible,
-    ) = await get_user_certificates_with_eligibility(db, user_id)
-
-    return UserCertificatesResponse(
-        certificates=[
-            CertificateResponse.model_validate(c.model_dump()) for c in certificates
-        ],
-        full_completion_eligible=full_completion_eligible,
-    )
-
-
-@router.get("/{certificate_id}/pdf")
-@limiter.limit("10/minute")
-async def get_certificate_pdf_endpoint(
-    request: Request,
-    certificate_id: int,
-    user_id: UserId,
-    db: DbSession,
-) -> Response:
-    """Get the PDF for a certificate."""
-    certificate = await get_certificate_by_id(db, certificate_id, user_id)
-
-    if not certificate:
-        raise HTTPException(status_code=404, detail="Certificate not found")
-
-    pdf_content = await generate_certificate_pdf(certificate)
-
-    return Response(
-        content=pdf_content,
-        media_type="application/pdf",
-        headers={
-            "Content-Disposition": (
-                f'attachment; filename="ltc-certificate-'
-                f'{certificate.verification_code}.pdf"'
-            ),
-            "Cache-Control": _get_cache_control(),
-        },
-    )
-
-
-@router.get("/{certificate_id}/png")
-@limiter.limit("10/minute")
-async def get_certificate_png_endpoint(
-    request: Request,
-    certificate_id: int,
-    user_id: UserId,
-    db: DbSession,
-    scale: float = Query(2.0, ge=1.0, le=4.0),
-) -> Response:
-    """Get a PNG image for a certificate."""
-    certificate = await get_certificate_by_id(db, certificate_id, user_id)
-
-    if not certificate:
-        raise HTTPException(status_code=404, detail="Certificate not found")
-
-    try:
-        png_content = await generate_certificate_png(certificate, scale=scale)
-    except RuntimeError as e:
-        raise HTTPException(status_code=501, detail=str(e)) from e
-
-    return Response(
-        content=png_content,
-        media_type="image/png",
-        headers={
-            "Content-Disposition": (
-                f'inline; filename="ltc-certificate-'
-                f'{certificate.verification_code}.png"'
-            ),
-            "Cache-Control": _get_cache_control(),
-        },
-    )
-
-
 @router.get("/verify/{verification_code}", response_model=CertificateVerifyResponse)
 async def verify_certificate_endpoint(
     db: DbSession,
@@ -200,14 +145,17 @@ async def verify_certificate_endpoint(
 
     return CertificateVerifyResponse(
         is_valid=result.is_valid,
-        certificate=CertificateResponse.model_validate(result.certificate)
-        if result.certificate
-        else None,
+        certificate=result.certificate,
         message=result.message,
     )
 
 
-@router.get("/verify/{verification_code}/pdf")
+@router.get(
+    "/verify/{verification_code}/pdf",
+    responses={
+        200: {"content": {"application/pdf": {}}, "description": "PDF certificate"}
+    },
+)
 @limiter.limit("10/minute")
 async def get_verified_certificate_pdf_endpoint(
     request: Request,
@@ -236,7 +184,12 @@ async def get_verified_certificate_pdf_endpoint(
     )
 
 
-@router.get("/verify/{verification_code}/png")
+@router.get(
+    "/verify/{verification_code}/png",
+    responses={
+        200: {"content": {"image/png": {}}, "description": "PNG certificate image"}
+    },
+)
 @limiter.limit("10/minute")
 async def get_verified_certificate_png_endpoint(
     request: Request,
@@ -247,6 +200,81 @@ async def get_verified_certificate_png_endpoint(
 ) -> Response:
     """Get a PNG image for a verified certificate (public endpoint)."""
     certificate = await verify_certificate(db, verification_code)
+
+    if not certificate:
+        raise HTTPException(status_code=404, detail="Certificate not found")
+
+    try:
+        png_content = await generate_certificate_png(certificate, scale=scale)
+    except RuntimeError as e:
+        raise HTTPException(status_code=501, detail=str(e)) from e
+
+    return Response(
+        content=png_content,
+        media_type="image/png",
+        headers={
+            "Content-Disposition": (
+                f'inline; filename="ltc-certificate-'
+                f'{certificate.verification_code}.png"'
+            ),
+            "Cache-Control": _get_cache_control(),
+        },
+    )
+
+
+# --- Parameterized routes ---
+
+
+@router.get(
+    "/{certificate_id}/pdf",
+    responses={
+        200: {"content": {"application/pdf": {}}, "description": "PDF certificate"}
+    },
+)
+@limiter.limit("10/minute")
+async def get_certificate_pdf_endpoint(
+    request: Request,
+    certificate_id: int,
+    user_id: UserId,
+    db: DbSession,
+) -> Response:
+    """Get the PDF for a certificate."""
+    certificate = await get_certificate_by_id(db, certificate_id, user_id)
+
+    if not certificate:
+        raise HTTPException(status_code=404, detail="Certificate not found")
+
+    pdf_content = await generate_certificate_pdf(certificate)
+
+    return Response(
+        content=pdf_content,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": (
+                f'attachment; filename="ltc-certificate-'
+                f'{certificate.verification_code}.pdf"'
+            ),
+            "Cache-Control": _get_cache_control(),
+        },
+    )
+
+
+@router.get(
+    "/{certificate_id}/png",
+    responses={
+        200: {"content": {"image/png": {}}, "description": "PNG certificate image"}
+    },
+)
+@limiter.limit("10/minute")
+async def get_certificate_png_endpoint(
+    request: Request,
+    certificate_id: int,
+    user_id: UserId,
+    db: DbSession,
+    scale: float = Query(2.0, ge=1.0, le=4.0),
+) -> Response:
+    """Get a PNG image for a certificate."""
+    certificate = await get_certificate_by_id(db, certificate_id, user_id)
 
     if not certificate:
         raise HTTPException(status_code=404, detail="Certificate not found")

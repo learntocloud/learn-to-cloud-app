@@ -53,7 +53,18 @@ async def health_detailed(request: Request) -> DetailedHealthResponse:
     )
 
 
-@router.get("/ready", response_model=HealthResponse)
+@router.get(
+    "/ready",
+    response_model=HealthResponse,
+    responses={
+        503: {
+            "description": "Service unavailable - init failed or DB unreachable",
+            "content": {
+                "application/json": {"example": {"detail": "Database unavailable"}}
+            },
+        }
+    },
+)
 async def ready(request: Request) -> HealthResponse:
     """Readiness endpoint.
 
