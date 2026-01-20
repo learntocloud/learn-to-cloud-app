@@ -1,16 +1,15 @@
 """Clerk webhook endpoints."""
 
-import logging
-
 from fastapi import APIRouter, HTTPException, Request
 from svix.webhooks import Webhook, WebhookVerificationError
 
+from core import get_logger
 from core.config import get_settings
 from core.database import DbSession
 from schemas import WebhookResponse
 from services.webhooks_service import handle_clerk_event
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/webhooks", tags=["webhooks"])
 

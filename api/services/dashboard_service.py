@@ -8,177 +8,43 @@ This module provides dashboard data by combining:
 Source of truth: .github/skills/progression-system/progression-system.md
 """
 
-import logging
-from dataclasses import dataclass
-from datetime import datetime
-from typing import Any
-
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from core import get_logger
 from models import Submission
 from repositories.progress_repository import (
     QuestionAttemptRepository,
     StepProgressRepository,
 )
 from repositories.submission_repository import SubmissionRepository
+from schemas import (
+    BadgeData,
+    DashboardData,
+    HandsOnSubmissionResponse,
+    PhaseDetailData,
+    PhaseProgressData,
+    PhaseSummaryData,
+    Topic,
+    TopicDetailData,
+    TopicProgressData,
+    TopicSummaryData,
+    UserSummaryData,
+)
 from services.activity_service import get_streak_data
 from services.badges_service import compute_all_badges
 from services.content_service import (
-    Topic,
     get_all_phases,
     get_phase_by_slug,
     get_topic_by_slugs,
 )
-from services.phase_requirements_service import (
-    HandsOnRequirementData,
-    get_requirements_for_phase,
-)
+from services.phase_requirements_service import get_requirements_for_phase
 from services.progress_service import (
     PhaseProgress,
     fetch_user_progress,
     get_phase_completion_counts,
 )
 
-logger = logging.getLogger(__name__)
-
-
-@dataclass(frozen=True)
-class BadgeData:
-    id: str
-    name: str
-    description: str
-    icon: str
-
-
-@dataclass(frozen=True)
-class UserSummaryData:
-    id: str
-    email: str
-    first_name: str | None
-    last_name: str | None
-    avatar_url: str | None
-    github_username: str | None
-    is_admin: bool
-
-
-@dataclass(frozen=True)
-class TopicProgressData:
-    steps_completed: int
-    steps_total: int
-    questions_passed: int
-    questions_total: int
-    percentage: float
-    status: str
-
-
-@dataclass(frozen=True)
-class TopicSummaryData:
-    id: str
-    slug: str
-    name: str
-    description: str
-    order: int
-    estimated_time: str
-    is_capstone: bool
-    steps_count: int
-    questions_count: int
-    progress: TopicProgressData | None
-    is_locked: bool
-
-
-@dataclass(frozen=True)
-class PhaseProgressData:
-    steps_completed: int
-    steps_required: int
-    questions_passed: int
-    questions_required: int
-    hands_on_validated: int
-    hands_on_required: int
-    percentage: float
-    status: str
-
-
-@dataclass(frozen=True)
-class PhaseSummaryData:
-    id: int
-    name: str
-    slug: str
-    description: str
-    short_description: str
-    estimated_weeks: str
-    order: int
-    topics_count: int
-    objectives: list[str]
-    capstone: object | None
-    hands_on_verification: object | None
-    progress: PhaseProgressData | None
-    is_locked: bool
-
-
-@dataclass(frozen=True)
-class HandsOnSubmissionData:
-    id: int
-    requirement_id: str
-    submission_type: object
-    phase_id: int
-    submitted_value: str
-    extracted_username: str | None
-    is_validated: bool
-    validated_at: datetime | None
-    created_at: datetime
-
-
-@dataclass(frozen=True)
-class PhaseDetailData:
-    id: int
-    name: str
-    slug: str
-    description: str
-    short_description: str
-    estimated_weeks: str
-    order: int
-    objectives: list[str]
-    capstone: object | None
-    hands_on_verification: object | None
-    topics: list[TopicSummaryData]
-    progress: PhaseProgressData | None
-    hands_on_requirements: list[HandsOnRequirementData]
-    hands_on_submissions: list[HandsOnSubmissionData]
-    is_locked: bool
-    all_topics_complete: bool
-    all_hands_on_validated: bool
-    is_phase_complete: bool
-
-
-@dataclass(frozen=True)
-class TopicDetailData:
-    id: str
-    slug: str
-    name: str
-    description: str
-    order: int
-    estimated_time: str
-    is_capstone: bool
-    learning_steps: list[Any]
-    questions: list[Any]
-    learning_objectives: list[Any]
-    progress: TopicProgressData | None
-    completed_step_orders: list[int]
-    passed_question_ids: list[str]
-    is_locked: bool
-    is_topic_locked: bool
-    previous_topic_name: str | None
-
-
-@dataclass(frozen=True)
-class DashboardData:
-    user: UserSummaryData
-    phases: list[PhaseSummaryData]
-    overall_progress: float
-    phases_completed: int
-    phases_total: int
-    current_phase: int | None
-    badges: list[BadgeData]
+logger = get_logger(__name__)
 
 
 def _compute_topic_progress(
@@ -226,14 +92,13 @@ def _is_topic_complete(
     completed_steps: set[int],
     passed_question_ids: set[str],
 ) -> bool:
-    """Check if a topic is complete (all steps + all questions)."""
     return len(completed_steps) >= len(topic.learning_steps) and len(
         passed_question_ids
     ) >= len(topic.questions)
 
 
 def _phase_progress_to_data(progress: PhaseProgress) -> PhaseProgressData:
-    """Convert PhaseProgress dataclass to a DTO."""
+    """Convert PhaseProgress to response model."""
     if progress.is_complete:
         status = "completed"
     elif (
@@ -257,9 +122,9 @@ def _phase_progress_to_data(progress: PhaseProgress) -> PhaseProgressData:
     )
 
 
-def _to_hands_on_submission_data(submission: Submission) -> HandsOnSubmissionData:
-    # Avoid importing ORM models into the routes layer; service returns a DTO.
-    return HandsOnSubmissionData(
+def _to_hands_on_submission_data(submission: Submission) -> HandsOnSubmissionResponse:
+    # Avoid importing ORM models into routes layer; service returns response model.
+    return HandsOnSubmissionResponse(
         id=submission.id,
         requirement_id=submission.requirement_id,
         submission_type=submission.submission_type,
@@ -284,13 +149,7 @@ async def get_dashboard(
 ) -> DashboardData:
     """Get complete dashboard data for a user.
 
-    This is the main entry point for dashboard data. It:
-    1. Loads all phases from content
-    2. Fetches user progress from database
-    3. Computes phase/topic completion status
-    4. Determines locking based on progression rules
-
-    Locking rules from skill file:
+    Locking rules:
     - Phase 0: Always unlocked
     - Phases 1-6: Previous phase must be complete
     - Admin users: Bypass all locks
@@ -299,13 +158,12 @@ async def get_dashboard(
     user_progress = await fetch_user_progress(db, user_id)
 
     phase_summaries: list[PhaseSummaryData] = []
-    prev_phase_complete = True  # Phase 0 is always "unlocked"
+    prev_phase_complete = True
 
     for phase in phases:
         progress = user_progress.phases.get(phase.id)
         progress_data = _phase_progress_to_data(progress) if progress else None
 
-        # Locking logic
         if is_admin:
             is_locked = False
         elif phase.id == 0:
@@ -331,23 +189,19 @@ async def get_dashboard(
             )
         )
 
-        # Update for next iteration
         prev_phase_complete = progress.is_complete if progress else False
 
-    # Calculate overall stats
     overall_percentage = user_progress.overall_percentage
     phases_completed = user_progress.phases_completed
     current_phase = user_progress.current_phase
 
-    # Compute badges
     phase_completion_counts = get_phase_completion_counts(user_progress)
-
-    # Get streak for streak badges
     streak_data = await get_streak_data(db, user_id)
 
     earned_badges = compute_all_badges(
         phase_completion_counts=phase_completion_counts,
         longest_streak=streak_data.longest_streak,
+        user_id=user_id,
     )
     badges = [
         BadgeData(
@@ -391,7 +245,6 @@ async def get_phases_list(
     """
     phases = get_all_phases()
 
-    # For unauthenticated users, no progress data
     if user_id is None:
         return [
             PhaseSummaryData(
@@ -407,7 +260,7 @@ async def get_phases_list(
                 capstone=phase.capstone,
                 hands_on_verification=phase.hands_on_verification,
                 progress=None,
-                is_locked=(phase.id != 0),  # Only phase 0 unlocked for visitors
+                is_locked=(phase.id != 0),
             )
             for phase in phases
         ]
@@ -459,28 +312,20 @@ async def get_phase_detail(
 ) -> PhaseDetailData | None:
     """Get detailed phase info with topics and progress.
 
-    Topic locking rules from skill file:
+    Topic locking rules:
     - First topic in phase: Always unlocked (if phase is unlocked)
     - Subsequent topics: Previous topic must be complete
     - Admin users: Bypass all locks
-
-    For unauthenticated users:
-    - No progress data
-    - First topic unlocked (if phase is Phase 0)
-    - Other topics locked
     """
     phase = get_phase_by_slug(phase_slug)
     if not phase:
         return None
 
-    # For unauthenticated users
     if user_id is None:
-        # Only Phase 0 is accessible
         phase_is_locked = phase.id != 0
 
         topic_summaries: list[TopicSummaryData] = []
         for topic in phase.topics:
-            # Only first topic unlocked for Phase 0
             topic_is_locked = phase_is_locked or topic.order != 1
 
             topic_summaries.append(
@@ -499,7 +344,6 @@ async def get_phase_detail(
                 )
             )
 
-        # Get hands-on requirements (but no submissions for unauthenticated)
         hands_on_reqs = get_requirements_for_phase(phase.id)
 
         return PhaseDetailData(
@@ -518,17 +362,14 @@ async def get_phase_detail(
             hands_on_requirements=list(hands_on_reqs),
             hands_on_submissions=[],
             is_locked=phase_is_locked,
-            # Unauthenticated users: all computed fields are False
             all_topics_complete=False,
             all_hands_on_validated=False,
             is_phase_complete=False,
         )
 
-    # Get user progress for this phase and previous phase
     user_progress = await fetch_user_progress(db, user_id)
     phase_progress = user_progress.phases.get(phase.id)
 
-    # Check if this phase is locked
     if is_admin:
         phase_is_locked = False
     elif phase.id == 0:
@@ -537,16 +378,13 @@ async def get_phase_detail(
         prev_progress = user_progress.phases.get(phase.id - 1)
         phase_is_locked = not (prev_progress and prev_progress.is_complete)
 
-    # Get step and question progress for topics
-    # Use batched queries to avoid N+1 problem (2 queries total instead of 2*N)
+    # Batch queries to avoid N+1 (2 queries instead of 2*N)
     step_repo = StepProgressRepository(db)
     question_repo = QuestionAttemptRepository(db)
 
-    # Batch fetch all completed steps and questions for user in single queries
     all_steps_by_topic = await step_repo.get_all_completed_by_user(user_id)
     all_questions_by_topic = await question_repo.get_all_passed_by_user(user_id)
 
-    # Filter to just topics in this phase
     phase_topic_ids = {topic.id for topic in phase.topics}
     steps_by_topic: dict[str, set[int]] = {
         tid: steps
@@ -557,7 +395,6 @@ async def get_phase_detail(
         tid: qs for tid, qs in all_questions_by_topic.items() if tid in phase_topic_ids
     }
 
-    # Build topic summaries with locking
     topic_summaries: list[TopicSummaryData] = []
     prev_topic_complete = True
 
@@ -569,7 +406,6 @@ async def get_phase_detail(
             topic, completed_steps, passed_questions
         )
 
-        # Topic locking
         if is_admin:
             topic_is_locked = False
         elif phase_is_locked:
@@ -610,12 +446,11 @@ async def get_phase_detail(
     else:
         progress_data = None
 
-    # Compute completion status fields (business logic lives here, NOT in frontend)
+    # Business logic lives here, NOT in frontend
     all_topics_complete = is_admin or all(
         t.progress and t.progress.status == "completed" for t in topic_summaries
     )
 
-    # Check if all hands-on requirements are validated
     validated_req_ids = {
         sub.requirement_id for sub in db_submissions if sub.is_validated
     }
@@ -655,14 +490,7 @@ async def get_topic_detail(
     topic_slug: str,
     is_admin: bool,
 ) -> TopicDetailData | None:
-    """Get detailed topic info with steps, questions, and progress.
-
-    Includes locking status and previous topic name for UI messaging.
-
-    For unauthenticated users:
-    - No progress data
-    - Content is viewable but not interactive
-    """
+    """Get detailed topic info with steps, questions, and progress."""
     phase = get_phase_by_slug(phase_slug)
     if not phase:
         return None
@@ -671,12 +499,10 @@ async def get_topic_detail(
     if not topic:
         return None
 
-    # Build learning steps and questions (same for all users)
     learning_steps = list(topic.learning_steps)
     questions = list(topic.questions)
     learning_objectives = list(topic.learning_objectives)
 
-    # For unauthenticated users
     if user_id is None:
         phase_is_locked = phase.id != 0
         topic_is_locked = phase_is_locked or topic.order != 1
@@ -709,10 +535,8 @@ async def get_topic_detail(
             previous_topic_name=previous_topic_name,
         )
 
-    # Get user progress
     user_progress = await fetch_user_progress(db, user_id)
 
-    # Check phase locking
     if is_admin:
         phase_is_locked = False
     elif phase.id == 0:
@@ -721,18 +545,20 @@ async def get_topic_detail(
         prev_progress = user_progress.phases.get(phase.id - 1)
         phase_is_locked = not (prev_progress and prev_progress.is_complete)
 
-    # Get step and question progress
+    # Batch queries to avoid N+1
     step_repo = StepProgressRepository(db)
     question_repo = QuestionAttemptRepository(db)
 
-    completed_steps = await step_repo.get_completed_step_orders(user_id, topic.id)
-    passed_question_ids = await question_repo.get_passed_question_ids(user_id, topic.id)
+    all_steps_by_topic = await step_repo.get_all_completed_by_user(user_id)
+    all_questions_by_topic = await question_repo.get_all_passed_by_user(user_id)
+
+    completed_steps = all_steps_by_topic.get(topic.id, set())
+    passed_question_ids = all_questions_by_topic.get(topic.id, set())
 
     topic_progress = _compute_topic_progress(
         topic, completed_steps, passed_question_ids
     )
 
-    # Check topic locking
     topic_index = next((i for i, t in enumerate(phase.topics) if t.id == topic.id), 0)
     previous_topic_name: str | None = None
     topic_is_locked = False
@@ -741,12 +567,8 @@ async def get_topic_detail(
         prev_topic = phase.topics[topic_index - 1]
         previous_topic_name = prev_topic.name
 
-        prev_completed_steps = await step_repo.get_completed_step_orders(
-            user_id, prev_topic.id
-        )
-        prev_passed_questions = await question_repo.get_passed_question_ids(
-            user_id, prev_topic.id
-        )
+        prev_completed_steps = all_steps_by_topic.get(prev_topic.id, set())
+        prev_passed_questions = all_questions_by_topic.get(prev_topic.id, set())
 
         if not _is_topic_complete(
             prev_topic, prev_completed_steps, prev_passed_questions

@@ -9,11 +9,9 @@ All progress calculation and locking logic follows
 .github/skills/progression-system/progression-system.md
 """
 
-import logging
-from dataclasses import asdict
-
 from fastapi import APIRouter, HTTPException, Request
 
+from core import get_logger
 from core.auth import OptionalUserId, UserId
 from core.database import DbSession
 from core.ratelimit import limiter
@@ -31,7 +29,7 @@ from services.dashboard_service import (
 )
 from services.users_service import get_or_create_user
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/user", tags=["dashboard"])
 
@@ -52,7 +50,7 @@ async def get_dashboard_endpoint(
     """
     user = await get_or_create_user(db, user_id)
 
-    dto = await get_dashboard(
+    dashboard = await get_dashboard(
         db=db,
         user_id=user_id,
         user_email=user.email,
@@ -63,7 +61,8 @@ async def get_dashboard_endpoint(
         is_admin=user.is_admin,
     )
 
-    return DashboardResponse.model_validate(asdict(dto))
+    # Service returns Pydantic model
+    return DashboardResponse.model_validate(dashboard.model_dump())
 
 
 @router.get("/phases", response_model=list[PhaseSummarySchema])
@@ -87,12 +86,13 @@ async def get_phases_endpoint(
     """
     if user_id:
         user = await get_or_create_user(db, user_id)
-        dtos = await get_phases_list(db, user_id, user.is_admin)
+        phases = await get_phases_list(db, user_id, user.is_admin)
     else:
         # Unauthenticated: return phases without progress
-        dtos = await get_phases_list(db, None, False)
+        phases = await get_phases_list(db, None, False)
 
-    return [PhaseSummarySchema.model_validate(asdict(dto)) for dto in dtos]
+    # Service returns list of Pydantic models
+    return [PhaseSummarySchema.model_validate(phase.model_dump()) for phase in phases]
 
 
 @router.get("/phases/{phase_slug}", response_model=PhaseDetailSchema)
@@ -119,12 +119,13 @@ async def get_phase_detail_endpoint(
         user = await get_or_create_user(db, user_id)
         is_admin = user.is_admin
 
-    dto = await get_phase_detail(db, user_id, phase_slug, is_admin)
+    phase_detail = await get_phase_detail(db, user_id, phase_slug, is_admin)
 
-    if dto is None:
+    if phase_detail is None:
         raise HTTPException(status_code=404, detail="Phase not found")
 
-    return PhaseDetailSchema.model_validate(asdict(dto))
+    # Service returns Pydantic model
+    return PhaseDetailSchema.model_validate(phase_detail.model_dump())
 
 
 @router.get(
@@ -157,9 +158,10 @@ async def get_topic_detail_endpoint(
         user = await get_or_create_user(db, user_id)
         is_admin = user.is_admin
 
-    dto = await get_topic_detail(db, user_id, phase_slug, topic_slug, is_admin)
+    topic_detail = await get_topic_detail(db, user_id, phase_slug, topic_slug, is_admin)
 
-    if dto is None:
+    if topic_detail is None:
         raise HTTPException(status_code=404, detail="Topic not found")
 
-    return TopicDetailSchema.model_validate(asdict(dto))
+    # Service returns Pydantic model
+    return TopicDetailSchema.model_validate(topic_detail.model_dump())

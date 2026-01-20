@@ -8,14 +8,24 @@ Content files are located in frontend/public/content/phases/ (dev) or
 """
 
 import json
-import logging
-from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 
+from core import get_logger
 from core.config import get_settings
+from schemas import (
+    LearningObjective,
+    LearningStep,
+    Phase,
+    PhaseCapstoneOverview,
+    PhaseHandsOnVerificationOverview,
+    ProviderOption,
+    Question,
+    SecondaryLink,
+    Topic,
+)
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def _get_content_dir() -> Path:
@@ -24,109 +34,6 @@ def _get_content_dir() -> Path:
     Lazily accessed to avoid module-level settings initialization.
     """
     return get_settings().content_dir_path
-
-
-@dataclass(frozen=True)
-class SecondaryLink:
-    """A secondary link in a learning step description."""
-
-    text: str
-    url: str
-
-
-@dataclass(frozen=True)
-class ProviderOption:
-    """Cloud provider-specific option for a learning step."""
-
-    provider: str  # "aws", "azure", "gcp"
-    title: str
-    url: str
-    description: str | None = None
-
-
-@dataclass(frozen=True)
-class LearningStep:
-    """A learning step within a topic."""
-
-    order: int
-    text: str
-    action: str | None = None
-    title: str | None = None
-    url: str | None = None
-    description: str | None = None
-    code: str | None = None
-    secondary_links: tuple[SecondaryLink, ...] = ()
-    options: tuple[ProviderOption, ...] = ()
-
-
-@dataclass(frozen=True)
-class Question:
-    """A knowledge check question."""
-
-    id: str
-    prompt: str
-    expected_concepts: tuple[str, ...] = ()
-
-
-@dataclass(frozen=True)
-class LearningObjective:
-    """A learning objective for a topic."""
-
-    id: str
-    text: str
-    order: int
-
-
-@dataclass(frozen=True)
-class Topic:
-    """A topic within a phase."""
-
-    id: str
-    slug: str
-    name: str
-    description: str
-    order: int
-    estimated_time: str
-    is_capstone: bool
-    learning_steps: tuple[LearningStep, ...]
-    questions: tuple[Question, ...]
-    learning_objectives: tuple[LearningObjective, ...] = ()
-
-
-@dataclass(frozen=True)
-class PhaseCapstoneOverview:
-    """High-level capstone overview for a phase (public summary)."""
-
-    title: str
-    summary: str
-    includes: tuple[str, ...] = ()
-    topic_slug: str | None = None
-
-
-@dataclass(frozen=True)
-class PhaseHandsOnVerificationOverview:
-    """High-level hands-on verification overview for a phase (public summary)."""
-
-    summary: str
-    includes: tuple[str, ...] = ()
-
-
-@dataclass(frozen=True)
-class Phase:
-    """A phase in the curriculum."""
-
-    id: int
-    name: str
-    slug: str
-    description: str
-    short_description: str
-    estimated_weeks: str
-    order: int
-    objectives: tuple[str, ...]
-    capstone: PhaseCapstoneOverview | None
-    hands_on_verification: PhaseHandsOnVerificationOverview | None
-    topic_slugs: tuple[str, ...]
-    topics: tuple[Topic, ...]
 
 
 def _load_topic(phase_dir: Path, topic_slug: str) -> Topic | None:
@@ -140,7 +47,7 @@ def _load_topic(phase_dir: Path, topic_slug: str) -> Topic | None:
         with open(topic_file, encoding="utf-8") as f:
             data = json.load(f)
 
-        learning_steps = tuple(
+        learning_steps = [
             LearningStep(
                 order=s.get("order", i + 1),
                 text=s.get("text", ""),
@@ -149,11 +56,11 @@ def _load_topic(phase_dir: Path, topic_slug: str) -> Topic | None:
                 url=s.get("url"),
                 description=s.get("description"),
                 code=s.get("code"),
-                secondary_links=tuple(
+                secondary_links=[
                     SecondaryLink(text=link["text"], url=link["url"])
                     for link in s.get("secondary_links", [])
-                ),
-                options=tuple(
+                ],
+                options=[
                     ProviderOption(
                         provider=opt["provider"],
                         title=opt["title"],
@@ -161,28 +68,28 @@ def _load_topic(phase_dir: Path, topic_slug: str) -> Topic | None:
                         description=opt.get("description"),
                     )
                     for opt in s.get("options", [])
-                ),
+                ],
             )
             for i, s in enumerate(data.get("learning_steps", []))
-        )
+        ]
 
-        questions = tuple(
+        questions = [
             Question(
                 id=q["id"],
                 prompt=q["prompt"],
-                expected_concepts=tuple(q.get("expected_concepts", [])),
+                expected_concepts=q.get("expected_concepts", []),
             )
             for q in data.get("questions", [])
-        )
+        ]
 
-        learning_objectives = tuple(
+        learning_objectives = [
             LearningObjective(
                 id=obj.get("id", f"obj-{i}"),
                 text=obj.get("text", ""),
                 order=obj.get("order", i + 1),
             )
             for i, obj in enumerate(data.get("learning_objectives", []))
-        )
+        ]
 
         return Topic(
             id=data["id"],
@@ -214,7 +121,7 @@ def _load_phase(phase_slug: str) -> Phase | None:
         with open(index_file, encoding="utf-8") as f:
             data = json.load(f)
 
-        topic_slugs = tuple(data.get("topics", []))
+        topic_slugs = list(data.get("topics", []))
 
         capstone: PhaseCapstoneOverview | None = None
         capstone_data = data.get("capstone")
@@ -222,7 +129,7 @@ def _load_phase(phase_slug: str) -> Phase | None:
             capstone = PhaseCapstoneOverview(
                 title=str(capstone_data.get("title", "")).strip(),
                 summary=str(capstone_data.get("summary", "")).strip(),
-                includes=tuple(capstone_data.get("includes", []) or ()),
+                includes=list(capstone_data.get("includes", []) or []),
                 topic_slug=capstone_data.get("topic_slug"),
             )
 
@@ -231,10 +138,9 @@ def _load_phase(phase_slug: str) -> Phase | None:
         if isinstance(hov_data, dict):
             hands_on_verification = PhaseHandsOnVerificationOverview(
                 summary=str(hov_data.get("summary", "")).strip(),
-                includes=tuple(hov_data.get("includes", []) or ()),
+                includes=list(hov_data.get("includes", []) or []),
             )
 
-        # Load all topics for this phase
         topics = []
         for topic_slug in topic_slugs:
             topic = _load_topic(phase_dir, topic_slug)
@@ -249,11 +155,11 @@ def _load_phase(phase_slug: str) -> Phase | None:
             short_description=data.get("short_description", ""),
             estimated_weeks=data.get("estimated_weeks", ""),
             order=data.get("order", data["id"]),
-            objectives=tuple(data.get("objectives", [])),
+            objectives=list(data.get("objectives", [])),
             capstone=capstone,
             hands_on_verification=hands_on_verification,
             topic_slugs=topic_slugs,
-            topics=tuple(topics),
+            topics=topics,
         )
     except (json.JSONDecodeError, KeyError) as e:
         logger.error(f"Error loading phase {phase_slug}: {e}")
@@ -265,21 +171,24 @@ def get_all_phases() -> tuple[Phase, ...]:
     """Get all phases in order.
 
     Results are cached for performance.
+    Dynamically discovers phase directories (phase0, phase1, etc.).
     """
     phases = []
-    for i in range(7):  # Phases 0-6
-        phase = _load_phase(f"phase{i}")
-        if phase:
-            phases.append(phase)
+    content_dir = _get_content_dir()
+    if not content_dir.exists():
+        logger.error(f"Content directory not found: {content_dir}")
+        return ()
+
+    for phase_dir in sorted(content_dir.iterdir()):
+        if phase_dir.is_dir() and phase_dir.name.startswith("phase"):
+            phase = _load_phase(phase_dir.name)
+            if phase:
+                phases.append(phase)
+
+    if not phases:
+        logger.warning(f"No phases loaded from {content_dir}")
+
     return tuple(sorted(phases, key=lambda p: p.order))
-
-
-def get_phase_by_id(phase_id: int) -> Phase | None:
-    """Get a phase by its numeric ID."""
-    for phase in get_all_phases():
-        if phase.id == phase_id:
-            return phase
-    return None
 
 
 def get_phase_by_slug(slug: str) -> Phase | None:
@@ -307,15 +216,6 @@ def get_topic_by_slugs(phase_slug: str, topic_slug: str) -> Topic | None:
     for topic in phase.topics:
         if topic.slug == topic_slug:
             return topic
-    return None
-
-
-def get_phase_for_topic(topic_id: str) -> Phase | None:
-    """Get the phase that contains a topic."""
-    for phase in get_all_phases():
-        for topic in phase.topics:
-            if topic.id == topic_id:
-                return phase
     return None
 
 

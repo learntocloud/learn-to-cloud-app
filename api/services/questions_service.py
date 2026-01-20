@@ -11,44 +11,27 @@ alongside question prompts. This simplifies the architecture by keeping all
 content in one place (frontend/public/content/).
 """
 
-import logging
-from dataclasses import dataclass
-from datetime import UTC, datetime
-
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from core import get_logger
 from core.cache import invalidate_progress_cache
 from core.telemetry import add_custom_attribute, log_metric, track_operation
 from models import ActivityType
-from repositories.activity_repository import ActivityRepository
 from repositories.progress_repository import QuestionAttemptRepository
+from schemas import QuestionGradeResult
+from services.activity_service import log_activity
 from services.content_service import get_topic_by_id
-from services.llm_service import grade_answer
+from services.llm_service import GeminiServiceUnavailable, grade_answer
 
-logger = logging.getLogger(__name__)
-
-
-@dataclass
-class QuestionGradeResult:
-    """Result of grading a question answer."""
-
-    question_id: str
-    is_passed: bool
-    feedback: str
-    confidence_score: float
-    attempt_id: int
+logger = get_logger(__name__)
 
 
 class LLMServiceUnavailableError(Exception):
     """Raised when LLM service is not configured or unavailable."""
 
-    pass
-
 
 class LLMGradingError(Exception):
     """Raised when LLM grading fails."""
-
-    pass
 
 
 class QuestionValidationError(Exception):
@@ -78,24 +61,21 @@ async def submit_question_answer(
     """Submit an answer for LLM grading and record the attempt.
 
     Args:
-        db: Database session
-        user_id: The user's ID
-        topic_id: The topic ID (e.g., "phase1-topic4")
-        question_id: The question ID (e.g., "phase1-topic4-q1")
+        topic_id: Topic ID (e.g., "phase1-topic4")
+        question_id: Question ID (e.g., "phase1-topic4-q1")
         user_answer: The user's answer text
-    Returns:
-        QuestionGradeResult with grading details
 
     Raises:
+        QuestionUnknownTopicError: If topic_id doesn't exist in content
+        QuestionUnknownQuestionError: If question_id doesn't exist in topic
+        GradingConceptsNotFoundError: If expected_concepts not configured
         LLMServiceUnavailableError: If LLM service not configured
         LLMGradingError: If grading fails
     """
     add_custom_attribute("question.topic_id", topic_id)
     add_custom_attribute("question.id", question_id)
     question_repo = QuestionAttemptRepository(db)
-    activity_repo = ActivityRepository(db)
 
-    # Get topic and question from content (includes expected_concepts)
     topic = get_topic_by_id(topic_id)
     if topic is None:
         raise QuestionUnknownTopicError(f"Unknown topic_id: {topic_id}")
@@ -106,7 +86,6 @@ async def submit_question_answer(
             f"Unknown question_id: {question_id} for topic_id: {topic_id}"
         )
 
-    # Get grading concepts from content JSON (embedded in question)
     if not question.expected_concepts:
         logger.error(f"Grading concepts not found for question: {question_id}")
         raise GradingConceptsNotFoundError(
@@ -125,6 +104,11 @@ async def submit_question_answer(
         raise LLMServiceUnavailableError(
             "Question grading service is temporarily unavailable"
         )
+    except GeminiServiceUnavailable as e:
+        logger.warning(f"Gemini service unavailable: {e}")
+        raise LLMServiceUnavailableError(
+            "Question grading service is temporarily unavailable"
+        )
     except Exception as e:
         logger.exception(f"LLM grading failed: {e}")
         raise LLMGradingError("Failed to grade your answer. Please try again.")
@@ -139,11 +123,10 @@ async def submit_question_answer(
         confidence_score=grade_result.confidence_score,
     )
 
-    today = datetime.now(UTC).date()
-    await activity_repo.log_activity(
+    await log_activity(
+        db=db,
         user_id=user_id,
         activity_type=ActivityType.QUESTION_ATTEMPT,
-        activity_date=today,
         reference_id=question_id,
     )
 

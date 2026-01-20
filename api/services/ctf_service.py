@@ -12,19 +12,18 @@ import base64
 import hashlib
 import hmac
 import json
-import logging
-from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 
+from core import get_logger
 from core.config import get_settings
+from schemas import CTFVerificationResult
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 REQUIRED_CHALLENGES = 18
 
 
 def _get_master_secret() -> str:
-    """Get the CTF master secret from settings."""
     settings = get_settings()
     secret = settings.ctf_master_secret
     if settings.environment.lower() == "production" and (
@@ -35,35 +34,13 @@ def _get_master_secret() -> str:
 
 
 def _derive_secret(instance_id: str) -> str:
-    """Derive the verification secret from master secret and instance ID."""
     master_secret = _get_master_secret()
     data = f"{master_secret}:{instance_id}"
     return hashlib.sha256(data.encode()).hexdigest()
 
 
-@dataclass
-class CTFVerificationResult:
-    """Result of CTF token verification."""
-
-    is_valid: bool
-    message: str
-    github_username: str | None = None
-    completion_date: str | None = None
-    completion_time: str | None = None
-    challenges_completed: int | None = None
-
-
 def verify_ctf_token(token: str, oauth_github_username: str) -> CTFVerificationResult:
-    """
-    Verify a CTF completion token.
-
-    Args:
-        token: The base64-encoded token from the user
-        oauth_github_username: The GitHub username from OAuth sign-in
-
-    Returns:
-        CTFVerificationResult with verification status and data
-    """
+    """Verify a CTF completion token."""
     try:
         try:
             decoded = base64.b64decode(token).decode("utf-8")
@@ -146,7 +123,7 @@ def verify_ctf_token(token: str, oauth_github_username: str) -> CTFVerificationR
             )
 
         timestamp = payload.get("timestamp", 0)
-        now = datetime.now().timestamp()
+        now = datetime.now(UTC).timestamp()
         if timestamp > now + 3600:
             return CTFVerificationResult(
                 is_valid=False,

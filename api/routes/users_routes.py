@@ -1,12 +1,11 @@
 """User-related endpoints."""
 
-from dataclasses import asdict
-
 from fastapi import APIRouter, HTTPException, Request
 
 from core.auth import OptionalUserId, UserId
 from core.database import DbSession
 from core.ratelimit import limiter
+from models import ActivityType
 from schemas import (
     ActivityHeatmapDay,
     ActivityHeatmapResponse,
@@ -30,7 +29,8 @@ async def get_current_user(
 ) -> UserResponse:
     """Get current user info."""
     user = await get_or_create_user(db, user_id)
-    return UserResponse.model_validate(asdict(user))
+    # UserResponse and UserData (service return type) are compatible Pydantic models
+    return UserResponse.model_validate(user.model_dump())
 
 
 @router.get("/profile/{username}", response_model=PublicProfileResponse)
@@ -49,10 +49,16 @@ async def get_public_profile_endpoint(
 
     profile_data = result
 
-    streak = StreakResponse.model_validate(asdict(profile_data.streak))
+    # Service returns StreakData which is compatible with StreakResponse
+    streak = StreakResponse.model_validate(profile_data.streak.model_dump())
 
+    # Transform HeatmapDay (string types) to ActivityHeatmapDay (enum types)
     heatmap_days = [
-        ActivityHeatmapDay.model_validate(asdict(day))
+        ActivityHeatmapDay(
+            date=day.date,
+            count=day.count,
+            activity_types=[ActivityType(t) for t in day.activity_types],
+        )
         for day in profile_data.activity_heatmap.days
     ]
     activity_heatmap = ActivityHeatmapResponse(
@@ -62,11 +68,14 @@ async def get_public_profile_endpoint(
         total_activities=profile_data.activity_heatmap.total_activities,
     )
 
+    # Service returns Pydantic models, convert with model_dump
     submissions = [
-        PublicSubmission.model_validate(asdict(sub)) for sub in profile_data.submissions
+        PublicSubmission.model_validate(sub.model_dump())
+        for sub in profile_data.submissions
     ]
     badges = [
-        BadgeResponse.model_validate(asdict(badge)) for badge in profile_data.badges
+        BadgeResponse.model_validate(badge.model_dump())
+        for badge in profile_data.badges
     ]
 
     return PublicProfileResponse(

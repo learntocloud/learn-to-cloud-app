@@ -1,7 +1,6 @@
 """FastAPI application for Learn to Cloud API."""
 
 import asyncio
-import logging
 import os
 from contextlib import asynccontextmanager
 from typing import Final
@@ -19,6 +18,7 @@ from core.database import (
     dispose_engine,
     init_db,
 )
+from core.logger import configure_logging, get_logger
 from core.ratelimit import limiter, rate_limit_exceeded_handler
 from core.telemetry import RequestTimingMiddleware, SecurityHeadersMiddleware
 from repositories.webhook_repository import ProcessedWebhookRepository
@@ -75,9 +75,9 @@ def _configure_azure_monitor_if_enabled() -> None:
         )
 
 
-log_level = os.environ.get("LOG_LEVEL", "INFO").upper()
-logging.basicConfig(level=getattr(logging, log_level, logging.INFO))
-logger = logging.getLogger(__name__)
+# Configure structured logging BEFORE Azure Monitor
+configure_logging()
+logger = get_logger(__name__)
 
 _configure_azure_monitor_if_enabled()
 
@@ -85,9 +85,9 @@ _configure_azure_monitor_if_enabled()
 async def _background_init(app: FastAPI):
     """Background initialization tasks (non-blocking for faster cold start)."""
     if _run_db_migrations_on_startup_enabled():
-        logger.info("Running database migrations on startup...")
+        logger.info("migrations.starting")
         await asyncio.to_thread(_run_alembic_upgrade_head_sync)
-        logger.info("Database migrations complete")
+        logger.info("migrations.complete")
 
     await init_db(app.state.engine)
 
@@ -98,9 +98,9 @@ async def _background_init(app: FastAPI):
             )
             await session.commit()
             if deleted > 0:
-                logger.info(f"Cleaned up {deleted} old processed webhook entries")
+                logger.info("webhooks.cleanup", deleted_count=deleted)
     except Exception as e:
-        logger.warning(f"Failed to cleanup old webhooks: {e}")
+        logger.warning("webhooks.cleanup.failed", error=str(e))
 
 
 @asynccontextmanager
@@ -123,11 +123,11 @@ async def lifespan(app: FastAPI):
             task.result()
             app.state.init_done = True
             app.state.init_error = None
-            logger.info("Background initialization completed successfully")
+            logger.info("init.complete")
         except Exception as e:
             app.state.init_done = False
             app.state.init_error = str(e)
-            logger.error(f"Background initialization failed: {e}", exc_info=True)
+            logger.error("init.failed", error=str(e), exc_info=True)
 
     init_task.add_done_callback(_record_init_result)
 
@@ -146,7 +146,7 @@ async def lifespan(app: FastAPI):
             else:
                 init_task.result()
         except Exception:
-            logger.exception("Background initialization failed")
+            logger.exception("init.background.failed")
 
 
 app = FastAPI(

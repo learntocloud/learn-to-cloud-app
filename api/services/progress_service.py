@@ -15,162 +15,22 @@ CACHING:
 """
 
 import asyncio
-import logging
-from dataclasses import dataclass
 from functools import lru_cache
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from core import get_logger
 from core.cache import get_cached_progress, set_cached_progress
 from repositories.progress_repository import (
     QuestionAttemptRepository,
     StepProgressRepository,
 )
 from repositories.submission_repository import SubmissionRepository
+from schemas import PhaseProgress, PhaseRequirements, UserProgress
+from services.content_service import get_all_phases
 from services.hands_on_verification_service import get_requirements_for_phase
 
-logger = logging.getLogger(__name__)
-
-
-@dataclass
-class PhaseRequirements:
-    """Requirements to complete a phase."""
-
-    phase_id: int
-    name: str
-    topics: int
-    steps: int
-    questions: int
-
-    @property
-    def questions_per_topic(self) -> int:
-        """Each topic has 2 questions."""
-        return 2
-
-
-@dataclass(frozen=True)
-class PhaseProgress:
-    """User's progress for a single phase."""
-
-    phase_id: int
-    steps_completed: int
-    steps_required: int
-    questions_passed: int
-    questions_required: int
-    hands_on_validated_count: int
-    hands_on_required_count: int
-
-    hands_on_validated: bool
-    hands_on_required: bool
-
-    @property
-    def is_complete(self) -> bool:
-        """Phase is complete when all requirements are met."""
-        return (
-            self.steps_completed >= self.steps_required
-            and self.questions_passed >= self.questions_required
-            and self.hands_on_validated
-        )
-
-    @property
-    def hands_on_percentage(self) -> float:
-        """Percentage of hands-on requirements validated for this phase."""
-        if self.hands_on_required_count == 0:
-            return 100.0
-        return min(
-            100.0, (self.hands_on_validated_count / self.hands_on_required_count) * 100
-        )
-
-    @property
-    def overall_percentage(self) -> float:
-        """Phase completion percentage (steps + questions + hands-on).
-
-        Skill source of truth:
-          (Steps + Questions + Hands-on) / (Total Steps + Questions + Hands-on)
-        """
-        total = (
-            self.steps_required + self.questions_required + self.hands_on_required_count
-        )
-        if total == 0:
-            return 0.0
-
-        completed = (
-            min(self.steps_completed, self.steps_required)
-            + min(self.questions_passed, self.questions_required)
-            + min(self.hands_on_validated_count, self.hands_on_required_count)
-        )
-        return (completed / total) * 100
-
-    @property
-    def step_percentage(self) -> float:
-        """Percentage of steps completed."""
-        if self.steps_required == 0:
-            return 100.0
-        return min(100.0, (self.steps_completed / self.steps_required) * 100)
-
-    @property
-    def question_percentage(self) -> float:
-        """Percentage of questions passed."""
-        if self.questions_required == 0:
-            return 100.0
-        return min(100.0, (self.questions_passed / self.questions_required) * 100)
-
-
-@dataclass(frozen=True)
-class UserProgress:
-    """Complete progress summary for a user."""
-
-    user_id: str
-    phases: dict[int, PhaseProgress]
-
-    @property
-    def phases_completed(self) -> int:
-        """Count of fully completed phases."""
-        return sum(1 for p in self.phases.values() if p.is_complete)
-
-    @property
-    def total_phases(self) -> int:
-        """Total number of phases."""
-        return len(_ensure_requirements_loaded())
-
-    @property
-    def current_phase(self) -> int:
-        """First incomplete phase, or last phase if all done."""
-        for phase_id in sorted(self.phases.keys()):
-            if not self.phases[phase_id].is_complete:
-                return phase_id
-        return max(self.phases.keys()) if self.phases else 0
-
-    @property
-    def is_program_complete(self) -> bool:
-        """True if all phases are completed."""
-        return self.phases_completed == self.total_phases
-
-    @property
-    def overall_percentage(self) -> float:
-        """Overall completion percentage across all phases."""
-        if not self.phases:
-            return 0.0
-
-        total_steps = sum(p.steps_required for p in self.phases.values())
-        total_questions = sum(p.questions_required for p in self.phases.values())
-        total_hands_on = sum(p.hands_on_required_count for p in self.phases.values())
-        completed_steps = sum(p.steps_completed for p in self.phases.values())
-        passed_questions = sum(p.questions_passed for p in self.phases.values())
-        completed_hands_on = sum(
-            p.hands_on_validated_count for p in self.phases.values()
-        )
-
-        if total_steps + total_questions + total_hands_on == 0:
-            return 0.0
-
-        total = total_steps + total_questions + total_hands_on
-        completed = (
-            min(completed_steps, total_steps)
-            + min(passed_questions, total_questions)
-            + min(completed_hands_on, total_hands_on)
-        )
-        return (completed / total) * 100
+logger = get_logger(__name__)
 
 
 @lru_cache(maxsize=1)
@@ -180,8 +40,6 @@ def _build_phase_requirements() -> dict[int, PhaseRequirements]:
     This derives step/question/topic counts from the actual content,
     eliminating the need for hardcoded values that can get out of sync.
     """
-    from services.content_service import get_all_phases
-
     requirements: dict[int, PhaseRequirements] = {}
     phases = get_all_phases()
 
@@ -208,49 +66,14 @@ def _build_phase_requirements() -> dict[int, PhaseRequirements]:
     return requirements
 
 
-# Module-level accessor that lazily builds requirements on first access
-def _get_phase_requirements() -> dict[int, PhaseRequirements]:
-    return _build_phase_requirements()
-
-
-# For backward compatibility, expose as a property-like accessor
-# Code should use get_phase_requirements() or _get_phase_requirements()
-PHASE_REQUIREMENTS: dict[int, PhaseRequirements] = {}  # Populated on first access
-
-
-def _ensure_requirements_loaded() -> dict[int, PhaseRequirements]:
-    """Ensure PHASE_REQUIREMENTS is populated and return it."""
-    global PHASE_REQUIREMENTS
-    if not PHASE_REQUIREMENTS:
-        PHASE_REQUIREMENTS.update(_get_phase_requirements())
-    return PHASE_REQUIREMENTS
-
-
-# Computed at module load time after first access
-def _get_total_phases() -> int:
-    return len(_ensure_requirements_loaded())
-
-
-def _get_total_topics() -> int:
-    return sum(r.topics for r in _ensure_requirements_loaded().values())
-
-
-def _get_total_steps() -> int:
-    return sum(r.steps for r in _ensure_requirements_loaded().values())
-
-
-def _get_total_questions() -> int:
-    return sum(r.questions for r in _ensure_requirements_loaded().values())
-
-
 def get_phase_requirements(phase_id: int) -> PhaseRequirements | None:
     """Get requirements for a specific phase."""
-    return _ensure_requirements_loaded().get(phase_id)
+    return _build_phase_requirements().get(phase_id)
 
 
 def get_all_phase_ids() -> list[int]:
     """Get all phase IDs in order."""
-    return sorted(_ensure_requirements_loaded().keys())
+    return sorted(_build_phase_requirements().keys())
 
 
 def _parse_phase_from_topic_id(topic_id: str) -> int | None:
@@ -310,7 +133,6 @@ async def fetch_user_progress(
     """
     from services.submissions_service import get_validated_ids_by_phase
 
-    # Check cache first (unless skip_cache is True)
     if not skip_cache:
         cached = get_cached_progress(user_id)
         if cached is not None:
@@ -327,14 +149,14 @@ async def fetch_user_progress(
         submission_repo.get_validated_by_user(user_id),
     )
 
-    # Parse phase numbers from question IDs in service layer
+    # Parse phase numbers from question IDs
     phase_questions: dict[int, int] = {}
     for question_id in question_ids:
         phase_num = _parse_phase_from_question_id(question_id)
         if phase_num is not None:
             phase_questions[phase_num] = phase_questions.get(phase_num, 0) + 1
 
-    # Parse phase numbers from topic IDs in service layer
+    # Parse phase numbers from topic IDs
     phase_steps: dict[int, int] = {}
     for topic_id in topic_ids:
         phase_num = _parse_phase_from_topic_id(topic_id)
@@ -372,9 +194,10 @@ async def fetch_user_progress(
             hands_on_required=has_hands_on_requirements,
         )
 
-    result = UserProgress(user_id=user_id, phases=phases)
-
-    # Cache the result
+    all_phase_ids = get_all_phase_ids()
+    result = UserProgress(
+        user_id=user_id, phases=phases, total_phases=len(all_phase_ids)
+    )
     set_cached_progress(user_id, result)
 
     return result

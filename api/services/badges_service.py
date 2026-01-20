@@ -10,21 +10,19 @@ CACHING:
 - Cache key includes a hash of phase completion data for invalidation
 """
 
-from dataclasses import dataclass
-from datetime import date
 from typing import TypedDict
 
 from core.cache import get_cached_badges, set_cached_badges
 from core.telemetry import add_custom_attribute
-from services.phase_requirements_service import get_requirements_for_phase
-from services.progress_service import (
-    get_all_phase_ids,
-    get_phase_requirements,
-)
+from schemas import BadgeData
+from services.progress_service import get_phase_requirements
+
+# Alias for backwards compatibility
+Badge = BadgeData
 
 
 class StreakBadgeInfo(TypedDict):
-    """Type definition for streak badge configuration."""
+    """Streak badge configuration."""
 
     id: str
     name: str
@@ -108,17 +106,6 @@ STREAK_BADGES: list[StreakBadgeInfo] = [
         "required_streak": 100,
     },
 ]
-
-
-@dataclass(frozen=True)
-class Badge:
-    """A badge that a user has earned."""
-
-    id: str
-    name: str
-    description: str
-    icon: str
-    earned_at: date | None = None
 
 
 def compute_phase_badges(
@@ -209,9 +196,7 @@ def compute_all_badges(
 
     CACHING: If user_id is provided, results are cached for 60 seconds.
     """
-    # Create a hash of the input data for cache key
     if user_id:
-        # Hash the completion counts for cache invalidation
         progress_hash = hash(
             (
                 tuple(sorted(phase_completion_counts.items())),
@@ -228,92 +213,14 @@ def compute_all_badges(
 
     # Log metrics for badge awards (only on cache miss to avoid duplicate counts)
     if badges:
-        phase_badges = [b for b in badges if b.id.startswith("phase_")]
-        streak_badges = [b for b in badges if b.id.startswith("streak_")]
-        if phase_badges:
-            add_custom_attribute("badges.phase_count", len(phase_badges))
-        if streak_badges:
-            add_custom_attribute("badges.streak_count", len(streak_badges))
+        phase_count = sum(1 for b in badges if b.id.startswith("phase_"))
+        streak_count = sum(1 for b in badges if b.id.startswith("streak_"))
+        if phase_count:
+            add_custom_attribute("badges.phase_count", phase_count)
+        if streak_count:
+            add_custom_attribute("badges.streak_count", streak_count)
 
-    # Cache the result if user_id was provided
     if user_id:
         set_cached_badges(user_id, progress_hash, badges)
-
-    return badges
-
-
-def count_completed_phases(
-    phase_completion_counts: dict[int, tuple[int, int, bool]],
-) -> int:
-    """Count how many phases are fully completed.
-
-    A phase is complete when all steps, questions, AND hands-on are done.
-
-    Args:
-        phase_completion_counts: Dict mapping phase_id ->
-            (completed_steps, passed_questions, hands_on_validated)
-
-    Returns:
-        Number of completed phases
-    """
-    completed = 0
-    for phase_id in get_all_phase_ids():
-        requirements = get_phase_requirements(phase_id)
-        if not requirements:
-            continue
-        completed_steps, passed_questions, hands_on_validated = (
-            phase_completion_counts.get(phase_id, (0, 0, True))
-        )
-        if (
-            completed_steps >= requirements.steps
-            and passed_questions >= requirements.questions
-            and hands_on_validated
-        ):
-            completed += 1
-    return completed
-
-
-def get_all_available_badges() -> list[dict]:
-    """Get all available badges (for displaying locked/unlocked states).
-
-    Returns:
-        List of badge info dicts with requirements
-    """
-    badges = []
-
-    for phase_id, badge_info in PHASE_BADGES.items():
-        requirements = get_phase_requirements(phase_id)
-        if requirements:
-            hands_on_count = len(get_requirements_for_phase(phase_id))
-            if hands_on_count:
-                requirement_str = (
-                    f"Complete all {requirements.steps} steps, "
-                    f"{requirements.questions} questions, "
-                    f"and {hands_on_count} hands-on requirements in Phase {phase_id}"
-                )
-            else:
-                requirement_str = (
-                    f"Complete all {requirements.steps} steps and "
-                    f"{requirements.questions} questions in Phase {phase_id}"
-                )
-            badges.append(
-                {
-                    **badge_info,
-                    "category": "phase",
-                    "requirement": requirement_str,
-                }
-            )
-
-    for streak_badge in STREAK_BADGES:
-        badges.append(
-            {
-                "id": streak_badge["id"],
-                "name": streak_badge["name"],
-                "description": streak_badge["description"],
-                "icon": streak_badge["icon"],
-                "category": "streak",
-                "requirement": f"Reach a {streak_badge['required_streak']}-day streak",
-            }
-        )
 
     return badges

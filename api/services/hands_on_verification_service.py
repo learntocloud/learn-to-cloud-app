@@ -24,19 +24,30 @@ SCALABILITY:
 """
 
 import asyncio
-import logging
 import socket
+from datetime import datetime
 from ipaddress import ip_address
 from urllib.parse import urljoin, urlsplit
 
 import httpx
 from circuitbreaker import circuit
 
+from core import get_logger
 from core.telemetry import track_dependency
 from models import SubmissionType
+from schemas import HandsOnRequirement, ValidationResult
 from services.ctf_service import verify_ctf_token
-from services.github_hands_on_verification_service import (
-    ValidationResult,
+from services.phase_requirements_service import (
+    HANDS_ON_REQUIREMENTS,
+    get_requirement_by_id,
+    get_requirements_for_phase,
+)
+
+logger = get_logger(__name__)
+
+
+# Import GitHub validations
+from services.github_hands_on_verification_service import (  # noqa: E402
     validate_container_image,
     validate_github_profile,
     validate_profile_readme,
@@ -44,12 +55,6 @@ from services.github_hands_on_verification_service import (
     validate_repo_has_files,
     validate_repo_url,
     validate_workflow_run,
-)
-from services.phase_requirements_service import (
-    HANDS_ON_REQUIREMENTS,
-    HandsOnRequirementData,
-    get_requirement_by_id,
-    get_requirements_for_phase,
 )
 
 # Re-export for backwards compatibility
@@ -62,8 +67,6 @@ __all__ = [
     "validate_journal_api_response",
     "ValidationResult",
 ]
-
-logger = logging.getLogger(__name__)
 
 
 def _is_public_ip(ip_str: str) -> bool:
@@ -163,11 +166,8 @@ def validate_journal_api_response(response_text: str) -> ValidationResult:
         return ValidationResult(
             is_valid=False,
             message="Please paste your GET /entries JSON response.",
-            username_match=True,
-            repo_exists=False,
         )
 
-    # Try to parse as JSON
     try:
         data = json.loads(response_text)
     except json.JSONDecodeError as e:
@@ -177,8 +177,6 @@ def validate_journal_api_response(response_text: str) -> ValidationResult:
                 "Invalid JSON format. Make sure you copied the entire "
                 f"response. Error: {e.msg}"
             ),
-            username_match=True,
-            repo_exists=False,
         )
 
     # Handle both formats:
@@ -191,8 +189,6 @@ def validate_journal_api_response(response_text: str) -> ValidationResult:
             return ValidationResult(
                 is_valid=False,
                 message="The 'entries' field should be a list.",
-                username_match=True,
-                repo_exists=False,
             )
     elif isinstance(data, list):
         entries = data
@@ -203,11 +199,8 @@ def validate_journal_api_response(response_text: str) -> ValidationResult:
                 "Response should be a JSON array or an object with "
                 "'entries' key. Did you call GET /entries?"
             ),
-            username_match=True,
-            repo_exists=False,
         )
 
-    # Must have at least one entry
     if len(entries) == 0:
         return ValidationResult(
             is_valid=False,
@@ -215,11 +208,8 @@ def validate_journal_api_response(response_text: str) -> ValidationResult:
                 "No entries found. Create at least one journal entry "
                 "using POST /entries first, then try GET /entries again."
             ),
-            username_match=True,
-            repo_exists=False,
         )
 
-    # Validate each entry has required fields
     required_fields = ["id", "work", "struggle", "intention", "created_at"]
     uuid_pattern = re.compile(
         r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", re.IGNORECASE
@@ -230,8 +220,6 @@ def validate_journal_api_response(response_text: str) -> ValidationResult:
             return ValidationResult(
                 is_valid=False,
                 message=f"Entry {i + 1} is not a valid object.",
-                username_match=True,
-                repo_exists=False,
             )
 
         missing_fields = [f for f in required_fields if f not in entry]
@@ -243,11 +231,8 @@ def validate_journal_api_response(response_text: str) -> ValidationResult:
                     f"{', '.join(missing_fields)}. Make sure your Entry "
                     "model has all the required fields."
                 ),
-                username_match=True,
-                repo_exists=False,
             )
 
-        # Validate UUID format for id
         entry_id = entry.get("id", "")
         if not uuid_pattern.match(str(entry_id)):
             return ValidationResult(
@@ -256,20 +241,28 @@ def validate_journal_api_response(response_text: str) -> ValidationResult:
                     f"Entry {i + 1} has an invalid ID format. Expected "
                     "UUID format (e.g., 123e4567-e89b-12d3-a456-426614174000)."
                 ),
-                username_match=True,
-                repo_exists=False,
             )
 
-        # Validate work, struggle, intention are non-empty strings
         for field in ["work", "struggle", "intention"]:
             value = entry.get(field, "")
             if not isinstance(value, str) or not value.strip():
                 return ValidationResult(
                     is_valid=False,
                     message=f"Entry {i + 1} has an empty or invalid '{field}' field.",
-                    username_match=True,
-                    repo_exists=False,
                 )
+
+        created_at = entry.get("created_at", "")
+        try:
+            # fromisoformat doesn't handle "Z" suffix, convert to "+00:00"
+            datetime.fromisoformat(str(created_at).replace("Z", "+00:00"))
+        except ValueError:
+            return ValidationResult(
+                is_valid=False,
+                message=(
+                    f"Entry {i + 1} has an invalid created_at format. "
+                    "Expected ISO 8601 format (e.g., 2024-01-15T10:30:00Z)."
+                ),
+            )
 
     entry_count = len(entries)
     entry_word = "entry" if entry_count == 1 else "entries"
@@ -279,8 +272,6 @@ def validate_journal_api_response(response_text: str) -> ValidationResult:
             f"Verified! Your Journal API is working correctly "
             f"with {entry_count} {entry_word}. 🎉"
         ),
-        username_match=True,
-        repo_exists=True,
     )
 
 
@@ -302,9 +293,8 @@ def _validate_deployed_journal_response(
     """
     import json
 
-    # Try to parse as JSON first
     try:
-        json.loads(response_text)  # Validate JSON is parseable
+        json.loads(response_text)
     except json.JSONDecodeError:
         return ValidationResult(
             is_valid=False,
@@ -312,26 +302,18 @@ def _validate_deployed_journal_response(
                 "Your API returned a response but it's not valid JSON. "
                 "Make sure your /entries endpoint returns JSON."
             ),
-            username_match=True,
-            repo_exists=True,
         )
 
-    # Use the same validation logic as the local validator
     result = validate_journal_api_response(response_text)
 
     if result.is_valid:
-        # Customize success message for deployed app
         return ValidationResult(
             is_valid=True,
             message=f"Your deployed Journal API is working! {result.message}",
-            username_match=True,
-            repo_exists=True,
         )
 
-    # Customize error messages for deployment context
     error_msg = result.message
 
-    # Add deployment-specific hints
     if "No entries found" in error_msg:
         return ValidationResult(
             is_valid=False,
@@ -340,8 +322,6 @@ def _validate_deployed_journal_response(
                 "Create at least one entry using POST /entries on your deployed app, "
                 "then try verification again."
             ),
-            username_match=True,
-            repo_exists=True,
         )
 
     if "missing required fields" in error_msg:
@@ -351,8 +331,6 @@ def _validate_deployed_journal_response(
                 f"Your API returned entries but they're missing fields. {error_msg} "
                 "Check your Entry model matches the expected schema."
             ),
-            username_match=True,
-            repo_exists=True,
         )
 
     if "invalid ID format" in error_msg:
@@ -362,16 +340,11 @@ def _validate_deployed_journal_response(
                 f"{error_msg} Make sure your Entry model generates "
                 "UUIDs for the id field."
             ),
-            username_match=True,
-            repo_exists=True,
         )
 
-    # Return the original error with deployment context
     return ValidationResult(
         is_valid=False,
         message=f"API response validation failed: {error_msg}",
-        username_match=True,
-        repo_exists=True,
     )
 
 
@@ -415,6 +388,10 @@ async def validate_deployed_app(
         max_redirects = 5
         current_url = check_url
 
+        # NOTE: We intentionally create a new AsyncClient per call rather than
+        # reusing a shared client. For untrusted user-provided URLs, this prevents
+        # connection reuse to potentially malicious endpoints and provides better
+        # isolation between validation requests.
         async with httpx.AsyncClient(follow_redirects=False, timeout=15.0) as client:
             for redirect_count in range(max_redirects + 1):
                 safe_url = await _validate_public_https_url(current_url)
@@ -430,14 +407,11 @@ async def validate_deployed_app(
                             message=(
                                 "App returned a redirect without a Location header."
                             ),
-                            username_match=True,
-                            repo_exists=False,
                         )
                     current_url = urljoin(safe_url, location)
                     continue
 
                 if status_code == 200:
-                    # If we need to validate the Journal API response
                     if validate_journal_response:
                         return _validate_deployed_journal_response(
                             response.text, safe_url
@@ -446,8 +420,6 @@ async def validate_deployed_app(
                     return ValidationResult(
                         is_valid=True,
                         message=f"App is live! Successfully reached {safe_url}",
-                        username_match=True,
-                        repo_exists=True,
                     )
 
                 if status_code in (401, 403):
@@ -459,8 +431,6 @@ async def validate_deployed_app(
                             "authentication. Make sure the endpoint is "
                             "publicly accessible without auth."
                         ),
-                        username_match=True,
-                        repo_exists=True,
                     )
 
                 if status_code == 404:
@@ -471,22 +441,16 @@ async def validate_deployed_app(
                             "Endpoint not found (404). Make sure your app "
                             f"has a {endpoint} endpoint."
                         ),
-                        username_match=True,
-                        repo_exists=False,
                     )
 
                 return ValidationResult(
                     is_valid=False,
                     message=f"App returned status {status_code}. Expected 200 OK.",
-                    username_match=True,
-                    repo_exists=False,
                 )
 
         return ValidationResult(
             is_valid=False,
             message="Too many redirects while trying to reach your app.",
-            username_match=True,
-            repo_exists=False,
         )
 
     except httpx.TimeoutException:
@@ -496,8 +460,6 @@ async def validate_deployed_app(
                 "Request timed out. Is your app running and "
                 "accessible from the internet?"
             ),
-            username_match=True,
-            repo_exists=False,
         )
     except httpx.ConnectError:
         return ValidationResult(
@@ -506,23 +468,17 @@ async def validate_deployed_app(
                 "Could not connect to your app. Check that the URL is "
                 "correct and the app is deployed."
             ),
-            username_match=True,
-            repo_exists=False,
         )
     except ValueError as e:
         return ValidationResult(
             is_valid=False,
             message=str(e),
-            username_match=True,
-            repo_exists=False,
         )
     except httpx.RequestError as e:
         logger.warning(f"Error checking deployed app {check_url}: {e}")
         return ValidationResult(
             is_valid=False,
             message=f"Request error: {str(e)}",
-            username_match=True,
-            repo_exists=False,
         )
 
 
@@ -541,16 +497,17 @@ def validate_ctf_token_submission(
     """
     ctf_result = verify_ctf_token(token, expected_username)
 
+    # CTF validation checks username internally, so we pass that through
+    # repo_exists doesn't apply to CTF tokens
     return ValidationResult(
         is_valid=ctf_result.is_valid,
         message=ctf_result.message,
-        username_match=ctf_result.is_valid,
-        repo_exists=ctf_result.is_valid,
+        username_match=ctf_result.is_valid,  # Token contains embedded username
     )
 
 
 async def validate_submission(
-    requirement: HandsOnRequirementData,
+    requirement: HandsOnRequirement,
     submitted_value: str,
     expected_username: str | None = None,
 ) -> ValidationResult:

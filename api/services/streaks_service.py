@@ -3,6 +3,7 @@
 from datetime import UTC, date, datetime
 
 MAX_SKIP_DAYS = 2
+INITIAL_STREAK = 1
 
 
 def calculate_streak_with_forgiveness(
@@ -11,7 +12,7 @@ def calculate_streak_with_forgiveness(
 ) -> tuple[int, int, bool]:
     """Calculate streak with forgiveness for skipped days.
 
-    Skill source of truth (.github/skills/streaks/streaks.md):
+    Skill source of truth (.github/skills/debug-progression/SKILL.md):
     - MAX_SKIP_DAYS = 2 (can skip up to 2 consecutive days)
     - streak_alive = True if last activity within max_skip_days of today
     - current_streak = streak from today going backward until 3+ day gap
@@ -38,7 +39,6 @@ def calculate_streak_with_forgiveness(
     if not unique_dates:
         return 0, 0, False
 
-    # Check if streak is alive (last activity within max_skip_days of today)
     most_recent = unique_dates[0]
     days_since_last = (today - most_recent).days
     streak_alive = days_since_last <= max_skip_days
@@ -47,8 +47,9 @@ def calculate_streak_with_forgiveness(
     # current_streak: streak from most recent activity going backward (only if alive)
     # longest_streak: longest streak ever found
     longest_streak = 0
-    current_streak_length = 1  # Start with first date
+    current_streak_length = INITIAL_STREAK
     first_gap_found = False
+    current_streak_from_today = current_streak_length  # Avoids UnboundLocalError
 
     for i in range(len(unique_dates) - 1):
         current_date = unique_dates[i]
@@ -58,31 +59,26 @@ def calculate_streak_with_forgiveness(
         if gap <= max_skip_days:
             current_streak_length += 1
         else:
-            # Gap breaks the streak
             if not first_gap_found:
                 # This was the "current" streak from most recent
                 first_gap_found = True
                 if current_streak_length > longest_streak:
                     longest_streak = current_streak_length
-                # Save current streak before resetting
                 current_streak_from_today = current_streak_length
             else:
                 if current_streak_length > longest_streak:
                     longest_streak = current_streak_length
-            current_streak_length = 1
+            current_streak_length = INITIAL_STREAK
 
     # Handle final streak segment
     if current_streak_length > longest_streak:
         longest_streak = current_streak_length
 
-    # Determine current streak
     if not streak_alive:
         current_streak = 0
     elif first_gap_found:
-        # There was a gap, so current streak is what we saved
         current_streak = current_streak_from_today
     else:
-        # No gaps found, entire history is one continuous streak
         current_streak = current_streak_length
 
     return current_streak, longest_streak, streak_alive

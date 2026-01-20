@@ -7,33 +7,16 @@ This module handles:
 Routes should delegate submission business logic to this module.
 """
 
-from dataclasses import dataclass
-from datetime import datetime
-
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.cache import invalidate_progress_cache
 from core.telemetry import add_custom_attribute, log_metric, track_operation
 from models import Submission, SubmissionType
 from repositories.submission_repository import SubmissionRepository
+from schemas import SubmissionData, SubmissionResult
 from services.github_hands_on_verification_service import parse_github_url
 from services.hands_on_verification_service import validate_submission
 from services.phase_requirements_service import get_requirement_by_id
-
-
-@dataclass(frozen=True)
-class SubmissionData:
-    """DTO for a hands-on submission (service-layer return type)."""
-
-    id: int
-    requirement_id: str
-    submission_type: SubmissionType
-    phase_id: int
-    submitted_value: str
-    extracted_username: str | None
-    is_validated: bool
-    validated_at: datetime | None
-    created_at: datetime
 
 
 def _to_submission_data(submission: Submission) -> SubmissionData:
@@ -64,15 +47,6 @@ def get_validated_ids_by_phase(
                 by_phase[sub.phase_id] = set()
             by_phase[sub.phase_id].add(sub.requirement_id)
     return by_phase
-
-
-@dataclass
-class SubmissionResult:
-    submission: SubmissionData
-    is_valid: bool
-    message: str
-    username_match: bool | None
-    repo_exists: bool | None
 
 
 class RequirementNotFoundError(Exception):
@@ -119,6 +93,10 @@ async def submit_validation(
         expected_username=github_username,
     )
 
+    # Extract username from submission for audit/display purposes.
+    # For GitHub URLs: parse the username from the URL itself.
+    # For CTF tokens: the token embeds the expected username, so we store
+    # the authenticated user's GitHub username (tokens are user-specific).
     extracted_username = None
     if requirement.submission_type != SubmissionType.CTF_TOKEN:
         parsed = parse_github_url(submitted_value)
@@ -127,6 +105,7 @@ async def submit_validation(
         extracted_username = github_username
 
     submission_repo = SubmissionRepository(db)
+    # Repository handles upsert atomically (PostgreSQL ON CONFLICT)
     db_submission = await submission_repo.upsert(
         user_id=user_id,
         requirement_id=requirement_id,

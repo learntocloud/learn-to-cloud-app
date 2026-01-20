@@ -7,6 +7,10 @@ description: Run ruff lint, ruff format, ty type-check, start the API, smoke tes
 
 Run linting, formatting, type checking, start the API, smoke test endpoints, then **clean up**.
 
+**⚠️ ALL 7 STEPS ARE MANDATORY. Do not skip Steps 4-6 (API startup, smoke tests, cleanup).**
+
+Skipping API startup means import errors, circular imports, and route registration bugs won't be caught until production.
+
 ---
 
 ## When to Use
@@ -18,7 +22,7 @@ Run linting, formatting, type checking, start the API, smoke test endpoints, the
 
 ---
 
-## Step 0: Kill Any Existing API Processes
+## Step 0: Kill Any Existing API Processes (REQUIRED)
 
 **Always start fresh** - kill any running uvicorn/API processes:
 
@@ -69,7 +73,13 @@ For full project check: `uv run ty check`
 
 ---
 
-## Step 4: Start API
+## Step 4: Start API (REQUIRED - Do Not Skip)
+
+**This step catches errors that static analysis misses:**
+- Circular imports
+- Missing dependencies at runtime
+- Route registration failures
+- Database connection issues
 
 ```bash
 cd /Users/gps/Developer/learn-to-cloud-app/api
@@ -84,7 +94,7 @@ Run as background process (`isBackground=true`), then:
 
 ---
 
-## Step 5: Smoke Test Endpoints (No Auth Required)
+## Step 5: Smoke Test Endpoints (REQUIRED - Do Not Skip)
 
 After API starts successfully, test these unauthenticated endpoints:
 

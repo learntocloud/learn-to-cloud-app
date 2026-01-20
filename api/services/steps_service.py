@@ -1,32 +1,14 @@
 """Step progress service for learning step management."""
 
-from dataclasses import dataclass
-from datetime import UTC, datetime
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.cache import invalidate_progress_cache
 from core.telemetry import add_custom_attribute, log_metric, track_operation
 from models import ActivityType
-from repositories import ActivityRepository, StepProgressRepository
+from repositories import StepProgressRepository
+from schemas import StepCompletionResult, StepProgressData
+from services.activity_service import log_activity
 from services.content_service import get_topic_by_id
-
-
-@dataclass
-class StepProgressData:
-    """Step progress data for a topic."""
-
-    topic_id: str
-    completed_steps: list[int]
-    total_steps: int
-    next_unlocked_step: int
-
-
-@dataclass
-class StepCompletionResult:
-    """Result of completing a step."""
-
-    topic_id: str
-    step_order: int
-    completed_at: datetime
 
 
 class StepValidationError(Exception):
@@ -38,7 +20,10 @@ class StepValidationError(Exception):
 class StepAlreadyCompletedError(StepValidationError):
     """Raised when trying to complete an already completed step."""
 
-    pass
+    def __init__(self, topic_id: str, step_order: int):
+        self.topic_id = topic_id
+        self.step_order = step_order
+        super().__init__(f"Step {step_order} in {topic_id} already completed")
 
 
 class StepNotUnlockedError(StepValidationError):
@@ -57,30 +42,64 @@ class StepNotUnlockedError(StepValidationError):
 class StepUnknownTopicError(StepValidationError):
     """Raised when a topic_id doesn't exist in content."""
 
+    def __init__(self, topic_id: str):
+        self.topic_id = topic_id
+        super().__init__(f"Unknown topic_id: {topic_id}")
+
 
 class StepInvalidStepOrderError(StepValidationError):
     """Raised when step_order is out of range for the topic."""
 
+    def __init__(self, topic_id: str, step_order: int, total_steps: int):
+        self.topic_id = topic_id
+        self.step_order = step_order
+        self.total_steps = total_steps
+        super().__init__(
+            f"Invalid step_order {step_order} for {topic_id}. "
+            f"Must be between 1 and {total_steps}."
+        )
+
 
 def _resolve_total_steps(topic_id: str) -> int:
+    """Get total number of learning steps for a topic.
+
+    Args:
+        topic_id: The topic ID (e.g., "phase1-topic5")
+
+    Returns:
+        Total number of learning steps in the topic
+
+    Raises:
+        StepUnknownTopicError: If topic_id doesn't exist in content
+    """
     topic = get_topic_by_id(topic_id)
     if topic is None:
-        raise StepUnknownTopicError(f"Unknown topic_id: {topic_id}")
+        raise StepUnknownTopicError(topic_id)
     return len(topic.learning_steps)
 
 
 def _validate_step_order(topic_id: str, step_order: int) -> int:
+    """Validate step_order is within valid range for the topic.
+
+    Args:
+        topic_id: The topic ID (e.g., "phase1-topic5")
+        step_order: The step number to validate (1-indexed)
+
+    Returns:
+        Total number of steps in the topic (useful for callers)
+
+    Raises:
+        StepUnknownTopicError: If topic_id doesn't exist in content
+        StepInvalidStepOrderError: If step_order is out of range
+    """
     total_steps = _resolve_total_steps(topic_id)
     if step_order < 1 or step_order > total_steps:
-        raise StepInvalidStepOrderError(
-            f"Invalid step_order {step_order} for {topic_id}. "
-            f"Must be between 1 and {total_steps}."
-        )
+        raise StepInvalidStepOrderError(topic_id, step_order, total_steps)
     return total_steps
 
 
 async def get_topic_step_progress(
-    db,
+    db: AsyncSession,
     user_id: str,
     topic_id: str,
     *,
@@ -92,8 +111,13 @@ async def get_topic_step_progress(
         db: Database session
         user_id: The user's ID
         topic_id: The topic ID (e.g., "phase1-topic5")
+        is_admin: If True, unlock all steps for the user
+
     Returns:
         StepProgressData with completed steps and next unlocked step
+
+    Raises:
+        StepUnknownTopicError: If topic_id doesn't exist in content
     """
     total_steps = _resolve_total_steps(topic_id)
 
@@ -128,7 +152,7 @@ async def get_topic_step_progress(
 
 @track_operation("step_completion")
 async def complete_step(
-    db,
+    db: AsyncSession,
     user_id: str,
     topic_id: str,
     step_order: int,
@@ -158,10 +182,9 @@ async def complete_step(
     _validate_step_order(topic_id, step_order)
 
     step_repo = StepProgressRepository(db)
-    activity_repo = ActivityRepository(db)
 
     if await step_repo.exists(user_id, topic_id, step_order):
-        raise StepAlreadyCompletedError("Step already completed")
+        raise StepAlreadyCompletedError(topic_id, step_order)
 
     if not is_admin and step_order > 1:
         completed_steps = await step_repo.get_completed_step_orders(user_id, topic_id)
@@ -179,11 +202,10 @@ async def complete_step(
         step_order=step_order,
     )
 
-    today = datetime.now(UTC).date()
-    await activity_repo.log_activity(
+    await log_activity(
+        db=db,
         user_id=user_id,
         activity_type=ActivityType.STEP_COMPLETE,
-        activity_date=today,
         reference_id=f"{topic_id}:step{step_order}",
     )
 
@@ -201,7 +223,12 @@ async def complete_step(
     )
 
 
-async def uncomplete_step(db, user_id: str, topic_id: str, step_order: int) -> int:
+async def uncomplete_step(
+    db: AsyncSession,
+    user_id: str,
+    topic_id: str,
+    step_order: int,
+) -> int:
     """Mark a learning step as incomplete (uncomplete it).
 
     Also removes any steps after this one (cascading uncomplete).
@@ -214,6 +241,10 @@ async def uncomplete_step(db, user_id: str, topic_id: str, step_order: int) -> i
 
     Returns:
         Number of steps deleted
+
+    Raises:
+        StepUnknownTopicError: If topic_id doesn't exist in content
+        StepInvalidStepOrderError: If step_order is out of range
     """
     _validate_step_order(topic_id, step_order)
 

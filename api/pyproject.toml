@@ -36,6 +36,7 @@ dependencies = [
     "uvicorn[standard]==0.34.0",
     "cairosvg>=2.7.0",
     "starlette>=0.41.3",
+    "structlog>=25.5.0",
 ]
 
 [project.optional-dependencies]

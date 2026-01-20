@@ -1,45 +1,63 @@
 """Webhook handler service for Clerk user sync events."""
 
+from typing import TypedDict
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.telemetry import add_custom_attribute, log_metric, track_operation
 from repositories.user_repository import UserRepository
 from repositories.webhook_repository import ProcessedWebhookRepository
 from services.clerk_service import extract_github_username, extract_primary_email
-from services.users_service import _normalize_github_username
+from services.users_service import normalize_github_username
 
 
-async def handle_user_created(db: AsyncSession, data: dict) -> None:
-    """Handle user.created webhook event.
+class ClerkUserWebhookData(TypedDict, total=False):
+    """Clerk webhook payload for user events (partial - only fields we use)."""
 
-    Creates or updates user record with data from Clerk using upsert.
-    """
+    id: str
+    first_name: str | None
+    last_name: str | None
+    image_url: str | None
+    email_addresses: list[dict]
+    primary_email_address_id: str | None
+    external_accounts: list[dict]
+
+
+async def _upsert_user_from_webhook(
+    user_repo: UserRepository,
+    data: ClerkUserWebhookData,
+    email_fallback: str,
+) -> None:
+    """Extract user fields from Clerk webhook data and upsert to database."""
+    user_id = data.get("id")
+    if not user_id:
+        return
+
+    primary_email = extract_primary_email(data, email_fallback)
+    github_username = extract_github_username(data)
+
+    await user_repo.upsert(
+        user_id=user_id,
+        email=primary_email or email_fallback,
+        first_name=data.get("first_name"),
+        last_name=data.get("last_name"),
+        avatar_url=data.get("image_url"),
+        github_username=normalize_github_username(github_username),
+    )
+
+
+async def handle_user_created(db: AsyncSession, data: ClerkUserWebhookData) -> None:
+    """Handle user.created webhook event."""
     user_id = data.get("id")
     if not user_id:
         return
 
     user_repo = UserRepository(db)
-
-    primary_email = extract_primary_email(data, f"{user_id}@unknown.local")
-    github_username = extract_github_username(data)
-    normalized_github_username = _normalize_github_username(github_username)
-    email = primary_email or f"{user_id}@unknown.local"
-
-    await user_repo.upsert(
-        user_id=user_id,
-        email=email,
-        first_name=data.get("first_name"),
-        last_name=data.get("last_name"),
-        avatar_url=data.get("image_url"),
-        github_username=normalized_github_username,
-    )
+    await _upsert_user_from_webhook(user_repo, data, f"{user_id}@unknown.local")
 
 
-async def handle_user_updated(db: AsyncSession, data: dict) -> None:
-    """Handle user.updated webhook event.
-
-    Updates existing user record or creates if not found using upsert.
-    """
+async def handle_user_updated(db: AsyncSession, data: ClerkUserWebhookData) -> None:
+    """Handle user.updated webhook event."""
     user_id = data.get("id")
     if not user_id:
         return
@@ -47,23 +65,12 @@ async def handle_user_updated(db: AsyncSession, data: dict) -> None:
     user_repo = UserRepository(db)
     user = await user_repo.get_by_id(user_id)
 
-    primary_email = extract_primary_email(
-        data, user.email if user else f"{user_id}@unknown.local"
-    )
-    github_username = extract_github_username(data)
-    normalized_github_username = _normalize_github_username(github_username)
-
-    await user_repo.upsert(
-        user_id=user_id,
-        email=primary_email or f"{user_id}@unknown.local",
-        first_name=data.get("first_name"),
-        last_name=data.get("last_name"),
-        avatar_url=data.get("image_url"),
-        github_username=normalized_github_username,
-    )
+    # Use existing email as fallback if user exists, otherwise placeholder
+    email_fallback = user.email if user else f"{user_id}@unknown.local"
+    await _upsert_user_from_webhook(user_repo, data, email_fallback)
 
 
-async def handle_user_deleted(db: AsyncSession, data: dict) -> None:
+async def handle_user_deleted(db: AsyncSession, data: ClerkUserWebhookData) -> None:
     """Handle user.deleted webhook event.
 
     Hard deletes the user and relies on FK ON DELETE CASCADE
@@ -83,7 +90,7 @@ async def handle_clerk_event(
     *,
     svix_id: str,
     event_type: str,
-    data: dict,
+    data: ClerkUserWebhookData,
 ) -> str:
     """Handle a Clerk webhook event with idempotency.
 
@@ -109,6 +116,9 @@ async def handle_clerk_event(
     elif event_type == "user.deleted":
         await handle_user_deleted(db, data)
         log_metric("webhooks.user_deleted", 1)
+    else:
+        log_metric("webhooks.ignored", 1, {"event_type": event_type})
+        return "processed"
 
     log_metric("webhooks.processed", 1, {"event_type": event_type})
     return "processed"

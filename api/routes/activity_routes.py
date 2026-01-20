@@ -1,9 +1,8 @@
 """Activity tracking and streak calculation endpoints."""
 
-import logging
-
 from fastapi import APIRouter, Request
 
+from core import get_logger
 from core.auth import UserId
 from core.database import DbSession
 from core.ratelimit import limiter
@@ -13,7 +12,7 @@ from schemas import (
 from services.activity_service import get_streak_data
 from services.users_service import get_or_create_user
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/activity", tags=["activity"])
 

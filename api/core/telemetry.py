@@ -1,6 +1,5 @@
 """Telemetry and monitoring utilities for performance tracking."""
 
-import logging
 import os
 import time
 from collections.abc import Callable
@@ -9,7 +8,9 @@ from typing import Any, ParamSpec, TypeVar
 
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
-logger = logging.getLogger(__name__)
+from core.logger import get_logger
+
+logger = get_logger(__name__)
 
 TELEMETRY_ENABLED = bool(os.getenv("APPLICATIONINSIGHTS_CONNECTION_STRING"))
 

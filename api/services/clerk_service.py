@@ -8,12 +8,12 @@ SCALABILITY:
 """
 
 import asyncio
-import logging
 import time
-from dataclasses import dataclass
+from collections.abc import Mapping
+from typing import Any
 
 import httpx
-from circuitbreaker import circuit
+from circuitbreaker import CircuitBreakerError, circuit
 from tenacity import (
     RetryCallState,
     retry,
@@ -22,10 +22,12 @@ from tenacity import (
     wait_exponential_jitter,
 )
 
+from core import get_logger
 from core.config import get_settings
 from core.telemetry import track_dependency
+from schemas import ClerkUserData
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 _http_client: httpx.AsyncClient | None = None
 _http_client_lock = asyncio.Lock()
@@ -61,13 +63,11 @@ def _wait_with_retry_after(retry_state: RetryCallState) -> float:
 
     Falls back to exponential backoff with jitter if no Retry-After.
     """
-    # Check if the exception has a retry_after value
     exc = retry_state.outcome.exception() if retry_state.outcome else None
     if isinstance(exc, ClerkServerError) and exc.retry_after:
         # Cap at 60s to avoid pathological values
         return min(exc.retry_after, 60.0)
 
-    # Fall back to exponential backoff with jitter
     return wait_exponential_jitter(initial=0.5, max=4)(retry_state)
 
 
@@ -80,12 +80,11 @@ def _is_in_backoff(user_id: str) -> bool:
     """Check if user is in backoff period."""
     expiry = _backoff_state.get(user_id, 0.0)
     if expiry <= time.time():
-        _backoff_state.pop(user_id, None)  # Clean up expired entry
+        _backoff_state.pop(user_id, None)
         return False
     return True
 
 
-# Simple bounded dict with LRU eviction for backoff state
 class _BoundedBackoffDict(dict):
     """Dict with max size that evicts oldest entries when full."""
 
@@ -101,7 +100,6 @@ class _BoundedBackoffDict(dict):
 _backoff_state = _BoundedBackoffDict()
 
 
-# Exceptions that should trigger retry and circuit breaker
 RETRIABLE_EXCEPTIONS: tuple[type[Exception], ...] = (
     httpx.RequestError,
     httpx.TimeoutException,
@@ -142,18 +140,7 @@ async def close_http_client() -> None:
     _http_client = None
 
 
-@dataclass
-class ClerkUserData:
-    """Data fetched from Clerk API for a user."""
-
-    email: str | None = None
-    first_name: str | None = None
-    last_name: str | None = None
-    avatar_url: str | None = None
-    github_username: str | None = None
-
-
-def extract_github_username(data: dict) -> str | None:
+def extract_github_username(data: Mapping[str, Any]) -> str | None:
     """Extract GitHub username from Clerk webhook/API data.
 
     Clerk stores OAuth account info in 'external_accounts' array.
@@ -172,7 +159,9 @@ def extract_github_username(data: dict) -> str | None:
     )
 
 
-def extract_primary_email(data: dict, fallback: str | None = None) -> str | None:
+def extract_primary_email(
+    data: Mapping[str, Any], fallback: str | None = None
+) -> str | None:
     """Extract primary email from Clerk webhook/API data."""
     email_addresses = data.get("email_addresses", [])
     return next(
@@ -254,13 +243,16 @@ async def fetch_user_data(user_id: str) -> ClerkUserData | None:
     if not settings.clerk_secret_key:
         return None
 
-    # Check backoff (only set after retries exhausted)
     if _is_in_backoff(user_id):
         logger.debug(f"User {user_id} in backoff period, skipping Clerk API call")
         return None
 
     try:
         return await _fetch_user_data_with_retry(user_id)
+    except CircuitBreakerError:
+        # Circuit is open - fail fast without backoff (circuit handles timing)
+        logger.debug(f"Circuit breaker open for Clerk API, skipping user {user_id}")
+        return None
     except RETRIABLE_EXCEPTIONS as e:
         # All retries exhausted - set backoff for this user
         _set_backoff(user_id)

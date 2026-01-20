@@ -37,8 +37,9 @@ from tenacity import (
 )
 
 from core.config import get_settings
+from core.logger import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # Timeout for Azure AD token acquisition (seconds)
 _AZURE_TOKEN_TIMEOUT = 30
@@ -99,6 +100,10 @@ def _get_azure_token_sync() -> str:
     return token.token
 
 
+# tenacity's before_sleep_log requires a stdlib Logger, not structlog BoundLogger
+_stdlib_logger = logging.getLogger(__name__)
+
+
 @retry(
     stop=stop_after_attempt(_AZURE_RETRY_ATTEMPTS),
     wait=wait_exponential(
@@ -108,7 +113,7 @@ def _get_azure_token_sync() -> str:
     # TimeoutError: token acquisition timeout
     # OSError: network issues (includes ConnectionError, socket errors)
     retry=retry_if_exception_type((TimeoutError, OSError)),
-    before_sleep=before_sleep_log(logger, logging.WARNING),
+    before_sleep=before_sleep_log(_stdlib_logger, logging.WARNING),
     reraise=True,
 )
 async def _get_azure_token() -> str:

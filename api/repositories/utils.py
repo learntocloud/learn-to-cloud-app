@@ -1,9 +1,66 @@
 """Repository utility functions for common database operations."""
 
-from typing import Any
+import time
+from collections.abc import Awaitable, Callable
+from functools import wraps
+from typing import Any, ParamSpec, TypeVar
 
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from core.logger import get_logger
+
+logger = get_logger(__name__)
+
+# Threshold for logging slow queries (milliseconds)
+SLOW_QUERY_THRESHOLD_MS = 500
+
+P = ParamSpec("P")
+R = TypeVar("R")
+
+
+def log_slow_query(
+    operation_name: str,
+) -> Callable[[Callable[P, Awaitable[R]]], Callable[P, Awaitable[R]]]:
+    """Decorator to log slow repository operations and errors.
+
+    Logs at DEBUG level for queries exceeding SLOW_QUERY_THRESHOLD_MS.
+    Logs at ERROR level for exceptions (re-raises after logging).
+
+    Usage:
+        @log_slow_query("get_user_by_id")
+        async def get_by_id(self, user_id: str) -> User | None:
+            ...
+    """
+
+    def decorator(func: Callable[P, Awaitable[R]]) -> Callable[P, Awaitable[R]]:
+        @wraps(func)
+        async def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+            start_time = time.perf_counter()
+            try:
+                result = await func(*args, **kwargs)
+                duration_ms = (time.perf_counter() - start_time) * 1000
+                if duration_ms > SLOW_QUERY_THRESHOLD_MS:
+                    logger.debug(
+                        "db.slow_query",
+                        operation=operation_name,
+                        duration_ms=round(duration_ms, 2),
+                    )
+                return result
+            except Exception as e:
+                duration_ms = (time.perf_counter() - start_time) * 1000
+                logger.error(
+                    "db.query_error",
+                    operation=operation_name,
+                    duration_ms=round(duration_ms, 2),
+                    error=str(e),
+                    error_type=type(e).__name__,
+                )
+                raise
+
+        return wrapper
+
+    return decorator
 
 
 async def upsert_on_conflict[T](

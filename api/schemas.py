@@ -1,11 +1,39 @@
-"""Pydantic schemas for API request/response validation."""
+"""Pydantic schemas for API request/response validation.
+
+This module contains all Pydantic schemas used throughout the application.
+Schemas are used both for API request/response validation and as
+service-layer response models.
+
+All schemas use frozen=True for immutability where appropriate.
+"""
 
 import re
 from datetime import date, datetime
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator
 
 from models import ActivityType, SubmissionType
+
+# =============================================================================
+# Base Configuration
+# =============================================================================
+
+
+class FrozenModel(BaseModel):
+    """Base class for immutable Pydantic models (replaces frozen dataclasses)."""
+
+    model_config = ConfigDict(frozen=True)
+
+
+class FrozenORMModel(BaseModel):
+    """Base class for immutable models that can be created from ORM objects."""
+
+    model_config = ConfigDict(frozen=True, from_attributes=True)
+
+
+# =============================================================================
+# User Schemas
+# =============================================================================
 
 
 class UserBase(BaseModel):
@@ -19,28 +47,25 @@ class UserBase(BaseModel):
 
 
 class UserResponse(UserBase):
-    """User response schema."""
+    """User response schema (also used as service-layer response model)."""
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(frozen=True, from_attributes=True)
 
     id: str
     is_admin: bool = False
     created_at: datetime
 
 
-class HandsOnRequirement(BaseModel):
+# =============================================================================
+# Hands-On Requirements & Submissions
+# =============================================================================
+
+
+class HandsOnRequirement(FrozenModel):
     """A hands-on requirement for phase completion.
 
-    NOTE: This model serves dual purposes:
-    1. API schema: Returned in API responses
-    2. Business configuration: Used in services/hands_on_verification.py to
-       define phase requirements (HANDS_ON_REQUIREMENTS constant)
-
-    Using Pydantic for both is intentional - it ensures the same structure
-    is used for configuration and API responses, reducing inconsistencies.
-
-    Supports multiple verification types including GitHub-based validations,
-    deployed application checks, CTF tokens, and API challenges.
+    Used both as API schema and for defining phase requirements
+    in services/phase_requirements_service.py.
 
     To add a new verification type:
     1. Add the SubmissionType enum value in models.py
@@ -90,10 +115,11 @@ class HandsOnSubmissionRequest(BaseModel):
         return v
 
 
-class HandsOnSubmissionResponse(BaseModel):
-    """Response for a hands-on submission."""
+class HandsOnSubmissionResponse(FrozenORMModel):
+    """Response for a hands-on submission.
 
-    model_config = ConfigDict(from_attributes=True)
+    Also used as service-layer response model.
+    """
 
     id: int
     requirement_id: str
@@ -106,14 +132,19 @@ class HandsOnSubmissionResponse(BaseModel):
     created_at: datetime
 
 
-class HandsOnValidationResult(BaseModel):
+class HandsOnValidationResult(FrozenModel):
     """Result of validating a hands-on submission."""
 
     is_valid: bool
     message: str
-    username_match: bool
-    repo_exists: bool
+    username_match: bool | None = None
+    repo_exists: bool | None = None
     submission: HandsOnSubmissionResponse | None = None
+
+
+# =============================================================================
+# Health Check Schemas
+# =============================================================================
 
 
 class HealthResponse(BaseModel):
@@ -184,14 +215,22 @@ class QuestionSubmitRequest(BaseModel):
         return stripped
 
 
-class QuestionSubmitResponse(BaseModel):
+class QuestionSubmitResponse(FrozenORMModel):
     """Response for a question submission."""
-
-    model_config = ConfigDict(from_attributes=True)
 
     question_id: str
     is_passed: bool
     llm_feedback: str | None = None
+    confidence_score: float | None = None
+    attempt_id: int
+
+
+class QuestionGradeResult(FrozenModel):
+    """Result of grading a question answer (service-layer response model)."""
+
+    question_id: str
+    is_passed: bool
+    feedback: str | None = None
     confidence_score: float | None = None
     attempt_id: int
 
@@ -211,18 +250,16 @@ class StepCompleteRequest(BaseModel):
         return v
 
 
-class StepProgressResponse(BaseModel):
+class StepProgressResponse(FrozenORMModel):
     """Response for a single step's progress."""
-
-    model_config = ConfigDict(from_attributes=True)
 
     topic_id: str
     step_order: int
     completed_at: datetime
 
 
-class TopicStepProgressResponse(BaseModel):
-    """Progress of all steps in a topic for a user."""
+class StepProgressData(FrozenModel):
+    """Step progress data for a topic (service-layer response model)."""
 
     topic_id: str
     completed_steps: list[int]
@@ -230,10 +267,27 @@ class TopicStepProgressResponse(BaseModel):
     next_unlocked_step: int
 
 
-class StreakResponse(BaseModel):
-    """Response containing user's streak information."""
+# Alias for route compatibility
+TopicStepProgressResponse = StepProgressData
 
-    model_config = ConfigDict(from_attributes=True)
+
+class StepCompletionResult(FrozenModel):
+    """Result of completing a step (service-layer response model)."""
+
+    topic_id: str
+    step_order: int
+    completed_at: datetime
+
+
+class StepUncompleteResponse(FrozenModel):
+    """Response for uncompleting a step."""
+
+    status: str
+    deleted_count: int
+
+
+class StreakData(FrozenModel):
+    """User's streak information (service-layer response model)."""
 
     current_streak: int
     longest_streak: int
@@ -242,20 +296,38 @@ class StreakResponse(BaseModel):
     streak_alive: bool
 
 
-class ActivityHeatmapDay(BaseModel):
-    """Activity count for a single day (for heatmap display)."""
+# Alias for route compatibility
+StreakResponse = StreakData
 
-    model_config = ConfigDict(from_attributes=True)
+
+class HeatmapDay(FrozenModel):
+    """Activity data for a single day (service-layer response model)."""
+
+    date: date
+    count: int
+    activity_types: list[str]
+
+
+# Route version with ActivityType enum
+class ActivityHeatmapDay(FrozenORMModel):
+    """Activity count for a single day (for heatmap display)."""
 
     date: date
     count: int
     activity_types: list[ActivityType]
 
 
-class ActivityHeatmapResponse(BaseModel):
-    """Activity heatmap data for profile display."""
+class HeatmapData(FrozenModel):
+    """Activity heatmap data (service-layer response model)."""
 
-    model_config = ConfigDict(from_attributes=True)
+    days: list[HeatmapDay]
+    start_date: date
+    end_date: date
+    total_activities: int
+
+
+class ActivityHeatmapResponse(FrozenORMModel):
+    """Activity heatmap data for profile display."""
 
     days: list[ActivityHeatmapDay]
     start_date: date
@@ -263,10 +335,8 @@ class ActivityHeatmapResponse(BaseModel):
     total_activities: int
 
 
-class BadgeResponse(BaseModel):
-    """A badge earned by a user."""
-
-    model_config = ConfigDict(from_attributes=True)
+class BadgeData(FrozenModel):
+    """Badge information (service-layer response model)."""
 
     id: str
     name: str
@@ -274,10 +344,12 @@ class BadgeResponse(BaseModel):
     icon: str
 
 
-class PublicSubmission(BaseModel):
-    """A validated submission for public display."""
+# Alias for route compatibility
+BadgeResponse = BadgeData
 
-    model_config = ConfigDict(from_attributes=True)
+
+class PublicSubmission(FrozenORMModel):
+    """A validated submission for public display."""
 
     requirement_id: str
     submission_type: SubmissionType
@@ -285,6 +357,35 @@ class PublicSubmission(BaseModel):
     submitted_value: str
     name: str
     validated_at: datetime | None = None
+
+
+class PublicSubmissionInfo(FrozenModel):
+    """Public submission information for profile display.
+
+    Also used as service-layer response model.
+    """
+
+    requirement_id: str
+    submission_type: str
+    phase_id: int
+    submitted_value: str
+    name: str
+    validated_at: object | None = None
+
+
+class PublicProfileData(FrozenModel):
+    """Complete public profile data (service-layer response model)."""
+
+    username: str | None
+    first_name: str | None
+    avatar_url: str | None
+    current_phase: int
+    phases_completed: int
+    streak: StreakData
+    activity_heatmap: HeatmapData
+    member_since: datetime
+    submissions: list[PublicSubmissionInfo]
+    badges: list[BadgeData]
 
 
 class PublicProfileResponse(BaseModel):
@@ -301,11 +402,54 @@ class PublicProfileResponse(BaseModel):
     avatar_url: str | None = None
     current_phase: int
     phases_completed: int
-    streak: StreakResponse
+    streak: StreakData
     activity_heatmap: ActivityHeatmapResponse
     member_since: datetime
     submissions: list[PublicSubmission] = Field(default_factory=list)
-    badges: list[BadgeResponse] = Field(default_factory=list)
+    badges: list[BadgeData] = Field(default_factory=list)
+
+
+# =============================================================================
+# Certificate Schemas
+# =============================================================================
+
+
+class CertificateData(FrozenModel):
+    """Certificate data (service-layer response model)."""
+
+    id: int
+    certificate_type: str
+    verification_code: str
+    recipient_name: str
+    issued_at: datetime
+    phases_completed: int
+    total_phases: int
+
+
+class EligibilityResult(FrozenModel):
+    """Result of certificate eligibility check (service-layer response model)."""
+
+    is_eligible: bool
+    phases_completed: int
+    total_phases: int
+    completion_percentage: float
+    existing_certificate: CertificateData | None = None
+    message: str
+
+
+class CreateCertificateResult(FrozenModel):
+    """Result of certificate creation (service-layer response model)."""
+
+    certificate: CertificateData
+    verification_code: str
+
+
+class CertificateVerificationResult(FrozenModel):
+    """Result of certificate verification (service-layer response model)."""
+
+    is_valid: bool
+    certificate: CertificateData | None = None
+    message: str
 
 
 class CertificateEligibilityResponse(BaseModel):
@@ -340,43 +484,42 @@ class CertificateRequest(BaseModel):
         return cleaned
 
 
-class CertificateResponse(BaseModel):
-    """Response containing certificate data."""
-
-    model_config = ConfigDict(from_attributes=True)
-
-    id: int
-    certificate_type: str
-    verification_code: str
-    recipient_name: str
-    issued_at: datetime
-    phases_completed: int
-    total_phases: int
+# Alias for route compatibility
+CertificateResponse = CertificateData
 
 
 class CertificateVerifyResponse(BaseModel):
     """Response for certificate verification."""
 
     is_valid: bool
-    certificate: CertificateResponse | None = None
+    certificate: CertificateData | None = None
     message: str
 
 
 class UserCertificatesResponse(BaseModel):
     """All certificates for a user."""
 
-    certificates: list[CertificateResponse]
+    certificates: list[CertificateData]
     full_completion_eligible: bool
 
 
-class SecondaryLinkSchema(BaseModel):
+# =============================================================================
+# Content Schemas (loaded from JSON files)
+# =============================================================================
+
+
+class SecondaryLink(FrozenModel):
     """A secondary link in a learning step description."""
 
     text: str
     url: str
 
 
-class ProviderOptionSchema(BaseModel):
+# Alias for route compatibility
+SecondaryLinkSchema = SecondaryLink
+
+
+class ProviderOption(FrozenModel):
     """Cloud provider-specific option for a learning step."""
 
     provider: str  # "aws", "azure", "gcp"
@@ -385,7 +528,11 @@ class ProviderOptionSchema(BaseModel):
     description: str | None = None
 
 
-class LearningStepSchema(BaseModel):
+# Alias for route compatibility
+ProviderOptionSchema = ProviderOption
+
+
+class LearningStep(FrozenModel):
     """A learning step within a topic."""
 
     order: int
@@ -395,12 +542,24 @@ class LearningStepSchema(BaseModel):
     url: str | None = None
     description: str | None = None
     code: str | None = None
-    secondary_links: list[SecondaryLinkSchema] = Field(default_factory=list)
-    options: list[ProviderOptionSchema] = Field(default_factory=list)
+    secondary_links: list[SecondaryLink] = Field(default_factory=list)
+    options: list[ProviderOption] = Field(default_factory=list)
 
 
-class QuestionSchema(BaseModel):
-    """A knowledge check question.
+# Alias for route compatibility
+LearningStepSchema = LearningStep
+
+
+class Question(FrozenModel):
+    """A knowledge check question."""
+
+    id: str
+    prompt: str
+    expected_concepts: list[str] = Field(default_factory=list)
+
+
+class QuestionSchema(FrozenModel):
+    """A knowledge check question (API response - excludes expected_concepts).
 
     Note: expected_concepts is intentionally excluded for security.
     Grading concepts are stored server-side in the grading_concepts table
@@ -411,8 +570,81 @@ class QuestionSchema(BaseModel):
     prompt: str
 
 
-class TopicProgressSchema(BaseModel):
-    """Progress status for a topic."""
+class LearningObjective(FrozenModel):
+    """A learning objective for a topic."""
+
+    id: str
+    text: str
+    order: int
+
+
+# Alias for route compatibility
+LearningObjectiveSchema = LearningObjective
+
+
+class Topic(FrozenModel):
+    """A topic within a phase."""
+
+    id: str
+    slug: str
+    name: str
+    description: str
+    order: int
+    estimated_time: str
+    is_capstone: bool
+    learning_steps: list[LearningStep]
+    questions: list[Question]
+    learning_objectives: list[LearningObjective] = Field(default_factory=list)
+
+
+class PhaseCapstoneOverview(FrozenModel):
+    """High-level capstone overview for a phase (public summary)."""
+
+    title: str
+    summary: str
+    includes: list[str] = Field(default_factory=list)
+    topic_slug: str | None = None
+
+
+# Alias for route compatibility
+PhaseCapstoneOverviewSchema = PhaseCapstoneOverview
+
+
+class PhaseHandsOnVerificationOverview(FrozenModel):
+    """High-level hands-on verification overview for a phase (public summary)."""
+
+    summary: str
+    includes: list[str] = Field(default_factory=list)
+
+
+# Alias for route compatibility
+PhaseHandsOnVerificationOverviewSchema = PhaseHandsOnVerificationOverview
+
+
+class Phase(FrozenModel):
+    """A phase in the curriculum."""
+
+    id: int
+    name: str
+    slug: str
+    description: str
+    short_description: str
+    estimated_weeks: str
+    order: int
+    objectives: list[str]
+    capstone: PhaseCapstoneOverview | None = None
+    hands_on_verification: PhaseHandsOnVerificationOverview | None = None
+    topic_slugs: list[str] = Field(default_factory=list)
+    topics: list[Topic] = Field(default_factory=list)
+
+
+# =============================================================================
+# Progress Schemas
+# =============================================================================
+
+
+class TopicProgressData(FrozenModel):
+    """Progress status for a topic (service-layer response model)."""
 
     steps_completed: int
     steps_total: int
@@ -422,8 +654,12 @@ class TopicProgressSchema(BaseModel):
     status: str  # "not_started", "in_progress", "completed"
 
 
-class TopicSummarySchema(BaseModel):
-    """Topic summary for phase listings."""
+# Alias for route compatibility
+TopicProgressSchema = TopicProgressData
+
+
+class TopicSummaryData(FrozenModel):
+    """Topic summary data (service-layer response model)."""
 
     id: str
     slug: str
@@ -434,12 +670,16 @@ class TopicSummarySchema(BaseModel):
     is_capstone: bool
     steps_count: int
     questions_count: int
-    progress: TopicProgressSchema | None = None
+    progress: TopicProgressData | None = None
     is_locked: bool = False
 
 
-class TopicDetailSchema(BaseModel):
-    """Full topic detail with steps and questions."""
+# Alias for route compatibility
+TopicSummarySchema = TopicSummaryData
+
+
+class TopicDetailData(FrozenModel):
+    """Full topic detail with steps and questions (service-layer response model)."""
 
     id: str
     slug: str
@@ -448,10 +688,10 @@ class TopicDetailSchema(BaseModel):
     order: int
     estimated_time: str
     is_capstone: bool
-    learning_steps: list[LearningStepSchema]
-    questions: list[QuestionSchema]
-    learning_objectives: list["LearningObjectiveSchema"] = Field(default_factory=list)
-    progress: TopicProgressSchema | None = None
+    learning_steps: list[LearningStep]
+    questions: list[Question]
+    learning_objectives: list[LearningObjective] = Field(default_factory=list)
+    progress: TopicProgressData | None = None
     completed_step_orders: list[int] = Field(default_factory=list)
     passed_question_ids: list[str] = Field(default_factory=list)
     is_locked: bool = False
@@ -459,16 +699,12 @@ class TopicDetailSchema(BaseModel):
     previous_topic_name: str | None = None
 
 
-class LearningObjectiveSchema(BaseModel):
-    """A learning objective for a topic."""
-
-    id: str
-    text: str
-    order: int
+# Alias for route compatibility
+TopicDetailSchema = TopicDetailData
 
 
-class PhaseProgressSchema(BaseModel):
-    """Progress status for a phase."""
+class PhaseProgressData(FrozenModel):
+    """Progress status for a phase (service-layer response model)."""
 
     steps_completed: int
     steps_required: int
@@ -480,28 +716,12 @@ class PhaseProgressSchema(BaseModel):
     status: str  # "not_started", "in_progress", "completed"
 
 
-class PhaseCapstoneOverviewSchema(BaseModel):
-    """Public-friendly capstone overview for a phase."""
-
-    model_config = ConfigDict(from_attributes=True)
-
-    title: str
-    summary: str
-    includes: list[str] = Field(default_factory=list)
-    topic_slug: str | None = None
+# Alias for route compatibility
+PhaseProgressSchema = PhaseProgressData
 
 
-class PhaseHandsOnVerificationOverviewSchema(BaseModel):
-    """Public-friendly hands-on verification overview for a phase."""
-
-    model_config = ConfigDict(from_attributes=True)
-
-    summary: str
-    includes: list[str] = Field(default_factory=list)
-
-
-class PhaseSummarySchema(BaseModel):
-    """Phase summary for dashboard/listings."""
+class PhaseSummaryData(FrozenModel):
+    """Phase summary data (service-layer response model)."""
 
     id: int
     name: str
@@ -512,14 +732,18 @@ class PhaseSummarySchema(BaseModel):
     order: int
     topics_count: int
     objectives: list[str] = Field(default_factory=list)
-    capstone: PhaseCapstoneOverviewSchema | None = None
-    hands_on_verification: PhaseHandsOnVerificationOverviewSchema | None = None
-    progress: PhaseProgressSchema | None = None
+    capstone: PhaseCapstoneOverview | None = None
+    hands_on_verification: PhaseHandsOnVerificationOverview | None = None
+    progress: PhaseProgressData | None = None
     is_locked: bool = False
 
 
-class PhaseDetailSchema(BaseModel):
-    """Full phase detail with topics."""
+# Alias for route compatibility
+PhaseSummarySchema = PhaseSummaryData
+
+
+class PhaseDetailData(FrozenModel):
+    """Full phase detail with topics (service-layer response model)."""
 
     id: int
     name: str
@@ -529,21 +753,24 @@ class PhaseDetailSchema(BaseModel):
     estimated_weeks: str
     order: int
     objectives: list[str]
-    capstone: PhaseCapstoneOverviewSchema | None = None
-    hands_on_verification: PhaseHandsOnVerificationOverviewSchema | None = None
-    topics: list[TopicSummarySchema]
-    progress: PhaseProgressSchema | None = None
+    capstone: PhaseCapstoneOverview | None = None
+    hands_on_verification: PhaseHandsOnVerificationOverview | None = None
+    topics: list[TopicSummaryData]
+    progress: PhaseProgressData | None = None
     hands_on_requirements: list[HandsOnRequirement] = Field(default_factory=list)
     hands_on_submissions: list[HandsOnSubmissionResponse] = Field(default_factory=list)
     is_locked: bool = False
-    # Computed fields - frontend should NOT recalculate these
     all_topics_complete: bool = False
     all_hands_on_validated: bool = False
     is_phase_complete: bool = False
 
 
-class UserSummarySchema(BaseModel):
-    """User summary for dashboard."""
+# Alias for route compatibility
+PhaseDetailSchema = PhaseDetailData
+
+
+class UserSummaryData(FrozenModel):
+    """User summary data (service-layer response model)."""
 
     id: str
     email: str
@@ -554,13 +781,293 @@ class UserSummarySchema(BaseModel):
     is_admin: bool = False
 
 
-class DashboardResponse(BaseModel):
-    """Complete dashboard data for a user."""
+# Alias for route compatibility
+UserSummarySchema = UserSummaryData
 
-    user: UserSummarySchema
-    phases: list[PhaseSummarySchema]
+
+class DashboardData(FrozenModel):
+    """Complete dashboard data (service-layer response model)."""
+
+    user: UserSummaryData
+    phases: list[PhaseSummaryData]
     overall_progress: float
     phases_completed: int
     phases_total: int
     current_phase: int | None = None
-    badges: list[BadgeResponse] = Field(default_factory=list)
+    badges: list[BadgeData] = Field(default_factory=list)
+
+
+# Alias for route compatibility
+DashboardResponse = DashboardData
+
+
+# =============================================================================
+# Progress Service Schemas (with computed fields)
+# =============================================================================
+
+
+class PhaseRequirements(FrozenModel):
+    """Requirements to complete a phase."""
+
+    phase_id: int
+    name: str
+    topics: int
+    steps: int
+    questions: int
+
+    @computed_field
+    @property
+    def questions_per_topic(self) -> int:
+        """Each topic has 2 questions."""
+        return 2
+
+
+class PhaseProgress(FrozenModel):
+    """User's progress for a single phase."""
+
+    phase_id: int
+    steps_completed: int
+    steps_required: int
+    questions_passed: int
+    questions_required: int
+    hands_on_validated_count: int
+    hands_on_required_count: int
+    hands_on_validated: bool
+    hands_on_required: bool
+
+    @computed_field
+    @property
+    def is_complete(self) -> bool:
+        """Phase is complete when all requirements are met."""
+        return (
+            self.steps_completed >= self.steps_required
+            and self.questions_passed >= self.questions_required
+            and self.hands_on_validated
+        )
+
+    @computed_field
+    @property
+    def hands_on_percentage(self) -> float:
+        """Percentage of hands-on requirements validated for this phase."""
+        if self.hands_on_required_count == 0:
+            return 100.0
+        return min(
+            100.0, (self.hands_on_validated_count / self.hands_on_required_count) * 100
+        )
+
+    @computed_field
+    @property
+    def overall_percentage(self) -> float:
+        """Phase completion percentage (steps + questions + hands-on)."""
+        total = (
+            self.steps_required + self.questions_required + self.hands_on_required_count
+        )
+        if total == 0:
+            return 0.0
+
+        completed = (
+            min(self.steps_completed, self.steps_required)
+            + min(self.questions_passed, self.questions_required)
+            + min(self.hands_on_validated_count, self.hands_on_required_count)
+        )
+        return (completed / total) * 100
+
+    @computed_field
+    @property
+    def step_percentage(self) -> float:
+        """Percentage of steps completed."""
+        if self.steps_required == 0:
+            return 100.0
+        return min(100.0, (self.steps_completed / self.steps_required) * 100)
+
+    @computed_field
+    @property
+    def question_percentage(self) -> float:
+        """Percentage of questions passed."""
+        if self.questions_required == 0:
+            return 100.0
+        return min(100.0, (self.questions_passed / self.questions_required) * 100)
+
+
+class UserProgress(FrozenModel):
+    """Complete progress summary for a user."""
+
+    user_id: str
+    phases: dict[int, PhaseProgress]
+    total_phases: int
+
+    @computed_field
+    @property
+    def phases_completed(self) -> int:
+        """Count of fully completed phases."""
+        return sum(1 for p in self.phases.values() if p.is_complete)
+
+    @computed_field
+    @property
+    def current_phase(self) -> int:
+        """First incomplete phase, or last phase if all done."""
+        for phase_id in sorted(self.phases.keys()):
+            if not self.phases[phase_id].is_complete:
+                return phase_id
+        return max(self.phases.keys()) if self.phases else 0
+
+    @computed_field
+    @property
+    def is_program_complete(self) -> bool:
+        """True if all phases are completed."""
+        return self.phases_completed >= self.total_phases
+
+    @computed_field
+    @property
+    def overall_percentage(self) -> float:
+        """Overall completion percentage across all phases."""
+        if not self.phases:
+            return 0.0
+
+        total_steps = sum(p.steps_required for p in self.phases.values())
+        total_questions = sum(p.questions_required for p in self.phases.values())
+        total_hands_on = sum(p.hands_on_required_count for p in self.phases.values())
+        completed_steps = sum(p.steps_completed for p in self.phases.values())
+        passed_questions = sum(p.questions_passed for p in self.phases.values())
+        completed_hands_on = sum(
+            p.hands_on_validated_count for p in self.phases.values()
+        )
+
+        if total_steps + total_questions + total_hands_on == 0:
+            return 0.0
+
+        total = total_steps + total_questions + total_hands_on
+        completed = (
+            min(completed_steps, total_steps)
+            + min(passed_questions, total_questions)
+            + min(completed_hands_on, total_hands_on)
+        )
+        return (completed / total) * 100
+
+
+# =============================================================================
+# Activity Service Schemas
+# =============================================================================
+
+
+class ActivityResult(FrozenModel):
+    """Result of logging an activity."""
+
+    id: int
+    activity_type: ActivityType
+    activity_date: date
+    reference_id: str | None = None
+    created_at: datetime
+
+
+# =============================================================================
+# Submission Service Schemas
+# =============================================================================
+
+
+class SubmissionData(FrozenModel):
+    """Submission data (service-layer response model)."""
+
+    id: int
+    requirement_id: str
+    submission_type: SubmissionType
+    phase_id: int
+    submitted_value: str
+    extracted_username: str | None = None
+    is_validated: bool
+    validated_at: datetime | None = None
+    created_at: datetime
+
+
+class SubmissionResult(FrozenModel):
+    """Result of a submission validation."""
+
+    submission: SubmissionData
+    is_valid: bool
+    message: str
+    username_match: bool | None = None
+    repo_exists: bool | None = None
+
+
+# =============================================================================
+# Validation Result Schema
+# =============================================================================
+
+
+class ValidationResult(FrozenModel):
+    """Result of validating a hands-on submission.
+
+    This is the common result type for ALL validation types.
+
+    Attributes:
+        is_valid: Whether the submission passed validation.
+        message: User-facing message explaining the result.
+        username_match: For GitHub-based validations, whether the submitted
+            URL matches the authenticated user. None for non-GitHub validations.
+        repo_exists: For GitHub-based validations, whether the repository
+            exists. None for non-GitHub validations.
+    """
+
+    is_valid: bool
+    message: str
+    username_match: bool | None = None
+    repo_exists: bool | None = None
+
+
+# =============================================================================
+# CTF Verification Schema
+# =============================================================================
+
+
+class CTFVerificationResult(FrozenModel):
+    """Result of verifying a CTF token."""
+
+    is_valid: bool
+    message: str
+    github_username: str | None = None
+    completion_date: str | None = None
+    completion_time: str | None = None
+    challenges_completed: int | None = None
+
+
+# =============================================================================
+# Clerk Service Schema
+# =============================================================================
+
+
+class ClerkUserData(FrozenModel):
+    """Data fetched from Clerk API for a user."""
+
+    email: str | None = None
+    first_name: str | None = None
+    last_name: str | None = None
+    avatar_url: str | None = None
+    github_username: str | None = None
+
+
+# =============================================================================
+# LLM Service Schema
+# =============================================================================
+
+
+class GradeResult(FrozenModel):
+    """Result of grading a knowledge question answer via LLM."""
+
+    is_passed: bool
+    feedback: str
+    confidence_score: float
+
+
+# =============================================================================
+# GitHub URL Parsing Schema
+# =============================================================================
+
+
+class ParsedGitHubUrl(FrozenModel):
+    """Parsed components of a GitHub URL."""
+
+    username: str
+    repo_name: str | None = None
+    file_path: str | None = None
+    is_valid: bool = True
+    error: str | None = None

@@ -1,7 +1,5 @@
 """GitHub submission endpoints."""
 
-from dataclasses import asdict
-
 from fastapi import APIRouter, HTTPException, Request
 
 from core.auth import UserId
@@ -46,6 +44,7 @@ async def submit_github_validation(
     except GitHubUsernameRequiredError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+    # Service returns Pydantic models
     return HandsOnValidationResult(
         is_valid=result.is_valid,
         message=result.message,
@@ -53,5 +52,7 @@ async def submit_github_validation(
         if result.username_match is not None
         else False,
         repo_exists=result.repo_exists if result.repo_exists is not None else False,
-        submission=HandsOnSubmissionResponse.model_validate(asdict(result.submission)),
+        submission=HandsOnSubmissionResponse.model_validate(
+            result.submission.model_dump()
+        ),
     )

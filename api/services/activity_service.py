@@ -8,56 +8,20 @@ This module handles:
 Routes should use this service for all activity-related business logic.
 """
 
-from dataclasses import dataclass
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.telemetry import add_custom_attribute, log_metric, track_operation
 from models import ActivityType
 from repositories.activity_repository import ActivityRepository
+from schemas import ActivityResult, HeatmapData, HeatmapDay, StreakData
 from services.streaks_service import MAX_SKIP_DAYS, calculate_streak_with_forgiveness
 
 
-@dataclass
-class StreakData:
-    """User's streak information."""
-
-    current_streak: int
-    longest_streak: int
-    total_activity_days: int
-    last_activity_date: date | None
-    streak_alive: bool
-
-
-@dataclass
-class HeatmapDay:
-    """Activity data for a single day."""
-
-    date: date
-    count: int
-    activity_types: list[str]
-
-
-@dataclass
-class HeatmapData:
-    """Activity heatmap data for profile display."""
-
-    days: list[HeatmapDay]
-    start_date: date
-    end_date: date
-    total_activities: int
-
-
-async def get_streak_data(db, user_id: str) -> StreakData:
-    """Calculate user's streak information.
-
-    Streak calculation allows up to 2 skipped days per week.
-    Uses limited query (100 dates) for performance - sufficient for streak calc.
-    """
+async def get_streak_data(db: AsyncSession, user_id: str) -> StreakData:
+    """Calculate user's streak information with forgiveness rules."""
     activity_repo = ActivityRepository(db)
-    # Limit to 100 dates for performance - more than enough for streak calculation
-    # since a 3+ day gap breaks the streak anyway
     activity_dates = await activity_repo.get_activity_dates_ordered(user_id, limit=100)
 
     current_streak, longest_streak, streak_alive = calculate_streak_with_forgiveness(
@@ -78,7 +42,9 @@ async def get_streak_data(db, user_id: str) -> StreakData:
     )
 
 
-async def get_heatmap_data(db, user_id: str, days: int = 365) -> HeatmapData:
+async def get_heatmap_data(
+    db: AsyncSession, user_id: str, days: int = 365
+) -> HeatmapData:
     """Get activity heatmap data for profile display.
 
     Returns activity counts per day for the specified number of days.
@@ -119,17 +85,6 @@ async def get_heatmap_data(db, user_id: str, days: int = 365) -> HeatmapData:
     )
 
 
-@dataclass
-class ActivityResult:
-    """Result of logging an activity."""
-
-    id: int
-    activity_type: ActivityType
-    activity_date: date
-    reference_id: str | None
-    created_at: datetime
-
-
 @track_operation("activity_logging")
 async def log_activity(
     db: AsyncSession,
@@ -137,17 +92,7 @@ async def log_activity(
     activity_type: ActivityType,
     reference_id: str | None = None,
 ) -> ActivityResult:
-    """Log a user activity for streak and heatmap tracking.
-
-    Args:
-        db: Database session
-        user_id: The user's ID
-        activity_type: Type of activity being logged
-        reference_id: Optional reference (e.g., topic_id, question_id)
-
-    Returns:
-        ActivityResult with the created activity details
-    """
+    """Log a user activity for streak and heatmap tracking."""
     today = datetime.now(UTC).date()
 
     add_custom_attribute("activity.type", activity_type.value)

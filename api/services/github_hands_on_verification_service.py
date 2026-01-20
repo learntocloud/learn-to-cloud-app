@@ -18,10 +18,9 @@ SCALABILITY:
 """
 
 import asyncio
-import logging
 import re
-from dataclasses import dataclass
-from datetime import UTC
+from datetime import UTC, datetime, timedelta
+from typing import TypedDict
 
 import httpx
 from circuitbreaker import circuit
@@ -33,10 +32,12 @@ from tenacity import (
     wait_exponential_jitter,
 )
 
+from core import get_logger
 from core.config import get_settings
 from core.telemetry import track_dependency
+from schemas import ParsedGitHubUrl
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # Shared HTTP client for GitHub API requests (connection pooling)
 _github_http_client: httpx.AsyncClient | None = None
@@ -123,18 +124,65 @@ def _get_github_headers() -> dict[str, str]:
     return headers
 
 
-logger = logging.getLogger(__name__)
+class PatternSpec(TypedDict):
+    """Structured pattern specification for file matching."""
+
+    raw: str
+    path: str | None
+    name: str | None
+    is_dir: bool
 
 
-@dataclass
-class ParsedGitHubUrl:
-    """Parsed components of a GitHub URL."""
+def _parse_pattern_specs(required_patterns: list[str]) -> list[PatternSpec]:
+    """Parse file patterns into structured specs for matching."""
+    pattern_specs: list[PatternSpec] = []
+    for pattern in required_patterns:
+        cleaned = pattern.strip().strip("/")
+        is_dir = pattern.strip().endswith("/")
+        if "/" in cleaned:
+            path, name = cleaned.rsplit("/", 1)
+            pattern_specs.append(
+                PatternSpec(raw=pattern, path=path, name=name, is_dir=is_dir)
+            )
+        elif is_dir:
+            pattern_specs.append(
+                PatternSpec(raw=pattern, path=cleaned, name=None, is_dir=True)
+            )
+        else:
+            pattern_specs.append(
+                PatternSpec(raw=pattern, path=None, name=cleaned, is_dir=False)
+            )
+    return pattern_specs
 
-    username: str
-    repo_name: str | None = None
-    file_path: str | None = None
-    is_valid: bool = True
-    error: str | None = None
+
+def _pattern_matches_item(
+    path: str, name: str, item_type: str, spec: PatternSpec
+) -> bool:
+    """Check if a file/directory item matches a pattern specification."""
+    path_lower = path.lower()
+    name_lower = name.lower()
+    spec_name = (spec["name"] or "").lower()
+    spec_path = (spec["path"] or "").lower()
+
+    if spec["is_dir"]:
+        if path_lower == spec_path:
+            return True
+        return path_lower.startswith(f"{spec_path}/")
+
+    if spec_path and not path_lower.startswith(f"{spec_path}/"):
+        return False
+
+    if not spec_name:
+        return True
+
+    if spec_name.startswith("."):
+        return name_lower.endswith(spec_name)
+
+    return (
+        name_lower == spec_name
+        or name_lower.startswith(spec_name)
+        or name_lower.endswith(spec_name)
+    )
 
 
 def parse_github_url(url: str) -> ParsedGitHubUrl:
@@ -183,7 +231,10 @@ def parse_github_url(url: str) -> ParsedGitHubUrl:
 
     username = parts[0]
 
-    if not re.match(r"^[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?$", username):
+    # GitHub usernames: 1-39 chars, alphanumeric + hyphen, can't start/end with hyphen
+    if len(username) > 39 or not re.match(
+        r"^[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?$", username
+    ):
         return ParsedGitHubUrl(
             username=username, is_valid=False, error="Invalid GitHub username format"
         )
@@ -200,14 +251,8 @@ def parse_github_url(url: str) -> ParsedGitHubUrl:
     )
 
 
-@dataclass
-class ValidationResult:
-    """Result of validating a hands-on submission."""
-
-    is_valid: bool
-    message: str
-    username_match: bool
-    repo_exists: bool
+# Import ValidationResult from schemas (canonical location)
+from schemas import ValidationResult  # noqa: E402
 
 
 @track_dependency("github_url_check", "HTTP")
@@ -326,12 +371,7 @@ async def check_repo_is_fork_of(
     Check if a repository is a fork of the specified original repository.
 
     Args:
-        username: The GitHub username
-        repo_name: The repository name to check
         original_repo: The original repo in format "owner/repo"
-
-    Returns:
-        Tuple of (is_fork: bool, message: str)
 
     RETRY: 3 attempts with exponential backoff + jitter for transient failures.
     CIRCUIT BREAKER: Opens after 5 consecutive failures, recovers after 60 seconds.
@@ -631,12 +671,7 @@ async def validate_workflow_run(
     within the last 30 days.
 
     Args:
-        github_url: The repository URL
-        expected_username: Expected GitHub username
-        min_successful_runs: Minimum number of successful runs required (default: 1)
-
-    Returns:
-        ValidationResult with details about the workflow run status
+        min_successful_runs: Minimum successful runs required (default: 1).
 
     RETRY: 3 attempts with exponential backoff + jitter for transient failures.
     CIRCUIT BREAKER: Opens after 5 consecutive failures, recovers after 60 seconds.
@@ -672,7 +707,6 @@ async def validate_workflow_run(
             repo_exists=False,
         )
 
-    # Check if repo exists first
     repo_url = f"https://github.com/{parsed.username}/{parsed.repo_name}"
     exists, exists_msg = await check_github_url_exists(repo_url)
 
@@ -684,7 +718,6 @@ async def validate_workflow_run(
             repo_exists=False,
         )
 
-    # Check GitHub Actions workflow runs
     try:
         data = await _fetch_workflow_runs_with_retry(parsed.username, parsed.repo_name)
     except RETRIABLE_EXCEPTIONS as e:
@@ -730,8 +763,6 @@ async def validate_workflow_run(
         )
 
     # Check for recent runs (within last 30 days)
-    from datetime import datetime, timedelta
-
     cutoff_date = datetime.now(UTC) - timedelta(days=30)
     recent_successful_runs = []
 
@@ -870,7 +901,6 @@ async def validate_repo_has_files(
             repo_exists=False,
         )
 
-    # Check if repo exists first
     repo_url = f"https://github.com/{parsed.username}/{parsed.repo_name}"
     exists, exists_msg = await check_github_url_exists(repo_url)
 
@@ -882,76 +912,28 @@ async def validate_repo_has_files(
             repo_exists=False,
         )
 
-    # Normalize patterns (support path-based checks like infra/main.tf)
-    pattern_specs = []
-    for pattern in required_patterns:
-        cleaned = pattern.strip().strip("/")
-        is_dir = pattern.strip().endswith("/")
-        if "/" in cleaned:
-            path, name = cleaned.rsplit("/", 1)
-            pattern_specs.append(
-                {"raw": pattern, "path": path, "name": name, "is_dir": is_dir}
-            )
-        elif is_dir:
-            pattern_specs.append(
-                {"raw": pattern, "path": cleaned, "name": None, "is_dir": True}
-            )
-        else:
-            pattern_specs.append(
-                {"raw": pattern, "path": None, "name": cleaned, "is_dir": False}
-            )
-
-    def _pattern_matches_item(path: str, name: str, item_type: str, spec: dict) -> bool:
-        path_lower = path.lower()
-        name_lower = name.lower()
-        spec_name = (spec.get("name") or "").lower()
-        spec_path = (spec.get("path") or "").lower()
-
-        if spec.get("is_dir"):
-            if path_lower == spec_path:
-                return True
-            return path_lower.startswith(f"{spec_path}/")
-
-        if spec_path:
-            if not path_lower.startswith(f"{spec_path}/"):
-                return False
-
-        if not spec_name:
-            return True
-
-        if spec_name.startswith("."):
-            return name_lower.endswith(spec_name)
-
-        return (
-            name_lower == spec_name
-            or name_lower.startswith(spec_name)
-            or name_lower.endswith(spec_name)
-        )
-
-    # Use GitHub's code search API to find files
+    pattern_specs = _parse_pattern_specs(required_patterns)
     found_files = []
 
     try:
         for spec in pattern_specs:
             query_parts = [f"repo:{parsed.username}/{parsed.repo_name}"]
-            if spec.get("path"):
+            if spec["path"]:
                 query_parts.append(f"path:{spec['path']}")
 
-            if not (spec.get("is_dir") and not spec.get("name")):
-                name = spec.get("name") or ""
+            if not (spec["is_dir"] and not spec["name"]):
+                name = spec["name"] or ""
                 if name.startswith("."):
                     query_parts.append(f"extension:{name.lstrip('.')}")
                 elif name:
                     query_parts.append(f"filename:{name}")
 
-            # Search for files matching the pattern in the repo
             search_query = " ".join(query_parts)
 
             try:
                 data = await _search_code_with_retry(search_query)
             except RETRIABLE_EXCEPTIONS as e:
                 logger.warning(f"All retries exhausted searching for files: {e}")
-                # Fall back to contents API
                 return await _validate_repo_files_via_contents(
                     await _get_github_client(),
                     parsed.username,
@@ -960,9 +942,7 @@ async def validate_repo_has_files(
                     file_description,
                 )
 
-            # Handle rate limiting (403 returns None)
             if data is None:
-                # Try alternative: check repo contents directly
                 return await _validate_repo_files_via_contents(
                     await _get_github_client(),
                     parsed.username,
@@ -1025,49 +1005,8 @@ async def _validate_repo_files_via_contents(
     Checks root directory and common subdirectories for matching files.
     """
     found_files = []
-    pattern_specs = []
-    for pattern in required_patterns:
-        cleaned = pattern.strip().strip("/")
-        is_dir = pattern.strip().endswith("/")
-        if "/" in cleaned:
-            path, name = cleaned.rsplit("/", 1)
-            pattern_specs.append(
-                {"raw": pattern, "path": path, "name": name, "is_dir": is_dir}
-            )
-        elif is_dir:
-            pattern_specs.append(
-                {"raw": pattern, "path": cleaned, "name": None, "is_dir": True}
-            )
-        else:
-            pattern_specs.append(
-                {"raw": pattern, "path": None, "name": cleaned, "is_dir": False}
-            )
-
-    def _pattern_matches_item(path: str, name: str, item_type: str, spec: dict) -> bool:
-        path_lower = path.lower()
-        name_lower = name.lower()
-        spec_name = (spec.get("name") or "").lower()
-        spec_path = (spec.get("path") or "").lower()
-
-        if spec.get("is_dir"):
-            if path_lower == spec_path:
-                return True
-            return path_lower.startswith(f"{spec_path}/")
-
-        if spec_path and not path_lower.startswith(f"{spec_path}/"):
-            return False
-
-        if not spec_name:
-            return True
-
-        if spec_name.startswith("."):
-            return name_lower.endswith(spec_name)
-
-        return (
-            name_lower == spec_name
-            or name_lower.startswith(spec_name)
-            or name_lower.endswith(spec_name)
-        )
+    # Use shared helper for pattern parsing
+    pattern_specs = _parse_pattern_specs(required_patterns)
 
     directories_to_check = [
         "",
@@ -1325,26 +1264,19 @@ async def validate_container_image(
     """
     image_url = image_url.strip().lower()
 
-    # Remove common prefixes
     if image_url.startswith("https://"):
         image_url = image_url[8:]
     if image_url.startswith("http://"):
         image_url = image_url[7:]
 
-    # Parse the image reference
-    # Docker Hub format: username/image:tag or docker.io/username/image:tag
-    # GHCR format: ghcr.io/username/image:tag
-    # ACR format: registryname.azurecr.io/image:tag
-
+    # Formats: docker.io/user/image, ghcr.io/user/image, *.azurecr.io/image
     registry = "docker.io"
     image_path = image_url
     tag = "latest"
 
-    # Extract tag if present
     if ":" in image_path and "@" not in image_path:
         image_path, tag = image_path.rsplit(":", 1)
 
-    # Determine registry
     if image_path.startswith("ghcr.io/"):
         registry = "ghcr.io"
         image_path = image_path[8:]  # Remove "ghcr.io/"
@@ -1352,7 +1284,6 @@ async def validate_container_image(
         registry = "docker.io"
         image_path = image_path[10:]  # Remove "docker.io/"
     elif ".azurecr.io/" in image_path:
-        # Azure Container Registry
         parts = image_path.split("/", 1)
         registry = parts[0]
         image_path = parts[1] if len(parts) > 1 else ""
@@ -1360,7 +1291,6 @@ async def validate_container_image(
     # Validate image path has at least username/image format for Docker Hub/GHCR
     if registry in ["docker.io", "ghcr.io"]:
         if "/" not in image_path:
-            # Docker Hub library images (e.g., "python") - add library prefix
             if registry == "docker.io":
                 image_path = f"library/{image_path}"
             else:
@@ -1371,9 +1301,8 @@ async def validate_container_image(
                     repo_exists=False,
                 )
 
-        # Check username match for Docker Hub and GHCR
         image_username = image_path.split("/")[0]
-        if image_username != "library":  # Skip check for official Docker images
+        if image_username != "library":
             username_match = image_username == expected_username.lower()
             if not username_match:
                 return ValidationResult(

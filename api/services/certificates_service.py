@@ -13,7 +13,6 @@ Routes should delegate all certificate business logic to this module.
 import asyncio
 import hashlib
 import secrets
-from dataclasses import dataclass
 from datetime import UTC, datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -32,22 +31,15 @@ from rendering.certificates import (
 from rendering.certificates import (
     svg_to_png as _svg_to_png,
 )
-from repositories.activity_repository import ActivityRepository
 from repositories.certificate_repository import CertificateRepository
+from schemas import (
+    CertificateData,
+    CertificateVerificationResult,
+    CreateCertificateResult,
+    EligibilityResult,
+)
+from services.activity_service import log_activity
 from services.progress_service import fetch_user_progress
-
-
-@dataclass(frozen=True)
-class CertificateData:
-    """DTO for a certificate (service-layer return type)."""
-
-    id: int
-    certificate_type: str
-    verification_code: str
-    recipient_name: str
-    issued_at: datetime
-    phases_completed: int
-    total_phases: int
 
 
 def _to_certificate_data(certificate: Certificate) -> CertificateData:
@@ -73,18 +65,6 @@ def generate_verification_code(user_id: str, certificate_type: str) -> str:
     hash_part = hashlib.sha256(data.encode()).hexdigest()[:12].upper()
     random_part = secrets.token_hex(4).upper()
     return f"LTC-{hash_part}-{random_part}"
-
-
-@dataclass
-class EligibilityResult:
-    """Result of certificate eligibility check."""
-
-    is_eligible: bool
-    phases_completed: int
-    total_phases: int
-    completion_percentage: float
-    existing_certificate: CertificateData | None
-    message: str
 
 
 async def check_eligibility(
@@ -132,14 +112,6 @@ async def check_eligibility(
         existing_certificate=existing_cert_data,
         message=message,
     )
-
-
-@dataclass
-class CreateCertificateResult:
-    """Result of certificate creation."""
-
-    certificate: CertificateData
-    verification_code: str
 
 
 class CertificateAlreadyExistsError(Exception):
@@ -221,12 +193,10 @@ async def create_certificate(
         total_phases=eligibility.total_phases,
     )
 
-    today = datetime.now(UTC).date()
-    activity_repo = ActivityRepository(db)
-    await activity_repo.log_activity(
+    await log_activity(
+        db=db,
         user_id=user_id,
         activity_type=ActivityType.CERTIFICATE_EARNED,
-        activity_date=today,
         reference_id=certificate_type,
     )
 
@@ -300,19 +270,10 @@ async def verify_certificate(
     return _to_certificate_data(cert) if cert else None
 
 
-@dataclass
-class VerificationResult:
-    """Result of certificate verification."""
-
-    is_valid: bool
-    certificate: CertificateData | None
-    message: str
-
-
 async def verify_certificate_with_message(
     db: AsyncSession,
     verification_code: str,
-) -> VerificationResult:
+) -> CertificateVerificationResult:
     """Verify a certificate and return a user-friendly result.
 
     Args:
@@ -320,12 +281,12 @@ async def verify_certificate_with_message(
         verification_code: The verification code to look up
 
     Returns:
-        VerificationResult with validation status and message
+        CertificateVerificationResult with validation status and message
     """
     certificate = await verify_certificate(db, verification_code)
 
     if not certificate:
-        return VerificationResult(
+        return CertificateVerificationResult(
             is_valid=False,
             certificate=None,
             message="Certificate not found. Please check the verification code.",
@@ -334,7 +295,7 @@ async def verify_certificate_with_message(
     cert_info = get_certificate_info(certificate.certificate_type)
     issued_date = certificate.issued_at.strftime("%B %d, %Y")
 
-    return VerificationResult(
+    return CertificateVerificationResult(
         is_valid=True,
         certificate=certificate,
         message=f"Valid certificate for {cert_info['name']} issued on {issued_date}",

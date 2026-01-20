@@ -1,16 +1,17 @@
 """Step progress tracking endpoints."""
 
-import logging
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Path, Request
 
+from core import get_logger
 from core.auth import UserId
 from core.database import DbSession
 from core.ratelimit import limiter
 from schemas import (
     StepCompleteRequest,
     StepProgressResponse,
+    StepUncompleteResponse,
     TopicStepProgressResponse,
 )
 from services.steps_service import (
@@ -24,7 +25,7 @@ from services.steps_service import (
 )
 from services.users_service import get_or_create_user
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/steps", tags=["steps"])
 
@@ -114,7 +115,7 @@ async def uncomplete_step_endpoint(
     step_order: ValidatedStepOrder,
     user_id: UserId,
     db: DbSession,
-) -> dict:
+) -> StepUncompleteResponse:
     """Mark a learning step as incomplete (uncomplete it).
 
     Also removes any steps after this one (cascading uncomplete).
@@ -126,7 +127,7 @@ async def uncomplete_step_endpoint(
     except (StepUnknownTopicError, StepInvalidStepOrderError) as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-    return {
-        "status": "success",
-        "deleted_count": deleted_count,
-    }
+    return StepUncompleteResponse(
+        status="success",
+        deleted_count=deleted_count,
+    )

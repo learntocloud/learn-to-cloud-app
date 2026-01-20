@@ -1,8 +1,6 @@
 """User service for user-related business logic."""
 
 import asyncio
-from dataclasses import dataclass
-from datetime import datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -10,9 +8,13 @@ from core.telemetry import log_metric, track_operation
 from models import SubmissionType, User
 from repositories.submission_repository import SubmissionRepository
 from repositories.user_repository import UserRepository
+from schemas import (
+    BadgeData,
+    PublicProfileData,
+    PublicSubmissionInfo,
+    UserResponse,
+)
 from services.activity_service import (
-    HeatmapData,
-    StreakData,
     get_heatmap_data,
     get_streak_data,
 )
@@ -21,21 +23,12 @@ from services.clerk_service import fetch_user_data
 from services.hands_on_verification_service import get_requirement_by_id
 from services.progress_service import fetch_user_progress, get_phase_completion_counts
 
-StreakInfo = StreakData
-HeatmapInfo = HeatmapData
-
 
 def _is_placeholder_user(user_email: str) -> bool:
     """Check if user email indicates placeholder account.
 
     Placeholder accounts are created on first API access and later
     synced with Clerk data via webhooks.
-
-    Args:
-        user_email: User's email address
-
-    Returns:
-        True if email is a placeholder (not yet synced from Clerk)
     """
     return user_email.endswith("@placeholder.local")
 
@@ -47,12 +40,6 @@ def _needs_clerk_sync(user: User) -> bool:
     - They have placeholder data
     - Missing avatar URL
     - Missing GitHub username
-
-    Args:
-        user: User ORM model
-
-    Returns:
-        True if user should be synced with Clerk
     """
     return (
         _is_placeholder_user(user.email)
@@ -61,37 +48,17 @@ def _needs_clerk_sync(user: User) -> bool:
     )
 
 
-def _normalize_github_username(username: str | None) -> str | None:
+def normalize_github_username(username: str | None) -> str | None:
     """Normalize GitHub username to lowercase for consistency.
 
     GitHub usernames are case-insensitive, so we normalize to lowercase
     to avoid duplicate accounts and enable case-insensitive lookups.
-
-    Args:
-        username: GitHub username (may be None)
-
-    Returns:
-        Normalized lowercase username or None
     """
     return username.lower() if username else None
 
 
-@dataclass(frozen=True)
-class UserData:
-    """DTO for a user (service-layer return type)."""
-
-    id: str
-    email: str
-    first_name: str | None
-    last_name: str | None
-    avatar_url: str | None
-    github_username: str | None
-    is_admin: bool
-    created_at: datetime
-
-
-def _to_user_data(user: User) -> UserData:
-    return UserData(
+def _to_user_response(user: User) -> UserResponse:
+    return UserResponse(
         id=user.id,
         email=user.email,
         first_name=user.first_name,
@@ -103,46 +70,8 @@ def _to_user_data(user: User) -> UserData:
     )
 
 
-@dataclass
-class PublicSubmissionInfo:
-    """Public submission information for profile display."""
-
-    requirement_id: str
-    submission_type: str
-    phase_id: int
-    submitted_value: str
-    name: str
-    validated_at: object | None
-
-
-@dataclass
-class BadgeInfo:
-    """Badge information."""
-
-    id: str
-    name: str
-    description: str
-    icon: str
-
-
-@dataclass
-class PublicProfileData:
-    """Complete public profile data."""
-
-    username: str | None
-    first_name: str | None
-    avatar_url: str | None
-    current_phase: int
-    phases_completed: int
-    streak: StreakInfo
-    activity_heatmap: HeatmapInfo
-    member_since: datetime
-    submissions: list[PublicSubmissionInfo]
-    badges: list[BadgeInfo]
-
-
 @track_operation("user_get_or_create")
-async def get_or_create_user(db: AsyncSession, user_id: str) -> UserData:
+async def get_or_create_user(db: AsyncSession, user_id: str) -> UserResponse:
     """Get user from DB or create placeholder (will be synced via webhook).
 
     Uses repository pattern for database operations.
@@ -151,7 +80,6 @@ async def get_or_create_user(db: AsyncSession, user_id: str) -> UserData:
     user_repo = UserRepository(db)
     user = await user_repo.get_or_create(user_id)
 
-    # Track new user registration
     if user.created_at == user.updated_at:
         log_metric("users.registered", 1)
 
@@ -160,10 +88,9 @@ async def get_or_create_user(db: AsyncSession, user_id: str) -> UserData:
         if clerk_data:
             is_placeholder = _is_placeholder_user(user.email)
 
-            # Normalize GitHub username before passing to repository
             normalized_github_username = None
             if clerk_data.github_username and not user.github_username:
-                normalized_github_username = _normalize_github_username(
+                normalized_github_username = normalize_github_username(
                     clerk_data.github_username
                 )
 
@@ -182,7 +109,7 @@ async def get_or_create_user(db: AsyncSession, user_id: str) -> UserData:
                 github_username=normalized_github_username,
             )
 
-    return _to_user_data(user)
+    return _to_user_response(user)
 
 
 async def get_public_profile(
@@ -201,13 +128,19 @@ async def get_public_profile(
     if not profile_user:
         return None
 
-    # Parallelize the 4 independent data fetches for better performance
-    streak, activity_heatmap, db_submissions, progress = await asyncio.gather(
-        get_streak_data(db, profile_user.id),
-        get_heatmap_data(db, profile_user.id, days=270),
-        submission_repo.get_validated_by_user(profile_user.id),
-        fetch_user_progress(db, profile_user.id),
-    )
+    # TaskGroup cancels remaining tasks if one fails (safer than gather)
+    async with asyncio.TaskGroup() as tg:
+        streak_task = tg.create_task(get_streak_data(db, profile_user.id))
+        heatmap_task = tg.create_task(get_heatmap_data(db, profile_user.id, days=270))
+        submissions_task = tg.create_task(
+            submission_repo.get_validated_by_user(profile_user.id)
+        )
+        progress_task = tg.create_task(fetch_user_progress(db, profile_user.id))
+
+    streak = streak_task.result()
+    activity_heatmap = heatmap_task.result()
+    db_submissions = submissions_task.result()
+    progress = progress_task.result()
 
     sensitive_submission_types = {
         SubmissionType.CTF_TOKEN,
@@ -237,15 +170,15 @@ async def get_public_profile(
             )
         )
 
-    # progress was already fetched in parallel above
     phase_completion_counts = get_phase_completion_counts(progress)
 
     earned_badges = compute_all_badges(
         phase_completion_counts=phase_completion_counts,
         longest_streak=streak.longest_streak,
+        user_id=profile_user.id,
     )
     badges = [
-        BadgeInfo(
+        BadgeData(
             id=badge.id,
             name=badge.name,
             description=badge.description,

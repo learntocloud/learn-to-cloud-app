@@ -11,7 +11,6 @@ Circuit Breaker:
 - Protects against Clerk outages blocking worker threads
 """
 
-import logging
 from typing import Annotated
 
 from circuitbreaker import CircuitBreakerError, CircuitBreakerMonitor, circuit
@@ -24,12 +23,13 @@ from clerk_backend_api.security.types import (
 from fastapi import Depends, HTTPException, Request
 
 from core.config import get_settings
+from core.logger import get_logger
 from core.telemetry import (
     log_metric,
     track_dependency,
 )
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # Module-level singleton for the Clerk SDK client
 _clerk_client: Clerk | None = None

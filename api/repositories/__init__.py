@@ -16,6 +16,7 @@ from repositories.progress_repository import (
 )
 from repositories.submission_repository import SubmissionRepository
 from repositories.user_repository import UserRepository
+from repositories.utils import log_slow_query
 
 __all__ = [
     "ActivityRepository",
@@ -24,4 +25,5 @@ __all__ = [
     "StepProgressRepository",
     "SubmissionRepository",
     "UserRepository",
+    "log_slow_query",
 ]
