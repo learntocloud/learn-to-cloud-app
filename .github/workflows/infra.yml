@@ -2,18 +2,31 @@ name: Apply Infra
 
 on:
   push:
-    branches: [main]
+    branches: [dev, main]
     paths:
       - 'infra/**'
+  workflow_call:
+    inputs:
+      environment:
+        description: 'Target environment (dev or prod)'
+        required: true
+        type: string
   workflow_dispatch:
     inputs:
+      environment:
+        description: 'Target environment (dev or prod)'
+        required: true
+        type: choice
+        options:
+          - dev
+          - prod
       apply:
         description: "Apply Terraform changes"
         type: boolean
         default: true
 
 concurrency:
-  group: infra-${{ vars.AZURE_ENV_NAME }}
+  group: infra-${{ inputs.environment || github.ref_name }}
   cancel-in-progress: false
 
 permissions:
@@ -23,25 +36,24 @@ defaults:
   run:
     shell: bash
 
-env:
-  AZURE_ENV_NAME: ${{ vars.AZURE_ENV_NAME }}
-  AZURE_LOCATION: ${{ vars.AZURE_LOCATION }}
-  AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
-  TF_VAR_environment: ${{ vars.AZURE_ENV_NAME }}
-  TF_VAR_location: ${{ vars.AZURE_LOCATION }}
-  TF_VAR_frontend_custom_domain: ${{ vars.FRONTEND_CUSTOM_DOMAIN }}
-  ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
-  ARM_TENANT_ID: ${{ fromJson(secrets.AZURE_CREDENTIALS).tenantId }}
-  ARM_CLIENT_ID: ${{ fromJson(secrets.AZURE_CREDENTIALS).clientId }}
-  ARM_CLIENT_SECRET: ${{ fromJson(secrets.AZURE_CREDENTIALS).clientSecret }}
-
 jobs:
   terraform:
-    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
+    environment: ${{ (inputs.environment == 'prod' || github.ref == 'refs/heads/main') && 'production' || '' }}
     defaults:
       run:
         working-directory: infra
+    env:
+      AZURE_ENV_NAME: ${{ inputs.environment || (github.ref == 'refs/heads/main' && 'prod' || 'dev') }}
+      AZURE_LOCATION: ${{ vars.AZURE_LOCATION }}
+      AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      TF_VAR_environment: ${{ inputs.environment || (github.ref == 'refs/heads/main' && 'prod' || 'dev') }}
+      TF_VAR_location: ${{ vars.AZURE_LOCATION }}
+      TF_VAR_frontend_custom_domain: ${{ (inputs.environment == 'prod' || github.ref == 'refs/heads/main') && vars.FRONTEND_CUSTOM_DOMAIN_PROD || vars.FRONTEND_CUSTOM_DOMAIN_DEV }}
+      ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      ARM_TENANT_ID: ${{ fromJson(secrets.AZURE_CREDENTIALS).tenantId }}
+      ARM_CLIENT_ID: ${{ fromJson(secrets.AZURE_CREDENTIALS).clientId }}
+      ARM_CLIENT_SECRET: ${{ fromJson(secrets.AZURE_CREDENTIALS).clientSecret }}
     steps:
       - uses: actions/checkout@v4
 
@@ -89,5 +101,5 @@ jobs:
           TF_VAR_ctf_master_secret: ${{ secrets.CTF_MASTER_SECRET }}
 
       - name: Terraform Apply
-        if: github.event_name == 'push' || github.event.inputs.apply == 'true'
+        if: github.event_name == 'push' || github.event_name == 'workflow_call' || github.event.inputs.apply == 'true'
         run: terraform apply -auto-approve -lock-timeout=120s tfplan

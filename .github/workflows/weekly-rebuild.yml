@@ -2,19 +2,18 @@ name: Weekly Security Rebuild
 
 on:
   schedule:
-    # Every Sunday at 6 AM UTC
-    - cron: '0 6 * * 0'
+    - cron: '0 6 * * 0'  # Every Sunday at 6 AM UTC
   workflow_dispatch:
 
-# This workflow triggers a full rebuild of all container images without cache.
-# This ensures that:
-# 1. Base image updates (python:3.13-slim, nginx:alpine, node:20-alpine) are pulled
-# 2. System packages get security updates via apt-get upgrade
-# 3. Any stale cached layers are refreshed
-
 jobs:
-  rebuild:
-    uses: ./.github/workflows/deploy.yml
+  rebuild-and-deploy-dev:
+    uses: ./.github/workflows/dev-deploy.yml
     secrets: inherit
     with:
       force_rebuild: true
+
+  promote-and-deploy-prod:
+    needs: rebuild-and-deploy-dev
+    uses: ./.github/workflows/prod-deploy.yml
+    secrets: inherit
+

@@ -1,0 +1,153 @@
+name: Deploy to Prod
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'infra/**'
+      - 'docs/**'
+  pull_request:
+    branches: [main]
+  workflow_call:
+
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  AZURE_ENV_NAME: prod
+  AZURE_LOCATION: ${{ vars.AZURE_LOCATION }}
+  AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+  AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP_PROD }}
+  TF_VAR_environment: prod
+  TF_VAR_location: ${{ vars.AZURE_LOCATION }}
+  TF_VAR_frontend_custom_domain: ${{ vars.FRONTEND_CUSTOM_DOMAIN_PROD }}
+  ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+  ARM_TENANT_ID: ${{ fromJson(secrets.AZURE_CREDENTIALS).tenantId }}
+  ARM_CLIENT_ID: ${{ fromJson(secrets.AZURE_CREDENTIALS).clientId }}
+  ARM_CLIENT_SECRET: ${{ fromJson(secrets.AZURE_CREDENTIALS).clientSecret }}
+
+jobs:
+  # On PR: Run lint and test
+  lint-and-test-pr:
+    if: github.event_name == 'pull_request'
+    uses: ./.github/workflows/lint-and-test.yml
+
+  # On push or workflow_call: Lint, test, then promote and deploy
+  lint-and-test:
+    if: github.event_name == 'push' || github.event_name == 'workflow_call'
+    uses: ./.github/workflows/lint-and-test.yml
+
+  # On push or workflow_call: Promote dev images and deploy to prod
+  promote-images:
+    needs: lint-and-test
+    if: github.event_name == 'push' || github.event_name == 'workflow_call'
+    runs-on: ubuntu-latest
+    outputs:
+      prod_image_tag: ${{ steps.retag.outputs.prod_image_tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure CLI Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Log in to Azure Container Registry
+        run: |
+          az acr login --name ${{ vars.CONTAINER_REGISTRY_NAME }}
+
+      - name: Retag dev image for production
+        id: retag
+        run: |
+          REGISTRY=${{ vars.CONTAINER_REGISTRY_ENDPOINT }}
+          SHORT_SHA=${GITHUB_SHA:0:7}
+          DEV_TAG="dev-${SHORT_SHA}"
+          PROD_TAG="prod-${SHORT_SHA}"
+          
+          echo "Pulling dev image: ${REGISTRY}/api:${DEV_TAG}"
+          docker pull ${REGISTRY}/api:${DEV_TAG}
+          
+          echo "Retagging for production..."
+          docker tag ${REGISTRY}/api:${DEV_TAG} ${REGISTRY}/api:${PROD_TAG}
+          docker tag ${REGISTRY}/api:${DEV_TAG} ${REGISTRY}/api:prod-latest
+          
+          docker push ${REGISTRY}/api:${PROD_TAG}
+          docker push ${REGISTRY}/api:prod-latest
+          
+          echo "prod_image_tag=${PROD_TAG}" >> "$GITHUB_OUTPUT"
+          echo "Successfully promoted dev-${SHORT_SHA} → prod-${SHORT_SHA}"
+
+  deploy:
+    needs: promote-images
+    if: github.event_name == 'push' || github.event_name == 'workflow_call'
+    runs-on: ubuntu-latest
+    # environment: production  # TODO: Create 'production' environment in Settings → Environments with required reviewers
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure CLI Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Deploy API Container App
+        run: |
+          REGISTRY=${{ vars.CONTAINER_REGISTRY_ENDPOINT }}
+          
+          FRONTEND_URL="https://${{ vars.FRONTEND_URL_PROD }}"
+          if [[ -n "${{ vars.FRONTEND_CUSTOM_DOMAIN_PROD }}" ]]; then
+            FRONTEND_URL="https://${{ vars.FRONTEND_CUSTOM_DOMAIN_PROD }}"
+          fi
+          
+          az containerapp update \
+            --name ${{ vars.CONTAINER_APP_NAME_PROD }} \
+            --resource-group ${{ vars.AZURE_RESOURCE_GROUP_PROD }} \
+            --image ${REGISTRY}/api:${{ needs.promote-images.outputs.prod_image_tag }} \
+            --set-env-vars FRONTEND_URL="$FRONTEND_URL" RUN_MIGRATIONS_ON_STARTUP=true
+
+      - name: Wait for API readiness
+        run: |
+          set -euo pipefail
+
+          READY_URL="https://${{ vars.API_URL_PROD }}/ready"
+          echo "Waiting for API readiness at: $READY_URL"
+
+          for i in {1..30}; do
+            code=$(curl -s -o /dev/null -w "%{http_code}" "$READY_URL" || true)
+            if [[ "$code" == "200" ]]; then
+              echo "API is ready."
+              exit 0
+            fi
+
+            echo "Attempt $i: API not ready yet (HTTP $code); retrying in 10s..."
+            sleep 10
+          done
+
+          echo "API did not become ready within the expected time."
+          exit 1
+
+      - name: Download promoted frontend artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist-${{ github.sha }}
+          path: frontend/dist/
+
+      - name: Deploy to Azure Static Web Apps
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.SWA_DEPLOYMENT_TOKEN_PROD }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: "upload"
+          app_location: "frontend/dist"
+          output_location: ""
+          skip_app_build: true
+          skip_api_build: true

@@ -1,0 +1,81 @@
+name: Lint and Test (Reusable)
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # API lint and test
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: "api/pyproject.toml"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.9.26"
+          enable-cache: true
+
+      - name: Install dependencies
+        working-directory: api
+        run: |
+          uv sync --extra dev --group dev
+          uv tool install ty
+
+      - name: Ruff lint
+        uses: astral-sh/ruff-action@v3
+        with:
+          src: "./api"
+          args: "check"
+          version: "0.8.6"
+
+      - name: Ruff format check
+        uses: astral-sh/ruff-action@v3
+        with:
+          src: "./api"
+          args: "format --check"
+          version: "0.8.6"
+
+      - name: Type check (ty)
+        working-directory: api
+        run: uv tool run ty check --python .venv/bin/python
+
+      - name: Run unit tests
+        working-directory: api
+        run: uv run pytest tests/unit/ -v --tb=short
+
+      # Frontend lint and test
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Run frontend linter
+        working-directory: frontend
+        run: npm run lint
+
+      - name: Run frontend tests
+        working-directory: frontend
+        run: npm test -- --run
+
+      - name: Frontend build check
+        working-directory: frontend
+        run: npm run build
