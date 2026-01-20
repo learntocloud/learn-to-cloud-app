@@ -175,24 +175,6 @@ Builds with `--no-cache --pull` to get latest security patches.
 
 ---
 
-## GitHub Variables
-
-**Repository → Settings → Actions → Variables**
-
-| Variable | Purpose | Example |
-|----------|---------|---------|
-| `CONTAINER_REGISTRY_NAME` | ACR name | acrltc |
-| `CONTAINER_REGISTRY_ENDPOINT` | ACR endpoint | acrltc.azurecr.io |
-| `CONTAINER_APP_NAME_DEV/PROD` | Container App names | ca-ltc-api-dev |
-| `API_URL_DEV/PROD` | API URLs | ca-ltc-api-dev.northeurope.azurecontainerapps.io |
-| `FRONTEND_URL_DEV/PROD` | Frontend URLs | {swa}.azurestaticapps.net |
-| `AZURE_RESOURCE_GROUP_DEV/PROD` | Resource groups | rg-ltc-dev |
-
-**Secrets:**
-- `AZURE_CREDENTIALS`, `CLERK_*`, `GOOGLE_API_KEY`, `SWA_DEPLOYMENT_TOKEN_DEV/PROD`
-
----
-
 ## Security & Operations
 
 **Security Scanning:**
