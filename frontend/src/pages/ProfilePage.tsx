@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { usePublicProfile } from '@/lib/hooks';
 import { ActivityHeatmap } from '@/components/ActivityHeatmap';
@@ -49,11 +49,9 @@ export function ProfilePage() {
   return (
     <div className="py-8 bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-950 min-h-screen">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 space-y-4">
-        {/* Profile Header Card */}
         <div className="bg-white dark:bg-gray-800/50 rounded-2xl border border-gray-200 dark:border-gray-700 p-5 shadow-sm">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-4 min-w-0">
-              {/* Avatar */}
               <div className="shrink-0">
                 {profile.avatar_url ? (
                   <img
@@ -68,7 +66,6 @@ export function ProfilePage() {
                 )}
               </div>
 
-              {/* Info */}
               <div className="min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <h1 className="text-lg font-semibold text-gray-900 dark:text-white truncate">
@@ -99,14 +96,13 @@ export function ProfilePage() {
               </div>
             </div>
 
-            {/* Share button */}
             <div className="shrink-0">
               <ShareProfileButton profile={profile} username={username || ''} />
             </div>
           </div>
         </div>
 
-        {/* Badge Collection Card - Pokédex style */}
+        {/* Pokédex-style grid */}
         <div className="bg-white dark:bg-gray-800/50 rounded-2xl border border-gray-200 dark:border-gray-700 p-4 shadow-sm">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
@@ -119,7 +115,6 @@ export function ProfilePage() {
           <BadgeCollection badges={badges} />
         </div>
 
-        {/* Activity Heatmap Card */}
         {profile.activity_heatmap && profile.activity_heatmap.days.length > 0 && (
           <div className="bg-white dark:bg-gray-800/50 rounded-2xl border border-gray-200 dark:border-gray-700 p-5 shadow-sm">
             <h2 className="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-4">
@@ -133,12 +128,10 @@ export function ProfilePage() {
           </div>
         )}
 
-        {/* GitHub Submissions Showcase */}
         {profile.submissions && profile.submissions.length > 0 && (
           <SubmissionsShowcase submissions={profile.submissions} />
         )}
 
-        {/* Member since */}
         {profile.member_since && (
           <div className="text-center text-sm text-gray-500 dark:text-gray-400 pt-2">
             Member since {new Date(profile.member_since).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
@@ -149,35 +142,35 @@ export function ProfilePage() {
   );
 }
 
-// Pokédex-style Badge Collection
 function BadgeCollection({ badges }: { badges: Badge[] }) {
-  const earnedIds = new Set(badges.map((b) => b.id));
+  const earnedIds = useMemo(() => new Set(badges.map((b) => b.id)), [badges]);
 
   return (
-    <div className="flex gap-2 overflow-visible flex-wrap">
+    <div className="flex gap-2 overflow-visible flex-wrap" role="list" aria-label="Badge collection">
       {ALL_BADGES.map((badge) => {
         const isEarned = earnedIds.has(badge.id);
         return (
           <div
             key={badge.id}
-            className={`group relative shrink-0 w-12 h-14 rounded-lg flex flex-col items-center justify-center transition-all cursor-default ${
+            role="listitem"
+            tabIndex={0}
+            aria-label={`${badge.name}${isEarned ? ' - Earned' : ' - Not earned yet'}`}
+            className={`group relative shrink-0 w-12 h-14 rounded-lg flex flex-col items-center justify-center transition-all cursor-default focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 ${
               isEarned
                 ? 'bg-gradient-to-b from-amber-100 to-amber-200 dark:from-amber-800/40 dark:to-amber-900/40 border border-amber-300 dark:border-amber-600 shadow-sm'
                 : 'bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 opacity-30 grayscale'
             }`}
           >
-            <span className="text-lg">{badge.icon}</span>
-            <span className={`text-[8px] font-mono mt-0.5 ${isEarned ? 'text-amber-700 dark:text-amber-400' : 'text-gray-400 dark:text-gray-600'}`}>
+            <span className="text-lg" aria-hidden="true">{badge.icon}</span>
+            <span className={`text-[8px] font-mono mt-0.5 ${isEarned ? 'text-amber-700 dark:text-amber-400' : 'text-gray-400 dark:text-gray-600'}`} aria-hidden="true">
               {badge.num}
             </span>
 
-            {/* Tooltip - appears below */}
-            <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50 shadow-lg">
+            <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50 shadow-lg">
               <div className="font-semibold">{badge.name}</div>
               <div className={`text-[10px] mt-0.5 ${isEarned ? 'text-green-400' : 'text-gray-400'}`}>
                 {isEarned ? '✓ Earned!' : badge.howTo}
               </div>
-              {/* Arrow pointing up */}
               <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-gray-900"></div>
             </div>
           </div>
@@ -187,7 +180,6 @@ function BadgeCollection({ badges }: { badges: Badge[] }) {
   );
 }
 
-// Share Profile Button
 interface ShareProfileButtonProps {
   profile: {
     first_name?: string | null;
@@ -202,23 +194,35 @@ function ShareProfileButton({ profile, username }: ShareProfileButtonProps) {
   const [showShareMenu, setShowShareMenu] = useState(false);
   const [copied, setCopied] = useState(false);
   const buttonRef = useRef<HTMLButtonElement | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const profileUrl = (() => {
-    if (typeof window === 'undefined') return `/user/${username}`;
-    return `${window.location.origin}/user/${username}`;
-  })();
+  const profileUrl = typeof window !== 'undefined'
+    ? `${window.location.origin}/user/${username}`
+    : `/user/${username}`;
 
   const shareText = `Check out my Learn to Cloud progress! ${profile.phases_completed} phases completed, Phase ${profile.current_phase}, ${profile.streak?.current_streak || 0} day streak 🔥`;
 
-  const handleCopyLink = async () => {
+  const handleCopyLink = useCallback(async () => {
     try {
       await navigator.clipboard.writeText(profileUrl);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      if (copyTimeoutRef.current) {
+        clearTimeout(copyTimeoutRef.current);
+      }
+      copyTimeoutRef.current = setTimeout(() => setCopied(false), 2000);
     } catch (err) {
       console.error('Failed to copy:', err);
     }
-  };
+  }, [profileUrl]);
+
+  useEffect(() => {
+    return () => {
+      if (copyTimeoutRef.current) {
+        clearTimeout(copyTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const handleShareTwitter = () => {
     const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(profileUrl)}`;
@@ -239,7 +243,26 @@ function ShareProfileButton({ profile, username }: ShareProfileButtonProps) {
         setShowShareMenu(false);
         buttonRef.current?.focus();
       }
+
+      if (e.key === 'Tab' && menuRef.current) {
+        const focusableElements = menuRef.current.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        const firstElement = focusableElements[0];
+        const lastElement = focusableElements[focusableElements.length - 1];
+
+        if (e.shiftKey && document.activeElement === firstElement) {
+          e.preventDefault();
+          lastElement?.focus();
+        } else if (!e.shiftKey && document.activeElement === lastElement) {
+          e.preventDefault();
+          firstElement?.focus();
+        }
+      }
     };
+
+    const firstMenuItem = menuRef.current?.querySelector<HTMLElement>('button');
+    firstMenuItem?.focus();
 
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
@@ -263,18 +286,16 @@ function ShareProfileButton({ profile, username }: ShareProfileButtonProps) {
 
       {showShareMenu && (
         <>
-          {/* Backdrop */}
           <div
             className="fixed inset-0 z-10"
             onClick={() => setShowShareMenu(false)}
           />
 
-          {/* Menu */}
           <div
+            ref={menuRef}
             role="menu"
             className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-20 py-1"
           >
-            {/* Copy link */}
             <button
               type="button"
               onClick={handleCopyLink}
@@ -298,7 +319,6 @@ function ShareProfileButton({ profile, username }: ShareProfileButtonProps) {
               )}
             </button>
 
-            {/* Twitter */}
             <button
               type="button"
               onClick={handleShareTwitter}
@@ -311,7 +331,6 @@ function ShareProfileButton({ profile, username }: ShareProfileButtonProps) {
               Share on X
             </button>
 
-            {/* LinkedIn */}
             <button
               type="button"
               onClick={handleShareLinkedIn}

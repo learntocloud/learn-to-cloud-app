@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useVerifyCertificate } from '@/lib/hooks';
 import { createApiClient } from '@/lib/api-client';
@@ -6,7 +7,7 @@ import { useAuth } from '@clerk/clerk-react';
 export function VerifyPage() {
   const { code } = useParams<{ code: string }>();
   const { getToken } = useAuth();
-  const api = createApiClient(getToken);
+  const api = useMemo(() => createApiClient(getToken), [getToken]);
   const { data: verification, isLoading, error } = useVerifyCertificate(code || '');
 
   // No code provided
@@ -76,7 +77,13 @@ export function VerifyPage() {
           {/* Verified Badge */}
           <div className="flex items-center justify-center gap-3 mb-6">
             <div className="p-2 bg-emerald-100 dark:bg-emerald-900/50 rounded-full">
-              <svg className="w-8 h-8 text-emerald-600 dark:text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg
+                className="w-8 h-8 text-emerald-600 dark:text-emerald-400"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                aria-hidden="true"
+              >
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
             </div>

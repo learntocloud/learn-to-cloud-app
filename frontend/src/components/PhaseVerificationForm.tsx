@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useSubmitGitHubUrl } from '@/lib/hooks';
-import type { HandsOnRequirement, HandsOnSubmission, GitHubValidationResult, PhaseProgressSchema } from '@/lib/api-client';
+import type { HandsOnRequirement, HandsOnSubmission, PhaseProgressSchema } from '@/lib/api-client';
 
 interface PhaseVerificationFormProps {
   phaseNumber: number;
@@ -37,7 +37,7 @@ export function PhaseVerificationForm({
     if (!url) return;
 
     try {
-      const result = await submitMutation.mutateAsync({ requirementId, url }) as GitHubValidationResult;
+      const result = await submitMutation.mutateAsync({ requirementId, url });
       setValidationMessages((prev) => ({
         ...prev,
         [requirementId]: { message: result.message, isValid: result.is_valid },
@@ -51,13 +51,12 @@ export function PhaseVerificationForm({
     }
   };
 
-  // Use API-computed values - business logic lives in API, not frontend
   const stepsAndQuestionsComplete = phaseProgress?.status === 'completed';
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
       <div className="flex items-center gap-3 mb-6">
-        <div className="text-3xl">🎯</div>
+        <div className="text-3xl" aria-hidden="true">🎯</div>
         <div>
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
             Hands-on Verification
@@ -124,13 +123,16 @@ export function PhaseVerificationForm({
                 )}
               </div>
 
-              {/* Show validation message */}
               {validationMsg && (
-                <div className={`mt-3 p-3 rounded-lg text-sm ${
-                  validationMsg.isValid
-                    ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300'
-                    : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300'
-                }`}>
+                <div
+                  id={`msg-${req.id}`}
+                  role="status"
+                  className={`mt-3 p-3 rounded-lg text-sm ${
+                    validationMsg.isValid
+                      ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300'
+                      : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300'
+                  }`}
+                >
                   {validationMsg.message}
                 </div>
               )}
@@ -152,20 +154,41 @@ export function PhaseVerificationForm({
                   )}
 
                   <div className="flex gap-2">
+                    <label htmlFor={`url-${req.id}`} className="sr-only">
+                      GitHub repository URL for {req.name}
+                    </label>
                     <input
+                      id={`url-${req.id}`}
                       type="url"
                       value={urls[req.id] || ''}
-                      onChange={(e) => setUrls((prev) => ({ ...prev, [req.id]: e.target.value }))}
+                      onChange={(e) => {
+                        setUrls((prev) => ({ ...prev, [req.id]: e.target.value }));
+                        if (validationMessages[req.id]) {
+                          setValidationMessages((prev) => {
+                            const { [req.id]: _, ...rest } = prev;
+                            return rest;
+                          });
+                        }
+                      }}
                       placeholder="https://github.com/username/repo"
                       className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       disabled={submitMutation.isPending}
+                      aria-describedby={validationMsg ? `msg-${req.id}` : undefined}
                     />
                     <button
                       onClick={() => handleSubmit(req.id)}
                       disabled={!urls[req.id] || submitMutation.isPending}
                       className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
-                      {submitMutation.isPending ? 'Submitting...' : 'Submit'}
+                      {submitMutation.isPending ? (
+                        <span className="flex items-center gap-2">
+                          <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                          </svg>
+                          Submitting...
+                        </span>
+                      ) : 'Submit'}
                     </button>
                   </div>
                 </div>
@@ -178,7 +201,7 @@ export function PhaseVerificationForm({
       {isPhaseComplete && nextPhaseSlug && (
         <div className="mt-6 p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg border border-emerald-200 dark:border-emerald-800 text-center">
           <p className="text-emerald-700 dark:text-emerald-300 font-medium mb-3">
-            🎉 All verifications complete! Phase {phaseNumber} finished!
+            <span role="img" aria-label="Celebration">🎉</span> All verifications complete! Phase {phaseNumber} finished!
           </p>
           <a
             href={`/${nextPhaseSlug}`}
@@ -189,11 +212,10 @@ export function PhaseVerificationForm({
         </div>
       )}
 
-      {/* Show hands-on complete but steps/questions incomplete */}
       {allHandsOnValidated && !stepsAndQuestionsComplete && (
         <div className="mt-6 p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800 text-center">
           <p className="text-amber-700 dark:text-amber-300 font-medium">
-            ✅ All hands-on requirements verified! Complete all learning steps and questions to finish Phase {phaseNumber}.
+            <span role="img" aria-label="Verified">✅</span> All hands-on requirements verified! Complete all learning steps and questions to finish Phase {phaseNumber}.
           </p>
         </div>
       )}

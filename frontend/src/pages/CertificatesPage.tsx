@@ -1,8 +1,22 @@
 import { Link } from 'react-router-dom';
 import { useUserCertificates, useCertificateEligibility, useGenerateCertificate } from '@/lib/hooks';
-import { createApiClient } from '@/lib/api-client';
-import { useAuth } from '@clerk/clerk-react';
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
+
+const API_URL = import.meta.env.VITE_API_URL || '';
+
+/** URL helpers for certificate assets (no auth required) */
+function getCertificatePdfUrl(certificateId: number): string {
+  return `${API_URL}/api/certificates/${certificateId}/pdf`;
+}
+
+function getVerifiedCertificatePdfUrl(code: string): string {
+  return `${API_URL}/api/certificates/verify/${code}/pdf`;
+}
+
+function getVerifiedCertificatePngUrl(code: string, scale?: number): string {
+  const suffix = scale ? `?scale=${scale}` : '';
+  return `${API_URL}/api/certificates/verify/${code}/png${suffix}`;
+}
 
 function formatIssuedDate(isoDate: string): string {
   const date = new Date(isoDate);
@@ -91,40 +105,26 @@ function CopyRow({
 }
 
 export function CertificatesPage() {
-  const { data: userCerts, isLoading } = useUserCertificates();
-  const { data: eligibility } = useCertificateEligibility('full_completion');
-  const generateMutation = useGenerateCertificate();
-  const { getToken } = useAuth();
-  const api = createApiClient(getToken);
-  const [generating, setGenerating] = useState(false);
+  const { data: userCerts, isLoading: certsLoading } = useUserCertificates();
+  const { data: eligibility, isLoading: eligibilityLoading } = useCertificateEligibility('full_completion');
+  const { mutateAsync, isPending: generating, isError, error, reset } = useGenerateCertificate();
+
+  const isLoading = certsLoading || eligibilityLoading;
 
   const handleGenerate = async () => {
-    setGenerating(true);
-    try {
-      await generateMutation.mutateAsync({ certificateType: 'full_completion', recipientName: 'Learner' });
-    } catch (error) {
-      console.error('Failed to generate certificate:', error);
-    } finally {
-      setGenerating(false);
-    }
+    reset();
+    await mutateAsync({ certificateType: 'full_completion', recipientName: 'Learner' });
   };
 
   const hasCertificate = !!userCerts?.certificates?.length;
-  const certificate = hasCertificate ? userCerts!.certificates[0] : null;
+  const certificate = userCerts?.certificates?.[0] ?? null;
   const isEligible = eligibility?.is_eligible ?? false;
 
   const verificationCode = certificate?.verification_code ?? null;
-
-  const verifyPath = useMemo(() => {
-    if (!verificationCode) return null;
-    return `/verify/${verificationCode}`;
-  }, [verificationCode]);
-
-  const verifyUrl = useMemo(() => {
-    if (!verifyPath) return null;
-    if (typeof window === 'undefined') return verifyPath;
-    return `${window.location.origin}${verifyPath}`;
-  }, [verifyPath]);
+  const verifyPath = verificationCode ? `/verify/${verificationCode}` : null;
+  const verifyUrl = verifyPath
+    ? `${typeof window !== 'undefined' ? window.location.origin : ''}${verifyPath}`
+    : null;
 
   return (
     <div className="min-h-screen py-8">
@@ -140,8 +140,9 @@ export function CertificatesPage() {
         </h1>
 
         {isLoading ? (
-          <div className="flex items-center justify-center py-20">
+          <div className="flex items-center justify-center py-20" role="status" aria-label="Loading certificates">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <span className="sr-only">Loading certificates...</span>
           </div>
         ) : hasCertificate && certificate ? (
           <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
@@ -165,7 +166,7 @@ export function CertificatesPage() {
                   <div className="w-full sm:w-56">
                     <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900/40">
                       <img
-                        src={api.getVerifiedCertificatePngUrl(verificationCode, 2)}
+                        src={getVerifiedCertificatePngUrl(verificationCode, 2)}
                         alt="Certificate preview"
                         className="h-28 w-full rounded-lg bg-white object-contain dark:bg-gray-950"
                         loading="lazy"
@@ -182,8 +183,8 @@ export function CertificatesPage() {
                 <a
                   href={
                     verificationCode
-                      ? api.getVerifiedCertificatePdfUrl(verificationCode)
-                      : api.getCertificatePdfUrl(certificate.id)
+                      ? getVerifiedCertificatePdfUrl(verificationCode)
+                      : getCertificatePdfUrl(certificate.id)
                   }
                   className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
                 >
@@ -192,7 +193,7 @@ export function CertificatesPage() {
 
                 {verificationCode ? (
                   <a
-                    href={api.getVerifiedCertificatePngUrl(verificationCode, 2)}
+                    href={getVerifiedCertificatePngUrl(verificationCode, 2)}
                     className="inline-flex items-center justify-center rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-900 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:hover:bg-gray-800 transition-colors"
                   >
                     Download PNG
@@ -244,6 +245,11 @@ export function CertificatesPage() {
             >
               {generating ? 'Generating...' : 'Generate Certificate'}
             </button>
+            {isError && (
+              <p className="mt-4 text-red-600 dark:text-red-400 text-sm">
+                {error instanceof Error ? error.message : 'Failed to generate certificate. Please try again.'}
+              </p>
+            )}
           </div>
         ) : (
           <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">

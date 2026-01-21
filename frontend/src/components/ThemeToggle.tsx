@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   getThemePreference,
   onThemeChange,
@@ -56,7 +56,7 @@ export function ThemeToggle() {
     return unsubscribe;
   }, []);
 
-  const title = useMemo(() => (preference === 'dark' ? 'Theme: Dark' : 'Theme: Light'), [preference]);
+  const title = preference === 'dark' ? 'Theme: Dark' : 'Theme: Light';
 
   return (
     <button

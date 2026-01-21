@@ -1,8 +1,4 @@
-/**
- * KnowledgeQuestion component for answering topic questions.
- */
-
-import { useState } from 'react';
+import { useState, useCallback, useId } from 'react';
 import type { QuestionSchema } from '@/lib/api-client';
 import { QUESTION_ANSWER_MAX_CHARS, QUESTION_ANSWER_MIN_CHARS } from '@/lib/constants';
 
@@ -23,7 +19,14 @@ export function KnowledgeQuestion({
   const [feedback, setFeedback] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = async () => {
+  const id = useId();
+  const promptId = `${id}-prompt`;
+  const textareaId = `${id}-textarea`;
+  const errorId = `${id}-error`;
+  const feedbackId = `${id}-feedback`;
+  const charCountId = `${id}-charcount`;
+
+  const handleSubmit = useCallback(async () => {
     if (answer.length < QUESTION_ANSWER_MIN_CHARS) {
       setError(`Answer must be at least ${QUESTION_ANSWER_MIN_CHARS} characters.`);
       return;
@@ -48,7 +51,7 @@ export function KnowledgeQuestion({
     } finally {
       setIsSubmitting(false);
     }
-  };
+  }, [answer, onSubmit]);
 
   const charCount = answer.length;
   const isOverLimit = charCount > QUESTION_ANSWER_MAX_CHARS;
@@ -74,7 +77,7 @@ export function KnowledgeQuestion({
             <span className="text-xs font-medium">?</span>
           )}
         </div>
-        <p className="text-gray-900 dark:text-white font-medium">{question.prompt}</p>
+        <p id={promptId} className="text-gray-900 dark:text-white font-medium">{question.prompt}</p>
       </div>
 
       {isPassed ? (
@@ -83,7 +86,7 @@ export function KnowledgeQuestion({
             ✓ You've passed this question
           </p>
           {feedback && (
-            <p className="text-gray-600 dark:text-gray-400 text-sm mt-2 italic">
+            <p id={feedbackId} className="text-gray-600 dark:text-gray-400 text-sm mt-2 italic">
               {feedback}
             </p>
           )}
@@ -92,6 +95,7 @@ export function KnowledgeQuestion({
         <div className="ml-9 space-y-3">
           <div className="relative">
             <textarea
+              id={textareaId}
               value={answer}
               onChange={(e) => {
                 setAnswer(e.target.value);
@@ -101,6 +105,9 @@ export function KnowledgeQuestion({
               rows={4}
               maxLength={QUESTION_ANSWER_MAX_CHARS + 100}
               disabled={isSubmitting}
+              aria-labelledby={promptId}
+              aria-describedby={[error ? errorId : null, feedback && !isPassed ? feedbackId : null, charCountId].filter(Boolean).join(' ') || undefined}
+              aria-invalid={!!error || isOverLimit}
               className={`w-full px-3 py-2 border rounded-lg resize-none focus:outline-none focus:ring-2
                 ${isOverLimit
                   ? 'border-red-300 focus:ring-red-500'
@@ -110,19 +117,29 @@ export function KnowledgeQuestion({
                 placeholder-gray-400 dark:placeholder-gray-500
                 disabled:opacity-50 disabled:cursor-not-allowed`}
             />
-            <div className={`absolute bottom-2 right-2 text-xs ${
-              isOverLimit ? 'text-red-500' : 'text-gray-400'
-            }`}>
-              {charCount}/{QUESTION_ANSWER_MAX_CHARS}
+            <div
+              id={charCountId}
+              className={`absolute bottom-2 right-2 text-xs ${
+                isOverLimit ? 'text-red-500' : 'text-gray-400'
+              }`}
+              aria-live="polite"
+              aria-atomic="true"
+            >
+              <span className="sr-only">{charCount} of {QUESTION_ANSWER_MAX_CHARS} characters</span>
+              <span aria-hidden="true">{charCount}/{QUESTION_ANSWER_MAX_CHARS}</span>
             </div>
           </div>
 
           {error && (
-            <p className="text-red-600 dark:text-red-400 text-sm">{error}</p>
+            <p id={errorId} className="text-red-600 dark:text-red-400 text-sm" role="alert">{error}</p>
           )}
 
           {feedback && !isPassed && (
-            <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+            <div
+              id={feedbackId}
+              className="p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg"
+              aria-live="polite"
+            >
               <p className="text-yellow-800 dark:text-yellow-200 text-sm">
                 <strong>Feedback:</strong> {feedback}
               </p>
@@ -130,6 +147,7 @@ export function KnowledgeQuestion({
           )}
 
           <button
+            type="button"
             onClick={handleSubmit}
             disabled={!canSubmit}
             className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${

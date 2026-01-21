@@ -1,6 +1,5 @@
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { UserButton, SignInButton, useUser } from '@clerk/clerk-react';
-import { useEffect, useRef } from 'react';
 import { useUserInfo } from '@/lib/hooks';
 import { ThemeToggle } from './ThemeToggle';
 
@@ -11,7 +10,6 @@ interface LayoutProps {
 export function Layout({ children }: LayoutProps) {
   return (
     <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-950">
-      {/* Skip to main content link for keyboard navigation accessibility */}
       <a
         href="#main-content"
         className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-blue-600 focus:text-white focus:rounded-lg focus:shadow-lg"
@@ -28,42 +26,14 @@ export function Layout({ children }: LayoutProps) {
 function Navbar() {
   const { isSignedIn, isLoaded } = useUser();
   const { data: userInfo } = useUserInfo();
-  const navigate = useNavigate();
-  const location = useLocation();
-  const wasSignedIn = useRef<boolean | null>(null);
-
-  // Redirect to dashboard when user signs in (e.g., via modal)
-  useEffect(() => {
-    if (!isLoaded) {
-      return;
-    }
-
-    // Initialize once after auth state is loaded so we don't treat the initial
-    // hydration on page refresh as a "sign-in" event.
-    if (wasSignedIn.current === null) {
-      wasSignedIn.current = isSignedIn;
-      return;
-    }
-
-    if (isSignedIn && !wasSignedIn.current) {
-      // User just signed in - redirect to dashboard if on a public page
-      const publicPages = ['/', '/faq', '/phases', '/sign-in', '/sign-up'];
-      const isOnPublicPage = publicPages.some(page => location.pathname === page || location.pathname.startsWith('/sign-'));
-      if (isOnPublicPage) {
-        navigate('/dashboard');
-      }
-    }
-    wasSignedIn.current = isSignedIn;
-  }, [isSignedIn, isLoaded, navigate, location.pathname]);
-
 
   return (
-    <nav className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800">
+    <nav aria-label="Main navigation" className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex items-center">
-            <Link to="/" className="flex items-center">
-              <svg className="h-8 w-auto text-blue-600 dark:text-blue-400" viewBox="200 320 600 370" fill="currentColor">
+            <Link to="/" className="flex items-center" aria-label="Learn to Cloud home">
+              <svg className="h-8 w-auto text-blue-600 dark:text-blue-400" viewBox="200 320 600 370" fill="currentColor" aria-hidden="true">
                 <path d="M600.5,387.3c-4.9,0-9.7,0.5-14.5,1.6c-12.8-35.2-46.8-59.4-84.8-59.4c-37.9,0-71.9,24.1-84.7,59.4c-6.1-1.3-12.4-1.8-18.7-1.4c-35.4,2.2-63.1,32.2-62.6,67.6c0.5,36.5,30.3,66.1,66.9,66.1h5.8v0h12v0h14.9c15,0,27.2-12.2,27.2-27.2v-12.1c4.9-3.2,8-9.1,7.1-15.5c-1-7.1-6.8-12.8-13.9-13.6c-9.6-1.1-17.7,6.4-17.7,15.8c0,7.6,5.4,14,12.6,15.5v9.9c0,8.4-6.8,15.2-15.2,15.2h-14.9v0h-12v0H402c-0.5,0-1.1,0-1.6,0h-3.6v-0.2c-27.4-2.6-49-25.4-49.7-53.2c-0.8-29.3,22-54.4,51.3-56.3c6.9-0.4,13.7,0.4,20.2,2.4l0,0c3.2,1,6.6-0.8,7.6-4l0,0c9.6-33.2,40.5-56.3,75-56.3c34.6,0,65.4,23.2,75.1,56.3l0,0c0.9,3.2,4.4,5.1,7.6,4l0,0c6.5-2.1,13.4-2.9,20.2-2.4c28.9,1.9,51.6,26.4,51.3,55.3c-0.2,27.1-20.3,49.6-46.4,53.7v0.6h-7.1c-0.5,0-1,0-1.5,0h-5.8v0h-12v0h-15.9c-8.4,0-15.2-6.8-15.2-15.2v-10c7.1-1.8,12.4-8.3,12.1-16.1c-0.3-8.1-7-14.8-15.1-15.2c-9.1-0.4-16.7,6.9-16.7,15.9c0,5.8,3.1,10.8,7.7,13.6v11.8c0,15,12.2,27.2,27.2,27.2h15.9v0h12v0h4.8c36.7,0,67.4-29.2,67.9-65.9C668,417.9,637.7,387.3,600.5,387.3z M449.4,468.5c0-2.2,1.7-3.9,3.9-3.9s3.9,1.7,3.9,3.9s-1.7,3.9-3.9,3.9S449.4,470.7,449.4,468.5z M547.8,472.4c-2.2,0-3.9-1.7-3.9-3.9s1.7-3.9,3.9-3.9c2.2,0,3.9,1.7,3.9,3.9S549.9,472.4,547.8,472.4z"/>
                 <path d="M588.7,501.1c3.3,0,6-2.7,6-6l0-70c0-3.2-1.1-6.4-3.3-8.8c-3.7-4-9.3-5.2-14.1-3.3L520,437.5c-2.3,0.9-3.8,3.1-3.8,5.6v0c0,4.2,4.3,7.1,8.2,5.6l57.3-24.4c0.1,0,0.3-0.1,0.6,0.1c0.3,0.2,0.3,0.5,0.3,0.6v70.2C582.7,498.4,585.4,501.1,588.7,501.1z"/>
                 <path d="M487.3,443.1c0-2.5-1.5-4.7-3.8-5.6l-58.2-24.4c-4.8-1.9-10.4-0.7-14.1,3.3c-2.2,2.4-3.3,5.6-3.3,8.8v71c0,3.3,2.7,6,6,6s6-2.7,6-6v-71.2c0-0.1,0-0.4,0.3-0.6c0.1-0.1,0.3-0.1,0.4-0.1c0.1,0,0.2,0,0.3,0.1l58.2,24.4C483,450.2,487.3,447.3,487.3,443.1z"/>
@@ -106,7 +76,7 @@ function Navbar() {
                 {isSignedIn ? (
                   <UserButton />
                 ) : (
-                  <SignInButton mode="modal">
+                  <SignInButton mode="modal" forceRedirectUrl="/dashboard">
                     <button className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
                       Sign In
                     </button>

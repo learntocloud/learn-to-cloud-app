@@ -3,12 +3,11 @@
  * Uses the topic ID (e.g., "phase0-topic1") for API calls.
  */
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import type { TopicDetailSchema, ProviderOptionSchema } from '@/lib/api-client';
 import { useCompleteStep, useUncompleteStep, useSubmitQuestionAnswer } from '@/lib/hooks';
 import { KnowledgeQuestion } from './KnowledgeQuestion';
 
-// Provider Options Tab Component
 function ProviderOptions({ options }: { options: ProviderOptionSchema[] }) {
   const [selectedProvider, setSelectedProvider] = useState<string>(options[0]?.provider || "aws");
 
@@ -22,8 +21,7 @@ function ProviderOptions({ options }: { options: ProviderOptionSchema[] }) {
 
   return (
     <div className="mt-3 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
-      {/* Tab buttons */}
-      <div className="flex border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+      <div role="tablist" className="flex border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
         {options.map((option) => {
           const provider = providerLabels[option.provider] || { name: option.provider };
           const isSelected = selectedProvider === option.provider;
@@ -32,6 +30,9 @@ function ProviderOptions({ options }: { options: ProviderOptionSchema[] }) {
             <button
               key={option.provider}
               onClick={() => setSelectedProvider(option.provider)}
+              role="tab"
+              aria-selected={isSelected}
+              aria-controls={`tabpanel-${option.provider}`}
               className={`flex-1 px-4 py-2 text-sm font-medium transition-colors ${
                 isSelected
                   ? "bg-white dark:bg-gray-800 text-gray-900 dark:text-white border-b-2 border-blue-500 -mb-px"
@@ -44,9 +45,12 @@ function ProviderOptions({ options }: { options: ProviderOptionSchema[] }) {
         })}
       </div>
 
-      {/* Selected option content */}
       {selectedOption && (
-        <div className="p-4 bg-white dark:bg-gray-800">
+        <div
+          role="tabpanel"
+          id={`tabpanel-${selectedOption.provider}`}
+          className="p-4 bg-white dark:bg-gray-800"
+        >
           <a
             href={selectedOption.url}
             target="_blank"
@@ -78,22 +82,15 @@ export function TopicContent({
   topic,
   isAuthenticated,
 }: TopicContentProps) {
-  // Use React Query mutations for proper cache invalidation
   const completeStepMutation = useCompleteStep();
   const uncompleteStepMutation = useUncompleteStep();
   const submitQuestionMutation = useSubmitQuestionAnswer();
 
-  // Track local state for step completion (from the topic detail response)
+  // Parent uses key={topic.id} to reset state when topic changes
   const [completedSteps, setCompletedSteps] = useState<number[]>(topic.completed_step_orders || []);
   const [passedQuestions, setPassedQuestions] = useState<string[]>(topic.passed_question_ids || []);
   const [togglingStep, setTogglingStep] = useState<number | null>(null);
   const [copiedStep, setCopiedStep] = useState<number | null>(null);
-
-  // Update local state when topic changes
-  useEffect(() => {
-    setCompletedSteps(topic.completed_step_orders || []);
-    setPassedQuestions(topic.passed_question_ids || []);
-  }, [topic.completed_step_orders, topic.passed_question_ids]);
 
   const handleStepToggle = async (stepOrder: number) => {
     if (!isAuthenticated) return;
@@ -102,7 +99,6 @@ export function TopicContent({
 
     setTogglingStep(stepOrder);
     try {
-      // Use React Query mutations for proper cache invalidation
       let response;
       if (isCurrentlyCompleted) {
         // Uncomplete the step (and any steps after it)
@@ -111,7 +107,6 @@ export function TopicContent({
           stepOrder,
         });
       } else {
-        // Complete the step
         response = await completeStepMutation.mutateAsync({
           topicId: topic.id,
           stepOrder,
@@ -129,7 +124,6 @@ export function TopicContent({
     if (!isAuthenticated) return { is_passed: false, llm_feedback: 'Not authenticated' };
 
     try {
-      // Use React Query mutation for proper cache invalidation
       const result = await submitQuestionMutation.mutateAsync({
         topicId: topic.id,
         questionId,
@@ -165,7 +159,6 @@ export function TopicContent({
 
   return (
     <div className="space-y-6">
-      {/* Learning Steps */}
       {topic.learning_steps && topic.learning_steps.length > 0 && (
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
           <div className="p-4 border-b border-gray-200 dark:border-gray-700">
@@ -196,6 +189,9 @@ export function TopicContent({
                       <button
                         onClick={() => handleStepToggle(step.order)}
                         disabled={isToggling}
+                        role="checkbox"
+                        aria-checked={completed}
+                        aria-label={`Mark step ${step.order} as ${completed ? 'incomplete' : 'complete'}`}
                         className={`mt-1 w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${
                           completed
                             ? 'bg-emerald-500 border-emerald-500 text-white'
@@ -238,7 +234,7 @@ export function TopicContent({
                             </p>
                           )}
 
-                          {/* Code block */}
+
                           {step.code && (
                             <div className="mt-3 relative">
                               <pre className="bg-gray-900 dark:bg-gray-950 text-gray-100 text-sm p-4 rounded-lg overflow-x-auto">
@@ -263,7 +259,6 @@ export function TopicContent({
                             </div>
                           )}
 
-                          {/* Cloud provider options (tabbed interface) */}
                           {step.options && step.options.length > 0 && (
                             <ProviderOptions options={step.options} />
                           )}
@@ -278,7 +273,6 @@ export function TopicContent({
         </div>
       )}
 
-      {/* Knowledge Questions */}
       {topic.questions && topic.questions.length > 0 && (
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
           <div className="p-4 border-b border-gray-200 dark:border-gray-700">
@@ -301,7 +295,7 @@ export function TopicContent({
                   key={question.id}
                   question={question}
                   isAnswered={isQuestionPassed(question.id)}
-                  onSubmit={async (answer) => handleQuestionAnswer(question.id, answer)}
+                  onSubmit={(answer) => handleQuestionAnswer(question.id, answer)}
                 />
               ))
             )}

@@ -34,18 +34,21 @@ function getSubmissionIcon(type: SubmissionType) {
   }
 }
 
-// Descriptions for each project type
+// Descriptions for each project type (must match requirement IDs in phase_requirements_service.py)
 const PROJECT_DESCRIPTIONS: Record<string, string> = {
   "phase0-github-profile": "Demonstrates account setup and version control basics",
   "phase1-profile-readme": "Showcases Markdown skills and personal branding",
   "phase1-linux-ctfs-fork": "Completed hands-on Linux command line challenges",
   "phase1-linux-ctf-token": "Verified completion of all 18 CTF challenges",
   "phase2-journal-starter-fork": "Built a full-stack API with FastAPI & PostgreSQL",
+  "phase2-journal-api-working": "Verified local API is functioning correctly",
   "phase3-copilot-demo": "Demonstrates AI-assisted development workflow",
-  "phase4-deployed-journal-api": "Successfully deployed application to the cloud",
-  "phase5-dockerfile": "Containerized application with Docker",
+  "phase4-deployed-journal": "Successfully deployed application to the cloud",
+  "phase5-container-image": "Published container image to registry",
   "phase5-cicd-pipeline": "Automated build, test, and deployment pipeline",
-  "phase6-security-scan": "Implemented security scanning and vulnerability management",
+  "phase5-terraform-iac": "Infrastructure defined as code with Terraform",
+  "phase5-kubernetes-manifests": "Kubernetes deployment and service manifests",
+  "phase6-security-scanning": "Implemented security scanning and vulnerability management",
 };
 
 // Phase colors for visual differentiation
@@ -110,6 +113,7 @@ export function SubmissionsShowcase({ submissions }: SubmissionsShowcaseProps) {
               href={submission.submitted_value}
               target="_blank"
               rel="noopener noreferrer"
+              aria-label={`${submission.name} (opens in new tab)`}
               className={`block p-4 rounded-xl border ${colors.border} ${colors.bg} hover:shadow-md transition-all group`}
             >
               <div className="flex items-start gap-3">
@@ -156,6 +160,7 @@ export function SubmissionsShowcase({ submissions }: SubmissionsShowcaseProps) {
       {hasMore && (
         <button
           onClick={() => setShowAll(!showAll)}
+          aria-label={showAll ? "Show fewer projects" : `Show ${filteredSubmissions.length - displayLimit} more projects`}
           className="w-full mt-3 py-2 text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
         >
           {showAll ? "Show less" : `Show ${filteredSubmissions.length - displayLimit} more projects`}

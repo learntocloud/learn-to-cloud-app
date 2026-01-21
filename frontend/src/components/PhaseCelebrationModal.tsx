@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useId, useMemo, useRef } from "react";
+import { Link } from "react-router-dom";
 
 interface PhaseCelebrationModalProps {
   isOpen: boolean;
@@ -21,7 +22,6 @@ const CONFETTI_COLORS = [
   "#A8D8EA",
 ];
 
-// Confetti particle component
 function ConfettiParticle({
   delay,
   color,
@@ -58,8 +58,10 @@ export function PhaseCelebrationModal({
   const [showConfetti, setShowConfetti] = useState(false);
   const [confettiSeed, setConfettiSeed] = useState(0);
   const titleId = useId();
+  const descriptionId = useId();
   const modalRef = useRef<HTMLDivElement | null>(null);
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
+  const continueButtonRef = useRef<HTMLAnchorElement | null>(null);
   const previouslyFocusedElementRef = useRef<HTMLElement | null>(null);
   const previousBodyOverflowRef = useRef<string>("");
 
@@ -125,9 +127,9 @@ export function PhaseCelebrationModal({
       previousBodyOverflowRef.current = document.body.style.overflow;
       document.body.style.overflow = "hidden";
 
-      // Move focus into the dialog for a11y.
+      // Move focus into the dialog for a11y (primary action first).
       window.setTimeout(() => {
-        closeButtonRef.current?.focus();
+        (continueButtonRef.current ?? closeButtonRef.current)?.focus();
       }, 0);
     }
     return () => {
@@ -155,14 +157,12 @@ export function PhaseCelebrationModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/60 backdrop-blur-sm"
         onClick={onClose}
         aria-hidden="true"
       />
 
-      {/* Confetti container */}
       {showConfetti && (
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           {confettiParticles.map((particle) => (
@@ -177,41 +177,30 @@ export function PhaseCelebrationModal({
         </div>
       )}
 
-      {/* Modal content */}
       <div
         ref={modalRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
+        aria-describedby={descriptionId}
         tabIndex={-1}
         className="relative bg-white dark:bg-gray-900 rounded-2xl shadow-2xl max-w-md w-full mx-4 p-8 text-center animate-modal-pop"
+        onClick={(e) => e.stopPropagation()}
       >
-        {/* Badge icon - large and animated */}
         <div className="mb-6">
           <div className="inline-flex items-center justify-center w-24 h-24 text-6xl animate-bounce-slow bg-gradient-to-br from-yellow-100 to-yellow-200 dark:from-yellow-900/30 dark:to-yellow-800/30 rounded-full shadow-lg">
             {badgeIcon}
           </div>
         </div>
 
-        {/* Celebration text */}
         <h2 id={titleId} className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
           🎉 Congratulations! 🎉
         </h2>
 
-        <p className="text-lg text-gray-600 dark:text-gray-300 mb-4">
-          You&apos;ve completed
+        <p id={descriptionId} className="text-lg text-gray-600 dark:text-gray-300 mb-6">
+          You&apos;ve completed Phase {phaseNumber}: {phaseName}
         </p>
 
-        <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-xl p-4 mb-6">
-          <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">
-            Phase {phaseNumber}
-          </p>
-          <p className="text-xl font-semibold text-gray-900 dark:text-white">
-            {phaseName}
-          </p>
-        </div>
-
-        {/* Badge earned */}
         <div className="mb-6">
           <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
             Badge Earned
@@ -224,16 +213,16 @@ export function PhaseCelebrationModal({
           </div>
         </div>
 
-        {/* Actions */}
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           {nextPhaseSlug && (
-            <a
-              href={`/${nextPhaseSlug}`}
+            <Link
+              ref={continueButtonRef}
+              to={`/${nextPhaseSlug}`}
               className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition-colors"
               onClick={onClose}
             >
               Continue to Next Phase →
-            </a>
+            </Link>
           )}
           <button
             ref={closeButtonRef}

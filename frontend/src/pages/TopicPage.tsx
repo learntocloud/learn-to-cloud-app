@@ -1,75 +1,85 @@
+import { useMemo } from 'react';
 import { Link, useParams, Navigate } from 'react-router-dom';
 import { useUser } from '@clerk/clerk-react';
 import { useTopicDetail, usePhaseDetail } from '@/lib/hooks';
 import type { TopicDetailSchema } from '@/lib/api-client';
 import { TopicContent } from '@/components/TopicContent';
 
-// Valid phase slugs
 const VALID_PHASE_SLUGS = ["phase0", "phase1", "phase2", "phase3", "phase4", "phase5", "phase6"];
 
-export function TopicPage() {
-  const { phaseSlug, topicSlug } = useParams<{ phaseSlug: string; topicSlug: string }>();
-  const { isSignedIn, isLoaded } = useUser();
+// Infer phase type from hook return
+type PhaseData = NonNullable<ReturnType<typeof usePhaseDetail>['data']>;
 
-  // Validate slugs
-  if (!phaseSlug || !topicSlug || !VALID_PHASE_SLUGS.includes(phaseSlug)) {
-    return <Navigate to="/404" replace />;
-  }
+function TopicLoadingState() {
+  return (
+    <TopicPageLayout>
+      <div className="flex items-center justify-center py-20">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" aria-label="Loading" />
+      </div>
+    </TopicPageLayout>
+  );
+}
 
-  // Not signed in - show public view
-  if (isLoaded && !isSignedIn) {
-    return <TopicPublicView phaseSlug={phaseSlug} topicSlug={topicSlug} />;
-  }
-
-  // Signed in - show authenticated view
-  if (isLoaded && isSignedIn) {
-    return <TopicAuthenticatedView phaseSlug={phaseSlug} topicSlug={topicSlug} />;
-  }
-
-  // Loading
+function TopicPageLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen py-8 bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-950">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-center py-20">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        </div>
+        {children}
       </div>
     </div>
   );
 }
 
+function useTopicNavigation(phase: PhaseData | null | undefined, topicSlug: string) {
+  return useMemo(() => {
+    if (!phase) return { prevTopic: null, nextTopic: null };
+    const currentIndex = phase.topics.findIndex((t) => t.slug === topicSlug);
+    return {
+      prevTopic: currentIndex > 0 ? phase.topics[currentIndex - 1] : null,
+      nextTopic: currentIndex < phase.topics.length - 1 ? phase.topics[currentIndex + 1] : null,
+    };
+  }, [phase, topicSlug]);
+}
+
+export function TopicPage() {
+  const { phaseSlug, topicSlug } = useParams<{ phaseSlug: string; topicSlug: string }>();
+  const { isSignedIn, isLoaded } = useUser();
+
+  if (!phaseSlug || !topicSlug || !VALID_PHASE_SLUGS.includes(phaseSlug)) {
+    return <Navigate to="/404" replace />;
+  }
+
+  if (isLoaded && !isSignedIn) {
+    return <TopicPublicView phaseSlug={phaseSlug} topicSlug={topicSlug} />;
+  }
+
+  if (isLoaded && isSignedIn) {
+    return <TopicAuthenticatedView phaseSlug={phaseSlug} topicSlug={topicSlug} />;
+  }
+
+  return <TopicLoadingState />;
+}
+
 function TopicPublicView({ phaseSlug, topicSlug }: { phaseSlug: string; topicSlug: string }) {
   const { data: topic, isLoading: topicLoading, error: topicError } = useTopicDetail(phaseSlug, topicSlug);
   const { data: phase, isLoading: phaseLoading } = usePhaseDetail(phaseSlug);
+  const { prevTopic, nextTopic } = useTopicNavigation(phase, topicSlug);
 
   if (topicLoading || phaseLoading) {
-    return (
-      <div className="min-h-screen py-8 bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-950">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-center py-20">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          </div>
-        </div>
-      </div>
-    );
+    return <TopicLoadingState />;
   }
 
   if (topicError || !topic || !phase) {
     return <Navigate to="/404" replace />;
   }
 
-  // Find prev/next topics
-  const currentIndex = phase.topics.findIndex(t => t.slug === topicSlug);
-  const prevTopic = currentIndex > 0 ? phase.topics[currentIndex - 1] : null;
-  const nextTopic = currentIndex < phase.topics.length - 1 ? phase.topics[currentIndex + 1] : null;
-
   return (
-    <div className="min-h-screen py-8 bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-950">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        <nav className="mb-6 flex items-center gap-2 text-sm">
-          <Link to="/" className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">
-            Home
-          </Link>
+    <TopicPageLayout>
+      {/* Public view links to Home; authenticated view links to Dashboard */}
+      <nav className="mb-6 flex items-center gap-2 text-sm">
+        <Link to="/" className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">
+          Home
+        </Link>
           <span className="text-gray-400">→</span>
           <Link to={`/${phaseSlug}`} className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">
             {phase.name}
@@ -81,11 +91,11 @@ function TopicPublicView({ phaseSlug, topicSlug }: { phaseSlug: string; topicSlu
         <TopicHeader topic={topic} isAuthenticated={false} />
 
         <TopicContent
+          key={topic.id}
           topic={topic}
           isAuthenticated={false}
         />
 
-        {/* Sign in prompt */}
         <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/30 rounded-lg border border-blue-200 dark:border-blue-800 text-center">
           <p className="text-sm text-blue-700 dark:text-blue-300">
             <Link to="/sign-in" className="font-medium hover:underline">
@@ -100,106 +110,27 @@ function TopicPublicView({ phaseSlug, topicSlug }: { phaseSlug: string; topicSlu
           prevTopic={prevTopic}
           nextTopic={nextTopic}
         />
-      </div>
-    </div>
+    </TopicPageLayout>
   );
 }
 
 function TopicAuthenticatedView({ phaseSlug, topicSlug }: { phaseSlug: string; topicSlug: string }) {
   const { data: topic, isLoading: topicLoading, error: topicError } = useTopicDetail(phaseSlug, topicSlug);
   const { data: phase, isLoading: phaseLoading } = usePhaseDetail(phaseSlug);
+  const { prevTopic, nextTopic } = useTopicNavigation(phase, topicSlug);
 
   if (topicLoading || phaseLoading) {
-    return (
-      <div className="min-h-screen py-8 bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-950">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-center py-20">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          </div>
-        </div>
-      </div>
-    );
+    return <TopicLoadingState />;
   }
 
   if (topicError || !topic || !phase) {
     return <Navigate to="/404" replace />;
   }
 
-  // If phase is locked
   if (topic.is_locked) {
     const prevPhaseNum = phase.id - 1;
     return (
-      <div className="min-h-screen py-8 bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-950">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <nav className="mb-6 flex items-center gap-2 text-sm">
-            <Link to="/dashboard" className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">
-              Dashboard
-            </Link>
-            <span className="text-gray-400">→</span>
-            <Link to={`/${phaseSlug}`} className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">
-              {phase.name}
-            </Link>
-          </nav>
-
-          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-8 text-center">
-            <div className="text-6xl mb-4">🔒</div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Content Locked</h1>
-            <p className="text-gray-600 dark:text-gray-300 mb-6">
-              You need to complete <strong>Phase {prevPhaseNum}</strong> before you can access content in <strong>{phase.name}</strong>.
-            </p>
-            <Link
-              to={`/phase${prevPhaseNum}`}
-              className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
-            >
-              Go to Phase {prevPhaseNum}
-            </Link>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // If topic is locked
-  if (topic.is_topic_locked) {
-    return (
-      <div className="min-h-screen py-8 bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-950">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <nav className="mb-6 flex items-center gap-2 text-sm">
-            <Link to="/dashboard" className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">
-              Dashboard
-            </Link>
-            <span className="text-gray-400">→</span>
-            <Link to={`/${phaseSlug}`} className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">
-              {phase.name}
-            </Link>
-          </nav>
-
-          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-8 text-center">
-            <div className="text-6xl mb-4">🔒</div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Topic Locked</h1>
-            <p className="text-gray-600 dark:text-gray-300 mb-6">
-              You need to complete <strong>{topic.previous_topic_name}</strong> before you can access <strong>{topic.name}</strong>.
-            </p>
-            <Link
-              to={`/${phaseSlug}`}
-              className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
-            >
-              Go to {phase.name}
-            </Link>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Find prev/next topics
-  const currentIndex = phase.topics.findIndex(t => t.slug === topicSlug);
-  const prevTopic = currentIndex > 0 ? phase.topics[currentIndex - 1] : null;
-  const nextTopic = currentIndex < phase.topics.length - 1 ? phase.topics[currentIndex + 1] : null;
-
-  return (
-    <div className="min-h-screen py-8 bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-950">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+      <TopicPageLayout>
         <nav className="mb-6 flex items-center gap-2 text-sm">
           <Link to="/dashboard" className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">
             Dashboard
@@ -208,18 +139,76 @@ function TopicAuthenticatedView({ phaseSlug, topicSlug }: { phaseSlug: string; t
           <Link to={`/${phaseSlug}`} className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">
             {phase.name}
           </Link>
-          <span className="text-gray-400">→</span>
-          <span className="text-gray-600 dark:text-gray-300">{topic.name}</span>
         </nav>
 
-        <TopicPageContent
-          topic={topic}
-          phaseSlug={phaseSlug}
-          prevTopic={prevTopic}
-          nextTopic={nextTopic}
-        />
-      </div>
-    </div>
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-8 text-center">
+          <div className="text-6xl mb-4" role="img" aria-label="Locked">🔒</div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Content Locked</h1>
+          <p className="text-gray-600 dark:text-gray-300 mb-6">
+            You need to complete <strong>Phase {prevPhaseNum}</strong> before you can access content in <strong>{phase.name}</strong>.
+          </p>
+          <Link
+            to={`/phase${prevPhaseNum}`}
+            className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+          >
+            Go to Phase {prevPhaseNum}
+          </Link>
+        </div>
+      </TopicPageLayout>
+    );
+  }
+
+  if (topic.is_topic_locked) {
+    return (
+      <TopicPageLayout>
+        <nav className="mb-6 flex items-center gap-2 text-sm">
+          <Link to="/dashboard" className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">
+            Dashboard
+          </Link>
+          <span className="text-gray-400">→</span>
+          <Link to={`/${phaseSlug}`} className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">
+            {phase.name}
+          </Link>
+        </nav>
+
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-8 text-center">
+          <div className="text-6xl mb-4" role="img" aria-label="Locked">🔒</div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Topic Locked</h1>
+          <p className="text-gray-600 dark:text-gray-300 mb-6">
+            You need to complete <strong>{topic.previous_topic_name}</strong> before you can access <strong>{topic.name}</strong>.
+          </p>
+          <Link
+            to={`/${phaseSlug}`}
+            className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+          >
+            Go to {phase.name}
+          </Link>
+        </div>
+      </TopicPageLayout>
+    );
+  }
+
+  return (
+    <TopicPageLayout>
+      <nav className="mb-6 flex items-center gap-2 text-sm">
+        <Link to="/dashboard" className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">
+          Dashboard
+        </Link>
+        <span className="text-gray-400">→</span>
+        <Link to={`/${phaseSlug}`} className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">
+          {phase.name}
+        </Link>
+        <span className="text-gray-400">→</span>
+        <span className="text-gray-600 dark:text-gray-300">{topic.name}</span>
+      </nav>
+
+      <TopicPageContent
+        topic={topic}
+        phaseSlug={phaseSlug}
+        prevTopic={prevTopic}
+        nextTopic={nextTopic}
+      />
+    </TopicPageLayout>
   );
 }
 
@@ -254,7 +243,6 @@ function TopicHeader({ topic, isAuthenticated }: {
 
       <p className="text-gray-600 dark:text-gray-300 mb-4">{topic.description}</p>
 
-      {/* What You'll Learn - Learning Objectives */}
       {topic.learning_objectives && topic.learning_objectives.length > 0 && (
         <div className="mb-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-lg border border-blue-100 dark:border-blue-800/50">
           <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-2 flex items-center gap-2">
@@ -296,7 +284,14 @@ function TopicHeader({ topic, isAuthenticated }: {
 
       {isAuthenticated && totalItems > 0 && (
         <div className="mt-4">
-          <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+          <div
+            className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden"
+            role="progressbar"
+            aria-valuenow={percentage}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-label={`Topic progress: ${completedItems} of ${totalItems} complete`}
+          >
             <div
               className={`h-full transition-all duration-300 ${
                 isComplete ? "bg-green-500" : "bg-blue-500"
@@ -310,7 +305,6 @@ function TopicHeader({ topic, isAuthenticated }: {
   );
 }
 
-// Navigation component
 function TopicNavigation({ phaseSlug, prevTopic, nextTopic }: {
   phaseSlug: string;
   prevTopic: { slug: string; name: string } | null;
@@ -347,7 +341,6 @@ function TopicNavigation({ phaseSlug, prevTopic, nextTopic }: {
   );
 }
 
-// Topic page content with progress tracking
 function TopicPageContent({
   topic,
   phaseSlug,
@@ -367,6 +360,7 @@ function TopicPageContent({
       />
 
       <TopicContent
+        key={topic.id}
         topic={topic}
         isAuthenticated={true}
       />

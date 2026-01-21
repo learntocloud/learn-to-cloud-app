@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { Link, useParams, Navigate } from 'react-router-dom';
 import { useUser } from '@clerk/clerk-react';
 import { usePhaseDetail, useUserInfo, useDashboard } from '@/lib/hooks';
@@ -7,7 +8,26 @@ import type {
 import { PhaseVerificationForm } from '@/components/PhaseVerificationForm';
 import { PhaseCompletionCheck } from '@/components/PhaseCompletionCheck';
 
-// Valid phase slugs
+const PROGRESS_STATUS = {
+  NOT_STARTED: 'not_started',
+  IN_PROGRESS: 'in_progress',
+  COMPLETED: 'completed',
+} as const;
+
+type ProgressStatus = typeof PROGRESS_STATUS[keyof typeof PROGRESS_STATUS];
+
+function PhaseLoadingState() {
+  return (
+    <div className="min-h-screen py-8 bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-950">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-center py-20">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const VALID_PHASE_SLUGS = ["phase0", "phase1", "phase2", "phase3", "phase4", "phase5", "phase6"];
 
 // Phase slug to next phase mapping (for celebration modal navigation)
@@ -25,31 +45,19 @@ export function PhasePage() {
   const { phaseSlug } = useParams<{ phaseSlug: string }>();
   const { isSignedIn, isLoaded } = useUser();
 
-  // Validate phase slug
   if (!phaseSlug || !VALID_PHASE_SLUGS.includes(phaseSlug)) {
     return <Navigate to="/404" replace />;
   }
 
-  // If not signed in, show public view
   if (isLoaded && !isSignedIn) {
     return <PhasePublicView phaseSlug={phaseSlug} />;
   }
 
-  // If signed in, show authenticated view
   if (isLoaded && isSignedIn) {
     return <PhaseAuthenticatedView phaseSlug={phaseSlug} />;
   }
 
-  // Loading state
-  return (
-    <div className="min-h-screen py-8 bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-950">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-center py-20">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        </div>
-      </div>
-    </div>
-  );
+  return <PhaseLoadingState />;
 }
 
 function PhasePublicView({ phaseSlug }: { phaseSlug: string }) {
@@ -132,23 +140,14 @@ function PhaseAuthenticatedView({ phaseSlug }: { phaseSlug: string }) {
   const { data: userInfo } = useUserInfo();
   const { data: dashboard } = useDashboard();
 
-  // Get earned badges from dashboard for celebration modal
-  const earnedBadges = dashboard?.badges?.map(b => ({
-    id: b.id,
-    name: b.name,
-    icon: b.icon,
-  })) ?? [];
+  // Memoize earned badges to prevent unnecessary re-renders of PhaseCompletionCheck
+  const earnedBadges = useMemo(
+    () => dashboard?.badges?.map(b => ({ id: b.id })) ?? [],
+    [dashboard?.badges]
+  );
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen py-8 bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-950">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-center py-20">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          </div>
-        </div>
-      </div>
-    );
+    return <PhaseLoadingState />;
   }
 
   if (error || !phase) {
@@ -160,9 +159,10 @@ function PhaseAuthenticatedView({ phaseSlug }: { phaseSlug: string }) {
   // Use API-computed value - business logic lives in API, not frontend
   const allTopicsComplete = phase.all_topics_complete;
 
-  // If phase is locked, show locked page
   if (phase.is_locked) {
-    const prevPhaseNum = phase.id - 1;
+    // Guard against phase 0 being locked (shouldn't happen, but be safe)
+    const prevPhaseNum = Math.max(0, phase.id - 1);
+    const prevPhaseSlug = `phase${prevPhaseNum}`;
     return (
       <div className="min-h-screen py-8 bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-950">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -179,7 +179,7 @@ function PhaseAuthenticatedView({ phaseSlug }: { phaseSlug: string }) {
               You need to complete <strong>Phase {prevPhaseNum}</strong> before you can access <strong>{phase.name}</strong>.
             </p>
             <Link
-              to={`/phase${prevPhaseNum}`}
+              to={`/${prevPhaseSlug}`}
               className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
             >
               Go to Phase {prevPhaseNum}
@@ -316,39 +316,45 @@ function PhaseAuthenticatedView({ phaseSlug }: { phaseSlug: string }) {
   );
 }
 
-// Progress components
-function StatusBadge({ status }: { status: string }) {
-  const statusColors = {
-    not_started: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300',
-    in_progress: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
-    completed: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
+function StatusBadge({ status }: { status: ProgressStatus }) {
+  const statusColors: Record<ProgressStatus, string> = {
+    [PROGRESS_STATUS.NOT_STARTED]: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300',
+    [PROGRESS_STATUS.IN_PROGRESS]: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
+    [PROGRESS_STATUS.COMPLETED]: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
   };
 
-  const statusLabels = {
-    not_started: 'Not Started',
-    in_progress: 'In Progress',
-    completed: 'Completed',
+  const statusLabels: Record<ProgressStatus, string> = {
+    [PROGRESS_STATUS.NOT_STARTED]: 'Not Started',
+    [PROGRESS_STATUS.IN_PROGRESS]: 'In Progress',
+    [PROGRESS_STATUS.COMPLETED]: 'Completed',
   };
 
   return (
-    <span className={`px-3 py-1 rounded-full text-sm font-medium ${statusColors[status as keyof typeof statusColors] || statusColors.not_started}`}>
-      {statusLabels[status as keyof typeof statusLabels] || 'Not Started'}
+    <span className={`px-3 py-1 rounded-full text-sm font-medium ${statusColors[status] || statusColors[PROGRESS_STATUS.NOT_STARTED]}`}>
+      {statusLabels[status] || 'Not Started'}
     </span>
   );
 }
 
-function ProgressBar({ percentage, status, size = 'md' }: { percentage: number; status: string; size?: 'sm' | 'md' | 'lg' }) {
+function ProgressBar({ percentage, status, size = 'md' }: { percentage: number; status: ProgressStatus; size?: 'sm' | 'md' | 'lg' }) {
   const heights = { sm: 'h-1', md: 'h-2', lg: 'h-3' };
-  const barColors = {
-    not_started: 'bg-gray-400',
-    in_progress: 'bg-amber-500',
-    completed: 'bg-emerald-500',
+  const barColors: Record<ProgressStatus, string> = {
+    [PROGRESS_STATUS.NOT_STARTED]: 'bg-gray-400',
+    [PROGRESS_STATUS.IN_PROGRESS]: 'bg-amber-500',
+    [PROGRESS_STATUS.COMPLETED]: 'bg-emerald-500',
   };
 
   return (
-    <div className={`w-full bg-gray-200 dark:bg-gray-700 rounded-full ${heights[size]} overflow-hidden`}>
+    <div
+      role="progressbar"
+      aria-valuenow={percentage}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-label={`Progress: ${percentage}%`}
+      className={`w-full bg-gray-200 dark:bg-gray-700 rounded-full ${heights[size]} overflow-hidden`}
+    >
       <div
-        className={`${barColors[status as keyof typeof barColors] || barColors.not_started} ${heights[size]} rounded-full transition-all duration-500`}
+        className={`${barColors[status] || barColors[PROGRESS_STATUS.NOT_STARTED]} ${heights[size]} rounded-full transition-all duration-500`}
         style={{ width: `${percentage}%` }}
       />
     </div>
@@ -365,9 +371,8 @@ function TopicCard({ topic, phaseSlug, previousTopicName }: {
   const completedCount = (progress?.steps_completed ?? 0) + (progress?.questions_passed ?? 0);
   const totalCount = (progress?.steps_total ?? 0) + (progress?.questions_total ?? 0);
   const progressPercent = progress?.percentage ?? 0;
-  const isComplete = progress?.status === 'completed';
+  const isComplete = progress?.status === PROGRESS_STATUS.COMPLETED;
 
-  // Locked state
   if (topic.is_locked) {
     return (
       <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden opacity-75">
@@ -427,7 +432,6 @@ function TopicCard({ topic, phaseSlug, previousTopicName }: {
             )}
           </div>
           <div className="flex items-center gap-3 ml-4">
-            {/* Progress indicator */}
             {totalCount > 0 && (
               <div className="text-right">
                 <div className="text-sm font-medium text-gray-900 dark:text-white">
@@ -443,7 +447,6 @@ function TopicCard({ topic, phaseSlug, previousTopicName }: {
                 </div>
               </div>
             )}
-            {/* Arrow to indicate clickable */}
             <svg
               className="w-5 h-5 text-gray-400"
               fill="none"

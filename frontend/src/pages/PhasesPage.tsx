@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { memo, useCallback, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { SignUpButton, useUser } from '@clerk/clerk-react';
 import { usePhasesWithProgress } from '@/lib/hooks';
@@ -8,6 +8,18 @@ export function PhasesPage() {
   const { data: phases, isLoading, error } = usePhasesWithProgress();
   const [openSlugs, setOpenSlugs] = useState<Set<string>>(() => new Set());
   const { isSignedIn, isLoaded } = useUser();
+
+  const handleToggle = useCallback((slug: string) => {
+    setOpenSlugs((prev) => {
+      const next = new Set(prev);
+      if (next.has(slug)) {
+        next.delete(slug);
+      } else {
+        next.add(slug);
+      }
+      return next;
+    });
+  }, []);
 
   if (isLoading) {
     return (
@@ -25,10 +37,17 @@ export function PhasesPage() {
     );
   }
 
+  if (phases.length === 0) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-gray-500 dark:text-gray-400">No phases available yet. Check back soon!</p>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen py-8">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
         <div className="mb-10 text-center">
           <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white">
             Your Cloud Engineering Journey
@@ -80,17 +99,7 @@ export function PhasesPage() {
                 key={phase.id}
                 phase={phase}
                 isOpen={openSlugs.has(phase.slug)}
-                onToggle={() => {
-                  setOpenSlugs((prev) => {
-                    const next = new Set(prev);
-                    if (next.has(phase.slug)) {
-                      next.delete(phase.slug);
-                    } else {
-                      next.add(phase.slug);
-                    }
-                    return next;
-                  });
-                }}
+                onToggle={handleToggle}
               />
             ))}
           </div>
@@ -99,18 +108,20 @@ export function PhasesPage() {
     </div>
   );
 }
-function PhaseAccordionItem({
+const PhaseAccordionItem = memo(function PhaseAccordionItem({
   phase,
   isOpen,
   onToggle,
 }: {
   phase: PhaseSummarySchema;
   isOpen: boolean;
-  onToggle: () => void;
+  onToggle: (slug: string) => void;
 }) {
+  const headerId = `phase-${phase.slug}-header`;
+  const contentId = `phase-${phase.slug}-content`;
+
   return (
     <div className="relative sm:pl-14">
-      {/* Timeline node */}
       <div className="absolute left-2 top-6 hidden sm:flex items-center justify-center">
         <div className="w-9 h-9 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-bold shadow-lg ring-4 ring-white dark:ring-gray-900">
           {phase.id}
@@ -120,9 +131,11 @@ function PhaseAccordionItem({
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
         <button
           type="button"
-          onClick={onToggle}
+          id={headerId}
+          onClick={() => onToggle(phase.slug)}
           className="w-full text-left p-5 md:p-6 hover:bg-gray-50 dark:hover:bg-gray-800/70 transition-colors"
           aria-expanded={isOpen}
+          aria-controls={contentId}
         >
           <div className="flex items-start gap-4">
             <div className="shrink-0 sm:hidden">
@@ -161,7 +174,12 @@ function PhaseAccordionItem({
         </button>
 
         {isOpen && (
-          <div className="border-t border-gray-200 dark:border-gray-700 p-5 md:p-6 bg-gray-50 dark:bg-gray-900/30">
+          <div
+            id={contentId}
+            role="region"
+            aria-labelledby={headerId}
+            className="border-t border-gray-200 dark:border-gray-700 p-5 md:p-6 bg-gray-50 dark:bg-gray-900/30"
+          >
             {phase.objectives?.length > 0 && (
               <div className="mb-6">
                 <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">Objectives</h3>
@@ -210,4 +228,4 @@ function PhaseAccordionItem({
       </div>
     </div>
   );
-}
+});

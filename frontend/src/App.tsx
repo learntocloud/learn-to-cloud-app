@@ -3,7 +3,6 @@ import { lazy, Suspense } from 'react';
 import { SignedIn, SignedOut, RedirectToSignIn } from '@clerk/clerk-react';
 import { Layout } from './components/Layout';
 
-// Lazy load pages for better code splitting
 const HomePage = lazy(() => import('./pages/HomePage').then(m => ({ default: m.HomePage })));
 const DashboardPage = lazy(() => import('./pages/DashboardPage').then(m => ({ default: m.DashboardPage })));
 const PhasesPage = lazy(() => import('./pages/PhasesPage').then(m => ({ default: m.PhasesPage })));
@@ -17,7 +16,6 @@ const SignInPage = lazy(() => import('./pages/SignInPage').then(m => ({ default:
 const SignUpPage = lazy(() => import('./pages/SignUpPage').then(m => ({ default: m.SignUpPage })));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage').then(m => ({ default: m.NotFoundPage })));
 
-// Protected route wrapper
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return (
     <>
@@ -29,7 +27,6 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   );
 }
 
-// Loading fallback component
 function PageLoader() {
   return (
     <div className="flex items-center justify-center min-h-[60vh]">
@@ -43,7 +40,6 @@ export function App() {
     <Layout>
       <Suspense fallback={<PageLoader />}>
         <Routes>
-          {/* Public routes */}
           <Route path="/" element={<HomePage />} />
           <Route path="/phases" element={<PhasesPage />} />
           <Route path="/faq" element={<FAQPage />} />
@@ -53,11 +49,7 @@ export function App() {
           <Route path="/verify" element={<VerifyPage />} />
           <Route path="/verify/:code" element={<VerifyPage />} />
 
-          {/* Phase and topic routes - show content but progress requires auth */}
-          <Route path="/:phaseSlug" element={<PhasePage />} />
-          <Route path="/:phaseSlug/:topicSlug" element={<TopicPage />} />
-
-          {/* Protected routes */}
+          {/* Protected routes must come before dynamic /:phaseSlug to avoid collision */}
           <Route
             path="/dashboard"
             element={
@@ -75,7 +67,10 @@ export function App() {
             }
           />
 
-          {/* 404 */}
+          {/* Dynamic phase routes - placed after static routes */}
+          <Route path="/:phaseSlug" element={<PhasePage />} />
+          <Route path="/:phaseSlug/:topicSlug" element={<TopicPage />} />
+
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </Suspense>

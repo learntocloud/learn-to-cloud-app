@@ -6,14 +6,24 @@ import type { PhaseSummarySchema } from '@/lib/api-client';
 export function DashboardPage() {
   const { isSignedIn, isLoaded } = useUser();
 
-  if (isLoaded && !isSignedIn) {
+  if (!isLoaded) {
+    return (
+      <div className="py-8 bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-950">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-center py-20">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isSignedIn) {
     return <Navigate to="/" replace />;
   }
 
   return (
     <div className="py-8 bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-950">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-        {isLoaded && isSignedIn && <DashboardContent />}
+        <DashboardContent />
       </div>
     </div>
   );
@@ -41,7 +51,6 @@ function DashboardContent() {
 
   return (
     <>
-      {/* Combined Header + Progress */}
       <div className="bg-white dark:bg-gray-800/50 rounded-2xl border border-gray-200 dark:border-gray-700 p-5 mb-6 shadow-sm">
         <div className="flex items-start justify-between gap-4 mb-4">
           <div>
@@ -60,9 +69,15 @@ function DashboardContent() {
           )}
         </div>
 
-        {/* Progress bar */}
         <div className="flex items-center gap-3">
-          <div className="flex-1 bg-gray-100 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
+          <div
+            className="flex-1 bg-gray-100 dark:bg-gray-700 rounded-full h-2 overflow-hidden"
+            role="progressbar"
+            aria-valuenow={dashboard.overall_progress}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-label={`Overall progress: ${dashboard.overall_progress}%`}
+          >
             <div
               className="bg-emerald-500 h-2 rounded-full transition-all duration-500"
               style={{ width: `${dashboard.overall_progress}%` }}
@@ -82,7 +97,6 @@ function DashboardContent() {
         </div>
       </div>
 
-      {/* Phases Section */}
       <div className="mb-6">
         <h2 className="text-base font-semibold text-gray-900 dark:text-white mb-4">
           Your Journey
@@ -118,14 +132,20 @@ function PhaseRoadmap({ phases }: { phases: PhaseSummarySchema[] }) {
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2 min-w-0">
                 {isCompleted && (
-                  <svg className="w-4 h-4 text-emerald-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                  </svg>
+                  <>
+                    <svg className="w-4 h-4 text-emerald-500 shrink-0" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                    <span className="sr-only">Completed:</span>
+                  </>
                 )}
                 {isLocked && (
-                  <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                  </svg>
+                  <>
+                    <svg className="w-3.5 h-3.5 shrink-0" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                    <span className="sr-only">Locked:</span>
+                  </>
                 )}
                 <span className="truncate">{phase.name}</span>
               </div>
@@ -143,7 +163,14 @@ function PhaseRoadmap({ phases }: { phases: PhaseSummarySchema[] }) {
               </div>
             </div>
             {isInProgress && phase.progress && (
-              <div className="mt-2 w-full bg-amber-100 dark:bg-amber-900/30 rounded-full h-1.5 overflow-hidden">
+              <div
+                className="mt-2 w-full bg-amber-100 dark:bg-amber-900/30 rounded-full h-1.5 overflow-hidden"
+                role="progressbar"
+                aria-valuenow={phase.progress.percentage}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-label={`${phase.name} progress: ${Math.round(phase.progress.percentage)}%`}
+              >
                 <div
                   className="h-full bg-amber-500 rounded-full transition-all duration-300"
                   style={{ width: `${phase.progress.percentage}%` }}
@@ -155,12 +182,10 @@ function PhaseRoadmap({ phases }: { phases: PhaseSummarySchema[] }) {
 
         return (
           <div key={phase.id} className="flex items-stretch gap-4">
-            {/* Month label on left */}
             <div className="w-16 shrink-0 flex flex-col items-center">
               <span className="text-xs font-medium text-gray-400 dark:text-gray-500 whitespace-nowrap">
                 {PHASE_LABELS[index]}
               </span>
-              {/* Connecting line */}
               {!isLast && (
                 <div className={`flex-1 w-0.5 mt-2 ${
                   isCompleted
@@ -170,7 +195,6 @@ function PhaseRoadmap({ phases }: { phases: PhaseSummarySchema[] }) {
               )}
             </div>
 
-            {/* Phase node */}
             {isLocked ? (
               node
             ) : (

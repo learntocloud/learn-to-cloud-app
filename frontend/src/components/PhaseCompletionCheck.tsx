@@ -1,17 +1,16 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { PhaseCelebrationModal } from "./PhaseCelebrationModal";
-import { PHASE_BADGE_DATA } from "./phase-badge-data";
+import { PHASE_BADGES } from "@/lib/constants";
 
 interface PhaseCompletionCheckProps {
   phaseNumber: number;
-  earnedBadges: { id: string; name: string; icon: string }[];
+  earnedBadges: Array<{ id: string }>;
   nextPhaseSlug?: string;
 }
 
 const STORAGE_KEY = "ltc_celebrated_phases";
 
 function getCelebratedPhases(): Set<number> {
-  if (typeof window === "undefined") return new Set();
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
@@ -24,7 +23,6 @@ function getCelebratedPhases(): Set<number> {
 }
 
 function markPhaseCelebrated(phaseNumber: number): void {
-  if (typeof window === "undefined") return;
   try {
     const celebrated = getCelebratedPhases();
     celebrated.add(phaseNumber);
@@ -39,31 +37,29 @@ export function PhaseCompletionCheck({
   earnedBadges,
   nextPhaseSlug,
 }: PhaseCompletionCheckProps) {
+  const badgeData = PHASE_BADGES[phaseNumber];
   const [showCelebration, setShowCelebration] = useState(false);
 
   useEffect(() => {
-    // Check if user has the badge for this phase
+    if (!badgeData) return;
+
     const badgeId = `phase_${phaseNumber}_complete`;
     const hasBadge = earnedBadges.some((b) => b.id === badgeId);
-
     if (!hasBadge) return;
 
-    // Check if we've already celebrated this phase
     const celebrated = getCelebratedPhases();
     if (celebrated.has(phaseNumber)) return;
 
-    // Show celebration modal
+    // Mark as celebrated only when modal closes, not here
     setShowCelebration(true);
-    // Mark as celebrated so it doesn't show again
+  }, [phaseNumber, earnedBadges, badgeData]);
+
+  const handleClose = useCallback(() => {
     markPhaseCelebrated(phaseNumber);
-  }, [phaseNumber, earnedBadges]);
-
-  const handleClose = () => {
     setShowCelebration(false);
-  };
+  }, [phaseNumber]);
 
-  const badgeData = PHASE_BADGE_DATA[phaseNumber];
-  if (!badgeData) return null;
+  if (!badgeData || !showCelebration) return null;
 
   return (
     <PhaseCelebrationModal

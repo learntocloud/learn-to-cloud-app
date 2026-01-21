@@ -1,7 +1,12 @@
+import { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useUser, SignUpButton } from '@clerk/clerk-react';
 
-// Static phase data for homepage display
+/**
+ * Abbreviated phase data for homepage timeline display.
+ * Full descriptions live in: frontend/public/content/phases/phase{N}/index.json
+ * These are intentionally shorter to fit the compact UI.
+ */
 const PHASES = [
   { id: 0, name: "Starting from Zero", short_description: "Build your IT foundation" },
   { id: 1, name: "Linux and Bash", short_description: "Master the command line" },
@@ -16,14 +21,17 @@ export function HomePage() {
   const { isSignedIn, isLoaded } = useUser();
   const navigate = useNavigate();
 
+  useEffect(() => {
+    document.title = 'Learn to Cloud - Free Cloud Engineering Guide';
+  }, []);
+
   return (
     <div className="bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-950">
-      {/* Hero with subtle gradient background */}
-      <div className="bg-gradient-to-b from-blue-50 to-white dark:from-gray-900 dark:to-gray-950 pt-12 pb-8">
+      <div className="pt-12 pb-8">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 text-center">
           <img
             src="/logo-cropped.svg"
-            alt="Learn to Cloud"
+            alt="Learn to Cloud - Cloud Engineering Learning Platform"
             width={220}
             height={80}
             className="mx-auto mb-4 dark:invert"
@@ -37,7 +45,6 @@ export function HomePage() {
       </div>
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10">
-        {/* Learning Path */}
         <div className="mb-12">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white text-center mb-2">
             Your Learning Path
@@ -46,16 +53,13 @@ export function HomePage() {
             7 phases designed to take you from complete beginner to cloud-ready
           </p>
 
-          {/* Visual Timeline */}
           <div className="relative">
-            {/* Connection line - hidden on mobile */}
+            {/* Timeline connector (desktop only) */}
             <div className="hidden md:block absolute top-8 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-200 via-blue-400 to-blue-600 dark:from-blue-900 dark:via-blue-700 dark:to-blue-500" />
 
-            {/* Phases - horizontal scroll on mobile, grid on desktop */}
             <div className="flex md:grid md:grid-cols-7 gap-4 overflow-x-auto pb-4 md:pb-0 snap-x snap-mandatory">
               {PHASES.map((phase) => (
                 <div key={phase.id} className="relative flex-shrink-0 w-40 md:w-auto snap-center">
-                  {/* Phase number bubble */}
                   <div className="relative z-10 w-16 h-16 mx-auto mb-3 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 dark:from-blue-600 dark:to-blue-700 flex items-center justify-center shadow-lg">
                     <span className="text-xl font-bold text-white">{phase.id}</span>
                   </div>
@@ -69,7 +73,6 @@ export function HomePage() {
           </div>
         </div>
 
-        {/* What Makes LTC Different */}
         <div className="mb-12">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white text-center mb-6">
             Why Learn to Cloud?
@@ -97,7 +100,6 @@ export function HomePage() {
   );
 }
 
-// Hero CTA component
 function HeroCTA({ isSignedIn, isLoaded, onDashboard }: {
   isSignedIn: boolean | undefined;
   isLoaded: boolean;
@@ -117,7 +119,8 @@ function HeroCTA({ isSignedIn, isLoaded, onDashboard }: {
     return (
       <button
         onClick={onDashboard}
-        className="px-6 py-2.5 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+        aria-label="Go to your dashboard"
+        className="px-6 py-2.5 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
       >
         Go to Dashboard →
       </button>
@@ -127,13 +130,17 @@ function HeroCTA({ isSignedIn, isLoaded, onDashboard }: {
   return (
     <div className="flex flex-col sm:flex-row gap-3 justify-center">
       <SignUpButton mode="modal">
-        <button className="px-6 py-2.5 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm">
+        <button
+          aria-label="Create a free account to get started"
+          className="px-6 py-2.5 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+        >
           Get Started
         </button>
       </SignUpButton>
       <Link
         to="/phases"
-        className="px-6 py-2.5 text-sm font-medium border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+        aria-label="Browse the learning curriculum"
+        className="px-6 py-2.5 text-sm font-medium border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
       >
         View Curriculum →
       </Link>
