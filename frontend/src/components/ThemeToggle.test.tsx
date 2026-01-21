@@ -3,7 +3,7 @@
  * Tests theme switching behavior and accessibility.
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { render, screen, userEvent } from '../test/test-utils';
 import { ThemeToggle } from './ThemeToggle';
 

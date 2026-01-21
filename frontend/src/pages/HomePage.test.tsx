@@ -114,7 +114,7 @@ describe('HomePage - Loading State', () => {
       isSignedIn: false,
       isLoaded: false,
       user: null,
-    } as ReturnType<typeof useUser>);
+    } as unknown as ReturnType<typeof useUser>);
   });
 
   it('shows loading state while user status is loading', () => {

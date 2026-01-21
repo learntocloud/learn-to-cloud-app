@@ -3,7 +3,7 @@
  * Tests theme preference storage, system theme detection, and theme application.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   getThemePreference,
   setThemePreference,

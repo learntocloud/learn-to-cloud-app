@@ -41,7 +41,9 @@ fake = Faker()
 # =============================================================================
 
 
-async def create_async(factory_class: type, db: AsyncSession, **kwargs):
+async def create_async(
+    factory_class: type[factory.Factory], db: AsyncSession, **kwargs
+):
     """Create an instance using a factory and persist to database.
 
     Usage:
@@ -55,7 +57,7 @@ async def create_async(factory_class: type, db: AsyncSession, **kwargs):
 
 
 async def create_batch_async(
-    factory_class: type, db: AsyncSession, size: int, **kwargs
+    factory_class: type[factory.Factory], db: AsyncSession, size: int, **kwargs
 ):
     """Create multiple instances and persist to database."""
     instances = factory_class.build_batch(size, **kwargs)

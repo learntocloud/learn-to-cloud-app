@@ -3,7 +3,7 @@
  * Tests error catching, fallback rendering, and recovery.
  */
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest';
 import { render, screen, userEvent } from '../test/test-utils';
 import { ErrorBoundary } from './ErrorBoundary';
 
@@ -76,7 +76,7 @@ describe('ErrorBoundary', () => {
     const user = userEvent.setup();
     const onReset = vi.fn();
 
-    const { rerender } = render(
+    render(
       <ErrorBoundary onReset={onReset}>
         <ThrowError shouldThrow={true} />
       </ErrorBoundary>
