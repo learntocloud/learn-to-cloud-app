@@ -181,12 +181,12 @@ class WebhookResponse(BaseModel):
 
 
 # =============================================================================
-# Changelog Schemas
+# Updates Schemas
 # =============================================================================
 
 
-class ChangelogCommit(BaseModel):
-    """A single commit in the changelog."""
+class UpdatesCommit(BaseModel):
+    """A single commit in the weekly updates."""
 
     sha: str
     message: str
@@ -197,27 +197,20 @@ class ChangelogCommit(BaseModel):
     category: str
 
 
-class ChangelogWeek(BaseModel):
-    """A week of commits in the changelog."""
-
-    week_start: str
-    week_display: str
-    easter_egg: str
-    commits: list[ChangelogCommit]
-
-
-class ChangelogRepo(BaseModel):
-    """Repository information for changelog."""
+class UpdatesRepo(BaseModel):
+    """Repository information for updates."""
 
     owner: str
     name: str
 
 
-class ChangelogResponse(BaseModel):
-    """Response containing the weekly changelog."""
+class UpdatesResponse(BaseModel):
+    """Response containing this week's updates."""
 
-    weeks: list[ChangelogWeek]
-    repo: ChangelogRepo
+    week_start: str
+    week_display: str
+    commits: list[UpdatesCommit]
+    repo: UpdatesRepo
     generated_at: str
     error: str | None = None
 

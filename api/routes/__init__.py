@@ -3,6 +3,7 @@
 from routes.activity_routes import router as activity_router
 from routes.certificates_routes import router as certificates_router
 from routes.changelog_routes import router as changelog_router
+from routes.clerk_routes import router as clerk_router
 from routes.dashboard_routes import router as dashboard_router
 from routes.github_routes import router as github_router
 from routes.health_routes import router as health_router
@@ -15,6 +16,7 @@ __all__ = [
     "activity_router",
     "certificates_router",
     "changelog_router",
+    "clerk_router",
     "dashboard_router",
     "github_router",
     "health_router",

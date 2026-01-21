@@ -135,8 +135,8 @@ export interface UserCertificates {
   full_completion_eligible: boolean;
 }
 
-// Changelog types
-export interface ChangelogCommit {
+// Updates types (this week's commits)
+export interface UpdatesCommit {
   sha: string;
   message: string;
   author: string;
@@ -146,21 +146,16 @@ export interface ChangelogCommit {
   category: string;
 }
 
-export interface ChangelogWeek {
-  week_start: string;
-  week_display: string;
-  easter_egg: string;
-  commits: ChangelogCommit[];
-}
-
-export interface ChangelogRepo {
+export interface UpdatesRepo {
   owner: string;
   name: string;
 }
 
-export interface ChangelogResponse {
-  weeks: ChangelogWeek[];
-  repo: ChangelogRepo;
+export interface UpdatesResponse {
+  week_start: string;
+  week_display: string;
+  commits: UpdatesCommit[];
+  repo: UpdatesRepo;
   generated_at: string;
   error?: string;
 }

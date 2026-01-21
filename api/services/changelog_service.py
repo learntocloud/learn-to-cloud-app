@@ -1,11 +1,11 @@
-"""Changelog service for fetching and caching commit history.
+"""Updates service for fetching this week's commits.
 
-Fetches commits from GitHub API and groups them by week for display
-in the changelog page. Results are cached to avoid hitting GitHub rate limits.
+Fetches commits from GitHub API for the current week (starting Monday).
+Results are cached to avoid hitting GitHub rate limits.
 
 HTTP Client:
 - Uses shared httpx.AsyncClient for connection pooling
-- Must call close_changelog_client() on application shutdown
+- Must call close_updates_client() on application shutdown
 
 Cache:
 - Uses asyncio.Lock to prevent race conditions on cache access
@@ -24,32 +24,18 @@ from core.config import get_settings
 logger = get_logger(__name__)
 
 # Configuration - can be overridden via environment variables
-REPO_OWNER = os.getenv("CHANGELOG_REPO_OWNER", "learntocloud")
-REPO_NAME = os.getenv("CHANGELOG_REPO_NAME", "learn-to-cloud-app")
-WEEKS_TO_FETCH = 8
+REPO_OWNER = os.getenv("UPDATES_REPO_OWNER", "learntocloud")
+REPO_NAME = os.getenv("UPDATES_REPO_NAME", "learn-to-cloud-app")
 COMMITS_PER_PAGE = 100
 
-# Cache changelog for 5 minutes (300 seconds)
-# This is longer than other caches since commits don't change that often
-CHANGELOG_TTL = 300
-_changelog_cache: TTLCache[str, dict] = TTLCache(maxsize=10, ttl=CHANGELOG_TTL)
+# Cache updates for 5 minutes (300 seconds)
+UPDATES_TTL = 300
+_updates_cache: TTLCache[str, dict] = TTLCache(maxsize=10, ttl=UPDATES_TTL)
 _cache_lock = asyncio.Lock()
 
 # Shared HTTP client for connection pooling
 _http_client: httpx.AsyncClient | None = None
 _http_client_lock = asyncio.Lock()
-
-# Easter eggs for week headers
-EASTER_EGGS = [
-    "ship it! 🚀",
-    "another week, another feature ✨",
-    "bugs squashed 🐛",
-    "coffee consumed: ∞ ☕",
-    "powered by late nights 🌙",
-    "learning in progress... 📚",
-    "cloud all the things ☁️",
-    "terraform apply -auto-approve 😅",
-]
 
 # Commit patterns to skip
 SKIP_PATTERNS = [
@@ -58,12 +44,6 @@ SKIP_PATTERNS = [
     "merge pull request",
     "update changelog",
 ]
-
-
-def _get_week_start(dt: datetime) -> datetime:
-    """Get the Monday of the week for the given datetime."""
-    days_since_monday = dt.weekday()
-    return dt - timedelta(days=days_since_monday)
 
 
 def _format_week_header(dt: datetime) -> str:
@@ -150,7 +130,7 @@ async def _get_http_client() -> httpx.AsyncClient:
         return _http_client
 
 
-async def close_changelog_client() -> None:
+async def close_updates_client() -> None:
     """Close the HTTP client (called on application shutdown)."""
     global _http_client
     if _http_client is None:
@@ -160,32 +140,42 @@ async def close_changelog_client() -> None:
     _http_client = None
 
 
-async def get_changelog() -> dict:
-    """Fetch and return changelog data grouped by week.
+def _get_current_week_monday() -> datetime:
+    """Get Monday 00:00:00 UTC of the current week."""
+    now = datetime.now(UTC)
+    days_since_monday = now.weekday()
+    monday = now - timedelta(days=days_since_monday)
+    return monday.replace(hour=0, minute=0, second=0, microsecond=0)
+
+
+async def get_updates() -> dict:
+    """Fetch and return this week's commits.
 
     Returns cached data if available, otherwise fetches from GitHub API.
     Uses async lock to prevent cache race conditions.
 
     Returns:
         dict with keys:
-        - weeks: list of week objects with commits
+        - week_start: ISO date string of Monday
+        - week_display: Human readable week header
+        - commits: list of commit objects
         - repo: repository info
         - generated_at: timestamp
     """
-    cache_key = "changelog"
+    cache_key = "updates"
 
     # Check cache first (with lock for thread safety)
     async with _cache_lock:
-        cached = _changelog_cache.get(cache_key)
+        cached = _updates_cache.get(cache_key)
         if cached is not None:
-            logger.debug("changelog.cache_hit")
+            logger.debug("updates.cache_hit")
             return cached
 
-    logger.info("changelog.fetching_from_github")
+    logger.info("updates.fetching_from_github")
 
-    # Calculate date range
+    # Get this week's Monday
     now = datetime.now(UTC)
-    since = now - timedelta(weeks=WEEKS_TO_FETCH)
+    monday = _get_current_week_monday()
 
     # Build GitHub API request
     github_token = os.getenv("GITHUB_TOKEN")
@@ -195,7 +185,7 @@ async def get_changelog() -> dict:
 
     url = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/commits"
     params = {
-        "since": since.isoformat(),
+        "since": monday.isoformat(),
         "per_page": COMMITS_PER_PAGE,
     }
 
@@ -205,17 +195,18 @@ async def get_changelog() -> dict:
         response.raise_for_status()
         commits_data = response.json()
     except httpx.HTTPError as e:
-        logger.error("changelog.github_fetch_failed", error=str(e))
+        logger.error("updates.github_fetch_failed", error=str(e))
         return {
-            "weeks": [],
+            "week_start": monday.strftime("%Y-%m-%d"),
+            "week_display": _format_week_header(monday),
+            "commits": [],
             "repo": {"owner": REPO_OWNER, "name": REPO_NAME},
             "generated_at": now.isoformat(),
             "error": str(e),
         }
 
-    # Group commits by week
-    weeks_map: dict[str, list[dict]] = {}
-
+    # Process commits for this week
+    commits = []
     for commit in commits_data:
         message = commit["commit"]["message"].split("\n")[0]  # First line only
 
@@ -225,16 +216,11 @@ async def get_changelog() -> dict:
         commit_date = datetime.fromisoformat(
             commit["commit"]["author"]["date"].replace("Z", "+00:00")
         )
-        week_start = _get_week_start(commit_date)
-        week_key = week_start.strftime("%Y-%m-%d")
-
-        if week_key not in weeks_map:
-            weeks_map[week_key] = []
 
         emoji, category = _categorize_commit(message)
         clean_message = _clean_commit_message(message)
 
-        weeks_map[week_key].append(
+        commits.append(
             {
                 "sha": commit["sha"][:7],
                 "message": clean_message,
@@ -246,34 +232,22 @@ async def get_changelog() -> dict:
             }
         )
 
-    # Convert to sorted list of weeks
-    sorted_weeks = sorted(weeks_map.keys(), reverse=True)
-    weeks = []
-    for i, week_key in enumerate(sorted_weeks):
-        week_start = datetime.strptime(week_key, "%Y-%m-%d")
-        weeks.append(
-            {
-                "week_start": week_key,
-                "week_display": _format_week_header(week_start),
-                "easter_egg": EASTER_EGGS[i % len(EASTER_EGGS)],
-                "commits": weeks_map[week_key],
-            }
-        )
-
     result = {
-        "weeks": weeks,
+        "week_start": monday.strftime("%Y-%m-%d"),
+        "week_display": _format_week_header(monday),
+        "commits": commits,
         "repo": {"owner": REPO_OWNER, "name": REPO_NAME},
         "generated_at": now.isoformat(),
     }
 
     # Cache the result (with lock for thread safety)
     async with _cache_lock:
-        _changelog_cache[cache_key] = result
-    logger.info("changelog.cached", weeks_count=len(weeks))
+        _updates_cache[cache_key] = result
+    logger.info("updates.cached", commits_count=len(commits))
 
     return result
 
 
-def clear_changelog_cache() -> None:
-    """Clear the changelog cache. Useful for testing."""
-    _changelog_cache.clear()
+def clear_updates_cache() -> None:
+    """Clear the updates cache. Useful for testing."""
+    _updates_cache.clear()

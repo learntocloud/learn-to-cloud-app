@@ -9,6 +9,7 @@ import './index.css';
 import { initTheme } from './lib/theme';
 
 const CLERK_PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
+const CLERK_PROXY_URL = import.meta.env.VITE_CLERK_PROXY_URL;
 
 if (!CLERK_PUBLISHABLE_KEY) {
   throw new Error('Missing VITE_CLERK_PUBLISHABLE_KEY environment variable');
@@ -40,7 +41,11 @@ if (!rootElement) {
 createRoot(rootElement).render(
   <StrictMode>
     <ErrorBoundary>
-      <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY} afterSignOutUrl="/">
+      <ClerkProvider
+        publishableKey={CLERK_PUBLISHABLE_KEY}
+        proxyUrl={CLERK_PROXY_URL}
+        afterSignOutUrl="/"
+      >
         <QueryClientProvider client={queryClient}>
           <BrowserRouter>
             <App />

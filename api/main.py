@@ -26,6 +26,7 @@ from routes import (
     activity_router,
     certificates_router,
     changelog_router,
+    clerk_router,
     dashboard_router,
     github_router,
     health_router,
@@ -34,7 +35,7 @@ from routes import (
     users_router,
     webhooks_router,
 )
-from services.changelog_service import close_changelog_client
+from services.changelog_service import close_updates_client
 from services.clerk_service import close_http_client
 from services.github_hands_on_verification_service import close_github_client
 
@@ -139,7 +140,7 @@ async def lifespan(app: FastAPI):
         # Cleanup in reverse order of initialization
         close_clerk_client()
         await close_http_client()
-        await close_changelog_client()
+        await close_updates_client()
         await close_github_client()
         await dispose_engine(app.state.engine)  # Close all database connections
 
@@ -184,6 +185,7 @@ app.add_middleware(
 )
 
 app.include_router(health_router)
+app.include_router(clerk_router)
 app.include_router(users_router)
 app.include_router(dashboard_router)
 app.include_router(github_router)

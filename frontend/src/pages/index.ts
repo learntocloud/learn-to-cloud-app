@@ -4,7 +4,7 @@ export { PhasesPage } from './PhasesPage';
 export { PhasePage } from './PhasePage';
 export { TopicPage } from './TopicPage';
 export { FAQPage } from './FAQPage';
-export { ChangelogPage } from './ChangelogPage';
+export { UpdatesPage } from './UpdatesPage';
 export { CertificatesPage } from './CertificatesPage';
 export { ProfilePage } from './ProfilePage';
 export { VerifyPage } from './VerifyPage';

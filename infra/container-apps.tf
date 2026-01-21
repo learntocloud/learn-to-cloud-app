@@ -150,7 +150,7 @@ resource "azurerm_container_app" "api" {
 
       env {
         name  = "FRONTEND_URL"
-        value = var.frontend_custom_domain != "" ? "https://${var.frontend_custom_domain}" : "https://ca-ltc-frontend-${var.environment}.${azurerm_container_app_environment.main.default_domain}"
+        value = var.frontend_custom_domain != "" ? "https://${var.frontend_custom_domain}" : "https://${azurerm_static_web_app.frontend.default_host_name}"
       }
 
       liveness_probe {
