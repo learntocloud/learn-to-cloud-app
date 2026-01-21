@@ -87,6 +87,29 @@ def setup_wide_event():
 # Database Fixtures
 # =============================================================================
 
+# Check if database is available (skip DB tests in CI without database)
+_DB_AVAILABLE = None
+
+
+def _check_db_available() -> bool:
+    """Check if PostgreSQL is available. Cached after first check."""
+    global _DB_AVAILABLE
+    if _DB_AVAILABLE is not None:
+        return _DB_AVAILABLE
+
+    import socket
+
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(1)
+        result = sock.connect_ex(("localhost", 5432))
+        sock.close()
+        _DB_AVAILABLE = result == 0
+    except Exception:
+        _DB_AVAILABLE = False
+
+    return _DB_AVAILABLE
+
 
 @pytest_asyncio.fixture(scope="function")
 async def test_engine() -> AsyncGenerator[AsyncEngine]:
@@ -95,6 +118,9 @@ async def test_engine() -> AsyncGenerator[AsyncEngine]:
     Creates the test database if it doesn't exist and sets up tables.
     Each test function gets a fresh engine.
     """
+    if not _check_db_available():
+        pytest.skip("PostgreSQL not available - skipping database test")
+
     # Connect to default database to create test database if needed
     admin_engine = create_async_engine(
         "postgresql+asyncpg://postgres:postgres@localhost:5432/postgres",
