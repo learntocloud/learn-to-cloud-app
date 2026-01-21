@@ -5,6 +5,11 @@ SCALABILITY:
 - Circuit breaker fails fast when Clerk is unavailable (5 failures -> 60s recovery)
 - Retry with exponential backoff for transient failures (3 attempts)
 - Connection pooling via shared httpx.AsyncClient
+
+HTTP CLIENT LIFECYCLE:
+- Client is lazily created on first use and cached at module level
+- Must call close_http_client() on application shutdown
+- For testing, call reset_http_client() to clear cached client state
 """
 
 import asyncio
@@ -29,6 +34,8 @@ from schemas import ClerkUserData
 
 logger = get_logger(__name__)
 
+# HTTP client cached at module level (similar to Azure credential pattern in database.py)
+# Use reset_http_client() in tests to clear state
 _http_client: httpx.AsyncClient | None = None
 _http_client_lock = asyncio.Lock()
 
@@ -138,6 +145,27 @@ async def close_http_client() -> None:
     if not _http_client.is_closed:
         await _http_client.aclose()
     _http_client = None
+
+
+def reset_http_client() -> None:
+    """Reset HTTP client state for testing.
+
+    This synchronously clears the cached client reference without closing it.
+    Use this in test fixtures to ensure each test gets a fresh client.
+
+    For production shutdown, use close_http_client() instead which properly
+    closes the connection.
+    """
+    global _http_client
+    _http_client = None
+
+
+def reset_backoff_state() -> None:
+    """Reset per-user backoff state for testing.
+
+    Clears all backoff entries so tests start with clean state.
+    """
+    _backoff_state.clear()
 
 
 def extract_github_username(data: Mapping[str, Any]) -> str | None:

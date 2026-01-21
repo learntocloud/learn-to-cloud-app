@@ -1,0 +1,332 @@
+"""Pytest configuration and shared fixtures.
+
+This module provides:
+- Test database setup with real PostgreSQL (via Docker)
+- Async session fixtures for repository/service tests
+- FastAPI test client for route integration tests
+- Auth bypass fixtures
+- External service mocking (Clerk, GitHub)
+
+Architecture follows best practices from:
+- https://pythonspeed.com/articles/faster-db-tests/ (real DB, fsync=off)
+- https://pythonspeed.com/articles/verified-fakes/ (contract tests for external services)
+"""
+
+from collections.abc import AsyncGenerator, Generator
+from typing import Any
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+import pytest_asyncio
+from fastapi import FastAPI
+from httpx import ASGITransport, AsyncClient
+from sqlalchemy import event, text
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
+from sqlalchemy.pool import NullPool
+
+from core.config import Settings, clear_settings_cache
+from core.database import Base
+
+
+# =============================================================================
+# Test Settings
+# =============================================================================
+
+# Test database URL - uses same PostgreSQL from docker-compose
+TEST_DATABASE_URL = (
+    "postgresql+asyncpg://postgres:postgres@localhost:5432/test_learn_to_cloud"
+)
+
+
+@pytest.fixture(scope="session")
+def test_settings() -> Settings:
+    """Create test settings pointing to test database.
+
+    Uses the same PostgreSQL instance from docker-compose but a separate database.
+    """
+    return Settings(
+        database_url=TEST_DATABASE_URL,
+        clerk_secret_key="test_clerk_secret",
+        clerk_webhook_signing_secret="test_webhook_secret",
+        github_token="test_github_token",
+        google_api_key="test_google_api_key",
+        ctf_master_secret="test_ctf_secret_must_be_32_chars!",
+        cors_allowed_origins="",
+    )
+
+
+# =============================================================================
+# Database Fixtures
+# =============================================================================
+
+
+@pytest_asyncio.fixture(scope="function")
+async def test_engine() -> AsyncGenerator[AsyncEngine, None]:
+    """Create test database engine.
+
+    Creates the test database if it doesn't exist and sets up tables.
+    Each test function gets a fresh engine.
+    """
+    # Connect to default database to create test database if needed
+    admin_engine = create_async_engine(
+        "postgresql+asyncpg://postgres:postgres@localhost:5432/postgres",
+        poolclass=NullPool,
+        isolation_level="AUTOCOMMIT",
+    )
+
+    async with admin_engine.connect() as conn:
+        # Check if test database exists
+        result = await conn.execute(
+            text(
+                "SELECT 1 FROM pg_database WHERE datname = 'test_learn_to_cloud'"
+            )
+        )
+        if not result.scalar():
+            await conn.execute(text("CREATE DATABASE test_learn_to_cloud"))
+
+    await admin_engine.dispose()
+
+    # Create engine for test database
+    engine = create_async_engine(
+        TEST_DATABASE_URL,
+        poolclass=NullPool,
+        echo=False,
+    )
+
+    # Create all tables
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    # Truncate all tables before each test to ensure clean state
+    async with engine.begin() as conn:
+        # Truncate in correct order due to foreign keys
+        await conn.execute(text("TRUNCATE processed_webhooks CASCADE"))
+        await conn.execute(text("TRUNCATE certificates CASCADE"))
+        await conn.execute(text("TRUNCATE question_attempts CASCADE"))
+        await conn.execute(text("TRUNCATE step_progress CASCADE"))
+        await conn.execute(text("TRUNCATE submissions CASCADE"))
+        await conn.execute(text("TRUNCATE user_activities CASCADE"))
+        await conn.execute(text("TRUNCATE users CASCADE"))
+
+    yield engine
+
+    await engine.dispose()
+
+
+@pytest_asyncio.fixture(scope="function")
+async def db_session(
+    test_engine: AsyncEngine,
+) -> AsyncGenerator[AsyncSession, None]:
+    """Create a test database session with transaction rollback.
+
+    Each test runs in a transaction that's rolled back at the end,
+    ensuring test isolation without the overhead of recreating tables.
+    """
+    # Create a connection for this test
+    connection = await test_engine.connect()
+
+    # Begin a transaction that we'll roll back
+    transaction = await connection.begin()
+
+    # Create a session bound to this connection
+    async_session_factory = async_sessionmaker(
+        bind=connection,
+        class_=AsyncSession,
+        expire_on_commit=False,
+        autoflush=False,
+    )
+
+    session = async_session_factory()
+
+    try:
+        yield session
+    finally:
+        await session.close()
+        # Rollback the transaction - all test data disappears
+        await transaction.rollback()
+        await connection.close()
+
+
+# =============================================================================
+# FastAPI Test Client Fixtures
+# =============================================================================
+
+
+@pytest_asyncio.fixture(scope="function")
+async def app(
+    test_engine: AsyncEngine,
+    mock_clerk_auth: MagicMock,
+) -> AsyncGenerator[FastAPI, None]:
+    """Create FastAPI app configured for testing.
+
+    - Uses test database
+    - Bypasses Clerk authentication
+    - Mocks external services
+    """
+    # Import here to avoid circular imports and ensure fresh app state
+    from main import app as fastapi_app
+
+    # Store test engine and session maker in app state
+    fastapi_app.state.engine = test_engine
+    fastapi_app.state.session_maker = async_sessionmaker(
+        bind=test_engine,
+        class_=AsyncSession,
+        expire_on_commit=False,
+    )
+    fastapi_app.state.init_done = True
+    fastapi_app.state.init_error = None
+
+    yield fastapi_app
+
+
+@pytest_asyncio.fixture(scope="function")
+async def client(app: FastAPI) -> AsyncGenerator[AsyncClient, None]:
+    """Create async HTTP client for testing routes."""
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+    ) as ac:
+        yield ac
+
+
+@pytest_asyncio.fixture(scope="function")
+async def authenticated_client(
+    app: FastAPI,
+    test_user_id: str,
+) -> AsyncGenerator[AsyncClient, None]:
+    """Create authenticated async HTTP client.
+
+    Includes Authorization header that passes mocked Clerk validation.
+    """
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+        headers={"Authorization": f"Bearer test_token_{test_user_id}"},
+    ) as ac:
+        yield ac
+
+
+@pytest_asyncio.fixture(scope="function")
+async def unauthenticated_client(
+    test_engine: AsyncEngine,
+    mock_clerk_unauthenticated: MagicMock,
+) -> AsyncGenerator[AsyncClient, None]:
+    """Create unauthenticated async HTTP client.
+
+    Uses mocked Clerk that returns is_signed_in=False.
+    """
+    from main import app as fastapi_app
+
+    # Store test engine and session maker in app state
+    fastapi_app.state.engine = test_engine
+    fastapi_app.state.session_maker = async_sessionmaker(
+        bind=test_engine,
+        class_=AsyncSession,
+        expire_on_commit=False,
+    )
+    fastapi_app.state.init_done = True
+    fastapi_app.state.init_error = None
+
+    async with AsyncClient(
+        transport=ASGITransport(app=fastapi_app),
+        base_url="http://test",
+    ) as ac:
+        yield ac
+
+
+# =============================================================================
+# Auth Fixtures
+# =============================================================================
+
+# Module-level constant for tests that need to set up data directly
+TEST_USER_ID = "user_test_123456789"
+
+
+@pytest.fixture
+def test_user_id() -> str:
+    """Default test user ID (matches Clerk's format)."""
+    return TEST_USER_ID
+
+
+@pytest.fixture
+def mock_clerk_auth(test_user_id: str) -> Generator[MagicMock, None, None]:
+    """Mock Clerk authentication to bypass JWT verification.
+
+    Returns the test_user_id for any valid-looking token.
+    """
+    with patch("core.auth._clerk_client") as mock_client:
+        # Create a mock request state that indicates successful auth
+        mock_state = MagicMock()
+        mock_state.is_signed_in = True
+        # The auth code uses payload.get("sub") to get user ID
+        mock_state.payload = {"sub": test_user_id}
+
+        mock_client.authenticate_request = MagicMock(return_value=mock_state)
+
+        # Also patch the initialized flag
+        with patch("core.auth._clerk_initialized", True):
+            yield mock_client
+
+
+@pytest.fixture
+def mock_clerk_unauthenticated() -> Generator[MagicMock, None, None]:
+    """Mock Clerk to return unauthenticated state."""
+    with patch("core.auth._clerk_client") as mock_client:
+        mock_state = MagicMock()
+        mock_state.is_signed_in = False
+        mock_state.payload = None
+
+        mock_client.authenticate_request = MagicMock(return_value=mock_state)
+
+        with patch("core.auth._clerk_initialized", True):
+            yield mock_client
+
+
+# =============================================================================
+# External Service Mocks
+# =============================================================================
+
+
+@pytest.fixture
+def mock_github_client() -> Generator[AsyncMock, None, None]:
+    """Mock GitHub API client for hands-on verification tests."""
+    with patch("services.github_hands_on_verification_service._github_client") as mock:
+        mock_client = AsyncMock()
+        mock.return_value = mock_client
+        yield mock_client
+
+
+@pytest.fixture
+def mock_llm_service() -> Generator[MagicMock, None, None]:
+    """Mock LLM service for question grading tests."""
+    with patch("services.llm_service.grade_answer") as mock:
+        mock.return_value = {
+            "is_correct": True,
+            "feedback": "Great answer!",
+            "confidence": 0.95,
+        }
+        yield mock
+
+
+# =============================================================================
+# Utility Fixtures
+# =============================================================================
+
+
+@pytest.fixture
+def anyio_backend() -> str:
+    """Use asyncio backend for anyio (required by httpx)."""
+    return "asyncio"
+
+
+@pytest.fixture(autouse=True)
+def reset_settings_cache() -> Generator[None, None, None]:
+    """Reset settings cache before each test."""
+    clear_settings_cache()
+    yield
+    clear_settings_cache()

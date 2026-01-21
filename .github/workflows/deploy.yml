@@ -96,9 +96,8 @@ jobs:
       - name: Type check (ty)
         run: uv tool run ty check --python .venv/bin/python
 
-      # Tests temporarily disabled - to be re-enabled when tests are added back
-      # - name: Run unit tests
-      #   run: uv run pytest tests/unit/ -v --tb=short
+      - name: Run tests
+        run: uv run pytest tests/ -v --tb=short
 
   frontend-lint-and-test:
     runs-on: ubuntu-latest
@@ -121,9 +120,8 @@ jobs:
       - name: Run linter
         run: npm run lint
 
-      # Tests temporarily disabled - to be re-enabled when tests are added back
-      # - name: Run tests
-      #   run: npm test -- --run
+      - name: Run tests
+        run: npm test -- --run
 
       - name: Build check
         run: npm run build

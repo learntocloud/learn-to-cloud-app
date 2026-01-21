@@ -134,11 +134,14 @@ async def get_public_profile(
     """Build complete public profile data for a user.
 
     Returns None if user not found.
+    Username lookup is case-insensitive (GitHub usernames are case-insensitive).
     """
     user_repo = UserRepository(db)
     submission_repo = SubmissionRepository(db)
 
-    profile_user = await user_repo.get_by_github_username(username)
+    # Normalize username for case-insensitive lookup (GitHub usernames are case-insensitive)
+    normalized_username = normalize_github_username(username)
+    profile_user = await user_repo.get_by_github_username(normalized_username)
     if not profile_user:
         return None
 

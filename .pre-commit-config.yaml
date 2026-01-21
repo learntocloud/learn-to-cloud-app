@@ -34,13 +34,12 @@ repos:
         files: ^api/.*\.py$
         pass_filenames: false
 
-      # Tests temporarily disabled - to be re-enabled when tests are added back
-      # - id: pytest-unit
-      #   name: pytest unit tests
-      #   entry: bash -c 'cd api && uv run pytest tests/unit/ -v'
-      #   language: system
-      #   files: ^api/.*\.py$
-      #   pass_filenames: false
+      - id: pytest
+        name: pytest tests
+        entry: bash -c 'cd api && uv run pytest tests/ -v --tb=short'
+        language: system
+        files: ^api/.*\.py$
+        pass_filenames: false
 
   - repo: local
     hooks:
@@ -58,10 +57,9 @@ repos:
         files: ^frontend/.*\.(ts|tsx)$
         pass_filenames: false
 
-      # Tests temporarily disabled - to be re-enabled when tests are added back
-      # - id: vitest
-      #   name: vitest unit tests
-      #   entry: bash -c 'cd frontend && npm test -- --run'
-      #   language: system
-      #   files: ^frontend/.*\.(ts|tsx)$
-      #   pass_filenames: false
+      - id: vitest
+        name: vitest unit tests
+        entry: bash -c 'cd frontend && npm test -- --run'
+        language: system
+        files: ^frontend/.*\.(ts|tsx)$
+        pass_filenames: false

@@ -41,7 +41,12 @@ ValidatedStepOrder = Annotated[int, Path(ge=1)]
     "/complete",
     response_model=StepProgressResponse,
     status_code=201,
-    responses={400: {"description": "Invalid step completion request"}},
+    responses={
+        404: {"description": "Topic not found"},
+        400: {
+            "description": "Step already completed, not unlocked, or invalid step order"
+        },
+    },
 )
 @limiter.limit("30/minute")
 async def complete_step_endpoint(
@@ -65,11 +70,13 @@ async def complete_step_endpoint(
             body.step_order,
             is_admin=user.is_admin,
         )
+    except StepUnknownTopicError as e:
+        raise HTTPException(status_code=404, detail=str(e))
     except StepAlreadyCompletedError:
         raise HTTPException(status_code=400, detail="Step already completed")
     except StepNotUnlockedError as e:
         raise HTTPException(status_code=400, detail=str(e))
-    except (StepUnknownTopicError, StepInvalidStepOrderError) as e:
+    except StepInvalidStepOrderError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
     return StepProgressResponse(
@@ -82,7 +89,7 @@ async def complete_step_endpoint(
 @router.get(
     "/{topic_id}",
     response_model=TopicStepProgressResponse,
-    responses={400: {"description": "Unknown topic ID"}},
+    responses={404: {"description": "Topic not found"}},
 )
 @limiter.limit("60/minute")
 async def get_topic_step_progress_endpoint(
@@ -106,7 +113,7 @@ async def get_topic_step_progress_endpoint(
             is_admin=user.is_admin,
         )
     except StepUnknownTopicError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=404, detail=str(e))
 
     return TopicStepProgressResponse(
         topic_id=progress.topic_id,
@@ -119,7 +126,10 @@ async def get_topic_step_progress_endpoint(
 @router.delete(
     "/{topic_id}/{step_order}",
     response_model=StepUncompleteResponse,
-    responses={400: {"description": "Invalid topic or step order"}},
+    responses={
+        404: {"description": "Topic not found"},
+        400: {"description": "Invalid step order"},
+    },
 )
 @limiter.limit("30/minute")
 async def uncomplete_step_endpoint(
@@ -137,7 +147,9 @@ async def uncomplete_step_endpoint(
 
     try:
         deleted_count = await uncomplete_step(db, user_id, topic_id, step_order)
-    except (StepUnknownTopicError, StepInvalidStepOrderError) as e:
+    except StepUnknownTopicError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except StepInvalidStepOrderError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
     return StepUncompleteResponse(
