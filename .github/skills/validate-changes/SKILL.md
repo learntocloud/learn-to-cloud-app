@@ -326,7 +326,7 @@ When user says "validate changes" after editing `<file>`:
 **Solution**: Run Step 0 cleanup commands, or use:
 ```powershell
 # Windows - find and kill process on port 8000
-Get-NetTCPConnection -LocalPort 8000 -ErrorAction SilentlyContinue | 
+Get-NetTCPConnection -LocalPort 8000 -ErrorAction SilentlyContinue |
     ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }
 ```
 

@@ -9,12 +9,12 @@ function Test-Endpoint {
         [string]$Path,
         [string]$Description
     )
-    
+
     try {
         $response = Invoke-WebRequest -Uri "$BaseUrl$Path" -UseBasicParsing -TimeoutSec 10
         $status = $response.StatusCode
         $content = $response.Content
-        
+
         if ($status -eq 200) {
             Write-Host "✅ $Path - $Description"
             Write-Host "   Response: $($content.Substring(0, [Math]::Min(100, $content.Length)))..."

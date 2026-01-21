@@ -5,8 +5,8 @@ $ApiDir = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $PSScriptRo
 $ApiDir = Join-Path $ApiDir "api"
 
 # Kill any existing API processes first
-Get-Process -Name "python" -ErrorAction SilentlyContinue | 
-    Where-Object { $_.Path -and (Get-Process -Id $_.Id).CommandLine -like "*uvicorn*main:app*" } | 
+Get-Process -Name "python" -ErrorAction SilentlyContinue |
+    Where-Object { $_.Path -and (Get-Process -Id $_.Id).CommandLine -like "*uvicorn*main:app*" } |
     Stop-Process -Force -ErrorAction SilentlyContinue
 
 # Start new API process
