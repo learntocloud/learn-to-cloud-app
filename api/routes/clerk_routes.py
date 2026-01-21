@@ -7,19 +7,26 @@ since you can't add CNAME records for *.azurestaticapps.net domains.
 See: https://clerk.com/docs/guides/dashboard/dns-domains/proxy-fapi
 """
 
+import os
+
 import httpx
-from fastapi import APIRouter, Request, Response
+from fastapi import APIRouter, HTTPException, Request, Response
 
-router = APIRouter(tags=["clerk"])
+router = APIRouter(prefix="/api/.clerk", tags=["clerk"])
 
-# Clerk Frontend API base URL - derived from publishable key
-# pk_test_xxx.clerk.accounts.dev -> xxx.clerk.accounts.dev
-# pk_live_xxx.clerk.accounts.dev -> xxx.clerk.accounts.dev
-CLERK_FAPI_BASE = "https://ample-kite-60.clerk.accounts.dev"
+
+def _get_clerk_fapi_base() -> str:
+    """Resolve the Clerk Frontend API base URL from env."""
+    return (
+        os.getenv("CLERK_FAPI_BASE")
+        or os.getenv("CLERK_FAPI")
+        or os.getenv("CLERK_FRONTEND_API")
+        or ""
+    )
 
 
 @router.api_route(
-    "/.clerk/{path:path}",
+    "/{path:path}",
     methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"],
     include_in_schema=False,
 )
@@ -29,8 +36,15 @@ async def clerk_proxy(request: Request, path: str) -> Response:
     This allows Clerk authentication to work without custom domain DNS setup.
     All requests to /.clerk/* are forwarded to Clerk's FAPI.
     """
+    clerk_fapi_base = _get_clerk_fapi_base().rstrip("/")
+    if not clerk_fapi_base:
+        raise HTTPException(
+            status_code=500,
+            detail="CLERK_FAPI_BASE is not configured",
+        )
+
     # Build target URL
-    target_url = f"{CLERK_FAPI_BASE}/{path}"
+    target_url = f"{clerk_fapi_base}/{path}"
     if request.url.query:
         target_url = f"{target_url}?{request.url.query}"
 
