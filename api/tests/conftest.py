@@ -43,6 +43,7 @@ from sqlalchemy.pool import NullPool
 
 from core.config import Settings, clear_settings_cache
 from core.database import Base
+from core.wide_event import init_wide_event
 
 # =============================================================================
 # Test Settings
@@ -69,6 +70,17 @@ def test_settings() -> Settings:
         ctf_master_secret="test_ctf_secret_must_be_32_chars!",
         cors_allowed_origins="",
     )
+
+
+@pytest.fixture(autouse=True)
+def setup_wide_event():
+    """Initialize wide_event context for all tests.
+
+    Services use set_wide_event_fields() which requires context initialization.
+    In production this is done by middleware; in tests we do it here.
+    """
+    init_wide_event()
+    yield
 
 
 # =============================================================================
