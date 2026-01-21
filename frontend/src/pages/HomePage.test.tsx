@@ -27,7 +27,7 @@ describe('HomePage', () => {
       isSignedIn: false,
       isLoaded: true,
       user: null,
-    } as any);
+    } as ReturnType<typeof useUser>);
   });
 
   it('renders hero section', () => {
@@ -97,7 +97,7 @@ describe('HomePage - Authenticated', () => {
       isSignedIn: true,
       isLoaded: true,
       user: { id: 'user_123' },
-    } as any);
+    } as ReturnType<typeof useUser>);
   });
 
   it('shows Go to Dashboard button when signed in', () => {
@@ -114,7 +114,7 @@ describe('HomePage - Loading State', () => {
       isSignedIn: false,
       isLoaded: false,
       user: null,
-    } as any);
+    } as ReturnType<typeof useUser>);
   });
 
   it('shows loading state while user status is loading', () => {

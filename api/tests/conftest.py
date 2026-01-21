@@ -8,8 +8,8 @@ This module provides:
 - External service mocking (Clerk, GitHub)
 
 Architecture follows best practices from:
-- https://pythonspeed.com/articles/faster-db-tests/ (real DB, fsync=off)
-- https://pythonspeed.com/articles/verified-fakes/ (contract tests for external services)
+- https://pythonspeed.com/articles/faster-db-tests/
+- https://pythonspeed.com/articles/verified-fakes/
 """
 
 from collections.abc import AsyncGenerator, Generator

@@ -28,14 +28,14 @@ class TestStepProgressRepositoryGetByUserAndTopic:
     async def test_returns_steps_for_user_and_topic(self, db_session: AsyncSession):
         """Should return all completed steps for user in topic."""
         user = await create_async(UserFactory, db_session)
-        step1 = await create_async(
+        await create_async(
             StepProgressFactory,
             db_session,
             user_id=user.id,
             topic_id="phase1-topic1",
             step_order=1,
         )
-        step2 = await create_async(
+        await create_async(
             StepProgressFactory,
             db_session,
             user_id=user.id,
@@ -259,14 +259,14 @@ class TestQuestionAttemptRepositoryGetByUserAndTopic:
     async def test_returns_attempts_for_user_and_topic(self, db_session: AsyncSession):
         """Should return all attempts for user in topic."""
         user = await create_async(UserFactory, db_session)
-        attempt1 = await create_async(
+        await create_async(
             QuestionAttemptFactory,
             db_session,
             user_id=user.id,
             topic_id="phase1-topic1",
             question_id="phase1-topic1-q1",
         )
-        attempt2 = await create_async(
+        await create_async(
             QuestionAttemptFactory,
             db_session,
             user_id=user.id,

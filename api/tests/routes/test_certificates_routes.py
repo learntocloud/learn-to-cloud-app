@@ -63,8 +63,8 @@ class TestGenerateCertificate:
         self, mock_progress, authenticated_client: AsyncClient, db_session: AsyncSession
     ):
         """Test returns 409 when certificate already exists."""
-        # This test requires creating a certificate in the same session as the route handler
-        # which is complex with our current fixture setup.
+        # This test requires creating a certificate in the same session
+        # as the route handler, which is complex with current fixtures.
         pass
 
     async def test_returns_401_for_unauthenticated(

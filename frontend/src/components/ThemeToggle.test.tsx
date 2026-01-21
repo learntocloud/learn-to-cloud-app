@@ -17,7 +17,7 @@ describe('ThemeToggle', () => {
 
   it('renders theme toggle button', () => {
     render(<ThemeToggle />);
-    
+
     const button = screen.getByRole('button', { name: /theme/i });
     expect(button).toBeInTheDocument();
   });
@@ -25,7 +25,7 @@ describe('ThemeToggle', () => {
   it('displays light theme icon when in dark mode', () => {
     localStorage.setItem('ltc.theme', 'dark');
     render(<ThemeToggle />);
-    
+
     const button = screen.getByRole('button');
     // In dark mode, button should show sun icon (to switch to light)
     expect(button).toHaveAttribute('aria-label', 'Theme: Dark');
@@ -34,7 +34,7 @@ describe('ThemeToggle', () => {
   it('displays dark theme icon when in light mode', () => {
     localStorage.setItem('ltc.theme', 'light');
     render(<ThemeToggle />);
-    
+
     const button = screen.getByRole('button');
     expect(button).toHaveAttribute('aria-label', 'Theme: Light');
   });
@@ -43,15 +43,15 @@ describe('ThemeToggle', () => {
     const user = userEvent.setup();
     localStorage.setItem('ltc.theme', 'light');
     render(<ThemeToggle />);
-    
+
     const button = screen.getByRole('button');
-    
+
     // Initially light
     expect(button).toHaveAttribute('aria-label', 'Theme: Light');
-    
+
     // Click to switch to dark
     await user.click(button);
-    
+
     expect(localStorage.getItem('ltc.theme')).toBe('dark');
   });
 
@@ -59,16 +59,16 @@ describe('ThemeToggle', () => {
     const user = userEvent.setup();
     localStorage.setItem('ltc.theme', 'dark');
     render(<ThemeToggle />);
-    
+
     const button = screen.getByRole('button');
     await user.click(button);
-    
+
     expect(localStorage.getItem('ltc.theme')).toBe('light');
   });
 
   it('has accessible button with title', () => {
     render(<ThemeToggle />);
-    
+
     const button = screen.getByRole('button');
     expect(button).toHaveAttribute('title');
     expect(button).toHaveAttribute('aria-label');
@@ -76,7 +76,7 @@ describe('ThemeToggle', () => {
 
   it('uses system theme when no preference is stored', () => {
     localStorage.clear();
-    
+
     // Mock system preferring dark mode
     Object.defineProperty(window, 'matchMedia', {
       writable: true,
@@ -91,9 +91,9 @@ describe('ThemeToggle', () => {
         dispatchEvent: () => false,
       }),
     });
-    
+
     render(<ThemeToggle />);
-    
+
     const button = screen.getByRole('button');
     expect(button).toHaveAttribute('aria-label', 'Theme: Dark');
   });

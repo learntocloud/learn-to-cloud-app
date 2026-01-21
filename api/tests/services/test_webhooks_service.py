@@ -77,7 +77,7 @@ class TestHandleUserUpdated:
         from repositories.user_repository import UserRepository
 
         repo = UserRepository(db_session)
-        user = await repo.create(
+        await repo.create(
             user_id="user_update_test",
             email="old@example.com",
             first_name="Old",

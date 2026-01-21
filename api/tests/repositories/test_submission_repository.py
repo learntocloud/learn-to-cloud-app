@@ -84,14 +84,14 @@ class TestSubmissionRepositoryGetValidatedByUser:
         """Should order results by phase_id then validated_at."""
         user = await create_async(UserFactory, db_session)
         # Create in reverse order to verify sorting
-        sub_phase2 = await create_async(
+        await create_async(
             SubmissionFactory,
             db_session,
             user_id=user.id,
             phase_id=2,
             requirement_id="phase2-hands-on-1",
         )
-        sub_phase1 = await create_async(
+        await create_async(
             SubmissionFactory,
             db_session,
             user_id=user.id,

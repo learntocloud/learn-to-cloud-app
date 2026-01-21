@@ -128,7 +128,7 @@ class TestSubmitQuestionAnswer:
         # The lockout logic is tested in the service layer tests
         pass
 
-    @pytest.mark.skip(reason="Service layer exception handling - covered by service tests")
+    @pytest.mark.skip(reason="Service layer exceptions - covered by service tests")
     @patch("services.questions_service.grade_answer")
     async def test_returns_503_when_llm_unavailable(
         self, mock_grade, authenticated_client: AsyncClient
@@ -137,7 +137,7 @@ class TestSubmitQuestionAnswer:
         # Would need to patch at service layer, not grade_answer directly
         pass
 
-    @pytest.mark.skip(reason="Service layer exception handling - covered by service tests")
+    @pytest.mark.skip(reason="Service layer exceptions - covered by service tests")
     @patch("services.questions_service.grade_answer")
     async def test_returns_500_when_llm_grading_fails(
         self, mock_grade, authenticated_client: AsyncClient

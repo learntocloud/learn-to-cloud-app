@@ -50,7 +50,7 @@ class TestGetPublicProfile:
         username = unique_username("profile")
         # Create user within app's session to ensure it's visible to the endpoint
         async with app.state.session_maker() as session:
-            user = await create_async(
+            await create_async(
                 UserFactory,
                 session,
                 github_username=username,
@@ -80,7 +80,7 @@ class TestGetPublicProfile:
         """Should include streak information in profile."""
         username = unique_username("streak")
         async with app.state.session_maker() as session:
-            user = await create_async(
+            await create_async(
                 UserFactory,
                 session,
                 github_username=username,
@@ -102,7 +102,7 @@ class TestGetPublicProfile:
         """Should include activity heatmap in profile."""
         username = unique_username("heatmap")
         async with app.state.session_maker() as session:
-            user = await create_async(
+            await create_async(
                 UserFactory,
                 session,
                 github_username=username,
@@ -121,7 +121,7 @@ class TestGetPublicProfile:
         """Should include badges in profile."""
         username = unique_username("badge")
         async with app.state.session_maker() as session:
-            user = await create_async(
+            await create_async(
                 UserFactory,
                 session,
                 github_username=username,
@@ -141,7 +141,7 @@ class TestGetPublicProfile:
         """Should find user regardless of username case."""
         username = unique_username("mixed")
         async with app.state.session_maker() as session:
-            user = await create_async(
+            await create_async(
                 UserFactory,
                 session,
                 github_username=username,  # Stored lowercase

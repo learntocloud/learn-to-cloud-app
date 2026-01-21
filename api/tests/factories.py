@@ -84,7 +84,7 @@ class UserFactory(factory.Factory):
     first_name = factory.LazyAttribute(lambda _: fake.first_name())
     last_name = factory.LazyAttribute(lambda _: fake.last_name())
     avatar_url = factory.LazyAttribute(
-        lambda _: f"https://avatars.githubusercontent.com/u/{fake.random_int(1, 999999)}"
+        lambda _: f"https://avatars.githubusercontent.com/u/{fake.random_int(1, 9999)}"
     )
     github_username = factory.LazyAttribute(
         lambda _: fake.user_name().lower()[:39]  # GitHub max is 39 chars
@@ -239,12 +239,12 @@ class QuestionAttemptFactory(factory.Factory):
         lambda _: f"phase{fake.random_int(1, 5)}-topic{fake.random_int(1, 5)}"
     )
     question_id = factory.LazyAttribute(lambda obj: f"{obj.topic_id}-q1")
-    user_answer = factory.LazyAttribute(
-        lambda _: fake.paragraph(nb_sentences=3)
-    )
+    user_answer = factory.LazyAttribute(lambda _: fake.paragraph(nb_sentences=3))
     is_passed = True
     llm_feedback = factory.LazyAttribute(lambda _: "Great explanation!")
-    confidence_score = factory.LazyAttribute(lambda _: fake.pyfloat(min_value=0.7, max_value=1.0))
+    confidence_score = factory.LazyAttribute(
+        lambda _: fake.pyfloat(min_value=0.7, max_value=1.0)
+    )
     created_at = factory.LazyFunction(lambda: datetime.now(UTC))
 
 
@@ -255,7 +255,9 @@ class FailedQuestionAttemptFactory(QuestionAttemptFactory):
     llm_feedback = factory.LazyAttribute(
         lambda _: "Your answer doesn't fully address the question."
     )
-    confidence_score = factory.LazyAttribute(lambda _: fake.pyfloat(min_value=0.3, max_value=0.6))
+    confidence_score = factory.LazyAttribute(
+        lambda _: fake.pyfloat(min_value=0.3, max_value=0.6)
+    )
 
 
 # =============================================================================
@@ -274,9 +276,7 @@ class CertificateFactory(factory.Factory):
         lambda _: f"user_{fake.uuid4().replace('-', '')[:24]}"
     )
     certificate_type = "phase_completion"
-    verification_code = factory.LazyFunction(
-        lambda: fake.sha256()[:64]
-    )
+    verification_code = factory.LazyFunction(lambda: fake.sha256()[:64])
     recipient_name = factory.LazyAttribute(
         lambda _: f"{fake.first_name()} {fake.last_name()}"
     )

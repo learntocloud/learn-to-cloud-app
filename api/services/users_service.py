@@ -139,7 +139,7 @@ async def get_public_profile(
     user_repo = UserRepository(db)
     submission_repo = SubmissionRepository(db)
 
-    # Normalize username for case-insensitive lookup (GitHub usernames are case-insensitive)
+    # Normalize username (GitHub usernames are case-insensitive)
     normalized_username = normalize_github_username(username)
     profile_user = await user_repo.get_by_github_username(normalized_username)
     if not profile_user:
