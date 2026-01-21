@@ -50,6 +50,7 @@ export interface QuestionSubmitResponse {
   confidence_score: number | null;
   attempt_id: number;
   attempts_used: number | null;  // Failed attempts in lockout window (null if passed or re-practicing)
+  lockout_until: string | null;  // ISO timestamp when lockout expires (set when max attempts reached)
 }
 
 export interface StreakResponse {

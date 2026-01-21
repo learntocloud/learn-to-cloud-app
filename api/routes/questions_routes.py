@@ -13,9 +13,12 @@ from schemas import (
     QuestionSubmitResponse,
 )
 from services.questions_service import (
+    GradingConceptsNotFoundError,
     LLMGradingError,
     LLMServiceUnavailableError,
     QuestionAttemptLimitExceeded,
+    QuestionUnknownQuestionError,
+    QuestionUnknownTopicError,
     QuestionValidationError,
     submit_question_answer,
 )
@@ -29,7 +32,8 @@ router = APIRouter(prefix="/api/questions", tags=["questions"])
     summary="Submit Question Answer",
     response_model=QuestionSubmitResponse,
     responses={
-        400: {"description": "Invalid topic_id, question_id, or missing config"},
+        404: {"description": "Topic or question not found"},
+        400: {"description": "Missing grading configuration"},
         429: {
             "description": "Too many failed attempts - locked out temporarily",
             "content": {
@@ -77,7 +81,9 @@ async def submit_question_answer_endpoint(
             question_id=submission.question_id,
             user_answer=submission.user_answer,
         )
-    except QuestionValidationError as e:
+    except (QuestionUnknownTopicError, QuestionUnknownQuestionError) as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except (QuestionValidationError, GradingConceptsNotFoundError) as e:
         raise HTTPException(status_code=400, detail=str(e))
     except QuestionAttemptLimitExceeded as e:
         # Calculate seconds until lockout expires for Retry-After header
@@ -111,4 +117,5 @@ async def submit_question_answer_endpoint(
         confidence_score=result.confidence_score,
         attempt_id=result.attempt_id,
         attempts_used=result.attempts_used,
+        lockout_until=result.lockout_until,
     )

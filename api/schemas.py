@@ -224,6 +224,9 @@ class QuestionSubmitResponse(FrozenORMModel):
     confidence_score: float | None = None
     attempt_id: int
     attempts_used: int | None = None  # Failed attempts in current lockout window
+    lockout_until: datetime | None = (
+        None  # When lockout expires (set when max attempts reached)
+    )
 
 
 class QuestionGradeResult(FrozenModel):
@@ -235,6 +238,9 @@ class QuestionGradeResult(FrozenModel):
     confidence_score: float | None = None
     attempt_id: int
     attempts_used: int | None = None  # Failed attempts in current lockout window
+    lockout_until: datetime | None = (
+        None  # When lockout expires (set when max attempts reached)
+    )
 
 
 class StepCompleteRequest(BaseModel):

@@ -8,7 +8,7 @@ interface KnowledgeQuestionProps {
   isAnswered: boolean;
   initialLockoutUntil?: Date | null;
   initialAttemptsUsed?: number;
-  onSubmit: (answer: string) => Promise<{ is_passed: boolean; llm_feedback?: string | null; attempts_used?: number | null }>;
+  onSubmit: (answer: string) => Promise<{ is_passed: boolean; llm_feedback?: string | null; attempts_used?: number | null; lockout_until?: string | null }>;
 }
 
 export function KnowledgeQuestion({
@@ -70,7 +70,13 @@ export function KnowledgeQuestion({
         if (result.attempts_used != null) {
           setAttemptsUsed(result.attempts_used);
         }
-        setFeedback(result.llm_feedback || "Your answer needs more detail. Address the core concepts and try again.");
+        // Handle lockout_until from response (set when user reaches max attempts)
+        if (result.lockout_until) {
+          setLockoutUntil(new Date(result.lockout_until));
+          setFeedback(null); // Clear feedback when locked out
+        } else {
+          setFeedback(result.llm_feedback || "Your answer needs more detail. Address the core concepts and try again.");
+        }
       }
     } catch (err) {
       console.error('Failed to submit answer:', err);

@@ -195,10 +195,16 @@ async def submit_question_answer(
     else:
         log_metric("questions.failed", 1, {"phase": phase, "topic_id": topic_id})
 
-    # Calculate attempts_used: previous failures + this attempt (if failed)
+    # Calculate attempts_used and lockout_until: failures + this attempt (if failed)
     attempts_used = None
+    lockout_until = None
     if not grade_result.is_passed and not already_passed:
         attempts_used = failed_attempts_before + 1
+        # If user just hit max attempts, calculate when lockout expires
+        if attempts_used >= settings.quiz_max_attempts:
+            lockout_until = datetime.now(UTC) + timedelta(
+                minutes=settings.quiz_lockout_minutes
+            )
 
     return QuestionGradeResult(
         question_id=question_id,
@@ -207,4 +213,5 @@ async def submit_question_answer(
         confidence_score=grade_result.confidence_score,
         attempt_id=attempt.id,
         attempts_used=attempts_used,
+        lockout_until=lockout_until,
     )
