@@ -42,6 +42,9 @@ function Navbar() {
               <Link to="/faq" className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white px-3 py-2 text-sm font-medium">
                 FAQ
               </Link>
+              <Link to="/changelog" className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white px-3 py-2 text-sm font-medium">
+                Changelog
+              </Link>
               {isSignedIn && (
                 <>
                   <Link to="/dashboard" className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white px-3 py-2 text-sm font-medium">
@@ -103,6 +106,7 @@ function Footer() {
           <div className="flex flex-wrap gap-x-8 gap-y-2 text-sm">
             <Link to="/phases" className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors">Phases</Link>
             <Link to="/faq" className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors">FAQ</Link>
+            <Link to="/changelog" className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors">Changelog</Link>
             <a href="https://github.com/learntocloud/learn-to-cloud-app" target="_blank" rel="noopener noreferrer" className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors">GitHub</a>
             <a href="https://discord.learntocloud.guide" target="_blank" rel="noopener noreferrer" className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors">Discord</a>
           </div>

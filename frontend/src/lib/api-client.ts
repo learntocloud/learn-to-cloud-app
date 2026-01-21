@@ -460,5 +460,11 @@ export function createApiClient(getToken: () => Promise<string | null>) {
       const suffix = scale ? `?scale=${scale}` : '';
       return `${API_URL}/api/certificates/verify/${code}/png${suffix}`;
     },
+
+    async getChangelog() {
+      const res = await fetch(`${API_URL}/api/changelog`);
+      if (!res.ok) throw new Error('Failed to fetch changelog');
+      return res.json();
+    },
   };
 }

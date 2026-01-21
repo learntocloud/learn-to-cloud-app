@@ -134,3 +134,33 @@ export interface UserCertificates {
   certificates: Certificate[];
   full_completion_eligible: boolean;
 }
+
+// Changelog types
+export interface ChangelogCommit {
+  sha: string;
+  message: string;
+  author: string;
+  date: string;
+  url: string;
+  emoji: string;
+  category: string;
+}
+
+export interface ChangelogWeek {
+  week_start: string;
+  week_display: string;
+  easter_egg: string;
+  commits: ChangelogCommit[];
+}
+
+export interface ChangelogRepo {
+  owner: string;
+  name: string;
+}
+
+export interface ChangelogResponse {
+  weeks: ChangelogWeek[];
+  repo: ChangelogRepo;
+  generated_at: string;
+  error?: string;
+}

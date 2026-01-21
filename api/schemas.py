@@ -180,6 +180,48 @@ class WebhookResponse(BaseModel):
     event_type: str | None = None
 
 
+# =============================================================================
+# Changelog Schemas
+# =============================================================================
+
+
+class ChangelogCommit(BaseModel):
+    """A single commit in the changelog."""
+
+    sha: str
+    message: str
+    author: str
+    date: str
+    url: str
+    emoji: str
+    category: str
+
+
+class ChangelogWeek(BaseModel):
+    """A week of commits in the changelog."""
+
+    week_start: str
+    week_display: str
+    easter_egg: str
+    commits: list[ChangelogCommit]
+
+
+class ChangelogRepo(BaseModel):
+    """Repository information for changelog."""
+
+    owner: str
+    name: str
+
+
+class ChangelogResponse(BaseModel):
+    """Response containing the weekly changelog."""
+
+    weeks: list[ChangelogWeek]
+    repo: ChangelogRepo
+    generated_at: str
+    error: str | None = None
+
+
 class QuestionSubmitRequest(BaseModel):
     """Request to submit an answer to a knowledge question."""
 
