@@ -29,6 +29,7 @@ from repositories.submission_repository import SubmissionRepository
 from schemas import PhaseProgress, PhaseRequirements, UserProgress
 from services.content_service import get_all_phases
 from services.hands_on_verification_service import get_requirements_for_phase
+from services.submissions_service import get_validated_ids_by_phase
 
 logger = get_logger(__name__)
 
@@ -131,8 +132,6 @@ async def fetch_user_progress(
 
     CACHING: Results are cached for 60 seconds per user_id.
     """
-    from services.submissions_service import get_validated_ids_by_phase
-
     if not skip_cache:
         cached = get_cached_progress(user_id)
         if cached is not None:
@@ -143,9 +142,9 @@ async def fetch_user_progress(
     submission_repo = SubmissionRepository(db)
 
     # Parallelize the 3 independent DB queries for better performance
-    question_ids, topic_ids, db_submissions = await asyncio.gather(
+    question_ids, steps_by_topic, db_submissions = await asyncio.gather(
         question_repo.get_all_passed_question_ids(user_id),
-        step_repo.get_completed_step_topic_ids(user_id),
+        step_repo.get_all_completed_by_user(user_id),
         submission_repo.get_validated_by_user(user_id),
     )
 
@@ -156,12 +155,14 @@ async def fetch_user_progress(
         if phase_num is not None:
             phase_questions[phase_num] = phase_questions.get(phase_num, 0) + 1
 
-    # Parse phase numbers from topic IDs
+    # Count actual completed steps per phase (not just topics with progress)
     phase_steps: dict[int, int] = {}
-    for topic_id in topic_ids:
+    for topic_id, completed_step_orders in steps_by_topic.items():
         phase_num = _parse_phase_from_topic_id(topic_id)
         if phase_num is not None:
-            phase_steps[phase_num] = phase_steps.get(phase_num, 0) + 1
+            phase_steps[phase_num] = phase_steps.get(phase_num, 0) + len(
+                completed_step_orders
+            )
 
     validated_by_phase = get_validated_ids_by_phase(db_submissions)
 

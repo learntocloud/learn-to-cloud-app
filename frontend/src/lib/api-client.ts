@@ -20,6 +20,21 @@ import type {
 
 export type { GitHubValidationResult } from './types';
 
+/**
+ * Error thrown when user exceeds max quiz attempts and is locked out.
+ */
+export class LockoutError extends Error {
+  constructor(
+    message: string,
+    public lockoutUntil: string,
+    public attemptsUsed: number,
+    public retryAfterSeconds: number
+  ) {
+    super(message);
+    this.name = 'LockoutError';
+  }
+}
+
 const API_URL = import.meta.env.VITE_API_URL || '';
 
 interface UserInfo {
@@ -92,6 +107,12 @@ interface LearningObjectiveSchema {
   order: number;
 }
 
+export interface QuestionLockoutSchema {
+  question_id: string;
+  lockout_until: string;
+  attempts_used: number;
+}
+
 export interface TopicDetailSchema {
   id: string;
   slug: string;
@@ -106,6 +127,7 @@ export interface TopicDetailSchema {
   progress: TopicProgressSchema | null;
   completed_step_orders: number[];
   passed_question_ids: string[];
+  locked_questions: QuestionLockoutSchema[];
   is_locked: boolean;
   is_topic_locked: boolean;
   previous_topic_name: string | null;
@@ -303,6 +325,20 @@ export function createApiClient(getToken: () => Promise<string | null>) {
           user_answer: answer,
         }),
       });
+      if (res.status === 429) {
+        const error = await res.json().catch(() => ({
+          detail: 'Too many attempts',
+          lockout_until: null,
+          attempts_used: 0,
+        }));
+        const retryAfter = parseInt(res.headers.get('Retry-After') || '3600', 10);
+        throw new LockoutError(
+          error.detail || 'Too many failed attempts',
+          error.lockout_until,
+          error.attempts_used,
+          retryAfter
+        );
+      }
       if (!res.ok) {
         const error = await res.json().catch(() => ({ detail: 'Submission failed' }));
         throw new Error(error.detail || 'Submission failed');

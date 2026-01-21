@@ -53,6 +53,11 @@ class Settings(BaseSettings):
 
     frontend_url: str = "http://localhost:4280"
 
+    # Quiz attempt limiting
+    # Lock question for lockout_minutes after max_attempts failures
+    quiz_max_attempts: int = 3
+    quiz_lockout_minutes: int = 60
+
     # Content directory for course phases JSON files
     # Defaults to frontend/public/content/phases for local dev
     content_dir: str = ""

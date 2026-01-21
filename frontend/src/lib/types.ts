@@ -49,6 +49,7 @@ export interface QuestionSubmitResponse {
   llm_feedback: string | null;
   confidence_score: number | null;
   attempt_id: number;
+  attempts_used: number | null;  // Failed attempts in lockout window (null if passed or re-practicing)
 }
 
 export interface StreakResponse {

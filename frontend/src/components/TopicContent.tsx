@@ -123,27 +123,37 @@ export function TopicContent({
   const handleQuestionAnswer = async (questionId: string, answer: string) => {
     if (!isAuthenticated) return { is_passed: false, llm_feedback: 'Not authenticated' };
 
-    try {
-      const result = await submitQuestionMutation.mutateAsync({
-        topicId: topic.id,
-        questionId,
-        answer,
-      });
+    // Don't catch errors here - let them propagate to KnowledgeQuestion
+    // so it can handle LockoutError and show the lockout UI
+    const result = await submitQuestionMutation.mutateAsync({
+      topicId: topic.id,
+      questionId,
+      answer,
+    });
 
-      // Update local state if passed (for immediate UI feedback)
-      if (result.is_passed) {
-        setPassedQuestions((prev) => (prev.includes(questionId) ? prev : [...prev, questionId]));
-      }
-
-      return result;
-    } catch (err) {
-      console.error("Failed to submit answer:", err);
-      return { is_passed: false, llm_feedback: 'Failed to submit answer' };
+    // Update local state if passed (for immediate UI feedback)
+    if (result.is_passed) {
+      setPassedQuestions((prev) => (prev.includes(questionId) ? prev : [...prev, questionId]));
     }
+
+    return result;
   };
 
   const isStepCompleted = (order: number) => completedSteps.includes(order);
   const isQuestionPassed = (questionId: string) => passedQuestions.includes(questionId);
+
+  const getQuestionLockout = (questionId: string): Date | null => {
+    const lockout = topic.locked_questions?.find((l) => l.question_id === questionId);
+    if (!lockout) return null;
+    const until = new Date(lockout.lockout_until);
+    // Only return if lockout is still active
+    return until > new Date() ? until : null;
+  };
+
+  const getQuestionAttemptsUsed = (questionId: string): number => {
+    const lockout = topic.locked_questions?.find((l) => l.question_id === questionId);
+    return lockout?.attempts_used ?? 0;
+  };
 
   const handleCopyCode = async (stepOrder: number, code: string) => {
     try {
@@ -295,6 +305,8 @@ export function TopicContent({
                   key={question.id}
                   question={question}
                   isAnswered={isQuestionPassed(question.id)}
+                  initialLockoutUntil={getQuestionLockout(question.id)}
+                  initialAttemptsUsed={getQuestionAttemptsUsed(question.id)}
                   onSubmit={(answer) => handleQuestionAnswer(question.id, answer)}
                 />
               ))

@@ -1,16 +1,21 @@
 import { useState, useCallback, useId } from 'react';
 import type { QuestionSchema } from '@/lib/api-client';
+import { LockoutError } from '@/lib/api-client';
 import { QUESTION_ANSWER_MAX_CHARS, QUESTION_ANSWER_MIN_CHARS } from '@/lib/constants';
 
 interface KnowledgeQuestionProps {
   question: QuestionSchema;
   isAnswered: boolean;
-  onSubmit: (answer: string) => Promise<{ is_passed: boolean; llm_feedback?: string | null }>;
+  initialLockoutUntil?: Date | null;
+  initialAttemptsUsed?: number;
+  onSubmit: (answer: string) => Promise<{ is_passed: boolean; llm_feedback?: string | null; attempts_used?: number | null }>;
 }
 
 export function KnowledgeQuestion({
   question,
   isAnswered: initialIsAnswered,
+  initialLockoutUntil = null,
+  initialAttemptsUsed = 0,
   onSubmit,
 }: KnowledgeQuestionProps) {
   const [answer, setAnswer] = useState('');
@@ -18,6 +23,8 @@ export function KnowledgeQuestion({
   const [isPassed, setIsPassed] = useState(initialIsAnswered);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [lockoutUntil, setLockoutUntil] = useState<Date | null>(initialLockoutUntil);
+  const [attemptsUsed, setAttemptsUsed] = useState(initialAttemptsUsed);
 
   const id = useId();
   const promptId = `${id}-prompt`;
@@ -25,6 +32,21 @@ export function KnowledgeQuestion({
   const errorId = `${id}-error`;
   const feedbackId = `${id}-feedback`;
   const charCountId = `${id}-charcount`;
+  const lockoutId = `${id}-lockout`;
+
+  const formatLockoutTime = (until: Date): string => {
+    const now = new Date();
+    const diffMs = until.getTime() - now.getTime();
+    const diffMins = Math.ceil(diffMs / 60000);
+    if (diffMins <= 0) return 'less than a minute'; // Expired or about to expire
+    if (diffMins === 1) return 'less than a minute';
+    if (diffMins < 60) return `${diffMins} minutes`;
+    const hours = Math.floor(diffMins / 60);
+    const mins = diffMins % 60;
+    return mins > 0 ? `${hours}h ${mins}m` : `${hours} hour${hours > 1 ? 's' : ''}`;
+  };
+
+  const isLockedOut = lockoutUntil !== null && lockoutUntil > new Date();
 
   const handleSubmit = useCallback(async () => {
     if (answer.length < QUESTION_ANSWER_MIN_CHARS) {
@@ -41,13 +63,26 @@ export function KnowledgeQuestion({
 
       if (result.is_passed) {
         setIsPassed(true);
+        setLockoutUntil(null); // Clear any lockout on success
+        setAttemptsUsed(0); // Reset attempts on success
         setFeedback(result.llm_feedback || "Correct. You demonstrated solid understanding of the key concepts.");
       } else {
+        if (result.attempts_used != null) {
+          setAttemptsUsed(result.attempts_used);
+        }
         setFeedback(result.llm_feedback || "Your answer needs more detail. Address the core concepts and try again.");
       }
     } catch (err) {
       console.error('Failed to submit answer:', err);
-      setError('Failed to submit your answer. Please try again.');
+      if (err instanceof LockoutError) {
+        if (err.lockoutUntil) {
+          setLockoutUntil(new Date(err.lockoutUntil));
+        }
+        setAttemptsUsed(err.attemptsUsed);
+        setFeedback(null);
+      } else {
+        setError('Failed to submit your answer. Please try again.');
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -55,7 +90,7 @@ export function KnowledgeQuestion({
 
   const charCount = answer.length;
   const isOverLimit = charCount > QUESTION_ANSWER_MAX_CHARS;
-  const canSubmit = charCount >= QUESTION_ANSWER_MIN_CHARS && !isOverLimit && !isSubmitting && !isPassed;
+  const canSubmit = charCount >= QUESTION_ANSWER_MIN_CHARS && !isOverLimit && !isSubmitting && !isPassed && !isLockedOut;
 
   return (
     <div className={`border rounded-lg p-4 ${
@@ -104,9 +139,9 @@ export function KnowledgeQuestion({
               placeholder="Answer concisely as you would in an interview (1-2 sentences)..."
               rows={4}
               maxLength={QUESTION_ANSWER_MAX_CHARS + 100}
-              disabled={isSubmitting}
+              disabled={isSubmitting || isLockedOut}
               aria-labelledby={promptId}
-              aria-describedby={[error ? errorId : null, feedback && !isPassed ? feedbackId : null, charCountId].filter(Boolean).join(' ') || undefined}
+              aria-describedby={[error ? errorId : null, feedback && !isPassed ? feedbackId : null, isLockedOut ? lockoutId : null, charCountId].filter(Boolean).join(' ') || undefined}
               aria-invalid={!!error || isOverLimit}
               className={`w-full px-3 py-2 border rounded-lg resize-none focus:outline-none focus:ring-2
                 ${isOverLimit
@@ -134,6 +169,28 @@ export function KnowledgeQuestion({
             <p id={errorId} className="text-red-600 dark:text-red-400 text-sm" role="alert">{error}</p>
           )}
 
+          {isLockedOut && lockoutUntil && (
+            <div
+              id={lockoutId}
+              className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg"
+              role="alert"
+            >
+              <div className="flex-shrink-0 w-8 h-8 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center">
+                <svg className="w-4 h-4 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                  Available in {formatLockoutTime(lockoutUntil)}
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                  Review the learning material above before trying again.
+                </p>
+              </div>
+            </div>
+          )}
+
           {feedback && !isPassed && (
             <div
               id={feedbackId}
@@ -143,6 +200,11 @@ export function KnowledgeQuestion({
               <p className="text-yellow-800 dark:text-yellow-200 text-sm">
                 <strong>Feedback:</strong> {feedback}
               </p>
+              {attemptsUsed > 0 && attemptsUsed < 3 && (
+                <p className="text-yellow-700 dark:text-yellow-300 text-xs mt-2">
+                  {attemptsUsed}/3 attempts used
+                </p>
+              )}
             </div>
           )}
 

@@ -223,6 +223,7 @@ class QuestionSubmitResponse(FrozenORMModel):
     llm_feedback: str | None = None
     confidence_score: float | None = None
     attempt_id: int
+    attempts_used: int | None = None  # Failed attempts in current lockout window
 
 
 class QuestionGradeResult(FrozenModel):
@@ -233,6 +234,7 @@ class QuestionGradeResult(FrozenModel):
     feedback: str | None = None
     confidence_score: float | None = None
     attempt_id: int
+    attempts_used: int | None = None  # Failed attempts in current lockout window
 
 
 class StepCompleteRequest(BaseModel):
@@ -678,6 +680,14 @@ class TopicSummaryData(FrozenModel):
 TopicSummarySchema = TopicSummaryData
 
 
+class QuestionLockout(FrozenModel):
+    """Info about a locked-out question due to too many failed attempts."""
+
+    question_id: str
+    lockout_until: datetime
+    attempts_used: int
+
+
 class TopicDetailData(FrozenModel):
     """Full topic detail with steps and questions (service-layer response model)."""
 
@@ -694,6 +704,7 @@ class TopicDetailData(FrozenModel):
     progress: TopicProgressData | None = None
     completed_step_orders: list[int] = Field(default_factory=list)
     passed_question_ids: list[str] = Field(default_factory=list)
+    locked_questions: list[QuestionLockout] = Field(default_factory=list)
     is_locked: bool = False
     is_topic_locked: bool = False
     previous_topic_name: str | None = None
@@ -818,8 +829,8 @@ class PhaseRequirements(FrozenModel):
     @computed_field
     @property
     def questions_per_topic(self) -> int:
-        """Each topic has 2 questions."""
-        return 2
+        """Average questions per topic (rounded down)."""
+        return self.questions // self.topics if self.topics else 0
 
 
 class PhaseProgress(FrozenModel):

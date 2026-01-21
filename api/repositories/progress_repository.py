@@ -1,6 +1,7 @@
 """Repository for step and question progress operations."""
 
 from collections.abc import Sequence
+from datetime import datetime
 
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -42,7 +43,7 @@ class StepProgressRepository:
                 StepProgress.topic_id == topic_id,
             )
         )
-        return set(row[0] for row in result.all())
+        return {row[0] for row in result.all()}
 
     async def exists(
         self,
@@ -155,7 +156,7 @@ class QuestionAttemptRepository:
             )
             .distinct()
         )
-        return set(row[0] for row in result.all())
+        return {row[0] for row in result.all()}
 
     async def get_all_passed_by_user(
         self,
@@ -213,3 +214,96 @@ class QuestionAttemptRepository:
             )
         )
         return [row[0] for row in result.all()]
+
+    async def has_passed_question(
+        self,
+        user_id: str,
+        question_id: str,
+    ) -> bool:
+        """Check if user has already passed a specific question."""
+        result = await self.db.execute(
+            select(QuestionAttempt.id)
+            .where(
+                QuestionAttempt.user_id == user_id,
+                QuestionAttempt.question_id == question_id,
+                QuestionAttempt.is_passed,
+            )
+            .limit(1)
+        )
+        return result.scalar_one_or_none() is not None
+
+    async def count_recent_failed_attempts(
+        self,
+        user_id: str,
+        question_id: str,
+        since: datetime,
+    ) -> int:
+        """Count failed attempts for a question since a given time.
+
+        Used for attempt limiting - counts failures within the lockout window.
+        """
+        result = await self.db.execute(
+            select(func.count(QuestionAttempt.id)).where(
+                QuestionAttempt.user_id == user_id,
+                QuestionAttempt.question_id == question_id,
+                QuestionAttempt.is_passed.is_(False),
+                QuestionAttempt.created_at >= since,
+            )
+        )
+        return result.scalar_one()
+
+    async def get_oldest_recent_failure(
+        self,
+        user_id: str,
+        question_id: str,
+        since: datetime,
+    ) -> datetime | None:
+        """Get the timestamp of the oldest failed attempt in the lockout window.
+
+        Used to calculate when the lockout will expire.
+        """
+        result = await self.db.execute(
+            select(func.min(QuestionAttempt.created_at)).where(
+                QuestionAttempt.user_id == user_id,
+                QuestionAttempt.question_id == question_id,
+                QuestionAttempt.is_passed.is_(False),
+                QuestionAttempt.created_at >= since,
+            )
+        )
+        return result.scalar_one_or_none()
+
+    async def get_locked_questions(
+        self,
+        user_id: str,
+        topic_id: str,
+        since: datetime,
+        max_attempts: int,
+    ) -> dict[str, tuple[int, datetime]]:
+        """Get questions that are locked out due to too many failed attempts.
+
+        Returns a dict of question_id -> (failed_attempt_count, oldest_failure_time)
+        for questions where failed attempts >= max_attempts within the lockout window.
+
+        The oldest_failure_time is needed to calculate when the lockout expires
+        (when the oldest failure "ages out" of the rolling window).
+        """
+        # Count failed attempts and get oldest failure per question
+        result = await self.db.execute(
+            select(
+                QuestionAttempt.question_id,
+                func.count(QuestionAttempt.id).label("fail_count"),
+                func.min(QuestionAttempt.created_at).label("oldest_failure"),
+            )
+            .where(
+                QuestionAttempt.user_id == user_id,
+                QuestionAttempt.topic_id == topic_id,
+                QuestionAttempt.is_passed.is_(False),
+                QuestionAttempt.created_at >= since,
+            )
+            .group_by(QuestionAttempt.question_id)
+            .having(func.count(QuestionAttempt.id) >= max_attempts)
+        )
+        return {
+            row.question_id: (row.fail_count, row.oldest_failure)
+            for row in result.all()
+        }

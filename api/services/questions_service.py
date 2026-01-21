@@ -3,6 +3,7 @@
 This module handles:
 - Question submission and grading via LLM
 - Recording question attempts with activity logging
+- Attempt limiting with lockout periods
 
 Routes should delegate question business logic to this module.
 
@@ -11,10 +12,13 @@ alongside question prompts. This simplifies the architecture by keeping all
 content in one place (frontend/public/content/).
 """
 
+from datetime import UTC, datetime, timedelta
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core import get_logger
 from core.cache import invalidate_progress_cache
+from core.config import get_settings
 from core.telemetry import add_custom_attribute, log_metric, track_operation
 from models import ActivityType
 from repositories.progress_repository import QuestionAttemptRepository
@@ -50,6 +54,22 @@ class GradingConceptsNotFoundError(QuestionValidationError):
     """Raised when grading concepts are not found for a question."""
 
 
+class QuestionAttemptLimitExceeded(Exception):
+    """Raised when user exceeds max attempts and is locked out.
+
+    Attributes:
+        lockout_until: When the lockout expires (UTC)
+        attempts_used: Number of failed attempts in current window
+    """
+
+    def __init__(self, lockout_until: datetime, attempts_used: int) -> None:
+        self.lockout_until = lockout_until
+        self.attempts_used = attempts_used
+        super().__init__(
+            f"Too many failed attempts. Try again after {lockout_until.isoformat()}"
+        )
+
+
 @track_operation("question_submission")
 async def submit_question_answer(
     db: AsyncSession,
@@ -69,9 +89,11 @@ async def submit_question_answer(
         QuestionUnknownTopicError: If topic_id doesn't exist in content
         QuestionUnknownQuestionError: If question_id doesn't exist in topic
         GradingConceptsNotFoundError: If expected_concepts not configured
+        QuestionAttemptLimitExceeded: If user exceeded max attempts (locked out)
         LLMServiceUnavailableError: If LLM service not configured
         LLMGradingError: If grading fails
     """
+    settings = get_settings()
     add_custom_attribute("question.topic_id", topic_id)
     add_custom_attribute("question.id", question_id)
     question_repo = QuestionAttemptRepository(db)
@@ -91,6 +113,40 @@ async def submit_question_answer(
         raise GradingConceptsNotFoundError(
             f"Grading data not configured for question: {question_id}"
         )
+
+    # Skip attempt limiting if user already passed this question (re-practice allowed)
+    already_passed = await question_repo.has_passed_question(user_id, question_id)
+    failed_attempts_before = 0
+    if not already_passed:
+        # Check attempt limit - count failures in the lockout window
+        lockout_window_start = datetime.now(UTC) - timedelta(
+            minutes=settings.quiz_lockout_minutes
+        )
+        failed_attempts_before = await question_repo.count_recent_failed_attempts(
+            user_id=user_id,
+            question_id=question_id,
+            since=lockout_window_start,
+        )
+        if failed_attempts_before >= settings.quiz_max_attempts:
+            # Get oldest failure to calculate when lockout expires
+            oldest_failure = await question_repo.get_oldest_recent_failure(
+                user_id=user_id,
+                question_id=question_id,
+                since=lockout_window_start,
+            )
+            # Lockout expires when oldest failure "ages out" of the rolling window
+            lockout_until = (oldest_failure or datetime.now(UTC)) + timedelta(
+                minutes=settings.quiz_lockout_minutes
+            )
+            log_metric(
+                "questions.lockout",
+                1,
+                {"question_id": question_id, "attempts": str(failed_attempts_before)},
+            )
+            raise QuestionAttemptLimitExceeded(
+                lockout_until=lockout_until,
+                attempts_used=failed_attempts_before,
+            )
 
     try:
         grade_result = await grade_answer(
@@ -139,10 +195,16 @@ async def submit_question_answer(
     else:
         log_metric("questions.failed", 1, {"phase": phase, "topic_id": topic_id})
 
+    # Calculate attempts_used: previous failures + this attempt (if failed)
+    attempts_used = None
+    if not grade_result.is_passed and not already_passed:
+        attempts_used = failed_attempts_before + 1
+
     return QuestionGradeResult(
         question_id=question_id,
         is_passed=grade_result.is_passed,
         feedback=grade_result.feedback,
         confidence_score=grade_result.confidence_score,
         attempt_id=attempt.id,
+        attempts_used=attempts_used,
     )

@@ -1,6 +1,9 @@
 """Knowledge questions endpoints with LLM grading."""
 
+from datetime import UTC, datetime
+
 from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import JSONResponse
 
 from core.auth import UserId
 from core.database import DbSession
@@ -12,6 +15,7 @@ from schemas import (
 from services.questions_service import (
     LLMGradingError,
     LLMServiceUnavailableError,
+    QuestionAttemptLimitExceeded,
     QuestionValidationError,
     submit_question_answer,
 )
@@ -22,9 +26,28 @@ router = APIRouter(prefix="/api/questions", tags=["questions"])
 
 @router.post(
     "/submit",
+    summary="Submit Question Answer",
     response_model=QuestionSubmitResponse,
     responses={
         400: {"description": "Invalid topic_id, question_id, or missing config"},
+        429: {
+            "description": "Too many failed attempts - locked out temporarily",
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "detail": {"type": "string"},
+                            "lockout_until": {
+                                "type": "string",
+                                "format": "date-time",
+                            },
+                            "attempts_used": {"type": "integer"},
+                        },
+                    }
+                }
+            },
+        },
         503: {"description": "Question grading service temporarily unavailable"},
         500: {"description": "Internal grading error - retry suggested"},
     },
@@ -35,11 +58,14 @@ async def submit_question_answer_endpoint(
     submission: QuestionSubmitRequest,
     user_id: UserId,
     db: DbSession,
-) -> QuestionSubmitResponse:
+) -> QuestionSubmitResponse | JSONResponse:
     """Submit an answer to a knowledge question for LLM grading.
 
     The answer will be evaluated by Gemini and the user will receive
     immediate feedback on whether they passed.
+
+    After 3 failed attempts on a question, the user is locked out for 1 hour.
+    Questions already passed are exempt from attempt limiting.
     """
     await ensure_user_exists(db, user_id)
 
@@ -53,6 +79,20 @@ async def submit_question_answer_endpoint(
         )
     except QuestionValidationError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except QuestionAttemptLimitExceeded as e:
+        # Calculate seconds until lockout expires for Retry-After header
+        seconds_remaining = max(
+            0, int((e.lockout_until - datetime.now(UTC)).total_seconds())
+        )
+        return JSONResponse(
+            status_code=429,
+            content={
+                "detail": "Too many failed attempts. Please wait before trying again.",
+                "lockout_until": e.lockout_until.isoformat(),
+                "attempts_used": e.attempts_used,
+            },
+            headers={"Retry-After": str(seconds_remaining)},
+        )
     except LLMServiceUnavailableError:
         raise HTTPException(
             status_code=503,
@@ -70,4 +110,5 @@ async def submit_question_answer_endpoint(
         llm_feedback=result.feedback,
         confidence_score=result.confidence_score,
         attempt_id=result.attempt_id,
+        attempts_used=result.attempts_used,
     )

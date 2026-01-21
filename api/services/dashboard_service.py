@@ -8,9 +8,12 @@ This module provides dashboard data by combining:
 Source of truth: .github/skills/progression-system/progression-system.md
 """
 
+from datetime import UTC, datetime, timedelta
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core import get_logger
+from core.config import get_settings
 from models import Submission
 from repositories.progress_repository import (
     QuestionAttemptRepository,
@@ -24,6 +27,7 @@ from schemas import (
     PhaseDetailData,
     PhaseProgressData,
     PhaseSummaryData,
+    QuestionLockout,
     Topic,
     TopicDetailData,
     TopicProgressData,
@@ -575,6 +579,30 @@ async def get_topic_detail(
         ):
             topic_is_locked = True
 
+    # Get locked questions (questions with >= max_attempts failures in lockout window)
+    settings = get_settings()
+    lockout_window_start = datetime.now(UTC) - timedelta(
+        minutes=settings.quiz_lockout_minutes
+    )
+    locked_question_map = await question_repo.get_locked_questions(
+        user_id=user_id,
+        topic_id=topic.id,
+        since=lockout_window_start,
+        max_attempts=settings.quiz_max_attempts,
+    )
+    # Convert to list of QuestionLockout, excluding already-passed questions
+    # lockout_until = oldest_failure + lockout_minutes (when oldest failure "ages out")
+    lockout_duration = timedelta(minutes=settings.quiz_lockout_minutes)
+    locked_questions = [
+        QuestionLockout(
+            question_id=qid,
+            lockout_until=oldest_failure + lockout_duration,
+            attempts_used=count,
+        )
+        for qid, (count, oldest_failure) in locked_question_map.items()
+        if qid not in passed_question_ids
+    ]
+
     return TopicDetailData(
         id=topic.id,
         slug=topic.slug,
@@ -589,6 +617,7 @@ async def get_topic_detail(
         progress=topic_progress,
         completed_step_orders=sorted(completed_steps),
         passed_question_ids=sorted(passed_question_ids),
+        locked_questions=locked_questions,
         is_locked=phase_is_locked,
         is_topic_locked=topic_is_locked,
         previous_topic_name=previous_topic_name,
