@@ -15,7 +15,7 @@ from services.questions_service import (
     QuestionUnknownTopicError,
     submit_question_answer,
 )
-from tests.factories import QuestionAttemptFactory, UserFactory
+from tests.factories import UserFactory
 
 
 class TestSubmitQuestionAnswer:

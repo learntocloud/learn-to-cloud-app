@@ -13,6 +13,7 @@ from starlette.responses import JSONResponse
 
 from core.config import get_settings
 from core.logger import get_logger
+from core.wide_event import set_wide_event_fields
 
 logger = get_logger(__name__)
 
@@ -20,7 +21,6 @@ settings = get_settings()
 
 
 def _get_request_identifier(request: Request) -> str:
-    # Uses user_id if authenticated, otherwise IP address
     if hasattr(request.state, "user_id") and request.state.user_id:
         return f"user:{request.state.user_id}"
     return get_remote_address(request)
@@ -34,8 +34,11 @@ limiter = Limiter(
 
 
 def rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded) -> Response:
-    logger.warning(
-        f"Rate limit exceeded for {_get_request_identifier(request)}: {exc.detail}"
+    identifier = _get_request_identifier(request)
+    set_wide_event_fields(
+        rate_limit_exceeded=True,
+        rate_limit_identifier=identifier,
+        rate_limit_detail=exc.detail,
     )
     return JSONResponse(
         status_code=429,

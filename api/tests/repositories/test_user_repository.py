@@ -6,14 +6,10 @@ Uses transaction rollback for test isolation (fast + realistic).
 
 import uuid
 
-import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from models import User
 from repositories.user_repository import UserRepository
 from tests.factories import (
-    AdminUserFactory,
-    PlaceholderUserFactory,
     UserFactory,
     create_async,
 )
@@ -53,9 +49,7 @@ class TestUserRepositoryGetByGithubUsername:
     async def test_returns_user_when_username_exists(self, db_session: AsyncSession):
         """Should return user when GitHub username exists."""
         username = unique_username("ghuser")
-        user = await create_async(
-            UserFactory, db_session, github_username=username
-        )
+        user = await create_async(UserFactory, db_session, github_username=username)
         repo = UserRepository(db_session)
 
         result = await repo.get_by_github_username(username)
@@ -64,7 +58,9 @@ class TestUserRepositoryGetByGithubUsername:
         assert result.id == user.id
         assert result.github_username == username
 
-    async def test_returns_none_when_username_not_exists(self, db_session: AsyncSession):
+    async def test_returns_none_when_username_not_exists(
+        self, db_session: AsyncSession
+    ):
         """Should return None when GitHub username doesn't exist."""
         repo = UserRepository(db_session)
 
@@ -218,9 +214,7 @@ class TestUserRepositoryUpdate:
         existing_user = await create_async(
             UserFactory, db_session, github_username="sharedusername"
         )
-        new_user = await create_async(
-            UserFactory, db_session, github_username=None
-        )
+        new_user = await create_async(UserFactory, db_session, github_username=None)
         repo = UserRepository(db_session)
 
         await repo.update(new_user, github_username="sharedusername")

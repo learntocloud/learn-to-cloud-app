@@ -60,9 +60,10 @@ def _build_phase_requirements() -> dict[int, PhaseRequirements]:
         )
 
     logger.info(
-        f"Built PHASE_REQUIREMENTS from content: {len(requirements)} phases, "
-        f"{sum(r.steps for r in requirements.values())} steps, "
-        f"{sum(r.questions for r in requirements.values())} questions"
+        "phase_requirements.built",
+        phases=len(requirements),
+        steps=sum(r.steps for r in requirements.values()),
+        questions=sum(r.questions for r in requirements.values()),
     )
     return requirements
 

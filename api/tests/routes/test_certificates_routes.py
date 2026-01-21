@@ -6,9 +6,6 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from tests.conftest import TEST_USER_ID
-from tests.factories import CertificateFactory, UserFactory
-
 
 class TestGenerateCertificate:
     """Tests for POST /api/certificates endpoint."""

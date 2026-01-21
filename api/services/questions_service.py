@@ -20,6 +20,7 @@ from core import get_logger
 from core.cache import invalidate_progress_cache
 from core.config import get_settings
 from core.telemetry import add_custom_attribute, log_metric, track_operation
+from core.wide_event import set_wide_event_fields
 from models import ActivityType
 from repositories.progress_repository import QuestionAttemptRepository
 from schemas import QuestionGradeResult
@@ -109,16 +110,17 @@ async def submit_question_answer(
         )
 
     if not question.expected_concepts:
-        logger.error(f"Grading concepts not found for question: {question_id}")
+        set_wide_event_fields(
+            question_error="grading_concepts_not_found",
+            question_id=question_id,
+        )
         raise GradingConceptsNotFoundError(
             f"Grading data not configured for question: {question_id}"
         )
 
-    # Skip attempt limiting if user already passed this question (re-practice allowed)
     already_passed = await question_repo.has_passed_question(user_id, question_id)
     failed_attempts_before = 0
     if not already_passed:
-        # Check attempt limit - count failures in the lockout window
         lockout_window_start = datetime.now(UTC) - timedelta(
             minutes=settings.quiz_lockout_minutes
         )
@@ -128,7 +130,6 @@ async def submit_question_answer(
             since=lockout_window_start,
         )
         if failed_attempts_before >= settings.quiz_max_attempts:
-            # Get oldest failure to calculate when lockout expires
             oldest_failure = await question_repo.get_oldest_recent_failure(
                 user_id=user_id,
                 question_id=question_id,
@@ -156,17 +157,17 @@ async def submit_question_answer(
             topic_name=topic.name,
         )
     except ValueError as e:
-        logger.error(f"LLM configuration error: {e}")
+        set_wide_event_fields(llm_error="config_error", llm_error_detail=str(e))
         raise LLMServiceUnavailableError(
             "Question grading service is temporarily unavailable"
         )
     except GeminiServiceUnavailable as e:
-        logger.warning(f"Gemini service unavailable: {e}")
+        set_wide_event_fields(llm_error="service_unavailable", llm_error_detail=str(e))
         raise LLMServiceUnavailableError(
             "Question grading service is temporarily unavailable"
         )
     except Exception as e:
-        logger.exception(f"LLM grading failed: {e}")
+        set_wide_event_fields(llm_error="grading_failed", llm_error_detail=str(e))
         raise LLMGradingError("Failed to grade your answer. Please try again.")
 
     attempt = await question_repo.create(
@@ -186,21 +187,17 @@ async def submit_question_answer(
         reference_id=question_id,
     )
 
-    # Extract phase from topic_id (e.g., "phase1-topic4" -> "phase1")
     phase = topic_id.split("-")[0] if "-" in topic_id else "unknown"
     if grade_result.is_passed:
         log_metric("questions.passed", 1, {"phase": phase, "topic_id": topic_id})
-        # Invalidate cache so dashboard/progress refreshes immediately
         invalidate_progress_cache(user_id)
     else:
         log_metric("questions.failed", 1, {"phase": phase, "topic_id": topic_id})
 
-    # Calculate attempts_used and lockout_until: failures + this attempt (if failed)
     attempts_used = None
     lockout_until = None
     if not grade_result.is_passed and not already_passed:
         attempts_used = failed_attempts_before + 1
-        # If user just hit max attempts, calculate when lockout expires
         if attempts_used >= settings.quiz_max_attempts:
             lockout_until = datetime.now(UTC) + timedelta(
                 minutes=settings.quiz_lockout_minutes

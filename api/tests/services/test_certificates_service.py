@@ -1,6 +1,5 @@
 """Tests for certificates service."""
 
-from datetime import UTC, datetime
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -208,9 +207,7 @@ class TestGetCertificateById:
         await db_session.flush()
         return user
 
-    async def test_returns_certificate_for_owner(
-        self, db_session: AsyncSession, user
-    ):
+    async def test_returns_certificate_for_owner(self, db_session: AsyncSession, user):
         """Test returns certificate when user owns it."""
         cert = CertificateFactory.build(user_id=user.id)
         db_session.add(cert)
@@ -221,9 +218,7 @@ class TestGetCertificateById:
         assert result is not None
         assert result.id == cert.id
 
-    async def test_returns_none_for_non_owner(
-        self, db_session: AsyncSession, user
-    ):
+    async def test_returns_none_for_non_owner(self, db_session: AsyncSession, user):
         """Test returns None when user doesn't own certificate."""
         cert = CertificateFactory.build(user_id=user.id)
         db_session.add(cert)
@@ -233,9 +228,7 @@ class TestGetCertificateById:
 
         assert result is None
 
-    async def test_returns_none_for_nonexistent(
-        self, db_session: AsyncSession, user
-    ):
+    async def test_returns_none_for_nonexistent(self, db_session: AsyncSession, user):
         """Test returns None for non-existent certificate."""
         result = await get_certificate_by_id(db_session, 99999, user.id)
         assert result is None
@@ -257,9 +250,7 @@ class TestGetUserCertificatesWithEligibility:
         self, mock_progress, db_session: AsyncSession, user
     ):
         """Test returns certificates list and eligibility status."""
-        cert = CertificateFactory.build(
-            user_id=user.id, certificate_type="test_type"
-        )
+        cert = CertificateFactory.build(user_id=user.id, certificate_type="test_type")
         db_session.add(cert)
         await db_session.flush()
 
@@ -332,9 +323,7 @@ class TestVerifyCertificateWithMessage:
         db_session.add(cert)
         await db_session.flush()
 
-        result = await verify_certificate_with_message(
-            db_session, "LTC-VALID456-CODE"
-        )
+        result = await verify_certificate_with_message(db_session, "LTC-VALID456-CODE")
 
         assert result.is_valid is True
         assert result.certificate is not None
@@ -344,9 +333,7 @@ class TestVerifyCertificateWithMessage:
         self, db_session: AsyncSession
     ):
         """Test returns invalid result for invalid verification code."""
-        result = await verify_certificate_with_message(
-            db_session, "INVALID-CODE"
-        )
+        result = await verify_certificate_with_message(db_session, "INVALID-CODE")
 
         assert result.is_valid is False
         assert result.certificate is None

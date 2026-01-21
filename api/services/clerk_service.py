@@ -30,11 +30,12 @@ from tenacity import (
 from core import get_logger
 from core.config import get_settings
 from core.telemetry import track_dependency
+from core.wide_event import set_wide_event_fields
 from schemas import ClerkUserData
 
 logger = get_logger(__name__)
 
-# HTTP client cached at module level (similar to Azure credential pattern in database.py)
+# HTTP client cached at module level (like Azure credential in database.py)
 # Use reset_http_client() in tests to clear state
 _http_client: httpx.AsyncClient | None = None
 _http_client_lock = asyncio.Lock()
@@ -53,26 +54,19 @@ class ClerkServerError(Exception):
 
 
 def _parse_retry_after(header_value: str | None) -> float | None:
-    """Parse Retry-After header (seconds or HTTP date) into seconds."""
+    """Parse Retry-After header (seconds) into float."""
     if not header_value:
         return None
     try:
-        # Try parsing as seconds first
         return float(header_value)
     except ValueError:
-        pass
-    # Could parse HTTP date here, but Clerk typically uses seconds
-    return None
+        return None
 
 
 def _wait_with_retry_after(retry_state: RetryCallState) -> float:
-    """Custom wait that respects Retry-After header.
-
-    Falls back to exponential backoff with jitter if no Retry-After.
-    """
+    """Wait respecting Retry-After header, else exponential backoff."""
     exc = retry_state.outcome.exception() if retry_state.outcome else None
     if isinstance(exc, ClerkServerError) and exc.retry_after:
-        # Cap at 60s to avoid pathological values
         return min(exc.retry_after, 60.0)
 
     return wait_exponential_jitter(initial=0.5, max=4)(retry_state)
@@ -125,7 +119,6 @@ async def get_http_client() -> httpx.AsyncClient:
         return _http_client
 
     async with _http_client_lock:
-        # Double-check after acquiring lock
         if _http_client is not None and not _http_client.is_closed:
             return _http_client
 
@@ -228,11 +221,9 @@ async def _fetch_user_data_with_retry(user_id: str) -> ClerkUserData | None:
         },
     )
 
-    # 5xx errors are retriable - raise to trigger retry/circuit breaker
     if response.status_code >= 500:
         raise ClerkServerError(f"Clerk API returned {response.status_code}")
 
-    # 429 rate limit is retriable
     if response.status_code == 429:
         retry_after = _parse_retry_after(response.headers.get("Retry-After"))
         raise ClerkServerError(
@@ -240,9 +231,11 @@ async def _fetch_user_data_with_retry(user_id: str) -> ClerkUserData | None:
             retry_after=retry_after,
         )
 
-    # 4xx errors (except 429) are not retriable - return None
     if response.status_code != 200:
-        logger.warning(f"Failed to fetch user from Clerk: {response.status_code}")
+        set_wide_event_fields(
+            clerk_error="fetch_failed",
+            clerk_status_code=response.status_code,
+        )
         return None
 
     data = response.json()
@@ -272,23 +265,28 @@ async def fetch_user_data(user_id: str) -> ClerkUserData | None:
         return None
 
     if _is_in_backoff(user_id):
-        logger.debug(f"User {user_id} in backoff period, skipping Clerk API call")
+        set_wide_event_fields(clerk_backoff=True, clerk_user_id=user_id)
         return None
 
     try:
         return await _fetch_user_data_with_retry(user_id)
     except CircuitBreakerError:
-        # Circuit is open - fail fast without backoff (circuit handles timing)
-        logger.debug(f"Circuit breaker open for Clerk API, skipping user {user_id}")
+        set_wide_event_fields(clerk_circuit_breaker_open=True, clerk_user_id=user_id)
         return None
     except RETRIABLE_EXCEPTIONS as e:
-        # All retries exhausted - set backoff for this user
         _set_backoff(user_id)
-        logger.warning(f"All retries exhausted fetching user {user_id} from Clerk: {e}")
+        set_wide_event_fields(
+            clerk_error="retries_exhausted",
+            clerk_user_id=user_id,
+            clerk_error_detail=str(e),
+        )
         return None
     except Exception as e:
-        # Bug in our code - don't backoff, let it surface in logs
-        logger.exception(f"Unexpected error fetching user data from Clerk: {e}")
+        set_wide_event_fields(
+            clerk_error="unexpected",
+            clerk_user_id=user_id,
+            clerk_error_detail=str(e),
+        )
         return None
 
 

@@ -7,7 +7,6 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models import SubmissionType
-from tests.factories import UserFactory
 
 
 class TestSubmitGitHubValidation:
@@ -81,7 +80,9 @@ class TestSubmitGitHubValidation:
             },
         )
 
-        assert response.status_code == 201  # Still returns 201, just with is_valid=False
+        assert (
+            response.status_code == 201
+        )  # Still returns 201, just with is_valid=False
         data = response.json()
         assert data["is_valid"] is False
 
@@ -99,7 +100,9 @@ class TestSubmitGitHubValidation:
 
         assert response.status_code == 404
 
-    @pytest.mark.skip(reason="Complex test requiring full auth mock - covered by integration tests")
+    @pytest.mark.skip(
+        reason="Complex test requiring full auth mock - covered by integration tests"
+    )
     async def test_returns_400_when_github_username_required(
         self, authenticated_client: AsyncClient, db_session: AsyncSession
     ):

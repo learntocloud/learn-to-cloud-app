@@ -2,7 +2,6 @@
 
 from unittest.mock import MagicMock, patch
 
-import pytest
 from httpx import AsyncClient
 
 
@@ -142,7 +141,7 @@ class TestClerkWebhook:
 
         response = await client.post(
             "/api/webhooks/clerk",
-            content=b'{}',
+            content=b"{}",
             headers={
                 "svix-id": "svix_user_created",
                 "svix-timestamp": "1234567890",
@@ -176,7 +175,7 @@ class TestClerkWebhook:
 
         response = await client.post(
             "/api/webhooks/clerk",
-            content=b'{}',
+            content=b"{}",
             headers={
                 "svix-id": "svix_user_updated",
                 "svix-timestamp": "1234567890",
@@ -205,7 +204,7 @@ class TestClerkWebhook:
 
         response = await client.post(
             "/api/webhooks/clerk",
-            content=b'{}',
+            content=b"{}",
             headers={
                 "svix-id": "svix_user_deleted",
                 "svix-timestamp": "1234567890",
@@ -239,7 +238,7 @@ class TestClerkWebhook:
         # First request
         response1 = await client.post(
             "/api/webhooks/clerk",
-            content=b'{}',
+            content=b"{}",
             headers={
                 "svix-id": "svix_idempotent_test",
                 "svix-timestamp": "1234567890",
@@ -250,7 +249,7 @@ class TestClerkWebhook:
         # Second request with same svix-id
         response2 = await client.post(
             "/api/webhooks/clerk",
-            content=b'{}',
+            content=b"{}",
             headers={
                 "svix-id": "svix_idempotent_test",
                 "svix-timestamp": "1234567890",

@@ -5,13 +5,11 @@ Tests user profile endpoints with authenticated and public access.
 
 import uuid
 
-import pytest
 from fastapi import FastAPI
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from tests.factories import (
-    UserActivityFactory,
     UserFactory,
     create_async,
 )
@@ -37,9 +35,7 @@ class TestGetCurrentUser:
         assert "email" in data
         assert "first_name" in data
 
-    async def test_requires_authentication(
-        self, unauthenticated_client: AsyncClient
-    ):
+    async def test_requires_authentication(self, unauthenticated_client: AsyncClient):
         """Should return 401 without authentication."""
         response = await unauthenticated_client.get("/api/user/me")
 
@@ -49,9 +45,7 @@ class TestGetCurrentUser:
 class TestGetPublicProfile:
     """Tests for GET /api/user/profile/{username}."""
 
-    async def test_returns_public_profile(
-        self, client: AsyncClient, app: FastAPI
-    ):
+    async def test_returns_public_profile(self, client: AsyncClient, app: FastAPI):
         """Should return public profile by GitHub username."""
         username = unique_username("profile")
         # Create user within app's session to ensure it's visible to the endpoint
@@ -123,9 +117,7 @@ class TestGetPublicProfile:
         assert "days" in data["activity_heatmap"]
         assert "total_activities" in data["activity_heatmap"]
 
-    async def test_profile_includes_badges(
-        self, client: AsyncClient, app: FastAPI
-    ):
+    async def test_profile_includes_badges(self, client: AsyncClient, app: FastAPI):
         """Should include badges in profile."""
         username = unique_username("badge")
         async with app.state.session_maker() as session:

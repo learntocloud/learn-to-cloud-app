@@ -9,11 +9,7 @@ Note: Phase requirements are loaded from content JSON files:
 - Phase 2: 30 steps, 12 questions
 """
 
-import pytest
-
 from services.badges_service import (
-    PHASE_BADGES,
-    STREAK_BADGES,
     compute_all_badges,
     compute_phase_badges,
     compute_streak_badges,

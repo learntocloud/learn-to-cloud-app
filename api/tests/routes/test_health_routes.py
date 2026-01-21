@@ -3,10 +3,7 @@
 Tests health check endpoints for liveness and readiness probes.
 """
 
-import pytest
 from httpx import AsyncClient
-
-from schemas import DetailedHealthResponse, HealthResponse
 
 
 class TestHealthEndpoint:

@@ -6,6 +6,7 @@ from svix.webhooks import Webhook, WebhookVerificationError
 from core import get_logger
 from core.config import get_settings
 from core.database import DbSession
+from core.wide_event import set_wide_event_fields
 from schemas import WebhookResponse
 from services.webhooks_service import handle_clerk_event
 
@@ -55,13 +56,10 @@ async def clerk_webhook(request: Request, db: DbSession) -> WebhookResponse:
         wh = Webhook(settings.clerk_webhook_signing_secret)
         event = wh.verify(payload, headers)
     except WebhookVerificationError as e:
-        logger.warning(
-            "Webhook verification failed",
-            extra={
-                "svix_id": svix_id,
-                "timestamp": svix_timestamp,
-                "error_type": type(e).__name__,
-            },
+        set_wide_event_fields(
+            webhook_error="verification_failed",
+            webhook_svix_id=svix_id,
+            webhook_error_type=type(e).__name__,
         )
         raise HTTPException(
             status_code=400,

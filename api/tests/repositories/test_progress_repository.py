@@ -3,7 +3,6 @@
 Tests database operations for learning progress tracking.
 """
 
-import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from repositories.progress_repository import (
@@ -17,7 +16,6 @@ from tests.factories import (
     UserFactory,
     create_async,
 )
-
 
 # =============================================================================
 # StepProgressRepository Tests
@@ -100,9 +98,7 @@ class TestStepProgressRepositoryGetByUserAndTopic:
 class TestStepProgressRepositoryGetCompletedStepOrders:
     """Tests for StepProgressRepository.get_completed_step_orders()."""
 
-    async def test_returns_set_of_completed_step_orders(
-        self, db_session: AsyncSession
-    ):
+    async def test_returns_set_of_completed_step_orders(self, db_session: AsyncSession):
         """Should return set of completed step orders."""
         user = await create_async(UserFactory, db_session)
         await create_async(
@@ -260,9 +256,7 @@ class TestStepProgressRepositoryGetAllCompletedByUser:
 class TestQuestionAttemptRepositoryGetByUserAndTopic:
     """Tests for QuestionAttemptRepository.get_by_user_and_topic()."""
 
-    async def test_returns_attempts_for_user_and_topic(
-        self, db_session: AsyncSession
-    ):
+    async def test_returns_attempts_for_user_and_topic(self, db_session: AsyncSession):
         """Should return all attempts for user in topic."""
         user = await create_async(UserFactory, db_session)
         attempt1 = await create_async(

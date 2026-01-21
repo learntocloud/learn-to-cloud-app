@@ -1,6 +1,5 @@
 """Tests for webhooks service."""
 
-import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from services.webhooks_service import (
@@ -22,13 +21,9 @@ class TestHandleUserCreated:
             "first_name": "John",
             "last_name": "Doe",
             "image_url": "https://example.com/avatar.png",
-            "email_addresses": [
-                {"id": "email_1", "email_address": "john@example.com"}
-            ],
+            "email_addresses": [{"id": "email_1", "email_address": "john@example.com"}],
             "primary_email_address_id": "email_1",
-            "external_accounts": [
-                {"provider": "oauth_github", "username": "johndoe"}
-            ],
+            "external_accounts": [{"provider": "oauth_github", "username": "johndoe"}],
         }
 
         await handle_user_created(db_session, data)
@@ -59,9 +54,7 @@ class TestHandleUserCreated:
         """Test that GitHub username is normalized to lowercase."""
         data = {
             "id": "user_normalize_test",
-            "external_accounts": [
-                {"provider": "oauth_github", "username": "JohnDOE"}
-            ],
+            "external_accounts": [{"provider": "oauth_github", "username": "JohnDOE"}],
             "email_addresses": [],
         }
 
@@ -82,7 +75,7 @@ class TestHandleUserUpdated:
         """Test updating an existing user."""
         # Create existing user using the repository to ensure proper setup
         from repositories.user_repository import UserRepository
-        
+
         repo = UserRepository(db_session)
         user = await repo.create(
             user_id="user_update_test",
@@ -96,9 +89,7 @@ class TestHandleUserUpdated:
             "id": "user_update_test",
             "first_name": "New",
             "last_name": "Updated",
-            "email_addresses": [
-                {"id": "email_1", "email_address": "new@example.com"}
-            ],
+            "email_addresses": [{"id": "email_1", "email_address": "new@example.com"}],
             "primary_email_address_id": "email_1",
             "external_accounts": [],
         }
@@ -136,9 +127,7 @@ class TestHandleUserUpdated:
         assert user is not None
         assert user.first_name == "Created"
 
-    async def test_preserves_email_when_existing_user(
-        self, db_session: AsyncSession
-    ):
+    async def test_preserves_email_when_existing_user(self, db_session: AsyncSession):
         """Test that existing email is used as fallback."""
         user = UserFactory.build(
             id="user_email_preserve",

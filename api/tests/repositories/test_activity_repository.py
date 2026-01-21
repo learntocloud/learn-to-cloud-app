@@ -5,13 +5,11 @@ Tests database operations for user activity tracking and streak calculation.
 
 from datetime import date, timedelta
 
-import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models import ActivityType
 from repositories.activity_repository import ActivityRepository
 from tests.factories import (
-    StreakActivityFactory,
     UserActivityFactory,
     UserFactory,
     create_async,
@@ -115,9 +113,7 @@ class TestActivityRepositoryLogActivity:
         assert activity.activity_type == ActivityType.STEP_COMPLETE
         assert activity.reference_id == "phase1-topic1"
 
-    async def test_allows_multiple_activities_same_day(
-        self, db_session: AsyncSession
-    ):
+    async def test_allows_multiple_activities_same_day(self, db_session: AsyncSession):
         """Should allow multiple activities on the same day."""
         user = await create_async(UserFactory, db_session)
         repo = ActivityRepository(db_session)
@@ -169,9 +165,7 @@ class TestActivityRepositoryHasActivityOnDate:
 class TestActivityRepositoryGetActivityDatesOrdered:
     """Tests for ActivityRepository.get_activity_dates_ordered()."""
 
-    async def test_returns_distinct_dates_ordered_desc(
-        self, db_session: AsyncSession
-    ):
+    async def test_returns_distinct_dates_ordered_desc(self, db_session: AsyncSession):
         """Should return distinct activity dates in descending order."""
         user = await create_async(UserFactory, db_session)
         today = date.today()
@@ -225,9 +219,7 @@ class TestActivityRepositoryGetActivityDatesOrdered:
 class TestActivityRepositoryCountByType:
     """Tests for ActivityRepository.count_by_type()."""
 
-    async def test_counts_activities_of_specific_type(
-        self, db_session: AsyncSession
-    ):
+    async def test_counts_activities_of_specific_type(self, db_session: AsyncSession):
         """Should count only activities of specified type."""
         user = await create_async(UserFactory, db_session)
 
@@ -261,9 +253,7 @@ class TestActivityRepositoryCountByType:
 class TestActivityRepositoryGetActivitiesInRange:
     """Tests for ActivityRepository.get_activities_in_range()."""
 
-    async def test_returns_activities_within_date_range(
-        self, db_session: AsyncSession
-    ):
+    async def test_returns_activities_within_date_range(self, db_session: AsyncSession):
         """Should return only activities within specified date range."""
         user = await create_async(UserFactory, db_session)
         today = date.today()
@@ -336,7 +326,9 @@ class TestActivityRepositoryGetHeatmapData:
 
         # Convert to dict for easier assertion
         # Note: activity_type is ActivityType enum, need to handle it
-        data = {(d, t.value if hasattr(t, 'value') else str(t)): c for d, t, c in result}
+        data = {
+            (d, t.value if hasattr(t, "value") else str(t)): c for d, t, c in result
+        }
 
         assert data.get((today, "step_complete")) == 3
         assert data.get((today, "question_attempt")) == 1

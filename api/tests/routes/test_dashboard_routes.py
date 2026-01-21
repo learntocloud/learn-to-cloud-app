@@ -1,10 +1,7 @@
 """Tests for dashboard routes."""
 
-from unittest.mock import AsyncMock, patch
-
 import pytest
 from httpx import AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession
 
 
 class TestGetDashboard:
@@ -23,9 +20,7 @@ class TestGetDashboard:
         assert "overall_progress" in data
         assert "badges" in data
 
-    async def test_dashboard_user_data(
-        self, authenticated_client: AsyncClient
-    ):
+    async def test_dashboard_user_data(self, authenticated_client: AsyncClient):
         """Test dashboard includes user data."""
         response = await authenticated_client.get("/api/user/dashboard")
 
@@ -139,15 +134,11 @@ class TestGetPhaseDetail:
         self, authenticated_client: AsyncClient
     ):
         """Test returns 404 for non-existent phase."""
-        response = await authenticated_client.get(
-            "/api/user/phases/nonexistent-phase"
-        )
+        response = await authenticated_client.get("/api/user/phases/nonexistent-phase")
 
         assert response.status_code == 404
 
-    async def test_topics_have_locking_status(
-        self, authenticated_client: AsyncClient
-    ):
+    async def test_topics_have_locking_status(self, authenticated_client: AsyncClient):
         """Test topics include locking status."""
         from services.content_service import get_all_phases
 

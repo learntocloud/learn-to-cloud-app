@@ -28,6 +28,7 @@ from core.telemetry import (
     log_metric,
     track_dependency,
 )
+from core.wide_event import set_wide_event_field, set_wide_event_fields
 
 logger = get_logger(__name__)
 
@@ -136,9 +137,8 @@ def get_user_id_from_request(req: Request) -> str | None:
     """
     # Check if init was called - fail fast with clear error if not
     if not _clerk_initialized:
-        logger.error(
-            "Auth called before init_clerk_client() - this is a bug. "
-            "Ensure init_clerk_client() is called during app startup."
+        set_wide_event_fields(
+            auth_error="clerk_not_initialized",
         )
         return None
 
@@ -160,7 +160,10 @@ def get_user_id_from_request(req: Request) -> str | None:
         return None
     except ClerkAuthUnavailable as e:
         # JWKS failure - already counted by circuit breaker
-        logger.warning("Clerk auth infrastructure issue: %s", e.reason)
+        set_wide_event_fields(
+            auth_error="clerk_infrastructure_issue",
+            auth_error_reason=str(e.reason),
+        )
         return None
 
     if request_state.is_signed_in:
@@ -180,6 +183,7 @@ def require_auth(request: Request) -> str:
         raise HTTPException(status_code=401, detail="Unauthorized")
 
     request.state.user_id = user_id
+    set_wide_event_field("user_id", user_id)
     return user_id
 
 
@@ -188,6 +192,7 @@ def optional_auth(request: Request) -> str | None:
     user_id = get_user_id_from_request(request)
     if user_id:
         request.state.user_id = user_id
+        set_wide_event_field("user_id", user_id)
     return user_id
 
 

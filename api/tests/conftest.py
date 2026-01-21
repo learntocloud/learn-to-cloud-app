@@ -13,14 +13,13 @@ Architecture follows best practices from:
 """
 
 from collections.abc import AsyncGenerator, Generator
-from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 import pytest_asyncio
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import event, text
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -31,7 +30,6 @@ from sqlalchemy.pool import NullPool
 
 from core.config import Settings, clear_settings_cache
 from core.database import Base
-
 
 # =============================================================================
 # Test Settings
@@ -66,7 +64,7 @@ def test_settings() -> Settings:
 
 
 @pytest_asyncio.fixture(scope="function")
-async def test_engine() -> AsyncGenerator[AsyncEngine, None]:
+async def test_engine() -> AsyncGenerator[AsyncEngine]:
     """Create test database engine.
 
     Creates the test database if it doesn't exist and sets up tables.
@@ -82,9 +80,7 @@ async def test_engine() -> AsyncGenerator[AsyncEngine, None]:
     async with admin_engine.connect() as conn:
         # Check if test database exists
         result = await conn.execute(
-            text(
-                "SELECT 1 FROM pg_database WHERE datname = 'test_learn_to_cloud'"
-            )
+            text("SELECT 1 FROM pg_database WHERE datname = 'test_learn_to_cloud'")
         )
         if not result.scalar():
             await conn.execute(text("CREATE DATABASE test_learn_to_cloud"))
@@ -121,7 +117,7 @@ async def test_engine() -> AsyncGenerator[AsyncEngine, None]:
 @pytest_asyncio.fixture(scope="function")
 async def db_session(
     test_engine: AsyncEngine,
-) -> AsyncGenerator[AsyncSession, None]:
+) -> AsyncGenerator[AsyncSession]:
     """Create a test database session with transaction rollback.
 
     Each test runs in a transaction that's rolled back at the end,
@@ -161,7 +157,7 @@ async def db_session(
 async def app(
     test_engine: AsyncEngine,
     mock_clerk_auth: MagicMock,
-) -> AsyncGenerator[FastAPI, None]:
+) -> AsyncGenerator[FastAPI]:
     """Create FastAPI app configured for testing.
 
     - Uses test database
@@ -185,7 +181,7 @@ async def app(
 
 
 @pytest_asyncio.fixture(scope="function")
-async def client(app: FastAPI) -> AsyncGenerator[AsyncClient, None]:
+async def client(app: FastAPI) -> AsyncGenerator[AsyncClient]:
     """Create async HTTP client for testing routes."""
     async with AsyncClient(
         transport=ASGITransport(app=app),
@@ -198,7 +194,7 @@ async def client(app: FastAPI) -> AsyncGenerator[AsyncClient, None]:
 async def authenticated_client(
     app: FastAPI,
     test_user_id: str,
-) -> AsyncGenerator[AsyncClient, None]:
+) -> AsyncGenerator[AsyncClient]:
     """Create authenticated async HTTP client.
 
     Includes Authorization header that passes mocked Clerk validation.
@@ -215,7 +211,7 @@ async def authenticated_client(
 async def unauthenticated_client(
     test_engine: AsyncEngine,
     mock_clerk_unauthenticated: MagicMock,
-) -> AsyncGenerator[AsyncClient, None]:
+) -> AsyncGenerator[AsyncClient]:
     """Create unauthenticated async HTTP client.
 
     Uses mocked Clerk that returns is_signed_in=False.
@@ -254,7 +250,7 @@ def test_user_id() -> str:
 
 
 @pytest.fixture
-def mock_clerk_auth(test_user_id: str) -> Generator[MagicMock, None, None]:
+def mock_clerk_auth(test_user_id: str) -> Generator[MagicMock]:
     """Mock Clerk authentication to bypass JWT verification.
 
     Returns the test_user_id for any valid-looking token.
@@ -274,7 +270,7 @@ def mock_clerk_auth(test_user_id: str) -> Generator[MagicMock, None, None]:
 
 
 @pytest.fixture
-def mock_clerk_unauthenticated() -> Generator[MagicMock, None, None]:
+def mock_clerk_unauthenticated() -> Generator[MagicMock]:
     """Mock Clerk to return unauthenticated state."""
     with patch("core.auth._clerk_client") as mock_client:
         mock_state = MagicMock()
@@ -293,7 +289,7 @@ def mock_clerk_unauthenticated() -> Generator[MagicMock, None, None]:
 
 
 @pytest.fixture
-def mock_github_client() -> Generator[AsyncMock, None, None]:
+def mock_github_client() -> Generator[AsyncMock]:
     """Mock GitHub API client for hands-on verification tests."""
     with patch("services.github_hands_on_verification_service._github_client") as mock:
         mock_client = AsyncMock()
@@ -302,7 +298,7 @@ def mock_github_client() -> Generator[AsyncMock, None, None]:
 
 
 @pytest.fixture
-def mock_llm_service() -> Generator[MagicMock, None, None]:
+def mock_llm_service() -> Generator[MagicMock]:
     """Mock LLM service for question grading tests."""
     with patch("services.llm_service.grade_answer") as mock:
         mock.return_value = {
@@ -325,7 +321,7 @@ def anyio_backend() -> str:
 
 
 @pytest.fixture(autouse=True)
-def reset_settings_cache() -> Generator[None, None, None]:
+def reset_settings_cache() -> Generator[None]:
     """Reset settings cache before each test."""
     clear_settings_cache()
     yield

@@ -1,7 +1,5 @@
 """Tests for progress service."""
 
-from unittest.mock import AsyncMock, patch
-
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -233,7 +231,10 @@ class TestPhaseCompletion:
         # New user shouldn't have any complete phases
         for phase_id, phase_progress in result.phases.items():
             # Most phases won't be complete for a new user
-            if phase_progress.steps_required > 0 or phase_progress.questions_required > 0:
+            if (
+                phase_progress.steps_required > 0
+                or phase_progress.questions_required > 0
+            ):
                 # If there are requirements, new user shouldn't have completed them
                 if (
                     phase_progress.steps_completed == 0
@@ -241,9 +242,7 @@ class TestPhaseCompletion:
                 ):
                     assert phase_progress.is_complete is False
 
-    async def test_overall_percentage_calculation(
-        self, db_session: AsyncSession, user
-    ):
+    async def test_overall_percentage_calculation(self, db_session: AsyncSession, user):
         """Test overall progress percentage calculation."""
         result = await fetch_user_progress(db_session, user.id, skip_cache=True)
 

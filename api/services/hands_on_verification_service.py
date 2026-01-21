@@ -34,6 +34,7 @@ from circuitbreaker import circuit
 
 from core import get_logger
 from core.telemetry import track_dependency
+from core.wide_event import set_wide_event_fields
 from models import SubmissionType
 from schemas import HandsOnRequirement, ValidationResult
 from services.ctf_service import verify_ctf_token
@@ -46,7 +47,6 @@ from services.phase_requirements_service import (
 logger = get_logger(__name__)
 
 
-# Import GitHub validations
 from services.github_hands_on_verification_service import (  # noqa: E402
     validate_container_image,
     validate_github_profile,
@@ -475,7 +475,11 @@ async def validate_deployed_app(
             message=str(e),
         )
     except httpx.RequestError as e:
-        logger.warning(f"Error checking deployed app {check_url}: {e}")
+        set_wide_event_fields(
+            deployed_app_error="request_failed",
+            deployed_app_url=check_url,
+            deployed_app_error_detail=str(e),
+        )
         return ValidationResult(
             is_valid=False,
             message=f"Request error: {str(e)}",

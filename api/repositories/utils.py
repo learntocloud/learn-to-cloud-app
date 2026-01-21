@@ -9,6 +9,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.logger import get_logger
+from core.wide_event import set_wide_event_fields
 
 logger = get_logger(__name__)
 
@@ -41,20 +42,20 @@ def log_slow_query(
                 result = await func(*args, **kwargs)
                 duration_ms = (time.perf_counter() - start_time) * 1000
                 if duration_ms > SLOW_QUERY_THRESHOLD_MS:
-                    logger.debug(
-                        "db.slow_query",
-                        operation=operation_name,
-                        duration_ms=round(duration_ms, 2),
+                    set_wide_event_fields(
+                        db_slow_query=True,
+                        db_operation=operation_name,
+                        db_duration_ms=round(duration_ms, 2),
                     )
                 return result
             except Exception as e:
                 duration_ms = (time.perf_counter() - start_time) * 1000
-                logger.error(
-                    "db.query_error",
-                    operation=operation_name,
-                    duration_ms=round(duration_ms, 2),
-                    error=str(e),
-                    error_type=type(e).__name__,
+                set_wide_event_fields(
+                    db_query_error=True,
+                    db_operation=operation_name,
+                    db_duration_ms=round(duration_ms, 2),
+                    db_error=str(e),
+                    db_error_type=type(e).__name__,
                 )
                 raise
 

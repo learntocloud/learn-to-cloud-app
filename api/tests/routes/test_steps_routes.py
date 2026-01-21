@@ -5,7 +5,6 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from services.content_service import get_all_phases
-from tests.factories import StepProgressFactory, UserFactory
 
 
 def _get_valid_topic():
@@ -21,9 +20,7 @@ def _get_valid_topic():
 class TestCompleteStepEndpoint:
     """Tests for POST /api/steps/complete endpoint."""
 
-    async def test_complete_first_step(
-        self, authenticated_client: AsyncClient
-    ):
+    async def test_complete_first_step(self, authenticated_client: AsyncClient):
         """Test completing the first step of a topic."""
         topic = _get_valid_topic()
         if not topic:
@@ -160,9 +157,7 @@ class TestGetTopicStepProgress:
 class TestUncompleteStepEndpoint:
     """Tests for DELETE /api/steps/{topic_id}/{step_order} endpoint."""
 
-    async def test_uncompletes_step(
-        self, authenticated_client: AsyncClient
-    ):
+    async def test_uncompletes_step(self, authenticated_client: AsyncClient):
         """Test uncompleting a completed step."""
         topic = _get_valid_topic()
         if not topic:
@@ -175,9 +170,7 @@ class TestUncompleteStepEndpoint:
         )
 
         # Then uncomplete it
-        response = await authenticated_client.delete(
-            f"/api/steps/{topic.id}/1"
-        )
+        response = await authenticated_client.delete(f"/api/steps/{topic.id}/1")
 
         assert response.status_code == 200
         data = response.json()
@@ -192,9 +185,7 @@ class TestUncompleteStepEndpoint:
         if not topic:
             pytest.skip("No valid topic in content")
 
-        response = await authenticated_client.delete(
-            f"/api/steps/{topic.id}/1"
-        )
+        response = await authenticated_client.delete(f"/api/steps/{topic.id}/1")
 
         assert response.status_code == 200
         data = response.json()
@@ -205,9 +196,7 @@ class TestUncompleteStepEndpoint:
     ):
         """Test returns 404 for unknown topic ID (valid format, doesn't exist)."""
         # Valid format but doesn't exist - returns 404
-        response = await authenticated_client.delete(
-            "/api/steps/phase999-topic999/1"
-        )
+        response = await authenticated_client.delete("/api/steps/phase999-topic999/1")
 
         assert response.status_code == 404
 
@@ -219,9 +208,7 @@ class TestUncompleteStepEndpoint:
         if not topic:
             pytest.skip("No valid topic in content")
 
-        response = await authenticated_client.delete(
-            f"/api/steps/{topic.id}/999"
-        )
+        response = await authenticated_client.delete(f"/api/steps/{topic.id}/999")
 
         assert response.status_code == 400
 
@@ -229,8 +216,6 @@ class TestUncompleteStepEndpoint:
         self, unauthenticated_client: AsyncClient
     ):
         """Test returns 401 for unauthenticated request."""
-        response = await unauthenticated_client.delete(
-            "/api/steps/phase0-topic1/1"
-        )
+        response = await unauthenticated_client.delete("/api/steps/phase0-topic1/1")
 
         assert response.status_code == 401

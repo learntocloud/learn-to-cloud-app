@@ -3,7 +3,6 @@
 Tests database operations for hands-on submission CRUD.
 """
 
-import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models import SubmissionType
@@ -180,9 +179,7 @@ class TestSubmissionRepositoryUpsert:
 
         assert submission.validated_at is not None
 
-    async def test_validated_at_none_when_not_validated(
-        self, db_session: AsyncSession
-    ):
+    async def test_validated_at_none_when_not_validated(self, db_session: AsyncSession):
         """Should set validated_at to None when is_validated=False."""
         user = await create_async(UserFactory, db_session)
         repo = SubmissionRepository(db_session)

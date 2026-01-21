@@ -1,7 +1,6 @@
 """Tests for clerk service."""
 
-import time
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import httpx
 import pytest
@@ -263,9 +262,7 @@ class TestFetchUserData:
     @pytest.mark.asyncio
     @patch("services.clerk_service._is_in_backoff", return_value=True)
     @patch("services.clerk_service.get_settings")
-    async def test_returns_none_when_in_backoff(
-        self, mock_settings, mock_is_backoff
-    ):
+    async def test_returns_none_when_in_backoff(self, mock_settings, mock_is_backoff):
         """Test returns None when user is in backoff period."""
         mock_settings.return_value = MagicMock(clerk_secret_key="test-key")
 

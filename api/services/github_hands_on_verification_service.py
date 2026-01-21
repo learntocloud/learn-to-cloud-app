@@ -35,6 +35,7 @@ from tenacity import (
 from core import get_logger
 from core.config import get_settings
 from core.telemetry import track_dependency
+from core.wide_event import set_wide_event_fields
 from schemas import ParsedGitHubUrl
 
 logger = get_logger(__name__)
@@ -63,13 +64,9 @@ def _parse_retry_after(header_value: str | None) -> float | None:
 
 
 def _wait_with_retry_after(retry_state: RetryCallState) -> float:
-    """Custom wait that respects Retry-After header.
-
-    Falls back to exponential backoff with jitter if no Retry-After.
-    """
+    """Wait respecting Retry-After header, else exponential backoff."""
     exc = retry_state.outcome.exception() if retry_state.outcome else None
     if isinstance(exc, GitHubServerError) and exc.retry_after:
-        # Cap at 60s to avoid pathological values
         return min(exc.retry_after, 60.0)
     return wait_exponential_jitter(initial=0.5, max=10)(retry_state)
 
@@ -303,10 +300,18 @@ async def check_github_url_exists(url: str) -> tuple[bool, str]:
     try:
         return await _check_github_url_exists_with_retry(url)
     except RETRIABLE_EXCEPTIONS as e:
-        logger.warning(f"All retries exhausted checking GitHub URL {url}: {e}")
+        set_wide_event_fields(
+            github_error="url_check_retries_exhausted",
+            github_url=url,
+            github_error_detail=str(e),
+        )
         return False, f"Request error: {str(e)}"
     except Exception as e:
-        logger.exception(f"Unexpected error checking GitHub URL {url}: {e}")
+        set_wide_event_fields(
+            github_error="url_check_unexpected",
+            github_url=url,
+            github_error_detail=str(e),
+        )
         return False, f"Unexpected error: {str(e)}"
 
 
@@ -381,10 +386,18 @@ async def check_repo_is_fork_of(
             username, repo_name, original_repo
         )
     except RETRIABLE_EXCEPTIONS as e:
-        logger.warning(f"All retries exhausted checking fork status: {e}")
+        set_wide_event_fields(
+            github_error="fork_check_retries_exhausted",
+            github_repo=f"{username}/{repo_name}",
+            github_error_detail=str(e),
+        )
         return False, f"Request error: {str(e)}"
     except Exception as e:
-        logger.exception(f"Unexpected error checking fork status: {e}")
+        set_wide_event_fields(
+            github_error="fork_check_unexpected",
+            github_repo=f"{username}/{repo_name}",
+            github_error_detail=str(e),
+        )
         return False, f"Unexpected error: {str(e)}"
 
 
@@ -721,7 +734,11 @@ async def validate_workflow_run(
     try:
         data = await _fetch_workflow_runs_with_retry(parsed.username, parsed.repo_name)
     except RETRIABLE_EXCEPTIONS as e:
-        logger.warning(f"All retries exhausted checking workflow runs: {e}")
+        set_wide_event_fields(
+            github_error="workflow_runs_retries_exhausted",
+            github_repo=f"{parsed.username}/{parsed.repo_name}",
+            github_error_detail=str(e),
+        )
         return ValidationResult(
             is_valid=False,
             message="GitHub API request failed. Please try again.",
@@ -933,7 +950,10 @@ async def validate_repo_has_files(
             try:
                 data = await _search_code_with_retry(search_query)
             except RETRIABLE_EXCEPTIONS as e:
-                logger.warning(f"All retries exhausted searching for files: {e}")
+                set_wide_event_fields(
+                    github_error="code_search_retries_exhausted",
+                    github_error_detail=str(e),
+                )
                 return await _validate_repo_files_via_contents(
                     await _get_github_client(),
                     parsed.username,
@@ -1318,7 +1338,10 @@ async def validate_container_image(
     try:
         return await _check_container_image_with_retry(registry, image_path, tag)
     except RETRIABLE_EXCEPTIONS as e:
-        logger.warning(f"All retries exhausted checking container image: {e}")
+        set_wide_event_fields(
+            github_error="container_image_retries_exhausted",
+            github_error_detail=str(e),
+        )
         return ValidationResult(
             is_valid=False,
             message="Container registry request failed. Please try again.",
@@ -1326,7 +1349,10 @@ async def validate_container_image(
             repo_exists=False,
         )
     except Exception as e:
-        logger.exception(f"Unexpected error checking container image: {e}")
+        set_wide_event_fields(
+            github_error="container_image_unexpected",
+            github_error_detail=str(e),
+        )
         return ValidationResult(
             is_valid=False,
             message=f"Unexpected error: {str(e)}",

@@ -29,6 +29,7 @@ from tenacity import (
 from core import get_logger
 from core.config import get_settings
 from core.telemetry import log_metric, track_dependency
+from core.wide_event import set_wide_event_field, set_wide_event_fields
 from schemas import GradeResult
 
 logger = get_logger(__name__)
@@ -80,7 +81,7 @@ def _sanitize_user_input(text: str) -> str:
     sanitized = text.replace("```", "")
 
     if _INJECTION_REGEX.search(sanitized):
-        logger.warning("Potential prompt injection attempt detected")
+        set_wide_event_field("llm_injection_attempt", True)
         log_metric("llm.injection_attempt_detected", 1)
         # Don't block - let the LLM evaluate, but it will fail for lack of
         # technical content
@@ -230,17 +231,26 @@ Evaluate the technical merit of this answer. Output JSON only."""
             )
 
         except TimeoutError:
-            logger.error(f"Gemini API call timed out after {_LLM_TIMEOUT_SECONDS}s")
+            set_wide_event_fields(
+                llm_error="timeout",
+                llm_timeout_seconds=_LLM_TIMEOUT_SECONDS,
+            )
             raise
         except json.JSONDecodeError as e:
-            logger.error(f"Failed to parse Gemini response as JSON: {e}")
+            set_wide_event_fields(
+                llm_error="json_decode",
+                llm_error_detail=str(e),
+            )
             return GradeResult(
                 is_passed=False,
                 feedback="We couldn't process your answer. Please try again.",
                 confidence_score=0.0,
             )
         except Exception as e:
-            logger.exception(f"Error calling Gemini API: {e}")
+            set_wide_event_fields(
+                llm_error="api_error",
+                llm_error_detail=str(e),
+            )
             raise
 
 
@@ -276,7 +286,7 @@ async def grade_answer(
             topic_name=topic_name,
         )
     except CircuitBreakerError:
-        logger.warning("Gemini circuit breaker is open, failing fast")
+        set_wide_event_field("llm_circuit_breaker_open", True)
         log_metric("llm.circuit_breaker_open", 1)
         raise GeminiServiceUnavailable(
             "Gemini API is temporarily unavailable due to repeated failures"

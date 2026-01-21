@@ -13,6 +13,7 @@ from pathlib import Path
 
 from core import get_logger
 from core.config import get_settings
+from core.wide_event import set_wide_event_fields
 from schemas import (
     LearningObjective,
     LearningStep,
@@ -40,7 +41,10 @@ def _load_topic(phase_dir: Path, topic_slug: str) -> Topic | None:
     """Load a single topic from its JSON file."""
     topic_file = phase_dir / f"{topic_slug}.json"
     if not topic_file.exists():
-        logger.warning(f"Topic file not found: {topic_file}")
+        set_wide_event_fields(
+            content_error="topic_not_found",
+            content_topic_file=str(topic_file),
+        )
         return None
 
     try:
@@ -104,7 +108,11 @@ def _load_topic(phase_dir: Path, topic_slug: str) -> Topic | None:
             learning_objectives=learning_objectives,
         )
     except (json.JSONDecodeError, KeyError) as e:
-        logger.error(f"Error loading topic {topic_slug}: {e}")
+        set_wide_event_fields(
+            content_error="topic_load_failed",
+            content_topic_slug=topic_slug,
+            content_error_detail=str(e),
+        )
         return None
 
 
@@ -114,7 +122,10 @@ def _load_phase(phase_slug: str) -> Phase | None:
     index_file = phase_dir / "index.json"
 
     if not index_file.exists():
-        logger.warning(f"Phase index not found: {index_file}")
+        set_wide_event_fields(
+            content_error="phase_index_not_found",
+            content_index_file=str(index_file),
+        )
         return None
 
     try:
@@ -162,7 +173,11 @@ def _load_phase(phase_slug: str) -> Phase | None:
             topics=topics,
         )
     except (json.JSONDecodeError, KeyError) as e:
-        logger.error(f"Error loading phase {phase_slug}: {e}")
+        set_wide_event_fields(
+            content_error="phase_load_failed",
+            content_phase_slug=phase_slug,
+            content_error_detail=str(e),
+        )
         return None
 
 
@@ -176,7 +191,10 @@ def get_all_phases() -> tuple[Phase, ...]:
     phases = []
     content_dir = _get_content_dir()
     if not content_dir.exists():
-        logger.error(f"Content directory not found: {content_dir}")
+        set_wide_event_fields(
+            content_error="content_dir_not_found",
+            content_dir=str(content_dir),
+        )
         return ()
 
     for phase_dir in sorted(content_dir.iterdir()):
@@ -186,7 +204,10 @@ def get_all_phases() -> tuple[Phase, ...]:
                 phases.append(phase)
 
     if not phases:
-        logger.warning(f"No phases loaded from {content_dir}")
+        set_wide_event_fields(
+            content_error="no_phases_loaded",
+            content_dir=str(content_dir),
+        )
 
     return tuple(sorted(phases, key=lambda p: p.order))
 

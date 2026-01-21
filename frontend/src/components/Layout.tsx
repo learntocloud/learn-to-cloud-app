@@ -1,6 +1,5 @@
 import { Link } from 'react-router-dom';
 import { UserButton, SignInButton, useUser } from '@clerk/clerk-react';
-import { useUserInfo } from '@/lib/hooks';
 import { ThemeToggle } from './ThemeToggle';
 
 interface LayoutProps {
@@ -25,7 +24,6 @@ export function Layout({ children }: LayoutProps) {
 
 function Navbar() {
   const { isSignedIn, isLoaded } = useUser();
-  const { data: userInfo } = useUserInfo();
 
   return (
     <nav aria-label="Main navigation" className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800">
@@ -49,11 +47,9 @@ function Navbar() {
                   <Link to="/dashboard" className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white px-3 py-2 text-sm font-medium">
                     Dashboard
                   </Link>
-                  {userInfo?.github_username && (
-                    <Link to={`/user/${userInfo.github_username}`} className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white px-3 py-2 text-sm font-medium">
-                      Profile
-                    </Link>
-                  )}
+                  <Link to="/profile" className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white px-3 py-2 text-sm font-medium">
+                    Profile
+                  </Link>
                 </>
               )}
             </div>

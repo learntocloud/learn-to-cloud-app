@@ -6,6 +6,7 @@ from core import get_logger
 from core.auth import UserId
 from core.database import DbSession
 from core.ratelimit import limiter
+from core.wide_event import set_wide_event_fields
 from schemas import (
     StreakResponse,
 )
@@ -32,8 +33,6 @@ async def get_user_streak(
 
     streak_data = await get_streak_data(db, user_id)
 
-    logger.info(
-        "streak.fetched", user_id=user_id, current_streak=streak_data.current_streak
-    )
+    set_wide_event_fields(current_streak=streak_data.current_streak)
 
     return StreakResponse.model_validate(streak_data)

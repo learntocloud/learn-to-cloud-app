@@ -38,6 +38,7 @@ from tenacity import (
 
 from core.config import get_settings
 from core.logger import get_logger
+from core.wide_event import set_wide_event_fields
 
 logger = get_logger(__name__)
 
@@ -121,14 +122,18 @@ async def _get_azure_token() -> str:
 
     Includes retry logic with exponential backoff for transient failures
     (IMDS timeouts, network blips) and a per-attempt timeout.
+
+    Note: set_wide_event_fields calls during token acquisition may no-op
+    if called outside request context (e.g., during startup). Errors are
+    handled via exception propagation and logged in main.py lifespan.
     """
     try:
         async with asyncio.timeout(_AZURE_TOKEN_TIMEOUT):
             return await asyncio.to_thread(_get_azure_token_sync)
     except TimeoutError:
-        logger.warning(
-            f"Azure AD token acquisition timed out after {_AZURE_TOKEN_TIMEOUT}s, "
-            "will retry if attempts remaining"
+        set_wide_event_fields(
+            db_error="azure_token_timeout",
+            db_timeout_seconds=_AZURE_TOKEN_TIMEOUT,
         )
         # Reset credential on timeout in case it's in a bad state
         _reset_azure_credential()
@@ -186,8 +191,10 @@ async def _azure_asyncpg_creator():
         )
     except asyncpg.PostgresConnectionError as e:
         # Log connection errors with host (but not credentials)
-        logger.error(
-            f"Failed to connect to Azure PostgreSQL at {settings.postgres_host}: {e}"
+        set_wide_event_fields(
+            db_error="connection_failed",
+            db_host=settings.postgres_host,
+            db_error_detail=str(e),
         )
         raise
 
@@ -204,21 +211,16 @@ def _setup_pool_event_listeners(engine: AsyncEngine) -> None:
             overflow = pool.overflow()
             pool_size = pool.size()
             if overflow > 0:
-                logger.warning(
-                    f"Pool using overflow connections: "
-                    f"{checked_out}/{pool_size} (+{overflow} overflow)"
-                )
-            else:
-                logger.debug(
-                    f"Pool checkout: {checked_out}/{pool_size} connections in use"
+                set_wide_event_fields(
+                    db_pool_overflow=True,
+                    db_pool_checked_out=checked_out,
+                    db_pool_size=pool_size,
+                    db_pool_overflow_count=overflow,
                 )
 
     @event.listens_for(pool, "checkin")
     def _on_checkin(dbapi_conn, connection_record):
-        if isinstance(pool, QueuePool):
-            logger.debug(
-                f"Pool checkin: {pool.checkedout()}/{pool.size()} connections in use"
-            )
+        pass  # Checkin events not logged - only overflow is notable
 
 
 def create_engine() -> AsyncEngine:
@@ -259,7 +261,10 @@ def create_engine() -> AsyncEngine:
 
         instrument_sqlalchemy_engine(engine)
     except Exception as e:
-        logger.warning(f"Failed to instrument SQLAlchemy for telemetry: {e}")
+        set_wide_event_fields(
+            db_error="telemetry_instrumentation_failed",
+            db_error_detail=str(e),
+        )
 
     return engine
 
@@ -306,24 +311,24 @@ DbSession = Annotated[AsyncSession, Depends(get_db)]
 
 async def init_db(engine: AsyncEngine) -> None:
     """Verify database is reachable. Schema managed via migrations."""
-    logger.info("Verifying database connectivity...")
+    logger.info("db.connectivity.verifying")
 
     try:
         async with asyncio.timeout(30):
             async with engine.connect() as conn:
                 await conn.execute(text("SELECT 1"))
-        logger.info("Database connection verified")
+        logger.info("db.connectivity.verified")
     except TimeoutError:
-        logger.error("Database connection timed out after 30 seconds")
+        set_wide_event_fields(db_error="connection_timeout", db_timeout_seconds=30)
         raise
     except Exception as e:
-        logger.error(f"Database connection failed: {e}")
+        set_wide_event_fields(db_error="connection_failed", db_error_detail=str(e))
         raise
 
 
 async def dispose_engine(engine: AsyncEngine) -> None:
     await engine.dispose()
-    logger.info("Database engine disposed")
+    logger.info("db.engine.disposed")
 
 
 # =============================================================================
@@ -388,7 +393,10 @@ async def comprehensive_health_check(engine: AsyncEngine) -> dict:
             await check_azure_token_acquisition()
             result["azure_auth"] = True
         except Exception as e:
-            logger.error(f"Azure token acquisition health check failed: {e}")
+            set_wide_event_fields(
+                db_error="azure_token_health_check_failed",
+                db_error_detail=str(e),
+            )
             result["azure_auth"] = False
             # Don't proceed to DB check if auth is broken
             return result
@@ -398,7 +406,10 @@ async def comprehensive_health_check(engine: AsyncEngine) -> dict:
         await check_db_connection(engine)
         result["database"] = True
     except Exception as e:
-        logger.error(f"Database health check failed: {e}")
+        set_wide_event_fields(
+            db_error="health_check_failed",
+            db_error_detail=str(e),
+        )
         result["database"] = False
 
     # Get pool status

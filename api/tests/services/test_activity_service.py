@@ -6,7 +6,6 @@ These tests use real database (via fixtures) for accuracy.
 
 from datetime import UTC, date, datetime, timedelta
 
-import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models import ActivityType
@@ -228,7 +227,10 @@ class TestGetHeatmapData:
         result = await get_heatmap_data(db_session, user.id, days=30)
 
         assert len(result.days) == 1
-        activity_types = {t.value if hasattr(t, 'value') else str(t) for t in result.days[0].activity_types}
+        activity_types = {
+            t.value if hasattr(t, "value") else str(t)
+            for t in result.days[0].activity_types
+        }
         assert "step_complete" in activity_types
         assert "question_attempt" in activity_types
 
@@ -290,17 +292,11 @@ class TestLogActivity:
         assert result.activity_type == ActivityType.QUESTION_ATTEMPT
         assert result.reference_id is None
 
-    async def test_allows_multiple_activities_same_day(
-        self, db_session: AsyncSession
-    ):
+    async def test_allows_multiple_activities_same_day(self, db_session: AsyncSession):
         """Should allow logging multiple activities on same day."""
         user = await create_async(UserFactory, db_session)
 
-        result1 = await log_activity(
-            db_session, user.id, ActivityType.STEP_COMPLETE
-        )
-        result2 = await log_activity(
-            db_session, user.id, ActivityType.QUESTION_ATTEMPT
-        )
+        result1 = await log_activity(db_session, user.id, ActivityType.STEP_COMPLETE)
+        result2 = await log_activity(db_session, user.id, ActivityType.QUESTION_ATTEMPT)
 
         assert result1.id != result2.id

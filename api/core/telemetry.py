@@ -9,6 +9,7 @@ from typing import Any, ParamSpec, TypeVar
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from core.logger import get_logger
+from core.wide_event import clear_wide_event, get_wide_event, init_wide_event
 
 logger = get_logger(__name__)
 
@@ -78,7 +79,7 @@ class SecurityHeadersMiddleware:
 
 
 class RequestTimingMiddleware:
-    """Enriches spans with timing, route info, and logs slow requests (>1s)."""
+    """Enriches spans with timing, route info, emits wide event at request end."""
 
     def __init__(self, app: ASGIApp):
         self.app = app
@@ -94,6 +95,12 @@ class RequestTimingMiddleware:
 
         client = scope.get("client")
         client_ip = client[0] if client else "unknown"
+
+        # Initialize wide event with request context
+        wide_event = init_wide_event()
+        wide_event["http_method"] = method
+        wide_event["http_path"] = path
+        wide_event["http_client_ip"] = client_ip
 
         response_status: int | None = None
 
@@ -117,6 +124,7 @@ class RequestTimingMiddleware:
                 route = scope.get("route")
                 route_path = getattr(route, "path", None) or path
 
+                # Enrich OpenTelemetry span
                 if (
                     TELEMETRY_ENABLED
                     and tracer
@@ -143,27 +151,58 @@ class RequestTimingMiddleware:
                                 )
                             )
 
-                if duration_ms > 1000:
-                    logger.warning(
-                        f"Slow request: {method} {route_path} took {duration_ms:.2f}ms"
-                    )
+                # Finalize and emit wide event
+                event = get_wide_event()
+                event["http_route"] = route_path
+                event["http_status_code"] = response_status
+                event["duration_ms"] = round(duration_ms, 2)
+                event["outcome"] = (
+                    "success" if response_status and response_status < 400 else "error"
+                )
+
+                # Emit wide event - always for errors/slow, sample otherwise
+                should_emit = (
+                    response_status is None
+                    or response_status >= 400
+                    or duration_ms > 1000
+                    or event.get("user_id")  # Always emit authenticated requests
+                )
+
+                if should_emit:
+                    logger.info("request.completed", **event)
+
+                clear_wide_event()
 
             await send(message)
 
-        if TELEMETRY_ENABLED and tracer:
-            with tracer.start_as_current_span(
-                f"{method} {path}",
-                attributes={
-                    "http.method": method,
-                    "http.route": path,
-                    "http.url": scope.get("raw_path", path),
-                    "http.client_ip": client_ip,
-                },
-            ):
-                await self.app(scope, receive, send_wrapper)
-                return
+        try:
+            if TELEMETRY_ENABLED and tracer:
+                with tracer.start_as_current_span(
+                    f"{method} {path}",
+                    attributes={
+                        "http.method": method,
+                        "http.route": path,
+                        "http.url": scope.get("raw_path", path),
+                        "http.client_ip": client_ip,
+                    },
+                ):
+                    await self.app(scope, receive, send_wrapper)
+                    return
 
-        await self.app(scope, receive, send_wrapper)
+            await self.app(scope, receive, send_wrapper)
+        except Exception as exc:
+            # Emit wide event for unhandled exceptions
+            duration_ms = (time.perf_counter() - start_time) * 1000
+            route = scope.get("route")
+            route_path = getattr(route, "path", None) or path
+            event = get_wide_event()
+            event["http_route"] = route_path
+            event["duration_ms"] = round(duration_ms, 2)
+            event["outcome"] = "exception"
+            event["exception_type"] = type(exc).__name__
+            logger.info("request.completed", **event)
+            clear_wide_event()
+            raise
 
 
 def track_dependency(name: str, dependency_type: str = "custom"):

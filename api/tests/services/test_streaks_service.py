@@ -9,8 +9,6 @@ UTC dates to match the service's behavior.
 
 from datetime import UTC, date, datetime, timedelta
 
-import pytest
-
 from services.streaks_service import (
     INITIAL_STREAK,
     MAX_SKIP_DAYS,

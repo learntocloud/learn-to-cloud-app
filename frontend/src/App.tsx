@@ -14,6 +14,7 @@ const ProfilePage = lazy(() => import('./pages/ProfilePage').then(m => ({ defaul
 const VerifyPage = lazy(() => import('./pages/VerifyPage').then(m => ({ default: m.VerifyPage })));
 const SignInPage = lazy(() => import('./pages/SignInPage').then(m => ({ default: m.SignInPage })));
 const SignUpPage = lazy(() => import('./pages/SignUpPage').then(m => ({ default: m.SignUpPage })));
+const ProfileRedirect = lazy(() => import('./pages/ProfileRedirect').then(m => ({ default: m.ProfileRedirect })));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage').then(m => ({ default: m.NotFoundPage })));
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -50,6 +51,14 @@ export function App() {
           <Route path="/verify/:code" element={<VerifyPage />} />
 
           {/* Protected routes must come before dynamic /:phaseSlug to avoid collision */}
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute>
+                <ProfileRedirect />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/dashboard"
             element={

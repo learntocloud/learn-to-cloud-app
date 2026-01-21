@@ -1,7 +1,5 @@
 """Tests for steps service."""
 
-from unittest.mock import patch
-
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -211,9 +209,7 @@ class TestCompleteStep:
             pytest.skip("Topic needs at least 3 steps")
 
         # Admin should be able to complete step 3 directly
-        result = await complete_step(
-            db_session, user.id, topic.id, 3, is_admin=True
-        )
+        result = await complete_step(db_session, user.id, topic.id, 3, is_admin=True)
 
         assert result.step_order == 3
 
