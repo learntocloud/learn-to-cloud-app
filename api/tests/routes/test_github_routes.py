@@ -6,6 +6,9 @@ import pytest
 from fastapi import FastAPI
 from httpx import AsyncClient
 
+# Mark all tests in this module as integration tests (database required)
+pytestmark = pytest.mark.integration
+
 from models import SubmissionType
 from repositories.user_repository import UserRepository
 from schemas import ClerkUserData

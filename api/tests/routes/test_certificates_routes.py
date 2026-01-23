@@ -3,9 +3,13 @@
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
+import pytest
 from fastapi import FastAPI
 from httpx import AsyncClient
 from sqlalchemy import delete
+
+# Mark all tests in this module as integration tests (database required)
+pytestmark = pytest.mark.integration
 
 from models import Certificate
 from repositories.user_repository import UserRepository

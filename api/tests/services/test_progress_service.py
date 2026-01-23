@@ -1,4 +1,7 @@
-"""Tests for progress service."""
+"""Tests for progress service.
+
+Contains both unit tests (parsing functions) and integration tests (database queries).
+"""
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession

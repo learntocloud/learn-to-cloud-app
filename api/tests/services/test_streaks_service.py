@@ -3,19 +3,35 @@
 Tests streak calculation algorithm with forgiveness rules.
 These are pure function tests - no database required.
 
-NOTE: The streak service uses UTC dates internally. Tests must use
-UTC dates to match the service's behavior.
+Uses time_machine to freeze time for deterministic tests.
 """
 
 from datetime import UTC, date, datetime, timedelta
 
 import pytest
+import time_machine
+
+# Mark all tests in this module as unit tests (no database required)
+pytestmark = [
+    pytest.mark.unit,
+    pytest.mark.usefixtures("freeze_time"),
+]
 
 from services.streaks_service import (
     INITIAL_STREAK,
     MAX_SKIP_DAYS,
     calculate_streak_with_forgiveness,
 )
+
+# Fixed reference date for deterministic tests
+FROZEN_DATE = datetime(2026, 1, 23, 12, 0, 0, tzinfo=UTC)
+
+
+@pytest.fixture
+def freeze_time():
+    """Freeze time to a fixed date for deterministic tests."""
+    with time_machine.travel(FROZEN_DATE, tick=False):
+        yield
 
 
 def utc_today() -> date:

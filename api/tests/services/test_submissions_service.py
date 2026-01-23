@@ -1,4 +1,7 @@
-"""Tests for submissions service."""
+"""Tests for submissions service.
+
+Contains both unit tests (helper functions) and integration tests (database operations).
+"""
 
 from unittest.mock import AsyncMock, patch
 

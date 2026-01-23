@@ -3,6 +3,9 @@
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
+# Mark all tests in this module as integration tests (database required)
+pytestmark = pytest.mark.integration
+
 from services.steps_service import (
     StepAlreadyCompletedError,
     StepInvalidStepOrderError,

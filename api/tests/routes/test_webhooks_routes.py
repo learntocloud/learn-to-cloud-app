@@ -3,7 +3,11 @@
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
+import pytest
 from httpx import AsyncClient
+
+# Mark all tests in this module as integration tests (database required)
+pytestmark = pytest.mark.integration
 
 
 def _unique_svix_id(prefix: str) -> str:

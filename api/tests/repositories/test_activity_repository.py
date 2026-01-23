@@ -5,7 +5,11 @@ Tests database operations for user activity tracking and streak calculation.
 
 from datetime import date, timedelta
 
+import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
+
+# Mark all tests in this module as integration tests (database required)
+pytestmark = pytest.mark.integration
 
 from models import ActivityType
 from repositories.activity_repository import ActivityRepository

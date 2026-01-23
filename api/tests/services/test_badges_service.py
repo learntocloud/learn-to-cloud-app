@@ -9,6 +9,11 @@ Note: Phase requirements are loaded from content JSON files:
 - Phase 2: 30 steps, 12 questions
 """
 
+import pytest
+
+# Mark all tests in this module as unit tests (no database required)
+pytestmark = pytest.mark.unit
+
 from services.badges_service import (
     compute_all_badges,
     compute_phase_badges,

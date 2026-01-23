@@ -5,6 +5,9 @@ from pathlib import Path
 
 import pytest
 
+# Mark all tests in this module as unit tests (no database required)
+pytestmark = pytest.mark.unit
+
 from services.content_service import (
     _load_phase,
     _load_topic,

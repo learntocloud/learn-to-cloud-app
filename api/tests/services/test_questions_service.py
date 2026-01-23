@@ -6,6 +6,9 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
+# Mark all tests in this module as integration tests (database required)
+pytestmark = pytest.mark.integration
+
 from services.questions_service import (
     GradingConceptsNotFoundError,
     LLMGradingError,

@@ -3,6 +3,9 @@
 import pytest
 from httpx import AsyncClient
 
+# Mark all tests in this module as integration tests (database required)
+pytestmark = pytest.mark.integration
+
 
 class TestGetDashboard:
     """Tests for GET /api/user/dashboard endpoint."""

@@ -6,6 +6,9 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from httpx import AsyncClient
 
+# Mark all tests in this module as integration tests (database required)
+pytestmark = pytest.mark.integration
+
 from services.questions_service import (
     LLMGradingError,
     LLMServiceUnavailableError,

@@ -294,8 +294,9 @@ def mock_clerk_auth(test_user_id: str) -> Generator[MagicMock]:
     """Mock Clerk authentication to bypass JWT verification.
 
     Returns the test_user_id for any valid-looking token.
+    Uses autospec=True to catch interface mismatches early.
     """
-    with patch("core.auth._clerk_client") as mock_client:
+    with patch("core.auth._clerk_client", autospec=True) as mock_client:
         # Create a mock request state that indicates successful auth
         mock_state = MagicMock()
         mock_state.is_signed_in = True
@@ -311,8 +312,11 @@ def mock_clerk_auth(test_user_id: str) -> Generator[MagicMock]:
 
 @pytest.fixture
 def mock_clerk_unauthenticated() -> Generator[MagicMock]:
-    """Mock Clerk to return unauthenticated state."""
-    with patch("core.auth._clerk_client") as mock_client:
+    """Mock Clerk to return unauthenticated state.
+
+    Uses autospec=True to catch interface mismatches early.
+    """
+    with patch("core.auth._clerk_client", autospec=True) as mock_client:
         mock_state = MagicMock()
         mock_state.is_signed_in = False
         mock_state.payload = None
@@ -330,8 +334,13 @@ def mock_clerk_unauthenticated() -> Generator[MagicMock]:
 
 @pytest.fixture
 def mock_github_client() -> Generator[AsyncMock]:
-    """Mock GitHub API client for hands-on verification tests."""
-    with patch("services.github_hands_on_verification_service._github_client") as mock:
+    """Mock GitHub API client for hands-on verification tests.
+
+    Uses autospec=True to catch interface mismatches early.
+    """
+    with patch(
+        "services.github_hands_on_verification_service._github_client", autospec=True
+    ) as mock:
         mock_client = AsyncMock()
         mock.return_value = mock_client
         yield mock_client
@@ -339,8 +348,11 @@ def mock_github_client() -> Generator[AsyncMock]:
 
 @pytest.fixture
 def mock_llm_service() -> Generator[MagicMock]:
-    """Mock LLM service for question grading tests."""
-    with patch("services.llm_service.grade_answer") as mock:
+    """Mock LLM service for question grading tests.
+
+    Uses autospec=True to catch interface mismatches early.
+    """
+    with patch("services.llm_service.grade_answer", autospec=True) as mock:
         mock.return_value = {
             "is_correct": True,
             "feedback": "Great answer!",
