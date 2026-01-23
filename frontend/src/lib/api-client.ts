@@ -461,9 +461,9 @@ export function createApiClient(getToken: () => Promise<string | null>) {
       return `${API_URL}/api/certificates/verify/${code}/png${suffix}`;
     },
 
-    async getChangelog() {
-      const res = await fetch(`${API_URL}/api/changelog`);
-      if (!res.ok) throw new Error('Failed to fetch changelog');
+    async getUpdates() {
+      const res = await fetch(`${API_URL}/api/updates`);
+      if (!res.ok) throw new Error('Failed to fetch updates');
       return res.json();
     },
   };
