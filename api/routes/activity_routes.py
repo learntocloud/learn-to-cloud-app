@@ -18,7 +18,11 @@ logger = get_logger(__name__)
 router = APIRouter(prefix="/api/activity", tags=["activity"])
 
 
-@router.get("/streak", response_model=StreakResponse)
+@router.get(
+    "/streak",
+    response_model=StreakResponse,
+    responses={401: {"description": "Not authenticated"}},
+)
 @limiter.limit("60/minute")
 async def get_user_streak(
     request: Request,
