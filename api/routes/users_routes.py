@@ -29,8 +29,7 @@ async def get_current_user(
 ) -> UserResponse:
     """Get current user info."""
     user = await get_or_create_user(db, user_id)
-    # UserResponse and UserData (service return type) are compatible Pydantic models
-    return UserResponse.model_validate(user.model_dump())
+    return UserResponse.model_validate(user)
 
 
 @router.get("/profile/{username}", response_model=PublicProfileResponse)
