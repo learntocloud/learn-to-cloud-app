@@ -22,7 +22,11 @@ __all__ = ["router", "get_or_create_user"]
 router = APIRouter(prefix="/api/user", tags=["users"])
 
 
-@router.get("/me", response_model=UserResponse)
+@router.get(
+    "/me",
+    response_model=UserResponse,
+    responses={401: {"description": "Not authenticated"}},
+)
 @limiter.limit("30/minute")
 async def get_current_user(
     request: Request, user_id: UserId, db: DbSession
@@ -32,7 +36,11 @@ async def get_current_user(
     return UserResponse.model_validate(user)
 
 
-@router.get("/profile/{username}", response_model=PublicProfileResponse)
+@router.get(
+    "/profile/{username}",
+    response_model=PublicProfileResponse,
+    responses={404: {"description": "User not found"}},
+)
 @limiter.limit("30/minute")
 async def get_public_profile_endpoint(
     request: Request,
