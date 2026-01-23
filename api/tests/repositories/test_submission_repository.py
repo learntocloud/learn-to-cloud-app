@@ -23,9 +23,13 @@ class TestSubmissionRepositoryGetByUserAndPhase:
     ):
         """Should return all submissions for a user in a specific phase."""
         user = await create_async(UserFactory, db_session)
-        # Create submissions in different phases
+        # Create submissions in different phases with unique requirement_ids
         sub1 = await create_async(
-            SubmissionFactory, db_session, user_id=user.id, phase_id=1
+            SubmissionFactory,
+            db_session,
+            user_id=user.id,
+            phase_id=1,
+            requirement_id="phase1-hands-on-1",
         )
         sub2 = await create_async(
             SubmissionFactory,
@@ -35,7 +39,11 @@ class TestSubmissionRepositoryGetByUserAndPhase:
             requirement_id="phase1-hands-on-2",
         )
         await create_async(
-            SubmissionFactory, db_session, user_id=user.id, phase_id=2
+            SubmissionFactory,
+            db_session,
+            user_id=user.id,
+            phase_id=2,
+            requirement_id="phase2-hands-on-1",
         )  # Different phase
 
         repo = SubmissionRepository(db_session)

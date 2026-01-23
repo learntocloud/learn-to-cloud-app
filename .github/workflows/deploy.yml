@@ -100,6 +100,34 @@ jobs:
       - name: Run tests
         run: uv run pytest tests/ -v --tb=short
 
+  api-smoke:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    needs: [api-lint-and-test]
+    defaults:
+      run:
+        working-directory: api
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: "api/pyproject.toml"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.9.26"
+          enable-cache: true
+
+      - name: Install dependencies
+        run: |
+          uv sync --extra dev --group dev
+
+      - name: Run smoke tests
+        run: uv run pytest -m smoke tests/ -v --tb=short
+
   frontend-lint-and-test:
     runs-on: ubuntu-latest
     defaults:

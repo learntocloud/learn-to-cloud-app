@@ -9,6 +9,8 @@ UTC dates to match the service's behavior.
 
 from datetime import UTC, date, datetime, timedelta
 
+import pytest
+
 from services.streaks_service import (
     INITIAL_STREAK,
     MAX_SKIP_DAYS,
@@ -42,35 +44,30 @@ class TestCalculateStreakWithForgiveness:
         assert longest == 1
         assert alive is True
 
-    def test_single_activity_yesterday(self):
-        """Should return 1-day streak for activity yesterday (within forgiveness)."""
-        yesterday = utc_today() - timedelta(days=1)
+    @pytest.mark.parametrize(
+        "days_ago,expected_current,expected_longest,expected_alive",
+        [
+            (1, 1, 1, True),
+            (2, 1, 1, True),
+            (3, 0, 1, False),
+        ],
+        ids=["yesterday", "two_days_ago", "three_days_ago"],
+    )
+    def test_single_activity_days_ago(
+        self,
+        days_ago: int,
+        expected_current: int,
+        expected_longest: int,
+        expected_alive: bool,
+    ):
+        """Should handle a single activity with forgiveness window."""
+        activity_date = utc_today() - timedelta(days=days_ago)
 
-        current, longest, alive = calculate_streak_with_forgiveness([yesterday])
+        current, longest, alive = calculate_streak_with_forgiveness([activity_date])
 
-        assert current == 1
-        assert longest == 1
-        assert alive is True
-
-    def test_single_activity_two_days_ago(self):
-        """Should return 1-day streak for activity 2 days ago (max forgiveness)."""
-        two_days_ago = utc_today() - timedelta(days=2)
-
-        current, longest, alive = calculate_streak_with_forgiveness([two_days_ago])
-
-        assert current == 1
-        assert longest == 1
-        assert alive is True
-
-    def test_single_activity_three_days_ago(self):
-        """Should return dead streak for activity 3 days ago (beyond forgiveness)."""
-        three_days_ago = utc_today() - timedelta(days=3)
-
-        current, longest, alive = calculate_streak_with_forgiveness([three_days_ago])
-
-        assert current == 0  # Dead streak
-        assert longest == 1  # Had a 1-day streak
-        assert alive is False
+        assert current == expected_current
+        assert longest == expected_longest
+        assert alive is expected_alive
 
     def test_consecutive_days(self):
         """Should count consecutive days as streak."""
@@ -87,47 +84,34 @@ class TestCalculateStreakWithForgiveness:
         assert longest == 3
         assert alive is True
 
-    def test_forgiveness_one_day_gap(self):
-        """Should maintain streak with 1-day gap."""
+    @pytest.mark.parametrize(
+        "gap_days,expected_current,expected_longest,expected_alive",
+        [
+            (1, 2, 2, True),
+            (2, 2, 2, True),
+            (3, 1, 1, True),
+        ],
+        ids=["one_day_gap", "two_day_gap", "three_day_gap"],
+    )
+    def test_forgiveness_gap_rules(
+        self,
+        gap_days: int,
+        expected_current: int,
+        expected_longest: int,
+        expected_alive: bool,
+    ):
+        """Should apply forgiveness rules for gaps between activities."""
         today = utc_today()
         dates = [
             today,
-            today - timedelta(days=2),  # Skipped yesterday
+            today - timedelta(days=gap_days + 1),
         ]
 
         current, longest, alive = calculate_streak_with_forgiveness(dates)
 
-        assert current == 2
-        assert longest == 2
-        assert alive is True
-
-    def test_forgiveness_two_day_gap(self):
-        """Should maintain streak with 2-day gap (max forgiveness)."""
-        today = utc_today()
-        dates = [
-            today,
-            today - timedelta(days=3),  # Skipped 2 days
-        ]
-
-        current, longest, alive = calculate_streak_with_forgiveness(dates)
-
-        assert current == 2
-        assert longest == 2
-        assert alive is True
-
-    def test_streak_breaks_at_three_day_gap(self):
-        """Should break streak at 3-day gap."""
-        today = utc_today()
-        dates = [
-            today,
-            today - timedelta(days=4),  # Skipped 3 days = broken
-        ]
-
-        current, longest, alive = calculate_streak_with_forgiveness(dates)
-
-        assert current == 1  # New streak from today
-        assert longest == 1  # Both segments are 1 day
-        assert alive is True
+        assert current == expected_current
+        assert longest == expected_longest
+        assert alive is expected_alive
 
     def test_preserves_longest_streak(self):
         """Should preserve longest streak even when current is shorter."""

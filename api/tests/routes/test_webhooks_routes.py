@@ -1,8 +1,13 @@
 """Tests for webhooks routes."""
 
 from unittest.mock import MagicMock, patch
+from uuid import uuid4
 
 from httpx import AsyncClient
+
+
+def _unique_svix_id(prefix: str) -> str:
+    return f"{prefix}_{uuid4().hex}"
 
 
 class TestClerkWebhook:
@@ -34,7 +39,7 @@ class TestClerkWebhook:
             "/api/webhooks/clerk",
             content=b'{"type": "user.created", "data": {}}',
             headers={
-                "svix-id": "svix_test_123",
+                "svix-id": _unique_svix_id("svix_test"),
                 "svix-timestamp": "1234567890",
                 "svix-signature": "v1,signature",
             },
@@ -143,7 +148,7 @@ class TestClerkWebhook:
             "/api/webhooks/clerk",
             content=b"{}",
             headers={
-                "svix-id": "svix_user_created",
+                "svix-id": _unique_svix_id("svix_user_created"),
                 "svix-timestamp": "1234567890",
                 "svix-signature": "v1,signature",
             },
@@ -177,7 +182,7 @@ class TestClerkWebhook:
             "/api/webhooks/clerk",
             content=b"{}",
             headers={
-                "svix-id": "svix_user_updated",
+                "svix-id": _unique_svix_id("svix_user_updated"),
                 "svix-timestamp": "1234567890",
                 "svix-signature": "v1,signature",
             },
@@ -206,7 +211,7 @@ class TestClerkWebhook:
             "/api/webhooks/clerk",
             content=b"{}",
             headers={
-                "svix-id": "svix_user_deleted",
+                "svix-id": _unique_svix_id("svix_user_deleted"),
                 "svix-timestamp": "1234567890",
                 "svix-signature": "v1,signature",
             },
@@ -235,12 +240,14 @@ class TestClerkWebhook:
         }
         mock_webhook_class.return_value = mock_webhook
 
+        svix_id = _unique_svix_id("svix_idempotent")
+
         # First request
         response1 = await client.post(
             "/api/webhooks/clerk",
             content=b"{}",
             headers={
-                "svix-id": "svix_idempotent_test",
+                "svix-id": svix_id,
                 "svix-timestamp": "1234567890",
                 "svix-signature": "v1,signature",
             },
@@ -251,7 +258,7 @@ class TestClerkWebhook:
             "/api/webhooks/clerk",
             content=b"{}",
             headers={
-                "svix-id": "svix_idempotent_test",
+                "svix-id": svix_id,
                 "svix-timestamp": "1234567890",
                 "svix-signature": "v1,signature",
             },

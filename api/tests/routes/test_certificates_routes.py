@@ -1,10 +1,21 @@
 """Tests for certificates routes."""
 
 from unittest.mock import MagicMock, patch
+from uuid import uuid4
 
-import pytest
+from fastapi import FastAPI
 from httpx import AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import delete
+
+from models import Certificate
+from repositories.user_repository import UserRepository
+from tests.factories import CertificateFactory, create_async
+
+
+async def _clear_user_certificates(app: FastAPI, user_id: str) -> None:
+    async with app.state.session_maker() as session:
+        await session.execute(delete(Certificate).where(Certificate.user_id == user_id))
+        await session.commit()
 
 
 class TestGenerateCertificate:
@@ -12,9 +23,10 @@ class TestGenerateCertificate:
 
     @patch("services.certificates_service.fetch_user_progress")
     async def test_creates_certificate_when_eligible(
-        self, mock_progress, authenticated_client: AsyncClient
+        self, mock_progress, authenticated_client: AsyncClient, app: FastAPI
     ):
         """Test creates certificate when user is eligible."""
+        await _clear_user_certificates(app, "user_test_123456789")
         # Mock the progress object with proper structure
         progress_mock = MagicMock()
         progress_mock.phases_completed = 7
@@ -38,9 +50,10 @@ class TestGenerateCertificate:
 
     @patch("services.certificates_service.fetch_user_progress")
     async def test_returns_403_when_not_eligible(
-        self, mock_progress, authenticated_client: AsyncClient
+        self, mock_progress, authenticated_client: AsyncClient, app: FastAPI
     ):
         """Test returns 403 when user is not eligible."""
+        await _clear_user_certificates(app, "user_test_123456789")
         progress_mock = MagicMock()
         progress_mock.phases_completed = 3
         progress_mock.total_phases = 7
@@ -57,15 +70,45 @@ class TestGenerateCertificate:
 
         assert response.status_code == 403
 
-    @pytest.mark.skip(reason="Requires proper DB setup for test data isolation")
     @patch("services.certificates_service.fetch_user_progress")
     async def test_returns_409_when_already_exists(
-        self, mock_progress, authenticated_client: AsyncClient, db_session: AsyncSession
+        self,
+        mock_progress,
+        authenticated_client: AsyncClient,
+        app: FastAPI,
+        test_user_id: str,
     ):
         """Test returns 409 when certificate already exists."""
-        # This test requires creating a certificate in the same session
-        # as the route handler, which is complex with current fixtures.
-        pass
+        await _clear_user_certificates(app, test_user_id)
+        progress_mock = MagicMock()
+        progress_mock.phases_completed = 7
+        progress_mock.total_phases = 7
+        progress_mock.is_program_complete = True
+        mock_progress.return_value = progress_mock
+
+        async with app.state.session_maker() as session:
+            user_repo = UserRepository(session)
+            await user_repo.get_or_create(test_user_id)
+            await create_async(
+                CertificateFactory,
+                session,
+                user_id=test_user_id,
+                certificate_type="full_completion",
+                recipient_name="Test User",
+                phases_completed=7,
+                total_phases=7,
+            )
+            await session.commit()
+
+        response = await authenticated_client.post(
+            "/api/certificates",
+            json={
+                "certificate_type": "full_completion",
+                "recipient_name": "Test User",
+            },
+        )
+
+        assert response.status_code == 409
 
     async def test_returns_401_for_unauthenticated(
         self, unauthenticated_client: AsyncClient
@@ -150,13 +193,37 @@ class TestCheckEligibility:
 class TestVerifyCertificate:
     """Tests for GET /api/certificates/verify/{verification_code} endpoint."""
 
-    @pytest.mark.skip(reason="Requires proper DB setup for test data isolation")
     async def test_returns_valid_for_existing_certificate(
-        self, unauthenticated_client: AsyncClient, db_session: AsyncSession
+        self, unauthenticated_client: AsyncClient, app: FastAPI
     ):
         """Test returns valid for existing certificate (public endpoint)."""
-        # This test requires creating test data visible to the route handler
-        pass
+        verification_code = f"LTC-VALID-{uuid4().hex.upper()}"
+
+        async with app.state.session_maker() as session:
+            user_repo = UserRepository(session)
+            user = await user_repo.get_or_create(f"user_verify_{uuid4().hex[:12]}")
+            certificate = await create_async(
+                CertificateFactory,
+                session,
+                user_id=user.id,
+                verification_code=verification_code,
+                certificate_type="full_completion",
+                recipient_name="Test User",
+                phases_completed=7,
+                total_phases=7,
+            )
+            await session.commit()
+
+        response = await unauthenticated_client.get(
+            f"/api/certificates/verify/{verification_code}"
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["is_valid"] is True
+        assert data["certificate"] is not None
+        assert data["certificate"]["id"] == certificate.id
+        assert data["certificate"]["verification_code"] == verification_code
 
     async def test_returns_invalid_for_nonexistent_code(
         self, unauthenticated_client: AsyncClient

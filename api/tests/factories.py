@@ -15,7 +15,9 @@ Usage:
     submission = SubmissionFactory.build(user_id=user.id)
 """
 
+import random
 from datetime import UTC, date, datetime, timedelta
+from functools import cache
 
 import factory
 from faker import Faker
@@ -34,6 +36,28 @@ from models import (
 )
 
 fake = Faker()
+
+
+@cache
+def _get_valid_phase_ids() -> list[int]:
+    """Return valid phase IDs from content, with a safe fallback.
+
+    Uses a lazy import to avoid content I/O at module import time.
+    """
+    try:
+        from services.progress_service import get_all_phase_ids
+    except Exception:
+        return [0, 1, 2, 3, 4, 5]
+
+    try:
+        return get_all_phase_ids()
+    except Exception:
+        return [0, 1, 2, 3, 4, 5]
+
+
+def _get_random_phase_id() -> int:
+    """Select a valid phase ID for test data."""
+    return random.choice(_get_valid_phase_ids())
 
 
 # =============================================================================
@@ -128,10 +152,10 @@ class SubmissionFactory(factory.Factory):
         lambda _: f"user_{fake.uuid4().replace('-', '')[:24]}"
     )
     requirement_id = factory.LazyAttribute(
-        lambda _: f"phase{fake.random_int(1, 5)}-hands-on-{fake.random_int(1, 5)}"
+        lambda _: f"phase{_get_random_phase_id()}-hands-on-{fake.random_int(1, 5)}"
     )
     submission_type = SubmissionType.GITHUB_PROFILE
-    phase_id = factory.LazyAttribute(lambda _: fake.random_int(1, 5))
+    phase_id = factory.LazyAttribute(lambda _: _get_random_phase_id())
     submitted_value = factory.LazyAttribute(
         lambda _: f"https://github.com/{fake.user_name()}"
     )
@@ -167,7 +191,7 @@ class UserActivityFactory(factory.Factory):
     activity_type = ActivityType.STEP_COMPLETE
     activity_date = factory.LazyFunction(lambda: date.today())
     reference_id = factory.LazyAttribute(
-        lambda _: f"phase1-topic{fake.random_int(1, 5)}"
+        lambda _: f"phase{_get_random_phase_id()}-topic{fake.random_int(1, 5)}"
     )
     created_at = factory.LazyFunction(lambda: datetime.now(UTC))
 
@@ -221,7 +245,7 @@ class StepProgressFactory(factory.Factory):
         lambda _: f"user_{fake.uuid4().replace('-', '')[:24]}"
     )
     topic_id = factory.LazyAttribute(
-        lambda _: f"phase{fake.random_int(1, 5)}-topic{fake.random_int(1, 5)}"
+        lambda _: f"phase{_get_random_phase_id()}-topic{fake.random_int(1, 5)}"
     )
     step_order = factory.Sequence(lambda n: n + 1)
     completed_at = factory.LazyFunction(lambda: datetime.now(UTC))
@@ -238,7 +262,7 @@ class QuestionAttemptFactory(factory.Factory):
         lambda _: f"user_{fake.uuid4().replace('-', '')[:24]}"
     )
     topic_id = factory.LazyAttribute(
-        lambda _: f"phase{fake.random_int(1, 5)}-topic{fake.random_int(1, 5)}"
+        lambda _: f"phase{_get_random_phase_id()}-topic{fake.random_int(1, 5)}"
     )
     question_id = factory.LazyAttribute(lambda obj: f"{obj.topic_id}-q1")
     user_answer = factory.LazyAttribute(lambda _: fake.paragraph(nb_sentences=3))

@@ -3,10 +3,12 @@
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from fastapi import FastAPI
 from httpx import AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from models import SubmissionType
+from repositories.user_repository import UserRepository
+from schemas import ClerkUserData
 
 
 class TestSubmitGitHubValidation:
@@ -14,7 +16,7 @@ class TestSubmitGitHubValidation:
 
     @patch("services.submissions_service.validate_submission")
     async def test_successful_validation(
-        self, mock_validate, authenticated_client: AsyncClient, db_session: AsyncSession
+        self, mock_validate, authenticated_client: AsyncClient
     ):
         """Test successful GitHub submission validation."""
         # Get a valid requirement that doesn't require GitHub username
@@ -100,19 +102,57 @@ class TestSubmitGitHubValidation:
 
         assert response.status_code == 404
 
-    @pytest.mark.skip(
-        reason="Complex test requiring full auth mock - covered by integration tests"
-    )
+    @patch("services.users_service.fetch_user_data")
     async def test_returns_400_when_github_username_required(
-        self, authenticated_client: AsyncClient, db_session: AsyncSession
+        self,
+        mock_fetch_user_data,
+        app: FastAPI,
+        authenticated_client: AsyncClient,
+        test_user_id: str,
     ):
         """Test returns 400 when GitHub username required but user doesn't have one."""
-        # This test is complex because it requires:
-        # 1. A user without GitHub username
-        # 2. A requirement that needs GitHub username
-        # 3. Properly mocked auth state
-        # Covered by integration tests instead.
-        pass
+        from services.phase_requirements_service import get_requirements_for_phase
+
+        requirements = get_requirements_for_phase(1)
+        requirement = next(
+            (
+                req
+                for req in requirements
+                if req.submission_type
+                in (
+                    SubmissionType.PROFILE_README,
+                    SubmissionType.REPO_FORK,
+                    SubmissionType.CTF_TOKEN,
+                )
+            ),
+            None,
+        )
+        assert requirement is not None, "Expected a GitHub-username requirement"
+
+        mock_fetch_user_data.return_value = ClerkUserData(
+            email="test@example.com",
+            first_name="Test",
+            last_name="User",
+            avatar_url="https://example.com/avatar.png",
+            github_username=None,
+        )
+
+        async with app.state.session_maker() as session:
+            user_repo = UserRepository(session)
+            await user_repo.get_or_create(test_user_id)
+            await session.commit()
+
+        response = await authenticated_client.post(
+            "/api/github/submit",
+            json={
+                "requirement_id": requirement.id,
+                "submitted_value": requirement.example_url or "ctf-token-123",
+            },
+        )
+
+        assert response.status_code == 400
+        data = response.json()
+        assert "link your GitHub account" in data["detail"]
 
     async def test_returns_401_for_unauthenticated(
         self, unauthenticated_client: AsyncClient

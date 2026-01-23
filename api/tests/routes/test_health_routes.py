@@ -3,12 +3,14 @@
 Tests health check endpoints for liveness and readiness probes.
 """
 
+import pytest
 from httpx import AsyncClient
 
 
 class TestHealthEndpoint:
     """Tests for GET /health."""
 
+    @pytest.mark.smoke
     async def test_returns_healthy_status(self, client: AsyncClient):
         """Should return healthy status."""
         response = await client.get("/health")
@@ -22,6 +24,7 @@ class TestHealthEndpoint:
 class TestReadyEndpoint:
     """Tests for GET /ready."""
 
+    @pytest.mark.smoke
     async def test_returns_ready_when_initialized(self, client: AsyncClient, app):
         """Should return ready when app is initialized and DB is reachable."""
         # Ensure app state is set for readiness

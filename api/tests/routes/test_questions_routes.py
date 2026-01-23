@@ -1,9 +1,16 @@
 """Tests for questions routes."""
 
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, patch
 
 import pytest
 from httpx import AsyncClient
+
+from services.questions_service import (
+    LLMGradingError,
+    LLMServiceUnavailableError,
+    QuestionAttemptLimitExceeded,
+)
 
 
 def _get_valid_question():
@@ -118,33 +125,83 @@ class TestSubmitQuestionAnswer:
 
         assert response.status_code == 404
 
-    @pytest.mark.skip(reason="Complex lockout test - covered by service tests")
-    @patch("services.questions_service.grade_answer")
+    @patch("routes.questions_routes.submit_question_answer")
     async def test_returns_429_when_locked_out(
-        self, mock_grade, authenticated_client: AsyncClient
+        self, mock_submit, authenticated_client: AsyncClient
     ):
         """Test returns 429 when user is locked out from too many attempts."""
-        # This test requires making multiple actual submissions which is complex
-        # The lockout logic is tested in the service layer tests
-        pass
+        topic_id, question_id = _get_valid_question()
+        if not question_id:
+            pytest.skip("No questions with expected_concepts in content")
 
-    @pytest.mark.skip(reason="Service layer exceptions - covered by service tests")
-    @patch("services.questions_service.grade_answer")
+        lockout_until = datetime.now(UTC) + timedelta(minutes=5)
+        mock_submit.side_effect = QuestionAttemptLimitExceeded(
+            lockout_until=lockout_until,
+            attempts_used=3,
+        )
+
+        response = await authenticated_client.post(
+            "/api/questions/submit",
+            json={
+                "topic_id": topic_id,
+                "question_id": question_id,
+                "user_answer": "Short answer",
+            },
+        )
+
+        assert response.status_code == 429
+        data = response.json()
+        assert data["attempts_used"] == 3
+        assert data["lockout_until"] == lockout_until.isoformat()
+        assert response.headers.get("Retry-After") is not None
+
+    @patch("routes.questions_routes.submit_question_answer")
     async def test_returns_503_when_llm_unavailable(
-        self, mock_grade, authenticated_client: AsyncClient
+        self, mock_submit, authenticated_client: AsyncClient
     ):
         """Test returns 503 when LLM service is unavailable."""
-        # Would need to patch at service layer, not grade_answer directly
-        pass
+        topic_id, question_id = _get_valid_question()
+        if not question_id:
+            pytest.skip("No questions with expected_concepts in content")
 
-    @pytest.mark.skip(reason="Service layer exceptions - covered by service tests")
-    @patch("services.questions_service.grade_answer")
+        mock_submit.side_effect = LLMServiceUnavailableError()
+
+        response = await authenticated_client.post(
+            "/api/questions/submit",
+            json={
+                "topic_id": topic_id,
+                "question_id": question_id,
+                "user_answer": "My answer is at least 10 characters long",
+            },
+        )
+
+        assert response.status_code == 503
+        data = response.json()
+        assert data["detail"] == "Question grading service is temporarily unavailable"
+
+    @patch("routes.questions_routes.submit_question_answer")
     async def test_returns_500_when_llm_grading_fails(
-        self, mock_grade, authenticated_client: AsyncClient
+        self, mock_submit, authenticated_client: AsyncClient
     ):
         """Test returns 500 when LLM grading fails unexpectedly."""
-        # Would need to patch at service layer, not grade_answer directly
-        pass
+        topic_id, question_id = _get_valid_question()
+        if not question_id:
+            pytest.skip("No questions with expected_concepts in content")
+
+        mock_submit.side_effect = LLMGradingError()
+
+        response = await authenticated_client.post(
+            "/api/questions/submit",
+            json={
+                "topic_id": topic_id,
+                "question_id": question_id,
+                "user_answer": "My answer is at least 10 characters long",
+            },
+        )
+
+        assert response.status_code == 500
+        data = response.json()
+        assert data["detail"] == "Failed to grade your answer. Please try again."
 
     async def test_returns_401_for_unauthenticated(
         self, unauthenticated_client: AsyncClient

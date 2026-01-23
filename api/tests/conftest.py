@@ -149,17 +149,6 @@ async def test_engine() -> AsyncGenerator[AsyncEngine]:
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
-    # Truncate all tables before each test to ensure clean state
-    async with engine.begin() as conn:
-        # Truncate in correct order due to foreign keys
-        await conn.execute(text("TRUNCATE processed_webhooks CASCADE"))
-        await conn.execute(text("TRUNCATE certificates CASCADE"))
-        await conn.execute(text("TRUNCATE question_attempts CASCADE"))
-        await conn.execute(text("TRUNCATE step_progress CASCADE"))
-        await conn.execute(text("TRUNCATE submissions CASCADE"))
-        await conn.execute(text("TRUNCATE user_activities CASCADE"))
-        await conn.execute(text("TRUNCATE users CASCADE"))
-
     yield engine
 
     await engine.dispose()
