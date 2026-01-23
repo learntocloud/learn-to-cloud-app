@@ -32,8 +32,9 @@ router = APIRouter(prefix="/api/questions", tags=["questions"])
     summary="Submit Question Answer",
     response_model=QuestionSubmitResponse,
     responses={
-        404: {"description": "Topic or question not found"},
         400: {"description": "Missing grading configuration"},
+        401: {"description": "Not authenticated"},
+        404: {"description": "Topic or question not found"},
         429: {
             "description": "Too many failed attempts - locked out temporarily",
             "content": {
@@ -52,8 +53,8 @@ router = APIRouter(prefix="/api/questions", tags=["questions"])
                 }
             },
         },
-        503: {"description": "Question grading service temporarily unavailable"},
         500: {"description": "Internal grading error - retry suggested"},
+        503: {"description": "Question grading service temporarily unavailable"},
     },
 )
 @limiter.limit(EXTERNAL_API_LIMIT)
