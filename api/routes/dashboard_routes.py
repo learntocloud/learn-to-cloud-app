@@ -34,7 +34,11 @@ logger = get_logger(__name__)
 router = APIRouter(prefix="/api/user", tags=["dashboard"])
 
 
-@router.get("/dashboard", response_model=DashboardResponse)
+@router.get(
+    "/dashboard",
+    response_model=DashboardResponse,
+    responses={401: {"description": "Not authenticated"}},
+)
 @limiter.limit("30/minute")
 async def get_dashboard_endpoint(
     request: Request,
@@ -82,7 +86,11 @@ async def get_phases_endpoint(
     return await get_phases_list(db, None, False)
 
 
-@router.get("/phases/{phase_slug}", response_model=PhaseDetailSchema)
+@router.get(
+    "/phases/{phase_slug}",
+    response_model=PhaseDetailSchema,
+    responses={404: {"description": "Phase not found"}},
+)
 @limiter.limit("30/minute")
 async def get_phase_detail_endpoint(
     request: Request,
@@ -110,6 +118,7 @@ async def get_phase_detail_endpoint(
 @router.get(
     "/phases/{phase_slug}/topics/{topic_slug}",
     response_model=TopicDetailSchema,
+    responses={404: {"description": "Topic or phase not found"}},
 )
 @limiter.limit("30/minute")
 async def get_topic_detail_endpoint(
