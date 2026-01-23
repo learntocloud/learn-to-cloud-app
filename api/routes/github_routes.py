@@ -26,6 +26,7 @@ router = APIRouter(prefix="/api/github", tags=["github"])
     status_code=201,
     responses={
         400: {"description": "GitHub username required to submit"},
+        401: {"description": "Not authenticated"},
         404: {"description": "Requirement not found"},
     },
 )
