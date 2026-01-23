@@ -7,6 +7,7 @@ from core.database import (
     check_db_connection,
     comprehensive_health_check,
 )
+from core.ratelimit import limiter
 from schemas import DetailedHealthResponse, HealthResponse, PoolStatusResponse
 
 router = APIRouter(tags=["health"])
@@ -19,6 +20,7 @@ async def health() -> HealthResponse:
 
 
 @router.get("/health/detailed", response_model=DetailedHealthResponse)
+@limiter.limit("30/minute")
 async def health_detailed(request: Request) -> DetailedHealthResponse:
     """Detailed health check with component status.
 
@@ -65,6 +67,7 @@ async def health_detailed(request: Request) -> DetailedHealthResponse:
         }
     },
 )
+@limiter.limit("30/minute")
 async def ready(request: Request) -> HealthResponse:
     """Readiness endpoint.
 
