@@ -42,10 +42,11 @@ ValidatedStepOrder = Annotated[int, Path(ge=1)]
     response_model=StepProgressResponse,
     status_code=201,
     responses={
-        404: {"description": "Topic not found"},
         400: {
             "description": "Step already completed, not unlocked, or invalid step order"
         },
+        401: {"description": "Not authenticated"},
+        404: {"description": "Topic not found"},
     },
 )
 @limiter.limit("30/minute")
@@ -89,7 +90,10 @@ async def complete_step_endpoint(
 @router.get(
     "/{topic_id}",
     response_model=TopicStepProgressResponse,
-    responses={404: {"description": "Topic not found"}},
+    responses={
+        401: {"description": "Not authenticated"},
+        404: {"description": "Topic not found"},
+    },
 )
 @limiter.limit("60/minute")
 async def get_topic_step_progress_endpoint(
@@ -127,8 +131,9 @@ async def get_topic_step_progress_endpoint(
     "/{topic_id}/{step_order}",
     response_model=StepUncompleteResponse,
     responses={
-        404: {"description": "Topic not found"},
         400: {"description": "Invalid step order"},
+        401: {"description": "Not authenticated"},
+        404: {"description": "Topic not found"},
     },
 )
 @limiter.limit("30/minute")
