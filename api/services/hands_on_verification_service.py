@@ -30,7 +30,7 @@ from ipaddress import ip_address
 from urllib.parse import urljoin, urlsplit
 
 import httpx
-from circuitbreaker import circuit
+from circuitbreaker import CircuitBreakerError, circuit
 
 from core import get_logger
 from core.telemetry import track_dependency
@@ -76,9 +76,9 @@ def _is_public_ip(ip_str: str) -> bool:
     except ValueError:
         return False
 
-    is_global = getattr(ip_obj, "is_global", None)
-    if callable(is_global):
-        return bool(is_global())
+    # Use is_global property if available (Python 3.4+)
+    if hasattr(ip_obj, "is_global"):
+        return ip_obj.is_global
 
     return not (
         ip_obj.is_private
@@ -563,11 +563,24 @@ async def validate_submission(
         )
 
     elif requirement.submission_type == SubmissionType.DEPLOYED_APP:
-        return await validate_deployed_app(
-            submitted_value,
-            requirement.expected_endpoint,
-            validate_journal_response=requirement.validate_response_body,
-        )
+        try:
+            return await validate_deployed_app(
+                submitted_value,
+                requirement.expected_endpoint,
+                validate_journal_response=requirement.validate_response_body,
+            )
+        except CircuitBreakerError:
+            set_wide_event_fields(
+                deployed_app_error="circuit_open",
+                deployed_app_url=submitted_value,
+            )
+            return ValidationResult(
+                is_valid=False,
+                message=(
+                    "Deployed app validation is temporarily unavailable due to "
+                    "high error rates. Please try again in a minute."
+                ),
+            )
 
     elif requirement.submission_type == SubmissionType.CTF_TOKEN:
         if not expected_username:

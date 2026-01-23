@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING
 from cachetools import TTLCache
 
 if TYPE_CHECKING:
-    from services.badges_service import Badge
+    from schemas import BadgeData
     from services.progress_service import UserProgress
 
 # Default cache settings
@@ -29,7 +29,7 @@ _progress_cache: TTLCache[str, "UserProgress"] = TTLCache(
 
 # Badge computation cache: keyed by (user_id, phases_hash), stores badge lists
 # TTL of 60 seconds to match progress cache
-_badge_cache: TTLCache[tuple[str, int], list["Badge"]] = TTLCache(
+_badge_cache: TTLCache[tuple[str, int], list["BadgeData"]] = TTLCache(
     maxsize=DEFAULT_MAX_SIZE,
     ttl=DEFAULT_TTL_SECONDS,
 )
@@ -57,12 +57,14 @@ def invalidate_progress_cache(user_id: str) -> None:
         _badge_cache.pop(key, None)
 
 
-def get_cached_badges(user_id: str, progress_hash: int) -> "list[Badge] | None":
+def get_cached_badges(user_id: str, progress_hash: int) -> "list[BadgeData] | None":
     """progress_hash ensures cache invalidation when completion data changes."""
     return _badge_cache.get((user_id, progress_hash))
 
 
-def set_cached_badges(user_id: str, progress_hash: int, badges: "list[Badge]") -> None:
+def set_cached_badges(
+    user_id: str, progress_hash: int, badges: "list[BadgeData]"
+) -> None:
     _badge_cache[(user_id, progress_hash)] = badges
 
 

@@ -11,7 +11,6 @@ import json
 from functools import lru_cache
 from pathlib import Path
 
-from core import get_logger
 from core.config import get_settings
 from core.wide_event import set_wide_event_fields
 from schemas import (
@@ -25,8 +24,6 @@ from schemas import (
     SecondaryLink,
     Topic,
 )
-
-logger = get_logger(__name__)
 
 
 def _get_content_dir() -> Path:

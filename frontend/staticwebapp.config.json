@@ -9,8 +9,7 @@
     },
     {
       "route": "/.clerk/*",
-      "allowedRoles": ["anonymous"],
-      "rewrite": "/api/.clerk/*"
+      "allowedRoles": ["anonymous"]
     },
     {
       "route": "/content/*",

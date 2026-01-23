@@ -248,6 +248,7 @@ async def get_updates() -> dict:
     return result
 
 
-def clear_updates_cache() -> None:
+async def clear_updates_cache() -> None:
     """Clear the updates cache. Useful for testing."""
-    _updates_cache.clear()
+    async with _cache_lock:
+        _updates_cache.clear()

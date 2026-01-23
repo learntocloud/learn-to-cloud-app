@@ -11,12 +11,6 @@ variable "clerk_publishable_key" {
   type        = string
 }
 
-variable "clerk_fapi_base" {
-  description = "Clerk Frontend API base URL (e.g., https://<instance>.clerk.accounts.dev)"
-  type        = string
-  default     = ""
-}
-
 variable "clerk_secret_key" {
   description = "Clerk secret key"
   type        = string

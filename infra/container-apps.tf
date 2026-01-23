@@ -114,11 +114,6 @@ resource "azurerm_container_app" "api" {
       }
 
       env {
-        name  = "CLERK_FAPI_BASE"
-        value = var.clerk_fapi_base
-      }
-
-      env {
         name        = "CLERK_SECRET_KEY"
         secret_name = "clerk-secret-key"
       }

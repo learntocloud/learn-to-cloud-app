@@ -17,9 +17,6 @@ from core.telemetry import add_custom_attribute
 from schemas import BadgeData
 from services.progress_service import get_phase_requirements
 
-# Alias for backwards compatibility
-Badge = BadgeData
-
 
 class StreakBadgeInfo(TypedDict):
     """Streak badge configuration."""
@@ -110,7 +107,7 @@ STREAK_BADGES: list[StreakBadgeInfo] = [
 
 def compute_phase_badges(
     phase_completion_counts: dict[int, tuple[int, int, bool]],
-) -> list[Badge]:
+) -> list[BadgeData]:
     """Compute which phase badges a user has earned.
 
     A phase badge is earned when ALL of the following are true:
@@ -123,7 +120,7 @@ def compute_phase_badges(
             (completed_steps, passed_questions, hands_on_validated)
 
     Returns:
-        List of earned Badge objects
+        List of earned BadgeData objects
     """
     earned_badges = []
 
@@ -142,7 +139,7 @@ def compute_phase_badges(
             and hands_on_validated
         ):
             earned_badges.append(
-                Badge(
+                BadgeData(
                     id=badge_info["id"],
                     name=badge_info["name"],
                     description=badge_info["description"],
@@ -153,21 +150,21 @@ def compute_phase_badges(
     return earned_badges
 
 
-def compute_streak_badges(longest_streak: int) -> list[Badge]:
+def compute_streak_badges(longest_streak: int) -> list[BadgeData]:
     """Compute which streak badges a user has earned.
 
     Args:
         longest_streak: User's longest streak (all-time)
 
     Returns:
-        List of earned Badge objects
+        List of earned BadgeData objects
     """
     earned_badges = []
 
     for badge_info in STREAK_BADGES:
         if longest_streak >= badge_info["required_streak"]:
             earned_badges.append(
-                Badge(
+                BadgeData(
                     id=badge_info["id"],
                     name=badge_info["name"],
                     description=badge_info["description"],
@@ -182,7 +179,7 @@ def compute_all_badges(
     phase_completion_counts: dict[int, tuple[int, int, bool]],
     longest_streak: int,
     user_id: str | None = None,
-) -> list[Badge]:
+) -> list[BadgeData]:
     """Compute all badges a user has earned.
 
     Args:
@@ -192,7 +189,7 @@ def compute_all_badges(
         user_id: Optional user ID for caching (if provided, results are cached)
 
     Returns:
-        List of all earned Badge objects
+        List of all earned BadgeData objects
 
     CACHING: If user_id is provided, results are cached for 60 seconds.
     """

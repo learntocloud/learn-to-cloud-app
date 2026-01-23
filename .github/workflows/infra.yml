@@ -31,7 +31,6 @@ env:
   TF_VAR_location: ${{ vars.AZURE_LOCATION }}
   # Use "none" in GitHub variable to disable custom domain
   TF_VAR_frontend_custom_domain: ${{ vars.FRONTEND_CUSTOM_DOMAIN == 'none' && '' || vars.FRONTEND_CUSTOM_DOMAIN }}
-  TF_VAR_clerk_fapi_base: ${{ vars.CLERK_FAPI_BASE }}
   ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
   ARM_TENANT_ID: ${{ fromJson(secrets.AZURE_CREDENTIALS).tenantId }}
   ARM_CLIENT_ID: ${{ fromJson(secrets.AZURE_CREDENTIALS).clientId }}

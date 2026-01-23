@@ -110,8 +110,8 @@ async def _get_llm_semaphore() -> asyncio.Semaphore:
         async with _semaphore_lock:
             if _llm_semaphore is None:
                 _llm_semaphore = asyncio.Semaphore(_MAX_CONCURRENT_LLM_REQUESTS)
-    assert _llm_semaphore is not None
-    return _llm_semaphore
+    # Guaranteed non-None after double-checked locking above
+    return _llm_semaphore  # type: ignore[return-value]
 
 
 async def get_gemini_client() -> genai.Client:
@@ -124,8 +124,8 @@ async def get_gemini_client() -> genai.Client:
                 if not settings.google_api_key:
                     raise ValueError("GOOGLE_API_KEY environment variable is not set")
                 _client = genai.Client(api_key=settings.google_api_key)
-    assert _client is not None
-    return _client
+    # Guaranteed non-None after double-checked locking above
+    return _client  # type: ignore[return-value]
 
 
 @track_dependency("gemini_api", "LLM")

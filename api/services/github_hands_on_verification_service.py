@@ -23,7 +23,7 @@ from datetime import UTC, datetime, timedelta
 from typing import TypedDict
 
 import httpx
-from circuitbreaker import circuit
+from circuitbreaker import CircuitBreakerError, circuit
 from tenacity import (
     RetryCallState,
     retry,
@@ -36,7 +36,7 @@ from core import get_logger
 from core.config import get_settings
 from core.telemetry import track_dependency
 from core.wide_event import set_wide_event_fields
-from schemas import ParsedGitHubUrl
+from schemas import ParsedGitHubUrl, ValidationResult
 
 logger = get_logger(__name__)
 
@@ -248,10 +248,6 @@ def parse_github_url(url: str) -> ParsedGitHubUrl:
     )
 
 
-# Import ValidationResult from schemas (canonical location)
-from schemas import ValidationResult  # noqa: E402
-
-
 @track_dependency("github_url_check", "HTTP")
 @circuit(
     failure_threshold=5,
@@ -299,6 +295,12 @@ async def check_github_url_exists(url: str) -> tuple[bool, str]:
     """
     try:
         return await _check_github_url_exists_with_retry(url)
+    except CircuitBreakerError:
+        set_wide_event_fields(
+            github_error="circuit_open",
+            github_url=url,
+        )
+        return False, "GitHub service temporarily unavailable. Please try again later."
     except RETRIABLE_EXCEPTIONS as e:
         set_wide_event_fields(
             github_error="url_check_retries_exhausted",
@@ -385,6 +387,12 @@ async def check_repo_is_fork_of(
         return await _check_repo_is_fork_of_with_retry(
             username, repo_name, original_repo
         )
+    except CircuitBreakerError:
+        set_wide_event_fields(
+            github_error="circuit_open",
+            github_repo=f"{username}/{repo_name}",
+        )
+        return False, "GitHub service temporarily unavailable. Please try again later."
     except RETRIABLE_EXCEPTIONS as e:
         set_wide_event_fields(
             github_error="fork_check_retries_exhausted",
@@ -746,7 +754,7 @@ async def validate_workflow_run(
             repo_exists=True,
         )
     except Exception as e:
-        logger.exception(f"Unexpected error checking workflow runs: {e}")
+        logger.exception("workflow_runs.unexpected_error", error=str(e))
         return ValidationResult(
             is_valid=False,
             message=f"Unexpected error: {str(e)}",
@@ -1003,7 +1011,7 @@ async def validate_repo_has_files(
         )
 
     except Exception as e:
-        logger.exception(f"Unexpected error searching for files: {e}")
+        logger.exception("file_search.unexpected_error", error=str(e))
         return ValidationResult(
             is_valid=False,
             message=f"Unexpected error: {str(e)}",
@@ -1337,6 +1345,19 @@ async def validate_container_image(
 
     try:
         return await _check_container_image_with_retry(registry, image_path, tag)
+    except CircuitBreakerError:
+        set_wide_event_fields(
+            github_error="circuit_open",
+            container_image=f"{registry}/{image_path}:{tag}",
+        )
+        return ValidationResult(
+            is_valid=False,
+            message=(
+                "Container registry temporarily unavailable. " "Please try again later."
+            ),
+            username_match=True,
+            repo_exists=False,
+        )
     except RETRIABLE_EXCEPTIONS as e:
         set_wide_event_fields(
             github_error="container_image_retries_exhausted",
