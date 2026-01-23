@@ -45,9 +45,19 @@ def _get_cache_control() -> str:
 # --- Collection endpoints ---
 
 
-@router.post("", response_model=CertificateResponse, status_code=201)
+@router.post(
+    "",
+    response_model=CertificateResponse,
+    status_code=201,
+    responses={
+        409: {"description": "Certificate already exists"},
+        403: {"description": "User not eligible for certificate"},
+    },
+)
+@limiter.limit("10/minute")
 async def generate_certificate_endpoint(
-    request: CertificateRequest,
+    request: Request,
+    body: CertificateRequest,
     user_id: UserId,
     db: DbSession,
 ) -> CertificateResponse:
@@ -58,8 +68,8 @@ async def generate_certificate_endpoint(
         result = await create_certificate(
             db=db,
             user_id=user_id,
-            certificate_type=request.certificate_type,
-            recipient_name=request.recipient_name,
+            certificate_type=body.certificate_type,
+            recipient_name=body.recipient_name,
         )
     except CertificateAlreadyExistsError:
         raise HTTPException(
