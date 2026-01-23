@@ -85,7 +85,11 @@ async def generate_certificate_endpoint(
     return result.certificate
 
 
-@router.get("", response_model=UserCertificatesResponse)
+@router.get(
+    "",
+    response_model=UserCertificatesResponse,
+    responses={401: {"description": "Not authenticated"}},
+)
 async def get_user_certificates(
     user_id: UserId,
     db: DbSession,
@@ -110,6 +114,10 @@ async def get_user_certificates(
 @router.get(
     "/eligibility/{certificate_type}",
     response_model=CertificateEligibilityResponse,
+    responses={
+        400: {"description": "Invalid certificate type"},
+        401: {"description": "Not authenticated"},
+    },
 )
 async def check_certificate_eligibility(
     certificate_type: str,
@@ -144,7 +152,11 @@ async def check_certificate_eligibility(
     )
 
 
-@router.get("/verify/{verification_code}", response_model=CertificateVerifyResponse)
+@router.get(
+    "/verify/{verification_code}",
+    response_model=CertificateVerifyResponse,
+    responses={422: {"description": "Validation error - code too short or long"}},
+)
 async def verify_certificate_endpoint(
     db: DbSession,
     verification_code: str = Path(min_length=10, max_length=64),
@@ -163,7 +175,8 @@ async def verify_certificate_endpoint(
 @router.get(
     "/verify/{verification_code}/pdf",
     responses={
-        200: {"content": {"application/pdf": {}}, "description": "PDF certificate"}
+        200: {"content": {"application/pdf": {}}, "description": "PDF certificate"},
+        404: {"description": "Certificate not found"},
     },
 )
 @limiter.limit("10/minute")
@@ -197,7 +210,9 @@ async def get_verified_certificate_pdf_endpoint(
 @router.get(
     "/verify/{verification_code}/png",
     responses={
-        200: {"content": {"image/png": {}}, "description": "PNG certificate image"}
+        200: {"content": {"image/png": {}}, "description": "PNG certificate image"},
+        404: {"description": "Certificate not found"},
+        501: {"description": "PNG generation not implemented"},
     },
 )
 @limiter.limit("10/minute")
@@ -238,7 +253,9 @@ async def get_verified_certificate_png_endpoint(
 @router.get(
     "/{certificate_id}/pdf",
     responses={
-        200: {"content": {"application/pdf": {}}, "description": "PDF certificate"}
+        200: {"content": {"application/pdf": {}}, "description": "PDF certificate"},
+        401: {"description": "Not authenticated"},
+        404: {"description": "Certificate not found"},
     },
 )
 @limiter.limit("10/minute")
@@ -272,7 +289,10 @@ async def get_certificate_pdf_endpoint(
 @router.get(
     "/{certificate_id}/png",
     responses={
-        200: {"content": {"image/png": {}}, "description": "PNG certificate image"}
+        200: {"content": {"image/png": {}}, "description": "PNG certificate image"},
+        401: {"description": "Not authenticated"},
+        404: {"description": "Certificate not found"},
+        501: {"description": "PNG generation not implemented"},
     },
 )
 @limiter.limit("10/minute")
