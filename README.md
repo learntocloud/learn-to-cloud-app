@@ -36,6 +36,28 @@ A web application for tracking your progress through the [Learn to Cloud](https:
 
 ### Local Development
 
+#### Using Devcontainer
+If you're using the VS Code Devcontainer, the environment is mostly auto-configured in post-create.
+
+**1. Reload devcontainer** in VS Code (if not already open)
+
+**2. Edit environment variables** — Update `api/.env` with your own values (Clerk keys, Google API key, etc.)
+
+**3. Start the services:**
+
+```bash
+# Terminal 1: API
+cd api
+docker compose up -d db                # Start database
+.venv/bin/alembic upgrade head         # Run migrations
+.venv/bin/python -m uvicorn main:app --reload --port 8000
+
+# Terminal 2: Frontend
+cd frontend
+npm run dev
+```
+
+#### Local Setup (without Devcontainer)
 **1. Start the database (Docker)**
 
 ```bash
@@ -46,6 +68,7 @@ docker compose up -d db
 
 ```bash
 cd api
+uv venv                    # Create virtual environment
 uv sync                    # Install Python dependencies
 cp .env.example .env       # Create environment config (edit if needed)
 ```

@@ -16,6 +16,11 @@ ENV/
 .env.azure
 local.settings.json
 
+# Allow .env.example files (configuration templates)
+!.env.example
+!api/.env.example
+!frontend/.env.example
+
 # Database
 *.db
 *.sqlite
