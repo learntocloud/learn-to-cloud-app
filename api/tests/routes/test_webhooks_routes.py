@@ -40,7 +40,7 @@ class TestClerkWebhook:
             },
         )
 
-        assert response.status_code == 200
+        assert response.status_code == 201
         data = response.json()
         assert data["status"] in ("processed", "already_processed")
 
@@ -149,7 +149,7 @@ class TestClerkWebhook:
             },
         )
 
-        assert response.status_code == 200
+        assert response.status_code == 201
         data = response.json()
         assert data["event_type"] == "user.created"
 
@@ -183,7 +183,7 @@ class TestClerkWebhook:
             },
         )
 
-        assert response.status_code == 200
+        assert response.status_code == 201
         data = response.json()
         assert data["event_type"] == "user.updated"
 
@@ -212,7 +212,7 @@ class TestClerkWebhook:
             },
         )
 
-        assert response.status_code == 200
+        assert response.status_code == 201
         data = response.json()
         assert data["event_type"] == "user.deleted"
 
@@ -257,6 +257,6 @@ class TestClerkWebhook:
             },
         )
 
-        assert response1.status_code == 200
-        assert response2.status_code == 200
+        assert response1.status_code == 201
+        assert response2.status_code == 201
         assert response2.json()["status"] == "already_processed"

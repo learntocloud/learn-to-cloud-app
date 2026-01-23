@@ -18,6 +18,7 @@ router = APIRouter(prefix="/api/webhooks", tags=["webhooks"])
 @router.post(
     "/clerk",
     response_model=WebhookResponse,
+    status_code=201,
     summary="Handle Clerk webhooks",
     description=(
         "Receives and processes Clerk webhook events for user synchronization. "
