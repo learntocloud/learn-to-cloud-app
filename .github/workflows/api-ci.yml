@@ -1,0 +1,102 @@
+name: API CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'api/**'
+      - 'content/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'api/**'
+      - 'content/**'
+
+defaults:
+  run:
+    shell: bash
+    working-directory: api
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: learntocloud
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/learntocloud
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: "api/pyproject.toml"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.9.26"
+          enable-cache: true
+
+      - name: Install dependencies
+        run: |
+          uv sync --extra dev --group dev
+          uv tool install ty
+
+      - name: Ruff lint
+        uses: astral-sh/ruff-action@v3
+        with:
+          src: "./api"
+          args: "check"
+          version: "0.8.6"
+
+      - name: Ruff format check
+        uses: astral-sh/ruff-action@v3
+        with:
+          src: "./api"
+          args: "format --check"
+          version: "0.8.6"
+
+      - name: Type check (ty)
+        run: uv tool run ty check --python .venv/bin/python
+
+      - name: Run tests with coverage
+        run: uv run pytest tests/ -v --tb=short --cov=. --cov-report=xml --cov-report=term-missing
+
+  smoke:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    needs: [lint-and-test]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: "api/pyproject.toml"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.9.26"
+          enable-cache: true
+
+      - name: Install dependencies
+        working-directory: api
+        run: uv sync --extra dev --group dev
+
+      - name: Run smoke tests
+        working-directory: api
+        run: uv run pytest -m smoke tests/ -v --tb=short --no-cov
