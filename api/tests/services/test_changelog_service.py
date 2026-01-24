@@ -1,14 +1,12 @@
 """Tests for changelog/updates service."""
 
-import asyncio
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
 
 from services.changelog_service import (
-    SKIP_PATTERNS,
     _categorize_commit,
     _clean_commit_message,
     _format_week_header,

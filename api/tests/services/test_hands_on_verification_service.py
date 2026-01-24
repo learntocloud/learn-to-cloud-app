@@ -4,13 +4,14 @@ Tests validation functions for deployed apps, Journal API responses,
 and the main submission routing logic.
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
+
 import httpx
+import pytest
 from circuitbreaker import CircuitBreakerError
 
-from schemas import HandsOnRequirement, ValidationResult
 from models import SubmissionType
+from schemas import HandsOnRequirement, ValidationResult
 
 
 class TestIsPublicIp:
@@ -93,8 +94,9 @@ class TestHostResolvesToPublicIp:
     @pytest.mark.asyncio
     async def test_hostname_resolution_fails(self):
         """Failed DNS resolution should return False."""
-        from services.hands_on_verification_service import _host_resolves_to_public_ip
         import socket
+
+        from services.hands_on_verification_service import _host_resolves_to_public_ip
 
         with patch("services.hands_on_verification_service.asyncio.to_thread") as mock:
             mock.side_effect = socket.gaierror()
@@ -322,7 +324,9 @@ class TestValidateDeployedApp:
         ) as mock_validate:
             mock_validate.return_value = "https://app.example.com"
 
-            with patch("services.hands_on_verification_service.httpx.AsyncClient") as mock_client_class:
+            with patch(
+                "services.hands_on_verification_service.httpx.AsyncClient"
+            ) as mock_client_class:
                 mock_client = AsyncMock()
                 mock_client.__aenter__.return_value = mock_client
                 mock_client.__aexit__.return_value = None
@@ -343,7 +347,9 @@ class TestValidateDeployedApp:
         ) as mock_validate:
             mock_validate.return_value = "https://slow-app.example.com"
 
-            with patch("services.hands_on_verification_service.httpx.AsyncClient") as mock_client_class:
+            with patch(
+                "services.hands_on_verification_service.httpx.AsyncClient"
+            ) as mock_client_class:
                 mock_client = AsyncMock()
                 mock_client.__aenter__.return_value = mock_client
                 mock_client.__aexit__.return_value = None
@@ -364,7 +370,9 @@ class TestValidateDeployedApp:
         ) as mock_validate:
             mock_validate.return_value = "https://offline.example.com"
 
-            with patch("services.hands_on_verification_service.httpx.AsyncClient") as mock_client_class:
+            with patch(
+                "services.hands_on_verification_service.httpx.AsyncClient"
+            ) as mock_client_class:
                 mock_client = AsyncMock()
                 mock_client.__aenter__.return_value = mock_client
                 mock_client.__aexit__.return_value = None
@@ -389,7 +397,9 @@ class TestValidateDeployedApp:
         ) as mock_validate:
             mock_validate.return_value = "https://app.example.com/missing"
 
-            with patch("services.hands_on_verification_service.httpx.AsyncClient") as mock_client_class:
+            with patch(
+                "services.hands_on_verification_service.httpx.AsyncClient"
+            ) as mock_client_class:
                 mock_client = AsyncMock()
                 mock_client.__aenter__.return_value = mock_client
                 mock_client.__aexit__.return_value = None
@@ -416,7 +426,9 @@ class TestValidateDeployedApp:
         ) as mock_validate:
             mock_validate.return_value = "https://app.example.com/protected"
 
-            with patch("services.hands_on_verification_service.httpx.AsyncClient") as mock_client_class:
+            with patch(
+                "services.hands_on_verification_service.httpx.AsyncClient"
+            ) as mock_client_class:
                 mock_client = AsyncMock()
                 mock_client.__aenter__.return_value = mock_client
                 mock_client.__aexit__.return_value = None
@@ -451,7 +463,9 @@ class TestValidateDeployedApp:
                 "https://app.example.com/final",
             ]
 
-            with patch("services.hands_on_verification_service.httpx.AsyncClient") as mock_client_class:
+            with patch(
+                "services.hands_on_verification_service.httpx.AsyncClient"
+            ) as mock_client_class:
                 mock_client = AsyncMock()
                 mock_client.__aenter__.return_value = mock_client
                 mock_client.__aexit__.return_value = None
@@ -471,7 +485,9 @@ class TestValidateDeployedApp:
         ) as mock_validate:
             mock_validate.side_effect = ValueError("URL must use https")
 
-            with patch("services.hands_on_verification_service.httpx.AsyncClient") as mock_client_class:
+            with patch(
+                "services.hands_on_verification_service.httpx.AsyncClient"
+            ) as mock_client_class:
                 mock_client = AsyncMock()
                 mock_client.__aenter__.return_value = mock_client
                 mock_client.__aexit__.return_value = None
@@ -537,7 +553,7 @@ class TestValidateSubmission:
         ) as mock:
             mock.return_value = ValidationResult(is_valid=True, message="OK")
 
-            result = await validate_submission(
+            await validate_submission(
                 requirement, "https://github.com/user/user", "user"
             )
             mock.assert_called_once()
@@ -581,9 +597,7 @@ class TestValidateSubmission:
         ) as mock:
             mock.return_value = ValidationResult(is_valid=True, message="OK")
 
-            result = await validate_submission(
-                requirement, "https://app.example.com", None
-            )
+            await validate_submission(requirement, "https://app.example.com", None)
             mock.assert_called_once()
 
     @pytest.mark.asyncio
@@ -628,7 +642,7 @@ class TestValidateSubmission:
         ) as mock:
             mock.return_value = ValidationResult(is_valid=True, message="OK")
 
-            result = await validate_submission(requirement, "token123", "user")
+            await validate_submission(requirement, "token123", "user")
             mock.assert_called_once()
 
     @pytest.mark.asyncio
@@ -666,9 +680,7 @@ class TestValidateSubmission:
         ) as mock:
             mock.return_value = ValidationResult(is_valid=True, message="OK")
 
-            result = await validate_submission(
-                requirement, "https://github.com/user", "user"
-            )
+            await validate_submission(requirement, "https://github.com/user", "user")
             mock.assert_called_once()
 
     @pytest.mark.asyncio
@@ -684,12 +696,10 @@ class TestValidateSubmission:
             submission_type=SubmissionType.REPO_URL,
         )
 
-        with patch(
-            "services.hands_on_verification_service.validate_repo_url"
-        ) as mock:
+        with patch("services.hands_on_verification_service.validate_repo_url") as mock:
             mock.return_value = ValidationResult(is_valid=True, message="OK")
 
-            result = await validate_submission(
+            await validate_submission(
                 requirement, "https://github.com/user/repo", "user"
             )
             mock.assert_called_once()
@@ -712,9 +722,7 @@ class TestValidateSubmission:
         ) as mock:
             mock.return_value = ValidationResult(is_valid=True, message="OK")
 
-            result = await validate_submission(
-                requirement, '[{"id": "123"}]', None
-            )
+            await validate_submission(requirement, '[{"id": "123"}]', None)
             mock.assert_called_once()
 
     @pytest.mark.asyncio
@@ -731,12 +739,10 @@ class TestValidateSubmission:
             required_repo="original/repo",
         )
 
-        with patch(
-            "services.hands_on_verification_service.validate_repo_fork"
-        ) as mock:
+        with patch("services.hands_on_verification_service.validate_repo_fork") as mock:
             mock.return_value = ValidationResult(is_valid=True, message="OK")
 
-            result = await validate_submission(
+            await validate_submission(
                 requirement, "https://github.com/user/repo", "user"
             )
             mock.assert_called_once()
@@ -779,7 +785,7 @@ class TestValidateSubmission:
         ) as mock:
             mock.return_value = ValidationResult(is_valid=True, message="OK")
 
-            result = await validate_submission(
+            await validate_submission(
                 requirement, "https://github.com/user/repo", "user"
             )
             mock.assert_called_once()
@@ -804,7 +810,7 @@ class TestValidateSubmission:
         ) as mock:
             mock.return_value = ValidationResult(is_valid=True, message="OK")
 
-            result = await validate_submission(
+            await validate_submission(
                 requirement, "https://github.com/user/repo", "user"
             )
             mock.assert_called_once()
@@ -847,9 +853,7 @@ class TestValidateSubmission:
         ) as mock:
             mock.return_value = ValidationResult(is_valid=True, message="OK")
 
-            result = await validate_submission(
-                requirement, "docker.io/user/image", "user"
-            )
+            await validate_submission(requirement, "docker.io/user/image", "user")
             mock.assert_called_once()
 
     @pytest.mark.asyncio
@@ -887,7 +891,9 @@ class TestValidateDeployedJournalResponse:
             "created_at": "2024-01-15T10:30:00Z"
         }]"""
 
-        result = _validate_deployed_journal_response(response, "https://app.example.com")
+        result = _validate_deployed_journal_response(
+            response, "https://app.example.com"
+        )
         assert result.is_valid is True
         assert "deployed" in result.message.lower()
 
@@ -924,6 +930,8 @@ class TestValidateDeployedJournalResponse:
             "work": "Work"
         }]"""
 
-        result = _validate_deployed_journal_response(response, "https://app.example.com")
+        result = _validate_deployed_journal_response(
+            response, "https://app.example.com"
+        )
         assert result.is_valid is False
         assert "missing" in result.message.lower()

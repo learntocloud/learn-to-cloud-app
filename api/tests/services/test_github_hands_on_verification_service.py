@@ -4,9 +4,9 @@ Tests GitHub-specific validation functions including profile verification,
 repository checks, workflow runs, file searches, and container image validation.
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-import httpx
+
+import pytest
 from circuitbreaker import CircuitBreakerError
 
 from schemas import ValidationResult
@@ -206,11 +206,10 @@ class TestGitHubClientManagement:
     @pytest.mark.asyncio
     async def test_close_github_client(self):
         """close_github_client should close and clear client."""
+        import services.github_hands_on_verification_service as module
         from services.github_hands_on_verification_service import (
             close_github_client,
-            _github_http_client,
         )
-        import services.github_hands_on_verification_service as module
 
         # Create a mock client
         mock_client = AsyncMock()
@@ -320,7 +319,9 @@ class TestCheckGitHubUrlExists:
         ) as mock:
             mock.return_value = (False, "URL not found (404)")
 
-            exists, msg = await check_github_url_exists("https://github.com/nonexistent")
+            exists, msg = await check_github_url_exists(
+                "https://github.com/nonexistent"
+            )
             assert exists is False
             assert "404" in msg
 
@@ -397,7 +398,9 @@ class TestValidateGitHubProfile:
     @pytest.mark.asyncio
     async def test_valid_profile(self):
         """Valid profile should pass."""
-        from services.github_hands_on_verification_service import validate_github_profile
+        from services.github_hands_on_verification_service import (
+            validate_github_profile,
+        )
 
         with patch(
             "services.github_hands_on_verification_service.check_github_url_exists"
@@ -413,7 +416,9 @@ class TestValidateGitHubProfile:
     @pytest.mark.asyncio
     async def test_profile_username_mismatch(self):
         """Username mismatch should fail."""
-        from services.github_hands_on_verification_service import validate_github_profile
+        from services.github_hands_on_verification_service import (
+            validate_github_profile,
+        )
 
         result = await validate_github_profile(
             "https://github.com/otheruser", "testuser"
@@ -425,7 +430,9 @@ class TestValidateGitHubProfile:
     @pytest.mark.asyncio
     async def test_profile_not_found(self):
         """Non-existent profile should fail."""
-        from services.github_hands_on_verification_service import validate_github_profile
+        from services.github_hands_on_verification_service import (
+            validate_github_profile,
+        )
 
         with patch(
             "services.github_hands_on_verification_service.check_github_url_exists"
@@ -441,7 +448,9 @@ class TestValidateGitHubProfile:
     @pytest.mark.asyncio
     async def test_profile_invalid_url(self):
         """Invalid URL should fail."""
-        from services.github_hands_on_verification_service import validate_github_profile
+        from services.github_hands_on_verification_service import (
+            validate_github_profile,
+        )
 
         result = await validate_github_profile("not-a-url", "testuser")
         assert result.is_valid is False
@@ -501,7 +510,9 @@ class TestValidateProfileReadme:
     @pytest.mark.asyncio
     async def test_valid_profile_readme(self):
         """Valid profile README should pass."""
-        from services.github_hands_on_verification_service import validate_profile_readme
+        from services.github_hands_on_verification_service import (
+            validate_profile_readme,
+        )
 
         with patch(
             "services.github_hands_on_verification_service.check_github_url_exists"
@@ -517,7 +528,9 @@ class TestValidateProfileReadme:
     @pytest.mark.asyncio
     async def test_profile_readme_wrong_repo(self):
         """README in wrong repo should fail."""
-        from services.github_hands_on_verification_service import validate_profile_readme
+        from services.github_hands_on_verification_service import (
+            validate_profile_readme,
+        )
 
         result = await validate_profile_readme(
             "https://github.com/testuser/other-repo/blob/main/README.md",
@@ -529,7 +542,9 @@ class TestValidateProfileReadme:
     @pytest.mark.asyncio
     async def test_profile_readme_username_mismatch(self):
         """Username mismatch should fail."""
-        from services.github_hands_on_verification_service import validate_profile_readme
+        from services.github_hands_on_verification_service import (
+            validate_profile_readme,
+        )
 
         result = await validate_profile_readme(
             "https://github.com/otheruser/otheruser/blob/main/README.md",
@@ -609,8 +624,9 @@ class TestValidateWorkflowRun:
     @pytest.mark.asyncio
     async def test_valid_workflow_runs(self):
         """Repo with successful workflow runs should pass."""
+        from datetime import UTC, datetime
+
         from services.github_hands_on_verification_service import validate_workflow_run
-        from datetime import datetime, UTC
 
         with patch(
             "services.github_hands_on_verification_service.check_github_url_exists"
@@ -696,7 +712,9 @@ class TestValidateRepoHasFiles:
     @pytest.mark.asyncio
     async def test_files_found(self):
         """Files matching patterns should pass."""
-        from services.github_hands_on_verification_service import validate_repo_has_files
+        from services.github_hands_on_verification_service import (
+            validate_repo_has_files,
+        )
 
         with patch(
             "services.github_hands_on_verification_service.check_github_url_exists"
@@ -708,7 +726,9 @@ class TestValidateRepoHasFiles:
             ) as mock_search:
                 mock_search.return_value = {
                     "total_count": 1,
-                    "items": [{"path": "Dockerfile", "name": "Dockerfile", "type": "file"}],
+                    "items": [
+                        {"path": "Dockerfile", "name": "Dockerfile", "type": "file"}
+                    ],
                 }
 
                 result = await validate_repo_has_files(
@@ -722,7 +742,9 @@ class TestValidateRepoHasFiles:
     @pytest.mark.asyncio
     async def test_files_not_found(self):
         """Missing files should fail."""
-        from services.github_hands_on_verification_service import validate_repo_has_files
+        from services.github_hands_on_verification_service import (
+            validate_repo_has_files,
+        )
 
         with patch(
             "services.github_hands_on_verification_service.check_github_url_exists"
@@ -746,7 +768,9 @@ class TestValidateRepoHasFiles:
     @pytest.mark.asyncio
     async def test_files_search_rate_limited_falls_back(self):
         """Rate-limited search should fall back to contents API."""
-        from services.github_hands_on_verification_service import validate_repo_has_files
+        from services.github_hands_on_verification_service import (
+            validate_repo_has_files,
+        )
 
         with patch(
             "services.github_hands_on_verification_service.check_github_url_exists"
@@ -768,7 +792,7 @@ class TestValidateRepoHasFiles:
                         repo_exists=True,
                     )
 
-                    result = await validate_repo_has_files(
+                    await validate_repo_has_files(
                         "https://github.com/testuser/repo",
                         "testuser",
                         ["Dockerfile"],

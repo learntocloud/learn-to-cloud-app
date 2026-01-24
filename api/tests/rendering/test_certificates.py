@@ -136,7 +136,12 @@ class TestGetLogoInlineSvg:
 
     def test_prefixes_ids_to_avoid_collisions(self):
         """Test prefixes IDs in the logo SVG."""
-        svg_with_id = '<svg viewBox="0 0 100 100"><defs><linearGradient id="grad1"/></defs><rect id="rect1"/></svg>'
+        svg_with_id = (
+            '<svg viewBox="0 0 100 100">'
+            '<defs><linearGradient id="grad1"/></defs>'
+            '<rect id="rect1"/>'
+            "</svg>"
+        )
 
         with patch("rendering.certificates._LOGO_SVG_PATH") as mock_path:
             mock_path.read_text.return_value = svg_with_id
@@ -150,7 +155,9 @@ class TestGetLogoInlineSvg:
 
     def test_removes_script_tags(self):
         """Test removes script tags for security."""
-        svg_with_script = '<svg viewBox="0 0 100 100"><script>alert("xss")</script><rect/></svg>'
+        svg_with_script = (
+            '<svg viewBox="0 0 100 100"><script>alert("xss")</script><rect/></svg>'
+        )
 
         with patch("rendering.certificates._LOGO_SVG_PATH") as mock_path:
             mock_path.read_text.return_value = svg_with_script
@@ -326,7 +333,7 @@ class TestSvgToPdf:
                 "builtins.__import__",
                 return_value=mock_cairosvg,
             ):
-                result = certificates.svg_to_pdf("<svg></svg>")
+                certificates.svg_to_pdf("<svg></svg>")
 
                 # The function should have been called
                 mock_cairosvg.svg2pdf.assert_called_once()

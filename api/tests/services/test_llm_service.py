@@ -1,6 +1,5 @@
 """Tests for LLM (Gemini) service."""
 
-import asyncio
 import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -8,8 +7,8 @@ import pytest
 from circuitbreaker import CircuitBreakerError
 
 from services.llm_service import (
-    GeminiServiceUnavailable,
     _INJECTION_REGEX,
+    GeminiServiceUnavailable,
     _sanitize_user_input,
     get_gemini_client,
     grade_answer,
@@ -62,9 +61,9 @@ class TestSanitizeUserInput:
     def test_allows_legitimate_content(self):
         """Test does not flag legitimate technical content."""
         legitimate_answers = [
-            "Cloud computing is the delivery of computing services over the internet.",
+            "Cloud computing is the delivery of services over the internet.",
             "A VPC is a virtual private cloud that isolates your resources.",
-            "Containers package code and dependencies together for consistent deployment.",
+            "Containers package code and dependencies for consistent deployment.",
             "CI/CD stands for Continuous Integration and Continuous Deployment.",
         ]
 
@@ -177,7 +176,7 @@ class TestGradeAnswer:
                 result = await grade_answer(
                     question_prompt="What is cloud computing?",
                     expected_concepts=["scalability", "on-demand", "internet"],
-                    user_answer="Cloud computing delivers computing services over the internet.",
+                    user_answer="Cloud computing delivers services over the internet.",
                     topic_name="Cloud Fundamentals",
                 )
 
@@ -242,7 +241,8 @@ class TestGradeAnswer:
                 mock_settings.return_value.gemini_model = "gemini-2.0-flash"
 
                 with patch(
-                    "services.llm_service._sanitize_user_input", return_value="sanitized"
+                    "services.llm_service._sanitize_user_input",
+                    return_value="sanitized",
                 ) as mock_sanitize:
                     await grade_answer(
                         question_prompt="Test question",

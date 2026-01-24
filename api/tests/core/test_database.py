@@ -14,7 +14,6 @@ from core.database import (
     _get_azure_token,
     _get_azure_token_sync,
     _reset_azure_credential,
-    _setup_pool_event_listeners,
     check_azure_token_acquisition,
     check_db_connection,
     comprehensive_health_check,
@@ -140,7 +139,9 @@ class TestBuildAzureDatabaseUrl:
         """Test builds correct connection URL."""
         with patch("core.database.get_settings") as mock_settings:
             mock_settings.return_value.postgres_user = "admin@server"
-            mock_settings.return_value.postgres_host = "server.postgres.database.azure.com"
+            mock_settings.return_value.postgres_host = (
+                "server.postgres.database.azure.com"
+            )
             mock_settings.return_value.postgres_database = "mydb"
 
             url = _build_azure_database_url()
@@ -184,7 +185,9 @@ class TestCreateEngine:
         with patch("core.database.get_settings") as mock_settings:
             mock_settings.return_value.use_azure_postgres = True
             mock_settings.return_value.postgres_user = "admin"
-            mock_settings.return_value.postgres_host = "server.postgres.database.azure.com"
+            mock_settings.return_value.postgres_host = (
+                "server.postgres.database.azure.com"
+            )
             mock_settings.return_value.postgres_database = "mydb"
             mock_settings.return_value.db_echo = False
             mock_settings.return_value.db_pool_size = 5
@@ -197,7 +200,7 @@ class TestCreateEngine:
                     mock_engine = MagicMock()
                     mock_create.return_value = mock_engine
 
-                    engine = create_engine()
+                    create_engine()
 
                     # Check async_creator is passed for Azure
                     call_kwargs = mock_create.call_args[1]
@@ -226,7 +229,11 @@ class TestInitDb:
         mock_conn = AsyncMock()
         mock_conn.execute = AsyncMock()
 
-        mock_engine.connect = MagicMock(return_value=AsyncMock(__aenter__=AsyncMock(return_value=mock_conn), __aexit__=AsyncMock()))
+        mock_engine.connect = MagicMock(
+            return_value=AsyncMock(
+                __aenter__=AsyncMock(return_value=mock_conn), __aexit__=AsyncMock()
+            )
+        )
 
         await init_db(mock_engine)
 
