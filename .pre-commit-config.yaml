@@ -1,6 +1,10 @@
 # Pre-commit hooks for Learn to Cloud App
 # Install: pip install pre-commit && pre-commit install
 # Run manually: pre-commit run --all-files
+#
+# Cross-platform notes:
+# - Uses 'language: python' with uv/npm commands for Windows/Mac/Linux compatibility
+# - Avoids 'bash -c' which fails on Windows without Git Bash in PATH
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -25,41 +29,43 @@ repos:
       - id: ruff-format
         files: ^api/
 
+  # Python backend hooks (cross-platform using uv directly)
   - repo: local
     hooks:
       - id: ty
         name: ty type check
-        entry: bash -c 'cd api && uv run ty check'
+        entry: uv run --directory api ty check
         language: system
         files: ^api/.*\.py$
         pass_filenames: false
 
       - id: pytest
         name: pytest tests
-        entry: bash -c 'cd api && uv run pytest tests/ -v --tb=short'
+        entry: uv run --directory api pytest tests/ -v --tb=short
         language: system
         files: ^api/.*\.py$
         pass_filenames: false
 
+  # Frontend hooks (cross-platform using npm directly)
   - repo: local
     hooks:
       - id: eslint
         name: ESLint
-        entry: bash -c 'cd frontend && npm run lint'
+        entry: npm run --prefix frontend lint
         language: system
         files: ^frontend/.*\.(ts|tsx|js|jsx)$
         pass_filenames: false
 
       - id: typescript
         name: TypeScript Check
-        entry: bash -c 'cd frontend && npx tsc --noEmit'
+        entry: npx --prefix frontend tsc --project frontend/tsconfig.json --noEmit
         language: system
         files: ^frontend/.*\.(ts|tsx)$
         pass_filenames: false
 
       - id: vitest
         name: vitest unit tests
-        entry: bash -c 'cd frontend && npm test -- --run'
+        entry: npm run --prefix frontend test -- --run
         language: system
         files: ^frontend/.*\.(ts|tsx)$
         pass_filenames: false

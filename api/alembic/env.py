@@ -1,10 +1,15 @@
 from __future__ import annotations
 
 import logging
+import sys
 import time
 from logging.config import fileConfig
+from pathlib import Path
 
 from sqlalchemy import Connection, create_engine, text
+
+# Ensure parent directory (api/) is in Python path for module imports
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # Import models so they register with Base.metadata
 import models  # noqa: F401

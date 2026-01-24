@@ -3,11 +3,11 @@
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-# Mark all tests in this module as integration tests (database required)
-pytestmark = pytest.mark.integration
-
 from repositories.certificate_repository import CertificateRepository
 from tests.factories import CertificateFactory, UserFactory
+
+# Mark all tests in this module as integration tests (database required)
+pytestmark = pytest.mark.integration
 
 
 class TestCertificateRepository:

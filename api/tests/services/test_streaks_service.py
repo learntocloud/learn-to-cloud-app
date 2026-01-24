@@ -11,17 +11,17 @@ from datetime import UTC, date, datetime, timedelta
 import pytest
 import time_machine
 
-# Mark all tests in this module as unit tests (no database required)
-pytestmark = [
-    pytest.mark.unit,
-    pytest.mark.usefixtures("freeze_time"),
-]
-
 from services.streaks_service import (
     INITIAL_STREAK,
     MAX_SKIP_DAYS,
     calculate_streak_with_forgiveness,
 )
+
+# Mark all tests in this module as unit tests (no database required)
+pytestmark = [
+    pytest.mark.unit,
+    pytest.mark.usefixtures("freeze_time"),
+]
 
 # Fixed reference date for deterministic tests
 FROZEN_DATE = datetime(2026, 1, 23, 12, 0, 0, tzinfo=UTC)

@@ -8,17 +8,15 @@ by exploring edge cases automatically.
 from datetime import date, timedelta
 
 import pytest
-from hypothesis import HealthCheck, assume, given, settings
+from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 
-# Mark all tests in this module as unit tests (no database required)
-pytestmark = pytest.mark.unit
-
 from services.streaks_service import (
-    MAX_SKIP_DAYS,
     calculate_streak_with_forgiveness,
 )
 
+# Mark all tests in this module as unit tests (no database required)
+pytestmark = pytest.mark.unit
 
 # =============================================================================
 # Custom Strategies
@@ -42,7 +40,9 @@ def date_lists(draw, min_size: int = 0, max_size: int = 50) -> list[date]:
 
 
 @st.composite
-def consecutive_date_lists(draw, min_length: int = 1, max_length: int = 30) -> list[date]:
+def consecutive_date_lists(
+    draw, min_length: int = 1, max_length: int = 30
+) -> list[date]:
     """Generate lists of consecutive dates (perfect streaks)."""
     base_date = date(2026, 1, 23)
     length = draw(st.integers(min_value=min_length, max_value=max_length))
@@ -92,9 +92,9 @@ class TestStreakInvariants:
         current, longest, _ = calculate_streak_with_forgiveness(dates)
         unique_count = len(set(dates))
 
-        assert longest <= unique_count, (
-            f"longest_streak ({longest}) > unique dates ({unique_count})"
-        )
+        assert (
+            longest <= unique_count
+        ), f"longest_streak ({longest}) > unique dates ({unique_count})"
 
     @given(dates=date_lists(min_size=0, max_size=0))
     @hypothesis_settings
@@ -113,9 +113,9 @@ class TestStreakInvariants:
         current, longest, alive = calculate_streak_with_forgiveness(dates)
 
         expected_length = len(dates)
-        assert current == expected_length, (
-            f"Expected streak of {expected_length}, got {current}"
-        )
+        assert (
+            current == expected_length
+        ), f"Expected streak of {expected_length}, got {current}"
         assert longest == expected_length
         assert alive is True
 
@@ -169,9 +169,7 @@ class TestStreakAliveProperty:
         current, _, alive = calculate_streak_with_forgiveness(dates)
 
         if alive:
-            assert current >= 1, (
-                f"Streak alive but current={current}"
-            )
+            assert current >= 1, f"Streak alive but current={current}"
 
     @given(dates=date_lists())
     @hypothesis_settings
@@ -180,6 +178,4 @@ class TestStreakAliveProperty:
         current, _, alive = calculate_streak_with_forgiveness(dates)
 
         if not alive:
-            assert current == 0, (
-                f"Streak dead but current={current}"
-            )
+            assert current == 0, f"Streak dead but current={current}"

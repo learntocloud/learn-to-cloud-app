@@ -6,9 +6,6 @@ Tests database operations for learning progress tracking.
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-# Mark all tests in this module as integration tests (database required)
-pytestmark = pytest.mark.integration
-
 from repositories.progress_repository import (
     QuestionAttemptRepository,
     StepProgressRepository,
@@ -20,6 +17,9 @@ from tests.factories import (
     UserFactory,
     create_async,
 )
+
+# Mark all tests in this module as integration tests (database required)
+pytestmark = pytest.mark.integration
 
 # =============================================================================
 # StepProgressRepository Tests

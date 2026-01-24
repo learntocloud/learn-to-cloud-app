@@ -3,9 +3,6 @@
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-# Mark all tests in this module as integration tests (database required)
-pytestmark = pytest.mark.integration
-
 from services.steps_service import (
     StepAlreadyCompletedError,
     StepInvalidStepOrderError,
@@ -16,6 +13,9 @@ from services.steps_service import (
     uncomplete_step,
 )
 from tests.factories import StepProgressFactory, UserFactory
+
+# Mark all tests in this module as integration tests (database required)
+pytestmark = pytest.mark.integration
 
 
 class TestGetTopicStepProgress:

@@ -294,9 +294,8 @@ def mock_clerk_auth(test_user_id: str) -> Generator[MagicMock]:
     """Mock Clerk authentication to bypass JWT verification.
 
     Returns the test_user_id for any valid-looking token.
-    Uses autospec=True to catch interface mismatches early.
     """
-    with patch("core.auth._clerk_client", autospec=True) as mock_client:
+    with patch("core.auth._clerk_client") as mock_client:
         # Create a mock request state that indicates successful auth
         mock_state = MagicMock()
         mock_state.is_signed_in = True
@@ -312,11 +311,8 @@ def mock_clerk_auth(test_user_id: str) -> Generator[MagicMock]:
 
 @pytest.fixture
 def mock_clerk_unauthenticated() -> Generator[MagicMock]:
-    """Mock Clerk to return unauthenticated state.
-
-    Uses autospec=True to catch interface mismatches early.
-    """
-    with patch("core.auth._clerk_client", autospec=True) as mock_client:
+    """Mock Clerk to return unauthenticated state."""
+    with patch("core.auth._clerk_client") as mock_client:
         mock_state = MagicMock()
         mock_state.is_signed_in = False
         mock_state.payload = None

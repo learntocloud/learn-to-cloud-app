@@ -4,7 +4,7 @@
  * Override in individual tests for error scenarios.
  */
 
-import { http, HttpResponse, delay } from 'msw';
+import { http, HttpResponse, delay, type PathParams } from 'msw';
 
 const API_URL = '';
 
@@ -152,7 +152,7 @@ export const handlers = [
   }),
 
   // Phase detail
-  http.get(`${API_URL}/api/phases/:phaseSlug`, async ({ params }) => {
+  http.get(`${API_URL}/api/phases/:phaseSlug`, async ({ params }: { params: PathParams }) => {
     await delay(50);
     const phase = mockPhases.find((p) => p.slug === params.phaseSlug);
     if (!phase) {
@@ -162,7 +162,7 @@ export const handlers = [
   }),
 
   // Topic detail
-  http.get(`${API_URL}/api/phases/:phaseSlug/topics/:topicSlug`, async ({ params }) => {
+  http.get(`${API_URL}/api/phases/:phaseSlug/topics/:topicSlug`, async ({ params }: { params: PathParams }) => {
     await delay(50);
     const phase = mockPhases.find((p) => p.slug === params.phaseSlug);
     if (!phase) {
@@ -220,7 +220,7 @@ export const handlers = [
   }),
 
   // Public profile
-  http.get(`${API_URL}/api/users/:username/profile`, async ({ params }) => {
+  http.get(`${API_URL}/api/users/:username/profile`, async ({ params }: { params: PathParams }) => {
     await delay(50);
     return HttpResponse.json({
       username: params.username,
@@ -237,7 +237,7 @@ export const handlers = [
   }),
 
   // Certificate eligibility
-  http.get(`${API_URL}/api/certificates/:certificateType/eligibility`, async ({ params }) => {
+  http.get(`${API_URL}/api/certificates/:certificateType/eligibility`, async ({ params }: { params: PathParams }) => {
     await delay(50);
     return HttpResponse.json({
       is_eligible: false,
@@ -261,7 +261,7 @@ export const handlers = [
   }),
 
   // Verify certificate
-  http.get(`${API_URL}/api/certificates/verify/:code`, async ({ params }) => {
+  http.get(`${API_URL}/api/certificates/verify/:code`, async ({ params }: { params: PathParams }) => {
     await delay(50);
     if (params.code === 'VALID123') {
       return HttpResponse.json({

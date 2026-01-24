@@ -4,9 +4,11 @@ on:
   push:
     branches: [main]
     paths-ignore:
-      - 'infra/**'  # Infra-only changes handled by infra.yml
-  pull_request:
-    branches: [main]
+      - 'infra/**'       # Infra changes handled by infra.yml
+      - '*.md'           # Docs don't need deploy
+      - 'docs/**'
+      - '.github/instructions/**'
+      - '.github/skills/**'
   workflow_dispatch:
     inputs:
       force_rebuild:
@@ -17,20 +19,30 @@ on:
         options:
           - 'false'
           - 'true'
+      deploy_api:
+        description: 'Deploy API'
+        required: false
+        default: 'true'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+      deploy_frontend:
+        description: 'Deploy Frontend'
+        required: false
+        default: 'true'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
   workflow_call:
     inputs:
       force_rebuild:
-        description: 'Force rebuild without cache (for security updates)'
+        description: 'Force rebuild without cache'
         required: false
         default: false
         type: boolean
 
-# Concurrency settings for the workflow
-# - group: Creates a concurrency group named "deploy-{AZURE_ENV_NAME}" to ensure only one deployment
-#   runs at a time for each Azure environment. Multiple workflow runs with the same group name
-#   will be queued instead of cancelled to prevent Terraform state lock issues.
-# - cancel-in-progress: Set to false to let Terraform operations complete and release state locks
-#   properly. New runs will queue and wait for the current run to finish.
 concurrency:
   group: deploy-${{ vars.AZURE_ENV_NAME }}
   cancel-in-progress: false
@@ -48,7 +60,6 @@ env:
   AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
   TF_VAR_environment: ${{ vars.AZURE_ENV_NAME }}
   TF_VAR_location: ${{ vars.AZURE_LOCATION }}
-  # Use "none" in GitHub variable to disable custom domain
   TF_VAR_frontend_custom_domain: ${{ vars.FRONTEND_CUSTOM_DOMAIN == 'none' && '' || vars.FRONTEND_CUSTOM_DOMAIN }}
   ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
   ARM_TENANT_ID: ${{ fromJson(secrets.AZURE_CREDENTIALS).tenantId }}
@@ -56,108 +67,25 @@ env:
   ARM_CLIENT_SECRET: ${{ fromJson(secrets.AZURE_CREDENTIALS).clientSecret }}
 
 jobs:
-  api-lint-and-test:
+  # Detect which paths changed
+  changes:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: api
+    outputs:
+      api: ${{ steps.filter.outputs.api }}
+      frontend: ${{ steps.filter.outputs.frontend }}
     steps:
       - uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: dorny/paths-filter@v3
+        id: filter
         with:
-          python-version-file: "api/pyproject.toml"
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v7
-        with:
-          version: "0.9.26"
-          enable-cache: true
-
-      - name: Install dependencies
-        run: |
-          uv sync --extra dev --group dev
-          uv tool install ty
-
-      - name: Ruff lint
-        uses: astral-sh/ruff-action@v3
-        with:
-          src: "./api"
-          args: "check"
-          version: "0.8.6"
-
-      - name: Ruff format check
-        uses: astral-sh/ruff-action@v3
-        with:
-          src: "./api"
-          args: "format --check"
-          version: "0.8.6"
-
-      - name: Type check (ty)
-        run: uv tool run ty check --python .venv/bin/python
-
-      - name: Run tests
-        run: uv run pytest tests/ -v --tb=short
-
-  api-smoke:
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
-    needs: [api-lint-and-test]
-    defaults:
-      run:
-        working-directory: api
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version-file: "api/pyproject.toml"
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v7
-        with:
-          version: "0.9.26"
-          enable-cache: true
-
-      - name: Install dependencies
-        run: |
-          uv sync --extra dev --group dev
-
-      - name: Run smoke tests
-        run: uv run pytest -m smoke tests/ -v --tb=short
-
-  frontend-lint-and-test:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: frontend
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run linter
-        run: npm run lint
-
-      - name: Run tests
-        run: npm test -- --run
-
-      - name: Build check
-        run: npm run build
+          filters: |
+            api:
+              - 'api/**'
+              - 'content/**'
+            frontend:
+              - 'frontend/**'
 
   terraform:
-    needs: [api-lint-and-test, frontend-lint-and-test]
-    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     defaults:
@@ -201,16 +129,18 @@ jobs:
           echo "container_registry_endpoint=$(terraform output -raw AZURE_CONTAINER_REGISTRY_ENDPOINT)" >> "$GITHUB_OUTPUT"
           echo "api_url=$(terraform output -raw apiUrl)" >> "$GITHUB_OUTPUT"
           echo "frontend_url=$(terraform output -raw frontend_url)" >> "$GITHUB_OUTPUT"
-          # Use "none" in GitHub variable to disable custom domain
           CUSTOM_DOMAIN="${{ vars.FRONTEND_CUSTOM_DOMAIN }}"
           if [[ "$CUSTOM_DOMAIN" == "none" ]]; then CUSTOM_DOMAIN=""; fi
           echo "frontend_custom_domain=$CUSTOM_DOMAIN" >> "$GITHUB_OUTPUT"
           echo "swa_name=$(terraform output -raw swa_name)" >> "$GITHUB_OUTPUT"
 
-  deploy:
-    needs: terraform
+  deploy-api:
+    needs: [changes, terraform]
+    if: |
+      (needs.changes.outputs.api == 'true' || github.event_name == 'workflow_dispatch') &&
+      (github.event_name != 'workflow_dispatch' || inputs.deploy_api == 'true')
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
 
@@ -219,14 +149,12 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Log in to Azure Container Registry
-        run: |
-          az acr login --name ${{ needs.terraform.outputs.container_registry_name }}
+      - name: Log in to ACR
+        run: az acr login --name ${{ needs.terraform.outputs.container_registry_name }}
 
       - name: Set build flags
         id: build-flags
         run: |
-          # Handle both workflow_dispatch (string) and workflow_call (boolean) inputs
           FORCE_REBUILD="${{ inputs.force_rebuild }}"
           if [[ "$FORCE_REBUILD" == "true" ]]; then
             echo "cache_flags=--no-cache --pull" >> "$GITHUB_OUTPUT"
@@ -236,11 +164,10 @@ jobs:
             echo "use_cache=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Pull existing API image for cache warming
+      - name: Pull existing image for cache
         if: steps.build-flags.outputs.use_cache == 'true'
         continue-on-error: true
-        run: |
-          docker pull ${{ needs.terraform.outputs.container_registry_endpoint }}/api:latest || true
+        run: docker pull ${{ needs.terraform.outputs.container_registry_endpoint }}/api:latest || true
 
       - name: Build and Push API Image
         run: |
@@ -293,7 +220,7 @@ jobs:
         run: |
           trivy image --ignore-unfixed --exit-code 1 --severity HIGH,CRITICAL \
             ${{ needs.terraform.outputs.container_registry_endpoint }}/api:${{ github.sha }} || \
-            echo "::warning::Trivy found vulnerabilities in API image. Review the scan results above."
+            echo "::warning::Trivy found vulnerabilities. Review the scan results above."
 
       - name: Deploy API Container App
         run: |
@@ -309,29 +236,30 @@ jobs:
 
       - name: Wait for API readiness
         run: |
-          set -euo pipefail
-
           READY_URL="${{ needs.terraform.outputs.api_url }}/ready"
           echo "Waiting for API readiness at: $READY_URL"
-
           for i in {1..30}; do
             code=$(curl -s -o /dev/null -w "%{http_code}" "$READY_URL" || true)
             if [[ "$code" == "200" ]]; then
               echo "API is ready."
               exit 0
             fi
-
-            echo "Attempt $i: API not ready yet (HTTP $code); retrying in 10s..."
+            echo "Attempt $i: HTTP $code, retrying in 10s..."
             sleep 10
           done
-
-          echo "API did not become ready within the expected time."
+          echo "API did not become ready."
           exit 1
 
-      # Note: Grading concepts sync now runs automatically on container startup
-      # via SYNC_GRADING_CONCEPTS_ON_STARTUP=true environment variable
+  deploy-frontend:
+    needs: [changes, terraform]
+    if: |
+      (needs.changes.outputs.frontend == 'true' || github.event_name == 'workflow_dispatch') &&
+      (github.event_name != 'workflow_dispatch' || inputs.deploy_frontend == 'true')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
 
-      # Frontend deployment to Azure Static Web Apps
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
@@ -339,7 +267,7 @@ jobs:
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
-      - name: Install frontend dependencies
+      - name: Install dependencies
         working-directory: frontend
         run: npm ci
 
@@ -347,12 +275,11 @@ jobs:
         working-directory: frontend
         run: npm run build
         env:
-          VITE_API_URL: ""  # API calls go through SWA proxy to /api
+          VITE_API_URL: ""
           VITE_CLERK_PUBLISHABLE_KEY: ${{ secrets.CLERK_PUBLISHABLE_KEY }}
-          # Proxy Clerk FAPI through our API (can't add CNAME to *.azurestaticapps.net)
           VITE_CLERK_PROXY_URL: "${{ needs.terraform.outputs.frontend_url }}/.clerk"
 
-      - name: Copy staticwebapp.config.json to dist
+      - name: Copy staticwebapp.config.json
         run: cp frontend/staticwebapp.config.json frontend/dist/
 
       - name: Deploy to Azure Static Web Apps
@@ -363,38 +290,25 @@ jobs:
           action: "upload"
           app_location: "frontend/dist"
           output_location: ""
-          skip_app_build: true  # We already built above
-          skip_api_build: true  # API is a separate Container App
+          skip_app_build: true
+          skip_api_build: true
 
 # =============================================================================
 # NOTES
 # =============================================================================
-# Architecture:
-#   - Frontend: Azure Static Web Apps (CDN, ~30s deploys)
-#   - API: Azure Container Apps (containerized FastAPI)
-#   - Content: Baked into API image + served from SWA CDN
+# This workflow deploys to Azure when code is pushed to main.
 #
-# Database migrations:
-#   - Applied automatically on startup when RUN_MIGRATIONS_ON_STARTUP=true
-#   - Uses Alembic migrations as the source of truth for schema
+# Path-based deployment:
+#   - api/** or content/** changes → deploy-api job runs
+#   - frontend/** changes → deploy-frontend job runs
+#   - Both can run in parallel
+#   - workflow_dispatch allows manual control of what to deploy
 #
-# Custom domain (app.learntocloud.guide):
-#   - Managed by Terraform with Azure SWA's automatic SSL
-#   - CNAME record: app → <swa_default_hostname>
+# CI is handled by separate workflows:
+#   - api-ci.yml: Runs on api/** changes (lint, type check, unit tests)
+#   - frontend-ci.yml: Runs on frontend/** changes (lint, tests, build)
 #
-# Infrastructure changes:
-#   - Changes to infra/** trigger infra.yml instead (paths-ignore above)
-#   - This avoids race conditions between Terraform apply and output reads
-#
-# SWA Deployment Token:
-#   - Get from: terraform output -raw swa_deployment_token
-#   - Store in GitHub secrets as SWA_DEPLOYMENT_TOKEN
-#
-# Security scanning:
-#   - Trivy scans API image for vulnerabilities
-#   - Scans warn but don't fail the build to avoid blocking deployments
-#
-# Cache warming:
-#   - Pulls :latest tags before building to reuse cached layers
-#   - Use force_rebuild=true to bypass cache for security updates
+# Infrastructure:
+#   - infra/** changes trigger infra.yml instead (paths-ignore)
+#   - This workflow reads Terraform outputs but doesn't apply changes
 # =============================================================================
