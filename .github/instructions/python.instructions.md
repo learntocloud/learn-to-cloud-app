@@ -10,6 +10,13 @@ applyTo: '**/*.py'
 - Use async/await for all database operations
 - Maximum line length: 88 characters (ruff default)
 
+## Type Hints (Modern Syntax)
+- Use `X | None` not `Optional[X]` (PEP 604)
+- Use `list[str]` not `List[str]` (PEP 585)
+- Use `dict[str, Any]` not `Dict[str, Any]`
+- Use `type[T]` for class types
+- For generics: `def func[T](item: T) -> T:` (PEP 695, Python 3.12+)
+
 ## Imports
 - Group imports: stdlib → third-party → local
 - Use absolute imports within the api package
@@ -70,6 +77,11 @@ applyTo: '**/*.py'
 - Always add `@limiter.limit()` decorator for public endpoints
 - Include OpenAPI docs: `summary=`, `responses=` in route decorator
 - Use Pydantic `response_model` for type safety
+- **Route ordering matters**: declare literal paths (`/items/stats`) BEFORE parameterized paths (`/items/{id}`)
+- POST endpoints should return status code 201: `@router.post(..., status_code=201)`
+- DELETE endpoints should return 204 (no content) or 200 with deleted resource
+- Use `Annotated[T, Depends(...)]` pattern for dependency injection
+- Document binary responses (PDF, images) with `responses={200: {"content": {...}}}`
 - Example:
   ```python
   @router.get(
@@ -116,3 +128,56 @@ applyTo: '**/*.py'
 - Use `select()` style queries (SQLAlchemy 2.0 syntax)
 - For upserts, use `pg_insert().on_conflict_do_update()` with explicit `set_`
 - Remember: Python-side column defaults are NOT applied on conflict update—include `updated_at` explicitly
+- Use `begin_nested()` for savepoints when catching `IntegrityError`
+- Use `flush()` inside transactions, `commit()` at boundaries
+- Repository methods should NOT call `commit()`—caller owns the transaction
+- Use `scalar_one()` vs `scalar_one_or_none()` correctly based on expected results
+
+## Docstrings
+- Required on all public functions
+- Skip Args that are self-documenting from type hints (e.g., `db: AsyncSession`)
+- Keep Args that add semantic meaning beyond the type
+- Skip Returns section if return type annotation is clear
+- Keep Warning/Note sections for non-obvious behavior
+- Compress verbose explanations
+
+## Comments
+
+### Remove These
+- **Obvious/redundant** — restates what code clearly does
+- **Commented-out code** — delete it, don't comment it
+- **Vague TODOs** — must have context: `TODO(#123): Handle rate limit`
+- **Change logs** — version control handles this
+
+### Keep These
+- **Why comments** — explain intent/reasoning
+- **Non-obvious behavior** — e.g., "PostgreSQL ON CONFLICT doesn't trigger onupdate"
+- **Workarounds** — with justification and removal date
+- **Warnings** — `# WARNING:` or `# SECURITY:`
+
+### Special Comments
+- `# type: ignore` — always add explanation: `# type: ignore[arg-type] - httpx stub incomplete`
+- `# noqa` — always include rule: `# noqa: E501`
+
+## Git & Commits
+
+### Pre-Commit (MANDATORY)
+```bash
+pre-commit run --all-files
+```
+- **NEVER** use `--no-verify` to bypass
+- **NEVER** commit if pre-commit fails—fix all issues first
+
+### Conventional Commits
+Format: `type(scope): description`
+
+| Type | Use For |
+|------|---------|
+| `feat` | New feature |
+| `fix` | Bug fix |
+| `docs` | Documentation |
+| `refactor` | Code restructure |
+| `test` | Adding tests |
+| `chore` | Deps, config |
+
+Scopes: `api`, `frontend`, `infra`, `content`, `skills`

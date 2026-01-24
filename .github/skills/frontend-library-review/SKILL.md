@@ -369,6 +369,8 @@ Provide complete, tested fixes for all issues found:
 
 ## Frontend-Specific Deep Dive Checklists
 
+> **Note**: Basic standards are in `.github/instructions/vite.instructions.md`. These checklists are for **deep verification during reviews**—fetch docs and compare actual behavior.
+
 ### React 18 Hooks (Verify Against Docs)
 
 Fetch: `https://react.dev/reference/react/hooks`
@@ -432,17 +434,6 @@ Fetch: `https://tailwindcss.com/docs`
 - [ ] No conflicting utility classes
 - [ ] Proper use of `@apply` (sparingly, in CSS files)
 
-### TypeScript Best Practices
-
-- [ ] No `any` types (use `unknown` if truly unknown)
-- [ ] Proper discriminated unions for state
-- [ ] Generic constraints where appropriate
-- [ ] `as const` for literal types
-- [ ] Proper null/undefined handling (`?.`, `??`)
-- [ ] Type guards for runtime checks
-- [ ] Avoid type assertions (`as`) when possible
-- [ ] Import types with `import type { }` when only using types
-
 ### Vite/Build (Verify Against Docs)
 
 Fetch: `https://vite.dev/guide/`
@@ -463,15 +454,6 @@ Fetch: `https://vitest.dev/guide/` and `https://testing-library.com/docs/react-t
 - [ ] Async operations with `waitFor` or `findBy*` queries
 - [ ] Mocking with `vi.mock()` and `vi.fn()`
 - [ ] Query providers wrapped in tests (TanStack Query, Clerk)
-
-### Accessibility (WCAG)
-
-- [ ] Interactive elements are focusable
-- [ ] ARIA labels on icon-only buttons
-- [ ] Form inputs have associated labels
-- [ ] Color contrast meets WCAG AA
-- [ ] Focus management on route changes
-- [ ] Screen reader announcements for dynamic content
 
 ---
 

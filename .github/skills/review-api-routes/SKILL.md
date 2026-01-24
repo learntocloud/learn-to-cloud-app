@@ -63,6 +63,8 @@ List all patterns used:
 
 **FastAPI matches routes in declaration order. Incorrect ordering causes routing bugs.**
 
+> **Note**: Route ordering rules are also documented in `.github/instructions/python.instructions.md` (FastAPI Routes section).
+
 ### Step 2.1: Check for Routing Conflicts
 
 Look for these dangerous patterns:
@@ -107,6 +109,8 @@ Search for route usage in `frontend/src/**/*.ts`:
 ---
 
 ## PHASE 3: HTTP Semantics Review
+
+> **Note**: Status code conventions are documented in `.github/instructions/python.instructions.md`. This phase verifies compliance and catches edge cases.
 
 ### Step 3.1: Method-Resource Alignment
 

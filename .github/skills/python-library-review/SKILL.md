@@ -309,6 +309,8 @@ Provide complete, tested fixes for all issues found:
 
 ## Python-Specific Deep Dive Checklists
 
+> **Note**: Basic standards are in `.github/instructions/python.instructions.md`. These checklists are for **deep verification during reviews**—fetch docs and compare actual behavior.
+
 ### SQLAlchemy Async (Verify Against Docs)
 
 Fetch: `https://docs.sqlalchemy.org/en/20/orm/extensions/asyncio.html`
@@ -337,13 +339,6 @@ Fetch: `https://fastapi.tiangolo.com/` and `https://docs.pydantic.dev/latest/`
 - [ ] `Annotated[T, Depends(...)]` for dependencies
 - [ ] Response models match return types
 - [ ] Proper status codes for each endpoint
-
-### Type Hints (PEP References)
-
-- [ ] Uses `X | None` not `Optional[X]` (PEP 604)
-- [ ] Generic syntax `list[str]` not `List[str]` (PEP 585)
-- [ ] `type[T]` for class types (PEP 585)
-- [ ] `[T]` generic syntax for Python 3.12+ (PEP 695)
 
 ---
 
