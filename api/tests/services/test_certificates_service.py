@@ -5,9 +5,6 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-# Mark all tests in this module as integration tests (database required)
-pytestmark = pytest.mark.integration
-
 from services.certificates_service import (
     CertificateAlreadyExistsError,
     NotEligibleError,
@@ -20,6 +17,9 @@ from services.certificates_service import (
     verify_certificate_with_message,
 )
 from tests.factories import CertificateFactory, UserFactory
+
+# Mark all tests in this module as integration tests (database required)
+pytestmark = pytest.mark.integration
 
 
 class TestGenerateVerificationCode:

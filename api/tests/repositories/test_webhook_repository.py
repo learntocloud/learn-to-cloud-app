@@ -5,11 +5,11 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-# Mark all tests in this module as integration tests (database required)
-pytestmark = pytest.mark.integration
-
 from models import ProcessedWebhook
 from repositories.webhook_repository import ProcessedWebhookRepository
+
+# Mark all tests in this module as integration tests (database required)
+pytestmark = pytest.mark.integration
 
 
 class TestProcessedWebhookRepository:

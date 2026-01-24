@@ -5,9 +5,6 @@ from unittest.mock import MagicMock, patch
 import httpx
 import pytest
 
-# Mark all tests in this module as unit tests (no database required)
-pytestmark = pytest.mark.unit
-
 from services.clerk_service import (
     ClerkServerError,
     _BoundedBackoffDict,
@@ -23,6 +20,9 @@ from services.clerk_service import (
     reset_backoff_state,
     reset_http_client,
 )
+
+# Mark all tests in this module as unit tests (no database required)
+pytestmark = pytest.mark.unit
 
 
 @pytest.fixture(autouse=True)

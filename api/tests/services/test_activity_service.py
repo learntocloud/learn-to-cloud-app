@@ -9,9 +9,6 @@ from datetime import UTC, date, datetime, timedelta
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-# Mark all tests in this module as integration tests (database required)
-pytestmark = pytest.mark.integration
-
 from models import ActivityType
 from services.activity_service import (
     get_heatmap_data,
@@ -19,6 +16,9 @@ from services.activity_service import (
     log_activity,
 )
 from tests.factories import UserActivityFactory, UserFactory, create_async
+
+# Mark all tests in this module as integration tests (database required)
+pytestmark = pytest.mark.integration
 
 
 class TestGetStreakData:

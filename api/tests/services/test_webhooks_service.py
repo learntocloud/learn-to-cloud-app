@@ -3,9 +3,6 @@
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-# Mark all tests in this module as integration tests (database required)
-pytestmark = pytest.mark.integration
-
 from services.webhooks_service import (
     handle_clerk_event,
     handle_user_created,
@@ -13,6 +10,9 @@ from services.webhooks_service import (
     handle_user_updated,
 )
 from tests.factories import UserFactory
+
+# Mark all tests in this module as integration tests (database required)
+pytestmark = pytest.mark.integration
 
 
 class TestHandleUserCreated:
