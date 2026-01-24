@@ -1,0 +1,74 @@
+name: Destroy Infrastructure
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: 'Target environment (dev or prod)'
+        required: true
+        type: string
+
+concurrency:
+  group: infra-${{ inputs.environment }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write
+
+defaults:
+  run:
+    shell: bash
+
+# ============================================================
+# Terraform Destroy
+# ============================================================
+jobs:
+  terraform-destroy:
+    runs-on: ubuntu-latest
+    # Production environment requires GitHub approval gate (when configured in repo settings)
+    environment: ${{ inputs.environment == 'prod' && 'production' || '' }}
+    defaults:
+      run:
+        working-directory: infra
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Azure environment
+        uses: ./.github/actions/setup-azure-env
+        with:
+          environment: ${{ inputs.environment }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "~1.5"
+          terraform_wrapper: false
+
+      - name: Azure CLI Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Validate
+        run: terraform validate
+
+      - name: Terraform Destroy
+        run: terraform destroy -auto-approve -lock-timeout=120s
+        env:
+          TF_VAR_clerk_secret_key: ${{ secrets.CLERK_SECRET_KEY }}
+          TF_VAR_clerk_webhook_signing_secret: ${{ secrets.CLERK_WEBHOOK_SIGNING_SECRET }}
+          TF_VAR_clerk_publishable_key: ${{ secrets.CLERK_PUBLISHABLE_KEY }}
+          TF_VAR_google_api_key: ${{ secrets.GOOGLE_API_KEY }}
+          TF_VAR_ctf_master_secret: ${{ secrets.CTF_MASTER_SECRET }}
+
+      - name: Post-destroy summary
+        run: |
+          echo "✅ Infrastructure destroy completed for ${{ inputs.environment }}"
+          echo ""
+          terraform output 2>/dev/null || echo "No outputs available"

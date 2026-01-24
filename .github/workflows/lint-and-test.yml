@@ -10,6 +10,9 @@ defaults:
   run:
     shell: bash
 
+# ============================================================
+# API & Frontend Testing
+# ============================================================
 jobs:
   lint-and-test:
     runs-on: ubuntu-latest

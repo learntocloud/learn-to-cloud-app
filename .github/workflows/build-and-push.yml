@@ -19,11 +19,15 @@ on:
 
 permissions:
   contents: read
+  id-token: write
 
 defaults:
   run:
     shell: bash
 
+# ============================================================
+# Build & Push Images
+# ============================================================
 jobs:
   build-and-push-api:
     runs-on: ubuntu-latest
@@ -35,7 +39,9 @@ jobs:
       - name: Azure CLI Login
         uses: azure/login@v2
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
       - name: Log in to Azure Container Registry
         run: |
@@ -64,12 +70,12 @@ jobs:
           REGISTRY=${{ vars.CONTAINER_REGISTRY_ENDPOINT }}
           SHORT_SHA=${GITHUB_SHA:0:7}
           IMAGE_TAG="${{ inputs.environment }}-${SHORT_SHA}"
-          
+
           CACHE_FROM=""
           if [[ "${{ steps.build-flags.outputs.use_cache }}" == "true" ]]; then
             CACHE_FROM="--cache-from=${REGISTRY}/api:${{ inputs.environment }}-latest"
           fi
-          
+
           docker build -f api/Dockerfile \
             ${{ steps.build-flags.outputs.cache_flags }} \
             $CACHE_FROM \
@@ -79,10 +85,10 @@ jobs:
             --label environment=${{ inputs.environment }} \
             -t ${REGISTRY}/api:${IMAGE_TAG} \
             -t ${REGISTRY}/api:${{ inputs.environment }}-latest .
-          
+
           docker push ${REGISTRY}/api:${IMAGE_TAG}
           docker push ${REGISTRY}/api:${{ inputs.environment }}-latest
-          
+
           echo "image_tag=${IMAGE_TAG}" >> "$GITHUB_OUTPUT"
 
       - name: Start PostgreSQL for Smoke Test
@@ -98,14 +104,14 @@ jobs:
       - name: Smoke Test API Image
         run: |
           REGISTRY=${{ vars.CONTAINER_REGISTRY_ENDPOINT }}
-          
+
           docker run --rm -d --name smoke-test -p 8000:8000 \
             --link smoke-test-db:db \
             -e DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/learntocloud \
             -e CLERK_SECRET_KEY=test \
             -e LLM_API_KEY=test \
             ${REGISTRY}/api:${{ steps.build.outputs.image_tag }}
-          
+
           sleep 10
           curl -f http://localhost:8000/health || (docker logs smoke-test && exit 1)
           docker stop smoke-test
@@ -121,7 +127,7 @@ jobs:
       - name: Security Scan API Image
         run: |
           REGISTRY=${{ vars.CONTAINER_REGISTRY_ENDPOINT }}
-          
+
           echo "Running Trivy security scan (blocks on HIGH/CRITICAL findings)..."
           trivy image --ignore-unfixed --exit-code 1 --severity HIGH,CRITICAL \
             ${REGISTRY}/api:${{ steps.build.outputs.image_tag }}

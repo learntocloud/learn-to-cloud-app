@@ -1,0 +1,93 @@
+name: Setup Azure Environment
+description: Configure Azure credentials and environment variables for a given environment (dev or prod)
+inputs:
+  environment:
+    description: Target environment (dev or prod)
+    required: true
+outputs:
+  resource-group:
+    description: Azure resource group name for this environment
+    value: ${{ steps.config.outputs.resource-group }}
+  container-app-name:
+    description: Container app name for this environment
+    value: ${{ steps.config.outputs.container-app-name }}
+
+runs:
+  using: composite
+  steps:
+    - name: Validate inputs
+      shell: bash
+      run: |
+        if [[ ! "${{ inputs.environment }}" =~ ^(dev|prod)$ ]]; then
+          echo "❌ Invalid environment: ${{ inputs.environment }}"
+          echo "Must be 'dev' or 'prod'"
+          exit 1
+        fi
+
+    - name: Configure environment
+      id: config
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        ENV="${{ inputs.environment }}"
+
+        # Select environment-specific variables (simplicity: only what's needed)
+        if [[ "${ENV}" == "prod" ]]; then
+          RG="${{ vars.AZURE_RESOURCE_GROUP_PROD }}"
+          CA="${{ vars.CONTAINER_APP_NAME_PROD }}"
+          FE_URL="${{ vars.FRONTEND_URL_PROD }}"
+          API_URL="${{ vars.API_URL_PROD }}"
+          DOMAIN="${{ vars.FRONTEND_CUSTOM_DOMAIN_PROD }}"
+        else
+          RG="${{ vars.AZURE_RESOURCE_GROUP_DEV }}"
+          CA="${{ vars.CONTAINER_APP_NAME_DEV }}"
+          FE_URL="${{ vars.FRONTEND_URL_DEV }}"
+          API_URL="${{ vars.API_URL_DEV }}"
+          DOMAIN="${{ vars.FRONTEND_CUSTOM_DOMAIN_DEV }}"
+        fi
+
+        # Validate required variables exist
+        for var in RG CA FE_URL API_URL; do
+          if [[ -z "${!var}" ]]; then
+            echo "❌ Missing required variable: ${var}"
+            exit 1
+          fi
+        done
+
+        # Output values for other actions to consume
+        echo "resource-group=${RG}" >> "$GITHUB_OUTPUT"
+        echo "container-app-name=${CA}" >> "$GITHUB_OUTPUT"
+
+        # Export to environment (for Terraform + downstream steps)
+        # Non-sensitive: environment config
+        echo "AZURE_ENV_NAME=${ENV}" >> $GITHUB_ENV
+        echo "AZURE_LOCATION=${{ vars.AZURE_LOCATION }}" >> $GITHUB_ENV
+        echo "AZURE_RESOURCE_GROUP=${RG}" >> $GITHUB_ENV
+        echo "CONTAINER_APP_NAME=${CA}" >> $GITHUB_ENV
+        echo "CONTAINER_REGISTRY_ENDPOINT=${{ vars.CONTAINER_REGISTRY_ENDPOINT }}" >> $GITHUB_ENV
+        echo "FRONTEND_URL=${FE_URL}" >> $GITHUB_ENV
+        echo "API_URL=${API_URL}" >> $GITHUB_ENV
+
+        # Terraform config vars (non-sensitive)
+        echo "TF_VAR_environment=${ENV}" >> $GITHUB_ENV
+        echo "TF_VAR_location=${{ vars.AZURE_LOCATION }}" >> $GITHUB_ENV
+        echo "TF_VAR_frontend_custom_domain=${DOMAIN}" >> $GITHUB_ENV
+
+    - name: Configure Azure credentials (OIDC)
+      shell: bash
+      run: |
+        # OIDC: Use federated identity (no client secret)
+        if [[ -z "${{ vars.AZURE_TENANT_ID }}" || -z "${{ vars.AZURE_CLIENT_ID }}" ]]; then
+          echo "❌ Missing AZURE_TENANT_ID or AZURE_CLIENT_ID repository variables"
+          exit 1
+        fi
+
+        # Terraform Azure provider requires these
+        echo "ARM_SUBSCRIPTION_ID=${{ vars.AZURE_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
+        echo "ARM_TENANT_ID=${{ vars.AZURE_TENANT_ID }}" >> $GITHUB_ENV
+        echo "ARM_CLIENT_ID=${{ vars.AZURE_CLIENT_ID }}" >> $GITHUB_ENV
+
+        # Terraform variables (same names as infra/ variables)
+        # NOTE: Sensitive TF_VAR_* secrets are set at step level in terraform jobs.
+        echo "TF_VAR_subscription_id=${{ vars.AZURE_SUBSCRIPTION_ID }}" >> $GITHUB_ENV

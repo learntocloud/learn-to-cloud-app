@@ -1,5 +1,8 @@
 name: Weekly Security Rebuild
 
+# ============================================================
+# Security: Rebuild images weekly for OS/dependency updates
+# ============================================================
 on:
   schedule:
     - cron: '0 6 * * 0'  # Every Sunday at 6 AM UTC
@@ -16,4 +19,3 @@ jobs:
     needs: rebuild-and-deploy-dev
     uses: ./.github/workflows/prod-deploy.yml
     secrets: inherit
-

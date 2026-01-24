@@ -1,0 +1,90 @@
+name: Deploy API
+description: Deploy API container to Azure Container Apps and wait for readiness
+inputs:
+  environment:
+    description: Target environment (dev or prod)
+    required: true
+  image-tag:
+    description: Docker image tag to deploy
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Validate inputs
+      shell: bash
+      run: |
+        if [[ ! "${{ inputs.environment }}" =~ ^(dev|prod)$ ]]; then
+          echo "❌ Invalid environment: ${{ inputs.environment }}"
+          exit 1
+        fi
+        if [[ -z "${{ inputs.image-tag }}" ]]; then
+          echo "❌ image-tag is required"
+          exit 1
+        fi
+
+    - name: Azure CLI Login
+      uses: azure/login@v2
+      with:
+        client-id: ${{ vars.AZURE_CLIENT_ID }}
+        tenant-id: ${{ vars.AZURE_TENANT_ID }}
+        subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+    - name: Deploy API
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        ENV="${{ inputs.environment }}"
+        IMAGE_TAG="${{ inputs.image-tag }}"
+
+        # Use environment variables set by setup-azure-env action
+        if [[ -z "${AZURE_RESOURCE_GROUP:-}" || -z "${CONTAINER_APP_NAME:-}" || -z "${API_URL:-}" ]]; then
+          echo "❌ Missing environment variables from setup-azure-env action"
+          exit 1
+        fi
+
+        # Construct frontend URL (use custom domain if available)
+        CUSTOM_DOMAIN="${FRONTEND_CUSTOM_DOMAIN:-}"
+        if [[ -n "${CUSTOM_DOMAIN}" ]]; then
+          FRONTEND_URL="https://${CUSTOM_DOMAIN}"
+        else
+          FRONTEND_URL="https://${FRONTEND_URL}"
+        fi
+
+        echo "📦 Deploying to: ${CONTAINER_APP_NAME}"
+        echo "🏷️  Image tag: ${IMAGE_TAG}"
+        echo "🌐 Frontend URL: ${FRONTEND_URL}"
+
+        az containerapp update \
+          --name "${CONTAINER_APP_NAME}" \
+          --resource-group "${AZURE_RESOURCE_GROUP}" \
+          --image "${CONTAINER_REGISTRY_ENDPOINT}/api:${IMAGE_TAG}" \
+          --set-env-vars \
+            FRONTEND_URL="${FRONTEND_URL}" \
+            RUN_MIGRATIONS_ON_STARTUP=true
+
+    - name: Wait for API readiness
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        API_URL="${{ env.API_URL }}"
+        READY_URL="${API_URL}/ready"
+
+        echo "⏳ Waiting for API readiness: ${READY_URL}"
+
+        for i in {1..30}; do
+          http_code=$(curl -s -o /dev/null -w "%{http_code}" "${READY_URL}" || echo "000")
+
+          if [[ "${http_code}" == "200" ]]; then
+            echo "✅ API is ready"
+            return 0
+          fi
+
+          echo "  Attempt $i/30: HTTP ${http_code} (waiting 10s...)"
+          sleep 10
+        done
+
+        echo "❌ API did not become ready (timeout after 5 minutes)"
+        exit 1

@@ -7,7 +7,7 @@ feature-branch ──PR──▶ dev ──merge──▶ main
                        │                │
                        ▼                ▼
                   rg-ltc-dev       rg-ltc-prod
-                  (auto-deploy)    (manual approval)
+                  (auto-deploy)    (merge-to-main)
                   dev-{sha}        prod-{sha}
 ```
 
@@ -15,15 +15,56 @@ feature-branch ──PR──▶ dev ──merge──▶ main
 
 1. **Separation of Concerns**: Code deployments (`api/**`, `frontend/**`) and infrastructure changes (`infra/**`) run independently
 2. **Build Once, Promote**: Images built in dev, tested, then retagged for prod (no rebuilds)
-3. **Composable Workflows**: Reusable building blocks (`lint-and-test.yml`, `build-and-push.yml`)
-4. **GitHub Variables**: Static resource names/URLs stored as repo variables (faster than Terraform queries)
+3. **Composable Workflows**: Reusable building blocks (workflows + actions)
+4. **Reusable Actions**: `setup-azure-env` and `deploy-api` eliminate duplication across workflows
+5. **GitHub Variables**: Static resource names/URLs stored as repo variables (faster than Terraform queries)
+6. **Ephemeral Dev**: Dev environment spins up on demand, tears down after approval (cost optimization)
 
 ## Branch Strategy
 
 | Branch | Environment | Trigger | Approval |
 |--------|-------------|---------|----------|
 | `dev` | rg-ltc-dev | Auto on merge | None |
-| `main` | rg-ltc-prod | Auto on merge | Manual |
+| `main` | rg-ltc-prod | Auto on merge | Merge to main |
+
+---
+
+## Reusable Actions
+
+### 1. setup-azure-env (Action)
+
+**Purpose:** Configure Azure credentials and environment variables (DRY principle)
+
+**Inputs:**
+- `environment` (dev/prod) - required
+
+**What it does:**
+- Uses Azure OIDC (no long‑lived credentials)
+- Sets environment-specific vars: `AZURE_RESOURCE_GROUP`, `CONTAINER_APP_NAME`, `API_URL`, etc.
+- Exports Terraform vars: `TF_VAR_*`, `ARM_*`
+- Eliminates 40+ lines of duplicate env var configuration
+ - Secrets for Terraform are injected at step-level (not global env)
+
+**Used by:** infra-apply.yml, infra-destroy.yml, dev-deploy.yml, prod-deploy.yml
+
+---
+
+### 2. deploy-api (Action)
+
+**Purpose:** Deploy API container to Azure Container Apps (DRY principle)
+
+**Inputs:**
+- `environment` (dev/prod) - required
+- `image-tag` - required (e.g., dev-a1b2c3d)
+
+**What it does:**
+- Azure CLI login
+- Deploy API image to Container Apps with environment-specific settings
+- Wait for API `/ready` endpoint (30 retries, 10s intervals)
+- Handles custom domains elegantly
+- Eliminates 40+ lines of duplicate deployment code
+
+**Used by:** dev-deploy.yml, prod-deploy.yml (deploy jobs)
 
 ---
 
@@ -62,18 +103,30 @@ feature-branch ──PR──▶ dev ──merge──▶ main
 
 ### 3. dev-deploy.yml
 
-**Triggers:** PR to dev (lint/test only), push to dev (full deploy), workflow_call
+**Triggers:** PR to dev (lint/test only), push to dev and workflow_call (full deploy)
 
 **Flow:**
 ```
-PR:     lint-and-test → ✅
-Push:   lint-and-test → build-and-push → deploy → integration-tests
+STAGE 1: Validation
+PR/Push/Call: lint-and-test
+
+STAGE 2: Infrastructure
+Push/Call: create-infra (terraform apply)
+
+STAGE 3: Build
+Push/Call: build-and-push
+
+STAGE 4: Deployment
+Push/Call: deploy (setup-azure-env → deploy-api + frontend)
+
+STAGE 5: Approval & Teardown
+Push/Call: approval-gate (12h manual approval) → destroy-infra (terraform destroy)
 ```
 
-**Deploy job:**
-- API: Deploy to Container Apps using `CONTAINER_APP_NAME_DEV`
-- Frontend: Download artifact → deploy to Static Web Apps
-- Uses GitHub variables (no Terraform queries)
+**Key features:**
+- Ephemeral dev environment (spins up on push, destroys after approval)
+- Uses `setup-azure-env` + `deploy-api` actions (no env var duplication)
+- Reduces costs by destroying infrastructure after testing
 
 ---
 
@@ -83,50 +136,75 @@ Push:   lint-and-test → build-and-push → deploy → integration-tests
 
 **Flow:**
 ```
-PR:     lint-and-test → ✅
-Push:   lint-and-test → promote-images → deploy (with approval gate)
+STAGE 1: Validation
+PR/Push: lint-and-test
+
+STAGE 2: Build & Promote
+Push:    promote-images (pull dev-{sha} → retag prod-{sha})
+
+STAGE 3: Deployment
+Push:    deploy (setup-azure-env → deploy-api + frontend)
 ```
 
 **promote-images job:**
-- Pull `dev-{sha}` image
+- Pull `dev-{sha}` image (tested in dev)
 - Retag as `prod-{sha}` and `prod-latest`
 - Push to ACR
 
 **deploy job:**
-- Requires manual approval (GitHub Environment: production)
+- Uses `setup-azure-env` + `deploy-api` actions
 - Deploy retagged image (same as tested in dev)
 - Download frontend artifact from dev build
-- No rebuilds
+- **No rebuilds** - promotes tested artifacts only
 
 ---
 
-### 5. infra.yml (Reusable)
+### 5. infra-apply.yml (Reusable)
 
-**Triggers:** Push to dev/main when `infra/**` changes, workflow_call, workflow_dispatch
+**Triggers:** workflow_call
 
 **Inputs:**
-- `environment` (dev/prod) - required for workflow_call/dispatch
+- `environment` (dev/prod) - required
+- `rollback_ref` (tag/commit) - optional, default `infra-prod-stable`
 
 **Flow:**
 ```
-Push to dev:    terraform → auto-apply to dev
-Push to main:   terraform → approval gate → apply to prod
-workflow_call:  terraform → apply to specified environment
+workflow_call: terraform plan → apply to specified environment
 ```
 
 **How it works:**
-- Auto-derives environment from branch on push (dev branch → dev env, main branch → prod env)
-- Accepts explicit environment input when called from other workflows
-- Single terraform job with conditional environment detection
+- Uses `setup-azure-env` action to configure all vars and credentials
+- Requires explicit `environment` input (no branch inference)
+- Single terraform job focused on apply only
+- If post-apply health checks fail in prod, it rolls back by re-applying `rollback_ref`
 
 **Why separate from app deployments:**
 - Code deploys don't wait for Terraform
 - Hotfixes can deploy without touching infrastructure
-- Clear audit trail
+- Clear audit trail for infra changes
 
 ---
 
-### 6. weekly-rebuild.yml
+### 6. infra-destroy.yml (Reusable)
+
+**Triggers:** workflow_call
+
+**Inputs:**
+- `environment` (dev/prod) - required
+
+**Flow:**
+```
+workflow_call: terraform destroy for specified environment
+```
+
+**How it works:**
+- Uses `setup-azure-env` action to configure all vars and credentials
+- Requires explicit `environment` input (no branch inference)
+- Single terraform job focused on destroy only
+
+---
+
+### 7. weekly-rebuild.yml
 
 **Triggers:** Schedule (Sunday 6 AM UTC), manual dispatch
 
@@ -143,14 +221,17 @@ Builds with `--no-cache --pull` to get latest security patches.
 
 ## Workflow Summary
 
-| Workflow | Type | Triggers |
-|----------|------|----------|
-| `lint-and-test.yml` | Reusable | Called by dev/prod |
-| `build-and-push.yml` | Reusable | Called by dev/weekly |
-| `infra.yml` | Reusable | Push to dev/main (infra/**), workflow_call |
-| `dev-deploy.yml` | Deploy | PR/push to dev |
-| `prod-deploy.yml` | Deploy | PR/push to main |
-| `weekly-rebuild.yml` | Scheduled | Sunday 6 AM UTC |
+| Component | Type | Purpose |
+|-----------|------|---------|
+| `setup-azure-env` | Reusable Action | Configure Azure env vars + credentials |
+| `deploy-api` | Reusable Action | Deploy API container + health checks |
+| `lint-and-test.yml` | Reusable Workflow | Code quality checks |
+| `build-and-push.yml` | Reusable Workflow | Build images + security scan |
+| `infra-apply.yml` | Reusable Workflow | Terraform apply |
+| `infra-destroy.yml` | Reusable Workflow | Terraform destroy |
+| `dev-deploy.yml` | Deploy Workflow | Ephemeral dev: create → test → approve → destroy |
+| `prod-deploy.yml` | Deploy Workflow | Persistent prod: promote → deploy with approval |
+| `weekly-rebuild.yml` | Scheduled Workflow | Sunday 6 AM UTC: rebuild + weekly redeploy |
 
 ---
 
