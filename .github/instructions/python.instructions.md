@@ -45,21 +45,45 @@ applyTo: '**/*.py'
           return _http_client
   ```
 
-## Caching (cachetools)
-- `TTLCache` is **not** thread-safe—always wrap access with `asyncio.Lock`
-- Use a separate lock for cache operations
-- Example:
+## Caching (In-Memory TTLCache)
+- Use `cachetools.TTLCache` for in-memory caching—**no Redis**
+- Cache is **per-worker/replica**, not shared across instances
+- Suitable for data tolerating short-term staleness (30-60s)
+- For shared caches, use `core.cache` module (`get_cached_progress`, `set_cached_progress`, etc.)
+- For service-specific caches, use local `TTLCache` with `asyncio.Lock`:
   ```python
+  from cachetools import TTLCache
+
   _cache: TTLCache[str, Any] = TTLCache(maxsize=100, ttl=300)
   _cache_lock = asyncio.Lock()
 
   async with _cache_lock:
+      cached = _cache.get(key)
+      if cached is not None:
+          return cached
+
+  # ... fetch data ...
+
+  async with _cache_lock:
       _cache[key] = value
   ```
+- `TTLCache` is **not** thread-safe—always wrap read AND write with `asyncio.Lock`
+- Call `invalidate_*_cache()` after mutations that affect cached data
 
-## Logging
-- Use **structured logging** via `core.logger`: `logger.info("event.name", key=value)`
-- Never interpolate variables into log messages—use keyword args
+## Logging (structlog)
+- Use **structlog** via `core.logger`: `from core.logger import get_logger`
+- **CRITICAL**: structlog uses **keyword arguments**, NOT stdlib's `extra={}` dict:
+  ```python
+  # ✅ CORRECT - structlog pattern
+  logger.info("user.created", user_id=user.id, email=user.email)
+  logger.error("payment.failed", order_id=order.id, reason="declined")
+
+  # ❌ WRONG - stdlib pattern (will NOT add fields to JSON output)
+  logger.info("User created", extra={"user_id": user.id})
+  ```
+- First argument is the **event name** (dot-notation), not a human message
+- Never interpolate variables into event names—use keyword args for all context
+- Use `logger.exception()` inside except blocks to include stack trace
 - Use **wide events** for request-scoped context that should appear in canonical log lines:
   ```python
   from core.wide_event import set_wide_event_fields, set_wide_event_nested

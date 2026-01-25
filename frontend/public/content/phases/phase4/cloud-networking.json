@@ -89,33 +89,32 @@
     {
       "id": "phase4-topic3-q1",
       "prompt": "How would you explain a VPC to someone new to cloud, and what role do subnets play within it?",
-      "expected_concepts": [
-        "VPC",
-        "isolated network",
-        "private",
-        "subnets",
-        "IP ranges",
-        "CIDR",
-        "public subnet",
-        "private subnet",
-        "segmentation",
-        "routing"
-      ]
+      "scenario_seeds": [
+        "A startup founder asks why they can't just deploy their servers directly on the internet and what this 'VPC thing' actually provides.",
+        "Your team is migrating from on-premises to cloud and needs to understand how network isolation works differently.",
+        "A compliance officer wants to know how you ensure production databases are network-isolated from development resources."
+      ],
+      "grading_rubric": "Must explain VPC as an isolated virtual network AND describe how subnets segment the VPC into public/private areas AND address how CIDR notation defines IP ranges.",
+      "concepts": {
+        "required": ["VPC as isolated network", "subnets for segmentation", "public vs private subnets"],
+        "expected": ["CIDR blocks", "IP address ranges", "route tables", "availability zones"],
+        "bonus": ["VPC peering", "transit gateway", "network topology design"]
+      }
     },
     {
       "id": "phase4-topic3-q2",
       "prompt": "Walk me through the purpose of a NAT Gateway and a scenario where you'd deploy one.",
-      "expected_concepts": [
-        "NAT",
-        "private subnet",
-        "internet access",
-        "outbound",
-        "no inbound",
-        "IP translation",
-        "software updates",
-        "secure",
-        "gateway"
-      ]
+      "scenario_seeds": [
+        "Your database server in a private subnet needs to download security patches from the internet but must remain inaccessible from outside.",
+        "A developer asks why their private subnet instance can't reach package repositories to install dependencies.",
+        "Security requires that backend services have no public IPs but still need to call external APIs for payment processing."
+      ],
+      "grading_rubric": "Must explain NAT Gateway enables outbound internet access for private resources AND describe how it blocks inbound connections AND provide a realistic use case.",
+      "concepts": {
+        "required": ["outbound internet access", "private subnet resources", "blocks inbound traffic"],
+        "expected": ["IP address translation", "software updates use case", "external API calls", "security benefit"],
+        "bonus": ["NAT Gateway vs NAT instance", "high availability considerations", "cost implications"]
+      }
     }
   ],
   "test_knowledge_prompts": [

@@ -8,7 +8,7 @@ import { useAuth } from '@clerk/clerk-react';
 import { createApiClient } from './api-client';
 
 // Create a hook that provides the API client
-function useApi() {
+export function useApi() {
   const { getToken } = useAuth();
   return createApiClient(getToken);
 }
@@ -125,11 +125,13 @@ export function useSubmitQuestionAnswer() {
       topicId,
       questionId,
       answer,
+      scenarioContext,
     }: {
       topicId: string;
       questionId: string;
       answer: string;
-    }) => api.submitAnswer(topicId, questionId, answer),
+      scenarioContext?: string;
+    }) => api.submitAnswer(topicId, questionId, answer, scenarioContext),
     onSuccess: (result) => {
       // Only invalidate caches if the answer was correct
       if (result.is_passed) {

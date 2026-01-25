@@ -104,6 +104,9 @@ class TestProcessedWebhookRepository:
         """Test delete_older_than with custom days parameter."""
         repo = ProcessedWebhookRepository(db_session)
 
+        # Clean up any existing old records first
+        await repo.delete_older_than(days=0)
+
         # Create a record that's 3 days old
         webhook = ProcessedWebhook(
             id="three-day-old",

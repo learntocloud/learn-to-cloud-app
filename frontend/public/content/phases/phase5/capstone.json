@@ -77,34 +77,32 @@
     {
       "id": "phase5-topic6-q1",
       "prompt": "Walk me through your complete DevOps pipeline from code commit to production deployment.",
-      "expected_concepts": [
-        "commit",
-        "trigger",
-        "build",
-        "test",
-        "Docker",
-        "push",
-        "registry",
-        "deploy",
-        "Kubernetes",
-        "CI/CD",
-        "automated"
-      ]
+      "scenario_seeds": [
+        "During a technical interview, you're asked to whiteboard your Journal API's deployment pipeline from a developer pushing code to it running in production",
+        "A new team member asks how their code changes will get deployed - walk through every automated step that happens after they merge a PR",
+        "Your manager asks you to present the team's deployment process to demonstrate DevOps maturity to leadership"
+      ],
+      "grading_rubric": "Must describe the complete end-to-end flow AND explain automation at each stage AND demonstrate understanding of how components connect (CI triggers, artifact flow, deployment targets).",
+      "concepts": {
+        "required": ["commit triggers pipeline", "build and test", "Docker image creation", "push to registry", "deploy to Kubernetes"],
+        "expected": ["GitHub Actions workflow", "automated testing", "image tagging", "kubectl or Helm deployment"],
+        "bonus": ["deployment strategies", "rollback procedures", "environment promotion", "GitOps", "deployment notifications"]
+      }
     },
     {
       "id": "phase5-topic6-q2",
       "prompt": "How do you handle secrets management in your Kubernetes deployment? Walk me through your approach.",
-      "expected_concepts": [
-        "Kubernetes Secret",
-        "base64",
-        "environment variables",
-        "mounted",
-        "not in code",
-        "encrypted",
-        "RBAC",
-        "access control",
-        "rotation"
-      ]
+      "scenario_seeds": [
+        "A security auditor asks how your application accesses database credentials and API keys without them being exposed in source control",
+        "A developer accidentally committed an API key to the repo - explain your secrets management strategy and how to prevent this",
+        "You're onboarding a new service that needs access to the same secrets as existing services - walk through how you'd configure this securely"
+      ],
+      "grading_rubric": "Must explain how secrets are stored outside code AND how they're injected into Pods AND address security considerations (encryption, access control).",
+      "concepts": {
+        "required": ["Kubernetes Secrets", "environment variables or volume mounts", "not in source code", "base64 encoding"],
+        "expected": ["RBAC for secret access", "encrypted at rest", "CI/CD secret injection", "secret references"],
+        "bonus": ["external secrets operators", "HashiCorp Vault", "secret rotation", "sealed secrets", "workload identity"]
+      }
     }
   ],
   "test_knowledge_prompts": [

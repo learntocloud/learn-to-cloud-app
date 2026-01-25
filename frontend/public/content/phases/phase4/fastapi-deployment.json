@@ -69,32 +69,32 @@
     {
       "id": "phase4-topic6-q1",
       "prompt": "How would you handle sensitive configuration like API keys and database credentials when deploying an application?",
-      "expected_concepts": [
-        "environment variables",
-        "never hardcode",
-        "secrets",
-        "os.getenv",
-        "configuration",
-        "secure",
-        "separate from code",
-        "rotation"
-      ]
+      "scenario_seeds": [
+        "During code review, you notice a developer committed an API key to the repository - explain the proper approach.",
+        "Your application needs to connect to both a database and an external payment API - how do you securely provide these credentials?",
+        "The security team requires that all secrets be rotatable without code changes or redeployment."
+      ],
+      "grading_rubric": "Must explain using environment variables instead of hardcoding AND describe keeping secrets separate from code AND address how this enables secure rotation.",
+      "concepts": {
+        "required": ["environment variables", "never hardcode secrets", "separate config from code"],
+        "expected": ["os.getenv() in code", "secret rotation", ".env files for local dev", "secrets not in git"],
+        "bonus": ["cloud secrets managers", "secret injection at runtime", "least privilege for secret access"]
+      }
     },
     {
       "id": "phase4-topic6-q2",
       "prompt": "Walk me through the security group rules you'd configure for a public-facing API server.",
-      "expected_concepts": [
-        "inbound",
-        "HTTP",
-        "HTTPS",
-        "port 80",
-        "port 443",
-        "SSH restricted",
-        "your IP",
-        "outbound",
-        "database port",
-        "internal only"
-      ]
+      "scenario_seeds": [
+        "You're deploying a FastAPI application that needs to be accessible from the internet but also connect to a private database.",
+        "A security scan shows your API server has too many open ports - redesign the security group rules.",
+        "Your team needs SSH access for debugging but the security policy prohibits SSH from the public internet."
+      ],
+      "grading_rubric": "Must specify inbound rules for HTTP/HTTPS traffic AND restrict SSH access to specific IPs AND address outbound rules for database connectivity.",
+      "concepts": {
+        "required": ["allow inbound HTTP (80) and HTTPS (443)", "restrict SSH to admin IPs", "database port internal only"],
+        "expected": ["deny by default", "specific source IPs for management", "outbound to database subnet", "no public database exposure"],
+        "bonus": ["VPN or session-based access instead of SSH", "separate security groups per tier", "security group references"]
+      }
     }
   ],
   "test_knowledge_prompts": [

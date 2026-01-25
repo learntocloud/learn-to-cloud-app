@@ -112,33 +112,32 @@
     {
       "id": "phase5-topic4-q1",
       "prompt": "How would you explain a Kubernetes Pod to someone coming from a Docker-only background?",
-      "expected_concepts": [
-        "pod",
-        "smallest unit",
-        "one or more containers",
-        "shared network",
-        "shared storage",
-        "co-located",
-        "scheduling",
-        "lifecycle",
-        "abstraction"
-      ]
+      "scenario_seeds": [
+        "A developer who's only used docker-compose asks why they can't just run containers directly in Kubernetes - explain the Pod abstraction",
+        "Your team is designing a sidecar logging pattern and a developer asks why the app and log shipper need to be in the same Pod",
+        "During a debugging session, a junior engineer is confused why killing one container in a Pod affected another container - explain Pod lifecycle"
+      ],
+      "grading_rubric": "Must explain Pod as the smallest deployable unit AND describe shared resources (network, storage) AND contrast with running standalone containers.",
+      "concepts": {
+        "required": ["smallest deployable unit", "one or more containers", "shared network namespace", "shared storage volumes"],
+        "expected": ["localhost communication", "co-scheduled", "Pod lifecycle", "ephemeral by design"],
+        "bonus": ["init containers", "sidecar pattern", "Pod disruption budgets", "multi-container patterns"]
+      }
     },
     {
       "id": "phase5-topic4-q2",
       "prompt": "Walk me through Kubernetes Services and the different types you'd use for various scenarios.",
-      "expected_concepts": [
-        "service",
-        "expose",
-        "pods",
-        "ClusterIP",
-        "NodePort",
-        "LoadBalancer",
-        "stable IP",
-        "DNS",
-        "load balancing",
-        "network"
-      ]
+      "scenario_seeds": [
+        "Your microservices need to communicate with each other inside the cluster, and you also need to expose the API gateway externally - explain which Service types to use",
+        "A developer deployed their app but can't access it from their browser - walk through the Service types and which one enables external access",
+        "Your team is debating whether to use NodePort or LoadBalancer for a production API - explain the tradeoffs"
+      ],
+      "grading_rubric": "Must explain what Services provide (stable networking for Pods) AND describe ClusterIP, NodePort, and LoadBalancer types AND provide appropriate use cases for each.",
+      "concepts": {
+        "required": ["stable endpoint for Pods", "ClusterIP internal", "NodePort external via node", "LoadBalancer cloud integration"],
+        "expected": ["service discovery via DNS", "label selectors", "load balancing across Pods", "port mapping"],
+        "bonus": ["ExternalName", "headless services", "Ingress controllers", "service mesh"]
+      }
     }
   ],
   "test_knowledge_prompts": [

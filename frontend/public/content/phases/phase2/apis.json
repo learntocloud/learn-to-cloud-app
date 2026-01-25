@@ -36,35 +36,32 @@
     {
       "id": "phase2-topic2-q1",
       "prompt": "How would you explain REST APIs to a product manager, including the key principles that make them work?",
-      "expected_concepts": [
-        "representational state transfer",
-        "stateless",
-        "HTTP",
-        "resources",
-        "endpoints",
-        "uniform interface",
-        "client-server",
-        "cacheable",
-        "standard methods"
-      ]
+      "scenario_seeds": [
+        "Your product manager asks why your team chose REST over GraphQL for the new mobile app backend. Explain REST's benefits in business terms.",
+        "A stakeholder is confused why different services can communicate with your API. Explain how REST's uniform interface enables this.",
+        "You're presenting your API design to non-technical leadership. Make REST principles accessible without jargon."
+      ],
+      "grading_rubric": "Must explain that REST uses HTTP and standard methods AND that it's stateless (each request contains all needed info) AND describe resources/endpoints as the core abstraction.",
+      "concepts": {
+        "required": ["HTTP", "stateless", "resources", "endpoints"],
+        "expected": ["client-server", "uniform interface", "standard methods", "cacheable"],
+        "bonus": ["HATEOAS", "content negotiation", "REST vs RPC style"]
+      }
     },
     {
       "id": "phase2-topic2-q2",
       "prompt": "Walk me through the HTTP methods GET, POST, PUT, and DELETE and when you'd use each one.",
-      "expected_concepts": [
-        "GET",
-        "retrieve",
-        "read",
-        "POST",
-        "create",
-        "PUT",
-        "update",
-        "replace",
-        "DELETE",
-        "remove",
-        "CRUD",
-        "idempotent"
-      ]
+      "scenario_seeds": [
+        "You're designing an API for a todo app. Map out which HTTP methods handle creating, viewing, updating, and deleting tasks.",
+        "A junior developer used POST for everything in their API. Explain why using the right HTTP methods matters.",
+        "Your team is debating whether to use PUT or POST for updating user profiles. Walk through the semantic differences."
+      ],
+      "grading_rubric": "Must correctly map GET to read, POST to create, PUT to update/replace, DELETE to remove AND explain idempotency differences AND relate to CRUD operations.",
+      "concepts": {
+        "required": ["GET", "POST", "PUT", "DELETE", "CRUD mapping"],
+        "expected": ["idempotent", "safe methods", "request body", "status codes"],
+        "bonus": ["PATCH vs PUT", "idempotency keys", "HTTP method semantics"]
+      }
     }
   ],
   "test_knowledge_prompts": [

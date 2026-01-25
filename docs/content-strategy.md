@@ -21,8 +21,8 @@ frontend/public/content/phases/
 
 | Component | What It Uses Content For |
 |-----------|-------------------------|
-| **Frontend** | Display: topic text, learning steps, question prompts |
-| **API** | Validation & grading: verify IDs exist, get `expected_concepts` for LLM grading, count steps for progress |
+| **Frontend** | Display: topic text, learning steps, question prompts, scenario generation |
+| **API** | Validation & grading: verify IDs exist, get `grading_rubric` and `concepts` for LLM grading, generate scenario questions |
 
 The API cannot trust the client to send grading criteria—that would allow cheating. So the API maintains its own copy of content for server-side validation.
 
@@ -99,11 +99,42 @@ The API cannot trust the client to send grading criteria—that would allow chea
     {
       "id": "phase0-cloud-computing-q1",
       "prompt": "What are the main characteristics of cloud computing?",
-      "expected_concepts": ["on-demand", "scalable", "pay-as-you-go", "internet-accessible"]
+      "scenario_seeds": [
+        "A startup is evaluating whether to use cloud services instead of buying servers",
+        "Your CEO asks you to explain why the company should migrate to the cloud",
+        "During an interview, you're asked to compare cloud computing to traditional IT"
+      ],
+      "grading_rubric": "Answer must explain on-demand access AND scalability AND the pay-as-you-go model",
+      "concepts": {
+        "required": ["on-demand", "scalable"],
+        "expected": ["pay-as-you-go", "internet-accessible"],
+        "bonus": ["elasticity", "measured service", "resource pooling"]
+      }
     }
   ]
 }
 ```
+
+### Question Schema
+
+Each question uses scenario-based grading to test applied understanding rather than memorization:
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `id` | string | Yes | Unique identifier (format: `{phase}-{topic}-q{n}`) |
+| `prompt` | string | Yes | The base question text shown to users |
+| `scenario_seeds` | string[] | Yes | 3 scenario contexts for dynamic question generation |
+| `grading_rubric` | string | Yes | Human-readable criteria for passing (e.g., "Must explain X AND Y") |
+| `concepts` | object | Yes | Structured concept categories for grading |
+| `concepts.required` | string[] | Yes | Core concepts that MUST be addressed for passing |
+| `concepts.expected` | string[] | Yes | Important concepts that should be included |
+| `concepts.bonus` | string[] | Yes | Advanced concepts that demonstrate deeper understanding |
+
+**How Scenario Questions Work:**
+1. User requests a question → API generates a unique scenario using one of the `scenario_seeds`
+2. The scenario is cached per user/question for 1 hour
+3. User's answer is graded against the `grading_rubric` with concept awareness
+4. On LLM failure, the base `prompt` is shown as fallback
 
 ## Deployment Workflows
 
@@ -138,12 +169,12 @@ When you modify API code, frontend code, or add new phases/topics:
 
 ```bash
 # Example: Update a resource URL in phase 1
-vim frontend/public/content/phases/phase1/linux-basics.json
+vim frontend/public/content/phases/phase1/cli-basics.json
 git add -A && git commit -m "Update Linux tutorial link"
 git push origin main
 ```
 
-> **Note**: If you change `expected_concepts` for grading, the API won't pick up the change until a full deploy. Consider triggering a manual full deploy if grading criteria change.
+> **Note**: If you change grading criteria (`grading_rubric`, `concepts`), the API won't pick up the change until a full deploy. Consider triggering a manual full deploy if grading criteria change.
 
 ### Add a New Question to Existing Topic
 
@@ -151,9 +182,19 @@ git push origin main
 2. Add the question to the `questions` array:
    ```json
    {
-     "id": "phase1-linux-basics-q3",
+     "id": "phase1-cli-basics-q3",
      "prompt": "What command lists files in a directory?",
-     "expected_concepts": ["ls", "list", "directory contents"]
+     "scenario_seeds": [
+       "You SSH into a new server and need to explore what files are present",
+       "A coworker asks you to verify a file exists in their home directory",
+       "Your deployment script needs to check directory contents before proceeding"
+     ],
+     "grading_rubric": "Must identify ls command AND explain it shows directory contents",
+     "concepts": {
+       "required": ["ls"],
+       "expected": ["list", "directory contents"],
+       "bonus": ["flags like -l", "hidden files with -a"]
+     }
    }
    ```
 3. Commit and push to `main`
@@ -232,9 +273,9 @@ uv run python -c "from services.content_service import get_all_phases; print(f'L
 - API won't have the new text until next full deploy
 - This usually doesn't matter unless the API returns content text (it mostly just validates IDs and grades answers)
 
-### What if I change `expected_concepts`?
+### What if I change grading criteria?
 
-The API uses `expected_concepts` for LLM grading. If you change these:
+The API uses `grading_rubric` and `concepts` for LLM grading. If you change these:
 1. Push your changes
 2. Manually trigger `Deploy to Azure` workflow to rebuild the API
 3. Otherwise, grading will use old criteria until the next full deploy

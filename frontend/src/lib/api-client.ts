@@ -8,6 +8,7 @@
 
 import type {
   QuestionSubmitResponse,
+  ScenarioQuestionResponse,
   TopicStepProgress,
   StreakResponse,
   PublicProfileResponse,
@@ -312,10 +313,37 @@ export function createApiClient(getToken: () => Promise<string | null>) {
       return res.json();
     },
 
+    async getScenarioQuestion(
+      topicId: string,
+      questionId: string
+    ): Promise<ScenarioQuestionResponse> {
+      const res = await fetchWithAuth(`/api/questions/${topicId}/${questionId}/scenario`);
+      if (res.status === 429) {
+        const error = await res.json().catch(() => ({
+          detail: 'Too many attempts',
+          lockout_until: null,
+          attempts_used: 0,
+        }));
+        const retryAfter = parseInt(res.headers.get('Retry-After') || '3600', 10);
+        throw new LockoutError(
+          error.detail || 'Too many failed attempts',
+          error.lockout_until,
+          error.attempts_used,
+          retryAfter
+        );
+      }
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({ detail: 'Failed to fetch question' }));
+        throw new Error(error.detail || 'Failed to fetch question');
+      }
+      return res.json();
+    },
+
     async submitAnswer(
       topicId: string,
       questionId: string,
-      answer: string
+      answer: string,
+      scenarioContext?: string
     ): Promise<QuestionSubmitResponse> {
       const res = await fetchWithAuth('/api/questions/submit', {
         method: 'POST',
@@ -323,6 +351,7 @@ export function createApiClient(getToken: () => Promise<string | null>) {
           topic_id: topicId,
           question_id: questionId,
           user_answer: answer,
+          scenario_context: scenarioContext,
         }),
       });
       if (res.status === 429) {

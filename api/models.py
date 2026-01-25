@@ -105,34 +105,28 @@ class ProcessedWebhook(Base):
 class SubmissionType(str, PyEnum):
     """Type of submission for hands-on verification.
 
+    Currently supports Phase 0, Phase 1, and Phase 2 verification types.
+
     To add a new verification type:
     1. Add the enum value here
     2. Add a validator function in the appropriate module:
-       - GitHub-based: api/shared/github_hands_on_verification.py
-       - Deployment/External: api/shared/hands_on_verification.py
+       - GitHub-based: api/services/github_hands_on_verification_service.py
+       - JSON validation: api/services/journal_verification_service.py
        - Or create a new module for complex verification types
     3. Add the routing case in validate_submission() in hands_on_verification.py
     4. Add optional fields to HandsOnRequirement schema if needed
-       (e.g., expected_endpoint)
     """
 
+    # Phase 0: GitHub profile setup
     GITHUB_PROFILE = "github_profile"
+
+    # Phase 1: Profile README, repo fork, and CTF completion
     PROFILE_README = "profile_readme"
     REPO_FORK = "repo_fork"
-    REPO_URL = "repo_url"
-
-    DEPLOYED_APP = "deployed_app"
-
     CTF_TOKEN = "ctf_token"
-    API_CHALLENGE = "api_challenge"
 
-    # Local API response validation (paste JSON output)
+    # Phase 2: Journal API implementation
     JOURNAL_API_RESPONSE = "journal_api_response"
-
-    # DevOps verification types (Phase 5)
-    WORKFLOW_RUN = "workflow_run"  # Verify GitHub Actions ran successfully
-    REPO_WITH_FILES = "repo_with_files"  # Verify repo contains specific files
-    CONTAINER_IMAGE = "container_image"  # Verify public container image exists
 
 
 class Submission(TimestampMixin, Base):
@@ -268,6 +262,7 @@ class QuestionAttempt(Base):
         nullable=False,
     )
     user_answer: Mapped[str] = mapped_column(Text, nullable=False)
+    scenario_prompt: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_passed: Mapped[bool] = mapped_column(Boolean, default=False)
     llm_feedback: Mapped[str | None] = mapped_column(Text, nullable=True)
     confidence_score: Mapped[float | None] = mapped_column(Float, nullable=True)
@@ -277,6 +272,38 @@ class QuestionAttempt(Base):
     )
 
     user: Mapped["User"] = relationship(back_populates="question_attempts")
+
+
+class UserScenario(Base):
+    """Stores generated scenario questions per user permanently.
+
+    Each user gets a unique LLM-generated scenario for each question. Once
+    generated, the scenario is stored forever to:
+    - Maintain a complete learning record
+    - Avoid redundant LLM calls on repeat visits
+    - Ensure consistency (user always sees their original scenario)
+    """
+
+    __tablename__ = "user_scenarios"
+    __table_args__ = (
+        UniqueConstraint("user_id", "question_id", name="uq_user_scenario"),
+        Index("ix_user_scenarios_lookup", "user_id", "question_id"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[str] = mapped_column(
+        String(255),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    question_id: Mapped[str] = mapped_column(String(100), nullable=False)
+    scenario_prompt: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=utcnow,
+    )
+
+    user: Mapped["User"] = relationship()
 
 
 class StepProgress(Base):

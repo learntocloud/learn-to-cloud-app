@@ -27,34 +27,32 @@
     {
       "id": "phase0-topic6-q1",
       "prompt": "Describe what a cloud engineer does day-to-day and the typical responsibilities of the role.",
-      "expected_concepts": [
-        "infrastructure",
-        "deploy",
-        "manage",
-        "monitor",
-        "troubleshoot",
-        "automation",
-        "security",
-        "cloud services",
-        "optimize",
-        "collaborate"
-      ]
+      "scenario_seeds": [
+        "A friend considering a career change asks what you actually do at work every day",
+        "Your manager asks you to write a job description for a junior cloud engineer position",
+        "A college student shadowing you wants to understand the variety of tasks in this role"
+      ],
+      "grading_rubric": "Must describe at least 4 core responsibilities (infrastructure management, deployment, monitoring, troubleshooting, automation, security) AND explain how cloud engineers collaborate with other teams AND mention the balance between building and maintaining systems.",
+      "concepts": {
+        "required": ["infrastructure management", "deployment", "monitoring", "troubleshooting"],
+        "expected": ["automation", "security", "cloud services", "optimization", "collaboration"],
+        "bonus": ["on-call responsibilities", "cost optimization", "architecture decisions", "mentoring"]
+      }
     },
     {
       "id": "phase0-topic6-q2",
       "prompt": "What technical skills would you prioritize when building toward a cloud engineering career?",
-      "expected_concepts": [
-        "Linux",
-        "networking",
-        "programming",
-        "scripting",
-        "cloud platforms",
-        "problem solving",
-        "automation",
-        "security",
-        "continuous learning",
-        "communication"
-      ]
+      "scenario_seeds": [
+        "Someone with no tech background asks what they should learn first to become a cloud engineer",
+        "A bootcamp graduate wants to know which skills will make them most hireable",
+        "Your company is creating a training program and asks what foundational skills to include"
+      ],
+      "grading_rubric": "Must identify at least 5 core technical skills AND explain why each matters for cloud engineering AND suggest a logical order or priority for learning them.",
+      "concepts": {
+        "required": ["Linux fundamentals", "networking basics", "programming/scripting", "cloud platform knowledge"],
+        "expected": ["automation tools", "security fundamentals", "problem-solving", "version control"],
+        "bonus": ["infrastructure as code", "containers", "soft skills like communication", "continuous learning mindset"]
+      }
     }
   ],
   "test_knowledge_prompts": [

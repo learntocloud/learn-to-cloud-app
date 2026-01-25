@@ -53,6 +53,12 @@ export interface QuestionSubmitResponse {
   lockout_until: string | null;  // ISO timestamp when lockout expires (set when max attempts reached)
 }
 
+export interface ScenarioQuestionResponse {
+  question_id: string;
+  scenario_prompt: string;
+  base_prompt: string;
+}
+
 export interface StreakResponse {
   current_streak: number;
   longest_streak: number;

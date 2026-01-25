@@ -69,33 +69,32 @@
     {
       "id": "phase4-topic1-q1",
       "prompt": "Walk me through what virtualization is and how it enables cloud computing at scale.",
-      "expected_concepts": [
-        "hypervisor",
-        "virtual machine",
-        "physical server",
-        "isolation",
-        "multiple VMs",
-        "hardware abstraction",
-        "resource sharing",
-        "efficiency",
-        "scalability"
-      ]
+      "scenario_seeds": [
+        "Your manager asks you to explain to the finance team why the company can run 50 different applications on just 10 physical servers in the data center.",
+        "A junior developer is confused about why they can spin up a new server in minutes when it used to take weeks to procure hardware.",
+        "During a capacity planning meeting, someone asks how cloud providers can offer seemingly unlimited compute resources."
+      ],
+      "grading_rubric": "Must explain the hypervisor's role in abstracting hardware AND describe how multiple VMs share physical resources AND address the benefits of isolation between workloads.",
+      "concepts": {
+        "required": ["hypervisor", "virtual machine", "hardware abstraction"],
+        "expected": ["isolation", "multiple VMs on one server", "resource sharing", "efficiency"],
+        "bonus": ["Type 1 vs Type 2 hypervisors", "live migration", "overcommitment"]
+      }
     },
     {
       "id": "phase4-topic1-q2",
       "prompt": "How would you approach choosing a VM instance type for a new workload? What factors matter most?",
-      "expected_concepts": [
-        "CPU",
-        "memory",
-        "storage",
-        "network",
-        "cost",
-        "workload",
-        "general purpose",
-        "compute optimized",
-        "memory optimized",
-        "sizing"
-      ]
+      "scenario_seeds": [
+        "Your team is deploying a machine learning training job that processes large datasets entirely in memory and needs to complete within 4 hours.",
+        "A web application team asks you to recommend an instance type for their Node.js API that handles 10,000 concurrent users.",
+        "The data team wants to run a batch job that reads and writes terabytes of data from attached storage every night."
+      ],
+      "grading_rubric": "Must identify key resource dimensions (CPU, memory, storage, network) AND explain how workload characteristics map to instance families AND address cost considerations in the decision.",
+      "concepts": {
+        "required": ["CPU", "memory", "workload requirements", "instance families"],
+        "expected": ["general purpose", "compute optimized", "memory optimized", "storage optimized", "cost-performance tradeoff"],
+        "bonus": ["benchmarking before production", "burstable instances", "right-sizing over time"]
+      }
     }
   ],
   "test_knowledge_prompts": [

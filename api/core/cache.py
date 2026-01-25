@@ -5,6 +5,9 @@ Cache entries automatically expire after the configured TTL.
 
 Note: Cache is per-worker/replica, not shared across instances.
 Suitable for data that can tolerate short-term staleness (30-60s).
+
+For scenarios that must survive container restarts, use database
+persistence (see repositories/scenario_repository.py).
 """
 
 from typing import TYPE_CHECKING

@@ -87,31 +87,32 @@
     {
       "id": "phase3-topic2-q1",
       "prompt": "When should you reject a GitHub Copilot suggestion even if it appears to be correct code?",
-      "expected_concepts": [
-        "understand",
-        "explain",
-        "line by line",
-        "edge cases",
-        "intended",
-        "guessing",
-        "learn",
-        "ownership"
-      ]
+      "scenario_seeds": [
+        "Copilot suggests a complete authentication function that looks professional but uses patterns you've never seen before",
+        "You're writing a database query and Copilot autocompletes with what appears to be working SQL",
+        "A junior developer on your team accepts every Copilot suggestion because 'the code runs without errors'"
+      ],
+      "grading_rubric": "Must explain the core principle (reject if you can't explain it line by line) AND identify specific warning signs (unfamiliar patterns, can't verify edge cases) AND articulate why code ownership matters for learning.",
+      "concepts": {
+        "required": ["can't explain line by line", "don't understand the code", "code ownership"],
+        "expected": ["edge cases not considered", "copilot guessing vs your intent", "learning opportunity lost"],
+        "bonus": ["security implications of unreviewed code", "technical debt from copy-paste coding", "building false confidence"]
+      }
     },
     {
       "id": "phase3-topic2-q2",
       "prompt": "Walk me through the effective and ineffective uses of GitHub Copilot Chat for development.",
-      "expected_concepts": [
-        "explain",
-        "review",
-        "understand",
-        "errors",
-        "improve",
-        "not",
-        "write",
-        "entire",
-        "fix without understanding"
-      ]
+      "scenario_seeds": [
+        "You're stuck on a bug and considering whether to paste your code into Copilot Chat with 'fix this'",
+        "A teammate uses Copilot Chat to generate entire features from scratch without writing any code themselves",
+        "You want to understand why your async code isn't working as expected"
+      ],
+      "grading_rubric": "Must identify effective uses (explaining code, reviewing for improvements, understanding errors) AND ineffective uses (writing entire features, fixing without understanding) AND explain WHY each category matters.",
+      "concepts": {
+        "required": ["explain code", "code review", "don't generate entire features"],
+        "expected": ["understanding errors", "asking for improvements", "avoid fix-without-understanding"],
+        "bonus": ["using Chat to learn patterns vs bypass learning", "maintaining debugging skills", "Chat as teaching assistant not ghostwriter"]
+      }
     }
   ],
   "test_knowledge_prompts": [

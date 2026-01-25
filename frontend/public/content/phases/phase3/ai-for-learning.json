@@ -58,34 +58,32 @@
     {
       "id": "phase3-topic1-q1",
       "prompt": "How would you distinguish between using AI to accelerate learning versus using it to skip learning? Give examples of each.",
-      "expected_concepts": [
-        "explain",
-        "understand",
-        "quiz",
-        "question",
-        "Socratic",
-        "active",
-        "passive",
-        "copy",
-        "paste",
-        "think",
-        "independent"
-      ]
+      "scenario_seeds": [
+        "A bootcamp student pastes every coding exercise into ChatGPT and copies the solution directly into their assignment",
+        "You're learning Kubernetes and ask AI to quiz you on concepts after reading the documentation",
+        "A colleague asks AI 'explain decorators' vs another who asks AI to 'write a decorator that does X'"
+      ],
+      "grading_rubric": "Must clearly distinguish accelerating (AI quizzes you, explains back, asks questions) from skipping (copy-paste, no struggle, passive consumption) AND provide concrete examples of each AND explain why the distinction matters for long-term skill building.",
+      "concepts": {
+        "required": ["AI quizzes you vs answers for you", "active vs passive learning", "explain-back technique"],
+        "expected": ["Socratic method", "struggle is part of learning", "copy-paste dangers"],
+        "bonus": ["building independence vs dependence", "when struggle becomes unproductive", "calibrating AI assistance level"]
+      }
     },
     {
       "id": "phase3-topic1-q2",
       "prompt": "Walk me through how you would use AI to help debug code without having it solve the problem for you.",
-      "expected_concepts": [
-        "questions",
-        "expected",
-        "actual",
-        "tried",
-        "narrow down",
-        "understand",
-        "root cause",
-        "rubber duck",
-        "explain"
-      ]
+      "scenario_seeds": [
+        "Your FastAPI endpoint returns 500 errors intermittently and you've been stuck for an hour",
+        "A database query works in development but fails in production with a cryptic error",
+        "Your async Python code has a race condition but you can't figure out where"
+      ],
+      "grading_rubric": "Must explain the collaborative approach (describe expected vs actual, what you tried) AND how to ask AI for guiding questions not solutions AND demonstrate understanding of maintaining debugging skills.",
+      "concepts": {
+        "required": ["describe expected vs actual behavior", "explain what you tried", "ask for guiding questions"],
+        "expected": ["rubber duck debugging with AI", "narrow down the problem", "understand root cause yourself"],
+        "bonus": ["building mental models of failure modes", "knowing when to ask for hints vs solutions", "documenting debugging process for learning"]
+      }
     }
   ],
   "test_knowledge_prompts": [

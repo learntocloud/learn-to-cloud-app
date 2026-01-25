@@ -24,7 +24,8 @@ def _get_valid_question():
     for phase in phases:
         for topic in phase.topics:
             for question in topic.questions:
-                if question.expected_concepts:
+                # Check for new format (grading_rubric or concepts)
+                if question.grading_rubric or question.concepts:
                     return topic.id, question.id
     return None, None
 
@@ -39,7 +40,7 @@ class TestSubmitQuestionAnswer:
         """Test successful question submission that passes."""
         topic_id, question_id = _get_valid_question()
         if not question_id:
-            pytest.skip("No questions with expected_concepts in content")
+            pytest.skip("No questions with grading config in content")
 
         mock_grade.return_value = AsyncMock(
             is_passed=True,
@@ -69,7 +70,7 @@ class TestSubmitQuestionAnswer:
         """Test successful question submission that fails grading."""
         topic_id, question_id = _get_valid_question()
         if not question_id:
-            pytest.skip("No questions with expected_concepts in content")
+            pytest.skip("No questions with grading config in content")
 
         mock_grade.return_value = AsyncMock(
             is_passed=False,
@@ -135,7 +136,7 @@ class TestSubmitQuestionAnswer:
         """Test returns 429 when user is locked out from too many attempts."""
         topic_id, question_id = _get_valid_question()
         if not question_id:
-            pytest.skip("No questions with expected_concepts in content")
+            pytest.skip("No questions with grading config in content")
 
         lockout_until = datetime.now(UTC) + timedelta(minutes=5)
         mock_submit.side_effect = QuestionAttemptLimitExceeded(
@@ -165,7 +166,7 @@ class TestSubmitQuestionAnswer:
         """Test returns 503 when LLM service is unavailable."""
         topic_id, question_id = _get_valid_question()
         if not question_id:
-            pytest.skip("No questions with expected_concepts in content")
+            pytest.skip("No questions with grading config in content")
 
         mock_submit.side_effect = LLMServiceUnavailableError()
 
@@ -189,7 +190,7 @@ class TestSubmitQuestionAnswer:
         """Test returns 500 when LLM grading fails unexpectedly."""
         topic_id, question_id = _get_valid_question()
         if not question_id:
-            pytest.skip("No questions with expected_concepts in content")
+            pytest.skip("No questions with grading config in content")
 
         mock_submit.side_effect = LLMGradingError()
 

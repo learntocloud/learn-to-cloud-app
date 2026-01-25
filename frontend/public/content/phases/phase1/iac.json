@@ -59,35 +59,32 @@
     {
       "id": "phase1-topic3-q1",
       "prompt": "How would you explain Infrastructure as Code to a manager, and what problems does it solve over manual configuration?",
-      "expected_concepts": [
-        "code",
-        "automate",
-        "repeatable",
-        "consistent",
-        "version control",
-        "declarative",
-        "reproducible",
-        "documentation",
-        "scalable",
-        "auditable"
-      ]
+      "scenario_seeds": [
+        "Your team manually configured a production server and now no one remembers exactly how to recreate it for disaster recovery",
+        "An auditor asks how you can prove that development, staging, and production environments are configured identically",
+        "A new cloud region needs the same 30-service architecture you built manually over 6 months in another region"
+      ],
+      "grading_rubric": "Must explain IaC as defining infrastructure in code files AND describe benefits of repeatability/consistency AND contrast with manual 'ClickOps' configuration problems.",
+      "concepts": {
+        "required": ["infrastructure defined as code", "repeatable", "consistent", "version control"],
+        "expected": ["declarative approach", "reproducible environments", "documentation as code", "automation"],
+        "bonus": ["drift detection", "compliance auditing", "GitOps workflows", "state management"]
+      }
     },
     {
       "id": "phase1-topic3-q2",
       "prompt": "Walk me through what terraform init and terraform apply do when you run them.",
-      "expected_concepts": [
-        "init",
-        "initialize",
-        "providers",
-        "plugins",
-        "backend",
-        "apply",
-        "create",
-        "provision",
-        "resources",
-        "state",
-        "configuration"
-      ]
+      "scenario_seeds": [
+        "You just cloned a teammate's Terraform repo and need to set it up on your machine before you can deploy anything",
+        "A junior engineer ran terraform apply without understanding what would happen and wants to know what they just did",
+        "Your Terraform plan shows changes but you need to explain to the team what happens when you run apply"
+      ],
+      "grading_rubric": "Must explain init downloads providers/plugins and configures backend AND explain apply reads configuration, shows plan, and creates/updates resources AND mention state file tracking.",
+      "concepts": {
+        "required": ["init downloads providers", "init configures backend", "apply creates resources", "state file"],
+        "expected": ["plugins", "execution plan", "confirmation prompt", "resource provisioning"],
+        "bonus": ["terraform plan separation", "state locking", "provider versioning", "backend types"]
+      }
     }
   ],
   "test_knowledge_prompts": [

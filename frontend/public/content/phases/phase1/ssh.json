@@ -47,28 +47,32 @@
     {
       "id": "phase1-topic4-q1",
       "prompt": "How would you explain SSH to a teammate, and why is it fundamental for cloud computing?",
-      "expected_concepts": [
-        "secure shell",
-        "encrypted",
-        "remote access",
-        "server",
-        "command line",
-        "terminal",
-        "secure connection"
-      ]
+      "scenario_seeds": [
+        "A junior developer asks why we can't just use a web-based terminal to manage our production servers",
+        "Your security team wants to know how engineers access cloud VMs without exposing credentials over the network",
+        "A new team member is confused why they need to 'SSH into' a server instead of just accessing files directly"
+      ],
+      "grading_rubric": "Must explain SSH as an encrypted protocol for secure remote access AND describe it provides command-line access to servers AND explain why encryption is essential for cloud infrastructure.",
+      "concepts": {
+        "required": ["secure shell", "encrypted", "remote access", "command line"],
+        "expected": ["server management", "terminal access", "secure connection", "network protocol"],
+        "bonus": ["port 22", "SSH tunneling", "SCP/SFTP", "bastion hosts"]
+      }
     },
     {
       "id": "phase1-topic4-q2",
       "prompt": "Walk me through why SSH keys are more secure than passwords for server authentication.",
-      "expected_concepts": [
-        "asymmetric",
-        "public key",
-        "private key",
-        "cannot be guessed",
-        "brute force",
-        "cryptographic",
-        "no password transmission"
-      ]
+      "scenario_seeds": [
+        "Your security audit found that some servers still allow password authentication and you need to justify requiring SSH keys",
+        "A colleague argues that their strong password is just as secure as SSH keys and wants to know why they should switch",
+        "After a brute-force attack attempt was logged on your servers, management asks how SSH keys would have prevented it"
+      ],
+      "grading_rubric": "Must explain asymmetric cryptography (public/private key pair) AND describe why keys can't be brute-forced like passwords AND explain that private keys never travel over the network.",
+      "concepts": {
+        "required": ["public key", "private key", "asymmetric cryptography", "brute force resistance"],
+        "expected": ["key never transmitted", "cryptographic strength", "cannot be guessed", "key-based authentication"],
+        "bonus": ["key passphrases", "ssh-agent", "key rotation", "certificate-based auth"]
+      }
     }
   ],
   "learning_objectives": [

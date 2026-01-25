@@ -67,6 +67,8 @@ class HandsOnRequirement(FrozenModel):
     Used both as API schema and for defining phase requirements
     in services/phase_requirements_service.py.
 
+    Currently supports Phase 0 and Phase 1 verification types.
+
     To add a new verification type:
     1. Add the SubmissionType enum value in models.py
     2. Add optional fields here if needed (e.g., challenge_config)
@@ -80,20 +82,8 @@ class HandsOnRequirement(FrozenModel):
     description: str
     example_url: str | None = None
 
+    # For REPO_FORK: the original repo to verify fork from
     required_repo: str | None = None
-
-    expected_endpoint: str | None = None
-
-    # If True, validate the response body matches Journal API structure
-    validate_response_body: bool = False
-
-    challenge_config: dict | None = None
-
-    # For REPO_WITH_FILES: file patterns to search for
-    # (e.g., ["Dockerfile", "docker-compose"])
-    required_file_patterns: list[str] | None = None
-    # Human-readable description of the files being searched for
-    file_description: str | None = None
 
 
 class HandsOnSubmissionRequest(BaseModel):
@@ -220,7 +210,12 @@ class QuestionSubmitRequest(BaseModel):
 
     topic_id: str = Field(max_length=100)
     question_id: str = Field(max_length=100)
-    user_answer: str = Field(min_length=10, max_length=512)
+    user_answer: str = Field(min_length=10, max_length=2000)
+    scenario_context: str | None = Field(
+        default=None,
+        max_length=1000,
+        description="The scenario-wrapped question prompt (from GET /scenario)",
+    )
 
     @field_validator("topic_id")
     @classmethod
@@ -262,6 +257,21 @@ class QuestionSubmitResponse(FrozenORMModel):
     lockout_until: datetime | None = (
         None  # When lockout expires (set when max attempts reached)
     )
+
+
+class ScenarioQuestionRequest(BaseModel):
+    """Request to get a scenario-wrapped question."""
+
+    topic_id: str = Field(max_length=100)
+    question_id: str = Field(max_length=100)
+
+
+class ScenarioQuestionResponse(FrozenModel):
+    """Response containing a scenario-wrapped question."""
+
+    question_id: str
+    scenario_prompt: str
+    base_prompt: str
 
 
 class QuestionGradeResult(FrozenModel):
@@ -593,12 +603,22 @@ class LearningStep(FrozenModel):
 LearningStepSchema = LearningStep
 
 
+class QuestionConcepts(FrozenModel):
+    """Structured concepts for rubric-based grading."""
+
+    required: list[str] = Field(default_factory=list)
+    expected: list[str] = Field(default_factory=list)
+    bonus: list[str] = Field(default_factory=list)
+
+
 class Question(FrozenModel):
-    """A knowledge check question."""
+    """A knowledge check question with scenario support."""
 
     id: str
     prompt: str
-    expected_concepts: list[str] = Field(default_factory=list)
+    scenario_seeds: list[str] = Field(default_factory=list)
+    grading_rubric: str | None = None
+    concepts: QuestionConcepts | None = None
 
 
 class QuestionSchema(FrozenModel):
@@ -1108,6 +1128,13 @@ class GradeResult(FrozenModel):
     is_passed: bool
     feedback: str
     confidence_score: float
+
+
+class ScenarioGenerationResult(FrozenModel):
+    """Result of generating a scenario question via LLM."""
+
+    scenario_prompt: str
+    seed_index: int
 
 
 # =============================================================================

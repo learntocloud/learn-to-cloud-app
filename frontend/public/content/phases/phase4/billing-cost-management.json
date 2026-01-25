@@ -108,32 +108,32 @@
     {
       "id": "phase4-topic7-q1",
       "prompt": "Walk me through how cloud billing works and the main factors that drive monthly costs.",
-      "expected_concepts": [
-        "pay-as-you-go",
-        "consumption",
-        "compute hours",
-        "storage",
-        "data transfer",
-        "region",
-        "instance type",
-        "resources",
-        "usage"
-      ]
+      "scenario_seeds": [
+        "Your CFO is alarmed by a $3,000 cloud bill and asks you to explain what they're actually paying for.",
+        "A startup founder wants to understand why their cloud costs tripled when they expanded to a second region.",
+        "You're presenting to management about projected infrastructure costs for next quarter - what factors do you highlight?"
+      ],
+      "grading_rubric": "Must explain pay-as-you-go pricing model AND identify major cost drivers (compute, storage, data transfer) AND address how usage patterns and choices affect billing.",
+      "concepts": {
+        "required": ["pay-as-you-go", "compute hours", "storage costs", "data transfer charges"],
+        "expected": ["instance type affects price", "regional pricing differences", "billing cycles", "resource-based charging"],
+        "bonus": ["egress vs ingress pricing", "tiered pricing", "billing tags for cost allocation"]
+      }
     },
     {
       "id": "phase4-topic7-q2",
       "prompt": "What strategies would you use to reduce cloud costs without sacrificing application performance?",
-      "expected_concepts": [
-        "right-sizing",
-        "reserved instances",
-        "spot instances",
-        "auto-scaling",
-        "stop unused",
-        "delete orphaned",
-        "schedule",
-        "optimize",
-        "monitoring"
-      ]
+      "scenario_seeds": [
+        "Your team's development environment costs more than production - propose optimizations to reduce this.",
+        "Finance wants to cut cloud spending by 30% without impacting the customer experience - what do you recommend?",
+        "A cost audit reveals unused resources and oversized instances - create an optimization plan."
+      ],
+      "grading_rubric": "Must explain right-sizing instances based on actual usage AND describe scheduling or stopping unused resources AND address reserved/spot instances for predictable workloads.",
+      "concepts": {
+        "required": ["right-sizing", "stop unused resources", "delete orphaned resources"],
+        "expected": ["reserved instances for production", "spot instances for fault-tolerant workloads", "auto-scaling", "scheduled shutdowns"],
+        "bonus": ["cost monitoring dashboards", "FinOps practices", "savings plans", "commitment discounts"]
+      }
     }
   ],
   "test_knowledge_prompts": [

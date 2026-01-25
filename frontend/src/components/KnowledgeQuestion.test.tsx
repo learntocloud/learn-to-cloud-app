@@ -14,6 +14,17 @@ const mockQuestion: QuestionSchema = {
   prompt: 'What is cloud computing and why is it important?',
 };
 
+// Use vi.hoisted to create mock that's available during module mocking
+const { mockGetScenarioQuestion } = vi.hoisted(() => ({
+  mockGetScenarioQuestion: vi.fn(),
+}));
+
+vi.mock('@/lib/hooks', () => ({
+  useApi: () => ({
+    getScenarioQuestion: mockGetScenarioQuestion,
+  }),
+}));
+
 describe('KnowledgeQuestion', () => {
   const mockOnSubmit = vi.fn();
 
@@ -24,42 +35,87 @@ describe('KnowledgeQuestion', () => {
       llm_feedback: 'Please provide more detail about scalability.',
       attempts_used: 1,
     });
+    // Reset and setup the scenario mock before each test
+    mockGetScenarioQuestion.mockReset();
+    mockGetScenarioQuestion.mockResolvedValue({
+      question_id: 'q1',
+      scenario_prompt: 'You are advising a startup CTO. ' + mockQuestion.prompt,
+      base_prompt: mockQuestion.prompt,
+    });
   });
 
-  it('renders question prompt', () => {
+  // Helper to start the knowledge check
+  async function startKnowledgeCheck(user: ReturnType<typeof userEvent.setup>) {
+    const startButton = screen.getByRole('button', { name: /start knowledge check/i });
+    await user.click(startButton);
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: /start knowledge check/i })).not.toBeInTheDocument();
+    });
+  }
+
+  it('shows start button initially', () => {
     render(
       <KnowledgeQuestion
+        topicId="phase1-topic1"
         question={mockQuestion}
         isAnswered={false}
         onSubmit={mockOnSubmit}
       />
     );
 
-    expect(screen.getByText(mockQuestion.prompt)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /start knowledge check/i })).toBeInTheDocument();
+    expect(screen.getByText(/ready to test your knowledge/i)).toBeInTheDocument();
+    expect(screen.queryByText(mockQuestion.prompt)).not.toBeInTheDocument();
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
   });
 
-  it('renders textarea for answer input', () => {
+  it('loads scenario after clicking start', async () => {
+    const user = userEvent.setup();
     render(
       <KnowledgeQuestion
+        topicId="phase1-topic1"
         question={mockQuestion}
         isAnswered={false}
         onSubmit={mockOnSubmit}
       />
     );
+
+    await startKnowledgeCheck(user);
+
+    expect(mockGetScenarioQuestion).toHaveBeenCalledWith('phase1-topic1', 'q1');
+    expect(screen.getByRole('textbox')).toBeInTheDocument();
+  });
+
+  it('renders textarea for answer input after starting', async () => {
+    const user = userEvent.setup();
+    render(
+      <KnowledgeQuestion
+        topicId="phase1-topic1"
+        question={mockQuestion}
+        isAnswered={false}
+        onSubmit={mockOnSubmit}
+      />
+    );
+
+    await startKnowledgeCheck(user);
 
     const textarea = screen.getByRole('textbox');
     expect(textarea).toBeInTheDocument();
     expect(textarea).toHaveAttribute('placeholder', expect.stringContaining('interview'));
   });
 
-  it('shows submit button', () => {
+  it('shows submit button after starting', async () => {
+    const user = userEvent.setup();
     render(
       <KnowledgeQuestion
+        topicId="phase1-topic1"
         question={mockQuestion}
         isAnswered={false}
         onSubmit={mockOnSubmit}
       />
     );
+
+    await startKnowledgeCheck(user);
 
     expect(screen.getByRole('button', { name: /submit answer/i })).toBeInTheDocument();
   });
@@ -68,11 +124,14 @@ describe('KnowledgeQuestion', () => {
     const user = userEvent.setup();
     render(
       <KnowledgeQuestion
+        topicId="phase1-topic1"
         question={mockQuestion}
         isAnswered={false}
         onSubmit={mockOnSubmit}
       />
     );
+
+    await startKnowledgeCheck(user);
 
     const textarea = screen.getByRole('textbox');
     await user.type(textarea, 'short');
@@ -85,11 +144,14 @@ describe('KnowledgeQuestion', () => {
     const user = userEvent.setup();
     render(
       <KnowledgeQuestion
+        topicId="phase1-topic1"
         question={mockQuestion}
         isAnswered={false}
         onSubmit={mockOnSubmit}
       />
     );
+
+    await startKnowledgeCheck(user);
 
     const textarea = screen.getByRole('textbox');
     await user.type(textarea, 'This is a sufficiently long answer that meets the minimum character requirement.');
@@ -102,28 +164,34 @@ describe('KnowledgeQuestion', () => {
     const user = userEvent.setup();
     render(
       <KnowledgeQuestion
+        topicId="phase1-topic1"
         question={mockQuestion}
         isAnswered={false}
         onSubmit={mockOnSubmit}
       />
     );
 
+    await startKnowledgeCheck(user);
+
     const textarea = screen.getByRole('textbox');
     await user.type(textarea, 'Test answer');
 
     // Character count should be visible
-    expect(screen.getByText(/11\/512/)).toBeInTheDocument();
+    expect(screen.getByText(/11\/2000/)).toBeInTheDocument();
   });
 
   it('calls onSubmit when form is submitted', async () => {
     const user = userEvent.setup();
     render(
       <KnowledgeQuestion
+        topicId="phase1-topic1"
         question={mockQuestion}
         isAnswered={false}
         onSubmit={mockOnSubmit}
       />
     );
+
+    await startKnowledgeCheck(user);
 
     const textarea = screen.getByRole('textbox');
     const answer = 'Cloud computing is the delivery of computing services over the internet.';
@@ -132,7 +200,11 @@ describe('KnowledgeQuestion', () => {
     const submitButton = screen.getByRole('button', { name: /submit answer/i });
     await user.click(submitButton);
 
-    expect(mockOnSubmit).toHaveBeenCalledWith(answer);
+    // Should pass the scenario prompt (no longer undefined since we removed fallback)
+    expect(mockOnSubmit).toHaveBeenCalledWith(
+      answer,
+      'You are advising a startup CTO. ' + mockQuestion.prompt
+    );
   });
 
   it('shows feedback on incorrect answer', async () => {
@@ -145,11 +217,14 @@ describe('KnowledgeQuestion', () => {
 
     render(
       <KnowledgeQuestion
+        topicId="phase1-topic1"
         question={mockQuestion}
         isAnswered={false}
         onSubmit={mockOnSubmit}
       />
     );
+
+    await startKnowledgeCheck(user);
 
     const textarea = screen.getByRole('textbox');
     await user.type(textarea, 'Cloud computing is using computers on the internet.');
@@ -172,11 +247,14 @@ describe('KnowledgeQuestion', () => {
 
     render(
       <KnowledgeQuestion
+        topicId="phase1-topic1"
         question={mockQuestion}
         isAnswered={false}
         onSubmit={mockOnSubmit}
       />
     );
+
+    await startKnowledgeCheck(user);
 
     const textarea = screen.getByRole('textbox');
     await user.type(textarea, 'Cloud computing is the on-demand delivery of IT resources over the internet with pay-as-you-go pricing.');
@@ -189,9 +267,10 @@ describe('KnowledgeQuestion', () => {
     });
   });
 
-  it('shows already passed state', () => {
+  it('shows already passed state without start button', () => {
     render(
       <KnowledgeQuestion
+        topicId="phase1-topic1"
         question={mockQuestion}
         isAnswered={true}
         onSubmit={mockOnSubmit}
@@ -199,6 +278,7 @@ describe('KnowledgeQuestion', () => {
     );
 
     expect(screen.getByText(/passed this question/i)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /start knowledge check/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
   });
 
@@ -209,11 +289,14 @@ describe('KnowledgeQuestion', () => {
 
     render(
       <KnowledgeQuestion
+        topicId="phase1-topic1"
         question={mockQuestion}
         isAnswered={false}
         onSubmit={mockOnSubmit}
       />
     );
+
+    await startKnowledgeCheck(user);
 
     const textarea = screen.getByRole('textbox');
     await user.type(textarea, 'A valid answer that meets the minimum length requirement.');
@@ -235,11 +318,14 @@ describe('KnowledgeQuestion', () => {
 
     render(
       <KnowledgeQuestion
+        topicId="phase1-topic1"
         question={mockQuestion}
         isAnswered={false}
         onSubmit={mockOnSubmit}
       />
     );
+
+    await startKnowledgeCheck(user);
 
     const textarea = screen.getByRole('textbox');
     await user.type(textarea, 'An answer that needs improvement but is long enough.');
@@ -261,11 +347,14 @@ describe('KnowledgeQuestion', () => {
 
     render(
       <KnowledgeQuestion
+        topicId="phase1-topic1"
         question={mockQuestion}
         isAnswered={false}
         onSubmit={mockOnSubmit}
       />
     );
+
+    await startKnowledgeCheck(user);
 
     const textarea = screen.getByRole('textbox');
     await user.type(textarea, 'Another attempt that will fail due to lockout.');
@@ -291,11 +380,14 @@ describe('KnowledgeQuestion', () => {
 
     render(
       <KnowledgeQuestion
+        topicId="phase1-topic1"
         question={mockQuestion}
         isAnswered={false}
         onSubmit={mockOnSubmit}
       />
     );
+
+    await startKnowledgeCheck(user);
 
     const textarea = screen.getByRole('textbox');
     await user.type(textarea, 'Third attempt that will trigger lockout from response.');
@@ -311,11 +403,12 @@ describe('KnowledgeQuestion', () => {
     expect(screen.queryByText(/wrong answer/i)).not.toBeInTheDocument();
   });
 
-  it('disables input when locked out', () => {
+  it('shows lockout state without start button or textarea', async () => {
     const lockoutUntil = new Date(Date.now() + 30 * 60 * 1000);
 
     render(
       <KnowledgeQuestion
+        topicId="phase1-topic1"
         question={mockQuestion}
         isAnswered={false}
         initialLockoutUntil={lockoutUntil}
@@ -324,18 +417,29 @@ describe('KnowledgeQuestion', () => {
       />
     );
 
-    const textarea = screen.getByRole('textbox');
-    expect(textarea).toBeDisabled();
+    // When initially locked out, should show lockout state, not start button
+    await waitFor(() => {
+      expect(screen.getByText(/available in/i)).toBeInTheDocument();
+    });
+
+    expect(screen.queryByRole('button', { name: /start knowledge check/i })).not.toBeInTheDocument();
+    // Question text and textarea should not be shown
+    expect(screen.queryByText(mockQuestion.prompt)).not.toBeInTheDocument();
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
   });
 
-  it('has accessible labels and descriptions', () => {
+  it('has accessible labels and descriptions after starting', async () => {
+    const user = userEvent.setup();
     render(
       <KnowledgeQuestion
+        topicId="phase1-topic1"
         question={mockQuestion}
         isAnswered={false}
         onSubmit={mockOnSubmit}
       />
     );
+
+    await startKnowledgeCheck(user);
 
     const textarea = screen.getByRole('textbox');
     // Should have aria-labelledby pointing to the question prompt

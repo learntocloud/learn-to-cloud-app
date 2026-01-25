@@ -43,35 +43,32 @@
     {
       "id": "phase2-topic4-q1",
       "prompt": "Walk me through CRUD operations and how they map to SQL commands.",
-      "expected_concepts": [
-        "create",
-        "read",
-        "update",
-        "delete",
-        "INSERT",
-        "SELECT",
-        "UPDATE",
-        "DELETE",
-        "database",
-        "operations",
-        "data manipulation"
-      ]
+      "scenario_seeds": [
+        "You're building a notes app and need to implement basic data operations. Map out the SQL for each action a user might take.",
+        "A teammate asks why database operations are called CRUD. Walk them through each operation with a concrete example.",
+        "You're reviewing an API and need to verify the database layer implements all necessary operations. Explain what to look for."
+      ],
+      "grading_rubric": "Must correctly map Create to INSERT, Read to SELECT, Update to UPDATE, Delete to DELETE AND explain what each operation does AND provide example use cases.",
+      "concepts": {
+        "required": ["CREATE/INSERT", "READ/SELECT", "UPDATE", "DELETE", "SQL commands"],
+        "expected": ["WHERE clause", "data manipulation", "primary keys", "affected rows"],
+        "bonus": ["transactions", "returning clauses", "upsert operations"]
+      }
     },
     {
       "id": "phase2-topic4-q2",
       "prompt": "How would you explain an ORM to a junior developer, and why would you use one instead of raw SQL?",
-      "expected_concepts": [
-        "ORM",
-        "object-relational mapping",
-        "SQLAlchemy",
-        "models",
-        "classes",
-        "abstraction",
-        "security",
-        "SQL injection",
-        "productivity",
-        "maintainability"
-      ]
+      "scenario_seeds": [
+        "Your team is onboarding a new developer who only knows raw SQL. Explain why your codebase uses SQLAlchemy instead.",
+        "A security audit flagged potential SQL injection in a legacy service using string concatenation. Explain how an ORM prevents this.",
+        "You're deciding whether to use raw SQL or SQLAlchemy for a new microservice. Walk through the trade-offs."
+      ],
+      "grading_rubric": "Must explain ORM maps database tables to Python classes AND prevents SQL injection through parameterization AND improves productivity/maintainability.",
+      "concepts": {
+        "required": ["object-relational mapping", "models as classes", "SQL injection prevention"],
+        "expected": ["SQLAlchemy", "abstraction layer", "productivity", "maintainability"],
+        "bonus": ["query builder patterns", "migration support", "when raw SQL is still needed"]
+      }
     }
   ],
   "test_knowledge_prompts": [

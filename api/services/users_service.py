@@ -163,9 +163,6 @@ async def get_public_profile(
 
     sensitive_submission_types = {
         SubmissionType.CTF_TOKEN,
-        SubmissionType.DEPLOYED_APP,
-        SubmissionType.CONTAINER_IMAGE,
-        SubmissionType.API_CHALLENGE,
     }
 
     submissions = []

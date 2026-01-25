@@ -165,34 +165,32 @@
     {
       "id": "phase6-topic3-q1",
       "prompt": "Walk me through network segmentation and how you would use public, private, and isolated subnets.",
-      "expected_concepts": [
-        "segmentation",
-        "public subnet",
-        "internet facing",
-        "private subnet",
-        "no direct access",
-        "isolated",
-        "no internet",
-        "separation",
-        "security",
-        "blast radius"
-      ]
+      "scenario_seeds": [
+        "You're designing the network architecture for a three-tier web application with a React frontend, Node.js API, and PostgreSQL database. Explain how you'd segment these components across different subnet types and why.",
+        "After a security audit, your team discovered that the database server was accidentally placed in a public subnet with a public IP. Explain the risks and how you'd redesign the network to properly isolate sensitive resources.",
+        "Your company processes payment card data and needs to meet PCI-DSS compliance requirements. Describe how you'd use network segmentation to create a secure cardholder data environment."
+      ],
+      "grading_rubric": "Must explain the purpose of each subnet type (public for internet-facing, private for internal, isolated for sensitive) AND describe how traffic flows between them AND discuss how segmentation limits blast radius in case of compromise.",
+      "concepts": {
+        "required": ["network segmentation", "public subnet", "private subnet", "blast radius reduction"],
+        "expected": ["internet gateway", "NAT gateway", "route tables", "security boundaries", "defense in depth"],
+        "bonus": ["isolated/air-gapped subnets", "transit gateway", "VPC peering", "private endpoints", "microsegmentation"]
+      }
     },
     {
       "id": "phase6-topic3-q2",
       "prompt": "How would you explain the difference between a security group and a network ACL to someone new to cloud networking?",
-      "expected_concepts": [
-        "security group",
-        "stateful",
-        "instance",
-        "return traffic",
-        "network ACL",
-        "stateless",
-        "subnet",
-        "explicit rules",
-        "allow",
-        "deny"
-      ]
+      "scenario_seeds": [
+        "A junior engineer configured a security group to allow SSH from anywhere, but traffic still isn't reaching the EC2 instance. You discover there's also a network ACL blocking the traffic. Explain the difference between these two controls and how they interact.",
+        "Your application suddenly stopped working after a network change. You need to troubleshoot whether the issue is at the security group or network ACL level. Explain how the stateful vs stateless nature of each affects your debugging approach.",
+        "You need to implement a rule that blocks traffic from a specific IP address known for malicious activity. Explain which control you'd use and why, considering the capabilities of security groups vs network ACLs."
+      ],
+      "grading_rubric": "Must clearly explain stateful (security groups) vs stateless (network ACLs) behavior AND identify the scope of each (instance-level vs subnet-level) AND describe rule evaluation differences (allow-only vs allow/deny).",
+      "concepts": {
+        "required": ["security group", "network ACL", "stateful", "stateless"],
+        "expected": ["instance-level", "subnet-level", "return traffic", "allow rules", "deny rules"],
+        "bonus": ["rule evaluation order", "default deny", "ephemeral ports", "defense in depth with both controls"]
+      }
     }
   ],
   "test_knowledge_prompts": [

@@ -131,33 +131,32 @@
     {
       "id": "phase4-topic8-q1",
       "prompt": "How would you approach choosing an LLM model for your application? What factors would you weigh?",
-      "expected_concepts": [
-        "cost per token",
-        "latency",
-        "context window",
-        "accuracy",
-        "capability",
-        "speed",
-        "use case",
-        "complexity",
-        "size",
-        "pricing"
-      ]
+      "scenario_seeds": [
+        "Your journal app needs sentiment analysis - a fast, cheap model might suffice, but your PM wants 'the best' model. How do you decide?",
+        "The product team wants to add AI-powered features but is concerned about API costs at scale with 100K users.",
+        "A new model was just released that's twice as capable but three times the cost - how do you evaluate the tradeoff?"
+      ],
+      "grading_rubric": "Must identify key factors (cost, latency, capability) AND explain how use case requirements drive selection AND address the tradeoffs between model size/quality and cost/speed.",
+      "concepts": {
+        "required": ["cost per token", "latency requirements", "capability for use case"],
+        "expected": ["context window size", "model accuracy", "speed vs quality tradeoff", "testing in playground"],
+        "bonus": ["fine-tuning considerations", "model versioning", "fallback strategies", "prompt engineering impact"]
+      }
     },
     {
       "id": "phase4-topic8-q2",
       "prompt": "Walk me through what AI guardrails are and why they matter for production applications.",
-      "expected_concepts": [
-        "content filtering",
-        "safety",
-        "responsible AI",
-        "harmful content",
-        "prevent abuse",
-        "moderation",
-        "compliance",
-        "limits",
-        "protection"
-      ]
+      "scenario_seeds": [
+        "Your legal team asks how you prevent the AI from generating inappropriate content in user-facing features.",
+        "A beta tester found they could prompt the journal AI to output harmful advice - how do you prevent this in production?",
+        "The compliance team requires documentation of AI safety measures before launch - what do you implement?"
+      ],
+      "grading_rubric": "Must explain guardrails as content filtering and safety mechanisms AND describe what types of content they prevent AND address why this matters for responsible AI deployment.",
+      "concepts": {
+        "required": ["content filtering", "harmful content prevention", "responsible AI"],
+        "expected": ["input/output moderation", "abuse prevention", "compliance requirements", "platform policies"],
+        "bonus": ["custom guardrail configuration", "prompt injection protection", "monitoring and alerting on violations"]
+      }
     }
   ],
   "test_knowledge_prompts": [

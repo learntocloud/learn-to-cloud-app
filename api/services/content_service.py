@@ -74,11 +74,17 @@ def _load_topic(phase_dir: Path, topic_slug: str) -> Topic | None:
             for i, s in enumerate(data.get("learning_steps", []))
         ]
 
+        from schemas import QuestionConcepts
+
         questions = [
             Question(
                 id=q["id"],
                 prompt=q["prompt"],
-                expected_concepts=q.get("expected_concepts", []),
+                scenario_seeds=q.get("scenario_seeds", []),
+                grading_rubric=q.get("grading_rubric"),
+                concepts=QuestionConcepts(**q["concepts"])
+                if q.get("concepts")
+                else None,
             )
             for q in data.get("questions", [])
         ]

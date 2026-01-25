@@ -36,33 +36,32 @@
     {
       "id": "phase0-topic2-q1",
       "prompt": "How would you explain IP addresses to someone new to networking, including the difference between public and private IPs?",
-      "expected_concepts": [
-        "unique identifier",
-        "device",
-        "network",
-        "public",
-        "private",
-        "internet",
-        "internal",
-        "NAT",
-        "routable",
-        "address"
-      ]
+      "scenario_seeds": [
+        "A developer asks why their app works locally but can't be reached from the internet",
+        "Your security team wants to know why internal services use different IP ranges than public-facing ones",
+        "A colleague is confused why their home router and their laptop both seem to have different IPs"
+      ],
+      "grading_rubric": "Must explain what an IP address is (unique identifier for devices) AND clearly distinguish public vs private IPs AND explain when/why each type is used in real scenarios.",
+      "concepts": {
+        "required": ["unique identifier", "public IP", "private IP", "internet routable"],
+        "expected": ["internal networks", "NAT", "address ranges", "device communication"],
+        "bonus": ["IPv4 vs IPv6", "CIDR notation", "RFC 1918 ranges", "IP exhaustion"]
+      }
     },
     {
       "id": "phase0-topic2-q2",
       "prompt": "Walk me through how DNS works when a user types a website URL into their browser.",
-      "expected_concepts": [
-        "domain name system",
-        "translates",
-        "domain names",
-        "IP addresses",
-        "phonebook",
-        "resolver",
-        "lookup",
-        "human readable",
-        "records"
-      ]
+      "scenario_seeds": [
+        "A user reports the website is down but you can access it by IP—what's happening?",
+        "Your team is setting up a new domain and someone asks how users will find your servers",
+        "A developer wants to understand why DNS changes take time to propagate"
+      ],
+      "grading_rubric": "Must explain DNS as translation between domain names and IPs AND walk through the lookup process (browser → resolver → root/TLD/authoritative) AND explain why DNS is essential for internet usability.",
+      "concepts": {
+        "required": ["domain name to IP translation", "DNS resolver", "lookup process"],
+        "expected": ["human-readable names", "DNS records", "caching", "recursive resolution"],
+        "bonus": ["TTL", "record types (A, CNAME, etc.)", "DNS propagation", "authoritative vs recursive"]
+      }
     }
   ],
   "test_knowledge_prompts": [

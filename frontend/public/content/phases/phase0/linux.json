@@ -36,34 +36,32 @@
     {
       "id": "phase0-topic1-q1",
       "prompt": "Walk me through what Linux is and why it dominates cloud server environments.",
-      "expected_concepts": [
-        "open source",
-        "free",
-        "kernel",
-        "stable",
-        "secure",
-        "customizable",
-        "server",
-        "command line",
-        "no licensing fees",
-        "community"
-      ]
+      "scenario_seeds": [
+        "A Windows admin joining your team asks why everything in the cloud runs Linux",
+        "Your manager wants to justify to leadership why all new servers should be Linux-based",
+        "A developer asks why they need to learn Linux when they've always used Mac or Windows"
+      ],
+      "grading_rubric": "Must explain what Linux is (open-source OS based on Unix) AND provide at least 3 reasons why it dominates cloud (cost, stability, security, customizability) AND mention its role as the foundation of most cloud infrastructure.",
+      "concepts": {
+        "required": ["open source", "operating system", "kernel", "server environments"],
+        "expected": ["free/no licensing", "stability", "security", "customizable", "command line"],
+        "bonus": ["Unix heritage", "container foundation", "community support", "performance advantages"]
+      }
     },
     {
       "id": "phase0-topic1-q2",
       "prompt": "How would you explain a Linux distribution to a colleague, and which ones are commonly used in cloud environments?",
-      "expected_concepts": [
-        "distribution",
-        "distro",
-        "Ubuntu",
-        "CentOS",
-        "Debian",
-        "Red Hat",
-        "Amazon Linux",
-        "kernel",
-        "package manager",
-        "different purposes"
-      ]
+      "scenario_seeds": [
+        "A new team member is confused why there are so many 'versions' of Linux to choose from",
+        "Your team needs to standardize on a distro and stakeholders want to understand the options",
+        "Someone asks why AWS has its own Linux and whether they should use it"
+      ],
+      "grading_rubric": "Must explain what a distribution is (Linux kernel + software packages) AND name at least 3 cloud-relevant distributions AND explain what differentiates them (package managers, support, use cases).",
+      "concepts": {
+        "required": ["distribution/distro", "kernel plus software", "Ubuntu", "Amazon Linux"],
+        "expected": ["CentOS/Rocky", "Debian", "Red Hat Enterprise Linux", "package managers"],
+        "bonus": ["LTS releases", "enterprise support", "container-optimized distros", "choosing criteria"]
+      }
     }
   ],
   "test_knowledge_prompts": [

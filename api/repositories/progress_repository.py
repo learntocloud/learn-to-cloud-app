@@ -188,6 +188,7 @@ class QuestionAttemptRepository:
         question_id: str,
         is_passed: bool,
         user_answer: str | None = None,
+        scenario_prompt: str | None = None,
         llm_feedback: str | None = None,
         confidence_score: float | None = None,
     ) -> QuestionAttempt:
@@ -198,6 +199,7 @@ class QuestionAttemptRepository:
             question_id=question_id,
             is_passed=is_passed,
             user_answer=user_answer or "",
+            scenario_prompt=scenario_prompt,
             llm_feedback=llm_feedback,
             confidence_score=confidence_score,
         )

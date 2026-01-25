@@ -19,8 +19,9 @@ describe('Question Answer Constants', () => {
     expect(QUESTION_ANSWER_MAX_CHARS).toBeGreaterThan(QUESTION_ANSWER_MIN_CHARS);
   });
 
-  it('max chars is reasonable for short answers', () => {
-    expect(QUESTION_ANSWER_MAX_CHARS).toBeLessThanOrEqual(1000);
+  it('max chars allows thorough answers', () => {
+    expect(QUESTION_ANSWER_MAX_CHARS).toBeGreaterThanOrEqual(500);
+    expect(QUESTION_ANSWER_MAX_CHARS).toBeLessThanOrEqual(5000);
   });
 
   it('min chars enforces thoughtful answers', () => {

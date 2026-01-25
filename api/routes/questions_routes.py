@@ -11,6 +11,7 @@ from core.ratelimit import EXTERNAL_API_LIMIT, limiter
 from schemas import (
     QuestionSubmitRequest,
     QuestionSubmitResponse,
+    ScenarioQuestionResponse,
 )
 from services.questions_service import (
     GradingConceptsNotFoundError,
@@ -20,11 +21,86 @@ from services.questions_service import (
     QuestionUnknownQuestionError,
     QuestionUnknownTopicError,
     QuestionValidationError,
+    ScenarioUnavailableError,
+    get_scenario_question,
     submit_question_answer,
 )
 from services.users_service import ensure_user_exists
 
 router = APIRouter(prefix="/api/questions", tags=["questions"])
+
+
+@router.get(
+    "/{topic_id}/{question_id}/scenario",
+    summary="Get Scenario Question",
+    response_model=ScenarioQuestionResponse,
+    responses={
+        401: {"description": "Not authenticated"},
+        404: {"description": "Topic or question not found"},
+        429: {
+            "description": "Too many failed attempts - locked out temporarily",
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "detail": {"type": "string"},
+                            "lockout_until": {
+                                "type": "string",
+                                "format": "date-time",
+                            },
+                            "attempts_used": {"type": "integer"},
+                        },
+                    }
+                }
+            },
+        },
+        503: {"description": "Scenario generation temporarily unavailable"},
+    },
+)
+@limiter.limit(EXTERNAL_API_LIMIT)
+async def get_scenario_question_endpoint(
+    request: Request,
+    topic_id: str,
+    question_id: str,
+    user_id: UserId,
+    db: DbSession,
+) -> ScenarioQuestionResponse | JSONResponse:
+    """Get a scenario-wrapped question for the user.
+
+    Returns a contextual scenario that wraps the base question in a
+    real-world situation. The scenario is cached per user for 1 hour,
+    so refreshing the page shows the same question.
+
+    Returns 503 if scenario generation is unavailable - no fallback to
+    base questions since that would defeat scenario-based assessment.
+    """
+    await ensure_user_exists(db, user_id)
+
+    try:
+        return await get_scenario_question(
+            db=db,
+            user_id=user_id,
+            topic_id=topic_id,
+            question_id=question_id,
+        )
+    except (QuestionUnknownTopicError, QuestionUnknownQuestionError) as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except ScenarioUnavailableError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except QuestionAttemptLimitExceeded as e:
+        seconds_remaining = max(
+            0, int((e.lockout_until - datetime.now(UTC)).total_seconds())
+        )
+        return JSONResponse(
+            status_code=429,
+            content={
+                "detail": "Too many failed attempts. Please wait before trying again.",
+                "lockout_until": e.lockout_until.isoformat(),
+                "attempts_used": e.attempts_used,
+            },
+            headers={"Retry-After": str(seconds_remaining)},
+        )
 
 
 @router.post(
@@ -71,6 +147,8 @@ async def submit_question_answer_endpoint(
 
     After 3 failed attempts on a question, the user is locked out for 1 hour.
     Questions already passed are exempt from attempt limiting.
+
+    Include scenario_context if the question was fetched via GET /scenario.
     """
     await ensure_user_exists(db, user_id)
 
@@ -81,6 +159,7 @@ async def submit_question_answer_endpoint(
             topic_id=submission.topic_id,
             question_id=submission.question_id,
             user_answer=submission.user_answer,
+            scenario_context=submission.scenario_context,
         )
     except (QuestionUnknownTopicError, QuestionUnknownQuestionError) as e:
         raise HTTPException(status_code=404, detail=str(e))

@@ -7,6 +7,9 @@ This module handles the visual/presentation aspects of certificates:
 
 This is separated from certificate business logic (eligibility, creation, verification)
 which remains in services/certificates.py.
+
+Phase display info is pulled from content JSON files via content_service to ensure
+certificate text stays in sync with curriculum changes.
 """
 
 import base64
@@ -33,35 +36,9 @@ class PhaseInfo(TypedDict):
     description: str
 
 
-PHASE_DISPLAY_INFO: dict[str, PhaseInfo] = {
-    "phase_0": {
-        "name": "Starting from Zero",
-        "description": "IT Fundamentals & Cloud Overview",
-    },
-    "phase_1": {
-        "name": "Linux & Bash",
-        "description": "Command Line, Version Control & Infrastructure Basics",
-    },
-    "phase_2": {
-        "name": "Programming & APIs",
-        "description": "Python, FastAPI, Databases & AI Integration",
-    },
-    "phase_3": {
-        "name": "Cloud Platform Fundamentals",
-        "description": "VMs, Networking, Security & Deployment",
-    },
-    "phase_4": {
-        "name": "DevOps & Containers",
-        "description": "Docker, CI/CD, Kubernetes & Monitoring",
-    },
-    "phase_5": {
-        "name": "Cloud Security",
-        "description": "IAM, Data Protection & Threat Detection",
-    },
-    "full_completion": {
-        "name": "Full Program Completion",
-        "description": "All Phases of Learn to Cloud",
-    },
+FULL_COMPLETION_INFO: PhaseInfo = {
+    "name": "Full Program Completion",
+    "description": "All Phases of Learn to Cloud",
 }
 
 
@@ -152,10 +129,21 @@ def _get_logo_inline_svg() -> str | None:
 
 
 def get_certificate_display_info(certificate_type: str) -> PhaseInfo:
-    """Get display information for a certificate type."""
-    return PHASE_DISPLAY_INFO.get(
-        certificate_type, PHASE_DISPLAY_INFO["full_completion"]
-    )
+    """Get display information for a certificate type.
+
+    Pulls phase info from content JSON files to stay in sync with curriculum.
+    Falls back to full_completion info for unknown types.
+    """
+    if certificate_type == "full_completion":
+        return FULL_COMPLETION_INFO
+
+    from services.content_service import get_phase_by_slug
+
+    phase = get_phase_by_slug(certificate_type.replace("_", ""))
+    if phase:
+        return PhaseInfo(name=phase.name, description=phase.short_description)
+
+    return FULL_COMPLETION_INFO
 
 
 def generate_certificate_svg(

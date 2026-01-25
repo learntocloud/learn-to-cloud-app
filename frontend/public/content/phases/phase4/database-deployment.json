@@ -70,32 +70,32 @@
     {
       "id": "phase4-topic5-q1",
       "prompt": "Walk me through what pg_hba.conf does and how it controls PostgreSQL authentication.",
-      "expected_concepts": [
-        "pg_hba.conf",
-        "host-based authentication",
-        "connection type",
-        "database",
-        "user",
-        "address",
-        "method",
-        "md5",
-        "peer",
-        "access control"
-      ]
+      "scenario_seeds": [
+        "A developer can connect to PostgreSQL locally but gets 'authentication failed' when connecting from the application server in another subnet.",
+        "Your security team wants to ensure the database only accepts connections from specific IP ranges using password authentication.",
+        "After a security incident, you need to audit and tighten database access - explain where you'd start."
+      ],
+      "grading_rubric": "Must explain pg_hba.conf as the host-based authentication config file AND describe the rule format (type, database, user, address, method) AND give an example of how rules are evaluated.",
+      "concepts": {
+        "required": ["pg_hba.conf purpose", "connection type", "database/user/address fields", "authentication method"],
+        "expected": ["md5 vs peer vs scram-sha-256", "rule order matters", "IP/CIDR filtering", "reload after changes"],
+        "bonus": ["hostssl for encrypted connections", "separate rules per application", "reject rules for explicit deny"]
+      }
     },
     {
       "id": "phase4-topic5-q2",
       "prompt": "Why would you deploy a database server in a private subnet rather than a public one? Walk me through your reasoning.",
-      "expected_concepts": [
-        "private subnet",
-        "no direct internet",
-        "security",
-        "isolation",
-        "API server only",
-        "attack surface",
-        "least privilege",
-        "internal access"
-      ]
+      "scenario_seeds": [
+        "A junior engineer suggests putting the database in the public subnet 'for easier access' - explain why this is problematic.",
+        "Your penetration test report recommends moving the database to a private subnet - justify this to management.",
+        "A compliance audit requires you to document network isolation for PII data stored in PostgreSQL."
+      ],
+      "grading_rubric": "Must explain that private subnets have no direct internet access AND describe how this reduces attack surface AND address how the API server in public subnet connects to it.",
+      "concepts": {
+        "required": ["no direct internet access", "reduced attack surface", "only internal access"],
+        "expected": ["defense in depth", "API server as gateway", "security group restrictions", "compliance requirements"],
+        "bonus": ["database not directly exploitable from internet", "lateral movement prevention", "encryption in transit"]
+      }
     }
   ],
   "test_knowledge_prompts": [

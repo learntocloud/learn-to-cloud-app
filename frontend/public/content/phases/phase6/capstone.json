@@ -150,34 +150,32 @@
     {
       "id": "phase5-capstone-q1",
       "prompt": "Walk me through the security architecture you implemented for your Journal API. What are the key security controls at each layer?",
-      "expected_concepts": [
-        "IAM",
-        "least privilege",
-        "encryption",
-        "at rest",
-        "in transit",
-        "VPC",
-        "security groups",
-        "secrets management",
-        "monitoring",
-        "logging"
-      ]
+      "scenario_seeds": [
+        "A potential investor asks for a security overview of your Journal API before committing funding. Walk them through your defense-in-depth architecture, explaining the security controls at the network, application, and data layers.",
+        "Your company is pursuing SOC 2 certification and the auditor wants to understand your security architecture. Describe the controls you've implemented across IAM, encryption, network security, and monitoring for your Journal API.",
+        "A new security engineer is joining your team and needs to understand the Journal API's security posture. Create an architectural walkthrough covering how you protect against unauthorized access, data breaches, and detect security incidents."
+      ],
+      "grading_rubric": "Must describe security controls across all layers (IAM/identity, network/VPC, data/encryption, monitoring/logging) AND explain how they work together as defense-in-depth AND demonstrate understanding of least privilege and secrets management.",
+      "concepts": {
+        "required": ["IAM and least privilege", "network security and VPC", "encryption at rest and in transit", "security monitoring"],
+        "expected": ["security groups", "secrets management", "audit logging", "threat detection", "defense in depth"],
+        "bonus": ["zero trust principles", "automated compliance checks", "security as code", "incident response readiness", "cost-security tradeoffs"]
+      }
     },
     {
       "id": "phase5-capstone-q2",
       "prompt": "How would you respond to a potential credential compromise in your cloud environment?",
-      "expected_concepts": [
-        "detect",
-        "investigate",
-        "contain",
-        "revoke",
-        "rotate",
-        "assess impact",
-        "audit logs",
-        "notify",
-        "document",
-        "prevent future"
-      ]
+      "scenario_seeds": [
+        "At 2 AM, GuardDuty alerts that the service account for your Journal API is making unusual API calls including attempts to list all S3 buckets and IAM users. Walk through your incident response, from initial detection to post-incident improvements.",
+        "A developer reports their laptop was stolen from a coffee shop. They had AWS CLI configured with access keys that have permissions to your production Journal API infrastructure. Describe your response plan.",
+        "Your SIEM correlates multiple signals: a successful login from an unusual location, followed by an IAM policy change that grants additional permissions, then data export API calls. How do you respond to this potential account takeover?"
+      ],
+      "grading_rubric": "Must follow incident response lifecycle (detect, investigate, contain, eradicate, recover) AND include specific actions (revoke credentials, assess blast radius, review audit logs) AND address both immediate response and preventive measures for the future.",
+      "concepts": {
+        "required": ["credential revocation", "blast radius assessment", "audit log review", "incident documentation"],
+        "expected": ["containment actions", "stakeholder notification", "root cause analysis", "preventive measures"],
+        "bonus": ["automated response playbooks", "forensic preservation", "threat hunting for lateral movement", "security posture improvements", "tabletop exercises"]
+      }
     }
   ],
   "test_knowledge_prompts": [

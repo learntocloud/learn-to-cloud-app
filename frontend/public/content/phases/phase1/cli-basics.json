@@ -100,36 +100,32 @@
     {
       "id": "phase1-topic5-q1",
       "prompt": "Walk me through the Linux file permission system and how read, write, and execute differ for files versus directories.",
-      "expected_concepts": [
-        "read",
-        "write",
-        "execute",
-        "chmod",
-        "owner",
-        "group",
-        "others",
-        "rwx",
-        "directory",
-        "file",
-        "list",
-        "enter"
-      ]
+      "scenario_seeds": [
+        "A new team member accidentally set a deployment script to 777 permissions and your security team flagged it",
+        "Your web application can't read its config file after a server migration and you need to diagnose the permission issue",
+        "You're setting up a shared project directory where developers need to create files but shouldn't modify each other's work"
+      ],
+      "grading_rubric": "Must explain the rwx triplet for owner/group/others AND differentiate how permissions behave on files vs directories (read=list contents, execute=enter directory) AND demonstrate understanding of chmod usage.",
+      "concepts": {
+        "required": ["read", "write", "execute", "owner", "group", "others", "rwx"],
+        "expected": ["chmod", "directory vs file differences", "list contents", "enter directory"],
+        "bonus": ["octal notation", "sticky bit", "setuid/setgid", "umask"]
+      }
     },
     {
       "id": "phase1-topic5-q2",
       "prompt": "How would you explain pipes and redirects in Linux to someone learning the command line? Give an example of each.",
-      "expected_concepts": [
-        "pipe",
-        "|",
-        "redirect",
-        ">",
-        ">>",
-        "output",
-        "input",
-        "command",
-        "chain",
-        "file"
-      ]
+      "scenario_seeds": [
+        "You need to find all error messages in a 2GB log file and save them to a separate file for the on-call engineer",
+        "Your CI/CD pipeline needs to process command output through multiple filters before storing results",
+        "A junior developer asks why their script output disappeared when they used > instead of >> on an important file"
+      ],
+      "grading_rubric": "Must explain pipes as connecting stdout of one command to stdin of another AND explain redirects for sending output to files AND provide working examples of both | and > or >> operators.",
+      "concepts": {
+        "required": ["pipe", "|", "redirect", ">", "stdout", "stdin"],
+        "expected": [">>", "output to file", "command chaining", "practical example"],
+        "bonus": ["stderr redirect 2>", "tee command", "<< heredoc", "/dev/null"]
+      }
     }
   ],
   "test_knowledge_prompts": [

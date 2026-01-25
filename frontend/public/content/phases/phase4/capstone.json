@@ -83,32 +83,32 @@
     {
       "id": "phase4-topic9-q1",
       "prompt": "Walk me through the 2-tier architecture you deployed and explain why the database belongs in a private subnet.",
-      "expected_concepts": [
-        "public subnet",
-        "private subnet",
-        "API server",
-        "database",
-        "internet accessible",
-        "not directly accessible",
-        "security",
-        "isolation",
-        "tiers"
-      ]
+      "scenario_seeds": [
+        "In a technical interview, you're asked to whiteboard the cloud architecture for your journal application and explain your design decisions.",
+        "A security review questions why you chose to separate the API and database into different network tiers - justify your architecture.",
+        "A junior engineer asks why you didn't just put everything in one subnet to simplify the deployment."
+      ],
+      "grading_rubric": "Must describe the 2-tier separation (public API, private database) AND explain why the database should not be internet-accessible AND address how the tiers communicate securely.",
+      "concepts": {
+        "required": ["public subnet for API", "private subnet for database", "no direct internet access to database"],
+        "expected": ["security through isolation", "API as only entry point", "reduced attack surface", "defense in depth"],
+        "bonus": ["network topology diagram", "availability zone considerations", "future scaling considerations"]
+      }
     },
     {
       "id": "phase4-topic9-q2",
       "prompt": "How did you configure security groups to allow API-to-database communication while keeping the database secure?",
-      "expected_concepts": [
-        "security group",
-        "inbound rules",
-        "port 5432",
-        "source",
-        "API server",
-        "restrict",
-        "least privilege",
-        "deny internet",
-        "allow internal"
-      ]
+      "scenario_seeds": [
+        "A penetration tester asks you to explain the network security controls protecting your database.",
+        "You're troubleshooting why your API can't connect to the database - walk through how security groups should be configured.",
+        "During a security audit, you need to demonstrate that the database only accepts connections from authorized sources."
+      ],
+      "grading_rubric": "Must describe database security group allowing port 5432 only from API server AND explain how the source is restricted to API security group or IP AND address that internet access to the database is denied.",
+      "concepts": {
+        "required": ["database security group", "allow port 5432 from API only", "deny all internet access"],
+        "expected": ["source security group reference", "least privilege principle", "inbound rule specificity", "implicit deny"],
+        "bonus": ["security group chaining", "VPC flow logs for verification", "network ACLs as additional layer"]
+      }
     }
   ],
   "test_knowledge_prompts": [

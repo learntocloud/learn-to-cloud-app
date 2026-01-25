@@ -120,7 +120,7 @@ export function TopicContent({
     }
   };
 
-  const handleQuestionAnswer = async (questionId: string, answer: string) => {
+  const handleQuestionAnswer = async (questionId: string, answer: string, scenarioContext?: string) => {
     if (!isAuthenticated) return { is_passed: false, llm_feedback: 'Not authenticated' };
 
     // Don't catch errors here - let them propagate to KnowledgeQuestion
@@ -129,6 +129,7 @@ export function TopicContent({
       topicId: topic.id,
       questionId,
       answer,
+      scenarioContext,
     });
 
     // Update local state if passed (for immediate UI feedback)
@@ -304,10 +305,11 @@ export function TopicContent({
                 <KnowledgeQuestion
                   key={question.id}
                   question={question}
+                  topicId={topic.id}
                   isAnswered={isQuestionPassed(question.id)}
                   initialLockoutUntil={getQuestionLockout(question.id)}
                   initialAttemptsUsed={getQuestionAttemptsUsed(question.id)}
-                  onSubmit={(answer) => handleQuestionAnswer(question.id, answer)}
+                  onSubmit={(answer, scenarioContext) => handleQuestionAnswer(question.id, answer, scenarioContext)}
                 />
               ))
             )}

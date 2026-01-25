@@ -35,35 +35,32 @@
     {
       "id": "phase2-topic7-q1",
       "prompt": "Walk me through the architecture of your Journal API and how the different components integrate.",
-      "expected_concepts": [
-        "FastAPI",
-        "endpoints",
-        "database",
-        "LLM",
-        "CRUD",
-        "entries",
-        "analysis",
-        "PostgreSQL",
-        "schema",
-        "API",
-        "integration"
-      ]
+      "scenario_seeds": [
+        "You're presenting your capstone project to a senior engineer. Explain how requests flow from the API endpoint through to the database and LLM.",
+        "A teammate wants to understand your codebase before contributing. Walk them through the project structure and how components connect.",
+        "You're writing documentation for your Journal API. Describe the architecture so future maintainers understand the system."
+      ],
+      "grading_rubric": "Must explain FastAPI handles HTTP requests AND PostgreSQL stores journal entries AND LLM provides analysis AND describe how these components integrate in the request flow.",
+      "concepts": {
+        "required": ["FastAPI endpoints", "PostgreSQL database", "LLM integration", "request flow"],
+        "expected": ["CRUD operations", "Pydantic schemas", "SQLAlchemy models", "API to database to LLM flow"],
+        "bonus": ["separation of concerns", "error handling across layers", "async considerations"]
+      }
     },
     {
       "id": "phase2-topic7-q2",
       "prompt": "How did you implement LLM analysis for journal entries, and what prompt engineering techniques did you apply?",
-      "expected_concepts": [
-        "prompt",
-        "sentiment",
-        "topics",
-        "summary",
-        "JSON",
-        "structured output",
-        "system message",
-        "API call",
-        "parse",
-        "response"
-      ]
+      "scenario_seeds": [
+        "Your LLM analysis returns inconsistent JSON formats causing parsing errors. Explain how you solved this with prompt engineering.",
+        "A colleague wants to add new analysis features like mood tracking. Explain how your prompt structure makes this extensible.",
+        "You're debugging why sentiment analysis is inaccurate for short entries. Walk through your prompt design and potential improvements."
+      ],
+      "grading_rubric": "Must explain the prompt structure including system message AND how structured output ensures valid JSON AND describe what analysis is performed (sentiment, topics, summary).",
+      "concepts": {
+        "required": ["system message", "structured JSON output", "sentiment analysis", "prompt design"],
+        "expected": ["topics extraction", "summary generation", "response parsing", "error handling"],
+        "bonus": ["few-shot examples", "output validation", "prompt iteration process"]
+      }
     }
   ],
   "test_knowledge_prompts": [

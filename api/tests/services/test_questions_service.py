@@ -51,7 +51,8 @@ class TestSubmitQuestionAnswer:
         for phase in phases:
             for topic in phase.topics:
                 for question in topic.questions:
-                    if question.expected_concepts:
+                    # Check for new format (grading_rubric or concepts)
+                    if question.grading_rubric or question.concepts:
                         return topic.id, question.id, question
         return None, None, None
 
@@ -88,15 +89,15 @@ class TestSubmitQuestionAnswer:
     async def test_raises_for_missing_grading_concepts(
         self, db_session: AsyncSession, user
     ):
-        """Test that missing grading concepts raises GradingConceptsNotFoundError."""
+        """Test that missing grading config raises GradingConceptsNotFoundError."""
         from services.content_service import get_all_phases
 
         phases = get_all_phases()
-        # Find a question without expected_concepts (if any)
+        # Find a question without grading_rubric or concepts (if any)
         for phase in phases:
             for topic in phase.topics:
                 for question in topic.questions:
-                    if not question.expected_concepts:
+                    if not question.grading_rubric and not question.concepts:
                         with pytest.raises(GradingConceptsNotFoundError):
                             await submit_question_answer(
                                 db_session,
@@ -107,7 +108,7 @@ class TestSubmitQuestionAnswer:
                             )
                         return
 
-        pytest.skip("All questions have expected_concepts")
+        pytest.skip("All questions have grading configuration")
 
     async def test_successful_submission_passing(
         self, db_session: AsyncSession, user, mock_grade_answer
@@ -115,7 +116,7 @@ class TestSubmitQuestionAnswer:
         """Test successful question submission that passes."""
         topic_id, question_id, question = self._get_test_question()
         if not question_id:
-            pytest.skip("No questions with expected_concepts in content")
+            pytest.skip("No questions with grading config in content")
 
         mock_grade_answer.return_value = AsyncMock(
             is_passed=True,
@@ -142,7 +143,7 @@ class TestSubmitQuestionAnswer:
         """Test successful question submission that fails grading."""
         topic_id, question_id, question = self._get_test_question()
         if not question_id:
-            pytest.skip("No questions with expected_concepts in content")
+            pytest.skip("No questions with grading config in content")
 
         mock_grade_answer.return_value = AsyncMock(
             is_passed=False,
@@ -167,7 +168,7 @@ class TestSubmitQuestionAnswer:
         """Test that attempt limiting is enforced."""
         topic_id, question_id, question = self._get_test_question()
         if not question_id:
-            pytest.skip("No questions with expected_concepts in content")
+            pytest.skip("No questions with grading config in content")
 
         mock_grade_answer.return_value = AsyncMock(
             is_passed=False,
@@ -208,7 +209,7 @@ class TestSubmitQuestionAnswer:
         """Test that users who already passed can re-practice without lockout."""
         topic_id, question_id, question = self._get_test_question()
         if not question_id:
-            pytest.skip("No questions with expected_concepts in content")
+            pytest.skip("No questions with grading config in content")
 
         # First, pass the question
         mock_grade_answer.return_value = AsyncMock(
@@ -252,7 +253,7 @@ class TestSubmitQuestionAnswer:
         """Test handling of LLM service being unavailable."""
         topic_id, question_id, question = self._get_test_question()
         if not question_id:
-            pytest.skip("No questions with expected_concepts in content")
+            pytest.skip("No questions with grading config in content")
 
         mock_grade_answer.side_effect = ValueError("API key not configured")
 
@@ -271,7 +272,7 @@ class TestSubmitQuestionAnswer:
         """Test handling of LLM grading failure."""
         topic_id, question_id, question = self._get_test_question()
         if not question_id:
-            pytest.skip("No questions with expected_concepts in content")
+            pytest.skip("No questions with grading config in content")
 
         mock_grade_answer.side_effect = Exception("Random error")
 

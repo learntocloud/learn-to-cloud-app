@@ -84,35 +84,32 @@
     {
       "id": "phase5-topic2-q1",
       "prompt": "Walk me through the differences between Continuous Integration, Continuous Delivery, and Continuous Deployment.",
-      "expected_concepts": [
-        "continuous integration",
-        "merge",
-        "build",
-        "test",
-        "continuous delivery",
-        "ready to deploy",
-        "manual approval",
-        "continuous deployment",
-        "automatic",
-        "production"
-      ]
+      "scenario_seeds": [
+        "Your engineering manager asks you to present the CI/CD strategy options to stakeholders who are deciding how much automation the team should adopt for their e-commerce platform",
+        "A regulated fintech company wants to adopt modern DevOps practices but needs manual approval gates for compliance - explain how continuous delivery fits their needs",
+        "During a post-mortem, the team debates whether a production bug would have been caught earlier with better CI practices - explain how each CI/CD stage prevents different types of issues"
+      ],
+      "grading_rubric": "Must clearly distinguish all three concepts AND explain the role of automated testing in CI AND clarify when manual vs automatic deployment is appropriate.",
+      "concepts": {
+        "required": ["continuous integration", "automated build and test", "continuous delivery vs deployment", "manual approval gate"],
+        "expected": ["merge to main", "deployment readiness", "automatic production deployment", "release frequency"],
+        "bonus": ["trunk-based development", "feature flags", "deployment risk", "rollback strategies", "compliance requirements"]
+      }
     },
     {
       "id": "phase5-topic2-q2",
       "prompt": "Walk me through the typical stages in a CI/CD pipeline for a containerized application.",
-      "expected_concepts": [
-        "checkout",
-        "build",
-        "test",
-        "Docker build",
-        "push",
-        "registry",
-        "deploy",
-        "stages",
-        "pipeline",
-        "trigger",
-        "artifacts"
-      ]
+      "scenario_seeds": [
+        "You're setting up the first CI/CD pipeline for a team that's been deploying manually - walk them through each stage and why it matters",
+        "A pipeline is taking 45 minutes to run and developers are frustrated - explain the stages and where optimizations could happen",
+        "Your team is debugging a failed deployment and needs to understand which pipeline stage caught the issue - walk through what each stage validates"
+      ],
+      "grading_rubric": "Must describe the complete pipeline flow from code commit to deployment AND explain what happens at each stage AND address how artifacts flow between stages.",
+      "concepts": {
+        "required": ["source checkout", "build stage", "test stage", "Docker image build", "push to registry", "deploy stage"],
+        "expected": ["pipeline triggers", "artifact passing", "environment variables", "secrets management"],
+        "bonus": ["parallel stages", "caching strategies", "matrix builds", "deployment environments", "smoke tests"]
+      }
     }
   ],
   "test_knowledge_prompts": [

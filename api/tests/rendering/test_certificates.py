@@ -8,9 +8,9 @@ import pytest
 from rendering.certificates import (
     CERTIFICATE_SUBTITLE,
     CERTIFICATE_TITLE,
+    FULL_COMPLETION_INFO,
     ISSUER_NAME,
     ISSUER_URL,
-    PHASE_DISPLAY_INFO,
     _get_logo_inline_svg,
     generate_certificate_svg,
     get_certificate_display_info,
@@ -41,38 +41,28 @@ class TestConstants:
         """Test issuer URL constant."""
         assert ISSUER_URL == "https://learntocloud.guide"
 
-    def test_phase_display_info_has_all_phases(self):
-        """Test all phases have display info."""
-        expected_phases = [
-            "phase_0",
-            "phase_1",
-            "phase_2",
-            "phase_3",
-            "phase_4",
-            "phase_5",
-            "full_completion",
-        ]
-        for phase in expected_phases:
-            assert phase in PHASE_DISPLAY_INFO
-            assert "name" in PHASE_DISPLAY_INFO[phase]
-            assert "description" in PHASE_DISPLAY_INFO[phase]
+    def test_full_completion_info_is_set(self):
+        """Test full_completion info constant."""
+        assert FULL_COMPLETION_INFO["name"] == "Full Program Completion"
+        assert "All Phases" in FULL_COMPLETION_INFO["description"]
 
 
 class TestGetCertificateDisplayInfo:
     """Tests for get_certificate_display_info function."""
 
     def test_returns_info_for_known_phase(self):
-        """Test returns correct info for known phase."""
+        """Test returns correct info for known phase from content JSON."""
         info = get_certificate_display_info("phase_1")
 
-        assert info["name"] == "Linux & Bash"
-        assert "Command Line" in info["description"]
+        assert info["name"] == "Linux and Bash"
+        assert isinstance(info["description"], str)
+        assert len(info["description"]) > 0
 
     def test_returns_full_completion_for_unknown_phase(self):
         """Test returns full_completion info for unknown phase."""
         info = get_certificate_display_info("unknown_phase")
 
-        assert info == PHASE_DISPLAY_INFO["full_completion"]
+        assert info == FULL_COMPLETION_INFO
 
     def test_returns_full_completion_info(self):
         """Test returns correct info for full_completion."""
@@ -80,6 +70,15 @@ class TestGetCertificateDisplayInfo:
 
         assert info["name"] == "Full Program Completion"
         assert "All Phases" in info["description"]
+
+    def test_all_phases_return_valid_info(self):
+        """Test all phases return valid display info from content."""
+        from services.content_service import get_all_phases
+
+        for phase in get_all_phases():
+            info = get_certificate_display_info(f"phase_{phase.id}")
+            assert info["name"] == phase.name
+            assert info["description"] == phase.short_description
 
 
 class TestGetLogoInlineSvg:

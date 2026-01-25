@@ -82,34 +82,32 @@
     {
       "id": "phase2-topic5-q1",
       "prompt": "How do LLM APIs differ from traditional REST APIs in terms of how you structure requests and interact with them?",
-      "expected_concepts": [
-        "messages",
-        "conversation",
-        "system message",
-        "user message",
-        "assistant",
-        "completion",
-        "tokens",
-        "context",
-        "prompt",
-        "stateless"
-      ]
+      "scenario_seeds": [
+        "You're integrating an LLM into your app for the first time after years of working with REST APIs. Explain the mental model shift needed.",
+        "A colleague built a chatbot but the LLM forgets context between messages. Explain how conversation history works in LLM APIs.",
+        "Your team needs to add a system-level persona to your AI assistant. Explain the message roles and how they affect behavior."
+      ],
+      "grading_rubric": "Must explain the messages array structure (system/user/assistant roles) AND that LLM APIs are stateless requiring conversation history to be sent each time AND describe how completions work.",
+      "concepts": {
+        "required": ["messages array", "system/user/assistant roles", "stateless", "completions"],
+        "expected": ["conversation history", "context window", "tokens", "prompt engineering"],
+        "bonus": ["token limits", "context management strategies", "streaming responses"]
+      }
     },
     {
       "id": "phase2-topic5-q2",
       "prompt": "Walk me through the temperature parameter in LLM APIs and how it affects the model's output.",
-      "expected_concepts": [
-        "temperature",
-        "randomness",
-        "creativity",
-        "deterministic",
-        "zero",
-        "one",
-        "consistent",
-        "varied",
-        "sampling",
-        "probability"
-      ]
+      "scenario_seeds": [
+        "Your AI-generated summaries are inconsistent—sometimes formal, sometimes casual. Explain how temperature might be causing this.",
+        "You need deterministic output for a data extraction task but creative responses for brainstorming. Explain how to configure each.",
+        "A product manager asks why the AI gives different answers to the same question. Explain temperature and when variability is desirable."
+      ],
+      "grading_rubric": "Must explain temperature controls randomness/creativity AND that 0 is deterministic while 1 is more varied AND provide guidance on when to use low vs high temperature.",
+      "concepts": {
+        "required": ["temperature", "randomness", "deterministic vs creative", "0 to 1 scale"],
+        "expected": ["sampling", "probability distribution", "consistent outputs", "use cases"],
+        "bonus": ["top_p/nucleus sampling", "temperature vs top_p", "reproducibility strategies"]
+      }
     }
   ],
   "test_knowledge_prompts": [

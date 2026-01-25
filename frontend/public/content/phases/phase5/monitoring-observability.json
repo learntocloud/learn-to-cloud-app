@@ -152,35 +152,32 @@
     {
       "id": "phase5-topic5-q1",
       "prompt": "How would you explain the difference between monitoring and observability to a team adopting cloud-native practices?",
-      "expected_concepts": [
-        "monitoring",
-        "known problems",
-        "metrics",
-        "thresholds",
-        "observability",
-        "unknown problems",
-        "logs",
-        "traces",
-        "understand system",
-        "debugging"
-      ]
+      "scenario_seeds": [
+        "Your team has great dashboards but still struggles to debug production issues - leadership asks why monitoring isn't enough and what observability would add",
+        "A new SRE joins and asks why you need logs and traces when you already have Prometheus metrics - explain the three pillars of observability",
+        "During a post-incident review, the team couldn't find the root cause despite having monitoring - explain how observability practices would have helped"
+      ],
+      "grading_rubric": "Must distinguish monitoring (known problems, thresholds) from observability (understanding unknown problems) AND explain the three pillars (metrics, logs, traces) AND describe when each approach is valuable.",
+      "concepts": {
+        "required": ["monitoring for known problems", "observability for unknown problems", "metrics", "logs", "traces"],
+        "expected": ["thresholds and alerts", "debugging capability", "system understanding", "correlation"],
+        "bonus": ["cardinality", "distributed tracing", "exemplars", "SLOs/SLIs", "error budgets"]
+      }
     },
     {
       "id": "phase5-topic5-q2",
       "prompt": "Walk me through how Prometheus and Grafana work together for application monitoring.",
-      "expected_concepts": [
-        "Prometheus",
-        "collect",
-        "scrape",
-        "metrics",
-        "time series",
-        "Grafana",
-        "visualize",
-        "dashboards",
-        "queries",
-        "PromQL",
-        "alerts"
-      ]
+      "scenario_seeds": [
+        "Your team wants to monitor a new FastAPI service - explain how you'd set up Prometheus to collect metrics and Grafana to visualize them",
+        "A developer asks why you can't just look at Prometheus directly and what Grafana adds - explain the value of each tool",
+        "Your monitoring shows high latency but you need to drill down into which endpoints are slow - walk through how you'd use PromQL and Grafana dashboards"
+      ],
+      "grading_rubric": "Must explain Prometheus's role (scraping, storing time-series) AND Grafana's role (visualization, dashboards) AND describe how they connect (Grafana queries Prometheus).",
+      "concepts": {
+        "required": ["Prometheus scrapes metrics", "time-series database", "Grafana visualizes", "PromQL queries"],
+        "expected": ["scrape targets", "metric types", "dashboard panels", "data source configuration"],
+        "bonus": ["recording rules", "alerting rules", "federation", "long-term storage", "Grafana alerting"]
+      }
     }
   ],
   "test_knowledge_prompts": [
