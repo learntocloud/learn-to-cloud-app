@@ -103,6 +103,12 @@ applyTo: '**/*.py'
 - Test files: `test_*.py`
 - Use pytest fixtures from `conftest.py`
 - Mock external services (Clerk, LLM, GitHub API)
+- **Always** use `autospec=True` when mocking—prevents mock drift
+- Use `# pragma: no cover` for `if __name__ == "__main__":` blocks
+- Prefer behavior tests over mock assertion tests when possible
+- Use `@pytest.mark.parametrize` for data-driven tests
+- Use `pytest-asyncio` with `@pytest.mark.asyncio` for async tests
+- Debugging: `pytest --lf` (last failed), `--pdb` (debugger at failure)
 
 ## Async Patterns
 - Use `asyncio.Lock` for protecting shared mutable state
@@ -141,43 +147,6 @@ applyTo: '**/*.py'
 - Keep Warning/Note sections for non-obvious behavior
 - Compress verbose explanations
 
-## Comments
-
-### Remove These
-- **Obvious/redundant** — restates what code clearly does
-- **Commented-out code** — delete it, don't comment it
-- **Vague TODOs** — must have context: `TODO(#123): Handle rate limit`
-- **Change logs** — version control handles this
-
-### Keep These
-- **Why comments** — explain intent/reasoning
-- **Non-obvious behavior** — e.g., "PostgreSQL ON CONFLICT doesn't trigger onupdate"
-- **Workarounds** — with justification and removal date
-- **Warnings** — `# WARNING:` or `# SECURITY:`
-
-### Special Comments
+## Special Comments
 - `# type: ignore` — always add explanation: `# type: ignore[arg-type] - httpx stub incomplete`
 - `# noqa` — always include rule: `# noqa: E501`
-
-## Git & Commits
-
-### Pre-Commit (MANDATORY)
-```bash
-pre-commit run --all-files
-```
-- **NEVER** use `--no-verify` to bypass
-- **NEVER** commit if pre-commit fails—fix all issues first
-
-### Conventional Commits
-Format: `type(scope): description`
-
-| Type | Use For |
-|------|---------|
-| `feat` | New feature |
-| `fix` | Bug fix |
-| `docs` | Documentation |
-| `refactor` | Code restructure |
-| `test` | Adding tests |
-| `chore` | Deps, config |
-
-Scopes: `api`, `frontend`, `infra`, `content`, `skills`
