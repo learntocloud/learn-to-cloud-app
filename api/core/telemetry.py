@@ -46,7 +46,7 @@ def instrument_sqlalchemy_engine(engine: Any) -> None:
         )
         logger.info("SQLAlchemy instrumentation enabled")
     except Exception as e:
-        logger.warning(f"Failed to instrument SQLAlchemy: {e}")
+        logger.warning("sqlalchemy.instrumentation.failed", error=str(e))
 
 
 class SecurityHeadersMiddleware:
@@ -143,13 +143,8 @@ class RequestTimingMiddleware:
                             span.set_status(
                                 Status(StatusCode.ERROR, f"HTTP {response_status}")
                             )
-                        elif response_status >= 400:
-                            span.set_status(
-                                Status(
-                                    StatusCode.ERROR,
-                                    f"Client error {response_status}",
-                                )
-                            )
+                        # 4xx: Leave span status unset per OTel semantic conventions
+                        # (client errors are not server errors)
 
                 # Finalize and emit wide event
                 event = get_wide_event()
@@ -356,8 +351,4 @@ def log_metric(
     if not TELEMETRY_ENABLED:
         return
 
-    extra = {"custom_metric": name, "metric_value": value}
-    if properties:
-        extra.update(properties)
-
-    logger.info(f"Metric: {name}={value}", extra=extra)
+    logger.info("metric.recorded", name=name, value=value, **(properties or {}))
