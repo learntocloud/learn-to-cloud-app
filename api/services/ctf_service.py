@@ -150,7 +150,7 @@ def verify_ctf_token(token: str, oauth_github_username: str) -> CTFVerificationR
         )
 
     except Exception as e:
-        logger.exception(f"CTF token verification error: {e}")
+        logger.exception("ctf.token.verification.failed", error=str(e))
         return CTFVerificationResult(
             is_valid=False,
             message=f"Token verification failed: {str(e)}",
