@@ -47,8 +47,8 @@ class TestParsePhaseFromTopicId:
 
     def test_returns_none_for_non_string(self):
         """Test returns None for non-string input."""
-        assert _parse_phase_from_topic_id(None) is None
-        assert _parse_phase_from_topic_id(123) is None
+        assert _parse_phase_from_topic_id(None) is None  # type: ignore[arg-type]
+        assert _parse_phase_from_topic_id(123) is None  # type: ignore[arg-type]
 
 
 class TestParsePhaseFromQuestionId:
@@ -71,7 +71,7 @@ class TestParsePhaseFromQuestionId:
 
     def test_returns_none_for_non_string(self):
         """Test returns None for non-string input."""
-        assert _parse_phase_from_question_id(None) is None
+        assert _parse_phase_from_question_id(None) is None  # type: ignore[arg-type]
 
 
 class TestGetPhaseRequirements:
@@ -84,6 +84,7 @@ class TestGetPhaseRequirements:
         if result is None:
             pytest.skip("No phases loaded from content")
 
+        assert result is not None
         assert result.phase_id == 0
         assert result.steps >= 0
         assert result.questions >= 0

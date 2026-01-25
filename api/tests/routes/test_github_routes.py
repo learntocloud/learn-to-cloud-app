@@ -41,6 +41,7 @@ class TestSubmitGitHubValidation:
             repo_exists=None,
         )
 
+        assert profile_req is not None
         response = await authenticated_client.post(
             "/api/github/submit",
             json={
@@ -77,6 +78,7 @@ class TestSubmitGitHubValidation:
             repo_exists=None,
         )
 
+        assert profile_req is not None
         response = await authenticated_client.post(
             "/api/github/submit",
             json={

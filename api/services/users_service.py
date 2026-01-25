@@ -141,6 +141,8 @@ async def get_public_profile(
 
     # Normalize username (GitHub usernames are case-insensitive)
     normalized_username = normalize_github_username(username)
+    if not normalized_username:
+        return None
     profile_user = await user_repo.get_by_github_username(normalized_username)
     if not profile_user:
         return None

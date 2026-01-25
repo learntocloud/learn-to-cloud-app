@@ -4,6 +4,7 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from services.webhooks_service import (
+    ClerkUserWebhookData,
     handle_clerk_event,
     handle_user_created,
     handle_user_deleted,
@@ -20,7 +21,7 @@ class TestHandleUserCreated:
 
     async def test_creates_user_from_webhook_data(self, db_session: AsyncSession):
         """Test creating a new user from webhook data."""
-        data = {
+        data: ClerkUserWebhookData = {
             "id": "user_webhook_test_123",
             "first_name": "John",
             "last_name": "Doe",
@@ -46,7 +47,7 @@ class TestHandleUserCreated:
 
     async def test_handles_missing_user_id(self, db_session: AsyncSession):
         """Test handling webhook data without user ID."""
-        data = {
+        data: ClerkUserWebhookData = {
             "first_name": "John",
             "email_addresses": [],
         }
@@ -56,7 +57,7 @@ class TestHandleUserCreated:
 
     async def test_normalizes_github_username(self, db_session: AsyncSession):
         """Test that GitHub username is normalized to lowercase."""
-        data = {
+        data: ClerkUserWebhookData = {
             "id": "user_normalize_test",
             "external_accounts": [{"provider": "oauth_github", "username": "JohnDOE"}],
             "email_addresses": [],
@@ -69,6 +70,7 @@ class TestHandleUserCreated:
         repo = UserRepository(db_session)
         user = await repo.get_by_id("user_normalize_test")
 
+        assert user is not None
         assert user.github_username == "johndoe"
 
 
@@ -89,7 +91,7 @@ class TestHandleUserUpdated:
         )
         await db_session.flush()
 
-        data = {
+        data: ClerkUserWebhookData = {
             "id": "user_update_test",
             "first_name": "New",
             "last_name": "Updated",
@@ -105,12 +107,13 @@ class TestHandleUserUpdated:
         db_session.expire_all()
         updated = await repo.get_by_id("user_update_test")
 
+        assert updated is not None
         assert updated.first_name == "New"
         assert updated.last_name == "Updated"
 
     async def test_creates_user_if_not_exists(self, db_session: AsyncSession):
         """Test that update creates user if they don't exist."""
-        data = {
+        data: ClerkUserWebhookData = {
             "id": "user_upsert_test",
             "first_name": "Created",
             "last_name": "OnUpdate",
@@ -140,7 +143,7 @@ class TestHandleUserUpdated:
         db_session.add(user)
         await db_session.flush()
 
-        data = {
+        data: ClerkUserWebhookData = {
             "id": "user_email_preserve",
             "first_name": "Updated",
             "email_addresses": [],  # No emails in update
@@ -155,6 +158,7 @@ class TestHandleUserUpdated:
         updated = await repo.get_by_id("user_email_preserve")
 
         # Should keep original email (or use placeholder)
+        assert updated is not None
         assert updated.email is not None
 
 
@@ -167,7 +171,7 @@ class TestHandleUserDeleted:
         db_session.add(user)
         await db_session.flush()
 
-        data = {"id": "user_delete_test"}
+        data: ClerkUserWebhookData = {"id": "user_delete_test"}
 
         await handle_user_deleted(db_session, data)
 
@@ -180,14 +184,14 @@ class TestHandleUserDeleted:
 
     async def test_handles_nonexistent_user(self, db_session: AsyncSession):
         """Test deleting a user that doesn't exist."""
-        data = {"id": "nonexistent_user"}
+        data: ClerkUserWebhookData = {"id": "nonexistent_user"}
 
         # Should not raise
         await handle_user_deleted(db_session, data)
 
     async def test_handles_missing_user_id(self, db_session: AsyncSession):
         """Test handling delete with missing user ID."""
-        data = {}
+        data: ClerkUserWebhookData = {}
 
         # Should not raise
         await handle_user_deleted(db_session, data)

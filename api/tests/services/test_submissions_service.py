@@ -124,6 +124,7 @@ class TestSubmitValidation:
         if not github_req:
             pytest.skip("No GitHub-requiring requirement found")
 
+        assert github_req is not None
         with pytest.raises(GitHubUsernameRequiredError):
             await submit_validation(
                 db_session,
@@ -158,6 +159,8 @@ class TestSubmitValidation:
             repo_exists=None,
         )
 
+        assert profile_req is not None
+        assert user.github_username is not None
         result = await submit_validation(
             db_session,
             user.id,
@@ -194,6 +197,8 @@ class TestSubmitValidation:
             repo_exists=None,
         )
 
+        assert profile_req is not None
+        assert user.github_username is not None
         result = await submit_validation(
             db_session,
             user.id,
@@ -229,6 +234,8 @@ class TestSubmitValidation:
             repo_exists=None,
         )
 
+        assert profile_req is not None
+        assert user.github_username is not None
         # First submission
         result1 = await submit_validation(
             db_session,

@@ -171,7 +171,7 @@ def _run_migrations(connection: Connection) -> None:
                 logger.info("Released migration advisory lock")
             except Exception as unlock_error:
                 # Log but don't raise - lock released when session ends anyway
-                logger.warning("advisory.lock.release.failed", error=str(unlock_error))
+                logger.warning("advisory.lock.release.failed: %s", unlock_error)
 
     # Re-raise the migration error if it wasn't a "table already exists" error
     if migration_error is not None:
