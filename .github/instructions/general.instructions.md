@@ -11,6 +11,7 @@ applyTo: "**/*"
 pre-commit run --all-files
 ```
 - **NEVER** use `--no-verify` to bypass
+- **NEVER** use `SKIP=ty` or skip any pre-commit hooks
 - **NEVER** commit if pre-commit fails—fix all issues first
 
 ### Conventional Commits
