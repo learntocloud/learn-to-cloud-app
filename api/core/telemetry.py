@@ -4,7 +4,7 @@ import os
 import time
 from collections.abc import Callable
 from functools import wraps
-from typing import Any, ParamSpec, TypeVar
+from typing import Any, ParamSpec, TypeVar, cast
 
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
@@ -235,7 +235,7 @@ def track_dependency(name: str, dependency_type: str = "custom"):
                         duration_ms = (time.perf_counter() - start_time) * 1000
                         span.set_attribute("dependency.duration_ms", duration_ms)
 
-            return async_wrapper  # type: ignore[return-value]
+            return cast(Callable[P, R], async_wrapper)
         else:
 
             @wraps(func)
@@ -302,7 +302,7 @@ def track_operation(operation_name: str):
                         duration_ms = (time.perf_counter() - start_time) * 1000
                         span.set_attribute("operation.duration_ms", duration_ms)
 
-            return async_wrapper  # type: ignore[return-value]
+            return cast(Callable[P, R], async_wrapper)
         else:
 
             @wraps(func)

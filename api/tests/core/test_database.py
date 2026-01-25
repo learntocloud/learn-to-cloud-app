@@ -79,7 +79,8 @@ class TestAzureCredential:
         """Test reset clears the cached credential."""
         import core.database as db_module
 
-        db_module._azure_credential = MagicMock()  # type: ignore[assignment]
+        # Inject mock for testing reset behavior (use setattr to bypass type check)
+        setattr(db_module, "_azure_credential", MagicMock())
 
         reset_azure_credential()
 

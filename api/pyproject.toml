@@ -63,16 +63,15 @@ target-version = "py313"
 select = ["E", "F", "I", "UP"]
 
 [tool.ruff.lint.per-file-ignores]
-# SVG templates have long attribute strings that can't be broken
+# SVG templates have long inline attribute strings that can't be broken
 "rendering/certificates.py" = ["E501"]
-"alembic/versions/*.py" = ["E501", "I001"]
 
 [tool.ty.environment]
 # Use the current Python interpreter to resolve third-party imports
 python-platform = "linux"
 
 [tool.ty.rules]
-# Starlette middleware has incomplete type stubs - these are false positives
+# Starlette middleware has incomplete ParamSpec protocol support (astral-sh/ty#1635)
 invalid-argument-type = "warn"
 
 [dependency-groups]

@@ -11,8 +11,9 @@ from sqlalchemy import Connection, create_engine, text
 # Ensure parent directory (api/) is in Python path for module imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-# Import models so they register with Base.metadata
-import models  # noqa: F401
+# Import models to register them with Base.metadata
+# Redundant alias tells ruff this is an intentional side-effect import
+import models as models
 from alembic import context
 from core.config import get_settings
 from core.database import (

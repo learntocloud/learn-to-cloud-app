@@ -3,6 +3,8 @@
 Contains both unit tests (parsing functions) and integration tests (database queries).
 """
 
+from typing import Any
+
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -47,8 +49,11 @@ class TestParsePhaseFromTopicId:
 
     def test_returns_none_for_non_string(self):
         """Test returns None for non-string input."""
-        assert _parse_phase_from_topic_id(None) is None  # type: ignore[arg-type]
-        assert _parse_phase_from_topic_id(123) is None  # type: ignore[arg-type]
+        # Intentionally pass wrong types to test runtime robustness
+        none_val: Any = None
+        int_val: Any = 123
+        assert _parse_phase_from_topic_id(none_val) is None
+        assert _parse_phase_from_topic_id(int_val) is None
 
 
 class TestParsePhaseFromQuestionId:
@@ -71,7 +76,9 @@ class TestParsePhaseFromQuestionId:
 
     def test_returns_none_for_non_string(self):
         """Test returns None for non-string input."""
-        assert _parse_phase_from_question_id(None) is None  # type: ignore[arg-type]
+        # Intentionally pass wrong type to test runtime robustness
+        none_val: Any = None
+        assert _parse_phase_from_question_id(none_val) is None
 
 
 class TestGetPhaseRequirements:

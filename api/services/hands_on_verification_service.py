@@ -38,16 +38,7 @@ from core.wide_event import set_wide_event_fields
 from models import SubmissionType
 from schemas import HandsOnRequirement, ValidationResult
 from services.ctf_service import verify_ctf_token
-from services.phase_requirements_service import (
-    HANDS_ON_REQUIREMENTS,
-    get_requirement_by_id,
-    get_requirements_for_phase,
-)
-
-logger = get_logger(__name__)
-
-
-from services.github_hands_on_verification_service import (  # noqa: E402
+from services.github_hands_on_verification_service import (
     validate_container_image,
     validate_github_profile,
     validate_profile_readme,
@@ -56,6 +47,13 @@ from services.github_hands_on_verification_service import (  # noqa: E402
     validate_repo_url,
     validate_workflow_run,
 )
+from services.phase_requirements_service import (
+    HANDS_ON_REQUIREMENTS,
+    get_requirement_by_id,
+    get_requirements_for_phase,
+)
+
+logger = get_logger(__name__)
 
 # Re-export for backwards compatibility
 __all__ = [
