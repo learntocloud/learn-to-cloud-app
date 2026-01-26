@@ -26,7 +26,6 @@ dependencies = [
     "pydantic>=2.11.2",
     "pydantic-settings==2.7.1",
     "python-dotenv==1.0.1",
-    "redis>=5.0.0",
     "slowapi==0.1.9",
     "circuitbreaker>=2.0.0",
     "cachetools>=5.3.0",
@@ -52,7 +51,6 @@ dev = [
     "factory-boy>=3.3.0",
     "hypothesis>=6.0.0",
     "time-machine>=2.13.0",
-    "pytest-snapshot>=0.9.0",
 ]
 
 [tool.ruff]
@@ -84,7 +82,6 @@ dev = [
     "pytest-asyncio>=0.24.0",
     "pytest-cov>=4.1.0",
     "pytest-mock>=3.12.0",
-    "pytest-snapshot>=0.9.0",
     "respx>=0.20.0",
     "ruff==0.8.6",
     "time-machine>=2.13.0",

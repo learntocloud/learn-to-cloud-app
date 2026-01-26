@@ -24,6 +24,7 @@ from schemas import (
     BadgeData,
     DashboardData,
     HandsOnSubmissionResponse,
+    Phase,
     PhaseDetailData,
     PhaseProgressData,
     PhaseSummaryData,
@@ -43,86 +44,65 @@ from services.content_service import (
 )
 from services.phase_requirements_service import get_requirements_for_phase
 from services.progress_service import (
-    PhaseProgress,
+    compute_topic_progress,
     fetch_user_progress,
     get_phase_completion_counts,
+    is_phase_locked,
+    is_topic_complete,
+    is_topic_locked,
+    phase_progress_to_data,
 )
 
 logger = get_logger(__name__)
 
 
-def _compute_topic_progress(
-    topic: Topic,
-    completed_steps: set[int],
-    passed_question_ids: set[str],
-) -> TopicProgressData:
-    """Compute progress for a single topic.
+def _build_phase_summary(
+    phase: Phase,
+    progress_data: PhaseProgressData | None,
+    locked: bool,
+) -> PhaseSummaryData:
+    """Build PhaseSummaryData from a Phase and computed values.
 
-    Topic Progress = (Steps Completed + Questions Passed) /
-    (Total Steps + Total Questions)
+    Centralizes PhaseSummaryData construction to avoid repetition.
     """
-    steps_completed = len(completed_steps)
-    steps_total = len(topic.learning_steps)
-    questions_passed = len(passed_question_ids)
-    questions_total = len(topic.questions)
-
-    total = steps_total + questions_total
-    completed = steps_completed + questions_passed
-
-    if total == 0:
-        percentage = 100.0
-        status = "completed"
-    else:
-        percentage = (completed / total) * 100
-        if steps_completed >= steps_total and questions_passed >= questions_total:
-            status = "completed"
-        elif completed > 0:
-            status = "in_progress"
-        else:
-            status = "not_started"
-
-    return TopicProgressData(
-        steps_completed=steps_completed,
-        steps_total=steps_total,
-        questions_passed=questions_passed,
-        questions_total=questions_total,
-        percentage=round(percentage, 1),
-        status=status,
+    return PhaseSummaryData(
+        id=phase.id,
+        name=phase.name,
+        slug=phase.slug,
+        description=phase.description,
+        short_description=phase.short_description,
+        estimated_weeks=phase.estimated_weeks,
+        order=phase.order,
+        topics_count=len(phase.topics),
+        objectives=list(phase.objectives),
+        capstone=phase.capstone,
+        hands_on_verification=phase.hands_on_verification,
+        progress=progress_data,
+        is_locked=locked,
     )
 
 
-def _is_topic_complete(
+def _build_topic_summary(
     topic: Topic,
-    completed_steps: set[int],
-    passed_question_ids: set[str],
-) -> bool:
-    return len(completed_steps) >= len(topic.learning_steps) and len(
-        passed_question_ids
-    ) >= len(topic.questions)
+    progress: TopicProgressData | None,
+    locked: bool,
+) -> TopicSummaryData:
+    """Build TopicSummaryData from a Topic and computed values.
 
-
-def _phase_progress_to_data(progress: PhaseProgress) -> PhaseProgressData:
-    """Convert PhaseProgress to response model."""
-    if progress.is_complete:
-        status = "completed"
-    elif (
-        progress.steps_completed > 0
-        or progress.questions_passed > 0
-        or progress.hands_on_validated_count > 0
-    ):
-        status = "in_progress"
-    else:
-        status = "not_started"
-
-    return PhaseProgressData(
-        steps_completed=progress.steps_completed,
-        steps_required=progress.steps_required,
-        questions_passed=progress.questions_passed,
-        questions_required=progress.questions_required,
-        hands_on_validated=progress.hands_on_validated_count,
-        hands_on_required=progress.hands_on_required_count,
-        percentage=round(progress.overall_percentage, 1),
-        status=status,
+    Centralizes TopicSummaryData construction to avoid repetition.
+    """
+    return TopicSummaryData(
+        id=topic.id,
+        slug=topic.slug,
+        name=topic.name,
+        description=topic.description,
+        order=topic.order,
+        estimated_time=topic.estimated_time,
+        is_capstone=topic.is_capstone,
+        steps_count=len(topic.learning_steps),
+        questions_count=len(topic.questions),
+        progress=progress,
+        is_locked=locked,
     )
 
 
@@ -162,38 +142,11 @@ async def get_dashboard(
     user_progress = await fetch_user_progress(db, user_id)
 
     phase_summaries: list[PhaseSummaryData] = []
-    prev_phase_complete = True
-
     for phase in phases:
         progress = user_progress.phases.get(phase.id)
-        progress_data = _phase_progress_to_data(progress) if progress else None
-
-        if is_admin:
-            is_locked = False
-        elif phase.id == 0:
-            is_locked = False
-        else:
-            is_locked = not prev_phase_complete
-
-        phase_summaries.append(
-            PhaseSummaryData(
-                id=phase.id,
-                name=phase.name,
-                slug=phase.slug,
-                description=phase.description,
-                short_description=phase.short_description,
-                estimated_weeks=phase.estimated_weeks,
-                order=phase.order,
-                topics_count=len(phase.topics),
-                objectives=list(phase.objectives),
-                capstone=phase.capstone,
-                hands_on_verification=phase.hands_on_verification,
-                progress=progress_data,
-                is_locked=is_locked,
-            )
-        )
-
-        prev_phase_complete = progress.is_complete if progress else False
+        progress_data = phase_progress_to_data(progress) if progress else None
+        locked = is_phase_locked(phase.id, user_progress, is_admin)
+        phase_summaries.append(_build_phase_summary(phase, progress_data, locked))
 
     overall_percentage = user_progress.overall_percentage
     phases_completed = user_progress.phases_completed
@@ -251,61 +204,22 @@ async def get_phases_list(
 
     if user_id is None:
         return [
-            PhaseSummaryData(
-                id=phase.id,
-                name=phase.name,
-                slug=phase.slug,
-                description=phase.description,
-                short_description=phase.short_description,
-                estimated_weeks=phase.estimated_weeks,
-                order=phase.order,
-                topics_count=len(phase.topics),
-                objectives=list(phase.objectives),
-                capstone=phase.capstone,
-                hands_on_verification=phase.hands_on_verification,
-                progress=None,
-                is_locked=(phase.id != 0),
-            )
+            _build_phase_summary(phase, None, is_phase_locked(phase.id, None, False))
             for phase in phases
         ]
 
     user_progress = await fetch_user_progress(db, user_id)
 
-    phase_summaries: list[PhaseSummaryData] = []
-    prev_phase_complete = True
-
-    for phase in phases:
-        progress = user_progress.phases.get(phase.id)
-        progress_data = _phase_progress_to_data(progress) if progress else None
-
-        if is_admin:
-            is_locked = False
-        elif phase.id == 0:
-            is_locked = False
-        else:
-            is_locked = not prev_phase_complete
-
-        phase_summaries.append(
-            PhaseSummaryData(
-                id=phase.id,
-                name=phase.name,
-                slug=phase.slug,
-                description=phase.description,
-                short_description=phase.short_description,
-                estimated_weeks=phase.estimated_weeks,
-                order=phase.order,
-                topics_count=len(phase.topics),
-                objectives=list(phase.objectives),
-                capstone=phase.capstone,
-                hands_on_verification=phase.hands_on_verification,
-                progress=progress_data,
-                is_locked=is_locked,
-            )
+    return [
+        _build_phase_summary(
+            phase,
+            phase_progress_to_data(progress)
+            if (progress := user_progress.phases.get(phase.id))
+            else None,
+            is_phase_locked(phase.id, user_progress, is_admin),
         )
-
-        prev_phase_complete = progress.is_complete if progress else False
-
-    return phase_summaries
+        for phase in phases
+    ]
 
 
 async def get_phase_detail(
@@ -326,27 +240,13 @@ async def get_phase_detail(
         return None
 
     if user_id is None:
-        phase_is_locked = phase.id != 0
+        phase_is_locked = is_phase_locked(phase.id, None, False)
 
         topic_summaries: list[TopicSummaryData] = []
         for topic in phase.topics:
-            topic_is_locked = phase_is_locked or topic.order != 1
-
-            topic_summaries.append(
-                TopicSummaryData(
-                    id=topic.id,
-                    slug=topic.slug,
-                    name=topic.name,
-                    description=topic.description,
-                    order=topic.order,
-                    estimated_time=topic.estimated_time,
-                    is_capstone=topic.is_capstone,
-                    steps_count=len(topic.learning_steps),
-                    questions_count=len(topic.questions),
-                    progress=None,
-                    is_locked=topic_is_locked,
-                )
-            )
+            # For unauthenticated: first topic unlocked if phase unlocked, rest locked
+            locked = is_topic_locked(topic.order, phase_is_locked, False, False)
+            topic_summaries.append(_build_topic_summary(topic, None, locked))
 
         hands_on_reqs = get_requirements_for_phase(phase.id)
 
@@ -373,14 +273,7 @@ async def get_phase_detail(
 
     user_progress = await fetch_user_progress(db, user_id)
     phase_progress = user_progress.phases.get(phase.id)
-
-    if is_admin:
-        phase_is_locked = False
-    elif phase.id == 0:
-        phase_is_locked = False
-    else:
-        prev_progress = user_progress.phases.get(phase.id - 1)
-        phase_is_locked = not (prev_progress and prev_progress.is_complete)
+    phase_is_locked = is_phase_locked(phase.id, user_progress, is_admin)
 
     # Batch queries to avoid N+1 (2 queries instead of 2*N)
     step_repo = StepProgressRepository(db)
@@ -406,36 +299,16 @@ async def get_phase_detail(
         completed_steps = steps_by_topic.get(topic.id, set())
         passed_questions = questions_by_topic.get(topic.id, set())
 
-        topic_progress = _compute_topic_progress(
+        topic_progress = compute_topic_progress(
             topic, completed_steps, passed_questions
         )
 
-        if is_admin:
-            topic_is_locked = False
-        elif phase_is_locked:
-            topic_is_locked = True
-        elif topic.order == 1:
-            topic_is_locked = False
-        else:
-            topic_is_locked = not prev_topic_complete
-
-        topic_summaries.append(
-            TopicSummaryData(
-                id=topic.id,
-                slug=topic.slug,
-                name=topic.name,
-                description=topic.description,
-                order=topic.order,
-                estimated_time=topic.estimated_time,
-                is_capstone=topic.is_capstone,
-                steps_count=len(topic.learning_steps),
-                questions_count=len(topic.questions),
-                progress=topic_progress,
-                is_locked=topic_is_locked,
-            )
+        locked = is_topic_locked(
+            topic.order, phase_is_locked, prev_topic_complete, is_admin
         )
+        topic_summaries.append(_build_topic_summary(topic, topic_progress, locked))
 
-        prev_topic_complete = _is_topic_complete(
+        prev_topic_complete = is_topic_complete(
             topic, completed_steps, passed_questions
         )
 
@@ -445,10 +318,7 @@ async def get_phase_detail(
     db_submissions = await submission_repo.get_by_user_and_phase(user_id, phase.id)
     hands_on_submissions = [_to_hands_on_submission_data(sub) for sub in db_submissions]
 
-    if phase_progress:
-        progress_data = _phase_progress_to_data(phase_progress)
-    else:
-        progress_data = None
+    progress_data = phase_progress_to_data(phase_progress) if phase_progress else None
 
     # Business logic lives here, NOT in frontend
     all_topics_complete = is_admin or all(
@@ -508,17 +378,17 @@ async def get_topic_detail(
     learning_objectives = list(topic.learning_objectives)
 
     if user_id is None:
-        phase_is_locked = phase.id != 0
-        topic_is_locked = phase_is_locked or topic.order != 1
+        phase_is_locked = is_phase_locked(phase.id, None, False)
+        # For unauthenticated: first topic unlocked if phase unlocked, rest locked
+        topic_locked = is_topic_locked(topic.order, phase_is_locked, False, False)
 
         # Get previous topic name for UI
         topic_index = next(
             (i for i, t in enumerate(phase.topics) if t.id == topic.id), 0
         )
-        if topic_index > 0:
-            previous_topic_name = phase.topics[topic_index - 1].name
-        else:
-            previous_topic_name = None
+        previous_topic_name = (
+            phase.topics[topic_index - 1].name if topic_index > 0 else None
+        )
 
         return TopicDetailData(
             id=topic.id,
@@ -535,19 +405,12 @@ async def get_topic_detail(
             completed_step_orders=[],
             passed_question_ids=[],
             is_locked=phase_is_locked,
-            is_topic_locked=topic_is_locked,
+            is_topic_locked=topic_locked,
             previous_topic_name=previous_topic_name,
         )
 
     user_progress = await fetch_user_progress(db, user_id)
-
-    if is_admin:
-        phase_is_locked = False
-    elif phase.id == 0:
-        phase_is_locked = False
-    else:
-        prev_progress = user_progress.phases.get(phase.id - 1)
-        phase_is_locked = not (prev_progress and prev_progress.is_complete)
+    phase_is_locked = is_phase_locked(phase.id, user_progress, is_admin)
 
     # Batch queries to avoid N+1
     step_repo = StepProgressRepository(db)
@@ -559,25 +422,25 @@ async def get_topic_detail(
     completed_steps = all_steps_by_topic.get(topic.id, set())
     passed_question_ids = all_questions_by_topic.get(topic.id, set())
 
-    topic_progress = _compute_topic_progress(
-        topic, completed_steps, passed_question_ids
-    )
+    topic_progress = compute_topic_progress(topic, completed_steps, passed_question_ids)
 
+    # Determine topic locking and get previous topic info for UI
     topic_index = next((i for i, t in enumerate(phase.topics) if t.id == topic.id), 0)
     previous_topic_name: str | None = None
-    topic_is_locked = False
+    prev_topic_complete = True  # First topic has no previous, so consider it "complete"
 
-    if not is_admin and not phase_is_locked and topic_index > 0:
+    if topic_index > 0:
         prev_topic = phase.topics[topic_index - 1]
         previous_topic_name = prev_topic.name
-
         prev_completed_steps = all_steps_by_topic.get(prev_topic.id, set())
         prev_passed_questions = all_questions_by_topic.get(prev_topic.id, set())
-
-        if not _is_topic_complete(
+        prev_topic_complete = is_topic_complete(
             prev_topic, prev_completed_steps, prev_passed_questions
-        ):
-            topic_is_locked = True
+        )
+
+    topic_locked = is_topic_locked(
+        topic.order, phase_is_locked, prev_topic_complete, is_admin
+    )
 
     # Get locked questions (questions with >= max_attempts failures in lockout window)
     settings = get_settings()
@@ -619,6 +482,6 @@ async def get_topic_detail(
         passed_question_ids=sorted(passed_question_ids),
         locked_questions=locked_questions,
         is_locked=phase_is_locked,
-        is_topic_locked=topic_is_locked,
+        is_topic_locked=topic_locked,
         previous_topic_name=previous_topic_name,
     )
