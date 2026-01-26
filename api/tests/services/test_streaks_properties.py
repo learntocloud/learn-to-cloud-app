@@ -26,8 +26,8 @@ pytestmark = pytest.mark.unit
 @st.composite
 def date_lists(draw, min_size: int = 0, max_size: int = 50) -> list[date]:
     """Generate lists of dates within a reasonable range."""
-    # Use a fixed "today" for reproducibility
-    base_date = date(2026, 1, 23)
+    # Use today's date so streak calculations work correctly
+    base_date = date.today()
     num_dates = draw(st.integers(min_value=min_size, max_value=max_size))
 
     dates = []
@@ -44,7 +44,7 @@ def consecutive_date_lists(
     draw, min_length: int = 1, max_length: int = 30
 ) -> list[date]:
     """Generate lists of consecutive dates (perfect streaks)."""
-    base_date = date(2026, 1, 23)
+    base_date = date.today()
     length = draw(st.integers(min_value=min_length, max_value=max_length))
 
     return [base_date - timedelta(days=i) for i in range(length)]

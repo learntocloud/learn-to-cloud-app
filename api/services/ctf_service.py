@@ -153,5 +153,5 @@ def verify_ctf_token(token: str, oauth_github_username: str) -> CTFVerificationR
         logger.exception("ctf.token.verification.failed", error=str(e))
         return CTFVerificationResult(
             is_valid=False,
-            message=f"Token verification failed: {str(e)}",
+            message="Token verification failed. Please try again or contact support.",
         )

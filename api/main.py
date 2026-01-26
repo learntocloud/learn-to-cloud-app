@@ -5,9 +5,10 @@ import os
 from contextlib import asynccontextmanager
 from typing import Final
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.responses import JSONResponse
 from slowapi.errors import RateLimitExceeded
 
 from core.auth import close_clerk_client, init_clerk_client
@@ -83,6 +84,24 @@ configure_logging()
 logger = get_logger(__name__)
 
 _configure_azure_monitor_if_enabled()
+
+
+async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    """Last-resort handler for unhandled exceptions.
+
+    Logs the error with request context and returns a generic JSON response.
+    Never exposes internal details to clients.
+    """
+    logger.exception(
+        "unhandled.exception",
+        exc_type=type(exc).__name__,
+        path=request.url.path,
+        method=request.method,
+    )
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "An unexpected error occurred. Please try again."},
+    )
 
 
 async def _background_init(app: FastAPI):
@@ -161,6 +180,7 @@ app = FastAPI(
 
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
+app.add_exception_handler(Exception, global_exception_handler)
 
 app.add_middleware(GZipMiddleware, minimum_size=500)
 

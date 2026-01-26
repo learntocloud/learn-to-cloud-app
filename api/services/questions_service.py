@@ -310,7 +310,7 @@ async def submit_question_answer(
         )
     except Exception as e:
         set_wide_event_fields(llm_error="grading_failed", llm_error_detail=str(e))
-        raise LLMGradingError("Failed to grade your answer. Please try again.")
+        raise LLMGradingError("Failed to grade your answer. Please try again.") from e
 
     attempt = await question_repo.create(
         user_id=user_id,
