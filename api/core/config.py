@@ -47,7 +47,6 @@ class Settings(BaseSettings):
 
     http_timeout: float = 10.0
 
-    # Use "redis://host:port" in production for distributed rate limiting
     # memory:// only works for single-instance deployments
     ratelimit_storage_uri: str = "memory://"
 

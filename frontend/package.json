@@ -10,7 +10,10 @@
     "lint": "eslint .",
     "test": "vitest",
     "test:ui": "vitest --ui",
-    "test:coverage": "vitest --coverage"
+    "test:coverage": "vitest --coverage",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:headed": "playwright test --headed"
   },
   "dependencies": {
     "@clerk/clerk-react": "^5.22.0",
@@ -21,8 +24,10 @@
     "react-router-dom": "^7.1.1"
   },
   "devDependencies": {
+    "@clerk/testing": "^1.13.31",
     "@clerk/types": "^4.101.11",
     "@eslint/js": "^9.39.2",
+    "@playwright/test": "^1.58.0",
     "@testing-library/jest-dom": "^6.0.0",
     "@testing-library/react": "^14.0.0",
     "@testing-library/user-event": "^14.0.0",
@@ -32,6 +37,7 @@
     "@vitejs/plugin-react": "^4.3.4",
     "@vitest/coverage-v8": "^4.0.18",
     "@vitest/ui": "^4.0.18",
+    "dotenv": "^17.2.3",
     "eslint": "^9",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.26",
