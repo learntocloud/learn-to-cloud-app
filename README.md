@@ -129,12 +129,12 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed development guide.
 │   ├── core/             # Config, auth, database
 │   └── tests/
 ├── frontend/             # React + Vite frontend
-│   └── src/
-│       ├── components/
-│       ├── pages/
-│       └── lib/          # API client, hooks
-├── content/              # Phase/topic JSON content
-│   └── phases/
+│   ├── src/
+│   │   ├── components/
+│   │   ├── pages/
+│   │   └── lib/          # API client, hooks
+│   └── public/
+│       └── content/      # Phase/topic JSON content
 ├── infra/                # Terraform (Azure)
 └── .github/
     ├── workflows/        # CI/CD

@@ -1,5 +1,6 @@
 ---
-applyTo: '**/*.py'
+applyTo: "**/*.py"
+description: "FastAPI routes, async patterns, structlog logging, SQLAlchemy, httpx clients, TTLCache caching"
 ---
 
 # Python Coding Standards

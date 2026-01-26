@@ -110,19 +110,9 @@ Search for route usage in `frontend/src/**/*.ts`:
 
 ## PHASE 3: HTTP Semantics Review
 
-> **Note**: Status code conventions are documented in `.github/instructions/python.instructions.md`. This phase verifies compliance and catches edge cases.
+> **See**: `.github/instructions/python.instructions.md` for status code conventions.
 
-### Step 3.1: Method-Resource Alignment
-
-Verify each route uses the correct HTTP method:
-
-| Method | Purpose | Should Return | Idempotent? | Safe? |
-|--------|---------|---------------|-------------|-------|
-| GET | Read resource | Resource | Yes | Yes |
-| POST | Create resource | Created resource | No | No |
-| PUT | Replace resource | Updated resource | Yes | No |
-| PATCH | Partial update | Updated resource | No | No |
-| DELETE | Remove resource | Empty or deleted resource | Yes | No |
+### Step 3.1: Verify Method-Resource Alignment
 
 ```markdown
 ### HTTP Semantics Check

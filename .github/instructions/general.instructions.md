@@ -1,5 +1,6 @@
 ---
 applyTo: "**/*"
+description: "Git workflow, conventional commits, pre-commit hooks, and comment guidelines"
 ---
 
 # General Repository Instructions

@@ -1,5 +1,6 @@
 ---
-applyTo: 'infra/*.tf, infra/*.tfvars'
+applyTo: "infra/*.tf, infra/*.tfvars"
+description: "Azure resource naming, tagging, state management, and security practices"
 ---
 
 # Terraform Standards

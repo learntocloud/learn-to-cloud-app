@@ -5,6 +5,8 @@ description: Query production PostgreSQL with Entra ID auth. Use for investigati
 
 # Query Production Database
 
+> **Note**: The hostname below may change if infrastructure is recreated. Get the current hostname from `cd infra && terraform output database_host` or Azure Portal.
+
 ## Connect
 
 ```bash

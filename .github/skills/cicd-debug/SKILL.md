@@ -29,9 +29,9 @@ gh run list --workflow=deploy.yml --limit 5
 gh run view <run-id> --log-failed
 ```
 
-Or use the debug script:
+Or use the debug script in this skill's folder:
 ```bash
-./scripts/debug-deploy.sh logs
+.github/skills/cicd-debug/debug-deploy.sh logs
 ```
 
 ### Step 3: Identify the Issue
