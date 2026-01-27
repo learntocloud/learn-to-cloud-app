@@ -52,7 +52,7 @@
   "forwardPorts": [3000, 5432, 8000],
   "portsAttributes": {
     "3000": {
-      "label": "Frontend (Next.js)",
+      "label": "Frontend (Vite)",
       "onAutoForward": "silent"
     },
     "5432": {
