@@ -27,6 +27,11 @@ uvx pre-commit install
 echo "⚛️ Setting up Frontend..."
 cd frontend
 npm install
+
+# Install Playwright browsers and system dependencies for E2E tests
+echo "🎭 Installing Playwright browsers..."
+npx playwright install chromium
+npx playwright install-deps chromium
 cd ..
 
 # Copy .env.example files if .env doesn't exist
