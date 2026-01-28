@@ -8,7 +8,12 @@
 import { clerkSetup } from '@clerk/testing/playwright';
 import { test as setup } from '@playwright/test';
 import * as dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
 import * as path from 'path';
+
+// ES module workaround for __dirname
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Load test environment variables
 dotenv.config({ path: path.resolve(__dirname, '../.env.test') });

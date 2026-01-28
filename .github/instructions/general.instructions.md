@@ -9,7 +9,7 @@ description: "Git workflow, conventional commits, pre-commit hooks, and comment 
 
 ### Pre-Commit (MANDATORY)
 ```bash
-pre-commit run --all-files
+cd api && uv run pre-commit run --all-files
 ```
 - **NEVER** use `--no-verify` to bypass
 - **NEVER** use `SKIP=ty` or skip any pre-commit hooks
