@@ -1049,17 +1049,14 @@ class SubmissionData(FrozenModel):
     extracted_username: str | None = None
     is_validated: bool
     validated_at: datetime | None = None
+    verification_completed: bool = True
     created_at: datetime
 
 
 class SubmissionResult(FrozenModel):
-    """Result of a submission validation.
+    """Result of a submission validation."""
 
-    When server_error occurs during validation, submission will be None
-    and no database record is created (cooldown not applied).
-    """
-
-    submission: SubmissionData | None
+    submission: SubmissionData
     is_valid: bool
     message: str
     username_match: bool | None = None

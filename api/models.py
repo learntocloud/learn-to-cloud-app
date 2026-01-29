@@ -175,6 +175,9 @@ class Submission(TimestampMixin, Base):
         DateTime(timezone=True),
         nullable=True,
     )
+    # True when verification logic actually ran (not blocked by server error).
+    # Used for cooldown calculations - only count completed verification attempts.
+    verification_completed: Mapped[bool] = mapped_column(Boolean, default=False)
 
     user: Mapped["User"] = relationship(back_populates="submissions")
 
