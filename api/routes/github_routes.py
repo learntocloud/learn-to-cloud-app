@@ -1,6 +1,7 @@
 """GitHub submission endpoints."""
 
 from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import JSONResponse
 
 from core.auth import UserId
 from core.database import DbSession
@@ -11,6 +12,7 @@ from schemas import (
     HandsOnValidationResult,
 )
 from services.submissions_service import (
+    CooldownActiveError,
     GitHubUsernameRequiredError,
     RequirementNotFoundError,
     submit_validation,
@@ -28,6 +30,7 @@ router = APIRouter(prefix="/api/github", tags=["github"])
         400: {"description": "GitHub username required to submit"},
         401: {"description": "Not authenticated"},
         404: {"description": "Requirement not found"},
+        429: {"description": "Rate limited or cooldown active"},
     },
 )
 @limiter.limit(EXTERNAL_API_LIMIT)
@@ -36,7 +39,7 @@ async def submit_github_validation(
     submission: HandsOnSubmissionRequest,
     user_id: UserId,
     db: DbSession,
-) -> HandsOnValidationResult:
+) -> HandsOnValidationResult | JSONResponse:
     """Submit a URL or token for hands-on validation."""
     user = await get_or_create_user(db, user_id)
 
@@ -52,6 +55,12 @@ async def submit_github_validation(
         raise HTTPException(status_code=404, detail="Requirement not found")
     except GitHubUsernameRequiredError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except CooldownActiveError as e:
+        return JSONResponse(
+            status_code=429,
+            content={"detail": str(e)},
+            headers={"Retry-After": str(e.retry_after_seconds)},
+        )
 
     return HandsOnValidationResult(
         is_valid=result.is_valid,
@@ -59,4 +68,5 @@ async def submit_github_validation(
         username_match=result.username_match or False,
         repo_exists=result.repo_exists or False,
         submission=HandsOnSubmissionResponse.model_validate(result.submission),
+        task_results=result.task_results,
     )

@@ -76,7 +76,11 @@ class TestSubmissionRepositoryGetValidatedByUser:
         """Should return only validated submissions."""
         user = await create_async(UserFactory, db_session)
         validated = await create_async(
-            SubmissionFactory, db_session, user_id=user.id, is_validated=True
+            SubmissionFactory,
+            db_session,
+            user_id=user.id,
+            requirement_id="phase1-hands-on-1",
+            is_validated=True,
         )
         await create_async(
             UnvalidatedSubmissionFactory,

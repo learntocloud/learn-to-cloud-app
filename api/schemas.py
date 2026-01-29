@@ -130,6 +130,7 @@ class HandsOnValidationResult(FrozenModel):
     username_match: bool | None = None
     repo_exists: bool | None = None
     submission: HandsOnSubmissionResponse | None = None
+    task_results: list["TaskResult"] | None = None
 
 
 # =============================================================================
@@ -1059,11 +1060,23 @@ class SubmissionResult(FrozenModel):
     message: str
     username_match: bool | None = None
     repo_exists: bool | None = None
+    task_results: list["TaskResult"] | None = None
 
 
 # =============================================================================
 # Validation Result Schema
 # =============================================================================
+
+
+class TaskResult(FrozenModel):
+    """Result of verifying a single task in code analysis.
+
+    Used by CODE_ANALYSIS validation to provide detailed per-task feedback.
+    """
+
+    task_name: str
+    passed: bool
+    feedback: str
 
 
 class ValidationResult(FrozenModel):
@@ -1078,12 +1091,15 @@ class ValidationResult(FrozenModel):
             URL matches the authenticated user. None for non-GitHub validations.
         repo_exists: For GitHub-based validations, whether the repository
             exists. None for non-GitHub validations.
+        task_results: For CODE_ANALYSIS validations, detailed per-task feedback.
+            None for non-code-analysis validations.
     """
 
     is_valid: bool
     message: str
     username_match: bool | None = None
     repo_exists: bool | None = None
+    task_results: list[TaskResult] | None = None
 
 
 # =============================================================================

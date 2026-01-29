@@ -47,6 +47,12 @@ class Settings(BaseSettings):
 
     http_timeout: float = 10.0
 
+    # Copilot CLI server configuration for AI-powered code verification
+    # The CLI runs as a sidecar container in production, connecting via JSON-RPC
+    copilot_cli_url: str = ""  # e.g., "localhost:8080" or "http://127.0.0.1:8080"
+    copilot_cli_timeout: int = 120  # Seconds to wait for code analysis completion
+    code_analysis_cooldown_seconds: int = 3600  # 1 hour between verification attempts
+
     # Use "redis://host:port" in production for distributed rate limiting
     # memory:// only works for single-instance deployments
     ratelimit_storage_uri: str = "memory://"

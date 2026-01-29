@@ -94,3 +94,32 @@ class SubmissionRepository:
         if submission is None:
             raise RuntimeError("Upsert with returning=True returned no row")
         return submission
+
+    async def get_last_submission_time(
+        self,
+        user_id: str,
+        requirement_id: str,
+    ) -> datetime | None:
+        """Get the timestamp of the user's most recent submission for a requirement.
+
+        Used to enforce cooldown periods between verification attempts.
+
+        Args:
+            user_id: The user's ID
+            requirement_id: The requirement ID to check
+
+        Returns:
+            The updated_at timestamp of the last submission,
+            or None if no submission exists.
+        """
+        result = await self.db.execute(
+            select(Submission.updated_at)
+            .where(
+                Submission.user_id == user_id,
+                Submission.requirement_id == requirement_id,
+            )
+            .order_by(Submission.updated_at.desc())
+            .limit(1)
+        )
+        row = result.scalar_one_or_none()
+        return row

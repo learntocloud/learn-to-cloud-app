@@ -73,6 +73,35 @@ HANDS_ON_REQUIREMENTS: dict[int, list[HandsOnRequirement]] = {
             example_url=None,
         ),
     ],
+    2: [
+        HandsOnRequirement(
+            id="phase2-journal-fork",
+            phase_id=2,
+            submission_type=SubmissionType.REPO_FORK,
+            name="Journal Starter Repository Fork",
+            description=(
+                "Fork the Journal Starter repository to begin the capstone project. "
+                "This FastAPI + PostgreSQL application will help you practice "
+                "Python API development skills."
+            ),
+            example_url="https://github.com/madebygps/journal-starter",
+            required_repo="learntocloud/journal-starter",
+        ),
+        HandsOnRequirement(
+            id="phase2-code-analysis",
+            phase_id=2,
+            submission_type=SubmissionType.CODE_ANALYSIS,
+            name="Journal API Implementation",
+            description=(
+                "Complete all required tasks in your Journal Starter fork and submit "
+                "your repository URL for AI-powered code verification. "
+                "Required tasks: logging setup, GET/DELETE endpoints, AI analysis "
+                "endpoint, and cloud CLI configuration. "
+                "Note: You can only verify once per hour."
+            ),
+            example_url="https://github.com/madebygps/journal-starter",
+        ),
+    ],
 }
 
 

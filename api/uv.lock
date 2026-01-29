@@ -509,6 +509,20 @@ wheels = [
 ]
 
 [[package]]
+name = "github-copilot-sdk"
+version = "0.1.19"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pydantic" },
+    { name = "python-dateutil" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/a3/e7/87955115ae99668a7dc1d1314c2ac07a7d5e8d621c52ce322090616d342e/github_copilot_sdk-0.1.19.tar.gz", hash = "sha256:2bba9db1ee0b3b6ff751568489777224e381c15427e253f98731c01a936833c2", size = 81767, upload-time = "2026-01-27T17:51:02.679Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/6e/8d/f5b0ddab9b3c4e9d0a8b5233fd12543f07f2fb65ab593652826c1ff96359/github_copilot_sdk-0.1.19-py3-none-any.whl", hash = "sha256:98d2e6ce65b88b470756d0d2ced12714fd76d3394c245e29a42185e3a4e83d0b", size = 34243, upload-time = "2026-01-27T17:50:59.566Z" },
+]
+
+[[package]]
 name = "google-auth"
 version = "2.47.0"
 source = { registry = "https://pypi.org/simple" }
@@ -695,6 +709,7 @@ dependencies = [
     { name = "circuitbreaker" },
     { name = "clerk-backend-api" },
     { name = "fastapi" },
+    { name = "github-copilot-sdk" },
     { name = "google-genai" },
     { name = "greenlet" },
     { name = "httpx" },
@@ -756,6 +771,7 @@ requires-dist = [
     { name = "factory-boy", marker = "extra == 'dev'", specifier = ">=3.3.0" },
     { name = "faker", marker = "extra == 'dev'", specifier = ">=33.0.0" },
     { name = "fastapi", specifier = "==0.115.6" },
+    { name = "github-copilot-sdk", specifier = ">=0.1.0" },
     { name = "google-genai", specifier = ">=1.57.0" },
     { name = "greenlet", specifier = "==3.1.1" },
     { name = "httpx", specifier = "==0.28.1" },

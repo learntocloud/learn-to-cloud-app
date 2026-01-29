@@ -1,9 +1,9 @@
 """Hands-on verification orchestration module.
 
-This module provides the central orchestration for Phase 0 and Phase 1 hands-on
-verification:
+This module provides the central orchestration for Phase 0, Phase 1, and Phase 2
+hands-on verification:
 - Routes submissions to appropriate validators
-- Supports GitHub profile, profile README, repo fork, and CTF token validation
+- Supports GitHub profile, profile README, repo fork, CTF token, and code analysis
 
 Phase requirements are defined in phase_requirements.py.
 
@@ -17,11 +17,13 @@ To add a new verification type:
 
 For GitHub-specific validations, see github_hands_on_verification.py
 For CTF token validation, see ctf_service.py
+For AI-powered code analysis, see copilot_verification_service.py
 For phase requirements, see phase_requirements.py
 """
 
 from models import SubmissionType
 from schemas import HandsOnRequirement, ValidationResult
+from services.copilot_verification_service import analyze_repository_code
 from services.ctf_service import verify_ctf_token
 from services.github_hands_on_verification_service import (
     validate_github_profile,
@@ -130,6 +132,15 @@ async def validate_submission(
                 repo_exists=False,
             )
         return validate_ctf_token_submission(submitted_value, expected_username)
+
+    elif requirement.submission_type == SubmissionType.CODE_ANALYSIS:
+        if not expected_username:
+            return ValidationResult(
+                is_valid=False,
+                message="GitHub username is required for code analysis",
+                username_match=False,
+            )
+        return await analyze_repository_code(submitted_value, expected_username)
 
     else:
         return ValidationResult(

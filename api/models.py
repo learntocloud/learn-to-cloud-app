@@ -127,6 +127,7 @@ class SubmissionType(str, PyEnum):
 
     # Phase 2: Journal API implementation
     JOURNAL_API_RESPONSE = "journal_api_response"
+    CODE_ANALYSIS = "code_analysis"
 
 
 class Submission(TimestampMixin, Base):

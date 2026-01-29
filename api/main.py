@@ -13,6 +13,7 @@ from slowapi.errors import RateLimitExceeded
 
 from core.auth import close_clerk_client, init_clerk_client
 from core.config import get_settings
+from core.copilot_client import close_copilot_client
 from core.database import (
     create_engine,
     create_session_maker,
@@ -161,6 +162,7 @@ async def lifespan(app: FastAPI):
         await close_http_client()
         await close_updates_client()
         await close_github_client()
+        await close_copilot_client()
         await dispose_engine(app.state.engine)  # Close all database connections
 
         try:
