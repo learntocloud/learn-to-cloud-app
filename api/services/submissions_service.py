@@ -137,6 +137,24 @@ async def submit_validation(
         expected_username=github_username,
     )
 
+    # Don't save submission or apply cooldown if there was a server-side error.
+    # The user shouldn't be penalized for infrastructure issues.
+    if validation_result.server_error:
+        logger.info(
+            "submission.server_error_skipped",
+            user_id=user_id,
+            requirement_id=requirement_id,
+            message=validation_result.message,
+        )
+        return SubmissionResult(
+            submission=None,
+            is_valid=False,
+            message=validation_result.message,
+            username_match=validation_result.username_match,
+            repo_exists=validation_result.repo_exists,
+            task_results=validation_result.task_results,
+        )
+
     # Extract username from submission for audit/display purposes.
     # For GitHub URLs: parse the username from the URL itself.
     # For CTF tokens: the token embeds the expected username, so we store

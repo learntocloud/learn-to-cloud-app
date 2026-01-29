@@ -39,6 +39,8 @@ class TestSubmitGitHubValidation:
             message="Valid GitHub profile",
             username_match=True,
             repo_exists=None,
+            task_results=None,
+            server_error=False,
         )
 
         assert profile_req is not None
@@ -76,6 +78,8 @@ class TestSubmitGitHubValidation:
             message="GitHub profile not found",
             username_match=False,
             repo_exists=None,
+            task_results=None,
+            server_error=False,
         )
 
         assert profile_req is not None

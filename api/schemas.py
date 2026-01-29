@@ -1053,9 +1053,13 @@ class SubmissionData(FrozenModel):
 
 
 class SubmissionResult(FrozenModel):
-    """Result of a submission validation."""
+    """Result of a submission validation.
 
-    submission: SubmissionData
+    When server_error occurs during validation, submission will be None
+    and no database record is created (cooldown not applied).
+    """
+
+    submission: SubmissionData | None
     is_valid: bool
     message: str
     username_match: bool | None = None
@@ -1093,6 +1097,9 @@ class ValidationResult(FrozenModel):
             exists. None for non-GitHub validations.
         task_results: For CODE_ANALYSIS validations, detailed per-task feedback.
             None for non-code-analysis validations.
+        server_error: True if validation failed due to a server-side issue
+            (e.g., service unavailable, config error). When True, cooldowns
+            should not be applied since the user isn't at fault.
     """
 
     is_valid: bool
@@ -1100,6 +1107,7 @@ class ValidationResult(FrozenModel):
     username_match: bool | None = None
     repo_exists: bool | None = None
     task_results: list[TaskResult] | None = None
+    server_error: bool = False
 
 
 # =============================================================================

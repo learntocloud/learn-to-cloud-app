@@ -591,6 +591,7 @@ async def analyze_repository_code(
                 "Code analysis service is temporarily unavailable. "
                 "Please try again in a few minutes."
             ),
+            server_error=True,
         )
     except CodeAnalysisError as e:
         logger.error(
@@ -603,6 +604,7 @@ async def analyze_repository_code(
         return ValidationResult(
             is_valid=False,
             message=f"Code analysis failed: {e}",
+            server_error=e.retriable,
         )
     except CopilotClientError as e:
         logger.error(
@@ -616,4 +618,5 @@ async def analyze_repository_code(
             message=(
                 "Unable to connect to code analysis service. " "Please try again later."
             ),
+            server_error=True,
         )
