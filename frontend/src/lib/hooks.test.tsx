@@ -16,7 +16,7 @@ vi.mock('./api-client', () => ({
     getDashboard: vi.fn().mockResolvedValue({
       current_phase: 1,
       phases_completed: 0,
-      total_phases: 7,
+      total_phases: 8,
       overall_progress: 10,
     }),
     getStreak: vi.fn().mockResolvedValue({

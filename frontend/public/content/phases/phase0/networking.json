@@ -4,7 +4,6 @@
   "name": "What is Networking",
   "description": "Networking is how data moves across the internet and within cloud environments. Understanding the basics is crucial.",
   "order": 2,
-  "estimated_time": "1-2 hours",
   "is_capstone": false,
   "learning_steps": [
     {
@@ -21,7 +20,7 @@
       "action": "Read:",
       "title": "What is an IP Address?",
       "url": "https://www.cloudflare.com/learning/dns/glossary/what-is-my-ip-address/",
-      "description": "Understand IP addresses\u2014the unique identifiers that allow devices to communicate."
+      "description": "Understand IP addresses—the unique identifiers that allow devices to communicate."
     },
     {
       "order": 3,
@@ -29,7 +28,7 @@
       "action": "Read:",
       "title": "What is DNS?",
       "url": "https://www.cloudflare.com/learning/dns/what-is-dns/",
-      "description": "Learn how DNS translates domain names into IP addresses\u2014the phonebook of the internet."
+      "description": "Learn how DNS translates domain names into IP addresses—the phonebook of the internet."
     }
   ],
   "questions": [
@@ -43,9 +42,24 @@
       ],
       "grading_rubric": "Must explain what an IP address is (unique identifier for devices) AND clearly distinguish public vs private IPs AND explain when/why each type is used in real scenarios.",
       "concepts": {
-        "required": ["unique identifier", "public IP", "private IP", "internet routable"],
-        "expected": ["internal networks", "NAT", "address ranges", "device communication"],
-        "bonus": ["IPv4 vs IPv6", "CIDR notation", "RFC 1918 ranges", "IP exhaustion"]
+        "required": [
+          "unique identifier",
+          "public IP",
+          "private IP",
+          "internet routable"
+        ],
+        "expected": [
+          "internal networks",
+          "NAT",
+          "address ranges",
+          "device communication"
+        ],
+        "bonus": [
+          "IPv4 vs IPv6",
+          "CIDR notation",
+          "RFC 1918 ranges",
+          "IP exhaustion"
+        ]
       }
     },
     {
@@ -58,9 +72,23 @@
       ],
       "grading_rubric": "Must explain DNS as translation between domain names and IPs AND walk through the lookup process (browser → resolver → root/TLD/authoritative) AND explain why DNS is essential for internet usability.",
       "concepts": {
-        "required": ["domain name to IP translation", "DNS resolver", "lookup process"],
-        "expected": ["human-readable names", "DNS records", "caching", "recursive resolution"],
-        "bonus": ["TTL", "record types (A, CNAME, etc.)", "DNS propagation", "authoritative vs recursive"]
+        "required": [
+          "domain name to IP translation",
+          "DNS resolver",
+          "lookup process"
+        ],
+        "expected": [
+          "human-readable names",
+          "DNS records",
+          "caching",
+          "recursive resolution"
+        ],
+        "bonus": [
+          "TTL",
+          "record types (A, CNAME, etc.)",
+          "DNS propagation",
+          "authoritative vs recursive"
+        ]
       }
     }
   ],
@@ -68,17 +96,5 @@
     "Can you ask me what an IP address is and how it's used?",
     "Can you quiz me on what DNS does and why it's important?",
     "Can you ask me to explain the difference between public and private IP addresses?"
-  ],
-  "learning_objectives": [
-    {
-      "id": "phase0-topic2-check1",
-      "text": "Understand how IP addresses, DNS, and routing work",
-      "order": 1
-    },
-    {
-      "id": "phase0-topic2-check2",
-      "text": "Know the OSI model and common networking protocols",
-      "order": 2
-    }
   ]
 }

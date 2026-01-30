@@ -4,7 +4,6 @@
   "name": "Cloud Networking Fundamentals",
   "description": "In the previous topic you worked on deploying a VM in the cloud, using default configurations like the VPC, Security Groups etc. This topic focuses on deepening your understanding of cloud networking concepts essential for secure deployments.",
   "order": 3,
-  "estimated_time": "3-4 days",
   "is_capstone": false,
   "learning_steps": [
     {
@@ -47,7 +46,7 @@
       "text": "Understand Gateways",
       "action": "Understand Gateways:",
       "url": null,
-      "description": "Learn about different types of gateways for secure internet access:\n\n\u2022 Internet Gateway (IGW) - Allows internet access for public subnets\n\u2022 NAT Gateway - Enables private subnet resources to access internet without being directly accessible\n\u2022 VPN Gateway - Secure connection between cloud and on-premises networks",
+      "description": "Learn about different types of gateways for secure internet access:\n\n• Internet Gateway (IGW) - Allows internet access for public subnets\n• NAT Gateway - Enables private subnet resources to access internet without being directly accessible\n• VPN Gateway - Secure connection between cloud and on-premises networks",
       "options": [
         {
           "provider": "aws",
@@ -70,7 +69,7 @@
       ]
     },
     {
-      "order": 4,
+      "order": 5,
       "text": "Verify your understanding",
       "action": "Verify your understanding:",
       "title": "AWS Networking Fundamentals",
@@ -96,9 +95,22 @@
       ],
       "grading_rubric": "Must explain VPC as an isolated virtual network AND describe how subnets segment the VPC into public/private areas AND address how CIDR notation defines IP ranges.",
       "concepts": {
-        "required": ["VPC as isolated network", "subnets for segmentation", "public vs private subnets"],
-        "expected": ["CIDR blocks", "IP address ranges", "route tables", "availability zones"],
-        "bonus": ["VPC peering", "transit gateway", "network topology design"]
+        "required": [
+          "VPC as isolated network",
+          "subnets for segmentation",
+          "public vs private subnets"
+        ],
+        "expected": [
+          "CIDR blocks",
+          "IP address ranges",
+          "route tables",
+          "availability zones"
+        ],
+        "bonus": [
+          "VPC peering",
+          "transit gateway",
+          "network topology design"
+        ]
       }
     },
     {
@@ -111,9 +123,22 @@
       ],
       "grading_rubric": "Must explain NAT Gateway enables outbound internet access for private resources AND describe how it blocks inbound connections AND provide a realistic use case.",
       "concepts": {
-        "required": ["outbound internet access", "private subnet resources", "blocks inbound traffic"],
-        "expected": ["IP address translation", "software updates use case", "external API calls", "security benefit"],
-        "bonus": ["NAT Gateway vs NAT instance", "high availability considerations", "cost implications"]
+        "required": [
+          "outbound internet access",
+          "private subnet resources",
+          "blocks inbound traffic"
+        ],
+        "expected": [
+          "IP address translation",
+          "software updates use case",
+          "external API calls",
+          "security benefit"
+        ],
+        "bonus": [
+          "NAT Gateway vs NAT instance",
+          "high availability considerations",
+          "cost implications"
+        ]
       }
     }
   ],
@@ -127,27 +152,5 @@
     "Can you explain how traffic flows between public and private subnets within a VPC?",
     "Can you ask me about the significance of the 0.0.0.0/0 route in a route table?",
     "Can you explain the difference between NAT Gateway and Internet Gateway?"
-  ],
-  "learning_objectives": [
-    {
-      "id": "phase4-topic3-check1",
-      "text": "How to create a VPC with public and private subnets",
-      "order": 1
-    },
-    {
-      "id": "phase4-topic3-check2",
-      "text": "How to configure route tables correctly",
-      "order": 2
-    },
-    {
-      "id": "phase4-topic3-check3",
-      "text": "How to set up internet/NAT gateways",
-      "order": 3
-    },
-    {
-      "id": "phase4-topic3-check4",
-      "text": "How to verify network connectivity",
-      "order": 4
-    }
   ]
 }

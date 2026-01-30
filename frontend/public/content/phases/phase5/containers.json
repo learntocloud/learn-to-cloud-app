@@ -4,7 +4,6 @@
   "name": "Containerization",
   "description": "Containerization is a modern approach to deploying and managing applications across various environments. It allows you to package software, tools, and their dependencies into lightweight, portable units called containers. Key benefits include consistency across environments, efficient resource utilization, simplified deployment, and isolation between applications.",
   "order": 1,
-  "estimated_time": "3-4 days",
   "is_capstone": false,
   "learning_steps": [
     {
@@ -40,7 +39,7 @@
       "description": "Learn how containers enable running MCP servers that integrate with LLMs and AI tools."
     },
     {
-      "order": 5,
+      "order": 6,
       "text": "Container Registries",
       "action": "Container Registries:",
       "title": "What is a Container Registry?",
@@ -129,9 +128,24 @@
       ],
       "grading_rubric": "Must explain the architectural difference (shared kernel vs hypervisor) AND discuss resource/performance tradeoffs (startup time, memory overhead) AND provide concrete use cases for when each is appropriate.",
       "concepts": {
-        "required": ["shared kernel", "hypervisor", "isolation level", "resource overhead"],
-        "expected": ["faster startup", "portability", "lightweight", "operating system per VM"],
-        "bonus": ["security boundaries", "hardware virtualization", "nested virtualization", "gVisor/Kata containers"]
+        "required": [
+          "shared kernel",
+          "hypervisor",
+          "isolation level",
+          "resource overhead"
+        ],
+        "expected": [
+          "faster startup",
+          "portability",
+          "lightweight",
+          "operating system per VM"
+        ],
+        "bonus": [
+          "security boundaries",
+          "hardware virtualization",
+          "nested virtualization",
+          "gVisor/Kata containers"
+        ]
       }
     },
     {
@@ -144,9 +158,26 @@
       ],
       "grading_rubric": "Must explain core instructions (FROM, COPY, RUN, CMD) AND demonstrate understanding of layer caching AND address security/optimization considerations.",
       "concepts": {
-        "required": ["FROM base image", "COPY", "RUN", "CMD or ENTRYPOINT", "WORKDIR"],
-        "expected": ["EXPOSE", "layer caching", "multi-stage builds", "build order optimization"],
-        "bonus": ["non-root user", ".dockerignore", "ARG vs ENV", "health checks", "scratch images"]
+        "required": [
+          "FROM base image",
+          "COPY",
+          "RUN",
+          "CMD or ENTRYPOINT",
+          "WORKDIR"
+        ],
+        "expected": [
+          "EXPOSE",
+          "layer caching",
+          "multi-stage builds",
+          "build order optimization"
+        ],
+        "bonus": [
+          "non-root user",
+          ".dockerignore",
+          "ARG vs ENV",
+          "health checks",
+          "scratch images"
+        ]
       }
     }
   ],
@@ -157,27 +188,5 @@
     "Can you quiz me on Dockerfile structure and best practices?",
     "Can you explain container networking and storage concepts?",
     "Can you ask me about security considerations when using containers?"
-  ],
-  "learning_objectives": [
-    {
-      "id": "phase5-topic1-check1",
-      "text": "How to write a Dockerfile for an application",
-      "order": 1
-    },
-    {
-      "id": "phase5-topic1-check2",
-      "text": "How to build and run containers locally",
-      "order": 2
-    },
-    {
-      "id": "phase5-topic1-check3",
-      "text": "How to push images to a container registry",
-      "order": 3
-    },
-    {
-      "id": "phase5-topic1-check4",
-      "text": "How to set up and use the GitHub MCP Server",
-      "order": 4
-    }
   ]
 }

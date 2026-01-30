@@ -181,7 +181,7 @@ class TestGenerateCertificateSvg:
             verification_code="LTC-ABC-123",
             issued_at=datetime(2026, 1, 24, 12, 0, 0, tzinfo=UTC),
             phases_completed=7,
-            total_phases=7,
+            total_phases=8,
         )
 
         assert svg.startswith('<?xml version="1.0" encoding="UTF-8"?>')
@@ -196,7 +196,7 @@ class TestGenerateCertificateSvg:
             verification_code="LTC-XYZ-789",
             issued_at=datetime.now(UTC),
             phases_completed=1,
-            total_phases=7,
+            total_phases=8,
         )
 
         assert "Jane Smith" in svg
@@ -209,7 +209,7 @@ class TestGenerateCertificateSvg:
             verification_code="LTC-XYZ-789",
             issued_at=datetime.now(UTC),
             phases_completed=1,
-            total_phases=7,
+            total_phases=8,
         )
 
         assert "<script>" not in svg
@@ -223,7 +223,7 @@ class TestGenerateCertificateSvg:
             verification_code="LTC-VERIFY-CODE",
             issued_at=datetime.now(UTC),
             phases_completed=7,
-            total_phases=7,
+            total_phases=8,
         )
 
         assert "LTC-VERIFY-CODE" in svg
@@ -236,7 +236,7 @@ class TestGenerateCertificateSvg:
             verification_code="LTC-ABC-123",
             issued_at=datetime.now(UTC),
             phases_completed=7,
-            total_phases=7,
+            total_phases=8,
         )
 
         assert f"{ISSUER_URL}/verify/LTC-ABC-123" in svg
@@ -249,7 +249,7 @@ class TestGenerateCertificateSvg:
             verification_code="LTC-ABC-123",
             issued_at=datetime(2026, 1, 24, tzinfo=UTC),
             phases_completed=7,
-            total_phases=7,
+            total_phases=8,
         )
 
         assert "January 24, 2026" in svg
@@ -262,10 +262,10 @@ class TestGenerateCertificateSvg:
             verification_code="LTC-ABC-123",
             issued_at=datetime.now(UTC),
             phases_completed=5,
-            total_phases=7,
+            total_phases=8,
         )
 
-        assert "5/7" in svg
+        assert "5/8" in svg
 
     def test_includes_certificate_type_name(self):
         """Test includes certificate type display name."""
@@ -275,10 +275,10 @@ class TestGenerateCertificateSvg:
             verification_code="LTC-ABC-123",
             issued_at=datetime.now(UTC),
             phases_completed=2,
-            total_phases=7,
+            total_phases=8,
         )
 
-        assert "Programming &amp; APIs" in svg or "Programming" in svg
+        assert "Networking" in svg
 
 
 class TestSvgToBase64DataUri:

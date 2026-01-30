@@ -25,7 +25,7 @@ const FAQ_ITEMS = [
   {
     id: 'how-long',
     question: "How long does it take to complete?",
-    answer: "This depends on your pace and prior experience. Most learners complete the curriculum in 3-6 months while studying part-time. Each phase has estimated timeframes."
+    answer: "This depends on your pace and prior experience. Most learners complete the curriculum in 3-6 months while studying part-time."
   },
   {
     id: 'get-help',

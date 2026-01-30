@@ -36,7 +36,6 @@ interface MockTopic {
   name: string;
   description: string;
   order: number;
-  estimated_time: string;
   is_capstone: boolean;
   steps_count: number;
   questions_count: number;
@@ -66,7 +65,7 @@ const mockUser: MockUser = {
 const mockDashboard = {
   current_phase: 1,
   phases_completed: 0,
-  total_phases: 7,
+  total_phases: 8,
   overall_progress: 10,
   streak: {
     current_streak: 5,
@@ -103,7 +102,6 @@ const mockPhases: MockPhase[] = [
         name: 'What is Cloud Computing?',
         description: 'Learn the basics',
         order: 0,
-        estimated_time: '30 min',
         is_capstone: false,
         steps_count: 5,
         questions_count: 2,
@@ -272,8 +270,8 @@ export const handlers = [
           verification_code: 'VALID123',
           recipient_name: 'Test User',
           issued_at: '2026-01-15T00:00:00Z',
-          phases_completed: 7,
-          total_phases: 7,
+          phases_completed: 8,
+          total_phases: 8,
         },
         message: 'Certificate is valid',
       });

@@ -75,8 +75,22 @@ HANDS_ON_REQUIREMENTS: dict[int, list[HandsOnRequirement]] = {
     ],
     2: [
         HandsOnRequirement(
-            id="phase2-journal-fork",
+            id="phase2-troubleshooting-report",
             phase_id=2,
+            submission_type=SubmissionType.FREE_TEXT,
+            name="Network Troubleshooting Report",
+            description=(
+                "Complete the Network Troubleshooting Lab and submit a report "
+                "documenting at least 3 issues you diagnosed, the commands you used, "
+                "and how you fixed each problem."
+            ),
+            example_url=None,
+        ),
+    ],
+    3: [
+        HandsOnRequirement(
+            id="phase3-journal-fork",
+            phase_id=3,
             submission_type=SubmissionType.REPO_FORK,
             name="Journal Starter Repository Fork",
             description=(
@@ -88,8 +102,8 @@ HANDS_ON_REQUIREMENTS: dict[int, list[HandsOnRequirement]] = {
             required_repo="learntocloud/journal-starter",
         ),
         HandsOnRequirement(
-            id="phase2-code-analysis",
-            phase_id=2,
+            id="phase3-code-analysis",
+            phase_id=3,
             submission_type=SubmissionType.CODE_ANALYSIS,
             name="Journal API Implementation",
             description=(

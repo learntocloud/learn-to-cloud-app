@@ -1,0 +1,120 @@
+{
+  "id": "phase2-topic3",
+  "slug": "http",
+  "name": "HTTP and Web Basics",
+  "description": "Understand how the web works: HTTP requests and responses, headers, status codes, and TLS/HTTPS. Essential knowledge for working with APIs and web services.",
+  "order": 3,
+  "is_capstone": false,
+  "learning_steps": [
+    {
+      "order": 1,
+      "text": "HTTP Request/Response",
+      "action": "Learn:",
+      "title": "How HTTP Works",
+      "url": "https://www.youtube.com/watch?v=iYM2zFP3Zn0",
+      "description": "Understand the HTTP request/response cycle: methods (GET, POST, PUT, DELETE), headers, body, and how clients communicate with servers."
+    },
+    {
+      "order": 2,
+      "text": "HTTP Status Codes",
+      "action": "Memorize:",
+      "title": "Status Code Categories",
+      "url": null,
+      "description": "Know the status code categories: 2xx (success), 3xx (redirect), 4xx (client error), 5xx (server error). Memorize common codes: 200, 201, 301, 302, 400, 401, 403, 404, 500, 502, 503."
+    },
+    {
+      "order": 3,
+      "text": "HTTP Headers",
+      "action": "Learn:",
+      "title": "Common HTTP Headers",
+      "url": null,
+      "description": "Understand common headers: Content-Type, Authorization, Accept, Cache-Control, User-Agent. Know how headers control request/response behavior."
+    },
+    {
+      "order": 4,
+      "text": "HTTPS and TLS",
+      "action": "Learn:",
+      "title": "TLS/SSL Explained",
+      "url": "https://www.youtube.com/watch?v=j9QmMEWmcfo",
+      "description": "Understand how TLS encrypts HTTP traffic: certificates, certificate authorities, the TLS handshake, and why HTTPS matters for security."
+    },
+    {
+      "order": 5,
+      "text": "Using curl",
+      "action": "Practice:",
+      "title": "curl for HTTP Testing",
+      "url": null,
+      "description": "Master curl for HTTP debugging: curl -v (verbose), curl -I (headers only), curl -X POST -d (POST with data), curl -H (custom headers). Try: curl -v https://httpbin.org/get"
+    },
+    {
+      "order": 6,
+      "text": "Browser DevTools Network Tab",
+      "action": "Practice:",
+      "title": "Inspect Network Traffic",
+      "url": null,
+      "description": "Use browser DevTools Network tab to inspect HTTP traffic. Observe request/response headers, timing, and payload data on your favorite websites."
+    }
+  ],
+  "questions": [
+    {
+      "id": "phase2-topic3-q1",
+      "prompt": "Explain the difference between HTTP status codes 401 and 403, and when you would return each.",
+      "scenario_seeds": [
+        "Your API returns 403 for unauthenticated users, but a colleague thinks it should be 401. Who is correct?",
+        "A user complains they can't access a resource after logging in. What's the difference between 'not logged in' and 'logged in but not allowed'?",
+        "You're implementing role-based access control. When should the API return 401 vs 403?"
+      ],
+      "grading_rubric": "Must explain 401 means unauthenticated (identity unknown) AND 403 means unauthorized (identity known but not permitted) AND give appropriate use cases.",
+      "concepts": {
+        "required": [
+          "authentication",
+          "authorization",
+          "401 Unauthorized",
+          "403 Forbidden"
+        ],
+        "expected": [
+          "credentials",
+          "permissions",
+          "access control"
+        ],
+        "bonus": [
+          "WWW-Authenticate header",
+          "OAuth scopes",
+          "RBAC"
+        ]
+      }
+    },
+    {
+      "id": "phase2-topic3-q2",
+      "prompt": "What is HTTPS and why is it important? Explain how TLS provides security.",
+      "scenario_seeds": [
+        "A client asks why their website needs HTTPS if they're not handling payments.",
+        "Your team is debugging a certificate error in production. Explain what certificates do and why they matter.",
+        "A developer suggests disabling TLS verification in tests 'because it's just internal.' Explain the risks."
+      ],
+      "grading_rubric": "Must explain HTTPS encrypts traffic AND TLS provides confidentiality and integrity AND certificates verify server identity AND explain why this matters even for non-sensitive data.",
+      "concepts": {
+        "required": [
+          "encryption",
+          "certificates",
+          "certificate authority",
+          "TLS handshake"
+        ],
+        "expected": [
+          "public key cryptography",
+          "man-in-the-middle",
+          "trust chain"
+        ],
+        "bonus": [
+          "certificate pinning",
+          "HSTS",
+          "perfect forward secrecy"
+        ]
+      }
+    }
+  ],
+  "test_knowledge_prompts": [
+    "Quiz me on HTTP status codes",
+    "Ask me about HTTPS and TLS"
+  ]
+}

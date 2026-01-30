@@ -4,7 +4,6 @@
   "name": "Threat Detection & Incident Response",
   "description": "Incident response is about being prepared to handle security events when they occur. Before implementing automated threat detection for your Journal API, you need to understand threat detection principles and incident response workflows.",
   "order": 5,
-  "estimated_time": "2-3 days",
   "is_capstone": false,
   "learning_steps": [
     {
@@ -78,21 +77,21 @@
       "text": "Common Cloud Threats",
       "action": "Key Concept - Common Cloud Threats:",
       "url": null,
-      "description": "\u2022 Account Compromise: Stolen credentials or API keys\n\u2022 Data Breaches: Unauthorized access to sensitive data\n\u2022 Resource Hijacking: Using your cloud resources for malicious purposes\n\u2022 Misconfigurations: Accidentally exposing resources publicly\n\u2022 Supply Chain Attacks: Compromised dependencies or third-party services"
+      "description": "• Account Compromise: Stolen credentials or API keys\n• Data Breaches: Unauthorized access to sensitive data\n• Resource Hijacking: Using your cloud resources for malicious purposes\n• Misconfigurations: Accidentally exposing resources publicly\n• Supply Chain Attacks: Compromised dependencies or third-party services"
     },
     {
-      "order": 6,
+      "order": 7,
       "text": "Automated Response Concepts",
       "action": "Key Concept - Automated Response:",
       "url": null,
-      "description": "\u2022 Security Orchestration: Coordinating responses across multiple tools\n\u2022 Playbooks: Predefined response procedures for common incidents\n\u2022 Threat Intelligence: Using external threat data to improve detection\n\u2022 Behavioral Analysis: Detecting anomalies in user and system behavior"
+      "description": "• Security Orchestration: Coordinating responses across multiple tools\n• Playbooks: Predefined response procedures for common incidents\n• Threat Intelligence: Using external threat data to improve detection\n• Behavioral Analysis: Detecting anomalies in user and system behavior"
     },
     {
       "order": 7,
       "text": "Incident Severity Levels",
       "action": "Key Concept - Incident Severity Levels:",
       "url": null,
-      "description": "\u2022 Critical: Immediate threat to business operations or data\n\u2022 High: Significant security impact requiring rapid response\n\u2022 Medium: Security concern requiring investigation\n\u2022 Low: Minor security event for awareness and documentation"
+      "description": "• Critical: Immediate threat to business operations or data\n• High: Significant security impact requiring rapid response\n• Medium: Security concern requiring investigation\n• Low: Minor security event for awareness and documentation"
     },
     {
       "order": 8,
@@ -190,9 +189,26 @@
       ],
       "grading_rubric": "Must describe all four phases (Preparation, Detection & Analysis, Containment/Eradication/Recovery, Post-Incident) AND explain key activities in each phase AND demonstrate understanding that it's a cycle that continuously improves security posture.",
       "concepts": {
-        "required": ["preparation", "detection and analysis", "containment and recovery", "post-incident review"],
-        "expected": ["incident classification", "evidence preservation", "eradication", "lessons learned", "runbooks"],
-        "bonus": ["tabletop exercises", "NIST framework alignment", "communication plans", "legal/compliance considerations", "metrics and KPIs"]
+        "required": [
+          "preparation",
+          "detection and analysis",
+          "containment and recovery",
+          "post-incident review"
+        ],
+        "expected": [
+          "incident classification",
+          "evidence preservation",
+          "eradication",
+          "lessons learned",
+          "runbooks"
+        ],
+        "bonus": [
+          "tabletop exercises",
+          "NIST framework alignment",
+          "communication plans",
+          "legal/compliance considerations",
+          "metrics and KPIs"
+        ]
       }
     },
     {
@@ -205,9 +221,26 @@
       ],
       "grading_rubric": "Must identify at least 3 common cloud threats (credential compromise, misconfiguration, resource hijacking, data exposure) AND explain detection methods for each (logging, anomaly detection, configuration scanning) AND describe relevant monitoring tools or services.",
       "concepts": {
-        "required": ["credential compromise", "misconfiguration", "detection mechanisms", "monitoring and alerting"],
-        "expected": ["unauthorized access", "data breach", "resource hijacking", "anomaly detection", "audit logs"],
-        "bonus": ["threat intelligence", "behavioral analysis", "MITRE ATT&CK mapping", "automated remediation", "cloud-native detection services"]
+        "required": [
+          "credential compromise",
+          "misconfiguration",
+          "detection mechanisms",
+          "monitoring and alerting"
+        ],
+        "expected": [
+          "unauthorized access",
+          "data breach",
+          "resource hijacking",
+          "anomaly detection",
+          "audit logs"
+        ],
+        "bonus": [
+          "threat intelligence",
+          "behavioral analysis",
+          "MITRE ATT&CK mapping",
+          "automated remediation",
+          "cloud-native detection services"
+        ]
       }
     }
   ],
@@ -220,27 +253,5 @@
     "Can you test my understanding of security playbooks and runbooks?",
     "Can you quiz me on containment strategies for different types of incidents?",
     "Can you ask me about post-incident activities and lessons learned?"
-  ],
-  "learning_objectives": [
-    {
-      "id": "phase6-topic5-check1",
-      "text": "Understand threat detection concepts and services",
-      "order": 1
-    },
-    {
-      "id": "phase6-topic5-check2",
-      "text": "Know how to use threat intelligence sources",
-      "order": 2
-    },
-    {
-      "id": "phase6-topic5-check3",
-      "text": "Understand incident response processes",
-      "order": 3
-    },
-    {
-      "id": "phase6-topic5-check4",
-      "text": "(Optional) How to complete incident response workshops",
-      "order": 4
-    }
   ]
 }

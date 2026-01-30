@@ -1,50 +1,38 @@
 {
   "id": 2,
-  "name": "Programming Fundamentals",
+  "name": "Networking Fundamentals",
   "slug": "phase2",
-  "description": "Welcome to Phase 2! This phase is all about programming with Python and building real applications. Programming is a fundamental skill for cloud engineering, enabling you to create, manage, and optimize cloud resources efficiently. You'll build a working API with database integration\u2014the foundation for everything that follows.",
-  "short_description": "Learn Python programming, REST APIs, FastAPI, and databases. Build a real-world Journal API project.",
-  "additional_context": "You don't need to know how to build UIs but you need to know how to work with APIs and databases. Focus on understanding the code you write\u2014avoid using AI assistants for code completion in this phase. You'll learn to use those tools effectively in Phase 3.",
-  "estimated_weeks": "3-4 weeks",
+  "description": "Welcome to Phase 2! This phase covers the core networking concepts you need before diving into cloud infrastructure. Understanding how networks work—IP addressing, routing, DNS, and common protocols—is essential for cloud engineering. You'll learn to troubleshoot connectivity issues and build a mental model of how data flows across networks.",
+  "short_description": "Learn core networking: IP/subnetting, routing, DNS, HTTP, ports, and troubleshooting. Build the foundation for cloud networking.",
+  "additional_context": "These fundamentals apply everywhere—whether you're debugging a local dev environment or architecting cloud infrastructure. Take time to understand the concepts deeply; you'll use this knowledge daily.",
   "order": 2,
   "prerequisites": [
     "Completed Phase 1: Linux and Bash",
-    "Completed Phase 1: Linux CTFs"
-  ],
-  "objectives": [
-    "Learned the basics of programming and Python",
-    "Learned the basics of how REST APIs work",
-    "Learned the basics of FastAPI",
-    "Learned how to work with PostgreSQL and SQLAlchemy",
-    "Learned how to call external APIs (including LLM APIs)",
-    "Completed the Capstone project"
+    "Basic command line comfort"
   ],
   "capstone": {
-    "title": "Learning Journal API",
-    "summary": "Build a working FastAPI + PostgreSQL API and integrate an LLM for entry analysis. This project becomes the foundation for later phases.",
+    "title": "Network Troubleshooting Lab",
+    "summary": "Diagnose and fix network connectivity issues in a simulated broken environment. Apply your networking knowledge to identify DNS, routing, firewall, and port problems.",
     "includes": [
-      "Fork the starter repo and implement the Journal API",
-      "Persist entries in a database",
-      "Integrate an LLM provider for analysis",
-      "Write clear README documentation"
+      "Set up a local multi-container environment with intentional network issues",
+      "Use ping, traceroute, dig, curl, and netstat to diagnose problems",
+      "Document your troubleshooting process and findings",
+      "Apply fixes and verify connectivity is restored"
     ],
-    "topic_slug": "build-the-app"
+    "topic_slug": "troubleshooting-lab"
   },
   "hands_on_verification": {
-    "summary": "Prove your Journal API works locally and that you can use basic API workflows.",
+    "summary": "Demonstrate your networking troubleshooting skills by completing the lab and documenting your process.",
     "includes": [
-      "Fork the journal-starter repository",
-      "Create at least one entry via POST /entries",
-      "Paste a valid JSON response from GET /entries"
+      "Complete the Network Troubleshooting Lab",
+      "Document at least 3 issues found and how you diagnosed them",
+      "Submit your troubleshooting report"
     ]
   },
-  "warning": "As learners finish this phase, many will share their code. We recommend you do not copy and paste anybody's solution. You are only doing a disservice to yourself and will not make it in this field if that is the mentality you have. Additionally, we recommend you turn off any AI assistants for code completion\u2014you need to build muscle memory and understanding first. Using AI to ask for explanations is fine, but write your own code.",
   "topics": [
-    "python",
-    "apis",
-    "fastapi",
-    "databases",
-    "genai-apis",
-    "build-the-app"
+    "fundamentals",
+    "protocols",
+    "http",
+    "troubleshooting-lab"
   ]
 }

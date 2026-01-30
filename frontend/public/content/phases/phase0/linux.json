@@ -4,7 +4,6 @@
   "name": "What is Linux",
   "description": "Linux is the backbone of many cloud environments. Understanding what it is and why it matters is essential for cloud engineering.",
   "order": 1,
-  "estimated_time": "1-2 hours",
   "is_capstone": false,
   "learning_steps": [
     {
@@ -43,9 +42,25 @@
       ],
       "grading_rubric": "Must explain what Linux is (open-source OS based on Unix) AND provide at least 3 reasons why it dominates cloud (cost, stability, security, customizability) AND mention its role as the foundation of most cloud infrastructure.",
       "concepts": {
-        "required": ["open source", "operating system", "kernel", "server environments"],
-        "expected": ["free/no licensing", "stability", "security", "customizable", "command line"],
-        "bonus": ["Unix heritage", "container foundation", "community support", "performance advantages"]
+        "required": [
+          "open source",
+          "operating system",
+          "kernel",
+          "server environments"
+        ],
+        "expected": [
+          "free/no licensing",
+          "stability",
+          "security",
+          "customizable",
+          "command line"
+        ],
+        "bonus": [
+          "Unix heritage",
+          "container foundation",
+          "community support",
+          "performance advantages"
+        ]
       }
     },
     {
@@ -58,9 +73,24 @@
       ],
       "grading_rubric": "Must explain what a distribution is (Linux kernel + software packages) AND name at least 3 cloud-relevant distributions AND explain what differentiates them (package managers, support, use cases).",
       "concepts": {
-        "required": ["distribution/distro", "kernel plus software", "Ubuntu", "Amazon Linux"],
-        "expected": ["CentOS/Rocky", "Debian", "Red Hat Enterprise Linux", "package managers"],
-        "bonus": ["LTS releases", "enterprise support", "container-optimized distros", "choosing criteria"]
+        "required": [
+          "distribution/distro",
+          "kernel plus software",
+          "Ubuntu",
+          "Amazon Linux"
+        ],
+        "expected": [
+          "CentOS/Rocky",
+          "Debian",
+          "Red Hat Enterprise Linux",
+          "package managers"
+        ],
+        "bonus": [
+          "LTS releases",
+          "enterprise support",
+          "container-optimized distros",
+          "choosing criteria"
+        ]
       }
     }
   ],
@@ -68,17 +98,5 @@
     "Can you ask me what Linux is and why it's important for cloud computing?",
     "Can you quiz me on the differences between Linux and Windows?",
     "Can you ask me why most cloud servers run Linux?"
-  ],
-  "learning_objectives": [
-    {
-      "id": "phase0-topic1-check1",
-      "text": "Understand what Linux is and why it powers cloud infrastructure",
-      "order": 1
-    },
-    {
-      "id": "phase0-topic1-check2",
-      "text": "Know the differences between popular Linux distributions",
-      "order": 2
-    }
   ]
 }

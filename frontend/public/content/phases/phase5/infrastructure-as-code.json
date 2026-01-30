@@ -4,7 +4,6 @@
   "name": "Infrastructure as Code (IaC)",
   "description": "Infrastructure as Code (IaC) is a key DevOps practice that allows you to manage and provision infrastructure using code, rather than manual processes like using the console. It ensures consistency, repeatability, and scalability in managing cloud resources.",
   "order": 3,
-  "estimated_time": "3-4 days",
   "is_capstone": false,
   "learning_steps": [
     {
@@ -70,7 +69,7 @@
       ]
     },
     {
-      "order": 5,
+      "order": 6,
       "text": "Install Terraform",
       "action": "Install Terraform:",
       "title": "Install Terraform",
@@ -82,7 +81,7 @@
       "text": "Basic IaC Project",
       "action": "Hands-on: Basic IaC Project",
       "url": null,
-      "description": "1. Write a Terraform configuration file to:\n   \u2022 Create a virtual machine in your preferred cloud platform\n   \u2022 Configure a security group to allow SSH access\n   \u2022 (Or deploy a static site)\n2. Run `terraform init` to set up the working directory\n3. Run `terraform plan` to preview changes\n4. Run `terraform apply` to create the resources\n5. Verify the resources in your cloud platform\n6. Run `terraform destroy` to clean up"
+      "description": "1. Write a Terraform configuration file to:\n   • Create a virtual machine in your preferred cloud platform\n   • Configure a security group to allow SSH access\n   • (Or deploy a static site)\n2. Run `terraform init` to set up the working directory\n3. Run `terraform plan` to preview changes\n4. Run `terraform apply` to create the resources\n5. Verify the resources in your cloud platform\n6. Run `terraform destroy` to clean up"
     },
     {
       "order": 7,
@@ -118,7 +117,7 @@
       "text": "Advanced Challenge with Copilot",
       "action": "Advanced Challenge (Optional):",
       "url": null,
-      "description": "Use GitHub Copilot to design a modular Terraform configuration for a multi-tier application:\n\n1. Organize infrastructure into reusable modules:\n   \u2022 VPC \u2014 public and private subnets, routing\n   \u2022 Web server tier \u2014 compute, load balancing\n   \u2022 Database tier \u2014 managed database, backup configuration\n   \u2022 Security \u2014 security groups, IAM roles, encryption\n2. Use variables to parameterize your configuration\n3. Create module outputs for cross-module communication\n4. Implement backend state management\n5. Deploy and verify your resources"
+      "description": "Use GitHub Copilot to design a modular Terraform configuration for a multi-tier application:\n\n1. Organize infrastructure into reusable modules:\n   • VPC — public and private subnets, routing\n   • Web server tier — compute, load balancing\n   • Database tier — managed database, backup configuration\n   • Security — security groups, IAM roles, encryption\n2. Use variables to parameterize your configuration\n3. Create module outputs for cross-module communication\n4. Implement backend state management\n5. Deploy and verify your resources"
     },
     {
       "order": 10,
@@ -149,9 +148,25 @@
       ],
       "grading_rubric": "Must explain what the state file contains AND why it's the source of truth for Terraform AND address team collaboration concerns (remote backend, locking).",
       "concepts": {
-        "required": ["state file tracks resources", "maps config to real resources", "source of truth", "terraform.tfstate"],
-        "expected": ["remote backend", "state locking", "drift detection", "sensitive data in state"],
-        "bonus": ["state migration", "terraform import", "state file encryption", "workspaces", "partial state recovery"]
+        "required": [
+          "state file tracks resources",
+          "maps config to real resources",
+          "source of truth",
+          "terraform.tfstate"
+        ],
+        "expected": [
+          "remote backend",
+          "state locking",
+          "drift detection",
+          "sensitive data in state"
+        ],
+        "bonus": [
+          "state migration",
+          "terraform import",
+          "state file encryption",
+          "workspaces",
+          "partial state recovery"
+        ]
       }
     },
     {
@@ -164,9 +179,24 @@
       ],
       "grading_rubric": "Must explain plan as a preview/dry-run AND apply as execution AND emphasize the safety workflow of always planning before applying.",
       "concepts": {
-        "required": ["plan previews changes", "apply executes changes", "dry run", "create/modify/destroy"],
-        "expected": ["plan output review", "-auto-approve flag dangers", "confirmation prompt", "plan file"],
-        "bonus": ["saved plan files", "CI/CD plan artifacts", "speculative plans", "cost estimation in plan"]
+        "required": [
+          "plan previews changes",
+          "apply executes changes",
+          "dry run",
+          "create/modify/destroy"
+        ],
+        "expected": [
+          "plan output review",
+          "-auto-approve flag dangers",
+          "confirmation prompt",
+          "plan file"
+        ],
+        "bonus": [
+          "saved plan files",
+          "CI/CD plan artifacts",
+          "speculative plans",
+          "cost estimation in plan"
+        ]
       }
     }
   ],
@@ -180,32 +210,5 @@
     "Can you quiz me on Terraform best practices?",
     "Can you explain the benefits of using AI assistants to generate IaC templates?",
     "Can you ask me how to ensure quality and security when using AI-generated IaC?"
-  ],
-  "learning_objectives": [
-    {
-      "id": "phase5-topic3-check1",
-      "text": "How to install and configure Terraform",
-      "order": 1
-    },
-    {
-      "id": "phase5-topic3-check2",
-      "text": "How to write Terraform configuration for cloud resources",
-      "order": 2
-    },
-    {
-      "id": "phase5-topic3-check3",
-      "text": "How to deploy and verify resources with Terraform",
-      "order": 3
-    },
-    {
-      "id": "phase5-topic3-check4",
-      "text": "How to destroy resources to clean up",
-      "order": 4
-    },
-    {
-      "id": "phase5-topic3-check5",
-      "text": "(Optional) How to create modular Terraform designs",
-      "order": 5
-    }
   ]
 }

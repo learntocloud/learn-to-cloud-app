@@ -4,7 +4,6 @@
   "name": "Network Security",
   "description": "Network security in the cloud is about building secure connections, creating logical separations between resources, and defending against network-based threats. Before securing your Journal API's network, you need to understand cloud networking fundamentals.",
   "order": 3,
-  "estimated_time": "2-3 days",
   "is_capstone": false,
   "learning_steps": [
     {
@@ -71,35 +70,35 @@
       "text": "Virtual Private Clouds",
       "action": "Key Concept - Virtual Private Clouds (VPCs):",
       "url": null,
-      "description": "\u2022 Isolation: Your own private network in the cloud\n\u2022 Subnets: Divide your VPC into smaller network segments\n\u2022 Route Tables: Control where network traffic can go\n\u2022 Internet Gateways: Allow internet access where needed"
+      "description": "• Isolation: Your own private network in the cloud\n• Subnets: Divide your VPC into smaller network segments\n• Route Tables: Control where network traffic can go\n• Internet Gateways: Allow internet access where needed"
     },
     {
       "order": 5,
       "text": "Security Groups vs Network ACLs",
       "action": "Key Concept - Security Groups vs Network ACLs:",
       "url": null,
-      "description": "Security Groups (Stateful):\n\u2022 Act like firewalls for individual instances\n\u2022 Allow rules only (deny by default)\n\u2022 Stateful (return traffic automatically allowed)\n\u2022 Apply at the instance level\n\nNetwork ACLs (Stateless):\n\u2022 Act like firewalls for entire subnets\n\u2022 Allow and deny rules\n\u2022 Stateless (must explicitly allow return traffic)\n\u2022 Apply at the subnet level"
+      "description": "Security Groups (Stateful):\n• Act like firewalls for individual instances\n• Allow rules only (deny by default)\n• Stateful (return traffic automatically allowed)\n• Apply at the instance level\n\nNetwork ACLs (Stateless):\n• Act like firewalls for entire subnets\n• Allow and deny rules\n• Stateless (must explicitly allow return traffic)\n• Apply at the subnet level"
     },
     {
-      "order": 6,
+      "order": 7,
       "text": "Network Segmentation",
       "action": "Key Concept - Network Segmentation:",
       "url": null,
-      "description": "\u2022 Public Subnets: For resources that need internet access (load balancers)\n\u2022 Private Subnets: For application servers and databases\n\u2022 Isolated Subnets: For highly sensitive resources with no internet access"
+      "description": "• Public Subnets: For resources that need internet access (load balancers)\n• Private Subnets: For application servers and databases\n• Isolated Subnets: For highly sensitive resources with no internet access"
     },
     {
       "order": 7,
       "text": "Load Balancers and Traffic Management",
       "action": "Key Concept - Load Balancers:",
       "url": null,
-      "description": "\u2022 Application Load Balancers: Handle HTTP/HTTPS traffic with security features\n\u2022 Network Load Balancers: Handle TCP/UDP traffic at high performance\n\u2022 Security Features: SSL termination, DDoS protection, access logging"
+      "description": "• Application Load Balancers: Handle HTTP/HTTPS traffic with security features\n• Network Load Balancers: Handle TCP/UDP traffic at high performance\n• Security Features: SSL termination, DDoS protection, access logging"
     },
     {
       "order": 8,
       "text": "Physical vs Cloud Network Security",
       "action": "Physical vs Cloud Network Security:",
       "url": null,
-      "description": "Understanding the differences:\n\n\u2022 Physical routers/switches \u2192 Virtual routers, VPC gateways (software-defined)\n\u2022 Hardware firewalls \u2192 Security Groups, NACLs (rules via console/API)\n\u2022 Physical network segmentation \u2192 Subnets, VPCs (logical boundaries)\n\u2022 Network cables \u2192 Virtual connections, peering (no physical connections)"
+      "description": "Understanding the differences:\n\n• Physical routers/switches → Virtual routers, VPC gateways (software-defined)\n• Hardware firewalls → Security Groups, NACLs (rules via console/API)\n• Physical network segmentation → Subnets, VPCs (logical boundaries)\n• Network cables → Virtual connections, peering (no physical connections)"
     },
     {
       "order": 9,
@@ -172,9 +171,26 @@
       ],
       "grading_rubric": "Must explain the purpose of each subnet type (public for internet-facing, private for internal, isolated for sensitive) AND describe how traffic flows between them AND discuss how segmentation limits blast radius in case of compromise.",
       "concepts": {
-        "required": ["network segmentation", "public subnet", "private subnet", "blast radius reduction"],
-        "expected": ["internet gateway", "NAT gateway", "route tables", "security boundaries", "defense in depth"],
-        "bonus": ["isolated/air-gapped subnets", "transit gateway", "VPC peering", "private endpoints", "microsegmentation"]
+        "required": [
+          "network segmentation",
+          "public subnet",
+          "private subnet",
+          "blast radius reduction"
+        ],
+        "expected": [
+          "internet gateway",
+          "NAT gateway",
+          "route tables",
+          "security boundaries",
+          "defense in depth"
+        ],
+        "bonus": [
+          "isolated/air-gapped subnets",
+          "transit gateway",
+          "VPC peering",
+          "private endpoints",
+          "microsegmentation"
+        ]
       }
     },
     {
@@ -187,9 +203,25 @@
       ],
       "grading_rubric": "Must clearly explain stateful (security groups) vs stateless (network ACLs) behavior AND identify the scope of each (instance-level vs subnet-level) AND describe rule evaluation differences (allow-only vs allow/deny).",
       "concepts": {
-        "required": ["security group", "network ACL", "stateful", "stateless"],
-        "expected": ["instance-level", "subnet-level", "return traffic", "allow rules", "deny rules"],
-        "bonus": ["rule evaluation order", "default deny", "ephemeral ports", "defense in depth with both controls"]
+        "required": [
+          "security group",
+          "network ACL",
+          "stateful",
+          "stateless"
+        ],
+        "expected": [
+          "instance-level",
+          "subnet-level",
+          "return traffic",
+          "allow rules",
+          "deny rules"
+        ],
+        "bonus": [
+          "rule evaluation order",
+          "default deny",
+          "ephemeral ports",
+          "defense in depth with both controls"
+        ]
       }
     }
   ],
@@ -202,27 +234,5 @@
     "Can you test my understanding of stateful vs stateless firewalls?",
     "Can you quiz me on VPN types and when to use them?",
     "Can you ask me about common network security mistakes in the cloud?"
-  ],
-  "learning_objectives": [
-    {
-      "id": "phase6-topic3-check1",
-      "text": "Understand network security principles for cloud",
-      "order": 1
-    },
-    {
-      "id": "phase6-topic3-check2",
-      "text": "Know your cloud provider's networking security features",
-      "order": 2
-    },
-    {
-      "id": "phase6-topic3-check3",
-      "text": "Understand VPC security and segmentation",
-      "order": 3
-    },
-    {
-      "id": "phase6-topic3-check4",
-      "text": "(Optional) How to complete VPC/networking workshops",
-      "order": 4
-    }
   ]
 }

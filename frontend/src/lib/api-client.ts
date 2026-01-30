@@ -64,7 +64,6 @@ export interface TopicSummarySchema {
   name: string;
   description: string;
   order: number;
-  estimated_time: string;
   is_capstone: boolean;
   steps_count: number;
   questions_count: number;
@@ -102,12 +101,6 @@ export interface QuestionSchema {
   // Note: expected_concepts removed for security - grading data is server-side only
 }
 
-interface LearningObjectiveSchema {
-  id: string;
-  text: string;
-  order: number;
-}
-
 export interface QuestionLockoutSchema {
   question_id: string;
   lockout_until: string;
@@ -120,11 +113,9 @@ export interface TopicDetailSchema {
   name: string;
   description: string;
   order: number;
-  estimated_time: string;
   is_capstone: boolean;
   learning_steps: LearningStepSchema[];
   questions: QuestionSchema[];
-  learning_objectives: LearningObjectiveSchema[];
   progress: TopicProgressSchema | null;
   completed_step_orders: number[];
   passed_question_ids: string[];
@@ -163,10 +154,8 @@ export interface PhaseSummarySchema {
   slug: string;
   description: string;
   short_description: string;
-  estimated_weeks: string;
   order: number;
   topics_count: number;
-  objectives: string[];
   capstone: PhaseCapstoneOverviewSchema | null;
   hands_on_verification: PhaseHandsOnVerificationOverviewSchema | null;
   progress: PhaseProgressSchema | null;
@@ -202,9 +191,7 @@ interface PhaseDetailSchema {
   slug: string;
   description: string;
   short_description: string;
-  estimated_weeks: string;
   order: number;
-  objectives: string[];
   capstone: PhaseCapstoneOverviewSchema | null;
   hands_on_verification: PhaseHandsOnVerificationOverviewSchema | null;
   topics: TopicSummarySchema[];

@@ -10,8 +10,8 @@ import { useUser, SignUpButton } from '@clerk/clerk-react';
 const PHASES = [
   { id: 0, name: "Starting from Zero", short_description: "Build your IT foundation" },
   { id: 1, name: "Linux and Bash", short_description: "Master the command line" },
-  { id: 2, name: "Programming Fundamentals", short_description: "Python, APIs, and databases" },
-  { id: 3, name: "AI Tools & Intentional Learning", short_description: "GitHub Copilot and prompt engineering" },
+  { id: 2, name: "Networking Fundamentals", short_description: "IP, routing, DNS, HTTP" },
+  { id: 3, name: "Programming Fundamentals", short_description: "Python, APIs, and databases" },
   { id: 4, name: "Cloud Platform Fundamentals", short_description: "AWS, Azure, or GCP" },
   { id: 5, name: "DevOps Fundamentals", short_description: "Containers, CI/CD, and IaC" },
   { id: 6, name: "Securing Your Cloud Applications", short_description: "Cloud security essentials" },

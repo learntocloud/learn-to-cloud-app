@@ -151,7 +151,7 @@ const PhaseAccordionItem = memo(function PhaseAccordionItem({
                     {phase.name}
                   </h2>
                   <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
-                    {phase.estimated_weeks} • {phase.topics_count} topics
+                    {phase.topics_count} topics
                   </p>
                 </div>
 
@@ -180,17 +180,6 @@ const PhaseAccordionItem = memo(function PhaseAccordionItem({
             aria-labelledby={headerId}
             className="border-t border-gray-200 dark:border-gray-700 p-5 md:p-6 bg-gray-50 dark:bg-gray-900/30"
           >
-            {phase.objectives?.length > 0 && (
-              <div className="mb-6">
-                <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">Objectives</h3>
-                <ul className="list-disc pl-5 space-y-1 text-sm text-gray-700 dark:text-gray-300">
-                  {phase.objectives.map((obj, idx) => (
-                    <li key={`${phase.slug}-obj-${idx}`}>{obj}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
             {phase.capstone && (
               <div className="mb-6">
                 <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">Capstone</h3>

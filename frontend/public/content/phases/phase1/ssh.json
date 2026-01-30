@@ -4,7 +4,6 @@
   "name": "SSH",
   "description": "Now you need to learn how to access a virtual machine via SSH. This is a fundamental skill for working with cloud servers.",
   "order": 4,
-  "estimated_time": "1 day",
   "is_capstone": false,
   "learning_steps": [
     {
@@ -54,9 +53,24 @@
       ],
       "grading_rubric": "Must explain SSH as an encrypted protocol for secure remote access AND describe it provides command-line access to servers AND explain why encryption is essential for cloud infrastructure.",
       "concepts": {
-        "required": ["secure shell", "encrypted", "remote access", "command line"],
-        "expected": ["server management", "terminal access", "secure connection", "network protocol"],
-        "bonus": ["port 22", "SSH tunneling", "SCP/SFTP", "bastion hosts"]
+        "required": [
+          "secure shell",
+          "encrypted",
+          "remote access",
+          "command line"
+        ],
+        "expected": [
+          "server management",
+          "terminal access",
+          "secure connection",
+          "network protocol"
+        ],
+        "bonus": [
+          "port 22",
+          "SSH tunneling",
+          "SCP/SFTP",
+          "bastion hosts"
+        ]
       }
     },
     {
@@ -69,22 +83,25 @@
       ],
       "grading_rubric": "Must explain asymmetric cryptography (public/private key pair) AND describe why keys can't be brute-forced like passwords AND explain that private keys never travel over the network.",
       "concepts": {
-        "required": ["public key", "private key", "asymmetric cryptography", "brute force resistance"],
-        "expected": ["key never transmitted", "cryptographic strength", "cannot be guessed", "key-based authentication"],
-        "bonus": ["key passphrases", "ssh-agent", "key rotation", "certificate-based auth"]
+        "required": [
+          "public key",
+          "private key",
+          "asymmetric cryptography",
+          "brute force resistance"
+        ],
+        "expected": [
+          "key never transmitted",
+          "cryptographic strength",
+          "cannot be guessed",
+          "key-based authentication"
+        ],
+        "bonus": [
+          "key passphrases",
+          "ssh-agent",
+          "key rotation",
+          "certificate-based auth"
+        ]
       }
-    }
-  ],
-  "learning_objectives": [
-    {
-      "id": "phase1-topic4-check1",
-      "text": "Understand how SSH works and its importance for cloud",
-      "order": 1
-    },
-    {
-      "id": "phase1-topic4-check2",
-      "text": "How to SSH into a virtual machine from your terminal",
-      "order": 2
     }
   ]
 }

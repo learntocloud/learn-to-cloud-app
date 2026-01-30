@@ -1,0 +1,136 @@
+{
+  "id": "phase2-topic4",
+  "slug": "troubleshooting-lab",
+  "name": "Network Troubleshooting Lab",
+  "description": "Put your networking knowledge to the test! Diagnose and fix connectivity issues in a broken environment using the tools you've learned.",
+  "order": 4,
+  "is_capstone": true,
+  "learning_steps": [
+    {
+      "order": 1,
+      "text": "Set Up the Lab Environment",
+      "action": "Setup:",
+      "title": "Create Your Troubleshooting Lab",
+      "url": null,
+      "description": "Set up a local Docker environment with multiple containers that have intentional network misconfigurations. Follow the lab guide to create DNS issues, firewall blocks, and routing problems to diagnose."
+    },
+    {
+      "order": 2,
+      "text": "Diagnostic Tools Review",
+      "action": "Review:",
+      "title": "Your Troubleshooting Toolkit",
+      "url": null,
+      "description": "Ensure you're comfortable with: ping (connectivity), traceroute (path), dig/nslookup (DNS), curl (HTTP), netstat/ss (ports), tcpdump (packets). Each tool reveals different information."
+    },
+    {
+      "order": 3,
+      "text": "Scenario 1: DNS Resolution Failure",
+      "action": "Diagnose:",
+      "title": "Why Can't I Resolve This Hostname?",
+      "url": null,
+      "description": "A container can't reach a service by name. Use dig and nslookup to identify whether the issue is DNS configuration, missing records, or resolver problems."
+    },
+    {
+      "order": 4,
+      "text": "Scenario 2: Connection Refused",
+      "action": "Diagnose:",
+      "title": "Why Is the Connection Refused?",
+      "url": null,
+      "description": "A service shows 'connection refused'. Determine if the service isn't running, is bound to the wrong interface, or if a firewall is blocking traffic."
+    },
+    {
+      "order": 5,
+      "text": "Scenario 3: Timeout Issues",
+      "action": "Diagnose:",
+      "title": "Why Is It Timing Out?",
+      "url": null,
+      "description": "Requests to a service time out instead of failing fast. Use traceroute and tcpdump to identify where packets are being dropped or if there's a routing issue."
+    },
+    {
+      "order": 6,
+      "text": "Scenario 4: TLS/Certificate Errors",
+      "action": "Diagnose:",
+      "title": "Why Is the Certificate Invalid?",
+      "url": null,
+      "description": "HTTPS requests fail with certificate errors. Use openssl s_client and curl -v to diagnose certificate chain issues, expiration, or hostname mismatches."
+    },
+    {
+      "order": 7,
+      "text": "Document Your Findings",
+      "action": "Document:",
+      "title": "Write Your Troubleshooting Report",
+      "url": null,
+      "description": "For each issue: document the symptoms, the diagnostic commands you ran, what they revealed, and how you fixed the problem. This documentation skill is valuable in real incidents."
+    },
+    {
+      "order": 8,
+      "text": "Apply Fixes and Verify",
+      "action": "Fix:",
+      "title": "Resolve All Issues",
+      "url": null,
+      "description": "Apply your fixes and verify each issue is resolved. Ensure all services can communicate as expected. Your troubleshooting report is your capstone deliverable."
+    }
+  ],
+  "questions": [
+    {
+      "id": "phase2-topic4-q1",
+      "prompt": "You run curl to an internal service and get 'connection refused'. Walk me through your troubleshooting steps.",
+      "scenario_seeds": [
+        "A newly deployed microservice isn't responding to health checks from the load balancer.",
+        "Your application can't connect to a database that was working yesterday.",
+        "After a container restart, inter-service communication is broken."
+      ],
+      "grading_rubric": "Must check if service is running AND verify it's listening on the expected port/interface AND check firewall rules AND test from multiple perspectives (local vs remote).",
+      "concepts": {
+        "required": [
+          "process check",
+          "port binding",
+          "netstat/ss",
+          "firewall verification"
+        ],
+        "expected": [
+          "localhost vs 0.0.0.0",
+          "container networking",
+          "security groups"
+        ],
+        "bonus": [
+          "socket states",
+          "ephemeral ports",
+          "connection tracking"
+        ]
+      }
+    },
+    {
+      "id": "phase2-topic4-q2",
+      "prompt": "DNS resolution works from your laptop but not from a container. How would you diagnose this?",
+      "scenario_seeds": [
+        "A Kubernetes pod can't resolve external hostnames but the host node can.",
+        "Your Docker container can ping IP addresses but can't resolve DNS names.",
+        "After a network change, some containers lost DNS resolution while others work fine."
+      ],
+      "grading_rubric": "Must check container DNS configuration (/etc/resolv.conf) AND verify DNS server reachability AND test resolution at each level AND understand container vs host DNS differences.",
+      "concepts": {
+        "required": [
+          "resolv.conf",
+          "DNS server configuration",
+          "container DNS",
+          "dig/nslookup"
+        ],
+        "expected": [
+          "Docker DNS",
+          "search domains",
+          "ndots setting"
+        ],
+        "bonus": [
+          "CoreDNS",
+          "dnsmasq",
+          "DNS caching layers"
+        ]
+      }
+    }
+  ],
+  "test_knowledge_prompts": [
+    "Give me a network troubleshooting scenario to solve",
+    "Quiz me on diagnostic tools"
+  ]
+}

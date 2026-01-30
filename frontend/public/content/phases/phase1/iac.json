@@ -4,7 +4,6 @@
   "name": "Infrastructure as Code",
   "description": "We will spend a lot more time on Infrastructure as Code and other DevOps practices later as all of our labs use them. For now, you need to familiarize yourself with a few Terraform concepts.",
   "order": 3,
-  "estimated_time": "2-3 days",
   "is_capstone": false,
   "learning_steps": [
     {
@@ -66,9 +65,24 @@
       ],
       "grading_rubric": "Must explain IaC as defining infrastructure in code files AND describe benefits of repeatability/consistency AND contrast with manual 'ClickOps' configuration problems.",
       "concepts": {
-        "required": ["infrastructure defined as code", "repeatable", "consistent", "version control"],
-        "expected": ["declarative approach", "reproducible environments", "documentation as code", "automation"],
-        "bonus": ["drift detection", "compliance auditing", "GitOps workflows", "state management"]
+        "required": [
+          "infrastructure defined as code",
+          "repeatable",
+          "consistent",
+          "version control"
+        ],
+        "expected": [
+          "declarative approach",
+          "reproducible environments",
+          "documentation as code",
+          "automation"
+        ],
+        "bonus": [
+          "drift detection",
+          "compliance auditing",
+          "GitOps workflows",
+          "state management"
+        ]
       }
     },
     {
@@ -81,9 +95,24 @@
       ],
       "grading_rubric": "Must explain init downloads providers/plugins and configures backend AND explain apply reads configuration, shows plan, and creates/updates resources AND mention state file tracking.",
       "concepts": {
-        "required": ["init downloads providers", "init configures backend", "apply creates resources", "state file"],
-        "expected": ["plugins", "execution plan", "confirmation prompt", "resource provisioning"],
-        "bonus": ["terraform plan separation", "state locking", "provider versioning", "backend types"]
+        "required": [
+          "init downloads providers",
+          "init configures backend",
+          "apply creates resources",
+          "state file"
+        ],
+        "expected": [
+          "plugins",
+          "execution plan",
+          "confirmation prompt",
+          "resource provisioning"
+        ],
+        "bonus": [
+          "terraform plan separation",
+          "state locking",
+          "provider versioning",
+          "backend types"
+        ]
       }
     }
   ],
@@ -91,17 +120,5 @@
     "Can you ask me what Infrastructure as Code is and why it's better than manual setup?",
     "Can you quiz me on what terraform init and terraform apply do?",
     "Can you ask me what a Terraform state file is used for?"
-  ],
-  "learning_objectives": [
-    {
-      "id": "phase1-topic3-check1",
-      "text": "How to install Terraform on your system",
-      "order": 1
-    },
-    {
-      "id": "phase1-topic3-check2",
-      "text": "Understand the basics of Infrastructure as Code",
-      "order": 2
-    }
   ]
 }

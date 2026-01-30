@@ -1,11 +1,10 @@
 {
-  "id": "phase2-topic7",
+  "id": "phase3-topic7",
   "slug": "build-the-app",
   "name": "Build the App",
   "description": "Time to put everything together! In this capstone project, you'll build a working Learning Journal API that combines Python, FastAPI, databases, and LLM integration. This project synthesizes all Phase 2 skills into a complete application.",
   "short_description": "Build a Learning Journal API with FastAPI, PostgreSQL, and AI-powered entry analysis using LLMs.",
   "order": 7,
-  "estimated_time": "5-7 days",
   "is_capstone": true,
   "learning_steps": [
     {
@@ -17,11 +16,11 @@
       "description": "The repository README has everything you need: Dev Container setup, development tasks using feature branches, LLM provider configuration, and troubleshooting tips. Fork the repo and follow the instructions there to build your Journal API."
     },
     {
-      "order": 2,
+      "order": 3,
       "text": "Tips for success",
       "action": "Tips for success:",
       "url": null,
-      "description": "\u2022 Read the entire README before starting\u2014it's comprehensive\n\u2022 Use feature branches and PRs for each task (great practice for real projects)\n\u2022 Start with the API endpoints before tackling LLM integration\n\u2022 Test frequently using the /docs endpoint\n\u2022 Store API keys in your .env file, never in code\n\u2022 Don't rush\u2014understanding beats completion speed"
+      "description": "• Read the entire README before starting—it's comprehensive\n• Use feature branches and PRs for each task (great practice for real projects)\n• Start with the API endpoints before tackling LLM integration\n• Test frequently using the /docs endpoint\n• Store API keys in your .env file, never in code\n• Don't rush—understanding beats completion speed"
     },
     {
       "order": 3,
@@ -33,7 +32,7 @@
   ],
   "questions": [
     {
-      "id": "phase2-topic7-q1",
+      "id": "phase3-topic7-q1",
       "prompt": "Walk me through the architecture of your Journal API and how the different components integrate.",
       "scenario_seeds": [
         "You're presenting your capstone project to a senior engineer. Explain how requests flow from the API endpoint through to the database and LLM.",
@@ -42,13 +41,27 @@
       ],
       "grading_rubric": "Must explain FastAPI handles HTTP requests AND PostgreSQL stores journal entries AND LLM provides analysis AND describe how these components integrate in the request flow.",
       "concepts": {
-        "required": ["FastAPI endpoints", "PostgreSQL database", "LLM integration", "request flow"],
-        "expected": ["CRUD operations", "Pydantic schemas", "SQLAlchemy models", "API to database to LLM flow"],
-        "bonus": ["separation of concerns", "error handling across layers", "async considerations"]
+        "required": [
+          "FastAPI endpoints",
+          "PostgreSQL database",
+          "LLM integration",
+          "request flow"
+        ],
+        "expected": [
+          "CRUD operations",
+          "Pydantic schemas",
+          "SQLAlchemy models",
+          "API to database to LLM flow"
+        ],
+        "bonus": [
+          "separation of concerns",
+          "error handling across layers",
+          "async considerations"
+        ]
       }
     },
     {
-      "id": "phase2-topic7-q2",
+      "id": "phase3-topic7-q2",
       "prompt": "How did you implement LLM analysis for journal entries, and what prompt engineering techniques did you apply?",
       "scenario_seeds": [
         "Your LLM analysis returns inconsistent JSON formats causing parsing errors. Explain how you solved this with prompt engineering.",
@@ -57,9 +70,23 @@
       ],
       "grading_rubric": "Must explain the prompt structure including system message AND how structured output ensures valid JSON AND describe what analysis is performed (sentiment, topics, summary).",
       "concepts": {
-        "required": ["system message", "structured JSON output", "sentiment analysis", "prompt design"],
-        "expected": ["topics extraction", "summary generation", "response parsing", "error handling"],
-        "bonus": ["few-shot examples", "output validation", "prompt iteration process"]
+        "required": [
+          "system message",
+          "structured JSON output",
+          "sentiment analysis",
+          "prompt design"
+        ],
+        "expected": [
+          "topics extraction",
+          "summary generation",
+          "response parsing",
+          "error handling"
+        ],
+        "bonus": [
+          "few-shot examples",
+          "output validation",
+          "prompt iteration process"
+        ]
       }
     }
   ],
@@ -71,52 +98,5 @@
     "Can you help me write better error handling for my endpoints?",
     "Can you explain the difference between sync and async database calls in FastAPI?",
     "Can you review my prompt engineering for the journal analysis feature?"
-  ],
-  "learning_objectives": [
-    {
-      "id": "phase2-topic7-check1",
-      "text": "How to fork and set up a starter repository",
-      "order": 1
-    },
-    {
-      "id": "phase2-topic7-check2",
-      "text": "How to use Dev Containers for development",
-      "order": 2
-    },
-    {
-      "id": "phase2-topic7-check3",
-      "text": "How to implement CRUD endpoints in FastAPI",
-      "order": 3
-    },
-    {
-      "id": "phase2-topic7-check4",
-      "text": "How to connect to a database and create schemas",
-      "order": 4
-    },
-    {
-      "id": "phase2-topic7-check5",
-      "text": "How to integrate LLM APIs for intelligent features",
-      "order": 5
-    },
-    {
-      "id": "phase2-topic7-check6",
-      "text": "How to add proper error handling",
-      "order": 6
-    },
-    {
-      "id": "phase2-topic7-check7",
-      "text": "How to test API endpoints using Swagger UI",
-      "order": 7
-    },
-    {
-      "id": "phase2-topic7-check8",
-      "text": "How to write effective README documentation",
-      "order": 8
-    },
-    {
-      "id": "phase2-topic7-check9",
-      "text": "How to push and share your project on GitHub",
-      "order": 9
-    }
   ]
 }

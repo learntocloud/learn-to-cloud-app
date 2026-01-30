@@ -1,0 +1,121 @@
+{
+  "id": "phase2-topic2",
+  "slug": "protocols",
+  "name": "Ports and Protocols",
+  "description": "Learn how applications communicate over networks through ports and protocols. Understand TCP vs UDP, common port numbers, and how firewalls control traffic flow.",
+  "order": 2,
+  "is_capstone": false,
+  "learning_steps": [
+    {
+      "order": 1,
+      "text": "TCP vs UDP",
+      "action": "Learn:",
+      "title": "TCP and UDP Explained",
+      "url": "https://www.youtube.com/watch?v=uwoD5YsGACg",
+      "description": "Understand the difference between TCP (connection-oriented, reliable) and UDP (connectionless, fast). Know when to use each protocol."
+    },
+    {
+      "order": 2,
+      "text": "The TCP Handshake",
+      "action": "Learn:",
+      "title": "TCP Three-Way Handshake",
+      "url": "https://www.youtube.com/watch?v=xMtP5ZB3wSk",
+      "description": "Understand SYN, SYN-ACK, ACK and how TCP connections are established. This knowledge is crucial for troubleshooting connection issues."
+    },
+    {
+      "order": 3,
+      "text": "Port Numbers",
+      "action": "Memorize:",
+      "title": "Common Port Numbers",
+      "url": null,
+      "description": "Know the common ports: 22 (SSH), 80 (HTTP), 443 (HTTPS), 53 (DNS), 25/587 (SMTP), 3306 (MySQL), 5432 (PostgreSQL), 6379 (Redis), 27017 (MongoDB)."
+    },
+    {
+      "order": 4,
+      "text": "Firewalls Basics",
+      "action": "Learn:",
+      "title": "How Firewalls Work",
+      "url": "https://www.youtube.com/watch?v=kDEX1HXybrU",
+      "description": "Understand how firewalls filter traffic based on IP, port, and protocol. Learn about stateful vs stateless firewalls."
+    },
+    {
+      "order": 5,
+      "text": "Security Groups Preview",
+      "action": "Learn:",
+      "title": "Cloud Security Groups",
+      "url": null,
+      "description": "Preview how cloud providers implement firewalls as security groups. Understand inbound vs outbound rules and the concept of least privilege."
+    },
+    {
+      "order": 6,
+      "text": "Using netstat and ss",
+      "action": "Practice:",
+      "title": "View Active Connections",
+      "url": null,
+      "description": "Use netstat -tulpn or ss -tulpn to see what ports are listening on your system. Identify which processes are using which ports."
+    }
+  ],
+  "questions": [
+    {
+      "id": "phase2-topic2-q1",
+      "prompt": "Explain the difference between TCP and UDP, and give examples of when you would use each.",
+      "scenario_seeds": [
+        "You're building a real-time game and need to decide between TCP and UDP for player position updates.",
+        "A video streaming service is experiencing buffering issues. Discuss whether the transport protocol choice matters.",
+        "Your chat application needs to ensure messages are never lost. Which protocol should you use and why?"
+      ],
+      "grading_rubric": "Must explain TCP is connection-oriented with reliability guarantees AND UDP is connectionless with lower overhead AND provide appropriate use cases for each.",
+      "concepts": {
+        "required": [
+          "connection-oriented",
+          "connectionless",
+          "reliability",
+          "overhead"
+        ],
+        "expected": [
+          "handshake",
+          "acknowledgment",
+          "packet loss",
+          "ordering"
+        ],
+        "bonus": [
+          "congestion control",
+          "QUIC",
+          "head-of-line blocking"
+        ]
+      }
+    },
+    {
+      "id": "phase2-topic2-q2",
+      "prompt": "A service you deployed isn't accessible. Walk me through how you would troubleshoot whether it's a firewall or port issue.",
+      "scenario_seeds": [
+        "Your newly deployed API returns 'connection refused' when you curl it from another machine.",
+        "A database migration script can't connect to the production database, but works locally.",
+        "After a security update, your monitoring system can't reach the application servers."
+      ],
+      "grading_rubric": "Must check if service is listening on expected port AND verify firewall rules allow traffic AND test connectivity from client perspective.",
+      "concepts": {
+        "required": [
+          "netstat/ss",
+          "firewall rules",
+          "port binding",
+          "connection testing"
+        ],
+        "expected": [
+          "telnet/nc for port testing",
+          "security groups",
+          "iptables/ufw"
+        ],
+        "bonus": [
+          "tcpdump packet capture",
+          "connection states",
+          "ephemeral ports"
+        ]
+      }
+    }
+  ],
+  "test_knowledge_prompts": [
+    "Quiz me on TCP vs UDP",
+    "Ask me about common port numbers"
+  ]
+}

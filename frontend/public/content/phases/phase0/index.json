@@ -4,15 +4,8 @@
   "slug": "phase0",
   "description": "If you have zero tech experience and want to get into Cloud Engineering, this phase is for you. Take your time with these foundational concepts\u2014understanding them well will make everything else easier.",
   "short_description": "Build your IT foundation: Linux basics, networking fundamentals, programming concepts, and cloud computing overview. Perfect for complete beginners.",
-  "estimated_weeks": "3-4 weeks",
   "order": 0,
   "prerequisites": [],
-  "objectives": [
-    "Understand the basics of IT and cloud computing",
-    "Know what Linux, networking, programming, and DevOps are at a high level",
-    "Decide if you are committed to pursuing a career in cloud engineering",
-    "Be prepared for continuous learning in this ever-evolving field"
-  ],
   "tip": "Already have tech experience? If you are already in tech and switching to cloud, you can skip to Phase 1: Linux and Bash.",
   "certifications": {
     "title": "CompTIA A+",

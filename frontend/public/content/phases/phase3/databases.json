@@ -1,10 +1,9 @@
 {
-  "id": "phase2-topic4",
+  "id": "phase3-topic4",
   "slug": "databases",
   "name": "Databases",
   "description": "We will be using a PostgreSQL database to store our application data. You'll learn SQL fundamentals, run PostgreSQL locally using Docker, and connect to it from Python.",
   "order": 4,
-  "estimated_time": "3-4 days",
   "is_capstone": false,
   "learning_steps": [
     {
@@ -16,7 +15,7 @@
       "description": "Learn the fundamentals of SQL with Khan Academy's interactive course. Focus on SELECT, INSERT, UPDATE, DELETE, and basic joins."
     },
     {
-      "order": 2,
+      "order": 3,
       "text": "Run PostgreSQL locally with Docker",
       "action": "Run PostgreSQL locally:",
       "title": "PostgreSQL in Docker",
@@ -41,7 +40,7 @@
   ],
   "questions": [
     {
-      "id": "phase2-topic4-q1",
+      "id": "phase3-topic4-q1",
       "prompt": "Walk me through CRUD operations and how they map to SQL commands.",
       "scenario_seeds": [
         "You're building a notes app and need to implement basic data operations. Map out the SQL for each action a user might take.",
@@ -50,13 +49,28 @@
       ],
       "grading_rubric": "Must correctly map Create to INSERT, Read to SELECT, Update to UPDATE, Delete to DELETE AND explain what each operation does AND provide example use cases.",
       "concepts": {
-        "required": ["CREATE/INSERT", "READ/SELECT", "UPDATE", "DELETE", "SQL commands"],
-        "expected": ["WHERE clause", "data manipulation", "primary keys", "affected rows"],
-        "bonus": ["transactions", "returning clauses", "upsert operations"]
+        "required": [
+          "CREATE/INSERT",
+          "READ/SELECT",
+          "UPDATE",
+          "DELETE",
+          "SQL commands"
+        ],
+        "expected": [
+          "WHERE clause",
+          "data manipulation",
+          "primary keys",
+          "affected rows"
+        ],
+        "bonus": [
+          "transactions",
+          "returning clauses",
+          "upsert operations"
+        ]
       }
     },
     {
-      "id": "phase2-topic4-q2",
+      "id": "phase3-topic4-q2",
       "prompt": "How would you explain an ORM to a junior developer, and why would you use one instead of raw SQL?",
       "scenario_seeds": [
         "Your team is onboarding a new developer who only knows raw SQL. Explain why your codebase uses SQLAlchemy instead.",
@@ -65,9 +79,22 @@
       ],
       "grading_rubric": "Must explain ORM maps database tables to Python classes AND prevents SQL injection through parameterization AND improves productivity/maintainability.",
       "concepts": {
-        "required": ["object-relational mapping", "models as classes", "SQL injection prevention"],
-        "expected": ["SQLAlchemy", "abstraction layer", "productivity", "maintainability"],
-        "bonus": ["query builder patterns", "migration support", "when raw SQL is still needed"]
+        "required": [
+          "object-relational mapping",
+          "models as classes",
+          "SQL injection prevention"
+        ],
+        "expected": [
+          "SQLAlchemy",
+          "abstraction layer",
+          "productivity",
+          "maintainability"
+        ],
+        "bonus": [
+          "query builder patterns",
+          "migration support",
+          "when raw SQL is still needed"
+        ]
       }
     }
   ],
@@ -80,22 +107,5 @@
     "Can you ask me to explain what an ORM is and why we use SQLAlchemy?",
     "Can you ask me to explain the difference between raw SQL and using an ORM?",
     "Can you quiz me on database relationships and foreign keys?"
-  ],
-  "learning_objectives": [
-    {
-      "id": "phase2-topic4-check1",
-      "text": "How to run PostgreSQL locally using Docker",
-      "order": 1
-    },
-    {
-      "id": "phase2-topic4-check2",
-      "text": "How to connect to PostgreSQL from Python using SQLAlchemy",
-      "order": 2
-    },
-    {
-      "id": "phase2-topic4-check3",
-      "text": "How to perform CRUD operations with an ORM",
-      "order": 3
-    }
   ]
 }

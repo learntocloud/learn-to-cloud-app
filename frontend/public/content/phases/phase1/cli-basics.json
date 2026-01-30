@@ -4,7 +4,6 @@
   "name": "CLI Basics",
   "description": "The Linux command line is your gateway to cloud infrastructure. Work through Linux Basics for Hackers chapter by chapter to prepare for the CTF challenges.",
   "order": 5,
-  "estimated_time": "2-3 weeks (1 chapter every 1-2 days)",
   "is_capstone": false,
   "learning_steps": [
     {
@@ -107,9 +106,27 @@
       ],
       "grading_rubric": "Must explain the rwx triplet for owner/group/others AND differentiate how permissions behave on files vs directories (read=list contents, execute=enter directory) AND demonstrate understanding of chmod usage.",
       "concepts": {
-        "required": ["read", "write", "execute", "owner", "group", "others", "rwx"],
-        "expected": ["chmod", "directory vs file differences", "list contents", "enter directory"],
-        "bonus": ["octal notation", "sticky bit", "setuid/setgid", "umask"]
+        "required": [
+          "read",
+          "write",
+          "execute",
+          "owner",
+          "group",
+          "others",
+          "rwx"
+        ],
+        "expected": [
+          "chmod",
+          "directory vs file differences",
+          "list contents",
+          "enter directory"
+        ],
+        "bonus": [
+          "octal notation",
+          "sticky bit",
+          "setuid/setgid",
+          "umask"
+        ]
       }
     },
     {
@@ -122,71 +139,31 @@
       ],
       "grading_rubric": "Must explain pipes as connecting stdout of one command to stdin of another AND explain redirects for sending output to files AND provide working examples of both | and > or >> operators.",
       "concepts": {
-        "required": ["pipe", "|", "redirect", ">", "stdout", "stdin"],
-        "expected": [">>", "output to file", "command chaining", "practical example"],
-        "bonus": ["stderr redirect 2>", "tee command", "<< heredoc", "/dev/null"]
+        "required": [
+          "pipe",
+          "|",
+          "redirect",
+          ">",
+          "stdout",
+          "stdin"
+        ],
+        "expected": [
+          ">>",
+          "output to file",
+          "command chaining",
+          "practical example"
+        ],
+        "bonus": [
+          "stderr redirect 2>",
+          "tee command",
+          "<< heredoc",
+          "/dev/null"
+        ]
       }
     }
   ],
   "test_knowledge_prompts": [
     "Can you quiz me on Linux file permissions?",
     "Can you ask me about pipes and redirects?"
-  ],
-  "learning_objectives": [
-    {
-      "id": "phase1-topic5-check1",
-      "text": "Get Linux Basics for Hackers book",
-      "order": 1
-    },
-    {
-      "id": "phase1-topic5-check2",
-      "text": "Chapter 1: Navigation basics",
-      "order": 2
-    },
-    {
-      "id": "phase1-topic5-check3",
-      "text": "Chapter 2: Text manipulation",
-      "order": 3
-    },
-    {
-      "id": "phase1-topic5-check4",
-      "text": "Chapter 3: Networking",
-      "order": 4
-    },
-    {
-      "id": "phase1-topic5-check5",
-      "text": "Chapter 4: Package management",
-      "order": 5
-    },
-    {
-      "id": "phase1-topic5-check6",
-      "text": "Chapter 5: Permissions",
-      "order": 6
-    },
-    {
-      "id": "phase1-topic5-check7",
-      "text": "Chapter 6: Process management",
-      "order": 7
-    },
-    {
-      "id": "phase1-topic5-check8",
-      "text": "Chapter 7: Environment variables",
-      "order": 8
-    },
-    {
-      "id": "phase1-topic5-check9",
-      "text": "Chapter 8: Bash scripting",
-      "order": 9
-    },
-    {
-      "id": "phase1-topic5-check10",
-      "text": "Chapter 9: Archives and compression",
-      "order": 10
-    },
-    {
-      "id": "phase1-topic5-check11",
-      "text": "Optional: OverTheWire Bandit practice",
-      "order": 11
-    }
   ]
 }

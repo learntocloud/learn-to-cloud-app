@@ -3,8 +3,7 @@
   "slug": "secure-remote-access",
   "name": "Secure Remote Access",
   "description": "In the previous topic, you learned about cloud networking fundamentals, including VPCs, subnets, and traffic flow. Now, the focus is on understanding secure remote access mechanisms that protect cloud resources from unauthorized access.",
-  "order": 4,
-  "estimated_time": "1-2 days",
+  "order": 5,
   "is_capstone": false,
   "learning_steps": [
     {
@@ -39,7 +38,7 @@
       "text": "Why Session-Based Access?",
       "action": "Why Session-Based Access?:",
       "url": null,
-      "description": "Advantages over direct SSH/RDP:\n\n\u2022 No exposed SSH ports (port 22/3389) on security groups\n\u2022 Integrated with cloud IAM - use your existing identity\n\u2022 Full audit logging of all sessions\n\u2022 No need to manage SSH keys\n\u2022 Browser-based access - no local SSH client needed"
+      "description": "Advantages over direct SSH/RDP:\n\n• No exposed SSH ports (port 22/3389) on security groups\n• Integrated with cloud IAM - use your existing identity\n• Full audit logging of all sessions\n• No need to manage SSH keys\n• Browser-based access - no local SSH client needed"
     },
     {
       "order": 3,
@@ -50,7 +49,7 @@
       "description": "AWS best practices for connecting to EC2 instances using Session Manager"
     },
     {
-      "order": 4,
+      "order": 5,
       "text": "Hands-on Tasks",
       "action": "Hands-on Tasks:",
       "url": null,
@@ -68,9 +67,22 @@
       ],
       "grading_rubric": "Must explain that session-based access eliminates exposed SSH ports AND describe the audit logging capabilities AND address how it integrates with cloud IAM for access control.",
       "concepts": {
-        "required": ["no exposed ports (22/3389)", "audit logging", "IAM integration"],
-        "expected": ["no SSH key management", "browser-based access", "centralized access control", "session recording"],
-        "bonus": ["just-in-time access", "break-glass procedures", "session timeout policies"]
+        "required": [
+          "no exposed ports (22/3389)",
+          "audit logging",
+          "IAM integration"
+        ],
+        "expected": [
+          "no SSH key management",
+          "browser-based access",
+          "centralized access control",
+          "session recording"
+        ],
+        "bonus": [
+          "just-in-time access",
+          "break-glass procedures",
+          "session timeout policies"
+        ]
       }
     },
     {
@@ -83,9 +95,22 @@
       ],
       "grading_rubric": "Must describe identity-based access control benefits AND explain the audit trail capabilities AND address how temporary sessions reduce risk compared to persistent credentials.",
       "concepts": {
-        "required": ["identity-based access", "complete audit trail", "centralized control"],
-        "expected": ["no key management overhead", "temporary sessions", "compliance support", "real-time monitoring"],
-        "bonus": ["integration with SIEM", "automated session termination", "privileged access management"]
+        "required": [
+          "identity-based access",
+          "complete audit trail",
+          "centralized control"
+        ],
+        "expected": [
+          "no key management overhead",
+          "temporary sessions",
+          "compliance support",
+          "real-time monitoring"
+        ],
+        "bonus": [
+          "integration with SIEM",
+          "automated session termination",
+          "privileged access management"
+        ]
       }
     }
   ],
@@ -94,17 +119,5 @@
     "Can you quiz me on the advantages of using session-based access (AWS SSM, Azure Bastion, GCP IAP) instead of direct SSH/RDP?",
     "Can you explain why we don't want to expose port 22 or 3389 on our security groups?",
     "Can you ask me how session-based access integrates with cloud IAM?"
-  ],
-  "learning_objectives": [
-    {
-      "id": "phase4-topic4-check1",
-      "text": "How to configure session-based access on your cloud provider",
-      "order": 1
-    },
-    {
-      "id": "phase4-topic4-check2",
-      "text": "How to apply least privilege IAM policies for remote access",
-      "order": 2
-    }
   ]
 }

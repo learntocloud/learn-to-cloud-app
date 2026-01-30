@@ -5,7 +5,6 @@
   "description": "Time to put your Linux skills to the test! Complete 18 progressive Capture The Flag challenges covering file navigation, permissions, networking, and more.",
   "short_description": "Complete 18 hands-on Linux CTF challenges in a real cloud environment to prove your command line skills.",
   "order": 6,
-  "estimated_time": "3-4 hours",
   "is_capstone": true,
   "learning_steps": [
     {
@@ -21,7 +20,7 @@
       "text": "Tips for success",
       "action": "Tips for success:",
       "url": null,
-      "description": "\u2022 Use `man` pages to learn commands (e.g., `man find`)\n\u2022 Combine commands with pipes (`|`) to process output\n\u2022 Use `verify hint [num]` when stuck on a challenge\n\u2022 Experiment freely\u2014you can't break anything permanently\n\u2022 Don't share solutions publicly\u2014share your learning journey instead"
+      "description": "• Use `man` pages to learn commands (e.g., `man find`)\n• Combine commands with pipes (`|`) to process output\n• Use `verify hint [num]` when stuck on a challenge\n• Experiment freely—you can't break anything permanently\n• Don't share solutions publicly—share your learning journey instead"
     }
   ],
   "questions": [
@@ -35,9 +34,24 @@
       ],
       "grading_rubric": "Must explain basic find syntax with path AND demonstrate filtering options (-name, -type, -size) AND show understanding of combining criteria or using -exec for actions.",
       "concepts": {
-        "required": ["find command syntax", "path specification", "-name", "-type"],
-        "expected": ["-size", "-mtime", "recursive search", "multiple criteria"],
-        "bonus": ["-exec action", "-perm", "find with xargs", "locate vs find"]
+        "required": [
+          "find command syntax",
+          "path specification",
+          "-name",
+          "-type"
+        ],
+        "expected": [
+          "-size",
+          "-mtime",
+          "recursive search",
+          "multiple criteria"
+        ],
+        "bonus": [
+          "-exec action",
+          "-perm",
+          "find with xargs",
+          "locate vs find"
+        ]
       }
     },
     {
@@ -50,9 +64,24 @@
       ],
       "grading_rubric": "Must explain process inspection tools (ps, top) AND network connection tools (netstat, ss) AND demonstrate ability to identify PIDs and take action.",
       "concepts": {
-        "required": ["ps", "top or htop", "netstat or ss", "PID identification"],
-        "expected": ["port inspection", "kill processes", "lsof", "connection states"],
-        "bonus": ["ps aux formatting", "real-time monitoring", "strace", "/proc filesystem"]
+        "required": [
+          "ps",
+          "top or htop",
+          "netstat or ss",
+          "PID identification"
+        ],
+        "expected": [
+          "port inspection",
+          "kill processes",
+          "lsof",
+          "connection states"
+        ],
+        "bonus": [
+          "ps aux formatting",
+          "real-time monitoring",
+          "strace",
+          "/proc filesystem"
+        ]
       }
     }
   ],
@@ -62,22 +91,5 @@
     "Can you quiz me on how to find files using the find command?",
     "Can you ask me about Linux processes and how to inspect them?",
     "Can you quiz me on basic networking commands like netstat and ss?"
-  ],
-  "learning_objectives": [
-    {
-      "id": "phase1-topic6-check1",
-      "text": "How to deploy a cloud lab environment",
-      "order": 1
-    },
-    {
-      "id": "phase1-topic6-check2",
-      "text": "How to solve CTF challenges using cloud skills",
-      "order": 2
-    },
-    {
-      "id": "phase1-topic6-check3",
-      "text": "How to properly clean up cloud resources to avoid charges",
-      "order": 3
-    }
   ]
 }

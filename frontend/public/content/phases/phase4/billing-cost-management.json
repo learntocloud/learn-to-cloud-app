@@ -4,7 +4,6 @@
   "name": "Cloud Billing & Cost Management",
   "description": "Cloud services are billed based on consumption. Every VM, database, and API call has a cost. In this topic, you'll learn to monitor spending, set up cost alerts, and estimate expenses before deploying infrastructure. These skills prevent surprise bills and teach you to make cost-aware architecture decisions.",
   "order": 7,
-  "estimated_time": "2-3 days",
   "is_capstone": false,
   "learning_steps": [
     {
@@ -12,7 +11,7 @@
       "text": "Understand Cloud Billing Basics",
       "action": "Understand Cloud Billing Basics:",
       "url": null,
-      "description": "Core concepts you must understand:\n\n\u2022 Pay-as-you-go pricing - You're charged for what you use, not upfront\n\u2022 Resource types have different costs - VMs, storage, data transfer all priced differently\n\u2022 Regional pricing varies - Same resource costs different amounts in different regions\n\u2022 Billing cycles - Usually monthly. Charges appear in your bill 24-48 hours after use"
+      "description": "Core concepts you must understand:\n\n• Pay-as-you-go pricing - You're charged for what you use, not upfront\n• Resource types have different costs - VMs, storage, data transfer all priced differently\n• Regional pricing varies - Same resource costs different amounts in different regions\n• Billing cycles - Usually monthly. Charges appear in your bill 24-48 hours after use"
     },
     {
       "order": 2,
@@ -69,7 +68,7 @@
       ]
     },
     {
-      "order": 4,
+      "order": 5,
       "text": "Use Pricing Calculators",
       "action": "Use Pricing Calculators:",
       "url": null,
@@ -94,7 +93,7 @@
       "text": "Cost Optimization Tips",
       "action": "Cost Optimization Tips:",
       "url": null,
-      "description": "\u2022 Stop or deallocate VMs when not in use (dev environments!)\n\u2022 Right-size instances - don't over-provision\n\u2022 Use reserved instances for production workloads\n\u2022 Delete unused resources (disks, IPs, old snapshots)\n\u2022 Monitor data transfer costs - they add up!\n\u2022 Use auto-scaling to match capacity with demand"
+      "description": "• Stop or deallocate VMs when not in use (dev environments!)\n• Right-size instances - don't over-provision\n• Use reserved instances for production workloads\n• Delete unused resources (disks, IPs, old snapshots)\n• Monitor data transfer costs - they add up!\n• Use auto-scaling to match capacity with demand"
     },
     {
       "order": 6,
@@ -115,9 +114,23 @@
       ],
       "grading_rubric": "Must explain pay-as-you-go pricing model AND identify major cost drivers (compute, storage, data transfer) AND address how usage patterns and choices affect billing.",
       "concepts": {
-        "required": ["pay-as-you-go", "compute hours", "storage costs", "data transfer charges"],
-        "expected": ["instance type affects price", "regional pricing differences", "billing cycles", "resource-based charging"],
-        "bonus": ["egress vs ingress pricing", "tiered pricing", "billing tags for cost allocation"]
+        "required": [
+          "pay-as-you-go",
+          "compute hours",
+          "storage costs",
+          "data transfer charges"
+        ],
+        "expected": [
+          "instance type affects price",
+          "regional pricing differences",
+          "billing cycles",
+          "resource-based charging"
+        ],
+        "bonus": [
+          "egress vs ingress pricing",
+          "tiered pricing",
+          "billing tags for cost allocation"
+        ]
       }
     },
     {
@@ -130,9 +143,23 @@
       ],
       "grading_rubric": "Must explain right-sizing instances based on actual usage AND describe scheduling or stopping unused resources AND address reserved/spot instances for predictable workloads.",
       "concepts": {
-        "required": ["right-sizing", "stop unused resources", "delete orphaned resources"],
-        "expected": ["reserved instances for production", "spot instances for fault-tolerant workloads", "auto-scaling", "scheduled shutdowns"],
-        "bonus": ["cost monitoring dashboards", "FinOps practices", "savings plans", "commitment discounts"]
+        "required": [
+          "right-sizing",
+          "stop unused resources",
+          "delete orphaned resources"
+        ],
+        "expected": [
+          "reserved instances for production",
+          "spot instances for fault-tolerant workloads",
+          "auto-scaling",
+          "scheduled shutdowns"
+        ],
+        "bonus": [
+          "cost monitoring dashboards",
+          "FinOps practices",
+          "savings plans",
+          "commitment discounts"
+        ]
       }
     }
   ],
@@ -143,32 +170,5 @@
     "Can you quiz me on how to determine the cost of running a VM 24/7 for one month?",
     "Can you explain why it's important to understand what resources are running in your cloud account?",
     "Can you ask me how to optimize costs for a development environment vs. a production environment?"
-  ],
-  "learning_objectives": [
-    {
-      "id": "phase4-topic7-check1",
-      "text": "Understand your cloud provider's billing structure",
-      "order": 1
-    },
-    {
-      "id": "phase4-topic7-check2",
-      "text": "How to navigate the billing dashboard and review costs",
-      "order": 2
-    },
-    {
-      "id": "phase4-topic7-check3",
-      "text": "How to create budgets and set up cost alerts",
-      "order": 3
-    },
-    {
-      "id": "phase4-topic7-check4",
-      "text": "How to use pricing calculators to estimate costs",
-      "order": 4
-    },
-    {
-      "id": "phase4-topic7-check5",
-      "text": "Understand cost optimization strategies",
-      "order": 5
-    }
   ]
 }

@@ -657,7 +657,6 @@ class Topic(FrozenModel):
     name: str
     description: str
     order: int
-    estimated_time: str
     is_capstone: bool
     learning_steps: list[LearningStep]
     questions: list[Question]
@@ -696,7 +695,6 @@ class Phase(FrozenModel):
     slug: str
     description: str
     short_description: str
-    estimated_weeks: str
     order: int
     objectives: list[str]
     capstone: PhaseCapstoneOverview | None = None
@@ -733,7 +731,6 @@ class TopicSummaryData(FrozenModel):
     name: str
     description: str
     order: int
-    estimated_time: str
     is_capstone: bool
     steps_count: int
     questions_count: int
@@ -761,7 +758,6 @@ class TopicDetailData(FrozenModel):
     name: str
     description: str
     order: int
-    estimated_time: str
     is_capstone: bool
     learning_steps: list[LearningStep]
     questions: list[Question]
@@ -804,7 +800,6 @@ class PhaseSummaryData(FrozenModel):
     slug: str
     description: str
     short_description: str
-    estimated_weeks: str
     order: int
     topics_count: int
     objectives: list[str] = Field(default_factory=list)
@@ -826,7 +821,6 @@ class PhaseDetailData(FrozenModel):
     slug: str
     description: str
     short_description: str
-    estimated_weeks: str
     order: int
     objectives: list[str]
     capstone: PhaseCapstoneOverview | None = None

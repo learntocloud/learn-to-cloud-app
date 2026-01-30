@@ -142,6 +142,24 @@ async def validate_submission(
             )
         return await analyze_repository_code(submitted_value, expected_username)
 
+    elif requirement.submission_type == SubmissionType.FREE_TEXT:
+        # Free text submissions just need to meet minimum length
+        min_length = 100  # Require at least 100 characters for meaningful content
+        if len(submitted_value.strip()) < min_length:
+            return ValidationResult(
+                is_valid=False,
+                message=(
+                    f"Submission must be at least {min_length} characters. "
+                    "Please provide more detail."
+                ),
+                username_match=True,
+            )
+        return ValidationResult(
+            is_valid=True,
+            message="Submission accepted.",
+            username_match=True,
+        )
+
     else:
         return ValidationResult(
             is_valid=False,

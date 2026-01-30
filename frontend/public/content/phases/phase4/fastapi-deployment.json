@@ -4,7 +4,6 @@
   "name": "FastAPI Deployment & API Hosting",
   "description": "With your prior knowledge of FastAPI from the previous phases, you will now focus on deploying that FastAPI application on a cloud-based VM. This topic covers the practical aspects of hosting web applications in the cloud.",
   "order": 6,
-  "estimated_time": "2-3 days",
   "is_capstone": false,
   "learning_steps": [
     {
@@ -47,10 +46,10 @@
       "text": "Configure Security Groups/Firewall",
       "action": "Configure Security Groups/Firewall:",
       "url": null,
-      "description": "Set up rules to allow external HTTP traffic to your FastAPI application:\n\n\u2022 Allow inbound TCP port 80 (HTTP) or 443 (HTTPS)\n\u2022 Allow inbound TCP port 8000 (FastAPI default) if not using a reverse proxy\n\u2022 Restrict SSH access to your IP only\n\u2022 Ensure the database port (5432) is NOT exposed to the internet"
+      "description": "Set up rules to allow external HTTP traffic to your FastAPI application:\n\n• Allow inbound TCP port 80 (HTTP) or 443 (HTTPS)\n• Allow inbound TCP port 8000 (FastAPI default) if not using a reverse proxy\n• Restrict SSH access to your IP only\n• Ensure the database port (5432) is NOT exposed to the internet"
     },
     {
-      "order": 4,
+      "order": 5,
       "text": "Running FastAPI in Production",
       "action": "Running FastAPI in Production:",
       "url": null,
@@ -76,9 +75,22 @@
       ],
       "grading_rubric": "Must explain using environment variables instead of hardcoding AND describe keeping secrets separate from code AND address how this enables secure rotation.",
       "concepts": {
-        "required": ["environment variables", "never hardcode secrets", "separate config from code"],
-        "expected": ["os.getenv() in code", "secret rotation", ".env files for local dev", "secrets not in git"],
-        "bonus": ["cloud secrets managers", "secret injection at runtime", "least privilege for secret access"]
+        "required": [
+          "environment variables",
+          "never hardcode secrets",
+          "separate config from code"
+        ],
+        "expected": [
+          "os.getenv() in code",
+          "secret rotation",
+          ".env files for local dev",
+          "secrets not in git"
+        ],
+        "bonus": [
+          "cloud secrets managers",
+          "secret injection at runtime",
+          "least privilege for secret access"
+        ]
       }
     },
     {
@@ -91,9 +103,22 @@
       ],
       "grading_rubric": "Must specify inbound rules for HTTP/HTTPS traffic AND restrict SSH access to specific IPs AND address outbound rules for database connectivity.",
       "concepts": {
-        "required": ["allow inbound HTTP (80) and HTTPS (443)", "restrict SSH to admin IPs", "database port internal only"],
-        "expected": ["deny by default", "specific source IPs for management", "outbound to database subnet", "no public database exposure"],
-        "bonus": ["VPN or session-based access instead of SSH", "separate security groups per tier", "security group references"]
+        "required": [
+          "allow inbound HTTP (80) and HTTPS (443)",
+          "restrict SSH to admin IPs",
+          "database port internal only"
+        ],
+        "expected": [
+          "deny by default",
+          "specific source IPs for management",
+          "outbound to database subnet",
+          "no public database exposure"
+        ],
+        "bonus": [
+          "VPN or session-based access instead of SSH",
+          "separate security groups per tier",
+          "security group references"
+        ]
       }
     }
   ],
@@ -102,27 +127,5 @@
     "Can you explain how to set up a firewall rule or security group to allow external HTTP traffic to my FastAPI application?",
     "Can you ask me about the difference between running FastAPI in development vs production?",
     "Can you quiz me on how to use systemd to keep my FastAPI application running?"
-  ],
-  "learning_objectives": [
-    {
-      "id": "phase4-topic6-check1",
-      "text": "How to plan FastAPI deployment for your cloud provider",
-      "order": 1
-    },
-    {
-      "id": "phase4-topic6-check2",
-      "text": "How to configure security groups/firewall rules for HTTP traffic",
-      "order": 2
-    },
-    {
-      "id": "phase4-topic6-check3",
-      "text": "How to deploy FastAPI on a VM in the public subnet",
-      "order": 3
-    },
-    {
-      "id": "phase4-topic6-check4",
-      "text": "How to verify your API is accessible from the internet",
-      "order": 4
-    }
   ]
 }

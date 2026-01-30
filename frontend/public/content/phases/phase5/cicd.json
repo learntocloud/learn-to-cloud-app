@@ -4,7 +4,6 @@
   "name": "CI/CD Pipelines",
   "description": "One challenge you'll face after containerizing your application is the need to manually rebuild and push for every code change. CI/CD pipelines automate this entire process - building, testing, and deploying your application every time changes are made, ensuring a smooth and reliable development workflow.",
   "order": 2,
-  "estimated_time": "3-4 days",
   "is_capstone": false,
   "learning_steps": [
     {
@@ -62,10 +61,10 @@
       "text": "Basic CI/CD Pipeline Setup",
       "action": "Hands-on: Basic CI/CD Pipeline Setup",
       "url": null,
-      "description": "Set up a basic CI/CD pipeline for your containerized application:\n\n1. Use GitHub Actions (or your preferred tool) to automatically:\n   \u2022 Build your application\n   \u2022 Run tests\n   \u2022 Build a Docker image\n   \u2022 Push the image to a container registry\n2. Configure the pipeline to trigger on code commits to your main branch\n3. Add a notification system for successful deployments or failures"
+      "description": "Set up a basic CI/CD pipeline for your containerized application:\n\n1. Use GitHub Actions (or your preferred tool) to automatically:\n   • Build your application\n   • Run tests\n   • Build a Docker image\n   • Push the image to a container registry\n2. Configure the pipeline to trigger on code commits to your main branch\n3. Add a notification system for successful deployments or failures"
     },
     {
-      "order": 5,
+      "order": 6,
       "text": "Sample GitHub Actions Workflow",
       "action": "Sample GitHub Actions Workflow:",
       "url": null,
@@ -91,9 +90,25 @@
       ],
       "grading_rubric": "Must clearly distinguish all three concepts AND explain the role of automated testing in CI AND clarify when manual vs automatic deployment is appropriate.",
       "concepts": {
-        "required": ["continuous integration", "automated build and test", "continuous delivery vs deployment", "manual approval gate"],
-        "expected": ["merge to main", "deployment readiness", "automatic production deployment", "release frequency"],
-        "bonus": ["trunk-based development", "feature flags", "deployment risk", "rollback strategies", "compliance requirements"]
+        "required": [
+          "continuous integration",
+          "automated build and test",
+          "continuous delivery vs deployment",
+          "manual approval gate"
+        ],
+        "expected": [
+          "merge to main",
+          "deployment readiness",
+          "automatic production deployment",
+          "release frequency"
+        ],
+        "bonus": [
+          "trunk-based development",
+          "feature flags",
+          "deployment risk",
+          "rollback strategies",
+          "compliance requirements"
+        ]
       }
     },
     {
@@ -106,9 +121,27 @@
       ],
       "grading_rubric": "Must describe the complete pipeline flow from code commit to deployment AND explain what happens at each stage AND address how artifacts flow between stages.",
       "concepts": {
-        "required": ["source checkout", "build stage", "test stage", "Docker image build", "push to registry", "deploy stage"],
-        "expected": ["pipeline triggers", "artifact passing", "environment variables", "secrets management"],
-        "bonus": ["parallel stages", "caching strategies", "matrix builds", "deployment environments", "smoke tests"]
+        "required": [
+          "source checkout",
+          "build stage",
+          "test stage",
+          "Docker image build",
+          "push to registry",
+          "deploy stage"
+        ],
+        "expected": [
+          "pipeline triggers",
+          "artifact passing",
+          "environment variables",
+          "secrets management"
+        ],
+        "bonus": [
+          "parallel stages",
+          "caching strategies",
+          "matrix builds",
+          "deployment environments",
+          "smoke tests"
+        ]
       }
     }
   ],
@@ -120,32 +153,5 @@
     "Can you explain quality gates and testing in CI/CD pipelines?",
     "Can you ask me about deployment strategies like blue-green and canary?",
     "Can you quiz me on security considerations in CI/CD pipelines?"
-  ],
-  "learning_objectives": [
-    {
-      "id": "phase5-topic2-check1",
-      "text": "How to set up a CI/CD pipeline with GitHub Actions",
-      "order": 1
-    },
-    {
-      "id": "phase5-topic2-check2",
-      "text": "How to configure automatic builds on code commits",
-      "order": 2
-    },
-    {
-      "id": "phase5-topic2-check3",
-      "text": "How to automate Docker image building and pushing",
-      "order": 3
-    },
-    {
-      "id": "phase5-topic2-check4",
-      "text": "How to add notifications for pipeline success/failure",
-      "order": 4
-    },
-    {
-      "id": "phase5-topic2-check5",
-      "text": "(Optional) How to implement multi-environment deployment",
-      "order": 5
-    }
   ]
 }

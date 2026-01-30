@@ -4,7 +4,6 @@
   "name": "What is a Cloud Engineer",
   "description": "Learn about the cloud engineer role, what they do day-to-day, and how to become one.",
   "order": 6,
-  "estimated_time": "1-2 hours",
   "is_capstone": false,
   "learning_steps": [
     {
@@ -34,9 +33,25 @@
       ],
       "grading_rubric": "Must describe at least 4 core responsibilities (infrastructure management, deployment, monitoring, troubleshooting, automation, security) AND explain how cloud engineers collaborate with other teams AND mention the balance between building and maintaining systems.",
       "concepts": {
-        "required": ["infrastructure management", "deployment", "monitoring", "troubleshooting"],
-        "expected": ["automation", "security", "cloud services", "optimization", "collaboration"],
-        "bonus": ["on-call responsibilities", "cost optimization", "architecture decisions", "mentoring"]
+        "required": [
+          "infrastructure management",
+          "deployment",
+          "monitoring",
+          "troubleshooting"
+        ],
+        "expected": [
+          "automation",
+          "security",
+          "cloud services",
+          "optimization",
+          "collaboration"
+        ],
+        "bonus": [
+          "on-call responsibilities",
+          "cost optimization",
+          "architecture decisions",
+          "mentoring"
+        ]
       }
     },
     {
@@ -49,9 +64,24 @@
       ],
       "grading_rubric": "Must identify at least 5 core technical skills AND explain why each matters for cloud engineering AND suggest a logical order or priority for learning them.",
       "concepts": {
-        "required": ["Linux fundamentals", "networking basics", "programming/scripting", "cloud platform knowledge"],
-        "expected": ["automation tools", "security fundamentals", "problem-solving", "version control"],
-        "bonus": ["infrastructure as code", "containers", "soft skills like communication", "continuous learning mindset"]
+        "required": [
+          "Linux fundamentals",
+          "networking basics",
+          "programming/scripting",
+          "cloud platform knowledge"
+        ],
+        "expected": [
+          "automation tools",
+          "security fundamentals",
+          "problem-solving",
+          "version control"
+        ],
+        "bonus": [
+          "infrastructure as code",
+          "containers",
+          "soft skills like communication",
+          "continuous learning mindset"
+        ]
       }
     }
   ],
@@ -59,22 +89,5 @@
     "Can you ask me what a cloud engineer does day-to-day?",
     "Can you quiz me on the skills needed to become a cloud engineer?",
     "Can you ask me why I want to become a cloud engineer?"
-  ],
-  "learning_objectives": [
-    {
-      "id": "phase0-topic6-check1",
-      "text": "Understand what cloud engineers do day-to-day",
-      "order": 1
-    },
-    {
-      "id": "phase0-topic6-check2",
-      "text": "Know the skills and certifications that matter",
-      "order": 2
-    },
-    {
-      "id": "phase0-topic6-check3",
-      "text": "Understand the career path and growth opportunities",
-      "order": 3
-    }
   ]
 }

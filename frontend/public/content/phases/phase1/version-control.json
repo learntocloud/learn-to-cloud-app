@@ -4,7 +4,6 @@
   "name": "Version Control",
   "description": "Here at L2C we use Git and GitHub for our version control. I need you to spend a few days getting up to speed with them.",
   "order": 1,
-  "estimated_time": "3-5 days",
   "is_capstone": false,
   "learning_steps": [
     {
@@ -33,7 +32,7 @@
       "text": "Set up an AI learning assistant",
       "action": "Set up an AI learning assistant",
       "url": null,
-      "description": "AI assistants can help you learn by asking questions and clarifying concepts\u2014but they should never replace your own thinking. In Phase 3, you'll learn how to use these tools effectively. For now, use AI **only** for the specific prompts we provide. The key rule: AI should quiz *you*, not answer *for* you. Set up an account with ChatGPT, Claude, or another AI assistant and try it with this prompt:",
+      "description": "AI assistants can help you learn by asking questions and clarifying concepts—but they should never replace your own thinking. In Phase 3, you'll learn how to use these tools effectively. For now, use AI **only** for the specific prompts we provide. The key rule: AI should quiz *you*, not answer *for* you. Set up an account with ChatGPT, Claude, or another AI assistant and try it with this prompt:",
       "code": "I'm studying cloud engineering and recently learned about version control. I will provide you an explanation about it and please ask me any questions if my explanation is not clear. I want to make sure I really understand this concept so please do not correct me, simply ask questions until I get the explanation right. Here is my explanation: version control is..."
     },
     {
@@ -62,7 +61,7 @@
       "order": 7,
       "text": "Learn command line basics",
       "action": "Learn command line basics:",
-      "title": "Command Line for Beginners \u2013 How to Use the Terminal Like a Pro",
+      "title": "Command Line for Beginners – How to Use the Terminal Like a Pro",
       "url": "https://www.freecodecamp.org/news/command-line-for-beginners/#heading-most-common-and-useful-commands-to-use"
     },
     {
@@ -100,7 +99,7 @@
       "text": "Practice Git workflow",
       "action": "Practice Git workflow",
       "url": null,
-      "description": "Clone your README repo to your local machine. Use VS Code to edit it and push changes back to GitHub from the terminal. Don't feel like you have to make a very fancy README\u2014write a brief description on who you are and add links to your socials.",
+      "description": "Clone your README repo to your local machine. Use VS Code to edit it and push changes back to GitHub from the terminal. Don't feel like you have to make a very fancy README—write a brief description on who you are and add links to your socials.",
       "secondary_links": [
         {
           "text": "Great guide on using markdown with VS Code",
@@ -120,9 +119,23 @@
       ],
       "grading_rubric": "Must explain version control as a system for tracking changes over time AND describe collaboration benefits AND explain how rollback/history features prevent data loss.",
       "concepts": {
-        "required": ["track changes", "history", "collaboration", "rollback"],
-        "expected": ["repository", "commits", "branches", "team collaboration"],
-        "bonus": ["distributed vs centralized", "merge conflicts", "code review workflows"]
+        "required": [
+          "track changes",
+          "history",
+          "collaboration",
+          "rollback"
+        ],
+        "expected": [
+          "repository",
+          "commits",
+          "branches",
+          "team collaboration"
+        ],
+        "bonus": [
+          "distributed vs centralized",
+          "merge conflicts",
+          "code review workflows"
+        ]
       }
     },
     {
@@ -135,9 +148,24 @@
       ],
       "grading_rubric": "Must explain the staging area concept AND describe the commit as a snapshot with a message AND explain pushing to sync with remote repository.",
       "concepts": {
-        "required": ["git add", "staging area", "git commit", "git push"],
-        "expected": ["local repository", "remote", "commit message", "snapshot"],
-        "bonus": ["git status", "git diff", ".gitignore", "atomic commits"]
+        "required": [
+          "git add",
+          "staging area",
+          "git commit",
+          "git push"
+        ],
+        "expected": [
+          "local repository",
+          "remote",
+          "commit message",
+          "snapshot"
+        ],
+        "bonus": [
+          "git status",
+          "git diff",
+          ".gitignore",
+          "atomic commits"
+        ]
       }
     }
   ],
@@ -145,42 +173,5 @@
     "Can you ask me what version control is and why it's important?",
     "Can you quiz me on the basic Git commands like clone, commit, push, and pull?",
     "Can you ask me what a repository is and how Git tracks changes?"
-  ],
-  "learning_objectives": [
-    {
-      "id": "phase1-topic1-check1",
-      "text": "How to install and configure Git",
-      "order": 1
-    },
-    {
-      "id": "phase1-topic1-check2",
-      "text": "How to set up VS Code as your development environment",
-      "order": 2
-    },
-    {
-      "id": "phase1-topic1-check3",
-      "text": "How to configure WSL for Windows development",
-      "order": 3
-    },
-    {
-      "id": "phase1-topic1-check4",
-      "text": "How to create folders and navigate using the terminal",
-      "order": 4
-    },
-    {
-      "id": "phase1-topic1-check5",
-      "text": "How to clone repositories from GitHub",
-      "order": 5
-    },
-    {
-      "id": "phase1-topic1-check6",
-      "text": "How to work with Git repositories locally",
-      "order": 6
-    },
-    {
-      "id": "phase1-topic1-check7",
-      "text": "How to engage with open source projects",
-      "order": 7
-    }
   ]
 }

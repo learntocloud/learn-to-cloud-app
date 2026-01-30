@@ -45,17 +45,17 @@ PHASE_BADGES = {
     },
     2: {
         "id": "phase_2_complete",
-        "name": "Builder",
+        "name": "Networker",
         "description": "Completed Phase 2",
-        "icon": "🔵",
-        "phase_name": "Programming & APIs",
+        "icon": "🌐",
+        "phase_name": "Networking Fundamentals",
     },
     3: {
         "id": "phase_3_complete",
-        "name": "Specialist",
+        "name": "Builder",
         "description": "Completed Phase 3",
-        "icon": "🟣",
-        "phase_name": "AI & Productivity",
+        "icon": "🔵",
+        "phase_name": "Programming & APIs",
     },
     4: {
         "id": "phase_4_complete",

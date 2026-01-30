@@ -4,7 +4,6 @@
   "name": "What is Cloud Computing",
   "description": "Cloud computing is the foundation of modern infrastructure. Learn about IaaS, PaaS, SaaS, and different service models.",
   "order": 4,
-  "estimated_time": "1-2 hours",
   "is_capstone": false,
   "learning_steps": [
     {
@@ -42,14 +41,27 @@
       ],
       "grading_rubric": "Must explain cloud computing as on-demand resources over the internet AND cover at least 3 key benefits (scalability, cost model, flexibility, managed services) AND address how it differs from traditional on-premises infrastructure.",
       "concepts": {
-        "required": ["on-demand resources", "internet-delivered", "scalability"],
-        "expected": ["pay-as-you-go", "no upfront costs", "flexibility", "managed services"],
-        "bonus": ["elasticity vs scalability", "CapEx vs OpEx", "shared responsibility model"]
+        "required": [
+          "on-demand resources",
+          "internet-delivered",
+          "scalability"
+        ],
+        "expected": [
+          "pay-as-you-go",
+          "no upfront costs",
+          "flexibility",
+          "managed services"
+        ],
+        "bonus": [
+          "elasticity vs scalability",
+          "CapEx vs OpEx",
+          "shared responsibility model"
+        ]
       }
     },
     {
       "id": "phase0-topic4-q2",
-      "prompt": "Walk me through IaaS, PaaS, and SaaS\u2014what each provides and give a real-world example of each.",
+      "prompt": "Walk me through IaaS, PaaS, and SaaS—what each provides and give a real-world example of each.",
       "scenario_seeds": [
         "Your team needs to decide between managing VMs vs using a managed platform for a new app",
         "A developer asks which cloud service type gives them the most control vs least maintenance",
@@ -57,9 +69,22 @@
       ],
       "grading_rubric": "Must correctly define all three service models (IaaS, PaaS, SaaS) AND provide at least one accurate real-world example for each AND explain the responsibility trade-offs between them.",
       "concepts": {
-        "required": ["Infrastructure as a Service", "Platform as a Service", "Software as a Service"],
-        "expected": ["virtual machines", "EC2/Azure VMs", "app hosting platforms", "Gmail/Office 365"],
-        "bonus": ["shared responsibility model", "when to choose each", "serverless as evolution of PaaS"]
+        "required": [
+          "Infrastructure as a Service",
+          "Platform as a Service",
+          "Software as a Service"
+        ],
+        "expected": [
+          "virtual machines",
+          "EC2/Azure VMs",
+          "app hosting platforms",
+          "Gmail/Office 365"
+        ],
+        "bonus": [
+          "shared responsibility model",
+          "when to choose each",
+          "serverless as evolution of PaaS"
+        ]
       }
     }
   ],
@@ -67,17 +92,5 @@
     "Can you ask me what cloud computing is and why companies use it?",
     "Can you quiz me on the differences between IaaS, PaaS, and SaaS with examples?",
     "Can you ask me to name the major cloud providers and one service each offers?"
-  ],
-  "learning_objectives": [
-    {
-      "id": "phase0-topic4-check1",
-      "text": "Understand IaaS, PaaS, and SaaS service models",
-      "order": 1
-    },
-    {
-      "id": "phase0-topic4-check2",
-      "text": "Know the major cloud providers and their core services",
-      "order": 2
-    }
   ]
 }

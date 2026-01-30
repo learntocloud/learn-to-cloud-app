@@ -1,10 +1,9 @@
 {
-  "id": "phase2-topic2",
+  "id": "phase3-topic2",
   "slug": "apis",
   "name": "REST APIs",
   "description": "In the previous topic, the recommended book introduced you to Django, so you should have some context about how REST APIs work. Now let's deepen that knowledge.",
-  "order": 2,
-  "estimated_time": "2-3 days",
+  "order": 3,
   "is_capstone": false,
   "learning_steps": [
     {
@@ -16,7 +15,7 @@
       "description": "Watch this excellent explanation by ByteByteGo on REST API fundamentals."
     },
     {
-      "order": 2,
+      "order": 3,
       "text": "Study: REST API Concepts and Examples",
       "action": "Study:",
       "title": "REST API Concepts and Examples",
@@ -34,7 +33,7 @@
   ],
   "questions": [
     {
-      "id": "phase2-topic2-q1",
+      "id": "phase3-topic2-q1",
       "prompt": "How would you explain REST APIs to a product manager, including the key principles that make them work?",
       "scenario_seeds": [
         "Your product manager asks why your team chose REST over GraphQL for the new mobile app backend. Explain REST's benefits in business terms.",
@@ -43,13 +42,27 @@
       ],
       "grading_rubric": "Must explain that REST uses HTTP and standard methods AND that it's stateless (each request contains all needed info) AND describe resources/endpoints as the core abstraction.",
       "concepts": {
-        "required": ["HTTP", "stateless", "resources", "endpoints"],
-        "expected": ["client-server", "uniform interface", "standard methods", "cacheable"],
-        "bonus": ["HATEOAS", "content negotiation", "REST vs RPC style"]
+        "required": [
+          "HTTP",
+          "stateless",
+          "resources",
+          "endpoints"
+        ],
+        "expected": [
+          "client-server",
+          "uniform interface",
+          "standard methods",
+          "cacheable"
+        ],
+        "bonus": [
+          "HATEOAS",
+          "content negotiation",
+          "REST vs RPC style"
+        ]
       }
     },
     {
-      "id": "phase2-topic2-q2",
+      "id": "phase3-topic2-q2",
       "prompt": "Walk me through the HTTP methods GET, POST, PUT, and DELETE and when you'd use each one.",
       "scenario_seeds": [
         "You're designing an API for a todo app. Map out which HTTP methods handle creating, viewing, updating, and deleting tasks.",
@@ -58,9 +71,24 @@
       ],
       "grading_rubric": "Must correctly map GET to read, POST to create, PUT to update/replace, DELETE to remove AND explain idempotency differences AND relate to CRUD operations.",
       "concepts": {
-        "required": ["GET", "POST", "PUT", "DELETE", "CRUD mapping"],
-        "expected": ["idempotent", "safe methods", "request body", "status codes"],
-        "bonus": ["PATCH vs PUT", "idempotency keys", "HTTP method semantics"]
+        "required": [
+          "GET",
+          "POST",
+          "PUT",
+          "DELETE",
+          "CRUD mapping"
+        ],
+        "expected": [
+          "idempotent",
+          "safe methods",
+          "request body",
+          "status codes"
+        ],
+        "bonus": [
+          "PATCH vs PUT",
+          "idempotency keys",
+          "HTTP method semantics"
+        ]
       }
     }
   ],
@@ -71,17 +99,5 @@
     "Can you ask me to explain the difference between PUT and POST requests in REST?",
     "Can you quiz me on how to use the HTTP methods GET, POST, PUT, and DELETE in REST?",
     "Can you ask me to explain the concept of status codes in REST and give examples?"
-  ],
-  "learning_objectives": [
-    {
-      "id": "phase2-topic2-check1",
-      "text": "Understand what APIs are and how they work",
-      "order": 1
-    },
-    {
-      "id": "phase2-topic2-check2",
-      "text": "Know the difference between REST, GraphQL, and other API styles",
-      "order": 2
-    }
   ]
 }

@@ -1,10 +1,9 @@
 {
-  "id": "phase2-topic1",
+  "id": "phase3-topic1",
   "slug": "python",
   "name": "Python Basics",
   "description": "Python is the most popular programming language in cloud engineering. Work through Python Crash Course chapter by chapter to build a solid foundation.",
   "order": 1,
-  "estimated_time": "3-4 weeks (1 chapter every 1-2 days)",
   "is_capstone": false,
   "learning_steps": [
     {
@@ -16,7 +15,7 @@
       "description": "Purchase or borrow Python Crash Course by Eric Matthes. We'll work through Part I (chapters 1-11), which covers all the Python fundamentals you need."
     },
     {
-      "order": 2,
+      "order": 3,
       "text": "Chapter 1: Getting Started",
       "action": "Read Chapter 1:",
       "title": "Getting Started",
@@ -61,7 +60,7 @@
       "action": "Read Chapter 6:",
       "title": "Dictionaries",
       "url": null,
-      "description": "Understand key-value pairs\u2014essential for working with JSON and APIs."
+      "description": "Understand key-value pairs—essential for working with JSON and APIs."
     },
     {
       "order": 8,
@@ -101,7 +100,7 @@
       "action": "Read Chapter 11:",
       "title": "Testing Your Code",
       "url": null,
-      "description": "Write tests with pytest\u2014a professional skill that catches bugs early."
+      "description": "Write tests with pytest—a professional skill that catches bugs early."
     },
     {
       "order": 13,
@@ -109,12 +108,20 @@
       "action": "Watch:",
       "title": "CS50 Lecture on Python",
       "url": "https://youtu.be/LfaMVlDaQ24?feature=shared&t=49364",
-      "description": "Harvard's CS50 lecture on Python. Everything should make sense\u2014if not, revisit the relevant chapters."
+      "description": "Harvard's CS50 lecture on Python. Everything should make sense—if not, revisit the relevant chapters."
+    },
+    {
+      "order": 14,
+      "text": "Networking Refresher: Python HTTP Client",
+      "action": "Practice:",
+      "title": "Build a Simple HTTP Client",
+      "url": null,
+      "description": "Reinforce your Phase 2 networking knowledge: write a Python script using the requests library to fetch data from an API, inspect response headers and status codes, and handle connection errors gracefully. This connects Python to the HTTP concepts you learned earlier."
     }
   ],
   "questions": [
     {
-      "id": "phase2-topic1-q1",
+      "id": "phase3-topic1-q1",
       "prompt": "How would you explain the difference between a list and a dictionary to a junior developer, and when would you choose each?",
       "scenario_seeds": [
         "You're reviewing a junior developer's code and notice they're using a list to store user settings by index position. Help them understand when a dictionary would be better.",
@@ -123,13 +130,27 @@
       ],
       "grading_rubric": "Must explain that lists are ordered sequences accessed by index AND dictionaries are key-value pairs for fast lookups AND provide clear use cases for when each is appropriate.",
       "concepts": {
-        "required": ["list", "dictionary", "key-value", "index"],
-        "expected": ["ordered", "lookup speed", "sequence", "unique keys"],
-        "bonus": ["O(1) vs O(n) lookup", "hashable keys", "memory considerations"]
+        "required": [
+          "list",
+          "dictionary",
+          "key-value",
+          "index"
+        ],
+        "expected": [
+          "ordered",
+          "lookup speed",
+          "sequence",
+          "unique keys"
+        ],
+        "bonus": [
+          "O(1) vs O(n) lookup",
+          "hashable keys",
+          "memory considerations"
+        ]
       }
     },
     {
-      "id": "phase2-topic1-q2",
+      "id": "phase3-topic1-q2",
       "prompt": "Walk me through exception handling in Python and why try/except is important for production code.",
       "scenario_seeds": [
         "Your API is crashing in production whenever users submit invalid JSON. Explain how to handle this gracefully.",
@@ -138,81 +159,28 @@
       ],
       "grading_rubric": "Must explain try/except syntax AND why catching specific exceptions is better than bare except AND demonstrate understanding of graceful failure vs crashing.",
       "concepts": {
-        "required": ["try", "except", "exception types", "graceful handling"],
-        "expected": ["specific exceptions", "error messages", "finally block", "logging errors"],
-        "bonus": ["custom exceptions", "exception chaining", "context managers"]
+        "required": [
+          "try",
+          "except",
+          "exception types",
+          "graceful handling"
+        ],
+        "expected": [
+          "specific exceptions",
+          "error messages",
+          "finally block",
+          "logging errors"
+        ],
+        "bonus": [
+          "custom exceptions",
+          "exception chaining",
+          "context managers"
+        ]
       }
     }
   ],
   "test_knowledge_prompts": [
     "Can you quiz me on lists vs dictionaries?",
     "Can you ask me about exception handling?"
-  ],
-  "learning_objectives": [
-    {
-      "id": "phase2-topic1-check1",
-      "text": "Get Python Crash Course book",
-      "order": 1
-    },
-    {
-      "id": "phase2-topic1-check2",
-      "text": "Chapter 1: Environment setup",
-      "order": 2
-    },
-    {
-      "id": "phase2-topic1-check3",
-      "text": "Chapter 2: Variables and data types",
-      "order": 3
-    },
-    {
-      "id": "phase2-topic1-check4",
-      "text": "Chapter 3: Introducing lists",
-      "order": 4
-    },
-    {
-      "id": "phase2-topic1-check5",
-      "text": "Chapter 4: Working with lists",
-      "order": 5
-    },
-    {
-      "id": "phase2-topic1-check6",
-      "text": "Chapter 5: if statements",
-      "order": 6
-    },
-    {
-      "id": "phase2-topic1-check7",
-      "text": "Chapter 6: Dictionaries",
-      "order": 7
-    },
-    {
-      "id": "phase2-topic1-check8",
-      "text": "Chapter 7: Input and while loops",
-      "order": 8
-    },
-    {
-      "id": "phase2-topic1-check9",
-      "text": "Chapter 8: Functions",
-      "order": 9
-    },
-    {
-      "id": "phase2-topic1-check10",
-      "text": "Chapter 9: Classes",
-      "order": 10
-    },
-    {
-      "id": "phase2-topic1-check11",
-      "text": "Chapter 10: Files and exceptions",
-      "order": 11
-    },
-    {
-      "id": "phase2-topic1-check12",
-      "text": "Chapter 11: Testing",
-      "order": 12
-    },
-    {
-      "id": "phase2-topic1-check13",
-      "text": "CS50 Python lecture",
-      "order": 13
-    }
   ]
 }

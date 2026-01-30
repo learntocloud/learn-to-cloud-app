@@ -4,7 +4,6 @@
   "name": "Virtual Machines & Compute Services",
   "description": "Virtualization and compute services are fundamental to cloud engineering, enabling scalable and flexible infrastructure. In this topic, you will focus on deploying virtual machines on various cloud providers (such as AWS, Azure, and GCP).",
   "order": 1,
-  "estimated_time": "2-3 days",
   "is_capstone": false,
   "learning_steps": [
     {
@@ -28,10 +27,10 @@
       "text": "Instance Types & OS Selection",
       "action": "Study Instance Types & OS Selection:",
       "url": null,
-      "description": "Learn to choose the right VM specs (CPU, RAM, storage) based on workload requirements. Different instance types are optimized for:\n\n\u2022 General purpose - balanced compute, memory, networking\n\u2022 Compute optimized - CPU-intensive workloads\n\u2022 Memory optimized - large datasets in memory\n\u2022 Storage optimized - high sequential read/write"
+      "description": "Learn to choose the right VM specs (CPU, RAM, storage) based on workload requirements. Different instance types are optimized for:\n\n• General purpose - balanced compute, memory, networking\n• Compute optimized - CPU-intensive workloads\n• Memory optimized - large datasets in memory\n• Storage optimized - high sequential read/write"
     },
     {
-      "order": 4,
+      "order": 5,
       "text": "Deploy a VM on your cloud provider",
       "action": "Deploy a VM on your cloud provider:",
       "url": null,
@@ -76,9 +75,22 @@
       ],
       "grading_rubric": "Must explain the hypervisor's role in abstracting hardware AND describe how multiple VMs share physical resources AND address the benefits of isolation between workloads.",
       "concepts": {
-        "required": ["hypervisor", "virtual machine", "hardware abstraction"],
-        "expected": ["isolation", "multiple VMs on one server", "resource sharing", "efficiency"],
-        "bonus": ["Type 1 vs Type 2 hypervisors", "live migration", "overcommitment"]
+        "required": [
+          "hypervisor",
+          "virtual machine",
+          "hardware abstraction"
+        ],
+        "expected": [
+          "isolation",
+          "multiple VMs on one server",
+          "resource sharing",
+          "efficiency"
+        ],
+        "bonus": [
+          "Type 1 vs Type 2 hypervisors",
+          "live migration",
+          "overcommitment"
+        ]
       }
     },
     {
@@ -91,9 +103,24 @@
       ],
       "grading_rubric": "Must identify key resource dimensions (CPU, memory, storage, network) AND explain how workload characteristics map to instance families AND address cost considerations in the decision.",
       "concepts": {
-        "required": ["CPU", "memory", "workload requirements", "instance families"],
-        "expected": ["general purpose", "compute optimized", "memory optimized", "storage optimized", "cost-performance tradeoff"],
-        "bonus": ["benchmarking before production", "burstable instances", "right-sizing over time"]
+        "required": [
+          "CPU",
+          "memory",
+          "workload requirements",
+          "instance families"
+        ],
+        "expected": [
+          "general purpose",
+          "compute optimized",
+          "memory optimized",
+          "storage optimized",
+          "cost-performance tradeoff"
+        ],
+        "bonus": [
+          "benchmarking before production",
+          "burstable instances",
+          "right-sizing over time"
+        ]
       }
     }
   ],
@@ -103,17 +130,5 @@
     "Can you quiz me on the difference between Virtualization and Compute Services?",
     "Can you compare the compute services provided by AWS, Azure, and GCP?",
     "Can you explain what a hypervisor is, how it works, and why it is essential for virtualization?"
-  ],
-  "learning_objectives": [
-    {
-      "id": "phase4-topic1-check1",
-      "text": "How to deploy a virtual machine on your cloud provider",
-      "order": 1
-    },
-    {
-      "id": "phase4-topic1-check2",
-      "text": "How to verify and access your running VM",
-      "order": 2
-    }
   ]
 }

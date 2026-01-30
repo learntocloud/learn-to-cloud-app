@@ -1,10 +1,9 @@
 {
-  "id": "phase2-topic3",
+  "id": "phase3-topic3",
   "slug": "fastapi",
   "name": "FastAPI",
   "description": "FastAPI is a modern, fast (high-performance) web framework for building APIs with Python 3.6+ based on standard Python type hints. It is the framework we use to build the L2C Journal application and what you will use as well.",
   "order": 3,
-  "estimated_time": "3-4 days",
   "is_capstone": false,
   "learning_steps": [
     {
@@ -18,7 +17,7 @@
   ],
   "questions": [
     {
-      "id": "phase2-topic3-q1",
+      "id": "phase3-topic3-q1",
       "prompt": "What makes FastAPI different from other Python web frameworks, and why would you choose it?",
       "scenario_seeds": [
         "Your team is starting a new microservice and debating between Flask, Django, and FastAPI. Make the case for FastAPI.",
@@ -27,13 +26,27 @@
       ],
       "grading_rubric": "Must explain automatic API documentation (Swagger/OpenAPI) AND type hints enabling validation via Pydantic AND async support for performance.",
       "concepts": {
-        "required": ["automatic documentation", "type hints", "Pydantic validation", "async"],
-        "expected": ["OpenAPI", "Swagger UI", "high performance", "modern Python"],
-        "bonus": ["Starlette foundation", "dependency injection", "standards-based"]
+        "required": [
+          "automatic documentation",
+          "type hints",
+          "Pydantic validation",
+          "async"
+        ],
+        "expected": [
+          "OpenAPI",
+          "Swagger UI",
+          "high performance",
+          "modern Python"
+        ],
+        "bonus": [
+          "Starlette foundation",
+          "dependency injection",
+          "standards-based"
+        ]
       }
     },
     {
-      "id": "phase2-topic3-q2",
+      "id": "phase3-topic3-q2",
       "prompt": "Walk me through how path parameters and query parameters work in FastAPI and when you'd use each.",
       "scenario_seeds": [
         "You're building an API endpoint to get a specific user's orders with optional date filtering. Design the URL structure.",
@@ -42,9 +55,23 @@
       ],
       "grading_rubric": "Must explain path parameters are part of the URL for identifying resources AND query parameters are optional for filtering/pagination AND show how FastAPI extracts both from function arguments.",
       "concepts": {
-        "required": ["path parameter", "query parameter", "URL structure", "function arguments"],
-        "expected": ["type annotations", "default values", "optional parameters", "resource identification"],
-        "bonus": ["Query class for validation", "Path class for constraints", "OpenAPI parameter documentation"]
+        "required": [
+          "path parameter",
+          "query parameter",
+          "URL structure",
+          "function arguments"
+        ],
+        "expected": [
+          "type annotations",
+          "default values",
+          "optional parameters",
+          "resource identification"
+        ],
+        "bonus": [
+          "Query class for validation",
+          "Path class for constraints",
+          "OpenAPI parameter documentation"
+        ]
       }
     }
   ],
@@ -56,27 +83,5 @@
     "Can you quiz me on how to use dependency injection in FastAPI?",
     "Can you ask me to explain how to use Pydantic models in FastAPI?",
     "Can you ask me to explain how to use FastAPI with asynchronous code?"
-  ],
-  "learning_objectives": [
-    {
-      "id": "phase2-topic3-check1",
-      "text": "How to create a FastAPI application with basic endpoints",
-      "order": 1
-    },
-    {
-      "id": "phase2-topic3-check2",
-      "text": "How to use path and query parameters",
-      "order": 2
-    },
-    {
-      "id": "phase2-topic3-check3",
-      "text": "How to use Pydantic models for request/response validation",
-      "order": 3
-    },
-    {
-      "id": "phase2-topic3-check4",
-      "text": "How to test endpoints using Swagger UI (/docs)",
-      "order": 4
-    }
   ]
 }
