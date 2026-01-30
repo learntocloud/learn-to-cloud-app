@@ -118,6 +118,7 @@ def _to_hands_on_submission_data(submission: Submission) -> HandsOnSubmissionRes
         is_validated=submission.is_validated,
         validated_at=submission.validated_at,
         created_at=submission.created_at,
+        feedback_json=submission.feedback_json,
     )
 
 

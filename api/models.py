@@ -127,6 +127,7 @@ class SubmissionType(str, PyEnum):
 
     # Phase 2: Journal API implementation
     JOURNAL_API_RESPONSE = "journal_api_response"
+    CODE_ANALYSIS = "code_analysis"
 
 
 class Submission(TimestampMixin, Base):
@@ -174,6 +175,12 @@ class Submission(TimestampMixin, Base):
         DateTime(timezone=True),
         nullable=True,
     )
+    # True when verification logic actually ran (not blocked by server error).
+    # Used for cooldown calculations - only count completed verification attempts.
+    verification_completed: Mapped[bool] = mapped_column(Boolean, default=False)
+    # JSON-serialized task feedback for CODE_ANALYSIS submissions
+    # Stores list of TaskResult dicts so feedback persists across page reloads
+    feedback_json: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     user: Mapped["User"] = relationship(back_populates="submissions")
 

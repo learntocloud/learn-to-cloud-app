@@ -81,6 +81,7 @@ class HandsOnRequirement(FrozenModel):
     name: str
     description: str
     example_url: str | None = None
+    note: str | None = None  # Optional note displayed separately (e.g., cooldown info)
 
     # For REPO_FORK: the original repo to verify fork from
     required_repo: str | None = None
@@ -120,6 +121,7 @@ class HandsOnSubmissionResponse(FrozenORMModel):
     is_validated: bool
     validated_at: datetime | None = None
     created_at: datetime
+    feedback_json: str | None = None  # JSON-serialized task results
 
 
 class HandsOnValidationResult(FrozenModel):
@@ -130,6 +132,8 @@ class HandsOnValidationResult(FrozenModel):
     username_match: bool | None = None
     repo_exists: bool | None = None
     submission: HandsOnSubmissionResponse | None = None
+    task_results: list["TaskResult"] | None = None
+    next_retry_at: str | None = None  # ISO timestamp when retry is allowed
 
 
 # =============================================================================
@@ -1048,6 +1052,7 @@ class SubmissionData(FrozenModel):
     extracted_username: str | None = None
     is_validated: bool
     validated_at: datetime | None = None
+    verification_completed: bool = True
     created_at: datetime
 
 
@@ -1059,11 +1064,23 @@ class SubmissionResult(FrozenModel):
     message: str
     username_match: bool | None = None
     repo_exists: bool | None = None
+    task_results: list["TaskResult"] | None = None
 
 
 # =============================================================================
 # Validation Result Schema
 # =============================================================================
+
+
+class TaskResult(FrozenModel):
+    """Result of verifying a single task in code analysis.
+
+    Used by CODE_ANALYSIS validation to provide detailed per-task feedback.
+    """
+
+    task_name: str
+    passed: bool
+    feedback: str
 
 
 class ValidationResult(FrozenModel):
@@ -1078,12 +1095,19 @@ class ValidationResult(FrozenModel):
             URL matches the authenticated user. None for non-GitHub validations.
         repo_exists: For GitHub-based validations, whether the repository
             exists. None for non-GitHub validations.
+        task_results: For CODE_ANALYSIS validations, detailed per-task feedback.
+            None for non-code-analysis validations.
+        server_error: True if validation failed due to a server-side issue
+            (e.g., service unavailable, config error). When True, cooldowns
+            should not be applied since the user isn't at fault.
     """
 
     is_valid: bool
     message: str
     username_match: bool | None = None
     repo_exists: bool | None = None
+    task_results: list[TaskResult] | None = None
+    server_error: bool = False
 
 
 # =============================================================================

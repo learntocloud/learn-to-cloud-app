@@ -28,12 +28,20 @@ export interface Submission {
   created_at: string;
 }
 
+export interface TaskResult {
+  task_name: string;
+  passed: boolean;
+  feedback: string;
+}
+
 export interface GitHubValidationResult {
   is_valid: boolean;
   message: string;
   username_match: boolean;
   repo_exists: boolean;
   submission: Submission | null;
+  task_results?: TaskResult[] | null;
+  next_retry_at?: string | null;
 }
 
 export interface TopicStepProgress {

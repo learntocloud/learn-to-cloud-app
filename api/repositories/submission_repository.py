@@ -48,11 +48,19 @@ class SubmissionRepository:
         submitted_value: str,
         extracted_username: str | None,
         is_validated: bool,
+        verification_completed: bool = True,
+        feedback_json: str | None = None,
     ) -> Submission:
         """Create or update a submission.
 
         Uses upsert to handle concurrent submissions safely.
         Returns the created/updated submission.
+
+        Args:
+            verification_completed: Whether the verification logic actually ran.
+                Set to False when blocked by server errors (e.g., Copilot CLI down).
+                Only completed verifications count toward cooldowns.
+            feedback_json: JSON-serialized task feedback for CODE_ANALYSIS submissions.
 
         Raises:
             ValueError: If update_fields contains keys not in values.
@@ -69,6 +77,8 @@ class SubmissionRepository:
             "extracted_username": extracted_username,
             "is_validated": is_validated,
             "validated_at": now if is_validated else None,
+            "verification_completed": verification_completed,
+            "feedback_json": feedback_json,
             "updated_at": now,
         }
 
@@ -85,6 +95,8 @@ class SubmissionRepository:
                 "extracted_username",
                 "is_validated",
                 "validated_at",
+                "verification_completed",
+                "feedback_json",
                 "updated_at",
             ],
             returning=True,
@@ -94,3 +106,35 @@ class SubmissionRepository:
         if submission is None:
             raise RuntimeError("Upsert with returning=True returned no row")
         return submission
+
+    async def get_last_submission_time(
+        self,
+        user_id: str,
+        requirement_id: str,
+    ) -> datetime | None:
+        """Get the timestamp of the user's most recent completed verification.
+
+        Used to enforce cooldown periods between verification attempts.
+        Only considers submissions where verification actually ran (not blocked
+        by server errors), so users aren't penalized for infrastructure issues.
+
+        Args:
+            user_id: The user's ID
+            requirement_id: The requirement ID to check
+
+        Returns:
+            The updated_at timestamp of the last completed verification,
+            or None if no completed verification exists.
+        """
+        result = await self.db.execute(
+            select(Submission.updated_at)
+            .where(
+                Submission.user_id == user_id,
+                Submission.requirement_id == requirement_id,
+                Submission.verification_completed.is_(True),
+            )
+            .order_by(Submission.updated_at.desc())
+            .limit(1)
+        )
+        row = result.scalar_one_or_none()
+        return row

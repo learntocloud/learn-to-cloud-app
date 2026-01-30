@@ -180,6 +180,7 @@ export interface HandsOnRequirement {
   name: string;
   description: string;
   example_url: string | null;
+  note: string | null;
 }
 
 export interface HandsOnSubmission {
@@ -192,6 +193,7 @@ export interface HandsOnSubmission {
   is_validated: boolean;
   validated_at: string | null;
   created_at: string;
+  feedback_json: string | null;
 }
 
 interface PhaseDetailSchema {
