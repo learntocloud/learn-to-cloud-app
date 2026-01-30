@@ -1,10 +1,11 @@
 """GitHub Copilot CLI client infrastructure.
 
 This module provides connection management for the GitHub Copilot SDK,
-which communicates with the Copilot CLI server via JSON-RPC.
+which communicates with the Copilot CLI via JSON-RPC.
 
-The CLI runs as a sidecar container in production, exposing a server
-that handles AI-powered code analysis requests.
+Supports two modes:
+  1. Stdio mode (local dev): SDK manages CLI process lifecycle via stdin/stdout
+  2. HTTP mode (production): CLI runs as sidecar, SDK connects via HTTP
 
 For business logic using this client, see services/copilot_verification_service.py
 """
@@ -36,11 +37,13 @@ class CopilotClientError(Exception):
 async def get_copilot_client() -> "CopilotClient":
     """Get or create a shared Copilot client instance.
 
-    The client connects to the Copilot CLI server specified by copilot_cli_url.
-    Uses lazy initialization with lock to prevent race conditions.
+    The client connects to the Copilot CLI server in one of two modes:
+      - Stdio mode: SDK starts and manages CLI process (copilot_cli_path set)
+      - HTTP mode: Connect to external CLI sidecar (copilot_cli_url set)
 
     Raises:
-        CopilotClientError: If CLI URL is not configured or connection fails.
+        CopilotClientError: If neither CLI path nor URL is configured,
+            or if connection fails.
     """
     global _copilot_client
 
@@ -54,10 +57,11 @@ async def get_copilot_client() -> "CopilotClient":
 
         settings = get_settings()
 
-        if not settings.copilot_cli_url:
+        # Validate configuration
+        if not settings.copilot_cli_path and not settings.copilot_cli_url:
             raise CopilotClientError(
-                "Copilot CLI URL not configured. "
-                "Set COPILOT_CLI_URL environment variable.",
+                "Copilot CLI not configured. "
+                "Set COPILOT_CLI_PATH (local) or COPILOT_CLI_URL (sidecar).",
                 retriable=False,
             )
 
@@ -65,17 +69,26 @@ async def get_copilot_client() -> "CopilotClient":
             from copilot import CopilotClient
             from copilot.types import CopilotClientOptions
 
-            options = CopilotClientOptions(
-                cli_url=settings.copilot_cli_url,
-                auto_start=False,  # CLI runs as external sidecar
-            )
+            # Stdio mode: SDK manages CLI process
+            if settings.copilot_cli_path:
+                options = CopilotClientOptions(
+                    cli_path=settings.copilot_cli_path,
+                    use_stdio=True,
+                    auto_start=True,  # SDK starts CLI process
+                )
+                log_detail = {"mode": "stdio", "cli_path": settings.copilot_cli_path}
+            # HTTP mode: Connect to external sidecar
+            else:
+                options = CopilotClientOptions(
+                    cli_url=settings.copilot_cli_url,
+                    auto_start=False,  # CLI runs externally
+                )
+                log_detail = {"mode": "http", "cli_url": settings.copilot_cli_url}
+
             _copilot_client = CopilotClient(options)
             await _copilot_client.start()
 
-            logger.info(
-                "copilot.client.connected",
-                cli_url=settings.copilot_cli_url,
-            )
+            logger.info("copilot.client.connected", **log_detail)
 
             return _copilot_client
 
@@ -86,13 +99,18 @@ async def get_copilot_client() -> "CopilotClient":
                 retriable=False,
             ) from e
         except Exception as e:
+            log_info = (
+                {"cli_path": settings.copilot_cli_path}
+                if settings.copilot_cli_path
+                else {"cli_url": settings.copilot_cli_url}
+            )
             logger.error(
                 "copilot.client.connection_failed",
-                cli_url=settings.copilot_cli_url,
+                **log_info,
                 error=str(e),
             )
             raise CopilotClientError(
-                f"Failed to connect to Copilot CLI server: {e}",
+                f"Failed to connect to Copilot CLI: {e}",
                 retriable=True,
             ) from e
 

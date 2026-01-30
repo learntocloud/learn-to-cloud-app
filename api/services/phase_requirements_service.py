@@ -94,12 +94,10 @@ HANDS_ON_REQUIREMENTS: dict[int, list[HandsOnRequirement]] = {
             name="Journal API Implementation",
             description=(
                 "Complete all required tasks in your Journal Starter fork and submit "
-                "your repository URL for AI-powered code verification. "
-                "Required tasks: logging setup, GET/DELETE endpoints, AI analysis "
-                "endpoint, and cloud CLI configuration. "
-                "Note: You can only verify once per hour."
+                "your repository URL for code verification."
             ),
             example_url="https://github.com/madebygps/journal-starter",
+            note="You can only verify once per hour.",
         ),
     ],
 }

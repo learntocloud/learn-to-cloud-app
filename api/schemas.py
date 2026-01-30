@@ -81,6 +81,7 @@ class HandsOnRequirement(FrozenModel):
     name: str
     description: str
     example_url: str | None = None
+    note: str | None = None  # Optional note displayed separately (e.g., cooldown info)
 
     # For REPO_FORK: the original repo to verify fork from
     required_repo: str | None = None
@@ -120,6 +121,7 @@ class HandsOnSubmissionResponse(FrozenORMModel):
     is_validated: bool
     validated_at: datetime | None = None
     created_at: datetime
+    feedback_json: str | None = None  # JSON-serialized task results
 
 
 class HandsOnValidationResult(FrozenModel):
@@ -131,6 +133,7 @@ class HandsOnValidationResult(FrozenModel):
     repo_exists: bool | None = None
     submission: HandsOnSubmissionResponse | None = None
     task_results: list["TaskResult"] | None = None
+    next_retry_at: str | None = None  # ISO timestamp when retry is allowed
 
 
 # =============================================================================

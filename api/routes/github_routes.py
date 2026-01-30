@@ -1,15 +1,19 @@
 """GitHub submission endpoints."""
 
+from datetime import UTC, datetime, timedelta
+
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
 
 from core.auth import UserId
+from core.config import get_settings
 from core.database import DbSession
 from core.ratelimit import EXTERNAL_API_LIMIT, limiter
 from schemas import (
     HandsOnSubmissionRequest,
     HandsOnSubmissionResponse,
     HandsOnValidationResult,
+    SubmissionType,
 )
 from services.submissions_service import (
     CooldownActiveError,
@@ -62,6 +66,11 @@ async def submit_github_validation(
             headers={"Retry-After": str(e.retry_after_seconds)},
         )
 
+    # Calculate next retry time for CODE_ANALYSIS submissions
+    next_retry = None
+    if result.task_results:
+        next_retry = _get_next_retry_at(result.submission)
+
     return HandsOnValidationResult(
         is_valid=result.is_valid,
         message=result.message,
@@ -69,4 +78,18 @@ async def submit_github_validation(
         repo_exists=result.repo_exists or False,
         submission=HandsOnSubmissionResponse.model_validate(result.submission),
         task_results=result.task_results,
+        next_retry_at=next_retry,
     )
+
+
+def _get_next_retry_at(submission: HandsOnSubmissionResponse | None) -> str | None:
+    """Calculate when retry is allowed for CODE_ANALYSIS submissions."""
+    if not submission:
+        return None
+    if submission.submission_type != SubmissionType.CODE_ANALYSIS:
+        return None
+
+    settings = get_settings()
+    cooldown_seconds = settings.code_analysis_cooldown_seconds
+    retry_at = datetime.now(UTC) + timedelta(seconds=cooldown_seconds)
+    return retry_at.isoformat()

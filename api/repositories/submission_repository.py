@@ -49,6 +49,7 @@ class SubmissionRepository:
         extracted_username: str | None,
         is_validated: bool,
         verification_completed: bool = True,
+        feedback_json: str | None = None,
     ) -> Submission:
         """Create or update a submission.
 
@@ -59,6 +60,7 @@ class SubmissionRepository:
             verification_completed: Whether the verification logic actually ran.
                 Set to False when blocked by server errors (e.g., Copilot CLI down).
                 Only completed verifications count toward cooldowns.
+            feedback_json: JSON-serialized task feedback for CODE_ANALYSIS submissions.
 
         Raises:
             ValueError: If update_fields contains keys not in values.
@@ -76,6 +78,7 @@ class SubmissionRepository:
             "is_validated": is_validated,
             "validated_at": now if is_validated else None,
             "verification_completed": verification_completed,
+            "feedback_json": feedback_json,
             "updated_at": now,
         }
 
@@ -93,6 +96,7 @@ class SubmissionRepository:
                 "is_validated",
                 "validated_at",
                 "verification_completed",
+                "feedback_json",
                 "updated_at",
             ],
             returning=True,

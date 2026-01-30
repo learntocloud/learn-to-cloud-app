@@ -196,11 +196,14 @@ def _build_verification_prompt(owner: str, repo: str) -> str:
         Structured prompt for code analysis
     """
     tasks_description = "\n\n".join(
-        f"**Task: {task['name']}**\n"
+        f"**Task ID: `{task['id']}`** - {task['name']}\n"
         f"File(s): {task.get('file', ', '.join(task.get('files', [])))}\n"
         f"Criteria:\n" + "\n".join(f"  - {c}" for c in task["criteria"])
         for task in PHASE2_TASKS
     )
+
+    # Build the exact task_id list for the response format
+    task_ids = [task["id"] for task in PHASE2_TASKS]
 
     return f"""You are a code reviewer for the Learn to Cloud Journal API \
 capstone project.
@@ -222,6 +225,8 @@ then evaluate against the criteria.
 
 ## Response Format
 
+CRITICAL: Use EXACTLY these task_id values: {task_ids}
+
 You MUST respond with valid JSON in exactly this format:
 ```json
 {{
@@ -235,12 +240,27 @@ You MUST respond with valid JSON in exactly this format:
       "task_id": "get-single-entry",
       "passed": false,
       "feedback": "GET endpoint exists but missing 404 handling."
+    }},
+    {{
+      "task_id": "delete-entry",
+      "passed": false,
+      "feedback": "..."
+    }},
+    {{
+      "task_id": "ai-analysis",
+      "passed": false,
+      "feedback": "..."
+    }},
+    {{
+      "task_id": "cloud-cli-setup",
+      "passed": false,
+      "feedback": "..."
     }}
   ]
 }}
 ```
 
-Include ALL 5 tasks in your response. Be specific in feedback to help learners.
+Include ALL 5 tasks with the EXACT task_id values shown above. Be specific in feedback.
 """
 
 
@@ -453,7 +473,7 @@ async def _analyze_with_copilot(
 
     # Create session with tool
     config = SessionConfig(
-        model="claude-sonnet-4",  # Use Claude Sonnet as available model
+        model="gpt-5-mini",  # Free tier, supports structured outputs
         tools=[file_tool],
     )
     session = await client.create_session(config)

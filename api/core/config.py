@@ -47,9 +47,12 @@ class Settings(BaseSettings):
 
     http_timeout: float = 10.0
 
-    # Copilot CLI server configuration for AI-powered code verification
-    # The CLI runs as a sidecar container in production, connecting via JSON-RPC
-    copilot_cli_url: str = ""  # e.g., "localhost:8080" or "http://127.0.0.1:8080"
+    # Copilot CLI configuration for AI-powered code verification
+    # Two modes:
+    #   1. Stdio mode (local dev): Set COPILOT_CLI_PATH to CLI binary
+    #   2. HTTP mode (production): Set COPILOT_CLI_URL to sidecar URL
+    copilot_cli_path: str = ""  # Path to CLI binary for stdio mode
+    copilot_cli_url: str = ""  # URL for HTTP mode (e.g., "http://127.0.0.1:8080")
     copilot_cli_timeout: int = 120  # Seconds to wait for code analysis completion
     code_analysis_cooldown_seconds: int = 3600  # 1 hour between verification attempts
 

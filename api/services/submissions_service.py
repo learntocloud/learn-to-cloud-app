@@ -8,6 +8,7 @@ This module handles:
 Routes should delegate submission business logic to this module.
 """
 
+import json
 from datetime import UTC, datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -153,6 +154,13 @@ async def submit_validation(
     # Only completed verifications count toward cooldowns.
     verification_completed = not validation_result.server_error
 
+    # Serialize task results for persistence (CODE_ANALYSIS submissions)
+    feedback_json = None
+    if validation_result.task_results:
+        feedback_json = json.dumps(
+            [t.model_dump() for t in validation_result.task_results]
+        )
+
     if validation_result.server_error:
         logger.info(
             "submission.server_error",
@@ -172,6 +180,7 @@ async def submit_validation(
         extracted_username=extracted_username,
         is_validated=validation_result.is_valid,
         verification_completed=verification_completed,
+        feedback_json=feedback_json,
     )
 
     phase = f"phase{requirement.phase_id}"
