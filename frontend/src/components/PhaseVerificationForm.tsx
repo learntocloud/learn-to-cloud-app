@@ -245,24 +245,37 @@ export function PhaseVerificationForm({
                   {submission?.submitted_value && (
                     <div className="mb-2 text-sm">
                       <span className="text-gray-500 dark:text-gray-400">Submitted: </span>
-                      <a
-                        href={submission.submitted_value}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-600 dark:text-blue-400 hover:underline"
-                      >
-                        {submission.submitted_value}
-                      </a>
+                      {req.submission_type === 'ctf_token' || req.submission_type === 'networking_token' ? (
+                        <span
+                          className="text-gray-700 dark:text-gray-300 font-mono text-xs break-all"
+                          title={submission.submitted_value}
+                        >
+                          {submission.submitted_value.length > 60
+                            ? `${submission.submitted_value.slice(0, 60)}...`
+                            : submission.submitted_value}
+                        </span>
+                      ) : (
+                        <a
+                          href={submission.submitted_value}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 dark:text-blue-400 hover:underline break-all"
+                        >
+                          {submission.submitted_value}
+                        </a>
+                      )}
                     </div>
                   )}
 
                   <div className="flex gap-2">
                     <label htmlFor={`url-${req.id}`} className="sr-only">
-                      GitHub repository URL for {req.name}
+                      {req.submission_type === 'ctf_token' || req.submission_type === 'networking_token'
+                        ? `Completion token for ${req.name}`
+                        : `GitHub repository URL for ${req.name}`}
                     </label>
                     <input
                       id={`url-${req.id}`}
-                      type="url"
+                      type={req.submission_type === 'ctf_token' || req.submission_type === 'networking_token' ? 'text' : 'url'}
                       value={urls[req.id] || ''}
                       onChange={(e) => {
                         setUrls((prev) => ({ ...prev, [req.id]: e.target.value }));
@@ -273,7 +286,11 @@ export function PhaseVerificationForm({
                           });
                         }
                       }}
-                      placeholder="https://github.com/username/repo"
+                      placeholder={
+                        req.submission_type === 'ctf_token' || req.submission_type === 'networking_token'
+                          ? 'Paste your completion token here'
+                          : 'https://github.com/username/repo'
+                      }
                       className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       disabled={submitMutation.isPending}
                       aria-describedby={validationMsg ? `msg-${req.id}` : undefined}

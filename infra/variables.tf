@@ -29,7 +29,7 @@ variable "google_api_key" {
   sensitive   = true
 }
 
-variable "ctf_master_secret" {
+variable "labs_verification_secret" {
   description = "CTF master secret for flag generation"
   type        = string
   sensitive   = true

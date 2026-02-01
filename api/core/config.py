@@ -43,7 +43,7 @@ class Settings(BaseSettings):
     gemini_model: str = "gemini-2.0-flash"
 
     # CTF secret - must be set via env var in non-development environments
-    ctf_master_secret: str = ""
+    labs_verification_secret: str = ""
 
     http_timeout: float = 10.0
 
@@ -94,9 +94,9 @@ class Settings(BaseSettings):
             )
 
         # Require CTF secret in production
-        if self.environment != "development" and not self.ctf_master_secret:
+        if self.environment != "development" and not self.labs_verification_secret:
             raise ValueError(
-                "CTF_MASTER_SECRET must be set in non-development environments."
+                "LABS_VERIFICATION_SECRET must be set in non-development environments."
             )
         return self
 

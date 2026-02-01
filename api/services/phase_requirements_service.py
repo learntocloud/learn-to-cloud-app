@@ -75,14 +75,26 @@ HANDS_ON_REQUIREMENTS: dict[int, list[HandsOnRequirement]] = {
     ],
     2: [
         HandsOnRequirement(
-            id="phase2-troubleshooting-report",
+            id="phase2-networking-lab-fork",
             phase_id=2,
-            submission_type=SubmissionType.FREE_TEXT,
-            name="Network Troubleshooting Report",
+            submission_type=SubmissionType.REPO_FORK,
+            name="Networking Lab Repository Fork",
             description=(
-                "Complete the Network Troubleshooting Lab and submit a report "
-                "documenting at least 3 issues you diagnosed, the commands you used, "
-                "and how you fixed each problem."
+                "Fork the Networking Lab repository to complete the hands-on "
+                "troubleshooting challenges."
+            ),
+            example_url="https://github.com/madebygps/networking-lab",
+            required_repo="learntocloud/networking-lab",
+        ),
+        HandsOnRequirement(
+            id="phase2-networking-lab-token",
+            phase_id=2,
+            submission_type=SubmissionType.NETWORKING_TOKEN,
+            name="Networking Lab Completion Token",
+            description=(
+                "Complete all 4 network incidents in the Networking Lab and submit "
+                "your verification token. The token is generated after "
+                "resolving all incidents using the validate.sh script."
             ),
             example_url=None,
         ),

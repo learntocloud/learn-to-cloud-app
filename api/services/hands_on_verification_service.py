@@ -30,6 +30,7 @@ from services.github_hands_on_verification_service import (
     validate_profile_readme,
     validate_repo_fork,
 )
+from services.networking_lab_service import verify_networking_token
 from services.phase_requirements_service import (
     HANDS_ON_REQUIREMENTS,
     get_requirement_by_id,
@@ -64,6 +65,27 @@ def validate_ctf_token_submission(
         is_valid=ctf_result.is_valid,
         message=ctf_result.message,
         username_match=ctf_result.is_valid,
+    )
+
+
+def validate_networking_token_submission(
+    token: str, expected_username: str
+) -> ValidationResult:
+    """Validate a Networking Lab token submission.
+
+    Args:
+        token: The base64-encoded Networking Lab completion token
+        expected_username: The expected GitHub username from OAuth
+
+    Returns:
+        ValidationResult with verification status
+    """
+    result = verify_networking_token(token, expected_username)
+
+    return ValidationResult(
+        is_valid=result.is_valid,
+        message=result.message,
+        username_match=result.is_valid,
     )
 
 
@@ -133,6 +155,16 @@ async def validate_submission(
             )
         return validate_ctf_token_submission(submitted_value, expected_username)
 
+    elif requirement.submission_type == SubmissionType.NETWORKING_TOKEN:
+        if not expected_username:
+            return ValidationResult(
+                is_valid=False,
+                message="GitHub username is required for networking token validation",
+                username_match=False,
+                repo_exists=False,
+            )
+        return validate_networking_token_submission(submitted_value, expected_username)
+
     elif requirement.submission_type == SubmissionType.CODE_ANALYSIS:
         if not expected_username:
             return ValidationResult(
@@ -141,24 +173,6 @@ async def validate_submission(
                 username_match=False,
             )
         return await analyze_repository_code(submitted_value, expected_username)
-
-    elif requirement.submission_type == SubmissionType.FREE_TEXT:
-        # Free text submissions just need to meet minimum length
-        min_length = 100  # Require at least 100 characters for meaningful content
-        if len(submitted_value.strip()) < min_length:
-            return ValidationResult(
-                is_valid=False,
-                message=(
-                    f"Submission must be at least {min_length} characters. "
-                    "Please provide more detail."
-                ),
-                username_match=True,
-            )
-        return ValidationResult(
-            is_valid=True,
-            message="Submission accepted.",
-            username_match=True,
-        )
 
     else:
         return ValidationResult(

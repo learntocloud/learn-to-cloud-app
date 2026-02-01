@@ -23,7 +23,7 @@ os.environ.setdefault("CLERK_SECRET_KEY", "test_clerk_secret")
 os.environ.setdefault("CLERK_WEBHOOK_SIGNING_SECRET", "test_webhook_secret")
 os.environ.setdefault("GITHUB_TOKEN", "test_github_token")
 os.environ.setdefault("GOOGLE_API_KEY", "test_google_api_key")
-os.environ.setdefault("CTF_MASTER_SECRET", "test_ctf_secret_must_be_32_chars!")
+os.environ.setdefault("LABS_VERIFICATION_SECRET", "test_ctf_secret_must_be_32_chars!")
 
 from collections.abc import AsyncGenerator, Generator
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -67,7 +67,7 @@ def test_settings() -> Settings:
         clerk_webhook_signing_secret="test_webhook_secret",
         github_token="test_github_token",
         google_api_key="test_google_api_key",
-        ctf_master_secret="test_ctf_secret_must_be_32_chars!",
+        labs_verification_secret="test_ctf_secret_must_be_32_chars!",
         cors_allowed_origins="",
     )
 

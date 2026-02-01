@@ -41,23 +41,40 @@ def get_wide_event() -> dict[str, Any]:
 
 
 def set_wide_event_field(key: str, value: Any) -> None:
-    """Set a single field on the current wide event."""
-    _wide_event.get()[key] = value
+    """Set a single field on the current wide event.
+
+    No-op if called outside request context (e.g., CLI, background tasks, tests).
+    Telemetry should never crash the app.
+    """
+    event = get_wide_event()
+    if event:
+        event[key] = value
 
 
 def set_wide_event_fields(**kwargs: Any) -> None:
-    """Set multiple fields on the current wide event."""
-    _wide_event.get().update(kwargs)
+    """Set multiple fields on the current wide event.
+
+    No-op if called outside request context (e.g., CLI, background tasks, tests).
+    Telemetry should never crash the app.
+    """
+    event = get_wide_event()
+    if event:
+        event.update(kwargs)
 
 
 def set_wide_event_nested(category: str, **kwargs: Any) -> None:
     """Set fields in a nested category (e.g., user, payment, cart).
 
+    No-op if called outside request context (e.g., CLI, background tasks, tests).
+    Telemetry should never crash the app.
+
     Example:
         set_wide_event_nested("user", id="123", subscription="premium")
         # Results in: {"user": {"id": "123", "subscription": "premium"}}
     """
-    event = _wide_event.get()
+    event = get_wide_event()
+    if not event:
+        return
     if category not in event:
         event[category] = {}
     event[category].update(kwargs)

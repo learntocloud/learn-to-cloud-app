@@ -125,8 +125,8 @@ class SubmissionType(str, PyEnum):
     REPO_FORK = "repo_fork"
     CTF_TOKEN = "ctf_token"
 
-    # Phase 2: Networking troubleshooting report
-    FREE_TEXT = "free_text"
+    # Phase 2: Networking lab verification
+    NETWORKING_TOKEN = "networking_token"
 
     # Phase 3: Journal API implementation
     JOURNAL_API_RESPONSE = "journal_api_response"

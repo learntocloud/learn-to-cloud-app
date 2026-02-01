@@ -87,7 +87,7 @@ jobs:
           TF_VAR_clerk_webhook_signing_secret: ${{ secrets.CLERK_WEBHOOK_SIGNING_SECRET }}
           TF_VAR_clerk_publishable_key: ${{ secrets.CLERK_PUBLISHABLE_KEY }}
           TF_VAR_google_api_key: ${{ secrets.GOOGLE_API_KEY }}
-          TF_VAR_ctf_master_secret: ${{ secrets.CTF_MASTER_SECRET }}
+          TF_VAR_labs_verification_secret: ${{ secrets.LABS_VERIFICATION_SECRET }}
 
       - name: Terraform Apply
         if: github.event_name == 'push' || github.event.inputs.apply == 'true'

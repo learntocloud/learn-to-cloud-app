@@ -26,11 +26,9 @@ REQUIRED_CHALLENGES = 18
 
 def _get_master_secret() -> str:
     settings = get_settings()
-    secret = settings.ctf_master_secret
-    if settings.environment.lower() == "production" and (
-        not secret or secret == "L2C_CTF_MASTER_2024"
-    ):
-        raise RuntimeError("CTF master secret is not configured")
+    secret = settings.labs_verification_secret
+    if settings.environment.lower() == "production" and not secret:
+        raise RuntimeError("Labs verification secret is not configured")
     return secret
 
 

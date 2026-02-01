@@ -1120,6 +1120,18 @@ class CTFVerificationResult(FrozenModel):
     challenges_completed: int | None = None
 
 
+class NetworkingLabVerificationResult(FrozenModel):
+    """Result of verifying a Networking Lab completion token."""
+
+    is_valid: bool
+    message: str
+    github_username: str | None = None
+    completion_date: str | None = None
+    completion_time: str | None = None
+    challenges_completed: int | None = None
+    challenge_type: str | None = None
+
+
 # =============================================================================
 # Clerk Service Schema
 # =============================================================================

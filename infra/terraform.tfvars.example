@@ -22,7 +22,7 @@ clerk_webhook_signing_secret = "whsec_xxx"
 google_api_key = "AIzaSyxxx"
 
 # Required - CTF master secret for flag generation
-ctf_master_secret = "your-secure-random-secret"
+labs_verification_secret = "your-secure-random-secret"
 
 # Optional - Override defaults
 # location               = "centralus"

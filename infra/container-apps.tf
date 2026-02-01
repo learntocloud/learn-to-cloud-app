@@ -64,7 +64,7 @@ resource "azurerm_container_app" "api" {
 
   secret {
     name  = "ctf-master-secret"
-    value = var.ctf_master_secret
+    value = var.labs_verification_secret
   }
 
   ingress {
@@ -129,7 +129,7 @@ resource "azurerm_container_app" "api" {
       }
 
       env {
-        name        = "CTF_MASTER_SECRET"
+        name        = "LABS_VERIFICATION_SECRET"
         secret_name = "ctf-master-secret"
       }
 
