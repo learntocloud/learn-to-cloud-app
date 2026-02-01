@@ -26,6 +26,7 @@ from core.telemetry import RequestTimingMiddleware, SecurityHeadersMiddleware
 from repositories.webhook_repository import ProcessedWebhookRepository
 from routes import (
     activity_router,
+    admin_router,
     certificates_router,
     changelog_router,
     clerk_router,
@@ -210,3 +211,4 @@ app.include_router(activity_router)
 app.include_router(certificates_router)
 app.include_router(changelog_router)
 app.include_router(steps_router)
+app.include_router(admin_router)

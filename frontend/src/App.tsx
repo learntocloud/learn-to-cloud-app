@@ -17,6 +17,7 @@ const SignInPage = lazy(() => import('./pages/SignInPage').then(m => ({ default:
 const SignUpPage = lazy(() => import('./pages/SignUpPage').then(m => ({ default: m.SignUpPage })));
 const ProfileRedirect = lazy(() => import('./pages/ProfileRedirect').then(m => ({ default: m.ProfileRedirect })));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage').then(m => ({ default: m.NotFoundPage })));
+const AdminTrendsPage = lazy(() => import('./pages/AdminTrendsPage').then(m => ({ default: m.AdminTrendsPage })));
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return (
@@ -74,6 +75,14 @@ export function App() {
             element={
               <ProtectedRoute>
                 <CertificatesPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/trends"
+            element={
+              <ProtectedRoute>
+                <AdminTrendsPage />
               </ProtectedRoute>
             }
           />

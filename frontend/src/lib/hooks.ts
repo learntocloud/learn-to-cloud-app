@@ -200,3 +200,36 @@ export function useVerifyCertificate(code: string) {
     enabled: !!code,
   });
 }
+
+export function useTrends(days: number = 30) {
+  const api = useApi();
+  return useQuery({
+    queryKey: ['trends', days],
+    queryFn: () => api.getTrends(days),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+}
+
+export function useAggregateToday() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => api.aggregateToday(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['trends'] });
+    },
+  });
+}
+
+export function useAggregateYesterday() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => api.aggregateYesterday(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['trends'] });
+    },
+  });
+}

@@ -173,3 +173,42 @@ export interface UpdatesResponse {
   generated_at: string;
   error?: string;
 }
+
+// Admin Trends types
+export interface DailyMetricsData {
+  date: string;
+  active_users: number;
+  new_signups: number;
+  returning_users: number;
+  steps_completed: number;
+  questions_attempted: number;
+  questions_passed: number;
+  hands_on_submitted: number;
+  hands_on_validated: number;
+  phases_completed: number;
+  certificates_earned: number;
+  question_pass_rate: number;
+}
+
+export interface TrendSummary {
+  period_days: number;
+  total_active_users: number;
+  avg_daily_active_users: number;
+  total_new_signups: number;
+  total_steps_completed: number;
+  total_questions_attempted: number;
+  total_questions_passed: number;
+  overall_pass_rate: number;
+  total_phases_completed: number;
+  total_certificates_earned: number;
+  active_users_wow_change: number;
+  cumulative_users: number;
+  cumulative_certificates: number;
+}
+
+export interface TrendsResponse {
+  days: DailyMetricsData[];
+  summary: TrendSummary;
+  start_date: string;
+  end_date: string;
+}

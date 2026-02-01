@@ -11,3 +11,4 @@ export { VerifyPage } from './VerifyPage';
 export { SignInPage } from './SignInPage';
 export { SignUpPage } from './SignUpPage';
 export { NotFoundPage } from './NotFoundPage';
+export { AdminTrendsPage } from './AdminTrendsPage';

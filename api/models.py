@@ -397,3 +397,39 @@ class UserActivity(Base):
     )
 
     user: Mapped["User"] = relationship(back_populates="activities")
+
+
+class DailyMetrics(Base):
+    """Aggregated daily metrics for trend analysis.
+
+    One row per day, populated by a nightly aggregation job.
+    Enables fast trend queries without scanning raw event tables.
+    """
+
+    __tablename__ = "daily_metrics"
+
+    metric_date: Mapped[date] = mapped_column(Date, primary_key=True)
+
+    # User engagement
+    active_users: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    new_signups: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    returning_users: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    # Learning progress
+    steps_completed: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    questions_attempted: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    questions_passed: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    hands_on_submitted: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    hands_on_validated: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    phases_completed: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    certificates_earned: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    # Computed metrics
+    question_pass_rate: Mapped[float] = mapped_column(
+        Float, nullable=False, default=0.0
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=utcnow,
+    )

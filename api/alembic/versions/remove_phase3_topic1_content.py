@@ -1,7 +1,7 @@
 """remove phase3-topic1 references
 
 Revision ID: remove_phase3_topic1
-Revises: add_user_scenarios
+Revises: 5aba277e1361
 Create Date: 2026-01-30
 
 """
@@ -14,7 +14,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "remove_phase3_topic1"
-down_revision = "add_user_scenarios"
+down_revision = "5aba277e1361"
 branch_labels = None
 depends_on = None
 

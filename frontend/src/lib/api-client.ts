@@ -17,6 +17,7 @@ import type {
   CertificateVerifyResponse,
   UserCertificates,
   GitHubValidationResult,
+  TrendsResponse,
 } from './types';
 
 export type { GitHubValidationResult } from './types';
@@ -482,6 +483,32 @@ export function createApiClient(getToken: () => Promise<string | null>) {
     async getUpdates() {
       const res = await fetch(`${API_URL}/api/updates`);
       if (!res.ok) throw new Error('Failed to fetch updates');
+      return res.json();
+    },
+
+    // Admin endpoints
+    async getTrends(days: number = 30): Promise<TrendsResponse> {
+      const res = await fetchWithAuth(`/api/admin/trends?days=${days}`);
+      if (res.status === 403) throw new Error('Admin access required');
+      if (!res.ok) throw new Error('Failed to fetch trends');
+      return res.json();
+    },
+
+    async aggregateToday(): Promise<{ status: string; date: string }> {
+      const res = await fetchWithAuth('/api/admin/trends/aggregate-today', {
+        method: 'POST',
+      });
+      if (res.status === 403) throw new Error('Admin access required');
+      if (!res.ok) throw new Error('Failed to aggregate');
+      return res.json();
+    },
+
+    async aggregateYesterday(): Promise<{ status: string; date: string }> {
+      const res = await fetchWithAuth('/api/admin/trends/aggregate-yesterday', {
+        method: 'POST',
+      });
+      if (res.status === 403) throw new Error('Admin access required');
+      if (!res.ok) throw new Error('Failed to aggregate');
       return res.json();
     },
   };

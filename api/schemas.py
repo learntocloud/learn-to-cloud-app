@@ -1168,3 +1168,67 @@ class ParsedGitHubUrl(FrozenModel):
     file_path: str | None = None
     is_valid: bool = True
     error: str | None = None
+
+
+# =============================================================================
+# Metrics & Trends Schemas
+# =============================================================================
+
+
+class DailyMetricsData(FrozenModel):
+    """Daily aggregated metrics for trend analysis."""
+
+    date: date
+    active_users: int
+    new_signups: int
+    returning_users: int
+    steps_completed: int
+    questions_attempted: int
+    questions_passed: int
+    hands_on_submitted: int
+    hands_on_validated: int
+    phases_completed: int
+    certificates_earned: int
+    question_pass_rate: float
+
+
+class TrendSummary(FrozenModel):
+    """Summary statistics for a trend period."""
+
+    period_days: int
+    total_active_users: int
+    avg_daily_active_users: float
+    total_new_signups: int
+    total_steps_completed: int
+    total_questions_attempted: int
+    total_questions_passed: int
+    overall_pass_rate: float
+    total_phases_completed: int
+    total_certificates_earned: int
+    active_users_wow_change: float  # Week-over-week % change
+    cumulative_users: int  # All-time total
+    cumulative_certificates: int  # All-time total
+
+
+class TrendsResponse(FrozenModel):
+    """Trend data response for admin dashboard."""
+
+    days: list[DailyMetricsData]
+    summary: TrendSummary
+    start_date: date
+    end_date: date
+
+
+class BackfillRequest(FrozenModel):
+    """Request to backfill metrics for a date range."""
+
+    start_date: date
+    end_date: date
+
+
+class BackfillResponse(FrozenModel):
+    """Response from backfill operation."""
+
+    days_aggregated: int
+    start_date: date
+    end_date: date
