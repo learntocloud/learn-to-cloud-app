@@ -5,28 +5,52 @@ description: "FastAPI routes, async patterns, structlog logging, SQLAlchemy, htt
 
 # Python Coding Standards
 
-## Style
-- Follow PEP 8
-- Use type hints for all function signatures
-- Use async/await for all database operations
-- Maximum line length: 88 characters (ruff default)
+## Separation of Concerns (CRITICAL)
 
-## Type Hints (Modern Syntax)
-- Use `X | None` not `Optional[X]` (PEP 604)
-- Use `list[str]` not `List[str]` (PEP 585)
-- Use `dict[str, Any]` not `Dict[str, Any]`
-- Use `type[T]` for class types
-- For generics: `def func[T](item: T) -> T:` (PEP 695, Python 3.12+)
+### Layer Responsibilities
+| Layer | Responsibility | What it DOES | What it does NOT do |
+|-------|----------------|--------------|---------------------|
+| **Routes** (`routes/`) | HTTP handling | Validate input, call services, return responses, raise `HTTPException` | Business logic, direct DB access, logging business events |
+| **Services** (`services/`) | Business logic | Orchestrate operations, enforce rules, log domain events, raise domain exceptions | HTTP concerns, direct SQL, commit transactions |
+| **Repositories** (`repositories/`) | Data access | Execute queries, return models/DTOs | Business rules, HTTP exceptions, commit transactions |
 
-## Imports
-- Group imports: stdlib → third-party → local
+### Exception Handling Rules
+1. **Services** raise **domain exceptions** (e.g., `StepNotFoundError`, `ScenarioGenerationFailed`)
+2. **Routes** catch domain exceptions and convert to `HTTPException`:
+   ```python
+   # ✅ CORRECT - Route catches domain exception
+   try:
+       result = await step_service.complete_step(db, user_id, step_id)
+   except StepNotFoundError as e:
+       raise HTTPException(status_code=404, detail=str(e))
+   except StepAlreadyCompleteError:
+       raise HTTPException(status_code=400, detail="Step already completed")
+
+   # ❌ WRONG - Service raises HTTPException
+   async def complete_step(...):
+       if not step:
+           raise HTTPException(404, "Not found")  # Don't do this in services!
+   ```
+3. **Never** let raw exceptions (KeyError, ValueError) escape to users—wrap with context
+
+### Logging Guidelines
+- **Routes**: Log at request boundaries only if adding context beyond middleware
+- **Services**: Log **domain events** using dot-notation event names:
+  ```python
+  logger.info("step.completed", user_id=user_id, step_id=step_id, phase=phase_id)
+  logger.warning("badge.computation.skipped", reason="no_progress_data")
+  ```
+- **Repositories**: Generally no logging (too noisy)—let SQLAlchemy instrumentation handle query tracing
+
+### Telemetry Guidelines
+See **Telemetry & Observability** section below for detailed usage of `set_wide_event_fields()`, `add_custom_attribute()`, and `log_metric()`.
+
+## Style & Type Hints
+- Follow PEP 8; max line length 88 (ruff enforces)
+- Use type hints on all function signatures
+- Modern syntax: `X | None` not `Optional[X]`, `list[str]` not `List[str]}`, `dict[str, Any]` not `Dict`
+- For generics (Python 3.12+): `def func[T](item: T) -> T:`
 - Use absolute imports within the api package
-- Sort imports alphabetically within groups
-
-## Naming
-- Functions/variables: `snake_case`
-- Classes: `PascalCase`
-- Constants: `UPPER_SNAKE_CASE`
 
 ## HTTP Clients (httpx)
 - **Never** create `httpx.AsyncClient()` per request—use a shared module-level client
@@ -72,31 +96,21 @@ description: "FastAPI routes, async patterns, structlog logging, SQLAlchemy, htt
 - Call `invalidate_*_cache()` after mutations that affect cached data
 
 ## Logging (structlog)
-- Use **structlog** via `core.logger`: `from core.logger import get_logger`
+- Import: `from core.logger import get_logger` → `logger = get_logger(__name__)` at module level
 - **CRITICAL**: structlog uses **keyword arguments**, NOT stdlib's `extra={}` dict:
   ```python
-  # ✅ CORRECT - structlog pattern
+  # ✅ CORRECT
   logger.info("user.created", user_id=user.id, email=user.email)
-  logger.error("payment.failed", order_id=order.id, reason="declined")
 
-  # ❌ WRONG - stdlib pattern (will NOT add fields to JSON output)
+  # ❌ WRONG - stdlib pattern (fields won't appear in JSON)
   logger.info("User created", extra={"user_id": user.id})
-  ```
-- First argument is the **event name** (dot-notation), not a human message
-- Never interpolate variables into event names—use keyword args for all context
-- Use `logger.exception()` inside except blocks to include stack trace
-- Use **wide events** for request-scoped context that should appear in canonical log lines:
-  ```python
-  from core.wide_event import set_wide_event_fields, set_wide_event_nested
 
-  # Add fields to the request's canonical log line
-  set_wide_event_fields(cart_id=cart.id, items_count=len(cart.items))
-
-  # For nested categories
-  set_wide_event_nested("user", id=user.id, plan="premium")
+  # ❌ WRONG - f-string (loses structured data)
+  logger.info(f"User {user.id} created")
   ```
-- Wide events are emitted once per request by middleware—use for metrics/observability
-- Use `logger.info/warning/error` for discrete events during the request
+- First argument is **event name** (dot-notation: `domain.action.result`), not a message
+- Use `logger.exception()` in except blocks—auto-includes traceback
+- See **Logging Guidelines** in Separation of Concerns for what to log where
 
 ## FastAPI Routes
 - Always add `@limiter.limit()` decorator for public endpoints
@@ -142,17 +156,49 @@ description: "FastAPI routes, async patterns, structlog logging, SQLAlchemy, htt
 - Never block the event loop with synchronous I/O
 
 ## Error Handling
-- Let exceptions propagate to FastAPI's exception handlers when appropriate
-- For external API calls, catch specific exceptions and wrap with context:
+- **Define domain exceptions** in services or a shared `exceptions.py`:
+  ```python
+  class StepNotFoundError(Exception):
+      """Raised when a step ID doesn't exist."""
+      def __init__(self, step_id: str):
+          self.step_id = step_id
+          super().__init__(f"Step not found: {step_id}")
+
+  class StepAlreadyCompleteError(Exception):
+      """Raised when attempting to complete an already-completed step."""
+      pass
+  ```
+- **Services** raise domain exceptions, **routes** convert to HTTPException:
+  ```python
+  # In routes/steps_routes.py
+  try:
+      result = await step_service.complete_step(db, user_id, step_id)
+  except StepNotFoundError as e:
+      raise HTTPException(status_code=404, detail=str(e))
+  except StepAlreadyCompleteError:
+      raise HTTPException(status_code=400, detail="Step already completed")
+  ```
+- For external API calls, catch specific exceptions and log with context:
   ```python
   try:
       response = await client.get(url)
       response.raise_for_status()
   except httpx.HTTPStatusError as e:
       logger.warning("external.api.error", url=url, status=e.response.status_code)
-      raise HTTPException(502, "Upstream service error")
+      raise ExternalServiceError("Upstream service error") from e
   ```
-- Document which exceptions a function can raise in docstrings
+- Use `logger.exception()` for unexpected errors (includes traceback automatically)
+- **Never** catch bare `Exception` unless re-raising or logging—be specific
+- Document which exceptions a function can raise in docstrings:
+  ```python
+  async def complete_step(db: AsyncSession, user_id: str, step_id: str) -> StepProgress:
+      """Mark a step as complete for a user.
+
+      Raises:
+          StepNotFoundError: If step_id doesn't exist in content.
+          StepAlreadyCompleteError: If user already completed this step.
+      """
+  ```
 
 ## SQLAlchemy Patterns
 - Always use `async_sessionmaker` and `AsyncSession`
@@ -163,6 +209,57 @@ description: "FastAPI routes, async patterns, structlog logging, SQLAlchemy, htt
 - Use `flush()` inside transactions, `commit()` at boundaries
 - Repository methods should NOT call `commit()`—caller owns the transaction
 - Use `scalar_one()` vs `scalar_one_or_none()` correctly based on expected results
+
+## Telemetry & Observability (core.telemetry)
+Use telemetry for **production observability**, not debugging. Import from `core.telemetry`:
+
+### Wide Events (Request-Scoped Context)
+```python
+from core.wide_event import set_wide_event_fields, set_wide_event_nested
+
+# ✅ Add business context to the canonical request log line
+set_wide_event_fields(
+    phase_id=phase.id,
+    steps_completed=len(completed),
+    badge_awarded="phase_1_complete",
+)
+
+# ✅ Nested for related data
+set_wide_event_nested("grading", score=85, attempts=2, topic="networking")
+```
+- Wide events are emitted **once per request** by middleware
+- Use for: business metrics, user journey data, feature flags checked
+- Don't use for: debugging, verbose logs, errors (use logger for those)
+
+### Custom Span Attributes (Distributed Tracing)
+```python
+from core.telemetry import add_custom_attribute
+
+# ✅ Add attributes to the current OpenTelemetry span
+add_custom_attribute("llm.model", "gemini-1.5-flash")
+add_custom_attribute("llm.tokens_used", 1500)
+```
+- Use for: external service calls, slow operations, cross-service correlation
+- These appear in Azure Application Insights / distributed traces
+
+### Custom Metrics
+```python
+from core.telemetry import log_metric
+
+# ✅ Emit a metric for dashboards/alerts
+log_metric("scenario.generated", 1, {"topic": topic_name, "model": "gemini"})
+log_metric("grading.latency_ms", latency, {"topic": topic_name})
+```
+- Use for: counters, latencies, business KPIs
+- Tags should be low-cardinality (don't use user_id as a tag)
+
+### When to Use What
+| Need | Tool | Example |
+|------|------|---------|
+| Log a discrete event | `logger.info()` | `logger.info("step.completed", step_id=s)` |
+| Add context to request log | `set_wide_event_fields()` | `set_wide_event_fields(badge_count=3)` |
+| Trace across services | `add_custom_attribute()` | `add_custom_attribute("upstream.latency", 50)` |
+| Count/measure for dashboards | `log_metric()` | `log_metric("questions.graded", 1)` |
 
 ## Docstrings
 - Required on all public functions
@@ -175,3 +272,8 @@ description: "FastAPI routes, async patterns, structlog logging, SQLAlchemy, htt
 ## Special Comments
 - `# type: ignore` — always add explanation: `# type: ignore[arg-type] - httpx stub incomplete`
 - `# noqa` — always include rule: `# noqa: E501`
+
+---
+
+## Feedback
+If you encounter a pattern, convention, or edge case that should be added to these instructions, let me know so we can consider including it.

@@ -14,55 +14,40 @@ A **Phase is Complete** when ALL three requirements are met:
 
 This drives: badges, unlocking, profile stats, and certificates.
 
-## Content Hierarchy
-
-```
-Phases (7 total: 0-6)
-├── Topics (multiple per phase)
-│   ├── Learning Steps (checkboxes)
-│   └── Knowledge Questions (must pass)
-└── Hands-on Requirements (validated submissions)
-```
-
 ## Unlocking Rules
 
 | Content | Rule |
-|---------|------|
+|---------|---------|
 | Phase 0 | Always unlocked |
-| Phases 1-6 | Previous phase must be complete |
-| First topic in phase | Always unlocked |
-| Subsequent topics | Previous topic complete (steps + questions) |
-| Admin users | Bypass all locks (`is_admin=True`) |
+| Phases 1-6 | Previous phase complete |
+| First topic | Always unlocked |
+| Subsequent topics | Previous topic complete |
+| Admin users | Bypass all locks |
 
 ## Progress Calculation
 
-**Topic Progress:** `(Steps Completed + Questions Passed) / (Total Steps + Total Questions)`
+**Topic:** `(Steps + Questions) / Total`
 
-**Phase Progress:** `(Steps + Questions + Hands-on) / (Total Steps + Total Questions + Total Hands-on)`
+**Phase:** `(Steps + Questions + Hands-on) / Total`
 
-## Badge System
+## Badge Tiers
 
-| Phase | Badge | Tier |
-|-------|-------|------|
-| 0 | Explorer | Bronze |
-| 1 | Practitioner | Silver |
-| 2 | Builder | Blue |
-| 3 | Specialist | Purple |
-| 4 | Architect | Gold |
-| 5 | Master | Red |
-| 6 | Legend | Rainbow |
+Phase 0→6: Explorer (Bronze) → Practitioner (Silver) → Builder (Blue) → Specialist (Purple) → Architect (Gold) → Master (Red) → Legend (Rainbow)
 
 ## Key Files
 
 | Purpose | File |
 |---------|------|
-| Progress calculation | `api/services/progress_service.py` |
-| Hands-on requirements | `api/services/phase_requirements_service.py` |
-| Badge computation | `api/services/badges_service.py` |
-| Certificate eligibility | `api/services/certificates_service.py` |
-| Verification types | `api/models.py` (SubmissionType enum) |
+| Progress | `services/progress_service.py` |
+| Hands-on | `services/phase_requirements_service.py` |
+| Badges | `services/badges_service.py` |
+| Certificates | `services/certificates_service.py` |
 
 ## Important
 
-- Steps/questions counts are **dynamically derived** from content JSON at startup
-- Do NOT hardcode phase requirement counts
+Step/question counts are **dynamically derived** from content JSON—do NOT hardcode.
+
+---
+
+## Feedback
+If you encounter a pattern, convention, or edge case that should be added to these instructions, let me know so we can consider including it.

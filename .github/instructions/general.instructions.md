@@ -29,6 +29,14 @@ Format: `type(scope): description`
 
 Scopes: `api`, `frontend`, `infra`, `content`, `skills`
 
+## Local Development URLs
+
+| Service | URL |
+|---------|-----|
+| Frontend | http://localhost:3000 |
+| API | http://localhost:8000 |
+| API Docs | http://localhost:8000/docs |
+
 ## Comments
 
 ### Remove These
@@ -42,3 +50,8 @@ Scopes: `api`, `frontend`, `infra`, `content`, `skills`
 - **Non-obvious behavior** — gotchas, edge cases
 - **Workarounds** — with justification and removal date
 - **Warnings** — `WARNING:` or `SECURITY:`
+
+---
+
+## Feedback
+If you encounter a pattern, convention, or edge case that should be added to these instructions, let me know so we can consider including it.

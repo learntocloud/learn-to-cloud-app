@@ -5,30 +5,23 @@ description: "Azure resource naming, tagging, state management, and security pra
 
 # Terraform Standards
 
-## Naming Conventions
+## Naming & Tags
 - Resources: `<type>-<project>-<component>-<env>` (e.g., `rg-ltc-api-dev`)
-- Variables: `snake_case`
-- Outputs: `snake_case`
-
-## Required Tags
-All resources must include:
-- `environment` (dev, staging, prod)
-- `project` (ltc)
+- All resources must have `environment` and `project` tags
 
 ## Azure-Specific
-- Use `lifecycle.ignore_changes` for fields Azure manages asynchronously
-- Example: SSL certificate bindings, managed identity assignments
+- Use `lifecycle.ignore_changes` for fields Azure manages asynchronously (SSL bindings, managed identity assignments)
 
 ## State Management
 - State stored in Azure Storage Account
-- Always use `-lock-timeout=120s` to prevent lock issues
+- Always use `-lock-timeout=120s`
 - Never manually edit state files
 
 ## Security
-- No secrets in `.tf` files—use variables with `sensitive = true`
-- Use managed identities over service principal secrets
+- No secrets in `.tf` files—use `sensitive = true` variables
+- Prefer managed identities over service principal secrets
 
-## Comments
-- Use `#` comments for non-obvious configurations
-- Document **why** defaults are overridden
-- Keep comments concise—Terraform is self-documenting
+---
+
+## Feedback
+If you encounter a pattern, convention, or edge case that should be added to these instructions, let me know so we can consider including it.
