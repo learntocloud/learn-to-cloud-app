@@ -304,7 +304,22 @@ async def get_db(request: Request) -> AsyncGenerator[AsyncSession]:
             raise
 
 
+async def get_db_readonly(request: Request) -> AsyncGenerator[AsyncSession]:
+    """Session for read-only operations (no commit)."""
+    session_maker: async_sessionmaker[AsyncSession] = request.app.state.session_maker
+    async with session_maker() as session:
+        try:
+            yield session
+        except Exception:
+            try:
+                await session.rollback()
+            except Exception as rollback_err:
+                logger.warning("db.rollback.failed", error=str(rollback_err))
+            raise
+
+
 DbSession = Annotated[AsyncSession, Depends(get_db)]
+DbSessionReadOnly = Annotated[AsyncSession, Depends(get_db_readonly)]
 
 
 # =============================================================================

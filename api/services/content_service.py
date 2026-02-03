@@ -13,12 +13,16 @@ from pathlib import Path
 
 from core.config import get_settings
 from core.wide_event import set_wide_event_fields
+from models import SubmissionType
 from schemas import (
+    HandsOnRequirement,
     LearningObjective,
     LearningStep,
     Phase,
+    PhaseBadgeMeta,
     PhaseCapstoneOverview,
     PhaseHandsOnVerificationOverview,
+    PhaseThemeMeta,
     ProviderOption,
     Question,
     SecondaryLink,
@@ -149,9 +153,36 @@ def _load_phase(phase_slug: str) -> Phase | None:
         hands_on_verification: PhaseHandsOnVerificationOverview | None = None
         hov_data = data.get("hands_on_verification")
         if isinstance(hov_data, dict):
+            requirements: list[HandsOnRequirement] = []
+            for req in hov_data.get("requirements", []) or []:
+                try:
+                    submission_type = SubmissionType(req["submission_type"])
+                except (KeyError, ValueError) as exc:
+                    set_wide_event_fields(
+                        content_error="hands_on_requirement_invalid",
+                        content_phase_slug=phase_slug,
+                        content_requirement_id=str(req.get("id", "")),
+                        content_error_detail=str(exc),
+                    )
+                    continue
+
+                requirements.append(
+                    HandsOnRequirement(
+                        id=str(req["id"]),
+                        phase_id=data["id"],
+                        submission_type=submission_type,
+                        name=str(req["name"]),
+                        description=str(req["description"]),
+                        example_url=req.get("example_url"),
+                        note=req.get("note"),
+                        required_repo=req.get("required_repo"),
+                    )
+                )
+
             hands_on_verification = PhaseHandsOnVerificationOverview(
                 summary=str(hov_data.get("summary", "")).strip(),
                 includes=list(hov_data.get("includes", []) or []),
+                requirements=requirements,
             )
 
         topics = []
@@ -159,6 +190,25 @@ def _load_phase(phase_slug: str) -> Phase | None:
             topic = _load_topic(phase_dir, topic_slug)
             if topic:
                 topics.append(topic)
+
+        badge: PhaseBadgeMeta | None = None
+        badge_data = data.get("badge")
+        if isinstance(badge_data, dict):
+            badge = PhaseBadgeMeta(
+                name=str(badge_data.get("name", "")).strip(),
+                description=str(badge_data.get("description", "")).strip(),
+                icon=str(badge_data.get("icon", "")).strip(),
+            )
+
+        theme: PhaseThemeMeta | None = None
+        theme_data = data.get("theme")
+        if isinstance(theme_data, dict):
+            theme = PhaseThemeMeta(
+                icon=str(theme_data.get("icon", "")).strip(),
+                bg_class=str(theme_data.get("bg_class", "")).strip(),
+                border_class=str(theme_data.get("border_class", "")).strip(),
+                text_class=str(theme_data.get("text_class", "")).strip(),
+            )
 
         return Phase(
             id=data["id"],
@@ -170,6 +220,8 @@ def _load_phase(phase_slug: str) -> Phase | None:
             objectives=list(data.get("objectives", [])),
             capstone=capstone,
             hands_on_verification=hands_on_verification,
+            badge=badge,
+            theme=theme,
             topic_slugs=topic_slugs,
             topics=topics,
         )

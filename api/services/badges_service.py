@@ -10,11 +10,13 @@ CACHING:
 - Cache key includes a hash of phase completion data for invalidation
 """
 
+from functools import lru_cache
 from typing import TypedDict
 
 from core.cache import get_cached_badges, set_cached_badges
 from core.telemetry import add_custom_attribute
-from schemas import BadgeData
+from schemas import BadgeCatalogItem, BadgeData, PhaseThemeData
+from services.content_service import get_all_phases
 from services.progress_service import get_phase_requirements
 
 
@@ -27,58 +29,6 @@ class StreakBadgeInfo(TypedDict):
     icon: str
     required_streak: int
 
-
-PHASE_BADGES = {
-    0: {
-        "id": "phase_0_complete",
-        "name": "Explorer",
-        "description": "Completed Phase 0",
-        "icon": "🥉",
-        "phase_name": "IT Fundamentals & Cloud Overview",
-    },
-    1: {
-        "id": "phase_1_complete",
-        "name": "Practitioner",
-        "description": "Completed Phase 1",
-        "icon": "🥈",
-        "phase_name": "Linux, CLI & Version Control",
-    },
-    2: {
-        "id": "phase_2_complete",
-        "name": "Networker",
-        "description": "Completed Phase 2",
-        "icon": "🌐",
-        "phase_name": "Networking Fundamentals",
-    },
-    3: {
-        "id": "phase_3_complete",
-        "name": "Builder",
-        "description": "Completed Phase 3",
-        "icon": "🔵",
-        "phase_name": "Programming & APIs",
-    },
-    4: {
-        "id": "phase_4_complete",
-        "name": "Architect",
-        "description": "Completed Phase 4",
-        "icon": "🥇",
-        "phase_name": "Cloud Deployment",
-    },
-    5: {
-        "id": "phase_5_complete",
-        "name": "Master",
-        "description": "Completed Phase 5",
-        "icon": "🔴",
-        "phase_name": "DevOps & Containers",
-    },
-    6: {
-        "id": "phase_6_complete",
-        "name": "Legend",
-        "description": "Completed Phase 6",
-        "icon": "🌈",
-        "phase_name": "Cloud Security",
-    },
-}
 
 STREAK_BADGES: list[StreakBadgeInfo] = [
     {
@@ -105,6 +55,68 @@ STREAK_BADGES: list[StreakBadgeInfo] = [
 ]
 
 
+@lru_cache(maxsize=1)
+def _get_phase_badge_catalog() -> tuple[list[BadgeCatalogItem], list[PhaseThemeData]]:
+    phase_badges: list[BadgeCatalogItem] = []
+    phase_themes: list[PhaseThemeData] = []
+
+    phases = sorted(get_all_phases(), key=lambda p: p.order)
+    for index, phase in enumerate(phases, start=1):
+        if phase.badge:
+            badge_id = f"phase_{phase.id}_complete"
+            phase_badges.append(
+                BadgeCatalogItem(
+                    id=badge_id,
+                    name=phase.badge.name,
+                    description=phase.badge.description,
+                    icon=phase.badge.icon,
+                    num=f"#{index:03d}",
+                    how_to=f"Complete Phase {phase.id}: {phase.name}",
+                    phase_id=phase.id,
+                    phase_name=phase.name,
+                )
+            )
+
+        if phase.theme:
+            phase_themes.append(
+                PhaseThemeData(
+                    phase_id=phase.id,
+                    icon=phase.theme.icon,
+                    bg_class=phase.theme.bg_class,
+                    border_class=phase.theme.border_class,
+                    text_class=phase.theme.text_class,
+                )
+            )
+
+    return phase_badges, phase_themes
+
+
+def get_badge_catalog() -> (
+    tuple[list[BadgeCatalogItem], list[BadgeCatalogItem], int, list[PhaseThemeData]]
+):
+    """Get badge catalog and phase themes derived from content."""
+    phase_badges, phase_themes = _get_phase_badge_catalog()
+    streak_offset = len(phase_badges)
+    streak_badges: list[BadgeCatalogItem] = []
+
+    for index, badge_info in enumerate(STREAK_BADGES, start=1):
+        streak_badges.append(
+            BadgeCatalogItem(
+                id=badge_info["id"],
+                name=badge_info["name"],
+                description=badge_info["description"],
+                icon=badge_info["icon"],
+                num=f"#{streak_offset + index:03d}",
+                how_to=(
+                    f"Maintain a {badge_info['required_streak']}-day learning streak"
+                ),
+            )
+        )
+
+    total_badges = len(phase_badges) + len(streak_badges)
+    return phase_badges, streak_badges, total_badges, phase_themes
+
+
 def compute_phase_badges(
     phase_completion_counts: dict[int, tuple[int, int, bool]],
 ) -> list[BadgeData]:
@@ -124,7 +136,12 @@ def compute_phase_badges(
     """
     earned_badges = []
 
-    for phase_id, badge_info in PHASE_BADGES.items():
+    phase_badges, _ = _get_phase_badge_catalog()
+
+    for badge_info in phase_badges:
+        if badge_info.phase_id is None:
+            continue
+        phase_id = badge_info.phase_id
         requirements = get_phase_requirements(phase_id)
         if not requirements:
             continue
@@ -140,10 +157,10 @@ def compute_phase_badges(
         ):
             earned_badges.append(
                 BadgeData(
-                    id=badge_info["id"],
-                    name=badge_info["name"],
-                    description=badge_info["description"],
-                    icon=badge_info["icon"],
+                    id=badge_info.id,
+                    name=badge_info.name,
+                    description=badge_info.description,
+                    icon=badge_info.icon,
                 )
             )
 

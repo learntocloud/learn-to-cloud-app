@@ -1,11 +1,12 @@
 import { useEffect, useState, useCallback } from "react";
 import { PhaseCelebrationModal } from "./PhaseCelebrationModal";
-import { PHASE_BADGES } from "@/lib/constants";
+import type { BadgeCatalogItem } from "@/lib/types";
 
 interface PhaseCompletionCheckProps {
   phaseNumber: number;
   earnedBadges: Array<{ id: string }>;
   nextPhaseSlug?: string;
+  phaseBadge?: BadgeCatalogItem | null;
 }
 
 const STORAGE_KEY = "ltc_celebrated_phases";
@@ -36,15 +37,14 @@ export function PhaseCompletionCheck({
   phaseNumber,
   earnedBadges,
   nextPhaseSlug,
+  phaseBadge,
 }: PhaseCompletionCheckProps) {
-  const badgeData = PHASE_BADGES[phaseNumber];
   const [showCelebration, setShowCelebration] = useState(false);
 
   useEffect(() => {
-    if (!badgeData) return;
+    if (!phaseBadge) return;
 
-    const badgeId = `phase_${phaseNumber}_complete`;
-    const hasBadge = earnedBadges.some((b) => b.id === badgeId);
+    const hasBadge = earnedBadges.some((b) => b.id === phaseBadge.id);
     if (!hasBadge) return;
 
     const celebrated = getCelebratedPhases();
@@ -52,23 +52,23 @@ export function PhaseCompletionCheck({
 
     // Mark as celebrated only when modal closes, not here
     setShowCelebration(true);
-  }, [phaseNumber, earnedBadges, badgeData]);
+  }, [phaseNumber, earnedBadges, phaseBadge]);
 
   const handleClose = useCallback(() => {
     markPhaseCelebrated(phaseNumber);
     setShowCelebration(false);
   }, [phaseNumber]);
 
-  if (!badgeData || !showCelebration) return null;
+  if (!phaseBadge || !showCelebration) return null;
 
   return (
     <PhaseCelebrationModal
       isOpen={showCelebration}
       onClose={handleClose}
       phaseNumber={phaseNumber}
-      phaseName={badgeData.phaseName}
-      badgeName={badgeData.name}
-      badgeIcon={badgeData.icon}
+      phaseName={phaseBadge.phase_name || `Phase ${phaseNumber}`}
+      badgeName={phaseBadge.name}
+      badgeIcon={phaseBadge.icon}
       nextPhaseSlug={nextPhaseSlug}
     />
   );

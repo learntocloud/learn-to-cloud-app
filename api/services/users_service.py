@@ -182,6 +182,7 @@ async def get_public_profile(
                 phase_id=sub.phase_id,
                 submitted_value=submitted_value,
                 name=requirement.name if requirement else sub.requirement_id,
+                description=requirement.description if requirement else None,
                 validated_at=sub.validated_at,
             )
         )

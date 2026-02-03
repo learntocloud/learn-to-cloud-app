@@ -23,7 +23,10 @@ from core.config import get_settings
 from core.telemetry import add_custom_attribute, log_metric, track_operation
 from core.wide_event import set_wide_event_field, set_wide_event_fields
 from models import ActivityType
-from repositories.progress_repository import QuestionAttemptRepository
+from repositories.progress_repository import (
+    QuestionAttemptRepository,
+    UserPhaseProgressRepository,
+)
 from repositories.scenario_repository import ScenarioRepository
 from schemas import QuestionGradeResult, ScenarioQuestionResponse
 from services.activity_service import log_activity
@@ -88,6 +91,15 @@ class QuestionAttemptLimitExceeded(Exception):
         super().__init__(
             f"Too many failed attempts. Try again after {lockout_until.isoformat()}"
         )
+
+
+def _parse_phase_id_from_topic_id(topic_id: str) -> int | None:
+    if not isinstance(topic_id, str) or not topic_id.startswith("phase"):
+        return None
+    try:
+        return int(topic_id.split("-")[0].replace("phase", ""))
+    except (ValueError, IndexError):
+        return None
 
 
 @track_operation("get_scenario_question")
@@ -334,6 +346,11 @@ async def submit_question_answer(
     if grade_result.is_passed:
         log_metric("questions.passed", 1, {"phase": phase, "topic_id": topic_id})
         invalidate_progress_cache(user_id)
+        if not already_passed:
+            phase_id = _parse_phase_id_from_topic_id(topic_id)
+            if phase_id is not None:
+                summary_repo = UserPhaseProgressRepository(db)
+                await summary_repo.apply_delta(user_id, phase_id, questions_delta=1)
         # Delete persisted scenario so user gets fresh one if they retry
         scenario_repo = ScenarioRepository(db)
         await scenario_repo.delete(user_id, question_id)

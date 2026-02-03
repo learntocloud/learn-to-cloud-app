@@ -13,6 +13,7 @@ from repositories.certificate_repository import CertificateRepository
 from repositories.progress_repository import (
     QuestionAttemptRepository,
     StepProgressRepository,
+    UserPhaseProgressRepository,
 )
 from repositories.submission_repository import SubmissionRepository
 from repositories.user_repository import UserRepository
@@ -23,6 +24,7 @@ __all__ = [
     "CertificateRepository",
     "QuestionAttemptRepository",
     "StepProgressRepository",
+    "UserPhaseProgressRepository",
     "SubmissionRepository",
     "UserRepository",
     "log_slow_query",

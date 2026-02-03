@@ -55,6 +55,50 @@ jobs:
           uv sync --extra dev --group dev
           uv tool install ty
 
+      - name: Export OpenAPI schema
+        run: uv run python scripts/export_openapi.py
+
+      - name: Ensure OpenAPI schema is up to date
+        run: git diff --exit-code api/openapi.json
+
+      - name: Set up Go
+        if: github.event_name == 'pull_request'
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22.x"
+
+      - name: Install oasdiff
+        if: github.event_name == 'pull_request'
+        run: |
+          go install github.com/oasdiff/oasdiff@latest
+          echo "$HOME/go/bin" >> $GITHUB_PATH
+
+      - name: Check OpenAPI breaking changes
+        if: github.event_name == 'pull_request'
+        run: |
+          git fetch origin main
+          if git show origin/main:api/openapi.json > /tmp/openapi-main.json; then
+            oasdiff breaking --fail-on WARN /tmp/openapi-main.json api/openapi.json
+          else
+            echo "No base OpenAPI spec found on main; skipping breaking-change check."
+          fi
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.x"
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Generate frontend API types
+        working-directory: frontend
+        run: npm run gen:api
+
+      - name: Ensure frontend API types are up to date
+        run: git diff --exit-code frontend/src/lib/api/schema.ts
+
       - name: Ruff lint
         uses: astral-sh/ruff-action@v3
         with:

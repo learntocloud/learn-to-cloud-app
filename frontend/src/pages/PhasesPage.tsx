@@ -186,9 +186,9 @@ const PhaseAccordionItem = memo(function PhaseAccordionItem({
                 <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
                   <p className="font-medium text-gray-900 dark:text-white">{phase.capstone.title}</p>
                   <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">{phase.capstone.summary}</p>
-                  {phase.capstone.includes?.length > 0 && (
+                  {(phase.capstone.includes ?? []).length > 0 && (
                     <ul className="list-disc pl-5 space-y-1 text-sm text-gray-700 dark:text-gray-300 mt-3">
-                      {phase.capstone.includes.map((item, idx) => (
+                      {(phase.capstone.includes ?? []).map((item, idx) => (
                         <li key={`${phase.slug}-cap-${idx}`}>{item}</li>
                       ))}
                     </ul>
@@ -202,9 +202,9 @@ const PhaseAccordionItem = memo(function PhaseAccordionItem({
                 <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">Hands-on Verification</h3>
                 <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
                   <p className="text-sm text-gray-600 dark:text-gray-300">{phase.hands_on_verification.summary}</p>
-                  {phase.hands_on_verification.includes?.length > 0 && (
+                  {(phase.hands_on_verification.includes ?? []).length > 0 && (
                     <ul className="list-disc pl-5 space-y-1 text-sm text-gray-700 dark:text-gray-300 mt-3">
-                      {phase.hands_on_verification.includes.map((item, idx) => (
+                      {(phase.hands_on_verification.includes ?? []).map((item, idx) => (
                         <li key={`${phase.slug}-hov-${idx}`}>{item}</li>
                       ))}
                     </ul>

@@ -401,6 +401,38 @@ class BadgeData(FrozenModel):
     icon: str
 
 
+class PhaseThemeData(FrozenModel):
+    """Phase theme metadata for UI display."""
+
+    phase_id: int
+    icon: str
+    bg_class: str
+    border_class: str
+    text_class: str
+
+
+class BadgeCatalogItem(FrozenModel):
+    """Badge metadata for catalog display."""
+
+    id: str
+    name: str
+    description: str
+    icon: str
+    num: str
+    how_to: str
+    phase_id: int | None = None
+    phase_name: str | None = None
+
+
+class BadgeCatalogResponse(BaseModel):
+    """Badge catalog response."""
+
+    phase_badges: list[BadgeCatalogItem]
+    streak_badges: list[BadgeCatalogItem]
+    total_badges: int
+    phase_themes: list[PhaseThemeData]
+
+
 # Alias for route compatibility
 BadgeResponse = BadgeData
 
@@ -413,6 +445,7 @@ class PublicSubmission(FrozenORMModel):
     phase_id: int
     submitted_value: str
     name: str
+    description: str | None = None
     validated_at: datetime | None = None
 
 
@@ -427,6 +460,7 @@ class PublicSubmissionInfo(FrozenModel):
     phase_id: int
     submitted_value: str
     name: str
+    description: str | None = None
     validated_at: object | None = None
 
 
@@ -681,6 +715,24 @@ class PhaseHandsOnVerificationOverview(FrozenModel):
 
     summary: str
     includes: list[str] = Field(default_factory=list)
+    requirements: list[HandsOnRequirement] = Field(default_factory=list)
+
+
+class PhaseBadgeMeta(FrozenModel):
+    """Badge metadata for a phase (content-driven)."""
+
+    name: str
+    description: str
+    icon: str
+
+
+class PhaseThemeMeta(FrozenModel):
+    """Theme metadata for a phase (content-driven)."""
+
+    icon: str
+    bg_class: str
+    border_class: str
+    text_class: str
 
 
 # Alias for route compatibility
@@ -699,6 +751,8 @@ class Phase(FrozenModel):
     objectives: list[str]
     capstone: PhaseCapstoneOverview | None = None
     hands_on_verification: PhaseHandsOnVerificationOverview | None = None
+    badge: PhaseBadgeMeta | None = None
+    theme: PhaseThemeMeta | None = None
     topic_slugs: list[str] = Field(default_factory=list)
     topics: list[Topic] = Field(default_factory=list)
 

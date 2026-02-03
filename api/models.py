@@ -15,6 +15,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    text,
 )
 from sqlalchemy.orm import Mapped, declared_attr, mapped_column, relationship
 
@@ -132,6 +133,18 @@ class SubmissionType(str, PyEnum):
     JOURNAL_API_RESPONSE = "journal_api_response"
     CODE_ANALYSIS = "code_analysis"
 
+    # Phase 4: Cloud deployment validation
+    DEPLOYED_API = "deployed_api"
+
+    # Phase 5: DevOps artifacts
+    CONTAINER_IMAGE = "container_image"
+    CICD_PIPELINE = "cicd_pipeline"
+    TERRAFORM_IAC = "terraform_iac"
+    KUBERNETES_MANIFESTS = "kubernetes_manifests"
+
+    # Phase 6: Security posture
+    SECURITY_SCANNING = "security_scanning"
+
 
 class Submission(TimestampMixin, Base):
     """Tracks validated submissions for hands-on verification.
@@ -143,6 +156,12 @@ class Submission(TimestampMixin, Base):
     __table_args__ = (
         UniqueConstraint("user_id", "requirement_id", name="uq_user_requirement"),
         Index("ix_submissions_user_phase", "user_id", "phase_id"),
+        Index(
+            "ix_submissions_user_phase_validated",
+            "user_id",
+            "phase_id",
+            postgresql_where=text("is_validated"),
+        ),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -248,6 +267,7 @@ class QuestionAttempt(Base):
     __table_args__ = (
         Index("ix_question_attempts_user_topic", "user_id", "topic_id"),
         Index("ix_question_attempts_user_question", "user_id", "question_id"),
+        Index("ix_question_attempts_user_phase", "user_id", "phase_id"),
         # Composite index for full lookup pattern (user + topic + question)
         Index(
             "ix_question_attempts_lookup",
@@ -267,6 +287,7 @@ class QuestionAttempt(Base):
         String(100),
         nullable=False,
     )
+    phase_id: Mapped[int] = mapped_column(Integer, nullable=False)
     question_id: Mapped[str] = mapped_column(
         String(100),
         nullable=False,
@@ -328,6 +349,7 @@ class StepProgress(Base):
             "user_id", "topic_id", "step_order", name="uq_user_topic_step"
         ),
         Index("ix_step_progress_user_topic", "user_id", "topic_id"),
+        Index("ix_step_progress_user_phase", "user_id", "phase_id"),
         # Composite index for full lookup pattern (user + topic + step_order)
         Index(
             "ix_step_progress_lookup",
@@ -347,6 +369,7 @@ class StepProgress(Base):
         String(100),
         nullable=False,
     )
+    phase_id: Mapped[int] = mapped_column(Integer, nullable=False)
     step_order: Mapped[int] = mapped_column(
         Integer,
         nullable=False,
@@ -357,6 +380,29 @@ class StepProgress(Base):
     )
 
     user: Mapped["User"] = relationship(back_populates="step_progress")
+
+
+class UserPhaseProgress(TimestampMixin, Base):
+    """Aggregated progress counts per user and phase.
+
+    Maintained by write-side updates to avoid recomputing progress from
+    raw event rows on every read.
+    """
+
+    __tablename__ = "user_phase_progress"
+    __table_args__ = (Index("ix_user_phase_progress_user", "user_id"),)
+
+    user_id: Mapped[str] = mapped_column(
+        String(255),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    phase_id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    steps_completed: Mapped[int] = mapped_column(Integer, default=0)
+    questions_passed: Mapped[int] = mapped_column(Integer, default=0)
+    hands_on_validated_count: Mapped[int] = mapped_column(Integer, default=0)
+
+    user: Mapped["User"] = relationship()
 
 
 class UserActivity(Base):

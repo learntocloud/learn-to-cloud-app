@@ -32,6 +32,13 @@ repos:
   # Python backend hooks (cross-platform using uv directly)
   - repo: local
     hooks:
+      - id: openapi-export
+        name: export OpenAPI schema
+        entry: uv run --directory api python scripts/export_openapi.py
+        language: system
+        files: ^api/.*\.py$
+        pass_filenames: false
+
       - id: ty
         name: ty type check
         entry: uv run --directory api ty check

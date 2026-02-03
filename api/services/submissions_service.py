@@ -18,6 +18,7 @@ from core.cache import invalidate_progress_cache
 from core.config import get_settings
 from core.telemetry import add_custom_attribute, log_metric, track_operation
 from models import Submission, SubmissionType
+from repositories.progress_repository import UserPhaseProgressRepository
 from repositories.submission_repository import SubmissionRepository
 from schemas import SubmissionData, SubmissionResult
 from services.github_hands_on_verification_service import parse_github_url
@@ -170,6 +171,11 @@ async def submit_validation(
         )
 
     submission_repo = SubmissionRepository(db)
+    existing = await submission_repo.get_by_user_and_requirement(
+        user_id, requirement_id
+    )
+    was_validated = existing.is_validated if existing else False
+
     # Repository handles upsert atomically (PostgreSQL ON CONFLICT)
     db_submission = await submission_repo.upsert(
         user_id=user_id,
@@ -182,6 +188,13 @@ async def submit_validation(
         verification_completed=verification_completed,
         feedback_json=feedback_json,
     )
+
+    if validation_result.is_valid and not was_validated:
+        summary_repo = UserPhaseProgressRepository(db)
+        await summary_repo.apply_delta(user_id, requirement.phase_id, hands_on_delta=1)
+    elif not validation_result.is_valid and was_validated:
+        summary_repo = UserPhaseProgressRepository(db)
+        await summary_repo.apply_delta(user_id, requirement.phase_id, hands_on_delta=-1)
 
     phase = f"phase{requirement.phase_id}"
     if validation_result.is_valid:

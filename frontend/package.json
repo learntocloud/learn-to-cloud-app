@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
+    "gen:api": "openapi-typescript ../api/openapi.json -o src/lib/api/schema.ts",
     "lint": "eslint .",
     "test": "vitest",
     "test:ui": "vitest --ui",
@@ -19,6 +20,7 @@
     "@clerk/clerk-react": "^5.22.0",
     "@tailwindcss/postcss": "^4.1.18",
     "@tanstack/react-query": "^5.62.0",
+    "openapi-fetch": "^0.14.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^7.1.1"
@@ -43,6 +45,7 @@
     "eslint-plugin-react-refresh": "^0.4.26",
     "jsdom": "^23.0.0",
     "msw": "^2.12.7",
+    "openapi-typescript": "^7.5.2",
     "tailwindcss": "^4.1.18",
     "typescript": "^5.7.0",
     "typescript-eslint": "^8.53.0",

@@ -1,12 +1,14 @@
-import { useState } from "react";
-import { PublicSubmission, SubmissionType } from "@/lib/types";
+import { useMemo, useState } from "react";
+import { PhaseThemeData, PublicSubmission, SubmissionType } from "@/lib/types";
 
 interface SubmissionsShowcaseProps {
   submissions: PublicSubmission[];
+  phaseThemes?: Record<number, PhaseThemeData>;
 }
 
 function getSubmissionIcon(type: SubmissionType) {
   switch (type) {
+    case "github_profile":
     case "profile_readme":
       return (
         <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
@@ -19,10 +21,10 @@ function getSubmissionIcon(type: SubmissionType) {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
         </svg>
       );
-    case "deployed_app":
+    case "code_analysis":
       return (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9l3 3-3 3m5-6l3 3-3 3M5 5h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2z" />
         </svg>
       );
     default:
@@ -34,24 +36,7 @@ function getSubmissionIcon(type: SubmissionType) {
   }
 }
 
-// Descriptions for each project type (must match requirement IDs in phase_requirements_service.py)
-const PROJECT_DESCRIPTIONS: Record<string, string> = {
-  "phase0-github-profile": "Demonstrates account setup and version control basics",
-  "phase1-profile-readme": "Showcases Markdown skills and personal branding",
-  "phase1-linux-ctfs-fork": "Completed hands-on Linux command line challenges",
-  "phase1-linux-ctf-token": "Verified completion of all 18 CTF challenges",
-  "phase2-journal-starter-fork": "Built a full-stack API with FastAPI & PostgreSQL",
-  "phase2-journal-api-working": "Verified local API is functioning correctly",
-  "phase3-copilot-demo": "Demonstrates AI-assisted development workflow",
-  "phase4-deployed-journal": "Successfully deployed application to the cloud",
-  "phase5-container-image": "Published container image to registry",
-  "phase5-cicd-pipeline": "Automated build, test, and deployment pipeline",
-  "phase5-terraform-iac": "Infrastructure defined as code with Terraform",
-  "phase5-kubernetes-manifests": "Kubernetes deployment and service manifests",
-  "phase6-security-scanning": "Implemented security scanning and vulnerability management",
-};
-
-// Phase colors for visual differentiation
+// Phase colors for visual differentiation (fallback when content themes are missing)
 const PHASE_COLORS: Record<number, { bg: string; border: string; text: string; icon: string }> = {
   0: { bg: "bg-gray-50 dark:bg-gray-800/50", border: "border-gray-200 dark:border-gray-700", text: "text-gray-600 dark:text-gray-400", icon: "🌱" },
   1: { bg: "bg-blue-50 dark:bg-blue-900/20", border: "border-blue-200 dark:border-blue-800", text: "text-blue-600 dark:text-blue-400", icon: "🐧" },
@@ -62,23 +47,36 @@ const PHASE_COLORS: Record<number, { bg: string; border: string; text: string; i
   6: { bg: "bg-red-50 dark:bg-red-900/20", border: "border-red-200 dark:border-red-800", text: "text-red-600 dark:text-red-400", icon: "🔐" },
 };
 
-function getPhaseColors(phaseId: number) {
+function getPhaseColors(phaseId: number, phaseThemes?: Record<number, PhaseThemeData>) {
+  const theme = phaseThemes?.[phaseId];
+  if (theme) {
+    return {
+      bg: theme.bg_class,
+      border: theme.border_class,
+      text: theme.text_class,
+      icon: theme.icon,
+    };
+  }
   return PHASE_COLORS[phaseId] || PHASE_COLORS[0];
 }
 
-export function SubmissionsShowcase({ submissions }: SubmissionsShowcaseProps) {
+export function SubmissionsShowcase({ submissions, phaseThemes }: SubmissionsShowcaseProps) {
   const [showAll, setShowAll] = useState(false);
+  const dateFormatter = useMemo(
+    () => new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }),
+    []
+  );
 
   if (!submissions || submissions.length === 0) {
     return null;
   }
 
   // Filter out CTF token if fork exists (they'll be combined)
-  const hasCTFToken = submissions.some(s => s.requirement_id === "phase1-linux-ctf-token");
-  const hasCTFFork = submissions.some(s => s.requirement_id === "phase1-linux-ctfs-fork");
+  const hasCTFToken = submissions.some(s => s.requirement_id === "linux-ctfs-token");
+  const hasCTFFork = submissions.some(s => s.requirement_id === "linux-ctfs-fork");
 
   const filteredSubmissions = submissions.filter(s => {
-    if (s.requirement_id === "phase1-linux-ctf-token" && hasCTFFork) {
+    if (s.requirement_id === "linux-ctfs-token" && hasCTFFork) {
       return false;
     }
     return true;
@@ -87,6 +85,17 @@ export function SubmissionsShowcase({ submissions }: SubmissionsShowcaseProps) {
   const displayLimit = 4;
   const hasMore = filteredSubmissions.length > displayLimit;
   const displayedSubmissions = showAll ? filteredSubmissions : filteredSubmissions.slice(0, displayLimit);
+
+  const formatValidatedAt = (value?: string | null) => {
+    if (!value) {
+      return null;
+    }
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) {
+      return null;
+    }
+    return dateFormatter.format(parsed);
+  };
 
   return (
     <div>
@@ -103,9 +112,10 @@ export function SubmissionsShowcase({ submissions }: SubmissionsShowcaseProps) {
 
       <div className="grid gap-3 sm:grid-cols-2">
         {displayedSubmissions.map((submission) => {
-          const colors = getPhaseColors(submission.phase_id);
-          const showVerified = submission.requirement_id === "phase1-linux-ctfs-fork" && hasCTFToken;
-          const description = PROJECT_DESCRIPTIONS[submission.requirement_id] || "Completed project submission";
+          const colors = getPhaseColors(submission.phase_id, phaseThemes);
+          const showVerified = submission.requirement_id === "linux-ctfs-fork" && hasCTFToken;
+          const description = submission.description || "Completed project submission";
+          const validatedAt = formatValidatedAt(submission.validated_at);
 
           return (
             <a
@@ -114,15 +124,15 @@ export function SubmissionsShowcase({ submissions }: SubmissionsShowcaseProps) {
               target="_blank"
               rel="noopener noreferrer"
               aria-label={`${submission.name} (opens in new tab)`}
-              className={`block p-4 rounded-xl border ${colors.border} ${colors.bg} hover:shadow-md transition-all group`}
+              className={`block p-5 rounded-xl border ${colors.border} ${colors.bg} hover:shadow-md transition-all group`}
             >
-              <div className="flex items-start gap-3">
-                <div className={`shrink-0 ${colors.text}`}>
+              <div className="flex items-start gap-4">
+                <div className={`shrink-0 ${colors.text} mt-0.5`}>
                   {getSubmissionIcon(submission.submission_type)}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="font-medium text-gray-900 dark:text-white text-sm truncate group-hover:text-gray-600 dark:group-hover:text-gray-300">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="font-semibold text-gray-900 dark:text-white text-sm truncate group-hover:text-gray-600 dark:group-hover:text-gray-300">
                       {submission.name}
                     </span>
                     {showVerified && (
@@ -134,21 +144,21 @@ export function SubmissionsShowcase({ submissions }: SubmissionsShowcaseProps) {
                       </span>
                     )}
                   </div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2">
+                  <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed line-clamp-3">
                     {description}
                   </p>
-                  <div className="flex items-center justify-between mt-2">
-                    <span className={`text-xs font-medium ${colors.text}`}>
+                  <div className="flex items-center gap-2 mt-3">
+                    <span className={`text-xs font-medium ${colors.text} bg-white/70 dark:bg-gray-900/40 border ${colors.border} px-2 py-0.5 rounded-full`}>
                       {colors.icon} Phase {submission.phase_id}
                     </span>
-                    <svg
-                      className="w-4 h-4 text-gray-300 dark:text-gray-600 group-hover:text-gray-400 shrink-0"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                    </svg>
+                    {validatedAt && (
+                      <span className="text-xs text-gray-500 dark:text-gray-400">
+                        Verified {validatedAt}
+                      </span>
+                    )}
+                    <span className="ml-auto text-xs text-gray-400 dark:text-gray-500 group-hover:text-gray-600 dark:group-hover:text-gray-300">
+                      Open link
+                    </span>
                   </div>
                 </div>
               </div>

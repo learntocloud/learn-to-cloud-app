@@ -8,7 +8,7 @@ from fastapi import APIRouter, HTTPException, Path, Query, Request, Response
 
 from core.auth import OptionalUserId, UserId
 from core.config import get_settings
-from core.database import DbSession
+from core.database import DbSession, DbSessionReadOnly
 from core.ratelimit import limiter
 from schemas import (
     CertificateEligibilityResponse,
@@ -158,7 +158,7 @@ async def check_certificate_eligibility(
     responses={422: {"description": "Validation error - code too short or long"}},
 )
 async def verify_certificate_endpoint(
-    db: DbSession,
+    db: DbSessionReadOnly,
     verification_code: str = Path(min_length=10, max_length=64),
     user_id: OptionalUserId = None,
 ) -> CertificateVerifyResponse:
@@ -182,7 +182,7 @@ async def verify_certificate_endpoint(
 @limiter.limit("10/minute")
 async def get_verified_certificate_pdf_endpoint(
     request: Request,
-    db: DbSession,
+    db: DbSessionReadOnly,
     verification_code: str = Path(min_length=10, max_length=64),
     user_id: OptionalUserId = None,
 ) -> Response:
@@ -218,7 +218,7 @@ async def get_verified_certificate_pdf_endpoint(
 @limiter.limit("10/minute")
 async def get_verified_certificate_png_endpoint(
     request: Request,
-    db: DbSession,
+    db: DbSessionReadOnly,
     verification_code: str = Path(min_length=10, max_length=64),
     user_id: OptionalUserId = None,
     scale: float = Query(2.0, ge=1.0, le=4.0),
@@ -263,7 +263,7 @@ async def get_certificate_pdf_endpoint(
     request: Request,
     certificate_id: int,
     user_id: UserId,
-    db: DbSession,
+    db: DbSessionReadOnly,
 ) -> Response:
     """Get the PDF for a certificate."""
     certificate = await get_certificate_by_id(db, certificate_id, user_id)
@@ -300,7 +300,7 @@ async def get_certificate_png_endpoint(
     request: Request,
     certificate_id: int,
     user_id: UserId,
-    db: DbSession,
+    db: DbSessionReadOnly,
     scale: float = Query(2.0, ge=1.0, le=4.0),
 ) -> Response:
     """Get a PNG image for a certificate."""

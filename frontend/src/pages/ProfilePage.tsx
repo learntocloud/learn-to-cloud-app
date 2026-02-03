@@ -1,14 +1,29 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { usePublicProfile } from '@/lib/hooks';
+import { useBadgeCatalog, usePublicProfile } from '@/lib/hooks';
 import { ActivityHeatmap } from '@/components/ActivityHeatmap';
 import { SubmissionsShowcase } from '@/components/SubmissionsShowcase';
-import { Badge } from '@/lib/types';
-import { ALL_BADGES, TOTAL_BADGES } from '@/lib/constants';
+import { Badge, BadgeCatalogItem, PhaseThemeData } from '@/lib/types';
 
 export function ProfilePage() {
   const { username } = useParams<{ username: string }>();
   const { data: profile, isLoading, error } = usePublicProfile(username || '');
+  const { data: badgeCatalog } = useBadgeCatalog();
+
+  const catalogBadges: BadgeCatalogItem[] = useMemo(() => {
+    if (!badgeCatalog) {
+      return [];
+    }
+    return [...badgeCatalog.phase_badges, ...badgeCatalog.streak_badges];
+  }, [badgeCatalog]);
+  const totalBadges = badgeCatalog?.total_badges ?? catalogBadges.length;
+  const phaseThemes = useMemo(() => {
+    const themes: Record<number, PhaseThemeData> = {};
+    badgeCatalog?.phase_themes.forEach((theme: PhaseThemeData) => {
+      themes[theme.phase_id] = theme;
+    });
+    return themes;
+  }, [badgeCatalog]);
 
   if (isLoading) {
     return (
@@ -109,10 +124,10 @@ export function ProfilePage() {
               Badge Collection
             </h2>
             <span className="text-xs text-gray-400 dark:text-gray-500">
-              {badges.length}/{TOTAL_BADGES}
+              {badges.length}/{totalBadges}
             </span>
           </div>
-          <BadgeCollection badges={badges} />
+          <BadgeCollection badges={badges} catalogBadges={catalogBadges} />
         </div>
 
         {profile.activity_heatmap && profile.activity_heatmap.days.length > 0 && (
@@ -129,7 +144,7 @@ export function ProfilePage() {
         )}
 
         {profile.submissions && profile.submissions.length > 0 && (
-          <SubmissionsShowcase submissions={profile.submissions} />
+          <SubmissionsShowcase submissions={profile.submissions} phaseThemes={phaseThemes} />
         )}
 
         {profile.member_since && (
@@ -142,12 +157,12 @@ export function ProfilePage() {
   );
 }
 
-function BadgeCollection({ badges }: { badges: Badge[] }) {
+function BadgeCollection({ badges, catalogBadges }: { badges: Badge[]; catalogBadges: BadgeCatalogItem[] }) {
   const earnedIds = useMemo(() => new Set(badges.map((b) => b.id)), [badges]);
 
   return (
     <div className="flex gap-2 overflow-visible flex-wrap" role="list" aria-label="Badge collection">
-      {ALL_BADGES.map((badge) => {
+      {catalogBadges.map((badge) => {
         const isEarned = earnedIds.has(badge.id);
         return (
           <div
@@ -169,7 +184,7 @@ function BadgeCollection({ badges }: { badges: Badge[] }) {
             <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50 shadow-lg">
               <div className="font-semibold">{badge.name}</div>
               <div className={`text-[10px] mt-0.5 ${isEarned ? 'text-green-400' : 'text-gray-400'}`}>
-                {isEarned ? '✓ Earned!' : badge.howTo}
+                {isEarned ? '✓ Earned!' : badge.how_to}
               </div>
               <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-gray-900"></div>
             </div>

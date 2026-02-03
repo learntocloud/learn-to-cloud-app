@@ -2,7 +2,7 @@
 
 from datetime import UTC, datetime
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models import Submission, SubmissionType
@@ -38,6 +38,31 @@ class SubmissionRepository:
             .order_by(Submission.phase_id, Submission.validated_at)
         )
         return list(result.scalars().all())
+
+    async def get_validated_counts_by_phase(self, user_id: str) -> dict[int, int]:
+        result = await self.db.execute(
+            select(
+                Submission.phase_id,
+                func.count(func.distinct(Submission.requirement_id)),
+            )
+            .where(
+                Submission.user_id == user_id,
+                Submission.is_validated.is_(True),
+            )
+            .group_by(Submission.phase_id)
+        )
+        return {row[0]: row[1] for row in result.all()}
+
+    async def get_by_user_and_requirement(
+        self, user_id: str, requirement_id: str
+    ) -> Submission | None:
+        result = await self.db.execute(
+            select(Submission).where(
+                Submission.user_id == user_id,
+                Submission.requirement_id == requirement_id,
+            )
+        )
+        return result.scalar_one_or_none()
 
     async def upsert(
         self,

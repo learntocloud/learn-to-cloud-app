@@ -17,13 +17,16 @@ CACHING:
 import asyncio
 from functools import lru_cache
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core import get_logger
 from core.cache import get_cached_progress, set_cached_progress
+from models import User, UserPhaseProgress
 from repositories.progress_repository import (
     QuestionAttemptRepository,
     StepProgressRepository,
+    UserPhaseProgressRepository,
 )
 from repositories.submission_repository import SubmissionRepository
 from schemas import (
@@ -36,7 +39,6 @@ from schemas import (
 )
 from services.content_service import get_all_phases
 from services.hands_on_verification_service import get_requirements_for_phase
-from services.submissions_service import get_validated_ids_by_phase
 
 logger = get_logger(__name__)
 
@@ -145,34 +147,7 @@ async def fetch_user_progress(
         if cached is not None:
             return cached
 
-    question_repo = QuestionAttemptRepository(db)
-    step_repo = StepProgressRepository(db)
-    submission_repo = SubmissionRepository(db)
-
-    # Parallelize the 3 independent DB queries for better performance
-    question_ids, steps_by_topic, db_submissions = await asyncio.gather(
-        question_repo.get_all_passed_question_ids(user_id),
-        step_repo.get_all_completed_by_user(user_id),
-        submission_repo.get_validated_by_user(user_id),
-    )
-
-    # Parse phase numbers from question IDs
-    phase_questions: dict[int, int] = {}
-    for question_id in question_ids:
-        phase_num = _parse_phase_from_question_id(question_id)
-        if phase_num is not None:
-            phase_questions[phase_num] = phase_questions.get(phase_num, 0) + 1
-
-    # Count actual completed steps per phase (not just topics with progress)
-    phase_steps: dict[int, int] = {}
-    for topic_id, completed_step_orders in steps_by_topic.items():
-        phase_num = _parse_phase_from_topic_id(topic_id)
-        if phase_num is not None:
-            phase_steps[phase_num] = phase_steps.get(phase_num, 0) + len(
-                completed_step_orders
-            )
-
-    validated_by_phase = get_validated_ids_by_phase(db_submissions)
+    phase_summary = await _get_or_build_phase_summary(db, user_id)
 
     phases: dict[int, PhaseProgress] = {}
     for phase_id in get_all_phase_ids():
@@ -180,10 +155,13 @@ async def fetch_user_progress(
         if not requirements:
             continue
         hands_on_requirements = get_requirements_for_phase(phase_id)
+        summary = phase_summary.get(phase_id)
+        steps_completed = summary.steps_completed if summary else 0
+        questions_passed = summary.questions_passed if summary else 0
+        hands_on_validated_count = summary.hands_on_validated_count if summary else 0
+
         required_ids = {r.id for r in hands_on_requirements}
-        validated_ids = validated_by_phase.get(phase_id, set())
         hands_on_required_count = len(required_ids)
-        hands_on_validated_count = len(required_ids.intersection(validated_ids))
         has_hands_on_requirements = hands_on_required_count > 0
         hands_on_validated = (
             (hands_on_validated_count >= hands_on_required_count)
@@ -193,9 +171,9 @@ async def fetch_user_progress(
 
         phases[phase_id] = PhaseProgress(
             phase_id=phase_id,
-            steps_completed=phase_steps.get(phase_id, 0),
+            steps_completed=steps_completed,
             steps_required=requirements.steps,
-            questions_passed=phase_questions.get(phase_id, 0),
+            questions_passed=questions_passed,
             questions_required=requirements.questions,
             hands_on_validated_count=hands_on_validated_count,
             hands_on_required_count=hands_on_required_count,
@@ -210,6 +188,75 @@ async def fetch_user_progress(
     set_cached_progress(user_id, result)
 
     return result
+
+
+async def _get_or_build_phase_summary(
+    db: AsyncSession,
+    user_id: str,
+) -> dict[int, "UserPhaseProgress"]:
+    summary_repo = UserPhaseProgressRepository(db)
+    rows = await summary_repo.get_by_user(user_id)
+    if not rows:
+        await _build_summary_from_history(db, user_id, summary_repo)
+        rows = await summary_repo.get_by_user(user_id)
+    return {row.phase_id: row for row in rows}
+
+
+async def _build_summary_from_history(
+    db: AsyncSession,
+    user_id: str,
+    summary_repo: UserPhaseProgressRepository,
+) -> None:
+    await rebuild_user_phase_summary(db, user_id, summary_repo=summary_repo)
+
+
+async def rebuild_user_phase_summary(
+    db: AsyncSession,
+    user_id: str,
+    *,
+    summary_repo: UserPhaseProgressRepository | None = None,
+) -> int:
+    question_repo = QuestionAttemptRepository(db)
+    step_repo = StepProgressRepository(db)
+    submission_repo = SubmissionRepository(db)
+    summary_repo = summary_repo or UserPhaseProgressRepository(db)
+
+    # Parallelize the 3 independent DB queries for better performance
+    phase_questions, phase_steps, validated_counts = await asyncio.gather(
+        question_repo.get_passed_counts_by_phase(user_id),
+        step_repo.get_step_counts_by_phase(user_id),
+        submission_repo.get_validated_counts_by_phase(user_id),
+    )
+
+    updated = 0
+    for phase_id in get_all_phase_ids():
+        steps_completed = phase_steps.get(phase_id, 0)
+        questions_passed = phase_questions.get(phase_id, 0)
+        validated_count = validated_counts.get(phase_id, 0)
+        await summary_repo.upsert_counts(
+            user_id=user_id,
+            phase_id=phase_id,
+            steps_completed=steps_completed,
+            questions_passed=questions_passed,
+            hands_on_validated_count=validated_count,
+        )
+        updated += 1
+
+    return updated
+
+
+async def rebuild_all_phase_summaries(
+    db: AsyncSession, *, user_ids: list[str] | None = None
+) -> int:
+    if user_ids is None:
+        result = await db.execute(select(User.id))
+        user_ids = [row[0] for row in result.all()]
+
+    total = 0
+    for user_id in user_ids:
+        total += await rebuild_user_phase_summary(db, user_id)
+
+    return total
 
 
 def get_phase_completion_counts(

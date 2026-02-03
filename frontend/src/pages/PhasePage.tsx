@@ -1,10 +1,12 @@
 import { useMemo } from 'react';
 import { Link, useParams, Navigate } from 'react-router-dom';
 import { useUser } from '@clerk/clerk-react';
-import { usePhaseDetail, useUserInfo, useDashboard } from '@/lib/hooks';
+import { useBadgeCatalog, usePhaseDetail, useUserInfo, useDashboard, usePhasesWithProgress } from '@/lib/hooks';
 import type {
+  PhaseProgressSchema,
   TopicSummarySchema,
 } from '@/lib/api-client';
+import type { BadgeCatalogItem } from '@/lib/types';
 import { PhaseVerificationForm } from '@/components/PhaseVerificationForm';
 import { PhaseCompletionCheck } from '@/components/PhaseCompletionCheck';
 
@@ -14,7 +16,7 @@ const PROGRESS_STATUS = {
   COMPLETED: 'completed',
 } as const;
 
-type ProgressStatus = typeof PROGRESS_STATUS[keyof typeof PROGRESS_STATUS];
+type ProgressStatus = PhaseProgressSchema['status'];
 
 function PhaseLoadingState() {
   return (
@@ -28,24 +30,11 @@ function PhaseLoadingState() {
   );
 }
 
-const VALID_PHASE_SLUGS = ["phase0", "phase1", "phase2", "phase3", "phase4", "phase5", "phase6"];
-
-// Phase slug to next phase mapping (for celebration modal navigation)
-const NEXT_PHASE: Record<string, string | undefined> = {
-  phase0: "phase1",
-  phase1: "phase2",
-  phase2: "phase3",
-  phase3: "phase4",
-  phase4: "phase5",
-  phase5: "phase6",
-  phase6: undefined,
-};
-
 export function PhasePage() {
   const { phaseSlug } = useParams<{ phaseSlug: string }>();
   const { isSignedIn, isLoaded } = useUser();
 
-  if (!phaseSlug || !VALID_PHASE_SLUGS.includes(phaseSlug)) {
+  if (!phaseSlug) {
     return <Navigate to="/404" replace />;
   }
 
@@ -138,12 +127,21 @@ function PhaseAuthenticatedView({ phaseSlug }: { phaseSlug: string }) {
   const { data: phase, isLoading, error } = usePhaseDetail(phaseSlug);
   const { data: userInfo } = useUserInfo();
   const { data: dashboard } = useDashboard();
+  const { data: badgeCatalog } = useBadgeCatalog();
+  const { data: phases } = usePhasesWithProgress();
 
   // Memoize earned badges to prevent unnecessary re-renders of PhaseCompletionCheck
   const earnedBadges = useMemo(
     () => dashboard?.badges?.map(b => ({ id: b.id })) ?? [],
     [dashboard?.badges]
   );
+
+  const orderedPhases = useMemo(() => {
+    if (!phases) {
+      return [];
+    }
+    return [...phases].sort((a, b) => a.order - b.order);
+  }, [phases]);
 
   if (isLoading) {
     return <PhaseLoadingState />;
@@ -158,10 +156,13 @@ function PhaseAuthenticatedView({ phaseSlug }: { phaseSlug: string }) {
   // Use API-computed value - business logic lives in API, not frontend
   const allTopicsComplete = phase.all_topics_complete;
 
+  const phaseIndex = phase ? orderedPhases.findIndex((p) => p.slug === phase.slug) : -1;
+  const prevPhaseSlug = phaseIndex > 0 ? orderedPhases[phaseIndex - 1]?.slug : undefined;
+  const nextPhaseSlug = phaseIndex >= 0 ? orderedPhases[phaseIndex + 1]?.slug : undefined;
+
   if (phase.is_locked) {
     // Guard against phase 0 being locked (shouldn't happen, but be safe)
     const prevPhaseNum = Math.max(0, phase.id - 1);
-    const prevPhaseSlug = `phase${prevPhaseNum}`;
     return (
       <div className="min-h-screen py-8 bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-950">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -177,12 +178,14 @@ function PhaseAuthenticatedView({ phaseSlug }: { phaseSlug: string }) {
             <p className="text-gray-600 dark:text-gray-300 mb-6">
               You need to complete <strong>Phase {prevPhaseNum}</strong> before you can access <strong>{phase.name}</strong>.
             </p>
-            <Link
-              to={`/${prevPhaseSlug}`}
-              className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
-            >
-              Go to Phase {prevPhaseNum}
-            </Link>
+            {prevPhaseSlug && (
+              <Link
+                to={`/${prevPhaseSlug}`}
+                className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+              >
+                Go to Phase {prevPhaseNum}
+              </Link>
+            )}
           </div>
         </div>
       </div>
@@ -257,7 +260,7 @@ function PhaseAuthenticatedView({ phaseSlug }: { phaseSlug: string }) {
                 requirements={phase.hands_on_requirements}
                 submissions={phase.hands_on_submissions || []}
                 githubUsername={githubUsername}
-                nextPhaseSlug={NEXT_PHASE[phaseSlug]}
+                nextPhaseSlug={nextPhaseSlug}
                 phaseProgress={phase.progress}
                 allHandsOnValidated={phase.all_hands_on_validated}
                 isPhaseComplete={phase.is_phase_complete}
@@ -297,7 +300,12 @@ function PhaseAuthenticatedView({ phaseSlug }: { phaseSlug: string }) {
         <PhaseCompletionCheck
           phaseNumber={phase.id}
           earnedBadges={earnedBadges}
-          nextPhaseSlug={NEXT_PHASE[phaseSlug]}
+          nextPhaseSlug={nextPhaseSlug}
+          phaseBadge={
+            badgeCatalog?.phase_badges.find(
+              (badge: BadgeCatalogItem) => badge.phase_id === phase.id
+            ) || null
+          }
         />
       </div>
     </div>
@@ -305,13 +313,13 @@ function PhaseAuthenticatedView({ phaseSlug }: { phaseSlug: string }) {
 }
 
 function StatusBadge({ status }: { status: ProgressStatus }) {
-  const statusColors: Record<ProgressStatus, string> = {
+  const statusColors: Record<string, string> = {
     [PROGRESS_STATUS.NOT_STARTED]: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300',
     [PROGRESS_STATUS.IN_PROGRESS]: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
     [PROGRESS_STATUS.COMPLETED]: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
   };
 
-  const statusLabels: Record<ProgressStatus, string> = {
+  const statusLabels: Record<string, string> = {
     [PROGRESS_STATUS.NOT_STARTED]: 'Not Started',
     [PROGRESS_STATUS.IN_PROGRESS]: 'In Progress',
     [PROGRESS_STATUS.COMPLETED]: 'Completed',
@@ -326,7 +334,7 @@ function StatusBadge({ status }: { status: ProgressStatus }) {
 
 function ProgressBar({ percentage, status, size = 'md' }: { percentage: number; status: ProgressStatus; size?: 'sm' | 'md' | 'lg' }) {
   const heights = { sm: 'h-1', md: 'h-2', lg: 'h-3' };
-  const barColors: Record<ProgressStatus, string> = {
+  const barColors: Record<string, string> = {
     [PROGRESS_STATUS.NOT_STARTED]: 'bg-gray-400',
     [PROGRESS_STATUS.IN_PROGRESS]: 'bg-amber-500',
     [PROGRESS_STATUS.COMPLETED]: 'bg-emerald-500',

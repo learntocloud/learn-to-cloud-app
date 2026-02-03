@@ -4,6 +4,17 @@
   "name": "DevOps Fundamentals",
   "description": "This phase covers DevOps fundamentals - the practices and tools that enable teams to deliver software faster and more reliably. You'll learn containerization, CI/CD pipelines, Infrastructure as Code, and monitoring.",
   "short_description": "Master Docker containers, Kubernetes orchestration, CI/CD pipelines, Terraform IaC, and monitoring with Prometheus and Grafana.",
+  "badge": {
+    "name": "DevOps Rocketeer",
+    "description": "Completed Phase 5",
+    "icon": "🚀"
+  },
+  "theme": {
+    "icon": "🔧",
+    "bg_class": "bg-pink-50 dark:bg-pink-900/20",
+    "border_class": "border-pink-200 dark:border-pink-800",
+    "text_class": "text-pink-600 dark:text-pink-400"
+  },
   "order": 5,
   "topics": [
     "containers",
@@ -31,6 +42,36 @@
       "Show a successful GitHub Actions workflow run",
       "Include Terraform config in an infra/ directory",
       "Include Kubernetes manifests in a k8s/ directory"
+    ],
+    "requirements": [
+      {
+        "id": "container-image",
+        "submission_type": "container_image",
+        "name": "Published a Container Image",
+        "description": "Demonstrates that the learner can containerize an application and publish an image to a registry.",
+        "example_url": "https://ghcr.io/owner/app"
+      },
+      {
+        "id": "cicd-pipeline",
+        "submission_type": "cicd_pipeline",
+        "name": "Built a CI/CD Pipeline",
+        "description": "Demonstrates that the learner can automate build and deployment with a CI/CD workflow run.",
+        "example_url": "https://github.com/owner/repo/actions/runs/123456789"
+      },
+      {
+        "id": "terraform-iac",
+        "submission_type": "terraform_iac",
+        "name": "Provisioned Infrastructure with Terraform",
+        "description": "Demonstrates that the learner can define and manage infrastructure as code with Terraform.",
+        "example_url": "https://github.com/owner/repo/tree/main/infra"
+      },
+      {
+        "id": "kubernetes-manifests",
+        "submission_type": "kubernetes_manifests",
+        "name": "Authored Kubernetes Manifests",
+        "description": "Demonstrates that the learner can describe and deploy workloads using Kubernetes manifests.",
+        "example_url": "https://github.com/owner/repo/tree/main/k8s"
+      }
     ]
   },
   "prerequisites": [

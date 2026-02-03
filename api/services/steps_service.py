@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.cache import invalidate_progress_cache
 from core.telemetry import add_custom_attribute, log_metric, track_operation
 from models import ActivityType
-from repositories import StepProgressRepository
+from repositories import StepProgressRepository, UserPhaseProgressRepository
 from schemas import StepCompletionResult, StepProgressData
 from services.activity_service import log_activity
 from services.content_service import get_topic_by_id
@@ -76,6 +76,15 @@ def _resolve_total_steps(topic_id: str) -> int:
     if topic is None:
         raise StepUnknownTopicError(topic_id)
     return len(topic.learning_steps)
+
+
+def _parse_phase_id_from_topic_id(topic_id: str) -> int | None:
+    if not isinstance(topic_id, str) or not topic_id.startswith("phase"):
+        return None
+    try:
+        return int(topic_id.split("-")[0].replace("phase", ""))
+    except (ValueError, IndexError):
+        return None
 
 
 def _validate_step_order(topic_id: str, step_order: int) -> int:
@@ -202,6 +211,11 @@ async def complete_step(
         step_order=step_order,
     )
 
+    phase_id = _parse_phase_id_from_topic_id(topic_id)
+    if phase_id is not None:
+        summary_repo = UserPhaseProgressRepository(db)
+        await summary_repo.apply_delta(user_id, phase_id, steps_delta=1)
+
     await log_activity(
         db=db,
         user_id=user_id,
@@ -254,5 +268,9 @@ async def uncomplete_step(
     # Invalidate cache so dashboard/progress refreshes immediately
     if deleted > 0:
         invalidate_progress_cache(user_id)
+        phase_id = _parse_phase_id_from_topic_id(topic_id)
+        if phase_id is not None:
+            summary_repo = UserPhaseProgressRepository(db)
+            await summary_repo.apply_delta(user_id, phase_id, steps_delta=-deleted)
 
     return deleted

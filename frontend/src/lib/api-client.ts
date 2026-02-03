@@ -2,24 +2,25 @@
  * API client for Learn to Cloud backend.
  * Uses Clerk for authentication.
  *
- * This is a simple client that calls the API endpoints.
- * All business logic (progress calculation, locking) is handled server-side.
+ * This client is generated from the OpenAPI contract and wraps openapi-fetch.
  */
 
-import type {
-  QuestionSubmitResponse,
-  ScenarioQuestionResponse,
-  TopicStepProgress,
-  StreakResponse,
-  PublicProfileResponse,
-  CertificateEligibility,
-  Certificate,
-  CertificateVerifyResponse,
-  UserCertificates,
-  GitHubValidationResult,
-} from './types';
+import createClient from 'openapi-fetch';
+import type { components, paths } from './api/schema';
+import type { GitHubValidationResult } from './types';
 
 export type { GitHubValidationResult } from './types';
+export type BadgeCatalogItem = components['schemas']['BadgeCatalogItem'];
+export type BadgeCatalogResponse =
+  paths['/api/user/badges/catalog']['get']['responses']['200']['content']['application/json'];
+export type HandsOnRequirement = components['schemas']['HandsOnRequirement'];
+export type HandsOnSubmission = components['schemas']['HandsOnSubmissionResponse'];
+export type PhaseProgressSchema = components['schemas']['PhaseProgressData'];
+export type PhaseSummarySchema = components['schemas']['PhaseSummaryData'];
+export type ProviderOptionSchema = components['schemas']['ProviderOption'];
+export type QuestionSchema = components['schemas']['Question'];
+export type TopicDetailSchema = components['schemas']['TopicDetailData'];
+export type TopicSummarySchema = components['schemas']['TopicSummaryData'];
 
 /**
  * Error thrown when user exceeds max quiz attempts and is locked out.
@@ -38,294 +39,160 @@ export class LockoutError extends Error {
 
 const API_URL = import.meta.env.VITE_API_URL || '';
 
-interface UserInfo {
-  id: string;
-  email: string;
-  first_name: string | null;
-  last_name: string | null;
-  avatar_url: string | null;
-  github_username: string | null;
-  is_admin: boolean;
-  created_at: string;
+type ErrorDetail = {
+  detail?: string;
+  lockout_until?: string | null;
+  attempts_used?: number | null;
+};
+
+type UserInfo = paths['/api/user/me']['get']['responses']['200']['content']['application/json'];
+type DashboardResponse =
+  paths['/api/user/dashboard']['get']['responses']['200']['content']['application/json'];
+type PhaseSummary =
+  paths['/api/user/phases']['get']['responses']['200']['content']['application/json'][number];
+type PhaseDetail =
+  paths['/api/user/phases/{phase_slug}']['get']['responses']['200']['content']['application/json'];
+type TopicDetail =
+  paths['/api/user/phases/{phase_slug}/topics/{topic_slug}']['get']['responses']['200']['content']['application/json'];
+type ScenarioQuestionResponse =
+  paths['/api/questions/{topic_id}/{question_id}/scenario']['get']['responses']['200']['content']['application/json'];
+type QuestionSubmitResponse =
+  paths['/api/questions/submit']['post']['responses']['200']['content']['application/json'];
+type TopicStepProgress =
+  paths['/api/steps/{topic_id}']['get']['responses']['200']['content']['application/json'];
+type StreakResponse =
+  paths['/api/activity/streak']['get']['responses']['200']['content']['application/json'];
+type PublicProfileResponse =
+  paths['/api/user/profile/{username}']['get']['responses']['200']['content']['application/json'];
+type CertificateEligibility =
+  paths['/api/certificates/eligibility/{certificate_type}']['get']['responses']['200']['content']['application/json'];
+type Certificate =
+  paths['/api/certificates']['post']['responses']['201']['content']['application/json'];
+type CertificateVerifyResponse =
+  paths['/api/certificates/verify/{verification_code}']['get']['responses']['200']['content']['application/json'];
+type UserCertificates =
+  paths['/api/certificates']['get']['responses']['200']['content']['application/json'];
+type UpdatesResponse =
+  paths['/api/updates']['get']['responses']['200']['content']['application/json'];
+
+function getErrorDetail(error: unknown): ErrorDetail {
+  if (error && typeof error === 'object') {
+    const detail = error as ErrorDetail;
+    return detail;
+  }
+  return {};
 }
 
-interface TopicProgressSchema {
-  steps_completed: number;
-  steps_total: number;
-  questions_passed: number;
-  questions_total: number;
-  percentage: number;
-  status: 'not_started' | 'in_progress' | 'completed';
+function getErrorMessage(error: unknown, fallback: string): string {
+  const detail = getErrorDetail(error).detail;
+  return detail || fallback;
 }
 
-export interface TopicSummarySchema {
-  id: string;
-  slug: string;
-  name: string;
-  description: string;
-  order: number;
-  is_capstone: boolean;
-  steps_count: number;
-  questions_count: number;
-  progress: TopicProgressSchema | null;
-  is_locked: boolean;
-}
-
-interface SecondaryLinkSchema {
-  text: string;
-  url: string;
-}
-
-export interface ProviderOptionSchema {
-  provider: string;
-  title: string;
-  url: string;
-  description: string | null;
-}
-
-interface LearningStepSchema {
-  order: number;
-  text: string;
-  action: string | null;
-  title: string | null;
-  url: string | null;
-  description: string | null;
-  code: string | null;
-  secondary_links: SecondaryLinkSchema[];
-  options: ProviderOptionSchema[];
-}
-
-export interface QuestionSchema {
-  id: string;
-  prompt: string;
-  // Note: expected_concepts removed for security - grading data is server-side only
-}
-
-export interface QuestionLockoutSchema {
-  question_id: string;
-  lockout_until: string;
-  attempts_used: number;
-}
-
-export interface TopicDetailSchema {
-  id: string;
-  slug: string;
-  name: string;
-  description: string;
-  order: number;
-  is_capstone: boolean;
-  learning_steps: LearningStepSchema[];
-  questions: QuestionSchema[];
-  progress: TopicProgressSchema | null;
-  completed_step_orders: number[];
-  passed_question_ids: string[];
-  locked_questions: QuestionLockoutSchema[];
-  is_locked: boolean;
-  is_topic_locked: boolean;
-  previous_topic_name: string | null;
-}
-
-export interface PhaseProgressSchema {
-  steps_completed: number;
-  steps_required: number;
-  questions_passed: number;
-  questions_required: number;
-  hands_on_validated: number;
-  hands_on_required: number;
-  percentage: number;
-  status: 'not_started' | 'in_progress' | 'completed';
-}
-
-export interface PhaseCapstoneOverviewSchema {
-  title: string;
-  summary: string;
-  includes: string[];
-  topic_slug: string | null;
-}
-
-export interface PhaseHandsOnVerificationOverviewSchema {
-  summary: string;
-  includes: string[];
-}
-
-export interface PhaseSummarySchema {
-  id: number;
-  name: string;
-  slug: string;
-  description: string;
-  short_description: string;
-  order: number;
-  topics_count: number;
-  capstone: PhaseCapstoneOverviewSchema | null;
-  hands_on_verification: PhaseHandsOnVerificationOverviewSchema | null;
-  progress: PhaseProgressSchema | null;
-  is_locked: boolean;
-}
-
-export interface HandsOnRequirement {
-  id: string;
-  phase_id: number;
-  submission_type: string;
-  name: string;
-  description: string;
-  example_url: string | null;
-  note: string | null;
-}
-
-export interface HandsOnSubmission {
-  id: number;
-  requirement_id: string;
-  submission_type: string;
-  phase_id: number;
-  submitted_value: string;
-  extracted_username: string | null;
-  is_validated: boolean;
-  validated_at: string | null;
-  created_at: string;
-  feedback_json: string | null;
-}
-
-interface PhaseDetailSchema {
-  id: number;
-  name: string;
-  slug: string;
-  description: string;
-  short_description: string;
-  order: number;
-  capstone: PhaseCapstoneOverviewSchema | null;
-  hands_on_verification: PhaseHandsOnVerificationOverviewSchema | null;
-  topics: TopicSummarySchema[];
-  progress: PhaseProgressSchema | null;
-  hands_on_requirements: HandsOnRequirement[];
-  hands_on_submissions: HandsOnSubmission[];
-  is_locked: boolean;
-  // Computed fields from API - DO NOT recalculate in frontend
-  all_topics_complete: boolean;
-  all_hands_on_validated: boolean;
-  is_phase_complete: boolean;
-}
-
-interface UserSummarySchema {
-  id: string;
-  email: string;
-  first_name: string | null;
-  last_name: string | null;
-  avatar_url: string | null;
-  github_username: string | null;
-  is_admin: boolean;
-}
-
-interface DashboardResponseNew {
-  user: UserSummarySchema;
-  phases: PhaseSummarySchema[];
-  overall_progress: number;
-  phases_completed: number;
-  phases_total: number;
-  current_phase: number | null;
-  badges: BadgeSchema[];
-}
-
-interface BadgeSchema {
-  id: string;
-  name: string;
-  description: string;
-  icon: string;
+function ensureData<T>(
+  data: T | undefined,
+  error: unknown,
+  response: Response | undefined,
+  fallback: string
+): T {
+  if (response?.ok && data !== undefined) {
+    return data;
+  }
+  throw new Error(getErrorMessage(error, fallback));
 }
 
 /**
  * Create an API client with the given auth token getter.
  */
 export function createApiClient(getToken: () => Promise<string | null>) {
-  async function fetchWithAuth(url: string, options: RequestInit = {}) {
+  const client = createClient<paths>({ baseUrl: API_URL });
+
+  async function getAuthHeaders() {
     const token = await getToken();
-
-    const response = await fetch(`${API_URL}${url}`, {
-      ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        ...options.headers,
-      },
-    });
-
-    return response;
+    return {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    } as const;
   }
 
   return {
     async getUserInfo(): Promise<UserInfo> {
-      const res = await fetchWithAuth('/api/user/me');
-      if (!res.ok) throw new Error('Failed to fetch user info');
-      return res.json();
+      const { data, error, response } = await client.GET('/api/user/me', {
+        headers: await getAuthHeaders(),
+      });
+      return ensureData(data, error, response, 'Failed to fetch user info');
     },
 
-    async getDashboard(): Promise<DashboardResponseNew> {
-      const res = await fetchWithAuth('/api/user/dashboard');
-      if (!res.ok) throw new Error('Failed to fetch dashboard');
-      return res.json();
+    async getDashboard(): Promise<DashboardResponse> {
+      const { data, error, response } = await client.GET('/api/user/dashboard', {
+        headers: await getAuthHeaders(),
+      });
+      return ensureData(data, error, response, 'Failed to fetch dashboard');
     },
 
-    async getPhasesWithProgress(): Promise<PhaseSummarySchema[]> {
-      const res = await fetchWithAuth('/api/user/phases');
-      if (!res.ok) throw new Error('Failed to fetch phases');
-      return res.json();
+    async getPhasesWithProgress(): Promise<PhaseSummary[]> {
+      const { data, error, response } = await client.GET('/api/user/phases', {
+        headers: await getAuthHeaders(),
+      });
+      return ensureData(data, error, response, 'Failed to fetch phases');
     },
 
-    async getPhaseDetail(phaseSlug: string): Promise<PhaseDetailSchema | null> {
-      const res = await fetchWithAuth(`/api/user/phases/${phaseSlug}`);
-      if (res.status === 404) return null;
-      if (!res.ok) throw new Error('Failed to fetch phase');
-      return res.json();
+    async getPhaseDetail(phaseSlug: string): Promise<PhaseDetail | null> {
+      const { data, error, response } = await client.GET('/api/user/phases/{phase_slug}', {
+        headers: await getAuthHeaders(),
+        params: { path: { phase_slug: phaseSlug } },
+      });
+      if (response?.status === 404) return null;
+      return ensureData(data, error, response, 'Failed to fetch phase');
     },
 
     async getTopicDetail(
       phaseSlug: string,
       topicSlug: string
-    ): Promise<TopicDetailSchema | null> {
-      const res = await fetchWithAuth(`/api/user/phases/${phaseSlug}/topics/${topicSlug}`);
-      if (res.status === 404) return null;
-      if (!res.ok) throw new Error('Failed to fetch topic');
-      return res.json();
+    ): Promise<TopicDetail | null> {
+      const { data, error, response } = await client.GET(
+        '/api/user/phases/{phase_slug}/topics/{topic_slug}',
+        {
+          headers: await getAuthHeaders(),
+          params: { path: { phase_slug: phaseSlug, topic_slug: topicSlug } },
+        }
+      );
+      if (response?.status === 404) return null;
+      return ensureData(data, error, response, 'Failed to fetch topic');
     },
 
     async submitGitHubUrl(
       requirementId: string,
       url: string
     ): Promise<GitHubValidationResult> {
-      const res = await fetchWithAuth('/api/github/submit', {
-        method: 'POST',
-        body: JSON.stringify({ requirement_id: requirementId, submitted_value: url }),
+      const { data, error, response } = await client.POST('/api/github/submit', {
+        headers: await getAuthHeaders(),
+        body: { requirement_id: requirementId, submitted_value: url },
       });
-      if (!res.ok) {
-        const error = await res.json().catch(() => ({ detail: 'Submission failed' }));
-        throw new Error(error.detail || 'Submission failed');
-      }
-      return res.json();
+      return ensureData(data, error, response, 'Submission failed');
     },
 
     async getScenarioQuestion(
       topicId: string,
       questionId: string
     ): Promise<ScenarioQuestionResponse> {
-      const res = await fetchWithAuth(`/api/questions/${topicId}/${questionId}/scenario`);
-      if (res.status === 429) {
-        const error = await res.json().catch(() => ({
-          detail: 'Too many attempts',
-          lockout_until: null,
-          attempts_used: 0,
-        }));
-        const retryAfter = parseInt(res.headers.get('Retry-After') || '3600', 10);
+      const { data, error, response } = await client.GET(
+        '/api/questions/{topic_id}/{question_id}/scenario',
+        {
+          headers: await getAuthHeaders(),
+          params: { path: { topic_id: topicId, question_id: questionId } },
+        }
+      );
+      if (response?.status === 429) {
+        const detail = getErrorDetail(error);
+        const retryAfter = parseInt(response.headers.get('Retry-After') || '3600', 10);
         throw new LockoutError(
-          error.detail || 'Too many failed attempts',
-          error.lockout_until,
-          error.attempts_used,
+          detail.detail || 'Too many failed attempts',
+          detail.lockout_until || '',
+          detail.attempts_used ?? 0,
           retryAfter
         );
       }
-      if (!res.ok) {
-        const error = await res.json().catch(() => ({ detail: 'Failed to fetch question' }));
-        throw new Error(error.detail || 'Failed to fetch question');
-      }
-      return res.json();
+      return ensureData(data, error, response, 'Failed to fetch question');
     },
 
     async submitAnswer(
@@ -334,58 +201,47 @@ export function createApiClient(getToken: () => Promise<string | null>) {
       answer: string,
       scenarioContext?: string
     ): Promise<QuestionSubmitResponse> {
-      const res = await fetchWithAuth('/api/questions/submit', {
-        method: 'POST',
-        body: JSON.stringify({
+      const { data, error, response } = await client.POST('/api/questions/submit', {
+        headers: await getAuthHeaders(),
+        body: {
           topic_id: topicId,
           question_id: questionId,
           user_answer: answer,
           scenario_context: scenarioContext,
-        }),
+        },
       });
-      if (res.status === 429) {
-        const error = await res.json().catch(() => ({
-          detail: 'Too many attempts',
-          lockout_until: null,
-          attempts_used: 0,
-        }));
-        const retryAfter = parseInt(res.headers.get('Retry-After') || '3600', 10);
+      if (response?.status === 429) {
+        const detail = getErrorDetail(error);
+        const retryAfter = parseInt(response.headers.get('Retry-After') || '3600', 10);
         throw new LockoutError(
-          error.detail || 'Too many failed attempts',
-          error.lockout_until,
-          error.attempts_used,
+          detail.detail || 'Too many failed attempts',
+          detail.lockout_until || '',
+          detail.attempts_used ?? 0,
           retryAfter
         );
       }
-      if (!res.ok) {
-        const error = await res.json().catch(() => ({ detail: 'Submission failed' }));
-        throw new Error(error.detail || 'Submission failed');
-      }
-      return res.json();
+      return ensureData(data, error, response, 'Submission failed');
     },
 
     async getTopicStepProgress(topicId: string): Promise<TopicStepProgress> {
-      const res = await fetchWithAuth(`/api/steps/${topicId}`);
-      if (!res.ok) {
-        const error = await res.json().catch(() => ({ detail: 'Failed to fetch step progress' }));
-        throw new Error(error.detail || 'Failed to fetch step progress');
-      }
-      return res.json();
+      const { data, error, response } = await client.GET('/api/steps/{topic_id}', {
+        headers: await getAuthHeaders(),
+        params: { path: { topic_id: topicId } },
+      });
+      return ensureData(data, error, response, 'Failed to fetch step progress');
     },
 
     async completeStep(
       topicId: string,
       stepOrder: number
     ): Promise<TopicStepProgress> {
-      const res = await fetchWithAuth('/api/steps/complete', {
-        method: 'POST',
-        body: JSON.stringify({ topic_id: topicId, step_order: stepOrder }),
+      const { error, response } = await client.POST('/api/steps/complete', {
+        headers: await getAuthHeaders(),
+        body: { topic_id: topicId, step_order: stepOrder },
       });
-      if (!res.ok) {
-        const error = await res.json().catch(() => ({ detail: 'Failed to complete step' }));
-        throw new Error(error.detail || 'Failed to complete step');
+      if (!response?.ok) {
+        throw new Error(getErrorMessage(error, 'Failed to complete step'));
       }
-      // The API returns StepProgressResponse, but we need to fetch full topic progress after
       return this.getTopicStepProgress(topicId);
     },
 
@@ -393,20 +249,21 @@ export function createApiClient(getToken: () => Promise<string | null>) {
       topicId: string,
       stepOrder: number
     ): Promise<TopicStepProgress> {
-      const res = await fetchWithAuth(`/api/steps/${topicId}/${stepOrder}`, {
-        method: 'DELETE',
+      const { error, response } = await client.DELETE('/api/steps/{topic_id}/{step_order}', {
+        headers: await getAuthHeaders(),
+        params: { path: { topic_id: topicId, step_order: stepOrder } },
       });
-      if (!res.ok) {
-        const error = await res.json().catch(() => ({ detail: 'Failed to uncomplete step' }));
-        throw new Error(error.detail || 'Failed to uncomplete step');
+      if (!response?.ok) {
+        throw new Error(getErrorMessage(error, 'Failed to uncomplete step'));
       }
-      // Refetch the full progress
       return this.getTopicStepProgress(topicId);
     },
 
     async getStreak(): Promise<StreakResponse> {
-      const res = await fetchWithAuth('/api/activity/streak');
-      if (!res.ok) {
+      const { data, response } = await client.GET('/api/activity/streak', {
+        headers: await getAuthHeaders(),
+      });
+      if (!response?.ok || !data) {
         return {
           current_streak: 0,
           longest_streak: 0,
@@ -415,50 +272,61 @@ export function createApiClient(getToken: () => Promise<string | null>) {
           streak_alive: false,
         };
       }
-      return res.json();
+      return data;
     },
 
     async getPublicProfile(username: string): Promise<PublicProfileResponse | null> {
-      const res = await fetch(`${API_URL}/api/user/profile/${username}`);
-      if (res.status === 404) return null;
-      if (!res.ok) throw new Error('Failed to fetch profile');
-      return res.json();
+      const { data, error, response } = await client.GET('/api/user/profile/{username}', {
+        params: { path: { username } },
+      });
+      if (response?.status === 404) return null;
+      return ensureData(data, error, response, 'Failed to fetch profile');
     },
 
     async getCertificateEligibility(certificateType: string): Promise<CertificateEligibility> {
-      const res = await fetchWithAuth(`/api/certificates/eligibility/${certificateType}`);
-      if (!res.ok) throw new Error('Failed to check eligibility');
-      return res.json();
+      const { data, error, response } = await client.GET(
+        '/api/certificates/eligibility/{certificate_type}',
+        {
+          headers: await getAuthHeaders(),
+          params: { path: { certificate_type: certificateType } },
+        }
+      );
+      return ensureData(data, error, response, 'Failed to check eligibility');
     },
 
-    async generateCertificate(certificateType: string, recipientName: string): Promise<Certificate> {
-      const res = await fetchWithAuth('/api/certificates', {
-        method: 'POST',
-        body: JSON.stringify({ certificate_type: certificateType, recipient_name: recipientName }),
+    async generateCertificate(
+      certificateType: string,
+      recipientName: string
+    ): Promise<Certificate> {
+      const { data, error, response } = await client.POST('/api/certificates', {
+        headers: await getAuthHeaders(),
+        body: { certificate_type: certificateType, recipient_name: recipientName },
       });
-      if (!res.ok) {
-        const error = await res.json().catch(() => ({ detail: 'Failed to generate' }));
-        throw new Error(error.detail || 'Failed to generate certificate');
-      }
-      return res.json();
+      return ensureData(data, error, response, 'Failed to generate certificate');
     },
 
     async getUserCertificates(): Promise<UserCertificates> {
-      const res = await fetchWithAuth('/api/certificates');
-      if (!res.ok) throw new Error('Failed to fetch certificates');
-      return res.json();
+      const { data, error, response } = await client.GET('/api/certificates', {
+        headers: await getAuthHeaders(),
+      });
+      return ensureData(data, error, response, 'Failed to fetch certificates');
     },
 
     async verifyCertificate(code: string): Promise<CertificateVerifyResponse> {
-      const res = await fetch(`${API_URL}/api/certificates/verify/${code}`);
-      if (!res.ok) {
+      const { data, response } = await client.GET(
+        '/api/certificates/verify/{verification_code}',
+        {
+          params: { path: { verification_code: code } },
+        }
+      );
+      if (!response?.ok || !data) {
         return {
           is_valid: false,
           certificate: null,
           message: 'Certificate not found',
         };
       }
-      return res.json();
+      return data;
     },
 
     getCertificatePdfUrl(certificateId: number): string {
@@ -479,10 +347,14 @@ export function createApiClient(getToken: () => Promise<string | null>) {
       return `${API_URL}/api/certificates/verify/${code}/png${suffix}`;
     },
 
-    async getUpdates() {
-      const res = await fetch(`${API_URL}/api/updates`);
-      if (!res.ok) throw new Error('Failed to fetch updates');
-      return res.json();
+    async getUpdates(): Promise<UpdatesResponse> {
+      const { data, error, response } = await client.GET('/api/updates');
+      return ensureData(data, error, response, 'Failed to fetch updates');
+    },
+
+    async getBadgeCatalog(): Promise<BadgeCatalogResponse> {
+      const { data, error, response } = await client.GET('/api/user/badges/catalog');
+      return ensureData(data, error, response, 'Failed to fetch badge catalog');
     },
   };
 }

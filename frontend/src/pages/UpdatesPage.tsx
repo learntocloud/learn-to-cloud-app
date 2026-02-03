@@ -1,11 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { UpdatesResponse, UpdatesCommit } from '@/lib/types';
+import { createApiClient } from '@/lib/api-client';
 
 export function UpdatesPage() {
   const [data, setData] = useState<UpdatesResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const api = useMemo(() => createApiClient(async () => null), []);
 
   useEffect(() => {
     document.title = 'Updates - Learn to Cloud';
@@ -15,11 +17,7 @@ export function UpdatesPage() {
   async function fetchUpdates() {
     try {
       setLoading(true);
-      const response = await fetch('/api/updates');
-      if (!response.ok) {
-        throw new Error('Failed to fetch updates');
-      }
-      const result: UpdatesResponse = await response.json();
+      const result = await api.getUpdates();
       setData(result);
       setError(result.error || null);
     } catch (err) {

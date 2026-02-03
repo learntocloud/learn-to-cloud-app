@@ -129,6 +129,13 @@ export function PhaseVerificationForm({
           const isPassed = submission?.is_validated === true;
           const isFailed = submission && !submission.is_validated;
           const validationMsg = validationMessages[req.id];
+          const isTokenType = req.submission_type === 'ctf_token' || req.submission_type === 'networking_token';
+          const isJsonResponse = req.submission_type === 'journal_api_response';
+          const isGitHubUrlType =
+            req.submission_type === 'github_profile'
+            || req.submission_type === 'profile_readme'
+            || req.submission_type === 'repo_fork'
+            || req.submission_type === 'code_analysis';
 
           // Parse persisted feedback from submission if no fresh validation message
           const persistedTaskResults = submission?.feedback_json
@@ -245,7 +252,7 @@ export function PhaseVerificationForm({
                   {submission?.submitted_value && (
                     <div className="mb-2 text-sm">
                       <span className="text-gray-500 dark:text-gray-400">Submitted: </span>
-                      {req.submission_type === 'ctf_token' || req.submission_type === 'networking_token' ? (
+                      {isTokenType || isJsonResponse ? (
                         <span
                           className="text-gray-700 dark:text-gray-300 font-mono text-xs break-all"
                           title={submission.submitted_value}
@@ -269,32 +276,59 @@ export function PhaseVerificationForm({
 
                   <div className="flex gap-2">
                     <label htmlFor={`url-${req.id}`} className="sr-only">
-                      {req.submission_type === 'ctf_token' || req.submission_type === 'networking_token'
+                      {isTokenType
                         ? `Completion token for ${req.name}`
-                        : `GitHub repository URL for ${req.name}`}
+                        : isJsonResponse
+                          ? `JSON response for ${req.name}`
+                          : isGitHubUrlType
+                            ? `GitHub URL for ${req.name}`
+                            : `Evidence URL for ${req.name}`}
                     </label>
-                    <input
-                      id={`url-${req.id}`}
-                      type={req.submission_type === 'ctf_token' || req.submission_type === 'networking_token' ? 'text' : 'url'}
-                      value={urls[req.id] || ''}
-                      onChange={(e) => {
-                        setUrls((prev) => ({ ...prev, [req.id]: e.target.value }));
-                        if (validationMessages[req.id]) {
-                          setValidationMessages((prev) => {
-                            const { [req.id]: _, ...rest } = prev;
-                            return rest;
-                          });
+                    {isJsonResponse ? (
+                      <textarea
+                        id={`url-${req.id}`}
+                        rows={4}
+                        value={urls[req.id] || ''}
+                        onChange={(e) => {
+                          setUrls((prev) => ({ ...prev, [req.id]: e.target.value }));
+                          if (validationMessages[req.id]) {
+                            setValidationMessages((prev) => {
+                              const { [req.id]: _, ...rest } = prev;
+                              return rest;
+                            });
+                          }
+                        }}
+                        placeholder="Paste your JSON response from GET /entries"
+                        className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        disabled={submitMutation.isPending}
+                        aria-describedby={validationMsg ? `msg-${req.id}` : undefined}
+                      />
+                    ) : (
+                      <input
+                        id={`url-${req.id}`}
+                        type={isTokenType ? 'text' : 'url'}
+                        value={urls[req.id] || ''}
+                        onChange={(e) => {
+                          setUrls((prev) => ({ ...prev, [req.id]: e.target.value }));
+                          if (validationMessages[req.id]) {
+                            setValidationMessages((prev) => {
+                              const { [req.id]: _, ...rest } = prev;
+                              return rest;
+                            });
+                          }
+                        }}
+                        placeholder={
+                          isTokenType
+                            ? 'Paste your completion token here'
+                            : isGitHubUrlType
+                              ? 'https://github.com/username/repo'
+                              : 'https://example.com/evidence'
                         }
-                      }}
-                      placeholder={
-                        req.submission_type === 'ctf_token' || req.submission_type === 'networking_token'
-                          ? 'Paste your completion token here'
-                          : 'https://github.com/username/repo'
-                      }
-                      className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      disabled={submitMutation.isPending}
-                      aria-describedby={validationMsg ? `msg-${req.id}` : undefined}
-                    />
+                        className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        disabled={submitMutation.isPending}
+                        aria-describedby={validationMsg ? `msg-${req.id}` : undefined}
+                      />
+                    )}
                     <button
                       onClick={() => handleSubmit(req.id)}
                       disabled={!urls[req.id] || submitMutation.isPending}

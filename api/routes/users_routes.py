@@ -3,18 +3,20 @@
 from fastapi import APIRouter, HTTPException, Request
 
 from core.auth import OptionalUserId, UserId
-from core.database import DbSession
+from core.database import DbSession, DbSessionReadOnly
 from core.ratelimit import limiter
 from models import ActivityType
 from schemas import (
     ActivityHeatmapDay,
     ActivityHeatmapResponse,
+    BadgeCatalogResponse,
     BadgeResponse,
     PublicProfileResponse,
     PublicSubmission,
     StreakResponse,
     UserResponse,
 )
+from services.badges_service import get_badge_catalog
 from services.users_service import get_or_create_user, get_public_profile
 
 __all__ = ["router", "get_or_create_user"]
@@ -45,7 +47,7 @@ async def get_current_user(
 async def get_public_profile_endpoint(
     request: Request,
     username: str,
-    db: DbSession,
+    db: DbSessionReadOnly,
     user_id: OptionalUserId = None,
 ) -> PublicProfileResponse:
     """Get a user's public profile by username (GitHub username)."""
@@ -96,4 +98,22 @@ async def get_public_profile_endpoint(
         member_since=profile_data.member_since,
         submissions=submissions,
         badges=badges,
+    )
+
+
+@router.get(
+    "/badges/catalog",
+    response_model=BadgeCatalogResponse,
+    summary="Get badge catalog",
+    responses={200: {"description": "Badge catalog"}},
+)
+@limiter.limit("30/minute")
+async def get_badge_catalog_endpoint(request: Request) -> BadgeCatalogResponse:
+    """Get the badge catalog for public display."""
+    phase_badges, streak_badges, total_badges, phase_themes = get_badge_catalog()
+    return BadgeCatalogResponse(
+        phase_badges=phase_badges,
+        streak_badges=streak_badges,
+        total_badges=total_badges,
+        phase_themes=phase_themes,
     )

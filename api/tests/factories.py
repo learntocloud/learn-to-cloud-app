@@ -60,6 +60,15 @@ def _get_random_phase_id() -> int:
     return random.choice(_get_valid_phase_ids())
 
 
+def _parse_phase_id_from_topic_id(topic_id: str) -> int:
+    if not isinstance(topic_id, str) or not topic_id.startswith("phase"):
+        return _get_random_phase_id()
+    try:
+        return int(topic_id.split("-")[0].replace("phase", ""))
+    except (ValueError, IndexError):
+        return _get_random_phase_id()
+
+
 # =============================================================================
 # Async Factory Helpers
 # =============================================================================
@@ -247,6 +256,9 @@ class StepProgressFactory(factory.Factory):
     topic_id = factory.LazyAttribute(
         lambda _: f"phase{_get_random_phase_id()}-topic{fake.random_int(1, 5)}"
     )
+    phase_id = factory.LazyAttribute(
+        lambda obj: _parse_phase_id_from_topic_id(obj.topic_id)
+    )
     step_order = factory.Sequence(lambda n: n + 1)
     completed_at = factory.LazyFunction(lambda: datetime.now(UTC))
 
@@ -263,6 +275,9 @@ class QuestionAttemptFactory(factory.Factory):
     )
     topic_id = factory.LazyAttribute(
         lambda _: f"phase{_get_random_phase_id()}-topic{fake.random_int(1, 5)}"
+    )
+    phase_id = factory.LazyAttribute(
+        lambda obj: _parse_phase_id_from_topic_id(obj.topic_id)
     )
     question_id = factory.LazyAttribute(lambda obj: f"{obj.topic_id}-q1")
     user_answer = factory.LazyAttribute(lambda _: fake.paragraph(nb_sentences=3))

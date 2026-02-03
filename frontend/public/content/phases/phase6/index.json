@@ -4,6 +4,17 @@
   "name": "Securing Your Cloud Applications",
   "description": "This phase focuses on securing the cloud applications and infrastructure you've built throughout your journey. You'll take the Journal API application from previous phases and implement enterprise-grade security controls, monitoring, and incident response capabilities.",
   "short_description": "Implement cloud security: IAM policies, secrets management, network security, threat detection, and incident response. Enterprise-grade protection.",
+  "badge": {
+    "name": "Security Guardian",
+    "description": "Completed Phase 6",
+    "icon": "🔐"
+  },
+  "theme": {
+    "icon": "🔐",
+    "bg_class": "bg-red-50 dark:bg-red-900/20",
+    "border_class": "border-red-200 dark:border-red-800",
+    "text_class": "text-red-600 dark:text-red-400"
+  },
   "order": 6,
   "topics": [
     "identity-access-management",
@@ -29,6 +40,15 @@
     "includes": [
       "Enable security scanning (Dependabot, CodeQL, etc.)",
       "Show resolved or triaged findings"
+    ],
+    "requirements": [
+      {
+        "id": "security-scanning",
+        "submission_type": "security_scanning",
+        "name": "Enabled Security Scanning",
+        "description": "Demonstrates that the learner enabled security scanning and addressed findings with documented remediation or triage.",
+        "example_url": "https://github.com/owner/repo/security/code-scanning"
+      }
     ]
   },
   "prerequisites": [

@@ -130,6 +130,43 @@ const mockStreak = {
   streak_alive: true,
 };
 
+const mockBadgeCatalog = {
+  phase_badges: [
+    {
+      id: 'phase_0_complete',
+      name: 'Cloud Seedling',
+      description: 'Completed Phase 0',
+      icon: '🌱',
+      num: '#001',
+      how_to: 'Complete Phase 0: Starting from Zero',
+      phase_id: 0,
+      phase_name: 'Starting from Zero',
+    },
+  ],
+  streak_badges: [
+    {
+      id: 'streak_7',
+      name: 'Week Warrior',
+      description: 'Maintained a 7-day learning streak',
+      icon: '🔥',
+      num: '#002',
+      how_to: 'Maintain a 7-day learning streak',
+      phase_id: null,
+      phase_name: null,
+    },
+  ],
+  total_badges: 2,
+  phase_themes: [
+    {
+      phase_id: 0,
+      icon: '🌱',
+      bg_class: 'bg-gray-50 dark:bg-gray-800/50',
+      border_class: 'border-gray-200 dark:border-gray-700',
+      text_class: 'text-gray-600 dark:text-gray-400',
+    },
+  ],
+};
+
 export const handlers = [
   // User info
   http.get(`${API_URL}/api/me`, async () => {
@@ -141,6 +178,12 @@ export const handlers = [
   http.get(`${API_URL}/api/dashboard`, async () => {
     await delay(50);
     return HttpResponse.json(mockDashboard);
+  }),
+
+  // Badge catalog
+  http.get(`${API_URL}/api/user/badges/catalog`, async () => {
+    await delay(50);
+    return HttpResponse.json(mockBadgeCatalog);
   }),
 
   // Phases list

@@ -4,6 +4,17 @@
   "slug": "phase1",
   "description": "Here at Learn to Cloud, we like to get hands-on as soon as possible. So, we've prepared a Capture The Flag (CTF) lab for you to practice your Linux and Bash. Before you can access them, you'll spend time learning about the lab and setting it up. Don't worry \u2013 along the way, we'll provide tips, documentation links, resources, and more to help you succeed.",
   "short_description": "Master Linux command line, Bash scripting, Git version control, and Infrastructure as Code basics through hands-on CTF challenges.",
+  "badge": {
+    "name": "Terminal Ninja",
+    "description": "Completed Phase 1",
+    "icon": "🐧"
+  },
+  "theme": {
+    "icon": "🐧",
+    "bg_class": "bg-blue-50 dark:bg-blue-900/20",
+    "border_class": "border-blue-200 dark:border-blue-800",
+    "text_class": "text-blue-600 dark:text-blue-400"
+  },
   "order": 1,
   "prerequisites": [
     "Mac OS or an Ubuntu based computer. If you're on Windows, you'll use WSL.",
@@ -25,6 +36,29 @@
       "Create a GitHub Profile README repository",
       "Fork the Linux CTFs repository",
       "Submit your Linux CTF completion token"
+    ],
+    "requirements": [
+      {
+        "id": "profile-readme",
+        "submission_type": "profile_readme",
+        "name": "Wrote a Developer Profile README",
+        "description": "Demonstrates that the learner can write a clear, structured README that communicates their skills and goals.",
+        "example_url": "https://github.com/madebygps/madebygps/blob/main/README.md"
+      },
+      {
+        "id": "linux-ctfs-fork",
+        "submission_type": "repo_fork",
+        "name": "Forked the Linux CTFs Repo",
+        "description": "Demonstrates that the learner understands forking, can create a fork, and can contribute to shared or open-source codebases.",
+        "example_url": "https://github.com/madebygps/linux-ctfs",
+        "required_repo": "learntocloud/linux-ctfs"
+      },
+      {
+        "id": "linux-ctfs-token",
+        "submission_type": "ctf_token",
+        "name": "Completed Linux CTFs",
+        "description": "Demonstrates that the learner can complete Linux command-line CTFs and verify completion with a token."
+      }
     ]
   },
   "topics": [

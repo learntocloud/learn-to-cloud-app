@@ -7,6 +7,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@clerk/clerk-react';
 import { createApiClient } from './api-client';
 
+const STALE_TIME_MS = 30_000;
+
 // Create a hook that provides the API client
 export function useApi() {
   const { getToken } = useAuth();
@@ -18,6 +20,7 @@ export function useDashboard() {
   return useQuery({
     queryKey: ['dashboard'],
     queryFn: () => api.getDashboard(),
+    staleTime: STALE_TIME_MS,
   });
 }
 
@@ -28,6 +31,7 @@ export function useUserInfo() {
     queryKey: ['userInfo'],
     queryFn: () => api.getUserInfo(),
     enabled: !!isSignedIn,
+    staleTime: STALE_TIME_MS,
   });
 }
 
@@ -36,6 +40,16 @@ export function usePhasesWithProgress() {
   return useQuery({
     queryKey: ['phases'],
     queryFn: () => api.getPhasesWithProgress(),
+    staleTime: STALE_TIME_MS,
+  });
+}
+
+export function useBadgeCatalog() {
+  const api = useApi();
+  return useQuery({
+    queryKey: ['badgeCatalog'],
+    queryFn: () => api.getBadgeCatalog(),
+    staleTime: 5 * 60 * 1000,
   });
 }
 
@@ -45,6 +59,7 @@ export function usePhaseDetail(phaseSlug: string) {
     queryKey: ['phase', phaseSlug],
     queryFn: () => api.getPhaseDetail(phaseSlug),
     enabled: !!phaseSlug,
+    staleTime: STALE_TIME_MS,
   });
 }
 
@@ -54,6 +69,7 @@ export function useTopicDetail(phaseSlug: string, topicSlug: string) {
     queryKey: ['topic', phaseSlug, topicSlug],
     queryFn: () => api.getTopicDetail(phaseSlug, topicSlug),
     enabled: !!phaseSlug && !!topicSlug,
+    staleTime: STALE_TIME_MS,
   });
 }
 
@@ -149,6 +165,7 @@ export function useStreak() {
   return useQuery({
     queryKey: ['streak'],
     queryFn: () => api.getStreak(),
+    staleTime: STALE_TIME_MS,
   });
 }
 
@@ -158,6 +175,7 @@ export function usePublicProfile(username: string) {
     queryKey: ['publicProfile', username],
     queryFn: () => api.getPublicProfile(username),
     enabled: !!username,
+    staleTime: STALE_TIME_MS,
   });
 }
 
@@ -167,6 +185,7 @@ export function useCertificateEligibility(certificateType: string) {
     queryKey: ['certificateEligibility', certificateType],
     queryFn: () => api.getCertificateEligibility(certificateType),
     enabled: !!certificateType,
+    staleTime: STALE_TIME_MS,
   });
 }
 
@@ -189,6 +208,7 @@ export function useUserCertificates() {
   return useQuery({
     queryKey: ['userCertificates'],
     queryFn: () => api.getUserCertificates(),
+    staleTime: STALE_TIME_MS,
   });
 }
 
@@ -198,5 +218,6 @@ export function useVerifyCertificate(code: string) {
     queryKey: ['verifyCertificate', code],
     queryFn: () => api.verifyCertificate(code),
     enabled: !!code,
+    staleTime: STALE_TIME_MS,
   });
 }

@@ -111,12 +111,12 @@ def _check_db_available() -> bool:
     return _DB_AVAILABLE
 
 
-@pytest_asyncio.fixture(scope="function")
+@pytest_asyncio.fixture(scope="session")
 async def test_engine() -> AsyncGenerator[AsyncEngine]:
     """Create test database engine.
 
-    Creates the test database if it doesn't exist and sets up tables.
-    Each test function gets a fresh engine.
+    Creates the test database if it doesn't exist and sets up tables once
+    per test session for faster runs.
     """
     if not _check_db_available():
         pytest.skip("PostgreSQL not available - skipping database test")
@@ -145,8 +145,9 @@ async def test_engine() -> AsyncGenerator[AsyncEngine]:
         echo=False,
     )
 
-    # Create all tables
+    # Recreate all tables to ensure schema matches current models
     async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
 
     yield engine
@@ -186,6 +187,36 @@ async def db_session(
         # Rollback the transaction - all test data disappears
         await transaction.rollback()
         await connection.close()
+
+
+def _quote_table_name(name: str) -> str:
+    return ".".join(f'"{part}"' for part in name.split("."))
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def cleanup_database(
+    request: pytest.FixtureRequest,
+    test_engine: AsyncEngine,
+):
+    """Truncate tables after integration tests to keep data isolated.
+
+    This keeps route tests isolated without recreating the schema per test.
+    """
+    yield
+
+    if request.node.get_closest_marker("integration") is None:
+        return
+
+    if not _check_db_available():
+        return
+
+    table_names = [table.fullname for table in Base.metadata.sorted_tables]
+    if not table_names:
+        return
+
+    quoted_tables = ", ".join(_quote_table_name(name) for name in table_names)
+    async with test_engine.begin() as conn:
+        await conn.execute(text(f"TRUNCATE {quoted_tables} RESTART IDENTITY CASCADE"))
 
 
 # =============================================================================

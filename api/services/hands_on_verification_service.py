@@ -21,6 +21,8 @@ For AI-powered code analysis, see copilot_verification_service.py
 For phase requirements, see phase_requirements.py
 """
 
+from urllib.parse import urlparse
+
 from models import SubmissionType
 from schemas import HandsOnRequirement, ValidationResult
 from services.copilot_verification_service import analyze_repository_code
@@ -30,6 +32,7 @@ from services.github_hands_on_verification_service import (
     validate_profile_readme,
     validate_repo_fork,
 )
+from services.journal_verification_service import validate_journal_api_response
 from services.networking_lab_service import verify_networking_token
 from services.phase_requirements_service import (
     HANDS_ON_REQUIREMENTS,
@@ -86,6 +89,32 @@ def validate_networking_token_submission(
         is_valid=result.is_valid,
         message=result.message,
         username_match=result.is_valid,
+    )
+
+
+def _is_valid_url(value: str) -> bool:
+    parsed = urlparse(value)
+    return parsed.scheme in {"http", "https"} and bool(parsed.netloc)
+
+
+def validate_evidence_url_submission(submitted_value: str) -> ValidationResult:
+    """Validate a generic evidence URL submission."""
+    value = submitted_value.strip()
+    if not value:
+        return ValidationResult(
+            is_valid=False,
+            message="Please submit a valid URL.",
+        )
+
+    if not _is_valid_url(value):
+        return ValidationResult(
+            is_valid=False,
+            message="Please submit a valid http(s) URL.",
+        )
+
+    return ValidationResult(
+        is_valid=True,
+        message="Submission verified.",
     )
 
 
@@ -165,6 +194,9 @@ async def validate_submission(
             )
         return validate_networking_token_submission(submitted_value, expected_username)
 
+    elif requirement.submission_type == SubmissionType.JOURNAL_API_RESPONSE:
+        return validate_journal_api_response(submitted_value)
+
     elif requirement.submission_type == SubmissionType.CODE_ANALYSIS:
         if not expected_username:
             return ValidationResult(
@@ -173,6 +205,16 @@ async def validate_submission(
                 username_match=False,
             )
         return await analyze_repository_code(submitted_value, expected_username)
+
+    elif requirement.submission_type in {
+        SubmissionType.DEPLOYED_API,
+        SubmissionType.CONTAINER_IMAGE,
+        SubmissionType.CICD_PIPELINE,
+        SubmissionType.TERRAFORM_IAC,
+        SubmissionType.KUBERNETES_MANIFESTS,
+        SubmissionType.SECURITY_SCANNING,
+    }:
+        return validate_evidence_url_submission(submitted_value)
 
     else:
         return ValidationResult(
