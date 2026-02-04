@@ -33,7 +33,7 @@ from schemas import (
     UserProgress,
 )
 from services.content_service import get_all_phases
-from services.hands_on_verification_service import get_requirements_for_phase
+from services.phase_requirements_service import get_requirements_for_phase
 
 logger = get_logger(__name__)
 

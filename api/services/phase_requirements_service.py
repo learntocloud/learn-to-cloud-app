@@ -7,11 +7,12 @@ hands_on_verification.requirements. This module provides access helpers.
 from functools import lru_cache
 
 from schemas import HandsOnRequirement
-from services.content_service import get_all_phases
 
 
 @lru_cache(maxsize=1)
 def _get_requirements_map() -> dict[int, list[HandsOnRequirement]]:
+    from services.content_service import get_all_phases
+
     requirements_map: dict[int, list[HandsOnRequirement]] = {}
     for phase in get_all_phases():
         requirements = []
@@ -19,9 +20,6 @@ def _get_requirements_map() -> dict[int, list[HandsOnRequirement]]:
             requirements = list(phase.hands_on_verification.requirements)
         requirements_map[phase.id] = requirements
     return requirements_map
-
-
-HANDS_ON_REQUIREMENTS: dict[int, list[HandsOnRequirement]] = _get_requirements_map()
 
 
 def get_requirements_for_phase(phase_id: int) -> list[HandsOnRequirement]:

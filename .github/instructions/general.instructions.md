@@ -12,7 +12,7 @@ description: "Git workflow, conventional commits, pre-commit hooks, and comment 
 cd api && uv run pre-commit run --all-files
 ```
 - **NEVER** use `--no-verify` to bypass
-- **NEVER** use `SKIP=ty` or skip any pre-commit hooks
+- **NEVER** skip any pre-commit hooks
 - **NEVER** commit if pre-commit fails—fix all issues first
 
 ### Conventional Commits

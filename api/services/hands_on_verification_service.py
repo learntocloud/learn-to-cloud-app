@@ -25,24 +25,12 @@ from urllib.parse import urlparse
 
 from models import SubmissionType
 from schemas import HandsOnRequirement, ValidationResult
-from services.copilot_verification_service import analyze_repository_code
-from services.ctf_service import verify_ctf_token
-from services.github_hands_on_verification_service import (
-    validate_github_profile,
-    validate_profile_readme,
-    validate_repo_fork,
-)
-from services.journal_verification_service import validate_journal_api_response
-from services.networking_lab_service import verify_networking_token
 from services.phase_requirements_service import (
-    HANDS_ON_REQUIREMENTS,
     get_requirement_by_id,
     get_requirements_for_phase,
 )
 
-# Re-export for backwards compatibility
 __all__ = [
-    "HANDS_ON_REQUIREMENTS",
     "get_requirement_by_id",
     "get_requirements_for_phase",
     "validate_submission",
@@ -62,6 +50,8 @@ def validate_ctf_token_submission(
     Returns:
         ValidationResult with verification status
     """
+    from services.ctf_service import verify_ctf_token
+
     ctf_result = verify_ctf_token(token, expected_username)
 
     return ValidationResult(
@@ -83,6 +73,8 @@ def validate_networking_token_submission(
     Returns:
         ValidationResult with verification status
     """
+    from services.networking_lab_service import verify_networking_token
+
     result = verify_networking_token(token, expected_username)
 
     return ValidationResult(
@@ -143,6 +135,10 @@ async def validate_submission(
                 username_match=False,
                 repo_exists=False,
             )
+        from services.github_hands_on_verification_service import (
+            validate_github_profile,
+        )
+
         return await validate_github_profile(submitted_value, expected_username)
 
     elif requirement.submission_type == SubmissionType.PROFILE_README:
@@ -153,6 +149,10 @@ async def validate_submission(
                 username_match=False,
                 repo_exists=False,
             )
+        from services.github_hands_on_verification_service import (
+            validate_profile_readme,
+        )
+
         return await validate_profile_readme(submitted_value, expected_username)
 
     elif requirement.submission_type == SubmissionType.REPO_FORK:
@@ -170,6 +170,10 @@ async def validate_submission(
                 username_match=False,
                 repo_exists=False,
             )
+        from services.github_hands_on_verification_service import (
+            validate_repo_fork,
+        )
+
         return await validate_repo_fork(
             submitted_value, expected_username, requirement.required_repo
         )
@@ -195,6 +199,10 @@ async def validate_submission(
         return validate_networking_token_submission(submitted_value, expected_username)
 
     elif requirement.submission_type == SubmissionType.JOURNAL_API_RESPONSE:
+        from services.journal_verification_service import (
+            validate_journal_api_response,
+        )
+
         return validate_journal_api_response(submitted_value)
 
     elif requirement.submission_type == SubmissionType.CODE_ANALYSIS:
@@ -204,6 +212,8 @@ async def validate_submission(
                 message="GitHub username is required for code analysis",
                 username_match=False,
             )
+        from services.copilot_verification_service import analyze_repository_code
+
         return await analyze_repository_code(submitted_value, expected_username)
 
     elif requirement.submission_type in {

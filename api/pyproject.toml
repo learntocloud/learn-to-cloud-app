@@ -52,7 +52,27 @@ dev = [
     "factory-boy>=3.3.0",
     "hypothesis>=6.0.0",
     "time-machine>=2.13.0",
+    "pytest-xdist>=3.5.0",
 ]
+
+[tool.coverage.run]
+omit = [
+    "tests/*",
+    "alembic/*",
+    "scripts/*",
+    "__pycache__/*",
+    ".venv/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+    "if __name__ == .__main__.:",
+]
+fail_under = 40
 
 [tool.ruff]
 line-length = 88
@@ -86,6 +106,7 @@ dev = [
     "respx>=0.20.0",
     "ruff==0.8.6",
     "time-machine>=2.13.0",
+    "pytest-xdist>=3.5.0",
     "ty==0.0.12",
     "pre-commit>=4.5.1",
 ]

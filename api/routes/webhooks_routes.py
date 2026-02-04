@@ -1,7 +1,6 @@
 """Clerk webhook endpoints."""
 
 from fastapi import APIRouter, HTTPException, Request
-from svix.webhooks import Webhook, WebhookVerificationError
 
 from core import get_logger
 from core.config import get_settings
@@ -56,6 +55,8 @@ async def clerk_webhook(request: Request, db: DbSession) -> WebhookResponse:
         )
 
     try:
+        from svix.webhooks import Webhook, WebhookVerificationError
+
         wh = Webhook(settings.clerk_webhook_signing_secret)
         event = wh.verify(payload, headers)
     except WebhookVerificationError as e:

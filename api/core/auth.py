@@ -11,15 +11,11 @@ Circuit Breaker:
 - Protects against Clerk outages blocking worker threads
 """
 
-from typing import Annotated
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Annotated
 
 from circuitbreaker import CircuitBreakerError, CircuitBreakerMonitor, circuit
-from clerk_backend_api import Clerk
-from clerk_backend_api.security.types import (
-    AuthenticateRequestOptions,
-    RequestState,
-    TokenVerificationErrorReason,
-)
 from fastapi import Depends, HTTPException, Request
 
 from core.config import get_settings
@@ -30,21 +26,34 @@ from core.telemetry import (
 )
 from core.wide_event import set_wide_event_field, set_wide_event_fields
 
+if TYPE_CHECKING:
+    from clerk_backend_api import Clerk
+    from clerk_backend_api.security.types import (
+        RequestState,
+    )
+
 logger = get_logger(__name__)
 
 # Module-level singleton for the Clerk SDK client
 _clerk_client: Clerk | None = None
 _clerk_initialized: bool = False
 
-# JWKS-related failure reasons that indicate infrastructure issues (not user error)
-_JWKS_FAILURE_REASONS = frozenset(
-    {
-        TokenVerificationErrorReason.JWK_FAILED_TO_LOAD,
-        TokenVerificationErrorReason.JWK_REMOTE_INVALID,
-        TokenVerificationErrorReason.JWK_FAILED_TO_RESOLVE,
-        TokenVerificationErrorReason.JWK_KID_MISMATCH,
-    }
-)
+
+def _get_jwks_failure_reasons() -> frozenset:
+    """Build the set of JWKS failure reasons on first use (avoids eager import)."""
+    from clerk_backend_api.security.types import TokenVerificationErrorReason
+
+    return frozenset(
+        {
+            TokenVerificationErrorReason.JWK_FAILED_TO_LOAD,
+            TokenVerificationErrorReason.JWK_REMOTE_INVALID,
+            TokenVerificationErrorReason.JWK_FAILED_TO_RESOLVE,
+            TokenVerificationErrorReason.JWK_KID_MISMATCH,
+        }
+    )
+
+
+_JWKS_FAILURE_REASONS: frozenset | None = None
 
 # Circuit breaker configuration
 _CIRCUIT_NAME = "clerk_auth"
@@ -59,7 +68,7 @@ class ClerkAuthUnavailable(Exception):
     indicating Clerk infrastructure issues rather than user authentication errors.
     """
 
-    def __init__(self, reason: TokenVerificationErrorReason):
+    def __init__(self, reason: object):
         self.reason = reason
         super().__init__(f"Clerk auth unavailable: {reason}")
 
@@ -70,7 +79,7 @@ def get_clerk_client() -> Clerk | None:
 
 def init_clerk_client() -> None:
     """Initialize Clerk SDK. Auth disabled if CLERK_SECRET_KEY not set."""
-    global _clerk_client, _clerk_initialized
+    global _clerk_client, _clerk_initialized, _JWKS_FAILURE_REASONS
     _clerk_initialized = True
 
     settings = get_settings()
@@ -81,7 +90,10 @@ def init_clerk_client() -> None:
         )
         return
 
-    _clerk_client = Clerk(bearer_auth=settings.clerk_secret_key)
+    from clerk_backend_api import Clerk as _Clerk
+
+    _clerk_client = _Clerk(bearer_auth=settings.clerk_secret_key)
+    _JWKS_FAILURE_REASONS = _get_jwks_failure_reasons()
     logger.info("Clerk SDK client initialized")
 
 
@@ -112,8 +124,10 @@ def _get_authorized_parties() -> list[str]:
 )
 def _authenticate_request_with_circuit_breaker(
     clerk: Clerk, req: Request, authorized_parties: list[str]
-) -> RequestState:
+) -> RequestState:  # type: ignore[override]
     """Raises ClerkAuthUnavailable on JWKS failure (triggers circuit breaker)."""
+    from clerk_backend_api.security.types import AuthenticateRequestOptions
+
     request_state = clerk.authenticate_request(
         req,
         AuthenticateRequestOptions(
@@ -124,7 +138,7 @@ def _authenticate_request_with_circuit_breaker(
     # Check for JWKS infrastructure failures - raise to trigger circuit breaker
     if not request_state.is_signed_in:
         reason = getattr(request_state, "reason", None)
-        if reason in _JWKS_FAILURE_REASONS:
+        if _JWKS_FAILURE_REASONS and reason in _JWKS_FAILURE_REASONS:
             raise ClerkAuthUnavailable(reason)
 
     return request_state

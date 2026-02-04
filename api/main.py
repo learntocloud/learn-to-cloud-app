@@ -101,15 +101,8 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
     )
 
 
-async def _background_init(app: FastAPI):
-    """Background initialization tasks (non-blocking for faster cold start)."""
-    if _run_db_migrations_on_startup_enabled():
-        logger.info("migrations.starting")
-        await asyncio.to_thread(_run_alembic_upgrade_head_sync)
-        logger.info("migrations.complete")
-
-    await init_db(app.state.engine)
-
+async def _background_cleanup(app: FastAPI) -> None:
+    """Background cleanup tasks that are safe to run after startup."""
     try:
         async with app.state.session_maker() as session:
             deleted = await ProcessedWebhookRepository(session).delete_older_than(
@@ -124,49 +117,55 @@ async def _background_init(app: FastAPI):
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Create DB engine at startup, dispose on shutdown."""
-    # Initialize Clerk client synchronously at startup
-    init_clerk_client()
+    """Create DB engine at startup, dispose on shutdown.
 
-    # Create database engine and session maker - stored in app.state
+    Database connectivity is verified synchronously before the app accepts
+    requests so that early traffic never hits an uninitialised pool.
+    Clerk SDK init runs concurrently with DB verification to overlap the
+    heavy import cost with the network round-trip.
+    """
     app.state.engine = create_engine()
     app.state.session_maker = create_session_maker(app.state.engine)
 
     app.state.init_done = False
     app.state.init_error = None
 
-    init_task = asyncio.create_task(_background_init(app))
+    try:
+        if _run_db_migrations_on_startup_enabled():
+            logger.info("migrations.starting")
+            await asyncio.to_thread(_run_alembic_upgrade_head_sync)
+            logger.info("migrations.complete")
 
-    def _record_init_result(task: asyncio.Task[None]) -> None:
-        try:
-            task.result()
-            app.state.init_done = True
-            app.state.init_error = None
-            logger.info("init.complete")
-        except Exception as e:
-            app.state.init_done = False
-            app.state.init_error = str(e)
-            logger.error("init.failed", error=str(e), exc_info=True)
+        # Run Clerk SDK init (heavy import) concurrently with DB verification
+        clerk_task = asyncio.to_thread(init_clerk_client)
+        db_task = init_db(app.state.engine)
+        await asyncio.gather(clerk_task, db_task)
 
-    init_task.add_done_callback(_record_init_result)
+        app.state.init_done = True
+        logger.info("init.complete")
+    except Exception as e:
+        app.state.init_error = str(e)
+        logger.error("init.failed", error=str(e), exc_info=True)
+        raise
+
+    cleanup_task = asyncio.create_task(_background_cleanup(app))
 
     try:
         yield
     finally:
-        # Cleanup in reverse order of initialization
         close_clerk_client()
         await close_http_client()
         await close_github_client()
         await close_copilot_client()
-        await dispose_engine(app.state.engine)  # Close all database connections
+        await dispose_engine(app.state.engine)
 
         try:
-            if not init_task.done():
-                await init_task
+            if not cleanup_task.done():
+                await cleanup_task
             else:
-                init_task.result()
+                cleanup_task.result()
         except Exception:
-            logger.exception("init.background.failed")
+            logger.exception("cleanup.background.failed")
 
 
 app = FastAPI(

@@ -43,12 +43,12 @@ description: "FastAPI routes, async patterns, structlog logging, SQLAlchemy, htt
 - **Repositories**: Generally no logging (too noisy)—let SQLAlchemy instrumentation handle query tracing
 
 ### Telemetry Guidelines
-See **Telemetry & Observability** section below for detailed usage of `set_wide_event_fields()`, `add_custom_attribute()`, and `log_metric()`.
+See [observability.instructions.md](observability.instructions.md) for wide events, tracing, and metrics.
 
 ## Style & Type Hints
 - Follow PEP 8; max line length 88 (ruff enforces)
 - Use type hints on all function signatures
-- Modern syntax: `X | None` not `Optional[X]`, `list[str]` not `List[str]}`, `dict[str, Any]` not `Dict`
+- Modern syntax: `X | None` not `Optional[X]`, `list[str]` not `List[str]`, `dict[str, Any]` not `Dict`
 - For generics (Python 3.12+): `def func[T](item: T) -> T:`
 - Use absolute imports within the api package
 
@@ -220,57 +220,6 @@ See **Telemetry & Observability** section below for detailed usage of `set_wide_
 - Use `flush()` inside transactions, `commit()` at boundaries
 - Repository methods should NOT call `commit()`—caller owns the transaction
 - Use `scalar_one()` vs `scalar_one_or_none()` correctly based on expected results
-
-## Telemetry & Observability (core.telemetry)
-Use telemetry for **production observability**, not debugging. Import from `core.telemetry`:
-
-### Wide Events (Request-Scoped Context)
-```python
-from core.wide_event import set_wide_event_fields, set_wide_event_nested
-
-# ✅ Add business context to the canonical request log line
-set_wide_event_fields(
-    phase_id=phase.id,
-    steps_completed=len(completed),
-    badge_awarded="phase_1_complete",
-)
-
-# ✅ Nested for related data
-set_wide_event_nested("grading", score=85, attempts=2, topic="networking")
-```
-- Wide events are emitted **once per request** by middleware
-- Use for: business metrics, user journey data, feature flags checked
-- Don't use for: debugging, verbose logs, errors (use logger for those)
-
-### Custom Span Attributes (Distributed Tracing)
-```python
-from core.telemetry import add_custom_attribute
-
-# ✅ Add attributes to the current OpenTelemetry span
-add_custom_attribute("llm.model", "gemini-1.5-flash")
-add_custom_attribute("llm.tokens_used", 1500)
-```
-- Use for: external service calls, slow operations, cross-service correlation
-- These appear in Azure Application Insights / distributed traces
-
-### Custom Metrics
-```python
-from core.telemetry import log_metric
-
-# ✅ Emit a metric for dashboards/alerts
-log_metric("scenario.generated", 1, {"topic": topic_name, "model": "gemini"})
-log_metric("grading.latency_ms", latency, {"topic": topic_name})
-```
-- Use for: counters, latencies, business KPIs
-- Tags should be low-cardinality (don't use user_id as a tag)
-
-### When to Use What
-| Need | Tool | Example |
-|------|------|---------|
-| Log a discrete event | `logger.info()` | `logger.info("step.completed", step_id=s)` |
-| Add context to request log | `set_wide_event_fields()` | `set_wide_event_fields(badge_count=3)` |
-| Trace across services | `add_custom_attribute()` | `add_custom_attribute("upstream.latency", 50)` |
-| Count/measure for dashboards | `log_metric()` | `log_metric("questions.graded", 1)` |
 
 ## Docstrings
 - Required on all public functions

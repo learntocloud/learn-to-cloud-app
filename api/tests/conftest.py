@@ -198,11 +198,11 @@ def _quote_table_name(name: str) -> str:
 @pytest_asyncio.fixture(autouse=True)
 async def cleanup_database(
     request: pytest.FixtureRequest,
-    test_engine: AsyncEngine,
 ):
     """Truncate tables after integration tests to keep data isolated.
 
-    This keeps route tests isolated without recreating the schema per test.
+    Only requests `test_engine` when an integration marker is present,
+    so pure unit tests never trigger the database session fixture.
     """
     yield
 
@@ -212,12 +212,14 @@ async def cleanup_database(
     if not _check_db_available():
         return
 
+    engine: AsyncEngine = request.getfixturevalue("test_engine")
+
     table_names = [table.fullname for table in Base.metadata.sorted_tables]
     if not table_names:
         return
 
     quoted_tables = ", ".join(_quote_table_name(name) for name in table_names)
-    async with test_engine.begin() as conn:
+    async with engine.begin() as conn:
         await conn.execute(text(f"TRUNCATE {quoted_tables} RESTART IDENTITY CASCADE"))
 
 

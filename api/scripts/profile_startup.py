@@ -1,0 +1,125 @@
+"""Profile API startup to identify bottlenecks. Run from api/ directory."""
+
+import time
+
+t0 = time.perf_counter()
+
+print("--- IMPORT TIMING ---", flush=True)
+
+t = time.perf_counter()
+import asyncio  # noqa: E402
+
+print(f"stdlib imports: {(time.perf_counter()-t)*1000:.0f}ms", flush=True)
+
+t = time.perf_counter()
+
+print(f"fastapi: {(time.perf_counter()-t)*1000:.0f}ms", flush=True)
+
+t = time.perf_counter()
+
+print(f"slowapi: {(time.perf_counter()-t)*1000:.0f}ms", flush=True)
+
+t = time.perf_counter()
+from core.config import get_settings  # noqa: E402
+
+print(f"core.config: {(time.perf_counter()-t)*1000:.0f}ms", flush=True)
+
+t = time.perf_counter()
+from core.logger import configure_logging, get_logger  # noqa: E402
+
+print(f"core.logger: {(time.perf_counter()-t)*1000:.0f}ms", flush=True)
+
+t = time.perf_counter()
+from core.auth import close_clerk_client, init_clerk_client  # noqa: E402
+
+print(f"core.auth (clerk SDK): {(time.perf_counter()-t)*1000:.0f}ms", flush=True)
+
+t = time.perf_counter()
+from core.database import (  # noqa: E402
+    create_engine,
+    create_session_maker,
+    dispose_engine,
+    init_db,
+)
+
+print(f"core.database (sqlalchemy): {(time.perf_counter()-t)*1000:.0f}ms", flush=True)
+
+t = time.perf_counter()
+
+print(f"core.telemetry: {(time.perf_counter()-t)*1000:.0f}ms", flush=True)
+
+t = time.perf_counter()
+
+print(f"core.ratelimit: {(time.perf_counter()-t)*1000:.0f}ms", flush=True)
+
+t = time.perf_counter()
+
+print(f"core.copilot_client: {(time.perf_counter()-t)*1000:.0f}ms", flush=True)
+
+t = time.perf_counter()
+
+print(f"routes (all routers): {(time.perf_counter()-t)*1000:.0f}ms", flush=True)
+
+t = time.perf_counter()
+
+print(f"services.clerk_service: {(time.perf_counter()-t)*1000:.0f}ms", flush=True)
+
+t = time.perf_counter()
+
+print(
+    f"services.github_hands_on_verification: {(time.perf_counter()-t)*1000:.0f}ms",
+    flush=True,
+)
+
+total_imports = time.perf_counter() - t0
+print(f"\n=> TOTAL import time: {total_imports*1000:.0f}ms\n", flush=True)
+
+# ------------------------------------------------------------------
+
+print("--- TOP-LEVEL CODE ---", flush=True)
+
+t = time.perf_counter()
+configure_logging()
+print(f"configure_logging(): {(time.perf_counter()-t)*1000:.0f}ms", flush=True)
+
+t = time.perf_counter()
+logger = get_logger(__name__)
+print(f"get_logger(): {(time.perf_counter()-t)*1000:.0f}ms", flush=True)
+
+t = time.perf_counter()
+settings = get_settings()
+print(f"get_settings(): {(time.perf_counter()-t)*1000:.0f}ms", flush=True)
+
+# ------------------------------------------------------------------
+
+print("\n--- LIFESPAN STEPS ---", flush=True)
+
+t = time.perf_counter()
+init_clerk_client()
+print(f"init_clerk_client(): {(time.perf_counter()-t)*1000:.0f}ms", flush=True)
+
+t = time.perf_counter()
+engine = create_engine()
+print(f"create_engine(): {(time.perf_counter()-t)*1000:.0f}ms", flush=True)
+
+t = time.perf_counter()
+sm = create_session_maker(engine)
+print(f"create_session_maker(): {(time.perf_counter()-t)*1000:.0f}ms", flush=True)
+
+
+async def measure_init_db():
+    t = time.perf_counter()
+    await init_db(engine)
+    print(f"init_db() [SELECT 1]: {(time.perf_counter()-t)*1000:.0f}ms", flush=True)
+    await dispose_engine(engine)
+
+
+asyncio.run(measure_init_db())
+
+close_clerk_client()
+
+total = time.perf_counter() - t0
+print(f"\n{'='*50}", flush=True)
+print(f"TOTAL startup time: {total*1000:.0f}ms", flush=True)
+print(f"  - imports: {total_imports*1000:.0f}ms", flush=True)
+print(f"  - runtime: {(total - total_imports)*1000:.0f}ms", flush=True)

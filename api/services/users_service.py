@@ -1,15 +1,18 @@
 """User service for user-related business logic."""
 
 import asyncio
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.telemetry import log_metric, track_operation
 from core.wide_event import set_wide_event_fields
 from models import SubmissionType, User
+from repositories.activity_repository import ActivityRepository
 from repositories.submission_repository import SubmissionRepository
 from repositories.user_repository import UserRepository
 from schemas import (
+    ActivityHeatMapEntry,
     BadgeData,
     PublicProfileData,
     PublicSubmissionInfo,
@@ -138,6 +141,7 @@ async def get_public_profile(
     """
     user_repo = UserRepository(db)
     submission_repo = SubmissionRepository(db)
+    activity_repo = ActivityRepository(db)
 
     # Normalize username (GitHub usernames are case-insensitive)
     normalized_username = normalize_github_username(username)
@@ -153,9 +157,17 @@ async def get_public_profile(
             submission_repo.get_validated_by_user(profile_user.id)
         )
         progress_task = tg.create_task(fetch_user_progress(db, profile_user.id))
+        heatmap_end = datetime.now(UTC).date()
+        heatmap_start = heatmap_end - timedelta(days=365)
+        heatmap_task = tg.create_task(
+            activity_repo.get_activity_counts_by_date(
+                profile_user.id, heatmap_start, heatmap_end
+            )
+        )
 
     db_submissions = submissions_task.result()
     progress = progress_task.result()
+    heatmap_rows = heatmap_task.result()
 
     sensitive_submission_types = {
         SubmissionType.CTF_TOKEN,
@@ -202,6 +214,10 @@ async def get_public_profile(
     phases_completed = progress.phases_completed
     current_phase = progress.current_phase
 
+    activity_heatmap = [
+        ActivityHeatMapEntry(date=row[0], count=row[1]) for row in heatmap_rows
+    ]
+
     profile_data = PublicProfileData(
         username=profile_user.github_username,
         first_name=profile_user.first_name,
@@ -211,6 +227,7 @@ async def get_public_profile(
         member_since=profile_user.created_at,
         submissions=submissions,
         badges=badges,
+        activity_heatmap=activity_heatmap,
     )
 
     set_wide_event_fields(
