@@ -15,10 +15,6 @@ from schemas import (
     PublicSubmissionInfo,
     UserResponse,
 )
-from services.activity_service import (
-    get_heatmap_data,
-    get_streak_data,
-)
 from services.badges_service import compute_all_badges
 from services.clerk_service import fetch_user_data
 from services.hands_on_verification_service import get_requirement_by_id
@@ -153,15 +149,11 @@ async def get_public_profile(
 
     # TaskGroup cancels remaining tasks if one fails (safer than gather)
     async with asyncio.TaskGroup() as tg:
-        streak_task = tg.create_task(get_streak_data(db, profile_user.id))
-        heatmap_task = tg.create_task(get_heatmap_data(db, profile_user.id, days=270))
         submissions_task = tg.create_task(
             submission_repo.get_validated_by_user(profile_user.id)
         )
         progress_task = tg.create_task(fetch_user_progress(db, profile_user.id))
 
-    streak = streak_task.result()
-    activity_heatmap = heatmap_task.result()
     db_submissions = submissions_task.result()
     progress = progress_task.result()
 
@@ -195,7 +187,6 @@ async def get_public_profile(
 
     earned_badges = compute_all_badges(
         phase_completion_counts=phase_completion_counts,
-        longest_streak=streak.longest_streak,
         user_id=profile_user.id,
     )
     badges = [
@@ -217,8 +208,6 @@ async def get_public_profile(
         avatar_url=profile_user.avatar_url,
         current_phase=current_phase,
         phases_completed=phases_completed,
-        streak=streak,
-        activity_heatmap=activity_heatmap,
         member_since=profile_user.created_at,
         submissions=submissions,
         badges=badges,

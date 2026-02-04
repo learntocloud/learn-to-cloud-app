@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.cache import invalidate_progress_cache
 from core.telemetry import add_custom_attribute, log_metric, track_operation
 from models import ActivityType
-from repositories import StepProgressRepository, UserPhaseProgressRepository
+from repositories import StepProgressRepository
 from schemas import StepCompletionResult, StepProgressData
 from services.activity_service import log_activity
 from services.content_service import get_topic_by_id
@@ -190,11 +190,6 @@ async def complete_step(
         step_order=step_order,
     )
 
-    phase_id = _parse_phase_id_from_topic_id(topic_id)
-    if phase_id is not None:
-        summary_repo = UserPhaseProgressRepository(db)
-        await summary_repo.apply_delta(user_id, phase_id, steps_delta=1)
-
     await log_activity(
         db=db,
         user_id=user_id,
@@ -247,9 +242,5 @@ async def uncomplete_step(
     # Invalidate cache so dashboard/progress refreshes immediately
     if deleted > 0:
         invalidate_progress_cache(user_id)
-        phase_id = _parse_phase_id_from_topic_id(topic_id)
-        if phase_id is not None:
-            summary_repo = UserPhaseProgressRepository(db)
-            await summary_repo.apply_delta(user_id, phase_id, steps_delta=-deleted)
 
     return deleted

@@ -296,28 +296,6 @@ class StepProgress(Base):
     user: Mapped["User"] = relationship(back_populates="step_progress")
 
 
-class UserPhaseProgress(TimestampMixin, Base):
-    """Aggregated progress counts per user and phase.
-
-    Maintained by write-side updates to avoid recomputing progress from
-    raw event rows on every read.
-    """
-
-    __tablename__ = "user_phase_progress"
-    __table_args__ = (Index("ix_user_phase_progress_user", "user_id"),)
-
-    user_id: Mapped[str] = mapped_column(
-        String(255),
-        ForeignKey("users.id", ondelete="CASCADE"),
-        primary_key=True,
-    )
-    phase_id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    steps_completed: Mapped[int] = mapped_column(Integer, default=0)
-    hands_on_validated_count: Mapped[int] = mapped_column(Integer, default=0)
-
-    user: Mapped["User"] = relationship()
-
-
 class UserActivity(Base):
     """Tracks user activities for streak calculation.
 

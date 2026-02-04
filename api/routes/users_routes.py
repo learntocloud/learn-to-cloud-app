@@ -5,15 +5,11 @@ from fastapi import APIRouter, HTTPException, Request
 from core.auth import OptionalUserId, UserId
 from core.database import DbSession, DbSessionReadOnly
 from core.ratelimit import limiter
-from models import ActivityType
 from schemas import (
-    ActivityHeatmapDay,
-    ActivityHeatmapResponse,
     BadgeCatalogResponse,
     BadgeResponse,
     PublicProfileResponse,
     PublicSubmission,
-    StreakResponse,
     UserResponse,
 )
 from services.badges_service import get_badge_catalog
@@ -58,25 +54,6 @@ async def get_public_profile_endpoint(
 
     profile_data = result
 
-    # Service returns StreakData which is compatible with StreakResponse
-    streak = StreakResponse.model_validate(profile_data.streak.model_dump())
-
-    # Transform HeatmapDay (string types) to ActivityHeatmapDay (enum types)
-    heatmap_days = [
-        ActivityHeatmapDay(
-            date=day.date,
-            count=day.count,
-            activity_types=[ActivityType(t) for t in day.activity_types],
-        )
-        for day in profile_data.activity_heatmap.days
-    ]
-    activity_heatmap = ActivityHeatmapResponse(
-        days=heatmap_days,
-        start_date=profile_data.activity_heatmap.start_date,
-        end_date=profile_data.activity_heatmap.end_date,
-        total_activities=profile_data.activity_heatmap.total_activities,
-    )
-
     # Service returns Pydantic models, convert with model_dump
     submissions = [
         PublicSubmission.model_validate(sub.model_dump())
@@ -93,8 +70,6 @@ async def get_public_profile_endpoint(
         avatar_url=profile_data.avatar_url,
         current_phase=profile_data.current_phase,
         phases_completed=profile_data.phases_completed,
-        streak=streak,
-        activity_heatmap=activity_heatmap,
         member_since=profile_data.member_since,
         submissions=submissions,
         badges=badges,
@@ -110,10 +85,9 @@ async def get_public_profile_endpoint(
 @limiter.limit("30/minute")
 async def get_badge_catalog_endpoint(request: Request) -> BadgeCatalogResponse:
     """Get the badge catalog for public display."""
-    phase_badges, streak_badges, total_badges, phase_themes = get_badge_catalog()
+    phase_badges, total_badges, phase_themes = get_badge_catalog()
     return BadgeCatalogResponse(
         phase_badges=phase_badges,
-        streak_badges=streak_badges,
         total_badges=total_badges,
         phase_themes=phase_themes,
     )

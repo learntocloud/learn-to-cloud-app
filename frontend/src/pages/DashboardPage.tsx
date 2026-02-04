@@ -1,6 +1,6 @@
 import { Link, Navigate } from 'react-router-dom';
 import { useUser } from '@clerk/clerk-react';
-import { useDashboard, useStreak } from '@/lib/hooks';
+import { useDashboard } from '@/lib/hooks';
 import type { PhaseSummarySchema } from '@/lib/api-client';
 
 export function DashboardPage() {
@@ -31,7 +31,6 @@ export function DashboardPage() {
 
 function DashboardContent() {
   const { data: dashboard, isLoading: dashboardLoading, error: dashboardError } = useDashboard();
-  const { data: streakData } = useStreak();
 
   if (dashboardLoading) {
     return (
@@ -61,12 +60,6 @@ function DashboardContent() {
               Keep up the great work on your cloud journey!
             </p>
           </div>
-
-          {streakData && streakData.current_streak > 0 && (
-            <span className="text-orange-500 dark:text-orange-400 text-sm font-medium shrink-0">
-              🔥 {streakData.current_streak} day streak
-            </span>
-          )}
         </div>
 
         <div className="flex items-center gap-3">

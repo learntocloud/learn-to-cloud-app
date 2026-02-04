@@ -25,7 +25,6 @@ from core.ratelimit import limiter, rate_limit_exceeded_handler
 from core.telemetry import RequestTimingMiddleware, SecurityHeadersMiddleware
 from repositories.webhook_repository import ProcessedWebhookRepository
 from routes import (
-    activity_router,
     certificates_router,
     clerk_router,
     dashboard_router,
@@ -201,6 +200,5 @@ app.include_router(users_router)
 app.include_router(dashboard_router)
 app.include_router(github_router)
 app.include_router(webhooks_router)
-app.include_router(activity_router)
 app.include_router(certificates_router)
 app.include_router(steps_router)

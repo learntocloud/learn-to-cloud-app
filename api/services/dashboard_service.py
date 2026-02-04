@@ -28,7 +28,6 @@ from schemas import (
     TopicSummaryData,
     UserSummaryData,
 )
-from services.activity_service import get_streak_data
 from services.badges_service import compute_all_badges
 from services.content_service import (
     get_all_phases,
@@ -144,11 +143,9 @@ async def get_dashboard(
     current_phase = user_progress.current_phase
 
     phase_completion_counts = get_phase_completion_counts(user_progress)
-    streak_data = await get_streak_data(db, user_id)
 
     earned_badges = compute_all_badges(
         phase_completion_counts=phase_completion_counts,
-        longest_streak=streak_data.longest_streak,
         user_id=user_id,
     )
     badges = [

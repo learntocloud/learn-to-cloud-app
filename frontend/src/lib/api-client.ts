@@ -10,18 +10,13 @@ import type { components, paths } from './api/schema';
 import type { GitHubValidationResult } from './types';
 
 export type { GitHubValidationResult } from './types';
-export type HandsOnRequirement = components['schemas']['HandsOnRequirement'];
-export type HandsOnSubmission = components['schemas']['HandsOnSubmissionResponse'];
-export type PhaseProgressSchema = components['schemas']['PhaseProgressData'];
-export type PhaseSummarySchema = components['schemas']['PhaseSummaryData'];
-export type ProviderOptionSchema = components['schemas']['ProviderOption'];
-export type TopicDetailSchema = components['schemas']['TopicDetailData'];
-export type TopicSummarySchema = components['schemas']['TopicSummaryData'];
 
 const API_URL = import.meta.env.VITE_API_URL || '';
 
 type ErrorDetail = {
   detail?: string;
+  lockout_until?: string | null;
+  attempts_used?: number | null;
 };
 
 type UserInfo = paths['/api/user/me']['get']['responses']['200']['content']['application/json'];
@@ -35,12 +30,8 @@ type TopicDetail =
   paths['/api/user/phases/{phase_slug}/topics/{topic_slug}']['get']['responses']['200']['content']['application/json'];
 type TopicStepProgress =
   paths['/api/steps/{topic_id}']['get']['responses']['200']['content']['application/json'];
-type StreakResponse =
-  paths['/api/activity/streak']['get']['responses']['200']['content']['application/json'];
 type PublicProfileResponse =
   paths['/api/user/profile/{username}']['get']['responses']['200']['content']['application/json'];
-type BadgeCatalogResponse =
-  paths['/api/user/badges/catalog']['get']['responses']['200']['content']['application/json'];
 type CertificateEligibility =
   paths['/api/certificates/eligibility/{certificate_type}']['get']['responses']['200']['content']['application/json'];
 type Certificate =
@@ -49,6 +40,16 @@ type CertificateVerifyResponse =
   paths['/api/certificates/verify/{verification_code}']['get']['responses']['200']['content']['application/json'];
 type UserCertificates =
   paths['/api/certificates']['get']['responses']['200']['content']['application/json'];
+type BadgeCatalogResponse =
+  paths['/api/user/badges/catalog']['get']['responses']['200']['content']['application/json'];
+
+export type HandsOnRequirement = components['schemas']['HandsOnRequirement'];
+export type HandsOnSubmission = components['schemas']['HandsOnSubmissionResponse'];
+export type PhaseProgressSchema = components['schemas']['PhaseProgressData'];
+export type PhaseSummarySchema = components['schemas']['PhaseSummaryData'];
+export type TopicSummarySchema = components['schemas']['TopicSummaryData'];
+export type TopicDetailSchema = components['schemas']['TopicDetailData'];
+export type ProviderOptionSchema = components['schemas']['ProviderOption'];
 
 function getErrorDetail(error: unknown): ErrorDetail {
   if (error && typeof error === 'object') {
@@ -135,6 +136,13 @@ export function createApiClient(getToken: () => Promise<string | null>) {
       return ensureData(data, error, response, 'Failed to fetch topic');
     },
 
+    async getBadgeCatalog(): Promise<BadgeCatalogResponse> {
+      const { data, error, response } = await client.GET('/api/user/badges/catalog', {
+        headers: await getAuthHeaders(),
+      });
+      return ensureData(data, error, response, 'Failed to fetch badge catalog');
+    },
+
     async submitGitHubUrl(
       requirementId: string,
       url: string
@@ -182,35 +190,12 @@ export function createApiClient(getToken: () => Promise<string | null>) {
       return this.getTopicStepProgress(topicId);
     },
 
-    async getStreak(): Promise<StreakResponse> {
-      const { data, response } = await client.GET('/api/activity/streak', {
-        headers: await getAuthHeaders(),
-      });
-      if (!response?.ok || !data) {
-        return {
-          current_streak: 0,
-          longest_streak: 0,
-          total_activity_days: 0,
-          last_activity_date: null,
-          streak_alive: false,
-        };
-      }
-      return data;
-    },
-
     async getPublicProfile(username: string): Promise<PublicProfileResponse | null> {
       const { data, error, response } = await client.GET('/api/user/profile/{username}', {
         params: { path: { username } },
       });
       if (response?.status === 404) return null;
       return ensureData(data, error, response, 'Failed to fetch profile');
-    },
-
-    async getBadgeCatalog(): Promise<BadgeCatalogResponse> {
-      const { data, error, response } = await client.GET('/api/user/badges/catalog', {
-        headers: await getAuthHeaders(),
-      });
-      return ensureData(data, error, response, 'Failed to fetch badge catalog');
     },
 
     async getCertificateEligibility(certificateType: string): Promise<CertificateEligibility> {

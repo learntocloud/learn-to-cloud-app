@@ -10,6 +10,12 @@ description: "React hooks, TanStack Query v5, Clerk auth, TypeScript strict typi
 - Use `import type { }` for type-only imports
 - Write type guards instead of `as` assertions
 
+## API Contract & Codegen
+- API types are generated from `api/openapi.json`
+- Run `npm run gen:api` to regenerate `frontend/src/lib/api/schema.ts`
+- Do not edit generated files manually
+- Use `createApiClient()` (openapi-fetch) instead of ad-hoc `fetch` calls
+
 ## React Hooks
 - Call hooks at **top level only**—never in conditionals/loops
 - Include **all** dependencies in hook arrays (don't disable ESLint rule)

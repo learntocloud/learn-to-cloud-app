@@ -19,13 +19,6 @@ vi.mock('./api-client', () => ({
       total_phases: 8,
       overall_progress: 10,
     }),
-    getStreak: vi.fn().mockResolvedValue({
-      current_streak: 5,
-      longest_streak: 10,
-      total_activity_days: 30,
-      last_activity_date: '2026-01-20',
-      streak_alive: true,
-    }),
     getPhasesWithProgress: vi.fn().mockResolvedValue([
       { id: 1, slug: 'phase0', name: 'Phase 0', is_locked: false },
     ]),
@@ -65,29 +58,7 @@ function createWrapper() {
 }
 
 // Import hooks after setting up mocks
-import { useStreak, useDashboard, usePhasesWithProgress } from './hooks';
-
-describe('useStreak', () => {
-  it('initializes with loading state', () => {
-    const { result } = renderHook(() => useStreak(), {
-      wrapper: createWrapper(),
-    });
-
-    // Initially should be loading or pending
-    expect(result.current.isPending || result.current.isLoading).toBe(true);
-  });
-
-  it('has correct query key', () => {
-    const { result } = renderHook(() => useStreak(), {
-      wrapper: createWrapper(),
-    });
-
-    // The hook should return a query result
-    expect(result.current).toHaveProperty('data');
-    expect(result.current).toHaveProperty('isLoading');
-    expect(result.current).toHaveProperty('isError');
-  });
-});
+import { useDashboard, usePhasesWithProgress } from './hooks';
 
 describe('useDashboard', () => {
   it('initializes with loading state', () => {

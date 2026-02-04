@@ -1,6 +1,5 @@
 """API route modules."""
 
-from routes.activity_routes import router as activity_router
 from routes.certificates_routes import router as certificates_router
 from routes.clerk_routes import router as clerk_router
 from routes.dashboard_routes import router as dashboard_router
@@ -11,7 +10,7 @@ from routes.users_routes import router as users_router
 from routes.webhooks_routes import router as webhooks_router
 
 __all__ = [
-    "activity_router",
+    "certificates_router",
     "certificates_router",
     "clerk_router",
     "dashboard_router",

@@ -1,13 +1,11 @@
-"""Repository for step and phase progress operations."""
+"""Repository for step progress operations."""
 
 from collections.abc import Sequence
-from datetime import UTC, datetime
 
-from sqlalchemy import delete, func, select, update
-from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from models import StepProgress, UserPhaseProgress
+from models import StepProgress
 
 
 class StepProgressRepository:
@@ -142,97 +140,3 @@ def _parse_phase_id_from_topic_id(topic_id: str) -> int | None:
         return int(topic_id.split("-")[0].replace("phase", ""))
     except (ValueError, IndexError):
         return None
-
-
-class UserPhaseProgressRepository:
-    """Repository for aggregated progress per user and phase."""
-
-    def __init__(self, db: AsyncSession) -> None:
-        self.db = db
-
-    async def get_by_user(self, user_id: str) -> Sequence[UserPhaseProgress]:
-        result = await self.db.execute(
-            select(UserPhaseProgress).where(UserPhaseProgress.user_id == user_id)
-        )
-        return result.scalars().all()
-
-    async def get_by_user_and_phase(
-        self, user_id: str, phase_id: int
-    ) -> UserPhaseProgress | None:
-        result = await self.db.execute(
-            select(UserPhaseProgress).where(
-                UserPhaseProgress.user_id == user_id,
-                UserPhaseProgress.phase_id == phase_id,
-            )
-        )
-        return result.scalar_one_or_none()
-
-    async def upsert_counts(
-        self,
-        user_id: str,
-        phase_id: int,
-        steps_completed: int,
-        hands_on_validated_count: int,
-    ) -> None:
-        now = datetime.now(UTC)
-        stmt = (
-            pg_insert(UserPhaseProgress)
-            .values(
-                user_id=user_id,
-                phase_id=phase_id,
-                steps_completed=steps_completed,
-                hands_on_validated_count=hands_on_validated_count,
-                created_at=now,
-                updated_at=now,
-            )
-            .on_conflict_do_update(
-                index_elements=["user_id", "phase_id"],
-                set_={
-                    "steps_completed": steps_completed,
-                    "hands_on_validated_count": hands_on_validated_count,
-                    "updated_at": now,
-                },
-            )
-        )
-        await self.db.execute(stmt)
-
-    async def apply_delta(
-        self,
-        user_id: str,
-        phase_id: int,
-        *,
-        steps_delta: int = 0,
-        hands_on_delta: int = 0,
-    ) -> None:
-        now = datetime.now(UTC)
-        await self._ensure_row(user_id, phase_id, now)
-
-        stmt = (
-            update(UserPhaseProgress)
-            .where(
-                UserPhaseProgress.user_id == user_id,
-                UserPhaseProgress.phase_id == phase_id,
-            )
-            .values(
-                steps_completed=func.greatest(
-                    UserPhaseProgress.steps_completed + steps_delta, 0
-                ),
-                hands_on_validated_count=func.greatest(
-                    UserPhaseProgress.hands_on_validated_count + hands_on_delta, 0
-                ),
-                updated_at=now,
-            )
-        )
-        await self.db.execute(stmt)
-
-    async def _ensure_row(self, user_id: str, phase_id: int, now: datetime) -> None:
-        stmt = pg_insert(UserPhaseProgress).values(
-            user_id=user_id,
-            phase_id=phase_id,
-            steps_completed=0,
-            hands_on_validated_count=0,
-            created_at=now,
-            updated_at=now,
-        )
-        stmt = stmt.on_conflict_do_nothing(index_elements=["user_id", "phase_id"])
-        await self.db.execute(stmt)

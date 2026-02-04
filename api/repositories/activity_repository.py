@@ -127,27 +127,3 @@ class ActivityRepository:
             query = query.limit(limit)
         result = await self.db.execute(query)
         return [row[0] for row in result.all()]
-
-    async def get_heatmap_data(
-        self,
-        user_id: str,
-        start_date: date,
-    ) -> list[tuple[date, str, int]]:
-        """Get activity data grouped by date and type for heatmap display.
-
-        Returns list of (activity_date, activity_type, count) tuples.
-        """
-        result = await self.db.execute(
-            select(
-                UserActivity.activity_date,
-                UserActivity.activity_type,
-                func.count(UserActivity.id).label("count"),
-            )
-            .where(
-                UserActivity.user_id == user_id,
-                UserActivity.activity_date >= start_date,
-            )
-            .group_by(UserActivity.activity_date, UserActivity.activity_type)
-            .order_by(UserActivity.activity_date)
-        )
-        return [(row[0], row[1], row[2]) for row in result.all()]

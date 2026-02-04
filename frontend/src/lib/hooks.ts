@@ -35,15 +35,6 @@ export function useUserInfo() {
   });
 }
 
-export function useBadgeCatalog() {
-  const api = useApi();
-  return useQuery({
-    queryKey: ['badgeCatalog'],
-    queryFn: () => api.getBadgeCatalog(),
-    staleTime: STALE_TIME_MS,
-  });
-}
-
 export function usePhasesWithProgress() {
   const api = useApi();
   return useQuery({
@@ -69,6 +60,15 @@ export function useTopicDetail(phaseSlug: string, topicSlug: string) {
     queryKey: ['topic', phaseSlug, topicSlug],
     queryFn: () => api.getTopicDetail(phaseSlug, topicSlug),
     enabled: !!phaseSlug && !!topicSlug,
+    staleTime: STALE_TIME_MS,
+  });
+}
+
+export function useBadgeCatalog() {
+  const api = useApi();
+  return useQuery({
+    queryKey: ['badgeCatalog'],
+    queryFn: () => api.getBadgeCatalog(),
     staleTime: STALE_TIME_MS,
   });
 }
@@ -129,15 +129,6 @@ export function useUncompleteStep() {
       queryClient.invalidateQueries({ queryKey: ['streak'] });
       queryClient.invalidateQueries({ queryKey: ['topic'] });
     },
-  });
-}
-
-export function useStreak() {
-  const api = useApi();
-  return useQuery({
-    queryKey: ['streak'],
-    queryFn: () => api.getStreak(),
-    staleTime: STALE_TIME_MS,
   });
 }
 

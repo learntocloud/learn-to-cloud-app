@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useBadgeCatalog, usePublicProfile } from '@/lib/hooks';
-import { ActivityHeatmap } from '@/components/ActivityHeatmap';
 import { SubmissionsShowcase } from '@/components/SubmissionsShowcase';
 import { Badge, BadgeCatalogItem, PhaseThemeData } from '@/lib/types';
 
@@ -14,7 +13,7 @@ export function ProfilePage() {
     if (!badgeCatalog) {
       return [];
     }
-    return [...badgeCatalog.phase_badges, ...badgeCatalog.streak_badges];
+    return badgeCatalog.phase_badges;
   }, [badgeCatalog]);
   const totalBadges = badgeCatalog?.total_badges ?? catalogBadges.length;
   const phaseThemes = useMemo(() => {
@@ -89,11 +88,6 @@ export function ProfilePage() {
                   <span className="px-2 py-0.5 bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 text-xs font-medium rounded-full">
                     Phase {profile.current_phase}
                   </span>
-                  {profile.streak && profile.streak.current_streak > 0 && (
-                    <span className="px-2 py-0.5 bg-orange-100 dark:bg-orange-900/50 text-orange-700 dark:text-orange-300 text-xs font-medium rounded-full">
-                      🔥 {profile.streak.current_streak}d
-                    </span>
-                  )}
                 </div>
                 {profile.username && (
                   <a
@@ -129,19 +123,6 @@ export function ProfilePage() {
           </div>
           <BadgeCollection badges={badges} catalogBadges={catalogBadges} />
         </div>
-
-        {profile.activity_heatmap && profile.activity_heatmap.days.length > 0 && (
-          <div className="bg-white dark:bg-gray-800/50 rounded-2xl border border-gray-200 dark:border-gray-700 p-5 shadow-sm">
-            <h2 className="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-4">
-              Activity
-            </h2>
-            <ActivityHeatmap
-              days={profile.activity_heatmap.days}
-              startDate={profile.activity_heatmap.start_date}
-              endDate={profile.activity_heatmap.end_date}
-            />
-          </div>
-        )}
 
         {profile.submissions && profile.submissions.length > 0 && (
           <SubmissionsShowcase submissions={profile.submissions} phaseThemes={phaseThemes} />
@@ -200,7 +181,6 @@ interface ShareProfileButtonProps {
     first_name?: string | null;
     phases_completed: number;
     current_phase: number;
-    streak?: { current_streak: number } | null;
   };
   username: string;
 }
@@ -216,7 +196,7 @@ function ShareProfileButton({ profile, username }: ShareProfileButtonProps) {
     ? `${window.location.origin}/user/${username}`
     : `/user/${username}`;
 
-  const shareText = `Check out my Learn to Cloud progress! ${profile.phases_completed} phases completed, Phase ${profile.current_phase}, ${profile.streak?.current_streak || 0} day streak 🔥`;
+  const shareText = `Check out my Learn to Cloud progress! ${profile.phases_completed} phases completed, currently on Phase ${profile.current_phase} 💪`;
 
   const handleCopyLink = useCallback(async () => {
     try {

@@ -4,293 +4,6 @@
  */
 
 export interface paths {
-    "/health": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Health
-         * @description Health check endpoint.
-         */
-        get: operations["health_health_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/health/detailed": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Health Detailed
-         * @description Detailed health check with component status.
-         *
-         *     Returns status of:
-         *     - database: Can execute queries
-         *     - azure_auth: Token acquisition working (null if not using Azure)
-         *     - pool: Connection pool metrics
-         *
-         *     Always returns 200 - check individual component statuses for health.
-         */
-        get: operations["health_detailed_health_detailed_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/ready": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Ready
-         * @description Readiness endpoint.
-         *
-         *     Returns 200 only when:
-         *     - Background initialization has completed successfully
-         *     - The database is reachable
-         */
-        get: operations["ready_ready_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/user/me": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Current User
-         * @description Get current user info.
-         */
-        get: operations["get_current_user_api_user_me_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/user/profile/{username}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Public Profile Endpoint
-         * @description Get a user's public profile by username (GitHub username).
-         */
-        get: operations["get_public_profile_endpoint_api_user_profile__username__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/user/badges/catalog": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get badge catalog
-         * @description Get the badge catalog for public display.
-         */
-        get: operations["get_badge_catalog_endpoint_api_user_badges_catalog_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/user/dashboard": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Dashboard Endpoint
-         * @description Get complete dashboard data for the current user.
-         */
-        get: operations["get_dashboard_endpoint_api_user_dashboard_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/user/phases": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Phases Endpoint
-         * @description Get all phases with progress for the current user.
-         *
-         *     For authenticated users:
-         *     - Progress statistics
-         *     - Locking status based on completion
-         *
-         *     For unauthenticated users:
-         *     - No progress (all null)
-         *     - Only Phase 0 unlocked, rest locked
-         *
-         *     Returns phases in order (0-6).
-         */
-        get: operations["get_phases_endpoint_api_user_phases_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/user/phases/{phase_slug}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Phase Detail Endpoint
-         * @description Get detailed phase info with topics.
-         *
-         *     Unauthenticated: no progress, only first topic unlocked.
-         */
-        get: operations["get_phase_detail_endpoint_api_user_phases__phase_slug__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/user/phases/{phase_slug}/topics/{topic_slug}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Topic Detail Endpoint
-         * @description Get detailed topic info with steps.
-         *
-         *     Unauthenticated: no progress, content is read-only.
-         */
-        get: operations["get_topic_detail_endpoint_api_user_phases__phase_slug__topics__topic_slug__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/github/submit": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Submit Github Validation
-         * @description Submit a URL or token for hands-on validation.
-         */
-        post: operations["submit_github_validation_api_github_submit_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/webhooks/clerk": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Handle Clerk webhooks
-         * @description Receives and processes Clerk webhook events for user synchronization. Validates Svix signature and handles user.created, user.updated, and user.deleted events.
-         */
-        post: operations["clerk_webhook_api_webhooks_clerk_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/activity/streak": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get User Streak
-         * @description Get the user's current streak information.
-         *
-         *     Streak calculation allows up to 2 skipped days per week.
-         */
-        get: operations["get_user_streak_api_activity_streak_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/certificates": {
         parameters: {
             query?: never;
@@ -435,6 +148,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/github/submit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Submit Github Validation
+         * @description Submit a URL or token for hands-on validation.
+         */
+        post: operations["submit_github_validation_api_github_submit_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/steps/complete": {
         parameters: {
             query?: never;
@@ -448,8 +181,7 @@ export interface paths {
          * Complete Step Endpoint
          * @description Mark a learning step as complete.
          *
-         *     Steps must be completed in order - you can only complete step N
-         *     if steps 1 through N-1 are already complete.
+         *     Steps can be completed in any order.
          */
         post: operations["complete_step_endpoint_api_steps_complete_post"];
         delete?: never;
@@ -503,68 +235,272 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/user/badges/catalog": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get badge catalog
+         * @description Get the badge catalog for public display.
+         */
+        get: operations["get_badge_catalog_endpoint_api_user_badges_catalog_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/user/dashboard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Dashboard Endpoint
+         * @description Get complete dashboard data for the current user.
+         */
+        get: operations["get_dashboard_endpoint_api_user_dashboard_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/user/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Current User
+         * @description Get current user info.
+         */
+        get: operations["get_current_user_api_user_me_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/user/phases": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Phases Endpoint
+         * @description Get all phases with progress for the current user.
+         *
+         *     For authenticated users:
+         *     - Progress statistics
+         *     - Locking status based on completion
+         *
+         *     For unauthenticated users:
+         *     - No progress (all null)
+         *     - Only Phase 0 unlocked, rest locked
+         *
+         *     Returns phases in order (0-6).
+         */
+        get: operations["get_phases_endpoint_api_user_phases_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/user/phases/{phase_slug}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Phase Detail Endpoint
+         * @description Get detailed phase info with topics.
+         *
+         *     Unauthenticated: no progress, only first topic unlocked.
+         */
+        get: operations["get_phase_detail_endpoint_api_user_phases__phase_slug__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/user/phases/{phase_slug}/topics/{topic_slug}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Topic Detail Endpoint
+         * @description Get detailed topic info with steps.
+         *
+         *     Unauthenticated: no progress, content is read-only.
+         */
+        get: operations["get_topic_detail_endpoint_api_user_phases__phase_slug__topics__topic_slug__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/user/profile/{username}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Public Profile Endpoint
+         * @description Get a user's public profile by username (GitHub username).
+         */
+        get: operations["get_public_profile_endpoint_api_user_profile__username__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/webhooks/clerk": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Handle Clerk webhooks
+         * @description Receives and processes Clerk webhook events for user synchronization. Validates Svix signature and handles user.created, user.updated, and user.deleted events.
+         */
+        post: operations["clerk_webhook_api_webhooks_clerk_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Health
+         * @description Health check endpoint.
+         */
+        get: operations["health_health_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/health/detailed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Health Detailed
+         * @description Detailed health check with component status.
+         *
+         *     Returns status of:
+         *     - database: Can execute queries
+         *     - azure_auth: Token acquisition working (null if not using Azure)
+         *     - pool: Connection pool metrics
+         *
+         *     Always returns 200 - check individual component statuses for health.
+         */
+        get: operations["health_detailed_health_detailed_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/ready": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Ready
+         * @description Readiness endpoint.
+         *
+         *     Returns 200 only when:
+         *     - Background initialization has completed successfully
+         *     - The database is reachable
+         */
+        get: operations["ready_ready_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         /**
-         * ActivityHeatmapDay
-         * @description Activity count for a single day (for heatmap display).
-         */
-        ActivityHeatmapDay: {
-            /**
-             * Date
-             * Format: date
-             */
-            date: string;
-            /** Count */
-            count: number;
-            /** Activity Types */
-            activity_types: components["schemas"]["ActivityType"][];
-        };
-        /**
-         * ActivityHeatmapResponse
-         * @description Activity heatmap data for profile display.
-         */
-        ActivityHeatmapResponse: {
-            /** Days */
-            days: components["schemas"]["ActivityHeatmapDay"][];
-            /**
-             * Start Date
-             * Format: date
-             */
-            start_date: string;
-            /**
-             * End Date
-             * Format: date
-             */
-            end_date: string;
-            /** Total Activities */
-            total_activities: number;
-        };
-        /**
-         * ActivityType
-         * @description Type of user activity for streak and progress tracking.
-         * @enum {string}
-         */
-        ActivityType: "step_complete" | "topic_complete" | "hands_on_validated" | "phase_complete" | "certificate_earned";
-        /**
          * BadgeCatalogItem
          * @description Badge metadata for catalog display.
          */
         BadgeCatalogItem: {
+            /** Description */
+            description: string;
+            /** How To */
+            how_to: string;
+            /** Icon */
+            icon: string;
             /** Id */
             id: string;
             /** Name */
             name: string;
-            /** Description */
-            description: string;
-            /** Icon */
-            icon: string;
             /** Num */
             num: string;
-            /** How To */
-            how_to: string;
             /** Phase Id */
             phase_id?: number | null;
             /** Phase Name */
@@ -577,40 +513,34 @@ export interface components {
         BadgeCatalogResponse: {
             /** Phase Badges */
             phase_badges: components["schemas"]["BadgeCatalogItem"][];
-            /** Streak Badges */
-            streak_badges: components["schemas"]["BadgeCatalogItem"][];
-            /** Total Badges */
-            total_badges: number;
             /** Phase Themes */
             phase_themes: components["schemas"]["PhaseThemeData"][];
+            /** Total Badges */
+            total_badges: number;
         };
         /**
          * BadgeData
          * @description Badge information (service-layer response model).
          */
         BadgeData: {
-            /** Id */
-            id: string;
-            /** Name */
-            name: string;
             /** Description */
             description: string;
             /** Icon */
             icon: string;
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
         };
         /**
          * CertificateData
          * @description Certificate data (service-layer response model).
          */
         CertificateData: {
-            /** Id */
-            id: number;
             /** Certificate Type */
             certificate_type: string;
-            /** Verification Code */
-            verification_code: string;
-            /** Recipient Name */
-            recipient_name: string;
+            /** Id */
+            id: number;
             /**
              * Issued At
              * Format: date-time
@@ -618,30 +548,34 @@ export interface components {
             issued_at: string;
             /** Phases Completed */
             phases_completed: number;
+            /** Recipient Name */
+            recipient_name: string;
             /** Total Phases */
             total_phases: number;
+            /** Verification Code */
+            verification_code: string;
         };
         /**
          * CertificateEligibilityResponse
          * @description Response for checking certificate eligibility.
          */
         CertificateEligibilityResponse: {
-            /** Is Eligible */
-            is_eligible: boolean;
+            /** Already Issued */
+            already_issued: boolean;
             /** Certificate Type */
             certificate_type: string;
+            /** Completion Percentage */
+            completion_percentage: number;
+            /** Existing Certificate Id */
+            existing_certificate_id?: number | null;
+            /** Is Eligible */
+            is_eligible: boolean;
+            /** Message */
+            message: string;
             /** Phases Completed */
             phases_completed: number;
             /** Total Phases */
             total_phases: number;
-            /** Completion Percentage */
-            completion_percentage: number;
-            /** Already Issued */
-            already_issued: boolean;
-            /** Existing Certificate Id */
-            existing_certificate_id?: number | null;
-            /** Message */
-            message: string;
         };
         /**
          * CertificateRequest
@@ -661,9 +595,9 @@ export interface components {
          * @description Response for certificate verification.
          */
         CertificateVerifyResponse: {
+            certificate?: components["schemas"]["CertificateData"] | null;
             /** Is Valid */
             is_valid: boolean;
-            certificate?: components["schemas"]["CertificateData"] | null;
             /** Message */
             message: string;
         };
@@ -672,34 +606,34 @@ export interface components {
          * @description Complete dashboard data (service-layer response model).
          */
         DashboardData: {
-            user: components["schemas"]["UserSummaryData"];
-            /** Phases */
-            phases: components["schemas"]["PhaseSummaryData"][];
+            /** Badges */
+            badges?: components["schemas"]["BadgeData"][];
+            /** Current Phase */
+            current_phase?: number | null;
             /** Overall Progress */
             overall_progress: number;
+            /** Phases */
+            phases: components["schemas"]["PhaseSummaryData"][];
             /** Phases Completed */
             phases_completed: number;
             /** Phases Total */
             phases_total: number;
-            /** Current Phase */
-            current_phase?: number | null;
-            /** Badges */
-            badges?: components["schemas"]["BadgeData"][];
+            user: components["schemas"]["UserSummaryData"];
         };
         /**
          * DetailedHealthResponse
          * @description Detailed health check response with component status.
          */
         DetailedHealthResponse: {
-            /** Status */
-            status: string;
-            /** Service */
-            service: string;
-            /** Database */
-            database: boolean;
             /** Azure Auth */
             azure_auth?: boolean | null;
+            /** Database */
+            database: boolean;
             pool?: components["schemas"]["PoolStatusResponse"] | null;
+            /** Service */
+            service: string;
+            /** Status */
+            status: string;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -721,21 +655,21 @@ export interface components {
          *     3. Implement the validator in hands_on_verification.py
          */
         HandsOnRequirement: {
-            /** Id */
-            id: string;
-            /** Phase Id */
-            phase_id: number;
-            submission_type: components["schemas"]["SubmissionType"];
-            /** Name */
-            name: string;
             /** Description */
             description: string;
             /** Example Url */
             example_url?: string | null;
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
             /** Note */
             note?: string | null;
+            /** Phase Id */
+            phase_id: number;
             /** Required Repo */
             required_repo?: string | null;
+            submission_type: components["schemas"]["SubmissionType"];
         };
         /**
          * HandsOnSubmissionRequest
@@ -754,28 +688,28 @@ export interface components {
          *     Also used as service-layer response model.
          */
         HandsOnSubmissionResponse: {
-            /** Id */
-            id: number;
-            /** Requirement Id */
-            requirement_id: string;
-            submission_type: components["schemas"]["SubmissionType"];
-            /** Phase Id */
-            phase_id: number;
-            /** Submitted Value */
-            submitted_value: string;
-            /** Extracted Username */
-            extracted_username?: string | null;
-            /** Is Validated */
-            is_validated: boolean;
-            /** Validated At */
-            validated_at?: string | null;
             /**
              * Created At
              * Format: date-time
              */
             created_at: string;
+            /** Extracted Username */
+            extracted_username?: string | null;
             /** Feedback Json */
             feedback_json?: string | null;
+            /** Id */
+            id: number;
+            /** Is Validated */
+            is_validated: boolean;
+            /** Phase Id */
+            phase_id: number;
+            /** Requirement Id */
+            requirement_id: string;
+            submission_type: components["schemas"]["SubmissionType"];
+            /** Submitted Value */
+            submitted_value: string;
+            /** Validated At */
+            validated_at?: string | null;
         };
         /**
          * HandsOnValidationResult
@@ -786,25 +720,25 @@ export interface components {
             is_valid: boolean;
             /** Message */
             message: string;
-            /** Username Match */
-            username_match?: boolean | null;
+            /** Next Retry At */
+            next_retry_at?: string | null;
             /** Repo Exists */
             repo_exists?: boolean | null;
             submission?: components["schemas"]["HandsOnSubmissionResponse"] | null;
             /** Task Results */
             task_results?: components["schemas"]["TaskResult"][] | null;
-            /** Next Retry At */
-            next_retry_at?: string | null;
+            /** Username Match */
+            username_match?: boolean | null;
         };
         /**
          * HealthResponse
          * @description Health check response.
          */
         HealthResponse: {
-            /** Status */
-            status: string;
             /** Service */
             service: string;
+            /** Status */
+            status: string;
         };
         /**
          * LearningObjective
@@ -813,46 +747,46 @@ export interface components {
         LearningObjective: {
             /** Id */
             id: string;
-            /** Text */
-            text: string;
             /** Order */
             order: number;
+            /** Text */
+            text: string;
         };
         /**
          * LearningStep
          * @description A learning step within a topic.
          */
         LearningStep: {
-            /** Order */
-            order: number;
-            /** Text */
-            text: string;
             /** Action */
             action?: string | null;
+            /** Code */
+            code?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Options */
+            options?: components["schemas"]["ProviderOption"][];
+            /** Order */
+            order: number;
+            /** Secondary Links */
+            secondary_links?: components["schemas"]["SecondaryLink"][];
+            /** Text */
+            text: string;
             /** Title */
             title?: string | null;
             /** Url */
             url?: string | null;
-            /** Description */
-            description?: string | null;
-            /** Code */
-            code?: string | null;
-            /** Secondary Links */
-            secondary_links?: components["schemas"]["SecondaryLink"][];
-            /** Options */
-            options?: components["schemas"]["ProviderOption"][];
         };
         /**
          * PhaseCapstoneOverview
          * @description High-level capstone overview for a phase (public summary).
          */
         PhaseCapstoneOverview: {
-            /** Title */
-            title: string;
-            /** Summary */
-            summary: string;
             /** Includes */
             includes?: string[];
+            /** Summary */
+            summary: string;
+            /** Title */
+            title: string;
             /** Topic Slug */
             topic_slug?: string | null;
         };
@@ -861,123 +795,123 @@ export interface components {
          * @description Full phase detail with topics (service-layer response model).
          */
         PhaseDetailData: {
-            /** Id */
-            id: number;
-            /** Name */
-            name: string;
-            /** Slug */
-            slug: string;
-            /** Description */
-            description: string;
-            /** Short Description */
-            short_description: string;
-            /** Order */
-            order: number;
-            /** Objectives */
-            objectives: string[];
-            capstone?: components["schemas"]["PhaseCapstoneOverview"] | null;
-            hands_on_verification?: components["schemas"]["PhaseHandsOnVerificationOverview"] | null;
-            /** Topics */
-            topics: components["schemas"]["TopicSummaryData"][];
-            progress?: components["schemas"]["PhaseProgressData"] | null;
-            /** Hands On Requirements */
-            hands_on_requirements?: components["schemas"]["HandsOnRequirement"][];
-            /** Hands On Submissions */
-            hands_on_submissions?: components["schemas"]["HandsOnSubmissionResponse"][];
-            /**
-             * Is Locked
-             * @default false
-             */
-            is_locked: boolean;
-            /**
-             * All Topics Complete
-             * @default false
-             */
-            all_topics_complete: boolean;
             /**
              * All Hands On Validated
              * @default false
              */
             all_hands_on_validated: boolean;
             /**
+             * All Topics Complete
+             * @default false
+             */
+            all_topics_complete: boolean;
+            capstone?: components["schemas"]["PhaseCapstoneOverview"] | null;
+            /** Description */
+            description: string;
+            /** Hands On Requirements */
+            hands_on_requirements?: components["schemas"]["HandsOnRequirement"][];
+            /** Hands On Submissions */
+            hands_on_submissions?: components["schemas"]["HandsOnSubmissionResponse"][];
+            hands_on_verification?: components["schemas"]["PhaseHandsOnVerificationOverview"] | null;
+            /** Id */
+            id: number;
+            /**
+             * Is Locked
+             * @default false
+             */
+            is_locked: boolean;
+            /**
              * Is Phase Complete
              * @default false
              */
             is_phase_complete: boolean;
+            /** Name */
+            name: string;
+            /** Objectives */
+            objectives: string[];
+            /** Order */
+            order: number;
+            progress?: components["schemas"]["PhaseProgressData"] | null;
+            /** Short Description */
+            short_description: string;
+            /** Slug */
+            slug: string;
+            /** Topics */
+            topics: components["schemas"]["TopicSummaryData"][];
         };
         /**
          * PhaseHandsOnVerificationOverview
          * @description High-level hands-on verification overview for a phase (public summary).
          */
         PhaseHandsOnVerificationOverview: {
-            /** Summary */
-            summary: string;
             /** Includes */
             includes?: string[];
             /** Requirements */
             requirements?: components["schemas"]["HandsOnRequirement"][];
+            /** Summary */
+            summary: string;
         };
         /**
          * PhaseProgressData
          * @description Progress status for a phase (service-layer response model).
          */
         PhaseProgressData: {
-            /** Steps Completed */
-            steps_completed: number;
-            /** Steps Required */
-            steps_required: number;
-            /** Hands On Validated */
-            hands_on_validated: number;
             /** Hands On Required */
             hands_on_required: number;
+            /** Hands On Validated */
+            hands_on_validated: number;
             /** Percentage */
             percentage: number;
             /** Status */
             status: string;
+            /** Steps Completed */
+            steps_completed: number;
+            /** Steps Required */
+            steps_required: number;
         };
         /**
          * PhaseSummaryData
          * @description Phase summary data (service-layer response model).
          */
         PhaseSummaryData: {
-            /** Id */
-            id: number;
-            /** Name */
-            name: string;
-            /** Slug */
-            slug: string;
+            capstone?: components["schemas"]["PhaseCapstoneOverview"] | null;
             /** Description */
             description: string;
-            /** Short Description */
-            short_description: string;
-            /** Order */
-            order: number;
-            /** Topics Count */
-            topics_count: number;
-            /** Objectives */
-            objectives?: string[];
-            capstone?: components["schemas"]["PhaseCapstoneOverview"] | null;
             hands_on_verification?: components["schemas"]["PhaseHandsOnVerificationOverview"] | null;
-            progress?: components["schemas"]["PhaseProgressData"] | null;
+            /** Id */
+            id: number;
             /**
              * Is Locked
              * @default false
              */
             is_locked: boolean;
+            /** Name */
+            name: string;
+            /** Objectives */
+            objectives?: string[];
+            /** Order */
+            order: number;
+            progress?: components["schemas"]["PhaseProgressData"] | null;
+            /** Short Description */
+            short_description: string;
+            /** Slug */
+            slug: string;
+            /** Topics Count */
+            topics_count: number;
         };
         /**
          * PhaseThemeData
          * @description Phase theme metadata for UI display.
          */
         PhaseThemeData: {
-            /** Phase Id */
-            phase_id: number;
-            /** Icon */
-            icon: string;
             /** Bg Class */
             bg_class: string;
             /** Border Class */
             border_class: string;
+            /** Icon */
+            icon: string;
+            /** Phase Id */
+            phase_id: number;
             /** Text Class */
             text_class: string;
         };
@@ -986,28 +920,28 @@ export interface components {
          * @description Connection pool status.
          */
         PoolStatusResponse: {
-            /** Pool Size */
-            pool_size: number;
+            /** Checked In */
+            checked_in: number;
             /** Checked Out */
             checked_out: number;
             /** Overflow */
             overflow: number;
-            /** Checked In */
-            checked_in: number;
+            /** Pool Size */
+            pool_size: number;
         };
         /**
          * ProviderOption
          * @description Cloud provider-specific option for a learning step.
          */
         ProviderOption: {
+            /** Description */
+            description?: string | null;
             /** Provider */
             provider: string;
             /** Title */
             title: string;
             /** Url */
             url: string;
-            /** Description */
-            description?: string | null;
         };
         /**
          * PublicProfileResponse
@@ -1019,44 +953,42 @@ export interface components {
          *     - current_phase is the first incomplete phase (or highest if all done)
          */
         PublicProfileResponse: {
-            /** Username */
-            username?: string | null;
-            /** First Name */
-            first_name?: string | null;
             /** Avatar Url */
             avatar_url?: string | null;
+            /** Badges */
+            badges?: components["schemas"]["BadgeData"][];
             /** Current Phase */
             current_phase: number;
-            /** Phases Completed */
-            phases_completed: number;
-            streak: components["schemas"]["StreakData"];
-            activity_heatmap: components["schemas"]["ActivityHeatmapResponse"];
+            /** First Name */
+            first_name?: string | null;
             /**
              * Member Since
              * Format: date-time
              */
             member_since: string;
+            /** Phases Completed */
+            phases_completed: number;
             /** Submissions */
             submissions?: components["schemas"]["PublicSubmission"][];
-            /** Badges */
-            badges?: components["schemas"]["BadgeData"][];
+            /** Username */
+            username?: string | null;
         };
         /**
          * PublicSubmission
          * @description A validated submission for public display.
          */
         PublicSubmission: {
+            /** Description */
+            description?: string | null;
+            /** Name */
+            name: string;
+            /** Phase Id */
+            phase_id: number;
             /** Requirement Id */
             requirement_id: string;
             submission_type: components["schemas"]["SubmissionType"];
-            /** Phase Id */
-            phase_id: number;
             /** Submitted Value */
             submitted_value: string;
-            /** Name */
-            name: string;
-            /** Description */
-            description?: string | null;
             /** Validated At */
             validated_at?: string | null;
         };
@@ -1075,65 +1007,49 @@ export interface components {
          * @description Request to mark a learning step as complete.
          */
         StepCompleteRequest: {
-            /** Topic Id */
-            topic_id: string;
             /** Step Order */
             step_order: number;
+            /** Topic Id */
+            topic_id: string;
         };
         /**
          * StepProgressData
          * @description Step progress data for a topic (service-layer response model).
          */
         StepProgressData: {
-            /** Topic Id */
-            topic_id: string;
             /** Completed Steps */
             completed_steps: number[];
-            /** Total Steps */
-            total_steps: number;
             /** Next Unlocked Step */
             next_unlocked_step: number;
+            /** Topic Id */
+            topic_id: string;
+            /** Total Steps */
+            total_steps: number;
         };
         /**
          * StepProgressResponse
          * @description Response for a single step's progress.
          */
         StepProgressResponse: {
-            /** Topic Id */
-            topic_id: string;
-            /** Step Order */
-            step_order: number;
             /**
              * Completed At
              * Format: date-time
              */
             completed_at: string;
+            /** Step Order */
+            step_order: number;
+            /** Topic Id */
+            topic_id: string;
         };
         /**
          * StepUncompleteResponse
          * @description Response for uncompleting a step.
          */
         StepUncompleteResponse: {
-            /** Status */
-            status: string;
             /** Deleted Count */
             deleted_count: number;
-        };
-        /**
-         * StreakData
-         * @description User's streak information (service-layer response model).
-         */
-        StreakData: {
-            /** Current Streak */
-            current_streak: number;
-            /** Longest Streak */
-            longest_streak: number;
-            /** Total Activity Days */
-            total_activity_days: number;
-            /** Last Activity Date */
-            last_activity_date?: string | null;
-            /** Streak Alive */
-            streak_alive: boolean;
+            /** Status */
+            status: string;
         };
         /**
          * SubmissionType
@@ -1159,37 +1075,26 @@ export interface components {
          *     Used by CODE_ANALYSIS validation to provide detailed per-task feedback.
          */
         TaskResult: {
-            /** Task Name */
-            task_name: string;
-            /** Passed */
-            passed: boolean;
             /** Feedback */
             feedback: string;
+            /** Passed */
+            passed: boolean;
+            /** Task Name */
+            task_name: string;
         };
         /**
          * TopicDetailData
          * @description Full topic detail with steps (service-layer response model).
          */
         TopicDetailData: {
-            /** Id */
-            id: string;
-            /** Slug */
-            slug: string;
-            /** Name */
-            name: string;
-            /** Description */
-            description: string;
-            /** Order */
-            order: number;
-            /** Is Capstone */
-            is_capstone: boolean;
-            /** Learning Steps */
-            learning_steps: components["schemas"]["LearningStep"][];
-            /** Learning Objectives */
-            learning_objectives?: components["schemas"]["LearningObjective"][];
-            progress?: components["schemas"]["TopicProgressData"] | null;
             /** Completed Step Orders */
             completed_step_orders?: number[];
+            /** Description */
+            description: string;
+            /** Id */
+            id: string;
+            /** Is Capstone */
+            is_capstone: boolean;
             /**
              * Is Locked
              * @default false
@@ -1200,48 +1105,59 @@ export interface components {
              * @default false
              */
             is_topic_locked: boolean;
+            /** Learning Objectives */
+            learning_objectives?: components["schemas"]["LearningObjective"][];
+            /** Learning Steps */
+            learning_steps: components["schemas"]["LearningStep"][];
+            /** Name */
+            name: string;
+            /** Order */
+            order: number;
             /** Previous Topic Name */
             previous_topic_name?: string | null;
+            progress?: components["schemas"]["TopicProgressData"] | null;
+            /** Slug */
+            slug: string;
         };
         /**
          * TopicProgressData
          * @description Progress status for a topic (service-layer response model).
          */
         TopicProgressData: {
-            /** Steps Completed */
-            steps_completed: number;
-            /** Steps Total */
-            steps_total: number;
             /** Percentage */
             percentage: number;
             /** Status */
             status: string;
+            /** Steps Completed */
+            steps_completed: number;
+            /** Steps Total */
+            steps_total: number;
         };
         /**
          * TopicSummaryData
          * @description Topic summary data (service-layer response model).
          */
         TopicSummaryData: {
-            /** Id */
-            id: string;
-            /** Slug */
-            slug: string;
-            /** Name */
-            name: string;
             /** Description */
             description: string;
-            /** Order */
-            order: number;
+            /** Id */
+            id: string;
             /** Is Capstone */
             is_capstone: boolean;
-            /** Steps Count */
-            steps_count: number;
-            progress?: components["schemas"]["TopicProgressData"] | null;
             /**
              * Is Locked
              * @default false
              */
             is_locked: boolean;
+            /** Name */
+            name: string;
+            /** Order */
+            order: number;
+            progress?: components["schemas"]["TopicProgressData"] | null;
+            /** Slug */
+            slug: string;
+            /** Steps Count */
+            steps_count: number;
         };
         /**
          * UserCertificatesResponse
@@ -1258,14 +1174,17 @@ export interface components {
          * @description User response schema (also used as service-layer response model).
          */
         UserResponse: {
+            /** Avatar Url */
+            avatar_url?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
             /** Email */
             email: string;
             /** First Name */
             first_name?: string | null;
-            /** Last Name */
-            last_name?: string | null;
-            /** Avatar Url */
-            avatar_url?: string | null;
             /** Github Username */
             github_username?: string | null;
             /** Id */
@@ -1275,34 +1194,31 @@ export interface components {
              * @default false
              */
             is_admin: boolean;
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
+            /** Last Name */
+            last_name?: string | null;
         };
         /**
          * UserSummaryData
          * @description User summary data (service-layer response model).
          */
         UserSummaryData: {
-            /** Id */
-            id: string;
+            /** Avatar Url */
+            avatar_url?: string | null;
             /** Email */
             email: string;
             /** First Name */
             first_name?: string | null;
-            /** Last Name */
-            last_name?: string | null;
-            /** Avatar Url */
-            avatar_url?: string | null;
             /** Github Username */
             github_username?: string | null;
+            /** Id */
+            id: string;
             /**
              * Is Admin
              * @default false
              */
             is_admin: boolean;
+            /** Last Name */
+            last_name?: string | null;
         };
         /** ValidationError */
         ValidationError: {
@@ -1318,10 +1234,10 @@ export interface components {
          * @description Response for webhook processing.
          */
         WebhookResponse: {
-            /** Status */
-            status: string;
             /** Event Type */
             event_type?: string | null;
+            /** Status */
+            status: string;
         };
     };
     responses: never;
@@ -1332,411 +1248,6 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    health_health_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HealthResponse"];
-                };
-            };
-        };
-    };
-    health_detailed_health_detailed_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DetailedHealthResponse"];
-                };
-            };
-        };
-    };
-    ready_ready_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HealthResponse"];
-                };
-            };
-            /** @description Service unavailable - init failed or DB unreachable */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "detail": "Database unavailable"
-                     *     }
-                     */
-                    "application/json": unknown;
-                };
-            };
-        };
-    };
-    get_current_user_api_user_me_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["UserResponse"];
-                };
-            };
-            /** @description Not authenticated */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    get_public_profile_endpoint_api_user_profile__username__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                username: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PublicProfileResponse"];
-                };
-            };
-            /** @description User not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_badge_catalog_endpoint_api_user_badges_catalog_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Badge catalog */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["BadgeCatalogResponse"];
-                };
-            };
-        };
-    };
-    get_dashboard_endpoint_api_user_dashboard_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DashboardData"];
-                };
-            };
-            /** @description Not authenticated */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    get_phases_endpoint_api_user_phases_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PhaseSummaryData"][];
-                };
-            };
-        };
-    };
-    get_phase_detail_endpoint_api_user_phases__phase_slug__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                phase_slug: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PhaseDetailData"];
-                };
-            };
-            /** @description Phase not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_topic_detail_endpoint_api_user_phases__phase_slug__topics__topic_slug__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                phase_slug: string;
-                topic_slug: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TopicDetailData"];
-                };
-            };
-            /** @description Topic or phase not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    submit_github_validation_api_github_submit_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["HandsOnSubmissionRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HandsOnValidationResult"];
-                };
-            };
-            /** @description GitHub username required to submit */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Not authenticated */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Requirement not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-            /** @description Rate limited or cooldown active */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    clerk_webhook_api_webhooks_clerk_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WebhookResponse"];
-                };
-            };
-            /** @description Missing webhook headers or invalid signature */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Webhook signing secret not configured */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    get_user_streak_api_activity_streak_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["StreakData"];
-                };
-            };
-            /** @description Not authenticated */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
     get_user_certificates_api_certificates_get: {
         parameters: {
             query?: never;
@@ -2073,6 +1584,67 @@ export interface operations {
             };
         };
     };
+    submit_github_validation_api_github_submit_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HandsOnSubmissionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HandsOnValidationResult"];
+                };
+            };
+            /** @description GitHub username required to submit */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not authenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Requirement not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Rate limited or cooldown active */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     complete_step_endpoint_api_steps_complete_post: {
         parameters: {
             query?: never;
@@ -2095,7 +1667,7 @@ export interface operations {
                     "application/json": components["schemas"]["StepProgressResponse"];
                 };
             };
-            /** @description Step already completed, not unlocked, or invalid step order */
+            /** @description Step already completed or invalid step order */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -2221,6 +1793,323 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_badge_catalog_endpoint_api_user_badges_catalog_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Badge catalog */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadgeCatalogResponse"];
+                };
+            };
+        };
+    };
+    get_dashboard_endpoint_api_user_dashboard_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardData"];
+                };
+            };
+            /** @description Not authenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_current_user_api_user_me_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserResponse"];
+                };
+            };
+            /** @description Not authenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_phases_endpoint_api_user_phases_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PhaseSummaryData"][];
+                };
+            };
+        };
+    };
+    get_phase_detail_endpoint_api_user_phases__phase_slug__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                phase_slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PhaseDetailData"];
+                };
+            };
+            /** @description Phase not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_topic_detail_endpoint_api_user_phases__phase_slug__topics__topic_slug__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                phase_slug: string;
+                topic_slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TopicDetailData"];
+                };
+            };
+            /** @description Topic or phase not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_public_profile_endpoint_api_user_profile__username__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                username: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicProfileResponse"];
+                };
+            };
+            /** @description User not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    clerk_webhook_api_webhooks_clerk_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WebhookResponse"];
+                };
+            };
+            /** @description Missing webhook headers or invalid signature */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Webhook signing secret not configured */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    health_health_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HealthResponse"];
+                };
+            };
+        };
+    };
+    health_detailed_health_detailed_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DetailedHealthResponse"];
+                };
+            };
+        };
+    };
+    ready_ready_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HealthResponse"];
+                };
+            };
+            /** @description Service unavailable - init failed or DB unreachable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "detail": "Database unavailable"
+                     *     }
+                     */
+                    "application/json": unknown;
                 };
             };
         };

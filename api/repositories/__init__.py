@@ -10,10 +10,7 @@ on HTTP handling. This separation provides:
 
 from repositories.activity_repository import ActivityRepository
 from repositories.certificate_repository import CertificateRepository
-from repositories.progress_repository import (
-    StepProgressRepository,
-    UserPhaseProgressRepository,
-)
+from repositories.progress_repository import StepProgressRepository
 from repositories.submission_repository import SubmissionRepository
 from repositories.user_repository import UserRepository
 from repositories.utils import log_slow_query
@@ -22,7 +19,6 @@ __all__ = [
     "ActivityRepository",
     "CertificateRepository",
     "StepProgressRepository",
-    "UserPhaseProgressRepository",
     "SubmissionRepository",
     "UserRepository",
     "log_slow_query",

@@ -11,7 +11,6 @@ import pytest
 from services.badges_service import (
     compute_all_badges,
     compute_phase_badges,
-    compute_streak_badges,
     get_badge_catalog,
 )
 from services.progress_service import get_phase_requirements
@@ -24,7 +23,7 @@ class TestComputePhaseBadges:
     """Tests for compute_phase_badges()."""
 
     def _get_phase_badge(self, phase_id: int):
-        phase_badges, _, _, _ = get_badge_catalog()
+        phase_badges, _, _ = get_badge_catalog()
         return next(
             (badge for badge in phase_badges if badge.phase_id == phase_id),
             None,
@@ -82,7 +81,7 @@ class TestComputePhaseBadges:
 
     def test_multiple_phase_badges(self):
         """Should return multiple badges for multiple completed phases."""
-        phase_badges, _, _, _ = get_badge_catalog()
+        phase_badges, _, _ = get_badge_catalog()
         if len(phase_badges) < 2:
             pytest.skip("Not enough phase badges in content")
 
@@ -120,63 +119,11 @@ class TestComputePhaseBadges:
         assert result[0].id.startswith("phase_")
 
 
-class TestComputeStreakBadges:
-    """Tests for compute_streak_badges()."""
-
-    def test_returns_empty_for_zero_streak(self):
-        """Should return no badges for zero streak."""
-        result = compute_streak_badges(0)
-
-        assert result == []
-
-    def test_returns_empty_for_short_streak(self):
-        """Should return no badges for streak < 7 days."""
-        result = compute_streak_badges(6)
-
-        assert result == []
-
-    def test_returns_week_warrior_for_7_day_streak(self):
-        """Should return Week Warrior badge for 7-day streak."""
-        result = compute_streak_badges(7)
-
-        assert len(result) == 1
-        assert result[0].id == "streak_7"
-        assert result[0].name == "Week Warrior"
-        assert result[0].icon == "🔥"
-
-    def test_returns_monthly_master_for_30_day_streak(self):
-        """Should return Week Warrior and Monthly Master for 30-day streak."""
-        result = compute_streak_badges(30)
-
-        badge_ids = {b.id for b in result}
-        assert "streak_7" in badge_ids
-        assert "streak_30" in badge_ids
-        assert "streak_100" not in badge_ids
-
-    def test_returns_all_streak_badges_for_100_day_streak(self):
-        """Should return all streak badges for 100-day streak."""
-        result = compute_streak_badges(100)
-
-        badge_ids = {b.id for b in result}
-        assert "streak_7" in badge_ids
-        assert "streak_30" in badge_ids
-        assert "streak_100" in badge_ids
-
-    def test_returns_correct_badge_info(self):
-        """Should return correct badge metadata."""
-        result = compute_streak_badges(100)
-
-        century_badge = next(b for b in result if b.id == "streak_100")
-        assert century_badge.name == "Century Club"
-        assert century_badge.description == "Maintained a 100-day learning streak"
-        assert century_badge.icon == "💯"
-
-
 class TestComputeAllBadges:
     """Tests for compute_all_badges()."""
 
     def _get_phase_badge(self, phase_id: int):
-        phase_badges, _, _, _ = get_badge_catalog()
+        phase_badges, _, _ = get_badge_catalog()
         return next(
             (badge for badge in phase_badges if badge.phase_id == phase_id),
             None,
@@ -184,12 +131,12 @@ class TestComputeAllBadges:
 
     def test_returns_empty_for_no_progress(self):
         """Should return no badges when no progress."""
-        result = compute_all_badges({}, 0)
+        result = compute_all_badges({})
 
         assert result == []
 
-    def test_combines_phase_and_streak_badges(self):
-        """Should return both phase and streak badges."""
+    def test_returns_phase_badges(self):
+        """Should return phase badges for completed phases."""
         requirements = get_phase_requirements(0)
         badge_info = self._get_phase_badge(0)
         if not requirements or not badge_info:
@@ -199,11 +146,10 @@ class TestComputeAllBadges:
             0: (requirements.steps, True),
         }
 
-        result = compute_all_badges(phase_completion, 7)
+        result = compute_all_badges(phase_completion)
 
         badge_ids = {b.id for b in result}
         assert badge_info.id in badge_ids
-        assert "streak_7" in badge_ids
 
     def test_caches_with_user_id(self):
         """Should work with user_id for caching (functional test)."""
@@ -215,16 +161,16 @@ class TestComputeAllBadges:
         }
 
         # First call
-        result1 = compute_all_badges(phase_completion, 7, user_id="test-user-1")
+        result1 = compute_all_badges(phase_completion, user_id="test-user-1")
         # Second call should use cache
-        result2 = compute_all_badges(phase_completion, 7, user_id="test-user-1")
+        result2 = compute_all_badges(phase_completion, user_id="test-user-1")
 
         assert len(result1) == len(result2)
         assert {b.id for b in result1} == {b.id for b in result2}
 
     def test_different_progress_different_results(self):
         """Should return different results for different progress."""
-        result1 = compute_all_badges({}, 0, user_id="test-user-2")
-        result2 = compute_all_badges({0: (15, True)}, 7, user_id="test-user-3")
+        result1 = compute_all_badges({}, user_id="test-user-2")
+        result2 = compute_all_badges({0: (15, True)}, user_id="test-user-3")
 
         assert len(result2) > len(result1)

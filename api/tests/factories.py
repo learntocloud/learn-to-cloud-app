@@ -16,7 +16,7 @@ Usage:
 """
 
 import random
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, date, datetime
 from functools import cache
 
 import factory
@@ -202,39 +202,6 @@ class UserActivityFactory(factory.Factory):
         lambda _: f"phase{_get_random_phase_id()}-topic{fake.random_int(1, 5)}"
     )
     created_at = factory.LazyFunction(lambda: datetime.now(UTC))
-
-
-class StreakActivityFactory(UserActivityFactory):
-    """Factory for creating activities with consecutive dates (for streak testing)."""
-
-    @classmethod
-    def create_streak(cls, user_id: str, days: int, start_date: date | None = None):
-        """Create a streak of consecutive daily activities.
-
-        Args:
-            user_id: The user's ID
-            days: Number of consecutive days
-            start_date: Starting date (defaults to today)
-
-        Returns:
-            List of UserActivity instances (not persisted)
-        """
-        if start_date is None:
-            start_date = date.today()
-
-        activities = []
-        for i in range(days):
-            activity_date = start_date - timedelta(days=i)
-            activities.append(
-                cls.build(
-                    user_id=user_id,
-                    activity_date=activity_date,
-                    created_at=datetime.combine(
-                        activity_date, datetime.min.time()
-                    ).replace(tzinfo=UTC),
-                )
-            )
-        return activities
 
 
 # =============================================================================

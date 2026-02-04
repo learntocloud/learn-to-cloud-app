@@ -39,7 +39,7 @@ SELECT u.github_username,
   (SELECT COUNT(*) FROM question_attempts WHERE user_id = u.id) as questions
 FROM users u WHERE u.github_username = 'USERNAME';
 
--- Recent activity (for streak debugging)
+-- Recent activity (for heatmap)
 SELECT user_id, activity_type, activity_date
 FROM user_activities ORDER BY activity_date DESC LIMIT 20;
 

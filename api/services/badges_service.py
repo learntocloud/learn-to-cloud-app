@@ -3,7 +3,6 @@
 Badges are computed on-the-fly from user progress data.
 No separate database table is needed - badges are derived from:
 - Step completion + hands-on verification (phase completion badges)
-- User activities (streak badges)
 
 CACHING:
 - Badge computations are cached for 60 seconds per user+progress combination
@@ -11,7 +10,6 @@ CACHING:
 """
 
 from functools import lru_cache
-from typing import TypedDict
 
 from core.cache import get_cached_badges, set_cached_badges
 from core.telemetry import add_custom_attribute
@@ -19,41 +17,6 @@ from core.wide_event import set_wide_event_fields
 from schemas import BadgeCatalogItem, BadgeData, PhaseThemeData
 from services.content_service import get_all_phases
 from services.progress_service import get_phase_requirements
-
-
-class StreakBadgeInfo(TypedDict):
-    """Streak badge configuration."""
-
-    id: str
-    name: str
-    description: str
-    icon: str
-    required_streak: int
-
-
-STREAK_BADGES: list[StreakBadgeInfo] = [
-    {
-        "id": "streak_7",
-        "name": "Week Warrior",
-        "description": "Maintained a 7-day learning streak",
-        "icon": "🔥",
-        "required_streak": 7,
-    },
-    {
-        "id": "streak_30",
-        "name": "Monthly Master",
-        "description": "Maintained a 30-day learning streak",
-        "icon": "💪",
-        "required_streak": 30,
-    },
-    {
-        "id": "streak_100",
-        "name": "Century Club",
-        "description": "Maintained a 100-day learning streak",
-        "icon": "💯",
-        "required_streak": 100,
-    },
-]
 
 
 @lru_cache(maxsize=1)
@@ -92,30 +55,11 @@ def _get_phase_badge_catalog() -> tuple[list[BadgeCatalogItem], list[PhaseThemeD
     return phase_badges, phase_themes
 
 
-def get_badge_catalog() -> (
-    tuple[list[BadgeCatalogItem], list[BadgeCatalogItem], int, list[PhaseThemeData]]
-):
+def get_badge_catalog() -> tuple[list[BadgeCatalogItem], int, list[PhaseThemeData]]:
     """Get badge catalog and phase themes derived from content."""
     phase_badges, phase_themes = _get_phase_badge_catalog()
-    streak_offset = len(phase_badges)
-    streak_badges: list[BadgeCatalogItem] = []
-
-    for index, badge_info in enumerate(STREAK_BADGES, start=1):
-        streak_badges.append(
-            BadgeCatalogItem(
-                id=badge_info["id"],
-                name=badge_info["name"],
-                description=badge_info["description"],
-                icon=badge_info["icon"],
-                num=f"#{streak_offset + index:03d}",
-                how_to=(
-                    f"Maintain a {badge_info['required_streak']}-day learning streak"
-                ),
-            )
-        )
-
-    total_badges = len(phase_badges) + len(streak_badges)
-    return phase_badges, streak_badges, total_badges, phase_themes
+    total_badges = len(phase_badges)
+    return phase_badges, total_badges, phase_themes
 
 
 def compute_phase_badges(
@@ -163,34 +107,8 @@ def compute_phase_badges(
     return earned_badges
 
 
-def compute_streak_badges(longest_streak: int) -> list[BadgeData]:
-    """Compute which streak badges a user has earned.
-
-    Args:
-        longest_streak: User's longest streak (all-time)
-
-    Returns:
-        List of earned BadgeData objects
-    """
-    earned_badges = []
-
-    for badge_info in STREAK_BADGES:
-        if longest_streak >= badge_info["required_streak"]:
-            earned_badges.append(
-                BadgeData(
-                    id=badge_info["id"],
-                    name=badge_info["name"],
-                    description=badge_info["description"],
-                    icon=badge_info["icon"],
-                )
-            )
-
-    return earned_badges
-
-
 def compute_all_badges(
     phase_completion_counts: dict[int, tuple[int, bool]],
-    longest_streak: int,
     user_id: str | None = None,
 ) -> list[BadgeData]:
     """Compute all badges a user has earned.
@@ -198,7 +116,6 @@ def compute_all_badges(
     Args:
         phase_completion_counts: Dict mapping phase_id ->
             (completed_steps, hands_on_validated)
-        longest_streak: User's longest streak (all-time)
         user_id: Optional user ID for caching (if provided, results are cached)
 
     Returns:
@@ -208,34 +125,23 @@ def compute_all_badges(
     """
     if user_id:
         progress_hash = hash(
-            (
-                tuple(sorted(phase_completion_counts.items())),
-                longest_streak,
-            )
+            tuple(sorted(phase_completion_counts.items())),
         )
         cached = get_cached_badges(user_id, progress_hash)
         if cached is not None:
             return cached
 
-    badges = []
-    badges.extend(compute_phase_badges(phase_completion_counts))
-    badges.extend(compute_streak_badges(longest_streak))
+    badges = compute_phase_badges(phase_completion_counts)
 
-    # Log metrics for badge awards (only on cache miss to avoid duplicate counts)
     if badges:
-        phase_count = sum(1 for b in badges if b.id.startswith("phase_"))
-        streak_count = sum(1 for b in badges if b.id.startswith("streak_"))
+        phase_count = len(badges)
         badge_ids = [b.id for b in badges]
         set_wide_event_fields(
             badges_earned=len(badges),
             badges_phase_count=phase_count,
-            badges_streak_count=streak_count,
             badge_ids=badge_ids,
         )
-        if phase_count:
-            add_custom_attribute("badges.phase_count", phase_count)
-        if streak_count:
-            add_custom_attribute("badges.streak_count", streak_count)
+        add_custom_attribute("badges.phase_count", phase_count)
 
     if user_id:
         set_cached_badges(user_id, progress_hash, badges)

@@ -1,80 +1,6 @@
 {
   "components": {
     "schemas": {
-      "ActivityHeatmapDay": {
-        "description": "Activity count for a single day (for heatmap display).",
-        "properties": {
-          "activity_types": {
-            "items": {
-              "$ref": "#/components/schemas/ActivityType"
-            },
-            "title": "Activity Types",
-            "type": "array"
-          },
-          "count": {
-            "title": "Count",
-            "type": "integer"
-          },
-          "date": {
-            "format": "date",
-            "title": "Date",
-            "type": "string"
-          }
-        },
-        "required": [
-          "date",
-          "count",
-          "activity_types"
-        ],
-        "title": "ActivityHeatmapDay",
-        "type": "object"
-      },
-      "ActivityHeatmapResponse": {
-        "description": "Activity heatmap data for profile display.",
-        "properties": {
-          "days": {
-            "items": {
-              "$ref": "#/components/schemas/ActivityHeatmapDay"
-            },
-            "title": "Days",
-            "type": "array"
-          },
-          "end_date": {
-            "format": "date",
-            "title": "End Date",
-            "type": "string"
-          },
-          "start_date": {
-            "format": "date",
-            "title": "Start Date",
-            "type": "string"
-          },
-          "total_activities": {
-            "title": "Total Activities",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "days",
-          "start_date",
-          "end_date",
-          "total_activities"
-        ],
-        "title": "ActivityHeatmapResponse",
-        "type": "object"
-      },
-      "ActivityType": {
-        "description": "Type of user activity for streak and progress tracking.",
-        "enum": [
-          "step_complete",
-          "topic_complete",
-          "hands_on_validated",
-          "phase_complete",
-          "certificate_earned"
-        ],
-        "title": "ActivityType",
-        "type": "string"
-      },
       "BadgeCatalogItem": {
         "description": "Badge metadata for catalog display.",
         "properties": {
@@ -153,13 +79,6 @@
             "title": "Phase Themes",
             "type": "array"
           },
-          "streak_badges": {
-            "items": {
-              "$ref": "#/components/schemas/BadgeCatalogItem"
-            },
-            "title": "Streak Badges",
-            "type": "array"
-          },
           "total_badges": {
             "title": "Total Badges",
             "type": "integer"
@@ -167,7 +86,6 @@
         },
         "required": [
           "phase_badges",
-          "streak_badges",
           "total_badges",
           "phase_themes"
         ],
@@ -1248,9 +1166,6 @@
       "PublicProfileResponse": {
         "description": "Public user profile information.\n\nProgress is tracked at the phase level:\n- A phase is complete when all steps + hands-on requirements are done\n- phases_completed counts fully completed phases\n- current_phase is the first incomplete phase (or highest if all done)",
         "properties": {
-          "activity_heatmap": {
-            "$ref": "#/components/schemas/ActivityHeatmapResponse"
-          },
           "avatar_url": {
             "anyOf": [
               {
@@ -1293,9 +1208,6 @@
             "title": "Phases Completed",
             "type": "integer"
           },
-          "streak": {
-            "$ref": "#/components/schemas/StreakData"
-          },
           "submissions": {
             "items": {
               "$ref": "#/components/schemas/PublicSubmission"
@@ -1318,8 +1230,6 @@
         "required": [
           "current_phase",
           "phases_completed",
-          "streak",
-          "activity_heatmap",
           "member_since"
         ],
         "title": "PublicProfileResponse",
@@ -1495,47 +1405,6 @@
           "deleted_count"
         ],
         "title": "StepUncompleteResponse",
-        "type": "object"
-      },
-      "StreakData": {
-        "description": "User's streak information (service-layer response model).",
-        "properties": {
-          "current_streak": {
-            "title": "Current Streak",
-            "type": "integer"
-          },
-          "last_activity_date": {
-            "anyOf": [
-              {
-                "format": "date",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Last Activity Date"
-          },
-          "longest_streak": {
-            "title": "Longest Streak",
-            "type": "integer"
-          },
-          "streak_alive": {
-            "title": "Streak Alive",
-            "type": "boolean"
-          },
-          "total_activity_days": {
-            "title": "Total Activity Days",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "current_streak",
-          "longest_streak",
-          "total_activity_days",
-          "streak_alive"
-        ],
-        "title": "StreakData",
         "type": "object"
       },
       "SubmissionType": {
@@ -1992,31 +1861,6 @@
   },
   "openapi": "3.1.0",
   "paths": {
-    "/api/activity/streak": {
-      "get": {
-        "description": "Get the user's current streak information.\n\nStreak calculation allows up to 2 skipped days per week.",
-        "operationId": "get_user_streak_api_activity_streak_get",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StreakData"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "401": {
-            "description": "Not authenticated"
-          }
-        },
-        "summary": "Get User Streak",
-        "tags": [
-          "activity"
-        ]
-      }
-    },
     "/api/certificates": {
       "get": {
         "description": "Get all certificates for the authenticated user.",

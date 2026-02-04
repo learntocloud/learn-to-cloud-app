@@ -188,7 +188,7 @@ const PhaseAccordionItem = memo(function PhaseAccordionItem({
                   <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">{phase.capstone.summary}</p>
                   {(phase.capstone.includes ?? []).length > 0 && (
                     <ul className="list-disc pl-5 space-y-1 text-sm text-gray-700 dark:text-gray-300 mt-3">
-                      {(phase.capstone.includes ?? []).map((item, idx) => (
+                      {(phase.capstone.includes ?? []).map((item: string, idx: number) => (
                         <li key={`${phase.slug}-cap-${idx}`}>{item}</li>
                       ))}
                     </ul>
@@ -204,7 +204,7 @@ const PhaseAccordionItem = memo(function PhaseAccordionItem({
                   <p className="text-sm text-gray-600 dark:text-gray-300">{phase.hands_on_verification.summary}</p>
                   {(phase.hands_on_verification.includes ?? []).length > 0 && (
                     <ul className="list-disc pl-5 space-y-1 text-sm text-gray-700 dark:text-gray-300 mt-3">
-                      {(phase.hands_on_verification.includes ?? []).map((item, idx) => (
+                      {(phase.hands_on_verification.includes ?? []).map((item: string, idx: number) => (
                         <li key={`${phase.slug}-hov-${idx}`}>{item}</li>
                       ))}
                     </ul>

@@ -225,55 +225,6 @@ class StepUncompleteResponse(FrozenModel):
     deleted_count: int
 
 
-class StreakData(FrozenModel):
-    """User's streak information (service-layer response model)."""
-
-    current_streak: int
-    longest_streak: int
-    total_activity_days: int
-    last_activity_date: date | None = None
-    streak_alive: bool
-
-
-# Alias for route compatibility
-StreakResponse = StreakData
-
-
-class HeatmapDay(FrozenModel):
-    """Activity data for a single day (service-layer response model)."""
-
-    date: date
-    count: int
-    activity_types: list[str]
-
-
-# Route version with ActivityType enum
-class ActivityHeatmapDay(FrozenORMModel):
-    """Activity count for a single day (for heatmap display)."""
-
-    date: date
-    count: int
-    activity_types: list[ActivityType]
-
-
-class HeatmapData(FrozenModel):
-    """Activity heatmap data (service-layer response model)."""
-
-    days: list[HeatmapDay]
-    start_date: date
-    end_date: date
-    total_activities: int
-
-
-class ActivityHeatmapResponse(FrozenORMModel):
-    """Activity heatmap data for profile display."""
-
-    days: list[ActivityHeatmapDay]
-    start_date: date
-    end_date: date
-    total_activities: int
-
-
 class BadgeData(FrozenModel):
     """Badge information (service-layer response model)."""
 
@@ -310,7 +261,6 @@ class BadgeCatalogResponse(BaseModel):
     """Badge catalog response."""
 
     phase_badges: list[BadgeCatalogItem]
-    streak_badges: list[BadgeCatalogItem]
     total_badges: int
     phase_themes: list[PhaseThemeData]
 
@@ -354,8 +304,6 @@ class PublicProfileData(FrozenModel):
     avatar_url: str | None
     current_phase: int
     phases_completed: int
-    streak: StreakData
-    activity_heatmap: HeatmapData
     member_since: datetime
     submissions: list[PublicSubmissionInfo]
     badges: list[BadgeData]
@@ -375,8 +323,6 @@ class PublicProfileResponse(BaseModel):
     avatar_url: str | None = None
     current_phase: int
     phases_completed: int
-    streak: StreakData
-    activity_heatmap: ActivityHeatmapResponse
     member_since: datetime
     submissions: list[PublicSubmission] = Field(default_factory=list)
     badges: list[BadgeData] = Field(default_factory=list)

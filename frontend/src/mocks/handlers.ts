@@ -64,22 +64,6 @@ const mockDashboard = {
   phases_completed: 0,
   total_phases: 8,
   overall_progress: 10,
-  streak: {
-    current_streak: 5,
-    longest_streak: 10,
-    total_activity_days: 30,
-    last_activity_date: '2026-01-20',
-    streak_alive: true,
-  },
-  activity_heatmap: {
-    days: [
-      { date: '2026-01-20', count: 3, activity_types: ['step_complete'] },
-      { date: '2026-01-19', count: 2, activity_types: ['hands_on_validated'] },
-    ],
-    start_date: '2025-10-20',
-    end_date: '2026-01-20',
-    total_activities: 45,
-  },
   badges: [
     { id: 'phase_0_complete', name: 'Cloud Seedling', description: 'Completed Phase 0', icon: '🌱' },
   ],
@@ -118,14 +102,6 @@ const mockPhases: MockPhase[] = [
   },
 ];
 
-const mockStreak = {
-  current_streak: 5,
-  longest_streak: 10,
-  total_activity_days: 30,
-  last_activity_date: '2026-01-20',
-  streak_alive: true,
-};
-
 const mockBadgeCatalog = {
   phase_badges: [
     {
@@ -139,19 +115,7 @@ const mockBadgeCatalog = {
       phase_name: 'Starting from Zero',
     },
   ],
-  streak_badges: [
-    {
-      id: 'streak_7',
-      name: 'Week Warrior',
-      description: 'Maintained a 7-day learning streak',
-      icon: '🔥',
-      num: '#002',
-      how_to: 'Maintain a 7-day learning streak',
-      phase_id: null,
-      phase_name: null,
-    },
-  ],
-  total_badges: 2,
+  total_badges: 1,
   phase_themes: [
     {
       phase_id: 0,
@@ -221,12 +185,6 @@ export const handlers = [
     });
   }),
 
-  // Streak
-  http.get(`${API_URL}/api/streak`, async () => {
-    await delay(50);
-    return HttpResponse.json(mockStreak);
-  }),
-
   // Step completion
   http.post(`${API_URL}/api/topics/:topicId/steps/:stepOrder/complete`, async () => {
     await delay(50);
@@ -247,8 +205,6 @@ export const handlers = [
       avatar_url: null,
       current_phase: 1,
       phases_completed: 0,
-      streak: mockStreak,
-      activity_heatmap: mockDashboard.activity_heatmap,
       member_since: '2025-01-01T00:00:00Z',
       submissions: [],
       badges: [],

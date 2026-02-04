@@ -77,6 +77,8 @@ interface TopicContentProps {
   isAuthenticated: boolean;
 }
 
+type LearningStep = TopicDetailSchema['learning_steps'][number];
+
 export function TopicContent({
   topic,
   isAuthenticated,
@@ -145,7 +147,7 @@ export function TopicContent({
           </div>
 
           <div className="divide-y divide-gray-200 dark:divide-gray-700">
-            {topic.learning_steps.map((step) => {
+            {topic.learning_steps.map((step: LearningStep) => {
               const completed = isStepCompleted(step.order);
               const isToggling = togglingStep === step.order;
 

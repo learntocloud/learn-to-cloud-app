@@ -27,7 +27,6 @@ from models import (
     SubmissionType,
     User,
     UserActivity,
-    UserPhaseProgress,
 )
 
 DEFAULT_USER_ID = "madebygps"
@@ -160,11 +159,6 @@ async def _run(args: argparse.Namespace) -> None:
             )
             await session.execute(
                 delete(UserActivity).where(UserActivity.user_id == args.user_id)
-            )
-            await session.execute(
-                delete(UserPhaseProgress).where(
-                    UserPhaseProgress.user_id == args.user_id
-                )
             )
             await session.execute(
                 delete(Certificate).where(Certificate.user_id == args.user_id)
