@@ -26,19 +26,6 @@ class StepAlreadyCompletedError(StepValidationError):
         super().__init__(f"Step {step_order} in {topic_id} already completed")
 
 
-class StepNotUnlockedError(StepValidationError):
-    """Raised when trying to complete a step that isn't unlocked."""
-
-    def __init__(self, completed_steps: list[int], required_steps: list[int]):
-        self.completed_steps = completed_steps
-        self.required_steps = required_steps
-        super().__init__(
-            f"Must complete previous steps first. "
-            f"Complete: {sorted(completed_steps)}, "
-            f"required: {sorted(required_steps)}"
-        )
-
-
 class StepUnknownTopicError(StepValidationError):
     """Raised when a topic_id doesn't exist in content."""
 
@@ -184,7 +171,6 @@ async def complete_step(
 
     Raises:
         StepAlreadyCompletedError: If step is already completed
-        StepNotUnlockedError: If previous steps are not completed
     """
     add_custom_attribute("step.topic_id", topic_id)
     add_custom_attribute("step.order", step_order)
@@ -195,15 +181,8 @@ async def complete_step(
     if await step_repo.exists(user_id, topic_id, step_order):
         raise StepAlreadyCompletedError(topic_id, step_order)
 
-    if not is_admin and step_order > 1:
-        completed_steps = await step_repo.get_completed_step_orders(user_id, topic_id)
-
-        required_steps = set(range(1, step_order))
-        if not required_steps.issubset(completed_steps):
-            raise StepNotUnlockedError(
-                completed_steps=list(completed_steps),
-                required_steps=list(required_steps),
-            )
+    # Steps can be completed in any order - no enforcement
+    del is_admin  # Unused after removing step order enforcement
 
     step_progress = await step_repo.create(
         user_id=user_id,

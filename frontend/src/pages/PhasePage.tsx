@@ -157,40 +157,7 @@ function PhaseAuthenticatedView({ phaseSlug }: { phaseSlug: string }) {
   const allTopicsComplete = phase.all_topics_complete;
 
   const phaseIndex = phase ? orderedPhases.findIndex((p) => p.slug === phase.slug) : -1;
-  const prevPhaseSlug = phaseIndex > 0 ? orderedPhases[phaseIndex - 1]?.slug : undefined;
   const nextPhaseSlug = phaseIndex >= 0 ? orderedPhases[phaseIndex + 1]?.slug : undefined;
-
-  if (phase.is_locked) {
-    // Guard against phase 0 being locked (shouldn't happen, but be safe)
-    const prevPhaseNum = Math.max(0, phase.id - 1);
-    return (
-      <div className="min-h-screen py-8 bg-linear-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-950">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <nav className="mb-6">
-            <Link to="/dashboard" className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 text-sm">
-              ← Back to Dashboard
-            </Link>
-          </nav>
-
-          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-8 text-center">
-            <div className="text-6xl mb-4">🔒</div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Phase Locked</h1>
-            <p className="text-gray-600 dark:text-gray-300 mb-6">
-              You need to complete <strong>Phase {prevPhaseNum}</strong> before you can access <strong>{phase.name}</strong>.
-            </p>
-            {prevPhaseSlug && (
-              <Link
-                to={`/${prevPhaseSlug}`}
-                className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
-              >
-                Go to Phase {prevPhaseNum}
-              </Link>
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen py-8 bg-linear-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-950">
@@ -236,18 +203,13 @@ function PhaseAuthenticatedView({ phaseSlug }: { phaseSlug: string }) {
             Topics ({phase.topics.length})
           </h2>
           <div className="space-y-4">
-            {phase.topics.map((topic, index) => {
-              const previousTopic = index > 0 ? phase.topics[index - 1] : null;
-
-              return (
-                <TopicCard
-                  key={topic.id}
-                  topic={topic}
-                  phaseSlug={phaseSlug}
-                  previousTopicName={previousTopic?.name}
-                />
-              );
-            })}
+            {phase.topics.map((topic) => (
+              <TopicCard
+                key={topic.id}
+                topic={topic}
+                phaseSlug={phaseSlug}
+              />
+            ))}
           </div>
         </section>
 
@@ -357,10 +319,9 @@ function ProgressBar({ percentage, status, size = 'md' }: { percentage: number; 
   );
 }
 
-function TopicCard({ topic, phaseSlug, previousTopicName }: {
+function TopicCard({ topic, phaseSlug }: {
   topic: TopicSummarySchema;
   phaseSlug: string;
-  previousTopicName?: string;
 }) {
   // Use API-provided progress values - business logic lives in API, not frontend
   const progress = topic.progress;
@@ -368,35 +329,6 @@ function TopicCard({ topic, phaseSlug, previousTopicName }: {
   const totalCount = progress?.steps_total ?? 0;
   const progressPercent = progress?.percentage ?? 0;
   const isComplete = progress?.status === PROGRESS_STATUS.COMPLETED;
-
-  if (topic.is_locked) {
-    return (
-      <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden opacity-75">
-        <div className="p-4">
-          <div className="flex items-start justify-between">
-            <div className="flex-1">
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-sm font-medium text-gray-400 dark:text-gray-500">
-                  {topic.order}.
-                </span>
-                <h4 className="font-medium text-gray-500 dark:text-gray-400">{topic.name}</h4>
-                {topic.is_capstone && (
-                  <span className="px-2 py-0.5 bg-purple-100 dark:bg-purple-900/50 text-purple-500 dark:text-purple-400 text-xs rounded-full">
-                    Capstone
-                  </span>
-                )}
-                <span className="ml-2 text-lg" title="Complete previous topic to unlock">🔒</span>
-              </div>
-              <p className="text-sm text-gray-400 dark:text-gray-500">{topic.description}</p>
-              <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">
-                Complete &quot;{previousTopicName}&quot; to unlock this topic
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <Link

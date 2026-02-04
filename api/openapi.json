@@ -2451,7 +2451,7 @@
     },
     "/api/steps/complete": {
       "post": {
-        "description": "Mark a learning step as complete.\n\nSteps must be completed in order - you can only complete step N\nif steps 1 through N-1 are already complete.",
+        "description": "Mark a learning step as complete.\n\nSteps can be completed in any order.",
         "operationId": "complete_step_endpoint_api_steps_complete_post",
         "requestBody": {
           "content": {
@@ -2475,7 +2475,7 @@
             "description": "Successful Response"
           },
           "400": {
-            "description": "Step already completed, not unlocked, or invalid step order"
+            "description": "Step already completed or invalid step order"
           },
           "401": {
             "description": "Not authenticated"

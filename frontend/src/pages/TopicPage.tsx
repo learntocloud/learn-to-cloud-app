@@ -127,67 +127,6 @@ function TopicAuthenticatedView({ phaseSlug, topicSlug }: { phaseSlug: string; t
     return <Navigate to="/404" replace />;
   }
 
-  if (topic.is_locked) {
-    const prevPhaseNum = phase.id - 1;
-    return (
-      <TopicPageLayout>
-        <nav className="mb-6 flex items-center gap-2 text-sm">
-          <Link to="/dashboard" className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">
-            Dashboard
-          </Link>
-          <span className="text-gray-400">→</span>
-          <Link to={`/${phaseSlug}`} className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">
-            {phase.name}
-          </Link>
-        </nav>
-
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-8 text-center">
-          <div className="text-6xl mb-4" role="img" aria-label="Locked">🔒</div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Content Locked</h1>
-          <p className="text-gray-600 dark:text-gray-300 mb-6">
-            You need to complete <strong>Phase {prevPhaseNum}</strong> before you can access content in <strong>{phase.name}</strong>.
-          </p>
-          <Link
-            to={`/phase${prevPhaseNum}`}
-            className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
-          >
-            Go to Phase {prevPhaseNum}
-          </Link>
-        </div>
-      </TopicPageLayout>
-    );
-  }
-
-  if (topic.is_topic_locked) {
-    return (
-      <TopicPageLayout>
-        <nav className="mb-6 flex items-center gap-2 text-sm">
-          <Link to="/dashboard" className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">
-            Dashboard
-          </Link>
-          <span className="text-gray-400">→</span>
-          <Link to={`/${phaseSlug}`} className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">
-            {phase.name}
-          </Link>
-        </nav>
-
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-8 text-center">
-          <div className="text-6xl mb-4" role="img" aria-label="Locked">🔒</div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Topic Locked</h1>
-          <p className="text-gray-600 dark:text-gray-300 mb-6">
-            You need to complete <strong>{topic.previous_topic_name}</strong> before you can access <strong>{topic.name}</strong>.
-          </p>
-          <Link
-            to={`/${phaseSlug}`}
-            className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
-          >
-            Go to {phase.name}
-          </Link>
-        </div>
-      </TopicPageLayout>
-    );
-  }
-
   return (
     <TopicPageLayout>
       <nav className="mb-6 flex items-center gap-2 text-sm">

@@ -315,27 +315,18 @@ def is_phase_locked(
 ) -> bool:
     """Determine if a phase is locked for the user.
 
-    Locking rules:
-    - Phase 0: Always unlocked
-    - Phases 1+: Previous phase must be complete
-    - Admin users: Bypass all locks
+    All phases are unlocked - users can access any content freely.
 
     Args:
-        phase_id: The phase ID to check
-        user_progress: User's progress data (None for unauthenticated users)
-        is_admin: Whether the user has admin privileges
+        phase_id: The phase ID to check (unused)
+        user_progress: User's progress data (unused)
+        is_admin: Whether the user has admin privileges (unused)
 
     Returns:
-        True if the phase is locked, False if unlocked
+        Always False - nothing is locked
     """
-    if is_admin:
-        return False
-    if phase_id == 0:
-        return False
-    if user_progress is None:
-        return True
-    prev_progress = user_progress.phases.get(phase_id - 1)
-    return not (prev_progress and prev_progress.is_complete)
+    del phase_id, user_progress, is_admin  # Unused
+    return False
 
 
 def is_topic_locked(
@@ -346,27 +337,19 @@ def is_topic_locked(
 ) -> bool:
     """Determine if a topic is locked for the user.
 
-    Locking rules:
-    - First topic (order=1): Unlocked if phase is unlocked
-    - Subsequent topics: Previous topic must be complete
-    - Admin users: Bypass all locks
+    All topics are unlocked - users can access any content freely.
 
     Args:
-        topic_order: The topic's order within the phase (1-indexed)
-        phase_is_locked: Whether the containing phase is locked
-        prev_topic_complete: Whether the previous topic is complete
-        is_admin: Whether the user has admin privileges
+        topic_order: The topic's order within the phase (unused)
+        phase_is_locked: Whether the containing phase is locked (unused)
+        prev_topic_complete: Whether the previous topic is complete (unused)
+        is_admin: Whether the user has admin privileges (unused)
 
     Returns:
-        True if the topic is locked, False if unlocked
+        Always False - nothing is locked
     """
-    if is_admin:
-        return False
-    if phase_is_locked:
-        return True
-    if topic_order == 1:
-        return False
-    return not prev_topic_complete
+    del topic_order, phase_is_locked, prev_topic_complete, is_admin  # Unused
+    return False
 
 
 def phase_progress_to_data(progress: PhaseProgress) -> PhaseProgressData:

@@ -2,28 +2,21 @@
 
 ## Core Concept
 
-A **Phase is Complete** when ALL three requirements are met:
+A **Phase is Complete** when ALL requirements are met:
 1. ✅ All **Learning Steps** completed
-2. ✅ All **Knowledge Questions** passed
-3. ✅ All **Hands-on Requirements** validated
+2. ✅ All **Hands-on Requirements** validated
 
-This drives: badges, unlocking, profile stats, and certificates.
+This drives: badges, profile stats, and certificates.
 
-## Unlocking Rules
+## Content Access
 
-| Content | Rule |
-|---------|---------|
-| Phase 0 | Always unlocked |
-| Phases 1-6 | Previous phase complete |
-| First topic | Always unlocked |
-| Subsequent topics | Previous topic complete |
-| Admin users | Bypass all locks |
+All phases, topics, and steps are **fully unlocked** - users can access any content in any order. There is no gating based on completion status.
 
 ## Progress Calculation
 
-**Topic:** `(Steps + Questions) / Total`
+**Topic:** `Steps Completed / Total Steps`
 
-**Phase:** `(Steps + Questions + Hands-on) / Total`
+**Phase:** `(Steps + Hands-on) / Total`
 
 ## Badge Tiers
 

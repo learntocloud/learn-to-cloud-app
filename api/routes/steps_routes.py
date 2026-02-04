@@ -17,7 +17,6 @@ from schemas import (
 from services.steps_service import (
     StepAlreadyCompletedError,
     StepInvalidStepOrderError,
-    StepNotUnlockedError,
     StepUnknownTopicError,
     complete_step,
     get_topic_step_progress,
@@ -42,9 +41,7 @@ ValidatedStepOrder = Annotated[int, Path(ge=1)]
     response_model=StepProgressResponse,
     status_code=201,
     responses={
-        400: {
-            "description": "Step already completed, not unlocked, or invalid step order"
-        },
+        400: {"description": "Step already completed or invalid step order"},
         401: {"description": "Not authenticated"},
         404: {"description": "Topic not found"},
     },
@@ -58,8 +55,7 @@ async def complete_step_endpoint(
 ) -> StepProgressResponse:
     """Mark a learning step as complete.
 
-    Steps must be completed in order - you can only complete step N
-    if steps 1 through N-1 are already complete.
+    Steps can be completed in any order.
     """
     user = await get_or_create_user(db, user_id)
 
@@ -75,8 +71,6 @@ async def complete_step_endpoint(
         raise HTTPException(status_code=404, detail=str(e))
     except StepAlreadyCompletedError:
         raise HTTPException(status_code=400, detail="Step already completed")
-    except StepNotUnlockedError as e:
-        raise HTTPException(status_code=400, detail=str(e))
     except StepInvalidStepOrderError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
