@@ -38,12 +38,9 @@ interface MockTopic {
   order: number;
   is_capstone: boolean;
   steps_count: number;
-  questions_count: number;
   progress: {
     steps_completed: number;
     steps_total: number;
-    questions_passed: number;
-    questions_total: number;
     percentage: number;
     status: 'not_started' | 'in_progress' | 'completed';
   } | null;
@@ -77,7 +74,7 @@ const mockDashboard = {
   activity_heatmap: {
     days: [
       { date: '2026-01-20', count: 3, activity_types: ['step_complete'] },
-      { date: '2026-01-19', count: 2, activity_types: ['question_pass'] },
+      { date: '2026-01-19', count: 2, activity_types: ['hands_on_validated'] },
     ],
     start_date: '2025-10-20',
     end_date: '2026-01-20',
@@ -104,7 +101,6 @@ const mockPhases: MockPhase[] = [
         order: 0,
         is_capstone: false,
         steps_count: 5,
-        questions_count: 2,
         progress: null,
         is_locked: false,
       },
@@ -215,18 +211,13 @@ export const handlers = [
     }
     return HttpResponse.json({
       ...topic,
-      steps: [
+      learning_steps: [
         { order: 1, text: 'Step 1', action: null, title: null, url: null, description: null, code: null, secondary_links: [], options: [] },
       ],
-      questions: [
-        { id: 'q1', prompt: 'What is cloud computing?', max_attempts: 3, lockout_minutes: 30 },
-      ],
-      step_progress: {
-        topic_id: topic.id,
-        completed_steps: [],
-        total_steps: topic.steps_count,
-        next_unlocked_step: 1,
-      },
+      completed_step_orders: [],
+      learning_objectives: [],
+      is_locked: false,
+      is_topic_locked: false,
     });
   }),
 
@@ -244,19 +235,6 @@ export const handlers = [
       completed_steps: [1],
       total_steps: 5,
       next_unlocked_step: 2,
-    });
-  }),
-
-  // Question submission
-  http.post(`${API_URL}/api/topics/:topicId/questions/:questionId/submit`, async () => {
-    await delay(100);
-    return HttpResponse.json({
-      question_id: 'q1',
-      is_passed: true,
-      llm_feedback: 'Great answer! You demonstrated understanding of cloud computing concepts.',
-      confidence_score: 0.85,
-      attempt_id: 1,
-      attempts_used: null,
     });
   }),
 

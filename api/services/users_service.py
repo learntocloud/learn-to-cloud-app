@@ -5,6 +5,7 @@ import asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.telemetry import log_metric, track_operation
+from core.wide_event import set_wide_event_fields
 from models import SubmissionType, User
 from repositories.submission_repository import SubmissionRepository
 from repositories.user_repository import UserRepository
@@ -94,10 +95,13 @@ async def get_or_create_user(db: AsyncSession, user_id: str) -> UserResponse:
     user_repo = UserRepository(db)
     user = await user_repo.get_or_create(user_id)
 
-    if user.created_at == user.updated_at:
+    is_new_user = user.created_at == user.updated_at
+    if is_new_user:
         log_metric("users.registered", 1)
+        set_wide_event_fields(user_is_new=True)
 
-    if _needs_clerk_sync(user):
+    needs_sync = _needs_clerk_sync(user)
+    if needs_sync:
         clerk_data = await fetch_user_data(user_id)
         if clerk_data:
             is_placeholder = _is_placeholder_user(user.email)
@@ -218,6 +222,13 @@ async def get_public_profile(
         member_since=profile_user.created_at,
         submissions=submissions,
         badges=badges,
+    )
+
+    set_wide_event_fields(
+        profile_viewed_user_id=profile_user.id,
+        profile_viewed_username=profile_user.github_username,
+        profile_phases_completed=phases_completed,
+        profile_badges_count=len(badges),
     )
 
     return profile_data

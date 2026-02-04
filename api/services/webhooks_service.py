@@ -74,7 +74,7 @@ async def handle_user_deleted(db: AsyncSession, data: ClerkUserWebhookData) -> N
     """Handle user.deleted webhook event.
 
     Hard deletes the user and relies on FK ON DELETE CASCADE
-    to delete dependent rows (submissions, question_attempts, etc.).
+    to delete dependent rows (submissions, progress, etc.).
     """
     user_id = data.get("id")
     if not user_id:

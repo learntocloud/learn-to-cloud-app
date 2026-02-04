@@ -31,14 +31,11 @@ from tenacity import (
     wait_exponential_jitter,
 )
 
-from core import get_logger
 from core.config import get_settings
 from core.copilot_client import CopilotClientError, get_copilot_client
 from core.telemetry import track_operation
 from core.wide_event import set_wide_event_fields
 from schemas import TaskResult, ValidationResult
-
-logger = get_logger(__name__)
 
 
 class TaskDefinition(TypedDict, total=False):
@@ -407,11 +404,9 @@ async def _analyze_with_copilot(
         file_path = args.get("path", "")
         branch = args.get("branch", "main")
 
-        logger.debug(
-            "copilot.tool.fetch_file",
-            owner=file_owner,
-            repo=file_repo,
-            path=file_path,
+        set_wide_event_fields(
+            copilot_tool_fetch_file=file_path,
+            copilot_tool_repo=f"{file_owner}/{file_repo}",
         )
 
         try:
@@ -484,11 +479,10 @@ async def _analyze_with_copilot(
         # Build and send the verification prompt
         prompt = _build_verification_prompt(owner, repo)
 
-        logger.info(
-            "copilot.analysis.started",
-            owner=owner,
-            repo=repo,
-            github_username=github_username,
+        set_wide_event_fields(
+            copilot_analysis_started=True,
+            copilot_analysis_owner=owner,
+            copilot_analysis_repo=repo,
         )
 
         await session.send({"prompt": prompt})
@@ -497,11 +491,9 @@ async def _analyze_with_copilot(
         try:
             await asyncio.wait_for(done.wait(), timeout=settings.copilot_cli_timeout)
         except TimeoutError:
-            logger.error(
-                "copilot.analysis.timeout",
-                owner=owner,
-                repo=repo,
-                timeout=settings.copilot_cli_timeout,
+            set_wide_event_fields(
+                copilot_error="timeout",
+                copilot_timeout_seconds=settings.copilot_cli_timeout,
             )
             raise CodeAnalysisError(
                 "Code analysis timed out. Please try again.",
@@ -521,13 +513,11 @@ async def _analyze_with_copilot(
         passed_count = sum(1 for t in task_results if t.passed)
         total_count = len(task_results)
 
-        logger.info(
-            "copilot.analysis.complete",
-            owner=owner,
-            repo=repo,
-            passed=passed_count,
-            total=total_count,
-            all_passed=all_passed,
+        set_wide_event_fields(
+            copilot_analysis_complete=True,
+            copilot_tasks_passed=passed_count,
+            copilot_tasks_total=total_count,
+            copilot_all_passed=all_passed,
         )
 
         if all_passed:
@@ -600,11 +590,6 @@ async def analyze_repository_code(
         return await _analyze_with_copilot(owner, repo, github_username)
     except CircuitBreakerError:
         set_wide_event_fields(copilot_error="circuit_open")
-        logger.warning(
-            "copilot.analysis.circuit_open",
-            owner=owner,
-            repo=repo,
-        )
         return ValidationResult(
             is_valid=False,
             message=(
@@ -614,12 +599,10 @@ async def analyze_repository_code(
             server_error=True,
         )
     except CodeAnalysisError as e:
-        logger.error(
-            "copilot.analysis.failed",
-            owner=owner,
-            repo=repo,
-            error=str(e),
-            retriable=e.retriable,
+        set_wide_event_fields(
+            copilot_error="analysis_failed",
+            copilot_error_detail=str(e),
+            copilot_error_retriable=e.retriable,
         )
         return ValidationResult(
             is_valid=False,
@@ -627,11 +610,9 @@ async def analyze_repository_code(
             server_error=e.retriable,
         )
     except CopilotClientError as e:
-        logger.error(
-            "copilot.client.error",
-            owner=owner,
-            repo=repo,
-            error=str(e),
+        set_wide_event_fields(
+            copilot_error="client_error",
+            copilot_error_detail=str(e),
         )
         return ValidationResult(
             is_valid=False,

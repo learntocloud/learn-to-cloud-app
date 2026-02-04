@@ -7,7 +7,7 @@ Note: Cache is per-worker/replica, not shared across instances.
 Suitable for data that can tolerate short-term staleness (30-60s).
 
 For scenarios that must survive container restarts, use database
-persistence (see repositories/scenario_repository.py).
+persistence.
 """
 
 from typing import TYPE_CHECKING
@@ -50,7 +50,7 @@ def invalidate_progress_cache(user_id: str) -> None:
     """Invalidate cached progress for a user.
 
     Call this after operations that modify user progress
-    (step completion, question answers, submissions).
+    (step completion, submissions).
     """
     _progress_cache.pop(user_id, None)
     # Also invalidate any badge cache entries for this user

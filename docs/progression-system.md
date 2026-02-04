@@ -1,8 +1,3 @@
----
-applyTo: "api/services/progress*.py, api/services/badges*.py, api/services/certificates*.py, api/services/phase_requirements*.py, api/services/steps*.py, api/services/questions*.py, api/repositories/progress*.py"
-description: "Phase completion logic, badge awards, unlocking rules, and progress calculation"
----
-
 # Progression System
 
 ## Core Concept

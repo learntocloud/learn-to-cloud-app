@@ -99,7 +99,7 @@ export function PhaseVerificationForm({
     }
   };
 
-  const stepsAndQuestionsComplete = phaseProgress?.status === 'completed';
+  const stepsComplete = phaseProgress?.status === 'completed';
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
@@ -366,10 +366,10 @@ export function PhaseVerificationForm({
         </div>
       )}
 
-      {allHandsOnValidated && !stepsAndQuestionsComplete && (
+      {allHandsOnValidated && !stepsComplete && (
         <div className="mt-6 p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800 text-center">
           <p className="text-amber-700 dark:text-amber-300 font-medium">
-            <span role="img" aria-label="Verified">✅</span> All hands-on requirements verified! Complete all learning steps and questions to finish Phase {phaseNumber}.
+            <span role="img" aria-label="Verified">✅</span> All hands-on requirements verified! Complete all learning steps to finish Phase {phaseNumber}.
           </p>
         </div>
       )}

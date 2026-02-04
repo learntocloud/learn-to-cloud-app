@@ -20,7 +20,7 @@ type ProgressStatus = PhaseProgressSchema['status'];
 
 function PhaseLoadingState() {
   return (
-    <div className="min-h-screen py-8 bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-950">
+    <div className="min-h-screen py-8 bg-linear-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-950">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-center py-20">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
@@ -54,7 +54,7 @@ function PhasePublicView({ phaseSlug }: { phaseSlug: string }) {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen py-8 bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-950">
+      <div className="min-h-screen py-8 bg-linear-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-950">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-center py-20">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -69,7 +69,7 @@ function PhasePublicView({ phaseSlug }: { phaseSlug: string }) {
   }
 
   return (
-    <div className="min-h-screen py-8 bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-950">
+    <div className="min-h-screen py-8 bg-linear-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-950">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Breadcrumb */}
         <nav className="mb-6">
@@ -164,7 +164,7 @@ function PhaseAuthenticatedView({ phaseSlug }: { phaseSlug: string }) {
     // Guard against phase 0 being locked (shouldn't happen, but be safe)
     const prevPhaseNum = Math.max(0, phase.id - 1);
     return (
-      <div className="min-h-screen py-8 bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-950">
+      <div className="min-h-screen py-8 bg-linear-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-950">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <nav className="mb-6">
             <Link to="/dashboard" className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 text-sm">
@@ -193,7 +193,7 @@ function PhaseAuthenticatedView({ phaseSlug }: { phaseSlug: string }) {
   }
 
   return (
-    <div className="min-h-screen py-8 bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-950">
+    <div className="min-h-screen py-8 bg-linear-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-950">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Breadcrumb */}
         <nav className="mb-6">
@@ -364,8 +364,8 @@ function TopicCard({ topic, phaseSlug, previousTopicName }: {
 }) {
   // Use API-provided progress values - business logic lives in API, not frontend
   const progress = topic.progress;
-  const completedCount = (progress?.steps_completed ?? 0) + (progress?.questions_passed ?? 0);
-  const totalCount = (progress?.steps_total ?? 0) + (progress?.questions_total ?? 0);
+  const completedCount = progress?.steps_completed ?? 0;
+  const totalCount = progress?.steps_total ?? 0;
   const progressPercent = progress?.percentage ?? 0;
   const isComplete = progress?.status === PROGRESS_STATUS.COMPLETED;
 

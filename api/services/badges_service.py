@@ -2,7 +2,7 @@
 
 Badges are computed on-the-fly from user progress data.
 No separate database table is needed - badges are derived from:
-- Step completion + Question attempts (phase completion badges)
+- Step completion + hands-on verification (phase completion badges)
 - User activities (streak badges)
 
 CACHING:
@@ -15,6 +15,7 @@ from typing import TypedDict
 
 from core.cache import get_cached_badges, set_cached_badges
 from core.telemetry import add_custom_attribute
+from core.wide_event import set_wide_event_fields
 from schemas import BadgeCatalogItem, BadgeData, PhaseThemeData
 from services.content_service import get_all_phases
 from services.progress_service import get_phase_requirements
@@ -118,18 +119,17 @@ def get_badge_catalog() -> (
 
 
 def compute_phase_badges(
-    phase_completion_counts: dict[int, tuple[int, int, bool]],
+    phase_completion_counts: dict[int, tuple[int, bool]],
 ) -> list[BadgeData]:
     """Compute which phase badges a user has earned.
 
     A phase badge is earned when ALL of the following are true:
     - All steps in the phase are completed
-    - All questions in the phase are passed
     - All hands-on requirements are validated (if any exist)
 
     Args:
         phase_completion_counts: Dict mapping phase_id ->
-            (completed_steps, passed_questions, hands_on_validated)
+            (completed_steps, hands_on_validated)
 
     Returns:
         List of earned BadgeData objects
@@ -146,15 +146,11 @@ def compute_phase_badges(
         if not requirements:
             continue
 
-        completed_steps, passed_questions, hands_on_validated = (
-            phase_completion_counts.get(phase_id, (0, 0, True))
+        completed_steps, hands_on_validated = phase_completion_counts.get(
+            phase_id, (0, True)
         )
 
-        if (
-            completed_steps >= requirements.steps
-            and passed_questions >= requirements.questions
-            and hands_on_validated
-        ):
+        if completed_steps >= requirements.steps and hands_on_validated:
             earned_badges.append(
                 BadgeData(
                     id=badge_info.id,
@@ -193,7 +189,7 @@ def compute_streak_badges(longest_streak: int) -> list[BadgeData]:
 
 
 def compute_all_badges(
-    phase_completion_counts: dict[int, tuple[int, int, bool]],
+    phase_completion_counts: dict[int, tuple[int, bool]],
     longest_streak: int,
     user_id: str | None = None,
 ) -> list[BadgeData]:
@@ -201,7 +197,7 @@ def compute_all_badges(
 
     Args:
         phase_completion_counts: Dict mapping phase_id ->
-            (completed_steps, passed_questions, hands_on_validated)
+            (completed_steps, hands_on_validated)
         longest_streak: User's longest streak (all-time)
         user_id: Optional user ID for caching (if provided, results are cached)
 
@@ -229,6 +225,13 @@ def compute_all_badges(
     if badges:
         phase_count = sum(1 for b in badges if b.id.startswith("phase_"))
         streak_count = sum(1 for b in badges if b.id.startswith("streak_"))
+        badge_ids = [b.id for b in badges]
+        set_wide_event_fields(
+            badges_earned=len(badges),
+            badges_phase_count=phase_count,
+            badges_streak_count=streak_count,
+            badge_ids=badge_ids,
+        )
         if phase_count:
             add_custom_attribute("badges.phase_count", phase_count)
         if streak_count:

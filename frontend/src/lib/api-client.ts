@@ -10,39 +10,18 @@ import type { components, paths } from './api/schema';
 import type { GitHubValidationResult } from './types';
 
 export type { GitHubValidationResult } from './types';
-export type BadgeCatalogItem = components['schemas']['BadgeCatalogItem'];
-export type BadgeCatalogResponse =
-  paths['/api/user/badges/catalog']['get']['responses']['200']['content']['application/json'];
 export type HandsOnRequirement = components['schemas']['HandsOnRequirement'];
 export type HandsOnSubmission = components['schemas']['HandsOnSubmissionResponse'];
 export type PhaseProgressSchema = components['schemas']['PhaseProgressData'];
 export type PhaseSummarySchema = components['schemas']['PhaseSummaryData'];
 export type ProviderOptionSchema = components['schemas']['ProviderOption'];
-export type QuestionSchema = components['schemas']['Question'];
 export type TopicDetailSchema = components['schemas']['TopicDetailData'];
 export type TopicSummarySchema = components['schemas']['TopicSummaryData'];
-
-/**
- * Error thrown when user exceeds max quiz attempts and is locked out.
- */
-export class LockoutError extends Error {
-  constructor(
-    message: string,
-    public lockoutUntil: string,
-    public attemptsUsed: number,
-    public retryAfterSeconds: number
-  ) {
-    super(message);
-    this.name = 'LockoutError';
-  }
-}
 
 const API_URL = import.meta.env.VITE_API_URL || '';
 
 type ErrorDetail = {
   detail?: string;
-  lockout_until?: string | null;
-  attempts_used?: number | null;
 };
 
 type UserInfo = paths['/api/user/me']['get']['responses']['200']['content']['application/json'];
@@ -54,16 +33,14 @@ type PhaseDetail =
   paths['/api/user/phases/{phase_slug}']['get']['responses']['200']['content']['application/json'];
 type TopicDetail =
   paths['/api/user/phases/{phase_slug}/topics/{topic_slug}']['get']['responses']['200']['content']['application/json'];
-type ScenarioQuestionResponse =
-  paths['/api/questions/{topic_id}/{question_id}/scenario']['get']['responses']['200']['content']['application/json'];
-type QuestionSubmitResponse =
-  paths['/api/questions/submit']['post']['responses']['200']['content']['application/json'];
 type TopicStepProgress =
   paths['/api/steps/{topic_id}']['get']['responses']['200']['content']['application/json'];
 type StreakResponse =
   paths['/api/activity/streak']['get']['responses']['200']['content']['application/json'];
 type PublicProfileResponse =
   paths['/api/user/profile/{username}']['get']['responses']['200']['content']['application/json'];
+type BadgeCatalogResponse =
+  paths['/api/user/badges/catalog']['get']['responses']['200']['content']['application/json'];
 type CertificateEligibility =
   paths['/api/certificates/eligibility/{certificate_type}']['get']['responses']['200']['content']['application/json'];
 type Certificate =
@@ -72,8 +49,6 @@ type CertificateVerifyResponse =
   paths['/api/certificates/verify/{verification_code}']['get']['responses']['200']['content']['application/json'];
 type UserCertificates =
   paths['/api/certificates']['get']['responses']['200']['content']['application/json'];
-type UpdatesResponse =
-  paths['/api/updates']['get']['responses']['200']['content']['application/json'];
 
 function getErrorDetail(error: unknown): ErrorDetail {
   if (error && typeof error === 'object') {
@@ -171,58 +146,6 @@ export function createApiClient(getToken: () => Promise<string | null>) {
       return ensureData(data, error, response, 'Submission failed');
     },
 
-    async getScenarioQuestion(
-      topicId: string,
-      questionId: string
-    ): Promise<ScenarioQuestionResponse> {
-      const { data, error, response } = await client.GET(
-        '/api/questions/{topic_id}/{question_id}/scenario',
-        {
-          headers: await getAuthHeaders(),
-          params: { path: { topic_id: topicId, question_id: questionId } },
-        }
-      );
-      if (response?.status === 429) {
-        const detail = getErrorDetail(error);
-        const retryAfter = parseInt(response.headers.get('Retry-After') || '3600', 10);
-        throw new LockoutError(
-          detail.detail || 'Too many failed attempts',
-          detail.lockout_until || '',
-          detail.attempts_used ?? 0,
-          retryAfter
-        );
-      }
-      return ensureData(data, error, response, 'Failed to fetch question');
-    },
-
-    async submitAnswer(
-      topicId: string,
-      questionId: string,
-      answer: string,
-      scenarioContext?: string
-    ): Promise<QuestionSubmitResponse> {
-      const { data, error, response } = await client.POST('/api/questions/submit', {
-        headers: await getAuthHeaders(),
-        body: {
-          topic_id: topicId,
-          question_id: questionId,
-          user_answer: answer,
-          scenario_context: scenarioContext,
-        },
-      });
-      if (response?.status === 429) {
-        const detail = getErrorDetail(error);
-        const retryAfter = parseInt(response.headers.get('Retry-After') || '3600', 10);
-        throw new LockoutError(
-          detail.detail || 'Too many failed attempts',
-          detail.lockout_until || '',
-          detail.attempts_used ?? 0,
-          retryAfter
-        );
-      }
-      return ensureData(data, error, response, 'Submission failed');
-    },
-
     async getTopicStepProgress(topicId: string): Promise<TopicStepProgress> {
       const { data, error, response } = await client.GET('/api/steps/{topic_id}', {
         headers: await getAuthHeaders(),
@@ -281,6 +204,13 @@ export function createApiClient(getToken: () => Promise<string | null>) {
       });
       if (response?.status === 404) return null;
       return ensureData(data, error, response, 'Failed to fetch profile');
+    },
+
+    async getBadgeCatalog(): Promise<BadgeCatalogResponse> {
+      const { data, error, response } = await client.GET('/api/user/badges/catalog', {
+        headers: await getAuthHeaders(),
+      });
+      return ensureData(data, error, response, 'Failed to fetch badge catalog');
     },
 
     async getCertificateEligibility(certificateType: string): Promise<CertificateEligibility> {
@@ -345,16 +275,6 @@ export function createApiClient(getToken: () => Promise<string | null>) {
     getVerifiedCertificatePngUrl(code: string, scale?: number): string {
       const suffix = scale ? `?scale=${scale}` : '';
       return `${API_URL}/api/certificates/verify/${code}/png${suffix}`;
-    },
-
-    async getUpdates(): Promise<UpdatesResponse> {
-      const { data, error, response } = await client.GET('/api/updates');
-      return ensureData(data, error, response, 'Failed to fetch updates');
-    },
-
-    async getBadgeCatalog(): Promise<BadgeCatalogResponse> {
-      const { data, error, response } = await client.GET('/api/user/badges/catalog');
-      return ensureData(data, error, response, 'Failed to fetch badge catalog');
     },
   };
 }

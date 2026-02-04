@@ -44,7 +44,7 @@ class TestComputePhaseBadges:
             pytest.skip("Phase 0 requirements or badge not available in content")
 
         phase_completion = {
-            0: (requirements.steps, requirements.questions, True),
+            0: (requirements.steps, True),
         }
 
         result = compute_phase_badges(phase_completion)
@@ -60,20 +60,7 @@ class TestComputePhaseBadges:
         if not requirements or requirements.steps == 0:
             pytest.skip("Phase 0 requirements not available or zero steps")
         phase_completion = {
-            0: (requirements.steps - 1, requirements.questions, True),
-        }
-
-        result = compute_phase_badges(phase_completion)
-
-        assert result == []
-
-    def test_no_badge_when_questions_incomplete(self):
-        """Should not award badge when questions not passed."""
-        requirements = get_phase_requirements(0)
-        if not requirements or requirements.questions == 0:
-            pytest.skip("Phase 0 requirements not available or zero questions")
-        phase_completion = {
-            0: (requirements.steps, requirements.questions - 1, True),
+            0: (requirements.steps - 1, True),
         }
 
         result = compute_phase_badges(phase_completion)
@@ -86,7 +73,7 @@ class TestComputePhaseBadges:
         if not requirements:
             pytest.skip("Phase 0 requirements not available")
         phase_completion = {
-            0: (requirements.steps, requirements.questions, False),
+            0: (requirements.steps, False),
         }
 
         result = compute_phase_badges(phase_completion)
@@ -108,8 +95,8 @@ class TestComputePhaseBadges:
             pytest.skip("Phase requirements missing for badge phases")
 
         phase_completion = {
-            phase_ids[0]: (requirements[0].steps, requirements[0].questions, True),
-            phase_ids[1]: (requirements[1].steps, requirements[1].questions, True),
+            phase_ids[0]: (requirements[0].steps, True),
+            phase_ids[1]: (requirements[1].steps, True),
         }
 
         result = compute_phase_badges(phase_completion)
@@ -124,7 +111,7 @@ class TestComputePhaseBadges:
         if not requirements:
             pytest.skip("Phase 0 requirements not available")
         phase_completion = {
-            0: (requirements.steps + 5, requirements.questions + 5, True),
+            0: (requirements.steps + 5, True),
         }
 
         result = compute_phase_badges(phase_completion)
@@ -209,7 +196,7 @@ class TestComputeAllBadges:
             pytest.skip("Phase 0 requirements or badge not available in content")
 
         phase_completion = {
-            0: (requirements.steps, requirements.questions, True),
+            0: (requirements.steps, True),
         }
 
         result = compute_all_badges(phase_completion, 7)
@@ -224,7 +211,7 @@ class TestComputeAllBadges:
         if not requirements:
             pytest.skip("Phase 0 requirements not available")
         phase_completion = {
-            0: (requirements.steps, requirements.questions, True),
+            0: (requirements.steps, True),
         }
 
         # First call
@@ -238,6 +225,6 @@ class TestComputeAllBadges:
     def test_different_progress_different_results(self):
         """Should return different results for different progress."""
         result1 = compute_all_badges({}, 0, user_id="test-user-2")
-        result2 = compute_all_badges({0: (15, 12, True)}, 7, user_id="test-user-3")
+        result2 = compute_all_badges({0: (15, True)}, 7, user_id="test-user-3")
 
         assert len(result2) > len(result1)

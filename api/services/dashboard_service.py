@@ -8,17 +8,11 @@ This module provides dashboard data by combining:
 Source of truth: .github/skills/progression-system/progression-system.md
 """
 
-from datetime import UTC, datetime, timedelta
-
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core import get_logger
-from core.config import get_settings
 from models import Submission
-from repositories.progress_repository import (
-    QuestionAttemptRepository,
-    StepProgressRepository,
-)
+from repositories.progress_repository import StepProgressRepository
 from repositories.submission_repository import SubmissionRepository
 from schemas import (
     BadgeData,
@@ -28,7 +22,6 @@ from schemas import (
     PhaseDetailData,
     PhaseProgressData,
     PhaseSummaryData,
-    QuestionLockout,
     Topic,
     TopicDetailData,
     TopicProgressData,
@@ -98,7 +91,6 @@ def _build_topic_summary(
         order=topic.order,
         is_capstone=topic.is_capstone,
         steps_count=len(topic.learning_steps),
-        questions_count=len(topic.questions),
         progress=progress,
         is_locked=locked,
     )
@@ -275,10 +267,8 @@ async def get_phase_detail(
 
     # Batch queries to avoid N+1 (2 queries instead of 2*N)
     step_repo = StepProgressRepository(db)
-    question_repo = QuestionAttemptRepository(db)
 
     all_steps_by_topic = await step_repo.get_all_completed_by_user(user_id)
-    all_questions_by_topic = await question_repo.get_all_passed_by_user(user_id)
 
     phase_topic_ids = {topic.id for topic in phase.topics}
     steps_by_topic: dict[str, set[int]] = {
@@ -286,29 +276,20 @@ async def get_phase_detail(
         for tid, steps in all_steps_by_topic.items()
         if tid in phase_topic_ids
     }
-    questions_by_topic: dict[str, set[str]] = {
-        tid: qs for tid, qs in all_questions_by_topic.items() if tid in phase_topic_ids
-    }
 
     topic_summaries: list[TopicSummaryData] = []
     prev_topic_complete = True
 
     for topic in phase.topics:
         completed_steps = steps_by_topic.get(topic.id, set())
-        passed_questions = questions_by_topic.get(topic.id, set())
-
-        topic_progress = compute_topic_progress(
-            topic, completed_steps, passed_questions
-        )
+        topic_progress = compute_topic_progress(topic, completed_steps)
 
         locked = is_topic_locked(
             topic.order, phase_is_locked, prev_topic_complete, is_admin
         )
         topic_summaries.append(_build_topic_summary(topic, topic_progress, locked))
 
-        prev_topic_complete = is_topic_complete(
-            topic, completed_steps, passed_questions
-        )
+        prev_topic_complete = is_topic_complete(topic, completed_steps)
 
     # Get hands-on requirements and submissions
     hands_on_reqs = get_requirements_for_phase(phase.id)
@@ -361,7 +342,7 @@ async def get_topic_detail(
     topic_slug: str,
     is_admin: bool,
 ) -> TopicDetailData | None:
-    """Get detailed topic info with steps, questions, and progress."""
+    """Get detailed topic info with steps and progress."""
     phase = get_phase_by_slug(phase_slug)
     if not phase:
         return None
@@ -371,7 +352,6 @@ async def get_topic_detail(
         return None
 
     learning_steps = list(topic.learning_steps)
-    questions = list(topic.questions)
     learning_objectives = list(topic.learning_objectives)
 
     if user_id is None:
@@ -395,11 +375,9 @@ async def get_topic_detail(
             order=topic.order,
             is_capstone=topic.is_capstone,
             learning_steps=learning_steps,
-            questions=questions,
             learning_objectives=learning_objectives,
             progress=None,
             completed_step_orders=[],
-            passed_question_ids=[],
             is_locked=phase_is_locked,
             is_topic_locked=topic_locked,
             previous_topic_name=previous_topic_name,
@@ -410,15 +388,12 @@ async def get_topic_detail(
 
     # Batch queries to avoid N+1
     step_repo = StepProgressRepository(db)
-    question_repo = QuestionAttemptRepository(db)
 
     all_steps_by_topic = await step_repo.get_all_completed_by_user(user_id)
-    all_questions_by_topic = await question_repo.get_all_passed_by_user(user_id)
 
     completed_steps = all_steps_by_topic.get(topic.id, set())
-    passed_question_ids = all_questions_by_topic.get(topic.id, set())
 
-    topic_progress = compute_topic_progress(topic, completed_steps, passed_question_ids)
+    topic_progress = compute_topic_progress(topic, completed_steps)
 
     # Determine topic locking and get previous topic info for UI
     topic_index = next((i for i, t in enumerate(phase.topics) if t.id == topic.id), 0)
@@ -429,38 +404,11 @@ async def get_topic_detail(
         prev_topic = phase.topics[topic_index - 1]
         previous_topic_name = prev_topic.name
         prev_completed_steps = all_steps_by_topic.get(prev_topic.id, set())
-        prev_passed_questions = all_questions_by_topic.get(prev_topic.id, set())
-        prev_topic_complete = is_topic_complete(
-            prev_topic, prev_completed_steps, prev_passed_questions
-        )
+        prev_topic_complete = is_topic_complete(prev_topic, prev_completed_steps)
 
     topic_locked = is_topic_locked(
         topic.order, phase_is_locked, prev_topic_complete, is_admin
     )
-
-    # Get locked questions (questions with >= max_attempts failures in lockout window)
-    settings = get_settings()
-    lockout_window_start = datetime.now(UTC) - timedelta(
-        minutes=settings.quiz_lockout_minutes
-    )
-    locked_question_map = await question_repo.get_locked_questions(
-        user_id=user_id,
-        topic_id=topic.id,
-        since=lockout_window_start,
-        max_attempts=settings.quiz_max_attempts,
-    )
-    # Convert to list of QuestionLockout, excluding already-passed questions
-    # lockout_until = oldest_failure + lockout_minutes (when oldest failure "ages out")
-    lockout_duration = timedelta(minutes=settings.quiz_lockout_minutes)
-    locked_questions = [
-        QuestionLockout(
-            question_id=qid,
-            lockout_until=oldest_failure + lockout_duration,
-            attempts_used=count,
-        )
-        for qid, (count, oldest_failure) in locked_question_map.items()
-        if qid not in passed_question_ids
-    ]
 
     return TopicDetailData(
         id=topic.id,
@@ -470,12 +418,9 @@ async def get_topic_detail(
         order=topic.order,
         is_capstone=topic.is_capstone,
         learning_steps=learning_steps,
-        questions=questions,
         learning_objectives=learning_objectives,
         progress=topic_progress,
         completed_step_orders=sorted(completed_steps),
-        passed_question_ids=sorted(passed_question_ids),
-        locked_questions=locked_questions,
         is_locked=phase_is_locked,
         is_topic_locked=topic_locked,
         previous_topic_name=previous_topic_name,

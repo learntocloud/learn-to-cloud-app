@@ -1,12 +1,11 @@
 /**
- * TopicContent component for displaying learning steps and questions.
+ * TopicContent component for displaying learning steps.
  * Uses the topic ID (e.g., "phase0-topic1") for API calls.
  */
 
 import { useState } from 'react';
 import type { TopicDetailSchema, ProviderOptionSchema } from '@/lib/api-client';
-import { useCompleteStep, useUncompleteStep, useSubmitQuestionAnswer } from '@/lib/hooks';
-import { KnowledgeQuestion } from './KnowledgeQuestion';
+import { useCompleteStep, useUncompleteStep } from '@/lib/hooks';
 
 function ProviderOptions({ options }: { options: ProviderOptionSchema[] }) {
   const [selectedProvider, setSelectedProvider] = useState<string>(options[0]?.provider || "aws");
@@ -84,11 +83,9 @@ export function TopicContent({
 }: TopicContentProps) {
   const completeStepMutation = useCompleteStep();
   const uncompleteStepMutation = useUncompleteStep();
-  const submitQuestionMutation = useSubmitQuestionAnswer();
 
   // Parent uses key={topic.id} to reset state when topic changes
   const [completedSteps, setCompletedSteps] = useState<number[]>(topic.completed_step_orders || []);
-  const [passedQuestions, setPassedQuestions] = useState<string[]>(topic.passed_question_ids || []);
   const [togglingStep, setTogglingStep] = useState<number | null>(null);
   const [copiedStep, setCopiedStep] = useState<number | null>(null);
 
@@ -120,41 +117,7 @@ export function TopicContent({
     }
   };
 
-  const handleQuestionAnswer = async (questionId: string, answer: string, scenarioContext?: string) => {
-    if (!isAuthenticated) return { is_passed: false, llm_feedback: 'Not authenticated' };
-
-    // Don't catch errors here - let them propagate to KnowledgeQuestion
-    // so it can handle LockoutError and show the lockout UI
-    const result = await submitQuestionMutation.mutateAsync({
-      topicId: topic.id,
-      questionId,
-      answer,
-      scenarioContext,
-    });
-
-    // Update local state if passed (for immediate UI feedback)
-    if (result.is_passed) {
-      setPassedQuestions((prev) => (prev.includes(questionId) ? prev : [...prev, questionId]));
-    }
-
-    return result;
-  };
-
   const isStepCompleted = (order: number) => completedSteps.includes(order);
-  const isQuestionPassed = (questionId: string) => passedQuestions.includes(questionId);
-
-  const getQuestionLockout = (questionId: string): Date | null => {
-    const lockout = topic.locked_questions?.find((l) => l.question_id === questionId);
-    if (!lockout) return null;
-    const until = new Date(lockout.lockout_until);
-    // Only return if lockout is still active
-    return until > new Date() ? until : null;
-  };
-
-  const getQuestionAttemptsUsed = (questionId: string): number => {
-    const lockout = topic.locked_questions?.find((l) => l.question_id === questionId);
-    return lockout?.attempts_used ?? 0;
-  };
 
   const handleCopyCode = async (stepOrder: number, code: string) => {
     try {
@@ -284,38 +247,6 @@ export function TopicContent({
         </div>
       )}
 
-      {topic.questions && topic.questions.length > 0 && (
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
-          <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-            <h3 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-              ❓ Knowledge Check
-              <span className="text-sm font-normal text-gray-500 dark:text-gray-400">
-                ({passedQuestions.length}/{topic.questions.length})
-              </span>
-            </h3>
-          </div>
-
-          <div className="p-4 space-y-4">
-            {!isAuthenticated ? (
-              <p className="text-sm text-gray-500 dark:text-gray-400 italic">
-                Sign in to answer knowledge questions and track your progress.
-              </p>
-            ) : (
-              topic.questions.map((question) => (
-                <KnowledgeQuestion
-                  key={question.id}
-                  question={question}
-                  topicId={topic.id}
-                  isAnswered={isQuestionPassed(question.id)}
-                  initialLockoutUntil={getQuestionLockout(question.id)}
-                  initialAttemptsUsed={getQuestionAttemptsUsed(question.id)}
-                  onSubmit={(answer, scenarioContext) => handleQuestionAnswer(question.id, answer, scenarioContext)}
-                />
-              ))
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

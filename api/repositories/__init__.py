@@ -11,7 +11,6 @@ on HTTP handling. This separation provides:
 from repositories.activity_repository import ActivityRepository
 from repositories.certificate_repository import CertificateRepository
 from repositories.progress_repository import (
-    QuestionAttemptRepository,
     StepProgressRepository,
     UserPhaseProgressRepository,
 )
@@ -22,7 +21,6 @@ from repositories.utils import log_slow_query
 __all__ = [
     "ActivityRepository",
     "CertificateRepository",
-    "QuestionAttemptRepository",
     "StepProgressRepository",
     "UserPhaseProgressRepository",
     "SubmissionRepository",

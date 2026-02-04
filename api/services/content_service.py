@@ -24,7 +24,6 @@ from schemas import (
     PhaseHandsOnVerificationOverview,
     PhaseThemeMeta,
     ProviderOption,
-    Question,
     SecondaryLink,
     Topic,
 )
@@ -78,21 +77,6 @@ def _load_topic(phase_dir: Path, topic_slug: str) -> Topic | None:
             for i, s in enumerate(data.get("learning_steps", []))
         ]
 
-        from schemas import QuestionConcepts
-
-        questions = [
-            Question(
-                id=q["id"],
-                prompt=q["prompt"],
-                scenario_seeds=q.get("scenario_seeds", []),
-                grading_rubric=q.get("grading_rubric"),
-                concepts=QuestionConcepts(**q["concepts"])
-                if q.get("concepts")
-                else None,
-            )
-            for q in data.get("questions", [])
-        ]
-
         learning_objectives = [
             LearningObjective(
                 id=obj.get("id", f"obj-{i}"),
@@ -110,7 +94,6 @@ def _load_topic(phase_dir: Path, topic_slug: str) -> Topic | None:
             order=data.get("order", 0),
             is_capstone=data.get("is_capstone", False),
             learning_steps=learning_steps,
-            questions=questions,
             learning_objectives=learning_objectives,
         )
     except (json.JSONDecodeError, KeyError) as e:

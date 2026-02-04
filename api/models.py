@@ -8,7 +8,6 @@ from sqlalchemy import (
     Date,
     DateTime,
     Enum,
-    Float,
     ForeignKey,
     Index,
     Integer,
@@ -68,10 +67,6 @@ class User(TimestampMixin, Base):
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
 
     submissions: Mapped[list["Submission"]] = relationship(
-        back_populates="user",
-        cascade="all, delete-orphan",
-    )
-    question_attempts: Mapped[list["QuestionAttempt"]] = relationship(
         back_populates="user",
         cascade="all, delete-orphan",
     )
@@ -210,7 +205,6 @@ class Submission(TimestampMixin, Base):
 class ActivityType(str, PyEnum):
     """Type of user activity for streak and progress tracking."""
 
-    QUESTION_ATTEMPT = "question_attempt"
     STEP_COMPLETE = "step_complete"
     TOPIC_COMPLETE = "topic_complete"
     HANDS_ON_VALIDATED = "hands_on_validated"
@@ -255,86 +249,6 @@ class Certificate(TimestampMixin, Base):
     total_phases: Mapped[int] = mapped_column(Integer, nullable=False)
 
     user: Mapped["User"] = relationship(back_populates="certificates")
-
-
-class QuestionAttempt(Base):
-    """Tracks user attempts at LLM-graded knowledge questions.
-
-    Note: Only has created_at, no updated_at since attempts are immutable.
-    """
-
-    __tablename__ = "question_attempts"
-    __table_args__ = (
-        Index("ix_question_attempts_user_topic", "user_id", "topic_id"),
-        Index("ix_question_attempts_user_question", "user_id", "question_id"),
-        Index("ix_question_attempts_user_phase", "user_id", "phase_id"),
-        # Composite index for full lookup pattern (user + topic + question)
-        Index(
-            "ix_question_attempts_lookup",
-            "user_id",
-            "topic_id",
-            "question_id",
-        ),
-    )
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    user_id: Mapped[str] = mapped_column(
-        String(255),
-        ForeignKey("users.id", ondelete="CASCADE"),
-        nullable=False,
-    )
-    topic_id: Mapped[str] = mapped_column(
-        String(100),
-        nullable=False,
-    )
-    phase_id: Mapped[int] = mapped_column(Integer, nullable=False)
-    question_id: Mapped[str] = mapped_column(
-        String(100),
-        nullable=False,
-    )
-    user_answer: Mapped[str] = mapped_column(Text, nullable=False)
-    scenario_prompt: Mapped[str | None] = mapped_column(Text, nullable=True)
-    is_passed: Mapped[bool] = mapped_column(Boolean, default=False)
-    llm_feedback: Mapped[str | None] = mapped_column(Text, nullable=True)
-    confidence_score: Mapped[float | None] = mapped_column(Float, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        default=utcnow,
-    )
-
-    user: Mapped["User"] = relationship(back_populates="question_attempts")
-
-
-class UserScenario(Base):
-    """Stores generated scenario questions per user permanently.
-
-    Each user gets a unique LLM-generated scenario for each question. Once
-    generated, the scenario is stored forever to:
-    - Maintain a complete learning record
-    - Avoid redundant LLM calls on repeat visits
-    - Ensure consistency (user always sees their original scenario)
-    """
-
-    __tablename__ = "user_scenarios"
-    __table_args__ = (
-        UniqueConstraint("user_id", "question_id", name="uq_user_scenario"),
-        Index("ix_user_scenarios_lookup", "user_id", "question_id"),
-    )
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    user_id: Mapped[str] = mapped_column(
-        String(255),
-        ForeignKey("users.id", ondelete="CASCADE"),
-        nullable=False,
-    )
-    question_id: Mapped[str] = mapped_column(String(100), nullable=False)
-    scenario_prompt: Mapped[str] = mapped_column(Text, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        default=utcnow,
-    )
-
-    user: Mapped["User"] = relationship()
 
 
 class StepProgress(Base):
@@ -399,7 +313,6 @@ class UserPhaseProgress(TimestampMixin, Base):
     )
     phase_id: Mapped[int] = mapped_column(Integer, primary_key=True)
     steps_completed: Mapped[int] = mapped_column(Integer, default=0)
-    questions_passed: Mapped[int] = mapped_column(Integer, default=0)
     hands_on_validated_count: Mapped[int] = mapped_column(Integer, default=0)
 
     user: Mapped["User"] = relationship()

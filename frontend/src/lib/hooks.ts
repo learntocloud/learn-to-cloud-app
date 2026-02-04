@@ -35,21 +35,21 @@ export function useUserInfo() {
   });
 }
 
+export function useBadgeCatalog() {
+  const api = useApi();
+  return useQuery({
+    queryKey: ['badgeCatalog'],
+    queryFn: () => api.getBadgeCatalog(),
+    staleTime: STALE_TIME_MS,
+  });
+}
+
 export function usePhasesWithProgress() {
   const api = useApi();
   return useQuery({
     queryKey: ['phases'],
     queryFn: () => api.getPhasesWithProgress(),
     staleTime: STALE_TIME_MS,
-  });
-}
-
-export function useBadgeCatalog() {
-  const api = useApi();
-  return useQuery({
-    queryKey: ['badgeCatalog'],
-    queryFn: () => api.getBadgeCatalog(),
-    staleTime: 5 * 60 * 1000,
   });
 }
 
@@ -128,34 +128,6 @@ export function useUncompleteStep() {
       queryClient.invalidateQueries({ queryKey: ['phase'] });
       queryClient.invalidateQueries({ queryKey: ['streak'] });
       queryClient.invalidateQueries({ queryKey: ['topic'] });
-    },
-  });
-}
-
-export function useSubmitQuestionAnswer() {
-  const api = useApi();
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({
-      topicId,
-      questionId,
-      answer,
-      scenarioContext,
-    }: {
-      topicId: string;
-      questionId: string;
-      answer: string;
-      scenarioContext?: string;
-    }) => api.submitAnswer(topicId, questionId, answer, scenarioContext),
-    onSuccess: (result) => {
-      // Only invalidate caches if the answer was correct
-      if (result.is_passed) {
-        queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-        queryClient.invalidateQueries({ queryKey: ['phase'] });
-        queryClient.invalidateQueries({ queryKey: ['streak'] });
-        queryClient.invalidateQueries({ queryKey: ['topic'] });
-      }
     },
   });
 }

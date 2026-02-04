@@ -6,6 +6,7 @@ from svix.webhooks import Webhook, WebhookVerificationError
 from core import get_logger
 from core.config import get_settings
 from core.database import DbSession
+from core.ratelimit import WEBHOOK_LIMIT, limiter
 from core.wide_event import set_wide_event_fields
 from schemas import WebhookResponse
 from services.webhooks_service import handle_clerk_event
@@ -30,6 +31,7 @@ router = APIRouter(prefix="/api/webhooks", tags=["webhooks"])
         500: {"description": "Webhook signing secret not configured"},
     },
 )
+@limiter.limit(WEBHOOK_LIMIT)
 async def clerk_webhook(request: Request, db: DbSession) -> WebhookResponse:
     settings = get_settings()
     payload = await request.body()

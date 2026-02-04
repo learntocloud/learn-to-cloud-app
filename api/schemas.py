@@ -174,124 +174,6 @@ class WebhookResponse(BaseModel):
     event_type: str | None = None
 
 
-# =============================================================================
-# Updates Schemas
-# =============================================================================
-
-
-class UpdatesCommit(BaseModel):
-    """A single commit in the weekly updates."""
-
-    sha: str
-    message: str
-    author: str
-    date: str
-    url: str
-    emoji: str
-    category: str
-
-
-class UpdatesRepo(BaseModel):
-    """Repository information for updates."""
-
-    owner: str
-    name: str
-
-
-class UpdatesResponse(BaseModel):
-    """Response containing this week's updates."""
-
-    week_start: str
-    week_display: str
-    commits: list[UpdatesCommit]
-    repo: UpdatesRepo
-    generated_at: str
-    error: str | None = None
-
-
-class QuestionSubmitRequest(BaseModel):
-    """Request to submit an answer to a knowledge question."""
-
-    topic_id: str = Field(max_length=100)
-    question_id: str = Field(max_length=100)
-    user_answer: str = Field(min_length=10, max_length=2000)
-    scenario_context: str | None = Field(
-        default=None,
-        max_length=1000,
-        description="The scenario-wrapped question prompt (from GET /scenario)",
-    )
-
-    @field_validator("topic_id")
-    @classmethod
-    def validate_topic_id_format(cls, v: str) -> str:
-        v = v.strip()
-        if not re.fullmatch(r"^phase\d+-topic\d+$", v):
-            raise ValueError("Invalid topic_id format. Expected: phase{N}-topic{M}")
-        return v
-
-    @field_validator("question_id")
-    @classmethod
-    def validate_question_id_format(cls, v: str) -> str:
-        v = v.strip()
-        if not re.fullmatch(r"^phase\d+-topic\d+-q\d+$", v):
-            raise ValueError(
-                "Invalid question_id format. Expected: phase{N}-topic{M}-q{X}"
-            )
-        return v
-
-    @field_validator("user_answer")
-    @classmethod
-    def validate_answer_not_empty(cls, v: str) -> str:
-        """Ensure answer has meaningful content."""
-        stripped = v.strip()
-        if len(stripped) < 10:
-            raise ValueError("Answer must be at least 10 characters")
-        return stripped
-
-
-class QuestionSubmitResponse(FrozenORMModel):
-    """Response for a question submission."""
-
-    question_id: str
-    is_passed: bool
-    llm_feedback: str | None = None
-    confidence_score: float | None = None
-    attempt_id: int
-    attempts_used: int | None = None  # Failed attempts in current lockout window
-    lockout_until: datetime | None = (
-        None  # When lockout expires (set when max attempts reached)
-    )
-
-
-class ScenarioQuestionRequest(BaseModel):
-    """Request to get a scenario-wrapped question."""
-
-    topic_id: str = Field(max_length=100)
-    question_id: str = Field(max_length=100)
-
-
-class ScenarioQuestionResponse(FrozenModel):
-    """Response containing a scenario-wrapped question."""
-
-    question_id: str
-    scenario_prompt: str
-    base_prompt: str
-
-
-class QuestionGradeResult(FrozenModel):
-    """Result of grading a question answer (service-layer response model)."""
-
-    question_id: str
-    is_passed: bool
-    feedback: str | None = None
-    confidence_score: float | None = None
-    attempt_id: int
-    attempts_used: int | None = None  # Failed attempts in current lockout window
-    lockout_until: datetime | None = (
-        None  # When lockout expires (set when max attempts reached)
-    )
-
-
 class StepCompleteRequest(BaseModel):
     """Request to mark a learning step as complete."""
 
@@ -483,7 +365,7 @@ class PublicProfileResponse(BaseModel):
     """Public user profile information.
 
     Progress is tracked at the phase level:
-    - A phase is complete when all steps + questions + GitHub requirements are done
+    - A phase is complete when all steps + hands-on requirements are done
     - phases_completed counts fully completed phases
     - current_phase is the first incomplete phase (or highest if all done)
     """
@@ -641,36 +523,6 @@ class LearningStep(FrozenModel):
 LearningStepSchema = LearningStep
 
 
-class QuestionConcepts(FrozenModel):
-    """Structured concepts for rubric-based grading."""
-
-    required: list[str] = Field(default_factory=list)
-    expected: list[str] = Field(default_factory=list)
-    bonus: list[str] = Field(default_factory=list)
-
-
-class Question(FrozenModel):
-    """A knowledge check question with scenario support."""
-
-    id: str
-    prompt: str
-    scenario_seeds: list[str] = Field(default_factory=list)
-    grading_rubric: str | None = None
-    concepts: QuestionConcepts | None = None
-
-
-class QuestionSchema(FrozenModel):
-    """A knowledge check question (API response - excludes expected_concepts).
-
-    Note: expected_concepts is intentionally excluded for security.
-    Grading concepts are stored server-side in the grading_concepts table
-    and never exposed to the frontend.
-    """
-
-    id: str
-    prompt: str
-
-
 class LearningObjective(FrozenModel):
     """A learning objective for a topic."""
 
@@ -693,7 +545,6 @@ class Topic(FrozenModel):
     order: int
     is_capstone: bool
     learning_steps: list[LearningStep]
-    questions: list[Question]
     learning_objectives: list[LearningObjective] = Field(default_factory=list)
 
 
@@ -767,8 +618,6 @@ class TopicProgressData(FrozenModel):
 
     steps_completed: int
     steps_total: int
-    questions_passed: int
-    questions_total: int
     percentage: float
     status: str  # "not_started", "in_progress", "completed"
 
@@ -787,7 +636,6 @@ class TopicSummaryData(FrozenModel):
     order: int
     is_capstone: bool
     steps_count: int
-    questions_count: int
     progress: TopicProgressData | None = None
     is_locked: bool = False
 
@@ -796,16 +644,8 @@ class TopicSummaryData(FrozenModel):
 TopicSummarySchema = TopicSummaryData
 
 
-class QuestionLockout(FrozenModel):
-    """Info about a locked-out question due to too many failed attempts."""
-
-    question_id: str
-    lockout_until: datetime
-    attempts_used: int
-
-
 class TopicDetailData(FrozenModel):
-    """Full topic detail with steps and questions (service-layer response model)."""
+    """Full topic detail with steps (service-layer response model)."""
 
     id: str
     slug: str
@@ -814,12 +654,9 @@ class TopicDetailData(FrozenModel):
     order: int
     is_capstone: bool
     learning_steps: list[LearningStep]
-    questions: list[Question]
     learning_objectives: list[LearningObjective] = Field(default_factory=list)
     progress: TopicProgressData | None = None
     completed_step_orders: list[int] = Field(default_factory=list)
-    passed_question_ids: list[str] = Field(default_factory=list)
-    locked_questions: list[QuestionLockout] = Field(default_factory=list)
     is_locked: bool = False
     is_topic_locked: bool = False
     previous_topic_name: str | None = None
@@ -834,8 +671,6 @@ class PhaseProgressData(FrozenModel):
 
     steps_completed: int
     steps_required: int
-    questions_passed: int
-    questions_required: int
     hands_on_validated: int
     hands_on_required: int
     percentage: float
@@ -937,13 +772,6 @@ class PhaseRequirements(FrozenModel):
     name: str
     topics: int
     steps: int
-    questions: int
-
-    @computed_field
-    @property
-    def questions_per_topic(self) -> int:
-        """Average questions per topic (rounded down)."""
-        return self.questions // self.topics if self.topics else 0
 
 
 class PhaseProgress(FrozenModel):
@@ -952,8 +780,6 @@ class PhaseProgress(FrozenModel):
     phase_id: int
     steps_completed: int
     steps_required: int
-    questions_passed: int
-    questions_required: int
     hands_on_validated_count: int
     hands_on_required_count: int
     hands_on_validated: bool
@@ -963,11 +789,7 @@ class PhaseProgress(FrozenModel):
     @property
     def is_complete(self) -> bool:
         """Phase is complete when all requirements are met."""
-        return (
-            self.steps_completed >= self.steps_required
-            and self.questions_passed >= self.questions_required
-            and self.hands_on_validated
-        )
+        return self.steps_completed >= self.steps_required and self.hands_on_validated
 
     @computed_field
     @property
@@ -982,17 +804,13 @@ class PhaseProgress(FrozenModel):
     @computed_field
     @property
     def overall_percentage(self) -> float:
-        """Phase completion percentage (steps + questions + hands-on)."""
-        total = (
-            self.steps_required + self.questions_required + self.hands_on_required_count
-        )
+        """Phase completion percentage (steps + hands-on)."""
+        total = self.steps_required + self.hands_on_required_count
         if total == 0:
             return 0.0
 
-        completed = (
-            min(self.steps_completed, self.steps_required)
-            + min(self.questions_passed, self.questions_required)
-            + min(self.hands_on_validated_count, self.hands_on_required_count)
+        completed = min(self.steps_completed, self.steps_required) + min(
+            self.hands_on_validated_count, self.hands_on_required_count
         )
         return (completed / total) * 100
 
@@ -1003,14 +821,6 @@ class PhaseProgress(FrozenModel):
         if self.steps_required == 0:
             return 100.0
         return min(100.0, (self.steps_completed / self.steps_required) * 100)
-
-    @computed_field
-    @property
-    def question_percentage(self) -> float:
-        """Percentage of questions passed."""
-        if self.questions_required == 0:
-            return 100.0
-        return min(100.0, (self.questions_passed / self.questions_required) * 100)
 
 
 class UserProgress(FrozenModel):
@@ -1049,22 +859,18 @@ class UserProgress(FrozenModel):
             return 0.0
 
         total_steps = sum(p.steps_required for p in self.phases.values())
-        total_questions = sum(p.questions_required for p in self.phases.values())
         total_hands_on = sum(p.hands_on_required_count for p in self.phases.values())
         completed_steps = sum(p.steps_completed for p in self.phases.values())
-        passed_questions = sum(p.questions_passed for p in self.phases.values())
         completed_hands_on = sum(
             p.hands_on_validated_count for p in self.phases.values()
         )
 
-        if total_steps + total_questions + total_hands_on == 0:
+        if total_steps + total_hands_on == 0:
             return 0.0
 
-        total = total_steps + total_questions + total_hands_on
-        completed = (
-            min(completed_steps, total_steps)
-            + min(passed_questions, total_questions)
-            + min(completed_hands_on, total_hands_on)
+        total = total_steps + total_hands_on
+        completed = min(completed_steps, total_steps) + min(
+            completed_hands_on, total_hands_on
         )
         return (completed / total) * 100
 
@@ -1113,11 +919,6 @@ class SubmissionResult(FrozenModel):
     username_match: bool | None = None
     repo_exists: bool | None = None
     task_results: list["TaskResult"] | None = None
-
-
-# =============================================================================
-# Validation Result Schema
-# =============================================================================
 
 
 class TaskResult(FrozenModel):
@@ -1199,26 +1000,6 @@ class ClerkUserData(FrozenModel):
     last_name: str | None = None
     avatar_url: str | None = None
     github_username: str | None = None
-
-
-# =============================================================================
-# LLM Service Schema
-# =============================================================================
-
-
-class GradeResult(FrozenModel):
-    """Result of grading a knowledge question answer via LLM."""
-
-    is_passed: bool
-    feedback: str
-    confidence_score: float
-
-
-class ScenarioGenerationResult(FrozenModel):
-    """Result of generating a scenario question via LLM."""
-
-    scenario_prompt: str
-    seed_index: int
 
 
 # =============================================================================

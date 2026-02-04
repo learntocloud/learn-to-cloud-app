@@ -27,17 +27,14 @@ from repositories.webhook_repository import ProcessedWebhookRepository
 from routes import (
     activity_router,
     certificates_router,
-    changelog_router,
     clerk_router,
     dashboard_router,
     github_router,
     health_router,
-    questions_router,
     steps_router,
     users_router,
     webhooks_router,
 )
-from services.changelog_service import close_updates_client
 from services.clerk_service import close_http_client
 from services.github_hands_on_verification_service import close_github_client
 
@@ -160,7 +157,6 @@ async def lifespan(app: FastAPI):
         # Cleanup in reverse order of initialization
         close_clerk_client()
         await close_http_client()
-        await close_updates_client()
         await close_github_client()
         await close_copilot_client()
         await dispose_engine(app.state.engine)  # Close all database connections
@@ -205,8 +201,6 @@ app.include_router(users_router)
 app.include_router(dashboard_router)
 app.include_router(github_router)
 app.include_router(webhooks_router)
-app.include_router(questions_router)
 app.include_router(activity_router)
 app.include_router(certificates_router)
-app.include_router(changelog_router)
 app.include_router(steps_router)

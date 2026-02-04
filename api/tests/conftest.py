@@ -147,6 +147,8 @@ async def test_engine() -> AsyncGenerator[AsyncEngine]:
 
     # Recreate all tables to ensure schema matches current models
     async with engine.begin() as conn:
+        await conn.execute(text("DROP TABLE IF EXISTS question_attempts CASCADE"))
+        await conn.execute(text("DROP TABLE IF EXISTS user_scenarios CASCADE"))
         await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
 
@@ -371,21 +373,6 @@ def mock_github_client() -> Generator[AsyncMock]:
         mock_client = AsyncMock()
         mock.return_value = mock_client
         yield mock_client
-
-
-@pytest.fixture
-def mock_llm_service() -> Generator[MagicMock]:
-    """Mock LLM service for question grading tests.
-
-    Uses autospec=True to catch interface mismatches early.
-    """
-    with patch("services.llm_service.grade_answer", autospec=True) as mock:
-        mock.return_value = {
-            "is_correct": True,
-            "feedback": "Great answer!",
-            "confidence": 0.95,
-        }
-        yield mock
 
 
 # =============================================================================

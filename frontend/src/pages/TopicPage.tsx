@@ -22,7 +22,7 @@ function TopicLoadingState() {
 
 function TopicPageLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen py-8 bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-950">
+    <div className="min-h-screen py-8 bg-linear-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-950">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         {children}
       </div>
@@ -101,7 +101,7 @@ function TopicPublicView({ phaseSlug, topicSlug }: { phaseSlug: string; topicSlu
             <Link to="/sign-in" className="font-medium hover:underline">
               Sign in
             </Link>{" "}
-            to track your progress and answer knowledge questions
+            to track your progress and save completed steps
           </p>
         </div>
 
@@ -218,8 +218,8 @@ function TopicHeader({ topic, isAuthenticated }: {
 }) {
   // Use API-provided progress values - business logic lives in API, not frontend
   const progress = topic.progress;
-  const completedItems = (progress?.steps_completed ?? 0) + (progress?.questions_passed ?? 0);
-  const totalItems = (progress?.steps_total ?? 0) + (progress?.questions_total ?? 0);
+  const completedItems = progress?.steps_completed ?? 0;
+  const totalItems = progress?.steps_total ?? 0;
   const isComplete = progress?.status === 'completed';
   const percentage = progress?.percentage ?? 0;
 

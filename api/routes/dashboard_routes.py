@@ -3,7 +3,7 @@
 These endpoints provide:
 - Dashboard data (user + phases + progress)
 - Phase listings and details
-- Topic details with steps and questions
+- Topic details with steps
 
 All progress calculation and locking logic follows
 .github/skills/progression-system/progression-system.md
@@ -128,7 +128,7 @@ async def get_topic_detail_endpoint(
     user_id: OptionalUserId,
     db: DbSession,
 ) -> TopicDetailSchema:
-    """Get detailed topic info with steps and questions.
+    """Get detailed topic info with steps.
 
     Unauthenticated: no progress, content is read-only.
     """

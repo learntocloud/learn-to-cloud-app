@@ -2,6 +2,7 @@
 
 import os
 import time
+import uuid
 from collections.abc import Callable
 from functools import wraps
 from typing import Any, ParamSpec, TypeVar, cast
@@ -14,6 +15,10 @@ from core.wide_event import clear_wide_event, get_wide_event, init_wide_event
 logger = get_logger(__name__)
 
 TELEMETRY_ENABLED = bool(os.getenv("APPLICATIONINSIGHTS_CONNECTION_STRING"))
+
+# Infrastructure context - keep minimal for a single-service app
+SERVICE_NAME = os.getenv("SERVICE_NAME", "learn-to-cloud-api")
+SERVICE_VERSION = os.getenv("SERVICE_VERSION", "0.1.0")
 
 if TELEMETRY_ENABLED:
     from opentelemetry import trace
@@ -79,7 +84,12 @@ class SecurityHeadersMiddleware:
 
 
 class RequestTimingMiddleware:
-    """Enriches spans with timing, route info, emits wide event at request end."""
+    """Enriches spans with timing, route info, emits wide event at request end.
+
+    - One wide event per request (canonical log line)
+    - High cardinality fields (user_id, request_id)
+    - Tail sampling (always keep errors/slow, sample success)
+    """
 
     def __init__(self, app: ASGIApp):
         self.app = app
@@ -95,9 +105,13 @@ class RequestTimingMiddleware:
 
         client = scope.get("client")
         client_ip = client[0] if client else "unknown"
+        request_id = str(uuid.uuid4())
 
         # Initialize wide event with request context
         wide_event = init_wide_event()
+        wide_event["service_name"] = SERVICE_NAME
+        wide_event["service_version"] = SERVICE_VERSION
+        wide_event["request_id"] = request_id
         wide_event["http_method"] = method
         wide_event["http_path"] = path
         wide_event["http_client_ip"] = client_ip
@@ -114,6 +128,8 @@ class RequestTimingMiddleware:
                 headers.append(
                     (b"x-request-duration-ms", f"{duration_ms:.2f}".encode())
                 )
+                # Include request_id in response for user correlation
+                headers.append((b"x-request-id", request_id.encode()))
                 message["headers"] = headers
 
             elif message.get("type") == "http.response.body" and not message.get(
@@ -179,6 +195,9 @@ class RequestTimingMiddleware:
                         "http.route": path,
                         "http.url": scope.get("raw_path", path),
                         "http.client_ip": client_ip,
+                        "request.id": request_id,
+                        "service.name": SERVICE_NAME,
+                        "service.version": SERVICE_VERSION,
                     },
                 ):
                     await self.app(scope, receive, send_wrapper)

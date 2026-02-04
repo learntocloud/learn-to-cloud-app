@@ -9,7 +9,6 @@ const PhasesPage = lazy(() => import('./pages/PhasesPage').then(m => ({ default:
 const PhasePage = lazy(() => import('./pages/PhasePage').then(m => ({ default: m.PhasePage })));
 const TopicPage = lazy(() => import('./pages/TopicPage').then(m => ({ default: m.TopicPage })));
 const FAQPage = lazy(() => import('./pages/FAQPage').then(m => ({ default: m.FAQPage })));
-const UpdatesPage = lazy(() => import('./pages/UpdatesPage').then(m => ({ default: m.UpdatesPage })));
 const CertificatesPage = lazy(() => import('./pages/CertificatesPage').then(m => ({ default: m.CertificatesPage })));
 const ProfilePage = lazy(() => import('./pages/ProfilePage').then(m => ({ default: m.ProfilePage })));
 const VerifyPage = lazy(() => import('./pages/VerifyPage').then(m => ({ default: m.VerifyPage })));
@@ -45,7 +44,6 @@ export function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/phases" element={<PhasesPage />} />
           <Route path="/faq" element={<FAQPage />} />
-          <Route path="/updates" element={<UpdatesPage />} />
           <Route path="/sign-in/*" element={<SignInPage />} />
           <Route path="/sign-up/*" element={<SignUpPage />} />
           <Route path="/user/:username" element={<ProfilePage />} />

@@ -35,7 +35,6 @@ vi.mock('./api-client', () => ({
       github_username: 'testuser',
     }),
   })),
-  LockoutError: class LockoutError extends Error {},
 }));
 
 // Mock Clerk's useAuth hook

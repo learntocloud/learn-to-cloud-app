@@ -66,7 +66,6 @@
       "ActivityType": {
         "description": "Type of user activity for streak and progress tracking.",
         "enum": [
-          "question_attempt",
           "step_complete",
           "topic_complete",
           "hands_on_validated",
@@ -1038,14 +1037,6 @@
             "title": "Percentage",
             "type": "number"
           },
-          "questions_passed": {
-            "title": "Questions Passed",
-            "type": "integer"
-          },
-          "questions_required": {
-            "title": "Questions Required",
-            "type": "integer"
-          },
           "status": {
             "title": "Status",
             "type": "string"
@@ -1062,8 +1053,6 @@
         "required": [
           "steps_completed",
           "steps_required",
-          "questions_passed",
-          "questions_required",
           "hands_on_validated",
           "hands_on_required",
           "percentage",
@@ -1257,7 +1246,7 @@
         "type": "object"
       },
       "PublicProfileResponse": {
-        "description": "Public user profile information.\n\nProgress is tracked at the phase level:\n- A phase is complete when all steps + questions + GitHub requirements are done\n- phases_completed counts fully completed phases\n- current_phase is the first incomplete phase (or highest if all done)",
+        "description": "Public user profile information.\n\nProgress is tracked at the phase level:\n- A phase is complete when all steps + hands-on requirements are done\n- phases_completed counts fully completed phases\n- current_phase is the first incomplete phase (or highest if all done)",
         "properties": {
           "activity_heatmap": {
             "$ref": "#/components/schemas/ActivityHeatmapResponse"
@@ -1390,240 +1379,6 @@
           "name"
         ],
         "title": "PublicSubmission",
-        "type": "object"
-      },
-      "Question": {
-        "description": "A knowledge check question with scenario support.",
-        "properties": {
-          "concepts": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/QuestionConcepts"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "grading_rubric": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Grading Rubric"
-          },
-          "id": {
-            "title": "Id",
-            "type": "string"
-          },
-          "prompt": {
-            "title": "Prompt",
-            "type": "string"
-          },
-          "scenario_seeds": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Scenario Seeds",
-            "type": "array"
-          }
-        },
-        "required": [
-          "id",
-          "prompt"
-        ],
-        "title": "Question",
-        "type": "object"
-      },
-      "QuestionConcepts": {
-        "description": "Structured concepts for rubric-based grading.",
-        "properties": {
-          "bonus": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Bonus",
-            "type": "array"
-          },
-          "expected": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Expected",
-            "type": "array"
-          },
-          "required": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Required",
-            "type": "array"
-          }
-        },
-        "title": "QuestionConcepts",
-        "type": "object"
-      },
-      "QuestionLockout": {
-        "description": "Info about a locked-out question due to too many failed attempts.",
-        "properties": {
-          "attempts_used": {
-            "title": "Attempts Used",
-            "type": "integer"
-          },
-          "lockout_until": {
-            "format": "date-time",
-            "title": "Lockout Until",
-            "type": "string"
-          },
-          "question_id": {
-            "title": "Question Id",
-            "type": "string"
-          }
-        },
-        "required": [
-          "question_id",
-          "lockout_until",
-          "attempts_used"
-        ],
-        "title": "QuestionLockout",
-        "type": "object"
-      },
-      "QuestionSubmitRequest": {
-        "description": "Request to submit an answer to a knowledge question.",
-        "properties": {
-          "question_id": {
-            "maxLength": 100,
-            "title": "Question Id",
-            "type": "string"
-          },
-          "scenario_context": {
-            "anyOf": [
-              {
-                "maxLength": 1000,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "The scenario-wrapped question prompt (from GET /scenario)",
-            "title": "Scenario Context"
-          },
-          "topic_id": {
-            "maxLength": 100,
-            "title": "Topic Id",
-            "type": "string"
-          },
-          "user_answer": {
-            "maxLength": 2000,
-            "minLength": 10,
-            "title": "User Answer",
-            "type": "string"
-          }
-        },
-        "required": [
-          "topic_id",
-          "question_id",
-          "user_answer"
-        ],
-        "title": "QuestionSubmitRequest",
-        "type": "object"
-      },
-      "QuestionSubmitResponse": {
-        "description": "Response for a question submission.",
-        "properties": {
-          "attempt_id": {
-            "title": "Attempt Id",
-            "type": "integer"
-          },
-          "attempts_used": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Attempts Used"
-          },
-          "confidence_score": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Confidence Score"
-          },
-          "is_passed": {
-            "title": "Is Passed",
-            "type": "boolean"
-          },
-          "llm_feedback": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Llm Feedback"
-          },
-          "lockout_until": {
-            "anyOf": [
-              {
-                "format": "date-time",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Lockout Until"
-          },
-          "question_id": {
-            "title": "Question Id",
-            "type": "string"
-          }
-        },
-        "required": [
-          "question_id",
-          "is_passed",
-          "attempt_id"
-        ],
-        "title": "QuestionSubmitResponse",
-        "type": "object"
-      },
-      "ScenarioQuestionResponse": {
-        "description": "Response containing a scenario-wrapped question.",
-        "properties": {
-          "base_prompt": {
-            "title": "Base Prompt",
-            "type": "string"
-          },
-          "question_id": {
-            "title": "Question Id",
-            "type": "string"
-          },
-          "scenario_prompt": {
-            "title": "Scenario Prompt",
-            "type": "string"
-          }
-        },
-        "required": [
-          "question_id",
-          "scenario_prompt",
-          "base_prompt"
-        ],
-        "title": "ScenarioQuestionResponse",
         "type": "object"
       },
       "SecondaryLink": {
@@ -1828,7 +1583,7 @@
         "type": "object"
       },
       "TopicDetailData": {
-        "description": "Full topic detail with steps and questions (service-layer response model).",
+        "description": "Full topic detail with steps (service-layer response model).",
         "properties": {
           "completed_step_orders": {
             "items": {
@@ -1873,13 +1628,6 @@
             "title": "Learning Steps",
             "type": "array"
           },
-          "locked_questions": {
-            "items": {
-              "$ref": "#/components/schemas/QuestionLockout"
-            },
-            "title": "Locked Questions",
-            "type": "array"
-          },
           "name": {
             "title": "Name",
             "type": "string"
@@ -1887,13 +1635,6 @@
           "order": {
             "title": "Order",
             "type": "integer"
-          },
-          "passed_question_ids": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Passed Question Ids",
-            "type": "array"
           },
           "previous_topic_name": {
             "anyOf": [
@@ -1916,13 +1657,6 @@
               }
             ]
           },
-          "questions": {
-            "items": {
-              "$ref": "#/components/schemas/Question"
-            },
-            "title": "Questions",
-            "type": "array"
-          },
           "slug": {
             "title": "Slug",
             "type": "string"
@@ -1935,8 +1669,7 @@
           "description",
           "order",
           "is_capstone",
-          "learning_steps",
-          "questions"
+          "learning_steps"
         ],
         "title": "TopicDetailData",
         "type": "object"
@@ -1947,14 +1680,6 @@
           "percentage": {
             "title": "Percentage",
             "type": "number"
-          },
-          "questions_passed": {
-            "title": "Questions Passed",
-            "type": "integer"
-          },
-          "questions_total": {
-            "title": "Questions Total",
-            "type": "integer"
           },
           "status": {
             "title": "Status",
@@ -1972,8 +1697,6 @@
         "required": [
           "steps_completed",
           "steps_total",
-          "questions_passed",
-          "questions_total",
           "percentage",
           "status"
         ],
@@ -2018,10 +1741,6 @@
               }
             ]
           },
-          "questions_count": {
-            "title": "Questions Count",
-            "type": "integer"
-          },
           "slug": {
             "title": "Slug",
             "type": "string"
@@ -2038,120 +1757,9 @@
           "description",
           "order",
           "is_capstone",
-          "steps_count",
-          "questions_count"
+          "steps_count"
         ],
         "title": "TopicSummaryData",
-        "type": "object"
-      },
-      "UpdatesCommit": {
-        "description": "A single commit in the weekly updates.",
-        "properties": {
-          "author": {
-            "title": "Author",
-            "type": "string"
-          },
-          "category": {
-            "title": "Category",
-            "type": "string"
-          },
-          "date": {
-            "title": "Date",
-            "type": "string"
-          },
-          "emoji": {
-            "title": "Emoji",
-            "type": "string"
-          },
-          "message": {
-            "title": "Message",
-            "type": "string"
-          },
-          "sha": {
-            "title": "Sha",
-            "type": "string"
-          },
-          "url": {
-            "title": "Url",
-            "type": "string"
-          }
-        },
-        "required": [
-          "sha",
-          "message",
-          "author",
-          "date",
-          "url",
-          "emoji",
-          "category"
-        ],
-        "title": "UpdatesCommit",
-        "type": "object"
-      },
-      "UpdatesRepo": {
-        "description": "Repository information for updates.",
-        "properties": {
-          "name": {
-            "title": "Name",
-            "type": "string"
-          },
-          "owner": {
-            "title": "Owner",
-            "type": "string"
-          }
-        },
-        "required": [
-          "owner",
-          "name"
-        ],
-        "title": "UpdatesRepo",
-        "type": "object"
-      },
-      "UpdatesResponse": {
-        "description": "Response containing this week's updates.",
-        "properties": {
-          "commits": {
-            "items": {
-              "$ref": "#/components/schemas/UpdatesCommit"
-            },
-            "title": "Commits",
-            "type": "array"
-          },
-          "error": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Error"
-          },
-          "generated_at": {
-            "title": "Generated At",
-            "type": "string"
-          },
-          "repo": {
-            "$ref": "#/components/schemas/UpdatesRepo"
-          },
-          "week_display": {
-            "title": "Week Display",
-            "type": "string"
-          },
-          "week_start": {
-            "title": "Week Start",
-            "type": "string"
-          }
-        },
-        "required": [
-          "week_start",
-          "week_display",
-          "commits",
-          "repo",
-          "generated_at"
-        ],
-        "title": "UpdatesResponse",
         "type": "object"
       },
       "UserCertificatesResponse": {
@@ -2841,168 +2449,6 @@
         ]
       }
     },
-    "/api/questions/submit": {
-      "post": {
-        "description": "Submit an answer to a knowledge question for LLM grading.\n\nThe answer will be evaluated by Gemini and the user will receive\nimmediate feedback on whether they passed.\n\nAfter 3 failed attempts on a question, the user is locked out for 1 hour.\nQuestions already passed are exempt from attempt limiting.\n\nInclude scenario_context if the question was fetched via GET /scenario.",
-        "operationId": "submit_question_answer_endpoint_api_questions_submit_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/QuestionSubmitRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/QuestionSubmitResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "400": {
-            "description": "Missing grading configuration"
-          },
-          "401": {
-            "description": "Not authenticated"
-          },
-          "404": {
-            "description": "Topic or question not found"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          },
-          "429": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "properties": {
-                    "attempts_used": {
-                      "type": "integer"
-                    },
-                    "detail": {
-                      "type": "string"
-                    },
-                    "lockout_until": {
-                      "format": "date-time",
-                      "type": "string"
-                    }
-                  },
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Too many failed attempts - locked out temporarily"
-          },
-          "500": {
-            "description": "Internal grading error - retry suggested"
-          },
-          "503": {
-            "description": "Question grading service temporarily unavailable"
-          }
-        },
-        "summary": "Submit Question Answer",
-        "tags": [
-          "questions"
-        ]
-      }
-    },
-    "/api/questions/{topic_id}/{question_id}/scenario": {
-      "get": {
-        "description": "Get a scenario-wrapped question for the user.\n\nReturns a contextual scenario that wraps the base question in a\nreal-world situation. The scenario is cached per user for 1 hour,\nso refreshing the page shows the same question.\n\nReturns 503 if scenario generation is unavailable - no fallback to\nbase questions since that would defeat scenario-based assessment.",
-        "operationId": "get_scenario_question_endpoint_api_questions__topic_id___question_id__scenario_get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "topic_id",
-            "required": true,
-            "schema": {
-              "title": "Topic Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "question_id",
-            "required": true,
-            "schema": {
-              "title": "Question Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ScenarioQuestionResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "401": {
-            "description": "Not authenticated"
-          },
-          "404": {
-            "description": "Topic or question not found"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          },
-          "429": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "properties": {
-                    "attempts_used": {
-                      "type": "integer"
-                    },
-                    "detail": {
-                      "type": "string"
-                    },
-                    "lockout_until": {
-                      "format": "date-time",
-                      "type": "string"
-                    }
-                  },
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Too many failed attempts - locked out temporarily"
-          },
-          "503": {
-            "description": "Scenario generation temporarily unavailable"
-          }
-        },
-        "summary": "Get Scenario Question",
-        "tags": [
-          "questions"
-        ]
-      }
-    },
     "/api/steps/complete": {
       "post": {
         "description": "Mark a learning step as complete.\n\nSteps must be completed in order - you can only complete step N\nif steps 1 through N-1 are already complete.",
@@ -3169,28 +2615,6 @@
         ]
       }
     },
-    "/api/updates": {
-      "get": {
-        "description": "Get this week's commits.\n\nReturns commits since Monday of the current week.\nResults are cached for 5 minutes to avoid GitHub API rate limits.",
-        "operationId": "get_updates_data_api_updates_get",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/UpdatesResponse"
-                }
-              }
-            },
-            "description": "Commits from the current week (since Monday)"
-          }
-        },
-        "summary": "Get this week's updates",
-        "tags": [
-          "updates"
-        ]
-      }
-    },
     "/api/user/badges/catalog": {
       "get": {
         "description": "Get the badge catalog for public display.",
@@ -3337,7 +2761,7 @@
     },
     "/api/user/phases/{phase_slug}/topics/{topic_slug}": {
       "get": {
-        "description": "Get detailed topic info with steps and questions.\n\nUnauthenticated: no progress, content is read-only.",
+        "description": "Get detailed topic info with steps.\n\nUnauthenticated: no progress, content is read-only.",
         "operationId": "get_topic_detail_endpoint_api_user_phases__phase_slug__topics__topic_slug__get",
         "parameters": [
           {

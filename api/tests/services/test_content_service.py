@@ -187,7 +187,6 @@ class TestPhaseStructure:
                 assert topic.slug
                 assert topic.name
                 assert isinstance(topic.learning_steps, list)
-                assert isinstance(topic.questions, list)
 
     def test_learning_steps_have_required_fields(self):
         """Test that all learning steps have required fields."""
@@ -197,12 +196,3 @@ class TestPhaseStructure:
                 for step in topic.learning_steps:
                     assert step.order >= 1
                     assert step.text is not None
-
-    def test_questions_have_required_fields(self):
-        """Test that all questions have required fields."""
-        phases = get_all_phases()
-        for phase in phases:
-            for topic in phase.topics:
-                for question in topic.questions:
-                    assert question.id
-                    assert question.prompt

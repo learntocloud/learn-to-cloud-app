@@ -13,10 +13,10 @@ from datetime import UTC, datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core import get_logger
 from core.cache import invalidate_progress_cache
 from core.config import get_settings
 from core.telemetry import add_custom_attribute, log_metric, track_operation
+from core.wide_event import set_wide_event_fields
 from models import Submission, SubmissionType
 from repositories.progress_repository import UserPhaseProgressRepository
 from repositories.submission_repository import SubmissionRepository
@@ -24,8 +24,6 @@ from schemas import SubmissionData, SubmissionResult
 from services.github_hands_on_verification_service import parse_github_url
 from services.hands_on_verification_service import validate_submission
 from services.phase_requirements_service import get_requirement_by_id
-
-logger = get_logger(__name__)
 
 
 def _to_submission_data(submission: Submission) -> SubmissionData:
@@ -110,11 +108,9 @@ async def submit_validation(
             remaining = int(cooldown_seconds - elapsed)
 
             if remaining > 0:
-                logger.info(
-                    "code_analysis.cooldown.active",
-                    user_id=user_id,
-                    requirement_id=requirement_id,
-                    remaining_seconds=remaining,
+                set_wide_event_fields(
+                    code_analysis_cooldown_active=True,
+                    code_analysis_cooldown_remaining_seconds=remaining,
                 )
                 raise CooldownActiveError(
                     f"Code analysis can only be submitted once per hour. "
@@ -163,11 +159,9 @@ async def submit_validation(
         )
 
     if validation_result.server_error:
-        logger.info(
-            "submission.server_error",
-            user_id=user_id,
-            requirement_id=requirement_id,
-            message=validation_result.message,
+        set_wide_event_fields(
+            submission_server_error=True,
+            submission_server_error_message=validation_result.message,
         )
 
     submission_repo = SubmissionRepository(db)

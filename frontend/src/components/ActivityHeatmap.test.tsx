@@ -10,9 +10,9 @@ import type { ActivityHeatmapDay } from '@/lib/types';
 
 const mockDays: ActivityHeatmapDay[] = [
   { date: '2026-01-20', count: 5, activity_types: ['step_complete'] },
-  { date: '2026-01-19', count: 2, activity_types: ['question_attempt'] },
+  { date: '2026-01-19', count: 2, activity_types: ['hands_on_validated'] },
   { date: '2026-01-18', count: 0, activity_types: [] },
-  { date: '2026-01-17', count: 10, activity_types: ['step_complete', 'question_attempt'] },
+  { date: '2026-01-17', count: 10, activity_types: ['step_complete', 'hands_on_validated'] },
   { date: '2026-01-16', count: 1, activity_types: ['step_complete'] },
 ];
 

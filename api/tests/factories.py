@@ -27,7 +27,6 @@ from models import (
     ActivityType,
     Certificate,
     ProcessedWebhook,
-    QuestionAttempt,
     StepProgress,
     Submission,
     SubmissionType,
@@ -261,44 +260,6 @@ class StepProgressFactory(factory.Factory):
     )
     step_order = factory.Sequence(lambda n: n + 1)
     completed_at = factory.LazyFunction(lambda: datetime.now(UTC))
-
-
-class QuestionAttemptFactory(factory.Factory):
-    """Factory for creating QuestionAttempt instances."""
-
-    class Meta:
-        model = QuestionAttempt
-
-    # Let DB assign autoincrement ID
-    user_id = factory.LazyAttribute(
-        lambda _: f"user_{fake.uuid4().replace('-', '')[:24]}"
-    )
-    topic_id = factory.LazyAttribute(
-        lambda _: f"phase{_get_random_phase_id()}-topic{fake.random_int(1, 5)}"
-    )
-    phase_id = factory.LazyAttribute(
-        lambda obj: _parse_phase_id_from_topic_id(obj.topic_id)
-    )
-    question_id = factory.LazyAttribute(lambda obj: f"{obj.topic_id}-q1")
-    user_answer = factory.LazyAttribute(lambda _: fake.paragraph(nb_sentences=3))
-    is_passed = True
-    llm_feedback = factory.LazyAttribute(lambda _: "Great explanation!")
-    confidence_score = factory.LazyAttribute(
-        lambda _: fake.pyfloat(min_value=0.7, max_value=1.0)
-    )
-    created_at = factory.LazyFunction(lambda: datetime.now(UTC))
-
-
-class FailedQuestionAttemptFactory(QuestionAttemptFactory):
-    """Factory for creating failed question attempts."""
-
-    is_passed = False
-    llm_feedback = factory.LazyAttribute(
-        lambda _: "Your answer doesn't fully address the question."
-    )
-    confidence_score = factory.LazyAttribute(
-        lambda _: fake.pyfloat(min_value=0.3, max_value=0.6)
-    )
 
 
 # =============================================================================
