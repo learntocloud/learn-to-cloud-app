@@ -15,6 +15,16 @@ repos:
         name: ruff format
         files: ^api/
 
+  # ty - Python type checking
+  - repo: local
+    hooks:
+      - id: ty
+        name: ty type check
+        entry: uv run --directory api ty check .
+        language: system
+        files: ^api/.*\.py$
+        pass_filenames: false
+
   # Frontend - ESLint
   - repo: local
     hooks:
