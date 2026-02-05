@@ -135,10 +135,12 @@ async def _background_warmup(app: FastAPI) -> None:
     requests benefit from warm caches without blocking startup.
     """
     from services.content_service import get_all_phases
+    from services.progress_service import get_all_phase_ids
 
     async def _warm_content() -> None:
         try:
             get_all_phases()
+            get_all_phase_ids()  # triggers _build_phase_requirements()
             logger.info("content.preloaded")
         except Exception as e:
             logger.warning("content.preload.failed", error=str(e))
