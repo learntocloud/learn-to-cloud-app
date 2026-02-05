@@ -11,6 +11,7 @@ Source of truth: .github/skills/progression-system/progression-system.md
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core import get_logger
+from core.cache import get_cached_steps_by_topic, set_cached_steps_by_topic
 from models import Submission
 from repositories.progress_repository import StepProgressRepository
 from repositories.submission_repository import SubmissionRepository
@@ -46,6 +47,23 @@ from services.progress_service import (
 )
 
 logger = get_logger(__name__)
+
+
+async def _get_steps_by_topic(db: AsyncSession, user_id: str) -> dict[str, set[int]]:
+    """Get all completed steps grouped by topic, with caching.
+
+    Avoids re-scanning step_progress when fetch_user_progress already
+    queried the same table for aggregate counts.
+    TTL matches the progress cache (60s).
+    """
+    cached = get_cached_steps_by_topic(user_id)
+    if cached is not None:
+        return cached
+
+    step_repo = StepProgressRepository(db)
+    result = await step_repo.get_all_completed_by_user(user_id)
+    set_cached_steps_by_topic(user_id, result)
+    return result
 
 
 def _build_phase_summary(
@@ -263,9 +281,7 @@ async def get_phase_detail(
     phase_is_locked = is_phase_locked(phase.id, user_progress, is_admin)
 
     # Batch queries to avoid N+1 (2 queries instead of 2*N)
-    step_repo = StepProgressRepository(db)
-
-    all_steps_by_topic = await step_repo.get_all_completed_by_user(user_id)
+    all_steps_by_topic = await _get_steps_by_topic(db, user_id)
 
     phase_topic_ids = {topic.id for topic in phase.topics}
     steps_by_topic: dict[str, set[int]] = {
@@ -383,10 +399,8 @@ async def get_topic_detail(
     user_progress = await fetch_user_progress(db, user_id)
     phase_is_locked = is_phase_locked(phase.id, user_progress, is_admin)
 
-    # Batch queries to avoid N+1
-    step_repo = StepProgressRepository(db)
-
-    all_steps_by_topic = await step_repo.get_all_completed_by_user(user_id)
+    # Use cached steps-by-topic (avoids re-scanning step_progress)
+    all_steps_by_topic = await _get_steps_by_topic(db, user_id)
 
     completed_steps = all_steps_by_topic.get(topic.id, set())
 

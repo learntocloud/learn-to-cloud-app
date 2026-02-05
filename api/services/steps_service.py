@@ -178,17 +178,17 @@ async def complete_step(
 
     step_repo = StepProgressRepository(db)
 
-    if await step_repo.exists(user_id, topic_id, step_order):
-        raise StepAlreadyCompletedError(topic_id, step_order)
-
     # Steps can be completed in any order - no enforcement
     del is_admin  # Unused after removing step order enforcement
 
-    step_progress = await step_repo.create(
+    # Atomic check-and-insert: saves 1 round-trip vs exists() + create()
+    step_progress = await step_repo.create_if_not_exists(
         user_id=user_id,
         topic_id=topic_id,
         step_order=step_order,
     )
+    if step_progress is None:
+        raise StepAlreadyCompletedError(topic_id, step_order)
 
     await log_activity(
         db=db,

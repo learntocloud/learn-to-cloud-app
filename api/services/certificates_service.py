@@ -214,6 +214,9 @@ async def get_user_certificates_with_eligibility(
 ) -> tuple[list[CertificateData], bool]:
     """Get all certificates for a user plus eligibility status.
 
+    Optimized: extracts existing full_completion cert from the already-fetched
+    list instead of a second DB query via check_eligibility().
+
     Args:
         db: Database session
         user_id: The user's ID
@@ -224,10 +227,16 @@ async def get_user_certificates_with_eligibility(
     cert_repo = CertificateRepository(db)
     certificates = await cert_repo.get_by_user(user_id)
 
-    eligibility = await check_eligibility(db, user_id, "full_completion")
-    full_completion_eligible = (
-        eligibility.is_eligible and eligibility.existing_certificate is None
-    )
+    # Check if full_completion cert already exists from the fetched list
+    # (avoids a redundant get_by_user_and_type query)
+    already_issued = any(c.certificate_type == "full_completion" for c in certificates)
+
+    if already_issued:
+        full_completion_eligible = False
+    else:
+        # Only check progress if no cert exists yet
+        progress = await fetch_user_progress(db, user_id)
+        full_completion_eligible = progress.is_program_complete
 
     return [_to_certificate_data(c) for c in certificates], full_completion_eligible
 

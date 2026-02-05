@@ -46,18 +46,29 @@ class UserRepository:
 
         Uses INSERT ... ON CONFLICT to handle concurrent requests safely.
         The placeholder will be updated via Clerk webhook later.
+
+        Query strategy:
+        - Existing user (common path): 1 SELECT
+        - New user: 1 SELECT + 1 INSERT RETURNING = 2 queries
+        - Race condition (rare): 1 SELECT + 1 INSERT (conflict) + 1 SELECT = 3 queries
         """
         user = await self.get_by_id(user_id)
         if user:
             return user
 
+        # Use RETURNING to get the inserted row back in one round-trip
         stmt = (
             pg_insert(User)
             .values(id=user_id, email=f"{user_id}@placeholder.local")
             .on_conflict_do_nothing(index_elements=["id"])
+            .returning(User)
         )
-        await self.db.execute(stmt)
+        result = await self.db.execute(stmt)
+        user = result.scalar_one_or_none()
+        if user:
+            return user
 
+        # Race condition: another request inserted between our SELECT and INSERT
         result = await self.db.execute(select(User).where(User.id == user_id))
         return result.scalar_one()
 

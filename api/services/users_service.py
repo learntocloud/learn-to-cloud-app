@@ -1,7 +1,5 @@
 """User service for user-related business logic."""
 
-import asyncio
-
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.telemetry import log_business_event, track_operation
@@ -150,15 +148,11 @@ async def get_public_profile(
     if not profile_user:
         return None
 
-    # TaskGroup cancels remaining tasks if one fails (safer than gather)
-    async with asyncio.TaskGroup() as tg:
-        submissions_task = tg.create_task(
-            submission_repo.get_validated_by_user(profile_user.id)
-        )
-        progress_task = tg.create_task(fetch_user_progress(db, profile_user.id))
-
-    db_submissions = submissions_task.result()
-    progress = progress_task.result()
+    # Run sequentially — asyncpg connections are NOT safe for concurrent use
+    # on the same AsyncSession. Using TaskGroup/gather here caused intermittent
+    # InterfaceError on cache-miss when both queries hit the DB.
+    db_submissions = await submission_repo.get_validated_by_user(profile_user.id)
+    progress = await fetch_user_progress(db, profile_user.id)
 
     sensitive_submission_types = {
         SubmissionType.CTF_TOKEN,

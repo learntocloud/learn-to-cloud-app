@@ -30,6 +30,14 @@ _progress_cache: TTLCache[str, "UserProgress"] = TTLCache(
     ttl=DEFAULT_TTL_SECONDS,
 )
 
+# Steps-by-topic cache: keyed by user_id, stores dict[topic_id, set[step_order]]
+# TTL of 60 seconds to match progress cache - avoids re-scanning step_progress
+# when both fetch_user_progress and get_phase/topic_detail need step data
+_steps_by_topic_cache: TTLCache[str, dict[str, set[int]]] = TTLCache(
+    maxsize=DEFAULT_MAX_SIZE,
+    ttl=DEFAULT_TTL_SECONDS,
+)
+
 # Badge computation cache: keyed by (user_id, phases_hash), stores badge lists
 # TTL of 60 seconds to match progress cache
 _badge_cache: TTLCache[tuple[str, int], list["BadgeData"]] = TTLCache(
@@ -46,6 +54,14 @@ def set_cached_progress(user_id: str, progress: "UserProgress") -> None:
     _progress_cache[user_id] = progress
 
 
+def get_cached_steps_by_topic(user_id: str) -> dict[str, set[int]] | None:
+    return _steps_by_topic_cache.get(user_id)
+
+
+def set_cached_steps_by_topic(user_id: str, steps: dict[str, set[int]]) -> None:
+    _steps_by_topic_cache[user_id] = steps
+
+
 def invalidate_progress_cache(user_id: str) -> None:
     """Invalidate cached progress for a user.
 
@@ -53,6 +69,7 @@ def invalidate_progress_cache(user_id: str) -> None:
     (step completion, submissions).
     """
     _progress_cache.pop(user_id, None)
+    _steps_by_topic_cache.pop(user_id, None)
     # Also invalidate any badge cache entries for this user
     # Badge cache keys are (user_id, hash), so we need to scan
     keys_to_remove = [k for k in _badge_cache.keys() if k[0] == user_id]
@@ -74,6 +91,7 @@ def set_cached_badges(
 def clear_all_caches() -> None:
     """For testing."""
     _progress_cache.clear()
+    _steps_by_topic_cache.clear()
     _badge_cache.clear()
 
 
@@ -83,6 +101,10 @@ def get_cache_stats() -> dict[str, dict[str, int]]:
         "progress_cache": {
             "current_size": len(_progress_cache),
             "max_size": _progress_cache.maxsize,
+        },
+        "steps_by_topic_cache": {
+            "current_size": len(_steps_by_topic_cache),
+            "max_size": _steps_by_topic_cache.maxsize,
         },
         "badge_cache": {
             "current_size": len(_badge_cache),

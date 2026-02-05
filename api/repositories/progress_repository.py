@@ -3,6 +3,7 @@
 from collections.abc import Sequence
 
 from sqlalchemy import delete, func, select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models import StepProgress
@@ -82,6 +83,43 @@ class StepProgressRepository:
         self.db.add(step_progress)
         await self.db.flush()
         return step_progress
+
+    async def create_if_not_exists(
+        self,
+        user_id: str,
+        topic_id: str,
+        step_order: int,
+        *,
+        phase_id: int | None = None,
+    ) -> StepProgress | None:
+        """Atomically create a step progress record if it doesn't exist.
+
+        Uses INSERT ... ON CONFLICT DO NOTHING RETURNING to check and insert
+        in a single round-trip instead of SELECT + INSERT (2 round-trips).
+
+        Returns:
+            The created StepProgress if inserted, or None if already existed.
+        """
+        if phase_id is None:
+            phase_id = _parse_phase_id_from_topic_id(topic_id)
+            if phase_id is None:
+                raise ValueError(f"Invalid topic_id format: {topic_id}")
+
+        stmt = (
+            pg_insert(StepProgress)
+            .values(
+                user_id=user_id,
+                topic_id=topic_id,
+                phase_id=phase_id,
+                step_order=step_order,
+            )
+            .on_conflict_do_nothing(
+                constraint="uq_user_topic_step",
+            )
+            .returning(StepProgress)
+        )
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
 
     async def get_step_counts_by_phase(self, user_id: str) -> dict[int, int]:
         result = await self.db.execute(

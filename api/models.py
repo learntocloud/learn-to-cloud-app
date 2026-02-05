@@ -62,7 +62,6 @@ class User(TimestampMixin, Base):
     github_username: Mapped[str | None] = mapped_column(
         String(255),
         nullable=True,
-        index=True,
     )
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
 
@@ -219,7 +218,6 @@ class Certificate(TimestampMixin, Base):
     __table_args__ = (
         UniqueConstraint("user_id", "certificate_type", name="uq_user_certificate"),
         Index("ix_certificates_user", "user_id"),
-        Index("ix_certificates_verification", "verification_code"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -264,13 +262,6 @@ class StepProgress(Base):
         ),
         Index("ix_step_progress_user_topic", "user_id", "topic_id"),
         Index("ix_step_progress_user_phase", "user_id", "phase_id"),
-        # Composite index for full lookup pattern (user + topic + step_order)
-        Index(
-            "ix_step_progress_lookup",
-            "user_id",
-            "topic_id",
-            "step_order",
-        ),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
