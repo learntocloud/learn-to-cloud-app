@@ -1,0 +1,42 @@
+# Pre-commit hooks for Learn to Cloud
+# Install: cd api && uv run pre-commit install
+# Run all: uv run pre-commit run --all-files
+
+repos:
+  # Ruff - Python linting and formatting
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.6
+    hooks:
+      - id: ruff
+        name: ruff lint
+        args: [--fix]
+        files: ^api/
+      - id: ruff-format
+        name: ruff format
+        files: ^api/
+
+  # Frontend - ESLint
+  - repo: local
+    hooks:
+      - id: eslint
+        name: eslint
+        entry: npm run lint --prefix frontend --
+        language: system
+        files: ^frontend/.*\.(ts|tsx|js|jsx)$
+        pass_filenames: false
+
+  # General file hygiene
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: ^(api/htmlcov/|frontend/coverage/)
+      - id: end-of-file-fixer
+        exclude: ^(api/htmlcov/|frontend/coverage/|.*\.svg$)
+      - id: check-yaml
+        args: [--unsafe]
+      - id: check-json
+        exclude: ^(frontend/tsconfig.*\.json$|\.vscode/)
+      - id: check-added-large-files
+        args: [--maxkb=500]
+      - id: check-merge-conflict
