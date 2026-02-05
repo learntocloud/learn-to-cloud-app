@@ -9,7 +9,7 @@ from datetime import UTC, datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core.telemetry import add_custom_attribute, log_metric, track_operation
+from core.telemetry import add_custom_attribute, log_business_event, track_operation
 from models import ActivityType
 from repositories.activity_repository import ActivityRepository
 from schemas import ActivityResult
@@ -35,7 +35,7 @@ async def log_activity(
         reference_id=reference_id,
     )
 
-    log_metric("activities.logged", 1, {"type": activity_type.value})
+    log_business_event("activities.logged", 1, {"type": activity_type.value})
 
     return ActivityResult(
         id=activity.id,

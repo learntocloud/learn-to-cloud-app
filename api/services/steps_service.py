@@ -3,7 +3,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.cache import invalidate_progress_cache
-from core.telemetry import add_custom_attribute, log_metric, track_operation
+from core.telemetry import add_custom_attribute, log_business_event, track_operation
 from models import ActivityType
 from repositories import StepProgressRepository
 from schemas import StepCompletionResult, StepProgressData
@@ -202,7 +202,7 @@ async def complete_step(
 
     # Extract phase from topic_id (e.g., "phase1-topic4" -> "phase1")
     phase = topic_id.split("-")[0] if "-" in topic_id else "unknown"
-    log_metric("steps.completed", 1, {"phase": phase, "topic_id": topic_id})
+    log_business_event("steps.completed", 1, {"phase": phase, "topic_id": topic_id})
 
     return StepCompletionResult(
         topic_id=step_progress.topic_id,

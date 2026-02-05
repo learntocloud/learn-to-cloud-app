@@ -6,6 +6,7 @@ from core.auth import OptionalUserId, UserId
 from core.database import DbSession, DbSessionReadOnly
 from core.ratelimit import limiter
 from schemas import (
+    ActivityHeatmapResponse,
     BadgeCatalogResponse,
     BadgeResponse,
     PublicProfileResponse,
@@ -13,7 +14,11 @@ from schemas import (
     UserResponse,
 )
 from services.badges_service import get_badge_catalog
-from services.users_service import get_or_create_user, get_public_profile
+from services.users_service import (
+    get_activity_heatmap,
+    get_or_create_user,
+    get_public_profile,
+)
 
 __all__ = ["router", "get_or_create_user"]
 
@@ -74,6 +79,24 @@ async def get_public_profile_endpoint(
         submissions=submissions,
         badges=badges,
     )
+
+
+@router.get(
+    "/profile/{username}/heatmap",
+    response_model=ActivityHeatmapResponse,
+    responses={404: {"description": "User not found"}},
+)
+@limiter.limit("30/minute")
+async def get_activity_heatmap_endpoint(
+    request: Request,
+    username: str,
+    db: DbSessionReadOnly,
+) -> ActivityHeatmapResponse:
+    """Get activity heatmap data for a user's public profile."""
+    result = await get_activity_heatmap(db, username, days=365)
+    if result is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    return result
 
 
 @router.get(

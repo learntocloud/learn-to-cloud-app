@@ -15,7 +15,6 @@ Usage:
 import logging
 import os
 import sys
-from typing import Any
 
 import structlog
 from structlog.types import EventDict, Processor
@@ -149,21 +148,3 @@ def get_logger(name: str | None = None) -> structlog.stdlib.BoundLogger:
         logger.warning("rate.limit.exceeded", endpoint="/api/submit", ip="1.2.3.4")
     """
     return structlog.stdlib.get_logger(name)
-
-
-def bind_contextvars(**kwargs: Any) -> None:
-    """Bind key-value pairs to the current context (thread/async task).
-
-    Useful for adding request-scoped data like user_id or request_id
-    that should appear in all subsequent log entries.
-
-    Example:
-        bind_contextvars(user_id="123", request_id="abc-def")
-        logger.info("processing.started")  # Will include user_id and request_id
-    """
-    structlog.contextvars.bind_contextvars(**kwargs)
-
-
-def clear_contextvars() -> None:
-    """Clear all context-bound variables. Call at end of request."""
-    structlog.contextvars.clear_contextvars()

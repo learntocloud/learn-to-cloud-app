@@ -836,6 +836,19 @@ class ActivityResult(FrozenModel):
     created_at: datetime
 
 
+class ActivityHeatmapDay(FrozenModel):
+    """A single day's activity count for the heatmap."""
+
+    date: date
+    count: int
+
+
+class ActivityHeatmapResponse(FrozenModel):
+    """Activity heatmap data for a user's public profile."""
+
+    days: list[ActivityHeatmapDay]
+
+
 # =============================================================================
 # Submission Service Schemas
 # =============================================================================

@@ -82,6 +82,44 @@ resource "azurerm_container_app" "api" {
     min_replicas = 1
     max_replicas = 3
 
+    # -----------------------------------------------------------------------
+    # Init container – runs Alembic migrations before the app starts.
+    # Uses the same image and DB credentials as the main container.
+    # -----------------------------------------------------------------------
+    init_container {
+      name   = "migrate"
+      image  = "${azurerm_container_registry.main.login_server}/api:v2"
+      cpu    = 0.25
+      memory = "0.5Gi"
+
+      command = ["python", "-m", "alembic", "upgrade", "head"]
+
+      env {
+        name  = "POSTGRES_HOST"
+        value = azurerm_postgresql_flexible_server.main.fqdn
+      }
+
+      env {
+        name  = "POSTGRES_USER"
+        value = azurerm_user_assigned_identity.api.name
+      }
+
+      env {
+        name  = "POSTGRES_DATABASE"
+        value = azurerm_postgresql_flexible_server_database.main.name
+      }
+
+      env {
+        name  = "AZURE_CLIENT_ID"
+        value = azurerm_user_assigned_identity.api.client_id
+      }
+
+      env {
+        name  = "ENVIRONMENT"
+        value = var.environment
+      }
+    }
+
     container {
       name   = "api"
       image  = "${azurerm_container_registry.main.login_server}/api:v2"

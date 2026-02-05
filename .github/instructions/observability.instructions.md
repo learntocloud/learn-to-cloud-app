@@ -44,11 +44,10 @@ set_wide_event_fields(
 | Need | Tool | Example |
 |------|------|---------|
 | Request context | `set_wide_event_fields()` | `set_wide_event_fields(user_tier="premium")` |
-| Nested context | `set_wide_event_nested()` | `set_wide_event_nested("grading", score=85)` |
 | Errors/exceptions | `logger.exception()` | `logger.exception("payment.failed", provider="stripe")` |
 | Discrete event | `logger.info()` | `logger.info("badge.awarded", badge_id="b1")` |
 | Trace attribute | `add_custom_attribute()` | `add_custom_attribute("llm.model", "gemini")` |
-| Metrics | `log_metric()` | `log_metric("questions.graded", 1)` |
+| Business events | `log_business_event()` | `log_business_event("questions.graded", 1)` |
 
 ---
 
@@ -73,7 +72,7 @@ The middleware automatically initializes wide events with request context:
 ### Add Business Context
 
 ```python
-from core.wide_event import set_wide_event_fields, set_wide_event_nested
+from core.wide_event import set_wide_event_fields
 
 # In your route or service:
 set_wide_event_fields(
@@ -83,13 +82,12 @@ set_wide_event_fields(
     phase_id=phase.id,
 )
 
-# For related data, use nested:
-set_wide_event_nested("grading",
-    score=85,
-    attempts=2,
-    topic="networking",
+# For grouped context, use prefixed field names:
+set_wide_event_fields(
+    grading_score=85,
+    grading_attempts=2,
+    grading_topic="networking",
 )
-# Results in: {"grading": {"score": 85, "attempts": 2, "topic": "networking"}}
 ```
 
 ### What Context to Add (High Dimensionality)
@@ -185,8 +183,8 @@ logger.info(f"User {user_id} completed step {step_id} in 45ms")
 
 ```python
 from core.logger import get_logger
-from core.wide_event import set_wide_event_fields, set_wide_event_nested
-from core.telemetry import add_custom_attribute, log_metric
+from core.wide_event import set_wide_event_fields
+from core.telemetry import add_custom_attribute, log_business_event
 
 logger = get_logger(__name__)
 
@@ -214,13 +212,13 @@ async def complete_step(db: AsyncSession, user_id: str, step_id: str) -> StepPro
         set_wide_event_fields(badge_awarded=badge.id)
 
     # Add outcome context
-    set_wide_event_nested("completion",
-        is_first=progress.completion_count == 1,
-        total_completions=progress.completion_count,
+    set_wide_event_fields(
+        completion_is_first=progress.completion_count == 1,
+        completion_total=progress.completion_count,
     )
 
-    # Emit metric for dashboards
-    log_metric("steps.completed", 1, {"phase": step.phase_id})
+    # Emit business event for dashboards
+    log_business_event("steps.completed", 1, {"phase": step.phase_id})
 
     return progress
 ```
@@ -240,7 +238,7 @@ async def complete_step(db: AsyncSession, user_id: str, step_id: str) -> StepPro
 - [ ] Use dot-notation event names: `domain.action.result`
 - [ ] Pass data as keyword args, not f-strings
 - [ ] Add `@track_dependency` for external service calls
-- [ ] Keep metric tags low-cardinality (no user IDs)
+- [ ] Keep business event tags low-cardinality (no user IDs)
 
 ---
 

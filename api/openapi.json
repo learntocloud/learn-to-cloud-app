@@ -1,26 +1,6 @@
 {
   "components": {
     "schemas": {
-      "ActivityHeatMapEntry": {
-        "description": "Single day entry for the activity heat map.",
-        "properties": {
-          "count": {
-            "title": "Count",
-            "type": "integer"
-          },
-          "date": {
-            "format": "date",
-            "title": "Date",
-            "type": "string"
-          }
-        },
-        "required": [
-          "date",
-          "count"
-        ],
-        "title": "ActivityHeatMapEntry",
-        "type": "object"
-      },
       "BadgeCatalogItem": {
         "description": "Badge metadata for catalog display.",
         "properties": {
@@ -1186,13 +1166,6 @@
       "PublicProfileResponse": {
         "description": "Public user profile information.\n\nProgress is tracked at the phase level:\n- A phase is complete when all steps + hands-on requirements are done\n- phases_completed counts fully completed phases\n- current_phase is the first incomplete phase (or highest if all done)",
         "properties": {
-          "activity_heatmap": {
-            "items": {
-              "$ref": "#/components/schemas/ActivityHeatMapEntry"
-            },
-            "title": "Activity Heatmap",
-            "type": "array"
-          },
           "avatar_url": {
             "anyOf": [
               {

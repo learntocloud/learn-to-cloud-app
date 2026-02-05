@@ -1,0 +1,10 @@
+{
+  // ty extension can't discover api/pyproject.toml from the workspace root,
+  // so we duplicate the rule override here. Remove once astral-sh/ty#1714 is fixed.
+  // CLI config: api/pyproject.toml [tool.ty.rules]
+  "ty.configuration": {
+    "rules": {
+      "invalid-argument-type": "warn"
+    }
+  }
+}

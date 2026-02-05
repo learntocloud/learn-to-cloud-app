@@ -1,0 +1,111 @@
+"""Azure AD token acquisition for PostgreSQL managed identity auth.
+
+Handles credential caching, token acquisition with retry/timeout,
+and credential reset on transient failures.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import logging
+from typing import TYPE_CHECKING
+
+from tenacity import (
+    before_sleep_log,
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential,
+)
+
+from core.wide_event import set_wide_event_fields
+
+if TYPE_CHECKING:
+    from azure.identity import DefaultAzureCredential
+
+# Timeout for Azure AD token acquisition (seconds)
+AZURE_TOKEN_TIMEOUT = 30
+
+# Retry configuration for transient Azure failures
+_AZURE_RETRY_ATTEMPTS = 3
+_AZURE_RETRY_MIN_WAIT = 1  # seconds
+_AZURE_RETRY_MAX_WAIT = 10  # seconds
+
+# Azure PostgreSQL OAuth scope
+AZURE_PG_SCOPE = "https://ossrdbms-aad.database.windows.net/.default"
+
+# Module-level credential cache (stateless - just caches the credential object)
+_azure_credential: DefaultAzureCredential | None = None
+_credential_lock = asyncio.Lock()
+
+
+async def get_credential() -> DefaultAzureCredential:
+    """Get or create the cached Azure credential (thread-safe via asyncio.Lock)."""
+    global _azure_credential
+    async with _credential_lock:
+        if _azure_credential is None:
+            from azure.identity import DefaultAzureCredential
+
+            _azure_credential = DefaultAzureCredential()
+        return _azure_credential
+
+
+async def reset_credential() -> None:
+    """Reset the cached credential (e.g., after timeout). Thread-safe."""
+    global _azure_credential
+    async with _credential_lock:
+        _azure_credential = None
+
+
+def _get_token_sync(credential: DefaultAzureCredential) -> str:
+    """Get an Azure AD token for PostgreSQL authentication (sync, may block).
+
+    Args:
+        credential: A pre-fetched Azure credential instance.
+
+    Note: Retry logic is handled by the async wrapper to properly coordinate
+    with asyncio timeout and credential reset.
+    """
+    token = credential.get_token(AZURE_PG_SCOPE)
+    return token.token
+
+
+# tenacity's before_sleep_log requires a stdlib Logger, not structlog BoundLogger
+_stdlib_logger = logging.getLogger(__name__)
+
+
+@retry(
+    stop=stop_after_attempt(_AZURE_RETRY_ATTEMPTS),
+    wait=wait_exponential(
+        multiplier=1, min=_AZURE_RETRY_MIN_WAIT, max=_AZURE_RETRY_MAX_WAIT
+    ),
+    # Retry on transient failures only - not programming errors
+    # TimeoutError: token acquisition timeout
+    # OSError: network issues (includes ConnectionError, socket errors)
+    retry=retry_if_exception_type((TimeoutError, OSError)),
+    before_sleep=before_sleep_log(_stdlib_logger, logging.WARNING),
+    reraise=True,
+)
+async def get_token() -> str:
+    """Get Azure AD token for PostgreSQL auth without blocking event loop.
+
+    Includes retry logic with exponential backoff for transient failures
+    (IMDS timeouts, network blips) and a per-attempt timeout.
+
+    Note: set_wide_event_fields calls during token acquisition may no-op
+    if called outside request context (e.g., during startup). Errors are
+    handled via exception propagation and logged in main.py lifespan.
+    """
+    # Fetch credential while still in async context (lock-protected)
+    credential = await get_credential()
+    try:
+        async with asyncio.timeout(AZURE_TOKEN_TIMEOUT):
+            return await asyncio.to_thread(_get_token_sync, credential)
+    except TimeoutError:
+        set_wide_event_fields(
+            db_error="azure_token_timeout",
+            db_timeout_seconds=AZURE_TOKEN_TIMEOUT,
+        )
+        # Reset credential on timeout in case it's in a bad state
+        await reset_credential()
+        raise

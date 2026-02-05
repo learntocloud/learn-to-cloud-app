@@ -7,12 +7,42 @@ since you can't add CNAME records for *.azurestaticapps.net domains.
 See: https://clerk.com/docs/guides/dashboard/dns-domains/proxy-fapi
 """
 
+import asyncio
 import os
 
 import httpx
 from fastapi import APIRouter, HTTPException, Request, Response
 
 router = APIRouter(prefix="/api/.clerk", tags=["clerk"])
+
+# Shared HTTP client for Clerk FAPI proxy (connection pooling)
+_clerk_proxy_client: httpx.AsyncClient | None = None
+_clerk_proxy_client_lock = asyncio.Lock()
+
+
+async def _get_clerk_proxy_client() -> httpx.AsyncClient:
+    """Get or create a shared HTTP client for Clerk FAPI proxy requests."""
+    global _clerk_proxy_client
+    if _clerk_proxy_client is not None and not _clerk_proxy_client.is_closed:
+        return _clerk_proxy_client
+
+    async with _clerk_proxy_client_lock:
+        if _clerk_proxy_client is not None and not _clerk_proxy_client.is_closed:
+            return _clerk_proxy_client
+
+        _clerk_proxy_client = httpx.AsyncClient(
+            timeout=30.0,
+            limits=httpx.Limits(max_connections=20, max_keepalive_connections=10),
+        )
+        return _clerk_proxy_client
+
+
+async def close_clerk_proxy_client() -> None:
+    """Close the shared Clerk proxy HTTP client (called on application shutdown)."""
+    global _clerk_proxy_client
+    if _clerk_proxy_client is not None and not _clerk_proxy_client.is_closed:
+        await _clerk_proxy_client.aclose()
+    _clerk_proxy_client = None
 
 
 def _get_clerk_fapi_base() -> str:
@@ -67,13 +97,13 @@ async def clerk_proxy(request: Request, path: str) -> Response:
         )
     }
 
-    async with httpx.AsyncClient(timeout=30.0) as client:
-        response = await client.request(
-            method=request.method,
-            url=target_url,
-            headers=headers,
-            content=body,
-        )
+    client = await _get_clerk_proxy_client()
+    response = await client.request(
+        method=request.method,
+        url=target_url,
+        headers=headers,
+        content=body,
+    )
 
     # Build response, excluding hop-by-hop headers
     response_headers = {

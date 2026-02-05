@@ -232,7 +232,7 @@ jobs:
             --name ${{ needs.terraform.outputs.api_container_app_name }} \
             --resource-group ${{ needs.terraform.outputs.resource_group_name }} \
             --image ${{ needs.terraform.outputs.container_registry_endpoint }}/api:${{ github.sha }} \
-            --set-env-vars FRONTEND_URL="$FRONTEND_URL" RUN_MIGRATIONS_ON_STARTUP=true
+            --set-env-vars FRONTEND_URL="$FRONTEND_URL"
 
       - name: Wait for API readiness
         run: |

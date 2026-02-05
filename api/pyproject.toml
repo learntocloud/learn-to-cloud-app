@@ -13,7 +13,7 @@ description = "Learn to Cloud API - FastAPI backend for learning cloud computing
 requires-python = ">=3.13"
 dependencies = [
     "alembic==1.14.0",
-    "asyncpg==0.30.0",
+    "asyncpg==0.31.0",
     "azure-identity==1.19.0",
     "azure-monitor-opentelemetry>=1.6.0",
     "clerk-backend-api==4.2.0",
@@ -30,7 +30,7 @@ dependencies = [
     "slowapi==0.1.9",
     "circuitbreaker>=2.0.0",
     "cachetools>=5.3.0",
-    "sqlalchemy==2.0.36",
+    "sqlalchemy>=2.0.37",
     "svix==1.45.1",
     "tenacity>=8.2.0",
     "uvicorn[standard]==0.34.0",
@@ -90,7 +90,10 @@ select = ["E", "F", "I", "UP"]
 python-platform = "linux"
 
 [tool.ty.rules]
-# Starlette middleware has incomplete ParamSpec protocol support (astral-sh/ty#1635)
+# TODO: Revert to "error" once astral-sh/ty#1714 (generic protocols in typevar
+# solving) is resolved. ty cannot yet match classes against Protocol[ParamSpec],
+# causing false positives on Starlette's add_middleware() and add_exception_handler().
+# Tracked in: https://github.com/astral-sh/ty/issues/1635
 invalid-argument-type = "warn"
 
 [dependency-groups]

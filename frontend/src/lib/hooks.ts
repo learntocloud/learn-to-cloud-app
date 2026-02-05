@@ -4,7 +4,8 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useAuth } from '@clerk/clerk-react';
+import { useAuth, useClerk } from '@clerk/clerk-react';
+import { useCallback } from 'react';
 import { createApiClient } from './api-client';
 
 const STALE_TIME_MS = 30_000;
@@ -22,6 +23,26 @@ export function useDashboard() {
     queryFn: () => api.getDashboard(),
     staleTime: STALE_TIME_MS,
   });
+}
+
+/**
+ * Returns a callback that prefetches dashboard data into the query cache.
+ * Use on hover/focus of navigation links to eliminate loading delay.
+ */
+export function usePrefetchDashboard(): () => void {
+  const queryClient = useQueryClient();
+  const { session } = useClerk();
+
+  return useCallback(() => {
+    if (!session) return;
+    const getToken = () => session.getToken();
+    const api = createApiClient(getToken);
+    queryClient.prefetchQuery({
+      queryKey: ['dashboard'],
+      queryFn: () => api.getDashboard(),
+      staleTime: STALE_TIME_MS,
+    });
+  }, [queryClient, session]);
 }
 
 export function useUserInfo() {
@@ -137,6 +158,16 @@ export function usePublicProfile(username: string) {
   return useQuery({
     queryKey: ['publicProfile', username],
     queryFn: () => api.getPublicProfile(username),
+    enabled: !!username,
+    staleTime: STALE_TIME_MS,
+  });
+}
+
+export function useActivityHeatmap(username: string) {
+  const api = useApi();
+  return useQuery({
+    queryKey: ['activityHeatmap', username],
+    queryFn: () => api.getActivityHeatmap(username),
     enabled: !!username,
     staleTime: STALE_TIME_MS,
   });

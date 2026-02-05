@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     # Azure PostgreSQL with Managed Identity - takes precedence over database_url
     # When postgres_host is set, database_url is derived automatically
     postgres_host: str = ""
+    postgres_port: int = 5432
     postgres_database: str = "learntocloud"
     postgres_user: str = ""
 

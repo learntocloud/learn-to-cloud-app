@@ -21,10 +21,10 @@ from fastapi import Depends, HTTPException, Request
 from core.config import get_settings
 from core.logger import get_logger
 from core.telemetry import (
-    log_metric,
+    log_business_event,
     track_dependency,
 )
-from core.wide_event import set_wide_event_field, set_wide_event_fields
+from core.wide_event import set_wide_event_fields
 
 if TYPE_CHECKING:
     from clerk_backend_api import Clerk
@@ -170,7 +170,7 @@ def get_user_id_from_request(req: Request) -> str | None:
         )
     except CircuitBreakerError:
         # Circuit is open - fail fast
-        log_metric("clerk_auth_circuit_rejected", 1, {"circuit": _CIRCUIT_NAME})
+        log_business_event("clerk_auth_circuit_rejected", 1, {"circuit": _CIRCUIT_NAME})
         return None
     except ClerkAuthUnavailable as e:
         # JWKS failure - already counted by circuit breaker
@@ -197,7 +197,7 @@ def require_auth(request: Request) -> str:
         raise HTTPException(status_code=401, detail="Unauthorized")
 
     request.state.user_id = user_id
-    set_wide_event_field("user_id", user_id)
+    set_wide_event_fields(user_id=user_id)
     return user_id
 
 
@@ -206,7 +206,7 @@ def optional_auth(request: Request) -> str | None:
     user_id = get_user_id_from_request(request)
     if user_id:
         request.state.user_id = user_id
-        set_wide_event_field("user_id", user_id)
+        set_wide_event_fields(user_id=user_id)
     return user_id
 
 

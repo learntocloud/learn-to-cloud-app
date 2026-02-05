@@ -4,7 +4,7 @@ from typing import TypedDict
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core.telemetry import add_custom_attribute, log_metric, track_operation
+from core.telemetry import add_custom_attribute, log_business_event, track_operation
 from repositories.user_repository import UserRepository
 from repositories.webhook_repository import ProcessedWebhookRepository
 from services.clerk_service import extract_github_username, extract_primary_email
@@ -104,21 +104,21 @@ async def handle_clerk_event(
     webhook_repo = ProcessedWebhookRepository(db)
     is_first_time = await webhook_repo.try_mark_processed(svix_id, event_type)
     if not is_first_time:
-        log_metric("webhooks.deduplicated", 1, {"event_type": event_type})
+        log_business_event("webhooks.deduplicated", 1, {"event_type": event_type})
         return "already_processed"
 
     if event_type == "user.created":
         await handle_user_created(db, data)
-        log_metric("webhooks.user_created", 1)
+        log_business_event("webhooks.user_created", 1)
     elif event_type == "user.updated":
         await handle_user_updated(db, data)
-        log_metric("webhooks.user_updated", 1)
+        log_business_event("webhooks.user_updated", 1)
     elif event_type == "user.deleted":
         await handle_user_deleted(db, data)
-        log_metric("webhooks.user_deleted", 1)
+        log_business_event("webhooks.user_deleted", 1)
     else:
-        log_metric("webhooks.ignored", 1, {"event_type": event_type})
+        log_business_event("webhooks.ignored", 1, {"event_type": event_type})
         return "processed"
 
-    log_metric("webhooks.processed", 1, {"event_type": event_type})
+    log_business_event("webhooks.processed", 1, {"event_type": event_type})
     return "processed"

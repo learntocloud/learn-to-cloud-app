@@ -11,7 +11,6 @@ from routes.webhooks_routes import router as webhooks_router
 
 __all__ = [
     "certificates_router",
-    "certificates_router",
     "clerk_router",
     "dashboard_router",
     "github_router",

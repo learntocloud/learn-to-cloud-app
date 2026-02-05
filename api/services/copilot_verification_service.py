@@ -172,14 +172,17 @@ async def _fetch_github_file_content(
 
     url = f"https://raw.githubusercontent.com/{owner}/{repo}/{branch}/{path}"
 
-    headers = {}
+    headers = {"Accept": "application/vnd.github.v3+json"}
     if settings.github_token:
         headers["Authorization"] = f"Bearer {settings.github_token}"
 
-    async with httpx.AsyncClient(timeout=settings.http_timeout) as client:
-        response = await client.get(url, headers=headers)
-        response.raise_for_status()
-        return response.text
+    # Reuse shared GitHub HTTP client (connection pooling)
+    from services.github_hands_on_verification_service import _get_github_client
+
+    client = await _get_github_client()
+    response = await client.get(url, headers=headers)
+    response.raise_for_status()
+    return response.text
 
 
 def _build_verification_prompt(owner: str, repo: str) -> str:

@@ -1,18 +1,18 @@
 """User service for user-related business logic."""
 
 import asyncio
-from datetime import UTC, datetime, timedelta
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core.telemetry import log_metric, track_operation
+from core.telemetry import log_business_event, track_operation
 from core.wide_event import set_wide_event_fields
 from models import SubmissionType, User
 from repositories.activity_repository import ActivityRepository
 from repositories.submission_repository import SubmissionRepository
 from repositories.user_repository import UserRepository
 from schemas import (
-    ActivityHeatMapEntry,
+    ActivityHeatmapDay,
+    ActivityHeatmapResponse,
     BadgeData,
     PublicProfileData,
     PublicSubmissionInfo,
@@ -96,7 +96,7 @@ async def get_or_create_user(db: AsyncSession, user_id: str) -> UserResponse:
 
     is_new_user = user.created_at == user.updated_at
     if is_new_user:
-        log_metric("users.registered", 1)
+        log_business_event("users.registered", 1)
         set_wide_event_fields(user_is_new=True)
 
     needs_sync = _needs_clerk_sync(user)
@@ -141,7 +141,6 @@ async def get_public_profile(
     """
     user_repo = UserRepository(db)
     submission_repo = SubmissionRepository(db)
-    activity_repo = ActivityRepository(db)
 
     # Normalize username (GitHub usernames are case-insensitive)
     normalized_username = normalize_github_username(username)
@@ -157,17 +156,9 @@ async def get_public_profile(
             submission_repo.get_validated_by_user(profile_user.id)
         )
         progress_task = tg.create_task(fetch_user_progress(db, profile_user.id))
-        heatmap_end = datetime.now(UTC).date()
-        heatmap_start = heatmap_end - timedelta(days=365)
-        heatmap_task = tg.create_task(
-            activity_repo.get_activity_counts_by_date(
-                profile_user.id, heatmap_start, heatmap_end
-            )
-        )
 
     db_submissions = submissions_task.result()
     progress = progress_task.result()
-    heatmap_rows = heatmap_task.result()
 
     sensitive_submission_types = {
         SubmissionType.CTF_TOKEN,
@@ -214,10 +205,6 @@ async def get_public_profile(
     phases_completed = progress.phases_completed
     current_phase = progress.current_phase
 
-    activity_heatmap = [
-        ActivityHeatMapEntry(date=row[0], count=row[1]) for row in heatmap_rows
-    ]
-
     profile_data = PublicProfileData(
         username=profile_user.github_username,
         first_name=profile_user.first_name,
@@ -227,7 +214,6 @@ async def get_public_profile(
         member_since=profile_user.created_at,
         submissions=submissions,
         badges=badges,
-        activity_heatmap=activity_heatmap,
     )
 
     set_wide_event_fields(
@@ -238,3 +224,47 @@ async def get_public_profile(
     )
 
     return profile_data
+
+
+@track_operation("activity_heatmap")
+async def get_activity_heatmap(
+    db: AsyncSession,
+    username: str,
+    days: int = 180,
+) -> ActivityHeatmapResponse | None:
+    """Get activity heatmap data for a user's public profile.
+
+    Returns daily activity counts for the last *days* days.
+    Returns None if user not found.
+    """
+    from datetime import UTC, datetime, timedelta
+
+    user_repo = UserRepository(db)
+
+    normalized_username = normalize_github_username(username)
+    if not normalized_username:
+        return None
+
+    profile_user = await user_repo.get_by_github_username(normalized_username)
+    if not profile_user:
+        return None
+
+    end_date = datetime.now(UTC).date()
+    start_date = end_date - timedelta(days=days - 1)
+
+    activity_repo = ActivityRepository(db)
+    daily_counts = await activity_repo.get_daily_activity_counts(
+        user_id=profile_user.id,
+        start_date=start_date,
+        end_date=end_date,
+    )
+
+    heatmap_days = [ActivityHeatmapDay(date=d, count=c) for d, c in daily_counts]
+
+    log_business_event(
+        "activity_heatmap.served",
+        1,
+        {"days_with_activity": len(heatmap_days)},
+    )
+
+    return ActivityHeatmapResponse(days=heatmap_days)

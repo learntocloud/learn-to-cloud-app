@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.cache import invalidate_progress_cache
 from core.config import get_settings
-from core.telemetry import add_custom_attribute, log_metric, track_operation
+from core.telemetry import add_custom_attribute, log_business_event, track_operation
 from core.wide_event import set_wide_event_fields
 from models import Submission, SubmissionType
 from repositories.submission_repository import SubmissionRepository
@@ -180,7 +180,7 @@ async def submit_validation(
 
     phase = f"phase{requirement.phase_id}"
     if validation_result.is_valid:
-        log_metric(
+        log_business_event(
             "submissions.validated",
             1,
             {"phase": phase, "type": requirement.submission_type.value},
@@ -188,13 +188,13 @@ async def submit_validation(
         # Invalidate cache so dashboard/progress refreshes immediately
         invalidate_progress_cache(user_id)
     elif validation_result.server_error:
-        log_metric(
+        log_business_event(
             "submissions.server_error",
             1,
             {"phase": phase, "type": requirement.submission_type.value},
         )
     else:
-        log_metric(
+        log_business_event(
             "submissions.failed",
             1,
             {"phase": phase, "type": requirement.submission_type.value},

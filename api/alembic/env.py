@@ -15,13 +15,13 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 # Redundant alias tells ruff this is an intentional side-effect import
 import models as models
 from alembic import context
-from core.config import get_settings
-from core.database import (
-    _AZURE_PG_SCOPE,
+from core.azure_auth import (
     _AZURE_RETRY_ATTEMPTS,
     _AZURE_RETRY_MIN_WAIT,
-    Base,
+    AZURE_PG_SCOPE,
 )
+from core.config import get_settings
+from core.database import Base
 
 config = context.config
 
@@ -50,7 +50,7 @@ def _get_azure_token_with_retry() -> str:
     for attempt in range(_AZURE_RETRY_ATTEMPTS):
         try:
             credential = DefaultAzureCredential()
-            token = credential.get_token(_AZURE_PG_SCOPE)
+            token = credential.get_token(AZURE_PG_SCOPE)
             return token.token
         except Exception as e:
             last_error = e
@@ -75,7 +75,7 @@ def _get_sync_database_url() -> str:
         token = _get_azure_token_with_retry()
         return (
             f"postgresql+psycopg2://{settings.postgres_user}:{token}"
-            f"@{settings.postgres_host}:5432/{settings.postgres_database}"
+            f"@{settings.postgres_host}:{settings.postgres_port}/{settings.postgres_database}"
             f"?sslmode=require"
         )
 

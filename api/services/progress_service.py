@@ -14,7 +14,6 @@ CACHING:
 - Call invalidate_progress_cache(user_id) after progress modifications
 """
 
-import asyncio
 from functools import lru_cache
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -121,13 +120,15 @@ async def fetch_user_progress(
             return cached
 
     # Compute progress directly from source tables
+    # NOTE: queries are run sequentially because both repositories share the
+    # same AsyncSession/connection.  asyncpg connections are NOT safe for
+    # concurrent use; using asyncio.gather here caused InterfaceError:
+    # "cannot use Connection.transaction() in a manually started transaction".
     step_repo = StepProgressRepository(db)
     submission_repo = SubmissionRepository(db)
 
-    phase_steps, validated_counts = await asyncio.gather(
-        step_repo.get_step_counts_by_phase(user_id),
-        submission_repo.get_validated_counts_by_phase(user_id),
-    )
+    phase_steps = await step_repo.get_step_counts_by_phase(user_id)
+    validated_counts = await submission_repo.get_validated_counts_by_phase(user_id)
 
     phases: dict[int, PhaseProgress] = {}
     for phase_id in get_all_phase_ids():

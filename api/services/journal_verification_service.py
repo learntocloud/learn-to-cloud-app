@@ -15,7 +15,7 @@ import re
 from datetime import datetime
 
 from core import get_logger
-from core.wide_event import set_wide_event_field, set_wide_event_fields
+from core.wide_event import set_wide_event_fields
 from schemas import ValidationResult
 
 logger = get_logger(__name__)
@@ -134,7 +134,7 @@ def validate_journal_api_response(json_response: str) -> ValidationResult:
 
     # Must be an array
     if not isinstance(data, list):
-        set_wide_event_field("journal_validation_error", "not_array")
+        set_wide_event_fields(journal_validation_error="not_array")
         return ValidationResult(
             is_valid=False,
             message="Response must be an array of entries.",
@@ -142,7 +142,7 @@ def validate_journal_api_response(json_response: str) -> ValidationResult:
 
     # Must have at least one entry
     if len(data) == 0:
-        set_wide_event_field("journal_validation_error", "empty_array")
+        set_wide_event_fields(journal_validation_error="empty_array")
         return ValidationResult(
             is_valid=False,
             message="No entries found. Create an entry with POST /entries first.",
@@ -172,7 +172,7 @@ def validate_journal_api_response(json_response: str) -> ValidationResult:
                 message=error or "Entry validation failed",
             )
 
-    set_wide_event_field("journal_entries_validated", len(data))
+    set_wide_event_fields(journal_entries_validated=len(data))
 
     count = len(data)
     entry_word = "entry" if count == 1 else "entries"

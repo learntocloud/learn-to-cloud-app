@@ -60,9 +60,11 @@ class SecurityHeadersMiddleware:
     SECURITY_HEADERS: list[tuple[bytes, bytes]] = [
         (b"x-content-type-options", b"nosniff"),
         (b"x-frame-options", b"DENY"),
-        (b"x-xss-protection", b"1; mode=block"),
+        (b"x-xss-protection", b"0"),
         (b"referrer-policy", b"strict-origin-when-cross-origin"),
         (b"content-security-policy", b"default-src 'none'; frame-ancestors 'none'"),
+        (b"strict-transport-security", b"max-age=31536000; includeSubDomains"),
+        (b"permissions-policy", b"camera=(), microphone=(), geolocation=()"),
     ]
 
     def __init__(self, app: ASGIApp):
@@ -219,8 +221,22 @@ class RequestTimingMiddleware:
             raise
 
 
-def track_dependency(name: str, dependency_type: str = "custom"):
-    """Decorator to track external dependency calls (APIs, services)."""
+def _traced_span(
+    span_name: str,
+    attributes: dict[str, str],
+    *,
+    record_exceptions: bool = False,
+):
+    """Shared decorator logic for tracing sync/async functions with OpenTelemetry.
+
+    Args:
+        span_name: Name for the OTel span.
+        attributes: Initial span attributes (e.g., dependency.type, operation.name).
+        record_exceptions: If True, call span.record_exception() on errors
+            (used by track_operation for business ops; track_dependency skips
+            this since the exception propagates to the parent span).
+    """
+    prefix = next(iter(attributes)).split(".")[0]  # "dependency" or "operation"
 
     def decorator(func: Callable[P, R]) -> Callable[P, R]:
         import asyncio
@@ -233,26 +249,25 @@ def track_dependency(name: str, dependency_type: str = "custom"):
                     return await func(*args, **kwargs)
 
                 with tracer.start_as_current_span(
-                    name,
-                    attributes={
-                        "dependency.type": dependency_type,
-                        "dependency.name": name,
-                    },
+                    span_name, attributes=attributes
                 ) as span:
                     start_time = time.perf_counter()
                     try:
                         result = await func(*args, **kwargs)
-                        span.set_attribute("dependency.success", True)
+                        span.set_attribute(f"{prefix}.success", True)
                         return result
                     except Exception as e:
-                        span.set_attribute("dependency.success", False)
-                        span.set_attribute("dependency.error", str(e))
+                        span.set_attribute(f"{prefix}.success", False)
+                        if record_exceptions:
+                            span.record_exception(e)
+                        else:
+                            span.set_attribute(f"{prefix}.error", str(e))
                         if Status is not None and StatusCode is not None:
                             span.set_status(Status(StatusCode.ERROR, str(e)))
                         raise
                     finally:
                         duration_ms = (time.perf_counter() - start_time) * 1000
-                        span.set_attribute("dependency.duration_ms", duration_ms)
+                        span.set_attribute(f"{prefix}.duration_ms", duration_ms)
 
             return cast(Callable[P, R], async_wrapper)
         else:
@@ -263,94 +278,47 @@ def track_dependency(name: str, dependency_type: str = "custom"):
                     return func(*args, **kwargs)
 
                 with tracer.start_as_current_span(
-                    name,
-                    attributes={
-                        "dependency.type": dependency_type,
-                        "dependency.name": name,
-                    },
+                    span_name, attributes=attributes
                 ) as span:
                     start_time = time.perf_counter()
                     try:
                         result = func(*args, **kwargs)
-                        span.set_attribute("dependency.success", True)
+                        span.set_attribute(f"{prefix}.success", True)
                         return result
                     except Exception as e:
-                        span.set_attribute("dependency.success", False)
-                        span.set_attribute("dependency.error", str(e))
+                        span.set_attribute(f"{prefix}.success", False)
+                        if record_exceptions:
+                            span.record_exception(e)
+                        else:
+                            span.set_attribute(f"{prefix}.error", str(e))
                         if Status is not None and StatusCode is not None:
                             span.set_status(Status(StatusCode.ERROR, str(e)))
                         raise
                     finally:
                         duration_ms = (time.perf_counter() - start_time) * 1000
-                        span.set_attribute("dependency.duration_ms", duration_ms)
+                        span.set_attribute(f"{prefix}.duration_ms", duration_ms)
 
             return sync_wrapper
 
     return decorator
+
+
+def track_dependency(name: str, dependency_type: str = "custom"):
+    """Decorator to track external dependency calls (APIs, services)."""
+    return _traced_span(
+        name,
+        {"dependency.type": dependency_type, "dependency.name": name},
+        record_exceptions=False,
+    )
 
 
 def track_operation(operation_name: str):
     """Decorator to track custom business operations."""
-
-    def decorator(func: Callable[P, R]) -> Callable[P, R]:
-        import asyncio
-
-        if asyncio.iscoroutinefunction(func):
-
-            @wraps(func)
-            async def async_wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
-                if not TELEMETRY_ENABLED or not tracer:
-                    return await func(*args, **kwargs)
-
-                with tracer.start_as_current_span(
-                    operation_name,
-                    attributes={"operation.name": operation_name},
-                ) as span:
-                    start_time = time.perf_counter()
-                    try:
-                        result = await func(*args, **kwargs)
-                        span.set_attribute("operation.success", True)
-                        return result
-                    except Exception as e:
-                        span.set_attribute("operation.success", False)
-                        span.record_exception(e)
-                        if Status is not None and StatusCode is not None:
-                            span.set_status(Status(StatusCode.ERROR, str(e)))
-                        raise
-                    finally:
-                        duration_ms = (time.perf_counter() - start_time) * 1000
-                        span.set_attribute("operation.duration_ms", duration_ms)
-
-            return cast(Callable[P, R], async_wrapper)
-        else:
-
-            @wraps(func)
-            def sync_wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
-                if not TELEMETRY_ENABLED or not tracer:
-                    return func(*args, **kwargs)
-
-                with tracer.start_as_current_span(
-                    operation_name,
-                    attributes={"operation.name": operation_name},
-                ) as span:
-                    start_time = time.perf_counter()
-                    try:
-                        result = func(*args, **kwargs)
-                        span.set_attribute("operation.success", True)
-                        return result
-                    except Exception as e:
-                        span.set_attribute("operation.success", False)
-                        span.record_exception(e)
-                        if Status is not None and StatusCode is not None:
-                            span.set_status(Status(StatusCode.ERROR, str(e)))
-                        raise
-                    finally:
-                        duration_ms = (time.perf_counter() - start_time) * 1000
-                        span.set_attribute("operation.duration_ms", duration_ms)
-
-            return sync_wrapper
-
-    return decorator
+    return _traced_span(
+        operation_name,
+        {"operation.name": operation_name},
+        record_exceptions=True,
+    )
 
 
 def add_custom_attribute(key: str, value: str | int | float | bool) -> None:
@@ -363,11 +331,16 @@ def add_custom_attribute(key: str, value: str | int | float | bool) -> None:
         span.set_attribute(key, value)
 
 
-def log_metric(
+def log_business_event(
     name: str, value: float, properties: dict[str, str] | None = None
 ) -> None:
-    """Log a custom metric for aggregation."""
+    """Log a structured business event for observability.
+
+    NOTE: This emits a structured log line (appears in Application Insights
+    *traces* table), NOT an OpenTelemetry metric (customMetrics table).
+    Use for counting business events you want to query in logs.
+    """
     if not TELEMETRY_ENABLED:
         return
 
-    logger.info("metric.recorded", name=name, value=value, **(properties or {}))
+    logger.info("business.event", event_name=name, value=value, **(properties or {}))
