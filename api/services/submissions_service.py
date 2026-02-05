@@ -126,6 +126,7 @@ async def submit_validation(
         SubmissionType.PROFILE_README,
         SubmissionType.REPO_FORK,
         SubmissionType.CTF_TOKEN,
+        SubmissionType.NETWORKING_TOKEN,
         SubmissionType.CODE_ANALYSIS,
     ):
         if not github_username:

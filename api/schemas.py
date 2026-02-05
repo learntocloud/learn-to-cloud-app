@@ -67,7 +67,7 @@ class HandsOnRequirement(FrozenModel):
     Used both as API schema and for defining phase requirements
     in services/phase_requirements_service.py.
 
-    Currently supports Phase 0 and Phase 1 verification types.
+    Supports Phase 0 through Phase 6 verification types.
 
     To add a new verification type:
     1. Add the SubmissionType enum value in models.py

@@ -1,9 +1,10 @@
 """Hands-on verification orchestration module.
 
-This module provides the central orchestration for Phase 0, Phase 1, and Phase 2
+This module provides the central orchestration for Phase 0 through Phase 6
 hands-on verification:
 - Routes submissions to appropriate validators
-- Supports GitHub profile, profile README, repo fork, CTF token, and code analysis
+- Supports GitHub profile, profile README, repo fork, CTF token, networking token,
+  journal API response, code analysis, and evidence URL validations
 
 Phase requirements are defined in phase_requirements.py.
 
