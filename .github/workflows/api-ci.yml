@@ -94,10 +94,10 @@ jobs:
 
       - name: Generate frontend API types
         working-directory: frontend
-        run: npm run gen:api
+        run: npm run generate:api
 
       - name: Ensure frontend API types are up to date
-        run: git diff --exit-code frontend/src/lib/api/schema.ts
+        run: git diff --exit-code frontend/src/lib/api-types.generated.ts
 
       - name: Ruff lint
         uses: astral-sh/ruff-action@v3

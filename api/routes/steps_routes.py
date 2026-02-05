@@ -22,7 +22,7 @@ from services.steps_service import (
     get_topic_step_progress,
     uncomplete_step,
 )
-from services.users_service import ensure_user_exists, get_or_create_user
+from services.users_service import ensure_user_exists
 
 logger = get_logger(__name__)
 
@@ -57,7 +57,7 @@ async def complete_step_endpoint(
 
     Steps can be completed in any order.
     """
-    user = await get_or_create_user(db, user_id)
+    await ensure_user_exists(db, user_id)
 
     try:
         result = await complete_step(
@@ -65,7 +65,6 @@ async def complete_step_endpoint(
             user_id,
             body.topic_id,
             body.step_order,
-            is_admin=user.is_admin,
         )
     except StepUnknownTopicError as e:
         raise HTTPException(status_code=404, detail=str(e))
@@ -101,14 +100,13 @@ async def get_topic_step_progress_endpoint(
     Args:
         topic_id: The topic ID (e.g., "phase1-topic5")
     """
-    user = await get_or_create_user(db, user_id)
+    await ensure_user_exists(db, user_id)
 
     try:
         progress = await get_topic_step_progress(
             db,
             user_id,
             topic_id,
-            is_admin=user.is_admin,
         )
     except StepUnknownTopicError as e:
         raise HTTPException(status_code=404, detail=str(e))
@@ -117,7 +115,6 @@ async def get_topic_step_progress_endpoint(
         topic_id=progress.topic_id,
         completed_steps=progress.completed_steps,
         total_steps=progress.total_steps,
-        next_unlocked_step=progress.next_unlocked_step,
     )
 
 

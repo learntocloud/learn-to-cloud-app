@@ -11,9 +11,10 @@ description: "React hooks, TanStack Query v5, Clerk auth, TypeScript strict typi
 - Write type guards instead of `as` assertions
 
 ## API Contract & Types
-- API types are hand-written in `frontend/src/lib/types.ts`
-- When you change a Pydantic schema in `api/schemas.py`, update the matching TypeScript type in `types.ts`
-- No codegen step — there is no `openapi.json` → TypeScript pipeline
+- Full OpenAPI spec is at `api/openapi.json` — use as reference for endpoint contracts and schemas
+- API types are generated from `api/openapi.json` into `frontend/src/lib/api-types.generated.ts`
+- `frontend/src/lib/types.ts` re-exports generated types with clean names
+- After changing Python schemas, regenerate types: `cd frontend && npm run generate:api`
 - Use `createApiClient()` from `api-client.ts` instead of ad-hoc `fetch` calls
 
 ## React Hooks

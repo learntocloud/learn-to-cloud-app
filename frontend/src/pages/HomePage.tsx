@@ -1,6 +1,6 @@
-import { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useUser, SignUpButton } from '@clerk/clerk-react';
+import { useDocumentTitle } from '@/lib/useDocumentTitle';
 
 /**
  * Abbreviated phase data for homepage timeline display.
@@ -21,9 +21,7 @@ export function HomePage() {
   const { isSignedIn, isLoaded } = useUser();
   const navigate = useNavigate();
 
-  useEffect(() => {
-    document.title = 'Learn to Cloud - Free Cloud Engineering Guide';
-  }, []);
+  useDocumentTitle('Learn to Cloud - Free Cloud Engineering Guide');
 
   return (
     <div className="bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-950">

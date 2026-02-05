@@ -9,12 +9,7 @@ import type {
 import type { BadgeCatalogItem } from '@/lib/types';
 import { PhaseVerificationForm } from '@/components/PhaseVerificationForm';
 import { PhaseCompletionCheck } from '@/components/PhaseCompletionCheck';
-
-const PROGRESS_STATUS = {
-  NOT_STARTED: 'not_started',
-  IN_PROGRESS: 'in_progress',
-  COMPLETED: 'completed',
-} as const;
+import { PROGRESS_STATUS } from '@/lib/constants';
 
 type ProgressStatus = PhaseProgressSchema['status'];
 
@@ -153,9 +148,6 @@ function PhaseAuthenticatedView({ phaseSlug }: { phaseSlug: string }) {
 
   const githubUsername = userInfo?.github_username ?? null;
 
-  // Use API-computed value - business logic lives in API, not frontend
-  const allTopicsComplete = phase.all_topics_complete;
-
   const phaseIndex = phase ? orderedPhases.findIndex((p) => p.slug === phase.slug) : -1;
   const nextPhaseSlug = phaseIndex >= 0 ? orderedPhases[phaseIndex + 1]?.slug : undefined;
 
@@ -216,45 +208,16 @@ function PhaseAuthenticatedView({ phaseSlug }: { phaseSlug: string }) {
         {/* GitHub Submissions / Hands-on Verification */}
         {phase.hands_on_requirements && phase.hands_on_requirements.length > 0 && (
           <section className="mb-8">
-            {allTopicsComplete ? (
-              <PhaseVerificationForm
-                phaseNumber={phase.id}
-                requirements={phase.hands_on_requirements}
-                submissions={phase.hands_on_submissions || []}
-                githubUsername={githubUsername}
-                nextPhaseSlug={nextPhaseSlug}
-                phaseProgress={phase.progress}
-                allHandsOnValidated={phase.all_hands_on_validated}
-                isPhaseComplete={phase.is_phase_complete}
-              />
-            ) : (
-              <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="text-3xl">🔒</div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                      Hands-on Verification Locked
-                    </h3>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                      Complete all topics above to unlock hands-on verification
-                    </p>
-                  </div>
-                </div>
-                <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4">
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                    {phase.hands_on_requirements.length} verification{phase.hands_on_requirements.length > 1 ? 's' : ''} to complete:
-                  </p>
-                  <ul className="space-y-2">
-                    {phase.hands_on_requirements.map((req) => (
-                      <li key={req.id} className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-                        <span className="text-gray-300 dark:text-gray-600">○</span>
-                        {req.name}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            )}
+            <PhaseVerificationForm
+              phaseNumber={phase.id}
+              requirements={phase.hands_on_requirements}
+              submissions={phase.hands_on_submissions || []}
+              githubUsername={githubUsername}
+              nextPhaseSlug={nextPhaseSlug}
+              phaseProgress={phase.progress}
+              allHandsOnValidated={phase.all_hands_on_validated}
+              isPhaseComplete={phase.is_phase_complete}
+            />
           </section>
         )}
 

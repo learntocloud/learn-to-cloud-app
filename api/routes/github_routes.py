@@ -66,10 +66,8 @@ async def submit_github_validation(
             headers={"Retry-After": str(e.retry_after_seconds)},
         )
 
-    # Calculate next retry time for CODE_ANALYSIS submissions
-    next_retry = None
-    if result.task_results:
-        next_retry = _get_next_retry_at(result.submission)
+    # Calculate next retry time for cooldown display
+    next_retry = _get_next_retry_at(result.submission)
 
     return HandsOnValidationResult(
         is_valid=result.is_valid,
@@ -83,13 +81,15 @@ async def submit_github_validation(
 
 
 def _get_next_retry_at(submission: HandsOnSubmissionResponse | None) -> str | None:
-    """Calculate when retry is allowed for CODE_ANALYSIS submissions."""
+    """Calculate when next retry is allowed after a submission."""
     if not submission:
-        return None
-    if submission.submission_type != SubmissionType.CODE_ANALYSIS:
         return None
 
     settings = get_settings()
-    cooldown_seconds = settings.code_analysis_cooldown_seconds
+    cooldown_seconds = (
+        settings.code_analysis_cooldown_seconds
+        if submission.submission_type == SubmissionType.CODE_ANALYSIS
+        else settings.submission_cooldown_seconds
+    )
     retry_at = datetime.now(UTC) + timedelta(seconds=cooldown_seconds)
     return retry_at.isoformat()

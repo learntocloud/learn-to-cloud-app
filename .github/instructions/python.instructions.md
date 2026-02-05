@@ -139,7 +139,11 @@ See [observability.instructions.md](observability.instructions.md) for wide even
     ```bash
     uv run --directory api python scripts/export_openapi.py
     ```
-- Do not edit `api/openapi.json` manually; regenerate it
+- Frontend types are generated from `api/openapi.json`:
+    ```bash
+    cd frontend && npm run generate:api
+    ```
+- Do not edit `api/openapi.json` or `frontend/src/lib/api-types.generated.ts` manually; regenerate them
 - CI runs `oasdiff breaking` against `main` to block breaking changes
 
 ## Dependencies

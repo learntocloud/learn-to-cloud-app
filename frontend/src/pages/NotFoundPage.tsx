@@ -1,10 +1,8 @@
-import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { useDocumentTitle } from '@/lib/useDocumentTitle';
 
 export function NotFoundPage() {
-  useEffect(() => {
-    document.title = '404 - Page Not Found | Learn to Cloud';
-  }, []);
+  useDocumentTitle('404 - Page Not Found | Learn to Cloud');
 
   return (
     <main className="min-h-screen flex items-center justify-center py-12" role="main">

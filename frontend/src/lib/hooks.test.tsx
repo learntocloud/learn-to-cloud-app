@@ -20,7 +20,7 @@ vi.mock('./api-client', () => ({
       overall_progress: 10,
     }),
     getPhasesWithProgress: vi.fn().mockResolvedValue([
-      { id: 1, slug: 'phase0', name: 'Phase 0', is_locked: false },
+      { id: 1, slug: 'phase0', name: 'Phase 0' },
     ]),
     getUserInfo: vi.fn().mockResolvedValue({
       id: 'user_123',

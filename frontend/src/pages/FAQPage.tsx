@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useDocumentTitle } from '@/lib/useDocumentTitle';
 
 const FAQ_ITEMS = [
   {
@@ -47,9 +48,7 @@ const FAQ_ITEMS = [
 export function FAQPage() {
   const [openId, setOpenId] = useState<string | null>(null);
 
-  useEffect(() => {
-    document.title = 'FAQ - Learn to Cloud';
-  }, []);
+  useDocumentTitle('FAQ - Learn to Cloud');
 
   const toggleItem = (id: string) => {
     setOpenId(openId === id ? null : id);

@@ -106,7 +106,6 @@ function PhaseRoadmap({ phases }: { phases: PhaseSummarySchema[] }) {
   return (
     <div className="space-y-3">
       {phases.map((phase, index) => {
-        const isLocked = phase.is_locked;
         const status = phase.progress?.status;
         const isCompleted = status === 'completed';
         const isInProgress = status === 'in_progress';
@@ -114,13 +113,11 @@ function PhaseRoadmap({ phases }: { phases: PhaseSummarySchema[] }) {
 
         const node = (
           <div className={`flex-1 px-4 py-3 rounded-lg border-2 text-sm font-medium transition-all duration-200 ${
-            isLocked
-              ? 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
-              : isCompleted
-                ? 'bg-emerald-50 dark:bg-emerald-900/30 border-emerald-400 dark:border-emerald-500 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 cursor-pointer'
-                : isInProgress
-                  ? 'bg-amber-50 dark:bg-amber-900/30 border-amber-400 dark:border-amber-500 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/50 cursor-pointer shadow-sm'
-                  : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer'
+            isCompleted
+              ? 'bg-emerald-50 dark:bg-emerald-900/30 border-emerald-400 dark:border-emerald-500 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 cursor-pointer'
+              : isInProgress
+                ? 'bg-amber-50 dark:bg-amber-900/30 border-amber-400 dark:border-amber-500 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/50 cursor-pointer shadow-sm'
+                : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer'
           }`}>
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2 min-w-0">
@@ -132,14 +129,6 @@ function PhaseRoadmap({ phases }: { phases: PhaseSummarySchema[] }) {
                     <span className="sr-only">Completed:</span>
                   </>
                 )}
-                {isLocked && (
-                  <>
-                    <svg className="w-3.5 h-3.5 shrink-0" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                    </svg>
-                    <span className="sr-only">Locked:</span>
-                  </>
-                )}
                 <span className="truncate">{phase.name}</span>
               </div>
               <div className="flex items-center gap-2 shrink-0">
@@ -148,11 +137,9 @@ function PhaseRoadmap({ phases }: { phases: PhaseSummarySchema[] }) {
                     {Math.round(phase.progress.percentage)}%
                   </span>
                 )}
-                {!isLocked && (
-                  <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                  </svg>
-                )}
+                <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
               </div>
             </div>
             {isInProgress && phase.progress && (
@@ -188,13 +175,9 @@ function PhaseRoadmap({ phases }: { phases: PhaseSummarySchema[] }) {
               )}
             </div>
 
-            {isLocked ? (
-              node
-            ) : (
-              <Link to={`/${phase.slug}`} className="flex-1">
-                {node}
-              </Link>
-            )}
+            <Link to={`/${phase.slug}`} className="flex-1">
+              {node}
+            </Link>
           </div>
         );
       })}

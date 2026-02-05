@@ -98,8 +98,6 @@ async def get_topic_step_progress(
     db: AsyncSession,
     user_id: str,
     topic_id: str,
-    *,
-    is_admin: bool = False,
 ) -> StepProgressData:
     """Get the step progress for a topic.
 
@@ -107,10 +105,9 @@ async def get_topic_step_progress(
         db: Database session
         user_id: The user's ID
         topic_id: The topic ID (e.g., "phase1-topic5")
-        is_admin: If True, unlock all steps for the user
 
     Returns:
-        StepProgressData with completed steps and next unlocked step
+        StepProgressData with completed steps
 
     Raises:
         StepUnknownTopicError: If topic_id doesn't exist in content
@@ -121,28 +118,10 @@ async def get_topic_step_progress(
     completed_step_orders = await step_repo.get_completed_step_orders(user_id, topic_id)
     completed_steps = sorted(completed_step_orders)
 
-    if is_admin:
-        return StepProgressData(
-            topic_id=topic_id,
-            completed_steps=completed_steps,
-            total_steps=total_steps,
-            next_unlocked_step=total_steps,
-        )
-
-    if not completed_steps:
-        next_unlocked = 1
-    else:
-        max_completed = max(completed_steps)
-        if max_completed < total_steps:
-            next_unlocked = max_completed + 1
-        else:
-            next_unlocked = total_steps
-
     return StepProgressData(
         topic_id=topic_id,
         completed_steps=completed_steps,
         total_steps=total_steps,
-        next_unlocked_step=next_unlocked,
     )
 
 
@@ -152,13 +131,10 @@ async def complete_step(
     user_id: str,
     topic_id: str,
     step_order: int,
-    *,
-    is_admin: bool = False,
 ) -> StepCompletionResult:
     """Mark a learning step as complete.
 
-    Steps must be completed in order - you can only complete step N
-    if steps 1 through N-1 are already complete.
+    Steps can be completed in any order.
 
     Args:
         db: Database session
@@ -177,9 +153,6 @@ async def complete_step(
     _validate_step_order(topic_id, step_order)
 
     step_repo = StepProgressRepository(db)
-
-    # Steps can be completed in any order - no enforcement
-    del is_admin  # Unused after removing step order enforcement
 
     # Atomic check-and-insert: saves 1 round-trip vs exists() + create()
     step_progress = await step_repo.create_if_not_exists(

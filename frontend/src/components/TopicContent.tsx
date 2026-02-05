@@ -3,9 +3,10 @@
  * Uses the topic ID (e.g., "phase0-topic1") for API calls.
  */
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import type { TopicDetailSchema, ProviderOptionSchema } from '@/lib/api-client';
 import { useCompleteStep, useUncompleteStep } from '@/lib/hooks';
+import { copyToClipboard } from '@/lib/utils';
 
 function ProviderOptions({ options }: { options: ProviderOptionSchema[] }) {
   const [selectedProvider, setSelectedProvider] = useState<string>(options[0]?.provider || "aws");
@@ -90,6 +91,13 @@ export function TopicContent({
   const [completedSteps, setCompletedSteps] = useState<number[]>(topic.completed_step_orders || []);
   const [togglingStep, setTogglingStep] = useState<number | null>(null);
   const [copiedStep, setCopiedStep] = useState<number | null>(null);
+  const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
+    };
+  }, []);
 
   const handleStepToggle = async (stepOrder: number) => {
     if (!isAuthenticated) return;
@@ -112,8 +120,8 @@ export function TopicContent({
         });
       }
       setCompletedSteps(response.completed_steps);
-    } catch (err) {
-      console.error("Failed to toggle step:", err);
+    } catch {
+      // Silently handle - mutation error will be shown by TanStack Query if needed
     } finally {
       setTogglingStep(null);
     }
@@ -122,15 +130,13 @@ export function TopicContent({
   const isStepCompleted = (order: number) => completedSteps.includes(order);
 
   const handleCopyCode = async (stepOrder: number, code: string) => {
-    try {
-      await navigator.clipboard.writeText(code);
-      setCopiedStep(stepOrder);
-      window.setTimeout(() => {
-        setCopiedStep((current) => (current === stepOrder ? null : current));
-      }, 1200);
-    } catch (err) {
-      console.error('Failed to copy to clipboard:', err);
-    }
+    const ok = await copyToClipboard(code);
+    if (!ok) return;
+    setCopiedStep(stepOrder);
+    if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
+    copyTimeoutRef.current = setTimeout(() => {
+      setCopiedStep((current) => (current === stepOrder ? null : current));
+    }, 1200);
   };
 
   return (

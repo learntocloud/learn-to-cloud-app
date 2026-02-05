@@ -5,7 +5,7 @@ These endpoints provide:
 - Phase listings and details
 - Topic details with steps
 
-All progress calculation and locking logic follows
+All progress calculation follows
 .github/skills/progression-system/progression-system.md
 """
 
@@ -71,19 +71,17 @@ async def get_phases_endpoint(
 
     For authenticated users:
     - Progress statistics
-    - Locking status based on completion
 
     For unauthenticated users:
     - No progress (all null)
-    - Only Phase 0 unlocked, rest locked
 
     Returns phases in order (0-6).
     """
     if user_id:
-        user = await get_or_create_user(db, user_id)
-        return await get_phases_list(db, user_id, user.is_admin)
+        await get_or_create_user(db, user_id)
+        return await get_phases_list(db, user_id)
 
-    return await get_phases_list(db, None, False)
+    return await get_phases_list(db, None)
 
 
 @router.get(
@@ -100,14 +98,12 @@ async def get_phase_detail_endpoint(
 ) -> PhaseDetailSchema:
     """Get detailed phase info with topics.
 
-    Unauthenticated: no progress, only first topic unlocked.
+    Unauthenticated: no progress, content is read-only.
     """
-    is_admin = False
     if user_id:
-        user = await get_or_create_user(db, user_id)
-        is_admin = user.is_admin
+        await get_or_create_user(db, user_id)
 
-    phase_detail = await get_phase_detail(db, user_id, phase_slug, is_admin)
+    phase_detail = await get_phase_detail(db, user_id, phase_slug)
 
     if phase_detail is None:
         raise HTTPException(status_code=404, detail="Phase not found")
@@ -132,12 +128,10 @@ async def get_topic_detail_endpoint(
 
     Unauthenticated: no progress, content is read-only.
     """
-    is_admin = False
     if user_id:
-        user = await get_or_create_user(db, user_id)
-        is_admin = user.is_admin
+        await get_or_create_user(db, user_id)
 
-    topic_detail = await get_topic_detail(db, user_id, phase_slug, topic_slug, is_admin)
+    topic_detail = await get_topic_detail(db, user_id, phase_slug, topic_slug)
 
     if topic_detail is None:
         raise HTTPException(status_code=404, detail="Topic not found")

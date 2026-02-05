@@ -228,67 +228,6 @@ def compute_topic_progress(
     )
 
 
-def is_topic_complete(
-    topic: Topic,
-    completed_steps: set[int],
-) -> bool:
-    """Check if a topic is fully completed.
-
-    A topic is complete when all learning steps are done.
-
-    Args:
-        topic: The topic content definition
-        completed_steps: Set of completed step order numbers
-    Returns:
-        True if topic is complete, False otherwise
-    """
-    return len(completed_steps) >= len(topic.learning_steps)
-
-
-def is_phase_locked(
-    phase_id: int,
-    user_progress: UserProgress | None,
-    is_admin: bool,
-) -> bool:
-    """Determine if a phase is locked for the user.
-
-    All phases are unlocked - users can access any content freely.
-
-    Args:
-        phase_id: The phase ID to check (unused)
-        user_progress: User's progress data (unused)
-        is_admin: Whether the user has admin privileges (unused)
-
-    Returns:
-        Always False - nothing is locked
-    """
-    del phase_id, user_progress, is_admin  # Unused
-    return False
-
-
-def is_topic_locked(
-    topic_order: int,
-    phase_is_locked: bool,
-    prev_topic_complete: bool,
-    is_admin: bool,
-) -> bool:
-    """Determine if a topic is locked for the user.
-
-    All topics are unlocked - users can access any content freely.
-
-    Args:
-        topic_order: The topic's order within the phase (unused)
-        phase_is_locked: Whether the containing phase is locked (unused)
-        prev_topic_complete: Whether the previous topic is complete (unused)
-        is_admin: Whether the user has admin privileges (unused)
-
-    Returns:
-        Always False - nothing is locked
-    """
-    del topic_order, phase_is_locked, prev_topic_complete, is_admin  # Unused
-    return False
-
-
 def phase_progress_to_data(progress: PhaseProgress) -> PhaseProgressData:
     """Convert PhaseProgress to PhaseProgressData response model.
 

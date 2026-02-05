@@ -1,13 +1,10 @@
-import { useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useVerifyCertificate } from '@/lib/hooks';
-import { createApiClient } from '@/lib/api-client';
-import { useAuth } from '@clerk/clerk-react';
+import { getVerifiedCertificatePngUrl, getVerifiedCertificatePdfUrl } from '@/lib/utils';
+import { CERTIFICATE_TYPES } from '@/lib/constants';
 
 export function VerifyPage() {
   const { code } = useParams<{ code: string }>();
-  const { getToken } = useAuth();
-  const api = useMemo(() => createApiClient(getToken), [getToken]);
   const { data: verification, isLoading, error } = useVerifyCertificate(code || '');
 
   // No code provided
@@ -113,7 +110,7 @@ export function VerifyPage() {
                 For completing
               </p>
               <p className="text-lg font-semibold text-gray-900 dark:text-white">
-                {cert.certificate_type === 'full_completion'
+                {cert.certificate_type === CERTIFICATE_TYPES.FULL_COMPLETION
                   ? 'Learn to Cloud Full Curriculum'
                   : cert.certificate_type}
               </p>
@@ -133,7 +130,7 @@ export function VerifyPage() {
           {/* View/Download Links */}
           <div className="mt-8 flex justify-center gap-4">
             <a
-              href={api.getVerifiedCertificatePngUrl(code, 1.5)}
+              href={getVerifiedCertificatePngUrl(code, 1.5)}
               target="_blank"
               rel="noopener noreferrer"
               className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
@@ -141,7 +138,7 @@ export function VerifyPage() {
               View Certificate
             </a>
             <a
-              href={api.getVerifiedCertificatePdfUrl(code)}
+              href={getVerifiedCertificatePdfUrl(code)}
               className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
             >
               Download PDF

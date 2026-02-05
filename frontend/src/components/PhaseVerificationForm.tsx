@@ -204,7 +204,7 @@ export function PhaseVerificationForm({
               )}
 
               {/* Countdown timer for next retry */}
-              {validationMsg?.nextRetryAt && !validationMsg.isValid && (
+              {validationMsg?.nextRetryAt && (
                 <CooldownTimer nextRetryAt={validationMsg.nextRetryAt} />
               )}
 

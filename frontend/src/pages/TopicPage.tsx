@@ -4,8 +4,7 @@ import { useUser } from '@clerk/clerk-react';
 import { useTopicDetail, usePhaseDetail } from '@/lib/hooks';
 import type { TopicDetailSchema } from '@/lib/api-client';
 import { TopicContent } from '@/components/TopicContent';
-
-const VALID_PHASE_SLUGS = ["phase0", "phase1", "phase2", "phase3", "phase4", "phase5", "phase6"];
+import { PROGRESS_STATUS, isValidPhaseSlug } from '@/lib/constants';
 
 // Infer phase type from hook return
 type PhaseData = NonNullable<ReturnType<typeof usePhaseDetail>['data']>;
@@ -45,7 +44,7 @@ export function TopicPage() {
   const { phaseSlug, topicSlug } = useParams<{ phaseSlug: string; topicSlug: string }>();
   const { isSignedIn, isLoaded } = useUser();
 
-  if (!phaseSlug || !topicSlug || !VALID_PHASE_SLUGS.includes(phaseSlug)) {
+  if (!phaseSlug || !topicSlug || !isValidPhaseSlug(phaseSlug)) {
     return <Navigate to="/404" replace />;
   }
 
@@ -159,7 +158,7 @@ function TopicHeader({ topic, isAuthenticated }: {
   const progress = topic.progress;
   const completedItems = progress?.steps_completed ?? 0;
   const totalItems = progress?.steps_total ?? 0;
-  const isComplete = progress?.status === 'completed';
+  const isComplete = progress?.status === PROGRESS_STATUS.COMPLETED;
   const percentage = progress?.percentage ?? 0;
 
   return (

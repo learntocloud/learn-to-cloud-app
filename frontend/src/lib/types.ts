@@ -1,355 +1,71 @@
 /**
- * Hand-written API types that mirror the Python Pydantic schemas.
+ * API types re-exported from generated OpenAPI types.
  *
- * When you change a schema in api/schemas.py, update the matching type here.
- * No codegen step required.
+ * Generated types are in api-types.generated.ts (auto-generated from api/openapi.json).
+ * Run `npm run generate:api` after changing Python schemas.
+ *
+ * Frontend-only types that aren't in the OpenAPI spec are defined at the bottom.
  */
 
+import type { components } from './api-types.generated';
+
 // ---------------------------------------------------------------------------
+// Re-export generated types with clean names
+// ---------------------------------------------------------------------------
+
 // Enums
-// ---------------------------------------------------------------------------
+export type SubmissionType = components['schemas']['SubmissionType'];
 
-export type SubmissionType =
-  | 'github_profile'
-  | 'profile_readme'
-  | 'repo_fork'
-  | 'ctf_token'
-  | 'networking_token'
-  | 'journal_api_response'
-  | 'code_analysis'
-  | 'deployed_api'
-  | 'container_image'
-  | 'cicd_pipeline'
-  | 'terraform_iac'
-  | 'kubernetes_manifests'
-  | 'security_scanning';
-
-// ---------------------------------------------------------------------------
 // Shared / Reusable
-// ---------------------------------------------------------------------------
+export type Badge = components['schemas']['BadgeData'];
+export type BadgeCatalogItem = components['schemas']['BadgeCatalogItem'];
+export type PhaseThemeData = components['schemas']['PhaseThemeData'];
+export type TaskResult = components['schemas']['TaskResult'];
+export type ProviderOption = components['schemas']['ProviderOption'];
+export type SecondaryLink = components['schemas']['SecondaryLink'];
+export type LearningObjective = components['schemas']['LearningObjective'];
+export type LearningStep = components['schemas']['LearningStep'];
 
-export interface Badge {
-  id: string;
-  name: string;
-  description: string;
-  icon: string;
-}
-
-export interface BadgeCatalogItem {
-  id: string;
-  name: string;
-  description: string;
-  icon: string;
-  num: string;
-  how_to: string;
-  phase_id?: number | null;
-  phase_name?: string | null;
-}
-
-export interface PhaseThemeData {
-  phase_id: number;
-  icon: string;
-  bg_class: string;
-  border_class: string;
-  text_class: string;
-}
-
-export interface TaskResult {
-  task_name: string;
-  passed: boolean;
-  feedback: string;
-}
-
-export interface ProviderOption {
-  provider: string;
-  title: string;
-  url: string;
-  description?: string | null;
-}
-
-export interface SecondaryLink {
-  text: string;
-  url: string;
-}
-
-export interface LearningObjective {
-  id: string;
-  text: string;
-  order: number;
-}
-
-export interface LearningStep {
-  order: number;
-  text: string;
-  action?: string | null;
-  title?: string | null;
-  url?: string | null;
-  description?: string | null;
-  code?: string | null;
-  secondary_links?: SecondaryLink[];
-  options?: ProviderOption[];
-}
-
-// ---------------------------------------------------------------------------
 // Hands-On Requirements & Submissions
-// ---------------------------------------------------------------------------
+export type HandsOnRequirement = components['schemas']['HandsOnRequirement'];
+export type HandsOnSubmission = components['schemas']['HandsOnSubmissionResponse'];
+export type HandsOnValidationResult = components['schemas']['HandsOnValidationResult'];
 
-export interface HandsOnRequirement {
-  id: string;
-  phase_id: number;
-  submission_type: SubmissionType;
-  name: string;
-  description: string;
-  example_url?: string | null;
-  note?: string | null;
-  required_repo?: string | null;
-}
-
-export interface HandsOnSubmission {
-  id: number;
-  requirement_id: string;
-  submission_type: SubmissionType;
-  phase_id: number;
-  submitted_value: string;
-  extracted_username?: string | null;
-  is_validated: boolean;
-  validated_at?: string | null;
-  created_at: string;
-  feedback_json?: string | null;
-}
-
-export interface HandsOnValidationResult {
-  is_valid: boolean;
-  message: string;
-  username_match?: boolean | null;
-  repo_exists?: boolean | null;
-  submission?: HandsOnSubmission | null;
-  task_results?: TaskResult[] | null;
-  next_retry_at?: string | null;
-}
-
-/** @deprecated Alias kept for existing imports */
-export type GitHubValidationResult = HandsOnValidationResult;
-
-// ---------------------------------------------------------------------------
 // Public Profile
-// ---------------------------------------------------------------------------
+export type PublicSubmission = components['schemas']['PublicSubmission'];
+export type PublicProfileResponse = components['schemas']['PublicProfileResponse'];
 
-export interface PublicSubmission {
-  requirement_id: string;
-  submission_type: SubmissionType;
-  phase_id: number;
-  submitted_value: string;
-  name: string;
-  description?: string | null;
-  validated_at?: string | null;
-}
-
-export interface PublicProfileResponse {
-  username?: string | null;
-  first_name?: string | null;
-  avatar_url?: string | null;
-  current_phase: number;
-  phases_completed: number;
-  member_since: string;
-  submissions?: PublicSubmission[];
-  badges?: Badge[];
-}
-
-// ---------------------------------------------------------------------------
 // Progress
-// ---------------------------------------------------------------------------
+export type PhaseProgressData = components['schemas']['PhaseProgressData'];
+export type TopicProgressData = components['schemas']['TopicProgressData'];
+export type StepProgressData = components['schemas']['StepProgressData'];
 
-export interface PhaseProgressData {
-  steps_completed: number;
-  steps_required: number;
-  hands_on_validated: number;
-  hands_on_required: number;
-  percentage: number;
-  status: string;
-}
-
-export interface TopicProgressData {
-  steps_completed: number;
-  steps_total: number;
-  percentage: number;
-  status: string;
-}
-
-export interface StepProgressData {
-  topic_id: string;
-  completed_steps: number[];
-  total_steps: number;
-  next_unlocked_step: number;
-}
-
-// ---------------------------------------------------------------------------
 // Phase & Topic detail
-// ---------------------------------------------------------------------------
+export type PhaseCapstoneOverview = components['schemas']['PhaseCapstoneOverview'];
+export type PhaseHandsOnVerificationOverview = components['schemas']['PhaseHandsOnVerificationOverview'];
+export type TopicSummaryData = components['schemas']['TopicSummaryData'];
+export type TopicDetailData = components['schemas']['TopicDetailData'];
+export type PhaseSummaryData = components['schemas']['PhaseSummaryData'];
+export type PhaseDetailData = components['schemas']['PhaseDetailData'];
 
-export interface PhaseCapstoneOverview {
-  title: string;
-  summary: string;
-  includes?: string[];
-  topic_slug?: string | null;
-}
-
-export interface PhaseHandsOnVerificationOverview {
-  summary: string;
-  includes?: string[];
-  requirements?: HandsOnRequirement[];
-}
-
-export interface TopicSummaryData {
-  id: string;
-  name: string;
-  slug: string;
-  description: string;
-  order: number;
-  is_capstone: boolean;
-  is_locked: boolean;
-  steps_count: number;
-  progress?: TopicProgressData | null;
-}
-
-export interface TopicDetailData {
-  id: string;
-  name: string;
-  slug: string;
-  description: string;
-  order: number;
-  is_capstone: boolean;
-  is_locked: boolean;
-  is_topic_locked: boolean;
-  learning_objectives?: LearningObjective[];
-  learning_steps: LearningStep[];
-  completed_step_orders?: number[];
-  previous_topic_name?: string | null;
-  progress?: TopicProgressData | null;
-}
-
-export interface PhaseSummaryData {
-  id: number;
-  name: string;
-  slug: string;
-  description: string;
-  short_description: string;
-  order: number;
-  topics_count: number;
-  objectives?: string[];
-  capstone?: PhaseCapstoneOverview | null;
-  hands_on_verification?: PhaseHandsOnVerificationOverview | null;
-  progress?: PhaseProgressData | null;
-  is_locked: boolean;
-}
-
-export interface PhaseDetailData {
-  id: number;
-  name: string;
-  slug: string;
-  description: string;
-  short_description: string;
-  order: number;
-  objectives: string[];
-  capstone?: PhaseCapstoneOverview | null;
-  hands_on_verification?: PhaseHandsOnVerificationOverview | null;
-  topics: TopicSummaryData[];
-  progress?: PhaseProgressData | null;
-  hands_on_requirements?: HandsOnRequirement[];
-  hands_on_submissions?: HandsOnSubmission[];
-  is_locked: boolean;
-  all_topics_complete: boolean;
-  all_hands_on_validated: boolean;
-  is_phase_complete: boolean;
-}
-
-// ---------------------------------------------------------------------------
 // User
-// ---------------------------------------------------------------------------
+export type UserResponse = components['schemas']['UserResponse'];
+export type UserSummaryData = components['schemas']['UserSummaryData'];
 
-export interface UserResponse {
-  id: string;
-  email: string;
-  first_name?: string | null;
-  last_name?: string | null;
-  avatar_url?: string | null;
-  github_username?: string | null;
-  is_admin: boolean;
-  created_at: string;
-}
-
-export interface UserSummaryData {
-  id: string;
-  email: string;
-  first_name?: string | null;
-  last_name?: string | null;
-  avatar_url?: string | null;
-  github_username?: string | null;
-  is_admin: boolean;
-}
-
-// ---------------------------------------------------------------------------
 // Dashboard
-// ---------------------------------------------------------------------------
+export type DashboardData = components['schemas']['DashboardData'];
 
-export interface DashboardData {
-  user: UserSummaryData;
-  phases: PhaseSummaryData[];
-  overall_progress: number;
-  phases_completed: number;
-  phases_total: number;
-  current_phase?: number | null;
-  badges?: Badge[];
-}
-
-// ---------------------------------------------------------------------------
 // Certificates
-// ---------------------------------------------------------------------------
+export type CertificateData = components['schemas']['CertificateData'];
+export type CertificateEligibilityResponse = components['schemas']['CertificateEligibilityResponse'];
+export type CertificateVerifyResponse = components['schemas']['CertificateVerifyResponse'];
+export type UserCertificatesResponse = components['schemas']['UserCertificatesResponse'];
 
-export interface CertificateData {
-  id: number;
-  certificate_type: string;
-  verification_code: string;
-  recipient_name: string;
-  issued_at: string;
-  phases_completed: number;
-  total_phases: number;
-}
-
-export interface CertificateEligibilityResponse {
-  is_eligible: boolean;
-  certificate_type: string;
-  phases_completed: number;
-  total_phases: number;
-  completion_percentage: number;
-  already_issued: boolean;
-  existing_certificate_id?: number | null;
-  message: string;
-}
-
-export interface CertificateVerifyResponse {
-  is_valid: boolean;
-  certificate?: CertificateData | null;
-  message: string;
-}
-
-export interface UserCertificatesResponse {
-  certificates: CertificateData[];
-  full_completion_eligible: boolean;
-}
-
-// ---------------------------------------------------------------------------
 // Badge Catalog
-// ---------------------------------------------------------------------------
-
-export interface BadgeCatalogResponse {
-  phase_badges: BadgeCatalogItem[];
-  total_badges: number;
-  phase_themes: PhaseThemeData[];
-}
+export type BadgeCatalogResponse = components['schemas']['BadgeCatalogResponse'];
 
 // ---------------------------------------------------------------------------
-// Activity Heatmap
+// Frontend-only types (not in OpenAPI spec)
 // ---------------------------------------------------------------------------
 
 export interface ActivityHeatmapDay {
@@ -360,3 +76,4 @@ export interface ActivityHeatmapDay {
 export interface ActivityHeatmapResponse {
   days: ActivityHeatmapDay[];
 }
+

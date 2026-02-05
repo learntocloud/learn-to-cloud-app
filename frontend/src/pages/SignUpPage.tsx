@@ -1,11 +1,9 @@
 import { SignUp } from '@clerk/clerk-react';
-import { useEffect } from 'react';
 import { clerkAppearance } from '../shared/clerkAppearance';
+import { useDocumentTitle } from '@/lib/useDocumentTitle';
 
 export function SignUpPage() {
-  useEffect(() => {
-    document.title = 'Sign Up | Learn to Cloud';
-  }, []);
+  useDocumentTitle('Sign Up | Learn to Cloud');
 
   return (
     <div className="min-h-screen flex items-center justify-center py-12">

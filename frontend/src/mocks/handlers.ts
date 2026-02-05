@@ -27,7 +27,6 @@ interface MockPhase {
   description: string;
   order: number;
   topics: MockTopic[];
-  is_locked: boolean;
 }
 
 interface MockTopic {
@@ -44,7 +43,6 @@ interface MockTopic {
     percentage: number;
     status: 'not_started' | 'in_progress' | 'completed';
   } | null;
-  is_locked: boolean;
 }
 
 // Default mock data
@@ -86,10 +84,8 @@ const mockPhases: MockPhase[] = [
         is_capstone: false,
         steps_count: 5,
         progress: null,
-        is_locked: false,
       },
     ],
-    is_locked: false,
   },
   {
     id: 2,
@@ -98,7 +94,6 @@ const mockPhases: MockPhase[] = [
     description: 'Master the command line',
     order: 1,
     topics: [],
-    is_locked: true,
   },
 ];
 
@@ -180,8 +175,6 @@ export const handlers = [
       ],
       completed_step_orders: [],
       learning_objectives: [],
-      is_locked: false,
-      is_topic_locked: false,
     });
   }),
 
@@ -192,7 +185,6 @@ export const handlers = [
       topic_id: 'topic-1',
       completed_steps: [1],
       total_steps: 5,
-      next_unlocked_step: 2,
     });
   }),
 

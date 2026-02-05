@@ -55,7 +55,8 @@ class Settings(BaseSettings):
     copilot_cli_path: str = ""  # Path to CLI binary for stdio mode
     copilot_cli_url: str = ""  # URL for HTTP mode (e.g., "http://127.0.0.1:8080")
     copilot_cli_timeout: int = 120  # Seconds to wait for code analysis completion
-    code_analysis_cooldown_seconds: int = 3600  # 1 hour between verification attempts
+    code_analysis_cooldown_seconds: int = 3600  # 1 hr between code analysis
+    submission_cooldown_seconds: int = 3600  # 1 hr between verification attempts
 
     # Use "redis://host:port" in production for distributed rate limiting
     # memory:// only works for single-instance deployments

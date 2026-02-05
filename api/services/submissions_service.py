@@ -92,30 +92,35 @@ async def submit_validation(
     if not requirement:
         raise RequirementNotFoundError(f"Requirement not found: {requirement_id}")
 
-    # Enforce cooldown for CODE_ANALYSIS submissions (1 hour by default)
-    if requirement.submission_type == SubmissionType.CODE_ANALYSIS:
-        submission_repo = SubmissionRepository(db)
-        last_submission_time = await submission_repo.get_last_submission_time(
-            user_id, requirement_id
+    # Enforce cooldown on all hands-on submissions (1 hour by default).
+    # CODE_ANALYSIS uses its own setting; all others share submission_cooldown_seconds.
+    submission_repo = SubmissionRepository(db)
+    last_submission_time = await submission_repo.get_last_submission_time(
+        user_id, requirement_id
+    )
+
+    if last_submission_time is not None:
+        settings = get_settings()
+        cooldown_seconds = (
+            settings.code_analysis_cooldown_seconds
+            if requirement.submission_type == SubmissionType.CODE_ANALYSIS
+            else settings.submission_cooldown_seconds
         )
+        now = datetime.now(UTC)
+        elapsed = (now - last_submission_time).total_seconds()
+        remaining = int(cooldown_seconds - elapsed)
 
-        if last_submission_time is not None:
-            settings = get_settings()
-            cooldown_seconds = settings.code_analysis_cooldown_seconds
-            now = datetime.now(UTC)
-            elapsed = (now - last_submission_time).total_seconds()
-            remaining = int(cooldown_seconds - elapsed)
-
-            if remaining > 0:
-                set_wide_event_fields(
-                    code_analysis_cooldown_active=True,
-                    code_analysis_cooldown_remaining_seconds=remaining,
-                )
-                raise CooldownActiveError(
-                    f"Code analysis can only be submitted once per hour. "
-                    f"Please try again in {remaining // 60} minutes.",
-                    retry_after_seconds=remaining,
-                )
+        if remaining > 0:
+            set_wide_event_fields(
+                submission_cooldown_active=True,
+                submission_cooldown_remaining_seconds=remaining,
+                submission_type=requirement.submission_type.value,
+            )
+            raise CooldownActiveError(
+                f"Verification can only be submitted once per hour. "
+                f"Please try again in {remaining // 60} minutes.",
+                retry_after_seconds=remaining,
+            )
 
     if requirement.submission_type in (
         SubmissionType.PROFILE_README,

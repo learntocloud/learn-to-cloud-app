@@ -203,7 +203,6 @@ class StepProgressData(FrozenModel):
     topic_id: str
     completed_steps: list[int]
     total_steps: int
-    next_unlocked_step: int
 
 
 # Alias for route compatibility
@@ -583,7 +582,6 @@ class TopicSummaryData(FrozenModel):
     is_capstone: bool
     steps_count: int
     progress: TopicProgressData | None = None
-    is_locked: bool = False
 
 
 # Alias for route compatibility
@@ -603,9 +601,6 @@ class TopicDetailData(FrozenModel):
     learning_objectives: list[LearningObjective] = Field(default_factory=list)
     progress: TopicProgressData | None = None
     completed_step_orders: list[int] = Field(default_factory=list)
-    is_locked: bool = False
-    is_topic_locked: bool = False
-    previous_topic_name: str | None = None
 
 
 # Alias for route compatibility
@@ -641,7 +636,6 @@ class PhaseSummaryData(FrozenModel):
     capstone: PhaseCapstoneOverview | None = None
     hands_on_verification: PhaseHandsOnVerificationOverview | None = None
     progress: PhaseProgressData | None = None
-    is_locked: bool = False
 
 
 # Alias for route compatibility
@@ -664,8 +658,6 @@ class PhaseDetailData(FrozenModel):
     progress: PhaseProgressData | None = None
     hands_on_requirements: list[HandsOnRequirement] = Field(default_factory=list)
     hands_on_submissions: list[HandsOnSubmissionResponse] = Field(default_factory=list)
-    is_locked: bool = False
-    all_topics_complete: bool = False
     all_hands_on_validated: bool = False
     is_phase_complete: bool = False
 

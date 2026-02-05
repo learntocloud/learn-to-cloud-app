@@ -4,6 +4,7 @@ import { useActivityHeatmap, useBadgeCatalog, usePublicProfile } from '@/lib/hoo
 import { ActivityHeatmap } from '@/components/ActivityHeatmap';
 import { SubmissionsShowcase } from '@/components/SubmissionsShowcase';
 import { Badge, BadgeCatalogItem, PhaseThemeData } from '@/lib/types';
+import { copyToClipboard } from '@/lib/utils';
 
 export function ProfilePage() {
   const { username } = useParams<{ username: string }>();
@@ -205,16 +206,13 @@ function ShareProfileButton({ profile, username }: ShareProfileButtonProps) {
   const shareText = `Check out my Learn to Cloud progress! ${profile.phases_completed} phases completed, currently on Phase ${profile.current_phase} 💪`;
 
   const handleCopyLink = useCallback(async () => {
-    try {
-      await navigator.clipboard.writeText(profileUrl);
-      setCopied(true);
-      if (copyTimeoutRef.current) {
-        clearTimeout(copyTimeoutRef.current);
-      }
-      copyTimeoutRef.current = setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      console.error('Failed to copy:', err);
+    const ok = await copyToClipboard(profileUrl);
+    if (!ok) return;
+    setCopied(true);
+    if (copyTimeoutRef.current) {
+      clearTimeout(copyTimeoutRef.current);
     }
+    copyTimeoutRef.current = setTimeout(() => setCopied(false), 2000);
   }, [profileUrl]);
 
   useEffect(() => {

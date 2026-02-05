@@ -2,7 +2,8 @@
  * API client for Learn to Cloud backend.
  * Uses Clerk for authentication.
  *
- * All types are imported from the hand-written types module — no codegen needed.
+ * Types are generated from api/openapi.json via openapi-typescript.
+ * Run `npm run generate:api` after changing Python schemas.
  */
 
 import type {
@@ -23,7 +24,6 @@ import type {
 } from './types';
 
 // Re-export types that consumers import from this module
-export type { HandsOnValidationResult as GitHubValidationResult } from './types';
 export type {
   HandsOnRequirement,
   HandsOnSubmission,

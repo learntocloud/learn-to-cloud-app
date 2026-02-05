@@ -1,54 +1,8 @@
 import { Link } from 'react-router-dom';
 import { useUserCertificates, useCertificateEligibility, useGenerateCertificate } from '@/lib/hooks';
-import { useState } from 'react';
-
-const API_URL = import.meta.env.VITE_API_URL || '';
-
-/** URL helpers for certificate assets (no auth required) */
-function getCertificatePdfUrl(certificateId: number): string {
-  return `${API_URL}/api/certificates/${certificateId}/pdf`;
-}
-
-function getVerifiedCertificatePdfUrl(code: string): string {
-  return `${API_URL}/api/certificates/verify/${code}/pdf`;
-}
-
-function getVerifiedCertificatePngUrl(code: string, scale?: number): string {
-  const suffix = scale ? `?scale=${scale}` : '';
-  return `${API_URL}/api/certificates/verify/${code}/png${suffix}`;
-}
-
-function formatIssuedDate(isoDate: string): string {
-  const date = new Date(isoDate);
-  if (Number.isNaN(date.getTime())) return isoDate;
-  return new Intl.DateTimeFormat(undefined, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  }).format(date);
-}
-
-async function copyToClipboard(text: string): Promise<boolean> {
-  try {
-    await navigator.clipboard.writeText(text);
-    return true;
-  } catch {
-    try {
-      const textarea = document.createElement('textarea');
-      textarea.value = text;
-      textarea.setAttribute('readonly', '');
-      textarea.style.position = 'absolute';
-      textarea.style.left = '-9999px';
-      document.body.appendChild(textarea);
-      textarea.select();
-      const ok = document.execCommand('copy');
-      document.body.removeChild(textarea);
-      return ok;
-    } catch {
-      return false;
-    }
-  }
-}
+import { useState, useEffect, useRef } from 'react';
+import { copyToClipboard, getCertificatePdfUrl, getVerifiedCertificatePdfUrl, getVerifiedCertificatePngUrl, formatIssuedDate } from '@/lib/utils';
+import { CERTIFICATE_TYPES } from '@/lib/constants';
 
 function CopyRow({
   label,
@@ -60,12 +14,20 @@ function CopyRow({
   isLink?: boolean;
 }) {
   const [copied, setCopied] = useState(false);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, []);
 
   const handleCopy = async () => {
     const ok = await copyToClipboard(value);
     if (!ok) return;
     setCopied(true);
-    window.setTimeout(() => setCopied(false), 1200);
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    timeoutRef.current = setTimeout(() => setCopied(false), 1200);
   };
 
   return (
@@ -106,14 +68,14 @@ function CopyRow({
 
 export function CertificatesPage() {
   const { data: userCerts, isLoading: certsLoading } = useUserCertificates();
-  const { data: eligibility, isLoading: eligibilityLoading } = useCertificateEligibility('full_completion');
+  const { data: eligibility, isLoading: eligibilityLoading } = useCertificateEligibility(CERTIFICATE_TYPES.FULL_COMPLETION);
   const { mutateAsync, isPending: generating, isError, error, reset } = useGenerateCertificate();
 
   const isLoading = certsLoading || eligibilityLoading;
 
   const handleGenerate = async () => {
     reset();
-    await mutateAsync({ certificateType: 'full_completion', recipientName: 'Learner' });
+    await mutateAsync({ certificateType: CERTIFICATE_TYPES.FULL_COMPLETION, recipientName: 'Learner' });
   };
 
   const hasCertificate = !!userCerts?.certificates?.length;
