@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSubmitGitHubUrl } from '@/lib/hooks';
 import type { HandsOnRequirement, HandsOnSubmission, PhaseProgressSchema } from '@/lib/api-client';
 import type { TaskResult } from '@/lib/types';
@@ -24,13 +24,18 @@ function useCountdown(targetDate: string | null): string | null {
       return;
     }
 
+    let interval: ReturnType<typeof setInterval> | null = null;
+
     const calculateTimeLeft = () => {
       const target = new Date(targetDate).getTime();
-      const now = Date.now();
-      const diff = target - now;
+      const diff = target - Date.now();
 
       if (diff <= 0) {
         setTimeLeft(null);
+        if (interval) {
+          clearInterval(interval);
+          interval = null;
+        }
         return;
       }
 
@@ -40,8 +45,10 @@ function useCountdown(targetDate: string | null): string | null {
     };
 
     calculateTimeLeft();
-    const interval = setInterval(calculateTimeLeft, 1000);
-    return () => clearInterval(interval);
+    interval = setInterval(calculateTimeLeft, 1000);
+    return () => {
+      if (interval) clearInterval(interval);
+    };
   }, [targetDate]);
 
   return timeLeft;
@@ -58,6 +65,106 @@ function CooldownTimer({ nextRetryAt }: { nextRetryAt: string }) {
         <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
       </svg>
       <span>Next attempt available in {timeLeft}</span>
+    </div>
+  );
+}
+
+function TaskChecklist({ taskResults }: { taskResults: TaskResult[] }) {
+  const [expandedTasks, setExpandedTasks] = useState<Set<string>>(() => new Set());
+  const passedCount = taskResults.filter((t) => t.passed).length;
+  const totalCount = taskResults.length;
+  const allExpanded = taskResults.filter((t) => !t.passed).every((t) => expandedTasks.has(t.task_name));
+  const failedTasks = taskResults.filter((t) => !t.passed);
+
+  const toggleTask = useCallback((taskName: string) => {
+    setExpandedTasks((prev) => {
+      const next = new Set(prev);
+      if (next.has(taskName)) {
+        next.delete(taskName);
+      } else {
+        next.add(taskName);
+      }
+      return next;
+    });
+  }, []);
+
+  const toggleAll = useCallback(() => {
+    if (allExpanded) {
+      setExpandedTasks(new Set());
+    } else {
+      setExpandedTasks(new Set(failedTasks.map((t) => t.task_name)));
+    }
+  }, [allExpanded, failedTasks]);
+
+  return (
+    <div className="mt-3">
+      {/* Header row: summary + toggle */}
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+            Task Checklist
+          </span>
+          <span className={`text-xs font-medium px-1.5 py-0.5 rounded-full ${
+            passedCount === totalCount
+              ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300'
+              : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
+          }`}>
+            {passedCount}/{totalCount}
+          </span>
+        </div>
+        {failedTasks.length > 0 && (
+          <button
+            type="button"
+            onClick={toggleAll}
+            className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
+          >
+            {allExpanded ? 'Collapse all' : 'Expand all'}
+          </button>
+        )}
+      </div>
+
+      {/* Scrollable task list */}
+      <div className="max-h-52 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-700">
+        <div className="divide-y divide-gray-200 dark:divide-gray-700">
+          {taskResults.map((task) => {
+            const isExpanded = expandedTasks.has(task.task_name);
+
+            return (
+              <div key={task.task_name} className="px-3 py-2">
+                <button
+                  type="button"
+                  onClick={() => { if (!task.passed) toggleTask(task.task_name); }}
+                  className={`flex items-center gap-2 w-full text-left ${task.passed ? 'cursor-default' : 'cursor-pointer'}`}
+                  aria-expanded={task.passed ? undefined : isExpanded}
+                >
+                  {task.passed ? (
+                    <svg className="w-4 h-4 text-emerald-500 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                  ) : (
+                    <svg className="w-4 h-4 text-red-500 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                    </svg>
+                  )}
+                  <span className={`text-sm flex-1 ${task.passed ? 'text-gray-500 dark:text-gray-400 line-through' : 'text-gray-900 dark:text-white'}`}>
+                    {task.task_name}
+                  </span>
+                  {!task.passed && (
+                    <svg className={`w-3 h-3 text-gray-400 shrink-0 transition-transform ${isExpanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  )}
+                </button>
+                {!task.passed && isExpanded && (
+                  <p className="mt-1.5 ml-6 text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
+                    {task.feedback}
+                  </p>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }
@@ -88,13 +195,29 @@ export function PhaseVerificationForm({
       const result = await submitMutation.mutateAsync({ requirementId, url });
       setValidationMessages((prev) => ({
         ...prev,
-        [requirementId]: { message: result.message, isValid: result.is_valid, taskResults: result.task_results, nextRetryAt: result.next_retry_at },
+        [requirementId]: {
+          message: result.message,
+          isValid: result.is_valid,
+          taskResults: result.task_results,
+          nextRetryAt: result.next_retry_at,
+        },
       }));
       setUrls((prev) => ({ ...prev, [requirementId]: '' }));
-    } catch (error) {
+    } catch (error: unknown) {
+      // Extract lockout_until from 429 cooldown responses to show countdown timer
+      let nextRetryAt: string | null = null;
+      const apiError = error as { status?: number; detail?: { lockout_until?: string | null } };
+      if (apiError.status === 429 && apiError.detail?.lockout_until) {
+        nextRetryAt = apiError.detail.lockout_until;
+      }
+
       setValidationMessages((prev) => ({
         ...prev,
-        [requirementId]: { message: error instanceof Error ? error.message : 'Submission failed', isValid: false },
+        [requirementId]: {
+          message: error instanceof Error ? error.message : 'Submission failed',
+          isValid: false,
+          nextRetryAt,
+        },
       }));
     }
   };
@@ -203,48 +326,14 @@ export function PhaseVerificationForm({
                 </div>
               )}
 
-              {/* Countdown timer for next retry */}
-              {validationMsg?.nextRetryAt && (
+              {/* Countdown timer for next retry - only on failed validations */}
+              {validationMsg?.nextRetryAt && !validationMsg.isValid && (
                 <CooldownTimer nextRetryAt={validationMsg.nextRetryAt} />
               )}
 
               {/* Task Results for CODE_ANALYSIS submissions (fresh or persisted) */}
               {taskResults && taskResults.length > 0 && (
-                <div className="mt-4">
-                  <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
-                    Task Checklist
-                  </div>
-                  <div className="divide-y divide-gray-200 dark:divide-gray-700">
-                    {taskResults.map((task) => (
-                      <details key={task.task_name} className="group py-2" open={!task.passed}>
-                        <summary className="flex items-center gap-2 cursor-pointer select-none list-none">
-                          {task.passed ? (
-                            <svg className="w-4 h-4 text-emerald-500" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                            </svg>
-                          ) : (
-                            <svg className="w-4 h-4 text-red-500" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                            </svg>
-                          )}
-                          <span className={`text-sm ${task.passed ? 'text-gray-500 dark:text-gray-400' : 'text-gray-900 dark:text-white'}`}>
-                            {task.task_name}
-                          </span>
-                          {!task.passed && (
-                            <svg className="w-3 h-3 text-gray-400 ml-auto transition-transform group-open:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                            </svg>
-                          )}
-                        </summary>
-                        {!task.passed && (
-                          <p className="mt-2 ml-6 text-sm text-gray-600 dark:text-gray-400">
-                            {task.feedback}
-                          </p>
-                        )}
-                      </details>
-                    ))}
-                  </div>
-                </div>
+                <TaskChecklist taskResults={taskResults} />
               )}
 
               {!isPassed && githubUsername && (

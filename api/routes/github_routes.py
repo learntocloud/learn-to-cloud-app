@@ -16,6 +16,7 @@ from schemas import (
     SubmissionType,
 )
 from services.submissions_service import (
+    ConcurrentSubmissionError,
     CooldownActiveError,
     GitHubUsernameRequiredError,
     RequirementNotFoundError,
@@ -34,6 +35,7 @@ router = APIRouter(prefix="/api/github", tags=["github"])
         400: {"description": "GitHub username required to submit"},
         401: {"description": "Not authenticated"},
         404: {"description": "Requirement not found"},
+        409: {"description": "Verification already in progress"},
         429: {"description": "Rate limited or cooldown active"},
     },
 )
@@ -60,14 +62,23 @@ async def submit_github_validation(
     except GitHubUsernameRequiredError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except CooldownActiveError as e:
+        retry_at = datetime.now(UTC) + timedelta(seconds=e.retry_after_seconds)
         return JSONResponse(
             status_code=429,
-            content={"detail": str(e)},
+            content={
+                "detail": str(e),
+                "lockout_until": retry_at.isoformat(),
+            },
             headers={"Retry-After": str(e.retry_after_seconds)},
         )
+    except ConcurrentSubmissionError as e:
+        return JSONResponse(
+            status_code=409,
+            content={"detail": str(e)},
+        )
 
-    # Calculate next retry time for cooldown display
-    next_retry = _get_next_retry_at(result.submission)
+    # Only show cooldown timer if validation failed — no need to retry on success
+    next_retry = _get_next_retry_at(result.submission) if not result.is_valid else None
 
     return HandsOnValidationResult(
         is_valid=result.is_valid,
@@ -81,7 +92,11 @@ async def submit_github_validation(
 
 
 def _get_next_retry_at(submission: HandsOnSubmissionResponse | None) -> str | None:
-    """Calculate when next retry is allowed after a submission."""
+    """Calculate when next retry is allowed based on submission timestamp.
+
+    Uses the submission's created_at (persisted in DB) plus the cooldown,
+    so the timer stays accurate regardless of response latency.
+    """
     if not submission:
         return None
 
@@ -91,5 +106,5 @@ def _get_next_retry_at(submission: HandsOnSubmissionResponse | None) -> str | No
         if submission.submission_type == SubmissionType.CODE_ANALYSIS
         else settings.submission_cooldown_seconds
     )
-    retry_at = datetime.now(UTC) + timedelta(seconds=cooldown_seconds)
+    retry_at = submission.created_at + timedelta(seconds=cooldown_seconds)
     return retry_at.isoformat()
