@@ -163,16 +163,6 @@ export function usePublicProfile(username: string) {
   });
 }
 
-export function useActivityHeatmap(username: string) {
-  const api = useApi();
-  return useQuery({
-    queryKey: ['activityHeatmap', username],
-    queryFn: () => api.getActivityHeatmap(username),
-    enabled: !!username,
-    staleTime: STALE_TIME_MS,
-  });
-}
-
 export function useCertificateEligibility(certificateType: string) {
   const api = useApi();
   return useQuery({

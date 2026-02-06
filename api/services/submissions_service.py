@@ -135,7 +135,8 @@ async def submit_validation(
         settings = get_settings()
         cooldown_seconds = (
             settings.code_analysis_cooldown_seconds
-            if requirement.submission_type == SubmissionType.CODE_ANALYSIS
+            if requirement.submission_type
+            in (SubmissionType.CODE_ANALYSIS, SubmissionType.DEVOPS_ANALYSIS)
             else settings.submission_cooldown_seconds
         )
         now = datetime.now(UTC)
@@ -160,6 +161,7 @@ async def submit_validation(
         SubmissionType.CTF_TOKEN,
         SubmissionType.NETWORKING_TOKEN,
         SubmissionType.CODE_ANALYSIS,
+        SubmissionType.DEVOPS_ANALYSIS,
     ):
         if not github_username:
             raise GitHubUsernameRequiredError(

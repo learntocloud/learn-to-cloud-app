@@ -49,6 +49,7 @@
         "submission_type": "deployed_api",
         "name": "Deployed a Public Journal API",
         "description": "Demonstrates that the learner can deploy an API to a public cloud endpoint and keep it accessible.",
+        "submission_instructions": "Paste your deployed API's base URL (e.g. https://my-journal-api.azurewebsites.net). The system will call GET /entries on your API and verify it returns a JSON array with at least one valid journal entry containing id, work, struggle, intention, and created_at fields.",
         "example_url": "https://api.example.com"
       }
     ]

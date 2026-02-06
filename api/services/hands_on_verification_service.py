@@ -217,8 +217,23 @@ async def validate_submission(
 
         return await analyze_repository_code(submitted_value, expected_username)
 
+    elif requirement.submission_type == SubmissionType.DEVOPS_ANALYSIS:
+        if not expected_username:
+            return ValidationResult(
+                is_valid=False,
+                message="GitHub username is required for DevOps analysis",
+                username_match=False,
+            )
+        from services.devops_verification_service import analyze_devops_repository
+
+        return await analyze_devops_repository(submitted_value, expected_username)
+
+    elif requirement.submission_type == SubmissionType.DEPLOYED_API:
+        from services.deployed_api_verification_service import validate_deployed_api
+
+        return await validate_deployed_api(submitted_value)
+
     elif requirement.submission_type in {
-        SubmissionType.DEPLOYED_API,
         SubmissionType.CONTAINER_IMAGE,
         SubmissionType.CICD_PIPELINE,
         SubmissionType.TERRAFORM_IAC,

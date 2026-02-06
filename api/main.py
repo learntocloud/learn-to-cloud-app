@@ -38,6 +38,7 @@ from routes import (
 )
 from routes.clerk_routes import close_clerk_proxy_client
 from services.clerk_service import close_http_client
+from services.deployed_api_verification_service import close_deployed_api_client
 from services.github_hands_on_verification_service import close_github_client
 
 
@@ -205,6 +206,7 @@ async def lifespan(app: FastAPI):
         await close_clerk_proxy_client()
         await close_http_client()
         await close_github_client()
+        await close_deployed_api_client()
         await close_copilot_client()
         await dispose_engine(app.state.engine)
 

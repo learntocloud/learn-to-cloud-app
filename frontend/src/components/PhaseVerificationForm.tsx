@@ -258,7 +258,8 @@ export function PhaseVerificationForm({
             req.submission_type === 'github_profile'
             || req.submission_type === 'profile_readme'
             || req.submission_type === 'repo_fork'
-            || req.submission_type === 'code_analysis';
+            || req.submission_type === 'code_analysis'
+            || req.submission_type === 'devops_analysis';
 
           // Parse persisted feedback from submission if no fresh validation message
           const persistedTaskResults = submission?.feedback_json
@@ -292,7 +293,7 @@ export function PhaseVerificationForm({
                     )}
                     <h4 className="font-medium text-gray-900 dark:text-white">{req.name}</h4>
                   </div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">{req.description}</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">{req.submission_instructions ?? req.description}</p>
                   {req.note && (
                     <p className="mt-1 text-xs text-gray-500 dark:text-gray-500 italic">
                       {req.note}

@@ -67,12 +67,3 @@ export type BadgeCatalogResponse = components['schemas']['BadgeCatalogResponse']
 // ---------------------------------------------------------------------------
 // Frontend-only types (not in OpenAPI spec)
 // ---------------------------------------------------------------------------
-
-export interface ActivityHeatmapDay {
-  date: string;
-  count: number;
-}
-
-export interface ActivityHeatmapResponse {
-  days: ActivityHeatmapDay[];
-}

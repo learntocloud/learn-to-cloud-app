@@ -105,32 +105,6 @@ class ActivityRepository:
         result = await self.db.execute(select(stmt))
         return result.scalar_one()
 
-    async def get_daily_activity_counts(
-        self,
-        user_id: str,
-        start_date: date,
-        end_date: date,
-    ) -> list[tuple[date, int]]:
-        """Get per-day activity counts for a user within a date range.
-
-        Returns a list of (date, count) tuples for dates that have activity.
-        Days with zero activity are omitted.
-        """
-        result = await self.db.execute(
-            select(
-                UserActivity.activity_date,
-                func.count(UserActivity.id),
-            )
-            .where(
-                UserActivity.user_id == user_id,
-                UserActivity.activity_date >= start_date,
-                UserActivity.activity_date <= end_date,
-            )
-            .group_by(UserActivity.activity_date)
-            .order_by(UserActivity.activity_date)
-        )
-        return [(row[0], row[1]) for row in result.all()]
-
     async def get_activity_dates_ordered(
         self,
         user_id: str,

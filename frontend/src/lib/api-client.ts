@@ -7,7 +7,6 @@
  */
 
 import type {
-  ActivityHeatmapResponse,
   BadgeCatalogResponse,
   CertificateData,
   CertificateEligibilityResponse,
@@ -200,18 +199,6 @@ export function createApiClient(getToken: () => Promise<string | null>) {
         return await getPublic<PublicProfileResponse>(
           `/api/user/profile/${encodeURIComponent(username)}`,
           'Failed to fetch profile',
-        );
-      } catch (e) {
-        if (e instanceof ApiError && e.status === 404) return null;
-        throw e;
-      }
-    },
-
-    async getActivityHeatmap(username: string): Promise<ActivityHeatmapResponse | null> {
-      try {
-        return await getPublic<ActivityHeatmapResponse>(
-          `/api/user/profile/${encodeURIComponent(username)}/heatmap`,
-          'Failed to fetch activity heatmap',
         );
       } catch (e) {
         if (e instanceof ApiError && e.status === 404) return null;

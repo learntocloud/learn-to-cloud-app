@@ -5,12 +5,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.telemetry import log_business_event, track_operation
 from core.wide_event import set_wide_event_fields
 from models import SubmissionType, User
-from repositories.activity_repository import ActivityRepository
 from repositories.submission_repository import SubmissionRepository
 from repositories.user_repository import UserRepository
 from schemas import (
-    ActivityHeatmapDay,
-    ActivityHeatmapResponse,
     BadgeData,
     PublicProfileData,
     PublicSubmissionInfo,
@@ -218,47 +215,3 @@ async def get_public_profile(
     )
 
     return profile_data
-
-
-@track_operation("activity_heatmap")
-async def get_activity_heatmap(
-    db: AsyncSession,
-    username: str,
-    days: int = 180,
-) -> ActivityHeatmapResponse | None:
-    """Get activity heatmap data for a user's public profile.
-
-    Returns daily activity counts for the last *days* days.
-    Returns None if user not found.
-    """
-    from datetime import UTC, datetime, timedelta
-
-    user_repo = UserRepository(db)
-
-    normalized_username = normalize_github_username(username)
-    if not normalized_username:
-        return None
-
-    profile_user = await user_repo.get_by_github_username(normalized_username)
-    if not profile_user:
-        return None
-
-    end_date = datetime.now(UTC).date()
-    start_date = end_date - timedelta(days=days - 1)
-
-    activity_repo = ActivityRepository(db)
-    daily_counts = await activity_repo.get_daily_activity_counts(
-        user_id=profile_user.id,
-        start_date=start_date,
-        end_date=end_date,
-    )
-
-    heatmap_days = [ActivityHeatmapDay(date=d, count=c) for d, c in daily_counts]
-
-    log_business_event(
-        "activity_heatmap.served",
-        1,
-        {"days_with_activity": len(heatmap_days)},
-    )
-
-    return ActivityHeatmapResponse(days=heatmap_days)

@@ -45,6 +45,7 @@
         "submission_type": "repo_fork",
         "name": "Forked the Journal Starter Repo",
         "description": "Demonstrates that the learner can fork a starter repo and set up a FastAPI + PostgreSQL project for development.",
+        "submission_instructions": "Paste the URL to your fork of the journal-starter repo (e.g. https://github.com/your-username/journal-starter). The system will verify it is a fork of learntocloud/journal-starter under your GitHub account.",
         "example_url": "https://github.com/madebygps/journal-starter",
         "required_repo": "learntocloud/journal-starter"
       },
@@ -53,6 +54,7 @@
         "submission_type": "code_analysis",
         "name": "Implemented the Journal API",
         "description": "Demonstrates that the learner can implement a working API and submit it for automated code verification.",
+        "submission_instructions": "Paste the URL to your journal-starter fork (e.g. https://github.com/your-username/journal-starter). The system will analyze your code for correct CRUD endpoints, database models, and LLM integration.",
         "example_url": "https://github.com/madebygps/journal-starter",
         "note": "You can only verify once per hour."
       },
@@ -60,7 +62,8 @@
         "id": "journal-api-response",
         "submission_type": "journal_api_response",
         "name": "Validated Journal API Response",
-        "description": "Demonstrates that the learner can run the Journal API locally and provide a valid JSON response from GET /entries."
+        "description": "Demonstrates that the learner can run the Journal API locally and provide a valid JSON response from GET /entries.",
+        "submission_instructions": "Run your Journal API locally, create at least one entry via POST /entries, then copy the full JSON array response from GET /entries and paste it here. Each entry must have id (UUID), work, struggle, intention, and created_at fields."
       }
     ]
   },

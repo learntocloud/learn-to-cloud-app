@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { useActivityHeatmap, useBadgeCatalog, usePublicProfile } from '@/lib/hooks';
-import { ActivityHeatmap } from '@/components/ActivityHeatmap';
+import { useBadgeCatalog, usePublicProfile } from '@/lib/hooks';
 import { SubmissionsShowcase } from '@/components/SubmissionsShowcase';
 import { Badge, BadgeCatalogItem, PhaseThemeData } from '@/lib/types';
 import { copyToClipboard } from '@/lib/utils';
@@ -10,7 +9,6 @@ export function ProfilePage() {
   const { username } = useParams<{ username: string }>();
   const { data: profile, isLoading, error } = usePublicProfile(username || '');
   const { data: badgeCatalog } = useBadgeCatalog();
-  const { data: heatmapData } = useActivityHeatmap(username || '');
 
   const catalogBadges: BadgeCatalogItem[] = useMemo(() => {
     if (!badgeCatalog) {
@@ -126,10 +124,6 @@ export function ProfilePage() {
           </div>
           <BadgeCollection badges={badges} catalogBadges={catalogBadges} />
         </div>
-
-        {heatmapData && heatmapData.days.length > 0 && (
-          <ActivityHeatmap days={heatmapData.days} />
-        )}
 
         {profile.submissions && profile.submissions.length > 0 && (
           <SubmissionsShowcase submissions={profile.submissions} phaseThemes={phaseThemes} />

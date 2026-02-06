@@ -308,11 +308,9 @@ export interface paths {
          *
          *     For authenticated users:
          *     - Progress statistics
-         *     - Locking status based on completion
          *
          *     For unauthenticated users:
          *     - No progress (all null)
-         *     - Only Phase 0 unlocked, rest locked
          *
          *     Returns phases in order (0-6).
          */
@@ -336,7 +334,7 @@ export interface paths {
          * Get Phase Detail Endpoint
          * @description Get detailed phase info with topics.
          *
-         *     Unauthenticated: no progress, only first topic unlocked.
+         *     Unauthenticated: no progress, content is read-only.
          */
         get: operations["get_phase_detail_endpoint_api_user_phases__phase_slug__get"];
         put?: never;
@@ -647,7 +645,7 @@ export interface components {
          *     Used both as API schema and for defining phase requirements
          *     in services/phase_requirements_service.py.
          *
-         *     Currently supports Phase 0 and Phase 1 verification types.
+         *     Supports Phase 0 through Phase 6 verification types.
          *
          *     To add a new verification type:
          *     1. Add the SubmissionType enum value in models.py
@@ -669,6 +667,8 @@ export interface components {
             phase_id: number;
             /** Required Repo */
             required_repo?: string | null;
+            /** Submission Instructions */
+            submission_instructions?: string | null;
             submission_type: components["schemas"]["SubmissionType"];
         };
         /**
@@ -800,11 +800,6 @@ export interface components {
              * @default false
              */
             all_hands_on_validated: boolean;
-            /**
-             * All Topics Complete
-             * @default false
-             */
-            all_topics_complete: boolean;
             capstone?: components["schemas"]["PhaseCapstoneOverview"] | null;
             /** Description */
             description: string;
@@ -815,11 +810,6 @@ export interface components {
             hands_on_verification?: components["schemas"]["PhaseHandsOnVerificationOverview"] | null;
             /** Id */
             id: number;
-            /**
-             * Is Locked
-             * @default false
-             */
-            is_locked: boolean;
             /**
              * Is Phase Complete
              * @default false
@@ -880,11 +870,6 @@ export interface components {
             hands_on_verification?: components["schemas"]["PhaseHandsOnVerificationOverview"] | null;
             /** Id */
             id: number;
-            /**
-             * Is Locked
-             * @default false
-             */
-            is_locked: boolean;
             /** Name */
             name: string;
             /** Objectives */
@@ -1019,8 +1004,6 @@ export interface components {
         StepProgressData: {
             /** Completed Steps */
             completed_steps: number[];
-            /** Next Unlocked Step */
-            next_unlocked_step: number;
             /** Topic Id */
             topic_id: string;
             /** Total Steps */
@@ -1067,7 +1050,7 @@ export interface components {
          *     4. Add optional fields to HandsOnRequirement schema if needed
          * @enum {string}
          */
-        SubmissionType: "github_profile" | "profile_readme" | "repo_fork" | "ctf_token" | "networking_token" | "journal_api_response" | "code_analysis" | "deployed_api" | "container_image" | "cicd_pipeline" | "terraform_iac" | "kubernetes_manifests" | "security_scanning";
+        SubmissionType: "github_profile" | "profile_readme" | "repo_fork" | "ctf_token" | "networking_token" | "journal_api_response" | "code_analysis" | "deployed_api" | "container_image" | "cicd_pipeline" | "terraform_iac" | "kubernetes_manifests" | "devops_analysis" | "security_scanning";
         /**
          * TaskResult
          * @description Result of verifying a single task in code analysis.
@@ -1095,16 +1078,6 @@ export interface components {
             id: string;
             /** Is Capstone */
             is_capstone: boolean;
-            /**
-             * Is Locked
-             * @default false
-             */
-            is_locked: boolean;
-            /**
-             * Is Topic Locked
-             * @default false
-             */
-            is_topic_locked: boolean;
             /** Learning Objectives */
             learning_objectives?: components["schemas"]["LearningObjective"][];
             /** Learning Steps */
@@ -1113,8 +1086,6 @@ export interface components {
             name: string;
             /** Order */
             order: number;
-            /** Previous Topic Name */
-            previous_topic_name?: string | null;
             progress?: components["schemas"]["TopicProgressData"] | null;
             /** Slug */
             slug: string;
@@ -1144,11 +1115,6 @@ export interface components {
             id: string;
             /** Is Capstone */
             is_capstone: boolean;
-            /**
-             * Is Locked
-             * @default false
-             */
-            is_locked: boolean;
             /** Name */
             name: string;
             /** Order */
@@ -1622,6 +1588,13 @@ export interface operations {
             };
             /** @description Requirement not found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Verification already in progress */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

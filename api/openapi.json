@@ -385,7 +385,7 @@
         "type": "object"
       },
       "HandsOnRequirement": {
-        "description": "A hands-on requirement for phase completion.\n\nUsed both as API schema and for defining phase requirements\nin services/phase_requirements_service.py.\n\nCurrently supports Phase 0 and Phase 1 verification types.\n\nTo add a new verification type:\n1. Add the SubmissionType enum value in models.py\n2. Add optional fields here if needed (e.g., challenge_config)\n3. Implement the validator in hands_on_verification.py",
+        "description": "A hands-on requirement for phase completion.\n\nUsed both as API schema and for defining phase requirements\nin services/phase_requirements_service.py.\n\nSupports Phase 0 through Phase 6 verification types.\n\nTo add a new verification type:\n1. Add the SubmissionType enum value in models.py\n2. Add optional fields here if needed (e.g., challenge_config)\n3. Implement the validator in hands_on_verification.py",
         "properties": {
           "description": {
             "title": "Description",
@@ -435,6 +435,17 @@
               }
             ],
             "title": "Required Repo"
+          },
+          "submission_instructions": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Submission Instructions"
           },
           "submission_type": {
             "$ref": "#/components/schemas/SubmissionType"
@@ -801,11 +812,6 @@
             "title": "All Hands On Validated",
             "type": "boolean"
           },
-          "all_topics_complete": {
-            "default": false,
-            "title": "All Topics Complete",
-            "type": "boolean"
-          },
           "capstone": {
             "anyOf": [
               {
@@ -847,11 +853,6 @@
           "id": {
             "title": "Id",
             "type": "integer"
-          },
-          "is_locked": {
-            "default": false,
-            "title": "Is Locked",
-            "type": "boolean"
           },
           "is_phase_complete": {
             "default": false,
@@ -1009,11 +1010,6 @@
           "id": {
             "title": "Id",
             "type": "integer"
-          },
-          "is_locked": {
-            "default": false,
-            "title": "Is Locked",
-            "type": "boolean"
           },
           "name": {
             "title": "Name",
@@ -1341,10 +1337,6 @@
             "title": "Completed Steps",
             "type": "array"
           },
-          "next_unlocked_step": {
-            "title": "Next Unlocked Step",
-            "type": "integer"
-          },
           "topic_id": {
             "title": "Topic Id",
             "type": "string"
@@ -1357,8 +1349,7 @@
         "required": [
           "topic_id",
           "completed_steps",
-          "total_steps",
-          "next_unlocked_step"
+          "total_steps"
         ],
         "title": "StepProgressData",
         "type": "object"
@@ -1422,6 +1413,7 @@
           "cicd_pipeline",
           "terraform_iac",
           "kubernetes_manifests",
+          "devops_analysis",
           "security_scanning"
         ],
         "title": "SubmissionType",
@@ -1473,16 +1465,6 @@
             "title": "Is Capstone",
             "type": "boolean"
           },
-          "is_locked": {
-            "default": false,
-            "title": "Is Locked",
-            "type": "boolean"
-          },
-          "is_topic_locked": {
-            "default": false,
-            "title": "Is Topic Locked",
-            "type": "boolean"
-          },
           "learning_objectives": {
             "items": {
               "$ref": "#/components/schemas/LearningObjective"
@@ -1504,17 +1486,6 @@
           "order": {
             "title": "Order",
             "type": "integer"
-          },
-          "previous_topic_name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Previous Topic Name"
           },
           "progress": {
             "anyOf": [
@@ -1585,11 +1556,6 @@
           },
           "is_capstone": {
             "title": "Is Capstone",
-            "type": "boolean"
-          },
-          "is_locked": {
-            "default": false,
-            "title": "Is Locked",
             "type": "boolean"
           },
           "name": {
@@ -2273,6 +2239,9 @@
           "404": {
             "description": "Requirement not found"
           },
+          "409": {
+            "description": "Verification already in progress"
+          },
           "422": {
             "content": {
               "application/json": {
@@ -2533,7 +2502,7 @@
     },
     "/api/user/phases": {
       "get": {
-        "description": "Get all phases with progress for the current user.\n\nFor authenticated users:\n- Progress statistics\n- Locking status based on completion\n\nFor unauthenticated users:\n- No progress (all null)\n- Only Phase 0 unlocked, rest locked\n\nReturns phases in order (0-6).",
+        "description": "Get all phases with progress for the current user.\n\nFor authenticated users:\n- Progress statistics\n\nFor unauthenticated users:\n- No progress (all null)\n\nReturns phases in order (0-6).",
         "operationId": "get_phases_endpoint_api_user_phases_get",
         "responses": {
           "200": {
@@ -2559,7 +2528,7 @@
     },
     "/api/user/phases/{phase_slug}": {
       "get": {
-        "description": "Get detailed phase info with topics.\n\nUnauthenticated: no progress, only first topic unlocked.",
+        "description": "Get detailed phase info with topics.\n\nUnauthenticated: no progress, content is read-only.",
         "operationId": "get_phase_detail_endpoint_api_user_phases__phase_slug__get",
         "parameters": [
           {

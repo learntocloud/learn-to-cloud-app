@@ -47,6 +47,7 @@
         "submission_type": "security_scanning",
         "name": "Enabled Security Scanning",
         "description": "Demonstrates that the learner enabled security scanning and addressed findings with documented remediation or triage.",
+        "submission_instructions": "Paste the URL to your repository's security scanning page (e.g. https://github.com/your-username/journal-starter/security/code-scanning). Enable Dependabot, CodeQL, or another scanner, and ensure you have resolved or triaged at least some findings.",
         "example_url": "https://github.com/owner/repo/security/code-scanning"
       }
     ]

@@ -130,11 +130,12 @@ class SubmissionType(str, PyEnum):
     # Phase 4: Cloud deployment validation
     DEPLOYED_API = "deployed_api"
 
-    # Phase 5: DevOps artifacts
+    # Phase 5: DevOps artifacts (legacy individual types kept for DB compat)
     CONTAINER_IMAGE = "container_image"
     CICD_PIPELINE = "cicd_pipeline"
     TERRAFORM_IAC = "terraform_iac"
     KUBERNETES_MANIFESTS = "kubernetes_manifests"
+    DEVOPS_ANALYSIS = "devops_analysis"
 
     # Phase 6: Security posture
     SECURITY_SCANNING = "security_scanning"

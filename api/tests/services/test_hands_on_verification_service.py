@@ -194,20 +194,29 @@ class TestEvidenceUrlValidation:
         assert result.is_valid is True
 
     @pytest.mark.asyncio
-    async def test_deployed_api_uses_evidence_validation(self):
-        """DEPLOYED_API type should use evidence URL validator."""
+    async def test_deployed_api_routes_to_verification_service(self):
+        """DEPLOYED_API type should route to deployed_api_verification_service."""
         requirement = _make_requirement(
             SubmissionType.DEPLOYED_API,
             phase_id=4,
         )
 
-        result = await validate_submission(
-            requirement=requirement,
-            submitted_value="https://my-api.azurewebsites.net",
-            expected_username="testuser",
-        )
+        with patch(
+            "services.deployed_api_verification_service.validate_deployed_api",
+            new_callable=AsyncMock,
+        ) as mock:
+            mock.return_value = ValidationResult(
+                is_valid=True, message="Deployed API verified!"
+            )
 
-        assert result.is_valid is True
+            result = await validate_submission(
+                requirement=requirement,
+                submitted_value="https://my-api.azurewebsites.net",
+                expected_username="testuser",
+            )
+
+            mock.assert_called_once_with("https://my-api.azurewebsites.net")
+            assert result.is_valid is True
 
     @pytest.mark.asyncio
     async def test_container_image_uses_evidence_validation(self):
@@ -225,6 +234,33 @@ class TestEvidenceUrlValidation:
 
         assert result.is_valid is True
 
+    @pytest.mark.asyncio
+    async def test_devops_analysis_routes_to_devops_service(self):
+        """DEVOPS_ANALYSIS type should route to devops_verification_service."""
+        requirement = _make_requirement(
+            SubmissionType.DEVOPS_ANALYSIS,
+            phase_id=5,
+        )
+
+        with patch(
+            "services.devops_verification_service.analyze_devops_repository",
+            new_callable=AsyncMock,
+        ) as mock:
+            mock.return_value = ValidationResult(
+                is_valid=True, message="All DevOps tasks verified!"
+            )
+
+            result = await validate_submission(
+                requirement=requirement,
+                submitted_value="https://github.com/testuser/journal-starter",
+                expected_username="testuser",
+            )
+
+            mock.assert_called_once_with(
+                "https://github.com/testuser/journal-starter", "testuser"
+            )
+            assert result.is_valid is True
+
 
 @pytest.mark.unit
 class TestValidateSubmissionUsernameRequirements:
@@ -240,6 +276,7 @@ class TestValidateSubmissionUsernameRequirements:
             SubmissionType.CTF_TOKEN,
             SubmissionType.NETWORKING_TOKEN,
             SubmissionType.CODE_ANALYSIS,
+            SubmissionType.DEVOPS_ANALYSIS,
         ],
     )
     async def test_github_dependent_types_require_username(
@@ -264,7 +301,6 @@ class TestValidateSubmissionUsernameRequirements:
     @pytest.mark.parametrize(
         "submission_type",
         [
-            SubmissionType.DEPLOYED_API,
             SubmissionType.CONTAINER_IMAGE,
             SubmissionType.CICD_PIPELINE,
             SubmissionType.TERRAFORM_IAC,
@@ -286,6 +322,26 @@ class TestValidateSubmissionUsernameRequirements:
 
         # Should succeed because these don't require GitHub auth
         assert result.is_valid is True
+
+    @pytest.mark.asyncio
+    async def test_deployed_api_doesnt_require_username(self):
+        """DEPLOYED_API should not require username."""
+        requirement = _make_requirement(SubmissionType.DEPLOYED_API, phase_id=4)
+
+        with patch(
+            "services.deployed_api_verification_service.validate_deployed_api",
+            new_callable=AsyncMock,
+        ) as mock:
+            mock.return_value = ValidationResult(is_valid=True, message="API verified!")
+
+            result = await validate_submission(
+                requirement=requirement,
+                submitted_value="https://api.example.com",
+                expected_username=None,  # No username provided
+            )
+
+            # Should succeed - DEPLOYED_API doesn't require GitHub auth
+            assert result.is_valid is True
 
 
 @pytest.mark.unit

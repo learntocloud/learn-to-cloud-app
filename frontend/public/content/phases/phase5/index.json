@@ -36,41 +36,22 @@
     "topic_slug": "capstone"
   },
   "hands_on_verification": {
-    "summary": "Submit proof that you've built real DevOps artifacts that can be validated automatically.",
+    "summary": "Submit your journal-starter fork for automated DevOps artifact verification.",
     "includes": [
-      "Publish a public container image for your app",
-      "Show a successful GitHub Actions workflow run",
-      "Include Terraform config in an infra/ directory",
-      "Include Kubernetes manifests in a k8s/ directory"
+      "Add a Dockerfile to containerize your application",
+      "Create a GitHub Actions CI/CD workflow",
+      "Add Terraform configuration in an infra/ directory",
+      "Add Kubernetes manifests in a k8s/ directory"
     ],
     "requirements": [
       {
-        "id": "container-image",
-        "submission_type": "container_image",
-        "name": "Published a Container Image",
-        "description": "Demonstrates that the learner can containerize an application and publish an image to a registry.",
-        "example_url": "https://ghcr.io/owner/app"
-      },
-      {
-        "id": "cicd-pipeline",
-        "submission_type": "cicd_pipeline",
-        "name": "Built a CI/CD Pipeline",
-        "description": "Demonstrates that the learner can automate build and deployment with a CI/CD workflow run.",
-        "example_url": "https://github.com/owner/repo/actions/runs/123456789"
-      },
-      {
-        "id": "terraform-iac",
-        "submission_type": "terraform_iac",
-        "name": "Provisioned Infrastructure with Terraform",
-        "description": "Demonstrates that the learner can define and manage infrastructure as code with Terraform.",
-        "example_url": "https://github.com/owner/repo/tree/main/infra"
-      },
-      {
-        "id": "kubernetes-manifests",
-        "submission_type": "kubernetes_manifests",
-        "name": "Authored Kubernetes Manifests",
-        "description": "Demonstrates that the learner can describe and deploy workloads using Kubernetes manifests.",
-        "example_url": "https://github.com/owner/repo/tree/main/k8s"
+        "id": "devops-implementation",
+        "submission_type": "devops_analysis",
+        "name": "Implemented DevOps Practices",
+        "description": "Verifies that your journal-starter fork includes a Dockerfile, CI/CD pipeline, Terraform configuration, and Kubernetes manifests.",
+        "submission_instructions": "Paste the URL to your journal-starter fork (e.g. https://github.com/your-username/journal-starter). The system will scan your repo for a Dockerfile, a CI/CD workflow in .github/workflows/, Terraform files in an infra/ directory, and Kubernetes manifests in a k8s/ directory.",
+        "example_url": "https://github.com/your-username/journal-starter",
+        "note": "You can only verify once per hour."
       }
     ]
   },

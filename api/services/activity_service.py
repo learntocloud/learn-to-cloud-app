@@ -22,7 +22,7 @@ async def log_activity(
     activity_type: ActivityType,
     reference_id: str | None = None,
 ) -> ActivityResult:
-    """Log a user activity for streak and heatmap tracking."""
+    """Log a user activity for streak tracking."""
     today = datetime.now(UTC).date()
 
     add_custom_attribute("activity.type", activity_type.value)

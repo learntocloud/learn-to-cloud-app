@@ -45,6 +45,7 @@
         "submission_type": "repo_fork",
         "name": "Forked the Networking Lab Repo",
         "description": "Demonstrates that the learner understands forking, can create a fork, and can contribute to shared or open-source codebases.",
+        "submission_instructions": "Paste the URL to your fork of the networking-lab repo (e.g. https://github.com/your-username/networking-lab). The system will verify it is a fork of learntocloud/networking-lab under your GitHub account.",
         "example_url": "https://github.com/madebygps/networking-lab",
         "required_repo": "learntocloud/networking-lab"
       },
@@ -52,7 +53,8 @@
         "id": "networking-lab-token",
         "submission_type": "networking_token",
         "name": "Completed Networking Lab",
-        "description": "Demonstrates that the learner has successfully completed all four networking challenges and verified completion with a token."
+        "description": "Demonstrates that the learner has successfully completed all four networking challenges and verified completion with a token.",
+        "submission_instructions": "Paste the completion token you received after finishing all four networking challenges. The token is displayed at the end of the lab."
       }
     ]
   },

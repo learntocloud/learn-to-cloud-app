@@ -82,6 +82,9 @@ class HandsOnRequirement(FrozenModel):
     description: str
     example_url: str | None = None
     note: str | None = None  # Optional note displayed separately (e.g., cooldown info)
+    # Actionable instructions for the verification form (what to submit).
+    # Falls back to `description` if not set.
+    submission_instructions: str | None = None
 
     # For REPO_FORK: the original repo to verify fork from
     required_repo: str | None = None
@@ -826,19 +829,6 @@ class ActivityResult(FrozenModel):
     activity_date: date
     reference_id: str | None = None
     created_at: datetime
-
-
-class ActivityHeatmapDay(FrozenModel):
-    """A single day's activity count for the heatmap."""
-
-    date: date
-    count: int
-
-
-class ActivityHeatmapResponse(FrozenModel):
-    """Activity heatmap data for a user's public profile."""
-
-    days: list[ActivityHeatmapDay]
 
 
 # =============================================================================

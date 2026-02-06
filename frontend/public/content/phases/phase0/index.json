@@ -54,6 +54,7 @@
         "submission_type": "github_profile",
         "name": "Created a Public GitHub Profile",
         "description": "Demonstrates that the learner has created a GitHub account and maintains a public developer profile.",
+        "submission_instructions": "Paste your GitHub profile URL (e.g. https://github.com/your-username). The system will verify your profile exists and matches your connected GitHub account.",
         "example_url": "https://github.com/madebygps"
       }
     ]
