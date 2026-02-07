@@ -155,9 +155,8 @@ jobs:
           docker run --rm -d --name smoke-test -p 8000:8000 \
             --link smoke-test-db:db \
             -e DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/learntocloud \
-            -e SESSION_SECRET_KEY=test-secret-for-ci \
-            -e GITHUB_CLIENT_ID=test \
-            -e GITHUB_CLIENT_SECRET=test \
+            -e DEBUG=true \
+            -e REQUIRE_HTTPS=false \
             ${{ needs.terraform.outputs.container_registry_endpoint }}/api:${{ github.sha }}
           sleep 10
           curl -f http://localhost:8000/health || (docker logs smoke-test && exit 1)
