@@ -1,0 +1,85 @@
+<!-- Requirement card for hands-on verification -->
+<div id="requirement-{{ requirement.id }}" class="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+    <div class="flex items-center justify-between mb-2">
+        <h4 class="font-medium text-gray-900 dark:text-gray-100">{{ requirement.name }}</h4>
+        {% if submission and submission.is_validated %}
+        <span class="inline-flex items-center rounded-full bg-green-100 dark:bg-green-900 px-2.5 py-0.5 text-xs font-medium text-green-800 dark:text-green-200">
+            ✓ Verified
+        </span>
+        {% elif submission and not submission.is_validated %}
+        <span class="inline-flex items-center rounded-full bg-red-100 dark:bg-red-900 px-2.5 py-0.5 text-xs font-medium text-red-800 dark:text-red-200">
+            ✗ Failed
+        </span>
+        {% endif %}
+    </div>
+
+    {% if requirement.description %}
+    <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">{{ requirement.description }}</p>
+    {% endif %}
+
+    {% if not submission or not submission.is_validated %}
+    <form
+        hx-post="/htmx/github/submit"
+        hx-target="#requirement-{{ requirement.id }}"
+        hx-swap="outerHTML"
+        hx-indicator="#spinner-{{ requirement.id }}"
+        class="flex gap-2"
+    >
+        <input type="hidden" name="requirement_id" value="{{ requirement.id }}">
+        <input type="hidden" name="phase_id" value="{{ phase_id }}">
+        <input type="hidden" name="submission_type" value="{{ requirement.submission_type }}">
+
+        {% if requirement.submission_type in ['journal_api_response', 'code_analysis'] %}
+        <textarea
+            name="submitted_value"
+            rows="3"
+            placeholder="{{ requirement.placeholder | default('Paste your response here...') }}"
+            class="flex-1 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+            required
+        >{% if submission %}{{ submission.submitted_value }}{% endif %}</textarea>
+        {% else %}
+        <input
+            type="url"
+            name="submitted_value"
+            placeholder="{{ requirement.placeholder | default('https://github.com/...') }}"
+            value="{% if submission %}{{ submission.submitted_value }}{% endif %}"
+            class="flex-1 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+            required
+        >
+        {% endif %}
+
+        <button
+            type="submit"
+            class="inline-flex items-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-500 disabled:opacity-50"
+        >
+            Verify
+        </button>
+        <span id="spinner-{{ requirement.id }}" class="htmx-indicator inline-flex items-center text-sm text-gray-500">
+            Checking...
+        </span>
+    </form>
+    {% endif %}
+
+    {% if feedback_tasks %}
+    <div class="mt-3 space-y-1" x-data="{ expanded: false }">
+        <button @click="expanded = !expanded" class="text-sm text-blue-600 dark:text-blue-400 hover:underline">
+            <span x-text="expanded ? 'Hide details' : 'Show details'"></span>
+            ({{ feedback_passed }}/{{ feedback_tasks | length }} passed)
+        </button>
+        <div x-show="expanded" x-collapse class="space-y-1 mt-2">
+            {% for task in feedback_tasks %}
+            <div class="flex items-center gap-2 text-sm">
+                {% if task.passed %}
+                <span class="text-green-500">✓</span>
+                {% else %}
+                <span class="text-red-500">✗</span>
+                {% endif %}
+                <span class="{% if task.passed %}text-gray-600 dark:text-gray-400{% else %}text-red-600 dark:text-red-400{% endif %}">
+                    {{ task.name }}{% if task.message %}: {{ task.message }}{% endif %}
+                </span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>

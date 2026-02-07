@@ -18,7 +18,7 @@ class CertificateRepository:
     async def get_by_id_and_user(
         self,
         certificate_id: int,
-        user_id: str,
+        user_id: int,
     ) -> Certificate | None:
         """Get a certificate by ID that belongs to a specific user."""
         result = await self.db.execute(
@@ -43,7 +43,7 @@ class CertificateRepository:
 
     async def get_by_user(
         self,
-        user_id: str,
+        user_id: int,
         *,
         limit: int = 100,
     ) -> Sequence[Certificate]:
@@ -63,7 +63,7 @@ class CertificateRepository:
 
     async def get_by_user_and_type(
         self,
-        user_id: str,
+        user_id: int,
         certificate_type: str,
     ) -> Certificate | None:
         """Get a specific type of certificate for a user."""
@@ -77,7 +77,7 @@ class CertificateRepository:
 
     async def create(
         self,
-        user_id: str,
+        user_id: int,
         certificate_type: str,
         verification_code: str,
         recipient_name: str,

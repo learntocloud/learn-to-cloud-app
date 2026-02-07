@@ -51,7 +51,7 @@ class UserResponse(UserBase):
 
     model_config = ConfigDict(frozen=True, from_attributes=True)
 
-    id: str
+    id: int
     is_admin: bool = False
     created_at: datetime
 
@@ -462,6 +462,7 @@ class LearningStep(FrozenModel):
     title: str | None = None
     url: str | None = None
     description: str | None = None
+    checklist: list[str] = Field(default_factory=list)
     code: str | None = None
     secondary_links: list[SecondaryLink] = Field(default_factory=list)
     options: list[ProviderOption] = Field(default_factory=list)
@@ -672,7 +673,7 @@ PhaseDetailSchema = PhaseDetailData
 class UserSummaryData(FrozenModel):
     """User summary data (service-layer response model)."""
 
-    id: str
+    id: int
     email: str
     first_name: str | None = None
     last_name: str | None = None
@@ -767,7 +768,7 @@ class PhaseProgress(FrozenModel):
 class UserProgress(FrozenModel):
     """Complete progress summary for a user."""
 
-    user_id: str
+    user_id: int
     phases: dict[int, PhaseProgress]
     total_phases: int
 

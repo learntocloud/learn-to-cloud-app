@@ -9,8 +9,7 @@
     {
       "order": 1,
       "text": "Learn FastAPI deployment on your cloud provider",
-      "action": "Learn FastAPI deployment on your cloud provider:",
-      "url": null,
+      "action": "Learn FastAPI deployment on your cloud provider",
       "description": "Each cloud provider has slightly different approaches. Follow the guide for your chosen platform:",
       "options": [
         {
@@ -36,31 +35,27 @@
     {
       "order": 2,
       "text": "Environment Variables",
-      "action": "Environment Variables:",
-      "url": null,
+      "action": "Environment Variables",
       "description": "Never hardcode secrets! Store sensitive configuration like database credentials and API keys in environment variables:",
       "code": "# On Linux, add to /etc/environment or use systemd\nexport DATABASE_URL=\"postgresql://user:pass@db-server:5432/journal\"\nexport LLM_API_KEY=\"your-api-key\"\n\n# In your FastAPI app\nimport os\ndb_url = os.getenv(\"DATABASE_URL\")\napi_key = os.getenv(\"LLM_API_KEY\")"
     },
     {
       "order": 3,
       "text": "Configure Security Groups/Firewall",
-      "action": "Configure Security Groups/Firewall:",
-      "url": null,
-      "description": "Set up rules to allow external HTTP traffic to your FastAPI application:\n\n• Allow inbound TCP port 80 (HTTP) or 443 (HTTPS)\n• Allow inbound TCP port 8000 (FastAPI default) if not using a reverse proxy\n• Restrict SSH access to your IP only\n• Ensure the database port (5432) is NOT exposed to the internet"
+      "action": "Configure Security Groups/Firewall",
+      "description": "Set up rules to allow external HTTP traffic to your FastAPI application:\n\n- Allow inbound TCP port 80 (HTTP) or 443 (HTTPS)\n- Allow inbound TCP port 8000 (FastAPI default) if not using a reverse proxy\n- Restrict SSH access to your IP only\n- Ensure the database port (5432) is NOT exposed to the internet"
     },
     {
-      "order": 5,
+      "order": 4,
       "text": "Running FastAPI in Production",
-      "action": "Running FastAPI in Production:",
-      "url": null,
+      "action": "Running FastAPI in Production",
       "description": "Use a process manager to keep your app running:",
       "code": "# Install uvicorn with standard extras\npip install 'uvicorn[standard]'\n\n# Run with multiple workers\nuvicorn main:app --host 0.0.0.0 --port 8000 --workers 4\n\n# Or use a systemd service for persistence\n# Create /etc/systemd/system/fastapi.service"
     },
     {
       "order": 5,
       "text": "Hands-on Task",
-      "action": "Hands-on Task:",
-      "url": null,
+      "action": "Hands-on Task",
       "description": "Deploy a FastAPI application on a cloud-based VM within the Public Subnet:\n\n1. Deploy a VM in the public subnet\n2. Install Python and dependencies\n3. Clone your FastAPI application code\n4. Configure environment variables for secrets\n5. Set up security groups for HTTP traffic\n6. Start the application with uvicorn\n7. Verify the API is accessible from the internet via /docs"
     }
   ]

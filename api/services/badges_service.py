@@ -109,7 +109,7 @@ def compute_phase_badges(
 
 def compute_all_badges(
     phase_completion_counts: dict[int, tuple[int, bool]],
-    user_id: str | None = None,
+    user_id: int | None = None,
 ) -> list[BadgeData]:
     """Compute all badges a user has earned.
 

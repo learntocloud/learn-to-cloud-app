@@ -96,7 +96,7 @@ def _validate_step_order(topic_id: str, step_order: int) -> int:
 
 async def get_topic_step_progress(
     db: AsyncSession,
-    user_id: str,
+    user_id: int,
     topic_id: str,
 ) -> StepProgressData:
     """Get the step progress for a topic.
@@ -128,7 +128,7 @@ async def get_topic_step_progress(
 @track_operation("step_completion")
 async def complete_step(
     db: AsyncSession,
-    user_id: str,
+    user_id: int,
     topic_id: str,
     step_order: int,
 ) -> StepCompletionResult:
@@ -186,7 +186,7 @@ async def complete_step(
 
 async def uncomplete_step(
     db: AsyncSession,
-    user_id: str,
+    user_id: int,
     topic_id: str,
     step_order: int,
 ) -> int:

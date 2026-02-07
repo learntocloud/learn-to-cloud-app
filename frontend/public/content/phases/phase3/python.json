@@ -15,12 +15,12 @@
       "description": "Purchase or borrow Python Crash Course by Eric Matthes. We'll work through Part I (chapters 1-11), which covers all the Python fundamentals you need."
     },
     {
-      "order": 3,
+      "order": 2,
       "text": "Chapter 1: Getting Started",
       "action": "Read Chapter 1:",
       "title": "Getting Started",
-      "url": null,
-      "description": "Set up your Python environment, install VS Code, and write your first 'Hello World' program."
+      "description": "Set up your Python environment, install VS Code, and write your first 'Hello World' program.",
+      "url": "https://nostarch.com/python-crash-course-3rd-edition"
     },
     {
       "order": 3,
@@ -35,72 +35,72 @@
       "text": "Chapter 3: Introducing Lists",
       "action": "Read Chapter 3:",
       "title": "Introducing Lists",
-      "url": null,
-      "description": "Create lists, access elements by index, and use methods like append, insert, and remove."
+      "description": "Create lists, access elements by index, and use methods like append, insert, and remove.",
+      "url": "https://nostarch.com/python-crash-course-3rd-edition"
     },
     {
       "order": 5,
       "text": "Chapter 4: Working with Lists",
       "action": "Read Chapter 4:",
       "title": "Working with Lists",
-      "url": null,
-      "description": "Master for loops, list comprehensions, slicing, and tuples."
+      "description": "Master for loops, list comprehensions, slicing, and tuples.",
+      "url": "https://nostarch.com/python-crash-course-3rd-edition"
     },
     {
       "order": 6,
       "text": "Chapter 5: if Statements",
       "action": "Read Chapter 5:",
       "title": "if Statements",
-      "url": null,
-      "description": "Learn conditional logic: if, elif, else, and boolean expressions."
+      "description": "Learn conditional logic: if, elif, else, and boolean expressions.",
+      "url": "https://nostarch.com/python-crash-course-3rd-edition"
     },
     {
       "order": 7,
       "text": "Chapter 6: Dictionaries",
       "action": "Read Chapter 6:",
       "title": "Dictionaries",
-      "url": null,
-      "description": "Understand key-value pairs—essential for working with JSON and APIs."
+      "description": "Understand key-value pairs—essential for working with JSON and APIs.",
+      "url": "https://nostarch.com/python-crash-course-3rd-edition"
     },
     {
       "order": 8,
       "text": "Chapter 7: User Input and while Loops",
       "action": "Read Chapter 7:",
       "title": "User Input and while Loops",
-      "url": null,
-      "description": "Accept user input and control program flow with while loops."
+      "description": "Accept user input and control program flow with while loops.",
+      "url": "https://nostarch.com/python-crash-course-3rd-edition"
     },
     {
       "order": 9,
       "text": "Chapter 8: Functions",
       "action": "Read Chapter 8:",
       "title": "Functions",
-      "url": null,
-      "description": "Define functions, pass arguments, and return values. The building blocks of clean code."
+      "description": "Define functions, pass arguments, and return values. The building blocks of clean code.",
+      "url": "https://nostarch.com/python-crash-course-3rd-edition"
     },
     {
       "order": 10,
       "text": "Chapter 9: Classes",
       "action": "Read Chapter 9:",
       "title": "Classes",
-      "url": null,
-      "description": "Introduction to object-oriented programming: classes, instances, attributes, and methods."
+      "description": "Introduction to object-oriented programming: classes, instances, attributes, and methods.",
+      "url": "https://nostarch.com/python-crash-course-3rd-edition"
     },
     {
       "order": 11,
       "text": "Chapter 10: Files and Exceptions",
       "action": "Read Chapter 10:",
       "title": "Files and Exceptions",
-      "url": null,
-      "description": "Read and write files, handle errors gracefully with try/except."
+      "description": "Read and write files, handle errors gracefully with try/except.",
+      "url": "https://nostarch.com/python-crash-course-3rd-edition"
     },
     {
       "order": 12,
       "text": "Chapter 11: Testing Your Code",
       "action": "Read Chapter 11:",
       "title": "Testing Your Code",
-      "url": null,
-      "description": "Write tests with pytest—a professional skill that catches bugs early."
+      "description": "Write tests with pytest—a professional skill that catches bugs early.",
+      "url": "https://nostarch.com/python-crash-course-3rd-edition"
     },
     {
       "order": 13,
@@ -115,7 +115,6 @@
       "text": "Networking Refresher: Python HTTP Client",
       "action": "Practice:",
       "title": "Build a Simple HTTP Client",
-      "url": null,
       "description": "Reinforce your Phase 2 networking knowledge: write a Python script using the requests library to fetch data from an API, inspect response headers and status codes, and handle connection errors gracefully. This connects Python to the HTTP concepts you learned earlier."
     }
   ]

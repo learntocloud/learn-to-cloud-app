@@ -26,7 +26,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from models import (
     ActivityType,
     Certificate,
-    ProcessedWebhook,
     StepProgress,
     Submission,
     SubmissionType,
@@ -112,8 +111,8 @@ class UserFactory(factory.Factory):
     class Meta:
         model = User
 
-    # Clerk-style user ID
-    id = factory.LazyFunction(lambda: f"user_{fake.uuid4().replace('-', '')[:24]}")
+    # GitHub numeric user ID
+    id = factory.LazyFunction(lambda: fake.random_int(100000, 99999999))
     email = factory.LazyAttribute(lambda _: fake.email())
     first_name = factory.LazyAttribute(lambda _: fake.first_name())
     last_name = factory.LazyAttribute(lambda _: fake.last_name())
@@ -259,16 +258,3 @@ class CertificateFactory(factory.Factory):
 # =============================================================================
 # Webhook Factory
 # =============================================================================
-
-
-class ProcessedWebhookFactory(factory.Factory):
-    """Factory for creating ProcessedWebhook instances."""
-
-    class Meta:
-        model = ProcessedWebhook
-
-    id = factory.LazyFunction(lambda: f"evt_{fake.uuid4().replace('-', '')[:24]}")
-    event_type = factory.LazyAttribute(
-        lambda _: fake.random_element(["user.created", "user.updated", "user.deleted"])
-    )
-    processed_at = factory.LazyFunction(lambda: datetime.now(UTC))

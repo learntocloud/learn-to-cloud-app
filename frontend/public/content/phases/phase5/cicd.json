@@ -9,8 +9,7 @@
     {
       "order": 1,
       "text": "Understand CI/CD",
-      "action": "Understand CI/CD:",
-      "url": null,
+      "action": "Understand CI/CD",
       "description": "Learn the fundamentals of continuous integration and continuous deployment.",
       "secondary_links": [
         {
@@ -34,8 +33,7 @@
     {
       "order": 3,
       "text": "Choose a CI/CD Tool",
-      "action": "Choose a CI/CD Tool:",
-      "url": null,
+      "action": "Choose a CI/CD Tool",
       "description": "Learn about implementing CI/CD pipelines with these tools:",
       "secondary_links": [
         {
@@ -60,14 +58,12 @@
       "order": 4,
       "text": "Basic CI/CD Pipeline Setup",
       "action": "Hands-on: Basic CI/CD Pipeline Setup",
-      "url": null,
-      "description": "Set up a basic CI/CD pipeline for your containerized application:\n\n1. Use GitHub Actions (or your preferred tool) to automatically:\n   • Build your application\n   • Run tests\n   • Build a Docker image\n   • Push the image to a container registry\n2. Configure the pipeline to trigger on code commits to your main branch\n3. Add a notification system for successful deployments or failures"
+      "description": "Set up a basic CI/CD pipeline for your containerized application:\n\n1. Use GitHub Actions (or your preferred tool) to automatically:\n   - Build your application\n   - Run tests\n   - Build a Docker image\n   - Push the image to a container registry\n2. Configure the pipeline to trigger on code commits to your main branch\n3. Add a notification system for successful deployments or failures"
     },
     {
-      "order": 6,
+      "order": 5,
       "text": "Sample GitHub Actions Workflow",
-      "action": "Sample GitHub Actions Workflow:",
-      "url": null,
+      "action": "Sample GitHub Actions Workflow",
       "description": "Basic workflow for building and pushing Docker images:",
       "code": "name: Build and Push\n\non:\n  push:\n    branches: [main]\n\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      \n      - name: Build Docker image\n        run: docker build -t myapp:${{ github.sha }} .\n      \n      - name: Login to Registry\n        run: echo ${{ secrets.REGISTRY_PASSWORD }} | docker login -u ${{ secrets.REGISTRY_USER }} --password-stdin\n      \n      - name: Push image\n        run: docker push myapp:${{ github.sha }}"
     },
@@ -75,8 +71,8 @@
       "order": 6,
       "text": "Advanced Challenge",
       "action": "Advanced Challenge (Optional):",
-      "url": null,
-      "description": "Implement a multi-environment deployment pipeline:\n\n1. Deploy to staging first\n2. Run automated tests against staging\n3. Require manual approval for production\n4. Promote to production after approval"
+      "description": "Implement a multi-environment deployment pipeline:\n\n1. Deploy to staging first\n2. Run automated tests against staging\n3. Require manual approval for production\n4. Promote to production after approval",
+      "title": "Advanced Challenge"
     }
   ]
 }

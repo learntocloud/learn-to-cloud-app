@@ -11,7 +11,6 @@
       "text": "Set Up the Lab Environment",
       "action": "Setup:",
       "title": "Create Your Troubleshooting Lab",
-      "url": null,
       "description": "Set up a local Docker environment with multiple containers that have intentional network misconfigurations. Follow the lab guide to create DNS issues, firewall blocks, and routing problems to diagnose."
     },
     {
@@ -19,7 +18,6 @@
       "text": "Diagnostic Tools Review",
       "action": "Review:",
       "title": "Your Troubleshooting Toolkit",
-      "url": null,
       "description": "Ensure you're comfortable with: ping (connectivity), traceroute (path), dig/nslookup (DNS), curl (HTTP), netstat/ss (ports), tcpdump (packets). Each tool reveals different information."
     },
     {
@@ -27,7 +25,6 @@
       "text": "Scenario 1: DNS Resolution Failure",
       "action": "Diagnose:",
       "title": "Why Can't I Resolve This Hostname?",
-      "url": null,
       "description": "A container can't reach a service by name. Use dig and nslookup to identify whether the issue is DNS configuration, missing records, or resolver problems."
     },
     {
@@ -35,7 +32,6 @@
       "text": "Scenario 2: Connection Refused",
       "action": "Diagnose:",
       "title": "Why Is the Connection Refused?",
-      "url": null,
       "description": "A service shows 'connection refused'. Determine if the service isn't running, is bound to the wrong interface, or if a firewall is blocking traffic."
     },
     {
@@ -43,7 +39,6 @@
       "text": "Scenario 3: Timeout Issues",
       "action": "Diagnose:",
       "title": "Why Is It Timing Out?",
-      "url": null,
       "description": "Requests to a service time out instead of failing fast. Use traceroute and tcpdump to identify where packets are being dropped or if there's a routing issue."
     },
     {
@@ -51,7 +46,6 @@
       "text": "Scenario 4: TLS/Certificate Errors",
       "action": "Diagnose:",
       "title": "Why Is the Certificate Invalid?",
-      "url": null,
       "description": "HTTPS requests fail with certificate errors. Use openssl s_client and curl -v to diagnose certificate chain issues, expiration, or hostname mismatches."
     },
     {
@@ -59,7 +53,6 @@
       "text": "Document Your Findings",
       "action": "Document:",
       "title": "Write Your Troubleshooting Report",
-      "url": null,
       "description": "For each issue: document the symptoms, the diagnostic commands you ran, what they revealed, and how you fixed the problem. This documentation skill is valuable in real incidents."
     },
     {
@@ -67,7 +60,6 @@
       "text": "Apply Fixes and Verify",
       "action": "Fix:",
       "title": "Resolve All Issues",
-      "url": null,
       "description": "Apply your fixes and verify each issue is resolved. Ensure all services can communicate as expected. Your troubleshooting report is your capstone deliverable."
     }
   ]

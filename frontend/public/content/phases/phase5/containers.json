@@ -39,7 +39,7 @@
       "description": "Learn how containers enable running MCP servers that integrate with LLMs and AI tools."
     },
     {
-      "order": 6,
+      "order": 5,
       "text": "Container Registries",
       "action": "Container Registries:",
       "title": "What is a Container Registry?",
@@ -49,8 +49,7 @@
     {
       "order": 6,
       "text": "Push to Container Registries",
-      "action": "Push to Container Registries:",
-      "url": null,
+      "action": "Push to Container Registries",
       "description": "Learn how to containerize an application and deploy to different registries:",
       "secondary_links": [
         {
@@ -75,14 +74,12 @@
       "order": 7,
       "text": "Basic Containerization Project",
       "action": "Hands-on: Basic Containerization Project",
-      "url": null,
       "description": "1. Create a simple application (or use an existing one)\n2. Write a Dockerfile for the application\n3. Build the Docker image\n4. Run the container locally and test functionality\n5. Create an account on DockerHub or another container registry\n6. Tag and push your image to the registry\n7. Pull and run your image on a different machine to verify portability"
     },
     {
       "order": 8,
       "text": "Sample Dockerfile",
-      "action": "Sample Dockerfile:",
-      "url": null,
+      "action": "Sample Dockerfile",
       "description": "Here's a basic Dockerfile for a FastAPI application:",
       "code": "FROM python:3.11-slim\n\nWORKDIR /app\n\nCOPY requirements.txt .\nRUN pip install --no-cache-dir -r requirements.txt\n\nCOPY . .\n\nEXPOSE 8000\n\nCMD [\"uvicorn\", \"main:app\", \"--host\", \"0.0.0.0\", \"--port\", \"8000\"]"
     },
@@ -90,7 +87,6 @@
       "order": 9,
       "text": "Run GitHub MCP Server",
       "action": "Advanced: Run the GitHub MCP Server Locally",
-      "url": null,
       "description": "1. Ensure you have Docker Desktop and GitHub Copilot installed\n2. Install the official GitHub MCP Server in Docker Desktop\n3. Create a GitHub Personal Access Token and provide it to the server\n4. Enable MCP Gateway in VSCode with `docker mcp gateway run`\n5. Enable Agent mode in GitHub Copilot\n6. Explore and test - Query your repos and perform GitHub operations",
       "secondary_links": [
         {
@@ -102,8 +98,7 @@
     {
       "order": 10,
       "text": "Troubleshooting",
-      "action": "Troubleshooting:",
-      "url": null,
+      "action": "Troubleshooting",
       "description": "Common issues and solutions:",
       "secondary_links": [
         {

@@ -63,8 +63,9 @@ def test_settings() -> Settings:
     """
     return Settings(
         database_url=TEST_DATABASE_URL,
-        clerk_secret_key="test_clerk_secret",
-        clerk_webhook_signing_secret="test_webhook_secret",
+        github_client_id="test_github_client_id",
+        github_client_secret="test_github_client_secret",
+        session_secret_key="test_session_secret_key_for_testing",
         github_token="test_github_token",
         google_api_key="test_google_api_key",
         labs_verification_secret="test_ctf_secret_must_be_32_chars!",

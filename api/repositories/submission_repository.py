@@ -16,7 +16,7 @@ class SubmissionRepository:
         self.db = db
 
     async def get_by_user_and_phase(
-        self, user_id: str, phase_id: int
+        self, user_id: int, phase_id: int
     ) -> list[Submission]:
         """Get all submissions for a user in a specific phase."""
         result = await self.db.execute(
@@ -27,7 +27,7 @@ class SubmissionRepository:
         )
         return list(result.scalars().all())
 
-    async def get_validated_by_user(self, user_id: str) -> list[Submission]:
+    async def get_validated_by_user(self, user_id: int) -> list[Submission]:
         """Get all validated submissions for a user."""
         result = await self.db.execute(
             select(Submission)
@@ -39,7 +39,7 @@ class SubmissionRepository:
         )
         return list(result.scalars().all())
 
-    async def get_validated_counts_by_phase(self, user_id: str) -> dict[int, int]:
+    async def get_validated_counts_by_phase(self, user_id: int) -> dict[int, int]:
         result = await self.db.execute(
             select(
                 Submission.phase_id,
@@ -54,7 +54,7 @@ class SubmissionRepository:
         return {row[0]: row[1] for row in result.all()}
 
     async def get_by_user_and_requirement(
-        self, user_id: str, requirement_id: str
+        self, user_id: int, requirement_id: str
     ) -> Submission | None:
         result = await self.db.execute(
             select(Submission).where(
@@ -66,7 +66,7 @@ class SubmissionRepository:
 
     async def upsert(
         self,
-        user_id: str,
+        user_id: int,
         requirement_id: str,
         submission_type: SubmissionType,
         phase_id: int,
@@ -134,7 +134,7 @@ class SubmissionRepository:
 
     async def get_last_submission_time(
         self,
-        user_id: str,
+        user_id: int,
         requirement_id: str,
     ) -> datetime | None:
         """Get the timestamp of the user's most recent completed verification.

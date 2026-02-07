@@ -17,7 +17,7 @@ class StepProgressRepository:
 
     async def get_by_user_and_topic(
         self,
-        user_id: str,
+        user_id: int,
         topic_id: str,
     ) -> Sequence[StepProgress]:
         """Get all completed steps for a user in a topic."""
@@ -33,7 +33,7 @@ class StepProgressRepository:
 
     async def get_completed_step_orders(
         self,
-        user_id: str,
+        user_id: int,
         topic_id: str,
     ) -> set[int]:
         """Get set of completed step orders for a user in a topic."""
@@ -47,7 +47,7 @@ class StepProgressRepository:
 
     async def exists(
         self,
-        user_id: str,
+        user_id: int,
         topic_id: str,
         step_order: int,
     ) -> bool:
@@ -63,7 +63,7 @@ class StepProgressRepository:
 
     async def create(
         self,
-        user_id: str,
+        user_id: int,
         topic_id: str,
         step_order: int,
         *,
@@ -86,7 +86,7 @@ class StepProgressRepository:
 
     async def create_if_not_exists(
         self,
-        user_id: str,
+        user_id: int,
         topic_id: str,
         step_order: int,
         *,
@@ -121,7 +121,7 @@ class StepProgressRepository:
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def get_step_counts_by_phase(self, user_id: str) -> dict[int, int]:
+    async def get_step_counts_by_phase(self, user_id: int) -> dict[int, int]:
         result = await self.db.execute(
             select(StepProgress.phase_id, func.count(StepProgress.id))
             .where(StepProgress.user_id == user_id)
@@ -131,7 +131,7 @@ class StepProgressRepository:
 
     async def delete_from_step(
         self,
-        user_id: str,
+        user_id: int,
         topic_id: str,
         from_step_order: int,
     ) -> int:
@@ -145,7 +145,7 @@ class StepProgressRepository:
         )
         return result.rowcount or 0
 
-    async def get_completed_step_topic_ids(self, user_id: str) -> list[str]:
+    async def get_completed_step_topic_ids(self, user_id: int) -> list[str]:
         """Get all topic IDs where user has completed steps.
 
         Returns topic_ids in format: phase{N}-topic{M}
@@ -157,7 +157,7 @@ class StepProgressRepository:
         )
         return [row[0] for row in result.all()]
 
-    async def get_all_completed_by_user(self, user_id: str) -> dict[str, set[int]]:
+    async def get_all_completed_by_user(self, user_id: int) -> dict[str, set[int]]:
         """Get all completed steps for a user, grouped by topic."""
         result = await self.db.execute(
             select(StepProgress.topic_id, StepProgress.step_order).where(

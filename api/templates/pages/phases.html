@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}Phases - Learn to Cloud{% endblock %}
+
+{% block content %}
+<h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-8">Learning Phases</h1>
+
+<div class="space-y-4">
+    {% for phase in phases %}
+    <div class="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden" x-data="{ open: false }">
+        <button
+            @click="open = !open"
+            class="w-full flex items-center justify-between p-6 text-left hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+        >
+            <div class="flex items-center gap-4">
+                {% if phase.theme and phase.theme.icon %}
+                <span class="text-3xl">{{ phase.theme.icon }}</span>
+                {% endif %}
+                <div>
+                    <h2 class="text-lg font-semibold text-gray-900 dark:text-white">{{ phase.name }}</h2>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">{{ phase.topics | length }} topics</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-4">
+                {% if phase.progress %}
+                <div class="hidden sm:flex items-center gap-2">
+                    <div class="w-32 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                        <div class="h-full bg-blue-600 rounded-full" style="width: {{ phase.progress.percentage }}%"></div>
+                    </div>
+                    <span class="text-sm text-gray-500 dark:text-gray-400">{{ phase.progress.percentage }}%</span>
+                </div>
+                {% endif %}
+                <svg :class="{ 'rotate-180': open }" class="h-5 w-5 text-gray-400 transition-transform" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                </svg>
+            </div>
+        </button>
+
+        <div x-show="open" x-collapse class="border-t border-gray-200 dark:border-gray-700">
+            <div class="p-6">
+                <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">{{ phase.description }}</p>
+
+                <div class="space-y-2">
+                    {% for topic in phase.topics_detail %}
+                    <a href="/phases/{{ phase.slug }}/topics/{{ topic.slug }}" class="flex items-center justify-between p-3 rounded-md hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                        <span class="text-sm font-medium text-gray-900 dark:text-gray-100">{{ topic.name }}</span>
+                        {% if topic.progress %}
+                        <span class="text-xs text-gray-500 dark:text-gray-400">{{ topic.progress.completed }}/{{ topic.progress.total }} steps</span>
+                        {% endif %}
+                    </a>
+                    {% endfor %}
+                </div>
+
+                <a href="/phases/{{ phase.slug }}" class="mt-4 inline-block text-sm font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400">
+                    View phase details →
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

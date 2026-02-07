@@ -18,9 +18,8 @@
     {
       "order": 2,
       "text": "Tips for success",
-      "action": "Tips for success:",
-      "url": null,
-      "description": "• Use `man` pages to learn commands (e.g., `man find`)\n• Combine commands with pipes (`|`) to process output\n• Use `verify hint [num]` when stuck on a challenge\n• Experiment freely—you can't break anything permanently\n• Don't share solutions publicly—share your learning journey instead"
+      "action": "Tips for success",
+      "description": "- Use `man` pages to learn commands (e.g., `man find`)\n- Combine commands with pipes (`|`) to process output\n- Use `verify hint [num]` when stuck on a challenge\n- Experiment freely—you can't break anything permanently\n- Don't share solutions publicly—share your learning journey instead"
     }
   ]
 }

@@ -17,8 +17,7 @@
     {
       "order": 2,
       "text": "Practice connecting to a VM",
-      "action": "Practice connecting to a VM:",
-      "url": null,
+      "action": "Practice connecting to a VM",
       "description": "Follow your cloud provider's guide to connect to a VM via SSH:",
       "options": [
         {

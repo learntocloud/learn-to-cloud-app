@@ -25,8 +25,7 @@
     {
       "order": 3,
       "text": "Learn Terraform Basics",
-      "action": "Learn Terraform Basics:",
-      "url": null,
+      "action": "Learn Terraform Basics",
       "description": "Master these essential Terraform commands:",
       "secondary_links": [
         {
@@ -50,8 +49,7 @@
     {
       "order": 4,
       "text": "Cloud-Specific Providers",
-      "action": "Cloud-Specific Providers:",
-      "url": null,
+      "action": "Cloud-Specific Providers",
       "description": "Explore Terraform providers for your cloud platform:",
       "secondary_links": [
         {
@@ -69,7 +67,7 @@
       ]
     },
     {
-      "order": 6,
+      "order": 5,
       "text": "Install Terraform",
       "action": "Install Terraform:",
       "title": "Install Terraform",
@@ -80,22 +78,19 @@
       "order": 6,
       "text": "Basic IaC Project",
       "action": "Hands-on: Basic IaC Project",
-      "url": null,
-      "description": "1. Write a Terraform configuration file to:\n   • Create a virtual machine in your preferred cloud platform\n   • Configure a security group to allow SSH access\n   • (Or deploy a static site)\n2. Run `terraform init` to set up the working directory\n3. Run `terraform plan` to preview changes\n4. Run `terraform apply` to create the resources\n5. Verify the resources in your cloud platform\n6. Run `terraform destroy` to clean up"
+      "description": "1. Write a Terraform configuration file to:\n   - Create a virtual machine in your preferred cloud platform\n   - Configure a security group to allow SSH access\n   - (Or deploy a static site)\n2. Run `terraform init` to set up the working directory\n3. Run `terraform plan` to preview changes\n4. Run `terraform apply` to create the resources\n5. Verify the resources in your cloud platform\n6. Run `terraform destroy` to clean up"
     },
     {
       "order": 7,
       "text": "Sample Terraform Configuration",
-      "action": "Sample Terraform Configuration:",
-      "url": null,
+      "action": "Sample Terraform Configuration",
       "description": "Basic AWS EC2 instance with Terraform:",
       "code": "terraform {\n  required_providers {\n    aws = {\n      source  = \"hashicorp/aws\"\n      version = \"~> 5.0\"\n    }\n  }\n}\n\nprovider \"aws\" {\n  region = \"us-east-1\"\n}\n\nresource \"aws_instance\" \"app_server\" {\n  ami           = \"ami-0c55b159cbfafe1f0\"\n  instance_type = \"t2.micro\"\n\n  tags = {\n    Name = \"JournalAppServer\"\n  }\n}"
     },
     {
       "order": 8,
       "text": "Video Tutorials",
-      "action": "Video Tutorials:",
-      "url": null,
+      "action": "Video Tutorials",
       "description": "Watch these cloud-specific Terraform tutorials:",
       "secondary_links": [
         {
@@ -116,14 +111,13 @@
       "order": 9,
       "text": "Advanced Challenge with Copilot",
       "action": "Advanced Challenge (Optional):",
-      "url": null,
-      "description": "Use GitHub Copilot to design a modular Terraform configuration for a multi-tier application:\n\n1. Organize infrastructure into reusable modules:\n   • VPC — public and private subnets, routing\n   • Web server tier — compute, load balancing\n   • Database tier — managed database, backup configuration\n   • Security — security groups, IAM roles, encryption\n2. Use variables to parameterize your configuration\n3. Create module outputs for cross-module communication\n4. Implement backend state management\n5. Deploy and verify your resources"
+      "description": "Use GitHub Copilot to design a modular Terraform configuration for a multi-tier application:\n\n1. Organize infrastructure into reusable modules:\n   - VPC — public and private subnets, routing\n   - Web server tier — compute, load balancing\n   - Database tier — managed database, backup configuration\n   - Security — security groups, IAM roles, encryption\n2. Use variables to parameterize your configuration\n3. Create module outputs for cross-module communication\n4. Implement backend state management\n5. Deploy and verify your resources",
+      "title": "Advanced Challenge with Copilot"
     },
     {
       "order": 10,
       "text": "Resources",
       "action": "Additional Resources:",
-      "url": null,
       "description": "Learn more about Terraform best practices:",
       "secondary_links": [
         {
@@ -134,7 +128,9 @@
           "text": "Terraform Best Practices",
           "url": "https://www.terraform-best-practices.com/"
         }
-      ]
+      ],
+      "title": "Resources",
+      "url": "https://developer.hashicorp.com/terraform/docs"
     }
   ]
 }

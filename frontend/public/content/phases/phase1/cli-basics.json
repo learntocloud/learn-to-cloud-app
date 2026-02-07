@@ -19,56 +19,56 @@
       "text": "Chapter 1: Getting Started with the Basics",
       "action": "Read Chapter 1:",
       "title": "Getting Started with the Basics",
-      "url": null,
-      "description": "Learn essential navigation commands: pwd, cd, ls, whoami, and getting help with man pages. Understand the Linux filesystem hierarchy."
+      "description": "Learn essential navigation commands: pwd, cd, ls, whoami, and getting help with man pages. Understand the Linux filesystem hierarchy.",
+      "url": "https://nostarch.com/linux-basics-hackers-2nd-edition"
     },
     {
       "order": 3,
       "text": "Chapter 2: Text Manipulation",
       "action": "Read Chapter 2:",
       "title": "Text Manipulation",
-      "url": null,
-      "description": "Learn to view and manipulate text files using cat, head, tail, grep, and sed. Master pipes and redirects for chaining commands."
+      "description": "Learn to view and manipulate text files using cat, head, tail, grep, and sed. Master pipes and redirects for chaining commands.",
+      "url": "https://nostarch.com/linux-basics-hackers-2nd-edition"
     },
     {
       "order": 4,
       "text": "Chapter 3: Analyzing and Managing Networks",
       "action": "Read Chapter 3:",
       "title": "Analyzing and Managing Networks",
-      "url": null,
-      "description": "Learn network analysis commands: ifconfig/ip, iwconfig, dig, and DNS configuration. Essential for cloud engineering."
+      "description": "Learn network analysis commands: ifconfig/ip, iwconfig, dig, and DNS configuration. Essential for cloud engineering.",
+      "url": "https://nostarch.com/linux-basics-hackers-2nd-edition"
     },
     {
       "order": 5,
       "text": "Chapter 4: Adding and Removing Software",
       "action": "Read Chapter 4:",
       "title": "Adding and Removing Software",
-      "url": null,
-      "description": "Learn package management with apt: searching, installing, updating, and removing software."
+      "description": "Learn package management with apt: searching, installing, updating, and removing software.",
+      "url": "https://nostarch.com/linux-basics-hackers-2nd-edition"
     },
     {
       "order": 6,
       "text": "Chapter 5: Controlling File and Directory Permissions",
       "action": "Read Chapter 5:",
       "title": "Controlling File and Directory Permissions",
-      "url": null,
-      "description": "Master Linux permissions: understanding rwx, chmod, chown, and special permissions. Critical for security."
+      "description": "Master Linux permissions: understanding rwx, chmod, chown, and special permissions. Critical for security.",
+      "url": "https://nostarch.com/linux-basics-hackers-2nd-edition"
     },
     {
       "order": 7,
       "text": "Chapter 6: Process Management",
       "action": "Read Chapter 6:",
       "title": "Process Management",
-      "url": null,
-      "description": "Learn to view and manage processes with ps, top, kill, and nice. Essential for troubleshooting."
+      "description": "Learn to view and manage processes with ps, top, kill, and nice. Essential for troubleshooting.",
+      "url": "https://nostarch.com/linux-basics-hackers-2nd-edition"
     },
     {
       "order": 8,
       "text": "Chapter 7: Managing User Environment Variables",
       "action": "Read Chapter 7:",
       "title": "Managing User Environment Variables",
-      "url": null,
-      "description": "Understand environment variables like PATH, HOME, and how to configure them in .bashrc."
+      "description": "Understand environment variables like PATH, HOME, and how to configure them in .bashrc.",
+      "url": "https://nostarch.com/linux-basics-hackers-2nd-edition"
     },
     {
       "order": 9,
@@ -83,8 +83,8 @@
       "text": "Chapter 9: Compressing and Archiving",
       "action": "Read Chapter 9:",
       "title": "Compressing and Archiving",
-      "url": null,
-      "description": "Learn to work with compressed files using tar, gzip, bzip2. Used constantly for logs and backups."
+      "description": "Learn to work with compressed files using tar, gzip, bzip2. Used constantly for logs and backups.",
+      "url": "https://nostarch.com/linux-basics-hackers-2nd-edition"
     },
     {
       "order": 11,

@@ -2,16 +2,15 @@
   "id": "phase6-topic3",
   "slug": "network-security",
   "name": "Network Security",
-  "description": "Network security in the cloud is about building secure connections, creating logical separations between resources, and defending against network-based threats. Before securing your Journal API's network, you need to understand cloud networking fundamentals.",
+  "description": "In Phase 2, you learned how networking works—IP addresses, ports, DNS, all that good stuff. Now we're going to apply that knowledge to keep your cloud resources safe. Your Journal API's database shouldn't be accessible from the public internet, and your API should only accept traffic the way you intend. Let's set up the network boundaries that make that possible.",
   "order": 3,
   "is_capstone": false,
   "learning_steps": [
     {
       "order": 1,
       "text": "Cloud Networking Fundamentals",
-      "action": "Read: Cloud Networking Fundamentals",
-      "url": null,
-      "description": "Start with your cloud provider's networking documentation:",
+      "action": "Read: Cloud Networking Docs",
+      "description": "You already know how networking works from Phase 2. Now see how your cloud provider implements it with Virtual Private Clouds (VPCs). Pick your provider and read through the overview.",
       "secondary_links": [
         {
           "text": "AWS VPC User Guide",
@@ -30,9 +29,8 @@
     {
       "order": 2,
       "text": "Watch: Network Security in Action",
-      "action": "Watch: Network Security in Action",
-      "url": null,
-      "description": "Video tutorials for your cloud provider:",
+      "action": "Watch",
+      "description": "These videos show how to actually set up network security in your cloud provider. Follow along in your own account if you can—seeing the console makes it click.",
       "secondary_links": [
         {
           "text": "AWS VPC Deep Dive (45 min)",
@@ -46,14 +44,15 @@
           "text": "GCP Networking Fundamentals (40 min)",
           "url": "https://www.youtube.com/watch?v=cNb4xzAyTiQ"
         }
-      ]
+      ],
+      "url": "https://www.youtube.com/watch?v=fnxXNZdf6ew",
+      "title": "Network Security in Action"
     },
     {
       "order": 3,
       "text": "Network Security Best Practices",
-      "action": "Learn: Network Security Best Practices",
-      "url": null,
-      "description": "Security standards and guidelines:",
+      "action": "Read: Security Standards",
+      "description": "These are the standards professionals use. You don't need to memorize them, but they're great references when you're designing your network in the capstone.",
       "secondary_links": [
         {
           "text": "NIST Network Security Guide",
@@ -68,44 +67,39 @@
     {
       "order": 4,
       "text": "Virtual Private Clouds",
-      "action": "Key Concept - Virtual Private Clouds (VPCs):",
-      "url": null,
-      "description": "• Isolation: Your own private network in the cloud\n• Subnets: Divide your VPC into smaller network segments\n• Route Tables: Control where network traffic can go\n• Internet Gateways: Allow internet access where needed"
+      "action": "Study: Virtual Private Clouds (VPCs)",
+      "description": "A VPC is your own private network inside the cloud—think of it as your own little data center. Here's how it works:\n\n- **Isolation**: Your resources live in their own network, separate from everyone else's\n- **Subnets**: You divide your VPC into smaller segments (public-facing stuff vs. private stuff)\n- **Route Tables**: Rules that control where traffic can flow\n- **Internet Gateways**: The door to the public internet—only open it where you need to\n\nFor your Journal API, the API server goes in a public subnet (it needs to receive requests), but the database goes in a private subnet (it should only talk to your API)."
     },
     {
       "order": 5,
       "text": "Security Groups vs Network ACLs",
-      "action": "Key Concept - Security Groups vs Network ACLs:",
-      "url": null,
-      "description": "Security Groups (Stateful):\n• Act like firewalls for individual instances\n• Allow rules only (deny by default)\n• Stateful (return traffic automatically allowed)\n• Apply at the instance level\n\nNetwork ACLs (Stateless):\n• Act like firewalls for entire subnets\n• Allow and deny rules\n• Stateless (must explicitly allow return traffic)\n• Apply at the subnet level"
+      "action": "Study: Security Groups vs Network ACLs",
+      "description": "These are the two types of firewalls you get in the cloud. Understanding the difference trips up a lot of people, so let's be clear:\n\n**Security Groups (Stateful):**\n- Like a firewall around a single resource (your API server, your database)\n- Allow rules only—everything is blocked by default\n- Stateful means if you allow traffic in, the response is automatically allowed out\n\n**Network ACLs (Stateless):**\n- Like a firewall around an entire subnet\n- Has both allow AND deny rules\n- Stateless means you have to explicitly allow both inbound AND outbound traffic\n\nFor your Journal API: a security group on your API server allows port 443 (HTTPS) from anywhere. A security group on your database allows port 5432 (PostgreSQL) only from your API server's security group."
     },
     {
-      "order": 7,
+      "order": 6,
       "text": "Network Segmentation",
-      "action": "Key Concept - Network Segmentation:",
-      "url": null,
-      "description": "• Public Subnets: For resources that need internet access (load balancers)\n• Private Subnets: For application servers and databases\n• Isolated Subnets: For highly sensitive resources with no internet access"
+      "action": "Study: Network Segmentation",
+      "description": "This is about putting things in the right \"rooms\" of your cloud network:\n\n- **Public Subnets**: Resources that need to face the internet—like your load balancer\n- **Private Subnets**: Resources that only need internal access—like your Journal API server and database\n- **Isolated Subnets**: Maximum lockdown—no internet access at all, for highly sensitive resources\n\nA good setup for your Journal API: load balancer in the public subnet, API server in a private subnet, database in an isolated subnet."
     },
     {
       "order": 7,
       "text": "Load Balancers and Traffic Management",
-      "action": "Key Concept - Load Balancers:",
-      "url": null,
-      "description": "• Application Load Balancers: Handle HTTP/HTTPS traffic with security features\n• Network Load Balancers: Handle TCP/UDP traffic at high performance\n• Security Features: SSL termination, DDoS protection, access logging"
+      "action": "Study: Load Balancers",
+      "description": "Load balancers aren't just for distributing traffic—they're also a key security tool:\n\n- **Application Load Balancers**: Handle HTTP/HTTPS, can inspect traffic and block attacks\n- **Network Load Balancers**: Handle raw TCP/UDP at high speed\n- **Security features**: SSL termination (handles HTTPS for your API), DDoS protection, access logging\n\nEven if you're only running one instance of your Journal API, a load balancer adds SSL termination and an extra layer of protection.",
+      "title": "Load Balancers and Traffic Management"
     },
     {
       "order": 8,
       "text": "Physical vs Cloud Network Security",
-      "action": "Physical vs Cloud Network Security:",
-      "url": null,
-      "description": "Understanding the differences:\n\n• Physical routers/switches → Virtual routers, VPC gateways (software-defined)\n• Hardware firewalls → Security Groups, NACLs (rules via console/API)\n• Physical network segmentation → Subnets, VPCs (logical boundaries)\n• Network cables → Virtual connections, peering (no physical connections)"
+      "action": "Study: Cloud vs Traditional Networking",
+      "description": "If the Phase 2 networking content had you thinking about physical hardware, here's how it maps to the cloud:\n\n- Physical routers/switches → Virtual routers, VPC gateways (all software-defined)\n- Hardware firewalls → Security Groups, NACLs (configured via console or code)\n- Physical network segmentation → Subnets, VPCs (logical boundaries, same security benefits)\n- Network cables → Virtual connections, VPC peering (no physical infrastructure to manage)\n\nThe concepts are the same—the implementation is just code instead of hardware."
     },
     {
       "order": 9,
       "text": "Cloud Provider Documentation",
-      "action": "Reference Documentation:",
-      "url": null,
-      "description": "Security best practices for networking:",
+      "action": "Bookmark: Networking Best Practices",
+      "description": "Save these for the capstone—they're the official best practices for network security on each provider:",
       "secondary_links": [
         {
           "text": "AWS VPC Security Best Practices",
@@ -119,14 +113,15 @@
           "text": "GCP VPC Security",
           "url": "https://cloud.google.com/vpc/docs/using-vpc"
         }
-      ]
+      ],
+      "title": "Cloud Provider Documentation",
+      "url": "https://docs.aws.amazon.com/vpc/latest/userguide/vpc-security-best-practices.html"
     },
     {
       "order": 10,
       "text": "Network Security Tools",
-      "action": "Network Security Tools:",
-      "url": null,
-      "description": "Cloud-native firewalls:",
+      "action": "Explore: Cloud Firewalls",
+      "description": "Each cloud provider has a managed firewall service. These go beyond basic security groups and offer features like intrusion detection and traffic filtering.",
       "secondary_links": [
         {
           "text": "AWS Network Firewall",
@@ -145,9 +140,8 @@
     {
       "order": 11,
       "text": "Practice Resources",
-      "action": "Practice Resources (Optional):",
-      "url": null,
-      "description": "Hands-on workshops:",
+      "action": "Practice: Networking Workshops (Optional)",
+      "description": "If you want more hands-on practice before the capstone, these workshops walk you through building real network architectures.",
       "secondary_links": [
         {
           "text": "AWS VPC Workshop",
@@ -157,7 +151,8 @@
           "text": "Azure Network Security Workshop",
           "url": "https://github.com/Azure/azure-network-security"
         }
-      ]
+      ],
+      "title": "Practice Resources"
     }
   ]
 }

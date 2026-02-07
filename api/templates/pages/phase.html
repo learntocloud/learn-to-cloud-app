@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}{{ phase.name }} - Learn to Cloud{% endblock %}
+
+{% block content %}
+<!-- Phase header -->
+<div class="mb-8">
+    <div class="flex items-center gap-3 mb-2">
+        {% if phase.theme and phase.theme.icon %}
+        <span class="text-3xl">{{ phase.theme.icon }}</span>
+        {% endif %}
+        <h1 class="text-3xl font-bold text-gray-900 dark:text-white">{{ phase.name }}</h1>
+    </div>
+    <p class="text-gray-600 dark:text-gray-400 mt-2">{{ phase.description }}</p>
+
+    {% if progress %}
+    <div class="mt-4 flex items-center gap-3">
+        <div class="flex-1 max-w-xs h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+            <div class="h-full bg-blue-600 rounded-full transition-all" style="width: {{ progress.percentage }}%"></div>
+        </div>
+        <span class="text-sm font-medium text-gray-600 dark:text-gray-400">{{ progress.percentage }}% complete</span>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Topics list -->
+<div class="mb-12">
+    <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Topics</h2>
+    <div class="space-y-3">
+        {% for topic in topics %}
+        <a href="/phases/{{ phase.slug }}/topics/{{ topic.slug }}" class="flex items-center justify-between p-4 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-blue-500 dark:hover:border-blue-400 transition-colors">
+            <div class="flex items-center gap-3">
+                {% if topic.is_capstone %}
+                <span class="text-yellow-500">⭐</span>
+                {% endif %}
+                <span class="font-medium text-gray-900 dark:text-gray-100">{{ topic.name }}</span>
+            </div>
+            {% if topic.progress %}
+            <span class="text-sm text-gray-500 dark:text-gray-400">{{ topic.progress.completed }}/{{ topic.progress.total }} steps</span>
+            {% endif %}
+        </a>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Hands-on verification section -->
+{% if requirements %}
+<div id="verification-section">
+    <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Hands-on Verification</h2>
+
+    {% if phase.hands_on_verification and phase.hands_on_verification.summary %}
+    <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">{{ phase.hands_on_verification.summary }}</p>
+    {% endif %}
+
+    <div class="space-y-4">
+        {% for req in requirements %}
+        {% set submission = submissions_by_req.get(req.id) %}
+        {% set feedback_tasks = [] %}
+        {% set feedback_passed = 0 %}
+        {% with requirement=req, submission=submission, feedback_tasks=feedback_tasks, feedback_passed=feedback_passed, phase_id=phase.order %}
+        {% include "partials/requirement_card.html" %}
+        {% endwith %}
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+{% endblock %}

@@ -219,22 +219,6 @@ class TestEvidenceUrlValidation:
             assert result.is_valid is True
 
     @pytest.mark.asyncio
-    async def test_container_image_uses_evidence_validation(self):
-        """CONTAINER_IMAGE type should use evidence URL validator."""
-        requirement = _make_requirement(
-            SubmissionType.CONTAINER_IMAGE,
-            phase_id=5,
-        )
-
-        result = await validate_submission(
-            requirement=requirement,
-            submitted_value="https://hub.docker.com/r/myuser/myimage",
-            expected_username="testuser",
-        )
-
-        assert result.is_valid is True
-
-    @pytest.mark.asyncio
     async def test_devops_analysis_routes_to_devops_service(self):
         """DEVOPS_ANALYSIS type should route to devops_verification_service."""
         requirement = _make_requirement(
@@ -298,29 +282,16 @@ class TestValidateSubmissionUsernameRequirements:
         assert "username" in result.message.lower()
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize(
-        "submission_type",
-        [
-            SubmissionType.CONTAINER_IMAGE,
-            SubmissionType.CICD_PIPELINE,
-            SubmissionType.TERRAFORM_IAC,
-            SubmissionType.KUBERNETES_MANIFESTS,
-            SubmissionType.SECURITY_SCANNING,
-        ],
-    )
-    async def test_evidence_types_dont_require_username(
-        self, submission_type: SubmissionType
-    ):
-        """Evidence-based types should not require username."""
-        requirement = _make_requirement(submission_type, phase_id=5)
+    async def test_security_scanning_doesnt_require_username(self):
+        """SECURITY_SCANNING should not require username."""
+        requirement = _make_requirement(SubmissionType.SECURITY_SCANNING, phase_id=6)
 
         result = await validate_submission(
             requirement=requirement,
             submitted_value="https://example.com/evidence",
-            expected_username=None,  # No username provided
+            expected_username=None,
         )
 
-        # Should succeed because these don't require GitHub auth
         assert result.is_valid is True
 
     @pytest.mark.asyncio

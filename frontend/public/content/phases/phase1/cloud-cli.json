@@ -9,8 +9,7 @@
     {
       "order": 1,
       "text": "Install your cloud provider's CLI",
-      "action": "Install your cloud provider's CLI:",
-      "url": null,
+      "action": "Install your cloud provider's CLI",
       "description": "Choose and install the CLI for your preferred cloud platform:",
       "options": [
         {
@@ -37,7 +36,6 @@
       "order": 2,
       "text": "Test your CLI installation",
       "action": "Test your installation",
-      "url": null,
       "description": "Run a simple command to verify your CLI is working correctly:",
       "code": "# AWS\naws --version\n\n# Azure\naz --version\n\n# GCP\ngcloud --version"
     },
@@ -45,7 +43,6 @@
       "order": 3,
       "text": "Configure authentication",
       "action": "Configure authentication",
-      "url": null,
       "description": "Set up your credentials to authenticate with your cloud provider:",
       "code": "# AWS\naws configure\n\n# Azure\naz login\n\n# GCP\ngcloud auth login"
     }

@@ -34,9 +34,13 @@ class Settings(BaseSettings):
     # Example: "https://app.example.com,https://staging.example.com"
     cors_allowed_origins: str = ""
 
-    clerk_secret_key: str = ""
-    clerk_webhook_signing_secret: str = ""
-    clerk_publishable_key: str = ""
+    # GitHub OAuth (Authlib)
+    github_client_id: str = ""
+    github_client_secret: str = ""
+
+    # Session cookie signing key
+    # Generate with: python -c "import secrets; print(secrets.token_hex(32))"
+    session_secret_key: str = "dev-secret-key-change-in-production"
 
     github_token: str = ""
 
@@ -89,6 +93,19 @@ class Settings(BaseSettings):
                 "Set DATABASE_URL for direct connection, "
                 "or POSTGRES_HOST + POSTGRES_USER for Azure Managed Identity."
             )
+
+        # Require GitHub OAuth in production
+        if self.environment != "development":
+            if not self.github_client_id or not self.github_client_secret:
+                raise ValueError(
+                    "GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET must be set "
+                    "in non-development environments."
+                )
+            if self.session_secret_key == "dev-secret-key-change-in-production":
+                raise ValueError(
+                    "SESSION_SECRET_KEY must be set to a secure random value "
+                    "in non-development environments."
+                )
 
         # Require CTF secret in production
         if self.environment != "development" and not self.labs_verification_secret:

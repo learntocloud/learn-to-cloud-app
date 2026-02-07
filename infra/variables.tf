@@ -6,19 +6,19 @@ variable "subscription_id" {
   type        = string
 }
 
-variable "clerk_publishable_key" {
-  description = "Clerk publishable key"
+variable "github_client_id" {
+  description = "GitHub OAuth App client ID"
   type        = string
 }
 
-variable "clerk_secret_key" {
-  description = "Clerk secret key"
+variable "github_client_secret" {
+  description = "GitHub OAuth App client secret"
   type        = string
   sensitive   = true
 }
 
-variable "clerk_webhook_signing_secret" {
-  description = "Clerk webhook signing secret"
+variable "session_secret_key" {
+  description = "Secret key for signing session cookies"
   type        = string
   sensitive   = true
 }

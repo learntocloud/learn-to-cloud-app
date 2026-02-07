@@ -1,0 +1,133 @@
+"""GitHub OAuth authentication routes.
+
+Handles:
+- GET /auth/login — redirect to GitHub OAuth authorize
+- GET /auth/callback — exchange code for token, create session
+- POST /auth/logout — clear session, redirect to home
+"""
+
+from fastapi import APIRouter, Request
+from fastapi.responses import RedirectResponse
+
+from core.auth import oauth
+from core.database import DbSession
+from core.logger import get_logger
+from core.telemetry import log_business_event
+from core.wide_event import set_wide_event_fields
+from services.users_service import get_or_create_user_from_github
+
+logger = get_logger(__name__)
+
+router = APIRouter(prefix="/auth", tags=["auth"])
+
+
+@router.get(
+    "/login",
+    summary="Redirect to GitHub OAuth login",
+    include_in_schema=False,
+)
+async def login(request: Request) -> RedirectResponse:
+    """Initiate GitHub OAuth flow.
+
+    Redirects the user to GitHub's authorization page.
+    After granting access, GitHub redirects back to /auth/callback.
+    """
+    github = oauth.create_client("github")
+    if github is None:
+        logger.error("auth.login.github_not_configured")
+        return RedirectResponse(url="/", status_code=302)
+
+    redirect_uri = str(request.url_for("auth_callback"))
+    return await github.authorize_redirect(request, redirect_uri)
+
+
+@router.get(
+    "/callback",
+    name="auth_callback",
+    summary="GitHub OAuth callback",
+    include_in_schema=False,
+)
+async def callback(request: Request, db: DbSession) -> RedirectResponse:
+    """Handle GitHub OAuth callback.
+
+    Exchanges the authorization code for an access token, fetches the
+    user's GitHub profile, creates or updates the user in the database,
+    and sets the session cookie.
+    """
+    github = oauth.create_client("github")
+    if github is None:
+        logger.error("auth.callback.github_not_configured")
+        return RedirectResponse(url="/", status_code=302)
+
+    try:
+        token = await github.authorize_access_token(request)
+    except Exception:
+        logger.exception("auth.callback.token_exchange_failed")
+        return RedirectResponse(url="/", status_code=302)
+
+    # Fetch user profile from GitHub API
+    resp = await github.get("user", token=token)
+    github_user = resp.json()
+
+    github_id = github_user["id"]
+    github_username = github_user.get("login", "")
+    avatar_url = github_user.get("avatar_url")
+    name = github_user.get("name", "")
+
+    # Fetch primary email (may be private)
+    email = github_user.get("email")
+    if not email:
+        email_resp = await github.get("user/emails", token=token)
+        emails = email_resp.json()
+        for e in emails:
+            if e.get("primary") and e.get("verified"):
+                email = e["email"]
+                break
+
+    # Split name into first/last
+    first_name = ""
+    last_name = ""
+    if name:
+        parts = name.split(" ", 1)
+        first_name = parts[0]
+        last_name = parts[1] if len(parts) > 1 else ""
+
+    user = await get_or_create_user_from_github(
+        db=db,
+        github_id=github_id,
+        email=email or f"{github_id}@users.noreply.github.com",
+        first_name=first_name,
+        last_name=last_name,
+        avatar_url=avatar_url,
+        github_username=github_username.lower(),
+    )
+
+    # Set session cookie
+    request.session["user_id"] = user.id
+
+    set_wide_event_fields(
+        user_id=user.id,
+        auth_method="github_oauth",
+        github_username=github_username,
+    )
+    log_business_event("auth.login_success", 1)
+    logger.info("auth.login.success", user_id=user.id, github_username=github_username)
+
+    return RedirectResponse(url="/dashboard", status_code=302)
+
+
+@router.post(
+    "/logout",
+    summary="Log out and clear session",
+    include_in_schema=False,
+)
+async def logout(request: Request) -> RedirectResponse:
+    """Clear the session cookie and redirect to home."""
+    user_id = request.session.get("user_id")
+    request.session.clear()
+
+    if user_id:
+        logger.info("auth.logout", user_id=user_id)
+        log_business_event("auth.logout", 1)
+
+    return RedirectResponse(url="/", status_code=302)

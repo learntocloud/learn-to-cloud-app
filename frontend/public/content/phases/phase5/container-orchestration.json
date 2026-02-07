@@ -9,22 +9,19 @@
     {
       "order": 1,
       "text": "Why Kubernetes?",
-      "action": "Why Kubernetes?:",
-      "url": null,
-      "description": "Kubernetes provides:\n\n• Automated Deployment and Scaling - Automatically deploy and scale containers based on resource usage\n• Self-Healing - Restarts failed containers, replaces unresponsive ones\n• Load Balancing - Distributes traffic across containers for high availability\n• Service Discovery - Automatically assigns DNS names and IPs to services\n• Declarative Configuration - Uses YAML manifests to define desired state"
+      "action": "Why Kubernetes?",
+      "description": "Kubernetes provides:\n\n- Automated Deployment and Scaling - Automatically deploy and scale containers based on resource usage\n- Self-Healing - Restarts failed containers, replaces unresponsive ones\n- Load Balancing - Distributes traffic across containers for high availability\n- Service Discovery - Automatically assigns DNS names and IPs to services\n- Declarative Configuration - Uses YAML manifests to define desired state"
     },
     {
       "order": 2,
       "text": "Core Concepts",
-      "action": "Core Concepts:",
-      "url": null,
-      "description": "Understanding Kubernetes requires familiarity with these components:\n\n• Cluster - Master node (manages cluster) + Worker nodes (run apps)\n• Pods - Smallest deployable unit, can contain one or more containers\n• Services - Expose your application (ClusterIP, NodePort, LoadBalancer)\n• Deployments - Manage desired state, handle rolling updates and scaling\n• ConfigMaps/Secrets - Store configuration and sensitive data"
+      "action": "Core Concepts",
+      "description": "Understanding Kubernetes requires familiarity with these components:\n\n- Cluster - Master node (manages cluster) + Worker nodes (run apps)\n- Pods - Smallest deployable unit, can contain one or more containers\n- Services - Expose your application (ClusterIP, NodePort, LoadBalancer)\n- Deployments - Manage desired state, handle rolling updates and scaling\n- ConfigMaps/Secrets - Store configuration and sensitive data"
     },
     {
       "order": 3,
       "text": "Local Setup",
-      "action": "Local Setup:",
-      "url": null,
+      "action": "Local Setup",
       "description": "For local development, use one of these tools:",
       "secondary_links": [
         {
@@ -40,8 +37,7 @@
     {
       "order": 4,
       "text": "Managed Kubernetes Services",
-      "action": "Managed Kubernetes Services:",
-      "url": null,
+      "action": "Managed Kubernetes Services",
       "description": "Most cloud providers offer managed Kubernetes:",
       "secondary_links": [
         {
@@ -59,7 +55,7 @@
       ]
     },
     {
-      "order": 6,
+      "order": 5,
       "text": "AKS with Terraform",
       "action": "Watch:",
       "title": "Minimal K8s Cluster on Azure AKS using Terraform",
@@ -70,30 +66,27 @@
       "order": 6,
       "text": "Basic Commands",
       "action": "Basic kubectl Commands:",
-      "url": null,
       "description": "Essential Kubernetes commands:",
-      "code": "# View cluster information\nkubectl cluster-info\n\n# List all nodes in the cluster\nkubectl get nodes\n\n# Deploy an application\nkubectl apply -f deployment.yaml\n\n# View running pods\nkubectl get pods\n\n# View logs of a pod\nkubectl logs <pod-name>\n\n# Delete a resource\nkubectl delete -f deployment.yaml"
+      "code": "# View cluster information\nkubectl cluster-info\n\n# List all nodes in the cluster\nkubectl get nodes\n\n# Deploy an application\nkubectl apply -f deployment.yaml\n\n# View running pods\nkubectl get pods\n\n# View logs of a pod\nkubectl logs <pod-name>\n\n# Delete a resource\nkubectl delete -f deployment.yaml",
+      "title": "Basic Commands"
     },
     {
       "order": 7,
       "text": "Hands-on Exercise",
-      "action": "Hands-on Exercise:",
-      "url": null,
+      "action": "Hands-on Exercise",
       "description": "1. Install Minikube or Kind on your local machine\n2. Create a Kubernetes deployment using a YAML file\n3. Apply the deployment: `kubectl apply -f deployment.yaml`\n4. Verify pods are running: `kubectl get pods`\n5. Expose the deployment: `kubectl expose deployment nginx-deployment --type=NodePort --port=80`\n6. Access the application in your browser using the NodePort"
     },
     {
       "order": 8,
       "text": "Sample Deployment YAML",
-      "action": "Sample Deployment YAML:",
-      "url": null,
+      "action": "Sample Deployment YAML",
       "description": "Basic nginx deployment:",
       "code": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: nginx-deployment\nspec:\n  replicas: 2\n  selector:\n    matchLabels:\n      app: nginx\n  template:\n    metadata:\n      labels:\n        app: nginx\n    spec:\n      containers:\n      - name: nginx\n        image: nginx:latest\n        ports:\n        - containerPort: 80"
     },
     {
       "order": 9,
       "text": "Additional Resources",
-      "action": "Additional Resources:",
-      "url": null,
+      "action": "Additional Resources",
       "description": "Deep dive into Kubernetes:",
       "secondary_links": [
         {
@@ -104,7 +97,8 @@
           "text": "Kubernetes the Hard Way",
           "url": "https://github.com/kelseyhightower/kubernetes-the-hard-way"
         }
-      ]
+      ],
+      "url": "https://kubernetes.io/docs/concepts/"
     }
   ]
 }

@@ -25,8 +25,7 @@
     {
       "order": 3,
       "text": "Install PostgreSQL on a VM",
-      "action": "Install PostgreSQL on a VM:",
-      "url": null,
+      "action": "Install PostgreSQL on a VM",
       "description": "Learn how to install PostgreSQL on a virtual machine for your cloud provider:",
       "options": [
         {
@@ -50,18 +49,16 @@
       ]
     },
     {
-      "order": 5,
+      "order": 4,
       "text": "Access Control & Authentication",
-      "action": "Access Control & Authentication:",
-      "url": null,
-      "description": "Learn how to use pg_hba.conf to manage authentication and enforce secure database access. This file controls:\n\n• Which hosts can connect\n• Which database users can connect\n• Which databases they can access\n• What authentication method is required",
+      "action": "Access Control & Authentication",
+      "description": "Learn how to use pg_hba.conf to manage authentication and enforce secure database access. This file controls:\n\n- Which hosts can connect\n- Which database users can connect\n- Which databases they can access\n- What authentication method is required",
       "code": "# Example pg_hba.conf entries:\n# TYPE  DATABASE        USER            ADDRESS                 METHOD\nlocal   all             postgres                                peer\nhost    all             all             10.0.0.0/8              md5\nhost    all             all             0.0.0.0/0               reject"
     },
     {
       "order": 5,
       "text": "Hands-on Task",
-      "action": "Hands-on Task:",
-      "url": null,
+      "action": "Hands-on Task",
       "description": "Deploy a PostgreSQL Database in a Private Subnet:\n\n1. Deploy a VM in a private subnet\n2. Install and configure PostgreSQL\n3. Configure pg_hba.conf for secure remote access\n4. Create database users with appropriate permissions\n5. Test connection from your API server (in public subnet)\n6. Verify the database is NOT accessible from the internet"
     }
   ]

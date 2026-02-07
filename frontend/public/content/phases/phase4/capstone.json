@@ -10,71 +10,65 @@
     {
       "order": 1,
       "text": "Challenge Overview",
-      "action": "Challenge Overview:",
-      "url": null,
-      "description": "Create a secure 2-tier architecture:\n\n• Tier 1: FastAPI application server (internet-accessible)\n• Tier 2: PostgreSQL database server (private, secure)"
+      "action": "Challenge Overview",
+      "description": "Create a secure 2-tier architecture:\n\n- Tier 1: FastAPI application server (internet-accessible)\n- Tier 2: PostgreSQL database server (private, secure)"
     },
     {
       "order": 2,
       "text": "Learning Objectives",
-      "action": "Learning Objectives:",
-      "url": null,
-      "description": "• Design secure cloud networking with public/private subnets\n• Implement security groups following least privilege principles\n• Configure remote database access securely\n• Deploy a production-ready multi-tier application"
+      "action": "Learning Objectives",
+      "description": "- Design secure cloud networking with public/private subnets\n- Implement security groups following least privilege principles\n- Configure remote database access securely\n- Deploy a production-ready multi-tier application"
     },
     {
       "order": 3,
       "text": "Prerequisites",
-      "action": "Prerequisites:",
-      "url": null,
-      "description": "Before starting, ensure you have:\n\n• Completed Phase 2 Capstone (Journal API with AI analysis working locally)\n• Cloud provider account with appropriate permissions\n• SSH key pair for server access\n• LLM API key from your chosen provider (OpenAI, Anthropic, Azure OpenAI, AWS Bedrock, or GCP Vertex AI)"
+      "action": "Prerequisites",
+      "description": "Before starting, ensure you have:\n\n- Completed Phase 2 Capstone (Journal API with AI analysis working locally)\n- Cloud provider account with appropriate permissions\n- SSH key pair for server access\n- LLM API key from your chosen provider (OpenAI, Anthropic, Azure OpenAI, AWS Bedrock, or GCP Vertex AI)"
     },
     {
-      "order": 5,
+      "order": 4,
       "text": "Mission 1: Design Your Architecture",
-      "action": "Mission 1: Design Your Architecture",
-      "url": null,
-      "description": "Research and plan your cloud infrastructure:\n\n• How will you separate public and private resources?\n• What networking components do you need?\n• How will you secure communication between tiers?"
+      "action": "Mission 1",
+      "description": "Research and plan your cloud infrastructure:\n\n- How will you separate public and private resources?\n- What networking components do you need?\n- How will you secure communication between tiers?",
+      "title": "Design Your Architecture"
     },
     {
       "order": 5,
       "text": "Mission 2: Deploy the API Server",
-      "action": "Mission 2: Deploy the API Server",
-      "url": null,
-      "description": "Set up your application server in the public tier:\n\n• Choose appropriate compute resources\n• Deploy your Journal API application\n• Configure secure access and networking"
+      "action": "Mission 2",
+      "description": "Set up your application server in the public tier:\n\n- Choose appropriate compute resources\n- Deploy your Journal API application\n- Configure secure access and networking",
+      "title": "Deploy the API Server"
     },
     {
       "order": 6,
       "text": "Mission 3: Deploy the Database Server",
-      "action": "Mission 3: Deploy the Database Server",
-      "url": null,
-      "description": "Set up PostgreSQL in the private tier:\n\n• Ensure it's NOT directly accessible from the internet\n• Configure it to accept connections from your API server only\n• Implement proper security measures"
+      "action": "Mission 3",
+      "description": "Set up PostgreSQL in the private tier:\n\n- Ensure it's NOT directly accessible from the internet\n- Configure it to accept connections from your API server only\n- Implement proper security measures",
+      "title": "Deploy the Database Server"
     },
     {
       "order": 7,
       "text": "Mission 4: Test Your Deployment",
-      "action": "Mission 4: Test Your Deployment",
-      "url": null,
-      "description": "Validate your architecture:\n\n• All API endpoints work correctly\n• Database is properly secured\n• Data persists between restarts"
+      "action": "Mission 4",
+      "description": "Validate your architecture:\n\n- All API endpoints work correctly\n- Database is properly secured\n- Data persists between restarts",
+      "title": "Test Your Deployment"
     },
     {
       "order": 8,
       "text": "Success Criteria",
-      "action": "Success Criteria:",
-      "url": null,
+      "action": "Success Criteria",
       "description": "Your deployment succeeds when you can demonstrate:\n\n✅ API accessible from the internet\n✅ Database only accessible from API server (not internet)\n✅ All CRUD operations work via API endpoints\n✅ AI analysis endpoint returns sentiment and summary\n✅ LLM API key stored securely (environment variable, not in code)\n✅ Data persists between server restarts\n✅ Security follows least privilege principles"
     },
     {
       "order": 9,
       "text": "Document Your Learning",
-      "action": "Document Your Learning:",
-      "url": null,
-      "description": "Create a technical writeup covering:\n\n• Your architecture design and reasoning\n• Security decisions and trade-offs\n• Challenges encountered and solutions\n• Key learnings about cloud deployment\n\nShare your progress in the cloud phase Discord channel!"
+      "action": "Document Your Learning",
+      "description": "Create a technical writeup covering:\n\n- Your architecture design and reasoning\n- Security decisions and trade-offs\n- Challenges encountered and solutions\n- Key learnings about cloud deployment\n\nShare your progress in the cloud phase Discord channel!"
     },
     {
       "order": 10,
       "text": "Remember",
-      "action": "Remember:",
-      "url": null,
+      "action": "Remember",
       "description": "This is about understanding cloud patterns, not following a recipe. Research, experiment, and learn from the journey. Every cloud provider has different tools - figure out what works best for your chosen platform."
     }
   ]

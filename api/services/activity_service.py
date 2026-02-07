@@ -18,7 +18,7 @@ from schemas import ActivityResult
 @track_operation("activity_logging")
 async def log_activity(
     db: AsyncSession,
-    user_id: str,
+    user_id: int,
     activity_type: ActivityType,
     reference_id: str | None = None,
 ) -> ActivityResult:

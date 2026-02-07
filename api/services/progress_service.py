@@ -96,7 +96,7 @@ def _parse_phase_from_topic_id(topic_id: str) -> int | None:
 
 async def fetch_user_progress(
     db: AsyncSession,
-    user_id: str,
+    user_id: int,
     skip_cache: bool = False,
 ) -> UserProgress:
     """Fetch complete progress data for a user.

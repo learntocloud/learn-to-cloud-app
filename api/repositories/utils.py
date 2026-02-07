@@ -30,7 +30,7 @@ def log_slow_query(
 
     Usage:
         @log_slow_query("get_user_by_id")
-        async def get_by_id(self, user_id: str) -> User | None:
+        async def get_by_id(self, user_id: int) -> User | None:
             ...
     """
 

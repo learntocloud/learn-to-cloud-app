@@ -54,7 +54,7 @@ def _to_certificate_data(certificate: Certificate) -> CertificateData:
     )
 
 
-def generate_verification_code(user_id: str, certificate_type: str) -> str:
+def generate_verification_code(user_id: int, certificate_type: str) -> str:
     """Generate a unique, verifiable certificate code.
 
     Format: LTC-{hash}-{random}
@@ -69,7 +69,7 @@ def generate_verification_code(user_id: str, certificate_type: str) -> str:
 
 async def check_eligibility(
     db: AsyncSession,
-    user_id: str,
+    user_id: int,
     certificate_type: str,
 ) -> EligibilityResult:
     """Check if user is eligible for a certificate.
@@ -137,7 +137,7 @@ class NotEligibleError(Exception):
 @track_operation("certificate_creation")
 async def create_certificate(
     db: AsyncSession,
-    user_id: str,
+    user_id: int,
     certificate_type: str,
     recipient_name: str,
 ) -> CreateCertificateResult:
@@ -210,7 +210,7 @@ async def create_certificate(
 
 async def get_user_certificates_with_eligibility(
     db: AsyncSession,
-    user_id: str,
+    user_id: int,
 ) -> tuple[list[CertificateData], bool]:
     """Get all certificates for a user plus eligibility status.
 
@@ -244,7 +244,7 @@ async def get_user_certificates_with_eligibility(
 async def get_certificate_by_id(
     db: AsyncSession,
     certificate_id: int,
-    user_id: str,
+    user_id: int,
 ) -> CertificateData | None:
     """Get a specific certificate by ID (must belong to user).
 

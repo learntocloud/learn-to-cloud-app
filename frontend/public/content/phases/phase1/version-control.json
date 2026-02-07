@@ -31,7 +31,6 @@
       "order": 4,
       "text": "Set up an AI learning assistant",
       "action": "Set up an AI learning assistant",
-      "url": null,
       "description": "AI assistants can help you learn by asking questions and clarifying concepts—but they should never replace your own thinking. In Phase 3, you'll learn how to use these tools effectively. For now, use AI **only** for the specific prompts we provide. The key rule: AI should quiz *you*, not answer *for* you. Set up an account with ChatGPT, Claude, or another AI assistant and try it with this prompt:",
       "code": "I'm studying cloud engineering and recently learned about version control. I will provide you an explanation about it and please ask me any questions if my explanation is not clear. I want to make sure I really understand this concept so please do not correct me, simply ask questions until I get the explanation right. Here is my explanation: version control is..."
     },
@@ -68,7 +67,6 @@
       "order": 8,
       "text": "Create your workspace",
       "action": "Create your workspace",
-      "url": null,
       "description": "Using a Terminal, create a folder on your computer where you will store all your labs and projects. Name it `l2c`. Use the `mkdir` and `cd` commands for this.",
       "code": "mkdir l2c && cd l2c"
     },
@@ -76,7 +74,6 @@
       "order": 9,
       "text": "Clone the lab repository",
       "action": "Clone the lab repository",
-      "url": null,
       "description": "Inside your `l2c` folder, run:",
       "code": "git clone https://github.com/learntocloud/linux-ctfs"
     },
@@ -98,7 +95,6 @@
       "order": 12,
       "text": "Practice Git workflow",
       "action": "Practice Git workflow",
-      "url": null,
       "description": "Clone your README repo to your local machine. Use VS Code to edit it and push changes back to GitHub from the terminal. Don't feel like you have to make a very fancy README—write a brief description on who you are and add links to your socials.",
       "secondary_links": [
         {

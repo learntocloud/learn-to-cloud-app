@@ -3,17 +3,20 @@
 import asyncio
 import os
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 from slowapi.errors import RateLimitExceeded
+from starlette.middleware.sessions import SessionMiddleware
 
-from core.auth import close_clerk_client, init_clerk_client
+from core.auth import init_oauth
 from core.config import get_settings
-from core.copilot_client import close_copilot_client
 from core.database import (
     create_engine,
     create_session_maker,
@@ -25,19 +28,17 @@ from core.logger import configure_logging, get_logger
 from core.ratelimit import limiter, rate_limit_exceeded_handler
 from core.telemetry import RequestTimingMiddleware, SecurityHeadersMiddleware
 from core.wide_event import get_wide_event
-from repositories.webhook_repository import ProcessedWebhookRepository
 from routes import (
+    auth_router,
     certificates_router,
-    clerk_router,
     dashboard_router,
     github_router,
     health_router,
+    htmx_router,
+    pages_router,
     steps_router,
     users_router,
-    webhooks_router,
 )
-from routes.clerk_routes import close_clerk_proxy_client
-from services.clerk_service import close_http_client
 from services.deployed_api_verification_service import close_deployed_api_client
 from services.github_hands_on_verification_service import close_github_client
 
@@ -66,6 +67,10 @@ configure_logging()
 logger = get_logger(__name__)
 
 _configure_azure_monitor_if_enabled()
+
+# Jinja2 templates
+_templates_dir = Path(__file__).parent / "templates"
+templates = Jinja2Templates(directory=str(_templates_dir))
 
 
 async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
@@ -115,20 +120,6 @@ async def validation_exception_handler(
     )
 
 
-async def _background_cleanup(app: FastAPI) -> None:
-    """Background cleanup tasks that are safe to run after startup."""
-    try:
-        async with app.state.session_maker() as session:
-            deleted = await ProcessedWebhookRepository(session).delete_older_than(
-                days=7
-            )
-            await session.commit()
-            if deleted > 0:
-                logger.info("webhooks.cleanup", deleted_count=deleted)
-    except Exception as e:
-        logger.warning("webhooks.cleanup.failed", error=str(e))
-
-
 async def _background_warmup(app: FastAPI) -> None:
     """Warm caches in the background after the app starts serving.
 
@@ -159,8 +150,6 @@ async def lifespan(app: FastAPI):
 
     Database connectivity is verified synchronously before the app accepts
     requests so that early traffic never hits an uninitialised pool.
-    Clerk SDK init runs concurrently with DB verification to overlap the
-    heavy import cost with the network round-trip.
     """
     app.state.engine = create_engine()
     app.state.session_maker = create_session_maker(app.state.engine)
@@ -169,10 +158,10 @@ async def lifespan(app: FastAPI):
     app.state.init_error = None
 
     try:
-        # Run Clerk SDK init (heavy import) concurrently with DB verification
-        clerk_task = asyncio.to_thread(init_clerk_client)
+        # Initialize OAuth and DB concurrently
+        oauth_task = asyncio.to_thread(init_oauth)
         db_task = init_db(app.state.engine)
-        await asyncio.gather(clerk_task, db_task)
+        await asyncio.gather(oauth_task, db_task)
 
         app.state.init_done = True
         logger.info("init.complete")
@@ -184,30 +173,22 @@ async def lifespan(app: FastAPI):
     # Fire-and-forget background tasks that run AFTER the app starts
     # serving requests.  These warm caches so that early requests are
     # faster, but they never block startup.
-    cleanup_task = asyncio.create_task(_background_cleanup(app))
     warmup_task = asyncio.create_task(_background_warmup(app))
 
     try:
         yield
     finally:
-        # Cancel background tasks *before* disposing the engine
-        # so they don't try to use an already-closed connection pool.
-        for task in (cleanup_task, warmup_task):
-            if not task.done():
-                task.cancel()
-            try:
-                await task
-            except asyncio.CancelledError:
-                pass
-            except Exception:
-                logger.exception("background.task.failed")
+        if not warmup_task.done():
+            warmup_task.cancel()
+        try:
+            await warmup_task
+        except asyncio.CancelledError:
+            pass
+        except Exception:
+            logger.exception("background.task.failed")
 
-        close_clerk_client()
-        await close_clerk_proxy_client()
-        await close_http_client()
         await close_github_client()
         await close_deployed_api_client()
-        await close_copilot_client()
         await dispose_engine(app.state.engine)
 
 
@@ -223,10 +204,23 @@ app = FastAPI(
     openapi_url=None if _is_production else "/openapi.json",
 )
 
+# Store templates on app state for access in route handlers
+app.state.templates = templates
+
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
 app.add_exception_handler(RequestValidationError, validation_exception_handler)
 app.add_exception_handler(Exception, global_exception_handler)
+
+# Session middleware (signed cookies for auth)
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=_settings.session_secret_key,
+    session_cookie="session",
+    max_age=60 * 60 * 24 * 30,  # 30 days
+    same_site="lax",
+    https_only=_is_production,
+)
 
 app.add_middleware(GZipMiddleware, minimum_size=500)
 
@@ -234,21 +228,33 @@ app.add_middleware(SecurityHeadersMiddleware)
 
 app.add_middleware(RequestTimingMiddleware)
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=get_settings().allowed_origins,
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type"],
-    expose_headers=["X-Request-Duration-Ms", "X-Request-Id"],
-    max_age=600,
-)
+if not _is_production:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=get_settings().allowed_origins,
+        allow_credentials=True,
+        allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
+        allow_headers=["Authorization", "Content-Type"],
+        expose_headers=["X-Request-Duration-Ms", "X-Request-Id"],
+        max_age=600,
+    )
 
+# Mount static files
+_static_dir = Path(__file__).parent / "static"
+if _static_dir.exists():
+    app.mount("/static", StaticFiles(directory=str(_static_dir)), name="static")
+
+# API routes (JSON)
 app.include_router(health_router)
-app.include_router(clerk_router)
+app.include_router(auth_router)
 app.include_router(users_router)
 app.include_router(dashboard_router)
 app.include_router(github_router)
-app.include_router(webhooks_router)
 app.include_router(certificates_router)
 app.include_router(steps_router)
+
+# HTMX routes (HTML fragments)
+app.include_router(htmx_router)
+
+# Page routes (HTML - must be last to avoid catching API routes)
+app.include_router(pages_router)

@@ -1,109 +1,100 @@
 {
-  "id": "phase5-capstone",
+  "id": "phase6-capstone",
   "slug": "capstone",
-  "name": "Capstone: Comprehensive Security Implementation",
-  "description": "Apply everything you've learned to implement comprehensive cloud security for your Journal API. This capstone covers IAM, data protection, network security, monitoring, and incident response - creating a production-ready security posture.",
-  "short_description": "Secure your Journal API with IAM policies, secrets management, network controls, and automated threat detection.",
+  "name": "Capstone: Secure Your Journal API",
+  "description": "You've learned about IAM, encryption, network security, monitoring, and incident response. Now it's time to put it all together. In this capstone, you'll take your Journal API from previous phases and harden it with real security controls. By the end, you'll have a production-ready, genuinely secure application—and a great portfolio piece that shows employers you understand cloud security.",
+  "short_description": "Harden your Journal API with IAM, secrets management, network controls, monitoring, and incident response—make it production-ready.",
   "order": 7,
   "is_capstone": true,
   "learning_steps": [
     {
       "order": 1,
-      "text": "Project Overview",
-      "action": "Project Overview:",
-      "url": null,
-      "description": "Secure your Journal API across all five security domains: Identity & Access Management, Data Protection, Network Security, Security Monitoring, and Incident Response."
+      "text": "What you're building",
+      "action": "Read: Project Overview",
+      "description": "You're going to secure your Journal API across five security domains—the same domains real security teams audit:\n\n1. Identity & Access Management\n2. Data Protection & Secrets\n3. Network Security\n4. Security Monitoring\n5. Incident Response\n\nDon't rush this. Work through each section carefully and test as you go. When you're done, you'll have a genuinely hardened cloud application."
     },
     {
       "order": 2,
-      "text": "Part 1: IAM Security",
-      "action": "Part 1: IAM Security",
-      "url": null,
-      "description": "Implement proper identity and access controls:\n\n• Create service accounts with minimal permissions\n• Implement role-based access control (RBAC)\n• Enable MFA for all administrative access\n• Set up API authentication and authorization\n• Remove any hardcoded credentials"
+      "text": "Part 1: Lock Down IAM",
+      "action": "Implement: IAM Security",
+      "description": "First up—make sure the right people (and services) have the right access, and nobody else does:\n\n- Create a dedicated service account for your Journal API (stop using your personal credentials!)\n- Set up role-based access control (RBAC) with least-privilege permissions\n- Enable MFA for all admin access to your cloud account\n- Make sure your API authentication is solid (JWT tokens, API keys—whatever you set up in Phase 3)\n- Search your codebase for any hardcoded credentials and remove them",
+      "title": "IAM Security"
     },
     {
       "order": 3,
-      "text": "IAM Implementation Tasks",
-      "action": "IAM Implementation Tasks:",
-      "url": null,
-      "description": "□ Create dedicated service account for API\n□ Define IAM roles with least privilege\n□ Configure API key rotation\n□ Set up conditional access policies\n□ Enable audit logging for IAM changes"
+      "text": "IAM Checklist",
+      "action": "Verify: IAM Implementation",
+      "description": "Before moving on, make sure you can check off each of these:\n\n- [ ] Dedicated service account created for the API\n- [ ] IAM roles defined with minimum required permissions\n- [ ] API key or credential rotation configured\n- [ ] Conditional access or IP restrictions in place\n- [ ] Audit logging enabled for all IAM changes"
     },
     {
       "order": 4,
-      "text": "Part 2: Data Protection",
-      "action": "Part 2: Data Protection",
-      "url": null,
-      "description": "Protect data at rest and in transit:\n\n• Enable encryption for database storage\n• Configure TLS for all API endpoints\n• Implement secrets management for credentials\n• Set up backup encryption\n• Classify and protect sensitive user data"
+      "text": "Part 2: Protect Your Data",
+      "action": "Implement: Data Protection",
+      "description": "Your users' journal entries are their private thoughts—treat them that way:\n\n- Enable encryption at rest for your PostgreSQL database\n- Configure TLS/HTTPS for all API endpoints (no plaintext traffic!)\n- Move your database password, LLM API key, and any other secrets into a secrets manager\n- Set up encrypted backups for your database\n- Document what data your app stores and how sensitive each type is",
+      "title": "Data Protection"
     },
     {
       "order": 5,
-      "text": "Data Protection Tasks",
-      "action": "Data Protection Implementation Tasks:",
-      "url": null,
-      "description": "□ Enable database encryption at rest\n□ Configure HTTPS/TLS for API\n□ Migrate secrets to secrets manager\n□ Implement encrypted backups\n□ Document data classification schema"
+      "text": "Data Protection Checklist",
+      "action": "Verify: Data Protection",
+      "description": "Check these off:\n\n- [ ] Database encryption at rest is enabled\n- [ ] All API traffic uses HTTPS/TLS\n- [ ] Secrets moved from .env files to a cloud secrets manager\n- [ ] Database backups are encrypted\n- [ ] Data classification documented (what's stored, how sensitive is it)"
+    },
+    {
+      "order": 6,
+      "text": "Part 3: Secure Your Network",
+      "action": "Implement: Network Security",
+      "description": "Your database should not be reachable from the internet. Let's make sure of that:\n\n- Set up a VPC with separate public and private subnets\n- Put your API behind a load balancer in the public subnet\n- Move your database to a private subnet with no internet access\n- Configure security groups so only your API can talk to the database\n- Set up a WAF (Web Application Firewall) if your provider supports it",
+      "title": "Network Security"
     },
     {
       "order": 7,
-      "text": "Part 3: Network Security",
-      "action": "Part 3: Network Security",
-      "url": null,
-      "description": "Implement network isolation and controls:\n\n• Configure VPC with public/private subnets\n• Set up security groups for API and database\n• Implement network ACLs\n• Configure load balancer with WAF\n• Set up private endpoints where available"
-    },
-    {
-      "order": 7,
-      "text": "Network Security Tasks",
-      "action": "Network Security Implementation Tasks:",
-      "url": null,
-      "description": "□ Design VPC architecture with subnets\n□ Configure security groups (API, DB, bastion)\n□ Set up network ACLs for subnet protection\n□ Configure load balancer with SSL termination\n□ Document network architecture diagram"
+      "text": "Network Security Checklist",
+      "action": "Verify: Network Security",
+      "description": "Check these off:\n\n- [ ] VPC architecture designed with public/private subnets\n- [ ] Security groups configured (API, database, bastion if needed)\n- [ ] Network ACLs set up for subnet-level protection\n- [ ] Load balancer configured with SSL termination\n- [ ] Network architecture diagram documented"
     },
     {
       "order": 8,
-      "text": "Part 4: Security Monitoring",
-      "action": "Part 4: Security Monitoring",
-      "url": null,
-      "description": "Set up comprehensive security monitoring:\n\n• Enable audit logging for all services\n• Configure log aggregation and analysis\n• Create security dashboards\n• Set up alerting for security events\n• Implement metrics for security KPIs"
+      "text": "Part 4: Set Up Monitoring",
+      "action": "Implement: Security Monitoring",
+      "description": "Now that your app is secured, you need to know if anyone tries to mess with it:\n\n- Enable audit logging for all cloud services (CloudTrail, Activity Log, etc.)\n- Set up a central place for all your logs\n- Build a simple security dashboard showing key metrics\n- Create alerts for the events that matter most (failed logins, config changes, unusual traffic)\n- Define what \"normal\" looks like so you can spot anomalies",
+      "title": "Security Monitoring"
     },
     {
       "order": 9,
-      "text": "Security Monitoring Tasks",
-      "action": "Security Monitoring Implementation Tasks:",
-      "url": null,
-      "description": "□ Enable CloudWatch/Azure Monitor logging\n□ Configure log retention policies\n□ Create security event dashboard\n□ Set up alerts for critical events\n□ Define security metrics and thresholds"
+      "text": "Monitoring Checklist",
+      "action": "Verify: Monitoring Setup",
+      "description": "Check these off:\n\n- [ ] Cloud audit logging enabled (CloudWatch/Azure Monitor/Cloud Logging)\n- [ ] Log retention policies configured\n- [ ] Security event dashboard created\n- [ ] Alerts set up for critical events (failed auth, config changes)\n- [ ] Security metrics and thresholds defined"
     },
     {
       "order": 10,
-      "text": "Part 5: Incident Response",
-      "action": "Part 5: Incident Response",
-      "url": null,
-      "description": "Prepare for security incidents:\n\n• Enable threat detection services\n• Create incident response runbooks\n• Set up automated response actions\n• Document escalation procedures\n• Plan for incident communication"
+      "text": "Part 5: Prepare for Incidents",
+      "action": "Implement: Incident Response",
+      "description": "The best time to plan for a security incident is before it happens. Set up your response capabilities:\n\n- Enable your cloud provider's threat detection service (GuardDuty, Sentinel, etc.)\n- Write a runbook for the most likely incident: \"What do we do if credentials are leaked?\"\n- Set up at least one automated response (e.g., block an IP after repeated failed logins)\n- Document your escalation process—who gets notified at each severity level\n- Create a post-incident review template",
+      "title": "Incident Response"
     },
     {
       "order": 11,
-      "text": "Incident Response Tasks",
-      "action": "Incident Response Implementation Tasks:",
-      "url": null,
-      "description": "□ Enable GuardDuty/Sentinel threat detection\n□ Create runbook for credential compromise\n□ Set up automated isolation for threats\n□ Document incident severity matrix\n□ Create communication templates"
+      "text": "Incident Response Checklist",
+      "action": "Verify: IR Setup",
+      "description": "Check these off:\n\n- [ ] Threat detection service enabled (GuardDuty/Sentinel/SCC)\n- [ ] Runbook written for credential compromise scenario\n- [ ] At least one automated response configured\n- [ ] Incident severity matrix documented\n- [ ] Communication/escalation templates created"
     },
     {
       "order": 12,
-      "text": "Success Criteria",
-      "action": "Success Criteria:",
-      "url": null,
-      "description": "Your implementation should meet these benchmarks:\n\n✓ Zero secrets in code or environment variables\n✓ Network isolation between API and database\n✓ Encryption enabled everywhere (transit + rest)\n✓ Monitoring functional with active alerts\n✓ At least one automated response configured\n✓ Complete documentation of security posture\n✓ Cost under budget with monitoring alerts"
+      "text": "How to know you're done",
+      "action": "Review: Success Criteria",
+      "description": "Step back and verify your implementation meets these benchmarks:\n\n- Zero secrets in your code or environment variables—everything is in a secrets manager\n- Your database is not accessible from the public internet\n- All traffic is encrypted (HTTPS for the API, TLS for database connections)\n- Monitoring is active and you have at least one working alert\n- You have at least one automated response configured\n- Your security posture is documented\n- You're staying within your cloud budget (set up billing alerts if you haven't)"
     },
     {
       "order": 13,
-      "text": "Deliverables",
-      "action": "Deliverables:",
-      "url": null,
-      "description": "Document and demonstrate:\n\n1. Security architecture diagram\n2. IAM roles and policies documentation\n3. Network architecture with security controls\n4. Monitoring dashboard screenshots\n5. Incident response runbook\n6. Security assessment report"
+      "text": "What to submit",
+      "action": "Deliverables",
+      "description": "Document and share your work—this is great portfolio material:\n\n1. Security architecture diagram (show your VPC, subnets, security groups)\n2. IAM roles and policies documentation\n3. Network architecture with security controls labeled\n4. Screenshots of your monitoring dashboard and alerts\n5. Your incident response runbook\n6. A brief security assessment: what you secured, what risks remain, what you'd do next\n\nPush everything to your GitHub repo. Consider sharing it on LinkedIn or the L2C Discord—you've earned it!"
     },
     {
       "order": 14,
-      "text": "Reference Documentation",
-      "action": "Reference Documentation:",
-      "url": null,
-      "description": "Security frameworks and best practices:",
+      "text": "Reference guides",
+      "action": "Bookmark: Security Frameworks",
+      "description": "Keep these handy as you work through the capstone—they're the official best practices from each cloud provider and from industry standards bodies:",
       "secondary_links": [
         {
           "text": "AWS Well-Architected Security Pillar",
@@ -121,14 +112,14 @@
           "text": "CIS Cloud Security Benchmarks",
           "url": "https://www.cisecurity.org/benchmark"
         }
-      ]
+      ],
+      "url": "https://docs.aws.amazon.com/wellarchitected/latest/security-pillar/welcome.html"
     },
     {
       "order": 15,
-      "text": "Provider-Specific Guides",
-      "action": "Provider-Specific Implementation Guides:",
-      "url": null,
-      "description": "Step-by-step tutorials:",
+      "text": "Cloud-specific workshops",
+      "action": "Practice: Provider Workshops",
+      "description": "If you want extra guidance, these official workshops walk you through security implementations step by step for each provider:",
       "secondary_links": [
         {
           "text": "AWS Security Workshop",

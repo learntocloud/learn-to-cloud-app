@@ -693,6 +693,13 @@
             ],
             "title": "Action"
           },
+          "checklist": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Checklist",
+            "type": "array"
+          },
           "code": {
             "anyOf": [
               {
@@ -1409,10 +1416,6 @@
           "journal_api_response",
           "code_analysis",
           "deployed_api",
-          "container_image",
-          "cicd_pipeline",
-          "terraform_iac",
-          "kubernetes_manifests",
           "devops_analysis",
           "security_scanning"
         ],

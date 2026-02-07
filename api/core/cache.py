@@ -25,7 +25,7 @@ DEFAULT_MAX_SIZE = 1000
 # User progress cache: keyed by user_id, stores UserProgress objects
 # TTL of 60 seconds means progress may be slightly stale after step completion
 # This is acceptable since UI updates optimistically
-_progress_cache: TTLCache[str, "UserProgress"] = TTLCache(
+_progress_cache: TTLCache[int, "UserProgress"] = TTLCache(
     maxsize=DEFAULT_MAX_SIZE,
     ttl=DEFAULT_TTL_SECONDS,
 )
@@ -33,36 +33,36 @@ _progress_cache: TTLCache[str, "UserProgress"] = TTLCache(
 # Steps-by-topic cache: keyed by user_id, stores dict[topic_id, set[step_order]]
 # TTL of 60 seconds to match progress cache - avoids re-scanning step_progress
 # when both fetch_user_progress and get_phase/topic_detail need step data
-_steps_by_topic_cache: TTLCache[str, dict[str, set[int]]] = TTLCache(
+_steps_by_topic_cache: TTLCache[int, dict[str, set[int]]] = TTLCache(
     maxsize=DEFAULT_MAX_SIZE,
     ttl=DEFAULT_TTL_SECONDS,
 )
 
 # Badge computation cache: keyed by (user_id, phases_hash), stores badge lists
 # TTL of 60 seconds to match progress cache
-_badge_cache: TTLCache[tuple[str, int], list["BadgeData"]] = TTLCache(
+_badge_cache: TTLCache[tuple[int, int], list["BadgeData"]] = TTLCache(
     maxsize=DEFAULT_MAX_SIZE,
     ttl=DEFAULT_TTL_SECONDS,
 )
 
 
-def get_cached_progress(user_id: str) -> "UserProgress | None":
+def get_cached_progress(user_id: int) -> "UserProgress | None":
     return _progress_cache.get(user_id)
 
 
-def set_cached_progress(user_id: str, progress: "UserProgress") -> None:
+def set_cached_progress(user_id: int, progress: "UserProgress") -> None:
     _progress_cache[user_id] = progress
 
 
-def get_cached_steps_by_topic(user_id: str) -> dict[str, set[int]] | None:
+def get_cached_steps_by_topic(user_id: int) -> dict[str, set[int]] | None:
     return _steps_by_topic_cache.get(user_id)
 
 
-def set_cached_steps_by_topic(user_id: str, steps: dict[str, set[int]]) -> None:
+def set_cached_steps_by_topic(user_id: int, steps: dict[str, set[int]]) -> None:
     _steps_by_topic_cache[user_id] = steps
 
 
-def invalidate_progress_cache(user_id: str) -> None:
+def invalidate_progress_cache(user_id: int) -> None:
     """Invalidate cached progress for a user.
 
     Call this after operations that modify user progress
@@ -77,13 +77,13 @@ def invalidate_progress_cache(user_id: str) -> None:
         _badge_cache.pop(key, None)
 
 
-def get_cached_badges(user_id: str, progress_hash: int) -> "list[BadgeData] | None":
+def get_cached_badges(user_id: int, progress_hash: int) -> "list[BadgeData] | None":
     """progress_hash ensures cache invalidation when completion data changes."""
     return _badge_cache.get((user_id, progress_hash))
 
 
 def set_cached_badges(
-    user_id: str, progress_hash: int, badges: "list[BadgeData]"
+    user_id: int, progress_hash: int, badges: "list[BadgeData]"
 ) -> None:
     _badge_cache[(user_id, progress_hash)] = badges
 

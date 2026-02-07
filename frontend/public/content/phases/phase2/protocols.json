@@ -27,7 +27,6 @@
       "text": "Port Numbers",
       "action": "Memorize:",
       "title": "Common Port Numbers",
-      "url": null,
       "description": "Know the common ports: 22 (SSH), 80 (HTTP), 443 (HTTPS), 53 (DNS), 25/587 (SMTP), 3306 (MySQL), 5432 (PostgreSQL), 6379 (Redis), 27017 (MongoDB)."
     },
     {
@@ -43,7 +42,6 @@
       "text": "Security Groups Preview",
       "action": "Learn:",
       "title": "Cloud Security Groups",
-      "url": null,
       "description": "Preview how cloud providers implement firewalls as security groups. Understand inbound vs outbound rules and the concept of least privilege."
     },
     {
@@ -51,7 +49,6 @@
       "text": "Using netstat and ss",
       "action": "Practice:",
       "title": "View Active Connections",
-      "url": null,
       "description": "Use netstat -tulpn or ss -tulpn to see what ports are listening on your system. Identify which processes are using which ports."
     }
   ]

@@ -45,7 +45,7 @@ from services.progress_service import (
 logger = get_logger(__name__)
 
 
-async def _get_steps_by_topic(db: AsyncSession, user_id: str) -> dict[str, set[int]]:
+async def _get_steps_by_topic(db: AsyncSession, user_id: int) -> dict[str, set[int]]:
     """Get all completed steps grouped by topic, with caching.
 
     Avoids re-scanning step_progress when fetch_user_progress already
@@ -117,7 +117,7 @@ def _to_hands_on_submission_data(submission: Submission) -> HandsOnSubmissionRes
 
 async def get_dashboard(
     db: AsyncSession,
-    user_id: str,
+    user_id: int,
     user_email: str,
     user_first_name: str | None,
     user_last_name: str | None,
@@ -176,7 +176,7 @@ async def get_dashboard(
 
 async def get_phases_list(
     db: AsyncSession,
-    user_id: str | None,
+    user_id: int | None,
 ) -> list[PhaseSummaryData]:
     """Get all phases with progress for a user.
 
@@ -202,7 +202,7 @@ async def get_phases_list(
 
 async def get_phase_detail(
     db: AsyncSession,
-    user_id: str | None,
+    user_id: int | None,
     phase_slug: str,
 ) -> PhaseDetailData | None:
     """Get detailed phase info with topics and progress."""
@@ -295,7 +295,7 @@ async def get_phase_detail(
 
 async def get_topic_detail(
     db: AsyncSession,
-    user_id: str | None,
+    user_id: int | None,
     phase_slug: str,
     topic_slug: str,
 ) -> TopicDetailData | None:

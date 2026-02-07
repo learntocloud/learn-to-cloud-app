@@ -10,7 +10,6 @@
       "order": 1,
       "text": "Learn IAM concepts across cloud providers",
       "action": "Learn IAM concepts:",
-      "url": null,
       "description": "Identity and Access Management (IAM) is how you control who can do what in your cloud environment. Master these core concepts: Users, Groups, Roles, and Policies.",
       "options": [
         {
@@ -31,13 +30,13 @@
           "url": "https://cloud.google.com/iam/docs/overview",
           "description": "Understanding Identity and Access Management in Google Cloud"
         }
-      ]
+      ],
+      "title": "Learn IAM concepts across cloud providers"
     },
     {
       "order": 2,
       "text": "Understand Security Groups & Firewall Rules",
-      "action": "Understand Security Groups & Firewall Rules:",
-      "url": null,
+      "action": "Understand Security Groups & Firewall Rules",
       "description": "Security groups act as virtual firewalls for your cloud resources, controlling inbound and outbound traffic.",
       "options": [
         {
@@ -63,15 +62,13 @@
     {
       "order": 3,
       "text": "Key Security Principles",
-      "action": "Key Security Principles:",
-      "url": null,
-      "description": "• Least Privilege Principle - Grant only the minimum permissions needed\n• RBAC (Role-Based Access Control) - Assign permissions based on job roles\n• Stateful vs Stateless rules - Security groups are stateful, network ACLs are stateless\n• Inbound vs Outbound rules - Control traffic in both directions"
+      "action": "Key Security Principles",
+      "description": "- Least Privilege Principle - Grant only the minimum permissions needed\n- RBAC (Role-Based Access Control) - Assign permissions based on job roles\n- Stateful vs Stateless rules - Security groups are stateful, network ACLs are stateless\n- Inbound vs Outbound rules - Control traffic in both directions"
     },
     {
-      "order": 5,
+      "order": 4,
       "text": "Hands-on Tasks",
-      "action": "Hands-on Tasks:",
-      "url": null,
+      "action": "Hands-on Tasks",
       "description": "Complete these security exercises on your cloud platform:\n\n1. Create IAM users and groups with specific permissions\n2. Implement IAM roles for secure access management\n3. Define and apply IAM policies to restrict access to sensitive resources\n4. Create a security group for a VM instance\n5. Define inbound rules to allow specific traffic (e.g., HTTP, SSH, RDP)\n6. Define outbound rules to control external communication\n7. Apply security group rules to a VM and verify access restrictions\n8. Test traffic flow by attempting to connect from allowed and restricted IPs"
     }
   ]

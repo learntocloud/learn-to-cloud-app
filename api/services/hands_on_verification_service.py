@@ -233,13 +233,7 @@ async def validate_submission(
 
         return await validate_deployed_api(submitted_value)
 
-    elif requirement.submission_type in {
-        SubmissionType.CONTAINER_IMAGE,
-        SubmissionType.CICD_PIPELINE,
-        SubmissionType.TERRAFORM_IAC,
-        SubmissionType.KUBERNETES_MANIFESTS,
-        SubmissionType.SECURITY_SCANNING,
-    }:
+    elif requirement.submission_type == SubmissionType.SECURITY_SCANNING:
         return validate_evidence_url_submission(submitted_value)
 
     else:

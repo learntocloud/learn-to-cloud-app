@@ -4,6 +4,7 @@ from datetime import UTC, date, datetime
 from enum import Enum as PyEnum
 
 from sqlalchemy import (
+    BigInteger,
     Boolean,
     Date,
     DateTime,
@@ -47,14 +48,14 @@ class TimestampMixin:
 
 
 class User(TimestampMixin, Base):
-    """User model - synced from Clerk via webhooks."""
+    """User model - authenticated via GitHub OAuth."""
 
     __tablename__ = "users"
     __table_args__ = (
         UniqueConstraint("github_username", name="uq_users_github_username"),
     )
 
-    id: Mapped[str] = mapped_column(String(255), primary_key=True)
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=False)
     email: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     first_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     last_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
@@ -80,20 +81,6 @@ class User(TimestampMixin, Base):
     step_progress: Mapped[list["StepProgress"]] = relationship(
         back_populates="user",
         cascade="all, delete-orphan",
-    )
-
-
-class ProcessedWebhook(Base):
-    """Tracks processed webhooks for idempotency."""
-
-    __tablename__ = "processed_webhooks"
-
-    id: Mapped[str] = mapped_column(String(255), primary_key=True)
-    event_type: Mapped[str] = mapped_column(String(100), nullable=False)
-    processed_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        default=utcnow,
-        index=True,
     )
 
 
@@ -130,11 +117,7 @@ class SubmissionType(str, PyEnum):
     # Phase 4: Cloud deployment validation
     DEPLOYED_API = "deployed_api"
 
-    # Phase 5: DevOps artifacts (legacy individual types kept for DB compat)
-    CONTAINER_IMAGE = "container_image"
-    CICD_PIPELINE = "cicd_pipeline"
-    TERRAFORM_IAC = "terraform_iac"
-    KUBERNETES_MANIFESTS = "kubernetes_manifests"
+    # Phase 5: DevOps analysis
     DEVOPS_ANALYSIS = "devops_analysis"
 
     # Phase 6: Security posture
@@ -160,8 +143,8 @@ class Submission(TimestampMixin, Base):
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    user_id: Mapped[str] = mapped_column(
-        String(255),
+    user_id: Mapped[int] = mapped_column(
+        BigInteger,
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
     )
@@ -222,8 +205,8 @@ class Certificate(TimestampMixin, Base):
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    user_id: Mapped[str] = mapped_column(
-        String(255),
+    user_id: Mapped[int] = mapped_column(
+        BigInteger,
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
     )
@@ -266,8 +249,8 @@ class StepProgress(Base):
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    user_id: Mapped[str] = mapped_column(
-        String(255),
+    user_id: Mapped[int] = mapped_column(
+        BigInteger,
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
     )
@@ -301,8 +284,8 @@ class UserActivity(Base):
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    user_id: Mapped[str] = mapped_column(
-        String(255),
+    user_id: Mapped[int] = mapped_column(
+        BigInteger,
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
     )

@@ -1,0 +1,76 @@
+<!-- Single learning step - swappable via HTMX -->
+<div id="step-{{ topic_id }}-{{ step.order }}" class="flex items-start gap-3 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+    {% if user %}
+    <input
+        type="checkbox"
+        {% if step.order in completed_steps %}checked{% endif %}
+        class="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+        {% if step.order in completed_steps %}
+        hx-delete="/htmx/steps/{{ topic_id }}/{{ step.order }}"
+        {% else %}
+        hx-post="/htmx/steps/complete"
+        hx-vals='{"topic_id": "{{ topic_id }}", "step_order": {{ step.order }}, "phase_id": {{ phase_id }}}'
+        {% endif %}
+        hx-target="#step-{{ topic_id }}-{{ step.order }}"
+        hx-swap="outerHTML"
+    >
+    {% else %}
+    <div class="mt-1 h-4 w-4 rounded border border-gray-300 dark:border-gray-600 flex-shrink-0"></div>
+    {% endif %}
+
+    <div class="flex-1 min-w-0">
+        <p class="text-sm {% if step.order in completed_steps %}line-through text-gray-400 dark:text-gray-500{% else %}text-gray-900 dark:text-gray-100{% endif %}">
+            {% if step.action %}
+            <span class="font-medium text-blue-600 dark:text-blue-400">{{ step.action }}</span>
+            {% endif %}
+            {% if step.title and step.url %}
+            <a href="{{ step.url }}" target="_blank" rel="noopener" class="underline hover:text-blue-600 dark:hover:text-blue-400">{{ step.title }}</a>
+            {% elif step.title %}
+            <span class="font-medium">{{ step.title }}</span>
+            {% endif %}
+        </p>
+        {% if step.description %}
+        <div class="mt-1 text-sm text-gray-600 dark:text-gray-400 prose prose-sm dark:prose-invert max-w-none">
+            {{ step.description_html | safe }}
+        </div>
+        {% endif %}
+
+        {% if step.code %}
+        <div class="mt-2 relative" x-data="{ copied: false }">
+            <pre class="bg-gray-100 dark:bg-gray-800 rounded-md p-3 text-sm overflow-x-auto"><code>{{ step.code }}</code></pre>
+            <button
+                @click="navigator.clipboard.writeText($refs.code{{ step.order }}.textContent); copied = true; setTimeout(() => copied = false, 2000)"
+                class="absolute top-2 right-2 p-1 rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                :class="{ 'text-green-500': copied }"
+            >
+                <span x-show="!copied">📋</span>
+                <span x-show="copied">✓</span>
+            </button>
+        </div>
+        {% endif %}
+
+        {% if step.options %}
+        <div class="mt-2" x-data="{ tab: '{{ step.options[0].provider | default('option-0') }}' }">
+            <div class="flex gap-1 border-b border-gray-200 dark:border-gray-700">
+                {% for option in step.options %}
+                <button
+                    @click="tab = '{{ option.provider | default(loop.index0) }}'"
+                    :class="tab === '{{ option.provider | default(loop.index0) }}' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400'"
+                    class="px-3 py-2 text-sm font-medium border-b-2 -mb-px"
+                >
+                    {{ option.label | default(option.provider) }}
+                </button>
+                {% endfor %}
+            </div>
+            {% for option in step.options %}
+            <div x-show="tab === '{{ option.provider | default(loop.index0) }}'" class="mt-2 text-sm text-gray-700 dark:text-gray-300">
+                {{ option.description_html | safe }}
+                {% if option.url %}
+                <a href="{{ option.url }}" target="_blank" rel="noopener" class="text-blue-600 hover:underline dark:text-blue-400">{{ option.title | default('Learn more') }}</a>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+</div>

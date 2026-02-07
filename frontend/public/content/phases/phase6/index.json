@@ -2,8 +2,8 @@
   "id": 6,
   "slug": "phase6",
   "name": "Securing Your Cloud Applications",
-  "description": "This phase focuses on securing the cloud applications and infrastructure you've built throughout your journey. You'll take the Journal API application from previous phases and implement enterprise-grade security controls, monitoring, and incident response capabilities.",
-  "short_description": "Implement cloud security: IAM policies, secrets management, network security, threat detection, and incident response. Enterprise-grade protection.",
+  "description": "You've built your Journal API, deployed it to the cloud, and set up CI/CD pipelines. Now it's time to lock it down. Security isn't a separate thing you bolt on at the end—it's something every cloud engineer needs to think about from day one. In this phase, we'll walk you through the key security practices that keep real production apps safe. By the end, your Journal API will be hardened and production-ready.",
+  "short_description": "Secure your Journal API with IAM, secrets management, network controls, monitoring, and incident response. Make it production-ready.",
   "badge": {
     "name": "Security Guardian",
     "description": "Completed Phase 6",
@@ -26,7 +26,7 @@
   ],
   "capstone": {
     "title": "Comprehensive Security Implementation",
-    "summary": "Harden your Journal API and cloud environment with practical, production-minded security controls.",
+    "summary": "Take your Journal API from 'it works' to 'it's secure.' You'll apply everything from this phase to harden your app with real security controls.",
     "includes": [
       "IAM and least-privilege access controls",
       "Secrets management and data protection",
@@ -36,7 +36,7 @@
     "topic_slug": "capstone"
   },
   "hands_on_verification": {
-    "summary": "Demonstrate security hygiene with scanning and remediation evidence.",
+    "summary": "Show us you've got security scanning running and that you know how to handle what it finds.",
     "includes": [
       "Enable security scanning (Dependabot, CodeQL, etc.)",
       "Show resolved or triaged findings"
@@ -61,19 +61,19 @@
   "connections": [
     {
       "phase": "Phase 1-3",
-      "description": "Use your Linux, networking, and programming skills to configure security tools"
+      "description": "Your Linux, networking, and Python skills come back here—you'll use them to configure security tools and audit your setup"
     },
     {
       "phase": "Phase 4",
-      "description": "Secure the cloud resources and networking you deployed"
+      "description": "Remember those cloud resources you deployed? Time to make sure nobody else can mess with them"
     },
     {
       "phase": "Phase 5",
-      "description": "Add security scanning and monitoring to your CI/CD pipelines"
+      "description": "Your CI/CD pipelines get security scanning baked right in"
     },
     {
       "phase": "Phase 6",
-      "description": "Make everything production-ready with enterprise security controls"
+      "description": "This is where it all comes together—your app goes from working to production-ready"
     }
   ],
   "security_overviews": [

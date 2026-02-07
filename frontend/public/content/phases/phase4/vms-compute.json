@@ -25,15 +25,13 @@
     {
       "order": 3,
       "text": "Instance Types & OS Selection",
-      "action": "Study Instance Types & OS Selection:",
-      "url": null,
-      "description": "Learn to choose the right VM specs (CPU, RAM, storage) based on workload requirements. Different instance types are optimized for:\n\n• General purpose - balanced compute, memory, networking\n• Compute optimized - CPU-intensive workloads\n• Memory optimized - large datasets in memory\n• Storage optimized - high sequential read/write"
+      "action": "Study Instance Types & OS Selection",
+      "description": "Learn to choose the right VM specs (CPU, RAM, storage) based on workload requirements. Different instance types are optimized for:\n\n- General purpose - balanced compute, memory, networking\n- Compute optimized - CPU-intensive workloads\n- Memory optimized - large datasets in memory\n- Storage optimized - high sequential read/write"
     },
     {
-      "order": 5,
+      "order": 4,
       "text": "Deploy a VM on your cloud provider",
-      "action": "Deploy a VM on your cloud provider:",
-      "url": null,
+      "action": "Deploy a VM on your cloud provider",
       "description": "Choose your cloud platform and follow the official guide to deploy your first virtual machine:",
       "options": [
         {
@@ -60,8 +58,8 @@
       "order": 5,
       "text": "Hands-on: Deploy a VM using default configuration",
       "action": "Hands-on Task:",
-      "url": null,
-      "description": "Deploy a Virtual Machine on any cloud provider using the default configuration. Don't worry about custom networking or security groups yet - just get comfortable with the deployment process and verify your VM is running and accessible."
+      "description": "Deploy a Virtual Machine on any cloud provider using the default configuration. Don't worry about custom networking or security groups yet - just get comfortable with the deployment process and verify your VM is running and accessible.",
+      "title": "Hands-on: Deploy a VM using default configuration"
     }
   ]
 }

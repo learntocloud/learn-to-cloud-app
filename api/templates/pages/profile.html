@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}{{ profile.username }} - Learn to Cloud{% endblock %}
+
+{% block content %}
+<!-- Profile header -->
+<div class="flex items-center gap-6 mb-8">
+    {% if profile.avatar_url %}
+    <img src="{{ profile.avatar_url }}" alt="{{ profile.username }}" class="h-20 w-20 rounded-full">
+    {% endif %}
+    <div>
+        <h1 class="text-3xl font-bold text-gray-900 dark:text-white">
+            {{ profile.first_name | default(profile.username) }}
+        </h1>
+        <p class="text-gray-600 dark:text-gray-400">
+            <a href="https://github.com/{{ profile.username }}" target="_blank" rel="noopener" class="hover:text-blue-600 dark:hover:text-blue-400">
+                @{{ profile.username }}
+            </a>
+        </p>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+            Phase {{ profile.current_phase }} · {{ profile.phases_completed }} phases completed
+            · Member since {{ profile.member_since.strftime('%B %Y') }}
+        </p>
+    </div>
+
+    <!-- Share button -->
+    <div class="ml-auto" x-data="{ open: false }">
+        <button @click="open = !open" class="rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800">
+            Share
+        </button>
+        <div x-show="open" @click.outside="open = false" class="absolute mt-2 rounded-md shadow-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-2 z-10">
+            <button
+                @click="navigator.clipboard.writeText(window.location.href); open = false"
+                class="block w-full text-left px-3 py-1.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
+            >
+                📋 Copy link
+            </button>
+            <a href="https://twitter.com/intent/tweet?url={{ request.url }}&text=Check out my Learn to Cloud profile!" target="_blank" rel="noopener" class="block px-3 py-1.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded">
+                🐦 Share on X
+            </a>
+            <a href="https://www.linkedin.com/sharing/share-offsite/?url={{ request.url }}" target="_blank" rel="noopener" class="block px-3 py-1.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded">
+                💼 Share on LinkedIn
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Badges -->
+{% if profile.badges %}
+<div class="mb-8">
+    <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Badges</h2>
+    <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-4">
+        {% for badge in profile.badges %}
+        <div class="flex flex-col items-center gap-2 p-3 rounded-lg border border-gray-200 dark:border-gray-700" title="{{ badge.description }}">
+            <span class="text-3xl">{{ badge.icon }}</span>
+            <span class="text-xs font-medium text-gray-600 dark:text-gray-400 text-center">{{ badge.name }}</span>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Submissions -->
+{% if profile.submissions %}
+<div>
+    <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Verified Submissions</h2>
+    <div class="space-y-3">
+        {% for sub in profile.submissions %}
+        <div class="p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+            <div class="flex items-center justify-between">
+                <div>
+                    <span class="font-medium text-gray-900 dark:text-gray-100">{{ sub.name }}</span>
+                    <span class="text-xs text-gray-500 dark:text-gray-400 ml-2">Phase {{ sub.phase_id }}</span>
+                </div>
+                {% if sub.validated_at %}
+                <span class="text-xs text-gray-500 dark:text-gray-400">{{ sub.validated_at.strftime('%b %d, %Y') }}</span>
+                {% endif %}
+            </div>
+            {% if sub.submitted_value and sub.submitted_value != '[redacted]' %}
+            <p class="text-sm text-blue-600 dark:text-blue-400 mt-1 truncate">
+                <a href="{{ sub.submitted_value }}" target="_blank" rel="noopener" class="hover:underline">{{ sub.submitted_value }}</a>
+            </p>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+{% endblock %}

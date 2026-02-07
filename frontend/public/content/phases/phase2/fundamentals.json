@@ -59,7 +59,6 @@
       "text": "DNS Troubleshooting",
       "action": "Practice:",
       "title": "Using dig and nslookup",
-      "url": null,
       "description": "Practice using dig and nslookup to query DNS records. Try: dig google.com, dig +trace google.com, nslookup -type=MX gmail.com"
     },
     {

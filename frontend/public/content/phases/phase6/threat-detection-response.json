@@ -2,16 +2,15 @@
   "id": "phase6-topic5",
   "slug": "threat-detection-response",
   "name": "Threat Detection & Incident Response",
-  "description": "Incident response is about being prepared to handle security events when they occur. Before implementing automated threat detection for your Journal API, you need to understand threat detection principles and incident response workflows.",
+  "description": "No matter how good your security is, things can still go wrong—credentials get leaked, misconfigurations happen, and attackers are creative. The difference between a minor incident and a catastrophe is how prepared you are to respond. In this topic, you'll learn how to detect threats automatically and how to respond when something does go sideways.",
   "order": 5,
   "is_capstone": false,
   "learning_steps": [
     {
       "order": 1,
       "text": "Incident Response Fundamentals",
-      "action": "Read: Incident Response Fundamentals",
-      "url": null,
-      "description": "Start with these foundational guides:",
+      "action": "Read: IR Fundamentals",
+      "description": "These are the foundational guides that security professionals actually study. The NIST guide is the most important one—it defines the standard incident response process. The MITRE ATT&CK framework maps out how attackers actually operate, which helps you know what to look for.",
       "secondary_links": [
         {
           "text": "NIST Incident Handling Guide",
@@ -30,9 +29,8 @@
     {
       "order": 2,
       "text": "Watch: Incident Response in Practice",
-      "action": "Watch: Incident Response in Practice",
-      "url": null,
-      "description": "Video tutorials on incident response:",
+      "action": "Watch",
+      "description": "These videos walk through real incident response scenarios. The first one gives a good overview of the whole process, and the AWS one shows cloud-specific response patterns.",
       "secondary_links": [
         {
           "text": "Incident Response Fundamentals (40 min)",
@@ -46,14 +44,15 @@
           "text": "Cloud Threat Hunting (45 min)",
           "url": "https://www.youtube.com/watch?v=V6W_4MaCH5E"
         }
-      ]
+      ],
+      "url": "https://www.youtube.com/watch?v=2z2VK0C8cGU",
+      "title": "Incident Response in Practice"
     },
     {
       "order": 3,
       "text": "Cloud Security Threats",
-      "action": "Learn: Cloud Security Threats",
-      "url": null,
-      "description": "Research on cloud threats:",
+      "action": "Read: What You're Defending Against",
+      "description": "It helps to know what the most common cloud attacks look like. The OWASP Cloud Top 10 is particularly useful because it's ranked by how often these attacks actually happen.",
       "secondary_links": [
         {
           "text": "OWASP Cloud Security Top 10",
@@ -68,37 +67,32 @@
     {
       "order": 4,
       "text": "Incident Response Lifecycle",
-      "action": "Key Concept - Incident Response Lifecycle:",
-      "url": null,
-      "description": "1. Preparation: Plan, train, and set up tools before incidents occur\n2. Detection & Analysis: Identify and understand security events\n3. Containment, Eradication & Recovery: Stop the threat and restore normal operations\n4. Post-Incident Activity: Learn from incidents to improve future response"
+      "action": "Study: The IR Lifecycle",
+      "description": "Every security team follows the same basic playbook. Here's how it works:\n\n1. **Preparation** — Plan before anything happens. Write runbooks, set up tools, practice scenarios\n2. **Detection & Analysis** — Spot the incident and figure out what's going on. This is where your monitoring from the previous topic pays off\n3. **Containment, Eradication & Recovery** — Stop the bleeding, remove the threat, and get back to normal\n4. **Post-Incident Activity** — The most underrated step. What went wrong? How do we prevent it next time?\n\nFor your Journal API, think about: what would you do if your database credentials got leaked on GitHub?"
     },
     {
       "order": 5,
       "text": "Common Cloud Threats",
-      "action": "Key Concept - Common Cloud Threats:",
-      "url": null,
-      "description": "• Account Compromise: Stolen credentials or API keys\n• Data Breaches: Unauthorized access to sensitive data\n• Resource Hijacking: Using your cloud resources for malicious purposes\n• Misconfigurations: Accidentally exposing resources publicly\n• Supply Chain Attacks: Compromised dependencies or third-party services"
+      "action": "Study: Common Cloud Threats",
+      "description": "These are the threats you're most likely to encounter. Think about how each one could affect your Journal API:\n\n- **Account Compromise** — Someone gets your AWS/Azure/GCP credentials. They now control your infrastructure.\n- **Data Breaches** — Unauthorized access to your users' journal entries. Could be a misconfigured database or a leaked connection string.\n- **Resource Hijacking** — An attacker uses your cloud account to mine cryptocurrency. You get the bill.\n- **Misconfigurations** — You accidentally make your database publicly accessible. More common than you'd think.\n- **Supply Chain Attacks** — A compromised pip package or npm module in your dependencies."
     },
     {
-      "order": 7,
+      "order": 6,
       "text": "Automated Response Concepts",
-      "action": "Key Concept - Automated Response:",
-      "url": null,
-      "description": "• Security Orchestration: Coordinating responses across multiple tools\n• Playbooks: Predefined response procedures for common incidents\n• Threat Intelligence: Using external threat data to improve detection\n• Behavioral Analysis: Detecting anomalies in user and system behavior"
+      "action": "Study: Automated Response",
+      "description": "Manual incident response is slow. Modern cloud security uses automation to respond to threats in seconds, not hours:\n\n- **Security Orchestration** — Coordinating responses across multiple tools automatically\n- **Playbooks** — Predefined \"if this, then do that\" procedures. For example: \"if 10 failed logins from the same IP, block that IP\"\n- **Threat Intelligence** — Using external data feeds to know about new threats before they hit you\n- **Behavioral Analysis** — Detecting anomalies—your API normally gets 100 requests/hour, suddenly it's getting 10,000"
     },
     {
       "order": 7,
       "text": "Incident Severity Levels",
-      "action": "Key Concept - Incident Severity Levels:",
-      "url": null,
-      "description": "• Critical: Immediate threat to business operations or data\n• High: Significant security impact requiring rapid response\n• Medium: Security concern requiring investigation\n• Low: Minor security event for awareness and documentation"
+      "action": "Study: Severity Levels",
+      "description": "Not every incident needs the same response. Here's a framework for your Journal API:\n\n- **Critical** — Database breach, credentials exposed publicly, active data exfiltration. Drop everything.\n- **High** — Suspicious admin access, unusual data download patterns. Respond within an hour.\n- **Medium** — Repeated failed login attempts, unexpected config changes. Investigate within a day.\n- **Low** — Minor security scan findings, outdated dependencies. Track and fix during normal work."
     },
     {
       "order": 8,
       "text": "Threat Detection Tools",
-      "action": "Threat Detection Tools:",
-      "url": null,
-      "description": "Cloud-native threat detection services:",
+      "action": "Explore: Cloud Threat Detection Services",
+      "description": "Each cloud provider has a managed threat detection service. These constantly scan your environment and alert you to suspicious activity. Pick yours and read the overview.",
       "secondary_links": [
         {
           "text": "AWS GuardDuty",
@@ -117,9 +111,8 @@
     {
       "order": 9,
       "text": "Incident Response Frameworks",
-      "action": "Incident Response Frameworks:",
-      "url": null,
-      "description": "Industry standards:",
+      "action": "Bookmark: IR Frameworks",
+      "description": "These frameworks are what organizations actually use to build their incident response programs. Good references for the capstone and for real-world interviews.",
       "secondary_links": [
         {
           "text": "NIST Cybersecurity Framework",
@@ -138,9 +131,8 @@
     {
       "order": 10,
       "text": "Practice Resources",
-      "action": "Practice Resources (Optional):",
-      "url": null,
-      "description": "Hands-on incident response:",
+      "action": "Practice: IR Workshops (Optional)",
+      "description": "These workshops let you practice responding to simulated incidents. The CISA tabletop exercises are particularly good—they walk you through real-world scenarios step by step.",
       "secondary_links": [
         {
           "text": "AWS Incident Response Workshops",
@@ -154,14 +146,14 @@
           "text": "CISA Tabletop Exercises",
           "url": "https://www.cisa.gov/sites/default/files/publications/Tabletop_Exercise_Package.pdf"
         }
-      ]
+      ],
+      "title": "Practice Resources"
     },
     {
       "order": 11,
       "text": "Threat Intelligence Sources",
-      "action": "Threat Intelligence Sources:",
-      "url": null,
-      "description": "Stay informed about threats:",
+      "action": "Bookmark: Stay Informed",
+      "description": "Security is a moving target. These resources help you stay current on new threats and attack techniques—worth checking periodically.",
       "secondary_links": [
         {
           "text": "MITRE ATT&CK",

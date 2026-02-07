@@ -2,7 +2,7 @@
   "id": 3,
   "name": "Programming Fundamentals",
   "slug": "phase3",
-  "description": "Welcome to Phase 2! This phase is all about programming with Python and building real applications. Programming is a fundamental skill for cloud engineering, enabling you to create, manage, and optimize cloud resources efficiently. You'll build a working API with database integration\u2014the foundation for everything that follows.",
+  "description": "Welcome to Phase 3! This phase is all about programming with Python and building real applications. Programming is a fundamental skill for cloud engineering, enabling you to create, manage, and optimize cloud resources efficiently. You'll build a working API with database integration\u2014the foundation for everything that follows.",
   "short_description": "Learn Python programming, REST APIs, FastAPI, and databases. Build a real-world Journal API project.",
   "badge": {
     "name": "Code Crafter",
@@ -15,7 +15,7 @@
     "border_class": "border-purple-200 dark:border-purple-800",
     "text_class": "text-purple-600 dark:text-purple-400"
   },
-  "additional_context": "You don't need to know how to build UIs but you need to know how to work with APIs and databases. Focus on understanding the code you write\u2014avoid using AI assistants for code completion in this phase. You'll learn to use those tools effectively in Phase 3.",
+  "additional_context": "You don't need to know how to build UIs but you need to know how to work with APIs and databases. Focus on understanding the code you write\u2014avoid using AI assistants for code completion in this phase. You'll learn to use those tools effectively in Phase 4.",
   "order": 3,
   "prerequisites": [
     "Completed Phase 1: Linux and Bash",

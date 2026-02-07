@@ -48,13 +48,13 @@ resource "azurerm_container_app" "api" {
   }
 
   secret {
-    name  = "clerk-secret-key"
-    value = var.clerk_secret_key
+    name  = "github-client-secret"
+    value = var.github_client_secret
   }
 
   secret {
-    name  = "clerk-webhook-secret"
-    value = var.clerk_webhook_signing_secret
+    name  = "session-secret-key"
+    value = var.session_secret_key
   }
 
   secret {
@@ -147,18 +147,18 @@ resource "azurerm_container_app" "api" {
       }
 
       env {
-        name  = "CLERK_PUBLISHABLE_KEY"
-        value = var.clerk_publishable_key
+        name  = "GITHUB_CLIENT_ID"
+        value = var.github_client_id
       }
 
       env {
-        name        = "CLERK_SECRET_KEY"
-        secret_name = "clerk-secret-key"
+        name        = "GITHUB_CLIENT_SECRET"
+        secret_name = "github-client-secret"
       }
 
       env {
-        name        = "CLERK_WEBHOOK_SIGNING_SECRET"
-        secret_name = "clerk-webhook-secret"
+        name        = "SESSION_SECRET_KEY"
+        secret_name = "session-secret-key"
       }
 
       env {

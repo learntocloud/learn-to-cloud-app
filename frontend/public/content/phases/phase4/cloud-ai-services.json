@@ -9,8 +9,7 @@
     {
       "order": 1,
       "text": "Platform Overview",
-      "action": "Platform Overview:",
-      "url": null,
+      "action": "Platform Overview",
       "description": "Each major cloud provider offers an AI platform for deploying and managing models. Learn about your chosen platform:",
       "secondary_links": [
         {
@@ -30,8 +29,7 @@
     {
       "order": 2,
       "text": "Explore Available Models",
-      "action": "Explore Available Models:",
-      "url": null,
+      "action": "Explore Available Models",
       "description": "Each platform offers different models with varying capabilities, speeds, and costs:",
       "secondary_links": [
         {
@@ -51,8 +49,7 @@
     {
       "order": 3,
       "text": "Understand Deployment Options",
-      "action": "Understand Deployment Options:",
-      "url": null,
+      "action": "Understand Deployment Options",
       "description": "Learn how to deploy models in production:",
       "secondary_links": [
         {
@@ -70,10 +67,9 @@
       ]
     },
     {
-      "order": 5,
+      "order": 4,
       "text": "Safety & Guardrails",
-      "action": "Safety & Guardrails:",
-      "url": null,
+      "action": "Safety & Guardrails",
       "description": "Learn about content filtering and safety features to ensure responsible AI use:",
       "secondary_links": [
         {
@@ -93,8 +89,7 @@
     {
       "order": 5,
       "text": "Platform Playgrounds",
-      "action": "Platform Playgrounds:",
-      "url": null,
+      "action": "Platform Playgrounds",
       "description": "Use the playground to test models before writing code:",
       "secondary_links": [
         {
@@ -114,15 +109,13 @@
     {
       "order": 6,
       "text": "Model Selection for Your Journal App",
-      "action": "Model Selection for Your Journal App:",
-      "url": null,
-      "description": "For the capstone project, consider:\n\n• Smaller, faster models for simple sentiment analysis\n• Larger models if you need complex reasoning\n• Cost per token - some models are 10x more expensive\n• Latency requirements - how fast do you need responses?\n• Context window - how much text can the model handle?"
+      "action": "Model Selection for Your Journal App",
+      "description": "For the capstone project, consider:\n\n- Smaller, faster models for simple sentiment analysis\n- Larger models if you need complex reasoning\n- Cost per token - some models are 10x more expensive\n- Latency requirements - how fast do you need responses?\n- Context window - how much text can the model handle?"
     },
     {
       "order": 7,
       "text": "Hands-on Tasks",
-      "action": "Hands-on Tasks:",
-      "url": null,
+      "action": "Hands-on Tasks",
       "description": "Explore your cloud AI platform and deploy a model:\n\n1. Compare at least 2 different models in your platform's playground\n2. Test different prompts and observe quality, speed, and cost differences\n3. Analyze the available deployment options and their trade-offs\n4. Decide which model you'll use for your journal application and why\n5. Deploy a model that you will utilize for the capstone"
     }
   ]

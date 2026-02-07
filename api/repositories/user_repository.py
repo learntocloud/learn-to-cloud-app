@@ -25,8 +25,8 @@ class UserRepository:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def get_by_id(self, user_id: str) -> User | None:
-        """Get a user by their ID."""
+    async def get_by_id(self, user_id: int) -> User | None:
+        """Get a user by their ID (GitHub numeric user ID)."""
         result = await self.db.execute(select(User).where(User.id == user_id))
         return result.scalar_one_or_none()
 
@@ -41,11 +41,20 @@ class UserRepository:
         )
         return result.scalar_one_or_none()
 
-    async def get_or_create(self, user_id: str) -> User:
-        """Get user from DB or create placeholder.
+    async def get_or_create(
+        self,
+        user_id: int,
+        *,
+        email: str = "",
+        first_name: str | None = None,
+        last_name: str | None = None,
+        avatar_url: str | None = None,
+        github_username: str | None = None,
+    ) -> User:
+        """Get user from DB or create from GitHub OAuth data.
 
         Uses INSERT ... ON CONFLICT to handle concurrent requests safely.
-        The placeholder will be updated via Clerk webhook later.
+        On conflict, updates profile fields from GitHub.
 
         Query strategy:
         - Existing user (common path): 1 SELECT
@@ -56,10 +65,18 @@ class UserRepository:
         if user:
             return user
 
-        # Use RETURNING to get the inserted row back in one round-trip
+        values = {
+            "id": user_id,
+            "email": email,
+            "first_name": first_name,
+            "last_name": last_name,
+            "avatar_url": avatar_url,
+            "github_username": github_username,
+        }
+
         stmt = (
             pg_insert(User)
-            .values(id=user_id, email=f"{user_id}@placeholder.local")
+            .values(**values)
             .on_conflict_do_nothing(index_elements=["id"])
             .returning(User)
         )
@@ -74,7 +91,7 @@ class UserRepository:
 
     async def upsert(
         self,
-        user_id: str,
+        user_id: int,
         *,
         email: str,
         first_name: str | None = None,
@@ -112,7 +129,7 @@ class UserRepository:
         result = await self.db.execute(stmt)
         return result.scalar_one()
 
-    async def get_many_by_ids(self, user_ids: list[str]) -> list[User]:
+    async def get_many_by_ids(self, user_ids: list[int]) -> list[User]:
         """Get multiple users by their IDs in a single query.
 
         Returns users in no guaranteed order. Missing IDs are silently skipped.
@@ -124,7 +141,7 @@ class UserRepository:
 
     async def create(
         self,
-        user_id: str,
+        user_id: int,
         email: str,
         first_name: str | None = None,
         last_name: str | None = None,
@@ -175,8 +192,6 @@ class UserRepository:
         if github_username is not None:
             existing = await self.get_by_github_username(github_username)
             if existing and existing.id != user.id:
-                # Flush BEFORE setting on new user to avoid unique constraint
-                # violation on autoflush
                 existing.github_username = None
                 await self.db.flush()
             user.github_username = github_username
@@ -186,6 +201,6 @@ class UserRepository:
         user.updated_at = datetime.now(UTC)
         return user
 
-    async def delete(self, user_id: str) -> None:
+    async def delete(self, user_id: int) -> None:
         """Delete a user by ID. Cascades to related records."""
         await self.db.execute(delete(User).where(User.id == user_id))

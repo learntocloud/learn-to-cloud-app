@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Certificates - Learn to Cloud{% endblock %}
+
+{% block content %}
+<h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-8">Certificates</h1>
+
+<!-- Eligibility / Generate -->
+{% if eligible and not certificate %}
+<div class="mb-8 p-6 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
+    <h2 class="font-semibold text-green-800 dark:text-green-200 mb-2">🎉 You're eligible for a certificate!</h2>
+    <p class="text-sm text-green-700 dark:text-green-300 mb-4">You've completed all phases. Generate your certificate now.</p>
+    <form hx-post="/htmx/certificates" hx-target="#certificates-list" hx-swap="afterbegin">
+        <input type="hidden" name="certificate_type" value="full_completion">
+        <input type="hidden" name="recipient_name" value="{{ user.first_name }} {{ user.last_name }}">
+        <button type="submit" class="rounded-md bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-500">
+            Generate Certificate
+        </button>
+    </form>
+</div>
+{% elif not eligible %}
+<div class="mb-8 p-6 rounded-lg bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+    <p class="text-gray-600 dark:text-gray-400">Complete all phases to earn your certificate.</p>
+</div>
+{% endif %}
+
+<!-- Existing certificates -->
+<div id="certificates-list" class="space-y-4">
+    {% for cert in certificates %}
+    <div class="p-6 rounded-lg border border-gray-200 dark:border-gray-700">
+        <div class="flex items-center justify-between mb-3">
+            <h3 class="font-semibold text-gray-900 dark:text-white">{{ cert.certificate_type | replace('_', ' ') | title }}</h3>
+            <span class="text-sm text-gray-500 dark:text-gray-400">Issued {{ cert.issued_at.strftime('%B %d, %Y') }}</span>
+        </div>
+        <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
+            Recipient: {{ cert.recipient_name }} · Verification code:
+            <code class="bg-gray-100 dark:bg-gray-800 px-1 rounded text-xs">{{ cert.verification_code }}</code>
+            <button
+                x-data="{ copied: false }"
+                @click="navigator.clipboard.writeText('{{ cert.verification_code }}'); copied = true; setTimeout(() => copied = false, 2000)"
+                class="ml-1 text-blue-600 dark:text-blue-400 text-xs hover:underline"
+                x-text="copied ? 'Copied!' : 'Copy'"
+            ></button>
+        </p>
+        <div class="flex gap-3">
+            <a href="/api/certificates/{{ cert.id }}/pdf" class="text-sm font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400">
+                📄 Download PDF
+            </a>
+            <a href="/api/certificates/{{ cert.id }}/png" class="text-sm font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400">
+                🖼️ Download PNG
+            </a>
+            <a href="/verify/{{ cert.verification_code }}" class="text-sm font-medium text-gray-600 hover:text-gray-500 dark:text-gray-400">
+                🔗 Verification link
+            </a>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

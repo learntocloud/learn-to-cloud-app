@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - Learn to Cloud{% endblock %}
+
+{% block content %}
+<h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-8">Your Dashboard</h1>
+
+<!-- Streak info -->
+{% if streak %}
+<div class="mb-8 flex items-center gap-4 p-4 rounded-lg bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800">
+    <span class="text-3xl">🔥</span>
+    <div>
+        <p class="font-semibold text-orange-800 dark:text-orange-200">{{ streak.current_streak }} day streak!</p>
+        <p class="text-sm text-orange-600 dark:text-orange-400">Longest: {{ streak.longest_streak }} days</p>
+    </div>
+</div>
+{% endif %}
+
+<!-- Phase progress -->
+<div class="space-y-4">
+    {% for phase in phases %}
+    <a href="/phases/{{ phase.slug }}" class="block p-6 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-blue-500 dark:hover:border-blue-400 transition-colors">
+        <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-3">
+                {% if phase.theme and phase.theme.icon %}
+                <span class="text-2xl">{{ phase.theme.icon }}</span>
+                {% endif %}
+                <h2 class="font-semibold text-gray-900 dark:text-white">{{ phase.name }}</h2>
+            </div>
+            {% if phase.progress and phase.progress.percentage == 100 %}
+            <span class="inline-flex items-center rounded-full bg-green-100 dark:bg-green-900 px-2.5 py-0.5 text-xs font-medium text-green-800 dark:text-green-200">
+                ✓ Complete
+            </span>
+            {% endif %}
+        </div>
+
+        {% if phase.progress %}
+        <div class="flex items-center gap-3">
+            <div class="flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                <div class="h-full bg-blue-600 rounded-full" style="width: {{ phase.progress.percentage }}%"></div>
+            </div>
+            <span class="text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                {{ phase.progress.completed_steps }}/{{ phase.progress.total_steps }} steps
+            </span>
+        </div>
+        {% endif %}
+    </a>
+    {% endfor %}
+</div>
+
+<!-- Badges section -->
+{% if badges %}
+<div class="mt-12">
+    <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Earned Badges</h2>
+    <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-4">
+        {% for badge in badges %}
+        <div class="flex flex-col items-center gap-2 p-3 rounded-lg border border-gray-200 dark:border-gray-700" title="{{ badge.description }}">
+            <span class="text-3xl">{{ badge.icon }}</span>
+            <span class="text-xs font-medium text-gray-600 dark:text-gray-400 text-center">{{ badge.name }}</span>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+{% endblock %}

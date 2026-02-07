@@ -32,11 +32,11 @@ from services.phase_requirements_service import get_requirement_by_id
 # In-memory locks to prevent concurrent AI calls for the same user+requirement.
 # This prevents wasting quota on race conditions (e.g., user opens multiple tabs).
 
-_submission_locks: dict[tuple[str, str], asyncio.Lock] = {}
+_submission_locks: dict[tuple[int, str], asyncio.Lock] = {}
 _locks_lock = asyncio.Lock()  # Protects _submission_locks dict itself
 
 
-async def _get_submission_lock(user_id: str, requirement_id: str) -> asyncio.Lock:
+async def _get_submission_lock(user_id: int, requirement_id: str) -> asyncio.Lock:
     """Get or create a lock for a specific user+requirement combination.
 
     This ensures only one validation can run at a time for each user+requirement,
@@ -105,7 +105,7 @@ class CooldownActiveError(Exception):
 @track_operation("hands_on_submission")
 async def submit_validation(
     db: AsyncSession,
-    user_id: str,
+    user_id: int,
     requirement_id: str,
     submitted_value: str,
     github_username: str | None,

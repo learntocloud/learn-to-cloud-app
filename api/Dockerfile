@@ -21,6 +21,15 @@ ENV UV_PROJECT_ENVIRONMENT=/app/.venv
 RUN uv venv /app/.venv && \
     uv sync --no-dev
 
+# Tailwind CSS build stage
+FROM node:22-slim AS tailwind
+WORKDIR /build
+RUN npm install -g tailwindcss@3
+COPY api/tailwind.config.js ./
+COPY api/static/css/input.css ./static/css/input.css
+COPY api/templates/ ./templates/
+RUN npx tailwindcss -i static/css/input.css -o static/css/styles.css --minify
+
 # Production stage - minimal runtime
 FROM python:3.13-slim AS runtime
 
@@ -50,6 +59,9 @@ ENV CONTENT_DIR="/app/content/phases"
 
 # Copy application code from api/
 COPY --chown=appuser:appuser api/ .
+
+# Copy Tailwind-generated CSS from build stage
+COPY --from=tailwind --chown=appuser:appuser /build/static/css/styles.css /app/static/css/styles.css
 
 # Copy content from frontend's static assets (single source of truth)
 COPY --chown=appuser:appuser frontend/public/content /app/content

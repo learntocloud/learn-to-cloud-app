@@ -9,8 +9,7 @@
     {
       "order": 1,
       "text": "Understand Virtual Private Cloud (VPC/VNet)",
-      "action": "Understand Virtual Private Cloud:",
-      "url": null,
+      "action": "Understand Virtual Private Cloud",
       "description": "A VPC is your private network in the cloud - an isolated section where you can launch resources with full control over IP addressing, subnets, and routing.",
       "options": [
         {
@@ -44,9 +43,8 @@
     {
       "order": 3,
       "text": "Understand Gateways",
-      "action": "Understand Gateways:",
-      "url": null,
-      "description": "Learn about different types of gateways for secure internet access:\n\n• Internet Gateway (IGW) - Allows internet access for public subnets\n• NAT Gateway - Enables private subnet resources to access internet without being directly accessible\n• VPN Gateway - Secure connection between cloud and on-premises networks",
+      "action": "Understand Gateways",
+      "description": "Learn about different types of gateways for secure internet access:\n\n- Internet Gateway (IGW) - Allows internet access for public subnets\n- NAT Gateway - Enables private subnet resources to access internet without being directly accessible\n- VPN Gateway - Secure connection between cloud and on-premises networks",
       "options": [
         {
           "provider": "aws",
@@ -69,7 +67,7 @@
       ]
     },
     {
-      "order": 5,
+      "order": 4,
       "text": "Verify your understanding",
       "action": "Verify your understanding:",
       "title": "AWS Networking Fundamentals",
@@ -79,8 +77,7 @@
     {
       "order": 5,
       "text": "Hands-on Task",
-      "action": "Hands-on Task:",
-      "url": null,
+      "action": "Hands-on Task",
       "description": "Complete this networking lab on your cloud provider:\n\n1. Set up a Cloud Network (VPC/VNet)\n2. Create two subnets - one public, one private\n3. Configure Internet Access with proper routing\n4. Associate subnets with appropriate route tables\n5. Set up Security Groups for each subnet\n6. Deploy a VM in the Public Subnet\n7. Deploy a VM in the Private Subnet\n8. Verify the public VM is accessible and the private VM is not directly accessible from internet"
     }
   ]

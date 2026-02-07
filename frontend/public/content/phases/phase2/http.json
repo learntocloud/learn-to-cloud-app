@@ -19,7 +19,6 @@
       "text": "HTTP Status Codes",
       "action": "Memorize:",
       "title": "Status Code Categories",
-      "url": null,
       "description": "Know the status code categories: 2xx (success), 3xx (redirect), 4xx (client error), 5xx (server error). Memorize common codes: 200, 201, 301, 302, 400, 401, 403, 404, 500, 502, 503."
     },
     {
@@ -27,7 +26,6 @@
       "text": "HTTP Headers",
       "action": "Learn:",
       "title": "Common HTTP Headers",
-      "url": null,
       "description": "Understand common headers: Content-Type, Authorization, Accept, Cache-Control, User-Agent. Know how headers control request/response behavior."
     },
     {
@@ -43,7 +41,6 @@
       "text": "Using curl",
       "action": "Practice:",
       "title": "curl for HTTP Testing",
-      "url": null,
       "description": "Master curl for HTTP debugging: curl -v (verbose), curl -I (headers only), curl -X POST -d (POST with data), curl -H (custom headers). Try: curl -v https://httpbin.org/get"
     },
     {
@@ -51,7 +48,6 @@
       "text": "Browser DevTools Network Tab",
       "action": "Practice:",
       "title": "Inspect Network Traffic",
-      "url": null,
       "description": "Use browser DevTools Network tab to inspect HTTP traffic. Observe request/response headers, timing, and payload data on your favorite websites."
     }
   ]

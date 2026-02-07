@@ -17,7 +17,7 @@ class ActivityRepository:
 
     async def get_by_user(
         self,
-        user_id: str,
+        user_id: int,
         *,
         limit: int | None = None,
         cursor: int | None = None,
@@ -44,7 +44,7 @@ class ActivityRepository:
 
     async def get_activities_in_range(
         self,
-        user_id: str,
+        user_id: int,
         start_date: date,
         end_date: date,
     ) -> Sequence[UserActivity]:
@@ -62,7 +62,7 @@ class ActivityRepository:
 
     async def log_activity(
         self,
-        user_id: str,
+        user_id: int,
         activity_type: ActivityType,
         activity_date: date,
         reference_id: str | None = None,
@@ -80,7 +80,7 @@ class ActivityRepository:
 
     async def count_by_type(
         self,
-        user_id: str,
+        user_id: int,
         activity_type: ActivityType,
     ) -> int:
         """Count activities of a specific type for a user."""
@@ -94,7 +94,7 @@ class ActivityRepository:
 
     async def has_activity_on_date(
         self,
-        user_id: str,
+        user_id: int,
         activity_date: date,
     ) -> bool:
         """Check if user has any activity on a specific date."""
@@ -107,7 +107,7 @@ class ActivityRepository:
 
     async def get_activity_dates_ordered(
         self,
-        user_id: str,
+        user_id: int,
         *,
         limit: int | None = None,
     ) -> list[date]:

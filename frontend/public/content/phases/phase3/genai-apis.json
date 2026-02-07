@@ -9,12 +9,11 @@
     {
       "order": 1,
       "text": "Understand LLM API Basics",
-      "action": "Understand LLM API Basics:",
-      "url": null,
-      "description": "Before coding, understand these core concepts:\n\n• Messages format: LLMs work with conversation-style inputs (system, user, assistant messages)\n• Completions: The API generates text based on your input\n• Parameters: temperature (0 = deterministic, 1 = creative), max_tokens (response length), model (which LLM version)\n• Structured outputs: Getting JSON instead of free text"
+      "action": "Understand LLM API Basics",
+      "description": "Before coding, understand these core concepts:\n\n- Messages format: LLMs work with conversation-style inputs (system, user, assistant messages)\n- Completions: The API generates text based on your input\n- Parameters: temperature (0 = deterministic, 1 = creative), max_tokens (response length), model (which LLM version)\n- Structured outputs: Getting JSON instead of free text"
     },
     {
-      "order": 3,
+      "order": 2,
       "text": "Hands-On: Python OpenAI Demos",
       "action": "Hands-On:",
       "title": "Python OpenAI Demos",
@@ -30,15 +29,13 @@
     {
       "order": 3,
       "text": "Work through examples in order",
-      "action": "Work through examples in order:",
-      "url": null,
+      "action": "Work through examples in order",
       "description": "1. Chat Completions - Start with chat.py, then try chat_stream.py and chat_history.py\n2. Structured Outputs - Learn to get JSON responses with structured_outputs_basic.py\n3. Function Calling - See how LLMs can call your code with function_calling_basic.py"
     },
     {
       "order": 4,
       "text": "Choose your cloud provider",
-      "action": "Choose your cloud provider:",
-      "url": null,
+      "action": "Choose your cloud provider",
       "description": "Once you've completed the demos, apply your skills to your cloud provider's AI service:",
       "options": [
         {
@@ -64,15 +61,13 @@
     {
       "order": 5,
       "text": "Test in the playground first",
-      "action": "Test in the playground first:",
-      "url": null,
+      "action": "Test in the playground first",
       "description": "IMPORTANT: Test prompts in your provider's web interface before writing code. Try these exercises:\n\n1. Simple completion: 'Analyze the sentiment of this text: I learned so much today!'\n2. Structured output: Request JSON with sentiment and summary fields\n3. System message test: Add a system message that sets a 'learning coach' persona"
     },
     {
       "order": 6,
       "text": "Create a Python test script",
       "action": "Create a Python test script",
-      "url": null,
       "description": "Create a simple Python script llm_test.py that loads API credentials from environment variables, sends a journal entry to the LLM, requests sentiment analysis, and prints the results.",
       "code": "# Example journal entry to test:\n\"Today I learned about FastAPI and built my first endpoint.\nThe automatic documentation is amazing! I struggled a bit with\nasync functions but the official tutorial helped. Tomorrow I'll\ntackle database integration.\""
     }

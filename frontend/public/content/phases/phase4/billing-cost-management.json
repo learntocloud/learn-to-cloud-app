@@ -9,15 +9,13 @@
     {
       "order": 1,
       "text": "Understand Cloud Billing Basics",
-      "action": "Understand Cloud Billing Basics:",
-      "url": null,
-      "description": "Core concepts you must understand:\n\n• Pay-as-you-go pricing - You're charged for what you use, not upfront\n• Resource types have different costs - VMs, storage, data transfer all priced differently\n• Regional pricing varies - Same resource costs different amounts in different regions\n• Billing cycles - Usually monthly. Charges appear in your bill 24-48 hours after use"
+      "action": "Understand Cloud Billing Basics",
+      "description": "Core concepts you must understand:\n\n- Pay-as-you-go pricing - You're charged for what you use, not upfront\n- Resource types have different costs - VMs, storage, data transfer all priced differently\n- Regional pricing varies - Same resource costs different amounts in different regions\n- Billing cycles - Usually monthly. Charges appear in your bill 24-48 hours after use"
     },
     {
       "order": 2,
       "text": "Cost Management Overview",
-      "action": "Cost Management Overview:",
-      "url": null,
+      "action": "Cost Management Overview",
       "description": "Learn the billing and cost management tools for your cloud provider:",
       "options": [
         {
@@ -43,8 +41,7 @@
     {
       "order": 3,
       "text": "Set Up Budget Alerts",
-      "action": "Set Up Budget Alerts:",
-      "url": null,
+      "action": "Set Up Budget Alerts",
       "description": "Get notified before you overspend! Configure alerts at thresholds like 50%, 80%, 100% of your budget.",
       "options": [
         {
@@ -68,10 +65,9 @@
       ]
     },
     {
-      "order": 5,
+      "order": 4,
       "text": "Use Pricing Calculators",
-      "action": "Use Pricing Calculators:",
-      "url": null,
+      "action": "Use Pricing Calculators",
       "description": "Estimate costs BEFORE you deploy. Each cloud provider has a calculator:",
       "secondary_links": [
         {
@@ -91,15 +87,13 @@
     {
       "order": 5,
       "text": "Cost Optimization Tips",
-      "action": "Cost Optimization Tips:",
-      "url": null,
-      "description": "• Stop or deallocate VMs when not in use (dev environments!)\n• Right-size instances - don't over-provision\n• Use reserved instances for production workloads\n• Delete unused resources (disks, IPs, old snapshots)\n• Monitor data transfer costs - they add up!\n• Use auto-scaling to match capacity with demand"
+      "action": "Cost Optimization Tips",
+      "description": "- Stop or deallocate VMs when not in use (dev environments!)\n- Right-size instances - don't over-provision\n- Use reserved instances for production workloads\n- Delete unused resources (disks, IPs, old snapshots)\n- Monitor data transfer costs - they add up!\n- Use auto-scaling to match capacity with demand"
     },
     {
       "order": 6,
       "text": "Hands-on Tasks",
-      "action": "Hands-on Tasks:",
-      "url": null,
+      "action": "Hands-on Tasks",
       "description": "Set up cost monitoring for your cloud infrastructure:\n\n1. Review your current month's charges in the billing dashboard\n2. Identify potential cost-saving opportunities\n3. Set up a budget alert for $50/month (or your chosen limit)\n4. Use the pricing calculator to estimate costs for a new deployment"
     }
   ]

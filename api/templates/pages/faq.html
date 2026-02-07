@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}FAQ - Learn to Cloud{% endblock %}
+
+{% block content %}
+<h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-8">Frequently Asked Questions</h1>
+
+<div class="space-y-4 max-w-3xl">
+    {% set faqs = [
+        ("What is Learn to Cloud?", "Learn to Cloud is a structured, hands-on guide to learning cloud computing. It takes you from the fundamentals through advanced topics with practical exercises verified by our platform."),
+        ("Is it free?", "Yes! Learn to Cloud is completely free and open source."),
+        ("Do I need prior experience?", "No prior cloud experience is needed. Phase 0 covers prerequisites like Linux, networking, and programming fundamentals."),
+        ("How long does it take?", "It depends on your pace and background. Most learners complete all phases in 3-6 months of part-time study."),
+        ("How do I get my certificate?", "Complete all phases including the hands-on verification tasks. Once everything is verified, you can generate a certificate from your dashboard."),
+        ("Can I skip phases?", "You can read any phase, but hands-on verification builds on earlier phases. We recommend following the sequence."),
+        ("How does hands-on verification work?", "Each phase has practical tasks — creating a GitHub profile, deploying an API, analyzing code. You submit proof (URLs, tokens, or code) and our platform verifies it automatically."),
+    ] %}
+
+    {% for question, answer in faqs %}
+    <div class="border border-gray-200 dark:border-gray-700 rounded-lg" x-data="{ open: false }">
+        <button @click="open = !open" class="w-full flex items-center justify-between p-4 text-left">
+            <span class="font-medium text-gray-900 dark:text-white">{{ question }}</span>
+            <svg :class="{ 'rotate-180': open }" class="h-5 w-5 text-gray-400 transition-transform flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+            </svg>
+        </button>
+        <div x-show="open" x-collapse class="px-4 pb-4 text-sm text-gray-600 dark:text-gray-400">
+            {{ answer }}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

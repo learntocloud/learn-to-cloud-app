@@ -26,8 +26,8 @@
       "order": 3,
       "text": "Explore: Major Cloud Providers",
       "action": "Explore:",
-      "url": null,
-      "description": "The three major cloud providers are AWS (Amazon), Azure (Microsoft), and GCP (Google). You'll choose one to focus on throughout this guide, but the concepts you learn apply to all of them."
+      "description": "The three major cloud providers are AWS (Amazon), Azure (Microsoft), and GCP (Google). You'll choose one to focus on throughout this guide, but the concepts you learn apply to all of them.",
+      "title": "Major Cloud Providers"
     }
   ]
 }

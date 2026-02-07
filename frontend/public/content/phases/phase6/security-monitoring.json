@@ -2,16 +2,15 @@
   "id": "phase6-topic4",
   "slug": "security-monitoring",
   "name": "Security Monitoring",
-  "description": "Security monitoring is your early warning system for detecting threats and understanding what's happening in your cloud environment. Before implementing monitoring for your Journal API, you need to understand logging, alerting, and monitoring fundamentals.",
+  "description": "You've set up IAM, encrypted your data, and locked down your network. But how do you know if something goes wrong? Security monitoring is how you keep an eye on everything—it's your early warning system. Think of it like this: locks on the doors are great, but you also need security cameras. In this topic, we'll set up the cameras for your Journal API.",
   "order": 4,
   "is_capstone": false,
   "learning_steps": [
     {
       "order": 1,
       "text": "Cloud Monitoring Fundamentals",
-      "action": "Read: Cloud Monitoring Fundamentals",
-      "url": null,
-      "description": "Start with your cloud provider's monitoring documentation:",
+      "action": "Read: Monitoring Documentation",
+      "description": "Each cloud provider has two main monitoring services—one for performance metrics (CloudWatch, Azure Monitor, Cloud Monitoring) and one for audit trails (CloudTrail, Activity Log, Cloud Logging). You'll want to understand both. Read the overview for your provider.",
       "secondary_links": [
         {
           "text": "AWS CloudWatch",
@@ -42,9 +41,8 @@
     {
       "order": 2,
       "text": "Watch: Security Monitoring in Practice",
-      "action": "Watch: Security Monitoring in Practice",
-      "url": null,
-      "description": "Video tutorials on monitoring:",
+      "action": "Watch",
+      "description": "These videos show real monitoring setups. The SIEM video is especially helpful if the concept is new to you—it explains how all the pieces fit together.",
       "secondary_links": [
         {
           "text": "AWS Security Monitoring (35 min)",
@@ -58,14 +56,15 @@
           "text": "SIEM Fundamentals (40 min)",
           "url": "https://www.youtube.com/watch?v=G8PFCd2OhJ8"
         }
-      ]
+      ],
+      "url": "https://www.youtube.com/watch?v=VhEhcWp-m8s",
+      "title": "Security Monitoring in Practice"
     },
     {
       "order": 3,
       "text": "Security Monitoring Best Practices",
-      "action": "Learn: Security Monitoring Best Practices",
-      "url": null,
-      "description": "Industry standards and guidelines:",
+      "action": "Read: Industry Standards",
+      "description": "The NIST guide is the gold standard for incident handling, and the SANS guide covers monitoring patterns you'll see in real security operations. Worth a skim.",
       "secondary_links": [
         {
           "text": "NIST Incident Handling Guide",
@@ -80,30 +79,26 @@
     {
       "order": 4,
       "text": "Essential Log Sources",
-      "action": "Key Concept - Essential Log Sources:",
-      "url": null,
-      "description": "• Authentication Logs: Who's logging in, when, and from where\n• API Call Logs: What actions are being performed on your resources\n• Network Logs: Traffic patterns and potential intrusions\n• Application Logs: Your application's security-relevant events\n• Infrastructure Logs: Changes to your cloud resources"
+      "action": "Study: What to Monitor",
+      "description": "For your Journal API, here are the log sources that matter most:\n\n- **Authentication Logs**: Who's logging in, when, and from where—catch brute force attempts\n- **API Call Logs**: What actions are being performed on your cloud resources—spot unauthorized changes\n- **Network Logs**: Traffic patterns—detect unusual connections to your database\n- **Application Logs**: Your Journal API's own logs—errors, failed requests, suspicious patterns\n- **Infrastructure Logs**: Changes to your cloud resources—know when someone modifies a security group"
     },
     {
       "order": 5,
       "text": "Security Metrics to Track",
-      "action": "Key Concept - Security Metrics to Track:",
-      "url": null,
-      "description": "• Failed authentication attempts\n• Unusual API call patterns\n• Network traffic anomalies\n• Resource configuration changes\n• Data access patterns"
+      "action": "Study: Key Security Metrics",
+      "description": "You can't alert on everything or you'll get buried in noise. Focus on these high-value signals for your Journal API:\n\n- Failed authentication attempts (someone trying to guess passwords?)\n- Unusual API call patterns (someone exploring your endpoints at 3 AM?)\n- Network traffic anomalies (unexpected outbound connections from your database?)\n- Resource configuration changes (who changed that security group?)\n- Data access patterns (why is someone downloading all journal entries?)"
     },
     {
-      "order": 7,
+      "order": 6,
       "text": "SIEM Concepts",
-      "action": "Key Concept - SIEM (Security Information and Event Management):",
-      "url": null,
-      "description": "• Collect: Gather logs from multiple sources\n• Correlate: Find patterns across different log sources\n• Alert: Notify when suspicious patterns are detected\n• Investigate: Provide tools to analyze security events"
+      "action": "Study: SIEM Basics",
+      "description": "SIEM (Security Information and Event Management) is how security teams see the full picture. It does four things:\n\n1. **Collect** — Gather logs from all your services into one place\n2. **Correlate** — Find patterns across different log sources (\"this IP failed login AND then accessed the API AND then tried to reach the database\")\n3. **Alert** — Notify you when suspicious patterns are detected\n4. **Investigate** — Give you tools to dig in and understand what happened\n\nYou might not need a full SIEM for your Journal API, but understanding the concept is important for real-world cloud engineering roles."
     },
     {
       "order": 7,
       "text": "Alert Design Principles",
-      "action": "Key Concept - Alert Design Principles:",
-      "url": null,
-      "description": "• High Signal-to-Noise Ratio: Alerts should indicate real problems\n• Actionable: Each alert should have a clear response procedure\n• Escalation: Different severity levels with appropriate response times\n• Context: Provide enough information to understand the issue"
+      "action": "Study: Designing Good Alerts",
+      "description": "Bad alerts are worse than no alerts—if you get too many false alarms, you start ignoring them all. Here's how to build alerts that actually help:\n\n- **High signal-to-noise**: Only alert on things that actually need attention\n- **Actionable**: Every alert should tell you what to do about it\n- **Escalation**: Different severity levels—a failed login doesn't need the same urgency as \"all data is being exported\"\n- **Context**: Include enough info to start investigating without having to dig through three dashboards"
     }
   ]
 }
