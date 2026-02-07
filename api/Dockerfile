@@ -21,14 +21,14 @@ ENV UV_PROJECT_ENVIRONMENT=/app/.venv
 RUN uv venv /app/.venv && \
     uv sync --no-dev
 
-# Tailwind CSS build stage
+# Tailwind CSS v4 build stage
 FROM node:22-slim AS tailwind
 WORKDIR /build
-RUN npm install -g tailwindcss@3
-COPY api/tailwind.config.js ./
+COPY api/package.json api/package-lock.json ./
+RUN npm ci
 COPY api/static/css/input.css ./static/css/input.css
 COPY api/templates/ ./templates/
-RUN npx tailwindcss -i static/css/input.css -o static/css/styles.css --minify
+RUN npx @tailwindcss/cli -i static/css/input.css -o static/css/styles.css --minify
 
 # Production stage - minimal runtime
 FROM python:3.13-slim AS runtime
