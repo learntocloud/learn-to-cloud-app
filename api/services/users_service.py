@@ -30,7 +30,6 @@ def normalize_github_username(username: str | None) -> str | None:
 def _to_user_response(user: User) -> UserResponse:
     return UserResponse(
         id=user.id,
-        email=user.email,
         first_name=user.first_name,
         last_name=user.last_name,
         avatar_url=user.avatar_url,
@@ -66,7 +65,6 @@ async def get_or_create_user_from_github(
     db: AsyncSession,
     *,
     github_id: int,
-    email: str,
     first_name: str,
     last_name: str,
     avatar_url: str | None,
@@ -81,7 +79,6 @@ async def get_or_create_user_from_github(
 
     user = await user_repo.upsert(
         github_id,
-        email=email,
         first_name=first_name,
         last_name=last_name,
         avatar_url=avatar_url,

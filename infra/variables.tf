@@ -50,12 +50,6 @@ variable "location" {
   default     = "centralus"
 }
 
-variable "frontend_custom_domain" {
-  description = "Custom domain for the frontend (e.g., app.learntocloud.guide). Used for CORS."
-  type        = string
-  default     = ""
-}
-
 variable "alert_email" {
   description = "Email address to receive monitoring alerts"
   type        = string

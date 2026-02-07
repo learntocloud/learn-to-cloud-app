@@ -74,16 +74,6 @@ async def callback(request: Request, db: DbSession) -> RedirectResponse:
     avatar_url = github_user.get("avatar_url")
     name = github_user.get("name", "")
 
-    # Fetch primary email (may be private)
-    email = github_user.get("email")
-    if not email:
-        email_resp = await github.get("user/emails", token=token)
-        emails = email_resp.json()
-        for e in emails:
-            if e.get("primary") and e.get("verified"):
-                email = e["email"]
-                break
-
     # Split name into first/last
     first_name = ""
     last_name = ""
@@ -95,7 +85,6 @@ async def callback(request: Request, db: DbSession) -> RedirectResponse:
     user = await get_or_create_user_from_github(
         db=db,
         github_id=github_id,
-        email=email or f"{github_id}@users.noreply.github.com",
         first_name=first_name,
         last_name=last_name,
         avatar_url=avatar_url,

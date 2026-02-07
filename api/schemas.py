@@ -39,7 +39,6 @@ class FrozenORMModel(BaseModel):
 class UserBase(BaseModel):
     """Base user schema."""
 
-    email: str
     first_name: str | None = None
     last_name: str | None = None
     avatar_url: str | None = None
@@ -674,7 +673,6 @@ class UserSummaryData(FrozenModel):
     """User summary data (service-layer response model)."""
 
     id: int
-    email: str
     first_name: str | None = None
     last_name: str | None = None
     avatar_url: str | None = None
@@ -932,16 +930,6 @@ class NetworkingLabVerificationResult(FrozenModel):
 # =============================================================================
 # Clerk Service Schema
 # =============================================================================
-
-
-class ClerkUserData(FrozenModel):
-    """Data fetched from Clerk API for a user."""
-
-    email: str | None = None
-    first_name: str | None = None
-    last_name: str | None = None
-    avatar_url: str | None = None
-    github_username: str | None = None
 
 
 # =============================================================================

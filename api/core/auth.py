@@ -47,7 +47,7 @@ def init_oauth() -> None:
         access_token_url="https://github.com/login/oauth/access_token",
         authorize_url="https://github.com/login/oauth/authorize",
         api_base_url="https://api.github.com/",
-        client_kwargs={"scope": "read:user user:email"},
+        client_kwargs={"scope": "read:user"},
     )
     logger.info("auth.github_oauth_configured")
 

@@ -22,25 +22,6 @@
         </p>
     </div>
 
-    <!-- Share button -->
-    <div class="ml-auto" x-data="{ open: false }">
-        <button @click="open = !open" class="rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800">
-            Share
-        </button>
-        <div x-show="open" @click.outside="open = false" class="absolute mt-2 rounded-md shadow-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-2 z-10">
-            <button
-                @click="navigator.clipboard.writeText(window.location.href); open = false"
-                class="block w-full text-left px-3 py-1.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
-            >
-                📋 Copy link
-            </button>
-            <a href="https://twitter.com/intent/tweet?url={{ request.url }}&text=Check out my Learn to Cloud profile!" target="_blank" rel="noopener" class="block px-3 py-1.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded">
-                🐦 Share on X
-            </a>
-            <a href="https://www.linkedin.com/sharing/share-offsite/?url={{ request.url }}" target="_blank" rel="noopener" class="block px-3 py-1.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded">
-                💼 Share on LinkedIn
-            </a>
-        </div>
     </div>
 </div>
 

@@ -45,7 +45,6 @@ class UserRepository:
         self,
         user_id: int,
         *,
-        email: str = "",
         first_name: str | None = None,
         last_name: str | None = None,
         avatar_url: str | None = None,
@@ -67,7 +66,6 @@ class UserRepository:
 
         values = {
             "id": user_id,
-            "email": email,
             "first_name": first_name,
             "last_name": last_name,
             "avatar_url": avatar_url,
@@ -93,7 +91,6 @@ class UserRepository:
         self,
         user_id: int,
         *,
-        email: str,
         first_name: str | None = None,
         last_name: str | None = None,
         avatar_url: str | None = None,
@@ -105,14 +102,12 @@ class UserRepository:
         """
         values = {
             "id": user_id,
-            "email": email,
             "first_name": first_name,
             "last_name": last_name,
             "avatar_url": avatar_url,
             "github_username": github_username,
         }
         update_values = {
-            "email": email,
             "first_name": first_name,
             "last_name": last_name,
             "avatar_url": avatar_url,
@@ -142,7 +137,6 @@ class UserRepository:
     async def create(
         self,
         user_id: int,
-        email: str,
         first_name: str | None = None,
         last_name: str | None = None,
         avatar_url: str | None = None,
@@ -154,7 +148,6 @@ class UserRepository:
         """
         user = User(
             id=user_id,
-            email=email,
             first_name=first_name,
             last_name=last_name,
             avatar_url=avatar_url,
@@ -167,7 +160,6 @@ class UserRepository:
         self,
         user: User,
         *,
-        email: str | None = None,
         first_name: str | None = None,
         last_name: str | None = None,
         avatar_url: str | None = None,
@@ -181,8 +173,6 @@ class UserRepository:
 
         Expects github_username to be pre-normalized (lowercase) by service layer.
         """
-        if email is not None:
-            user.email = email
         if first_name is not None:
             user.first_name = first_name
         if last_name is not None:

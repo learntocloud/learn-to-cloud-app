@@ -118,7 +118,6 @@ def _to_hands_on_submission_data(submission: Submission) -> HandsOnSubmissionRes
 async def get_dashboard(
     db: AsyncSession,
     user_id: int,
-    user_email: str,
     user_first_name: str | None,
     user_last_name: str | None,
     user_avatar_url: str | None,
@@ -158,7 +157,6 @@ async def get_dashboard(
     return DashboardData(
         user=UserSummaryData(
             id=user_id,
-            email=user_email,
             first_name=user_first_name,
             last_name=user_last_name,
             avatar_url=user_avatar_url,

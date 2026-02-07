@@ -172,11 +172,6 @@ resource "azurerm_container_app" "api" {
       }
 
       env {
-        name  = "SYNC_GRADING_CONCEPTS_ON_STARTUP"
-        value = "true"
-      }
-
-      env {
         name  = "APPLICATIONINSIGHTS_CONNECTION_STRING"
         value = azurerm_application_insights.main.connection_string
       }
@@ -184,11 +179,6 @@ resource "azurerm_container_app" "api" {
       env {
         name  = "ENVIRONMENT"
         value = var.environment
-      }
-
-      env {
-        name  = "FRONTEND_URL"
-        value = var.frontend_custom_domain != "" ? "https://${var.frontend_custom_domain}" : "https://${azurerm_static_web_app.frontend.default_host_name}"
       }
 
       liveness_probe {

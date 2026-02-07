@@ -263,7 +263,6 @@ async def dashboard_page(
     dashboard = await get_dashboard(
         db,
         user_id,
-        user_email=user.email,
         user_first_name=user.first_name,
         user_last_name=user.last_name,
         user_avatar_url=user.avatar_url,

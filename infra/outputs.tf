@@ -29,30 +29,6 @@ output "api_identity_principal_id" {
 }
 
 # -----------------------------------------------------------------------------
-# Frontend
-# -----------------------------------------------------------------------------
-output "frontend_url" {
-  description = "URL of the frontend static web app"
-  value       = "https://${azurerm_static_web_app.frontend.default_host_name}"
-}
-
-output "swa_default_hostname" {
-  description = "Static Web App default hostname for DNS CNAME record"
-  value       = azurerm_static_web_app.frontend.default_host_name
-}
-
-output "swa_name" {
-  description = "Static Web App name"
-  value       = azurerm_static_web_app.frontend.name
-}
-
-output "swa_deployment_token" {
-  description = "Static Web App deployment token (for CI/CD)"
-  value       = azurerm_static_web_app.frontend.api_key
-  sensitive   = true
-}
-
-# -----------------------------------------------------------------------------
 # Container Registry
 # -----------------------------------------------------------------------------
 output "container_registry" {

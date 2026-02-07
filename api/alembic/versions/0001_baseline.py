@@ -24,7 +24,6 @@ def upgrade() -> None:
     op.create_table(
         "users",
         sa.Column("id", sa.BigInteger(), nullable=False),
-        sa.Column("email", sa.String(255), nullable=False),
         sa.Column("first_name", sa.String(255), nullable=True),
         sa.Column("last_name", sa.String(255), nullable=True),
         sa.Column("avatar_url", sa.Text(), nullable=True),
@@ -35,7 +34,6 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("github_username", name="uq_users_github_username"),
     )
-    op.create_index("ix_users_email", "users", ["email"])
 
     # Submissions table
     op.create_table(

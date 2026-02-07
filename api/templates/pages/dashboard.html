@@ -29,19 +29,6 @@
         </a>
         {% endfor %}
     </div>
-
-    <!-- Badges -->
-    {% if badges %}
-    <div class="mt-10">
-        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Badges</h2>
-        <div class="flex flex-wrap gap-3">
-            {% for badge in badges %}
-            <div class="flex items-center gap-2 px-3 py-2 rounded-full border border-gray-100 dark:border-gray-800 text-sm" title="{{ badge.description }}">
-                <span>{{ badge.icon }}</span>
-                <span class="text-gray-700 dark:text-gray-300">{{ badge.name }}</span>
-            </div>
-            {% endfor %}
-        </div>
-    </div>
+{% endblock %}
     {% endif %}
 {% endblock %}
