@@ -111,11 +111,6 @@ class Settings(BaseSettings):
                     "SESSION_SECRET_KEY must be set to a secure random value. "
                     "Set DEBUG=true to skip this check in development."
                 )
-            if not self.labs_verification_secret:
-                raise ValueError(
-                    "LABS_VERIFICATION_SECRET must be set. "
-                    "Set DEBUG=true to skip this check in development."
-                )
         return self
 
     @property
