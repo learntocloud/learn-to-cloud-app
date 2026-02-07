@@ -181,7 +181,6 @@ class PublicProfileData(FrozenModel):
     avatar_url: str | None
     current_phase: int
     phases_completed: int
-    member_since: datetime
     submissions: list[PublicSubmissionInfo]
     badges: list[BadgeData]
 
@@ -381,6 +380,27 @@ class PhaseSummaryData(FrozenModel):
     capstone: PhaseCapstoneOverview | None = None
     hands_on_verification: PhaseHandsOnVerificationOverview | None = None
     progress: PhaseProgressData | None = None
+
+
+class ContinuePhaseData(FrozenModel):
+    """Pointer to the user's current in-progress phase."""
+
+    phase_id: int
+    name: str
+    slug: str
+    order: int
+
+
+class DashboardData(FrozenModel):
+    """Complete dashboard payload (service-layer response model)."""
+
+    phases: list[PhaseSummaryData]
+    overall_percentage: float
+    phases_completed: int
+    total_phases: int
+    is_program_complete: bool
+    continue_phase: ContinuePhaseData | None = None
+    earned_badges: list["BadgeData"] = Field(default_factory=list)
 
 
 # =============================================================================

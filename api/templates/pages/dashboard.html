@@ -6,8 +6,42 @@
 {% endblock %}
 
 {% block page_body %}
+{# ── Overall progress + phases completed ── #}
+<div class="p-4 rounded-lg border border-gray-200 dark:border-gray-700 mb-6">
+    <div class="flex items-center justify-between mb-2">
+        <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Overall completion</span>
+        <span class="text-sm font-semibold text-gray-900 dark:text-white">{{ dashboard.phases_completed }}/{{ dashboard.total_phases }} phases</span>
+    </div>
+    <div class="h-2 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
+        <div class="h-full rounded-full transition-all {{ 'bg-green-500' if dashboard.is_program_complete else 'bg-blue-500' }}" style="width: {{ dashboard.overall_percentage }}%"></div>
+    </div>
+    <div class="flex items-center justify-between mt-2">
+        <p class="text-xs text-gray-500 dark:text-gray-400">{{ dashboard.overall_percentage }}% complete</p>
+        <a href="/certificates" class="inline-flex items-center gap-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+            </svg>
+            View Certificate
+        </a>
+    </div>
+</div>
+
+{# ── Continue where you left off ── #}
+{% if dashboard.continue_phase %}
+<a href="/phase/{{ dashboard.continue_phase.order }}" class="flex items-center justify-between p-4 rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors mb-6">
+    <div>
+        <p class="text-xs font-medium text-blue-600 dark:text-blue-400 mb-0.5">Continue where you left off</p>
+        <p class="text-sm font-semibold text-gray-900 dark:text-white">Phase {{ dashboard.continue_phase.order }}: {{ dashboard.continue_phase.name }}</p>
+    </div>
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-500 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+    </svg>
+</a>
+{% endif %}
+
+{# ── Phase list ── #}
 <div class="space-y-3">
-    {% for phase in phases %}
+    {% for phase in dashboard.phases %}
     <a href="/phase/{{ phase.order }}" class="block p-4 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
         <div class="flex items-center justify-between mb-2">
             <div class="flex items-center gap-2">
@@ -30,4 +64,5 @@
     </a>
     {% endfor %}
 </div>
+
 {% endblock %}

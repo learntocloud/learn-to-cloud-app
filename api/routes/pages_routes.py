@@ -14,6 +14,8 @@ from core.database import DbSession
 from core.logger import get_logger
 from models import User
 from rendering.steps import build_step_data
+from repositories.submission_repository import SubmissionRepository
+from services.badges_service import get_badge_catalog
 from services.certificates_service import (
     get_user_certificates_with_eligibility,
     verify_certificate,
@@ -23,7 +25,7 @@ from services.content_service import (
     get_phase_by_slug,
     get_topic_by_slugs,
 )
-from services.dashboard_service import get_phases_list
+from services.dashboard_service import get_dashboard_data
 from services.progress_service import get_phase_detail_progress
 from services.steps_service import get_completed_steps
 from services.users_service import get_public_profile, get_user_by_id
@@ -104,6 +106,11 @@ async def phase_page(
     # Single service call for all progress (per-topic + phase-level)
     progress = None
     if user_id is not None:
+        # Fetch existing submissions so verified requirements show as complete
+        repo = SubmissionRepository(db)
+        user_submissions = await repo.get_by_user_and_phase(user_id, phase_id)
+        submissions_by_req = {s.requirement_id: s for s in user_submissions}
+
         detail = await get_phase_detail_progress(db, user_id, phase)
         for i, t in enumerate(phase.topics):
             tp = detail.topic_progress.get(t.id)
@@ -231,14 +238,14 @@ async def dashboard_page(
             status_code=404,
         )
 
-    dashboard = await get_phases_list(db, user_id)
+    dashboard = await get_dashboard_data(db, user_id)
 
     return request.app.state.templates.TemplateResponse(
         "pages/dashboard.html",
         _template_context(
             request,
             user=user,
-            phases=dashboard,
+            dashboard=dashboard,
         ),
     )
 
@@ -286,9 +293,18 @@ async def profile_page(
             status_code=404,
         )
 
+    badge_catalog, _ = get_badge_catalog()
+    earned_badge_ids = {b.id for b in profile.badges}
+
     return request.app.state.templates.TemplateResponse(
         "pages/profile.html",
-        _template_context(request, user=user, profile=profile),
+        _template_context(
+            request,
+            user=user,
+            profile=profile,
+            badge_catalog=badge_catalog,
+            earned_badge_ids=earned_badge_ids,
+        ),
     )
 
 
