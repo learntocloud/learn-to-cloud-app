@@ -82,53 +82,9 @@ resource "azurerm_container_app" "api" {
     min_replicas = 1
     max_replicas = 3
 
-    # -----------------------------------------------------------------------
-    # Init container – runs Alembic migrations before the app starts.
-    # Uses the same image and DB credentials as the main container.
-    # -----------------------------------------------------------------------
-    init_container {
-      name   = "migrate"
-      image  = "${azurerm_container_registry.main.login_server}/api:latest"
-      cpu    = 0.25
-      memory = "0.5Gi"
-
-      command = ["python", "-m", "alembic", "upgrade", "head"]
-
-      env {
-        name  = "POSTGRES_HOST"
-        value = azurerm_postgresql_flexible_server.main.fqdn
-      }
-
-      env {
-        name  = "POSTGRES_USER"
-        value = azurerm_user_assigned_identity.api.name
-      }
-
-      env {
-        name  = "POSTGRES_DATABASE"
-        value = azurerm_postgresql_flexible_server_database.main.name
-      }
-
-      env {
-        name  = "AZURE_CLIENT_ID"
-        value = azurerm_user_assigned_identity.api.client_id
-      }
-
-      env {
-        name  = "GITHUB_CLIENT_ID"
-        value = var.github_client_id
-      }
-
-      env {
-        name        = "GITHUB_CLIENT_SECRET"
-        secret_name = "github-client-secret"
-      }
-
-      env {
-        name        = "SESSION_SECRET_KEY"
-        secret_name = "session-secret-key"
-      }
-    }
+    # Migrations run inside the app lifespan (not an init container) because
+    # Azure Container Apps init containers don't have access to the managed
+    # identity sidecar needed for Entra ID database authentication.
 
     container {
       name   = "api"

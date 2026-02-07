@@ -141,12 +141,34 @@ async def _background_warmup(app: FastAPI) -> None:
     )
 
 
+def _run_alembic_migrations() -> None:
+    """Run Alembic migrations synchronously.
+
+    Called from lifespan via asyncio.to_thread(). Uses psycopg2 sync driver
+    and advisory locks (handled by alembic/env.py) for multi-worker safety.
+    """
+    from alembic import command
+    from alembic.config import Config
+
+    alembic_cfg = Config("alembic.ini")
+    try:
+        command.upgrade(alembic_cfg, "head")
+        logger.info("migrations.complete")
+    except Exception:
+        logger.exception("migrations.failed")
+        raise
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Create DB engine at startup, dispose on shutdown.
 
     Database connectivity is verified synchronously before the app accepts
     requests so that early traffic never hits an uninitialised pool.
+
+    Runs Alembic migrations inline (not as an init container) because Azure
+    Container Apps init containers don't have access to the managed identity
+    sidecar needed for Entra ID database auth.
     """
     app.state.engine = create_engine()
     app.state.session_maker = create_session_maker(app.state.engine)
@@ -159,6 +181,9 @@ async def lifespan(app: FastAPI):
         oauth_task = asyncio.to_thread(init_oauth)
         db_task = init_db(app.state.engine)
         await asyncio.gather(oauth_task, db_task)
+
+        # Run Alembic migrations in a thread (uses sync psycopg2 driver)
+        await asyncio.to_thread(_run_alembic_migrations)
 
         app.state.init_done = True
         logger.info("init.complete")
