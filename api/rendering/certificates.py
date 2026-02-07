@@ -128,27 +128,13 @@ def _get_logo_inline_svg() -> str | None:
     )
 
 
-def get_certificate_display_info(certificate_type: str) -> PhaseInfo:
-    """Get display information for a certificate type.
-
-    Pulls phase info from content JSON files to stay in sync with curriculum.
-    Falls back to full_completion info for unknown types.
-    """
-    if certificate_type == "full_completion":
-        return FULL_COMPLETION_INFO
-
-    from services.content_service import get_phase_by_slug
-
-    phase = get_phase_by_slug(certificate_type.replace("_", ""))
-    if phase:
-        return PhaseInfo(name=phase.name, description=phase.short_description)
-
+def get_certificate_display_info() -> PhaseInfo:
+    """Get display information for the completion certificate."""
     return FULL_COMPLETION_INFO
 
 
 def generate_certificate_svg(
     recipient_name: str,
-    certificate_type: str,
     verification_code: str,
     issued_at: datetime,
     phases_completed: int,
@@ -158,7 +144,6 @@ def generate_certificate_svg(
 
     Args:
         recipient_name: Name to display on certificate
-        certificate_type: Type of certificate
         verification_code: Unique verification code
         issued_at: When certificate was issued
         phases_completed: Number of phases completed
@@ -167,7 +152,7 @@ def generate_certificate_svg(
     Returns:
         SVG content as a string
     """
-    cert_info = get_certificate_display_info(certificate_type)
+    cert_info = get_certificate_display_info()
     issued_date = issued_at.strftime("%B %d, %Y")
 
     safe_name = html.escape(recipient_name, quote=True)

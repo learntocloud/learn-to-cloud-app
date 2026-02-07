@@ -95,3 +95,16 @@ output "apiUrl" {
   description = "API URL (for CI/CD)"
   value       = "https://${azurerm_container_app.api.ingress[0].fqdn}"
 }
+
+# -----------------------------------------------------------------------------
+# Azure OpenAI
+# -----------------------------------------------------------------------------
+output "openai_endpoint" {
+  description = "Azure OpenAI endpoint used by the LLM CLI sidecar"
+  value       = azurerm_cognitive_account.openai.endpoint
+}
+
+output "openai_model" {
+  description = "Deployed model name"
+  value       = azurerm_cognitive_deployment.llm.name
+}

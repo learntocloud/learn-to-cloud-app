@@ -1,0 +1,370 @@
+{% extends "layouts/content_page.html" %}
+{% block title %}Status - Learn to Cloud{% endblock %}
+
+{% block page_header %}
+<div class="flex items-center gap-3">
+    <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Status</h1>
+    {% if status.overall_status == "operational" %}
+    <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
+        <span class="h-1.5 w-1.5 rounded-full bg-green-500"></span>
+        All Systems Operational
+    </span>
+    {% elif status.overall_status == "degraded" %}
+    <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">
+        <span class="h-1.5 w-1.5 rounded-full bg-yellow-500"></span>
+        Degraded Performance
+    </span>
+    {% else %}
+    <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">
+        <span class="h-1.5 w-1.5 rounded-full bg-red-500"></span>
+        Service Disruption
+    </span>
+    {% endif %}
+</div>
+<p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+    System health and aggregate community data. All analytics are anonymous.
+</p>
+{% endblock %}
+
+{% block page_body %}
+
+{# ═══════════════════════════════════════════════════════════
+   COMMUNITY ANALYTICS
+   ═══════════════════════════════════════════════════════════ #}
+
+<div>
+
+    {# ── Key Metrics (2x2 grid, 4-col on wider screens) ── #}
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
+        <div class="p-4 rounded-lg border border-gray-200 dark:border-gray-700 text-center">
+            <p class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Total Learners</p>
+            <p class="mt-1 text-2xl font-bold text-gray-900 dark:text-white">{{ "{:,}".format(analytics.total_users) }}</p>
+        </div>
+        <div class="p-4 rounded-lg border border-gray-200 dark:border-gray-700 text-center">
+            <p class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Completions</p>
+            <p class="mt-1 text-2xl font-bold text-green-600 dark:text-green-400">{{ "{:,}".format(analytics.total_certificates) }}</p>
+        </div>
+        <div class="p-4 rounded-lg border border-gray-200 dark:border-gray-700 text-center">
+            <p class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Active (30d)</p>
+            <p class="mt-1 text-2xl font-bold text-blue-600 dark:text-blue-400">{{ "{:,}".format(analytics.active_learners_30d) }}</p>
+        </div>
+        <div class="p-4 rounded-lg border border-gray-200 dark:border-gray-700 text-center">
+            <p class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Completion Rate</p>
+            <p class="mt-1 text-2xl font-bold text-purple-600 dark:text-purple-400">{{ analytics.completion_rate }}%</p>
+        </div>
+    </div>
+
+    {# ── Phase Funnel (pure HTML bars + Chart.js enhancement) ── #}
+    <div class="mb-8 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+        <h3 class="text-base font-semibold text-gray-900 dark:text-white mb-1">Learning Funnel</h3>
+        <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">How many learners reached and completed each phase</p>
+        {% if analytics.phase_distribution %}
+        {# HTML fallback bars (always visible, hidden when Chart.js loads) #}
+        {% set max_reached = analytics.phase_distribution | map(attribute='users_reached') | max or 1 %}
+        <div id="funnelFallback" class="space-y-3">
+            {% for p in analytics.phase_distribution %}
+            <div>
+                <div class="flex items-center justify-between mb-1">
+                    <span class="text-xs font-medium text-gray-700 dark:text-gray-300 truncate">{{ p.phase_name }}</span>
+                    <span class="text-xs text-gray-500 dark:text-gray-400">{{ p.users_reached }} reached · {{ p.users_completed_steps }} completed</span>
+                </div>
+                <div class="flex gap-1 h-4">
+                    <div class="bg-blue-500 rounded-sm" style="width: {{ (p.users_reached / max_reached * 100) | round }}%" title="Reached: {{ p.users_reached }}"></div>
+                    <div class="bg-green-500 rounded-sm" style="width: {{ (p.users_completed_steps / max_reached * 100) | round }}%" title="Completed: {{ p.users_completed_steps }}"></div>
+                </div>
+            </div>
+            {% endfor %}
+            <div class="flex items-center gap-4 mt-2 text-xs text-gray-500 dark:text-gray-400">
+                <span class="flex items-center gap-1"><span class="h-2.5 w-2.5 rounded-sm bg-blue-500"></span> Reached</span>
+                <span class="flex items-center gap-1"><span class="h-2.5 w-2.5 rounded-sm bg-green-500"></span> Completed Steps</span>
+            </div>
+        </div>
+        {# Canvas for Chart.js (hidden until JS loads) #}
+        <div id="funnelChartWrap" class="h-64 hidden">
+            <canvas id="funnelChart"></canvas>
+        </div>
+        {% else %}
+        <p class="text-sm text-gray-400 dark:text-gray-500 text-center py-8">No data yet</p>
+        {% endif %}
+    </div>
+
+    {# ── Growth Trends (pure HTML fallback + Chart.js) ── #}
+    <div class="mb-8 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+        <h3 class="text-base font-semibold text-gray-900 dark:text-white mb-1">Community Growth</h3>
+        <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">Cumulative signups and program completions over time</p>
+        {% if analytics.signup_trends %}
+        {# HTML fallback table #}
+        <div id="growthFallback">
+            <div class="overflow-x-auto">
+                <table class="w-full text-xs">
+                    <thead>
+                        <tr class="border-b border-gray-200 dark:border-gray-700">
+                            <th class="text-left py-1.5 font-medium text-gray-500 dark:text-gray-400">Month</th>
+                            <th class="text-right py-1.5 font-medium text-gray-500 dark:text-gray-400">New</th>
+                            <th class="text-right py-1.5 font-medium text-gray-500 dark:text-gray-400">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for t in analytics.signup_trends %}
+                        <tr class="border-b border-gray-100 dark:border-gray-800">
+                            <td class="py-1.5 text-gray-700 dark:text-gray-300">{{ t.month }}</td>
+                            <td class="py-1.5 text-right text-gray-700 dark:text-gray-300">+{{ t.count }}</td>
+                            <td class="py-1.5 text-right font-medium text-blue-600 dark:text-blue-400">{{ "{:,}".format(t.cumulative) }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {# Canvas for Chart.js #}
+        <div id="growthChartWrap" class="h-64 hidden">
+            <canvas id="growthChart"></canvas>
+        </div>
+        {% else %}
+        <p class="text-sm text-gray-400 dark:text-gray-500 text-center py-8">No data yet</p>
+        {% endif %}
+    </div>
+
+    {# ── Verification Pass Rates ── #}
+    {% if analytics.verification_stats %}
+    <div class="mb-8 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+        <h3 class="text-base font-semibold text-gray-900 dark:text-white mb-1">Verification Challenge</h3>
+        <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">Hands-on verification pass rates by phase</p>
+        <div class="space-y-3">
+            {% for stat in analytics.verification_stats %}
+            <div>
+                <div class="flex items-center justify-between mb-1">
+                    <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ stat.phase_name }}</span>
+                    <span class="text-xs text-gray-500 dark:text-gray-400">{{ stat.pass_rate }}% ({{ stat.successful }}/{{ stat.total_attempts }})</span>
+                </div>
+                <div class="h-2 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
+                    <div class="h-full rounded-full transition-all {% if stat.pass_rate >= 70 %}bg-green-500{% elif stat.pass_rate >= 40 %}bg-yellow-500{% else %}bg-red-500{% endif %}"
+                         style="width: {{ stat.pass_rate }}%"></div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    {# ── Activity by Day of Week (HTML bars + Chart.js) ── #}
+    <div class="mb-8 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+        <h3 class="text-base font-semibold text-gray-900 dark:text-white mb-1">When Do People Learn?</h3>
+        <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">Step completions by day of the week</p>
+        {% if analytics.activity_by_day %}
+        {% set max_completions = analytics.activity_by_day | map(attribute='completions') | max or 1 %}
+        {# HTML fallback bars #}
+        <div id="activityFallback" class="flex items-end gap-2 h-40">
+            {% for d in analytics.activity_by_day %}
+            <div class="flex-1 flex flex-col items-center gap-1">
+                <span class="text-xs text-gray-500 dark:text-gray-400">{{ d.completions }}</span>
+                <div class="w-full rounded-t-sm bg-blue-500" style="height: {{ (d.completions / max_completions * 100) | round if d.completions > 0 else 2 }}%"></div>
+                <span class="text-xs text-gray-500 dark:text-gray-400">{{ d.day_name[:3] }}</span>
+            </div>
+            {% endfor %}
+        </div>
+        {# Canvas for Chart.js #}
+        <div id="activityChartWrap" class="h-48 hidden">
+            <canvas id="activityChart"></canvas>
+        </div>
+        {% else %}
+        <p class="text-sm text-gray-400 dark:text-gray-500 text-center py-8">No data yet</p>
+        {% endif %}
+    </div>
+
+    {# ── Top Topics ── #}
+    {% if analytics.top_topics %}
+    <div class="mb-8 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+        <h3 class="text-base font-semibold text-gray-900 dark:text-white mb-1">Most Engaging Topics</h3>
+        <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">Topics with the most active learners</p>
+        <div class="space-y-2">
+            {% set max_users = analytics.top_topics[0].active_users if analytics.top_topics else 1 %}
+            {% for topic in analytics.top_topics %}
+            <div class="flex items-center gap-3">
+                <span class="text-xs text-gray-400 dark:text-gray-500 w-6 text-right shrink-0">{{ loop.index }}</span>
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center justify-between mb-0.5">
+                        <span class="text-sm font-medium text-gray-700 dark:text-gray-300 truncate">{{ topic.topic_name }}</span>
+                        <span class="text-xs text-gray-500 dark:text-gray-400 ml-2 shrink-0">{{ topic.active_users }} learners</span>
+                    </div>
+                    <div class="h-1.5 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
+                        <div class="h-full bg-blue-500 rounded-full" style="width: {{ (topic.active_users / max_users * 100) | round }}%"></div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+{# ── API links ── #}
+<div class="text-center pb-4">
+    <p class="text-xs text-gray-400 dark:text-gray-500">
+        Raw data:
+        <a href="/api/status" class="text-blue-600 dark:text-blue-400 hover:underline">/api/status</a>
+        &middot;
+        <a href="/api/analytics/community" class="text-blue-600 dark:text-blue-400 hover:underline">/api/analytics/community</a>
+        &middot; Checked {{ status.checked_at.strftime('%Y-%m-%d %H:%M UTC') }}
+    </p>
+</div>
+
+{# ── Chart initialization ── #}
+<script>
+(function () {
+    function loadChartJs(cb) {
+        if (typeof Chart !== 'undefined') { cb(); return; }
+        var s = document.createElement('script');
+        s.src = 'https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js';
+        s.onload = cb;
+        document.head.appendChild(s);
+    }
+
+    function initCharts() {
+        if (typeof Chart === 'undefined') return;
+
+        // Swap HTML fallbacks for canvas charts
+        function swapToCanvas(fallbackId, canvasWrapId) {
+            var fb = document.getElementById(fallbackId);
+            var cw = document.getElementById(canvasWrapId);
+            if (fb) fb.style.display = 'none';
+            if (cw) cw.classList.remove('hidden');
+        }
+
+    const isDark = document.documentElement.classList.contains('dark');
+    const textColor = isDark ? '#9CA3AF' : '#6B7280';
+    const gridColor = isDark ? 'rgba(75, 85, 99, 0.3)' : 'rgba(209, 213, 219, 0.5)';
+
+    Chart.defaults.color = textColor;
+    Chart.defaults.borderColor = gridColor;
+
+    // ── Funnel Chart ──
+    {% if analytics.phase_distribution %}
+    const funnelCtx = document.getElementById('funnelChart');
+    if (funnelCtx) {
+        swapToCanvas('funnelFallback', 'funnelChartWrap');
+        new Chart(funnelCtx, {
+            type: 'bar',
+            data: {
+                labels: [{% for p in analytics.phase_distribution %}'{{ p.phase_name }}'{% if not loop.last %}, {% endif %}{% endfor %}],
+                datasets: [
+                    {
+                        label: 'Reached',
+                        data: [{% for p in analytics.phase_distribution %}{{ p.users_reached }}{% if not loop.last %}, {% endif %}{% endfor %}],
+                        backgroundColor: isDark ? 'rgba(59, 130, 246, 0.7)' : 'rgba(59, 130, 246, 0.8)',
+                        borderRadius: 4,
+                    },
+                    {
+                        label: 'Completed Steps',
+                        data: [{% for p in analytics.phase_distribution %}{{ p.users_completed_steps }}{% if not loop.last %}, {% endif %}{% endfor %}],
+                        backgroundColor: isDark ? 'rgba(34, 197, 94, 0.7)' : 'rgba(34, 197, 94, 0.8)',
+                        borderRadius: 4,
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, padding: 16 } } },
+                scales: {
+                    y: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: gridColor } },
+                    x: { grid: { display: false } }
+                }
+            }
+        });
+    }
+    {% endif %}
+
+    // ── Growth Chart ──
+    {% if analytics.signup_trends %}
+    const growthCtx = document.getElementById('growthChart');
+    if (growthCtx) {
+        swapToCanvas('growthFallback', 'growthChartWrap');
+        new Chart(growthCtx, {
+            type: 'line',
+            data: {
+                labels: [{% for t in analytics.signup_trends %}'{{ t.month }}'{% if not loop.last %}, {% endif %}{% endfor %}],
+                datasets: [
+                    {
+                        label: 'Total Learners',
+                        data: [{% for t in analytics.signup_trends %}{{ t.cumulative }}{% if not loop.last %}, {% endif %}{% endfor %}],
+                        borderColor: '#3B82F6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        fill: true,
+                        tension: 0.3,
+                        pointRadius: 2,
+                    },
+                    {% if analytics.certificate_trends %}
+                    {
+                        label: 'Completions',
+                        data: [
+                            {% set cert_map = {} %}
+                            {% for c in analytics.certificate_trends %}{% if cert_map.update({c.month: c.cumulative}) %}{% endif %}{% endfor %}
+                            {% for t in analytics.signup_trends %}{{ cert_map.get(t.month, 0) }}{% if not loop.last %}, {% endif %}{% endfor %}
+                        ],
+                        borderColor: '#22C55E',
+                        backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                        fill: true,
+                        tension: 0.3,
+                        pointRadius: 2,
+                    }
+                    {% endif %}
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, padding: 16 } } },
+                scales: {
+                    y: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: gridColor } },
+                    x: { grid: { display: false }, ticks: { maxTicksLimit: 8 } }
+                }
+            }
+        });
+    }
+    {% endif %}
+
+    // ── Activity by Day Chart ──
+    {% if analytics.activity_by_day %}
+    const activityCtx = document.getElementById('activityChart');
+    if (activityCtx) {
+        swapToCanvas('activityFallback', 'activityChartWrap');
+        const dayColors = [
+            'rgba(59, 130, 246, 0.8)',
+            'rgba(99, 102, 241, 0.8)',
+            'rgba(139, 92, 246, 0.8)',
+            'rgba(168, 85, 247, 0.8)',
+            'rgba(217, 70, 239, 0.8)',
+            'rgba(236, 72, 153, 0.8)',
+            'rgba(244, 63, 94, 0.8)',
+        ];
+        new Chart(activityCtx, {
+            type: 'bar',
+            data: {
+                labels: [{% for d in analytics.activity_by_day %}'{{ d.day_name[:3] }}'{% if not loop.last %}, {% endif %}{% endfor %}],
+                datasets: [{
+                    label: 'Step Completions',
+                    data: [{% for d in analytics.activity_by_day %}{{ d.completions }}{% if not loop.last %}, {% endif %}{% endfor %}],
+                    backgroundColor: dayColors,
+                    borderRadius: 4,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: gridColor } },
+                    x: { grid: { display: false } }
+                }
+            }
+        });
+    }
+    {% endif %}
+}
+
+    loadChartJs(initCharts);
+})();
+</script>
+
+{% endblock %}

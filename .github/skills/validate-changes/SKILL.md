@@ -298,7 +298,34 @@ When user says "validate changes" after editing `<file>`:
 
 ### 6. Cleanup
 ✅ API process killed
+
+### 7. Run Tests (Optional)
+✅ All passed / ❌ X failures (list them)
 ```
+
+---
+
+## Step 7: Run Tests (Optional)
+
+If the changes affect logic (not just formatting/docs), run the test suite:
+
+### Windows (PowerShell)
+```powershell
+Set-Location <workspace>\api; uv run pytest tests/ -x --timeout=30
+```
+
+### macOS/Linux
+```bash
+cd <workspace>/api && uv run pytest tests/ -x --timeout=30
+```
+
+**Flags:**
+- `-x` — stop on first failure for fast feedback
+- `--timeout=30` — prevent tests from hanging
+
+**When to skip**: Pure formatting, comment, or doc-only changes.
+
+**When mandatory**: Changes to repositories, services, routes, models, or schemas.
 
 ---
 

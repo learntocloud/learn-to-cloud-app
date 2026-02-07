@@ -179,7 +179,7 @@ class Certificate(TimestampMixin, Base):
 
     __tablename__ = "certificates"
     __table_args__ = (
-        UniqueConstraint("user_id", "certificate_type", name="uq_user_certificate"),
+        UniqueConstraint("user_id", name="uq_user_certificate"),
         Index("ix_certificates_user", "user_id"),
     )
 
@@ -187,10 +187,6 @@ class Certificate(TimestampMixin, Base):
     user_id: Mapped[int] = mapped_column(
         BigInteger,
         ForeignKey("users.id", ondelete="CASCADE"),
-        nullable=False,
-    )
-    certificate_type: Mapped[str] = mapped_column(
-        String(50),
         nullable=False,
     )
     verification_code: Mapped[str] = mapped_column(

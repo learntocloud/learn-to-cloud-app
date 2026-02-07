@@ -194,7 +194,6 @@ class CertificateData(FrozenModel):
     """Certificate data (service-layer response model)."""
 
     id: int
-    certificate_type: str
     verification_code: str
     recipient_name: str
     issued_at: datetime
@@ -628,3 +627,88 @@ class ParsedGitHubUrl(FrozenModel):
     file_path: str | None = None
     is_valid: bool = True
     error: str | None = None
+
+
+# =============================================================================
+# Community Analytics Schemas
+# =============================================================================
+
+
+class PhaseDistributionItem(FrozenModel):
+    """Per-phase user counts for the engagement funnel."""
+
+    phase_id: int
+    phase_name: str
+    users_reached: int
+    users_completed_steps: int
+
+
+class MonthlyTrend(FrozenModel):
+    """A single month in a time-series trend."""
+
+    month: str  # "YYYY-MM"
+    count: int
+    cumulative: int
+
+
+class VerificationStat(FrozenModel):
+    """Verification attempt statistics per phase."""
+
+    phase_id: int
+    phase_name: str
+    total_attempts: int
+    successful: int
+    pass_rate: float
+
+
+class DayActivity(FrozenModel):
+    """Step completions aggregated by day of the week."""
+
+    day_name: str  # "Monday", "Tuesday", etc.
+    completions: int
+
+
+class TopicEngagement(FrozenModel):
+    """Topic engagement ranked by active users."""
+
+    topic_id: str
+    topic_name: str
+    phase_id: int
+    active_users: int
+
+
+class CommunityAnalytics(FrozenModel):
+    """Aggregate, anonymous community analytics.
+
+    All data is privacy-safe — no individual user information is exposed.
+    Designed for public dashboards, conference talks, and storytelling.
+    """
+
+    total_users: int
+    total_certificates: int
+    active_learners_30d: int
+    completion_rate: float
+    phase_distribution: list[PhaseDistributionItem]
+    signup_trends: list[MonthlyTrend]
+    certificate_trends: list[MonthlyTrend]
+    verification_stats: list[VerificationStat]
+    activity_by_day: list[DayActivity]
+    top_topics: list[TopicEngagement]
+    generated_at: datetime
+
+
+# =============================================================================
+# System Status Schemas
+# =============================================================================
+
+
+class SystemStatus(FrozenModel):
+    """Overall system status combining health + community analytics.
+
+    Public status page payload — no secrets or internal details exposed.
+    Shows a simple operational indicator and community trend data.
+    """
+
+    overall_status: str  # "operational", "degraded", "down"
+    analytics: CommunityAnalytics
+    checked_at: datetime

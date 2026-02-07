@@ -4,7 +4,7 @@ Tests cover:
 - GitHub URL parsing and validation
 - Repository file tree filtering
 - Prompt construction
-- Copilot response parsing
+- LLM response parsing
 - Feedback sanitization
 - End-to-end analyze_devops_repository flow
 """
@@ -131,7 +131,7 @@ class TestFilterDevopsFiles:
 
 @pytest.mark.unit
 class TestParseAnalysisResponse:
-    """Tests for Copilot response parsing."""
+    """Tests for LLM response parsing."""
 
     def test_valid_json_response(self):
         task = {
@@ -416,7 +416,7 @@ class TestAnalyzeDevopsRepository:
                 return_value=mock_file_contents,
             ),
             patch(
-                "services.devops_verification_service._analyze_with_copilot",
+                "services.devops_verification_service._analyze_with_llm",
                 new_callable=AsyncMock,
                 return_value=mock_validation,
             ),
@@ -429,9 +429,9 @@ class TestAnalyzeDevopsRepository:
         assert result.is_valid is True
 
     @pytest.mark.asyncio
-    async def test_copilot_client_error_returns_server_error(self):
-        """CopilotClientError should return server_error=True."""
-        from core.copilot_client import CopilotClientError
+    async def test_llm_client_error_returns_server_error(self):
+        """LLMClientError should return server_error=True."""
+        from core.llm_client import LLMClientError
 
         with (
             patch(
@@ -445,9 +445,9 @@ class TestAnalyzeDevopsRepository:
                 return_value={t["id"]: [] for t in PHASE5_TASKS},
             ),
             patch(
-                "services.devops_verification_service._analyze_with_copilot",
+                "services.devops_verification_service._analyze_with_llm",
                 new_callable=AsyncMock,
-                side_effect=CopilotClientError("Connection failed", retriable=True),
+                side_effect=LLMClientError("Connection failed", retriable=True),
             ),
         ):
             result = await analyze_devops_repository(
@@ -473,7 +473,7 @@ class TestAnalyzeDevopsRepository:
                 return_value={t["id"]: [] for t in PHASE5_TASKS},
             ),
             patch(
-                "services.devops_verification_service._analyze_with_copilot",
+                "services.devops_verification_service._analyze_with_llm",
                 new_callable=AsyncMock,
                 side_effect=DevOpsAnalysisError("Timeout", retriable=True),
             ),

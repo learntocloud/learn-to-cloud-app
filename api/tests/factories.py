@@ -218,7 +218,6 @@ class CertificateFactory(factory.Factory):
     user_id = factory.LazyAttribute(
         lambda _: f"user_{fake.uuid4().replace('-', '')[:24]}"
     )
-    certificate_type = "phase_completion"
     verification_code = factory.LazyFunction(lambda: fake.sha256()[:64])
     recipient_name = factory.LazyAttribute(
         lambda _: f"{fake.first_name()} {fake.last_name()}"

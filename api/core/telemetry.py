@@ -68,7 +68,7 @@ class SecurityHeadersMiddleware:
             b" script-src 'self' 'unsafe-inline' 'unsafe-eval';"
             b" style-src 'self' 'unsafe-inline';"
             b" img-src 'self' https://avatars.githubusercontent.com data:;"
-            b" connect-src 'self';"
+            b" connect-src 'self' https://github.com;"
             b" font-src 'self';"
             b" frame-ancestors 'none'",
         ),

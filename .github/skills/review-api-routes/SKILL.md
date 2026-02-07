@@ -92,19 +92,25 @@ Routes MUST be ordered:
 | 2 | `GET /items/stats` | Literal | Should be before `/{id}` | 🔴 Yes |
 ```
 
-### Step 2.3: Check Frontend/Client Compatibility
+### Step 2.3: Determine Route Type
 
-If reordering is needed, verify frontend calls won't break:
+Before proceeding, classify the routes file:
 
-```markdown
-### Frontend Impact Analysis
+| Route Type | Characteristics | Review Approach |
+|-----------|----------------|-----------------|
+| **JSON API** | `response_model=...`, returns Pydantic schemas, included in OpenAPI | Full OpenAPI + schema review |
+| **HTMX** | `response_class=HTMLResponse`, `include_in_schema=False`, returns HTML fragments | Skip OpenAPI checks, verify template rendering |
+| **Pages** | `response_class=HTMLResponse`, `include_in_schema=False`, returns full pages via `TemplateResponse` | Skip OpenAPI, verify catch-all ordering |
 
-Search for route usage in `frontend/src/**/*.ts`:
+For **HTMX routes** (`htmx_routes.py`, `pages_routes.py`):
+- Skip Phase 4 (OpenAPI documentation)
+- Input uses `Form(...)` parameters, not Pydantic request models
+- Output is `HTMLResponse` or `TemplateResponse`, not JSON
+- Error handling returns inline HTML snippets, not JSON `{"detail": ...}`
 
-| Route | Frontend File | Hardcoded Path? | Will Break? |
-|-------|---------------|-----------------|-------------|
-| `GET /items/stats` | `api/items.ts` | Yes | No - path unchanged |
-```
+For **JSON API routes** (`users_routes.py`, `certificates_routes.py`):
+- Full OpenAPI review applies
+- Check `response_model` and Pydantic schemas
 
 ---
 
@@ -199,9 +205,11 @@ Fetch: `https://fastapi.tiangolo.com/tutorial/dependencies/`
 
 | Dependency | Type | Scope | Used In Routes | Pattern |
 |------------|------|-------|----------------|---------|
-| `DbSession` | `Annotated[AsyncSession, Depends(get_db)]` | Request | All | ✅ Modern |
-| `UserId` | `Annotated[str, Depends(get_user_id)]` | Request | Auth routes | ✅ Modern |
-| `Request` | `Request` | Request | Rate limited | ✅ |
+| `DbSession` | `Annotated[AsyncSession, Depends(get_db)]` | Request | Write routes | ✅ Type alias |
+| `DbSessionReadOnly` | `Annotated[AsyncSession, Depends(get_db_readonly)]` | Request | Read-only routes | ✅ Type alias |
+| `UserId` | `Annotated[int, Depends(require_auth)]` | Request | Auth-required routes | ✅ Type alias |
+| `OptionalUserId` | `Annotated[int \| None, Depends(optional_auth)]` | Request | Optional auth routes | ✅ Type alias |
+| `Request` | `Request` | Request | Rate limited routes | ✅ Required by slowapi |
 ```
 
 ### Step 5.3: Dependency Anti-Patterns
@@ -237,13 +245,21 @@ Fetch: `https://fastapi.tiangolo.com/tutorial/dependencies/`
 
 ### Step 6.2: Rate Limit Key Strategy
 
-Verify rate limits use appropriate keys:
+This project uses slowapi with a **combined key function** (`_get_request_identifier` in `core/ratelimit.py`):
+- Authenticated requests: keyed by `user:{user_id}`
+- Unauthenticated requests: keyed by IP address
+- Default limit: `100/minute` (applied when no explicit `@limiter.limit()` decorator)
 
-| Key Type | Use Case | Example |
-|----------|----------|---------|
-| IP-based | Unauthenticated endpoints | `limit("10/minute")` |
-| User-based | Authenticated endpoints | `limit("10/minute", key_func=get_user_id)` |
-| Combined | Premium features | Custom key function |
+Verify rate limits use appropriate values:
+
+| Endpoint Type | Recommended Limit | Rationale |
+|---------------|-------------------|-----------|
+| Read (GET list) | 30-60/min | Normal browsing |
+| Read (GET single) | 60-100/min | Frequent access |
+| Write (POST/PUT) | 10-30/min | Prevent spam |
+| Expensive (PDF generation) | 5-10/min | Resource intensive |
+| HTMX interactions | 30-60/min | Frequent partial updates |
+| Verification submissions | 5-10/hour | Prevent abuse |
 
 ---
 
@@ -328,9 +344,9 @@ If issues were found, read the corresponding service file to verify:
 | `POST /items` | `items_service.create_item()` | ✅ | ⚠️ Different params |
 ```
 
-### Step 9.2: Schema Alignment
+### Step 9.2: Schema Alignment (JSON API routes only)
 
-Verify request/response schemas match service layer:
+For JSON API routes, verify request/response schemas match service layer:
 
 ```markdown
 ### Schema Alignment
@@ -339,6 +355,11 @@ Verify request/response schemas match service layer:
 |-------|----------------|-----------------|------------------|
 | `POST /items` | `ItemCreate` | `ItemResponse` | ✅ |
 ```
+
+For HTMX routes, verify:
+- `Form(...)` parameters match what templates submit
+- HTML responses render the correct template partials
+- Template context variables match what the route passes
 
 ---
 
@@ -430,10 +451,11 @@ Description.
 
 | Situation | File to Read | Why |
 |-----------|--------------|-----|
-| Recommending route reorder | `frontend/src/api/*.ts` | Check for hardcoded paths |
+| Recommending route reorder | `api/templates/**/*.html` | Check for `hx-get`/`hx-post` references to routes |
 | Service function mismatch suspected | `services/*_service.py` | Verify function exists/signature |
 | Schema issue suspected | `schemas.py` | Verify model fields |
 | Router order matters | `main.py` | Check registration order |
+| HTMX form submission issues | `api/templates/partials/*.html` | Check `hx-post`/`hx-target` attributes |
 
 **DO NOT** read other files "just to be thorough" - only when a specific finding requires verification.
 

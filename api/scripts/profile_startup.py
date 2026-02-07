@@ -54,7 +54,7 @@ print(f"core.ratelimit: {(time.perf_counter()-t)*1000:.0f}ms", flush=True)
 
 t = time.perf_counter()
 
-print(f"core.copilot_client: {(time.perf_counter()-t)*1000:.0f}ms", flush=True)
+print(f"core.llm_client: {(time.perf_counter()-t)*1000:.0f}ms", flush=True)
 
 t = time.perf_counter()
 

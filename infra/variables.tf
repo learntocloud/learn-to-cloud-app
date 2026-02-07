@@ -23,12 +23,6 @@ variable "session_secret_key" {
   sensitive   = true
 }
 
-variable "google_api_key" {
-  description = "Google API key for Gemini"
-  type        = string
-  sensitive   = true
-}
-
 variable "labs_verification_secret" {
   description = "CTF master secret for flag generation"
   type        = string
@@ -61,4 +55,39 @@ variable "slack_webhook_url" {
   type        = string
   default     = ""
   sensitive   = true
+}
+
+# -----------------------------------------------------------------------------
+# LLM — Azure OpenAI model deployment for code analysis
+# Terraform deploys the Azure OpenAI resource and model automatically.
+# The endpoint and API key are wired from the Terraform resource.
+# -----------------------------------------------------------------------------
+variable "llm_model" {
+  description = "Azure OpenAI model to deploy (e.g. gpt-4o-mini, gpt-5-mini)"
+  type        = string
+  default     = "gpt-4o-mini"
+}
+
+variable "llm_model_version" {
+  description = "Model version to deploy"
+  type        = string
+  default     = "2024-07-18"
+}
+
+variable "llm_capacity" {
+  description = "Tokens-per-minute capacity in thousands (e.g. 10 = 10K TPM)"
+  type        = number
+  default     = 10
+}
+
+variable "llm_provider_type" {
+  description = "Provider type for the SDK: azure, openai, or anthropic"
+  type        = string
+  default     = "azure"
+}
+
+variable "llm_wire_api" {
+  description = "API format: completions or responses"
+  type        = string
+  default     = "completions"
 }

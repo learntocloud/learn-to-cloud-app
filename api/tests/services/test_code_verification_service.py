@@ -1,4 +1,4 @@
-"""Tests for copilot_verification_service security and grading features.
+"""Tests for code_verification_service security and grading features.
 
 Tests cover:
 - File allowlist enforcement (security)
@@ -9,7 +9,7 @@ Tests cover:
 
 import pytest
 
-from services.copilot_verification_service import (
+from services.code_verification_service import (
     ALLOWED_FILE_PATHS,
     PHASE3_TASKS,
     SUSPICIOUS_PATTERNS,

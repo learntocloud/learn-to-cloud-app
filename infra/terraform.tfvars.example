@@ -21,9 +21,6 @@ github_client_secret = "xxx"
 # Generate with: python -c "import secrets; print(secrets.token_hex(32))"
 session_secret_key = "your-64-char-hex-string"
 
-# Required - Google API key for Gemini AI features
-google_api_key = "AIzaSyxxx"
-
 # Required - CTF master secret for flag generation
 labs_verification_secret = "your-secure-random-secret"
 

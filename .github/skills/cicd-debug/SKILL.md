@@ -99,12 +99,12 @@ gh run watch <run-id>
 
 | Command | Description |
 |---------|-------------|
-| `./.github/skills/debug-deploy/debug-deploy.sh status` | Show recent workflow runs |
-| `./.github/skills/debug-deploy/debug-deploy.sh logs` | View and analyze failed logs |
-| `./.github/skills/debug-deploy/debug-deploy.sh logs <id>` | View specific run's failed logs |
-| `./.github/skills/debug-deploy/debug-deploy.sh unlock` | Fix Terraform state lock |
-| `./.github/skills/debug-deploy/debug-deploy.sh rerun` | Re-run most recent failed workflow |
-| `./.github/skills/debug-deploy/debug-deploy.sh watch` | Watch running workflow |
+| `./.github/skills/cicd-debug/debug-deploy.sh status` | Show recent workflow runs |
+| `./.github/skills/cicd-debug/debug-deploy.sh logs` | View and analyze failed logs |
+| `./.github/skills/cicd-debug/debug-deploy.sh logs <id>` | View specific run's failed logs |
+| `./.github/skills/cicd-debug/debug-deploy.sh unlock` | Fix Terraform state lock |
+| `./.github/skills/cicd-debug/debug-deploy.sh rerun` | Re-run most recent failed workflow |
+| `./.github/skills/cicd-debug/debug-deploy.sh watch` | Watch running workflow |
 
 ## Debug Script
 
@@ -112,7 +112,7 @@ The [debug-deploy.sh](./debug-deploy.sh) script automates the debugging process 
 
 ## Prevention
 
-The workflow is configured with these safeguards:
-- `cancel-in-progress: false` - Prevents state lock issues from cancelled runs
-- `-lock-timeout=120s` - Waits for locks instead of failing immediately
-- Retry logic - Retries Terraform plan up to 3 times with 30s delays
+The workflows are configured with these safeguards:
+- `cancel-in-progress: false` - Prevents state lock issues from cancelled runs (in both `deploy.yml` and `infra.yml`)
+- `-lock-timeout=120s` - Waits for locks instead of failing immediately (in `infra.yml` which runs `terraform plan/apply`)
+- Retry logic - Retries Terraform plan up to 3 times with 30s delays (in `infra.yml`)

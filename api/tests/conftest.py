@@ -22,7 +22,6 @@ os.environ.setdefault(
 os.environ.setdefault("CLERK_SECRET_KEY", "test_clerk_secret")
 os.environ.setdefault("CLERK_WEBHOOK_SIGNING_SECRET", "test_webhook_secret")
 os.environ.setdefault("GITHUB_TOKEN", "test_github_token")
-os.environ.setdefault("GOOGLE_API_KEY", "test_google_api_key")
 os.environ.setdefault("LABS_VERIFICATION_SECRET", "test_ctf_secret_must_be_32_chars!")
 os.environ.setdefault("DEBUG", "true")
 
@@ -70,7 +69,6 @@ def test_settings() -> Settings:
         github_client_secret="test_github_client_secret",
         session_secret_key="test_session_secret_key_for_testing",
         github_token="test_github_token",
-        google_api_key="test_google_api_key",
         labs_verification_secret="test_ctf_secret_must_be_32_chars!",
         cors_allowed_origins="",
     )
