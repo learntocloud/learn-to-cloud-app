@@ -101,17 +101,15 @@ async def phases_page(
             "progress": None,
         }
 
-        # Load topics for this phase
-        for topic_slug in phase_data["topics"]:
-            topic = get_topic_by_slugs(phase.slug, topic_slug)
-            if topic:
-                phase_data["topics_detail"].append(
-                    {
-                        "name": topic.name,
-                        "slug": topic.slug,
-                        "progress": None,
-                    }
-                )
+        # Topics are already full Topic objects
+        for topic in phase.topics:
+            phase_data["topics_detail"].append(
+                {
+                    "name": topic.name,
+                    "slug": topic.slug,
+                    "progress": None,
+                }
+            )
 
         enriched_phases.append(phase_data)
 
@@ -138,19 +136,16 @@ async def phase_page(
             status_code=404,
         )
 
-    # Build topics list
-    topics = []
-    for topic_slug in getattr(phase, "topics", []):
-        topic = get_topic_by_slugs(phase_slug, topic_slug)
-        if topic:
-            topics.append(
-                {
-                    "name": topic.name,
-                    "slug": topic.slug,
-                    "is_capstone": getattr(topic, "is_capstone", False),
-                    "progress": None,
-                }
-            )
+    # Topics are already full Topic objects on the Phase
+    topics = [
+        {
+            "name": t.name,
+            "slug": t.slug,
+            "is_capstone": getattr(t, "is_capstone", False),
+            "progress": None,
+        }
+        for t in phase.topics
+    ]
 
     # Build requirements and submissions
     requirements = []
@@ -196,9 +191,9 @@ async def topic_page(
     # Get completed steps for authenticated users
     completed_steps: set[int] = set()
     if user_id is not None:
-        from repositories.progress_repository import ProgressRepository
+        from repositories.progress_repository import StepProgressRepository
 
-        step_repo = ProgressRepository(db)
+        step_repo = StepProgressRepository(db)
         progress_rows = await step_repo.get_by_user_and_topic(user_id, topic.id)
         completed_steps = {row.step_order for row in progress_rows}
 
@@ -228,19 +223,19 @@ async def topic_page(
             )
         steps.append(step_data)
 
-    # Prev/next navigation
-    topic_slugs = getattr(phase, "topics", [])
-    current_idx = topic_slugs.index(topic_slug) if topic_slug in topic_slugs else -1
+    # Prev/next navigation — phase.topics is a list of Topic objects
+    all_topics = phase.topics
+    current_idx = next(
+        (i for i, t in enumerate(all_topics) if t.slug == topic_slug), -1
+    )
     prev_topic = None
     next_topic = None
     if current_idx > 0:
-        prev_t = get_topic_by_slugs(phase_slug, topic_slugs[current_idx - 1])
-        if prev_t:
-            prev_topic = {"slug": prev_t.slug, "name": prev_t.name}
-    if current_idx >= 0 and current_idx < len(topic_slugs) - 1:
-        next_t = get_topic_by_slugs(phase_slug, topic_slugs[current_idx + 1])
-        if next_t:
-            next_topic = {"slug": next_t.slug, "name": next_t.name}
+        prev_t = all_topics[current_idx - 1]
+        prev_topic = {"slug": prev_t.slug, "name": prev_t.name}
+    if 0 <= current_idx < len(all_topics) - 1:
+        next_t = all_topics[current_idx + 1]
+        next_topic = {"slug": next_t.slug, "name": next_t.name}
 
     # Progress calculation
     total_steps = len(steps)
@@ -252,16 +247,13 @@ async def topic_page(
             "percentage": round(len(completed_steps) / total_steps * 100),
         }
 
-    # Replace topic's learning_steps with enriched data for template
-    topic_data = topic
-    topic_data.learning_steps = steps  # type: ignore[attr-defined]
-
     return request.app.state.templates.TemplateResponse(
         "pages/topic.html",
         _template_context(
             request,
             user=user,
-            topic=topic_data,
+            topic=topic,
+            steps=steps,
             phase_slug=phase_slug,
             phase_name=phase.name,
             phase_id=phase.order,
@@ -306,7 +298,6 @@ async def dashboard_page(
             user=user,
             phases=dashboard.phases,
             badges=dashboard.badges,
-            streak=dashboard.streak,
         ),
     )
 

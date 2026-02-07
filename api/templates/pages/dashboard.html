@@ -4,17 +4,6 @@
 {% block content %}
 <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-8">Your Dashboard</h1>
 
-<!-- Streak info -->
-{% if streak %}
-<div class="mb-8 flex items-center gap-4 p-4 rounded-lg bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800">
-    <span class="text-3xl">🔥</span>
-    <div>
-        <p class="font-semibold text-orange-800 dark:text-orange-200">{{ streak.current_streak }} day streak!</p>
-        <p class="text-sm text-orange-600 dark:text-orange-400">Longest: {{ streak.longest_streak }} days</p>
-    </div>
-</div>
-{% endif %}
-
 <!-- Phase progress -->
 <div class="space-y-4">
     {% for phase in phases %}

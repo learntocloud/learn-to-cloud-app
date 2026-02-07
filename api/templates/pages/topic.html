@@ -47,7 +47,7 @@
 
 <!-- Learning steps -->
 <div class="space-y-1">
-    {% for step in topic.learning_steps %}
+    {% for step in steps %}
     {% with topic_id=topic.id, phase_id=phase_id, completed_steps=completed_steps %}
     {% include "partials/topic_step.html" %}
     {% endwith %}

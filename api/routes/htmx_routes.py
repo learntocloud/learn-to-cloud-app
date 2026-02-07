@@ -56,9 +56,9 @@ async def htmx_complete_step(
         return HTMLResponse("")
 
     # Get updated completed steps
-    from repositories.progress_repository import ProgressRepository
+    from repositories.progress_repository import StepProgressRepository
 
-    step_repo = ProgressRepository(db)
+    step_repo = StepProgressRepository(db)
     progress_rows = await step_repo.get_by_user_and_topic(user_id, topic_id)
     completed_steps = {row.step_order for row in progress_rows}
 
@@ -137,9 +137,9 @@ async def htmx_uncomplete_step(
         return HTMLResponse("")
 
     # Get updated completed steps
-    from repositories.progress_repository import ProgressRepository
+    from repositories.progress_repository import StepProgressRepository
 
-    step_repo = ProgressRepository(db)
+    step_repo = StepProgressRepository(db)
     progress_rows = await step_repo.get_by_user_and_topic(user_id, topic_id)
     completed_steps = {row.step_order for row in progress_rows}
 

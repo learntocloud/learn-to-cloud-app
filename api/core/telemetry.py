@@ -62,7 +62,16 @@ class SecurityHeadersMiddleware:
         (b"x-frame-options", b"DENY"),
         (b"x-xss-protection", b"0"),
         (b"referrer-policy", b"strict-origin-when-cross-origin"),
-        (b"content-security-policy", b"default-src 'none'; frame-ancestors 'none'"),
+        (
+            b"content-security-policy",
+            b"default-src 'self';"
+            b" script-src 'self' https://unpkg.com 'unsafe-inline';"
+            b" style-src 'self' 'unsafe-inline';"
+            b" img-src 'self' https://avatars.githubusercontent.com data:;"
+            b" connect-src 'self';"
+            b" font-src 'self';"
+            b" frame-ancestors 'none'",
+        ),
         (b"strict-transport-security", b"max-age=31536000; includeSubDomains"),
         (b"permissions-policy", b"camera=(), microphone=(), geolocation=()"),
     ]

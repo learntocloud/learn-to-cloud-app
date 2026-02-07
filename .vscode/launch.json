@@ -15,27 +15,6 @@
       },
       "console": "integratedTerminal",
       "justMyCode": true
-    },
-    {
-      "name": "Frontend: Vite",
-      "type": "node",
-      "request": "launch",
-      "cwd": "${workspaceFolder}/frontend",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
-      "console": "integratedTerminal",
-      "serverReadyAction": {
-        "pattern": "Local:.+(https?://\\S+)",
-        "uriFormat": "%s",
-        "action": "openExternally"
-      }
-    }
-  ],
-  "compounds": [
-    {
-      "name": "Full Stack: API + Frontend",
-      "configurations": ["API: FastAPI (uvicorn)", "Frontend: Vite"],
-      "stopAll": true
     }
   ]
 }
