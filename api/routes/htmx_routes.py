@@ -39,7 +39,7 @@ async def htmx_complete_step(
     phase_id: int = Form(...),
 ) -> HTMLResponse:
     """Complete a step and return the updated step partial."""
-    await complete_step(db, user_id, topic_id, step_order, phase_id)
+    await complete_step(db, user_id, topic_id, step_order)
 
     # Get the step data from content to re-render the partial
     from services.content_service import get_topic_by_id
@@ -89,17 +89,31 @@ async def htmx_complete_step(
 
     user = await UserRepository(db).get_by_id(user_id)
 
-    return request.app.state.templates.TemplateResponse(
-        "partials/topic_step.html",
-        {
-            "request": request,
-            "step": step_data,
-            "topic_id": topic_id,
-            "phase_id": phase_id,
-            "completed_steps": completed_steps,
-            "user": user,
-        },
+    # Count total steps for progress calculation
+    total_steps = len(getattr(topic, "learning_steps", []))
+    progress = {
+        "completed": len(completed_steps),
+        "total": total_steps,
+        "percentage": round(len(completed_steps) / total_steps * 100)
+        if total_steps > 0
+        else 0,
+    }
+
+    step_html = request.app.state.templates.get_template(
+        "partials/topic_step.html"
+    ).render(
+        request=request,
+        step=step_data,
+        topic_id=topic_id,
+        phase_id=phase_id,
+        completed_steps=completed_steps,
+        user=user,
     )
+    progress_html = request.app.state.templates.get_template(
+        "partials/topic_progress.html"
+    ).render(progress=progress)
+
+    return HTMLResponse(step_html + progress_html)
 
 
 @router.delete("/steps/{topic_id}/{step_order}", response_class=HTMLResponse)
@@ -169,17 +183,30 @@ async def htmx_uncomplete_step(
 
     user = await UserRepository(db).get_by_id(user_id)
 
-    return request.app.state.templates.TemplateResponse(
-        "partials/topic_step.html",
-        {
-            "request": request,
-            "step": step_data,
-            "topic_id": topic_id,
-            "phase_id": phase_id,
-            "completed_steps": completed_steps,
-            "user": user,
-        },
+    total_steps = len(getattr(topic, "learning_steps", []))
+    progress = {
+        "completed": len(completed_steps),
+        "total": total_steps,
+        "percentage": round(len(completed_steps) / total_steps * 100)
+        if total_steps > 0
+        else 0,
+    }
+
+    step_html = request.app.state.templates.get_template(
+        "partials/topic_step.html"
+    ).render(
+        request=request,
+        step=step_data,
+        topic_id=topic_id,
+        phase_id=phase_id,
+        completed_steps=completed_steps,
+        user=user,
     )
+    progress_html = request.app.state.templates.get_template(
+        "partials/topic_progress.html"
+    ).render(progress=progress)
+
+    return HTMLResponse(step_html + progress_html)
 
 
 @router.post("/github/submit", response_class=HTMLResponse)

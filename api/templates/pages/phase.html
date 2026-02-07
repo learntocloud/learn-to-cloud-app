@@ -27,7 +27,7 @@
     <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Topics</h2>
     <div class="space-y-3">
         {% for topic in topics %}
-        <a href="/phases/{{ phase.slug }}/topics/{{ topic.slug }}" class="flex items-center justify-between p-4 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-blue-500 dark:hover:border-blue-400 transition-colors">
+        <a href="/phase/{{ phase.order }}/{{ topic.slug }}" class="flex items-center justify-between p-4 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-blue-500 dark:hover:border-blue-400 transition-colors">
             <div class="flex items-center gap-3">
                 {% if topic.is_capstone %}
                 <span class="text-yellow-500">⭐</span>

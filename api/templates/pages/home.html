@@ -2,20 +2,19 @@
 {% block title %}Learn to Cloud - Your Path to Cloud Computing{% endblock %}
 
 {% block content %}
-<div class="text-center py-16">
-    <h1 class="text-4xl font-bold tracking-tight text-gray-900 dark:text-white sm:text-6xl">
-        Learn to Cloud
-    </h1>
-    <p class="mt-6 text-lg leading-8 text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
+<div class="text-center py-8 sm:py-12">
+    <img src="/static/logo.svg" alt="Learn to Cloud" class="h-24 sm:h-32 mx-auto mb-6">
+    <p class="mt-4 text-lg leading-8 text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
         A structured, hands-on guide to learning cloud computing. Follow the phases, complete the challenges, and earn your certificate.
     </p>
-    <div class="mt-10 flex items-center justify-center gap-x-6">
-        <a href="/phases" class="rounded-md bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-500">
-            Start Learning →
+    <div class="mt-6 flex items-center justify-center gap-x-6">
+        {% if user %}
+        <a href="/dashboard" class="rounded-md bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-500">
+            Go to Dashboard →
         </a>
-        {% if not user %}
-        <a href="/auth/login" class="text-sm font-semibold leading-6 text-gray-900 dark:text-gray-100 hover:text-blue-600 dark:hover:text-blue-400">
-            Sign in to track progress <span aria-hidden="true">→</span>
+        {% else %}
+        <a href="/auth/login" class="rounded-md bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-500">
+            Get Started →
         </a>
         {% endif %}
     </div>
@@ -23,23 +22,23 @@
 
 <!-- Phase overview -->
 {% if phases %}
-<div class="mt-16">
-    <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-8 text-center">Your Journey</h2>
-    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+<div class="mt-4">
+    <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6 text-center">Your Journey</h2>
+    <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {% for phase in phases %}
-        <a href="/phases/{{ phase.slug }}" class="group block rounded-lg border border-gray-200 dark:border-gray-700 p-6 hover:border-blue-500 dark:hover:border-blue-400 transition-colors">
-            <div class="flex items-center gap-3 mb-2">
+        <div class="rounded-lg border border-gray-100 dark:border-gray-800 p-4">
+            <div class="flex items-center gap-2 mb-1">
                 {% if phase.theme and phase.theme.icon %}
-                <span class="text-2xl">{{ phase.theme.icon }}</span>
+                <span class="text-lg">{{ phase.theme.icon }}</span>
                 {% endif %}
-                <h3 class="font-semibold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400">
+                <h3 class="text-sm font-semibold text-gray-900 dark:text-white">
                     {{ phase.name }}
                 </h3>
             </div>
-            <p class="text-sm text-gray-600 dark:text-gray-400">
+            <p class="text-xs leading-relaxed text-gray-500 dark:text-gray-400">
                 {{ phase.short_description | default(phase.description[:120] + '...' if phase.description | length > 120 else phase.description) }}
             </p>
-        </a>
+        </div>
         {% endfor %}
     </div>
 </div>

@@ -41,7 +41,7 @@
 
                 <div class="space-y-2">
                     {% for topic in phase.topics_detail %}
-                    <a href="/phases/{{ phase.slug }}/topics/{{ topic.slug }}" class="flex items-center justify-between p-3 rounded-md hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                    <a href="/phase/{{ phase.order }}/{{ topic.slug }}" class="flex items-center justify-between p-3 rounded-md hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
                         <span class="text-sm font-medium text-gray-900 dark:text-gray-100">{{ topic.name }}</span>
                         {% if topic.progress %}
                         <span class="text-xs text-gray-500 dark:text-gray-400">{{ topic.progress.completed }}/{{ topic.progress.total }} steps</span>
@@ -50,7 +50,7 @@
                     {% endfor %}
                 </div>
 
-                <a href="/phases/{{ phase.slug }}" class="mt-4 inline-block text-sm font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400">
+                <a href="/phase/{{ phase.order }}" class="mt-4 inline-block text-sm font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400">
                     View phase details →
                 </a>
             </div>

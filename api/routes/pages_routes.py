@@ -24,6 +24,7 @@ from services.content_service import (
     get_topic_by_slugs,
 )
 from services.dashboard_service import get_dashboard
+from services.progress_service import fetch_user_progress
 from services.users_service import get_public_profile
 
 logger = get_logger(__name__)
@@ -76,59 +77,16 @@ async def home_page(
     )
 
 
-@router.get("/phases", response_class=HTMLResponse)
-async def phases_page(
-    request: Request,
-    db: DbSession,
-    user_id: OptionalUserId,
-) -> HTMLResponse:
-    """All phases with accordion expand."""
-    user = await _get_user_or_none(db, user_id)
-    phases = get_all_phases()
-
-    # Enrich phases with topic details and progress
-    enriched_phases = []
-    for phase in phases:
-        phase_data = {
-            "name": phase.name,
-            "slug": phase.slug,
-            "description": phase.description,
-            "short_description": getattr(phase, "short_description", ""),
-            "order": phase.order,
-            "theme": getattr(phase, "theme", None),
-            "topics": getattr(phase, "topics", []),
-            "topics_detail": [],
-            "progress": None,
-        }
-
-        # Topics are already full Topic objects
-        for topic in phase.topics:
-            phase_data["topics_detail"].append(
-                {
-                    "name": topic.name,
-                    "slug": topic.slug,
-                    "progress": None,
-                }
-            )
-
-        enriched_phases.append(phase_data)
-
-    return request.app.state.templates.TemplateResponse(
-        "pages/phases.html",
-        _template_context(request, user=user, phases=enriched_phases),
-    )
-
-
-@router.get("/phases/{phase_slug}", response_class=HTMLResponse)
+@router.get("/phase/{phase_id:int}", response_class=HTMLResponse)
 async def phase_page(
     request: Request,
-    phase_slug: str,
+    phase_id: int,
     db: DbSession,
     user_id: OptionalUserId,
 ) -> HTMLResponse:
     """Single phase detail with topics and verification."""
     user = await _get_user_or_none(db, user_id)
-    phase = get_phase_by_slug(phase_slug)
+    phase = get_phase_by_slug(f"phase{phase_id}")
     if phase is None:
         return request.app.state.templates.TemplateResponse(
             "pages/404.html",
@@ -154,6 +112,27 @@ async def phase_page(
     if hands_on and hasattr(hands_on, "requirements"):
         requirements = hands_on.requirements
 
+    # Fetch progress for authenticated users
+    progress = None
+    if user_id is not None:
+        user_progress = await fetch_user_progress(db, user_id)
+        phase_progress = user_progress.phases.get(phase.order)
+        if phase_progress:
+            pct = (
+                round(
+                    phase_progress.steps_completed
+                    / phase_progress.steps_required
+                    * 100
+                )
+                if phase_progress.steps_required > 0
+                else 0
+            )
+            progress = {
+                "percentage": pct,
+                "steps_completed": phase_progress.steps_completed,
+                "steps_required": phase_progress.steps_required,
+            }
+
     return request.app.state.templates.TemplateResponse(
         "pages/phase.html",
         _template_context(
@@ -163,21 +142,22 @@ async def phase_page(
             topics=topics,
             requirements=requirements,
             submissions_by_req=submissions_by_req,
-            progress=None,
+            progress=progress,
         ),
     )
 
 
-@router.get("/phases/{phase_slug}/topics/{topic_slug}", response_class=HTMLResponse)
+@router.get("/phase/{phase_id:int}/{topic_slug}", response_class=HTMLResponse)
 async def topic_page(
     request: Request,
-    phase_slug: str,
+    phase_id: int,
     topic_slug: str,
     db: DbSession,
     user_id: OptionalUserId,
 ) -> HTMLResponse:
     """Single topic with learning steps."""
     user = await _get_user_or_none(db, user_id)
+    phase_slug = f"phase{phase_id}"
     phase = get_phase_by_slug(phase_slug)
     topic = get_topic_by_slugs(phase_slug, topic_slug)
 

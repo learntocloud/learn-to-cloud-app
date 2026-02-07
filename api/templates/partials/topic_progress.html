@@ -1,0 +1,9 @@
+<!-- Topic progress bar - can be swapped out-of-band by HTMX step responses -->
+<div id="topic-progress" class="mt-4 flex items-center gap-3" hx-swap-oob="true">
+    <div class="flex-1 max-w-xs h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+        <div class="h-full bg-blue-600 rounded-full transition-all" style="width: {{ progress.percentage }}%"></div>
+    </div>
+    <span class="text-sm font-medium text-gray-600 dark:text-gray-400">
+        {{ progress.completed }}/{{ progress.total }} steps
+    </span>
+</div>
