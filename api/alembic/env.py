@@ -42,16 +42,27 @@ def _get_azure_token_with_retry() -> str:
     Uses sync credential since Alembic runs outside asyncio event loop.
     On Container Apps cold start the managed identity sidecar may take
     up to 30s to become available, so we retry with exponential backoff.
+
+    Passes AZURE_CLIENT_ID (if set) to DefaultAzureCredential so it can
+    target the correct user-assigned managed identity.
     """
+    import os
+
     from azure.identity import DefaultAzureCredential
 
     max_attempts = 6  # More attempts than core module — Alembic runs at cold start
     initial_wait = 2  # Longer initial wait for sidecar readiness
 
+    # Pass managed_identity_client_id for user-assigned identity
+    client_id = os.environ.get("AZURE_CLIENT_ID")
+    cred_kwargs = {}
+    if client_id:
+        cred_kwargs["managed_identity_client_id"] = client_id
+
     last_error = None
     for attempt in range(max_attempts):
         try:
-            credential = DefaultAzureCredential()
+            credential = DefaultAzureCredential(**cred_kwargs)
             token = credential.get_token(AZURE_PG_SCOPE)
             return token.token
         except Exception as e:

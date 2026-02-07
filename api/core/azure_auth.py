@@ -40,13 +40,23 @@ _credential_lock = asyncio.Lock()
 
 
 async def get_credential() -> DefaultAzureCredential:
-    """Get or create the cached Azure credential (thread-safe via asyncio.Lock)."""
+    """Get or create the cached Azure credential (thread-safe via asyncio.Lock).
+
+    Passes AZURE_CLIENT_ID (if set) so DefaultAzureCredential targets
+    the correct user-assigned managed identity on Container Apps.
+    """
     global _azure_credential
     async with _credential_lock:
         if _azure_credential is None:
+            import os
+
             from azure.identity import DefaultAzureCredential
 
-            _azure_credential = DefaultAzureCredential()
+            client_id = os.environ.get("AZURE_CLIENT_ID")
+            kwargs = {}
+            if client_id:
+                kwargs["managed_identity_client_id"] = client_id
+            _azure_credential = DefaultAzureCredential(**kwargs)
         return _azure_credential
 
 
