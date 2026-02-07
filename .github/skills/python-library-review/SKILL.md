@@ -71,6 +71,8 @@ Use `fetch_webpage` or `mcp_tavily_tavily_extract` to retrieve official docs.
 
 **Common Documentation URLs:**
 
+### This Project's Stack
+
 | Library | Documentation URL |
 |---------|-------------------|
 | SQLAlchemy 2.0 | `https://docs.sqlalchemy.org/en/20/` |
@@ -78,9 +80,21 @@ Use `fetch_webpage` or `mcp_tavily_tavily_extract` to retrieve official docs.
 | SQLAlchemy Async | `https://docs.sqlalchemy.org/en/20/orm/extensions/asyncio.html` |
 | FastAPI | `https://fastapi.tiangolo.com/` |
 | Pydantic v2 | `https://docs.pydantic.dev/latest/` |
+| pydantic-settings | `https://docs.pydantic.dev/latest/concepts/pydantic_settings/` |
 | httpx | `https://www.python-httpx.org/` |
-| pytest | `https://docs.pytest.org/en/stable/` |
+| structlog | `https://www.structlog.org/en/stable/` |
+| slowapi | `https://slowapi.readthedocs.io/en/latest/` |
+| cachetools (TTLCache) | `https://cachetools.readthedocs.io/en/stable/` |
+| authlib | `https://docs.authlib.org/en/latest/` |
+| Jinja2 | `https://jinja.palletsprojects.com/en/stable/` |
+| tenacity | `https://tenacity.readthedocs.io/en/latest/` |
+| circuitbreaker | `https://pypi.org/project/circuitbreaker/` |
+| asyncpg | `https://magicstack.github.io/asyncpg/current/` |
+| CairoSVG | `https://cairosvg.org/documentation/` |
 | Alembic | `https://alembic.sqlalchemy.org/en/latest/` |
+| pytest | `https://docs.pytest.org/en/stable/` |
+| respx | `https://lundberg.github.io/respx/` |
+| factory-boy | `https://factoryboy.readthedocs.io/en/stable/` |
 
 **For each library, fetch the SPECIFIC documentation page for the feature being used:**
 
@@ -336,9 +350,10 @@ Fetch: `https://docs.sqlalchemy.org/en/20/dialects/postgresql.html`
 Fetch: `https://fastapi.tiangolo.com/` and `https://docs.pydantic.dev/latest/`
 
 - [ ] Pydantic v2 syntax (`model_validator` not `@validator`)
-- [ ] `Annotated[T, Depends(...)]` for dependencies
+- [ ] `Annotated[T, Depends(...)]` for dependencies (this project uses type aliases: `UserId`, `OptionalUserId`, `DbSession`, `DbSessionReadOnly` — defined in `core/auth.py` and `core/database.py`)
 - [ ] Response models match return types
 - [ ] Proper status codes for each endpoint
+- [ ] HTMX routes use `response_class=HTMLResponse` (not `response_model`)
 
 ---
 

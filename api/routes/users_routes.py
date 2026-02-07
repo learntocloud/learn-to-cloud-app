@@ -12,6 +12,8 @@ from schemas import (
 )
 from services.badges_service import get_badge_catalog
 from services.users_service import (
+    UserNotFoundError,
+    delete_user_account,
     get_or_create_user,
     get_public_profile,
 )
@@ -70,3 +72,24 @@ async def get_badge_catalog_endpoint(request: Request) -> BadgeCatalogResponse:
         phase_badges=phase_badges,
         total_badges=total_badges,
     )
+
+
+@router.delete(
+    "/me",
+    status_code=204,
+    summary="Delete current user account",
+    responses={
+        204: {"description": "Account deleted"},
+        401: {"description": "Not authenticated"},
+        404: {"description": "User not found"},
+    },
+)
+@limiter.limit("3/hour")
+async def delete_current_user(request: Request, user_id: UserId, db: DbSession) -> None:
+    """Permanently delete the authenticated user's account and all associated data."""
+    try:
+        await delete_user_account(db, user_id)
+    except UserNotFoundError:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    request.session.clear()

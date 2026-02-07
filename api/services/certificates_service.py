@@ -17,13 +17,10 @@ from datetime import UTC, datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core.telemetry import add_custom_attribute, log_business_event, track_operation
+from core.telemetry import log_business_event, track_operation
 from models import Certificate
 from rendering.certificates import (
     generate_certificate_svg as _render_certificate_svg,
-)
-from rendering.certificates import (
-    get_certificate_display_info as get_certificate_info,
 )
 from rendering.certificates import (
     svg_to_pdf as _svg_to_pdf,
@@ -44,7 +41,6 @@ from services.progress_service import fetch_user_progress
 def _to_certificate_data(certificate: Certificate) -> CertificateData:
     return CertificateData(
         id=certificate.id,
-        certificate_type=certificate.certificate_type,
         verification_code=certificate.verification_code,
         recipient_name=certificate.recipient_name,
         issued_at=certificate.issued_at,
@@ -53,14 +49,14 @@ def _to_certificate_data(certificate: Certificate) -> CertificateData:
     )
 
 
-def generate_verification_code(user_id: int, certificate_type: str) -> str:
+def generate_verification_code(user_id: int) -> str:
     """Generate a unique, verifiable certificate code.
 
     Format: LTC-{hash}-{random}
-    The hash includes user_id, certificate_type, and timestamp for uniqueness.
+    The hash includes user_id and timestamp for uniqueness.
     """
     timestamp = datetime.now(UTC).isoformat()
-    data = f"{user_id}:{certificate_type}:{timestamp}"
+    data = f"{user_id}:{timestamp}"
     hash_part = hashlib.sha256(data.encode()).hexdigest()[:12].upper()
     random_part = secrets.token_hex(4).upper()
     return f"LTC-{hash_part}-{random_part}"
@@ -69,21 +65,14 @@ def generate_verification_code(user_id: int, certificate_type: str) -> str:
 async def check_eligibility(
     db: AsyncSession,
     user_id: int,
-    certificate_type: str,
 ) -> EligibilityResult:
     """Check if user is eligible for a certificate.
 
     Uses the centralized progress system to determine eligibility.
-    A user is eligible for full_completion certificate when ALL phases are complete.
+    A user is eligible when ALL phases are complete.
     """
-    if certificate_type != "full_completion":
-        raise ValueError(
-            f"Unknown certificate type: {certificate_type}. "
-            "Only 'full_completion' is supported."
-        )
-
     cert_repo = CertificateRepository(db)
-    existing_cert = await cert_repo.get_by_user_and_type(user_id, certificate_type)
+    existing_cert = await cert_repo.get_by_user(user_id)
 
     progress = await fetch_user_progress(db, user_id)
 
@@ -96,9 +85,9 @@ async def check_eligibility(
     if existing_cert_data:
         message = "Certificate already issued"
     elif progress.is_program_complete:
-        cert_info = get_certificate_info(certificate_type)
         message = (
-            f"Congratulations! You are eligible for the {cert_info['name']} certificate"
+            "Congratulations! You are eligible for the"
+            " Full Program Completion certificate"
         )
     else:
         message = "Complete all phases to earn this certificate"
@@ -137,7 +126,6 @@ class NotEligibleError(Exception):
 async def create_certificate(
     db: AsyncSession,
     user_id: int,
-    certificate_type: str,
     recipient_name: str,
 ) -> CreateCertificateResult:
     """Create a new certificate for an eligible user.
@@ -151,7 +139,6 @@ async def create_certificate(
     Args:
         db: Database session
         user_id: The user's ID
-        certificate_type: Type of certificate (e.g., "full_completion")
         recipient_name: Name to display on certificate
 
     Returns:
@@ -161,8 +148,7 @@ async def create_certificate(
         CertificateAlreadyExistsError: If certificate already issued
         NotEligibleError: If user doesn't meet requirements
     """
-    add_custom_attribute("certificate.type", certificate_type)
-    eligibility = await check_eligibility(db, user_id, certificate_type)
+    eligibility = await check_eligibility(db, user_id)
 
     if eligibility.existing_certificate:
         raise CertificateAlreadyExistsError(
@@ -180,19 +166,18 @@ async def create_certificate(
             ),
         )
 
-    verification_code = generate_verification_code(user_id, certificate_type)
+    verification_code = generate_verification_code(user_id)
 
     cert_repo = CertificateRepository(db)
     certificate = await cert_repo.create(
         user_id=user_id,
-        certificate_type=certificate_type,
         verification_code=verification_code,
         recipient_name=recipient_name,
         phases_completed=eligibility.phases_completed,
         total_phases=eligibility.total_phases,
     )
 
-    log_business_event("certificates.issued", 1, {"type": certificate_type})
+    log_business_event("certificates.issued", 1)
 
     return CreateCertificateResult(
         certificate=_to_certificate_data(certificate),
@@ -200,37 +185,28 @@ async def create_certificate(
     )
 
 
-async def get_user_certificates_with_eligibility(
+async def get_user_certificate_with_eligibility(
     db: AsyncSession,
     user_id: int,
-) -> tuple[list[CertificateData], bool]:
-    """Get all certificates for a user plus eligibility status.
-
-    Optimized: extracts existing full_completion cert from the already-fetched
-    list instead of a second DB query via check_eligibility().
+) -> tuple[CertificateData | None, bool]:
+    """Get the certificate for a user plus eligibility status.
 
     Args:
         db: Database session
         user_id: The user's ID
 
     Returns:
-        Tuple of (certificates list, full_completion_eligible flag)
+        Tuple of (certificate or None, eligible flag)
     """
     cert_repo = CertificateRepository(db)
-    certificates = await cert_repo.get_by_user(user_id)
+    certificate = await cert_repo.get_by_user(user_id)
 
-    # Check if full_completion cert already exists from the fetched list
-    # (avoids a redundant get_by_user_and_type query)
-    already_issued = any(c.certificate_type == "full_completion" for c in certificates)
+    if certificate:
+        return _to_certificate_data(certificate), False
 
-    if already_issued:
-        full_completion_eligible = False
-    else:
-        # Only check progress if no cert exists yet
-        progress = await fetch_user_progress(db, user_id)
-        full_completion_eligible = progress.is_program_complete
-
-    return [_to_certificate_data(c) for c in certificates], full_completion_eligible
+    # Only check progress if no cert exists yet
+    progress = await fetch_user_progress(db, user_id)
+    return None, progress.is_program_complete
 
 
 async def get_certificate_by_id(
@@ -293,13 +269,14 @@ async def verify_certificate_with_message(
             message="Certificate not found. Please check the verification code.",
         )
 
-    cert_info = get_certificate_info(certificate.certificate_type)
     issued_date = certificate.issued_at.strftime("%B %d, %Y")
 
     return CertificateVerificationResult(
         is_valid=True,
         certificate=certificate,
-        message=f"Valid certificate for {cert_info['name']} issued on {issued_date}",
+        message=(
+            "Valid certificate for Full Program Completion" f" issued on {issued_date}"
+        ),
     )
 
 
@@ -317,7 +294,6 @@ def generate_certificate_svg(certificate: CertificateData) -> str:
     """
     return _render_certificate_svg(
         recipient_name=certificate.recipient_name,
-        certificate_type=certificate.certificate_type,
         verification_code=certificate.verification_code,
         issued_at=certificate.issued_at,
         phases_completed=certificate.phases_completed,

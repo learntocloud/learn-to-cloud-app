@@ -83,7 +83,7 @@ class SubmissionRepository:
 
         Args:
             verification_completed: Whether the verification logic actually ran.
-                Set to False when blocked by server errors (e.g., Copilot CLI down).
+                Set to False when blocked by server errors (e.g., LLM CLI down).
                 Only completed verifications count toward cooldowns.
             feedback_json: JSON-serialized task feedback for CODE_ANALYSIS submissions.
 

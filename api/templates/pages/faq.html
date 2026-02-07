@@ -15,12 +15,14 @@
         ("How do I get my certificate?", "Complete all phases including the hands-on verification tasks. Once everything is verified, you can generate a certificate from your dashboard."),
         ("Can I skip phases?", "You can read any phase, but hands-on verification builds on earlier phases. We recommend following the sequence."),
         ("How does hands-on verification work?", "Each phase has practical tasks — creating a GitHub profile, deploying an API, analyzing code. You submit proof (URLs, tokens, or code) and our platform verifies it automatically."),
+        ("What data do you collect about me?", "We only store information from your public GitHub profile: your GitHub user ID, username, display name, and avatar URL. We do not collect your email address, password, or any other personal information."),
+        ("Can I delete my account?", 'Yes. Go to the <a href="/dashboard#account" class="text-blue-600 dark:text-blue-400 underline">Account section on your Dashboard</a>. Clicking "Delete Account" will permanently remove your profile and all associated data (progress, submissions, and certificates).'),
     ] %}
 
     {% for question, answer in faqs %}
     <div>
         <h3 class="font-medium text-gray-900 dark:text-white">{{ question }}</h3>
-        <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">{{ answer }}</p>
+        <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">{{ answer|safe }}</p>
     </div>
     {% endfor %}
 </div>

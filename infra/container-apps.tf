@@ -58,13 +58,13 @@ resource "azurerm_container_app" "api" {
   }
 
   secret {
-    name  = "google-api-key"
-    value = var.google_api_key
+    name  = "ctf-master-secret"
+    value = var.labs_verification_secret
   }
 
   secret {
-    name  = "ctf-master-secret"
-    value = var.labs_verification_secret
+    name  = "llm-api-key"
+    value = azurerm_cognitive_account.openai.primary_access_key
   }
 
   ingress {
@@ -80,7 +80,11 @@ resource "azurerm_container_app" "api" {
 
   template {
     min_replicas = 1
-    max_replicas = 3
+    # B1ms PostgreSQL allows 35 user connections.
+    # Each replica uses up to 10 (pool_size=5 + max_overflow=5).
+    # 2 replicas × 10 = 20 connections — safely under the limit.
+    # Scaling uses the default HTTP rule (10 concurrent requests per replica).
+    max_replicas = 2
 
     # Migrations run inside the app lifespan (not an init container) because
     # Azure Container Apps init containers don't have access to the managed
@@ -128,11 +132,6 @@ resource "azurerm_container_app" "api" {
       }
 
       env {
-        name        = "GOOGLE_API_KEY"
-        secret_name = "google-api-key"
-      }
-
-      env {
         name        = "LABS_VERIFICATION_SECRET"
         secret_name = "ctf-master-secret"
       }
@@ -140,6 +139,36 @@ resource "azurerm_container_app" "api" {
       env {
         name  = "APPLICATIONINSIGHTS_CONNECTION_STRING"
         value = azurerm_application_insights.main.connection_string
+      }
+
+      env {
+        name  = "LLM_CLI_URL"
+        value = "http://localhost:4321"
+      }
+
+      env {
+        name  = "LLM_BASE_URL"
+        value = azurerm_cognitive_account.openai.endpoint
+      }
+
+      env {
+        name        = "LLM_API_KEY"
+        secret_name = "llm-api-key"
+      }
+
+      env {
+        name  = "LLM_MODEL"
+        value = var.llm_model
+      }
+
+      env {
+        name  = "LLM_PROVIDER_TYPE"
+        value = var.llm_provider_type
+      }
+
+      env {
+        name  = "LLM_WIRE_API"
+        value = var.llm_wire_api
       }
 
       liveness_probe {
@@ -170,7 +199,18 @@ resource "azurerm_container_app" "api" {
         failure_count_threshold = 30
       }
     }
+
+    # LLM CLI sidecar — headless JSON-RPC server for the SDK
+    container {
+      name   = "llm-cli"
+      image  = "${azurerm_container_registry.main.login_server}/llm-cli:latest"
+      cpu    = 0.25
+      memory = "0.5Gi"
+    }
   }
 
-  depends_on = [azurerm_postgresql_flexible_server_database.main]
+  depends_on = [
+    azurerm_postgresql_flexible_server_database.main,
+    azurerm_cognitive_deployment.llm,
+  ]
 }

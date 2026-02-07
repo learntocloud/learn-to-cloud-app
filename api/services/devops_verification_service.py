@@ -1,4 +1,4 @@
-"""AI-powered DevOps verification service using GitHub Copilot SDK.
+"""AI-powered DevOps verification service.
 
 This module provides Phase 5 verification: checking that learners have added
 DevOps artifacts (Dockerfile, CI/CD, Terraform, K8s) to their journal-starter fork.
@@ -7,15 +7,15 @@ Approach:
   1. Extract repo info from submitted URL
   2. Fetch repo file tree via GitHub API
   3. Fetch relevant DevOps files in parallel
-  4. Send all content to Copilot for structured analysis
+  4. Send all content to the LLM for structured analysis
   5. Parse response into per-task pass/fail results
 
-Unlike Phase 3 (copilot_verification_service.py), this module does NOT give
-Copilot a file-fetching tool. Instead, files are pre-fetched and passed
+Unlike Phase 3 (code_verification_service.py), this module does NOT give
+the LLM a file-fetching tool. Instead, files are pre-fetched and passed
 directly in the prompt — this is faster, simpler, and more secure for
 DevOps artifacts that may live at variable paths.
 
-For Copilot client infrastructure, see core/copilot_client.py
+For LLM client infrastructure, see core/llm_client.py
 """
 
 from __future__ import annotations
@@ -36,7 +36,7 @@ from tenacity import (
 
 from core import get_logger
 from core.config import get_settings
-from core.copilot_client import CopilotClientError, get_copilot_client
+from core.llm_client import LLMClientError, get_llm_client
 from core.telemetry import track_operation
 from core.wide_event import set_wide_event_fields
 from schemas import TaskResult, ValidationResult
@@ -61,7 +61,7 @@ MAX_FILES_PER_CATEGORY: int = 5
 # Maximum file size to prevent token exhaustion (50 KB)
 MAX_FILE_SIZE_BYTES: int = 50 * 1024
 
-# Maximum total content size sent to Copilot (200 KB)
+# Maximum total content size sent to the LLM (200 KB)
 MAX_TOTAL_CONTENT_BYTES: int = 200 * 1024
 
 # Patterns that may indicate prompt injection in fetched code
@@ -383,7 +383,7 @@ def _build_verification_prompt(
     repo: str,
     file_contents: dict[str, list[str]],
 ) -> str:
-    """Build the prompt for Copilot to verify DevOps artifact implementations.
+    """Build the prompt for the LLM to verify DevOps artifact implementations.
 
     All file contents are pre-fetched and embedded directly in the prompt.
     No tool calls are needed.
@@ -465,7 +465,7 @@ Respond with ONLY this JSON (no markdown, no explanation):
 
 
 def _parse_analysis_response(response_text: str) -> list[dict[str, Any]]:
-    """Parse the Copilot response to extract task results.
+    """Parse the LLM response to extract task results.
 
     Raises:
         DevOpsAnalysisError: If response cannot be parsed.
@@ -592,7 +592,7 @@ def _build_task_results(
 # =============================================================================
 
 RETRIABLE_EXCEPTIONS: tuple[type[Exception], ...] = (
-    CopilotClientError,
+    LLMClientError,
     httpx.RequestError,
     httpx.TimeoutException,
 )
@@ -611,7 +611,7 @@ RETRIABLE_EXCEPTIONS: tuple[type[Exception], ...] = (
     retry=retry_if_exception_type(RETRIABLE_EXCEPTIONS),
     reraise=True,
 )
-async def _analyze_with_copilot(
+async def _analyze_with_llm(
     owner: str,
     repo: str,
     file_contents: dict[str, list[str]],
@@ -621,7 +621,7 @@ async def _analyze_with_copilot(
     Use analyze_devops_repository() instead.
     """
     settings = get_settings()
-    client = await get_copilot_client()
+    client = await get_llm_client()
 
     response_content = ""
     done = asyncio.Event()
@@ -633,10 +633,10 @@ async def _analyze_with_copilot(
         elif event.type.value == "session.idle":
             done.set()
 
-    from copilot.types import SessionConfig
+    from core.llm_client import build_session_config
 
     # No tools needed — all content is in the prompt
-    config = SessionConfig(model="gpt-5-mini")
+    config = build_session_config()
     session = await client.create_session(config)
 
     try:
@@ -653,11 +653,11 @@ async def _analyze_with_copilot(
         await session.send({"prompt": prompt})
 
         try:
-            await asyncio.wait_for(done.wait(), timeout=settings.copilot_cli_timeout)
+            await asyncio.wait_for(done.wait(), timeout=settings.llm_cli_timeout)
         except TimeoutError:
             set_wide_event_fields(
                 devops_error="timeout",
-                devops_timeout_seconds=settings.copilot_cli_timeout,
+                devops_timeout_seconds=settings.llm_cli_timeout,
             )
             raise DevOpsAnalysisError(
                 "DevOps analysis timed out. Please try again.",
@@ -720,7 +720,7 @@ async def analyze_devops_repository(
       2. Fetch repo file tree via GitHub Tree API
       3. Filter to DevOps-relevant files (Dockerfile, workflows, infra/, k8s/)
       4. Fetch file contents in parallel
-      5. Send to Copilot for structured analysis
+      5. Send to the LLM for structured analysis
       6. Return per-task pass/fail results with educational feedback
 
     Args:
@@ -781,8 +781,8 @@ async def analyze_devops_repository(
         # Step 3: Fetch file contents in parallel
         file_contents = await _fetch_all_devops_files(owner, repo, devops_files)
 
-        # Step 4: Analyze with Copilot
-        return await _analyze_with_copilot(owner, repo, file_contents)
+        # Step 4: Analyze with LLM
+        return await _analyze_with_llm(owner, repo, file_contents)
 
     except CircuitBreakerError:
         set_wide_event_fields(devops_error="circuit_open")
@@ -805,7 +805,7 @@ async def analyze_devops_repository(
             message=f"DevOps analysis failed: {e}",
             server_error=e.retriable,
         )
-    except CopilotClientError as e:
+    except LLMClientError as e:
         set_wide_event_fields(
             devops_error="client_error",
             devops_error_detail=str(e),

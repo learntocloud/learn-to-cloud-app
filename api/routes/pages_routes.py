@@ -17,7 +17,7 @@ from rendering.steps import build_step_data
 from repositories.submission_repository import SubmissionRepository
 from services.badges_service import get_badge_catalog
 from services.certificates_service import (
-    get_user_certificates_with_eligibility,
+    get_user_certificate_with_eligibility,
     verify_certificate,
 )
 from services.content_service import (
@@ -258,19 +258,15 @@ async def certificates_page(
 ) -> HTMLResponse:
     """Certificate management page."""
     user = await _get_user_or_none(db, user_id)
-    certificates, eligible = await get_user_certificates_with_eligibility(db, user_id)
-
-    # Check if user already has a certificate
-    certificate = certificates[0] if certificates else None
+    certificate, eligible = await get_user_certificate_with_eligibility(db, user_id)
 
     return request.app.state.templates.TemplateResponse(
         "pages/certificates.html",
         _template_context(
             request,
             user=user,
-            certificates=certificates,
-            eligible=eligible,
             certificate=certificate,
+            eligible=eligible,
         ),
     )
 

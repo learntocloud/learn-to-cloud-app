@@ -1,0 +1,225 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 800 600" width="800" height="600">
+  <defs>
+    <!-- Blue gradient matching Learn to Cloud brand -->
+    <linearGradient id="blueGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0" stop-color="#83DCFF"/>
+      <stop offset="1" stop-color="#0076F7"/>
+    </linearGradient>
+
+    <!-- Vertical blue gradient for text -->
+    <linearGradient id="blueGradientV" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0" stop-color="#83DCFF"/>
+      <stop offset="1" stop-color="#0076F7"/>
+    </linearGradient>
+
+    <!-- Subtle radial gradient for background depth -->
+    <radialGradient id="bgGradient" cx="50%" cy="40%" r="70%">
+      <stop offset="0%" stop-color="#0a1628"/>
+      <stop offset="100%" stop-color="#000000"/>
+    </radialGradient>
+
+    <!-- Subtle glow for name -->
+    <filter id="nameGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="2" result="blur"/>
+      <feFlood flood-color="#ffffff" flood-opacity="0.3"/>
+      <feComposite in2="blur" operator="in"/>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- Seal glow -->
+    <filter id="sealGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feFlood flood-color="#0076F7" flood-opacity="0.5"/>
+      <feComposite in2="blur" operator="in"/>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background with subtle gradient -->
+  <rect width="800" height="600" fill="url(#bgGradient)"/>
+
+  <!-- Single clean border -->
+  <rect x="24" y="24" width="752" height="552" fill="none" stroke="url(#blueGradient)" stroke-width="1.5" rx="4" opacity="0.6"/>
+
+
+  <!-- Brand logo (Logo-03.svg) -->
+  <g>
+    <svg x="280" y="40" width="240" height="130" viewBox="200 320 600 370" preserveAspectRatio="xMidYMid meet"><defs><linearGradient id="ltcLogoTextGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0" stop-color="#83DCFF"/>
+        <stop offset="1" stop-color="#0076F7"/>
+      </linearGradient>
+<linearGradient id="ltcLogo-SVGID_1_" gradientUnits="userSpaceOnUse" x1="562.5188" y1="362.2764" x2="436.5188" y2="551.2764">
+					<stop  offset="0" style="stop-color:#83DCFF"/>
+					<stop  offset="1" style="stop-color:#0076F7"/>
+				</linearGradient>
+<linearGradient id="ltcLogo-SVGID_2_" gradientUnits="userSpaceOnUse" x1="606.936" y1="391.8878" x2="480.936" y2="580.8879">
+					<stop  offset="0" style="stop-color:#83DCFF"/>
+					<stop  offset="1" style="stop-color:#0076F7"/>
+				</linearGradient>
+<linearGradient id="ltcLogo-SVGID_3_" gradientUnits="userSpaceOnUse" x1="515.5645" y1="330.9734" x2="389.5644" y2="519.9734">
+					<stop  offset="0" style="stop-color:#83DCFF"/>
+					<stop  offset="1" style="stop-color:#0076F7"/>
+				</linearGradient>
+<linearGradient id="ltcLogo-SVGID_4_" gradientUnits="userSpaceOnUse" x1="591.7798" y1="381.7837" x2="465.7798" y2="570.7837">
+					<stop  offset="0" style="stop-color:#83DCFF"/>
+					<stop  offset="1" style="stop-color:#0076F7"/>
+				</linearGradient></defs>
+<style type="text/css">
+	.st0{fill:url(#ltcLogoTextGradient);}
+	.st1{fill:url(#ltcLogo-SVGID_1_);}
+	.st2{fill:url(#ltcLogo-SVGID_2_);}
+	.st3{fill:url(#ltcLogo-SVGID_3_);}
+	.st4{fill:url(#ltcLogo-SVGID_4_);}
+	.st5{fill:url(#SVGID_5_);}
+	.st6{fill:url(#SVGID_6_);}
+	.st7{fill:url(#SVGID_7_);}
+	.st8{fill:url(#SVGID_8_);}
+	.st9{fill:url(#SVGID_9_);}
+	.st10{fill:url(#SVGID_10_);}
+	.st11{fill:url(#SVGID_11_);}
+	.st12{fill:url(#SVGID_12_);}
+	.st13{fill:#FFFFFF;}
+	.st14{fill:url(#SVGID_13_);}
+	.st15{fill:url(#SVGID_14_);}
+	.st16{fill:url(#SVGID_15_);}
+	.st17{fill:url(#SVGID_16_);}
+	.st18{fill:url(#SVGID_17_);}
+	.st19{fill:url(#SVGID_18_);}
+	.st20{fill:url(#SVGID_19_);}
+	.st21{fill:url(#SVGID_20_);}
+</style>
+<g>
+		<g>
+			<g>
+				<path class="st0" d="M228.3,601v68.1h-11.8V601H228.3z"/>
+				<path class="st0" d="M248.8,649.3c0.8,5.9,5.9,10.2,14.3,10.2c4.4,0,10.1-1.7,12.9-4.5l7.6,7.5c-5.1,5.3-13.3,7.8-20.6,7.8
+					c-16.6,0-26.4-10.2-26.4-25.6c0-14.6,9.9-25.1,25.5-25.1c16.1,0,26.1,9.9,24.3,29.7H248.8z M274.9,639.5
+					c-0.8-6.2-5.6-9.4-12.5-9.4c-6.4,0-11.7,3.1-13.4,9.4H274.9z"/>
+				<path class="st0" d="M333.5,621h11.4v48h-11.2l-0.6-7c-2.7,5.6-10.2,8.4-15.6,8.5c-14.2,0.1-24.7-8.7-24.7-25.5
+					c0-16.6,11-25.2,25-25.1c6.4,0,12.6,3,15.3,7.8L333.5,621z M304.7,645c0,9.2,6.3,14.6,14.2,14.6c18.7,0,18.7-29.1,0-29.1
+					C311,630.5,304.7,635.9,304.7,645z"/>
+				<path class="st0" d="M366,621l0.9,5.6c3.7-5.9,8.7-6.8,13.5-6.8c5,0,9.7,1.9,12.4,4.6l-5.4,10.3c-2.4-2-4.7-3.1-8.6-3.1
+					c-6.2,0-12,3.3-12,12.2v25.3H355v-48H366z"/>
+				<path class="st0" d="M432.6,669.1v-25.1c0-7.3-4-12.9-11.6-12.9c-7.3,0-12.3,6.1-12.3,13.4v24.5H397v-48.1h10.6l0.8,6.5
+					c4.9-4.8,9.7-7.2,15.8-7.2c11.3,0,20.4,8.5,20.4,23.6v25.2H432.6z"/>
+				<path class="st0" d="M467.2,606.4v14.5h16.4v4h-16.4v29.3c0,6.5,1.4,11.1,8.9,11.1c2.3,0,5-0.8,7.4-1.9l1.7,3.9
+					c-3,1.5-6,2.4-9.1,2.4c-10.2,0-13.5-6-13.5-15.5v-29.3h-10.2v-4h10.2v-14L467.2,606.4z"/>
+				<path class="st0" d="M492.3,645.1c0-15.3,10.9-25,24.4-25s24.4,9.7,24.4,25c0,15.3-10.9,24.6-24.4,24.6S492.3,660.4,492.3,645.1
+					z M536.5,645.1c0-12.5-8.9-20.6-19.8-20.6c-10.9,0-19.8,8.1-19.8,20.6s8.9,20,19.8,20C527.7,665.1,536.5,657.6,536.5,645.1z"/>
+				<path class="st0" d="M591.9,662.9c-5.6,5.5-11.4,7.6-18.5,7.6c-13.9,0-25.5-8.4-25.5-25.4s11.6-25.4,25.5-25.4
+					c6.8,0,12.1,1.9,17.3,7.1l-7.5,7.9c-2.8-2.5-6.3-3.8-9.6-3.8c-8,0-13.8,5.8-13.8,14.2c0,9.2,6.2,14,13.6,14
+					c3.8,0,7.6-1.1,10.5-4L591.9,662.9z"/>
+				<path class="st0" d="M609,601v68.1h-11.8V601H609z"/>
+				<path class="st0" d="M667.1,645.1c0,13.8-9.4,25-25,25s-24.9-11.2-24.9-25c0-13.7,9.5-25,24.8-25
+					C657.3,620.1,667.1,631.4,667.1,645.1z M629.1,645.1c0,7.3,4.4,14.1,13.1,14.1s13.1-6.8,13.1-14.1c0-7.2-5.1-14.2-13.1-14.2
+					C633.5,630.9,629.1,637.9,629.1,645.1z"/>
+				<path class="st0" d="M687.5,621v25.1c0,7.3,4,12.9,11.6,12.9c7.3,0,12.3-6.1,12.3-13.4V621h11.8v48.1h-10.6l-0.8-6.5
+					c-5,4.9-9.5,7.2-16.3,7.2c-11.5,0-19.9-8.7-19.9-23.6V621H687.5z"/>
+				<path class="st0" d="M783.5,601v68.1h-11.1l-0.8-6.6c-3.7,5.7-9.6,7.7-15.5,7.7c-14.1,0-24.7-9.4-24.7-25.1
+					c0-16.6,10.4-25.1,24.4-25.1c5.1,0,13,2.7,15.8,7.7V601H783.5z M743.3,645c0,8.4,6,14.1,13.6,14.1c7.5,0,13.9-5.5,13.9-14.1
+					c0-8.4-6.4-14-13.9-14C749.3,631,743.3,636.3,743.3,645z"/>
+			</g>
+			<g>
+
+				<path class="st1" d="M600.5,387.3c-4.9,0-9.7,0.5-14.5,1.6c-12.8-35.2-46.8-59.4-84.8-59.4c-37.9,0-71.9,24.1-84.7,59.4
+					c-6.1-1.3-12.4-1.8-18.7-1.4c-35.4,2.2-63.1,32.2-62.6,67.6c0.5,36.5,30.3,66.1,66.9,66.1h5.8v0h12v0h14.9
+					c15,0,27.2-12.2,27.2-27.2v-12.1c4.9-3.2,8-9.1,7.1-15.5c-1-7.1-6.8-12.8-13.9-13.6c-9.6-1.1-17.7,6.4-17.7,15.8
+					c0,7.6,5.4,14,12.6,15.5v9.9c0,8.4-6.8,15.2-15.2,15.2h-14.9v0h-12v0H402c-0.5,0-1.1,0-1.6,0h-3.6v-0.2
+					c-27.4-2.6-49-25.4-49.7-53.2c-0.8-29.3,22-54.4,51.3-56.3c6.9-0.4,13.7,0.4,20.2,2.4l0,0c3.2,1,6.6-0.8,7.6-4l0,0
+					c9.6-33.2,40.5-56.3,75-56.3c34.6,0,65.4,23.2,75.1,56.3l0,0c0.9,3.2,4.4,5.1,7.6,4l0,0c6.5-2.1,13.4-2.9,20.2-2.4
+					c28.9,1.9,51.6,26.4,51.3,55.3c-0.2,27.1-20.3,49.6-46.4,53.7v0.6h-7.1c-0.5,0-1,0-1.5,0h-5.8v0h-12v0h-15.9
+					c-8.4,0-15.2-6.8-15.2-15.2v-10c7.1-1.8,12.4-8.3,12.1-16.1c-0.3-8.1-7-14.8-15.1-15.2c-9.1-0.4-16.7,6.9-16.7,15.9
+					c0,5.8,3.1,10.8,7.7,13.6v11.8c0,15,12.2,27.2,27.2,27.2h15.9v0h12v0h4.8c36.7,0,67.4-29.2,67.9-65.9
+					C668,417.9,637.7,387.3,600.5,387.3z M449.4,468.5c0-2.2,1.7-3.9,3.9-3.9s3.9,1.7,3.9,3.9s-1.7,3.9-3.9,3.9
+					S449.4,470.7,449.4,468.5z M547.8,472.4c-2.2,0-3.9-1.7-3.9-3.9s1.7-3.9,3.9-3.9c2.2,0,3.9,1.7,3.9,3.9S549.9,472.4,547.8,472.4
+					z"/>
+
+				<path class="st2" d="M588.7,501.1c3.3,0,6-2.7,6-6l0-70c0-3.2-1.1-6.4-3.3-8.8c-3.7-4-9.3-5.2-14.1-3.3L520,437.5
+					c-2.3,0.9-3.8,3.1-3.8,5.6v0c0,4.2,4.3,7.1,8.2,5.6l57.3-24.4c0.1,0,0.3-0.1,0.6,0.1c0.3,0.2,0.3,0.5,0.3,0.6v70.2
+					C582.7,498.4,585.4,501.1,588.7,501.1z"/>
+
+				<path class="st3" d="M487.3,443.1c0-2.5-1.5-4.7-3.8-5.6l-58.2-24.4c-4.8-1.9-10.4-0.7-14.1,3.3c-2.2,2.4-3.3,5.6-3.3,8.8v71
+					c0,3.3,2.7,6,6,6s6-2.7,6-6v-71.2c0-0.1,0-0.4,0.3-0.6c0.1-0.1,0.3-0.1,0.4-0.1c0.1,0,0.2,0,0.3,0.1l58.2,24.4
+					C483,450.2,487.3,447.3,487.3,443.1z"/>
+
+				<path class="st4" d="M588.7,528.2c-3.3,0-6,2.7-6,6v9.9c0,0.3-0.2,0.6-0.5,0.7l-74.9,23.1V466h0v-12.4v-12.9v-15.5h0v-34.9
+					c5.9-2.4,10.1-8.3,9.9-15.2c-0.2-8.2-6.9-15-15.1-15.4c-9.1-0.4-16.7,6.9-16.7,15.9c0,6.6,4.1,12.3,9.9,14.7v32.7h0v17.7v12.9
+					v10.2h0v104.1l-74.9-23.1c-0.3-0.1-0.5-0.4-0.5-0.7v-8.9c0-3.3-2.7-6-6-6s-6,2.7-6,6v8.9c0,5.6,3.6,10.5,8.9,12.1l84.4,26.1
+					l84.4-26.1c5.4-1.7,9-6.5,9-12.1v-9.9C594.7,530.9,592,528.2,588.7,528.2z M501.3,379.6c-2.2,0-3.9-1.7-3.9-3.9s1.7-3.9,3.9-3.9
+					c2.2,0,3.9,1.7,3.9,3.9S503.4,379.6,501.3,379.6z"/>
+			</g>
+		</g>
+</g>
+</svg>
+  </g>
+
+
+  <!-- Certificate subtitle -->
+  <text x="400" y="195" font-family="Helvetica, Arial, sans-serif" font-size="10" fill="#4b5563" text-anchor="middle" letter-spacing="4" font-weight="500">
+    CERTIFICATE OF COMPLETION
+  </text>
+
+  <!-- Recipient name with glow -->
+  <text x="400" y="280" font-family="Times, 'Times New Roman', Georgia, serif" font-size="48" fill="#ffffff" text-anchor="middle" font-weight="bold" filter="url(#nameGlow)">
+    Gwyneth Test
+  </text>
+
+  <!-- Achievement name -->
+  <text x="400" y="360" font-family="Helvetica, Arial, sans-serif" font-size="24" fill="url(#blueGradientV)" text-anchor="middle" font-weight="bold">
+    Full Program Completion
+  </text>
+
+  <!-- Achievement description -->
+  <text x="400" y="395" font-family="Helvetica, Arial, sans-serif" font-size="13" fill="#64748b" text-anchor="middle">
+    All Phases of Learn to Cloud
+  </text>
+
+  <!-- Achievement seal -->
+  <g transform="translate(680, 480)" filter="url(#sealGlow)">
+    <circle cx="0" cy="0" r="45" fill="none" stroke="url(#blueGradient)" stroke-width="2" opacity="0.8"/>
+    <circle cx="0" cy="0" r="38" fill="none" stroke="url(#blueGradient)" stroke-width="1" opacity="0.5"/>
+    <!-- Checkmark as path for better PDF compatibility -->
+    <path d="M-8 -4 L-3 2 L8 -10" fill="none" stroke="url(#blueGradient)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="0" y="12" font-family="Helvetica, Arial, sans-serif" font-size="9" fill="#83DCFF" text-anchor="middle" font-weight="600">
+      5/5
+    </text>
+    <text x="0" y="24" font-family="Helvetica, Arial, sans-serif" font-size="7" fill="#64748b" text-anchor="middle">
+      COMPLETE
+    </text>
+  </g>
+
+  <!-- Date and verification section -->
+  <g transform="translate(0, 500)">
+    <!-- Date -->
+    <g transform="translate(150, 0)">
+      <text x="0" y="0" font-family="Helvetica, Arial, sans-serif" font-size="9" fill="#4b5563" text-anchor="middle" letter-spacing="2">
+        ISSUED
+      </text>
+      <text x="0" y="24" font-family="Times, 'Times New Roman', Georgia, serif" font-size="16" fill="#e5e7eb" text-anchor="middle">
+        February 07, 2026
+      </text>
+    </g>
+
+    <!-- Verification Code -->
+    <g transform="translate(400, 0)">
+      <text x="0" y="0" font-family="Helvetica, Arial, sans-serif" font-size="9" fill="#4b5563" text-anchor="middle" letter-spacing="2">
+        VERIFICATION
+      </text>
+      <text x="0" y="24" font-family="Courier, 'Courier New', monospace" font-size="13" fill="#83DCFF" text-anchor="middle" font-weight="600">
+        LTC-abc123-test
+      </text>
+    </g>
+  </g>
+
+  <!-- Footer with verification URL -->
+  <text x="400" y="568" font-family="Helvetica, Arial, sans-serif" font-size="9" fill="#374151" text-anchor="middle">
+    Verify at https://learntocloud.guide/verify/LTC-abc123-test
+  </text>
+</svg>

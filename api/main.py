@@ -24,11 +24,13 @@ from core.database import (
     init_db,
     warm_pool,
 )
+from core.llm_client import close_llm_client
 from core.logger import configure_logging, get_logger
 from core.ratelimit import limiter, rate_limit_exceeded_handler
 from core.telemetry import RequestTimingMiddleware, SecurityHeadersMiddleware
 from core.wide_event import get_wide_event
 from routes import (
+    analytics_router,
     auth_router,
     certificates_router,
     health_router,
@@ -211,6 +213,7 @@ async def lifespan(app: FastAPI):
 
         await close_github_client()
         await close_deployed_api_client()
+        await close_llm_client()
         await dispose_engine(app.state.engine)
 
 
@@ -270,6 +273,7 @@ app.include_router(health_router)
 app.include_router(auth_router)
 app.include_router(certificates_router)
 app.include_router(users_router)
+app.include_router(analytics_router)
 
 # HTMX routes (HTML fragments)
 app.include_router(htmx_router)

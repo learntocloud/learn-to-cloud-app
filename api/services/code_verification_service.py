@@ -1,7 +1,7 @@
-"""AI-powered code verification service using GitHub Copilot SDK.
+"""AI-powered code verification service.
 
 This module provides the business logic for Phase 3 code analysis verification.
-It uses the Copilot SDK to analyze learners' forked repositories and verify
+It uses the LLM client to analyze learners' forked repositories and verify
 that they have correctly implemented the required tasks.
 
 Required Tasks (from learntocloud/journal-starter):
@@ -17,7 +17,7 @@ SECURITY CONSIDERATIONS:
 - LLM output is validated against expected schema
 - Feedback is sanitized before display to users
 
-For Copilot client infrastructure, see core/copilot_client.py
+For LLM client infrastructure, see core/llm_client.py
 """
 
 from __future__ import annotations
@@ -38,7 +38,7 @@ from tenacity import (
 )
 
 from core.config import get_settings
-from core.copilot_client import CopilotClientError, get_copilot_client
+from core.llm_client import LLMClientError, get_llm_client
 from core.telemetry import track_operation
 from core.wide_event import set_wide_event_fields
 from schemas import TaskResult, ValidationResult
@@ -348,7 +348,7 @@ async def _fetch_github_file_content(
 
 
 def _build_verification_prompt(owner: str, repo: str) -> str:
-    """Build the prompt for Copilot to verify task implementations.
+    """Build the prompt for the LLM to verify task implementations.
 
     Args:
         owner: Repository owner (learner's GitHub username)
@@ -423,10 +423,10 @@ Respond with ONLY this JSON (no markdown, no explanation):
 
 
 def _parse_analysis_response(response_text: str) -> list[dict[str, Any]]:
-    """Parse the Copilot response to extract task results.
+    """Parse the LLM response to extract task results.
 
     Args:
-        response_text: Raw response from Copilot
+        response_text: Raw response from LLM
 
     Returns:
         List of task result dictionaries
@@ -435,7 +435,7 @@ def _parse_analysis_response(response_text: str) -> list[dict[str, Any]]:
         CodeAnalysisError: If response cannot be parsed
     """
     # Try to extract JSON from the response
-    # Copilot may wrap it in markdown code blocks
+    # The LLM may wrap it in markdown code blocks
     json_match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", response_text, re.DOTALL)
     if json_match:
         json_str = json_match.group(1)
@@ -476,7 +476,7 @@ def _parse_analysis_response(response_text: str) -> list[dict[str, Any]]:
             task_id = task.get("task_id")
             if task_id not in valid_task_ids:
                 set_wide_event_fields(
-                    copilot_invalid_task_id=task_id,
+                    llm_invalid_task_id=task_id,
                 )
                 # Don't fail - just log and skip invalid tasks
 
@@ -525,7 +525,7 @@ def _build_task_results(
     """Convert parsed task data to TaskResult objects with sanitization.
 
     Args:
-        parsed_tasks: List of task dictionaries from Copilot response
+        parsed_tasks: List of task dictionaries from LLM response
 
     Returns:
         Tuple of (list of TaskResult, all_passed boolean)
@@ -582,7 +582,7 @@ def _build_task_results(
 
 
 RETRIABLE_EXCEPTIONS: tuple[type[Exception], ...] = (
-    CopilotClientError,
+    LLMClientError,
     httpx.RequestError,
     httpx.TimeoutException,
 )
@@ -593,7 +593,7 @@ RETRIABLE_EXCEPTIONS: tuple[type[Exception], ...] = (
     failure_threshold=3,
     recovery_timeout=120,
     expected_exception=RETRIABLE_EXCEPTIONS,
-    name="copilot_analysis_circuit",
+    name="code_analysis_circuit",
 )
 @retry(
     stop=stop_after_attempt(2),
@@ -601,12 +601,12 @@ RETRIABLE_EXCEPTIONS: tuple[type[Exception], ...] = (
     retry=retry_if_exception_type(RETRIABLE_EXCEPTIONS),
     reraise=True,
 )
-async def _analyze_with_copilot(
+async def _analyze_with_llm(
     owner: str, repo: str, github_username: str
 ) -> ValidationResult:
     """Internal: Run code analysis with retry. Use analyze_repository_code() instead."""
     settings = get_settings()
-    client = await get_copilot_client()
+    client = await get_llm_client()
 
     # Collect the final response
     response_content = ""
@@ -619,11 +619,12 @@ async def _analyze_with_copilot(
         elif event.type.value == "session.idle":
             done.set()
 
-    # Import Copilot SDK types (lazy import to avoid import errors when SDK missing)
+    # Import SDK types (lazy import to avoid import errors when SDK missing)
     from copilot import Tool, ToolInvocation, ToolResult
-    from copilot.types import SessionConfig
 
-    # Define the file fetching tool for Copilot to use
+    from core.llm_client import build_session_config
+
+    # Define the file fetching tool for the LLM to use
     # SECURITY: owner/repo are LOCKED to the validated values - LLM cannot override
     async def fetch_github_file(invocation: ToolInvocation) -> ToolResult:
         """Tool handler for fetching GitHub file content.
@@ -641,8 +642,8 @@ async def _analyze_with_copilot(
         file_repo = repo
 
         set_wide_event_fields(
-            copilot_tool_fetch_file=file_path,
-            copilot_tool_repo=f"{file_owner}/{file_repo}",
+            llm_tool_fetch_file=file_path,
+            llm_tool_repo=f"{file_owner}/{file_repo}",
         )
 
         try:
@@ -657,7 +658,7 @@ async def _analyze_with_copilot(
         except ValueError as e:
             # File not in allowlist
             set_wide_event_fields(
-                copilot_tool_blocked_path=file_path,
+                llm_tool_blocked_path=file_path,
             )
             return ToolResult(
                 textResultForLlm=f"Cannot fetch file: {e}",
@@ -708,11 +709,8 @@ async def _analyze_with_copilot(
         handler=fetch_github_file,
     )
 
-    # Create session with tool
-    config = SessionConfig(
-        model="gpt-5-mini",  # Free tier, supports structured outputs
-        tools=[file_tool],
-    )
+    # Create session with tool (uses BYOK provider if configured)
+    config = build_session_config(tools=[file_tool])
     session = await client.create_session(config)
 
     try:
@@ -722,20 +720,20 @@ async def _analyze_with_copilot(
         prompt = _build_verification_prompt(owner, repo)
 
         set_wide_event_fields(
-            copilot_analysis_started=True,
-            copilot_analysis_owner=owner,
-            copilot_analysis_repo=repo,
+            llm_analysis_started=True,
+            llm_analysis_owner=owner,
+            llm_analysis_repo=repo,
         )
 
         await session.send({"prompt": prompt})
 
         # Wait for completion with timeout
         try:
-            await asyncio.wait_for(done.wait(), timeout=settings.copilot_cli_timeout)
+            await asyncio.wait_for(done.wait(), timeout=settings.llm_cli_timeout)
         except TimeoutError:
             set_wide_event_fields(
-                copilot_error="timeout",
-                copilot_timeout_seconds=settings.copilot_cli_timeout,
+                llm_error="timeout",
+                llm_timeout_seconds=settings.llm_cli_timeout,
             )
             raise CodeAnalysisError(
                 "Code analysis timed out. Please try again.",
@@ -756,10 +754,10 @@ async def _analyze_with_copilot(
         total_count = len(task_results)
 
         set_wide_event_fields(
-            copilot_analysis_complete=True,
-            copilot_tasks_passed=passed_count,
-            copilot_tasks_total=total_count,
-            copilot_all_passed=all_passed,
+            llm_analysis_complete=True,
+            llm_tasks_passed=passed_count,
+            llm_tasks_total=total_count,
+            llm_all_passed=all_passed,
         )
 
         if all_passed:
@@ -793,7 +791,7 @@ async def analyze_repository_code(
     """Analyze a learner's repository for Phase 3 task completion.
 
     This is the main entry point for code analysis verification.
-    It connects to the Copilot CLI and uses AI to verify that the learner
+    It uses AI to verify that the learner
     has correctly implemented all required tasks in their journal-starter fork.
 
     Security features:
@@ -836,9 +834,9 @@ async def analyze_repository_code(
     )
 
     try:
-        return await _analyze_with_copilot(owner, repo, github_username)
+        return await _analyze_with_llm(owner, repo, github_username)
     except CircuitBreakerError:
-        set_wide_event_fields(copilot_error="circuit_open")
+        set_wide_event_fields(llm_error="circuit_open")
         return ValidationResult(
             is_valid=False,
             message=(
@@ -849,19 +847,19 @@ async def analyze_repository_code(
         )
     except CodeAnalysisError as e:
         set_wide_event_fields(
-            copilot_error="analysis_failed",
-            copilot_error_detail=str(e),
-            copilot_error_retriable=e.retriable,
+            llm_error="analysis_failed",
+            llm_error_detail=str(e),
+            llm_error_retriable=e.retriable,
         )
         return ValidationResult(
             is_valid=False,
             message=f"Code analysis failed: {e}",
             server_error=e.retriable,
         )
-    except CopilotClientError as e:
+    except LLMClientError as e:
         set_wide_event_fields(
-            copilot_error="client_error",
-            copilot_error_detail=str(e),
+            llm_error="client_error",
+            llm_error_detail=str(e),
         )
         return ValidationResult(
             is_valid=False,

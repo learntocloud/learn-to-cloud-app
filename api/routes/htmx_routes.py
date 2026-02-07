@@ -25,7 +25,11 @@ from services.submissions_service import (
     RequirementNotFoundError,
     submit_validation,
 )
-from services.users_service import get_user_by_id
+from services.users_service import (
+    UserNotFoundError,
+    delete_user_account,
+    get_user_by_id,
+)
 
 logger = get_logger(__name__)
 
@@ -222,14 +226,12 @@ async def htmx_create_certificate(
     request: Request,
     db: DbSession,
     user_id: UserId,
-    certificate_type: str = Form("full_completion"),
     recipient_name: str = Form(""),
 ) -> HTMLResponse:
     """Create a certificate and return the certificate card HTML."""
     certificate = await create_certificate(
         db=db,
         user_id=user_id,
-        certificate_type=certificate_type,
         recipient_name=recipient_name,
     )
 
@@ -265,3 +267,25 @@ async def htmx_create_certificate(
         "</div></div>"
     )
     return HTMLResponse(html)
+
+
+@router.delete("/account", response_class=HTMLResponse)
+@limiter.limit("3/hour")
+async def htmx_delete_account(
+    request: Request,
+    db: DbSession,
+    user_id: UserId,
+) -> HTMLResponse:
+    """Delete the current user's account and redirect to home via HTMX."""
+    try:
+        await delete_user_account(db, user_id)
+    except UserNotFoundError:
+        return HTMLResponse(
+            '<p class="text-sm text-red-600">Account not found.</p>',
+            status_code=404,
+        )
+
+    request.session.clear()
+    response = HTMLResponse("")
+    response.headers["HX-Redirect"] = "/"
+    return response

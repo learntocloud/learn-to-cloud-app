@@ -18,7 +18,7 @@ To add a new verification type:
 
 For GitHub-specific validations, see github_hands_on_verification.py
 For CTF token validation, see ctf_service.py
-For AI-powered code analysis, see copilot_verification_service.py
+For AI-powered code analysis, see code_verification_service.py
 For phase requirements, see phase_requirements.py
 """
 
@@ -213,7 +213,7 @@ async def validate_submission(
                 message="GitHub username is required for code analysis",
                 username_match=False,
             )
-        from services.copilot_verification_service import analyze_repository_code
+        from services.code_verification_service import analyze_repository_code
 
         return await analyze_repository_code(submitted_value, expected_username)
 

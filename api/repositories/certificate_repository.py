@@ -1,6 +1,5 @@
 """Repository for certificate operations."""
 
-from collections.abc import Sequence
 from datetime import UTC, datetime
 
 from sqlalchemy import select
@@ -44,33 +43,11 @@ class CertificateRepository:
     async def get_by_user(
         self,
         user_id: int,
-        *,
-        limit: int = 100,
-    ) -> Sequence[Certificate]:
-        """Get all certificates for a user, most recent first.
-
-        Args:
-            user_id: The user's ID
-            limit: Maximum number of certificates to return (default 100)
-        """
-        result = await self.db.execute(
-            select(Certificate)
-            .where(Certificate.user_id == user_id)
-            .order_by(Certificate.issued_at.desc())
-            .limit(limit)
-        )
-        return result.scalars().all()
-
-    async def get_by_user_and_type(
-        self,
-        user_id: int,
-        certificate_type: str,
     ) -> Certificate | None:
-        """Get a specific type of certificate for a user."""
+        """Get the certificate for a user (only one per user)."""
         result = await self.db.execute(
             select(Certificate).where(
                 Certificate.user_id == user_id,
-                Certificate.certificate_type == certificate_type,
             )
         )
         return result.scalar_one_or_none()
@@ -78,7 +55,6 @@ class CertificateRepository:
     async def create(
         self,
         user_id: int,
-        certificate_type: str,
         verification_code: str,
         recipient_name: str,
         phases_completed: int,
@@ -91,7 +67,6 @@ class CertificateRepository:
         """
         certificate = Certificate(
             user_id=user_id,
-            certificate_type=certificate_type,
             verification_code=verification_code,
             recipient_name=recipient_name,
             issued_at=datetime.now(UTC),
