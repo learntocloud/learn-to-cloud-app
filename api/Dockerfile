@@ -63,8 +63,8 @@ COPY --chown=appuser:appuser api/ .
 # Copy Tailwind-generated CSS from build stage
 COPY --from=tailwind --chown=appuser:appuser /build/static/css/styles.css /app/static/css/styles.css
 
-# Copy content from frontend's static assets (single source of truth)
-COPY --chown=appuser:appuser frontend/public/content /app/content
+# Copy content YAML files (single source of truth)
+COPY --chown=appuser:appuser content /app/content
 
 # Switch to non-root user
 USER appuser

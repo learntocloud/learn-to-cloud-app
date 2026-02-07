@@ -6,6 +6,7 @@ Handles:
 - POST /auth/logout — clear session, redirect to home
 """
 
+from authlib.integrations.starlette_client import OAuthError
 from fastapi import APIRouter, Request
 from fastapi.responses import RedirectResponse
 
@@ -61,7 +62,7 @@ async def callback(request: Request, db: DbSession) -> RedirectResponse:
 
     try:
         token = await github.authorize_access_token(request)
-    except Exception:
+    except OAuthError:
         logger.exception("auth.callback.token_exchange_failed")
         return RedirectResponse(url="/", status_code=302)
 

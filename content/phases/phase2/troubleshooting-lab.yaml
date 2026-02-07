@@ -1,0 +1,21 @@
+id: phase2-topic4
+slug: troubleshooting-lab
+name: Network Troubleshooting Lab
+description: Put your networking knowledge to the test! Diagnose and fix connectivity issues in a broken environment using
+  the tools you've learned.
+order: 4
+is_capstone: true
+learning_steps:
+- order: 1
+  text: Go to the Networking Lab Repository
+  action: Go to the
+  title: Networking Lab Repository
+  url: https://github.com/learntocloud/networking-lab
+  description: 'The repository README has everything you need: setup instructions, lab scenarios, and troubleshooting exercises.
+    Follow the instructions there to complete the lab.'
+- order: 2
+  text: Share your project
+  action: 'Share:'
+  title: Share Your Progress
+  description: When you've completed the networking lab, share your experience on LinkedIn or the Learn to Cloud community
+    Discord to celebrate your progress and help others.

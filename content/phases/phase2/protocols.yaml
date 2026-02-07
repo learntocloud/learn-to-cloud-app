@@ -1,0 +1,47 @@
+id: phase2-topic2
+slug: protocols
+name: Ports and Protocols
+description: Learn how applications communicate over networks through ports and protocols. Understand TCP vs UDP, common port
+  numbers, and how firewalls control traffic flow.
+order: 2
+is_capstone: false
+learning_steps:
+- order: 1
+  text: TCP vs UDP
+  action: 'Learn:'
+  title: TCP and UDP Explained
+  url: https://www.youtube.com/watch?v=uwoD5YsGACg
+  description: Understand the difference between TCP (connection-oriented, reliable) and UDP (connectionless, fast). Know
+    when to use each protocol.
+- order: 2
+  text: The TCP Handshake
+  action: 'Learn:'
+  title: TCP Three-Way Handshake
+  url: https://www.youtube.com/watch?v=xMtP5ZB3wSk
+  description: Understand SYN, SYN-ACK, ACK and how TCP connections are established. This knowledge is crucial for troubleshooting
+    connection issues.
+- order: 3
+  text: Port Numbers
+  action: 'Memorize:'
+  title: Common Port Numbers
+  description: 'Know the common ports: 22 (SSH), 80 (HTTP), 443 (HTTPS), 53 (DNS), 25/587 (SMTP), 3306 (MySQL), 5432 (PostgreSQL),
+    6379 (Redis), 27017 (MongoDB).'
+- order: 4
+  text: Firewalls Basics
+  action: 'Learn:'
+  title: How Firewalls Work
+  url: https://www.youtube.com/watch?v=kDEX1HXybrU
+  description: Understand how firewalls filter traffic based on IP, port, and protocol. Learn about stateful vs stateless
+    firewalls.
+- order: 5
+  text: Security Groups Preview
+  action: 'Learn:'
+  title: Cloud Security Groups
+  description: Preview how cloud providers implement firewalls as security groups. Understand inbound vs outbound rules and
+    the concept of least privilege.
+- order: 6
+  text: Using netstat and ss
+  action: 'Practice:'
+  title: View Active Connections
+  description: Use netstat -tulpn or ss -tulpn to see what ports are listening on your system. Identify which processes are
+    using which ports.

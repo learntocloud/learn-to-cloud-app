@@ -1,25 +1,27 @@
-{% extends "base.html" %}
+{% extends "layouts/content_page.html" %}
 {% block title %}FAQ - Learn to Cloud{% endblock %}
 
-{% block content %}
-    <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-8 text-center">Frequently Asked Questions</h1>
+{% block page_header %}
+<h1 class="text-3xl font-bold text-gray-900 dark:text-white text-center">Frequently Asked Questions</h1>
+{% endblock %}
 
-    <div class="space-y-6">
-        {% set faqs = [
-            ("What is Learn to Cloud?", "Learn to Cloud is a structured, hands-on guide to learning cloud computing. It takes you from the fundamentals through advanced topics with practical exercises verified by our platform."),
-            ("Is it free?", "Yes! Learn to Cloud is completely free and open source."),
-            ("Do I need prior experience?", "No prior cloud experience is needed. Phase 0 covers prerequisites like Linux, networking, and programming fundamentals."),
-            ("How long does it take?", "It depends on your pace and background. Most learners complete all phases in 3-6 months of part-time study."),
-            ("How do I get my certificate?", "Complete all phases including the hands-on verification tasks. Once everything is verified, you can generate a certificate from your dashboard."),
-            ("Can I skip phases?", "You can read any phase, but hands-on verification builds on earlier phases. We recommend following the sequence."),
-            ("How does hands-on verification work?", "Each phase has practical tasks — creating a GitHub profile, deploying an API, analyzing code. You submit proof (URLs, tokens, or code) and our platform verifies it automatically."),
-        ] %}
+{% block page_body %}
+<div class="space-y-6">
+    {% set faqs = [
+        ("What is Learn to Cloud?", "Learn to Cloud is a structured, hands-on guide to learning cloud computing. It takes you from the fundamentals through advanced topics with practical exercises verified by our platform."),
+        ("Is it free?", "Yes! Learn to Cloud is completely free and open source."),
+        ("Do I need prior experience?", "No prior cloud experience is needed. Phase 0 covers prerequisites like Linux, networking, and programming fundamentals."),
+        ("How long does it take?", "It depends on your pace and background. Most learners complete all phases in 3-6 months of part-time study."),
+        ("How do I get my certificate?", "Complete all phases including the hands-on verification tasks. Once everything is verified, you can generate a certificate from your dashboard."),
+        ("Can I skip phases?", "You can read any phase, but hands-on verification builds on earlier phases. We recommend following the sequence."),
+        ("How does hands-on verification work?", "Each phase has practical tasks — creating a GitHub profile, deploying an API, analyzing code. You submit proof (URLs, tokens, or code) and our platform verifies it automatically."),
+    ] %}
 
-        {% for question, answer in faqs %}
-        <div>
-            <h3 class="font-medium text-gray-900 dark:text-white">{{ question }}</h3>
-            <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">{{ answer }}</p>
-        </div>
-        {% endfor %}
+    {% for question, answer in faqs %}
+    <div>
+        <h3 class="font-medium text-gray-900 dark:text-white">{{ question }}</h3>
+        <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">{{ answer }}</p>
     </div>
+    {% endfor %}
+</div>
 {% endblock %}

@@ -1,34 +1,33 @@
-{% extends "base.html" %}
+{% extends "layouts/content_page.html" %}
 {% block title %}{{ topic.name }} - Learn to Cloud{% endblock %}
 
-{% block content %}
-<!-- Breadcrumb -->
-<nav class="mb-6 text-sm text-gray-500 dark:text-gray-400">
+{% block breadcrumb %}
+<nav class="mb-4 text-sm text-gray-500 dark:text-gray-400">
     <a href="/phase/{{ phase_id }}" class="hover:text-gray-700 dark:hover:text-gray-200">{{ phase_name }}</a>
     <span class="mx-2">/</span>
     <span class="text-gray-900 dark:text-gray-100">{{ topic.name }}</span>
 </nav>
+{% endblock %}
 
-<!-- Topic header -->
-<div class="mb-8">
-    <h1 class="text-3xl font-bold text-gray-900 dark:text-white">{{ topic.name }}</h1>
-    {% if topic.description %}
-    <p class="text-gray-600 dark:text-gray-400 mt-2">{{ topic.description }}</p>
-    {% endif %}
+{% block page_header %}
+<h1 class="text-3xl font-bold text-gray-900 dark:text-white">{{ topic.name }}</h1>
+{% if topic.description %}
+<p class="text-gray-600 dark:text-gray-400 mt-2">{{ topic.description }}</p>
+{% endif %}
 
-    {% if user and progress %}
-    <div id="topic-progress" class="mt-4 flex items-center gap-3">
-        <div class="flex-1 max-w-xs h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-            <div class="h-full bg-blue-600 rounded-full transition-all" style="width: {{ progress.percentage }}%"></div>
-        </div>
-        <span class="text-sm font-medium text-gray-600 dark:text-gray-400">
-            {{ progress.completed }}/{{ progress.total }} steps
-        </span>
+{% if user and progress %}
+<div id="topic-progress" class="mt-4 flex items-center gap-3">
+    <div class="flex-1 max-w-xs h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+        <div class="h-full bg-blue-600 rounded-full transition-all" style="width: {{ progress.percentage }}%"></div>
     </div>
-    {% endif %}
+    <span class="text-sm font-medium text-gray-600 dark:text-gray-400">
+        {{ progress.completed }}/{{ progress.total }} steps
+    </span>
 </div>
+{% endif %}
+{% endblock %}
 
-<!-- Learning objectives -->
+{% block page_body %}
 {% if topic.learning_objectives %}
 <div class="mb-8 p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
     <h2 class="text-sm font-semibold text-blue-800 dark:text-blue-200 mb-2">Learning Objectives</h2>
@@ -55,7 +54,7 @@
 <!-- Prev/Next navigation -->
 <div class="mt-12 flex items-center justify-between border-t border-gray-200 dark:border-gray-700 pt-6">
     {% if prev_topic %}
-    <a href="/phase/{{ phase_id }}/{{ prev_topic.slug }}" class="flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white">
+    <a href="{{ prev_topic.url }}" class="flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white">
         <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
         {{ prev_topic.name }}
     </a>
@@ -64,7 +63,7 @@
     {% endif %}
 
     {% if next_topic %}
-    <a href="/phase/{{ phase_id }}/{{ next_topic.slug }}" class="flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white">
+    <a href="{{ next_topic.url }}" class="flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white">
         {{ next_topic.name }}
         <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
     </a>

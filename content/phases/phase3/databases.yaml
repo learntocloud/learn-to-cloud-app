@@ -1,0 +1,51 @@
+id: phase3-topic4
+slug: databases
+name: Databases
+description: We will be using a PostgreSQL database to store our application data. You'll learn SQL fundamentals, run PostgreSQL
+  locally using Docker, and connect to it from Python.
+order: 4
+is_capstone: false
+learning_steps:
+- order: 1
+  text: Study SQL basics
+  action: 'Study SQL basics:'
+  title: Intro to SQL
+  url: https://www.khanacademy.org/computing/computer-programming/sql
+  description: Learn the fundamentals of SQL with Khan Academy's interactive course. Focus on SELECT, INSERT, UPDATE, DELETE,
+    and basic joins.
+- order: 2
+  text: Run PostgreSQL locally with Docker
+  action: 'Run PostgreSQL locally:'
+  title: PostgreSQL in Docker
+  url: https://www.docker.com/blog/how-to-use-the-postgres-docker-official-image/
+  description: Learn how to run PostgreSQL in a Docker container. This is the easiest way to get a database running locally
+    without installing PostgreSQL on your system.
+- order: 3
+  text: Connect to PostgreSQL from Python
+  action: 'Connect from Python:'
+  title: SQLAlchemy Tutorial
+  url: https://docs.sqlalchemy.org/en/20/tutorial/index.html
+  description: Learn how to connect to PostgreSQL from Python using SQLAlchemy, the most popular Python ORM. This is the same
+    library used in the capstone project.
+- order: 4
+  text: Create a database and a table for storing notes
+  action: 'Hands-on:'
+  title: Create a Database and Table
+  description: Using your local PostgreSQL, create a new database and a table for storing notes with columns like id, title,
+    content, and created_at.
+- order: 5
+  text: Write Python code to insert, read, update, and delete notes
+  action: 'Hands-on:'
+  title: CRUD Operations in Python
+  description: Write a Python script using SQLAlchemy to insert, read, update, and delete notes in your database.
+- order: 6
+  text: Add a second table and practice joins
+  action: 'Hands-on:'
+  title: Tables and Joins
+  description: Add a second table (e.g., categories) to your database and write queries that join the two tables together.
+- order: 7
+  text: Experiment with SQLAlchemy models and relationships
+  action: 'Hands-on:'
+  title: SQLAlchemy Models and Relationships
+  description: Define SQLAlchemy ORM models for your tables and set up relationships between them (e.g., a note belongs to
+    a category).

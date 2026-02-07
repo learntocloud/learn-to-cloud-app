@@ -91,10 +91,10 @@ async def ready(request: Request) -> HealthResponse:
 
     try:
         await check_db_connection(request.app.state.engine)
-    except Exception:
+    except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Database unavailable",
-        )
+        ) from e
 
     return HealthResponse(status="ready", service="learn-to-cloud-api")

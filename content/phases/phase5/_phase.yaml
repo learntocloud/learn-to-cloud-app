@@ -1,0 +1,51 @@
+id: '5'
+slug: phase5
+name: DevOps Fundamentals
+description: This phase covers DevOps fundamentals - the practices and tools that enable teams to deliver software faster
+  and more reliably. You'll learn containerization, CI/CD pipelines, Infrastructure as Code, and monitoring.
+short_description: Master Docker containers, Kubernetes orchestration, CI/CD pipelines, Terraform IaC, and monitoring with
+  Prometheus and Grafana.
+badge:
+  name: DevOps Rocketeer
+  description: Completed Phase 5
+  icon: 🚀
+order: 5
+topics:
+- containers
+- cicd
+- infrastructure-as-code
+- container-orchestration
+- monitoring-observability
+- capstone
+capstone:
+  title: DevOps Capstone Project
+  summary: 'Apply DevOps practices end-to-end on your Journal API: containerization, automation, infrastructure as code, and
+    orchestration.'
+  includes:
+  - Containerize your application and publish an image
+  - Build a CI/CD pipeline that runs reliably
+  - Provision infrastructure with Terraform
+  - Deploy with Kubernetes manifests
+  topic_slug: capstone
+hands_on_verification:
+  summary: Submit your journal-starter fork for automated DevOps artifact verification.
+  includes:
+  - Add a Dockerfile to containerize your application
+  - Create a GitHub Actions CI/CD workflow
+  - Add Terraform configuration in an infra/ directory
+  - Add Kubernetes manifests in a k8s/ directory
+  requirements:
+  - id: devops-implementation
+    submission_type: devops_analysis
+    name: Implemented DevOps Practices
+    description: Add a Dockerfile, GitHub Actions CI/CD workflow, Terraform configuration in infra/, and Kubernetes manifests
+      in k8s/ to your journal-starter fork.
+    submission_instructions: Paste the URL to your journal-starter fork (e.g. https://github.com/your-username/journal-starter).
+      The system will scan your repo for a Dockerfile, a CI/CD workflow in .github/workflows/, Terraform files in an infra/
+      directory, and Kubernetes manifests in a k8s/ directory.
+    example_url: https://github.com/your-username/journal-starter
+    note: You can only verify once per hour.
+prerequisites:
+- 'Completed Phase 3: Programming Fundamentals (capstone)'
+- 'Completed Phase 4: Cloud Platform Fundamentals (capstone)'
+- This phase builds on the project from previous phases

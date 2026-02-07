@@ -1,0 +1,23 @@
+id: phase3-topic7
+slug: build-the-app
+name: Build the App
+description: Time to put everything together! In this capstone project, you'll build a working Learning Journal API that combines
+  Python, FastAPI, databases, and LLM integration. This project synthesizes all Phase 3 skills into a complete application.
+short_description: Build a Learning Journal API with FastAPI, PostgreSQL, and AI-powered entry analysis using LLMs.
+order: 7
+is_capstone: true
+learning_steps:
+- order: 1
+  text: Go to the Journal Starter Repository
+  action: Go to the
+  title: Journal Starter Repository
+  url: https://github.com/learntocloud/journal-starter
+  description: 'The repository README has everything you need: Dev Container setup, development tasks using feature branches,
+    LLM provider configuration, and troubleshooting tips. Fork the repo and follow the instructions there to build your Journal
+    API.'
+- order: 2
+  text: Share your project
+  action: 'Share:'
+  title: Share Your Progress
+  description: When you've completed the capstone, push your work to GitHub! This becomes part of your portfolio. Consider
+    sharing it on LinkedIn or the Learn to Cloud community Discord to get feedback and celebrate your progress.

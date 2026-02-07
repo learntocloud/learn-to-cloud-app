@@ -1,0 +1,91 @@
+id: phase5-topic3
+slug: infrastructure-as-code
+name: Infrastructure as Code (IaC)
+description: Infrastructure as Code (IaC) is a key DevOps practice that allows you to manage and provision infrastructure
+  using code, rather than manual processes like using the console. It ensures consistency, repeatability, and scalability
+  in managing cloud resources.
+order: 3
+is_capstone: false
+learning_steps:
+- order: 1
+  text: What is Infrastructure as Code?
+  action: 'Understand:'
+  title: What is Infrastructure as Code?
+  url: https://www.hashicorp.com/resources/what-is-infrastructure-as-code
+  description: Learn the fundamentals of IaC and why it's essential for modern cloud infrastructure.
+- order: 2
+  text: Why Terraform?
+  action: 'Why Terraform:'
+  title: Introduction to Terraform
+  url: https://developer.hashicorp.com/terraform/intro
+  description: Terraform is cloud-agnostic (works with any provider), widely adopted, and has excellent documentation. We
+    recommend starting here.
+- order: 3
+  text: Learn Terraform Basics
+  action: Learn Terraform Basics
+  description: 'Master these essential Terraform commands:'
+  secondary_links:
+  - text: terraform init
+    url: https://developer.hashicorp.com/terraform/cli/commands/init
+  - text: terraform plan
+    url: https://developer.hashicorp.com/terraform/cli/commands/plan
+  - text: terraform apply
+    url: https://developer.hashicorp.com/terraform/cli/commands/apply
+  - text: terraform destroy
+    url: https://developer.hashicorp.com/terraform/cli/commands/destroy
+- order: 4
+  text: Cloud-Specific Providers
+  action: Cloud-Specific Providers
+  description: 'Explore Terraform providers for your cloud platform:'
+  secondary_links:
+  - text: AWS Provider
+    url: https://registry.terraform.io/providers/hashicorp/aws/latest/docs
+  - text: Azure Provider
+    url: https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs
+  - text: GCP Provider
+    url: https://registry.terraform.io/providers/hashicorp/google/latest/docs
+- order: 5
+  text: Install Terraform
+  action: 'Install Terraform:'
+  title: Install Terraform
+  url: https://developer.hashicorp.com/terraform/install
+  description: Download and install Terraform on your system.
+- order: 6
+  text: Write a Terraform config to create a VM
+  action: 'Hands-on:'
+  description: Write a Terraform configuration file that creates a virtual machine on your cloud provider with a security
+    group allowing SSH access.
+- order: 7
+  text: Run terraform init, plan, and apply
+  action: 'Hands-on:'
+  description: Initialize Terraform with `terraform init`, preview your changes with `terraform plan`, then create the resources
+    with `terraform apply`. Verify the resources exist in your cloud console.
+- order: 8
+  text: Clean up with terraform destroy
+  action: 'Hands-on:'
+  description: Run `terraform destroy` to remove all resources you just created. Verify they're gone from your cloud console.
+- order: 9
+  text: Review the sample Terraform configuration
+  action: 'Reference:'
+  description: 'Basic AWS EC2 instance with Terraform:'
+  code: "terraform {\n  required_providers {\n    aws = {\n      source  = \"hashicorp/aws\"\n      version = \"~> 5.0\"\n\
+    \    }\n  }\n}\n\nprovider \"aws\" {\n  region = \"us-east-1\"\n}\n\nresource \"aws_instance\" \"app_server\" {\n  ami\
+    \           = \"ami-0c55b159cbfafe1f0\"\n  instance_type = \"t2.micro\"\n\n  tags = {\n    Name = \"JournalAppServer\"\
+    \n  }\n}"
+- order: 10
+  text: Watch a cloud-specific Terraform tutorial
+  action: 'Watch:'
+  description: 'Follow along with a tutorial for your cloud provider:'
+  secondary_links:
+  - text: AWS Terraform Example
+    url: https://youtu.be/P4A62b1dkJE
+  - text: Azure Terraform Example
+    url: https://youtu.be/HdMB2YCtVr4
+  - text: GCP Terraform Example
+    url: https://youtu.be/VCayKl82Lt8
+- order: 11
+  text: Explore Terraform best practices
+  action: 'Read:'
+  title: Terraform Best Practices
+  url: https://www.terraform-best-practices.com/
+  description: Learn about module organization, state management, and variable patterns.

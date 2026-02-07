@@ -1,0 +1,61 @@
+id: '1'
+name: Linux and Bash
+slug: phase1
+description: Here at Learn to Cloud, we like to get hands-on as soon as possible. So, we've prepared a Capture The Flag (CTF)
+  lab for you to practice your Linux and Bash. Before you can access them, you'll spend time learning about the lab and setting
+  it up. Don't worry – along the way, we'll provide tips, documentation links, resources, and more to help you succeed.
+short_description: Master Linux command line, Bash scripting, Git version control, and Infrastructure as Code basics through
+  hands-on CTF challenges.
+badge:
+  name: Terminal Ninja
+  description: Completed Phase 1
+  icon: 🐧
+order: 1
+prerequisites:
+- Mac OS or an Ubuntu based computer. If you're on Windows, you'll use WSL.
+- Join the Learn to Cloud Discord - Here you can ask questions, just make sure to ask in the right phase channel.
+capstone:
+  title: Linux CTF Lab
+  summary: Deploy the Linux CTF lab and complete 18 progressive challenges to validate your command line skills in a real
+    cloud environment.
+  includes:
+  - Deploy the cloud lab environment
+  - Complete 18 Linux CTF challenges
+  - Practice troubleshooting, permissions, and basic networking
+  topic_slug: ctf-lab
+hands_on_verification:
+  summary: Submit proof of your GitHub setup and CTF completion.
+  includes:
+  - Create a GitHub Profile README repository
+  - Fork the Linux CTFs repository
+  - Submit your Linux CTF completion token
+  requirements:
+  - id: profile-readme
+    submission_type: profile_readme
+    name: Wrote a Developer Profile README
+    description: Create a profile README repository on GitHub and write a clear, structured README that communicates your skills and goals.
+    submission_instructions: Paste the URL to your profile README file (e.g. https://github.com/your-username/your-username/blob/main/README.md).
+      The system will verify the repo matches your GitHub account and the README exists.
+    example_url: https://github.com/madebygps/madebygps/blob/main/README.md
+  - id: linux-ctfs-fork
+    submission_type: repo_fork
+    name: Forked the Linux CTFs Repo
+    description: Fork the Linux CTFs repository to your GitHub account. You'll use this fork to track your progress through
+      the challenges.
+    submission_instructions: Paste the URL to your fork of the linux-ctfs repo (e.g. https://github.com/your-username/linux-ctfs).
+      The system will verify it is a fork of learntocloud/linux-ctfs under your GitHub account.
+    example_url: https://github.com/madebygps/linux-ctfs
+    required_repo: learntocloud/linux-ctfs
+  - id: linux-ctfs-token
+    submission_type: ctf_token
+    name: Completed Linux CTFs
+    description: Complete all 18 Linux CTF challenges and submit the completion token displayed at the end of the lab.
+    submission_instructions: Paste the completion token you received after finishing all CTF challenges. The token is displayed
+      at the end of the lab.
+topics:
+- version-control
+- cloud-cli
+- iac
+- ssh
+- cli-basics
+- ctf-lab

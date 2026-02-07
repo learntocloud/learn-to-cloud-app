@@ -16,7 +16,7 @@ Usage:
 """
 
 import random
-from datetime import UTC, date, datetime
+from datetime import UTC, datetime
 from functools import cache
 
 import factory
@@ -24,13 +24,11 @@ from faker import Faker
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models import (
-    ActivityType,
     Certificate,
     StepProgress,
     Submission,
     SubmissionType,
     User,
-    UserActivity,
 )
 
 fake = Faker()
@@ -178,29 +176,6 @@ class UnvalidatedSubmissionFactory(SubmissionFactory):
 
     is_validated = False
     validated_at = None
-
-
-# =============================================================================
-# Activity Factory
-# =============================================================================
-
-
-class UserActivityFactory(factory.Factory):
-    """Factory for creating UserActivity instances."""
-
-    class Meta:
-        model = UserActivity
-
-    # Let DB assign autoincrement ID
-    user_id = factory.LazyAttribute(
-        lambda _: f"user_{fake.uuid4().replace('-', '')[:24]}"
-    )
-    activity_type = ActivityType.STEP_COMPLETE
-    activity_date = factory.LazyFunction(lambda: date.today())
-    reference_id = factory.LazyAttribute(
-        lambda _: f"phase{_get_random_phase_id()}-topic{fake.random_int(1, 5)}"
-    )
-    created_at = factory.LazyFunction(lambda: datetime.now(UTC))
 
 
 # =============================================================================

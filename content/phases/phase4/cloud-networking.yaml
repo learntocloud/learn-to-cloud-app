@@ -1,0 +1,84 @@
+id: phase4-topic3
+slug: cloud-networking
+name: Cloud Networking Fundamentals
+description: In the previous topic you worked on deploying a VM in the cloud, using default configurations like the VPC, Security
+  Groups etc. This topic focuses on deepening your understanding of cloud networking concepts essential for secure deployments.
+order: 3
+is_capstone: false
+learning_steps:
+- order: 1
+  text: Understand Virtual Private Cloud (VPC/VNet)
+  action: Understand Virtual Private Cloud
+  description: A VPC is your private network in the cloud - an isolated section where you can launch resources with full control
+    over IP addressing, subnets, and routing.
+  options:
+  - provider: aws
+    title: What is Amazon VPC?
+    url: https://docs.aws.amazon.com/vpc/latest/userguide/what-is-amazon-vpc.html
+    description: Amazon Virtual Private Cloud documentation
+  - provider: azure
+    title: Azure Virtual Network Overview
+    url: https://learn.microsoft.com/en-us/azure/virtual-network/virtual-networks-overview
+    description: Azure Virtual Network fundamentals
+  - provider: gcp
+    title: GCP Virtual Private Cloud
+    url: https://cloud.google.com/vpc/docs/overview
+    description: Google Cloud VPC documentation
+- order: 2
+  text: Learn Subnetting
+  action: 'Learn Subnetting:'
+  title: AWS VPC CIDR Blocks and Subnetting
+  url: https://docs.aws.amazon.com/vpc/latest/userguide/vpc-cidr-blocks.html
+  description: Understand public vs. private subnets and CIDR block notation. This is fundamental to designing secure cloud
+    architectures.
+- order: 3
+  text: Learn about Internet Gateways
+  action: 'Learn:'
+  title: Internet Gateways (AWS)
+  url: https://docs.aws.amazon.com/vpc/latest/userguide/VPC_Internet_Gateway.html
+  description: Understand how Internet Gateways enable internet access for resources in public subnets.
+  options:
+  - provider: aws
+    title: Internet Gateways
+    url: https://docs.aws.amazon.com/vpc/latest/userguide/VPC_Internet_Gateway.html
+    description: How to enable internet access for a VPC
+  - provider: azure
+    title: Azure NAT Gateway Overview
+    url: https://learn.microsoft.com/en-us/azure/nat-gateway/nat-overview
+    description: Understand Network Address Translation in Azure
+  - provider: gcp
+    title: Cloud NAT Overview
+    url: https://cloud.google.com/nat/docs/overview
+    description: Learn about NAT in Google Cloud
+- order: 4
+  text: Learn about NAT Gateways
+  action: 'Learn:'
+  title: NAT Gateway Basics (AWS)
+  url: https://docs.aws.amazon.com/vpc/latest/userguide/nat-gateway-basics.html
+  description: NAT Gateways enable resources in private subnets to access the internet without being directly accessible
+    from the internet.
+- order: 5
+  text: Review AWS Networking Fundamentals
+  action: 'Review:'
+  title: AWS Networking Fundamentals
+  url: https://docs.aws.amazon.com/whitepapers/latest/aws-overview/networking-services.html
+  description: Review AWS networking concepts. Make sure you understand VPCs, subnets, IP addressing, and routing before moving
+    on.
+- order: 6
+  text: Set up a cloud network (VPC/VNet)
+  action: 'Hands-on:'
+  description: Create a VPC or VNet on your cloud provider with a custom CIDR block.
+- order: 7
+  text: Create a public and a private subnet
+  action: 'Hands-on:'
+  description: Create two subnets inside your VPC — one public (with a route to the internet gateway) and one private (no
+    direct internet access).
+- order: 8
+  text: Configure routing and security groups
+  action: 'Hands-on:'
+  description: Associate subnets with appropriate route tables and set up security groups for each subnet.
+- order: 9
+  text: Deploy VMs in each subnet and verify access
+  action: 'Hands-on:'
+  description: Deploy a VM in the public subnet and another in the private subnet. Verify the public VM is accessible from
+    the internet and the private VM is not.

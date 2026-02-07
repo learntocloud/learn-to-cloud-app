@@ -1,32 +1,22 @@
 """Content loading service.
 
-This module loads course content from JSON files and provides
+This module loads course content from YAML files and provides
 a clean interface for accessing phases and topics.
 
-Content files are located in frontend/public/content/phases/ (dev) or
+Content files are located in content/phases/ (dev) or
 /app/content/phases/ (Docker) and are loaded once at startup for performance.
 """
 
-import json
+from __future__ import annotations
+
 from functools import lru_cache
 from pathlib import Path
 
+import yaml
+
 from core.config import get_settings
 from core.wide_event import set_wide_event_fields
-from models import SubmissionType
-from schemas import (
-    HandsOnRequirement,
-    LearningObjective,
-    LearningStep,
-    Phase,
-    PhaseBadgeMeta,
-    PhaseCapstoneOverview,
-    PhaseHandsOnVerificationOverview,
-    PhaseThemeMeta,
-    ProviderOption,
-    SecondaryLink,
-    Topic,
-)
+from schemas import Phase, Topic
 
 
 def _get_content_dir() -> Path:
@@ -38,8 +28,8 @@ def _get_content_dir() -> Path:
 
 
 def _load_topic(phase_dir: Path, topic_slug: str) -> Topic | None:
-    """Load a single topic from its JSON file."""
-    topic_file = phase_dir / f"{topic_slug}.json"
+    """Load a single topic from its YAML file."""
+    topic_file = phase_dir / f"{topic_slug}.yaml"
     if not topic_file.exists():
         set_wide_event_fields(
             content_error="topic_not_found",
@@ -49,54 +39,9 @@ def _load_topic(phase_dir: Path, topic_slug: str) -> Topic | None:
 
     try:
         with open(topic_file, encoding="utf-8") as f:
-            data = json.load(f)
-
-        learning_steps = [
-            LearningStep(
-                order=s.get("order", i + 1),
-                text=s.get("text", ""),
-                action=s.get("action"),
-                title=s.get("title"),
-                url=s.get("url"),
-                description=s.get("description"),
-                code=s.get("code"),
-                secondary_links=[
-                    SecondaryLink(text=link["text"], url=link["url"])
-                    for link in s.get("secondary_links", [])
-                ],
-                options=[
-                    ProviderOption(
-                        provider=opt["provider"],
-                        title=opt["title"],
-                        url=opt["url"],
-                        description=opt.get("description"),
-                    )
-                    for opt in s.get("options", [])
-                ],
-            )
-            for i, s in enumerate(data.get("learning_steps", []))
-        ]
-
-        learning_objectives = [
-            LearningObjective(
-                id=obj.get("id", f"obj-{i}"),
-                text=obj.get("text", ""),
-                order=obj.get("order", i + 1),
-            )
-            for i, obj in enumerate(data.get("learning_objectives", []))
-        ]
-
-        return Topic(
-            id=data["id"],
-            slug=data["slug"],
-            name=data["name"],
-            description=data.get("description", ""),
-            order=data.get("order", 0),
-            is_capstone=data.get("is_capstone", False),
-            learning_steps=learning_steps,
-            learning_objectives=learning_objectives,
-        )
-    except (json.JSONDecodeError, KeyError) as e:
+            data = yaml.safe_load(f)
+        return Topic.model_validate(data)
+    except Exception as e:
         set_wide_event_fields(
             content_error="topic_load_failed",
             content_topic_slug=topic_slug,
@@ -108,107 +53,36 @@ def _load_topic(phase_dir: Path, topic_slug: str) -> Topic | None:
 def _load_phase(phase_slug: str) -> Phase | None:
     """Load a single phase from its directory."""
     phase_dir = _get_content_dir() / phase_slug
-    index_file = phase_dir / "index.json"
+    meta_file = phase_dir / "_phase.yaml"
 
-    if not index_file.exists():
+    if not meta_file.exists():
         set_wide_event_fields(
-            content_error="phase_index_not_found",
-            content_index_file=str(index_file),
+            content_error="phase_meta_not_found",
+            content_meta_file=str(meta_file),
         )
         return None
 
     try:
-        with open(index_file, encoding="utf-8") as f:
-            data = json.load(f)
+        with open(meta_file, encoding="utf-8") as f:
+            data: dict = yaml.safe_load(f)
 
-        topic_slugs = list(data.get("topics", []))
+        # "topics" in the YAML is a list of slug strings; resolve to Topic objects
+        topic_slugs: list[str] = data.get("topics", [])
+        topics = [
+            t for slug in topic_slugs if (t := _load_topic(phase_dir, slug)) is not None
+        ]
+        data["topic_slugs"] = topic_slugs
+        data["topics"] = topics
 
-        capstone: PhaseCapstoneOverview | None = None
-        capstone_data = data.get("capstone")
-        if isinstance(capstone_data, dict):
-            capstone = PhaseCapstoneOverview(
-                title=str(capstone_data.get("title", "")).strip(),
-                summary=str(capstone_data.get("summary", "")).strip(),
-                includes=list(capstone_data.get("includes", []) or []),
-                topic_slug=capstone_data.get("topic_slug"),
-            )
+        # Inject phase_id into each hands-on requirement
+        phase_id = data.get("id", 0)
+        hov = data.get("hands_on_verification")
+        if isinstance(hov, dict):
+            for req in hov.get("requirements", []) or []:
+                req.setdefault("phase_id", phase_id)
 
-        hands_on_verification: PhaseHandsOnVerificationOverview | None = None
-        hov_data = data.get("hands_on_verification")
-        if isinstance(hov_data, dict):
-            requirements: list[HandsOnRequirement] = []
-            for req in hov_data.get("requirements", []) or []:
-                try:
-                    submission_type = SubmissionType(req["submission_type"])
-                except (KeyError, ValueError) as exc:
-                    set_wide_event_fields(
-                        content_error="hands_on_requirement_invalid",
-                        content_phase_slug=phase_slug,
-                        content_requirement_id=str(req.get("id", "")),
-                        content_error_detail=str(exc),
-                    )
-                    continue
-
-                requirements.append(
-                    HandsOnRequirement(
-                        id=str(req["id"]),
-                        phase_id=data["id"],
-                        submission_type=submission_type,
-                        name=str(req["name"]),
-                        description=str(req["description"]),
-                        example_url=req.get("example_url"),
-                        note=req.get("note"),
-                        required_repo=req.get("required_repo"),
-                    )
-                )
-
-            hands_on_verification = PhaseHandsOnVerificationOverview(
-                summary=str(hov_data.get("summary", "")).strip(),
-                includes=list(hov_data.get("includes", []) or []),
-                requirements=requirements,
-            )
-
-        topics = []
-        for topic_slug in topic_slugs:
-            topic = _load_topic(phase_dir, topic_slug)
-            if topic:
-                topics.append(topic)
-
-        badge: PhaseBadgeMeta | None = None
-        badge_data = data.get("badge")
-        if isinstance(badge_data, dict):
-            badge = PhaseBadgeMeta(
-                name=str(badge_data.get("name", "")).strip(),
-                description=str(badge_data.get("description", "")).strip(),
-                icon=str(badge_data.get("icon", "")).strip(),
-            )
-
-        theme: PhaseThemeMeta | None = None
-        theme_data = data.get("theme")
-        if isinstance(theme_data, dict):
-            theme = PhaseThemeMeta(
-                icon=str(theme_data.get("icon", "")).strip(),
-                bg_class=str(theme_data.get("bg_class", "")).strip(),
-                border_class=str(theme_data.get("border_class", "")).strip(),
-                text_class=str(theme_data.get("text_class", "")).strip(),
-            )
-
-        return Phase(
-            id=data["id"],
-            name=data["name"],
-            slug=data["slug"],
-            description=data.get("description", ""),
-            short_description=data.get("short_description", ""),
-            order=data.get("order", data["id"]),
-            objectives=list(data.get("objectives", [])),
-            capstone=capstone,
-            hands_on_verification=hands_on_verification,
-            badge=badge,
-            theme=theme,
-            topic_slugs=topic_slugs,
-            topics=topics,
-        )
-    except (json.JSONDecodeError, KeyError) as e:
+        return Phase.model_validate(data)
+    except Exception as e:
         set_wide_event_fields(
             content_error="phase_load_failed",
             content_phase_slug=phase_slug,
@@ -224,7 +98,7 @@ def get_all_phases() -> tuple[Phase, ...]:
     Results are cached for performance.
     Dynamically discovers phase directories (phase0, phase1, etc.).
     """
-    phases = []
+    phases: list[Phase] = []
     content_dir = _get_content_dir()
     if not content_dir.exists():
         set_wide_event_fields(

@@ -1,0 +1,67 @@
+id: phase4-topic5
+slug: database-deployment
+name: Database Deployment & Configuration
+description: Learn to deploy and configure PostgreSQL databases in the cloud. This topic covers the fundamentals of relational
+  database deployment, including architecture, installation, and secure remote access configuration.
+order: 5
+is_capstone: false
+learning_steps:
+- order: 1
+  text: Learn PostgreSQL Basics
+  action: 'Learn PostgreSQL Basics:'
+  title: PostgreSQL Introduction
+  url: https://www.postgresql.org/docs/current/intro-whatis.html
+  description: Official PostgreSQL documentation covering architecture, tables, schemas, and users.
+- order: 2
+  text: PostgreSQL Fundamentals
+  action: 'Study:'
+  title: PostgreSQL Online Resources
+  url: https://www.postgresql.org/docs/online-resources/
+  description: Official PostgreSQL documentation and learning resources
+- order: 3
+  text: Install PostgreSQL on a VM
+  action: Install PostgreSQL on a VM
+  description: 'Learn how to install PostgreSQL on a virtual machine for your cloud provider:'
+  options:
+  - provider: aws
+    title: Install PostgreSQL on AWS EC2
+    url: https://docs.aws.amazon.com/linux/al2023/ug/ec2-lamp-amazon-linux-2023.html
+    description: AWS guide for installing server software on EC2 instances
+  - provider: azure
+    title: Install PostgreSQL on Azure VM
+    url: https://learn.microsoft.com/en-us/azure/virtual-machines/linux/tutorial-lamp-stack
+    description: Microsoft Learn guide for installing PostgreSQL on Azure VMs
+  - provider: gcp
+    title: Set Up PostgreSQL on GCP VM
+    url: https://cloud.google.com/sql/docs/postgres/connect-compute-engine
+    description: Google Cloud guide for PostgreSQL on Compute Engine
+- order: 4
+  text: Learn about pg_hba.conf for access control
+  action: 'Learn:'
+  title: The pg_hba.conf File
+  url: https://www.postgresql.org/docs/current/auth-pg-hba-conf.html
+  description: Learn how pg_hba.conf controls which hosts, users, and databases can connect, and what authentication method
+    is required.
+  code: '# Example pg_hba.conf entries:
+
+    # TYPE  DATABASE        USER            ADDRESS                 METHOD
+
+    local   all             postgres                                peer
+
+    host    all             all             10.0.0.0/8              md5
+
+    host    all             all             0.0.0.0/0               reject'
+- order: 5
+  text: Deploy a VM in a private subnet and install PostgreSQL
+  action: 'Hands-on:'
+  description: Deploy a VM in a private subnet on your cloud provider. Install and configure PostgreSQL on it.
+- order: 6
+  text: Configure pg_hba.conf for secure remote access
+  action: 'Hands-on:'
+  description: Edit pg_hba.conf to allow connections only from your API server's IP range. Create database users with appropriate
+    permissions.
+- order: 7
+  text: Verify database connectivity and security
+  action: 'Hands-on:'
+  description: Test that your API server (in the public subnet) can connect to the database. Verify the database is NOT accessible
+    from the internet.

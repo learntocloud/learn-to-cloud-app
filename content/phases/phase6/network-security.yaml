@@ -1,0 +1,70 @@
+id: phase6-topic3
+slug: network-security
+name: Network Security
+description: Your Journal API's database should not be accessible from the public internet. Set up the network boundaries
+  that make that possible — VPCs, subnets, and security groups.
+order: 2
+is_capstone: false
+learning_steps:
+- order: 1
+  text: Read your cloud provider's VPC documentation
+  action: 'Read:'
+  title: VPC Overview
+  description: A VPC is your private network in the cloud. Your API server goes in a public subnet, your database goes in
+    a private subnet.
+  options:
+  - provider: azure
+    title: Azure Virtual Network Overview
+    url: https://learn.microsoft.com/en-us/azure/virtual-network/virtual-networks-overview
+    description: Azure Virtual Network fundamentals
+  - provider: aws
+    title: What is Amazon VPC?
+    url: https://docs.aws.amazon.com/vpc/latest/userguide/what-is-amazon-vpc.html
+    description: Amazon Virtual Private Cloud documentation
+  - provider: gcp
+    title: GCP VPC Network Overview
+    url: https://cloud.google.com/vpc/docs/vpc
+    description: Google Cloud VPC documentation
+- order: 2
+  text: Understand security groups vs network ACLs
+  action: 'Learn:'
+  description: Security groups are stateful firewalls around individual resources (allow rules only). Network ACLs are stateless
+    firewalls around entire subnets (allow AND deny rules). For your Journal API, a security group on the database should
+    allow port 5432 only from your API server.
+  options:
+  - provider: azure
+    title: Azure Network Security Groups
+    url: https://learn.microsoft.com/en-us/azure/virtual-network/network-security-groups-overview
+    description: NSG overview in Azure
+  - provider: aws
+    title: AWS Security Groups
+    url: https://docs.aws.amazon.com/vpc/latest/userguide/vpc-security-groups.html
+    description: Controlling traffic with security groups
+  - provider: gcp
+    title: GCP Firewall Rules
+    url: https://cloud.google.com/firewall/docs/firewalls
+    description: Firewall rules in Google Cloud
+- order: 3
+  text: Learn about network segmentation with public and private subnets
+  action: 'Learn:'
+  title: Azure Network Security Best Practices
+  url: https://learn.microsoft.com/en-us/azure/security/fundamentals/network-best-practices
+  description: Public subnets face the internet (load balancer, API). Private subnets are internal only (database). This
+    separation is the foundation of secure cloud architecture.
+- order: 4
+  text: Watch a network security walkthrough for your provider
+  action: 'Watch:'
+  description: Follow along in your own account if you can.
+  options:
+  - provider: azure
+    title: Azure Networking Explained (35 min)
+    url: https://www.youtube.com/watch?v=5NMcM4zJPM4
+    description: Azure networking walkthrough
+  - provider: aws
+    title: AWS VPC Deep Dive (45 min)
+    url: https://www.youtube.com/watch?v=fnxXNZdf6ew
+    description: AWS VPC walkthrough
+  - provider: gcp
+    title: GCP Networking Fundamentals (40 min)
+    url: https://www.youtube.com/watch?v=cNb4xzAyTiQ
+    description: GCP networking walkthrough

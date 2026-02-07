@@ -1,0 +1,22 @@
+id: phase1-topic6
+slug: ctf-lab
+name: CTF Lab
+description: Time to put your Linux skills to the test! Complete 18 progressive Capture The Flag challenges covering file
+  navigation, permissions, networking, and more.
+short_description: Complete 18 hands-on Linux CTF challenges in a real cloud environment to prove your command line skills.
+order: 6
+is_capstone: true
+learning_steps:
+- order: 1
+  text: Go to the Linux CTFs Repository
+  action: Go to the
+  title: Linux CTFs Repository
+  url: https://github.com/learntocloud/linux-ctfs
+  description: 'The repository README has everything you need: setup instructions for AWS/Azure/GCP, challenge descriptions,
+    and tips. Follow the instructions there to deploy and complete the challenges.'
+- order: 2
+  text: Share your project
+  action: 'Share:'
+  title: Share Your Progress
+  description: When you've completed the CTF challenges, share your experience on LinkedIn or the Learn to Cloud community
+    Discord to celebrate your progress and help others.

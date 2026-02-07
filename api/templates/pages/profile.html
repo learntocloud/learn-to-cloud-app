@@ -1,9 +1,8 @@
-{% extends "base.html" %}
+{% extends "layouts/content_page.html" %}
 {% block title %}{{ profile.username }} - Learn to Cloud{% endblock %}
 
-{% block content %}
-<!-- Profile header -->
-<div class="flex items-center gap-6 mb-8">
+{% block page_header %}
+<div class="flex items-center gap-6">
     {% if profile.avatar_url %}
     <img src="{{ profile.avatar_url }}" alt="{{ profile.username }}" class="h-20 w-20 rounded-full">
     {% endif %}
@@ -21,11 +20,10 @@
             · Member since {{ profile.member_since.strftime('%B %Y') }}
         </p>
     </div>
-
-    </div>
 </div>
+{% endblock %}
 
-<!-- Badges -->
+{% block page_body %}
 {% if profile.badges %}
 <div class="mb-8">
     <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Badges</h2>

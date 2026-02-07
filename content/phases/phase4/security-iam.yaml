@@ -1,0 +1,70 @@
+id: phase4-topic2
+slug: security-iam
+name: Security & Identity Management
+description: This section focuses on identity and access management (IAM) to control permissions and protect cloud resources,
+  as well as securing cloud instances using security groups and firewall rules.
+order: 2
+is_capstone: false
+learning_steps:
+- order: 1
+  text: Learn IAM concepts across cloud providers
+  action: 'Learn IAM concepts:'
+  description: 'Identity and Access Management (IAM) is how you control who can do what in your cloud environment. Master
+    these core concepts: Users, Groups, Roles, and Policies.'
+  options:
+  - provider: aws
+    title: Getting Started with AWS IAM
+    url: https://docs.aws.amazon.com/IAM/latest/UserGuide/getting-started.html
+    description: Official AWS guide to IAM users, groups, policies, and roles
+  - provider: azure
+    title: Azure Role-Based Access Control
+    url: https://learn.microsoft.com/en-us/azure/role-based-access-control/role-assignments-portal
+    description: Learn how to assign roles in Azure using the portal
+  - provider: gcp
+    title: GCP IAM Overview
+    url: https://cloud.google.com/iam/docs/overview
+    description: Understanding Identity and Access Management in Google Cloud
+  title: Learn IAM concepts across cloud providers
+- order: 2
+  text: Understand Security Groups & Firewall Rules
+  action: Understand Security Groups & Firewall Rules
+  description: Security groups act as virtual firewalls for your cloud resources, controlling inbound and outbound traffic.
+  options:
+  - provider: aws
+    title: AWS Security Groups
+    url: https://docs.aws.amazon.com/vpc/latest/userguide/vpc-security-groups.html
+    description: Official documentation for controlling inbound and outbound traffic
+  - provider: azure
+    title: Azure Network Security Groups
+    url: https://learn.microsoft.com/en-us/azure/virtual-network/network-security-groups-overview
+    description: Overview of Network Security Groups in Azure
+  - provider: gcp
+    title: GCP Firewall Rules
+    url: https://cloud.google.com/firewall/docs/firewalls
+    description: Understanding firewall rules in Google Cloud
+- order: 3
+  text: Learn the principle of least privilege
+  action: 'Learn:'
+  title: Azure RBAC Overview
+  url: https://learn.microsoft.com/en-us/azure/role-based-access-control/overview
+  description: Understand role-based access control (RBAC) and the principle of least privilege — granting only the minimum
+    permissions needed for a task.
+- order: 4
+  text: Create IAM users and groups with specific permissions
+  action: 'Hands-on:'
+  description: Create IAM users and groups on your cloud platform. Assign specific permissions to each group using IAM policies.
+- order: 5
+  text: Implement IAM roles for secure access management
+  action: 'Hands-on:'
+  description: Create an IAM role with limited permissions and practice assuming/assigning it. Understand when to use roles
+    instead of direct user permissions.
+- order: 6
+  text: Create a security group for a VM instance
+  action: 'Hands-on:'
+  description: Create a security group and define inbound rules to allow specific traffic (e.g., HTTP on port 80, SSH on port
+    22). Apply it to a VM and verify it works.
+- order: 7
+  text: Test traffic flow with security group rules
+  action: 'Hands-on:'
+  description: Test your security group by attempting to connect from allowed and restricted IPs. Verify that traffic is blocked
+    when expected.

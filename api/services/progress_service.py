@@ -24,6 +24,8 @@ from core.wide_event import set_wide_event_fields
 from repositories.progress_repository import StepProgressRepository
 from repositories.submission_repository import SubmissionRepository
 from schemas import (
+    Phase,
+    PhaseDetailProgress,
     PhaseProgress,
     PhaseProgressData,
     PhaseRequirements,
@@ -225,6 +227,41 @@ def compute_topic_progress(
         steps_total=steps_total,
         percentage=round(percentage, 1),
         status=status,
+    )
+
+
+async def get_phase_detail_progress(
+    db: AsyncSession,
+    user_id: int,
+    phase: Phase,
+) -> PhaseDetailProgress:
+    """Compute per-topic and overall progress for the phase detail page.
+
+    Uses a single DB query filtered to this phase's topics, then derives
+    both per-topic and phase-level progress from the same result set.
+    """
+    step_repo = StepProgressRepository(db)
+    topic_ids = [t.id for t in phase.topics]
+    completed_by_topic = await step_repo.get_completed_for_topics(user_id, topic_ids)
+
+    topic_progress: dict[str, TopicProgressData] = {}
+    total_completed = 0
+    total_steps = 0
+
+    for topic in phase.topics:
+        completed_steps = completed_by_topic.get(topic.id, set())
+        tp = compute_topic_progress(topic, completed_steps)
+        topic_progress[topic.id] = tp
+        total_completed += tp.steps_completed
+        total_steps += tp.steps_total
+
+    percentage = round((total_completed / total_steps) * 100) if total_steps > 0 else 0
+
+    return PhaseDetailProgress(
+        topic_progress=topic_progress,
+        steps_completed=total_completed,
+        steps_total=total_steps,
+        percentage=percentage,
     )
 
 

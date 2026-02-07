@@ -1,0 +1,81 @@
+id: phase4-topic7
+slug: billing-cost-management
+name: Cloud Billing & Cost Management
+description: Cloud services are billed based on consumption. Every VM, database, and API call has a cost. In this topic, you'll
+  learn to monitor spending, set up cost alerts, and estimate expenses before deploying infrastructure. These skills prevent
+  surprise bills and teach you to make cost-aware architecture decisions.
+order: 7
+is_capstone: false
+learning_steps:
+- order: 1
+  text: Learn cloud billing basics
+  action: 'Learn:'
+  title: Describe Cloud Computing (Microsoft Learn)
+  url: https://learn.microsoft.com/en-us/training/modules/describe-cloud-compute/
+  description: Understand the pay-as-you-go pricing model, how different resource types are priced, and how billing cycles
+    work in the cloud.
+- order: 2
+  text: Cost Management Overview
+  action: Cost Management Overview
+  description: 'Learn the billing and cost management tools for your cloud provider:'
+  options:
+  - provider: azure
+    title: Azure Cost Management + Billing
+    url: https://learn.microsoft.com/en-us/azure/cost-management-billing/cost-management-billing-overview
+    description: Complete overview of Azure billing and cost management
+  - provider: aws
+    title: AWS Billing and Cost Management
+    url: https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/what-is-billing.html
+    description: Understanding your AWS bills and managing costs
+  - provider: gcp
+    title: GCP Cloud Billing
+    url: https://cloud.google.com/billing/docs/how-to
+    description: How to manage billing in Google Cloud
+- order: 3
+  text: Set Up Budget Alerts
+  action: Set Up Budget Alerts
+  description: Get notified before you overspend! Configure alerts at thresholds like 50%, 80%, 100% of your budget.
+  options:
+  - provider: azure
+    title: Create Azure Budgets
+    url: https://learn.microsoft.com/en-us/azure/cost-management-billing/costs/tutorial-acm-create-budgets
+    description: Tutorial for creating budgets and alerts in Azure
+  - provider: aws
+    title: Create AWS Budgets
+    url: https://docs.aws.amazon.com/cost-management/latest/userguide/budgets-create.html
+    description: Setting up AWS Budget alerts
+  - provider: gcp
+    title: Create GCP Budget Alerts
+    url: https://cloud.google.com/billing/docs/how-to/budgets
+    description: Configuring budget alerts in Google Cloud
+- order: 4
+  text: Use Pricing Calculators
+  action: Use Pricing Calculators
+  description: 'Estimate costs BEFORE you deploy. Each cloud provider has a calculator:'
+  secondary_links:
+  - text: Azure Pricing Calculator
+    url: https://azure.microsoft.com/en-us/pricing/calculator/
+  - text: AWS Pricing Calculator
+    url: https://calculator.aws/#/
+  - text: GCP Pricing Calculator
+    url: https://cloud.google.com/products/calculator
+- order: 5
+  text: Learn cost optimization best practices
+  action: 'Learn:'
+  title: Cost Optimization Checklist (Azure Well-Architected)
+  url: https://learn.microsoft.com/en-us/azure/well-architected/cost-optimization/checklist
+  description: Review the Azure Well-Architected Framework checklist for cost optimization. Key takeaways include stopping
+    unused VMs, right-sizing instances, and monitoring data transfer costs.
+- order: 6
+  text: Review your current month's charges
+  action: 'Hands-on:'
+  description: Open your cloud provider's billing dashboard and review your current month's charges. Identify which resources
+    are costing the most.
+- order: 7
+  text: Set up a budget alert
+  action: 'Hands-on:'
+  description: Create a budget alert for $50/month (or your chosen limit) so you get notified before you overspend.
+- order: 8
+  text: Estimate costs for a new deployment using the pricing calculator
+  action: 'Hands-on:'
+  description: Use your cloud provider's pricing calculator to estimate what your Journal API deployment will cost per month.

@@ -1,0 +1,108 @@
+id: phase5-topic4
+slug: container-orchestration
+name: Container Orchestration - Kubernetes
+description: As applications grow in complexity, managing containers manually becomes challenging. Kubernetes (K8s) is an
+  open-source container orchestration platform that automates the deployment, scaling, and management of containerized applications.
+  It's widely used in modern cloud-native environments to ensure applications are highly available, scalable, and resilient.
+order: 4
+is_capstone: false
+learning_steps:
+- order: 1
+  text: Learn why Kubernetes exists
+  action: 'Learn:'
+  title: Kubernetes Overview
+  url: https://kubernetes.io/docs/concepts/overview/
+  description: Understand what Kubernetes is and why it was created — automated deployment, self-healing, load balancing,
+    and declarative configuration.
+- order: 2
+  text: Learn Kubernetes core concepts
+  action: 'Learn:'
+  title: Kubernetes Components
+  url: https://kubernetes.io/docs/concepts/overview/components/
+  description: Understand the building blocks — clusters, nodes, pods, services, deployments, ConfigMaps, and Secrets.
+- order: 3
+  text: Local Setup
+  action: Local Setup
+  description: 'For local development, use one of these tools:'
+  secondary_links:
+  - text: Minikube
+    url: https://minikube.sigs.k8s.io/docs/
+  - text: Kind (Kubernetes in Docker)
+    url: https://kind.sigs.k8s.io/
+- order: 4
+  text: Managed Kubernetes Services
+  action: Managed Kubernetes Services
+  description: 'Most cloud providers offer managed Kubernetes:'
+  secondary_links:
+  - text: AWS EKS
+    url: https://aws.amazon.com/eks/
+  - text: Azure AKS
+    url: https://learn.microsoft.com/en-us/azure/aks/
+  - text: Google GKE
+    url: https://cloud.google.com/kubernetes-engine/docs/concepts/kubernetes-engine-overview
+- order: 5
+  text: AKS with Terraform
+  action: 'Watch:'
+  title: Minimal K8s Cluster on Azure AKS using Terraform
+  url: https://youtu.be/J_aInEIBzE0
+  description: Quick example of setting up a Kubernetes cluster with Terraform and Azure.
+- order: 6
+  text: Basic Commands
+  action: 'Basic kubectl Commands:'
+  description: 'Essential Kubernetes commands:'
+  code: '# View cluster information
+
+    kubectl cluster-info
+
+
+    # List all nodes in the cluster
+
+    kubectl get nodes
+
+
+    # Deploy an application
+
+    kubectl apply -f deployment.yaml
+
+
+    # View running pods
+
+    kubectl get pods
+
+
+    # View logs of a pod
+
+    kubectl logs <pod-name>
+
+
+    # Delete a resource
+
+    kubectl delete -f deployment.yaml'
+  title: Basic Commands
+- order: 7
+  text: Install Minikube or Kind locally
+  action: 'Hands-on:'
+  description: Install Minikube or Kind on your local machine to run a local Kubernetes cluster for development.
+- order: 8
+  text: Deploy an application using a YAML manifest
+  action: 'Hands-on:'
+  description: Create a Kubernetes deployment YAML file (see the sample below) and apply it with `kubectl apply -f deployment.yaml`.
+    Verify pods are running with `kubectl get pods`.
+- order: 9
+  text: Review the sample Deployment YAML
+  action: 'Reference:'
+  description: 'Basic nginx deployment:'
+  code: "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: nginx-deployment\nspec:\n  replicas: 2\n  selector:\n \
+    \   matchLabels:\n      app: nginx\n  template:\n    metadata:\n      labels:\n        app: nginx\n    spec:\n      containers:\n\
+    \      - name: nginx\n        image: nginx:latest\n        ports:\n        - containerPort: 80"
+- order: 10
+  text: Expose your deployment and access it in a browser
+  action: 'Hands-on:'
+  description: Expose your deployment with `kubectl expose deployment nginx-deployment --type=NodePort --port=80` and access
+    the application in your browser using the NodePort.
+- order: 11
+  text: Explore Kubernetes documentation
+  action: 'Read:'
+  title: Kubernetes Official Documentation
+  url: https://kubernetes.io/docs/concepts/
+  description: Dive deeper into Kubernetes concepts, workloads, and best practices.

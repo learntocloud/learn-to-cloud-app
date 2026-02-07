@@ -14,15 +14,14 @@ from functools import lru_cache
 from core.cache import get_cached_badges, set_cached_badges
 from core.telemetry import add_custom_attribute
 from core.wide_event import set_wide_event_fields
-from schemas import BadgeCatalogItem, BadgeData, PhaseThemeData
+from schemas import BadgeCatalogItem, BadgeData
 from services.content_service import get_all_phases
 from services.progress_service import get_phase_requirements
 
 
 @lru_cache(maxsize=1)
-def _get_phase_badge_catalog() -> tuple[list[BadgeCatalogItem], list[PhaseThemeData]]:
+def _get_phase_badge_catalog() -> list[BadgeCatalogItem]:
     phase_badges: list[BadgeCatalogItem] = []
-    phase_themes: list[PhaseThemeData] = []
 
     phases = sorted(get_all_phases(), key=lambda p: p.order)
     for index, phase in enumerate(phases, start=1):
@@ -41,25 +40,14 @@ def _get_phase_badge_catalog() -> tuple[list[BadgeCatalogItem], list[PhaseThemeD
                 )
             )
 
-        if phase.theme:
-            phase_themes.append(
-                PhaseThemeData(
-                    phase_id=phase.id,
-                    icon=phase.theme.icon,
-                    bg_class=phase.theme.bg_class,
-                    border_class=phase.theme.border_class,
-                    text_class=phase.theme.text_class,
-                )
-            )
-
-    return phase_badges, phase_themes
+    return phase_badges
 
 
-def get_badge_catalog() -> tuple[list[BadgeCatalogItem], int, list[PhaseThemeData]]:
-    """Get badge catalog and phase themes derived from content."""
-    phase_badges, phase_themes = _get_phase_badge_catalog()
+def get_badge_catalog() -> tuple[list[BadgeCatalogItem], int]:
+    """Get badge catalog derived from content."""
+    phase_badges = _get_phase_badge_catalog()
     total_badges = len(phase_badges)
-    return phase_badges, total_badges, phase_themes
+    return phase_badges, total_badges
 
 
 def compute_phase_badges(
@@ -80,7 +68,7 @@ def compute_phase_badges(
     """
     earned_badges = []
 
-    phase_badges, _ = _get_phase_badge_catalog()
+    phase_badges = _get_phase_badge_catalog()
 
     for badge_info in phase_badges:
         if badge_info.phase_id is None:

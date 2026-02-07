@@ -69,7 +69,7 @@ class Settings(BaseSettings):
     frontend_url: str = "http://localhost:4280"
 
     # Content directory for course phases JSON files
-    # Defaults to frontend/public/content/phases for local dev
+    # Defaults to content/phases for local dev
     content_dir: str = ""
 
     # Database pool settings (PostgreSQL only)
@@ -124,17 +124,11 @@ class Settings(BaseSettings):
 
     @cached_property
     def content_dir_path(self) -> Path:
-        """Defaults to frontend/public/content/phases if CONTENT_DIR not set."""
+        """Defaults to content/phases if CONTENT_DIR not set."""
         if self.content_dir:
             return Path(self.content_dir)
-        # Default: assume running from api/ directory
-        return (
-            Path(__file__).parent.parent.parent
-            / "frontend"
-            / "public"
-            / "content"
-            / "phases"
-        )
+        # Default: assume running from repo root (one level above api/)
+        return Path(__file__).parent.parent.parent / "content" / "phases"
 
     @cached_property
     def allowed_origins(self) -> list[str]:

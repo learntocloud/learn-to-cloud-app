@@ -1,0 +1,63 @@
+id: '6'
+slug: phase6
+name: Securing Your Cloud Applications
+description: You've built your Journal API, deployed it to the cloud, and set up CI/CD pipelines. Now it's time to lock it
+  down. Security isn't a separate thing you bolt on at the end—it's something every cloud engineer needs to think about from
+  day one. In this phase, we'll walk you through the key security practices that keep real production apps safe. By the end,
+  your Journal API will be hardened and production-ready.
+short_description: Secure your Journal API with IAM, secrets management, network controls, monitoring, and incident response.
+  Make it production-ready.
+badge:
+  name: Security Guardian
+  description: Completed Phase 6
+  icon: 🔐
+order: 6
+topics:
+- iam-secrets
+- network-security
+- monitoring-incident-response
+- capstone
+capstone:
+  title: Secure Your Journal API
+  summary: Harden your Journal API with IAM, secrets management, network controls, and monitoring.
+  includes:
+  - Create a service account with least-privilege permissions
+  - Move secrets to a cloud secrets manager
+  - Verify network security and enable HTTPS
+  - Set up monitoring and security scanning
+  topic_slug: capstone
+hands_on_verification:
+  summary: Show us you've got security scanning running and that you know how to handle what it finds.
+  includes:
+  - Enable security scanning (Dependabot, CodeQL, etc.)
+  - Show resolved or triaged findings
+  requirements:
+  - id: security-scanning
+    submission_type: security_scanning
+    name: Enabled Security Scanning
+    description: Enable security scanning (Dependabot, CodeQL, or similar) on your repository and resolve or triage the findings.
+    submission_instructions: Paste the URL to your repository's security scanning page (e.g. https://github.com/your-username/journal-starter/security/code-scanning).
+      Enable Dependabot, CodeQL, or another scanner, and ensure you have resolved or triaged at least some findings.
+    example_url: https://github.com/owner/repo/security/code-scanning
+prerequisites:
+- 'Completed Phase 4: Cloud Platform Fundamentals'
+- 'Completed Phase 5: DevOps Fundamentals (recommended but not required)'
+- Access to the Journal API application and infrastructure from previous phases
+- A cloud platform account (AWS, Azure, or GCP) with administrative permissions
+connections:
+- phase: Phase 1-3
+  description: Your Linux, networking, and Python skills come back here—you'll use them to configure security tools and audit
+    your setup
+- phase: Phase 4
+  description: Remember those cloud resources you deployed? Time to make sure nobody else can mess with them
+- phase: Phase 5
+  description: Your CI/CD pipelines get security scanning baked right in
+- phase: Phase 6
+  description: This is where it all comes together—your app goes from working to production-ready
+security_overviews:
+- text: AWS Security Pillar - Well Architected Framework
+  url: https://docs.aws.amazon.com/wellarchitected/latest/security-pillar/welcome.html
+- text: Microsoft Azure - Secure
+  url: https://learn.microsoft.com/en-us/azure/architecture/framework/security/overview
+- text: Google Cloud - Security Foundations
+  url: https://cloud.google.com/architecture/security-foundations

@@ -1,12 +1,11 @@
 """SQLAlchemy models for Learn to Cloud progress tracking."""
 
-from datetime import UTC, date, datetime
+from datetime import UTC, datetime
 from enum import Enum as PyEnum
 
 from sqlalchemy import (
     BigInteger,
     Boolean,
-    Date,
     DateTime,
     Enum,
     ForeignKey,
@@ -25,11 +24,6 @@ from core.database import Base
 def utcnow() -> datetime:
     """Return current UTC time (timezone-aware)."""
     return datetime.now(UTC)
-
-
-def today() -> date:
-    """Return current UTC date."""
-    return datetime.now(UTC).date()
 
 
 class TimestampMixin:
@@ -66,10 +60,6 @@ class User(TimestampMixin, Base):
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
 
     submissions: Mapped[list["Submission"]] = relationship(
-        back_populates="user",
-        cascade="all, delete-orphan",
-    )
-    activities: Mapped[list["UserActivity"]] = relationship(
         back_populates="user",
         cascade="all, delete-orphan",
     )
@@ -184,16 +174,6 @@ class Submission(TimestampMixin, Base):
     user: Mapped["User"] = relationship(back_populates="submissions")
 
 
-class ActivityType(str, PyEnum):
-    """Type of user activity for streak and progress tracking."""
-
-    STEP_COMPLETE = "step_complete"
-    TOPIC_COMPLETE = "topic_complete"
-    HANDS_ON_VALIDATED = "hands_on_validated"
-    PHASE_COMPLETE = "phase_complete"
-    CERTIFICATE_EARNED = "certificate_earned"
-
-
 class Certificate(TimestampMixin, Base):
     """Tracks completion certificates issued to users."""
 
@@ -268,43 +248,3 @@ class StepProgress(Base):
     )
 
     user: Mapped["User"] = relationship(back_populates="step_progress")
-
-
-class UserActivity(Base):
-    """Tracks user activities for streak calculation.
-
-    Note: Only has created_at since activities are immutable event logs.
-    """
-
-    __tablename__ = "user_activities"
-    __table_args__ = (
-        Index("ix_user_activities_user_date", "user_id", "activity_date"),
-        Index("ix_user_activities_user_type", "user_id", "activity_type"),
-    )
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    user_id: Mapped[int] = mapped_column(
-        BigInteger,
-        ForeignKey("users.id", ondelete="CASCADE"),
-        nullable=False,
-    )
-    activity_type: Mapped[ActivityType] = mapped_column(
-        Enum(
-            ActivityType,
-            name="activity_type",
-            native_enum=False,
-            values_callable=lambda x: [e.value for e in x],
-        ),
-        nullable=False,
-    )
-    activity_date: Mapped[date] = mapped_column(Date, nullable=False, default=today)
-    reference_id: Mapped[str | None] = mapped_column(
-        String(100),
-        nullable=True,
-    )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        default=utcnow,
-    )
-
-    user: Mapped["User"] = relationship(back_populates="activities")

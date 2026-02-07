@@ -65,7 +65,7 @@ class SecurityHeadersMiddleware:
         (
             b"content-security-policy",
             b"default-src 'self';"
-            b" script-src 'self' https://unpkg.com 'unsafe-inline';"
+            b" script-src 'self' 'unsafe-inline' 'unsafe-eval';"
             b" style-src 'self' 'unsafe-inline';"
             b" img-src 'self' https://avatars.githubusercontent.com data:;"
             b" connect-src 'self';"

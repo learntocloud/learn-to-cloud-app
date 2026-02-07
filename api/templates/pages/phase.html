@@ -5,9 +5,6 @@
 <!-- Phase header -->
 <div class="mb-8">
     <div class="flex items-center gap-3 mb-2">
-        {% if phase.theme and phase.theme.icon %}
-        <span class="text-3xl">{{ phase.theme.icon }}</span>
-        {% endif %}
         <h1 class="text-3xl font-bold text-gray-900 dark:text-white">{{ phase.name }}</h1>
     </div>
     <p class="text-gray-600 dark:text-gray-400 mt-2">{{ phase.description }}</p>
@@ -35,7 +32,14 @@
                 <span class="font-medium text-gray-900 dark:text-gray-100">{{ topic.name }}</span>
             </div>
             {% if topic.progress %}
-            <span class="text-sm text-gray-500 dark:text-gray-400">{{ topic.progress.completed }}/{{ topic.progress.total }} steps</span>
+            <span class="text-sm flex items-center gap-1.5 {% if topic.progress.completed == topic.progress.total and topic.progress.total > 0 %}text-green-600 dark:text-green-400 font-medium{% else %}text-gray-500 dark:text-gray-400{% endif %}">
+                {% if topic.progress.completed == topic.progress.total and topic.progress.total > 0 %}
+                <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                Complete
+                {% else %}
+                {{ topic.progress.completed }}/{{ topic.progress.total }} steps
+                {% endif %}
+            </span>
             {% endif %}
         </a>
         {% endfor %}

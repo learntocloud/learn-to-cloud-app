@@ -133,19 +133,6 @@ See [observability.instructions.md](observability.instructions.md) for wide even
   async def my_endpoint(request: Request): ...
   ```
 
-## OpenAPI Contract (REQUIRED)
-- Pydantic models are the source of truth for the API contract
-- OpenAPI spec is generated to `api/openapi.json` via:
-    ```bash
-    uv run --directory api python scripts/export_openapi.py
-    ```
-- Frontend types are generated from `api/openapi.json`:
-    ```bash
-    cd frontend && npm run generate:api
-    ```
-- Do not edit `api/openapi.json` or `frontend/src/lib/api-types.generated.ts` manually; regenerate them
-- CI runs `oasdiff breaking` against `main` to block breaking changes
-
 ## Dependencies
 - Managed with `uv` (not pip)
 - Add to `pyproject.toml`, not requirements.txt

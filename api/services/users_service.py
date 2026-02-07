@@ -8,7 +8,6 @@ from models import SubmissionType, User
 from repositories.submission_repository import SubmissionRepository
 from repositories.user_repository import UserRepository
 from schemas import (
-    BadgeData,
     PublicProfileData,
     PublicSubmissionInfo,
     UserResponse,
@@ -37,6 +36,12 @@ def _to_user_response(user: User) -> UserResponse:
         is_admin=user.is_admin,
         created_at=user.created_at,
     )
+
+
+async def get_user_by_id(db: AsyncSession, user_id: int) -> User | None:
+    """Get a user by ID, or None if not found."""
+    user_repo = UserRepository(db)
+    return await user_repo.get_by_id(user_id)
 
 
 async def ensure_user_exists(db: AsyncSession, user_id: int) -> None:
@@ -153,15 +158,6 @@ async def get_public_profile(
         phase_completion_counts=phase_completion_counts,
         user_id=profile_user.id,
     )
-    badges = [
-        BadgeData(
-            id=badge.id,
-            name=badge.name,
-            description=badge.description,
-            icon=badge.icon,
-        )
-        for badge in earned_badges
-    ]
 
     phases_completed = progress.phases_completed
     current_phase = progress.current_phase
@@ -174,14 +170,14 @@ async def get_public_profile(
         phases_completed=phases_completed,
         member_since=profile_user.created_at,
         submissions=submissions,
-        badges=badges,
+        badges=earned_badges,
     )
 
     set_wide_event_fields(
         profile_viewed_user_id=profile_user.id,
         profile_viewed_username=profile_user.github_username,
         profile_phases_completed=phases_completed,
-        profile_badges_count=len(badges),
+        profile_badges_count=len(earned_badges),
     )
 
     return profile_data

@@ -18,7 +18,7 @@ from datetime import UTC, datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.telemetry import add_custom_attribute, log_business_event, track_operation
-from models import ActivityType, Certificate
+from models import Certificate
 from rendering.certificates import (
     generate_certificate_svg as _render_certificate_svg,
 )
@@ -38,7 +38,6 @@ from schemas import (
     CreateCertificateResult,
     EligibilityResult,
 )
-from services.activity_service import log_activity
 from services.progress_service import fetch_user_progress
 
 
@@ -191,13 +190,6 @@ async def create_certificate(
         recipient_name=recipient_name,
         phases_completed=eligibility.phases_completed,
         total_phases=eligibility.total_phases,
-    )
-
-    await log_activity(
-        db=db,
-        user_id=user_id,
-        activity_type=ActivityType.CERTIFICATE_EARNED,
-        reference_id=certificate_type,
     )
 
     log_business_event("certificates.issued", 1, {"type": certificate_type})

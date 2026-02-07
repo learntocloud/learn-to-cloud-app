@@ -17,8 +17,6 @@ from core.wide_event import set_wide_event_fields
 
 logger = get_logger(__name__)
 
-settings = get_settings()
-
 
 def _get_request_identifier(request: Request) -> str:
     if hasattr(request.state, "user_id") and request.state.user_id:
@@ -29,7 +27,7 @@ def _get_request_identifier(request: Request) -> str:
 limiter = Limiter(
     key_func=_get_request_identifier,
     default_limits=["100/minute"],
-    storage_uri=settings.ratelimit_storage_uri,
+    storage_uri=get_settings().ratelimit_storage_uri,
 )
 
 
@@ -51,10 +49,3 @@ def rate_limit_exceeded_handler(request: Request, exc: Exception) -> Response:
         },
         headers={"Retry-After": str(getattr(exc, "retry_after", 60))},
     )
-
-
-EXTERNAL_API_LIMIT = "10/minute"
-
-WEBHOOK_LIMIT = "60/minute"
-
-AUTH_LIMIT = "20/minute"

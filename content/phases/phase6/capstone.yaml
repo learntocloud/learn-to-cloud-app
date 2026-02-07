@@ -1,0 +1,46 @@
+id: phase6-capstone
+slug: capstone
+name: 'Capstone: Secure Your Journal API'
+description: Apply everything from this phase to harden your Journal API with real security controls. By the end, your app
+  will be production-ready.
+short_description: Harden your Journal API with IAM, secrets management, network controls, and monitoring.
+order: 4
+is_capstone: true
+learning_steps:
+- order: 1
+  text: Create a dedicated service account for your Journal API
+  action: 'IAM:'
+  description: Stop using your personal credentials. Create a service account with only the permissions your API needs.
+- order: 2
+  text: Move secrets to a cloud secrets manager
+  action: 'Secrets:'
+  description: Move your database password, LLM API key, and any other secrets from .env files into Azure Key Vault, AWS
+    Secrets Manager, or GCP Secret Manager.
+- order: 3
+  text: Verify your database is in a private subnet
+  action: 'Network:'
+  description: Confirm your database is NOT accessible from the public internet and only accepts connections from your API
+    server's security group.
+- order: 4
+  text: Configure HTTPS for all API traffic
+  action: 'Network:'
+  description: Ensure your API only accepts HTTPS connections. No plaintext traffic.
+- order: 5
+  text: Enable audit logging
+  action: 'Monitoring:'
+  description: Enable CloudTrail (AWS), Activity Log (Azure), or Cloud Logging (GCP) for your cloud services.
+- order: 6
+  text: Set up at least one security alert
+  action: 'Monitoring:'
+  description: Create an alert for a critical event — failed authentication attempts, security group changes, or unusual
+    traffic patterns.
+- order: 7
+  text: Enable security scanning on your repository
+  action: 'Scanning:'
+  description: Enable Dependabot, CodeQL, or another scanner on your GitHub repository. Review and triage any findings.
+- order: 8
+  text: Share your project
+  action: 'Share:'
+  title: Share Your Progress
+  description: Push your work to GitHub. Consider sharing it on LinkedIn or the Learn to Cloud community Discord to get feedback
+    and celebrate your progress.

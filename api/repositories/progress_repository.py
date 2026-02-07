@@ -170,6 +170,31 @@ class StepProgressRepository:
             by_topic.setdefault(row.topic_id, set()).add(row.step_order)
         return by_topic
 
+    async def get_completed_for_topics(
+        self,
+        user_id: int,
+        topic_ids: list[str],
+    ) -> dict[str, set[int]]:
+        """Get completed steps for a user, filtered to specific topics.
+
+        More targeted than get_all_completed_by_user when only one phase
+        is needed (avoids fetching unrelated phases).
+        """
+        if not topic_ids:
+            return {}
+
+        result = await self.db.execute(
+            select(StepProgress.topic_id, StepProgress.step_order).where(
+                StepProgress.user_id == user_id,
+                StepProgress.topic_id.in_(topic_ids),
+            )
+        )
+
+        by_topic: dict[str, set[int]] = {}
+        for row in result.all():
+            by_topic.setdefault(row.topic_id, set()).add(row.step_order)
+        return by_topic
+
 
 def _parse_phase_id_from_topic_id(topic_id: str) -> int | None:
     if not isinstance(topic_id, str) or not topic_id.startswith("phase"):

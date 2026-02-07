@@ -31,12 +31,9 @@ from core.wide_event import get_wide_event
 from routes import (
     auth_router,
     certificates_router,
-    dashboard_router,
-    github_router,
     health_router,
     htmx_router,
     pages_router,
-    steps_router,
     users_router,
 )
 from services.deployed_api_verification_service import close_deployed_api_client
@@ -200,9 +197,7 @@ app = FastAPI(
     lifespan=lifespan,
     docs_url="/docs" if _settings.enable_docs or _settings.debug else None,
     redoc_url="/redoc" if _settings.enable_docs or _settings.debug else None,
-    openapi_url="/openapi.json"
-    if _settings.enable_docs or _settings.debug
-    else None,
+    openapi_url="/openapi.json" if _settings.enable_docs or _settings.debug else None,
 )
 
 # Store templates on app state for access in route handlers
@@ -248,11 +243,8 @@ if _static_dir.exists():
 # API routes (JSON)
 app.include_router(health_router)
 app.include_router(auth_router)
-app.include_router(users_router)
-app.include_router(dashboard_router)
-app.include_router(github_router)
 app.include_router(certificates_router)
-app.include_router(steps_router)
+app.include_router(users_router)
 
 # HTMX routes (HTML fragments)
 app.include_router(htmx_router)

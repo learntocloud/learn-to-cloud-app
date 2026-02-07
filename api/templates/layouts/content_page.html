@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+
+{% block content %}
+{# Page header: breadcrumb + title + optional description/progress #}
+<div class="mb-8">
+    {% block breadcrumb %}{% endblock %}
+    {% block page_header %}{% endblock %}
+</div>
+
+{# Page body #}
+{% block page_body %}{% endblock %}
+{% endblock %}

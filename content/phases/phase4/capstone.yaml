@@ -1,0 +1,47 @@
+id: phase4-topic9
+slug: capstone
+name: Cloud Deployment Capstone
+description: Deploy your Journal API from the Phase 2 Capstone to a secure 2-tier cloud architecture. This capstone challenges
+  you to research, design, and implement a production-ready environment with proper networking and security.
+short_description: Deploy your Journal API to a secure 2-tier cloud architecture with VMs, networking, and managed database.
+order: 9
+is_capstone: true
+learning_steps:
+- order: 1
+  text: Design your 2-tier architecture
+  action: 'Design:'
+  description: Plan your cloud infrastructure on paper or a diagram. You need a public tier for your FastAPI application server
+    and a private tier for your PostgreSQL database. Decide how you'll separate them with networking.
+- order: 2
+  text: Set up your VPC with public and private subnets
+  action: 'Hands-on:'
+  description: Create a VPC or VNet with at least two subnets — one public (for the API) and one private (for the database).
+    Configure routing and security groups.
+- order: 3
+  text: Deploy the API server in the public subnet
+  action: 'Hands-on:'
+  description: Deploy a VM in the public subnet, install your Journal API, and configure it to be accessible from the internet.
+- order: 4
+  text: Deploy the database in the private subnet
+  action: 'Hands-on:'
+  description: Deploy PostgreSQL in the private subnet. Ensure it is NOT directly accessible from the internet and only accepts
+    connections from your API server.
+- order: 5
+  text: Connect the API to the database and test
+  action: 'Hands-on:'
+  description: Configure your API server to connect to the database in the private subnet. Verify all CRUD operations and
+    the AI analysis endpoint work correctly.
+- order: 6
+  text: Verify your deployment meets success criteria
+  action: 'Verify:'
+  title: Success Criteria
+  description: 'Confirm your deployment meets these requirements: API accessible from the internet, database only accessible
+    from the API server, all CRUD operations work, AI analysis endpoint returns sentiment and summary, LLM API key stored
+    securely, and data persists between restarts.'
+- order: 7
+  text: Share your project
+  action: 'Share:'
+  title: Share Your Progress
+  description: When you've completed the capstone, push your work to GitHub and write a brief technical writeup covering
+    your architecture, security decisions, and key learnings. Share it on LinkedIn or the Learn to Cloud community Discord
+    to get feedback and celebrate your progress.

@@ -19,7 +19,7 @@ local.settings.json
 # Allow .env.example files (configuration templates)
 !.env.example
 !api/.env.example
-!frontend/.env.example
+# (frontend/ removed — content now lives in content/)
 
 # Database
 *.db
@@ -67,7 +67,7 @@ obj/
 
 # Misc
 *.pem
-frontend/public/.swa/
+
 *.zip
 
 # SWA Oryx build artifacts

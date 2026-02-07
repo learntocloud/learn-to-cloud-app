@@ -4,10 +4,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.cache import invalidate_progress_cache
 from core.telemetry import add_custom_attribute, log_business_event, track_operation
-from models import ActivityType
 from repositories import StepProgressRepository
 from schemas import StepCompletionResult, StepProgressData
-from services.activity_service import log_activity
 from services.content_service import get_topic_by_id
 
 
@@ -125,6 +123,20 @@ async def get_topic_step_progress(
     )
 
 
+async def get_completed_steps(
+    db: AsyncSession,
+    user_id: int,
+    topic_id: str,
+) -> set[int]:
+    """Get the set of completed step orders for a user in a topic.
+
+    Thin service wrapper around the repository — keeps routes from
+    importing repositories directly.
+    """
+    step_repo = StepProgressRepository(db)
+    return await step_repo.get_completed_step_orders(user_id, topic_id)
+
+
 @track_operation("step_completion")
 async def complete_step(
     db: AsyncSession,
@@ -162,13 +174,6 @@ async def complete_step(
     )
     if step_progress is None:
         raise StepAlreadyCompletedError(topic_id, step_order)
-
-    await log_activity(
-        db=db,
-        user_id=user_id,
-        activity_type=ActivityType.STEP_COMPLETE,
-        reference_id=f"{topic_id}:step{step_order}",
-    )
 
     # Invalidate cache so dashboard/progress refreshes immediately
     invalidate_progress_cache(user_id)

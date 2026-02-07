@@ -1,34 +1,33 @@
-{% extends "base.html" %}
+{% extends "layouts/content_page.html" %}
 {% block title %}Dashboard - Learn to Cloud{% endblock %}
 
-{% block content %}
-    <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">Your Progress</h1>
-
-    <!-- Phase list -->
-    <div class="space-y-3">
-        {% for phase in phases %}
-        <a href="/phase/{{ phase.order }}" class="block p-4 rounded-lg border border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
-            <div class="flex items-center justify-between mb-2">
-                <div class="flex items-center gap-2">
-                    <span class="text-sm font-medium text-gray-400 dark:text-gray-500">{{ phase.order }}</span>
-                    <h2 class="text-sm font-semibold text-gray-900 dark:text-white">{{ phase.name }}</h2>
-                </div>
-                {% if phase.progress and phase.progress.status == "completed" %}
-                <span class="text-xs font-medium text-green-600 dark:text-green-400">Complete ✓</span>
-                {% elif phase.progress and phase.progress.status == "in_progress" %}
-                <span class="text-xs text-gray-500 dark:text-gray-400">{{ phase.progress.steps_completed }}/{{ phase.progress.steps_required }} steps</span>
-                {% else %}
-                <span class="text-xs text-gray-400 dark:text-gray-500">Not started</span>
-                {% endif %}
-            </div>
-            {% if phase.progress and phase.progress.percentage > 0 %}
-            <div class="h-1.5 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
-                <div class="h-full rounded-full transition-all {% if phase.progress.status == 'completed' %}bg-green-500{% else %}bg-blue-500{% endif %}" style="width: {{ phase.progress.percentage }}%"></div>
-            </div>
-            {% endif %}
-        </a>
-        {% endfor %}
-    </div>
+{% block page_header %}
+<h1 class="text-3xl font-bold text-gray-900 dark:text-white">Your Progress</h1>
 {% endblock %}
-    {% endif %}
+
+{% block page_body %}
+<div class="space-y-3">
+    {% for phase in phases %}
+    <a href="/phase/{{ phase.order }}" class="block p-4 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+        <div class="flex items-center justify-between mb-2">
+            <div class="flex items-center gap-2">
+                <span class="text-sm font-medium text-gray-400 dark:text-gray-500">{{ phase.order }}</span>
+                <h2 class="text-sm font-semibold text-gray-900 dark:text-white">{{ phase.name }}</h2>
+            </div>
+            {% if phase.progress and phase.progress.status == "completed" %}
+            <span class="text-xs font-medium text-green-600 dark:text-green-400">Complete ✓</span>
+            {% elif phase.progress and phase.progress.status == "in_progress" %}
+            <span class="text-xs text-gray-500 dark:text-gray-400">{{ phase.progress.steps_completed }}/{{ phase.progress.steps_required }} steps</span>
+            {% else %}
+            <span class="text-xs text-gray-400 dark:text-gray-500">Not started</span>
+            {% endif %}
+        </div>
+        {% if phase.progress and phase.progress.percentage > 0 %}
+        <div class="h-1.5 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
+            <div class="h-full rounded-full transition-all {% if phase.progress.status == 'completed' %}bg-green-500{% else %}bg-blue-500{% endif %}" style="width: {{ phase.progress.percentage }}%"></div>
+        </div>
+        {% endif %}
+    </a>
+    {% endfor %}
+</div>
 {% endblock %}

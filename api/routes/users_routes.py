@@ -7,9 +7,7 @@ from core.database import DbSession, DbSessionReadOnly
 from core.ratelimit import limiter
 from schemas import (
     BadgeCatalogResponse,
-    BadgeResponse,
-    PublicProfileResponse,
-    PublicSubmission,
+    PublicProfileData,
     UserResponse,
 )
 from services.badges_service import get_badge_catalog
@@ -18,7 +16,7 @@ from services.users_service import (
     get_public_profile,
 )
 
-__all__ = ["router", "get_or_create_user"]
+__all__ = ["router"]
 
 router = APIRouter(prefix="/api/user", tags=["users"])
 
@@ -39,7 +37,7 @@ async def get_current_user(
 
 @router.get(
     "/profile/{username}",
-    response_model=PublicProfileResponse,
+    response_model=PublicProfileData,
     responses={404: {"description": "User not found"}},
 )
 @limiter.limit("30/minute")
@@ -48,35 +46,14 @@ async def get_public_profile_endpoint(
     username: str,
     db: DbSessionReadOnly,
     user_id: OptionalUserId = None,
-) -> PublicProfileResponse:
+) -> PublicProfileData:
     """Get a user's public profile by username (GitHub username)."""
     result = await get_public_profile(db, username, user_id)
 
     if result is None:
         raise HTTPException(status_code=404, detail="User not found")
 
-    profile_data = result
-
-    # Service returns Pydantic models, convert with model_dump
-    submissions = [
-        PublicSubmission.model_validate(sub.model_dump())
-        for sub in profile_data.submissions
-    ]
-    badges = [
-        BadgeResponse.model_validate(badge.model_dump())
-        for badge in profile_data.badges
-    ]
-
-    return PublicProfileResponse(
-        username=profile_data.username,
-        first_name=profile_data.first_name,
-        avatar_url=profile_data.avatar_url,
-        current_phase=profile_data.current_phase,
-        phases_completed=profile_data.phases_completed,
-        member_since=profile_data.member_since,
-        submissions=submissions,
-        badges=badges,
-    )
+    return result
 
 
 @router.get(
@@ -88,9 +65,8 @@ async def get_public_profile_endpoint(
 @limiter.limit("30/minute")
 async def get_badge_catalog_endpoint(request: Request) -> BadgeCatalogResponse:
     """Get the badge catalog for public display."""
-    phase_badges, total_badges, phase_themes = get_badge_catalog()
+    phase_badges, total_badges = get_badge_catalog()
     return BadgeCatalogResponse(
         phase_badges=phase_badges,
         total_badges=total_badges,
-        phase_themes=phase_themes,
     )

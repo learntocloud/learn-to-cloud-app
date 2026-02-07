@@ -1,0 +1,58 @@
+id: phase6-topic4
+slug: monitoring-incident-response
+name: Monitoring & Incident Response
+description: Set up logging and alerts so you know when something goes wrong, and have a basic plan for what to do when it
+  does.
+order: 3
+is_capstone: false
+learning_steps:
+- order: 1
+  text: Read your cloud provider's monitoring documentation
+  action: 'Read:'
+  title: Cloud Monitoring Overview
+  description: Each cloud provider has monitoring (metrics) and audit logging (who did what). Read the overview for your provider.
+  options:
+  - provider: azure
+    title: Azure Monitor Overview
+    url: https://learn.microsoft.com/en-us/azure/azure-monitor/overview
+    description: Metrics, logs, and alerts in Azure
+  - provider: aws
+    title: AWS CloudWatch
+    url: https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/WhatIsCloudWatch.html
+    description: Monitoring and observability in AWS
+  - provider: gcp
+    title: GCP Cloud Monitoring
+    url: https://cloud.google.com/monitoring/docs/monitoring-overview
+    description: Monitoring in Google Cloud
+- order: 2
+  text: Enable audit logging for your cloud services
+  action: 'Hands-on:'
+  description: Enable CloudTrail (AWS), Activity Log (Azure), or Cloud Logging (GCP) so you have a record of all actions
+    taken on your cloud resources.
+- order: 3
+  text: Set up an alert for a critical security event
+  action: 'Hands-on:'
+  description: Create at least one alert — for example, notify you when someone modifies a security group or when there are
+    repeated failed login attempts.
+- order: 4
+  text: Enable your cloud provider's threat detection service
+  action: 'Hands-on:'
+  description: Turn on the managed threat detection service that scans your environment for suspicious activity.
+  options:
+  - provider: azure
+    title: Microsoft Sentinel
+    url: https://learn.microsoft.com/en-us/azure/sentinel/overview
+    description: Cloud-native SIEM and threat detection
+  - provider: aws
+    title: AWS GuardDuty
+    url: https://docs.aws.amazon.com/guardduty/latest/ug/what-is-guardduty.html
+    description: Intelligent threat detection in AWS
+  - provider: gcp
+    title: Security Command Center
+    url: https://cloud.google.com/security-command-center/docs/concepts-security-command-center-overview
+    description: Threat detection in Google Cloud
+- order: 5
+  text: Write a basic incident response runbook
+  action: 'Hands-on:'
+  description: Write a short runbook answering "What do we do if credentials are leaked?" Include steps to rotate credentials,
+    check for unauthorized access, and notify stakeholders.

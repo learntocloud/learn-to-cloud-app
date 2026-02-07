@@ -1,0 +1,98 @@
+id: phase3-topic5
+slug: genai-apis
+name: Generative AI APIs
+description: Generative AI and Large Language Models (LLMs) are transforming how we build applications. In this topic, you'll
+  learn how to integrate LLM APIs into your Python applications. These skills are essential for modern cloud engineering as
+  AI services are becoming core components of cloud platforms.
+order: 5
+is_capstone: false
+learning_steps:
+- order: 1
+  text: Understand the messages format
+  action: 'Learn:'
+  title: LLM Message Format
+  description: 'LLMs work with conversation-style inputs: system messages (set behavior), user messages (your input), and
+    assistant messages (LLM responses). Understanding this structure is key to working with any LLM API.'
+- order: 2
+  text: Understand completions and parameters
+  action: 'Learn:'
+  title: Completions & Parameters
+  description: 'The API generates text (completions) based on your input. Key parameters to understand: temperature (0 = deterministic,
+    1 = creative), max_tokens (response length), and model (which LLM version). You can also request structured outputs like
+    JSON instead of free text.'
+- order: 3
+  text: 'Hands-On: Python OpenAI Demos'
+  action: 'Hands-On:'
+  title: Python OpenAI Demos
+  url: https://aka.ms/python-openai-demos
+  description: Start with this free hands-on practice using GitHub Models. This repository teaches you the OpenAI Python SDK
+    through progressively complex examples—the same SDK used by Azure OpenAI. You can run it completely free using GitHub
+    Models in GitHub Codespaces.
+  secondary_links:
+  - text: Video Walkthrough
+    url: https://www.youtube.com/watch?v=_daw48A-RZI
+- order: 4
+  text: Work through Chat Completions examples
+  action: 'Practice:'
+  title: Chat Completions
+  description: Start with chat.py, then try chat_stream.py and chat_history.py to understand how conversations work with
+    LLMs.
+- order: 5
+  text: Work through Structured Outputs examples
+  action: 'Practice:'
+  title: Structured Outputs
+  description: Learn to get JSON responses from LLMs with structured_outputs_basic.py.
+- order: 6
+  text: Work through Function Calling examples
+  action: 'Practice:'
+  title: Function Calling
+  description: See how LLMs can call your code with function_calling_basic.py.
+- order: 7
+  text: Choose your cloud provider's AI service
+  action: 'Choose:'
+  title: Your Cloud AI Provider
+  description: 'Once you''ve completed the demos, apply your skills to your cloud provider''s AI service:'
+  options:
+  - provider: azure
+    title: Azure OpenAI Chat Completions Quickstart
+    url: https://learn.microsoft.com/en-us/azure/ai-foundry/openai/chatgpt-quickstart
+    description: If you're focusing on Azure (accessed via Azure AI Foundry)
+  - provider: aws
+    title: AWS Bedrock Getting Started
+    url: https://docs.aws.amazon.com/bedrock/latest/userguide/getting-started.html
+    description: If you're focusing on AWS (supports Claude, Llama, and other models)
+  - provider: gcp
+    title: Vertex AI Generative AI Overview
+    url: https://cloud.google.com/vertex-ai/generative-ai/docs/learn/overview
+    description: If you're focusing on Google Cloud (supports Gemini and other models)
+- order: 8
+  text: Test a simple completion in the playground
+  action: 'Test:'
+  title: Simple Completion
+  description: 'Test this prompt in your provider''s web playground: "Analyze the sentiment of this text: I learned so much
+    today!"'
+- order: 9
+  text: Test structured output in the playground
+  action: 'Test:'
+  title: Structured Output
+  description: Request a JSON response with sentiment and summary fields from the playground.
+- order: 10
+  text: Test system messages in the playground
+  action: 'Test:'
+  title: System Messages
+  description: Add a system message that sets a "learning coach" persona and see how it changes the LLM's responses.
+- order: 11
+  text: Create a Python test script
+  action: 'Build:'
+  title: Python LLM Test Script
+  description: Create a simple Python script llm_test.py that loads API credentials from environment variables, sends a journal
+    entry to the LLM, requests sentiment analysis, and prints the results.
+  code: '# Example journal entry to test:
+
+    "Today I learned about FastAPI and built my first endpoint.
+
+    The automatic documentation is amazing! I struggled a bit with
+
+    async functions but the official tutorial helped. Tomorrow I''ll
+
+    tackle database integration."'

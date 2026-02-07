@@ -1,10 +1,11 @@
-{% extends "base.html" %}
+{% extends "layouts/content_page.html" %}
 {% block title %}Certificates - Learn to Cloud{% endblock %}
 
-{% block content %}
-<h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-8">Certificates</h1>
+{% block page_header %}
+<h1 class="text-3xl font-bold text-gray-900 dark:text-white">Certificates</h1>
+{% endblock %}
 
-<!-- Eligibility / Generate -->
+{% block page_body %}
 {% if eligible and not certificate %}
 <div class="mb-8 p-6 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
     <h2 class="font-semibold text-green-800 dark:text-green-200 mb-2">🎉 You're eligible for a certificate!</h2>
