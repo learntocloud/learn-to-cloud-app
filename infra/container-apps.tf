@@ -88,7 +88,7 @@ resource "azurerm_container_app" "api" {
     # -----------------------------------------------------------------------
     init_container {
       name   = "migrate"
-      image  = "${azurerm_container_registry.main.login_server}/api:v2"
+      image  = "${azurerm_container_registry.main.login_server}/api:latest"
       cpu    = 0.25
       memory = "0.5Gi"
 
@@ -122,7 +122,7 @@ resource "azurerm_container_app" "api" {
 
     container {
       name   = "api"
-      image  = "${azurerm_container_registry.main.login_server}/api:v2"
+      image  = "${azurerm_container_registry.main.login_server}/api:latest"
       cpu    = 0.5
       memory = "1Gi"
 
