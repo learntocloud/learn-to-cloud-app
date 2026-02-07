@@ -24,6 +24,7 @@ os.environ.setdefault("CLERK_WEBHOOK_SIGNING_SECRET", "test_webhook_secret")
 os.environ.setdefault("GITHUB_TOKEN", "test_github_token")
 os.environ.setdefault("GOOGLE_API_KEY", "test_google_api_key")
 os.environ.setdefault("LABS_VERIFICATION_SECRET", "test_ctf_secret_must_be_32_chars!")
+os.environ.setdefault("DEBUG", "true")
 
 from collections.abc import AsyncGenerator, Generator
 from unittest.mock import AsyncMock, MagicMock, patch

@@ -96,7 +96,7 @@ class TestCooldownEnforcement:
             # Should not raise - first submission allowed
             result = await submit_validation(
                 db=mock_db,
-                user_id="user-123",
+                user_id=123,
                 requirement_id="test-requirement",
                 submitted_value="https://github.com/user/repo",
                 github_username="user",
@@ -139,7 +139,7 @@ class TestCooldownEnforcement:
             with pytest.raises(CooldownActiveError) as exc_info:
                 await submit_validation(
                     db=mock_db,
-                    user_id="user-123",
+                    user_id=123,
                     requirement_id="test-requirement",
                     submitted_value="https://github.com/user/repo",
                     github_username="user",
@@ -206,7 +206,7 @@ class TestCooldownEnforcement:
             # Should not raise - cooldown expired
             result = await submit_validation(
                 db=mock_db,
-                user_id="user-123",
+                user_id=123,
                 requirement_id="test-requirement",
                 submitted_value="https://github.com/user/repo",
                 github_username="user",
@@ -268,7 +268,7 @@ class TestCooldownEnforcement:
 
             await submit_validation(
                 db=mock_db,
-                user_id="user-123",
+                user_id=123,
                 requirement_id="test-requirement",
                 submitted_value="https://github.com/user/repo",
                 github_username="user",
@@ -315,7 +315,7 @@ class TestCooldownEnforcement:
             with pytest.raises(CooldownActiveError) as exc_info:
                 await submit_validation(
                     db=mock_db,
-                    user_id="user-123",
+                    user_id=123,
                     requirement_id="test-requirement",
                     submitted_value="https://github.com/user/repo",
                     github_username="user",
@@ -361,7 +361,7 @@ class TestCooldownEnforcement:
             with pytest.raises(CooldownActiveError) as exc_info:
                 await submit_validation(
                     db=mock_db,
-                    user_id="user-123",
+                    user_id=123,
                     requirement_id="test-requirement",
                     submitted_value="https://github.com/user/repo",
                     github_username="user",
@@ -388,7 +388,7 @@ class TestSubmissionValidationErrors:
             with pytest.raises(RequirementNotFoundError):
                 await submit_validation(
                     db=mock_db,
-                    user_id="user-123",
+                    user_id=123,
                     requirement_id="nonexistent",
                     submitted_value="https://github.com/user/repo",
                     github_username="user",
@@ -420,7 +420,7 @@ class TestSubmissionValidationErrors:
             with pytest.raises(GitHubUsernameRequiredError):
                 await submit_validation(
                     db=mock_db,
-                    user_id="user-123",
+                    user_id=123,
                     requirement_id="test-requirement",
                     submitted_value="https://github.com/user/repo",
                     github_username=None,  # Missing!
@@ -434,9 +434,9 @@ class TestConcurrentSubmissionProtection:
     @pytest.mark.asyncio
     async def test_lock_is_per_user_requirement(self):
         """Different user+requirement combinations should have separate locks."""
-        lock1 = await _get_submission_lock("user-1", "req-1")
-        lock2 = await _get_submission_lock("user-1", "req-2")
-        lock3 = await _get_submission_lock("user-2", "req-1")
+        lock1 = await _get_submission_lock(1, "req-1")
+        lock2 = await _get_submission_lock(1, "req-2")
+        lock3 = await _get_submission_lock(2, "req-1")
 
         # All should be different lock instances
         assert lock1 is not lock2
@@ -446,8 +446,8 @@ class TestConcurrentSubmissionProtection:
     @pytest.mark.asyncio
     async def test_same_user_requirement_gets_same_lock(self):
         """Same user+requirement should return the same lock instance."""
-        lock1 = await _get_submission_lock("user-1", "req-1")
-        lock2 = await _get_submission_lock("user-1", "req-1")
+        lock1 = await _get_submission_lock(1, "req-1")
+        lock2 = await _get_submission_lock(1, "req-1")
 
         assert lock1 is lock2
 
@@ -458,7 +458,7 @@ class TestConcurrentSubmissionProtection:
         mock_requirement = _make_mock_requirement()
 
         # Pre-acquire the lock to simulate in-progress submission
-        lock = await _get_submission_lock("user-123", "test-requirement")
+        lock = await _get_submission_lock(123, "test-requirement")
 
         with (
             patch(
@@ -481,7 +481,7 @@ class TestConcurrentSubmissionProtection:
                 with pytest.raises(ConcurrentSubmissionError) as exc_info:
                     await submit_validation(
                         db=mock_db,
-                        user_id="user-123",
+                        user_id=123,
                         requirement_id="test-requirement",
                         submitted_value="https://github.com/user/repo",
                         github_username="user",
@@ -519,7 +519,7 @@ class TestAlreadyValidatedShortCircuit:
             with pytest.raises(AlreadyValidatedError):
                 await submit_validation(
                     db=mock_db,
-                    user_id="user-123",
+                    user_id=123,
                     requirement_id="test-requirement",
                     submitted_value="https://github.com/user/repo",
                     github_username="user",
@@ -574,7 +574,7 @@ class TestAlreadyValidatedShortCircuit:
 
             result = await submit_validation(
                 db=mock_db,
-                user_id="user-123",
+                user_id=123,
                 requirement_id="test-requirement",
                 submitted_value="https://github.com/user/repo",
                 github_username="user",
@@ -614,7 +614,7 @@ class TestDailySubmissionCap:
             with pytest.raises(DailyLimitExceededError) as exc_info:
                 await submit_validation(
                     db=mock_db,
-                    user_id="user-123",
+                    user_id=123,
                     requirement_id="test-requirement",
                     submitted_value="https://github.com/user/repo",
                     github_username="user",
@@ -673,7 +673,7 @@ class TestDailySubmissionCap:
 
             result = await submit_validation(
                 db=mock_db,
-                user_id="user-123",
+                user_id=123,
                 requirement_id="test-requirement",
                 submitted_value="https://github.com/user/repo",
                 github_username="user",
@@ -736,14 +736,14 @@ class TestEscalatingCooldowns:
 
             await submit_validation(
                 db=mock_db,
-                user_id="user-123",
+                user_id=123,
                 requirement_id="test-requirement",
                 submitted_value="https://github.com/user/repo",
                 github_username="user",
             )
 
             # Failure counter should be 1
-            assert _failure_counts.get(("user-123", "test-requirement")) == 1
+            assert _failure_counts.get((123, "test-requirement")) == 1
 
     @pytest.mark.asyncio
     async def test_success_resets_failure_counter(self):
@@ -794,14 +794,14 @@ class TestEscalatingCooldowns:
 
             await submit_validation(
                 db=mock_db,
-                user_id="user-123",
+                user_id=123,
                 requirement_id="test-requirement",
                 submitted_value="https://github.com/user/repo",
                 github_username="user",
             )
 
             # Failure counter should be cleared
-            assert ("user-123", "test-requirement") not in _failure_counts
+            assert (123, "test-requirement") not in _failure_counts
 
     @pytest.mark.asyncio
     async def test_escalating_cooldown_doubles_on_failures(self):
@@ -840,7 +840,7 @@ class TestEscalatingCooldowns:
             with pytest.raises(CooldownActiveError) as exc_info:
                 await submit_validation(
                     db=mock_db,
-                    user_id="user-123",
+                    user_id=123,
                     requirement_id="test-requirement",
                     submitted_value="https://github.com/user/repo",
                     github_username="user",
@@ -898,11 +898,11 @@ class TestEscalatingCooldowns:
 
             await submit_validation(
                 db=mock_db,
-                user_id="user-123",
+                user_id=123,
                 requirement_id="test-requirement",
                 submitted_value="https://github.com/user/repo",
                 github_username="user",
             )
 
             # Failure counter should NOT be incremented for server errors
-            assert ("user-123", "test-requirement") not in _failure_counts
+            assert (123, "test-requirement") not in _failure_counts
