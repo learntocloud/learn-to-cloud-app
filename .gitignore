@@ -80,6 +80,7 @@ frontend/public/.swa/
 *.tfstate
 *.tfstate.*
 *.tfvars
+*.tfvars.local
 !terraform.tfvars.example
 .terraform.lock.hcl
 crash.log
