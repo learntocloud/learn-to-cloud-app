@@ -16,8 +16,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 import models as models
 from alembic import context
 from core.azure_auth import (
-    _AZURE_RETRY_ATTEMPTS,
-    _AZURE_RETRY_MIN_WAIT,
     AZURE_PG_SCOPE,
 )
 from core.config import get_settings
@@ -42,24 +40,28 @@ def _get_azure_token_with_retry() -> str:
     """Get Azure AD token with retry logic for transient failures.
 
     Uses sync credential since Alembic runs outside asyncio event loop.
-    Reuses retry constants from database module for consistency.
+    On Container Apps cold start the managed identity sidecar may take
+    up to 30s to become available, so we retry with exponential backoff.
     """
     from azure.identity import DefaultAzureCredential
 
+    max_attempts = 6  # More attempts than core module — Alembic runs at cold start
+    initial_wait = 2  # Longer initial wait for sidecar readiness
+
     last_error = None
-    for attempt in range(_AZURE_RETRY_ATTEMPTS):
+    for attempt in range(max_attempts):
         try:
             credential = DefaultAzureCredential()
             token = credential.get_token(AZURE_PG_SCOPE)
             return token.token
         except Exception as e:
             last_error = e
-            if attempt < _AZURE_RETRY_ATTEMPTS - 1:
-                delay = _AZURE_RETRY_MIN_WAIT * (2**attempt)  # Exponential backoff
+            if attempt < max_attempts - 1:
+                delay = initial_wait * (2**attempt)  # 2, 4, 8, 16, 32s
                 time.sleep(delay)
 
     raise RuntimeError(
-        f"Failed to acquire Azure AD token after {_AZURE_RETRY_ATTEMPTS} attempts"
+        f"Failed to acquire Azure AD token after {max_attempts} attempts"
     ) from last_error
 
 
