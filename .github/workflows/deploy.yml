@@ -4,8 +4,8 @@ on:
   push:
     branches: [main]
     paths-ignore:
-      - 'infra/**'       # Infra changes handled by infra.yml
-      - '*.md'           # Docs don't need deploy
+      - 'infra/**'
+      - '*.md'
       - 'docs/**'
       - '.github/instructions/**'
       - '.github/skills/**'
@@ -19,22 +19,6 @@ on:
         options:
           - 'false'
           - 'true'
-      deploy_api:
-        description: 'Deploy API'
-        required: false
-        default: 'true'
-        type: choice
-        options:
-          - 'true'
-          - 'false'
-      deploy_frontend:
-        description: 'Deploy Frontend'
-        required: false
-        default: 'true'
-        type: choice
-        options:
-          - 'true'
-          - 'false'
   workflow_call:
     inputs:
       force_rebuild:
@@ -60,31 +44,12 @@ env:
   AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
   TF_VAR_environment: ${{ vars.AZURE_ENV_NAME }}
   TF_VAR_location: ${{ vars.AZURE_LOCATION }}
-  TF_VAR_frontend_custom_domain: ${{ vars.FRONTEND_CUSTOM_DOMAIN == 'none' && '' || vars.FRONTEND_CUSTOM_DOMAIN }}
   ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
   ARM_TENANT_ID: ${{ fromJson(secrets.AZURE_CREDENTIALS).tenantId }}
   ARM_CLIENT_ID: ${{ fromJson(secrets.AZURE_CREDENTIALS).clientId }}
   ARM_CLIENT_SECRET: ${{ fromJson(secrets.AZURE_CREDENTIALS).clientSecret }}
 
 jobs:
-  # Detect which paths changed
-  changes:
-    runs-on: ubuntu-latest
-    outputs:
-      api: ${{ steps.filter.outputs.api }}
-      frontend: ${{ steps.filter.outputs.frontend }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dorny/paths-filter@v3
-        id: filter
-        with:
-          filters: |
-            api:
-              - 'api/**'
-              - 'content/**'
-            frontend:
-              - 'frontend/**'
-
   terraform:
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -97,9 +62,6 @@ jobs:
       container_registry_name: ${{ steps.tf-outputs.outputs.container_registry_name }}
       container_registry_endpoint: ${{ steps.tf-outputs.outputs.container_registry_endpoint }}
       api_url: ${{ steps.tf-outputs.outputs.api_url }}
-      frontend_url: ${{ steps.tf-outputs.outputs.frontend_url }}
-      frontend_custom_domain: ${{ steps.tf-outputs.outputs.frontend_custom_domain }}
-      swa_name: ${{ steps.tf-outputs.outputs.swa_name }}
     steps:
       - uses: actions/checkout@v4
 
@@ -128,17 +90,9 @@ jobs:
           echo "container_registry_name=$(terraform output -raw AZURE_CONTAINER_REGISTRY_NAME)" >> "$GITHUB_OUTPUT"
           echo "container_registry_endpoint=$(terraform output -raw AZURE_CONTAINER_REGISTRY_ENDPOINT)" >> "$GITHUB_OUTPUT"
           echo "api_url=$(terraform output -raw apiUrl)" >> "$GITHUB_OUTPUT"
-          echo "frontend_url=$(terraform output -raw frontend_url)" >> "$GITHUB_OUTPUT"
-          CUSTOM_DOMAIN="${{ vars.FRONTEND_CUSTOM_DOMAIN }}"
-          if [[ "$CUSTOM_DOMAIN" == "none" ]]; then CUSTOM_DOMAIN=""; fi
-          echo "frontend_custom_domain=$CUSTOM_DOMAIN" >> "$GITHUB_OUTPUT"
-          echo "swa_name=$(terraform output -raw swa_name)" >> "$GITHUB_OUTPUT"
 
   deploy-api:
-    needs: [changes, terraform]
-    if: |
-      (needs.changes.outputs.api == 'true' || github.event_name == 'workflow_dispatch') &&
-      (github.event_name != 'workflow_dispatch' || inputs.deploy_api == 'true')
+    needs: [terraform]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -201,8 +155,9 @@ jobs:
           docker run --rm -d --name smoke-test -p 8000:8000 \
             --link smoke-test-db:db \
             -e DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/learntocloud \
-            -e CLERK_SECRET_KEY=test \
-            -e LLM_API_KEY=test \
+            -e SESSION_SECRET_KEY=test-secret-for-ci \
+            -e GITHUB_CLIENT_ID=test \
+            -e GITHUB_CLIENT_SECRET=test \
             ${{ needs.terraform.outputs.container_registry_endpoint }}/api:${{ github.sha }}
           sleep 10
           curl -f http://localhost:8000/health || (docker logs smoke-test && exit 1)
@@ -224,15 +179,10 @@ jobs:
 
       - name: Deploy API Container App
         run: |
-          FRONTEND_URL="${{ needs.terraform.outputs.frontend_url }}"
-          if [[ -n "${{ needs.terraform.outputs.frontend_custom_domain }}" ]]; then
-            FRONTEND_URL="https://${{ needs.terraform.outputs.frontend_custom_domain }}"
-          fi
           az containerapp update \
             --name ${{ needs.terraform.outputs.api_container_app_name }} \
             --resource-group ${{ needs.terraform.outputs.resource_group_name }} \
-            --image ${{ needs.terraform.outputs.container_registry_endpoint }}/api:${{ github.sha }} \
-            --set-env-vars FRONTEND_URL="$FRONTEND_URL"
+            --image ${{ needs.terraform.outputs.container_registry_endpoint }}/api:${{ github.sha }}
 
       - name: Wait for API readiness
         run: |
@@ -249,66 +199,3 @@ jobs:
           done
           echo "API did not become ready."
           exit 1
-
-  deploy-frontend:
-    needs: [changes, terraform]
-    if: |
-      (needs.changes.outputs.frontend == 'true' || github.event_name == 'workflow_dispatch') &&
-      (github.event_name != 'workflow_dispatch' || inputs.deploy_frontend == 'true')
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
-
-      - name: Install dependencies
-        working-directory: frontend
-        run: npm ci
-
-      - name: Build frontend
-        working-directory: frontend
-        run: npm run build
-        env:
-          VITE_API_URL: ""
-          VITE_CLERK_PUBLISHABLE_KEY: ${{ secrets.CLERK_PUBLISHABLE_KEY }}
-          VITE_CLERK_PROXY_URL: "${{ needs.terraform.outputs.frontend_url }}/.clerk"
-
-      - name: Copy staticwebapp.config.json
-        run: cp frontend/staticwebapp.config.json frontend/dist/
-
-      - name: Deploy to Azure Static Web Apps
-        uses: Azure/static-web-apps-deploy@v1
-        with:
-          azure_static_web_apps_api_token: ${{ secrets.SWA_DEPLOYMENT_TOKEN }}
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          action: "upload"
-          app_location: "frontend/dist"
-          output_location: ""
-          skip_app_build: true
-          skip_api_build: true
-
-# =============================================================================
-# NOTES
-# =============================================================================
-# This workflow deploys to Azure when code is pushed to main.
-#
-# Path-based deployment:
-#   - api/** or content/** changes → deploy-api job runs
-#   - frontend/** changes → deploy-frontend job runs
-#   - Both can run in parallel
-#   - workflow_dispatch allows manual control of what to deploy
-#
-# CI is handled by separate workflows:
-#   - api-ci.yml: Runs on api/** changes (lint, type check, unit tests)
-#   - frontend-ci.yml: Runs on frontend/** changes (lint, tests, build)
-#
-# Infrastructure:
-#   - infra/** changes trigger infra.yml instead (paths-ignore)
-#   - This workflow reads Terraform outputs but doesn't apply changes
-# =============================================================================
