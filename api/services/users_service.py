@@ -168,7 +168,6 @@ async def get_public_profile(
         avatar_url=profile_user.avatar_url,
         current_phase=current_phase,
         phases_completed=phases_completed,
-        member_since=profile_user.created_at,
         submissions=submissions,
         badges=earned_badges,
     )

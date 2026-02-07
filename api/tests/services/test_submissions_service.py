@@ -1,11 +1,14 @@
-"""Tests for submissions_service cooldown enforcement.
+"""Tests for submissions_service abuse protection.
 
 Tests cover:
 - Cooldown is enforced for CODE_ANALYSIS submissions
 - Cooldown is enforced for other submission types
+- Escalating cooldowns on consecutive failures
 - Server errors exempt from cooldown (verification_completed=False)
 - First submission always allowed (no prior record)
 - Cooldown respects configured duration
+- Daily submission cap enforcement
+- Already-validated short-circuit
 """
 
 from datetime import UTC, datetime, timedelta
@@ -16,10 +19,13 @@ import pytest
 from models import SubmissionType
 from schemas import HandsOnRequirement, ValidationResult
 from services.submissions_service import (
+    AlreadyValidatedError,
     ConcurrentSubmissionError,
     CooldownActiveError,
+    DailyLimitExceededError,
     GitHubUsernameRequiredError,
     RequirementNotFoundError,
+    _failure_counts,
     _get_submission_lock,
     submit_validation,
 )
@@ -63,6 +69,8 @@ class TestCooldownEnforcement:
             ) as mock_validate,
         ):
             mock_repo = MagicMock()
+            mock_repo.get_by_user_and_requirement = AsyncMock(return_value=None)
+            mock_repo.count_submissions_today = AsyncMock(return_value=0)
             mock_repo.get_last_submission_time = AsyncMock(return_value=None)
             mock_repo.upsert = AsyncMock(
                 return_value=MagicMock(
@@ -117,11 +125,16 @@ class TestCooldownEnforcement:
             patch("services.submissions_service.get_settings") as mock_settings,
         ):
             mock_repo = MagicMock()
+            mock_repo.get_by_user_and_requirement = AsyncMock(
+                return_value=MagicMock(is_validated=False)
+            )
+            mock_repo.count_submissions_today = AsyncMock(return_value=0)
             mock_repo.get_last_submission_time = AsyncMock(return_value=last_submission)
             mock_repo_class.return_value = mock_repo
 
             mock_settings.return_value.code_analysis_cooldown_seconds = 3600
             mock_settings.return_value.submission_cooldown_seconds = 3600
+            mock_settings.return_value.daily_submission_limit = 20
 
             with pytest.raises(CooldownActiveError) as exc_info:
                 await submit_validation(
@@ -160,6 +173,10 @@ class TestCooldownEnforcement:
             ) as mock_validate,
         ):
             mock_repo = MagicMock()
+            mock_repo.get_by_user_and_requirement = AsyncMock(
+                return_value=MagicMock(is_validated=False)
+            )
+            mock_repo.count_submissions_today = AsyncMock(return_value=0)
             mock_repo.get_last_submission_time = AsyncMock(return_value=last_submission)
             mock_repo.upsert = AsyncMock(
                 return_value=MagicMock(
@@ -179,6 +196,7 @@ class TestCooldownEnforcement:
 
             mock_settings.return_value.code_analysis_cooldown_seconds = 3600
             mock_settings.return_value.submission_cooldown_seconds = 3600
+            mock_settings.return_value.daily_submission_limit = 20
 
             mock_validate.return_value = ValidationResult(
                 is_valid=True,
@@ -222,6 +240,8 @@ class TestCooldownEnforcement:
         ):
             mock_repo = MagicMock()
             # No prior submission
+            mock_repo.get_by_user_and_requirement = AsyncMock(return_value=None)
+            mock_repo.count_submissions_today = AsyncMock(return_value=0)
             mock_repo.get_last_submission_time = AsyncMock(return_value=None)
             mock_repo.upsert = AsyncMock(
                 return_value=MagicMock(
@@ -280,12 +300,17 @@ class TestCooldownEnforcement:
             patch("services.submissions_service.get_settings") as mock_settings,
         ):
             mock_repo = MagicMock()
+            mock_repo.get_by_user_and_requirement = AsyncMock(
+                return_value=MagicMock(is_validated=False)
+            )
+            mock_repo.count_submissions_today = AsyncMock(return_value=0)
             mock_repo.get_last_submission_time = AsyncMock(return_value=last_submission)
             mock_repo_class.return_value = mock_repo
 
             # Different cooldowns for different types
             mock_settings.return_value.code_analysis_cooldown_seconds = 7200  # 2 hours
             mock_settings.return_value.submission_cooldown_seconds = 1800  # 30 min
+            mock_settings.return_value.daily_submission_limit = 20
 
             with pytest.raises(CooldownActiveError) as exc_info:
                 await submit_validation(
@@ -321,12 +346,17 @@ class TestCooldownEnforcement:
             patch("services.submissions_service.get_settings") as mock_settings,
         ):
             mock_repo = MagicMock()
+            mock_repo.get_by_user_and_requirement = AsyncMock(
+                return_value=MagicMock(is_validated=False)
+            )
+            mock_repo.count_submissions_today = AsyncMock(return_value=0)
             mock_repo.get_last_submission_time = AsyncMock(return_value=last_submission)
             mock_repo_class.return_value = mock_repo
 
             # Different cooldowns
             mock_settings.return_value.code_analysis_cooldown_seconds = 7200  # 2 hours
             mock_settings.return_value.submission_cooldown_seconds = 1800  # 30 min
+            mock_settings.return_value.daily_submission_limit = 20
 
             with pytest.raises(CooldownActiveError) as exc_info:
                 await submit_validation(
@@ -382,6 +412,8 @@ class TestSubmissionValidationErrors:
             ) as mock_repo_class,
         ):
             mock_repo = MagicMock()
+            mock_repo.get_by_user_and_requirement = AsyncMock(return_value=None)
+            mock_repo.count_submissions_today = AsyncMock(return_value=0)
             mock_repo.get_last_submission_time = AsyncMock(return_value=None)
             mock_repo_class.return_value = mock_repo
 
@@ -438,6 +470,8 @@ class TestConcurrentSubmissionProtection:
             ) as mock_repo_class,
         ):
             mock_repo = MagicMock()
+            mock_repo.get_by_user_and_requirement = AsyncMock(return_value=None)
+            mock_repo.count_submissions_today = AsyncMock(return_value=0)
             mock_repo.get_last_submission_time = AsyncMock(return_value=None)
             mock_repo_class.return_value = mock_repo
 
@@ -454,3 +488,421 @@ class TestConcurrentSubmissionProtection:
                     )
 
                 assert "already in progress" in str(exc_info.value)
+
+
+@pytest.mark.unit
+class TestAlreadyValidatedShortCircuit:
+    """Tests for already-validated requirement short-circuit."""
+
+    @pytest.mark.asyncio
+    async def test_already_validated_raises_error(self):
+        """Re-submitting a validated requirement should raise AlreadyValidatedError."""
+        mock_db = AsyncMock()
+        mock_requirement = _make_mock_requirement()
+
+        with (
+            patch(
+                "services.submissions_service.get_requirement_by_id",
+                return_value=mock_requirement,
+            ),
+            patch(
+                "services.submissions_service.SubmissionRepository"
+            ) as mock_repo_class,
+        ):
+            mock_repo = MagicMock()
+            # Existing submission is already validated
+            mock_repo.get_by_user_and_requirement = AsyncMock(
+                return_value=MagicMock(is_validated=True)
+            )
+            mock_repo_class.return_value = mock_repo
+
+            with pytest.raises(AlreadyValidatedError):
+                await submit_validation(
+                    db=mock_db,
+                    user_id="user-123",
+                    requirement_id="test-requirement",
+                    submitted_value="https://github.com/user/repo",
+                    github_username="user",
+                )
+
+    @pytest.mark.asyncio
+    async def test_failed_submission_allows_retry(self):
+        """A previously failed (not validated) submission should allow retry."""
+        mock_db = AsyncMock()
+        mock_requirement = _make_mock_requirement()
+
+        with (
+            patch(
+                "services.submissions_service.get_requirement_by_id",
+                return_value=mock_requirement,
+            ),
+            patch(
+                "services.submissions_service.SubmissionRepository"
+            ) as mock_repo_class,
+            patch(
+                "services.submissions_service.validate_submission",
+                new_callable=AsyncMock,
+            ) as mock_validate,
+        ):
+            mock_repo = MagicMock()
+            # Existing submission is NOT validated — retry allowed
+            mock_repo.get_by_user_and_requirement = AsyncMock(
+                return_value=MagicMock(is_validated=False)
+            )
+            mock_repo.count_submissions_today = AsyncMock(return_value=0)
+            mock_repo.get_last_submission_time = AsyncMock(return_value=None)
+            mock_repo.upsert = AsyncMock(
+                return_value=MagicMock(
+                    id=1,
+                    requirement_id="test-requirement",
+                    submission_type=SubmissionType.CODE_ANALYSIS,
+                    phase_id=3,
+                    submitted_value="https://github.com/user/repo",
+                    extracted_username="user",
+                    is_validated=True,
+                    validated_at=datetime.now(UTC),
+                    verification_completed=True,
+                    created_at=datetime.now(UTC),
+                )
+            )
+            mock_repo_class.return_value = mock_repo
+
+            mock_validate.return_value = ValidationResult(
+                is_valid=True,
+                message="All tasks passed",
+            )
+
+            result = await submit_validation(
+                db=mock_db,
+                user_id="user-123",
+                requirement_id="test-requirement",
+                submitted_value="https://github.com/user/repo",
+                github_username="user",
+            )
+
+            assert result.is_valid is True
+
+
+@pytest.mark.unit
+class TestDailySubmissionCap:
+    """Tests for global daily submission limit."""
+
+    @pytest.mark.asyncio
+    async def test_daily_limit_exceeded_raises_error(self):
+        """Exceeding daily submission cap should raise DailyLimitExceededError."""
+        mock_db = AsyncMock()
+        mock_requirement = _make_mock_requirement()
+
+        with (
+            patch(
+                "services.submissions_service.get_requirement_by_id",
+                return_value=mock_requirement,
+            ),
+            patch(
+                "services.submissions_service.SubmissionRepository"
+            ) as mock_repo_class,
+            patch("services.submissions_service.get_settings") as mock_settings,
+        ):
+            mock_repo = MagicMock()
+            mock_repo.get_by_user_and_requirement = AsyncMock(return_value=None)
+            # User has already hit the daily limit
+            mock_repo.count_submissions_today = AsyncMock(return_value=20)
+            mock_repo_class.return_value = mock_repo
+
+            mock_settings.return_value.daily_submission_limit = 20
+
+            with pytest.raises(DailyLimitExceededError) as exc_info:
+                await submit_validation(
+                    db=mock_db,
+                    user_id="user-123",
+                    requirement_id="test-requirement",
+                    submitted_value="https://github.com/user/repo",
+                    github_username="user",
+                )
+
+            assert exc_info.value.limit == 20
+
+    @pytest.mark.asyncio
+    async def test_under_daily_limit_allowed(self):
+        """Submissions under the daily cap should proceed normally."""
+        mock_db = AsyncMock()
+        mock_requirement = _make_mock_requirement()
+
+        with (
+            patch(
+                "services.submissions_service.get_requirement_by_id",
+                return_value=mock_requirement,
+            ),
+            patch(
+                "services.submissions_service.SubmissionRepository"
+            ) as mock_repo_class,
+            patch("services.submissions_service.get_settings") as mock_settings,
+            patch(
+                "services.submissions_service.validate_submission",
+                new_callable=AsyncMock,
+            ) as mock_validate,
+        ):
+            mock_repo = MagicMock()
+            mock_repo.get_by_user_and_requirement = AsyncMock(return_value=None)
+            mock_repo.count_submissions_today = AsyncMock(return_value=5)
+            mock_repo.get_last_submission_time = AsyncMock(return_value=None)
+            mock_repo.upsert = AsyncMock(
+                return_value=MagicMock(
+                    id=1,
+                    requirement_id="test-requirement",
+                    submission_type=SubmissionType.CODE_ANALYSIS,
+                    phase_id=3,
+                    submitted_value="https://github.com/user/repo",
+                    extracted_username="user",
+                    is_validated=True,
+                    validated_at=datetime.now(UTC),
+                    verification_completed=True,
+                    created_at=datetime.now(UTC),
+                )
+            )
+            mock_repo_class.return_value = mock_repo
+
+            mock_settings.return_value.daily_submission_limit = 20
+            mock_settings.return_value.code_analysis_cooldown_seconds = 3600
+            mock_settings.return_value.submission_cooldown_seconds = 3600
+
+            mock_validate.return_value = ValidationResult(
+                is_valid=True,
+                message="All tasks passed",
+            )
+
+            result = await submit_validation(
+                db=mock_db,
+                user_id="user-123",
+                requirement_id="test-requirement",
+                submitted_value="https://github.com/user/repo",
+                github_username="user",
+            )
+
+            assert result.is_valid is True
+
+
+@pytest.mark.unit
+class TestEscalatingCooldowns:
+    """Tests for escalating cooldown on consecutive failures."""
+
+    def setup_method(self):
+        """Clear failure counters between tests."""
+        _failure_counts.clear()
+
+    @pytest.mark.asyncio
+    async def test_failure_counter_increments(self):
+        """Failed validation should increment the failure counter."""
+        mock_db = AsyncMock()
+        mock_requirement = _make_mock_requirement()
+
+        with (
+            patch(
+                "services.submissions_service.get_requirement_by_id",
+                return_value=mock_requirement,
+            ),
+            patch(
+                "services.submissions_service.SubmissionRepository"
+            ) as mock_repo_class,
+            patch(
+                "services.submissions_service.validate_submission",
+                new_callable=AsyncMock,
+            ) as mock_validate,
+        ):
+            mock_repo = MagicMock()
+            mock_repo.get_by_user_and_requirement = AsyncMock(return_value=None)
+            mock_repo.count_submissions_today = AsyncMock(return_value=0)
+            mock_repo.get_last_submission_time = AsyncMock(return_value=None)
+            mock_repo.upsert = AsyncMock(
+                return_value=MagicMock(
+                    id=1,
+                    requirement_id="test-requirement",
+                    submission_type=SubmissionType.CODE_ANALYSIS,
+                    phase_id=3,
+                    submitted_value="https://github.com/user/repo",
+                    extracted_username="user",
+                    is_validated=False,
+                    validated_at=None,
+                    verification_completed=True,
+                    created_at=datetime.now(UTC),
+                )
+            )
+            mock_repo_class.return_value = mock_repo
+
+            mock_validate.return_value = ValidationResult(
+                is_valid=False,
+                message="Validation failed",
+            )
+
+            await submit_validation(
+                db=mock_db,
+                user_id="user-123",
+                requirement_id="test-requirement",
+                submitted_value="https://github.com/user/repo",
+                github_username="user",
+            )
+
+            # Failure counter should be 1
+            assert _failure_counts.get(("user-123", "test-requirement")) == 1
+
+    @pytest.mark.asyncio
+    async def test_success_resets_failure_counter(self):
+        """Successful validation should reset the failure counter."""
+        # Pre-set failure count
+        _failure_counts[(123, "test-requirement")] = 3
+
+        mock_db = AsyncMock()
+        mock_requirement = _make_mock_requirement()
+
+        with (
+            patch(
+                "services.submissions_service.get_requirement_by_id",
+                return_value=mock_requirement,
+            ),
+            patch(
+                "services.submissions_service.SubmissionRepository"
+            ) as mock_repo_class,
+            patch(
+                "services.submissions_service.validate_submission",
+                new_callable=AsyncMock,
+            ) as mock_validate,
+        ):
+            mock_repo = MagicMock()
+            mock_repo.get_by_user_and_requirement = AsyncMock(return_value=None)
+            mock_repo.count_submissions_today = AsyncMock(return_value=0)
+            mock_repo.get_last_submission_time = AsyncMock(return_value=None)
+            mock_repo.upsert = AsyncMock(
+                return_value=MagicMock(
+                    id=1,
+                    requirement_id="test-requirement",
+                    submission_type=SubmissionType.CODE_ANALYSIS,
+                    phase_id=3,
+                    submitted_value="https://github.com/user/repo",
+                    extracted_username="user",
+                    is_validated=True,
+                    validated_at=datetime.now(UTC),
+                    verification_completed=True,
+                    created_at=datetime.now(UTC),
+                )
+            )
+            mock_repo_class.return_value = mock_repo
+
+            mock_validate.return_value = ValidationResult(
+                is_valid=True,
+                message="All tasks passed",
+            )
+
+            await submit_validation(
+                db=mock_db,
+                user_id="user-123",
+                requirement_id="test-requirement",
+                submitted_value="https://github.com/user/repo",
+                github_username="user",
+            )
+
+            # Failure counter should be cleared
+            assert ("user-123", "test-requirement") not in _failure_counts
+
+    @pytest.mark.asyncio
+    async def test_escalating_cooldown_doubles_on_failures(self):
+        """Cooldown should double with each consecutive failure."""
+        # Pre-set 2 failures → cooldown = base * 2^2 = 4x
+        _failure_counts[(123, "test-requirement")] = 2
+
+        mock_db = AsyncMock()
+        mock_requirement = _make_mock_requirement()
+
+        # Last submission was 2 hours ago (within 4x cooldown of 4h, outside 1x)
+        last_submission = datetime.now(UTC) - timedelta(hours=2)
+
+        with (
+            patch(
+                "services.submissions_service.get_requirement_by_id",
+                return_value=mock_requirement,
+            ),
+            patch(
+                "services.submissions_service.SubmissionRepository"
+            ) as mock_repo_class,
+            patch("services.submissions_service.get_settings") as mock_settings,
+        ):
+            mock_repo = MagicMock()
+            mock_repo.get_by_user_and_requirement = AsyncMock(
+                return_value=MagicMock(is_validated=False)
+            )
+            mock_repo.count_submissions_today = AsyncMock(return_value=0)
+            mock_repo.get_last_submission_time = AsyncMock(return_value=last_submission)
+            mock_repo_class.return_value = mock_repo
+
+            mock_settings.return_value.code_analysis_cooldown_seconds = 3600
+            mock_settings.return_value.submission_cooldown_seconds = 3600
+            mock_settings.return_value.daily_submission_limit = 20
+
+            with pytest.raises(CooldownActiveError) as exc_info:
+                await submit_validation(
+                    db=mock_db,
+                    user_id="user-123",
+                    requirement_id="test-requirement",
+                    submitted_value="https://github.com/user/repo",
+                    github_username="user",
+                )
+
+            # With 2 failures, cooldown = 3600 * 4 = 14400 (4 hours)
+            # Elapsed = 2 hours = 7200s, remaining = 14400 - 7200 = 7200
+            assert exc_info.value.retry_after_seconds > 7000
+            assert exc_info.value.retry_after_seconds <= 7200
+
+    @pytest.mark.asyncio
+    async def test_server_error_does_not_escalate(self):
+        """Server errors should not increment the failure counter."""
+        mock_db = AsyncMock()
+        mock_requirement = _make_mock_requirement()
+
+        with (
+            patch(
+                "services.submissions_service.get_requirement_by_id",
+                return_value=mock_requirement,
+            ),
+            patch(
+                "services.submissions_service.SubmissionRepository"
+            ) as mock_repo_class,
+            patch(
+                "services.submissions_service.validate_submission",
+                new_callable=AsyncMock,
+            ) as mock_validate,
+        ):
+            mock_repo = MagicMock()
+            mock_repo.get_by_user_and_requirement = AsyncMock(return_value=None)
+            mock_repo.count_submissions_today = AsyncMock(return_value=0)
+            mock_repo.get_last_submission_time = AsyncMock(return_value=None)
+            mock_repo.upsert = AsyncMock(
+                return_value=MagicMock(
+                    id=1,
+                    requirement_id="test-requirement",
+                    submission_type=SubmissionType.CODE_ANALYSIS,
+                    phase_id=3,
+                    submitted_value="https://github.com/user/repo",
+                    extracted_username="user",
+                    is_validated=False,
+                    validated_at=None,
+                    verification_completed=False,
+                    created_at=datetime.now(UTC),
+                )
+            )
+            mock_repo_class.return_value = mock_repo
+
+            mock_validate.return_value = ValidationResult(
+                is_valid=False,
+                message="Service unavailable",
+                server_error=True,
+            )
+
+            await submit_validation(
+                db=mock_db,
+                user_id="user-123",
+                requirement_id="test-requirement",
+                submitted_value="https://github.com/user/repo",
+                github_username="user",
+            )
+
+            # Failure counter should NOT be incremented for server errors
+            assert ("user-123", "test-requirement") not in _failure_counts

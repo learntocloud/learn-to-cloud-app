@@ -61,6 +61,7 @@ class Settings(BaseSettings):
     copilot_cli_timeout: int = 120  # Seconds to wait for code analysis completion
     code_analysis_cooldown_seconds: int = 3600  # 1 hr between code analysis
     submission_cooldown_seconds: int = 3600  # 1 hr between verification attempts
+    daily_submission_limit: int = 20  # Max submissions per user per day (all reqs)
 
     # Use "redis://host:port" in production for distributed rate limiting
     # memory:// only works for single-instance deployments

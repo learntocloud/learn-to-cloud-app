@@ -25,28 +25,18 @@ repos:
         files: ^api/.*\.py$
         pass_filenames: false
 
-  # Frontend - ESLint
-  - repo: local
-    hooks:
-      - id: eslint
-        name: eslint
-        entry: npm run lint --prefix frontend --
-        language: system
-        files: ^frontend/.*\.(ts|tsx|js|jsx)$
-        pass_filenames: false
-
   # General file hygiene
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
     hooks:
       - id: trailing-whitespace
-        exclude: ^(api/htmlcov/|frontend/coverage/)
+        exclude: ^api/htmlcov/
       - id: end-of-file-fixer
-        exclude: ^(api/htmlcov/|frontend/coverage/|.*\.svg$)
+        exclude: ^(api/htmlcov/|.*\.svg$)
       - id: check-yaml
         args: [--unsafe]
       - id: check-json
-        exclude: ^(frontend/tsconfig.*\.json$|\.vscode/)
+        exclude: ^\.vscode/
       - id: check-added-large-files
         args: [--maxkb=500]
       - id: check-merge-conflict

@@ -1,16 +1,12 @@
 name: API CI
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'api/**'
-      - 'content/**'
   pull_request:
     branches: [main]
     paths:
       - 'api/**'
       - 'content/**'
+  workflow_call:
 
 defaults:
   run:

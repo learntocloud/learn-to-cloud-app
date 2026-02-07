@@ -4,6 +4,9 @@ This module handles:
 - Submission creation/update with validation
 - Data transformation helpers used by other services (e.g. progress/badges)
 - Cooldown enforcement for rate-limited submission types (e.g., CODE_ANALYSIS)
+- Escalating cooldowns on consecutive failures (doubles per failure, capped at 4h)
+- Daily submission cap across all requirements (default 20/day)
+- Already-validated short-circuit (skip re-verification for passed requirements)
 - Concurrent request protection via per-user+requirement locks
 
 Routes should delegate submission business logic to this module.
@@ -102,6 +105,33 @@ class CooldownActiveError(Exception):
         self.retry_after_seconds = retry_after_seconds
 
 
+class DailyLimitExceededError(Exception):
+    """Raised when a user exceeds the daily submission cap."""
+
+    def __init__(self, message: str, limit: int):
+        super().__init__(message)
+        self.limit = limit
+
+
+class AlreadyValidatedError(Exception):
+    """Raised when re-submitting a requirement that is already validated."""
+
+    pass
+
+
+# =============================================================================
+# Escalating Cooldown Tracking
+# =============================================================================
+# In-memory counter for consecutive failures per user+requirement.
+# Resets on successful validation or server restart.
+# This is per-worker, which is acceptable — it's defense-in-depth on top
+# of the DB-based cooldown.
+
+_failure_counts: dict[tuple[int, str], int] = {}
+
+_MAX_COOLDOWN_SECONDS = 14400  # 4 hours — cap for escalating cooldowns
+
+
 @track_operation("hands_on_submission")
 async def submit_validation(
     db: AsyncSession,
@@ -114,8 +144,10 @@ async def submit_validation(
 
     Raises:
         RequirementNotFoundError: If requirement doesn't exist.
+        AlreadyValidatedError: If requirement is already validated.
+        DailyLimitExceededError: If user exceeded daily submission cap.
         GitHubUsernameRequiredError: If GitHub username required but not provided.
-        CooldownActiveError: If CODE_ANALYSIS submission is within cooldown period.
+        CooldownActiveError: If submission is within cooldown period.
         ConcurrentSubmissionError: If validation is already in progress for this
             user+requirement (prevents race conditions).
     """
@@ -124,21 +156,57 @@ async def submit_validation(
     if not requirement:
         raise RequirementNotFoundError(f"Requirement not found: {requirement_id}")
 
-    # Enforce cooldown on all hands-on submissions (1 hour by default).
-    # CODE_ANALYSIS uses its own setting; all others share submission_cooldown_seconds.
     submission_repo = SubmissionRepository(db)
+
+    # --- Already-validated short-circuit ---
+    # If the user already passed this requirement, skip re-verification.
+    # This saves AI quota and prevents unnecessary reprocessing.
+    existing = await submission_repo.get_by_user_and_requirement(
+        user_id, requirement_id
+    )
+    if existing is not None and existing.is_validated:
+        set_wide_event_fields(
+            submission_already_validated=True,
+            submission_type=requirement.submission_type.value,
+        )
+        raise AlreadyValidatedError("You have already completed this requirement.")
+
+    # --- Global daily submission cap ---
+    settings = get_settings()
+    today_count = await submission_repo.count_submissions_today(user_id)
+    if today_count >= settings.daily_submission_limit:
+        set_wide_event_fields(
+            submission_daily_limit_exceeded=True,
+            submission_daily_count=today_count,
+        )
+        raise DailyLimitExceededError(
+            f"You have reached the daily limit of {settings.daily_submission_limit} "
+            f"submissions. Please try again tomorrow.",
+            limit=settings.daily_submission_limit,
+        )
+
+    # --- Escalating cooldown enforcement ---
+    # Base cooldown is 1 hour. Each consecutive failure doubles it, capped at 4h.
     last_submission_time = await submission_repo.get_last_submission_time(
         user_id, requirement_id
     )
 
     if last_submission_time is not None:
-        settings = get_settings()
-        cooldown_seconds = (
+        base_cooldown = (
             settings.code_analysis_cooldown_seconds
             if requirement.submission_type
             in (SubmissionType.CODE_ANALYSIS, SubmissionType.DEVOPS_ANALYSIS)
             else settings.submission_cooldown_seconds
         )
+
+        # Escalate cooldown based on consecutive failures
+        failure_key = (user_id, requirement_id)
+        failure_count = _failure_counts.get(failure_key, 0)
+        cooldown_seconds = min(
+            base_cooldown * (2**failure_count),
+            _MAX_COOLDOWN_SECONDS,
+        )
+
         now = datetime.now(UTC)
         elapsed = (now - last_submission_time).total_seconds()
         remaining = int(cooldown_seconds - elapsed)
@@ -147,10 +215,12 @@ async def submit_validation(
             set_wide_event_fields(
                 submission_cooldown_active=True,
                 submission_cooldown_remaining_seconds=remaining,
+                submission_cooldown_multiplier=2**failure_count,
                 submission_type=requirement.submission_type.value,
             )
             raise CooldownActiveError(
-                f"Verification can only be submitted once per hour. "
+                f"Verification can only be submitted once per "
+                f"{cooldown_seconds // 3600}h {(cooldown_seconds % 3600) // 60}m. "
                 f"Please try again in {remaining // 60} minutes.",
                 retry_after_seconds=remaining,
             )
@@ -231,8 +301,12 @@ async def submit_validation(
             feedback_json=feedback_json,
         )
 
+        # --- Update escalating cooldown tracker ---
+        failure_key = (user_id, requirement_id)
         phase = f"phase{requirement.phase_id}"
         if validation_result.is_valid:
+            # Reset failure counter on success
+            _failure_counts.pop(failure_key, None)
             log_business_event(
                 "submissions.validated",
                 1,
@@ -241,12 +315,15 @@ async def submit_validation(
             # Invalidate cache so dashboard/progress refreshes immediately
             invalidate_progress_cache(user_id)
         elif validation_result.server_error:
+            # Don't escalate on server errors — not the user's fault
             log_business_event(
                 "submissions.server_error",
                 1,
                 {"phase": phase, "type": requirement.submission_type.value},
             )
         else:
+            # Increment failure counter for escalating cooldowns
+            _failure_counts[failure_key] = _failure_counts.get(failure_key, 0) + 1
             log_business_event(
                 "submissions.failed",
                 1,

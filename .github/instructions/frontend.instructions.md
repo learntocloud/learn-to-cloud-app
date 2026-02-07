@@ -23,9 +23,13 @@ description: "Jinja2 templates, HTMX interactions, Alpine.js reactivity, Tailwin
 - Use `x-data`, `x-show`, `x-on` directives
 
 ## Tailwind CSS v4
+- **No `tailwind.config.js`** — configuration lives in `api/static/css/input.css` via `@import "tailwindcss"`, `@theme`, and `@custom-variant`
+- Dark mode uses `@custom-variant dark (&.dark)` in `input.css` (class-based, toggled by Alpine.js)
+- Build: `npx @tailwindcss/cli -i static/css/input.css -o static/css/styles.css`
+- Content detection is automatic — no `content` array needed
+- v4 renamed utilities (use the new names): `shadow-xs` (was `shadow-sm`), `shadow-sm` (was `shadow`), `rounded-xs` (was `rounded-sm`), `rounded-sm` (was `rounded`), `outline-hidden` (was `outline-none`), `ring-3` (was `ring`)
 - Order responsive prefixes consistently: `sm:`, `md:`, `lg:`, `xl:`
 - Avoid conflicting utility classes on same element
-- Dark mode: use `dark:` prefix classes
 
 ## Content Files
 - Course content is stored as YAML in `content/phases/`

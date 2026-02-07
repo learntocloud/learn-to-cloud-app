@@ -40,7 +40,7 @@ def _get_master_secret() -> str:
     """
     settings = get_settings()
     secret = settings.labs_verification_secret
-    if settings.environment.lower() == "production" and not secret:
+    if not settings.debug and not secret:
         raise RuntimeError("Labs verification secret is not configured")
     if not secret:
         logger.warning(

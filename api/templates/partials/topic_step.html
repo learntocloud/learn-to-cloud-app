@@ -4,7 +4,7 @@
     <input
         type="checkbox"
         {% if step.order in completed_steps %}checked{% endif %}
-        class="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+        class="mt-1 h-4 w-4 rounded-sm border-gray-300 text-blue-600 focus:ring-3 focus:ring-blue-500 cursor-pointer"
         {% if step.order in completed_steps %}
         hx-delete="/htmx/steps/{{ topic_id }}/{{ step.order }}"
         {% else %}
@@ -15,7 +15,7 @@
         hx-swap="outerHTML"
     >
     {% else %}
-    <div class="mt-1 h-4 w-4 rounded border border-gray-300 dark:border-gray-600 flex-shrink-0"></div>
+    <div class="mt-1 h-4 w-4 rounded-sm border border-gray-300 dark:border-gray-600 flex-shrink-0"></div>
     {% endif %}
 
     <div class="flex-1 min-w-0">
@@ -40,7 +40,7 @@
             <pre class="bg-gray-100 dark:bg-gray-800 rounded-md p-3 text-sm overflow-x-auto"><code>{{ step.code }}</code></pre>
             <button
                 @click="navigator.clipboard.writeText($refs.code{{ step.order }}.textContent); copied = true; setTimeout(() => copied = false, 2000)"
-                class="absolute top-2 right-2 p-1 rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                class="absolute top-2 right-2 p-1 rounded-sm text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                 :class="{ 'text-green-500': copied }"
             >
                 <span x-show="!copied">📋</span>

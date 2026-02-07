@@ -30,9 +30,9 @@ from core.logger import configure_logging, get_logger  # noqa: E402
 print(f"core.logger: {(time.perf_counter()-t)*1000:.0f}ms", flush=True)
 
 t = time.perf_counter()
-from core.auth import close_clerk_client, init_clerk_client  # noqa: E402
+from core.auth import init_oauth  # noqa: E402
 
-print(f"core.auth (clerk SDK): {(time.perf_counter()-t)*1000:.0f}ms", flush=True)
+print(f"core.auth: {(time.perf_counter()-t)*1000:.0f}ms", flush=True)
 
 t = time.perf_counter()
 from core.database import (  # noqa: E402
@@ -95,8 +95,8 @@ print(f"get_settings(): {(time.perf_counter()-t)*1000:.0f}ms", flush=True)
 print("\n--- LIFESPAN STEPS ---", flush=True)
 
 t = time.perf_counter()
-init_clerk_client()
-print(f"init_clerk_client(): {(time.perf_counter()-t)*1000:.0f}ms", flush=True)
+init_oauth()
+print(f"init_oauth(): {(time.perf_counter()-t)*1000:.0f}ms", flush=True)
 
 t = time.perf_counter()
 engine = create_engine()
@@ -115,8 +115,6 @@ async def measure_init_db():
 
 
 asyncio.run(measure_init_db())
-
-close_clerk_client()
 
 total = time.perf_counter() - t0
 print(f"\n{'='*50}", flush=True)

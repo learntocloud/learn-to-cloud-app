@@ -15,6 +15,19 @@
       },
       "console": "integratedTerminal",
       "justMyCode": true
+    },
+    {
+      "name": "Tailwind: Watch",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "npx @tailwindcss/cli -i static/css/input.css -o static/css/styles.css --watch",
+      "cwd": "${workspaceFolder}/api"
+    }
+  ],
+  "compounds": [
+    {
+      "name": "API + Tailwind",
+      "configurations": ["API: FastAPI (uvicorn)", "Tailwind: Watch"]
     }
   ]
 }

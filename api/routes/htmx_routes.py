@@ -10,12 +10,21 @@ from fastapi.responses import HTMLResponse
 from core.auth import UserId
 from core.database import DbSession
 from core.logger import get_logger
+from core.ratelimit import limiter
 from rendering.steps import build_step_data
 from services.certificates_service import create_certificate
 from services.content_service import get_topic_by_id
 from services.hands_on_verification_service import get_requirement_by_id
 from services.steps_service import complete_step, get_completed_steps, uncomplete_step
-from services.submissions_service import submit_validation
+from services.submissions_service import (
+    AlreadyValidatedError,
+    ConcurrentSubmissionError,
+    CooldownActiveError,
+    DailyLimitExceededError,
+    GitHubUsernameRequiredError,
+    RequirementNotFoundError,
+    submit_validation,
+)
 from services.users_service import get_user_by_id
 
 logger = get_logger(__name__)
@@ -118,26 +127,61 @@ async def htmx_uncomplete_step(
 
 
 @router.post("/github/submit", response_class=HTMLResponse)
+@limiter.limit("6/hour")
 async def htmx_submit_verification(
     request: Request,
     db: DbSession,
     user_id: UserId,
-    requirement_id: str = Form(...),
+    requirement_id: str = Form(..., max_length=100),
     phase_id: int = Form(...),
-    submission_type: str = Form(...),
-    submitted_value: str = Form(...),
+    submission_type: str = Form(..., max_length=50),
+    submitted_value: str = Form(..., max_length=2048),
 ) -> HTMLResponse:
     """Submit a hands-on verification and return the updated requirement card."""
     user = await get_user_by_id(db, user_id)
     github_username = user.github_username if user else None
 
-    result = await submit_validation(
-        db=db,
-        user_id=user_id,
-        requirement_id=requirement_id,
-        submitted_value=submitted_value,
-        github_username=github_username,
-    )
+    try:
+        result = await submit_validation(
+            db=db,
+            user_id=user_id,
+            requirement_id=requirement_id,
+            submitted_value=submitted_value,
+            github_username=github_username,
+        )
+    except RequirementNotFoundError:
+        return HTMLResponse(
+            '<div class="text-red-600 text-sm p-2">Requirement not found.</div>',
+            status_code=404,
+        )
+    except AlreadyValidatedError:
+        return HTMLResponse(
+            '<div class="text-green-600 text-sm p-2">'
+            "You have already completed this requirement.</div>",
+            status_code=200,
+        )
+    except DailyLimitExceededError as e:
+        return HTMLResponse(
+            f'<div class="text-amber-600 text-sm p-2">{e}</div>',
+            status_code=429,
+            headers={"Retry-After": "3600"},
+        )
+    except CooldownActiveError as e:
+        return HTMLResponse(
+            f'<div class="text-amber-600 text-sm p-2">{e}</div>',
+            status_code=429,
+            headers={"Retry-After": str(e.retry_after_seconds)},
+        )
+    except GitHubUsernameRequiredError as e:
+        return HTMLResponse(
+            f'<div class="text-red-600 text-sm p-2">{e}</div>',
+            status_code=400,
+        )
+    except ConcurrentSubmissionError as e:
+        return HTMLResponse(
+            f'<div class="text-amber-600 text-sm p-2">{e}</div>',
+            status_code=409,
+        )
 
     requirement = get_requirement_by_id(requirement_id)
 

@@ -1,6 +1,7 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+/* Dark mode via class strategy (matches Alpine.js toggle on <html>) */
+@custom-variant dark (&:where(.dark, .dark *));
 
 /* HTMX indicator styles */
 .htmx-indicator {

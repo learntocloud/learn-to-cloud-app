@@ -1,6 +1,6 @@
 """Submission repository for hands-on validation database operations."""
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -163,3 +163,42 @@ class SubmissionRepository:
         )
         row = result.scalar_one_or_none()
         return row
+
+    async def count_submissions_today(self, user_id: int) -> int:
+        """Count completed verification attempts by this user in the last 24 hours.
+
+        Used to enforce a global daily submission cap across all requirements.
+        Only counts submissions where verification actually ran.
+        """
+        cutoff = datetime.now(UTC) - timedelta(hours=24)
+        result = await self.db.execute(
+            select(func.count())
+            .select_from(Submission)
+            .where(
+                Submission.user_id == user_id,
+                Submission.verification_completed.is_(True),
+                Submission.updated_at >= cutoff,
+            )
+        )
+        return result.scalar_one() or 0
+
+    async def get_consecutive_failure_count(
+        self, user_id: int, requirement_id: str
+    ) -> int:
+        """Get the number of consecutive failed attempts for a requirement.
+
+        Returns 0 if the current submission is validated or has no record.
+        Used to compute escalating cooldowns on repeated failures.
+        """
+        submission = await self.get_by_user_and_requirement(user_id, requirement_id)
+        if submission is None:
+            return 0
+        if submission.is_validated:
+            return 0
+        if not submission.verification_completed:
+            return 0
+        # The submission exists, failed, and verification completed.
+        # We treat each such state as at least 1 failure. We don't have
+        # full history (upsert), so we track via an in-memory counter
+        # in the service layer for escalation beyond the first failure.
+        return 1

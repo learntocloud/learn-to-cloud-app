@@ -16,32 +16,33 @@
             </a>
         </p>
         <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            Phase {{ profile.current_phase }} · {{ profile.phases_completed }} phases completed
-            · Member since {{ profile.member_since.strftime('%B %Y') }}
+            {{ profile.phases_completed }} phases completed
         </p>
     </div>
 </div>
 {% endblock %}
 
 {% block page_body %}
-{% if profile.badges %}
 <div class="mb-8">
     <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Badges</h2>
     <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-4">
-        {% for badge in profile.badges %}
-        <div class="flex flex-col items-center gap-2 p-3 rounded-lg border border-gray-200 dark:border-gray-700" title="{{ badge.description }}">
-            <span class="text-3xl">{{ badge.icon }}</span>
-            <span class="text-xs font-medium text-gray-600 dark:text-gray-400 text-center">{{ badge.name }}</span>
+        {% for badge in badge_catalog %}
+        {% set earned = badge.id in earned_badge_ids %}
+        <div class="flex flex-col items-center gap-2 p-3 rounded-lg border {{ 'border-gray-200 dark:border-gray-700' if earned else 'border-gray-100 dark:border-gray-800' }}" title="{{ badge.description if earned else badge.how_to }}">
+            <span class="text-3xl {{ '' if earned else 'grayscale opacity-30' }}">{{ badge.icon }}</span>
+            <span class="text-xs font-medium text-center {{ 'text-gray-600 dark:text-gray-400' if earned else 'text-gray-400 dark:text-gray-600' }}">{{ badge.name }}</span>
+            {% if not earned %}
+            <span class="inline-flex items-center rounded-full bg-gray-100 dark:bg-gray-800 px-2 py-0.5 text-[10px] text-gray-400 dark:text-gray-500">Locked</span>
+            {% endif %}
         </div>
         {% endfor %}
     </div>
 </div>
-{% endif %}
 
-<!-- Submissions -->
-{% if profile.submissions %}
+<!-- Projects -->
 <div>
-    <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Verified Submissions</h2>
+    <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Projects</h2>
+    {% if profile.submissions %}
     <div class="space-y-3">
         {% for sub in profile.submissions %}
         <div class="p-4 rounded-lg border border-gray-200 dark:border-gray-700">
@@ -62,6 +63,8 @@
         </div>
         {% endfor %}
     </div>
+    {% else %}
+    <p class="text-sm text-gray-400 dark:text-gray-500">No projects yet</p>
+    {% endif %}
 </div>
-{% endif %}
 {% endblock %}

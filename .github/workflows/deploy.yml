@@ -50,7 +50,11 @@ env:
   ARM_CLIENT_SECRET: ${{ fromJson(secrets.AZURE_CREDENTIALS).clientSecret }}
 
 jobs:
+  ci:
+    uses: ./.github/workflows/api-ci.yml
+
   terraform:
+    needs: [ci]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     defaults:
