@@ -118,6 +118,21 @@ resource "azurerm_container_app" "api" {
         name  = "ENVIRONMENT"
         value = var.environment
       }
+
+      env {
+        name  = "GITHUB_CLIENT_ID"
+        value = var.github_client_id
+      }
+
+      env {
+        name        = "GITHUB_CLIENT_SECRET"
+        secret_name = "github-client-secret"
+      }
+
+      env {
+        name        = "SESSION_SECRET_KEY"
+        secret_name = "session-secret-key"
+      }
     }
 
     container {
