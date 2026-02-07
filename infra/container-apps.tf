@@ -115,11 +115,6 @@ resource "azurerm_container_app" "api" {
       }
 
       env {
-        name  = "ENVIRONMENT"
-        value = var.environment
-      }
-
-      env {
         name  = "GITHUB_CLIENT_ID"
         value = var.github_client_id
       }
@@ -189,11 +184,6 @@ resource "azurerm_container_app" "api" {
       env {
         name  = "APPLICATIONINSIGHTS_CONNECTION_STRING"
         value = azurerm_application_insights.main.connection_string
-      }
-
-      env {
-        name  = "ENVIRONMENT"
-        value = var.environment
       }
 
       liveness_probe {

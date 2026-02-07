@@ -193,15 +193,16 @@ async def lifespan(app: FastAPI):
 
 
 _settings = get_settings()
-_is_production = _settings.environment != "development"
 
 app = FastAPI(
     title="Learn to Cloud API",
     version="1.0.0",
     lifespan=lifespan,
-    docs_url=None if _is_production else "/docs",
-    redoc_url=None if _is_production else "/redoc",
-    openapi_url=None if _is_production else "/openapi.json",
+    docs_url="/docs" if _settings.enable_docs or _settings.debug else None,
+    redoc_url="/redoc" if _settings.enable_docs or _settings.debug else None,
+    openapi_url="/openapi.json"
+    if _settings.enable_docs or _settings.debug
+    else None,
 )
 
 # Store templates on app state for access in route handlers
@@ -219,7 +220,7 @@ app.add_middleware(
     session_cookie="session",
     max_age=60 * 60 * 24 * 30,  # 30 days
     same_site="lax",
-    https_only=_is_production,
+    https_only=_settings.require_https,
 )
 
 app.add_middleware(GZipMiddleware, minimum_size=500)
@@ -228,7 +229,7 @@ app.add_middleware(SecurityHeadersMiddleware)
 
 app.add_middleware(RequestTimingMiddleware)
 
-if not _is_production:
+if _settings.debug:
     app.add_middleware(
         CORSMiddleware,
         allow_origins=get_settings().allowed_origins,

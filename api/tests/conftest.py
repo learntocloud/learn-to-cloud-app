@@ -63,6 +63,8 @@ def test_settings() -> Settings:
     """
     return Settings(
         database_url=TEST_DATABASE_URL,
+        debug=True,
+        require_https=False,
         github_client_id="test_github_client_id",
         github_client_secret="test_github_client_secret",
         session_secret_key="test_session_secret_key_for_testing",

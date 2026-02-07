@@ -37,7 +37,7 @@ router = APIRouter(prefix="/api/certificates", tags=["certificates"])
 def _get_cache_control() -> str:
     """Get appropriate Cache-Control header value based on environment."""
     settings = get_settings()
-    if settings.environment.lower() == "development":
+    if settings.debug:
         return "no-store"
     return "public, max-age=3600"
 

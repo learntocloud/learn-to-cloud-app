@@ -82,11 +82,15 @@ class Settings(BaseSettings):
     db_statement_timeout_ms: int = 10000  # 10 seconds - prevents pool starvation
     db_echo: bool = False  # Set True to log all SQL queries (very verbose)
 
-    environment: str = "development"
+    # Feature flags — production defaults (fail-safe)
+    # Set DEBUG=true in .env for local development
+    debug: bool = False  # Enables docs, CORS localhost, relaxes validation
+    require_https: bool = True  # Session cookies require HTTPS
+    enable_docs: bool = False  # Swagger UI at /docs
 
     @model_validator(mode="after")
-    def validate_production_config(self) -> Self:
-        # Require PostgreSQL configuration (DATABASE_URL or Azure postgres)
+    def validate_config(self) -> Self:
+        # Require PostgreSQL configuration
         if not self.database_url and not self.use_azure_postgres:
             raise ValueError(
                 "Database configuration required. "
@@ -94,24 +98,23 @@ class Settings(BaseSettings):
                 "or POSTGRES_HOST + POSTGRES_USER for Azure Managed Identity."
             )
 
-        # Require GitHub OAuth in production
-        if self.environment != "development":
+        # In production (debug=False), require auth and security config
+        if not self.debug:
             if not self.github_client_id or not self.github_client_secret:
                 raise ValueError(
-                    "GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET must be set "
-                    "in non-development environments."
+                    "GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET must be set. "
+                    "Set DEBUG=true to skip this check in development."
                 )
             if self.session_secret_key == "dev-secret-key-change-in-production":
                 raise ValueError(
-                    "SESSION_SECRET_KEY must be set to a secure random value "
-                    "in non-development environments."
+                    "SESSION_SECRET_KEY must be set to a secure random value. "
+                    "Set DEBUG=true to skip this check in development."
                 )
-
-        # Require CTF secret in production
-        if self.environment != "development" and not self.labs_verification_secret:
-            raise ValueError(
-                "LABS_VERIFICATION_SECRET must be set in non-development environments."
-            )
+            if not self.labs_verification_secret:
+                raise ValueError(
+                    "LABS_VERIFICATION_SECRET must be set. "
+                    "Set DEBUG=true to skip this check in development."
+                )
         return self
 
     @property
@@ -138,8 +141,8 @@ class Settings(BaseSettings):
         """Combines localhost (dev only), frontend_url, and cors_allowed_origins."""
         origins: list[str] = []
 
-        # Only include localhost origins in development
-        if self.environment == "development":
+        # Only include localhost origins in debug mode
+        if self.debug:
             origins.extend(
                 [
                     "http://localhost:3000",
