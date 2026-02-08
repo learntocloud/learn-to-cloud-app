@@ -63,6 +63,55 @@ def _is_json_format() -> bool:
     return _TELEMETRY_ENABLED
 
 
+class _StructlogOTelBridge(logging.Filter):
+    """Bridge structlog event dict fields to LogRecord attributes for OTel.
+
+    When structlog logs through stdlib, wrap_for_formatter packs the event dict
+    into record.msg as a dict. The OTel LoggingHandler reads LogRecord.__dict__
+    for attributes. This filter copies serializable fields from the event dict
+    (record.msg) into the record so OTel can pick them up.
+
+    Also strips structlog internal attributes (_logger, _name) that OTel
+    cannot serialize.
+    """
+
+    _STRIP_KEYS = frozenset({"_logger", "_name"})
+    _SKIP_KEYS = frozenset({"event", "level", "timestamp"})
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        # Strip structlog internal attributes
+        for key in self._STRIP_KEYS:
+            record.__dict__.pop(key, None)
+
+        # Copy structlog event dict fields to record attributes
+        if isinstance(record.msg, dict):
+            for key, value in record.msg.items():
+                if key.startswith("_") or key in self._SKIP_KEYS:
+                    continue
+                if isinstance(value, str | int | float | bool | None):
+                    record.__dict__.setdefault(key, value)
+
+        return True
+
+
+def _copy_to_record_extra(
+    _logger: logging.Logger, _method_name: str, event_dict: EventDict
+) -> EventDict:
+    """Copy structlog fields to stdlib LogRecord for foreign (non-structlog) logs.
+
+    For stdlib log records going through structlog's foreign_pre_chain,
+    the _record is available. This copies fields so OTel can read them.
+    """
+    record = event_dict.get("_record")
+    if record is not None:
+        for key, value in event_dict.items():
+            if key.startswith("_") or key in ("event", "level", "timestamp"):
+                continue
+            if isinstance(value, str | int | float | bool | None):
+                record.__dict__.setdefault(key, value)
+    return event_dict
+
+
 def configure_logging() -> None:
     """Configure structlog and stdlib logging. Call once at application startup.
 
@@ -100,6 +149,7 @@ def configure_logging() -> None:
         processors=shared_processors
         + [
             structlog.processors.format_exc_info,
+            _copy_to_record_extra,
             structlog.stdlib.ProcessorFormatter.wrap_for_formatter,
         ],
         logger_factory=structlog.stdlib.LoggerFactory(),
@@ -127,9 +177,13 @@ def configure_logging() -> None:
     ]
     root_logger.handlers.clear()
 
-    # Re-add OTel handlers first, then our structlog handler
+    # Add OTel bridge filter to copy structlog fields to LogRecord
+    # attributes and strip internal attrs that OTel rejects.
+    bridge = _StructlogOTelBridge()
     for h in otel_handlers:
+        h.addFilter(bridge)
         root_logger.addHandler(h)
+    root_logger.addFilter(bridge)
 
     handler = logging.StreamHandler(sys.stdout)
     handler.setFormatter(formatter)
