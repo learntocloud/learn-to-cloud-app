@@ -6,39 +6,11 @@ import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, Request
-from fastapi.exceptions import RequestValidationError
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import JSONResponse
-from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
-from slowapi.errors import RateLimitExceeded
-from starlette.middleware.sessions import SessionMiddleware
-
-from core.auth import init_oauth
-from core.config import get_settings
-from core.database import (
-    create_engine,
-    create_session_maker,
-    dispose_engine,
-    init_db,
-    warm_pool,
-)
-from core.logger import configure_logging
-from core.ratelimit import limiter, rate_limit_exceeded_handler
-from core.telemetry import SecurityHeadersMiddleware
-from routes import (
-    analytics_router,
-    auth_router,
-    certificates_router,
-    health_router,
-    htmx_router,
-    pages_router,
-    users_router,
-)
-from services.deployed_api_verification_service import close_deployed_api_client
-from services.github_hands_on_verification_service import close_github_client
+# ── OTel must be configured BEFORE importing FastAPI ──────────────────
+# Azure Monitor's FastAPI instrumentor monkey-patches FastAPI at import
+# time. If FastAPI is imported first, requests won't appear in AppRequests.
+# See: https://learn.microsoft.com/en-us/troubleshoot/azure/azure-monitor/
+#      app-insights/telemetry/opentelemetry-troubleshooting-python
 
 
 def _configure_observability() -> None:
@@ -71,9 +43,47 @@ def _configure_observability() -> None:
         pass
 
 
-# 1. Azure Monitor + OTel (adds LoggingHandler to root logger)
-# 2. configure_logging() preserves OTel handler, adds stdout handler
 _configure_observability()
+
+# ── Now safe to import FastAPI and everything else ────────────────────
+from fastapi import FastAPI, Request  # noqa: E402
+from fastapi.exceptions import RequestValidationError  # noqa: E402
+from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
+from fastapi.middleware.gzip import GZipMiddleware  # noqa: E402
+from fastapi.responses import JSONResponse  # noqa: E402
+from fastapi.staticfiles import StaticFiles  # noqa: E402
+from fastapi.templating import Jinja2Templates  # noqa: E402
+from slowapi.errors import RateLimitExceeded  # noqa: E402
+from starlette.middleware.sessions import SessionMiddleware  # noqa: E402
+
+from core.auth import init_oauth  # noqa: E402
+from core.config import get_settings  # noqa: E402
+from core.database import (  # noqa: E402
+    create_engine,
+    create_session_maker,
+    dispose_engine,
+    init_db,
+    warm_pool,
+)
+from core.logger import configure_logging  # noqa: E402
+from core.ratelimit import limiter, rate_limit_exceeded_handler  # noqa: E402
+from core.telemetry import SecurityHeadersMiddleware  # noqa: E402
+from routes import (  # noqa: E402
+    analytics_router,
+    auth_router,
+    certificates_router,
+    health_router,
+    htmx_router,
+    pages_router,
+    users_router,
+)
+from services.deployed_api_verification_service import (  # noqa: E402
+    close_deployed_api_client,
+)
+from services.github_hands_on_verification_service import (  # noqa: E402
+    close_github_client,
+)
+
 configure_logging()
 logger = logging.getLogger(__name__)
 
