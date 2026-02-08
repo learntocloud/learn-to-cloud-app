@@ -111,7 +111,6 @@ class UserFactory(factory.Factory):
 
     # GitHub numeric user ID
     id = factory.LazyFunction(lambda: fake.random_int(100000, 99999999))
-    email = factory.LazyAttribute(lambda _: fake.email())
     first_name = factory.LazyAttribute(lambda _: fake.first_name())
     last_name = factory.LazyAttribute(lambda _: fake.last_name())
     avatar_url = factory.LazyAttribute(
@@ -128,7 +127,6 @@ class UserFactory(factory.Factory):
 class PlaceholderUserFactory(UserFactory):
     """Factory for creating placeholder users (pre-Clerk sync)."""
 
-    email = factory.LazyAttribute(lambda obj: f"{obj.id}@placeholder.local")
     first_name = None
     last_name = None
     avatar_url = None
