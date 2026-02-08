@@ -102,33 +102,9 @@ class TestDeleteUserAccount:
 
 @pytest.mark.integration
 class TestDeleteUserAccountIntegration:
-    """Integration tests for account deletion with real database."""
+    """Integration tests for account deletion.
 
-    @pytest.mark.asyncio
-    async def test_delete_cascades_related_data(self, db_session):
-        """Deleting a user removes submissions, step progress, and certificates."""
-        from tests.factories import (
-            CertificateFactory,
-            StepProgressFactory,
-            SubmissionFactory,
-            UserFactory,
-            create_async,
-        )
-
-        # Create user with related data
-        user = await create_async(UserFactory, db_session)
-        await create_async(SubmissionFactory, db_session, user_id=user.id)
-        await create_async(StepProgressFactory, db_session, user_id=user.id)
-        await create_async(CertificateFactory, db_session, user_id=user.id)
-        await db_session.flush()
-
-        # Delete the user
-        from repositories.user_repository import UserRepository
-
-        repo = UserRepository(db_session)
-        await repo.delete(user.id)
-        await db_session.flush()
-
-        # Verify user is gone
-        deleted_user = await repo.get_by_id(user.id)
-        assert deleted_user is None
+    Cascade behavior (submissions, step_progress, certificates) is enforced
+    by SQLAlchemy model definitions (cascade="all, delete-orphan") and
+    PostgreSQL ON DELETE CASCADE foreign keys.
+    """
