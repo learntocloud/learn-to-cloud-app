@@ -194,6 +194,7 @@ jobs:
           az containerapp update \
             --name ${{ needs.terraform.outputs.api_container_app_name }} \
             --resource-group ${{ needs.terraform.outputs.resource_group_name }} \
+            --container-name api \
             --image ${{ needs.terraform.outputs.container_registry_endpoint }}/api:${{ github.sha }}
 
       - name: Wait for API readiness
