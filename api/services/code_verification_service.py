@@ -22,7 +22,6 @@ For LLM client infrastructure, see core/llm_client.py
 
 from __future__ import annotations
 
-import asyncio
 import json
 import re
 from typing import Any, TypedDict
@@ -39,7 +38,7 @@ from tenacity import (
 
 from core import get_logger
 from core.config import get_settings
-from core.llm_client import LLMClientError, get_llm_client
+from core.llm_client import LLMClientError, get_llm_chat_client
 from core.telemetry import track_operation
 from core.wide_event import set_wide_event_fields
 from schemas import TaskResult, ValidationResult
@@ -623,202 +622,99 @@ class _retry_if_retriable(retry_base):  # noqa: N801
 async def _analyze_with_llm(
     owner: str, repo: str, github_username: str
 ) -> ValidationResult:
-    """Run code analysis via the GitHub Copilot SDK and CLI sidecar.
+    """Run code analysis via Microsoft Agent Framework.
 
-    Uses the copilot SDK to create a session with the BYOK provider
-    (Azure OpenAI) and tool-calling for file fetching.
+    Creates a ChatAgent with a file-fetching tool that the LLM calls
+    to inspect the learner's repository. The agent handles the tool-calling
+    loop automatically.
 
     Use analyze_repository_code() as the public entry point.
     """
-    settings = get_settings()
-    client = await get_llm_client()
+    from agent_framework import ChatAgent
 
-    # Collect the final response
-    response_content = ""
-    done = asyncio.Event()
+    chat_client = get_llm_chat_client()
 
-    def on_event(event: Any) -> None:
-        nonlocal response_content
-        if event.type.value == "assistant.message":
-            response_content = event.data.content
-        elif event.type.value == "session.idle":
-            done.set()
+    # SECURITY: owner/repo are LOCKED via closure — LLM cannot override
+    async def fetch_github_file(path: str, branch: str = "main") -> str:
+        """Fetch file contents from the learner's repository.
 
-    # Import SDK types (lazy import to avoid import errors when SDK missing)
-    from copilot import Tool, ToolInvocation, ToolResult
-
-    from core.llm_client import build_session_config
-
-    # Define the file fetching tool for the LLM to use
-    # SECURITY: owner/repo are LOCKED to the validated values - LLM cannot override
-    async def fetch_github_file(invocation: ToolInvocation) -> ToolResult:
-        """Tool handler for fetching GitHub file content.
-
-        SECURITY NOTE: owner and repo are fixed to prevent the LLM from
-        fetching files from arbitrary repositories.
+        Args:
+            path: File path within the repository.
+            branch: Branch name (default: main).
         """
-        args = invocation.get("arguments") or {}
-        file_path = args.get("path", "")
-        branch = args.get("branch", "main")
-
-        # SECURITY: Ignore any owner/repo provided by the LLM - use validated values
-        # This prevents prompt injection from redirecting to malicious repos
-        file_owner = owner
-        file_repo = repo
-
         set_wide_event_fields(
-            llm_tool_fetch_file=file_path,
-            llm_tool_repo=f"{file_owner}/{file_repo}",
+            llm_tool_fetch_file=path,
+            llm_tool_repo=f"{owner}/{repo}",
         )
-
         try:
-            content = await _fetch_github_file_content(
-                file_owner, file_repo, file_path, branch
-            )
-            return ToolResult(
-                textResultForLlm=content,
-                resultType="success",
-                sessionLog=f"Fetched {file_path}",
-            )
+            return await _fetch_github_file_content(owner, repo, path, branch)
         except ValueError as e:
-            # File not in allowlist
-            set_wide_event_fields(
-                llm_tool_blocked_path=file_path,
-            )
-            return ToolResult(
-                textResultForLlm=f"Cannot fetch file: {e}",
-                resultType="failure",
-                sessionLog=f"Blocked: {file_path}",
-            )
+            set_wide_event_fields(llm_tool_blocked_path=path)
+            return f"Cannot fetch file: {e}"
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
-                return ToolResult(
-                    textResultForLlm=f'<file_not_found path="{file_path}" />',
-                    resultType="success",
-                    sessionLog=f"File not found: {file_path}",
-                )
-            return ToolResult(
-                textResultForLlm=f"Error fetching file: HTTP {e.response.status_code}",
-                resultType="failure",
-                sessionLog=f"Error: {e}",
-            )
+                return f'<file_not_found path="{path}" />'
+            return f"Error fetching file: HTTP {e.response.status_code}"
         except Exception as e:
-            return ToolResult(
-                textResultForLlm=f"Error fetching file: {type(e).__name__}",
-                resultType="failure",
-                sessionLog=f"Error: {e}",
-            )
+            return f"Error fetching file: {type(e).__name__}"
 
-    # Tool definition - only path is required (owner/repo are locked)
-    file_tool = Tool(
-        name="fetch_github_file",
-        description=(
-            f"Fetch file contents from the learner's repository ({owner}/{repo}). "
-            f"Only these files can be fetched: {sorted(ALLOWED_FILE_PATHS)}"
-        ),
-        parameters={
-            "type": "object",
-            "properties": {
-                "path": {
-                    "type": "string",
-                    "description": "File path within the repository",
-                },
-                "branch": {
-                    "type": "string",
-                    "description": "Branch name (default: main)",
-                    "default": "main",
-                },
-            },
-            "required": ["path"],
-        },
-        handler=fetch_github_file,
+    prompt = _build_verification_prompt(owner, repo)
+
+    set_wide_event_fields(
+        llm_analysis_started=True,
+        llm_analysis_owner=owner,
+        llm_analysis_repo=repo,
     )
 
-    # Create session with tool (uses BYOK provider if configured)
-    config = build_session_config(tools=[file_tool])
-    session = await client.create_session(config)
+    agent = ChatAgent(
+        chat_client=chat_client,
+        instructions=prompt,
+        tools=[fetch_github_file],
+    )
 
-    try:
-        session.on(on_event)
+    result = await agent.run("Analyze the repository and grade all tasks.")
+    response_content = result.text
 
-        # Build and send the verification prompt
-        prompt = _build_verification_prompt(owner, repo)
-
-        set_wide_event_fields(
-            llm_analysis_started=True,
-            llm_analysis_owner=owner,
-            llm_analysis_repo=repo,
+    if not response_content:
+        logger.error(
+            "code_analysis.empty_response",
+            owner=owner,
+            repo=repo,
+        )
+        raise CodeAnalysisError(
+            "No response received from code analysis",
+            retriable=True,
         )
 
-        await session.send({"prompt": prompt})
+    parsed_tasks = _parse_analysis_response(response_content)
+    task_results, all_passed = _build_task_results(parsed_tasks)
 
-        # Wait for completion with timeout
-        try:
-            await asyncio.wait_for(done.wait(), timeout=settings.llm_cli_timeout)
-        except TimeoutError:
-            logger.error(
-                "code_analysis.timeout",
-                owner=owner,
-                repo=repo,
-                timeout_seconds=settings.llm_cli_timeout,
-            )
-            set_wide_event_fields(
-                llm_error="timeout",
-                llm_timeout_seconds=settings.llm_cli_timeout,
-            )
-            raise CodeAnalysisError(
-                "Code analysis timed out. Please try again.",
-                retriable=True,
-            )
+    passed_count = sum(1 for t in task_results if t.passed)
+    total_count = len(task_results)
 
-        # Parse the response
-        if not response_content:
-            logger.error(
-                "code_analysis.empty_response",
-                owner=owner,
-                repo=repo,
-            )
-            raise CodeAnalysisError(
-                "No response received from code analysis",
-                retriable=True,
-            )
+    set_wide_event_fields(
+        llm_analysis_complete=True,
+        llm_tasks_passed=passed_count,
+        llm_tasks_total=total_count,
+        llm_all_passed=all_passed,
+    )
 
-        parsed_tasks = _parse_analysis_response(response_content)
-        task_results, all_passed = _build_task_results(parsed_tasks)
-
-        passed_count = sum(1 for t in task_results if t.passed)
-        total_count = len(task_results)
-
-        set_wide_event_fields(
-            llm_analysis_complete=True,
-            llm_tasks_passed=passed_count,
-            llm_tasks_total=total_count,
-            llm_all_passed=all_passed,
+    if all_passed:
+        message = (
+            f"Congratulations! All {total_count} tasks have been completed "
+            "successfully. Your Journal API implementation meets all requirements."
+        )
+    else:
+        message = (
+            f"Completed {passed_count}/{total_count} tasks. "
+            "Review the feedback below and try again after making improvements."
         )
 
-        if all_passed:
-            message = (
-                f"Congratulations! All {total_count} tasks have been completed "
-                "successfully. Your Journal API implementation meets all requirements."
-            )
-        else:
-            message = (
-                f"Completed {passed_count}/{total_count} tasks. "
-                "Review the feedback below and try again after making improvements."
-            )
-
-        return ValidationResult(
-            is_valid=all_passed,
-            message=message,
-            task_results=task_results,
-        )
-
-    finally:
-        # Clean up session
-        try:
-            await session.destroy()
-        except Exception:
-            pass
+    return ValidationResult(
+        is_valid=all_passed,
+        message=message,
+        task_results=task_results,
+    )
 
 
 async def analyze_repository_code(

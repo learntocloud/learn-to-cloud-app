@@ -36,7 +36,7 @@ from tenacity import (
 
 from core import get_logger
 from core.config import get_settings
-from core.llm_client import LLMClientError, get_llm_client
+from core.llm_client import LLMClientError, get_llm_chat_client
 from core.telemetry import track_operation
 from core.wide_event import set_wide_event_fields
 from schemas import TaskResult, ValidationResult
@@ -616,96 +616,66 @@ async def _analyze_with_llm(
     repo: str,
     file_contents: dict[str, list[str]],
 ) -> ValidationResult:
-    """Internal: Run DevOps analysis with retry.
+    """Run DevOps analysis via Microsoft Agent Framework.
 
+    No tools needed — all file content is embedded in the prompt.
     Use analyze_devops_repository() instead.
     """
-    settings = get_settings()
-    client = await get_llm_client()
+    from agent_framework import ChatAgent
 
-    response_content = ""
-    done = asyncio.Event()
+    chat_client = get_llm_chat_client()
+    prompt = _build_verification_prompt(owner, repo, file_contents)
 
-    def on_event(event: Any) -> None:
-        nonlocal response_content
-        if event.type.value == "assistant.message":
-            response_content = event.data.content
-        elif event.type.value == "session.idle":
-            done.set()
+    set_wide_event_fields(
+        devops_analysis_started=True,
+        devops_analysis_owner=owner,
+        devops_analysis_repo=repo,
+    )
 
-    from core.llm_client import build_session_config
+    agent = ChatAgent(
+        chat_client=chat_client,
+        instructions=prompt,
+    )
 
-    # No tools needed — all content is in the prompt
-    config = build_session_config()
-    session = await client.create_session(config)
+    result = await agent.run("Analyze the repository artifacts and grade all tasks.")
+    response_content = result.text
 
-    try:
-        session.on(on_event)
-
-        prompt = _build_verification_prompt(owner, repo, file_contents)
-
-        set_wide_event_fields(
-            devops_analysis_started=True,
-            devops_analysis_owner=owner,
-            devops_analysis_repo=repo,
+    if not response_content:
+        raise DevOpsAnalysisError(
+            "No response received from DevOps analysis",
+            retriable=True,
         )
 
-        await session.send({"prompt": prompt})
+    parsed_tasks = _parse_analysis_response(response_content)
+    task_results, all_passed = _build_task_results(parsed_tasks)
 
-        try:
-            await asyncio.wait_for(done.wait(), timeout=settings.llm_cli_timeout)
-        except TimeoutError:
-            set_wide_event_fields(
-                devops_error="timeout",
-                devops_timeout_seconds=settings.llm_cli_timeout,
-            )
-            raise DevOpsAnalysisError(
-                "DevOps analysis timed out. Please try again.",
-                retriable=True,
-            )
+    passed_count = sum(1 for t in task_results if t.passed)
+    total_count = len(task_results)
 
-        if not response_content:
-            raise DevOpsAnalysisError(
-                "No response received from DevOps analysis",
-                retriable=True,
-            )
+    set_wide_event_fields(
+        devops_analysis_complete=True,
+        devops_tasks_passed=passed_count,
+        devops_tasks_total=total_count,
+        devops_all_passed=all_passed,
+    )
 
-        parsed_tasks = _parse_analysis_response(response_content)
-        task_results, all_passed = _build_task_results(parsed_tasks)
-
-        passed_count = sum(1 for t in task_results if t.passed)
-        total_count = len(task_results)
-
-        set_wide_event_fields(
-            devops_analysis_complete=True,
-            devops_tasks_passed=passed_count,
-            devops_tasks_total=total_count,
-            devops_all_passed=all_passed,
+    if all_passed:
+        message = (
+            f"All {total_count} DevOps tasks verified! "
+            "Your journal-starter fork has proper containerization, "
+            "CI/CD, Terraform, and Kubernetes artifacts."
+        )
+    else:
+        message = (
+            f"Completed {passed_count}/{total_count} tasks. "
+            "Review the feedback below and try again after making improvements."
         )
 
-        if all_passed:
-            message = (
-                f"All {total_count} DevOps tasks verified! "
-                "Your journal-starter fork has proper containerization, "
-                "CI/CD, Terraform, and Kubernetes artifacts."
-            )
-        else:
-            message = (
-                f"Completed {passed_count}/{total_count} tasks. "
-                "Review the feedback below and try again after making improvements."
-            )
-
-        return ValidationResult(
-            is_valid=all_passed,
-            message=message,
-            task_results=task_results,
-        )
-
-    finally:
-        try:
-            await session.destroy()
-        except Exception:
-            pass
+    return ValidationResult(
+        is_valid=all_passed,
+        message=message,
+        task_results=task_results,
+    )
 
 
 async def analyze_devops_repository(

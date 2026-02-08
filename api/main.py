@@ -24,7 +24,6 @@ from core.database import (
     init_db,
     warm_pool,
 )
-from core.llm_client import close_llm_client
 from core.logger import configure_logging, get_logger
 from core.ratelimit import limiter, rate_limit_exceeded_handler
 from core.telemetry import RequestTimingMiddleware, SecurityHeadersMiddleware
@@ -213,7 +212,6 @@ async def lifespan(app: FastAPI):
 
         await close_github_client()
         await close_deployed_api_client()
-        await close_llm_client()
         await dispose_engine(app.state.engine)
 
 

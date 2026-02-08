@@ -142,11 +142,6 @@ resource "azurerm_container_app" "api" {
       }
 
       env {
-        name  = "LLM_CLI_URL"
-        value = "http://localhost:4321"
-      }
-
-      env {
         name  = "LLM_BASE_URL"
         value = azurerm_cognitive_account.openai.endpoint
       }
@@ -198,14 +193,6 @@ resource "azurerm_container_app" "api" {
         timeout                 = 5
         failure_count_threshold = 30
       }
-    }
-
-    # LLM CLI sidecar — headless JSON-RPC server for the SDK
-    container {
-      name   = "llm-cli"
-      image  = "${azurerm_container_registry.main.login_server}/llm-cli:latest"
-      cpu    = 0.25
-      memory = "0.5Gi"
     }
   }
 
