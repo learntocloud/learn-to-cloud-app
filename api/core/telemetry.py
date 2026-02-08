@@ -60,10 +60,17 @@ class SecurityHeadersMiddleware:
             await self.app(scope, receive, send)
             return
 
+        is_static = scope.get("path", "").startswith("/static/")
+
         async def send_wrapper(message: Message) -> None:
             if message.get("type") == "http.response.start":
                 headers: list[tuple[bytes, bytes]] = list(message.get("headers", []))
                 headers.extend(self.SECURITY_HEADERS)
+                # Cache-busted static files get long cache; others get no-cache
+                if is_static:
+                    headers.append(
+                        (b"cache-control", b"public, max-age=31536000, immutable")
+                    )
                 message["headers"] = headers
             await send(message)
 

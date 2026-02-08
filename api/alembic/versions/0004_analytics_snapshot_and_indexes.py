@@ -22,6 +22,12 @@ depends_on = None
 
 
 def upgrade() -> None:
+    # -- Widen alembic_version.version_num (default varchar(32) is too short) --
+    # This revision ID is 40 chars; must widen BEFORE Alembic stamps the version.
+    op.execute(
+        "ALTER TABLE alembic_version " "ALTER COLUMN version_num TYPE varchar(128)"
+    )
+
     # -- Analytics snapshot table (single-row, stores pre-computed JSON) --
     op.create_table(
         "analytics_snapshot",
