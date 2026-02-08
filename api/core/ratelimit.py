@@ -5,8 +5,6 @@ Each replica maintains separate counters—multiple replicas effectively
 multiply the rate limits by the number of replicas.
 """
 
-import logging
-
 from fastapi import Request, Response
 from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
@@ -14,8 +12,6 @@ from slowapi.util import get_remote_address
 from starlette.responses import JSONResponse
 
 from core.config import get_settings
-
-logger = logging.getLogger(__name__)
 
 
 def _get_request_identifier(request: Request) -> str:

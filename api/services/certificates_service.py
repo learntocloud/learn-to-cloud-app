@@ -12,6 +12,7 @@ Routes should delegate all certificate business logic to this module.
 
 import asyncio
 import hashlib
+import logging
 import secrets
 from datetime import UTC, datetime
 
@@ -35,6 +36,8 @@ from schemas import (
     EligibilityResult,
 )
 from services.progress_service import fetch_user_progress
+
+logger = logging.getLogger(__name__)
 
 
 def _to_certificate_data(certificate: Certificate) -> CertificateData:
@@ -173,6 +176,16 @@ async def create_certificate(
         recipient_name=recipient_name,
         phases_completed=eligibility.phases_completed,
         total_phases=eligibility.total_phases,
+    )
+
+    logger.info(
+        "certificate.created",
+        extra={
+            "user_id": user_id,
+            "verification_code": verification_code,
+            "phases_completed": eligibility.phases_completed,
+            "total_phases": eligibility.total_phases,
+        },
     )
 
     return CreateCertificateResult(

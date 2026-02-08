@@ -4,7 +4,6 @@ These routes serve full Jinja2 pages. They call the same services as the
 JSON API routes but render HTML templates instead of returning JSON.
 """
 
-import json
 import logging
 from datetime import UTC, datetime
 
@@ -12,11 +11,9 @@ from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 
 from core.auth import OptionalUserId, UserId
-from core.config import get_settings
 from core.database import DbSession
 from models import User
 from rendering.steps import build_step_data
-from repositories.submission_repository import SubmissionRepository
 from services.badges_service import get_badge_catalog
 from services.certificates_service import (
     get_user_certificate_with_eligibility,
@@ -30,6 +27,7 @@ from services.content_service import (
 from services.dashboard_service import get_dashboard_data
 from services.progress_service import get_phase_detail_progress
 from services.steps_service import get_completed_steps
+from services.submissions_service import get_phase_submission_context
 from services.users_service import get_public_profile, get_user_by_id
 
 logger = logging.getLogger(__name__)
@@ -107,56 +105,13 @@ async def phase_page(
 
     # Single service call for all progress (per-topic + phase-level)
     progress = None
-    feedback_by_req: dict[str, dict] = {}
+    submissions_by_req: dict = {}
+    feedback_by_req: dict = {}
     if user_id is not None:
-        # Fetch existing submissions so verified requirements show as complete
-        repo = SubmissionRepository(db)
-        user_submissions = await repo.get_by_user_and_phase(user_id, phase_id)
-        submissions_by_req = {s.requirement_id: s for s in user_submissions}
-
-        # Parse stored feedback so it persists across app restarts
-        now = datetime.now(UTC)
-        settings = get_settings()
-        for sub in user_submissions:
-            if sub.feedback_json and not sub.is_validated:
-                try:
-                    raw_tasks = json.loads(sub.feedback_json)
-                    tasks = [
-                        {
-                            "name": t.get("task_name", ""),
-                            "passed": t.get("passed", False),
-                            "message": t.get("feedback", ""),
-                        }
-                        for t in raw_tasks
-                    ]
-                    passed = sum(1 for t in tasks if t["passed"])
-
-                    # Calculate remaining cooldown from last submission time
-                    cooldown_remaining = None
-                    if sub.updated_at and sub.verification_completed:
-                        from models import SubmissionType
-
-                        base_cooldown = (
-                            settings.code_analysis_cooldown_seconds
-                            if sub.submission_type
-                            in (
-                                SubmissionType.CODE_ANALYSIS,
-                                SubmissionType.DEVOPS_ANALYSIS,
-                            )
-                            else settings.submission_cooldown_seconds
-                        )
-                        elapsed = (now - sub.updated_at).total_seconds()
-                        remaining = int(base_cooldown - elapsed)
-                        if remaining > 0:
-                            cooldown_remaining = remaining
-
-                    feedback_by_req[sub.requirement_id] = {
-                        "tasks": tasks,
-                        "passed": passed,
-                        "cooldown_seconds": cooldown_remaining,
-                    }
-                except (json.JSONDecodeError, TypeError):
-                    pass
+        # Delegate submission fetching + feedback parsing to service layer
+        sub_context = await get_phase_submission_context(db, user_id, phase_id)
+        submissions_by_req = sub_context.submissions_by_req
+        feedback_by_req = sub_context.feedback_by_req
 
         detail = await get_phase_detail_progress(db, user_id, phase)
         for i, t in enumerate(phase.topics):

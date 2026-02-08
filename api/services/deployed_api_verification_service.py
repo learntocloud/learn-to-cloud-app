@@ -303,6 +303,7 @@ async def validate_deployed_api(base_url: str) -> ValidationResult:
                 "Too many recent failures checking deployed APIs. "
                 "Please try again in a minute."
             ),
+            server_error=True,
         )
     except httpx.TimeoutException:
         logger.warning(

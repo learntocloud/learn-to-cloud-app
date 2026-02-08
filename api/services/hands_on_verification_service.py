@@ -59,6 +59,7 @@ def validate_ctf_token_submission(
         is_valid=ctf_result.is_valid,
         message=ctf_result.message,
         username_match=ctf_result.is_valid,
+        server_error=ctf_result.server_error,
     )
 
 
@@ -82,6 +83,7 @@ def validate_networking_token_submission(
         is_valid=result.is_valid,
         message=result.message,
         username_match=result.is_valid,
+        server_error=result.server_error,
     )
 
 

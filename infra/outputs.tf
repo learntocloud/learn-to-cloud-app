@@ -100,7 +100,7 @@ output "apiUrl" {
 # Azure OpenAI
 # -----------------------------------------------------------------------------
 output "openai_endpoint" {
-  description = "Azure OpenAI endpoint used by the LLM CLI sidecar"
+  description = "Azure OpenAI endpoint for AI-powered code analysis"
   value       = azurerm_cognitive_account.openai.endpoint
 }
 

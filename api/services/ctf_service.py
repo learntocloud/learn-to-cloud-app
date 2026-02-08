@@ -81,10 +81,11 @@ def verify_ctf_token(token: str, oauth_github_username: str) -> CTFVerificationR
         try:
             verification_secret = _derive_secret(instance_id)
         except RuntimeError:
-            logger.exception("CTF verification misconfigured")
+            logger.exception("ctf.verification.misconfigured")
             return CTFVerificationResult(
                 is_valid=False,
                 message="CTF verification is not available right now.",
+                server_error=True,
             )
 
         payload_str = json.dumps(payload, separators=(",", ":"))
@@ -121,6 +122,14 @@ def verify_ctf_token(token: str, oauth_github_username: str) -> CTFVerificationR
                 message="Invalid timestamp. The token appears to be from the future.",
             )
 
+        logger.info(
+            "ctf.verification.passed",
+            extra={
+                "github_username": payload.get("github_username"),
+                "challenges": challenges,
+            },
+        )
+
         return CTFVerificationResult(
             is_valid=True,
             message=(
@@ -138,4 +147,5 @@ def verify_ctf_token(token: str, oauth_github_username: str) -> CTFVerificationR
         return CTFVerificationResult(
             is_valid=False,
             message="Token verification failed. Please try again or contact support.",
+            server_error=True,
         )

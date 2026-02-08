@@ -691,6 +691,17 @@ async def _analyze_with_llm(
     passed_count = sum(1 for t in task_results if t.passed)
     total_count = len(task_results)
 
+    logger.info(
+        "code_analysis.completed",
+        extra={
+            "owner": owner,
+            "repo": repo,
+            "passed": passed_count,
+            "total": total_count,
+            "all_passed": all_passed,
+        },
+    )
+
     if all_passed:
         message = (
             f"Congratulations! All {total_count} tasks have been completed "

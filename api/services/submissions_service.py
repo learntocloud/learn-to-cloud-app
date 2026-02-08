@@ -4,7 +4,6 @@ This module handles:
 - Submission creation/update with validation
 - Data transformation helpers used by other services (e.g. progress/badges)
 - Cooldown enforcement for rate-limited submission types (e.g., CODE_ANALYSIS)
-- Escalating cooldowns on consecutive failures (doubles per failure, capped at 4h)
 - Daily submission cap across all requirements (default 20/day)
 - Already-validated short-circuit (skip re-verification for passed requirements)
 - Concurrent request protection via per-user+requirement locks
@@ -25,7 +24,7 @@ from core.cache import invalidate_progress_cache
 from core.config import get_settings
 from models import Submission, SubmissionType
 from repositories.submission_repository import SubmissionRepository
-from schemas import SubmissionData, SubmissionResult
+from schemas import PhaseSubmissionContext, SubmissionData, SubmissionResult
 from services.github_hands_on_verification_service import parse_github_url
 from services.hands_on_verification_service import validate_submission
 from services.phase_requirements_service import get_requirement_by_id
@@ -39,7 +38,7 @@ logger = logging.getLogger(__name__)
 # This prevents wasting quota on race conditions (e.g., user opens multiple tabs).
 # TTLCache auto-evicts entries after 2 hours to prevent unbounded memory growth.
 
-_LOCK_TTL = 7200  # 2 hours — matches the max practical cooldown window
+_LOCK_TTL = 7200  # 2 hours — comfortably above the max cooldown (1 hour)
 _submission_locks: TTLCache[tuple[int, str], asyncio.Lock] = TTLCache(
     maxsize=2000, ttl=_LOCK_TTL
 )
@@ -76,7 +75,9 @@ def _to_submission_data(submission: Submission) -> SubmissionData:
         is_validated=submission.is_validated,
         validated_at=submission.validated_at,
         verification_completed=submission.verification_completed,
+        feedback_json=submission.feedback_json,
         created_at=submission.created_at,
+        updated_at=submission.updated_at,
     )
 
 
@@ -96,6 +97,74 @@ def get_validated_ids_by_phase(
     return by_phase
 
 
+async def get_phase_submission_context(
+    db: AsyncSession,
+    user_id: int,
+    phase_id: int,
+) -> PhaseSubmissionContext:
+    """Build submission context for rendering a phase page.
+
+    Fetches all submissions for the user in a phase, converts them to
+    DTOs, and parses stored feedback JSON into template-ready summaries.
+    Calculates remaining cooldown for LLM-based submission types.
+
+    Returns:
+        PhaseSubmissionContext with submissions and feedback keyed by
+        requirement ID.
+    """
+    repo = SubmissionRepository(db)
+    raw_submissions = await repo.get_by_user_and_phase(user_id, phase_id)
+
+    submissions_by_req: dict[str, SubmissionData] = {}
+    feedback_by_req: dict[str, dict[str, object]] = {}
+
+    settings = get_settings()
+    now = datetime.now(UTC)
+
+    for sub in raw_submissions:
+        sub_data = _to_submission_data(sub)
+        submissions_by_req[sub.requirement_id] = sub_data
+
+        if sub.feedback_json and not sub.is_validated:
+            try:
+                raw_tasks = json.loads(sub.feedback_json)
+                tasks = [
+                    {
+                        "name": t.get("task_name", ""),
+                        "passed": t.get("passed", False),
+                        "message": t.get("feedback", ""),
+                    }
+                    for t in raw_tasks
+                ]
+                passed = sum(1 for t in tasks if t["passed"])
+
+                cooldown_remaining = None
+                if sub.updated_at and sub.verification_completed:
+                    if sub.submission_type in (
+                        SubmissionType.CODE_ANALYSIS,
+                        SubmissionType.DEVOPS_ANALYSIS,
+                    ):
+                        elapsed = (now - sub.updated_at).total_seconds()
+                        remaining = int(
+                            settings.code_analysis_cooldown_seconds - elapsed
+                        )
+                        if remaining > 0:
+                            cooldown_remaining = remaining
+
+                feedback_by_req[sub.requirement_id] = {
+                    "tasks": tasks,
+                    "passed": passed,
+                    "cooldown_seconds": cooldown_remaining,
+                }
+            except (json.JSONDecodeError, TypeError):
+                pass
+
+    return PhaseSubmissionContext(
+        submissions_by_req=submissions_by_req,
+        feedback_by_req=feedback_by_req,
+    )
+
+
 class RequirementNotFoundError(Exception):
     pass
 
@@ -107,17 +176,29 @@ class GitHubUsernameRequiredError(Exception):
 class CooldownActiveError(Exception):
     """Raised when a submission is attempted during cooldown period."""
 
-    def __init__(self, message: str, retry_after_seconds: int):
+    def __init__(
+        self,
+        message: str,
+        retry_after_seconds: int,
+        existing_submission: SubmissionData | None = None,
+    ):
         super().__init__(message)
         self.retry_after_seconds = retry_after_seconds
+        self.existing_submission = existing_submission
 
 
 class DailyLimitExceededError(Exception):
     """Raised when a user exceeds the daily submission cap."""
 
-    def __init__(self, message: str, limit: int):
+    def __init__(
+        self,
+        message: str,
+        limit: int,
+        existing_submission: SubmissionData | None = None,
+    ):
         super().__init__(message)
         self.limit = limit
+        self.existing_submission = existing_submission
 
 
 class AlreadyValidatedError(Exception):
@@ -125,23 +206,6 @@ class AlreadyValidatedError(Exception):
 
     pass
 
-
-# =============================================================================
-# Escalating Cooldown Tracking
-# =============================================================================
-# In-memory counter for consecutive failures per user+requirement.
-# Resets on successful validation or server restart.
-# This is per-worker, which is acceptable — it's defense-in-depth on top
-# of the DB-based cooldown.
-# TTLCache auto-evicts entries after 4 hours (matches _MAX_COOLDOWN_SECONDS)
-# to prevent unbounded memory growth from users who fail and never return.
-
-_failure_counts: TTLCache[tuple[int, str], int] = TTLCache(
-    maxsize=2000,
-    ttl=14400,  # 4 hours
-)
-
-_MAX_COOLDOWN_SECONDS = 14400  # 4 hours — cap for escalating cooldowns
 
 # =============================================================================
 # Global LLM Concurrency Limit
@@ -221,40 +285,44 @@ async def submit_validation(
                 f"{settings.daily_submission_limit} "
                 f"submissions. Please try again tomorrow.",
                 limit=settings.daily_submission_limit,
+                existing_submission=_to_submission_data(existing) if existing else None,
             )
 
-        # --- Escalating cooldown enforcement ---
-        last_submission_time = await submission_repo.get_last_submission_time(
-            user_id, requirement_id
-        )
+        # --- Cooldown enforcement (LLM submissions only) ---
+        # Lightweight verifications (CTF, profile, fork, etc.) are instant
+        # and free — the daily cap is sufficient protection.  LLM-based
+        # verifications cost money and hold a semaphore slot, so they get
+        # an additional per-requirement cooldown.
+        if requirement.submission_type in (
+            SubmissionType.CODE_ANALYSIS,
+            SubmissionType.DEVOPS_ANALYSIS,
+        ):
+            last_submission_time = await submission_repo.get_last_submission_time(
+                user_id, requirement_id
+            )
+        else:
+            last_submission_time = None
+
+        # Convert to DTO while session is still open so it's safe to use
+        # after the session closes (detached from SQLAlchemy).
+        existing_data = _to_submission_data(existing) if existing else None
     # read_session is now closed — connection returned to pool
 
     if last_submission_time is not None:
-        base_cooldown = (
-            settings.code_analysis_cooldown_seconds
-            if requirement.submission_type
-            in (SubmissionType.CODE_ANALYSIS, SubmissionType.DEVOPS_ANALYSIS)
-            else settings.submission_cooldown_seconds
-        )
-
-        # Escalate cooldown based on consecutive failures
-        failure_key = (user_id, requirement_id)
-        failure_count = _failure_counts.get(failure_key, 0)
-        cooldown_seconds = min(
-            base_cooldown * (2**failure_count),
-            _MAX_COOLDOWN_SECONDS,
-        )
+        cooldown_seconds = settings.code_analysis_cooldown_seconds
 
         now = datetime.now(UTC)
         elapsed = (now - last_submission_time).total_seconds()
         remaining = int(cooldown_seconds - elapsed)
 
         if remaining > 0:
+            minutes = remaining // 60
+            seconds = remaining % 60
+            wait_str = f"{minutes}m {seconds}s" if minutes else f"{seconds}s"
             raise CooldownActiveError(
-                f"Verification can only be submitted once per "
-                f"{cooldown_seconds // 3600}h {(cooldown_seconds % 3600) // 60}m. "
-                f"Please try again in {remaining // 60} minutes.",
+                f"Please wait {wait_str} before resubmitting.",
                 retry_after_seconds=remaining,
+                existing_submission=existing_data,
             )
 
     if requirement.submission_type in (
@@ -338,15 +406,18 @@ async def submit_validation(
             )
             await write_session.commit()
 
-        # --- Update escalating cooldown tracker ---
-        failure_key = (user_id, requirement_id)
         if validation_result.is_valid:
-            _failure_counts.pop(failure_key, None)
             invalidate_progress_cache(user_id)
-        elif validation_result.server_error:
-            pass
-        else:
-            _failure_counts[failure_key] = _failure_counts.get(failure_key, 0) + 1
+
+        logger.info(
+            "submission.validated",
+            extra={
+                "user_id": user_id,
+                "requirement_id": requirement_id,
+                "is_valid": validation_result.is_valid,
+                "verification_completed": verification_completed,
+            },
+        )
 
         return SubmissionResult(
             submission=_to_submission_data(db_submission),

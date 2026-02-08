@@ -649,6 +649,10 @@ async def _analyze_with_llm(
     response_content = result.text
 
     if not response_content:
+        logger.error(
+            "devops_analysis.empty_response",
+            extra={"owner": owner, "repo": repo},
+        )
         raise DevOpsAnalysisError(
             "No response received from DevOps analysis",
             retriable=True,
@@ -659,6 +663,17 @@ async def _analyze_with_llm(
 
     passed_count = sum(1 for t in task_results if t.passed)
     total_count = len(task_results)
+
+    logger.info(
+        "devops_analysis.completed",
+        extra={
+            "owner": owner,
+            "repo": repo,
+            "passed": passed_count,
+            "total": total_count,
+            "all_passed": all_passed,
+        },
+    )
 
     if all_passed:
         message = (
@@ -746,6 +761,10 @@ async def analyze_devops_repository(
         return await _analyze_with_llm(owner, repo, file_contents)
 
     except CircuitBreakerError:
+        logger.error(
+            "devops_analysis.circuit_open",
+            extra={"owner": owner, "repo": repo},
+        )
         return ValidationResult(
             is_valid=False,
             message=(
@@ -755,12 +774,20 @@ async def analyze_devops_repository(
             server_error=True,
         )
     except DevOpsAnalysisError as e:
+        logger.exception(
+            "devops_analysis.failed",
+            extra={"owner": owner, "repo": repo, "retriable": e.retriable},
+        )
         return ValidationResult(
             is_valid=False,
             message=f"DevOps analysis failed: {e}",
             server_error=e.retriable,
         )
     except LLMClientError:
+        logger.exception(
+            "devops_analysis.client_error",
+            extra={"owner": owner, "repo": repo},
+        )
         return ValidationResult(
             is_valid=False,
             message=("Unable to connect to analysis service. Please try again later."),

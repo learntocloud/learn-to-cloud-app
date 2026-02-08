@@ -25,9 +25,12 @@ def instrument_sqlalchemy_engine(engine: Any) -> None:
             engine=engine.sync_engine,
             enable_commenter=True,
         )
-        logger.info("SQLAlchemy instrumentation enabled")
+        logger.info("telemetry.sqlalchemy.enabled")
     except Exception as e:
-        logger.warning("sqlalchemy.instrumentation.failed: %s", e)
+        logger.warning(
+            "telemetry.sqlalchemy.failed",
+            extra={"error": str(e)},
+        )
 
 
 class SecurityHeadersMiddleware:

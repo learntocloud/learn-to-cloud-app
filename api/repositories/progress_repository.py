@@ -66,14 +66,9 @@ class StepProgressRepository:
         user_id: int,
         topic_id: str,
         step_order: int,
-        *,
-        phase_id: int | None = None,
+        phase_id: int,
     ) -> StepProgress:
         """Create a new step progress record."""
-        if phase_id is None:
-            phase_id = _parse_phase_id_from_topic_id(topic_id)
-            if phase_id is None:
-                raise ValueError(f"Invalid topic_id format: {topic_id}")
         step_progress = StepProgress(
             user_id=user_id,
             topic_id=topic_id,
@@ -89,8 +84,7 @@ class StepProgressRepository:
         user_id: int,
         topic_id: str,
         step_order: int,
-        *,
-        phase_id: int | None = None,
+        phase_id: int,
     ) -> StepProgress | None:
         """Atomically create a step progress record if it doesn't exist.
 
@@ -100,11 +94,6 @@ class StepProgressRepository:
         Returns:
             The created StepProgress if inserted, or None if already existed.
         """
-        if phase_id is None:
-            phase_id = _parse_phase_id_from_topic_id(topic_id)
-            if phase_id is None:
-                raise ValueError(f"Invalid topic_id format: {topic_id}")
-
         stmt = (
             pg_insert(StepProgress)
             .values(
@@ -194,12 +183,3 @@ class StepProgressRepository:
         for row in result.all():
             by_topic.setdefault(row.topic_id, set()).add(row.step_order)
         return by_topic
-
-
-def _parse_phase_id_from_topic_id(topic_id: str) -> int | None:
-    if not isinstance(topic_id, str) or not topic_id.startswith("phase"):
-        return None
-    try:
-        return int(topic_id.split("-")[0].replace("phase", ""))
-    except (ValueError, IndexError):
-        return None

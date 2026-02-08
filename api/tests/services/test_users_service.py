@@ -23,7 +23,7 @@ class TestDeleteUserAccount:
 
     @pytest.mark.asyncio
     async def test_delete_existing_user(self):
-        """Deleting an existing user calls repo.delete and commits."""
+        """Deleting an existing user calls repo.delete (caller commits)."""
         mock_db = AsyncMock()
         mock_user = MagicMock()
         mock_user.github_username = "testuser"
@@ -38,7 +38,8 @@ class TestDeleteUserAccount:
 
             mock_repo.get_by_id.assert_awaited_once_with(12345)
             mock_repo.delete.assert_awaited_once_with(12345)
-            mock_db.commit.assert_awaited_once()
+            # Service does NOT commit — caller (route) owns the transaction
+            mock_db.commit.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_delete_nonexistent_user_raises(self):

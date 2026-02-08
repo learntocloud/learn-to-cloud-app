@@ -16,24 +16,36 @@ from pathlib import Path
 
 def _configure_observability() -> None:
     """Set up Azure Monitor + Agent Framework observability if configured."""
-    if not os.getenv("APPLICATIONINSIGHTS_CONNECTION_STRING"):
+    conn_str = os.getenv("APPLICATIONINSIGHTS_CONNECTION_STRING")
+    if not conn_str:
         return
 
-    from azure.monitor.opentelemetry import configure_azure_monitor
+    try:
+        from azure.monitor.opentelemetry import configure_azure_monitor
 
-    configure_azure_monitor(
-        enable_live_metrics=True,
-        instrumentation_options={
-            "azure_sdk": {"enabled": True},
-            "flask": {"enabled": False},
-            "django": {"enabled": False},
-            "fastapi": {"enabled": True},
-            "psycopg2": {"enabled": False},
-            "requests": {"enabled": True},
-            "urllib": {"enabled": True},
-            "urllib3": {"enabled": True},
-        },
-    )
+        configure_azure_monitor(
+            enable_live_metrics=True,
+            instrumentation_options={
+                "azure_sdk": {"enabled": True},
+                "flask": {"enabled": False},
+                "django": {"enabled": False},
+                "fastapi": {"enabled": True},
+                "psycopg2": {"enabled": False},
+                "requests": {"enabled": True},
+                "urllib": {"enabled": True},
+                "urllib3": {"enabled": True},
+            },
+        )
+    except (ValueError, Exception) as exc:
+        # Invalid connection string (e.g. placeholder instrumentation key)
+        # — log warning and continue without Azure Monitor
+        import logging
+
+        logging.getLogger(__name__).warning(
+            "azure.monitor.init.failed",
+            extra={"error": str(exc)},
+        )
+        return
 
     # Enable Agent Framework built-in OTel tracing for LLM calls
     try:
@@ -174,18 +186,39 @@ async def _background_warmup(app: FastAPI) -> None:
     )
 
 
-def _run_alembic_migrations() -> None:
-    """Run Alembic migrations synchronously."""
-    from alembic import command
-    from alembic.config import Config
+async def _run_alembic_migrations() -> None:
+    """Run Alembic migrations in a subprocess.
 
-    alembic_cfg = Config("alembic.ini")
-    try:
-        command.upgrade(alembic_cfg, "head")
-        logger.info("migrations.complete")
-    except Exception:
-        logger.exception("migrations.failed")
-        raise
+    psycopg2's connection pool cleanup deadlocks inside
+    asyncio.to_thread when uvloop is the event loop.  Running
+    migrations as a subprocess avoids the issue entirely.
+    """
+    import subprocess
+    import sys
+
+    result = await asyncio.to_thread(
+        subprocess.run,
+        [
+            sys.executable,
+            "-c",
+            (
+                "from alembic import command; "
+                "from alembic.config import Config; "
+                "command.upgrade(Config('alembic.ini'), 'head')"
+            ),
+        ],
+        cwd=Path(__file__).parent,
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+
+    if result.returncode != 0:
+        stderr = result.stderr.strip()
+        logger.error("migrations.failed", extra={"stderr": stderr})
+        raise RuntimeError(f"Alembic migration failed:\n{stderr}")
+
+    logger.info("migrations.complete")
 
 
 @asynccontextmanager
@@ -198,14 +231,25 @@ async def lifespan(app: FastAPI):
     app.state.init_error = None
 
     try:
-        oauth_task = asyncio.to_thread(init_oauth)
-        db_task = init_db(app.state.engine)
-        await asyncio.gather(oauth_task, db_task)
+        async with asyncio.timeout(60):
+            oauth_task = asyncio.to_thread(init_oauth)
+            db_task = init_db(app.state.engine)
+            await asyncio.gather(oauth_task, db_task)
 
-        await asyncio.to_thread(_run_alembic_migrations)
+        async with asyncio.timeout(120):
+            await _run_alembic_migrations()
 
         app.state.init_done = True
         logger.info("init.complete")
+    except TimeoutError:
+        logger.error(
+            "init.timeout",
+            extra={
+                "init_done": app.state.init_done,
+                "hint": "Startup hung — check DB connectivity and migration state",
+            },
+        )
+        raise RuntimeError("Application startup timed out")
     except Exception as e:
         app.state.init_error = str(e)
         logger.error("init.failed: %s", e, exc_info=True)

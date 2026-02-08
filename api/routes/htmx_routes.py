@@ -14,11 +14,15 @@ from core.auth import UserId
 from core.database import DbSession, DbSessionReadOnly
 from core.ratelimit import limiter
 from rendering.steps import build_step_data
-from repositories.submission_repository import SubmissionRepository
 from services.certificates_service import create_certificate
 from services.content_service import get_topic_by_id
 from services.hands_on_verification_service import get_requirement_by_id
-from services.steps_service import complete_step, get_completed_steps, uncomplete_step
+from services.steps_service import (
+    complete_step,
+    get_completed_steps,
+    parse_phase_id_from_topic_id,
+    uncomplete_step,
+)
 from services.submissions_service import (
     AlreadyValidatedError,
     ConcurrentSubmissionError,
@@ -61,6 +65,10 @@ async def _render_step_toggle(
                 break
 
     if step is None:
+        logger.warning(
+            "htmx.step_toggle.step_not_found",
+            extra={"user_id": user_id, "topic_id": topic_id, "step_order": step_order},
+        )
         return HTMLResponse("")
 
     completed_steps = await get_completed_steps(db, user_id, topic_id)
@@ -120,13 +128,7 @@ async def htmx_uncomplete_step(
     """Uncomplete a step and return the updated step partial."""
     await uncomplete_step(db, user_id, topic_id, step_order)
 
-    # Extract phase_id from topic_id (e.g., "phase0-topic1" -> 0)
-    phase_id = 0
-    if topic_id.startswith("phase"):
-        try:
-            phase_id = int(topic_id.split("-")[0].replace("phase", ""))
-        except (ValueError, IndexError):
-            pass
+    phase_id = parse_phase_id_from_topic_id(topic_id) or 0
 
     return await _render_step_toggle(
         request, db, user_id, topic_id, step_order, phase_id
@@ -134,14 +136,12 @@ async def htmx_uncomplete_step(
 
 
 @router.post("/github/submit", response_class=HTMLResponse)
-@limiter.limit("6/hour")
 async def htmx_submit_verification(
     request: Request,
     db: DbSessionReadOnly,
     user_id: UserId,
     requirement_id: str = Form(..., max_length=100),
     phase_id: int = Form(...),
-    submission_type: str = Form(..., max_length=50),
     submitted_value: str = Form(..., max_length=2048),
 ) -> HTMLResponse:
     """Submit a hands-on verification and return the updated requirement card."""
@@ -192,6 +192,10 @@ async def htmx_submit_verification(
             github_username=github_username,
         )
     except RequirementNotFoundError:
+        logger.warning(
+            "htmx.submit.requirement_not_found",
+            extra={"user_id": user_id, "requirement_id": requirement_id},
+        )
         return HTMLResponse(
             '<div class="text-red-600 text-sm p-2">Requirement not found.</div>',
             status_code=404,
@@ -203,17 +207,12 @@ async def htmx_submit_verification(
             status_code=200,
         )
     except DailyLimitExceededError as e:
-        # Fetch existing submission so the form retains the last value
-        sub_repo = SubmissionRepository(db)
-        existing = await sub_repo.get_by_user_and_requirement(user_id, requirement_id)
         return _render_card(
-            submission=existing,
+            submission=e.existing_submission,
             error_banner=str(e),
         )
     except CooldownActiveError as e:
-        # Fetch existing submission to show last feedback + form
-        sub_repo = SubmissionRepository(db)
-        existing = await sub_repo.get_by_user_and_requirement(user_id, requirement_id)
+        existing = e.existing_submission
 
         # Restore previous feedback tasks from stored JSON
         feedback_tasks = []
@@ -295,38 +294,14 @@ async def htmx_create_certificate(
         recipient_name=recipient_name,
     )
 
-    # Return a simple card for the new certificate
-    name = certificate.recipient_name  # type: ignore[attr-defined]
-    code = certificate.verification_code
-    cert_id = certificate.id  # type: ignore[attr-defined]
-    pdf = f"/api/certificates/{cert_id}/pdf"
-    png = f"/api/certificates/{cert_id}/png"
-    link_cls = (
-        "text-sm font-medium text-blue-600" " hover:text-blue-500 dark:text-blue-400"
+    # Return the certificate card partial
+    return request.app.state.templates.TemplateResponse(
+        "partials/certificate_card.html",
+        {
+            "request": request,
+            "certificate": certificate,
+        },
     )
-    html = (
-        '<div class="p-6 rounded-lg border'
-        ' border-gray-200 dark:border-gray-700">'
-        '<div class="flex items-center justify-between mb-3">'
-        '<h3 class="font-semibold text-gray-900'
-        ' dark:text-white">Full Completion</h3>'
-        '<span class="text-sm text-gray-500'
-        ' dark:text-gray-400">Just now</span>'
-        "</div>"
-        '<p class="text-sm text-gray-600'
-        ' dark:text-gray-400 mb-4">'
-        f"Recipient: {name} &middot; Code: "
-        f'<code class="bg-gray-100 dark:bg-gray-800'
-        f' px-1 rounded text-xs">{code}</code>'
-        "</p>"
-        '<div class="flex gap-3">'
-        f'<a href="{pdf}" class="{link_cls}">'
-        "📄 PDF</a>"
-        f'<a href="{png}" class="{link_cls}">'
-        "🖼️ PNG</a>"
-        "</div></div>"
-    )
-    return HTMLResponse(html)
 
 
 @router.delete("/account", response_class=HTMLResponse)
@@ -339,7 +314,12 @@ async def htmx_delete_account(
     """Delete the current user's account and redirect to home via HTMX."""
     try:
         await delete_user_account(db, user_id)
+        await db.commit()
     except UserNotFoundError:
+        logger.warning(
+            "htmx.account_delete.not_found",
+            extra={"user_id": user_id},
+        )
         return HTMLResponse(
             '<p class="text-sm text-red-600">Account not found.</p>',
             status_code=404,

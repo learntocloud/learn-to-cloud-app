@@ -21,8 +21,10 @@ github_client_secret = "xxx"
 # Generate with: python -c "import secrets; print(secrets.token_hex(32))"
 session_secret_key = "your-64-char-hex-string"
 
-# Required - CTF master secret for flag generation
-labs_verification_secret = "your-secure-random-secret"
+# Required - CTF/Networking lab verification secret
+# Must match the MASTER_SECRET in learntocloud/linux-ctfs ctf_setup.sh
+# See: https://github.com/learntocloud/linux-ctfs/blob/main/VERIFICATION.md
+labs_verification_secret = "L2C_CTF_MASTER_2024"
 
 # Optional - Override defaults
 # location    = "centralus"

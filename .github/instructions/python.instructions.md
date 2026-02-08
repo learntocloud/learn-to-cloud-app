@@ -1,6 +1,6 @@
 ---
 applyTo: "**/*.py"
-description: "FastAPI routes, async patterns, structlog logging, SQLAlchemy, httpx clients, TTLCache caching"
+description: "FastAPI routes, async patterns, stdlib logging, SQLAlchemy, httpx clients, TTLCache caching"
 ---
 
 # Python Coding Standards
@@ -14,7 +14,7 @@ Reference those files for type information and endpoint contracts when working o
 | Layer | Does | Does NOT |
 |-------|------|----------|
 | **Routes** (`routes/`) | Validate input, call services, return responses, raise `HTTPException` | Business logic, direct DB access |
-| **Services** (`services/`) | Orchestrate operations, enforce rules, log domain events, raise domain exceptions | HTTP concerns, direct SQL, commit transactions |
+| **Services** (`services/`) | Orchestrate operations, enforce rules, log domain events, raise domain exceptions, commit transactions | HTTP concerns, direct SQL |
 | **Repositories** (`repositories/`) | Execute queries, return models/DTOs | Business rules, HTTP exceptions, commit transactions |
 
 ## Exception Handling
@@ -49,33 +49,38 @@ try:
     response = await client.get(url)
     response.raise_for_status()
 except httpx.HTTPStatusError as e:
-    logger.warning("external.api.error", url=url, status=e.response.status_code)
+    logger.warning("external.api.error", extra={"url": url, "status": e.response.status_code})
     raise ExternalServiceError("Upstream service error") from e
 ```
 
 - Document raiseable exceptions in docstrings
 
-## Logging (structlog)
+## Logging (stdlib)
 
-Import: `from core.logger import get_logger` → `logger = get_logger(__name__)` at module level.
-
-**CRITICAL**: structlog uses **keyword arguments**, NOT stdlib's `extra={}` dict:
+Declare a module-level logger via stdlib—no wrapper function needed:
 ```python
-# ✅ CORRECT
-logger.info("user.created", user_id=user.id, email=user.email)
+import logging
 
-# ❌ WRONG - stdlib pattern (fields won't appear in JSON)
-logger.info("User created", extra={"user_id": user.id})
+logger = logging.getLogger(__name__)
+```
+
+**CRITICAL**: Pass structured context via `extra={}` dict—never f-strings:
+```python
+# ✅ CORRECT - extra dict becomes queryable in App Insights
+logger.info("user.created", extra={"user_id": user.id, "email": user.email})
 
 # ❌ WRONG - f-string (loses structured data)
 logger.info(f"User {user.id} created")
+
+# ❌ WRONG - keyword args (that's structlog, not stdlib)
+logger.info("user.created", user_id=user.id)
 ```
 
-- First argument is an **event name** (dot-notation: `domain.action.result`), not a message
+- First argument is an **event name** (dot-notation: `domain.action`), not a sentence
 - Use `logger.exception()` in except blocks—auto-includes traceback
 - **Where to log**: Services log domain events. Routes log only if adding context beyond middleware. Repositories generally don't log.
 
-See [observability.instructions.md](observability.instructions.md) for wide events, tracing, and metrics.
+See [observability.instructions.md](observability.instructions.md) for tracing and telemetry.
 
 ## HTTP Clients (httpx)
 **Never** create `httpx.AsyncClient()` per request—use a shared module-level client with lazy init:
@@ -112,11 +117,16 @@ Always provide a `close_*_client()` function and register it in `main.py` lifesp
 - Call `invalidate_*_cache()` after mutations
 
 ## FastAPI Routes
-- `@limiter.limit()` on API endpoints (pages/auth redirect routes exempt)
-- Include `summary=`, `responses=` for OpenAPI docs
+- `@limiter.limit()` on mutating API and HTMX endpoints (pages/auth redirect routes exempt)
+- Include `summary=`, `responses=` for OpenAPI JSON API docs
 - **Route ordering**: literal paths (`/items/stats`) BEFORE parameterized (`/items/{id}`)
-- POST → status 201, DELETE → 204 or 200
-- Use `Annotated[T, Depends(...)]` for dependency injection
+- DELETE → 204 or 200
+- Use pre-built DI aliases from `core.auth` and `core.database`:
+  ```python
+  from core.auth import UserId, OptionalUserId
+  from core.database import DbSession, DbSessionReadOnly
+  ```
+  These wrap `Annotated[T, Depends(...)]`—use them instead of raw `Depends()` calls.
 - Example:
   ```python
   @router.get(
@@ -126,7 +136,9 @@ Always provide a `close_*_client()` function and register it in `main.py` lifesp
       responses={500: {"description": "Service unavailable"}},
   )
   @limiter.limit("30/minute")
-  async def my_endpoint(request: Request): ...
+  async def my_endpoint(
+      request: Request, user_id: UserId, db: DbSession
+  ) -> MyResponse: ...
   ```
 
 ## Dependencies
@@ -140,7 +152,7 @@ Always provide a `close_*_client()` function and register it in `main.py` lifesp
 ## SQLAlchemy Patterns
 - Upserts: `pg_insert().on_conflict_do_update()` with explicit `set_`
 - **Gotcha**: Python-side column defaults are NOT applied on conflict update—include `updated_at` explicitly
-- Repository methods do NOT call `commit()`—caller owns the transaction
+- Repository methods do NOT call `commit()`—services own the transaction and call `await db.commit()`
 
 ## Docstrings
 - Skip self-documenting Args (e.g., `db: AsyncSession`)

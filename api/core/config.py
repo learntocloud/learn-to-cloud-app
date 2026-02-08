@@ -52,8 +52,7 @@ class Settings(BaseSettings):
     # LLM configuration for AI-powered code verification
     # Uses Microsoft Agent Framework with Azure OpenAI
     llm_cli_timeout: int = 120  # Seconds to wait for code analysis completion
-    code_analysis_cooldown_seconds: int = 3600  # 1 hr between code analysis
-    submission_cooldown_seconds: int = 3600  # 1 hr between verification attempts
+    code_analysis_cooldown_seconds: int = 3600  # 1 hr between LLM verifications
     daily_submission_limit: int = 20  # Max submissions per user per day (all reqs)
 
     # Azure OpenAI — used by Agent Framework's AzureOpenAIChatClient

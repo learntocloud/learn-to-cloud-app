@@ -536,7 +536,9 @@ class SubmissionData(FrozenModel):
     is_validated: bool
     validated_at: datetime | None = None
     verification_completed: bool = True
+    feedback_json: str | None = None
     created_at: datetime
+    updated_at: datetime | None = None
 
 
 class SubmissionResult(FrozenModel):
@@ -559,6 +561,13 @@ class TaskResult(FrozenModel):
     task_name: str
     passed: bool
     feedback: str
+
+
+class PhaseSubmissionContext(FrozenModel):
+    """Pre-built submission context for rendering a phase page."""
+
+    submissions_by_req: dict[str, SubmissionData]
+    feedback_by_req: dict[str, dict[str, object]]
 
 
 class ValidationResult(FrozenModel):
@@ -598,6 +607,7 @@ class CTFVerificationResult(FrozenModel):
 
     is_valid: bool
     message: str
+    server_error: bool = False
     github_username: str | None = None
     completion_date: str | None = None
     completion_time: str | None = None
@@ -609,6 +619,7 @@ class NetworkingLabVerificationResult(FrozenModel):
 
     is_valid: bool
     message: str
+    server_error: bool = False
     github_username: str | None = None
     completion_date: str | None = None
     completion_time: str | None = None

@@ -11,13 +11,10 @@ The response must:
 """
 
 import json
-import logging
 import re
 from datetime import datetime
 
 from schemas import ValidationResult
-
-logger = logging.getLogger(__name__)
 
 # UUID v4 pattern (standard format from Python's uuid module)
 _UUID_PATTERN = re.compile(

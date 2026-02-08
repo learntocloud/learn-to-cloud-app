@@ -1,11 +1,15 @@
 """Step progress service for learning step management."""
 
+import logging
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.cache import invalidate_progress_cache
 from repositories import StepProgressRepository
 from schemas import StepCompletionResult, StepProgressData
 from services.content_service import get_topic_by_id
+
+logger = logging.getLogger(__name__)
 
 
 class StepValidationError(Exception):
@@ -62,7 +66,8 @@ def _resolve_total_steps(topic_id: str) -> int:
     return len(topic.learning_steps)
 
 
-def _parse_phase_id_from_topic_id(topic_id: str) -> int | None:
+def parse_phase_id_from_topic_id(topic_id: str) -> int | None:
+    """Extract phase ID from a topic_id string (e.g., 'phase1-topic5' -> 1)."""
     if not isinstance(topic_id, str) or not topic_id.startswith("phase"):
         return None
     try:
@@ -161,18 +166,29 @@ async def complete_step(
     _validate_step_order(topic_id, step_order)
 
     step_repo = StepProgressRepository(db)
+    phase_id = parse_phase_id_from_topic_id(topic_id)
 
     # Atomic check-and-insert: saves 1 round-trip vs exists() + create()
     step_progress = await step_repo.create_if_not_exists(
         user_id=user_id,
         topic_id=topic_id,
         step_order=step_order,
+        phase_id=phase_id,
     )
     if step_progress is None:
         raise StepAlreadyCompletedError(topic_id, step_order)
 
     # Invalidate cache so dashboard/progress refreshes immediately
     invalidate_progress_cache(user_id)
+
+    logger.info(
+        "step.completed",
+        extra={
+            "user_id": user_id,
+            "topic_id": topic_id,
+            "step_order": step_order,
+        },
+    )
 
     return StepCompletionResult(
         topic_id=step_progress.topic_id,
@@ -212,5 +228,14 @@ async def uncomplete_step(
     # Invalidate cache so dashboard/progress refreshes immediately
     if deleted > 0:
         invalidate_progress_cache(user_id)
+        logger.info(
+            "step.uncompleted",
+            extra={
+                "user_id": user_id,
+                "topic_id": topic_id,
+                "step_order": step_order,
+                "steps_deleted": deleted,
+            },
+        )
 
     return deleted

@@ -168,10 +168,8 @@ class UserRepository:
     ) -> User:
         """Update user fields. Only non-None values are updated.
 
-        If github_username is being set and another user already has it,
-        clears the github_username from the other user first.
-
         Expects github_username to be pre-normalized (lowercase) by service layer.
+        The caller is responsible for resolving username conflicts before calling.
         """
         if first_name is not None:
             user.first_name = first_name
@@ -180,16 +178,20 @@ class UserRepository:
         if avatar_url is not None:
             user.avatar_url = avatar_url
         if github_username is not None:
-            existing = await self.get_by_github_username(github_username)
-            if existing and existing.id != user.id:
-                existing.github_username = None
-                await self.db.flush()
             user.github_username = github_username
         if is_admin is not None:
             user.is_admin = is_admin
 
         user.updated_at = datetime.now(UTC)
         return user
+
+    async def clear_github_username(self, user_id: int) -> None:
+        """Clear the github_username field for a specific user."""
+        user = await self.get_by_id(user_id)
+        if user is not None:
+            user.github_username = None
+            user.updated_at = datetime.now(UTC)
+            await self.db.flush()
 
     async def delete(self, user_id: int) -> None:
         """Delete a user by ID. Cascades to related records."""

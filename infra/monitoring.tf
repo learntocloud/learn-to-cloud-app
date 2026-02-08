@@ -65,11 +65,13 @@ resource "azurerm_monitor_action_group" "warning" {
 # -----------------------------------------------------------------------------
 
 # Alert: API 5xx Errors (Sev1 - Critical)
+# Threshold ≥3 with 2/3 failing periods to suppress single transient errors
+# (e.g., one DB hiccup during a deploy) and reduce alert fatigue.
 resource "azurerm_monitor_scheduled_query_rules_alert_v2" "api_5xx_errors" {
   name                = "alert-ltc-api-5xx-${var.environment}"
   resource_group_name = azurerm_resource_group.main.name
   location            = azurerm_resource_group.main.location
-  description         = "Alert when API returns 5xx errors"
+  description         = "Alert when API returns 3+ 5xx errors in a 5-minute window"
   severity            = 1
   enabled             = true
   tags                = local.tags
@@ -80,18 +82,18 @@ resource "azurerm_monitor_scheduled_query_rules_alert_v2" "api_5xx_errors" {
   target_resource_types = ["microsoft.insights/components"]
 
   criteria {
-    query = <<-QUERY
+    query                   = <<-QUERY
       requests
       | where resultCode startswith "5"
       | summarize ErrorCount = count() by bin(timestamp, 5m)
     QUERY
     time_aggregation_method = "Count"
     operator                = "GreaterThanOrEqual"
-    threshold               = 1
+    threshold               = 3
 
     failing_periods {
-      minimum_failing_periods_to_trigger_alert = 1
-      number_of_evaluation_periods             = 1
+      minimum_failing_periods_to_trigger_alert = 2
+      number_of_evaluation_periods             = 3
     }
   }
 
@@ -101,10 +103,11 @@ resource "azurerm_monitor_scheduled_query_rules_alert_v2" "api_5xx_errors" {
 }
 
 # Alert: Container Restarts (Sev1 - Critical)
+# Threshold >2 to ignore normal deploy restarts while catching crash loops.
 resource "azurerm_monitor_metric_alert" "api_restarts" {
   name                = "alert-ltc-api-restarts-${var.environment}"
   resource_group_name = azurerm_resource_group.main.name
-  description         = "Alert when API container restarts"
+  description         = "Alert when API container restarts more than twice in 5 minutes (crash loop)"
   severity            = 1
   enabled             = true
   tags                = local.tags
@@ -118,7 +121,7 @@ resource "azurerm_monitor_metric_alert" "api_restarts" {
     metric_name      = "RestartCount"
     aggregation      = "Total"
     operator         = "GreaterThan"
-    threshold        = 0
+    threshold        = 2
   }
 
   action {
@@ -180,12 +183,13 @@ resource "azurerm_monitor_metric_alert" "api_high_memory" {
   }
 }
 
-# Alert: API High Latency (Sev2 - Warning)
+# Alert: API High Latency P95 (Sev2 - Warning)
+# Uses P95 instead of avg — avg hides tail latency that affects real users.
 resource "azurerm_monitor_scheduled_query_rules_alert_v2" "api_high_latency" {
   name                = "alert-ltc-api-latency-${var.environment}"
   resource_group_name = azurerm_resource_group.main.name
   location            = azurerm_resource_group.main.location
-  description         = "Alert when API average response time exceeds 2 seconds"
+  description         = "Alert when API P95 response time exceeds 3 seconds"
   severity            = 2
   enabled             = true
   tags                = local.tags
@@ -196,18 +200,18 @@ resource "azurerm_monitor_scheduled_query_rules_alert_v2" "api_high_latency" {
   target_resource_types = ["microsoft.insights/components"]
 
   criteria {
-    query = <<-QUERY
+    query                   = <<-QUERY
       requests
-      | summarize AvgDuration = avg(duration) by bin(timestamp, 5m)
-      | where AvgDuration > 2000
+      | summarize P95Duration = percentile(duration, 95) by bin(timestamp, 5m)
+      | where P95Duration > 3000
     QUERY
     time_aggregation_method = "Count"
     operator                = "GreaterThanOrEqual"
     threshold               = 1
 
     failing_periods {
-      minimum_failing_periods_to_trigger_alert = 1
-      number_of_evaluation_periods             = 1
+      minimum_failing_periods_to_trigger_alert = 2
+      number_of_evaluation_periods             = 3
     }
   }
 
@@ -221,10 +225,11 @@ resource "azurerm_monitor_scheduled_query_rules_alert_v2" "api_high_latency" {
 # -----------------------------------------------------------------------------
 
 # Alert: Database Connection Failures (Sev1 - Critical)
+# Threshold >5 to suppress transient failures from pool expansion under burst load.
 resource "azurerm_monitor_metric_alert" "db_connection_failures" {
   name                = "alert-ltc-db-connections-${var.environment}"
   resource_group_name = azurerm_resource_group.main.name
-  description         = "Alert when database has connection failures"
+  description         = "Alert when database has 5+ connection failures in 5 minutes"
   severity            = 1
   enabled             = true
   tags                = local.tags
@@ -238,7 +243,7 @@ resource "azurerm_monitor_metric_alert" "db_connection_failures" {
     metric_name      = "connections_failed"
     aggregation      = "Total"
     operator         = "GreaterThan"
-    threshold        = 0
+    threshold        = 5
   }
 
   action {
@@ -299,18 +304,57 @@ resource "azurerm_monitor_metric_alert" "db_high_cpu" {
 }
 
 # -----------------------------------------------------------------------------
-# Monitoring - Circuit Breaker Alerts
+# Monitoring - Dependency Alerts
 # -----------------------------------------------------------------------------
-# These alerts monitor the Clerk auth circuit breaker for infrastructure issues.
-# Circuit breaker opens when JWKS fetching fails repeatedly (Clerk outage).
 
-# Alert: Circuit Breaker Open > 5 min (Sev2 - Warning)
-# Fires when circuit_breaker_open_total metric indicates circuit has been opening
-resource "azurerm_monitor_scheduled_query_rules_alert_v2" "circuit_breaker_open_warning" {
-  name                = "alert-ltc-circuit-open-warning-${var.environment}"
+# Alert: LLM / Azure OpenAI Dependency Failures (Sev1 - Critical)
+# Code verification is a core feature — if OpenAI is down or rate-limiting,
+# users can't verify their hands-on projects.
+resource "azurerm_monitor_scheduled_query_rules_alert_v2" "llm_dependency_failures" {
+  name                = "alert-ltc-llm-failures-${var.environment}"
   resource_group_name = azurerm_resource_group.main.name
   location            = azurerm_resource_group.main.location
-  description         = "Alert when Clerk auth circuit breaker is open (5+ min of failures)"
+  description         = "Alert when Azure OpenAI dependency calls fail (5+ in 5 min)"
+  severity            = 1
+  enabled             = true
+  tags                = local.tags
+
+  scopes                = [azurerm_application_insights.main.id]
+  evaluation_frequency  = "PT5M"
+  window_duration       = "PT5M"
+  target_resource_types = ["microsoft.insights/components"]
+
+  criteria {
+    query                   = <<-QUERY
+      dependencies
+      | where type == "HTTP" or type == "Azure OpenAI"
+      | where target has "openai" or target has "oai-ltc"
+      | where success == false
+      | summarize FailureCount = count() by bin(timestamp, 5m)
+    QUERY
+    time_aggregation_method = "Count"
+    operator                = "GreaterThanOrEqual"
+    threshold               = 5
+
+    failing_periods {
+      minimum_failing_periods_to_trigger_alert = 1
+      number_of_evaluation_periods             = 1
+    }
+  }
+
+  action {
+    action_groups = [azurerm_monitor_action_group.critical.id]
+  }
+}
+
+# Alert: 4xx Spike (Sev2 - Warning)
+# A sudden jump in 401/403 could indicate auth misconfiguration (OAuth secrets
+# rotated, session key mismatch). 404s are excluded since they're normal.
+resource "azurerm_monitor_scheduled_query_rules_alert_v2" "api_4xx_spike" {
+  name                = "alert-ltc-api-4xx-${var.environment}"
+  resource_group_name = azurerm_resource_group.main.name
+  location            = azurerm_resource_group.main.location
+  description         = "Alert when API returns 20+ 401/403 errors in 5 minutes (possible auth breakage)"
   severity            = 2
   enabled             = true
   tags                = local.tags
@@ -321,103 +365,23 @@ resource "azurerm_monitor_scheduled_query_rules_alert_v2" "circuit_breaker_open_
   target_resource_types = ["microsoft.insights/components"]
 
   criteria {
-    query = <<-QUERY
-      customMetrics
-      | where name == "circuit_breaker_open_total"
-      | where customDimensions.circuit == "clerk_auth"
-      | summarize OpenCount = sum(value) by bin(timestamp, 5m)
-      | where OpenCount > 0
+    query                   = <<-QUERY
+      requests
+      | where resultCode in ("401", "403")
+      | summarize ErrorCount = count() by bin(timestamp, 5m)
     QUERY
     time_aggregation_method = "Count"
     operator                = "GreaterThanOrEqual"
-    threshold               = 1
+    threshold               = 20
 
     failing_periods {
-      minimum_failing_periods_to_trigger_alert = 1
-      number_of_evaluation_periods             = 1
-    }
-  }
-
-  action {
-    action_groups = [azurerm_monitor_action_group.warning.id]
-  }
-}
-
-# Alert: Circuit Breaker Open > 15 min (Sev1 - Critical)
-# Extended outage - pages on-call
-resource "azurerm_monitor_scheduled_query_rules_alert_v2" "circuit_breaker_open_critical" {
-  name                = "alert-ltc-circuit-open-critical-${var.environment}"
-  resource_group_name = azurerm_resource_group.main.name
-  location            = azurerm_resource_group.main.location
-  description         = "Alert when Clerk auth circuit breaker is open for extended period (15+ min)"
-  severity            = 1
-  enabled             = true
-  tags                = local.tags
-
-  scopes                = [azurerm_application_insights.main.id]
-  evaluation_frequency  = "PT5M"
-  window_duration       = "PT15M"
-  target_resource_types = ["microsoft.insights/components"]
-
-  criteria {
-    query = <<-QUERY
-      customMetrics
-      | where name == "circuit_breaker_open_total"
-      | where customDimensions.circuit == "clerk_auth"
-      | summarize OpenCount = sum(value) by bin(timestamp, 15m)
-      | where OpenCount > 0
-    QUERY
-    time_aggregation_method = "Count"
-    operator                = "GreaterThanOrEqual"
-    threshold               = 1
-
-    failing_periods {
-      minimum_failing_periods_to_trigger_alert = 3
+      minimum_failing_periods_to_trigger_alert = 2
       number_of_evaluation_periods             = 3
     }
   }
 
   action {
-    action_groups = [azurerm_monitor_action_group.critical.id]
-  }
-}
-
-# Alert: Circuit Breaker Flapping (Sev1 - Critical)
-# Multiple state transitions indicate instability - pages on-call
-resource "azurerm_monitor_scheduled_query_rules_alert_v2" "circuit_breaker_flapping" {
-  name                = "alert-ltc-circuit-flapping-${var.environment}"
-  resource_group_name = azurerm_resource_group.main.name
-  location            = azurerm_resource_group.main.location
-  description         = "Alert when circuit breaker is flapping (>5 state changes in 10 min)"
-  severity            = 1
-  enabled             = true
-  tags                = local.tags
-
-  scopes                = [azurerm_application_insights.main.id]
-  evaluation_frequency  = "PT5M"
-  window_duration       = "PT10M"
-  target_resource_types = ["microsoft.insights/components"]
-
-  criteria {
-    query = <<-QUERY
-      customMetrics
-      | where name == "circuit_breaker_state_change"
-      | where customDimensions.circuit == "clerk_auth"
-      | summarize StateChanges = sum(value) by bin(timestamp, 10m)
-      | where StateChanges > 5
-    QUERY
-    time_aggregation_method = "Count"
-    operator                = "GreaterThanOrEqual"
-    threshold               = 1
-
-    failing_periods {
-      minimum_failing_periods_to_trigger_alert = 1
-      number_of_evaluation_periods             = 1
-    }
-  }
-
-  action {
-    action_groups = [azurerm_monitor_action_group.critical.id]
+    action_groups = [azurerm_monitor_action_group.warning.id]
   }
 }
 
@@ -450,6 +414,12 @@ resource "azurerm_monitor_smart_detector_alert_rule" "failure_anomalies" {
 # -----------------------------------------------------------------------------
 # Monitoring - Dashboard
 # -----------------------------------------------------------------------------
+# Layout (12-column grid):
+#   Row 0  : Request Rate | Failed Requests (by status code)
+#   Row 4  : P95 Response Time | Response Time by Route (top 5 slowest)
+#   Row 8  : Replica Count | LLM Dependency Latency & Failures
+#   Row 12 : DB CPU % | DB Connections (vs 35 max on B1ms)
+#   Row 16 : DB Storage % | Active Users (unique authenticated sessions)
 resource "azurerm_portal_dashboard" "main" {
   name                = "dash-ltc-${var.environment}"
   resource_group_name = azurerm_resource_group.main.name
@@ -461,6 +431,7 @@ resource "azurerm_portal_dashboard" "main" {
       "0" = {
         order = 0
         parts = {
+          # --- Row 0: Traffic Overview ---
           "0" = {
             position = { x = 0, y = 0, colSpan = 6, rowSpan = 4 }
             metadata = {
@@ -494,7 +465,7 @@ resource "azurerm_portal_dashboard" "main" {
                   name = "options"
                   value = {
                     chart = {
-                      title = "API Failed Requests"
+                      title = "Failed Requests (4xx + 5xx)"
                       metrics = [{
                         resourceMetadata = { id = azurerm_application_insights.main.id }
                         name             = "requests/failed"
@@ -509,8 +480,72 @@ resource "azurerm_portal_dashboard" "main" {
               ]
             }
           }
+          # --- Row 4: Latency ---
           "2" = {
             position = { x = 0, y = 4, colSpan = 6, rowSpan = 4 }
+            metadata = {
+              type = "Extension/Microsoft_OperationsManagementSuite_Workspace/PartType/LogsDashboardPart"
+              inputs = [
+                {
+                  name  = "resourceTypeMode"
+                  value = "components"
+                },
+                {
+                  name = "ComponentId"
+                  value = {
+                    SubscriptionId = azurerm_application_insights.main.id
+                    ResourceId     = azurerm_application_insights.main.id
+                  }
+                },
+                {
+                  name  = "Query"
+                  value = "requests | summarize P50=percentile(duration, 50), P95=percentile(duration, 95), P99=percentile(duration, 99) by bin(timestamp, 5m) | render timechart"
+                },
+                {
+                  name  = "TimeRange"
+                  value = "PT24H"
+                },
+                {
+                  name  = "PartTitle"
+                  value = "Response Time Percentiles (P50 / P95 / P99)"
+                }
+              ]
+            }
+          }
+          "3" = {
+            position = { x = 6, y = 4, colSpan = 6, rowSpan = 4 }
+            metadata = {
+              type = "Extension/Microsoft_OperationsManagementSuite_Workspace/PartType/LogsDashboardPart"
+              inputs = [
+                {
+                  name  = "resourceTypeMode"
+                  value = "components"
+                },
+                {
+                  name = "ComponentId"
+                  value = {
+                    SubscriptionId = azurerm_application_insights.main.id
+                    ResourceId     = azurerm_application_insights.main.id
+                  }
+                },
+                {
+                  name  = "Query"
+                  value = "requests | where timestamp > ago(24h) | summarize P95=percentile(duration, 95), Count=count() by name | top 10 by P95 desc | project Route=name, P95_ms=round(P95, 0), Requests=Count"
+                },
+                {
+                  name  = "TimeRange"
+                  value = "PT24H"
+                },
+                {
+                  name  = "PartTitle"
+                  value = "Slowest Routes (P95 latency)"
+                }
+              ]
+            }
+          }
+          # --- Row 8: Container App + LLM Dependency ---
+          "4" = {
+            position = { x = 0, y = 8, colSpan = 6, rowSpan = 4 }
             metadata = {
               type = "Extension/HubsExtension/PartType/MonitorChartPart"
               inputs = [
@@ -518,12 +553,12 @@ resource "azurerm_portal_dashboard" "main" {
                   name = "options"
                   value = {
                     chart = {
-                      title = "API Response Time (avg)"
+                      title = "Container App Replica Count"
                       metrics = [{
-                        resourceMetadata = { id = azurerm_application_insights.main.id }
-                        name             = "requests/duration"
-                        aggregationType  = 4
-                        namespace        = "microsoft.insights/components"
+                        resourceMetadata = { id = azurerm_container_app.api.id }
+                        name             = "Replicas"
+                        aggregationType  = 3
+                        namespace        = "Microsoft.App/containerApps"
                       }]
                       visualization = { chartType = 2 }
                       timespan      = { relative = { duration = 86400000 } }
@@ -533,8 +568,40 @@ resource "azurerm_portal_dashboard" "main" {
               ]
             }
           }
-          "3" = {
-            position = { x = 6, y = 4, colSpan = 6, rowSpan = 4 }
+          "5" = {
+            position = { x = 6, y = 8, colSpan = 6, rowSpan = 4 }
+            metadata = {
+              type = "Extension/Microsoft_OperationsManagementSuite_Workspace/PartType/LogsDashboardPart"
+              inputs = [
+                {
+                  name  = "resourceTypeMode"
+                  value = "components"
+                },
+                {
+                  name = "ComponentId"
+                  value = {
+                    SubscriptionId = azurerm_application_insights.main.id
+                    ResourceId     = azurerm_application_insights.main.id
+                  }
+                },
+                {
+                  name  = "Query"
+                  value = "dependencies | where target has 'openai' or target has 'oai-ltc' | summarize Calls=count(), Failures=countif(success == false), AvgDuration=avg(duration) by bin(timestamp, 15m) | render timechart"
+                },
+                {
+                  name  = "TimeRange"
+                  value = "PT24H"
+                },
+                {
+                  name  = "PartTitle"
+                  value = "LLM / OpenAI Dependency (calls, failures, latency)"
+                }
+              ]
+            }
+          }
+          # --- Row 12: Database ---
+          "6" = {
+            position = { x = 0, y = 12, colSpan = 6, rowSpan = 4 }
             metadata = {
               type = "Extension/HubsExtension/PartType/MonitorChartPart"
               inputs = [
@@ -557,8 +624,8 @@ resource "azurerm_portal_dashboard" "main" {
               ]
             }
           }
-          "4" = {
-            position = { x = 0, y = 8, colSpan = 6, rowSpan = 4 }
+          "7" = {
+            position = { x = 6, y = 12, colSpan = 6, rowSpan = 4 }
             metadata = {
               type = "Extension/HubsExtension/PartType/MonitorChartPart"
               inputs = [
@@ -566,7 +633,7 @@ resource "azurerm_portal_dashboard" "main" {
                   name = "options"
                   value = {
                     chart = {
-                      title = "Database Connections"
+                      title = "Database Active Connections (max 35 on B1ms)"
                       metrics = [{
                         resourceMetadata = { id = azurerm_postgresql_flexible_server.main.id }
                         name             = "active_connections"
@@ -581,8 +648,9 @@ resource "azurerm_portal_dashboard" "main" {
               ]
             }
           }
-          "5" = {
-            position = { x = 6, y = 8, colSpan = 6, rowSpan = 4 }
+          # --- Row 16: Storage + User Activity ---
+          "8" = {
+            position = { x = 0, y = 16, colSpan = 6, rowSpan = 4 }
             metadata = {
               type = "Extension/HubsExtension/PartType/MonitorChartPart"
               inputs = [
@@ -601,6 +669,100 @@ resource "azurerm_portal_dashboard" "main" {
                       timespan      = { relative = { duration = 86400000 } }
                     }
                   }
+                }
+              ]
+            }
+          }
+          "9" = {
+            position = { x = 6, y = 16, colSpan = 6, rowSpan = 4 }
+            metadata = {
+              type = "Extension/Microsoft_OperationsManagementSuite_Workspace/PartType/LogsDashboardPart"
+              inputs = [
+                {
+                  name  = "resourceTypeMode"
+                  value = "components"
+                },
+                {
+                  name = "ComponentId"
+                  value = {
+                    SubscriptionId = azurerm_application_insights.main.id
+                    ResourceId     = azurerm_application_insights.main.id
+                  }
+                },
+                {
+                  name  = "Query"
+                  value = "requests | where timestamp > ago(24h) | where name !has 'health' and name !has 'static' | summarize UniqueUsers=dcount(user_AuthenticatedId), Requests=count() by bin(timestamp, 1h) | render timechart"
+                },
+                {
+                  name  = "TimeRange"
+                  value = "PT24H"
+                },
+                {
+                  name  = "PartTitle"
+                  value = "Active Users & Request Volume (hourly)"
+                }
+              ]
+            }
+          }
+          # --- Row 20: Error Breakdown + GitHub Dependency ---
+          "10" = {
+            position = { x = 0, y = 20, colSpan = 6, rowSpan = 4 }
+            metadata = {
+              type = "Extension/Microsoft_OperationsManagementSuite_Workspace/PartType/LogsDashboardPart"
+              inputs = [
+                {
+                  name  = "resourceTypeMode"
+                  value = "components"
+                },
+                {
+                  name = "ComponentId"
+                  value = {
+                    SubscriptionId = azurerm_application_insights.main.id
+                    ResourceId     = azurerm_application_insights.main.id
+                  }
+                },
+                {
+                  name  = "Query"
+                  value = "requests | where timestamp > ago(24h) | where toint(resultCode) >= 400 | summarize Count=count() by resultCode, name | top 15 by Count desc | project Status=resultCode, Route=name, Count"
+                },
+                {
+                  name  = "TimeRange"
+                  value = "PT24H"
+                },
+                {
+                  name  = "PartTitle"
+                  value = "Error Breakdown (status code × route)"
+                }
+              ]
+            }
+          }
+          "11" = {
+            position = { x = 6, y = 20, colSpan = 6, rowSpan = 4 }
+            metadata = {
+              type = "Extension/Microsoft_OperationsManagementSuite_Workspace/PartType/LogsDashboardPart"
+              inputs = [
+                {
+                  name  = "resourceTypeMode"
+                  value = "components"
+                },
+                {
+                  name = "ComponentId"
+                  value = {
+                    SubscriptionId = azurerm_application_insights.main.id
+                    ResourceId     = azurerm_application_insights.main.id
+                  }
+                },
+                {
+                  name  = "Query"
+                  value = "dependencies | where target has 'github' | summarize Calls=count(), Failures=countif(success == false), AvgDuration=avg(duration) by bin(timestamp, 15m) | render timechart"
+                },
+                {
+                  name  = "TimeRange"
+                  value = "PT24H"
+                },
+                {
+                  name  = "PartTitle"
+                  value = "GitHub API Dependency (calls, failures, latency)"
                 }
               ]
             }

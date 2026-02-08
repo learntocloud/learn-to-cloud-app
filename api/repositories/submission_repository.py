@@ -181,24 +181,3 @@ class SubmissionRepository:
             )
         )
         return result.scalar_one() or 0
-
-    async def get_consecutive_failure_count(
-        self, user_id: int, requirement_id: str
-    ) -> int:
-        """Get the number of consecutive failed attempts for a requirement.
-
-        Returns 0 if the current submission is validated or has no record.
-        Used to compute escalating cooldowns on repeated failures.
-        """
-        submission = await self.get_by_user_and_requirement(user_id, requirement_id)
-        if submission is None:
-            return 0
-        if submission.is_validated:
-            return 0
-        if not submission.verification_completed:
-            return 0
-        # The submission exists, failed, and verification completed.
-        # We treat each such state as at least 1 failure. We don't have
-        # full history (upsert), so we track via an in-memory counter
-        # in the service layer for escalation beyond the first failure.
-        return 1

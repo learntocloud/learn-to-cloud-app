@@ -8,9 +8,10 @@ dashboards and storytelling.
 from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import Integer, func, select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from models import Certificate, StepProgress, Submission, User
+from models import AnalyticsSnapshot, Certificate, StepProgress, Submission, User
 
 
 class AnalyticsRepository:
@@ -142,3 +143,25 @@ class AnalyticsRepository:
             ).group_by("dow")
         )
         return {row[0]: row[1] for row in result.all()}
+
+    async def get_snapshot_data(self) -> str | None:
+        """Read the pre-computed analytics snapshot JSON.
+
+        Returns the raw JSON string, or None if no snapshot exists.
+        """
+        result = await self.db.execute(
+            select(AnalyticsSnapshot.data).where(AnalyticsSnapshot.id == 1)
+        )
+        return result.scalar_one_or_none()
+
+    async def upsert_snapshot(self, data_json: str, computed_at: datetime) -> None:
+        """Create or update the analytics snapshot row."""
+        stmt = (
+            pg_insert(AnalyticsSnapshot)
+            .values(id=1, data=data_json, computed_at=computed_at)
+            .on_conflict_do_update(
+                index_elements=["id"],
+                set_={"data": data_json, "computed_at": computed_at},
+            )
+        )
+        await self.db.execute(stmt)

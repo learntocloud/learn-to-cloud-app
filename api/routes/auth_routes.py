@@ -15,7 +15,7 @@ from fastapi.responses import RedirectResponse
 from core.auth import oauth
 from core.config import get_settings
 from core.database import DbSession
-from services.users_service import get_or_create_user_from_github
+from services.users_service import get_or_create_user_from_github, parse_display_name
 
 logger = logging.getLogger(__name__)
 
@@ -77,15 +77,7 @@ async def callback(request: Request, db: DbSession) -> RedirectResponse:
     github_id = github_user["id"]
     github_username = github_user.get("login", "")
     avatar_url = github_user.get("avatar_url")
-    name = github_user.get("name", "")
-
-    # Split name into first/last
-    first_name = ""
-    last_name = ""
-    if name:
-        parts = name.split(" ", 1)
-        first_name = parts[0]
-        last_name = parts[1] if len(parts) > 1 else ""
+    first_name, last_name = parse_display_name(github_user.get("name", ""))
 
     user = await get_or_create_user_from_github(
         db=db,
@@ -95,6 +87,7 @@ async def callback(request: Request, db: DbSession) -> RedirectResponse:
         avatar_url=avatar_url,
         github_username=github_username.lower(),
     )
+    await db.commit()
 
     # Set session cookie
     request.session["user_id"] = user.id

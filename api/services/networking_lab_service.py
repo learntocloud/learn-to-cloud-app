@@ -130,10 +130,11 @@ def verify_networking_token(
         try:
             verification_secret = _derive_secret(instance_id)
         except RuntimeError:
-            logger.exception("Networking lab verification misconfigured")
+            logger.exception("networking.verification.misconfigured")
             return NetworkingLabVerificationResult(
                 is_valid=False,
                 message="Networking lab verification is not available right now.",
+                server_error=True,
             )
 
         # Verify HMAC signature
@@ -174,6 +175,15 @@ def verify_networking_token(
             )
 
         # Success
+        logger.info(
+            "networking.verification.passed",
+            extra={
+                "github_username": payload.get("github_username"),
+                "challenges": challenges,
+                "challenge_type": challenge_type,
+            },
+        )
+
         return NetworkingLabVerificationResult(
             is_valid=True,
             message=(
@@ -195,4 +205,5 @@ def verify_networking_token(
         return NetworkingLabVerificationResult(
             is_valid=False,
             message="Token verification failed. Please try again or contact support.",
+            server_error=True,
         )

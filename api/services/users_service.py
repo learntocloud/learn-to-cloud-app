@@ -16,6 +16,8 @@ from services.badges_service import compute_all_badges
 from services.hands_on_verification_service import get_requirement_by_id
 from services.progress_service import fetch_user_progress, get_phase_completion_counts
 
+logger = logging.getLogger(__name__)
+
 
 def normalize_github_username(username: str | None) -> str | None:
     """Normalize GitHub username to lowercase for consistency.
@@ -24,6 +26,17 @@ def normalize_github_username(username: str | None) -> str | None:
     to avoid duplicate accounts and enable case-insensitive lookups.
     """
     return username.lower() if username else None
+
+
+def parse_display_name(name: str | None) -> tuple[str, str]:
+    """Split a display name into (first_name, last_name).
+
+    Handles single names, multi-part names, and empty/None values.
+    """
+    if not name:
+        return ("", "")
+    parts = name.split(" ", 1)
+    return (parts[0], parts[1] if len(parts) > 1 else "")
 
 
 def _to_user_response(user: User) -> UserResponse:
@@ -77,17 +90,32 @@ async def get_or_create_user_from_github(
 
     Called during the OAuth callback. Uses upsert to handle both new
     and returning users in a single query.
+
+    If another user already has this GitHub username, it is cleared from
+    them first (GitHub usernames are unique across our user base).
     """
     user_repo = UserRepository(db)
+    normalized_username = normalize_github_username(github_username)
+
+    # Clear username from any other user before upsert (business rule:
+    # GitHub usernames must be unique, latest OAuth login wins).
+    if normalized_username:
+        existing_owner = await user_repo.get_by_github_username(normalized_username)
+        if existing_owner and existing_owner.id != github_id:
+            await user_repo.clear_github_username(existing_owner.id)
 
     user = await user_repo.upsert(
         github_id,
         first_name=first_name,
         last_name=last_name,
         avatar_url=avatar_url,
-        github_username=normalize_github_username(github_username),
+        github_username=normalized_username,
     )
-    await db.commit()
+
+    logger.info(
+        "user.upserted",
+        extra={"user_id": github_id, "github_username": normalized_username},
+    )
 
     return user
 
@@ -176,9 +204,6 @@ class UserNotFoundError(Exception):
         super().__init__(f"User not found: {user_id}")
 
 
-logger = logging.getLogger(__name__)
-
-
 async def delete_user_account(db: AsyncSession, user_id: int) -> None:
     """Permanently delete a user and all associated data.
 
@@ -194,7 +219,6 @@ async def delete_user_account(db: AsyncSession, user_id: int) -> None:
 
     github_username = user.github_username
     await user_repo.delete(user_id)
-    await db.commit()
 
     logger.info(
         "user.account_deleted",

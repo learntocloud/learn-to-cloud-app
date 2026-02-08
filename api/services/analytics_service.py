@@ -19,11 +19,8 @@ import logging
 from datetime import UTC, datetime
 
 from cachetools import TTLCache
-from sqlalchemy import select
-from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from models import AnalyticsSnapshot
 from repositories.analytics_repository import AnalyticsRepository
 from schemas import (
     CommunityAnalytics,
@@ -109,10 +106,8 @@ async def get_community_analytics(
 
     # Read from DB if session provided
     if db is not None:
-        result = await db.execute(
-            select(AnalyticsSnapshot.data).where(AnalyticsSnapshot.id == 1)
-        )
-        row = result.scalar_one_or_none()
+        repo = AnalyticsRepository(db)
+        row = await repo.get_snapshot_data()
         if row is not None:
             analytics = CommunityAnalytics.model_validate_json(row)
             _local_cache["analytics"] = analytics
@@ -244,15 +239,8 @@ async def refresh_analytics(
         now = datetime.now(UTC)
         data_json = result.model_dump_json()
 
-        stmt = (
-            pg_insert(AnalyticsSnapshot)
-            .values(id=1, data=data_json, computed_at=now)
-            .on_conflict_do_update(
-                index_elements=["id"],
-                set_={"data": data_json, "computed_at": now},
-            )
-        )
-        await db.execute(stmt)
+        repo = AnalyticsRepository(db)
+        await repo.upsert_snapshot(data_json, now)
         await db.commit()
 
     # Update local cache so this replica sees the new data immediately
