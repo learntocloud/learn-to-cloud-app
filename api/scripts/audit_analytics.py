@@ -93,13 +93,11 @@ async def audit():
         print(f"total_users: {await repo.get_total_users()}")
         print(f"total_certs: {await repo.get_total_certificates()}")
         print(f"active_30d: {await repo.get_active_learners(days=30)}")
-        print(f"users_reached: {await repo.get_users_reached_per_phase()}")
         print(f"histogram: {await repo.get_step_completion_histogram()}")
         print(f"signups: {await repo.get_signups_by_month()}")
         print(f"certs_monthly: {await repo.get_certificates_by_month()}")
         print(f"submissions: {await repo.get_submission_stats_by_phase()}")
         print(f"activity_dow: {await repo.get_activity_by_day_of_week()}")
-        print(f"top_topics: {await repo.get_top_topics(limit=5)}")
 
         # ── SERVICE LAYER ──
         print("\n=== SERVICE LAYER ===")
@@ -121,9 +119,6 @@ async def audit():
         print(f"cert_trends: {ct}")
         ad = [(d.day_name, d.completions) for d in a.activity_by_day]
         print(f"activity: {ad}")
-        print(
-            f"top_topics: {[(t.topic_name, t.active_users) for t in a.top_topics[:5]]}"
-        )
 
     await engine.dispose()
 

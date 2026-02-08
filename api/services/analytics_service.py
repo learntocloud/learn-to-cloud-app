@@ -30,10 +30,9 @@ from schemas import (
     DayActivity,
     MonthlyTrend,
     PhaseDistributionItem,
-    TopicEngagement,
     VerificationStat,
 )
-from services.content_service import get_all_phases, get_topic_by_id
+from services.content_service import get_all_phases
 from services.progress_service import get_phase_requirements
 
 logger = logging.getLogger(__name__)
@@ -56,8 +55,8 @@ _DAY_NAMES = {
     7: "Sunday",
 }
 
-# Default refresh interval for the background task (24 hours).
-REFRESH_INTERVAL_SECONDS = 86400
+# Default refresh interval for the background task (1 hour).
+REFRESH_INTERVAL_SECONDS = 3600
 
 
 def _build_cumulative_trends(
@@ -135,13 +134,12 @@ def _empty_analytics() -> CommunityAnalytics:
         certificate_trends=[],
         verification_stats=[],
         activity_by_day=[],
-        top_topics=[],
         generated_at=datetime.now(UTC),
     )
 
 
 async def _compute_analytics(db: AsyncSession) -> CommunityAnalytics:
-    """Run the 10 aggregate queries and compose the full analytics payload.
+    """Run aggregate queries and compose the full analytics payload.
 
     This is called only by the background refresh task — never in a
     request handler.
@@ -152,13 +150,17 @@ async def _compute_analytics(db: AsyncSession) -> CommunityAnalytics:
     total_users = await repo.get_total_users()
     total_certificates = await repo.get_total_certificates()
     active_30d = await repo.get_active_learners(days=30)
-    users_reached = await repo.get_users_reached_per_phase()
     histogram = await repo.get_step_completion_histogram()
     signup_raw = await repo.get_signups_by_month()
     cert_raw = await repo.get_certificates_by_month()
     submission_stats = await repo.get_submission_stats_by_phase()
     activity_dow = await repo.get_activity_by_day_of_week()
-    top_topics_raw = await repo.get_top_topics(limit=10)
+
+    # Derive users_reached per phase from the histogram instead of a
+    # separate query — the histogram already contains all the data.
+    users_reached: dict[int, int] = {}
+    for phase_id, _step_count, num_users in histogram:
+        users_reached[phase_id] = users_reached.get(phase_id, 0) + num_users
 
     # --- Phase distribution (funnel) ---
     phases = get_all_phases()
@@ -208,20 +210,6 @@ async def _compute_analytics(db: AsyncSession) -> CommunityAnalytics:
             )
         )
 
-    # --- Top topics ---
-    top_topics: list[TopicEngagement] = []
-    for topic_id, phase_id, active_users in top_topics_raw:
-        topic = get_topic_by_id(topic_id)
-        topic_name = topic.name if topic else topic_id
-        top_topics.append(
-            TopicEngagement(
-                topic_id=topic_id,
-                topic_name=topic_name,
-                phase_id=phase_id,
-                active_users=active_users,
-            )
-        )
-
     # --- Completion rate ---
     completion_rate = (
         round(total_certificates / total_users * 100, 1) if total_users > 0 else 0.0
@@ -237,7 +225,6 @@ async def _compute_analytics(db: AsyncSession) -> CommunityAnalytics:
         certificate_trends=certificate_trends,
         verification_stats=verification_stats,
         activity_by_day=activity_by_day,
-        top_topics=top_topics,
         generated_at=datetime.now(UTC),
     )
 

@@ -36,9 +36,20 @@
             <code class="bg-gray-100 dark:bg-gray-800 px-1 rounded-sm text-xs">{{ certificate.verification_code }}</code>
             <button
                 x-data="{ copied: false }"
-                @click="navigator.clipboard.writeText('{{ certificate.verification_code }}'); copied = true; setTimeout(() => copied = false, 2000)"
+                @click="
+                    const text = '{{ certificate.verification_code }}';
+                    if (navigator.clipboard && navigator.clipboard.writeText) {
+                        navigator.clipboard.writeText(text).then(() => { copied = true; setTimeout(() => copied = false, 2000); });
+                    } else {
+                        const ta = document.createElement('textarea');
+                        ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+                        document.body.appendChild(ta); ta.select(); document.execCommand('copy');
+                        document.body.removeChild(ta); copied = true; setTimeout(() => copied = false, 2000);
+                    }
+                "
                 class="ml-1 text-blue-600 dark:text-blue-400 text-xs hover:underline"
                 x-text="copied ? 'Copied!' : 'Copy'"
+                aria-label="Copy verification code"
             ></button>
         </p>
         <div class="flex gap-3">

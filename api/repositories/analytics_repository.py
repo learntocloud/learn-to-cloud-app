@@ -39,19 +39,6 @@ class AnalyticsRepository:
         )
         return result.scalar_one() or 0
 
-    async def get_users_reached_per_phase(self) -> dict[int, int]:
-        """Count distinct users who have at least one step in each phase.
-
-        This powers the engagement funnel — how many users reached each phase.
-        """
-        result = await self.db.execute(
-            select(
-                StepProgress.phase_id,
-                func.count(func.distinct(StepProgress.user_id)),
-            ).group_by(StepProgress.phase_id)
-        )
-        return {row[0]: row[1] for row in result.all()}
-
     async def get_step_completion_histogram(
         self,
     ) -> list[tuple[int, int, int]]:
@@ -155,22 +142,3 @@ class AnalyticsRepository:
             ).group_by("dow")
         )
         return {row[0]: row[1] for row in result.all()}
-
-    async def get_top_topics(self, limit: int = 10) -> list[tuple[str, int, int]]:
-        """Get most popular topics by distinct active users.
-
-        Returns:
-            List of (topic_id, phase_id, active_user_count) ordered by
-            active_user_count descending.
-        """
-        result = await self.db.execute(
-            select(
-                StepProgress.topic_id,
-                StepProgress.phase_id,
-                func.count(func.distinct(StepProgress.user_id)).label("users"),
-            )
-            .group_by(StepProgress.topic_id, StepProgress.phase_id)
-            .order_by(func.count(func.distinct(StepProgress.user_id)).desc())
-            .limit(limit)
-        )
-        return [(row[0], row[1], row[2]) for row in result.all()]

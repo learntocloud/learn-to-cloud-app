@@ -58,7 +58,6 @@ async def get_system_status(
             certificate_trends=[],
             verification_stats=[],
             activity_by_day=[],
-            top_topics=[],
             generated_at=now,
         )
 

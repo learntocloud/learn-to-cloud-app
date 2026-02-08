@@ -670,15 +670,6 @@ class DayActivity(FrozenModel):
     completions: int
 
 
-class TopicEngagement(FrozenModel):
-    """Topic engagement ranked by active users."""
-
-    topic_id: str
-    topic_name: str
-    phase_id: int
-    active_users: int
-
-
 class CommunityAnalytics(FrozenModel):
     """Aggregate, anonymous community analytics.
 
@@ -695,7 +686,6 @@ class CommunityAnalytics(FrozenModel):
     certificate_trends: list[MonthlyTrend]
     verification_stats: list[VerificationStat]
     activity_by_day: list[DayActivity]
-    top_topics: list[TopicEngagement]
     generated_at: datetime
 
 

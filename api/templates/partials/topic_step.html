@@ -37,11 +37,22 @@
 
         {% if step.code %}
         <div class="mt-2 relative" x-data="{ copied: false }">
-            <pre class="bg-gray-100 dark:bg-gray-800 rounded-md p-3 text-sm overflow-x-auto"><code>{{ step.code }}</code></pre>
+            <pre class="bg-gray-100 dark:bg-gray-800 rounded-md p-3 text-sm overflow-x-auto"><code x-ref="code{{ step.order }}">{{ step.code }}</code></pre>
             <button
-                @click="navigator.clipboard.writeText($refs.code{{ step.order }}.textContent); copied = true; setTimeout(() => copied = false, 2000)"
+                @click="
+                    const text = $refs.code{{ step.order }}.textContent;
+                    if (navigator.clipboard && navigator.clipboard.writeText) {
+                        navigator.clipboard.writeText(text).then(() => { copied = true; setTimeout(() => copied = false, 2000); });
+                    } else {
+                        const ta = document.createElement('textarea');
+                        ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+                        document.body.appendChild(ta); ta.select(); document.execCommand('copy');
+                        document.body.removeChild(ta); copied = true; setTimeout(() => copied = false, 2000);
+                    }
+                "
                 class="absolute top-2 right-2 p-1 rounded-sm text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                 :class="{ 'text-green-500': copied }"
+                aria-label="Copy code to clipboard"
             >
                 <span x-show="!copied">📋</span>
                 <span x-show="copied">✓</span>

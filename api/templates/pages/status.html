@@ -22,7 +22,7 @@
     {% endif %}
 </div>
 <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-    System health and aggregate community data. All analytics are anonymous.
+    System health and aggregate community data. All analytics are anonymous and updated every hour.
 </p>
 {% endblock %}
 
@@ -102,14 +102,18 @@
                             <th class="text-left py-1.5 font-medium text-gray-500 dark:text-gray-400">Month</th>
                             <th class="text-right py-1.5 font-medium text-gray-500 dark:text-gray-400">New</th>
                             <th class="text-right py-1.5 font-medium text-gray-500 dark:text-gray-400">Total</th>
+                            <th class="text-right py-1.5 font-medium text-green-600 dark:text-green-400">Completions</th>
                         </tr>
                     </thead>
                     <tbody>
+                        {% set cert_map = {} %}
+                        {% for c in analytics.certificate_trends %}{% if cert_map.update({c.month: c.cumulative}) %}{% endif %}{% endfor %}
                         {% for t in analytics.signup_trends %}
                         <tr class="border-b border-gray-100 dark:border-gray-800">
                             <td class="py-1.5 text-gray-700 dark:text-gray-300">{{ t.month }}</td>
                             <td class="py-1.5 text-right text-gray-700 dark:text-gray-300">+{{ t.count }}</td>
                             <td class="py-1.5 text-right font-medium text-blue-600 dark:text-blue-400">{{ "{:,}".format(t.cumulative) }}</td>
+                            <td class="py-1.5 text-right font-medium text-green-600 dark:text-green-400">{{ cert_map.get(t.month, 0) }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -172,30 +176,6 @@
         {% endif %}
     </div>
 
-    {# ── Top Topics ── #}
-    {% if analytics.top_topics %}
-    <div class="mb-8 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
-        <h3 class="text-base font-semibold text-gray-900 dark:text-white mb-1">Most Engaging Topics</h3>
-        <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">Topics with the most active learners</p>
-        <div class="space-y-2">
-            {% set max_users = analytics.top_topics[0].active_users if analytics.top_topics else 1 %}
-            {% for topic in analytics.top_topics %}
-            <div class="flex items-center gap-3">
-                <span class="text-xs text-gray-400 dark:text-gray-500 w-6 text-right shrink-0">{{ loop.index }}</span>
-                <div class="flex-1 min-w-0">
-                    <div class="flex items-center justify-between mb-0.5">
-                        <span class="text-sm font-medium text-gray-700 dark:text-gray-300 truncate">{{ topic.topic_name }}</span>
-                        <span class="text-xs text-gray-500 dark:text-gray-400 ml-2 shrink-0">{{ topic.active_users }} learners</span>
-                    </div>
-                    <div class="h-1.5 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
-                        <div class="h-full bg-blue-500 rounded-full" style="width: {{ (topic.active_users / max_users * 100) | round }}%"></div>
-                    </div>
-                </div>
-            </div>
-            {% endfor %}
-        </div>
-    </div>
-    {% endif %}
 </div>
 
 {# ── API links ── #}
