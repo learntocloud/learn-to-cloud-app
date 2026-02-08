@@ -1,4 +1,3 @@
-```skill
 ---
 name: ship-it
 description: Run pre-commit, resolve issues, commit, push, then monitor the deploy workflow and resolve any deploy failures. Use when user says "ship it", "commit and deploy", "push and deploy", or "land this".
@@ -326,4 +325,3 @@ Report progress using this format:
 - "land this"
 - "commit push and monitor"
 - "deploy this"
-```
