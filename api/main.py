@@ -59,12 +59,20 @@ def _configure_azure_monitor_if_enabled() -> None:
             },
         )
 
+        # Enable Agent Framework built-in OTel tracing for LLM calls
+        try:
+            from agent_framework.observability import setup_observability
 
-# Configure structured logging BEFORE Azure Monitor
+            setup_observability()
+        except Exception:
+            pass  # Agent framework observability is optional
+
+
+# Configure Azure Monitor FIRST so its OTel LoggingHandler is on root logger,
+# then configure structlog (which preserves the OTel handler).
+_configure_azure_monitor_if_enabled()
 configure_logging()
 logger = get_logger(__name__)
-
-_configure_azure_monitor_if_enabled()
 
 # Jinja2 templates
 _templates_dir = Path(__file__).parent / "templates"

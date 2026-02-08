@@ -1,6 +1,6 @@
 # -----------------------------------------------------------------------------
 # Azure OpenAI — model deployment for AI-powered code analysis
-# The Copilot SDK (BYOK mode) sends requests here via the CLI sidecar.
+# The Agent Framework calls this endpoint directly via AzureOpenAIChatClient.
 # -----------------------------------------------------------------------------
 
 resource "azurerm_cognitive_account" "openai" {

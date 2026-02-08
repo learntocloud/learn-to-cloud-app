@@ -593,7 +593,7 @@ RETRIABLE_EXCEPTIONS: tuple[type[Exception], ...] = (
 class _retry_if_retriable(retry_base):  # noqa: N801
     """Only retry LLMClientError when its retriable flag is True.
 
-    Config errors (e.g. missing LLM_CLI_PATH) have retriable=False and
+    Config errors have retriable=False and
     should fail immediately instead of wasting time on doomed retries.
     """
 

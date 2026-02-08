@@ -49,24 +49,17 @@ class Settings(BaseSettings):
 
     http_timeout: float = 10.0
 
-    # LLM CLI configuration for AI-powered code verification
-    # Two modes:
-    #   1. Stdio mode (local dev): Set LLM_CLI_PATH to CLI binary
-    #   2. HTTP mode (production): Set LLM_CLI_URL to sidecar URL
-    llm_cli_path: str = ""  # Path to CLI binary for stdio mode
-    llm_cli_url: str = ""  # URL for HTTP mode (e.g., "http://localhost:4321")
+    # LLM configuration for AI-powered code verification
+    # Uses Microsoft Agent Framework with Azure OpenAI
     llm_cli_timeout: int = 120  # Seconds to wait for code analysis completion
     code_analysis_cooldown_seconds: int = 3600  # 1 hr between code analysis
     submission_cooldown_seconds: int = 3600  # 1 hr between verification attempts
     daily_submission_limit: int = 20  # Max submissions per user per day (all reqs)
 
-    # BYOK (Bring Your Own Key) — Azure AI Foundry
-    # Required for code analysis. Billed by your Azure subscription.
+    # Azure OpenAI — used by Agent Framework's AzureOpenAIChatClient
     llm_base_url: str = ""  # e.g. "https://<resource>.openai.azure.com"
-    llm_api_key: str = ""  # Azure AI Foundry API key
+    llm_api_key: str = ""  # Azure OpenAI API key
     llm_model: str = ""  # Deployment/model name (e.g. "gpt-5-mini")
-    llm_provider_type: str = "azure"  # "azure" | "openai" | "anthropic"
-    llm_wire_api: str = "completions"  # "completions" | "responses"
     llm_api_version: str = "2024-10-21"  # Azure API version
 
     # Use "redis://host:port" in production for distributed rate limiting
@@ -123,27 +116,6 @@ class Settings(BaseSettings):
     def use_azure_postgres(self) -> bool:
         """When True, connection built from postgres_* fields instead."""
         return bool(self.postgres_host and self.postgres_user)
-
-    @cached_property
-    def byok_provider(self) -> dict[str, object] | None:
-        """Build BYOK provider dict for SDK SessionConfig.
-
-        Returns None when BYOK is not configured.
-        """
-        if not self.llm_base_url or not self.llm_api_key:
-            return None
-
-        provider: dict[str, object] = {
-            "type": self.llm_provider_type,
-            "base_url": self.llm_base_url,
-            "api_key": self.llm_api_key,
-            "wire_api": self.llm_wire_api,
-        }
-        # Azure endpoints need api_version
-        if self.llm_provider_type == "azure":
-            provider["azure"] = {"api_version": self.llm_api_version}
-
-        return provider
 
     @cached_property
     def content_dir_path(self) -> Path:

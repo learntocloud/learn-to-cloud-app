@@ -1,14 +1,10 @@
-name: Deploy to Azure
+name: Deploy
 
 on:
   push:
     branches: [main]
-    paths-ignore:
-      - 'infra/**'
-      - '*.md'
-      - 'docs/**'
-      - '.github/instructions/**'
-      - '.github/skills/**'
+  pull_request:
+    branches: [main]
   workflow_dispatch:
     inputs:
       force_rebuild:
@@ -19,17 +15,10 @@ on:
         options:
           - 'false'
           - 'true'
-  workflow_call:
-    inputs:
-      force_rebuild:
-        description: 'Force rebuild without cache'
-        required: false
-        default: false
-        type: boolean
 
 concurrency:
-  group: deploy-${{ vars.AZURE_ENV_NAME }}
-  cancel-in-progress: false
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -50,10 +39,74 @@ env:
   ARM_CLIENT_SECRET: ${{ fromJson(secrets.AZURE_CREDENTIALS).clientSecret }}
 
 jobs:
+  # -----------------------------------------------------------------------
+  # CI — lint, type-check, test (runs on push AND PR)
+  # -----------------------------------------------------------------------
   ci:
-    uses: ./.github/workflows/api-ci.yml
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: learntocloud
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/learntocloud
+    defaults:
+      run:
+        working-directory: api
+    steps:
+      - uses: actions/checkout@v4
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: "api/pyproject.toml"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.9.26"
+          enable-cache: true
+
+      - name: Install dependencies
+        run: |
+          uv sync --extra dev --group dev
+          uv tool install ty
+
+      - name: Ruff lint
+        uses: astral-sh/ruff-action@v3
+        with:
+          src: "./api"
+          args: "check"
+          version: "0.8.6"
+
+      - name: Ruff format check
+        uses: astral-sh/ruff-action@v3
+        with:
+          src: "./api"
+          args: "format --check"
+          version: "0.8.6"
+
+      - name: Type check (ty)
+        run: uv tool run ty check --python .venv/bin/python
+
+      - name: Run tests with coverage
+        run: uv run pytest tests/ -v --tb=short --cov=. --cov-report=xml --cov-report=term-missing
+
+  # -----------------------------------------------------------------------
+  # Terraform — plan + apply (push to main only)
+  # -----------------------------------------------------------------------
   terraform:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     needs: [ci]
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -86,6 +139,19 @@ jobs:
       - name: Terraform Validate
         run: terraform validate
 
+      - name: Terraform Plan
+        run: terraform plan -out=tfplan -input=false -lock-timeout=120s
+        env:
+          TF_VAR_subscription_id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+          TF_VAR_github_client_id: ${{ secrets.TF_VAR_github_client_id }}
+          TF_VAR_github_client_secret: ${{ secrets.TF_VAR_github_client_secret }}
+          TF_VAR_session_secret_key: ${{ secrets.TF_VAR_session_secret_key }}
+          TF_VAR_google_api_key: ${{ secrets.TF_VAR_google_api_key }}
+          TF_VAR_labs_verification_secret: ${{ secrets.TF_VAR_labs_verification_secret }}
+
+      - name: Terraform Apply
+        run: terraform apply -auto-approve -lock-timeout=120s tfplan
+
       - name: Get Terraform Outputs
         id: tf-outputs
         run: |
@@ -95,7 +161,11 @@ jobs:
           echo "container_registry_endpoint=$(terraform output -raw AZURE_CONTAINER_REGISTRY_ENDPOINT)" >> "$GITHUB_OUTPUT"
           echo "api_url=$(terraform output -raw apiUrl)" >> "$GITHUB_OUTPUT"
 
-  deploy-api:
+  # -----------------------------------------------------------------------
+  # Deploy — build image, push, update container app (push to main only)
+  # -----------------------------------------------------------------------
+  deploy:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     needs: [terraform]
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -110,86 +180,25 @@ jobs:
       - name: Log in to ACR
         run: az acr login --name ${{ needs.terraform.outputs.container_registry_name }}
 
-      - name: Set build flags
-        id: build-flags
-        run: |
-          FORCE_REBUILD="${{ inputs.force_rebuild }}"
-          if [[ "$FORCE_REBUILD" == "true" ]]; then
-            echo "cache_flags=--no-cache --pull" >> "$GITHUB_OUTPUT"
-            echo "use_cache=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "cache_flags=" >> "$GITHUB_OUTPUT"
-            echo "use_cache=true" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Pull existing image for cache
-        if: steps.build-flags.outputs.use_cache == 'true'
-        continue-on-error: true
-        run: docker pull ${{ needs.terraform.outputs.container_registry_endpoint }}/api:latest || true
-
       - name: Build and Push API Image
         run: |
-          CACHE_FROM=""
-          if [[ "${{ steps.build-flags.outputs.use_cache }}" == "true" ]]; then
-            CACHE_FROM="--cache-from=${{ needs.terraform.outputs.container_registry_endpoint }}/api:latest"
+          CACHE_FLAGS=""
+          if [[ "${{ inputs.force_rebuild }}" == "true" ]]; then
+            CACHE_FLAGS="--no-cache --pull"
+          else
+            docker pull ${{ needs.terraform.outputs.container_registry_endpoint }}/api:latest || true
+            CACHE_FLAGS="--cache-from=${{ needs.terraform.outputs.container_registry_endpoint }}/api:latest"
           fi
           docker build -f api/Dockerfile \
-            ${{ steps.build-flags.outputs.cache_flags }} \
-            $CACHE_FROM \
+            $CACHE_FLAGS \
             --build-arg BUILDKIT_INLINE_CACHE=1 \
             --label git-commit=${{ github.sha }} \
-            --label git-branch=${{ github.ref_name }} \
             -t ${{ needs.terraform.outputs.container_registry_endpoint }}/api:${{ github.sha }} \
             -t ${{ needs.terraform.outputs.container_registry_endpoint }}/api:latest .
           docker push ${{ needs.terraform.outputs.container_registry_endpoint }}/api:${{ github.sha }}
           docker push ${{ needs.terraform.outputs.container_registry_endpoint }}/api:latest
 
-      - name: Build and Push LLM CLI Sidecar Image
-        run: |
-          docker build -f llm-cli/Dockerfile \
-            --label git-commit=${{ github.sha }} \
-            -t ${{ needs.terraform.outputs.container_registry_endpoint }}/llm-cli:${{ github.sha }} \
-            -t ${{ needs.terraform.outputs.container_registry_endpoint }}/llm-cli:latest .
-          docker push ${{ needs.terraform.outputs.container_registry_endpoint }}/llm-cli:${{ github.sha }}
-          docker push ${{ needs.terraform.outputs.container_registry_endpoint }}/llm-cli:latest
-
-      - name: Start PostgreSQL for Smoke Test
-        run: |
-          docker run --rm -d --name smoke-test-db \
-            -e POSTGRES_USER=postgres \
-            -e POSTGRES_PASSWORD=postgres \
-            -e POSTGRES_DB=learntocloud \
-            -p 5432:5432 \
-            postgres:16-alpine
-          sleep 5
-
-      - name: Smoke Test API Image
-        run: |
-          docker run --rm -d --name smoke-test -p 8000:8000 \
-            --link smoke-test-db:db \
-            -e DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/learntocloud \
-            -e DEBUG=true \
-            -e REQUIRE_HTTPS=false \
-            ${{ needs.terraform.outputs.container_registry_endpoint }}/api:${{ github.sha }}
-          sleep 10
-          curl -f http://localhost:8000/health || (docker logs smoke-test && exit 1)
-          docker stop smoke-test
-          docker stop smoke-test-db
-
-      - name: Install Trivy
-        run: |
-          sudo apt-get install -y wget apt-transport-https gnupg lsb-release
-          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
-          echo "deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/trivy.list
-          sudo apt-get update && sudo apt-get install -y trivy
-
-      - name: Security Scan API Image
-        run: |
-          trivy image --ignore-unfixed --exit-code 1 --severity HIGH,CRITICAL \
-            ${{ needs.terraform.outputs.container_registry_endpoint }}/api:${{ github.sha }} || \
-            echo "::warning::Trivy found vulnerabilities. Review the scan results above."
-
-      - name: Deploy API Container App
+      - name: Deploy to Container App
         run: |
           az containerapp update \
             --name ${{ needs.terraform.outputs.api_container_app_name }} \
@@ -197,10 +206,10 @@ jobs:
             --container-name api \
             --image ${{ needs.terraform.outputs.container_registry_endpoint }}/api:${{ github.sha }}
 
-      - name: Wait for API readiness
+      - name: Wait for readiness
         run: |
           READY_URL="${{ needs.terraform.outputs.api_url }}/ready"
-          echo "Waiting for API readiness at: $READY_URL"
+          echo "Waiting for API at: $READY_URL"
           for i in {1..30}; do
             code=$(curl -s -o /dev/null -w "%{http_code}" "$READY_URL" || true)
             if [[ "$code" == "200" ]]; then

@@ -118,9 +118,18 @@ def configure_logging() -> None:
         ],
     )
 
-    # Configure root logger
+    # Configure root logger — preserve OTel LoggingHandler if present
     root_logger = logging.getLogger()
+
+    # Remove only non-OTel handlers (preserve azure-monitor's LoggingHandler)
+    otel_handlers = [
+        h for h in root_logger.handlers if "LoggingHandler" in type(h).__name__
+    ]
     root_logger.handlers.clear()
+
+    # Re-add OTel handlers first, then our structlog handler
+    for h in otel_handlers:
+        root_logger.addHandler(h)
 
     handler = logging.StreamHandler(sys.stdout)
     handler.setFormatter(formatter)
@@ -131,6 +140,8 @@ def configure_logging() -> None:
     logging.getLogger("httpx").setLevel(logging.WARNING)
     logging.getLogger("httpcore").setLevel(logging.WARNING)
     logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
+    logging.getLogger("openai").setLevel(logging.WARNING)
+    logging.getLogger("openai._base_client").setLevel(logging.WARNING)
 
 
 def get_logger(name: str | None = None) -> structlog.stdlib.BoundLogger:

@@ -156,16 +156,6 @@ resource "azurerm_container_app" "api" {
         value = var.llm_model
       }
 
-      env {
-        name  = "LLM_PROVIDER_TYPE"
-        value = var.llm_provider_type
-      }
-
-      env {
-        name  = "LLM_WIRE_API"
-        value = var.llm_wire_api
-      }
-
       liveness_probe {
         transport               = "HTTP"
         path                    = "/health"

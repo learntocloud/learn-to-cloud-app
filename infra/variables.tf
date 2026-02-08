@@ -79,15 +79,3 @@ variable "llm_capacity" {
   type        = number
   default     = 10
 }
-
-variable "llm_provider_type" {
-  description = "Provider type for the SDK: azure, openai, or anthropic"
-  type        = string
-  default     = "azure"
-}
-
-variable "llm_wire_api" {
-  description = "API format: completions or responses"
-  type        = string
-  default     = "completions"
-}
