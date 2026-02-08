@@ -79,7 +79,9 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 # Use tini as init process for proper signal handling and zombie reaping
 ENTRYPOINT ["tini", "-g", "--"]
 
-# Run with multiple workers for better concurrency
-# Workers = 2-4 x CPU cores, but Container Apps typically has 0.5-2 vCPU
+# Run with a single worker — concurrency comes from asyncio (FastAPI is async)
+# and horizontal scaling via Container Apps replicas (max_replicas=2).
+# Multiple workers use fork(), which breaks the Azure Monitor OTel exporter's
+# background threads — logs/traces stop reaching Application Insights post-fork.
 # Use python -m uvicorn instead of direct uvicorn to avoid shebang path issues
-CMD ["python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2", "--proxy-headers", "--forwarded-allow-ips", "*"]
+CMD ["python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1", "--proxy-headers", "--forwarded-allow-ips", "*"]

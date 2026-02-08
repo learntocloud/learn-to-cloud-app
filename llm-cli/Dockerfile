@@ -7,8 +7,10 @@
 FROM node:22-slim
 
 # Install tini for proper signal handling (PID 1)
+# ca-certificates: required for outbound HTTPS from the Go-based CLI binary
+# (the CLI bundles a Go binary that needs system CA certs at /etc/ssl/certs)
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends tini && \
+    apt-get install -y --no-install-recommends tini ca-certificates && \
     rm -rf /var/lib/apt/lists/*
 
 # Install the CLI globally (uses @github/copilot npm package)
@@ -30,4 +32,5 @@ ENTRYPOINT ["tini", "-g", "--"]
 # Run CLI in headless (server) mode on a fixed port.
 # Authentication is handled via BYOK — the SDK passes provider config
 # per-session and the CLI forwards requests to your model endpoint.
-CMD ["copilot", "--headless", "--port", "4321"]
+# --verbose: emit request/response lifecycle logs to stderr for debugging
+CMD ["copilot", "--headless", "--port", "4321", "--verbose"]

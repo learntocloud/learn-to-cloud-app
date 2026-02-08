@@ -37,11 +37,14 @@ from tenacity import (
     wait_exponential_jitter,
 )
 
+from core import get_logger
 from core.config import get_settings
 from core.llm_client import LLMClientError, get_llm_client
 from core.telemetry import track_operation
 from core.wide_event import set_wide_event_fields
 from schemas import TaskResult, ValidationResult
+
+logger = get_logger(__name__)
 
 # =============================================================================
 # Security Constants
@@ -747,6 +750,12 @@ async def _analyze_with_llm(
         try:
             await asyncio.wait_for(done.wait(), timeout=settings.llm_cli_timeout)
         except TimeoutError:
+            logger.error(
+                "code_analysis.timeout",
+                owner=owner,
+                repo=repo,
+                timeout_seconds=settings.llm_cli_timeout,
+            )
             set_wide_event_fields(
                 llm_error="timeout",
                 llm_timeout_seconds=settings.llm_cli_timeout,
@@ -758,6 +767,11 @@ async def _analyze_with_llm(
 
         # Parse the response
         if not response_content:
+            logger.error(
+                "code_analysis.empty_response",
+                owner=owner,
+                repo=repo,
+            )
             raise CodeAnalysisError(
                 "No response received from code analysis",
                 retriable=True,
@@ -852,6 +866,11 @@ async def analyze_repository_code(
     try:
         return await _analyze_with_llm(owner, repo, github_username)
     except CircuitBreakerError:
+        logger.error(
+            "code_analysis.circuit_open",
+            owner=owner,
+            repo=repo,
+        )
         set_wide_event_fields(llm_error="circuit_open")
         return ValidationResult(
             is_valid=False,
@@ -862,6 +881,12 @@ async def analyze_repository_code(
             server_error=True,
         )
     except CodeAnalysisError as e:
+        logger.exception(
+            "code_analysis.failed",
+            owner=owner,
+            repo=repo,
+            retriable=e.retriable,
+        )
         set_wide_event_fields(
             llm_error="analysis_failed",
             llm_error_detail=str(e),
@@ -873,6 +898,11 @@ async def analyze_repository_code(
             server_error=True,  # Always server error — not the user's fault
         )
     except LLMClientError as e:
+        logger.exception(
+            "code_analysis.client_error",
+            owner=owner,
+            repo=repo,
+        )
         set_wide_event_fields(
             llm_error="client_error",
             llm_error_detail=str(e),
