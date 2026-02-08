@@ -39,6 +39,7 @@ hands_on_verification:
     description: Fork the journal-starter repository and set up the FastAPI + PostgreSQL project for local development.
     submission_instructions: Paste the URL to your fork of the journal-starter repo (e.g. https://github.com/your-username/journal-starter).
       The system will verify it is a fork of learntocloud/journal-starter under your GitHub account.
+    placeholder: https://github.com/username/journal-starter
     example_url: https://github.com/madebygps/journal-starter
     required_repo: learntocloud/journal-starter
   - id: journal-api-implementation
@@ -47,6 +48,7 @@ hands_on_verification:
     description: Implement the Journal API with CRUD endpoints, database models, and LLM integration, then submit your fork for automated verification.
     submission_instructions: Paste the URL to your journal-starter fork (e.g. https://github.com/your-username/journal-starter).
       The system will analyze your code for correct CRUD endpoints, database models, and LLM integration.
+    placeholder: https://github.com/username/journal-starter
     example_url: https://github.com/madebygps/journal-starter
     note: You can only verify once per hour.
   - id: journal-api-response
@@ -57,6 +59,7 @@ hands_on_verification:
     submission_instructions: Run your Journal API locally, create at least one entry via POST /entries, then copy the full
       JSON array response from GET /entries and paste it here. Each entry must have id (UUID), work, struggle, intention,
       and created_at fields.
+    placeholder: Paste the JSON array from GET /entries
 warning: As learners finish this phase, many will share their code. We recommend you do not copy and paste anybody's solution.
   You are only doing a disservice to yourself and will not make it in this field if that is the mentality you have. Additionally,
   we recommend you turn off any AI assistants for code completion—you need to build muscle memory and understanding first.

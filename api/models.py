@@ -6,6 +6,7 @@ from enum import Enum as PyEnum
 from sqlalchemy import (
     BigInteger,
     Boolean,
+    CheckConstraint,
     DateTime,
     Enum,
     ForeignKey,
@@ -129,6 +130,7 @@ class Submission(TimestampMixin, Base):
             "phase_id",
             postgresql_where=text("is_validated"),
         ),
+        Index("ix_submissions_user_updated_at", "user_id", "updated_at"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -221,6 +223,7 @@ class StepProgress(Base):
         ),
         Index("ix_step_progress_user_topic", "user_id", "topic_id"),
         Index("ix_step_progress_user_phase", "user_id", "phase_id"),
+        Index("ix_step_progress_completed_at", "completed_at"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -244,3 +247,24 @@ class StepProgress(Base):
     )
 
     user: Mapped["User"] = relationship(back_populates="step_progress")
+
+
+class AnalyticsSnapshot(Base):
+    """Pre-computed analytics snapshot.
+
+    Single-row table holding the serialized CommunityAnalytics payload.
+    Updated by a background task; read by request handlers.
+    Survives container restarts and is consistent across replicas.
+    """
+
+    __tablename__ = "analytics_snapshot"
+    __table_args__ = (
+        CheckConstraint("id = 1", name="ck_analytics_snapshot_single_row"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
+    data: Mapped[str] = mapped_column(Text, nullable=False)
+    computed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=utcnow,
+    )

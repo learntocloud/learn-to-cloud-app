@@ -40,6 +40,7 @@ hands_on_verification:
       challenges.
     submission_instructions: Paste the URL to your fork of the networking-lab repo (e.g. https://github.com/your-username/networking-lab).
       The system will verify it is a fork of learntocloud/networking-lab under your GitHub account.
+    placeholder: https://github.com/username/networking-lab
     example_url: https://github.com/madebygps/networking-lab
     required_repo: learntocloud/networking-lab
   - id: networking-lab-token
@@ -48,6 +49,7 @@ hands_on_verification:
     description: Complete all four networking challenges and submit the completion token displayed at the end of the lab.
     submission_instructions: Paste the completion token you received after finishing all four networking challenges. The token
       is displayed at the end of the lab.
+    placeholder: Paste your networking lab completion token here
 topics:
 - fundamentals
 - protocols

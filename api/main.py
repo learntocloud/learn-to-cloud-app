@@ -188,17 +188,26 @@ async def lifespan(app: FastAPI):
 
     warmup_task = asyncio.create_task(_background_warmup(app))
 
+    # Pre-compute analytics immediately, then refresh hourly.
+    # Runs in background so startup isn't blocked.
+    from services.analytics_service import analytics_refresh_loop
+
+    analytics_task = asyncio.create_task(
+        analytics_refresh_loop(app.state.session_maker)
+    )
+
     try:
         yield
     finally:
-        if not warmup_task.done():
-            warmup_task.cancel()
-        try:
-            await warmup_task
-        except asyncio.CancelledError:
-            pass
-        except Exception:
-            logger.exception("background.task.failed")
+        for task in (warmup_task, analytics_task):
+            if not task.done():
+                task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+            except Exception:
+                logger.exception("background.task.failed")
 
         await close_github_client()
         await close_deployed_api_client()

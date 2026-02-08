@@ -43,6 +43,7 @@ hands_on_verification:
     submission_instructions: Paste the URL to your journal-starter fork (e.g. https://github.com/your-username/journal-starter).
       The system will scan your repo for a Dockerfile, a CI/CD workflow in .github/workflows/, Terraform files in an infra/
       directory, and Kubernetes manifests in a k8s/ directory.
+    placeholder: https://github.com/username/journal-starter
     example_url: https://github.com/your-username/journal-starter
     note: You can only verify once per hour.
 prerequisites:

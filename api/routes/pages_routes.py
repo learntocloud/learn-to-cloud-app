@@ -298,6 +298,27 @@ async def dashboard_page(
     )
 
 
+@router.get("/account", response_class=HTMLResponse)
+async def account_page(
+    request: Request,
+    db: DbSession,
+    user_id: UserId,
+) -> HTMLResponse:
+    """Account settings page."""
+    user = await _get_user_or_none(db, user_id)
+    if user is None:
+        return request.app.state.templates.TemplateResponse(
+            "pages/404.html",
+            _template_context(request),
+            status_code=404,
+        )
+
+    return request.app.state.templates.TemplateResponse(
+        "pages/account.html",
+        _template_context(request, user=user),
+    )
+
+
 @router.get("/certificates", response_class=HTMLResponse)
 async def certificates_page(
     request: Request,

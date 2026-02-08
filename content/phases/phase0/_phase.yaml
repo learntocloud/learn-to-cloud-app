@@ -42,6 +42,7 @@ hands_on_verification:
     description: Create a GitHub account and set up a public developer profile. This will be your portfolio throughout the program.
     submission_instructions: Paste your GitHub profile URL (e.g. https://github.com/your-username). The system will verify
       your profile exists and matches your connected GitHub account.
+    placeholder: https://github.com/your-username
     example_url: https://github.com/madebygps
 topics:
 - linux

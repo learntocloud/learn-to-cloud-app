@@ -4,9 +4,14 @@ Composes raw aggregate queries with content metadata to produce
 a privacy-safe analytics payload for public dashboards and
 conference storytelling.
 
-CACHING:
-- Results are cached for 5 minutes (TTLCache, per-worker).
-- Only one cache entry since the data is global, not per-user.
+ARCHITECTURE:
+- A background task (started in main.py lifespan) calls
+  refresh_analytics() on a timer to pre-compute the analytics payload.
+- The result is persisted to the analytics_snapshot DB table so it
+  survives restarts and is consistent across replicas.
+- Request handlers call get_community_analytics() which reads from
+  a short-lived in-memory cache backed by the DB table.  No request
+  ever triggers the 10 aggregate queries directly.
 """
 
 import asyncio
@@ -14,8 +19,11 @@ import logging
 from datetime import UTC, datetime
 
 from cachetools import TTLCache
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from models import AnalyticsSnapshot
 from repositories.analytics_repository import AnalyticsRepository
 from schemas import (
     CommunityAnalytics,
@@ -30,9 +38,13 @@ from services.progress_service import get_phase_requirements
 
 logger = logging.getLogger(__name__)
 
-_CACHE_TTL = 300  # 5 minutes
-_cache: TTLCache[str, CommunityAnalytics] = TTLCache(maxsize=1, ttl=_CACHE_TTL)
-_cache_lock = asyncio.Lock()
+# Short in-memory cache to avoid hitting the DB on every request.
+# The background task refreshes the DB row; this cache avoids redundant
+# SELECT on rapid successive requests (e.g., status page + analytics API).
+_LOCAL_CACHE_TTL = 60  # seconds
+_local_cache: TTLCache[str, CommunityAnalytics] = TTLCache(
+    maxsize=1, ttl=_LOCAL_CACHE_TTL
+)
 
 _DAY_NAMES = {
     1: "Monday",
@@ -43,6 +55,9 @@ _DAY_NAMES = {
     6: "Saturday",
     7: "Sunday",
 }
+
+# Default refresh interval for the background task (24 hours).
+REFRESH_INTERVAL_SECONDS = 86400
 
 
 def _build_cumulative_trends(
@@ -75,23 +90,62 @@ def _compute_users_completed_steps(
 
 
 async def get_community_analytics(
-    db: AsyncSession,
+    db: AsyncSession | None = None,
 ) -> CommunityAnalytics:
-    """Build the full community analytics payload.
+    """Read pre-computed analytics.
 
-    Runs multiple aggregate queries concurrently and composes the
-    results with content metadata. Cached for 5 minutes.
+    Returns the cached result from the analytics_snapshot table.
+    If no snapshot exists yet (first startup before background task runs),
+    returns a zeroed-out placeholder.  No aggregate queries run here.
 
-    Warning:
-        Queries are run sequentially because they share an AsyncSession.
-        asyncpg connections do not support concurrent use on a single
-        connection.
+    Args:
+        db: Optional DB session for reading the snapshot.  If None, returns
+            the in-memory cache only (used by callers that don't have a
+            session handy).
     """
-    async with _cache_lock:
-        cached = _cache.get("analytics")
-        if cached is not None:
-            return cached
+    # Fast path: in-memory cache hit
+    cached = _local_cache.get("analytics")
+    if cached is not None:
+        return cached
 
+    # Read from DB if session provided
+    if db is not None:
+        result = await db.execute(
+            select(AnalyticsSnapshot.data).where(AnalyticsSnapshot.id == 1)
+        )
+        row = result.scalar_one_or_none()
+        if row is not None:
+            analytics = CommunityAnalytics.model_validate_json(row)
+            _local_cache["analytics"] = analytics
+            return analytics
+
+    # No snapshot yet — return placeholder
+    return _empty_analytics()
+
+
+def _empty_analytics() -> CommunityAnalytics:
+    """Return zeroed-out analytics for when no snapshot exists yet."""
+    return CommunityAnalytics(
+        total_users=0,
+        total_certificates=0,
+        active_learners_30d=0,
+        completion_rate=0.0,
+        phase_distribution=[],
+        signup_trends=[],
+        certificate_trends=[],
+        verification_stats=[],
+        activity_by_day=[],
+        top_topics=[],
+        generated_at=datetime.now(UTC),
+    )
+
+
+async def _compute_analytics(db: AsyncSession) -> CommunityAnalytics:
+    """Run the 10 aggregate queries and compose the full analytics payload.
+
+    This is called only by the background refresh task — never in a
+    request handler.
+    """
     repo = AnalyticsRepository(db)
 
     # Sequential queries — same session/connection, cannot run concurrently
@@ -173,7 +227,7 @@ async def get_community_analytics(
         round(total_certificates / total_users * 100, 1) if total_users > 0 else 0.0
     )
 
-    result = CommunityAnalytics(
+    return CommunityAnalytics(
         total_users=total_users,
         total_certificates=total_certificates,
         active_learners_30d=active_30d,
@@ -187,16 +241,57 @@ async def get_community_analytics(
         generated_at=datetime.now(UTC),
     )
 
-    async with _cache_lock:
-        _cache["analytics"] = result
+
+async def refresh_analytics(
+    session_maker: async_sessionmaker[AsyncSession],
+) -> None:
+    """Compute analytics and persist to the snapshot table.
+
+    Opens its own short-lived session.  Called by the background task
+    in main.py and can also be called manually (e.g., from a management
+    command after a data import).
+    """
+    async with session_maker() as db:
+        result = await _compute_analytics(db)
+
+        now = datetime.now(UTC)
+        data_json = result.model_dump_json()
+
+        stmt = (
+            pg_insert(AnalyticsSnapshot)
+            .values(id=1, data=data_json, computed_at=now)
+            .on_conflict_do_update(
+                index_elements=["id"],
+                set_={"data": data_json, "computed_at": now},
+            )
+        )
+        await db.execute(stmt)
+        await db.commit()
+
+    # Update local cache so this replica sees the new data immediately
+    _local_cache["analytics"] = result
 
     logger.info(
-        "analytics.computed",
+        "analytics.refreshed",
         extra={
-            "total_users": total_users,
-            "total_certificates": total_certificates,
-            "active_30d": active_30d,
+            "total_users": result.total_users,
+            "total_certificates": result.total_certificates,
+            "active_30d": result.active_learners_30d,
         },
     )
 
-    return result
+
+async def analytics_refresh_loop(
+    session_maker: async_sessionmaker[AsyncSession],
+) -> None:
+    """Background loop that refreshes analytics on a timer.
+
+    Runs forever until cancelled.  Failures are logged but do not
+    stop the loop — the previous snapshot remains available.
+    """
+    while True:
+        try:
+            await refresh_analytics(session_maker)
+        except Exception:
+            logger.exception("analytics.background_refresh.failed")
+        await asyncio.sleep(REFRESH_INTERVAL_SECONDS)

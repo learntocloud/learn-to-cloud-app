@@ -18,6 +18,7 @@ import json
 import logging
 from datetime import UTC, datetime
 
+from cachetools import TTLCache
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from core.cache import invalidate_progress_cache
@@ -36,8 +37,12 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 # In-memory locks to prevent concurrent AI calls for the same user+requirement.
 # This prevents wasting quota on race conditions (e.g., user opens multiple tabs).
+# TTLCache auto-evicts entries after 2 hours to prevent unbounded memory growth.
 
-_submission_locks: dict[tuple[int, str], asyncio.Lock] = {}
+_LOCK_TTL = 7200  # 2 hours — matches the max practical cooldown window
+_submission_locks: TTLCache[tuple[int, str], asyncio.Lock] = TTLCache(
+    maxsize=2000, ttl=_LOCK_TTL
+)
 _locks_lock = asyncio.Lock()  # Protects _submission_locks dict itself
 
 
@@ -128,8 +133,13 @@ class AlreadyValidatedError(Exception):
 # Resets on successful validation or server restart.
 # This is per-worker, which is acceptable — it's defense-in-depth on top
 # of the DB-based cooldown.
+# TTLCache auto-evicts entries after 4 hours (matches _MAX_COOLDOWN_SECONDS)
+# to prevent unbounded memory growth from users who fail and never return.
 
-_failure_counts: dict[tuple[int, str], int] = {}
+_failure_counts: TTLCache[tuple[int, str], int] = TTLCache(
+    maxsize=2000,
+    ttl=14400,  # 4 hours
+)
 
 _MAX_COOLDOWN_SECONDS = 14400  # 4 hours — cap for escalating cooldowns
 

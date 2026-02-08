@@ -87,7 +87,7 @@ def validate_networking_token_submission(
 
 def _is_valid_url(value: str) -> bool:
     parsed = urlparse(value)
-    return parsed.scheme in {"http", "https"} and bool(parsed.netloc)
+    return parsed.scheme == "https" and bool(parsed.netloc)
 
 
 def validate_evidence_url_submission(submitted_value: str) -> ValidationResult:
@@ -102,7 +102,7 @@ def validate_evidence_url_submission(submitted_value: str) -> ValidationResult:
     if not _is_valid_url(value):
         return ValidationResult(
             is_valid=False,
-            message="Please submit a valid http(s) URL.",
+            message="Please submit a valid https:// URL.",
         )
 
     return ValidationResult(

@@ -154,11 +154,12 @@ class TestEvidenceUrlValidation:
         assert result.is_valid is True
         assert "verified" in result.message.lower()
 
-    def test_valid_http_url_succeeds(self):
-        """Valid HTTP URL should pass (not all services use HTTPS)."""
+    def test_plain_http_url_fails(self):
+        """Plain HTTP URL should be rejected — HTTPS is required."""
         result = validate_evidence_url_submission("http://localhost:8080/api")
 
-        assert result.is_valid is True
+        assert result.is_valid is False
+        assert "https" in result.message.lower()
 
     def test_empty_url_fails(self):
         """Empty string should fail."""

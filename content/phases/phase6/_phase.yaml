@@ -38,6 +38,7 @@ hands_on_verification:
     description: Enable security scanning (Dependabot, CodeQL, or similar) on your repository and resolve or triage the findings.
     submission_instructions: Paste the URL to your repository's security scanning page (e.g. https://github.com/your-username/journal-starter/security/code-scanning).
       Enable Dependabot, CodeQL, or another scanner, and ensure you have resolved or triaged at least some findings.
+    placeholder: https://github.com/username/repo/security
     example_url: https://github.com/owner/repo/security/code-scanning
 prerequisites:
 - 'Completed Phase 4: Cloud Platform Fundamentals'

@@ -129,7 +129,7 @@ def parse_github_url(url: str) -> ParsedGitHubUrl:
     """
     url = url.strip().rstrip("/")
 
-    # Normalize common URL variations
+    # Normalize common URL variations (always upgrade to https)
     if url.startswith("http://github.com/"):
         url = url.replace("http://", "https://")
     elif url.startswith("http://www.github.com/"):

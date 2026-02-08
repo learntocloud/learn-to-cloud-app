@@ -43,6 +43,7 @@ hands_on_verification:
     submission_instructions: Paste your deployed API's base URL (e.g. https://my-journal-api.azurewebsites.net). The system
       will call GET /entries on your API and verify it returns a JSON array with at least one valid journal entry containing
       id, work, struggle, intention, and created_at fields.
+    placeholder: https://your-api.example.com
     example_url: https://api.example.com
 prerequisites:
 - 'Completed Phase 1: Linux and Bash'

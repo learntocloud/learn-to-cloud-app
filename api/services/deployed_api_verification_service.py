@@ -4,7 +4,7 @@ This module validates that users have successfully deployed their Journal API
 by making a live HTTP request to their submitted endpoint.
 
 The deployed API must:
-- Be publicly accessible via HTTP(S)
+- Be publicly accessible via HTTPS
 - Have a /entries endpoint that returns 2xx status
 - Return valid JSON array with at least one journal entry
 - Have entries with required fields: id, work, struggle, intention, created_at
@@ -101,9 +101,9 @@ async def close_deployed_api_client() -> None:
 
 
 def _is_valid_url(value: str) -> bool:
-    """Check if a string is a valid HTTP(S) URL."""
+    """Check if a string is a valid HTTPS URL."""
     parsed = urlparse(value)
-    return parsed.scheme in {"http", "https"} and bool(parsed.netloc)
+    return parsed.scheme == "https" and bool(parsed.netloc)
 
 
 def _normalize_base_url(url: str) -> str:

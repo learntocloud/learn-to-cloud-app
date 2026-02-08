@@ -77,6 +77,8 @@ class HandsOnRequirement(FrozenModel):
     # Actionable instructions for the verification form (what to submit).
     # Falls back to `description` if not set.
     submission_instructions: str | None = None
+    # Short hint shown inside the input/textarea (e.g., "https://github.com/your-username/repo")
+    placeholder: str | None = None
 
     # For REPO_FORK: the original repo to verify fork from
     required_repo: str | None = None
