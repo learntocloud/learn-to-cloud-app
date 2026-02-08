@@ -39,6 +39,7 @@ from tenacity import (
 
 from core import get_logger
 from core.config import get_settings
+from core.llm_client import LLMClientError, get_llm_client
 from core.telemetry import track_operation
 from core.wide_event import set_wide_event_fields
 from schemas import TaskResult, ValidationResult
@@ -584,116 +585,26 @@ def _build_task_results(
 
 
 RETRIABLE_EXCEPTIONS: tuple[type[Exception], ...] = (
+    LLMClientError,
     httpx.RequestError,
     httpx.TimeoutException,
 )
 
-# Maximum tool-calling rounds to prevent infinite loops
-_MAX_TOOL_ROUNDS = 10
-
 
 class _retry_if_retriable(retry_base):  # noqa: N801
-    """Only retry CodeAnalysisError when its retriable flag is True.
+    """Only retry LLMClientError when its retriable flag is True.
 
-    Config errors have retriable=False and should fail immediately
-    instead of wasting time on doomed retries.
+    Config errors (e.g. missing LLM_CLI_PATH) have retriable=False and
+    should fail immediately instead of wasting time on doomed retries.
     """
 
     def __call__(self, retry_state: Any) -> bool:
         exc = retry_state.outcome.exception()
         if exc is None:
             return False
-        if isinstance(exc, CodeAnalysisError) and not exc.retriable:
+        if isinstance(exc, LLMClientError) and not exc.retriable:
             return False
-        return isinstance(exc, (*RETRIABLE_EXCEPTIONS, CodeAnalysisError))
-
-
-async def _handle_tool_call(
-    tool_call: dict[str, Any], owner: str, repo: str
-) -> dict[str, Any]:
-    """Execute a tool call from the LLM and return the result message.
-
-    SECURITY: owner/repo are locked — any owner/repo in tool args is ignored.
-    """
-    call_id = tool_call["id"]
-    function = tool_call["function"]
-    func_name = function["name"]
-
-    if func_name != "fetch_github_file":
-        return {
-            "role": "tool",
-            "tool_call_id": call_id,
-            "content": f"Unknown tool: {func_name}",
-        }
-
-    args = json.loads(function.get("arguments", "{}"))
-    file_path = args.get("path", "")
-    branch = args.get("branch", "main")
-
-    set_wide_event_fields(
-        llm_tool_fetch_file=file_path,
-        llm_tool_repo=f"{owner}/{repo}",
-    )
-
-    try:
-        content = await _fetch_github_file_content(owner, repo, file_path, branch)
-        return {"role": "tool", "tool_call_id": call_id, "content": content}
-    except ValueError as e:
-        set_wide_event_fields(llm_tool_blocked_path=file_path)
-        return {
-            "role": "tool",
-            "tool_call_id": call_id,
-            "content": f"Cannot fetch file: {e}",
-        }
-    except httpx.HTTPStatusError as e:
-        if e.response.status_code == 404:
-            return {
-                "role": "tool",
-                "tool_call_id": call_id,
-                "content": f'<file_not_found path="{file_path}" />',
-            }
-        return {
-            "role": "tool",
-            "tool_call_id": call_id,
-            "content": f"Error fetching file: HTTP {e.response.status_code}",
-        }
-    except Exception as e:
-        return {
-            "role": "tool",
-            "tool_call_id": call_id,
-            "content": f"Error fetching file: {type(e).__name__}",
-        }
-
-
-def _build_tools_schema() -> list[dict[str, Any]]:
-    """Build the OpenAI function-calling tools schema for file fetching."""
-    return [
-        {
-            "type": "function",
-            "function": {
-                "name": "fetch_github_file",
-                "description": (
-                    "Fetch file contents from the learner's repository. "
-                    f"Only these files can be fetched: {sorted(ALLOWED_FILE_PATHS)}"
-                ),
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "path": {
-                            "type": "string",
-                            "description": "File path within the repository",
-                        },
-                        "branch": {
-                            "type": "string",
-                            "description": "Branch name (default: main)",
-                            "default": "main",
-                        },
-                    },
-                    "required": ["path"],
-                },
-            },
-        }
-    ]
+        return isinstance(exc, RETRIABLE_EXCEPTIONS)
 
 
 @track_operation("code_analysis")
@@ -712,76 +623,144 @@ def _build_tools_schema() -> list[dict[str, Any]]:
 async def _analyze_with_llm(
     owner: str, repo: str, github_username: str
 ) -> ValidationResult:
-    """Run code analysis via Azure OpenAI Chat Completions API directly.
+    """Run code analysis via the GitHub Copilot SDK and CLI sidecar.
 
-    Bypasses the copilot SDK/CLI due to a confirmed Azure BYOK hanging bug
-    (github/copilot-sdk#239). Calls the Chat Completions API with tool-calling
-    to fetch files from the learner's repository.
+    Uses the copilot SDK to create a session with the BYOK provider
+    (Azure OpenAI) and tool-calling for file fetching.
 
     Use analyze_repository_code() as the public entry point.
     """
     settings = get_settings()
+    client = await get_llm_client()
 
-    if not settings.llm_base_url or not settings.llm_api_key:
-        raise CodeAnalysisError(
-            "LLM not configured. Set LLM_BASE_URL and LLM_API_KEY.",
-            retriable=False,
+    # Collect the final response
+    response_content = ""
+    done = asyncio.Event()
+
+    def on_event(event: Any) -> None:
+        nonlocal response_content
+        if event.type.value == "assistant.message":
+            response_content = event.data.content
+        elif event.type.value == "session.idle":
+            done.set()
+
+    # Import SDK types (lazy import to avoid import errors when SDK missing)
+    from copilot import Tool, ToolInvocation, ToolResult
+
+    from core.llm_client import build_session_config
+
+    # Define the file fetching tool for the LLM to use
+    # SECURITY: owner/repo are LOCKED to the validated values - LLM cannot override
+    async def fetch_github_file(invocation: ToolInvocation) -> ToolResult:
+        """Tool handler for fetching GitHub file content.
+
+        SECURITY NOTE: owner and repo are fixed to prevent the LLM from
+        fetching files from arbitrary repositories.
+        """
+        args = invocation.get("arguments") or {}
+        file_path = args.get("path", "")
+        branch = args.get("branch", "main")
+
+        # SECURITY: Ignore any owner/repo provided by the LLM - use validated values
+        # This prevents prompt injection from redirecting to malicious repos
+        file_owner = owner
+        file_repo = repo
+
+        set_wide_event_fields(
+            llm_tool_fetch_file=file_path,
+            llm_tool_repo=f"{file_owner}/{file_repo}",
         )
 
-    model = settings.llm_model or "gpt-4o-mini"
-    # Build Azure OpenAI Chat Completions URL
-    base = settings.llm_base_url.rstrip("/")
-    api_version = settings.llm_api_version or "2024-10-21"
-    url = (
-        f"{base}/openai/deployments/{model}"
-        f"/chat/completions?api-version={api_version}"
-    )
-
-    headers = {
-        "Content-Type": "application/json",
-        "api-key": settings.llm_api_key,
-    }
-
-    prompt = _build_verification_prompt(owner, repo)
-    messages: list[dict[str, Any]] = [{"role": "user", "content": prompt}]
-    tools = _build_tools_schema()
-
-    set_wide_event_fields(
-        llm_analysis_started=True,
-        llm_analysis_owner=owner,
-        llm_analysis_repo=repo,
-        llm_model=model,
-    )
-
-    # Reuse shared GitHub HTTP client for connection pooling
-    from services.github_hands_on_verification_service import _get_github_client
-
-    client = await _get_github_client()
-
-    # Tool-calling loop: LLM may request multiple file fetches
-    for round_num in range(_MAX_TOOL_ROUNDS):
-        payload: dict[str, Any] = {
-            "messages": messages,
-            "tools": tools,
-            "tool_choice": "auto",
-            "temperature": 0.1,
-        }
-
         try:
-            response = await client.post(
-                url,
-                json=payload,
-                headers=headers,
-                timeout=settings.llm_cli_timeout,
+            content = await _fetch_github_file_content(
+                file_owner, file_repo, file_path, branch
             )
-            response.raise_for_status()
-        except httpx.TimeoutException:
+            return ToolResult(
+                textResultForLlm=content,
+                resultType="success",
+                sessionLog=f"Fetched {file_path}",
+            )
+        except ValueError as e:
+            # File not in allowlist
+            set_wide_event_fields(
+                llm_tool_blocked_path=file_path,
+            )
+            return ToolResult(
+                textResultForLlm=f"Cannot fetch file: {e}",
+                resultType="failure",
+                sessionLog=f"Blocked: {file_path}",
+            )
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
+                return ToolResult(
+                    textResultForLlm=f'<file_not_found path="{file_path}" />',
+                    resultType="success",
+                    sessionLog=f"File not found: {file_path}",
+                )
+            return ToolResult(
+                textResultForLlm=f"Error fetching file: HTTP {e.response.status_code}",
+                resultType="failure",
+                sessionLog=f"Error: {e}",
+            )
+        except Exception as e:
+            return ToolResult(
+                textResultForLlm=f"Error fetching file: {type(e).__name__}",
+                resultType="failure",
+                sessionLog=f"Error: {e}",
+            )
+
+    # Tool definition - only path is required (owner/repo are locked)
+    file_tool = Tool(
+        name="fetch_github_file",
+        description=(
+            f"Fetch file contents from the learner's repository ({owner}/{repo}). "
+            f"Only these files can be fetched: {sorted(ALLOWED_FILE_PATHS)}"
+        ),
+        parameters={
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "File path within the repository",
+                },
+                "branch": {
+                    "type": "string",
+                    "description": "Branch name (default: main)",
+                    "default": "main",
+                },
+            },
+            "required": ["path"],
+        },
+        handler=fetch_github_file,
+    )
+
+    # Create session with tool (uses BYOK provider if configured)
+    config = build_session_config(tools=[file_tool])
+    session = await client.create_session(config)
+
+    try:
+        session.on(on_event)
+
+        # Build and send the verification prompt
+        prompt = _build_verification_prompt(owner, repo)
+
+        set_wide_event_fields(
+            llm_analysis_started=True,
+            llm_analysis_owner=owner,
+            llm_analysis_repo=repo,
+        )
+
+        await session.send({"prompt": prompt})
+
+        # Wait for completion with timeout
+        try:
+            await asyncio.wait_for(done.wait(), timeout=settings.llm_cli_timeout)
+        except TimeoutError:
             logger.error(
                 "code_analysis.timeout",
                 owner=owner,
                 repo=repo,
                 timeout_seconds=settings.llm_cli_timeout,
-                round=round_num,
             )
             set_wide_event_fields(
                 llm_error="timeout",
@@ -791,83 +770,55 @@ async def _analyze_with_llm(
                 "Code analysis timed out. Please try again.",
                 retriable=True,
             )
-        except httpx.HTTPStatusError as e:
+
+        # Parse the response
+        if not response_content:
             logger.error(
-                "code_analysis.api_error",
+                "code_analysis.empty_response",
                 owner=owner,
                 repo=repo,
-                status_code=e.response.status_code,
-                response_text=e.response.text[:500],
             )
             raise CodeAnalysisError(
-                f"LLM API error: HTTP {e.response.status_code}",
-                retriable=e.response.status_code >= 500,
+                "No response received from code analysis",
+                retriable=True,
             )
 
-        data = response.json()
-        choice = data["choices"][0]
-        message = choice["message"]
+        parsed_tasks = _parse_analysis_response(response_content)
+        task_results, all_passed = _build_task_results(parsed_tasks)
 
-        # Append assistant message to conversation
-        messages.append(message)
+        passed_count = sum(1 for t in task_results if t.passed)
+        total_count = len(task_results)
 
-        # If model wants to call tools, execute them and continue the loop
-        if choice.get("finish_reason") == "tool_calls" and message.get("tool_calls"):
-            tool_results = await asyncio.gather(
-                *[_handle_tool_call(tc, owner, repo) for tc in message["tool_calls"]]
+        set_wide_event_fields(
+            llm_analysis_complete=True,
+            llm_tasks_passed=passed_count,
+            llm_tasks_total=total_count,
+            llm_all_passed=all_passed,
+        )
+
+        if all_passed:
+            message = (
+                f"Congratulations! All {total_count} tasks have been completed "
+                "successfully. Your Journal API implementation meets all requirements."
             )
-            messages.extend(tool_results)
-            continue
+        else:
+            message = (
+                f"Completed {passed_count}/{total_count} tasks. "
+                "Review the feedback below and try again after making improvements."
+            )
 
-        # Model finished — extract the response content
-        response_content = message.get("content", "")
-        break
-    else:
-        raise CodeAnalysisError(
-            f"Code analysis exceeded maximum tool-calling rounds ({_MAX_TOOL_ROUNDS})",
-            retriable=True,
+        return ValidationResult(
+            is_valid=all_passed,
+            message=message,
+            task_results=task_results,
         )
 
-    if not response_content:
-        logger.error(
-            "code_analysis.empty_response",
-            owner=owner,
-            repo=repo,
-        )
-        raise CodeAnalysisError(
-            "No response received from code analysis",
-            retriable=True,
-        )
-
-    parsed_tasks = _parse_analysis_response(response_content)
-    task_results, all_passed = _build_task_results(parsed_tasks)
-
-    passed_count = sum(1 for t in task_results if t.passed)
-    total_count = len(task_results)
-
-    set_wide_event_fields(
-        llm_analysis_complete=True,
-        llm_tasks_passed=passed_count,
-        llm_tasks_total=total_count,
-        llm_all_passed=all_passed,
-    )
-
-    if all_passed:
-        message_text = (
-            f"Congratulations! All {total_count} tasks have been completed "
-            "successfully. Your Journal API implementation meets all requirements."
-        )
-    else:
-        message_text = (
-            f"Completed {passed_count}/{total_count} tasks. "
-            "Review the feedback below and try again after making improvements."
-        )
-
-    return ValidationResult(
-        is_valid=all_passed,
-        message=message_text,
-        task_results=task_results,
-    )
+    finally:
+        # Clean up session
+        try:
+            await session.destroy()
+        except Exception:
+            pass
 
 
 async def analyze_repository_code(
@@ -951,4 +902,21 @@ async def analyze_repository_code(
             is_valid=False,
             message=f"Code analysis failed: {e}",
             server_error=True,  # Always server error — not the user's fault
+        )
+    except LLMClientError as e:
+        logger.exception(
+            "code_analysis.client_error",
+            owner=owner,
+            repo=repo,
+        )
+        set_wide_event_fields(
+            llm_error="client_error",
+            llm_error_detail=str(e),
+        )
+        return ValidationResult(
+            is_valid=False,
+            message=(
+                "Unable to connect to code analysis service. " "Please try again later."
+            ),
+            server_error=True,
         )

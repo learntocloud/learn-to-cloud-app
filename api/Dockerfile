@@ -79,11 +79,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 # Use tini as init process for proper signal handling and zombie reaping
 ENTRYPOINT ["tini", "-g", "--"]
 
-# Run with a single worker — concurrency comes from asyncio (FastAPI is async)
-# and horizontal scaling via Container Apps replicas (max_replicas=2).
-# CRITICAL: Do NOT use --workers flag (even --workers 1). Uvicorn's multiprocess
-# manager always forks, which kills the Azure Monitor OTel exporter's background
-# threads — logs/traces stop reaching Application Insights post-fork.
-# Omitting --workers runs uvicorn in single-process mode (no fork).
-# Use python -m uvicorn instead of direct uvicorn to avoid shebang path issues
 CMD ["python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips", "*"]
