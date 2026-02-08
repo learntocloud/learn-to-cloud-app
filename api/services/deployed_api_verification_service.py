@@ -141,7 +141,6 @@ def _validate_entry(entry: dict, index: int) -> tuple[bool, str | None]:
     Returns:
         Tuple of (is_valid, error_message)
     """
-    # Check required fields
     missing_fields = _REQUIRED_FIELDS - set(entry.keys())
     if missing_fields:
         return (
@@ -149,11 +148,9 @@ def _validate_entry(entry: dict, index: int) -> tuple[bool, str | None]:
             f"Entry {index + 1} missing fields: {', '.join(sorted(missing_fields))}",
         )
 
-    # Validate id is a UUID
     if not isinstance(entry.get("id"), str) or not _validate_uuid(entry["id"]):
         return False, f"Entry {index + 1} has invalid id (expected UUID format)"
 
-    # Validate string fields
     for field in _STRING_FIELDS_WITH_LIMIT:
         value = entry.get(field)
         if not isinstance(value, str):
@@ -189,14 +186,12 @@ def _validate_entries_json(data: list) -> ValidationResult:
     Returns:
         ValidationResult with validation status and feedback
     """
-    # Must have at least one entry
     if len(data) == 0:
         return ValidationResult(
             is_valid=False,
             message="No entries found. Create at least one journal entry first.",
         )
 
-    # Validate each entry
     for i, entry in enumerate(data):
         if not isinstance(entry, dict):
             return ValidationResult(
@@ -339,7 +334,6 @@ async def validate_deployed_api(base_url: str) -> ValidationResult:
             ),
         )
 
-    # Check for non-success status codes
     if response.status_code == 404:
         return ValidationResult(
             is_valid=False,
@@ -361,7 +355,6 @@ async def validate_deployed_api(base_url: str) -> ValidationResult:
             message=f"GET /entries returned unexpected status {response.status_code}.",
         )
 
-    # Parse JSON response
     try:
         data = response.json()
     except json.JSONDecodeError:
@@ -370,7 +363,6 @@ async def validate_deployed_api(base_url: str) -> ValidationResult:
             message="GET /entries did not return valid JSON.",
         )
 
-    # Must be an array
     if not isinstance(data, list):
         return ValidationResult(
             is_valid=False,

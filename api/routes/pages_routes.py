@@ -163,7 +163,6 @@ async def topic_page(
             status_code=404,
         )
 
-    # Get completed steps for authenticated users
     completed_steps: set[int] = set()
     if user_id is not None:
         completed_steps = await get_completed_steps(db, user_id, topic.id)

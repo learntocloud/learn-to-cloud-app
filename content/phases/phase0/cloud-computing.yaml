@@ -16,7 +16,7 @@ learning_steps:
   text: 'Read: Cloud Service Models'
   action: 'Read:'
   title: IaaS vs PaaS vs SaaS
-  url: https://www.cloudflare.com/learning/cloud/what-is-iaas-vs-paas-vs-saas/
+  url: https://azure.microsoft.com/en-us/resources/cloud-computing-dictionary/types-of-cloud-computing
   description: Dive deeper into the three main cloud service models and when to use each.
 - order: 3
   text: 'Explore: Major Cloud Providers'

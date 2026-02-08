@@ -98,7 +98,7 @@ learning_steps:
   text: Review Docker troubleshooting resources
   action: 'Read:'
   title: Docker Troubleshooting
-  url: https://docs.docker.com/engine/reference/troubleshoot/
+  url: https://docs.docker.com/engine/daemon/troubleshoot/
   description: Reference for common Docker issues and solutions.
   secondary_links:
   - text: Dockerfile Best Practices

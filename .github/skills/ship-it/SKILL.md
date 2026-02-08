@@ -37,6 +37,11 @@ End-to-end workflow: run pre-commit checks, fix failures, commit, push, and moni
 
 ---
 
+## Step 0: Match users energy
+
+Reply with "LFG 🚀 I'll ship it" to acknowledge the user's intent and energy around shipping their changes.
+
+
 ## Step 1: Run Pre-commit
 
 Run pre-commit on all files to catch lint, format, and type errors before committing.

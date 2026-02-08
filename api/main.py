@@ -47,11 +47,19 @@ def _configure_observability() -> None:
         )
         return
 
-    # Enable Agent Framework built-in OTel tracing for LLM calls
+    # Enable Agent Framework built-in OTel tracing for LLM calls.
+    # Skip if Azure Monitor already configured providers — calling
+    # setup_observability() would override them and trigger
+    # "Overriding of current TracerProvider" warnings.
     try:
-        from agent_framework.observability import setup_observability
+        from opentelemetry.trace import get_tracer_provider
 
-        setup_observability()
+        provider = get_tracer_provider()
+        already_configured = type(provider).__name__ != "ProxyTracerProvider"
+        if not already_configured:
+            from agent_framework.observability import setup_observability
+
+            setup_observability()
     except (ImportError, Exception):
         pass
 
@@ -80,7 +88,11 @@ from core.database import (  # noqa: E402
 )
 from core.logger import configure_logging  # noqa: E402
 from core.ratelimit import limiter, rate_limit_exceeded_handler  # noqa: E402
-from core.telemetry import SecurityHeadersMiddleware  # noqa: E402
+from core.telemetry import (  # noqa: E402
+    SecurityHeadersMiddleware,
+    UserTrackingMiddleware,
+    add_user_span_processor,
+)
 from routes import (  # noqa: E402
     analytics_router,
     auth_router,
@@ -308,6 +320,9 @@ app.add_middleware(
     same_site="lax",
     https_only=_settings.require_https,
 )
+app.add_middleware(UserTrackingMiddleware)
+
+add_user_span_processor()
 
 app.add_middleware(GZipMiddleware, minimum_size=500)
 app.add_middleware(SecurityHeadersMiddleware)
@@ -323,7 +338,6 @@ if _settings.debug:
         max_age=600,
     )
 
-# Mount static files with cache-busting
 _static_dir = Path(__file__).parent / "static"
 if _static_dir.exists():
     _static_hashes.update(_build_static_file_hashes(_static_dir))

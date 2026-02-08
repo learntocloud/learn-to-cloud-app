@@ -70,7 +70,6 @@ async def callback(request: Request, db: DbSession) -> RedirectResponse:
         logger.exception("auth.callback.token_exchange_failed")
         return RedirectResponse(url="/", status_code=302)
 
-    # Fetch user profile from GitHub API
     resp = await github.get("user", token=token)
     github_user = resp.json()
 
@@ -89,7 +88,6 @@ async def callback(request: Request, db: DbSession) -> RedirectResponse:
     )
     await db.commit()
 
-    # Set session cookie
     request.session["user_id"] = user.id
 
     logger.info(

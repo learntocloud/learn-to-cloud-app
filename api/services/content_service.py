@@ -9,6 +9,7 @@ Content files are located in content/phases/ (dev) or
 
 from __future__ import annotations
 
+import logging
 from functools import lru_cache
 from pathlib import Path
 
@@ -16,6 +17,8 @@ import yaml
 
 from core.config import get_settings
 from schemas import Phase, Topic
+
+logger = logging.getLogger(__name__)
 
 
 def _get_content_dir() -> Path:
@@ -37,6 +40,10 @@ def _load_topic(phase_dir: Path, topic_slug: str) -> Topic | None:
             data = yaml.safe_load(f)
         return Topic.model_validate(data)
     except Exception:
+        logger.exception(
+            "content.topic.load_failed",
+            extra={"topic_slug": topic_slug, "path": str(topic_file)},
+        )
         return None
 
 
@@ -69,6 +76,10 @@ def _load_phase(phase_slug: str) -> Phase | None:
 
         return Phase.model_validate(data)
     except Exception:
+        logger.exception(
+            "content.phase.load_failed",
+            extra={"phase_slug": phase_slug, "path": str(meta_file)},
+        )
         return None
 
 

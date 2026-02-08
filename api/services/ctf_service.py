@@ -81,7 +81,10 @@ def verify_ctf_token(token: str, oauth_github_username: str) -> CTFVerificationR
         try:
             verification_secret = _derive_secret(instance_id)
         except RuntimeError:
-            logger.exception("ctf.verification.misconfigured")
+            logger.exception(
+                "ctf.verification.misconfigured",
+                extra={"expected_username": oauth_github_username},
+            )
             return CTFVerificationResult(
                 is_valid=False,
                 message="CTF verification is not available right now.",
@@ -143,7 +146,10 @@ def verify_ctf_token(token: str, oauth_github_username: str) -> CTFVerificationR
         )
 
     except Exception as e:
-        logger.exception("ctf.token.verification.failed", extra={"error": str(e)})
+        logger.exception(
+            "ctf.token.verification.failed",
+            extra={"error": str(e), "expected_username": oauth_github_username},
+        )
         return CTFVerificationResult(
             is_valid=False,
             message="Token verification failed. Please try again or contact support.",

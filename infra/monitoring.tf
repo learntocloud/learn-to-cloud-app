@@ -493,7 +493,9 @@ resource "azurerm_portal_dashboard" "main" {
                 {
                   name = "ComponentId"
                   value = {
-                    SubscriptionId = azurerm_application_insights.main.id
+                    SubscriptionId = var.subscription_id
+                    ResourceGroup  = azurerm_resource_group.main.name
+                    Name           = azurerm_application_insights.main.name
                     ResourceId     = azurerm_application_insights.main.id
                   }
                 },
@@ -524,7 +526,9 @@ resource "azurerm_portal_dashboard" "main" {
                 {
                   name = "ComponentId"
                   value = {
-                    SubscriptionId = azurerm_application_insights.main.id
+                    SubscriptionId = var.subscription_id
+                    ResourceGroup  = azurerm_resource_group.main.name
+                    Name           = azurerm_application_insights.main.name
                     ResourceId     = azurerm_application_insights.main.id
                   }
                 },
@@ -580,7 +584,9 @@ resource "azurerm_portal_dashboard" "main" {
                 {
                   name = "ComponentId"
                   value = {
-                    SubscriptionId = azurerm_application_insights.main.id
+                    SubscriptionId = var.subscription_id
+                    ResourceGroup  = azurerm_resource_group.main.name
+                    Name           = azurerm_application_insights.main.name
                     ResourceId     = azurerm_application_insights.main.id
                   }
                 },
@@ -685,7 +691,9 @@ resource "azurerm_portal_dashboard" "main" {
                 {
                   name = "ComponentId"
                   value = {
-                    SubscriptionId = azurerm_application_insights.main.id
+                    SubscriptionId = var.subscription_id
+                    ResourceGroup  = azurerm_resource_group.main.name
+                    Name           = azurerm_application_insights.main.name
                     ResourceId     = azurerm_application_insights.main.id
                   }
                 },
@@ -717,7 +725,9 @@ resource "azurerm_portal_dashboard" "main" {
                 {
                   name = "ComponentId"
                   value = {
-                    SubscriptionId = azurerm_application_insights.main.id
+                    SubscriptionId = var.subscription_id
+                    ResourceGroup  = azurerm_resource_group.main.name
+                    Name           = azurerm_application_insights.main.name
                     ResourceId     = azurerm_application_insights.main.id
                   }
                 },
@@ -748,7 +758,9 @@ resource "azurerm_portal_dashboard" "main" {
                 {
                   name = "ComponentId"
                   value = {
-                    SubscriptionId = azurerm_application_insights.main.id
+                    SubscriptionId = var.subscription_id
+                    ResourceGroup  = azurerm_resource_group.main.name
+                    Name           = azurerm_application_insights.main.name
                     ResourceId     = azurerm_application_insights.main.id
                   }
                 },

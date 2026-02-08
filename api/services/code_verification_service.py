@@ -267,10 +267,8 @@ def _extract_repo_info(repo_url: str) -> tuple[str, str]:
     Raises:
         ValueError: If URL is not a valid GitHub repository URL
     """
-    # Handle various URL formats
     url = repo_url.strip().rstrip("/")
 
-    # Normalize to https://github.com/owner/repo format
     patterns = [
         r"https?://github\.com/([^/]+)/([^/]+)/?.*",
         r"github\.com/([^/]+)/([^/]+)/?.*",
@@ -280,7 +278,6 @@ def _extract_repo_info(repo_url: str) -> tuple[str, str]:
         match = re.match(pattern, url)
         if match:
             owner, repo = match.groups()
-            # Remove .git suffix if present
             repo = repo.removesuffix(".git")
             return owner, repo
 
@@ -768,7 +765,7 @@ async def analyze_repository_code(
     except CircuitBreakerError:
         logger.error(
             "code_analysis.circuit_open",
-            extra={"owner": owner, "repo": repo},
+            extra={"owner": owner, "repo": repo, "github_username": github_username},
         )
         return ValidationResult(
             is_valid=False,
@@ -781,7 +778,12 @@ async def analyze_repository_code(
     except CodeAnalysisError as e:
         logger.exception(
             "code_analysis.failed",
-            extra={"owner": owner, "repo": repo, "retriable": e.retriable},
+            extra={
+                "owner": owner,
+                "repo": repo,
+                "retriable": e.retriable,
+                "github_username": github_username,
+            },
         )
         return ValidationResult(
             is_valid=False,
@@ -791,7 +793,7 @@ async def analyze_repository_code(
     except LLMClientError:
         logger.exception(
             "code_analysis.client_error",
-            extra={"owner": owner, "repo": repo},
+            extra={"owner": owner, "repo": repo, "github_username": github_username},
         )
         return ValidationResult(
             is_valid=False,

@@ -10,7 +10,7 @@ WORKDIR /app
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
 # Copy dependency files first for caching
-COPY api/pyproject.toml ./
+COPY api/pyproject.toml api/uv.lock ./
 
 # Disable uv Python downloads (use system Python) and enable bytecode compilation
 ENV UV_PYTHON_DOWNLOADS=never
@@ -19,7 +19,7 @@ ENV UV_PROJECT_ENVIRONMENT=/app/.venv
 
 # Install dependencies to virtual environment
 RUN uv venv /app/.venv && \
-    uv sync --no-dev
+    uv sync --no-dev --frozen
 
 # Tailwind CSS v4 build stage
 FROM node:22-slim AS tailwind

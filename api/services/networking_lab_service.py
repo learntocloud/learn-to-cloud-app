@@ -92,7 +92,6 @@ def verify_networking_token(
                 message="Invalid token structure. Missing payload or signature.",
             )
 
-        # Verify challenge type
         challenge_type = payload.get("challenge")
         if challenge_type != EXPECTED_CHALLENGE_TYPE:
             return NetworkingLabVerificationResult(
@@ -130,14 +129,16 @@ def verify_networking_token(
         try:
             verification_secret = _derive_secret(instance_id)
         except RuntimeError:
-            logger.exception("networking.verification.misconfigured")
+            logger.exception(
+                "networking.verification.misconfigured",
+                extra={"expected_username": oauth_github_username},
+            )
             return NetworkingLabVerificationResult(
                 is_valid=False,
                 message="Networking lab verification is not available right now.",
                 server_error=True,
             )
 
-        # Verify HMAC signature
         payload_str = json.dumps(payload, separators=(",", ":"))
 
         expected_sig = hmac.new(
@@ -154,7 +155,6 @@ def verify_networking_token(
                 ),
             )
 
-        # Verify challenge count
         challenges = payload.get("challenges", 0)
         if challenges != REQUIRED_CHALLENGES:
             return NetworkingLabVerificationResult(
@@ -174,7 +174,6 @@ def verify_networking_token(
                 message="Invalid timestamp. The token appears to be from the future.",
             )
 
-        # Success
         logger.info(
             "networking.verification.passed",
             extra={
@@ -200,7 +199,7 @@ def verify_networking_token(
     except Exception as e:
         logger.exception(
             "networking.token.verification.failed",
-            extra={"error": str(e)},
+            extra={"error": str(e), "expected_username": oauth_github_username},
         )
         return NetworkingLabVerificationResult(
             is_valid=False,

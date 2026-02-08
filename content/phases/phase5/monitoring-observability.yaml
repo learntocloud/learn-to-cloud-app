@@ -35,7 +35,7 @@ learning_steps:
   - text: Prometheus Overview
     url: https://prometheus.io/docs/introduction/overview/
   - text: Grafana Overview
-    url: https://grafana.com/docs/grafana/latest/getting-started/what-is-grafana/
+    url: https://grafana.com/docs/grafana/latest/introduction/
   - text: Prometheus + Grafana Integration
     url: https://grafana.com/docs/grafana/latest/datasources/prometheus/
   title: Prometheus & Grafana

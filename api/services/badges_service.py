@@ -9,12 +9,15 @@ CACHING:
 - Cache key includes a hash of phase completion data for invalidation
 """
 
+import logging
 from functools import lru_cache
 
 from core.cache import get_cached_badges, set_cached_badges
 from schemas import BadgeCatalogItem, BadgeData
 from services.content_service import get_all_phases
 from services.progress_service import get_phase_requirements
+
+logger = logging.getLogger(__name__)
 
 
 @lru_cache(maxsize=1)
@@ -120,6 +123,10 @@ def compute_all_badges(
     badges = compute_phase_badges(phase_completion_counts)
 
     if user_id:
+        logger.info(
+            "badges.computed",
+            extra={"user_id": user_id, "earned": len(badges)},
+        )
         set_cached_badges(user_id, progress_hash, badges)
 
     return badges

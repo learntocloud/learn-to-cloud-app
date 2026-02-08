@@ -32,7 +32,6 @@ class _JSONFormatter(logging.Formatter):
         for key, value in record.__dict__.items():
             if key not in skip and isinstance(value, str | int | float | bool | None):
                 log_entry[key] = value
-        # Include exception info
         if record.exc_info and record.exc_info[0] is not None:
             log_entry["exception"] = self.formatException(record.exc_info)
         return json.dumps(log_entry, default=str)
@@ -53,7 +52,6 @@ def configure_logging() -> None:
     for h in otel_handlers:
         root.addHandler(h)
 
-    # Add stdout handler
     handler = logging.StreamHandler(sys.stdout)
     handler.setFormatter(
         _JSONFormatter()
@@ -70,5 +68,8 @@ def configure_logging() -> None:
         "uvicorn.access",
         "openai",
         "openai._base_client",
+        "azure.core.pipeline.policies.http_logging_policy",
+        "azure.identity",
+        "azure.monitor.opentelemetry",
     ):
         logging.getLogger(name).setLevel(logging.WARNING)

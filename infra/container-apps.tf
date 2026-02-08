@@ -142,6 +142,11 @@ resource "azurerm_container_app" "api" {
       }
 
       env {
+        name  = "OTEL_SERVICE_NAME"
+        value = "learn-to-cloud-api"
+      }
+
+      env {
         name  = "LLM_BASE_URL"
         value = azurerm_cognitive_account.openai.endpoint
       }

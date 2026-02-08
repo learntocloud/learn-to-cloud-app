@@ -6,6 +6,8 @@ for the dashboard page.
 Source of truth: .github/skills/progression-system/progression-system.md
 """
 
+import logging
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from schemas import (
@@ -22,6 +24,8 @@ from services.progress_service import (
     get_phase_completion_counts,
     phase_progress_to_data,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def _build_phase_summary(
@@ -92,6 +96,15 @@ async def get_dashboard_data(
     # Compute badges from the same progress data (no extra DB calls)
     completion_counts = get_phase_completion_counts(user_progress)
     earned_badges = compute_all_badges(completion_counts, user_id=user_id)
+
+    logger.info(
+        "dashboard.built",
+        extra={
+            "user_id": user_id,
+            "phases_completed": user_progress.phases_completed,
+            "badges_earned": len(earned_badges),
+        },
+    )
 
     return DashboardData(
         phases=phase_summaries,

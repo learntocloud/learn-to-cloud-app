@@ -528,11 +528,8 @@ def _sanitize_feedback(feedback: str) -> str:
     if len(feedback) > max_length:
         feedback = feedback[:max_length].rsplit(" ", 1)[0] + "..."
 
-    # Remove XML/HTML tags
     feedback = re.sub(r"<[^>]+>", "", feedback)
-    # Remove markdown code blocks
     feedback = re.sub(r"```[\s\S]*?```", "[code snippet]", feedback)
-    # Remove URLs
     feedback = re.sub(r"https?://\S+", "[link removed]", feedback)
 
     return feedback.strip() or "No feedback provided"
@@ -737,7 +734,6 @@ async def analyze_devops_repository(
         )
 
     try:
-        # Step 1: Discover files in the repository
         try:
             all_files = await _fetch_repo_tree(owner, repo)
         except httpx.HTTPStatusError as e:
@@ -751,19 +747,14 @@ async def analyze_devops_repository(
                 )
             raise
 
-        # Step 2: Filter to DevOps-relevant files
         devops_files = _filter_devops_files(all_files)
-
-        # Step 3: Fetch file contents in parallel
         file_contents = await _fetch_all_devops_files(owner, repo, devops_files)
-
-        # Step 4: Analyze with LLM
         return await _analyze_with_llm(owner, repo, file_contents)
 
     except CircuitBreakerError:
         logger.error(
             "devops_analysis.circuit_open",
-            extra={"owner": owner, "repo": repo},
+            extra={"owner": owner, "repo": repo, "github_username": github_username},
         )
         return ValidationResult(
             is_valid=False,
@@ -776,7 +767,12 @@ async def analyze_devops_repository(
     except DevOpsAnalysisError as e:
         logger.exception(
             "devops_analysis.failed",
-            extra={"owner": owner, "repo": repo, "retriable": e.retriable},
+            extra={
+                "owner": owner,
+                "repo": repo,
+                "retriable": e.retriable,
+                "github_username": github_username,
+            },
         )
         return ValidationResult(
             is_valid=False,
@@ -786,7 +782,7 @@ async def analyze_devops_repository(
     except LLMClientError:
         logger.exception(
             "devops_analysis.client_error",
-            extra={"owner": owner, "repo": repo},
+            extra={"owner": owner, "repo": repo, "github_username": github_username},
         )
         return ValidationResult(
             is_valid=False,

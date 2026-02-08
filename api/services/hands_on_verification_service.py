@@ -22,6 +22,7 @@ For AI-powered code analysis, see code_verification_service.py
 For phase requirements, see phase_requirements.py
 """
 
+import logging
 from urllib.parse import urlparse
 
 from models import SubmissionType
@@ -30,6 +31,8 @@ from services.phase_requirements_service import (
     get_requirement_by_id,
     get_requirements_for_phase,
 )
+
+logger = logging.getLogger(__name__)
 
 __all__ = [
     "get_requirement_by_id",
@@ -245,3 +248,6 @@ async def validate_submission(
             username_match=False,
             repo_exists=False,
         )
+
+    # This line is unreachable due to the explicit returns above,
+    # but the function is kept for readability.

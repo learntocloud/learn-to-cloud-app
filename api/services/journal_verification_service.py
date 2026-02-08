@@ -11,10 +11,13 @@ The response must:
 """
 
 import json
+import logging
 import re
 from datetime import datetime
 
 from schemas import ValidationResult
+
+logger = logging.getLogger(__name__)
 
 # UUID v4 pattern (standard format from Python's uuid module)
 _UUID_PATTERN = re.compile(
@@ -58,7 +61,6 @@ def _validate_entry(entry: dict, index: int) -> tuple[bool, str | None]:
     Returns:
         Tuple of (is_valid, error_message)
     """
-    # Check required fields
     missing_fields = _REQUIRED_FIELDS - set(entry.keys())
     if missing_fields:
         return (
@@ -66,11 +68,9 @@ def _validate_entry(entry: dict, index: int) -> tuple[bool, str | None]:
             f"Entry {index + 1} missing fields: {', '.join(sorted(missing_fields))}",
         )
 
-    # Validate id is a UUID
     if not isinstance(entry.get("id"), str) or not _validate_uuid(entry["id"]):
         return False, f"Entry {index + 1} has invalid id (expected UUID format)"
 
-    # Validate string fields
     for field in _STRING_FIELDS_WITH_LIMIT:
         value = entry.get(field)
         if not isinstance(value, str):
@@ -115,7 +115,6 @@ def validate_journal_api_response(json_response: str) -> ValidationResult:
             message="Please paste your JSON response from GET /entries",
         )
 
-    # Parse JSON
     try:
         data = json.loads(json_response)
     except json.JSONDecodeError:
@@ -124,21 +123,18 @@ def validate_journal_api_response(json_response: str) -> ValidationResult:
             message="Invalid JSON format. Make sure you copied the complete response.",
         )
 
-    # Must be an array
     if not isinstance(data, list):
         return ValidationResult(
             is_valid=False,
             message="Response must be an array of entries.",
         )
 
-    # Must have at least one entry
     if len(data) == 0:
         return ValidationResult(
             is_valid=False,
             message="No entries found. Create an entry with POST /entries first.",
         )
 
-    # Validate each entry
     for i, entry in enumerate(data):
         if not isinstance(entry, dict):
             return ValidationResult(
@@ -155,6 +151,10 @@ def validate_journal_api_response(json_response: str) -> ValidationResult:
 
     count = len(data)
     entry_word = "entry" if count == 1 else "entries"
+    logger.info(
+        "journal.verification.passed",
+        extra={"entries_count": count},
+    )
     return ValidationResult(
         is_valid=True,
         message=f"Journal API verified! Found {count} valid {entry_word}.",

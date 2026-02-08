@@ -13,14 +13,12 @@ from sqlalchemy.pool import NullPool
 
 
 async def reset() -> None:
-    # Connect to default DB to drop and recreate
     admin = create_async_engine(
         "postgresql+asyncpg://postgres:postgres@localhost:5432/postgres",
         poolclass=NullPool,
         isolation_level="AUTOCOMMIT",
     )
     async with admin.connect() as c:
-        # Kill existing connections
         await c.execute(
             text(
                 "SELECT pg_terminate_backend(pid) "
