@@ -32,7 +32,7 @@ from circuitbreaker import CircuitBreakerError, circuit
 from pydantic import BaseModel, Field
 from tenacity import (
     retry,
-    retry_if_exception_type,
+    retry_base,
     stop_after_attempt,
     wait_exponential_jitter,
 )
@@ -588,6 +588,22 @@ RETRIABLE_EXCEPTIONS: tuple[type[Exception], ...] = (
 )
 
 
+class _retry_if_retriable(retry_base):  # noqa: N801
+    """Only retry LLMClientError when its retriable flag is True.
+
+    Config errors (e.g. missing LLM_CLI_PATH) have retriable=False and
+    should fail immediately instead of wasting time on doomed retries.
+    """
+
+    def __call__(self, retry_state: Any) -> bool:
+        exc = retry_state.outcome.exception()
+        if exc is None:
+            return False
+        if isinstance(exc, LLMClientError) and not exc.retriable:
+            return False
+        return isinstance(exc, RETRIABLE_EXCEPTIONS)
+
+
 @track_operation("code_analysis")
 @circuit(
     failure_threshold=3,
@@ -598,7 +614,7 @@ RETRIABLE_EXCEPTIONS: tuple[type[Exception], ...] = (
 @retry(
     stop=stop_after_attempt(2),
     wait=wait_exponential_jitter(initial=1, max=30),
-    retry=retry_if_exception_type(RETRIABLE_EXCEPTIONS),
+    retry=_retry_if_retriable(),
     reraise=True,
 )
 async def _analyze_with_llm(
@@ -854,7 +870,7 @@ async def analyze_repository_code(
         return ValidationResult(
             is_valid=False,
             message=f"Code analysis failed: {e}",
-            server_error=e.retriable,
+            server_error=True,  # Always server error — not the user's fault
         )
     except LLMClientError as e:
         set_wide_event_fields(

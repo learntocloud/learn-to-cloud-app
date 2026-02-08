@@ -13,3 +13,12 @@
 .htmx-request.htmx-indicator {
     display: inline-flex;
 }
+
+/* Thin scrollbar for feedback panels */
+.scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: theme(--color-gray-400) transparent;
+}
+.dark .scrollbar-thin {
+    scrollbar-color: theme(--color-gray-600) transparent;
+}

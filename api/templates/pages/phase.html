@@ -58,9 +58,11 @@
     <div class="space-y-4">
         {% for req in requirements %}
         {% set submission = submissions_by_req.get(req.id) %}
-        {% set feedback_tasks = [] %}
-        {% set feedback_passed = 0 %}
-        {% with requirement=req, submission=submission, feedback_tasks=feedback_tasks, feedback_passed=feedback_passed, phase_id=phase.order %}
+        {% set fb = feedback_by_req.get(req.id, {}) if feedback_by_req is defined else {} %}
+        {% set feedback_tasks = fb.get('tasks', []) if fb else [] %}
+        {% set feedback_passed = fb.get('passed', 0) if fb else 0 %}
+        {% set cooldown_secs = fb.get('cooldown_seconds', None) if fb else None %}
+        {% with requirement=req, submission=submission, feedback_tasks=feedback_tasks, feedback_passed=feedback_passed, phase_id=phase.order, cooldown_seconds=cooldown_secs, cooldown_message=None, error_banner=None, server_error=False, server_error_message=None %}
         {% include "partials/requirement_card.html" %}
         {% endwith %}
         {% endfor %}

@@ -82,4 +82,4 @@ ENTRYPOINT ["tini", "-g", "--"]
 # Run with multiple workers for better concurrency
 # Workers = 2-4 x CPU cores, but Container Apps typically has 0.5-2 vCPU
 # Use python -m uvicorn instead of direct uvicorn to avoid shebang path issues
-CMD ["python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
+CMD ["python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2", "--proxy-headers", "--forwarded-allow-ips", "*"]

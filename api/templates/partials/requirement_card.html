@@ -6,6 +6,10 @@
         <span class="inline-flex items-center rounded-full bg-green-100 dark:bg-green-900 px-2.5 py-0.5 text-xs font-medium text-green-800 dark:text-green-200">
             ✓ Verified
         </span>
+        {% elif submission and not submission.is_validated and server_error %}
+        <span class="inline-flex items-center rounded-full bg-amber-100 dark:bg-amber-900 px-2.5 py-0.5 text-xs font-medium text-amber-800 dark:text-amber-200">
+            ⚠ Service Error
+        </span>
         {% elif submission and not submission.is_validated %}
         <span class="inline-flex items-center rounded-full bg-red-100 dark:bg-red-900 px-2.5 py-0.5 text-xs font-medium text-red-800 dark:text-red-200">
             ✗ Failed
@@ -60,26 +64,30 @@
     </form>
     {% endif %}
 
-    {% if feedback_tasks %}
-    <div class="mt-3 space-y-1" x-data="{ expanded: false }">
-        <button @click="expanded = !expanded" class="text-sm text-blue-600 dark:text-blue-400 hover:underline">
-            <span x-text="expanded ? 'Hide details' : 'Show details'"></span>
-            ({{ feedback_passed }}/{{ feedback_tasks | length }} passed)
-        </button>
-        <div x-show="expanded" x-collapse class="space-y-1 mt-2">
-            {% for task in feedback_tasks %}
-            <div class="flex items-center gap-2 text-sm">
-                {% if task.passed %}
-                <span class="text-green-500">✓</span>
-                {% else %}
-                <span class="text-red-500">✗</span>
-                {% endif %}
-                <span class="{% if task.passed %}text-gray-600 dark:text-gray-400{% else %}text-red-600 dark:text-red-400{% endif %}">
-                    {{ task.name }}{% if task.message %}: {{ task.message }}{% endif %}
-                </span>
-            </div>
-            {% endfor %}
-        </div>
+    {% if server_error %}
+    <div class="mt-3 rounded-md bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 p-3">
+        <p class="text-sm text-amber-800 dark:text-amber-200">
+            ⚠ {{ server_error_message or 'The verification service encountered an error.' }}
+            <strong>This attempt was not counted against your rate limit</strong> — you can try again immediately.
+        </p>
     </div>
+    {% endif %}
+
+    {% if error_banner %}
+    <div class="mt-3 rounded-md bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-3">
+        <p class="text-sm text-red-800 dark:text-red-200">{{ error_banner }}</p>
+    </div>
+    {% endif %}
+
+    {% if feedback_tasks %}
+    {% with feedback_tasks=feedback_tasks, feedback_passed=feedback_passed, requirement_id=requirement.id %}
+    {% include "partials/verification_feedback.html" %}
+    {% endwith %}
+    {% endif %}
+
+    {% if cooldown_seconds %}
+    {% with retry_after_seconds=cooldown_seconds, cooldown_message=cooldown_message %}
+    {% include "partials/cooldown_timer.html" %}
+    {% endwith %}
     {% endif %}
 </div>

@@ -11,6 +11,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import RedirectResponse
 
 from core.auth import oauth
+from core.config import get_settings
 from core.database import DbSession
 from core.logger import get_logger
 from core.telemetry import log_business_event
@@ -39,6 +40,10 @@ async def login(request: Request) -> RedirectResponse:
         return RedirectResponse(url="/", status_code=302)
 
     redirect_uri = str(request.url_for("auth_callback"))
+    # Azure Container Apps terminates TLS at the load balancer; ensure
+    # the redirect URI uses https so it matches the GitHub OAuth config.
+    if get_settings().require_https and redirect_uri.startswith("http://"):
+        redirect_uri = redirect_uri.replace("http://", "https://", 1)
     return await github.authorize_redirect(request, redirect_uri)
 
 

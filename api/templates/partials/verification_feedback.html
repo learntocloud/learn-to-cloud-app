@@ -1,0 +1,83 @@
+<!-- Reusable AI verification feedback panel.
+     Used by all submission types that return task-level feedback
+     (CODE_ANALYSIS, DEVOPS_ANALYSIS, JOURNAL_API_RESPONSE, etc.)
+
+     Required context:
+       feedback_tasks   – list of dicts with keys: name, passed, message
+       feedback_passed  – int count of passed tasks
+     Optional:
+       requirement_id   – used to scope IDs (default: 'default')
+-->
+{% set total = feedback_tasks | length %}
+{% set failed = total - feedback_passed %}
+{% set all_passed = (feedback_passed == total) %}
+
+<div
+    class="mt-3 rounded-lg border
+           {% if all_passed %}border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20
+           {% else %}border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20{% endif %}"
+    x-data="{ expanded: false }"
+>
+    <!-- Summary header -->
+    <button
+        @click="expanded = !expanded"
+        class="w-full flex items-center justify-between px-4 py-2.5 text-sm font-medium
+               {% if all_passed %}text-green-800 dark:text-green-200
+               {% else %}text-red-800 dark:text-red-200{% endif %}"
+    >
+        <span class="flex items-center gap-2">
+            {% if all_passed %}
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+            All checks passed
+            {% else %}
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            {{ feedback_passed }}/{{ total }} checks passed
+            {% endif %}
+        </span>
+        <svg
+            class="w-4 h-4 transition-transform duration-200"
+            :class="{ 'rotate-180': expanded }"
+            fill="none" stroke="currentColor" viewBox="0 0 24 24"
+        ><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+    </button>
+
+    <!-- Scrollable task list -->
+    <div x-show="expanded" x-collapse>
+        <div class="border-t {% if all_passed %}border-green-200 dark:border-green-800{% else %}border-red-200 dark:border-red-800{% endif %}">
+            <div class="max-h-64 overflow-y-auto px-4 py-2 space-y-2 scrollbar-thin">
+                {# Show failed tasks first for visibility #}
+                {% for task in feedback_tasks if not task.passed %}
+                <div class="flex items-start gap-2 text-sm py-1">
+                    <span class="mt-0.5 flex-shrink-0 w-5 h-5 rounded-full bg-red-100 dark:bg-red-900 flex items-center justify-center">
+                        <span class="text-red-600 dark:text-red-400 text-xs font-bold">✗</span>
+                    </span>
+                    <div class="min-w-0">
+                        <span class="font-medium text-red-700 dark:text-red-300">{{ task.name }}</span>
+                        {% if task.message %}
+                        <p class="text-red-600 dark:text-red-400 mt-0.5 break-words">{{ task.message }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+
+                {% if failed > 0 and feedback_passed > 0 %}
+                <hr class="border-gray-200 dark:border-gray-700 my-1">
+                {% endif %}
+
+                {% for task in feedback_tasks if task.passed %}
+                <div class="flex items-start gap-2 text-sm py-1">
+                    <span class="mt-0.5 flex-shrink-0 w-5 h-5 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center">
+                        <span class="text-green-600 dark:text-green-400 text-xs font-bold">✓</span>
+                    </span>
+                    <div class="min-w-0">
+                        <span class="font-medium text-gray-700 dark:text-gray-300">{{ task.name }}</span>
+                        {% if task.message %}
+                        <p class="text-gray-500 dark:text-gray-400 mt-0.5 break-words">{{ task.message }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>

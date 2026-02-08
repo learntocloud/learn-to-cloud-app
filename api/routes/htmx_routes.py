@@ -4,6 +4,8 @@ These routes handle interactive HTMX requests (step toggles, form
 submissions, etc.) and return HTML partials instead of JSON.
 """
 
+import json
+
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse
 
@@ -12,6 +14,7 @@ from core.database import DbSession
 from core.logger import get_logger
 from core.ratelimit import limiter
 from rendering.steps import build_step_data
+from repositories.submission_repository import SubmissionRepository
 from services.certificates_service import create_certificate
 from services.content_service import get_topic_by_id
 from services.hands_on_verification_service import get_requirement_by_id
@@ -145,6 +148,37 @@ async def htmx_submit_verification(
     user = await get_user_by_id(db, user_id)
     github_username = user.github_username if user else None
 
+    requirement = get_requirement_by_id(requirement_id)
+
+    def _render_card(
+        submission: object | None = None,
+        *,
+        feedback_tasks: list | None = None,
+        feedback_passed: int = 0,
+        server_error: bool = False,
+        server_error_message: str | None = None,
+        cooldown_seconds: int | None = None,
+        cooldown_message: str | None = None,
+        error_banner: str | None = None,
+    ) -> HTMLResponse:
+        """Render the requirement card partial with consistent context."""
+        return request.app.state.templates.TemplateResponse(
+            "partials/requirement_card.html",
+            {
+                "request": request,
+                "requirement": requirement,
+                "submission": submission,
+                "phase_id": phase_id,
+                "feedback_tasks": feedback_tasks or [],
+                "feedback_passed": feedback_passed,
+                "server_error": server_error,
+                "server_error_message": server_error_message,
+                "cooldown_seconds": cooldown_seconds,
+                "cooldown_message": cooldown_message,
+                "error_banner": error_banner,
+            },
+        )
+
     try:
         result = await submit_validation(
             db=db,
@@ -165,29 +199,49 @@ async def htmx_submit_verification(
             status_code=200,
         )
     except DailyLimitExceededError as e:
-        return HTMLResponse(
-            f'<div class="text-amber-600 text-sm p-2">{e}</div>',
-            status_code=429,
-            headers={"Retry-After": "3600"},
+        # Fetch existing submission so the form retains the last value
+        sub_repo = SubmissionRepository(db)
+        existing = await sub_repo.get_by_user_and_requirement(user_id, requirement_id)
+        return _render_card(
+            submission=existing,
+            error_banner=str(e),
         )
     except CooldownActiveError as e:
-        return HTMLResponse(
-            f'<div class="text-amber-600 text-sm p-2">{e}</div>',
-            status_code=429,
-            headers={"Retry-After": str(e.retry_after_seconds)},
+        # Fetch existing submission to show last feedback + form
+        sub_repo = SubmissionRepository(db)
+        existing = await sub_repo.get_by_user_and_requirement(user_id, requirement_id)
+
+        # Restore previous feedback tasks from stored JSON
+        feedback_tasks = []
+        feedback_passed = 0
+        if existing and existing.feedback_json:
+            for task_data in json.loads(existing.feedback_json):
+                feedback_tasks.append(
+                    {
+                        "name": task_data.get("task_name", ""),
+                        "passed": task_data.get("passed", False),
+                        "message": task_data.get("feedback", ""),
+                    }
+                )
+                if task_data.get("passed"):
+                    feedback_passed += 1
+
+        return _render_card(
+            submission=existing,
+            feedback_tasks=feedback_tasks,
+            feedback_passed=feedback_passed,
+            cooldown_seconds=e.retry_after_seconds,
+            cooldown_message=str(e),
         )
-    except GitHubUsernameRequiredError as e:
-        return HTMLResponse(
-            f'<div class="text-red-600 text-sm p-2">{e}</div>',
-            status_code=400,
+    except GitHubUsernameRequiredError:
+        return _render_card(
+            error_banner="You need to link your GitHub account to submit. "
+            "Please sign out and sign in with GitHub.",
         )
     except ConcurrentSubmissionError as e:
-        return HTMLResponse(
-            f'<div class="text-amber-600 text-sm p-2">{e}</div>',
-            status_code=409,
+        return _render_card(
+            error_banner=str(e),
         )
-
-    requirement = get_requirement_by_id(requirement_id)
 
     # submit_validation returns SubmissionResult which already contains the
     # upserted submission — no need to re-fetch from the repository.
@@ -208,16 +262,18 @@ async def htmx_submit_verification(
             if task.passed:
                 feedback_passed += 1
 
-    return request.app.state.templates.TemplateResponse(
-        "partials/requirement_card.html",
-        {
-            "request": request,
-            "requirement": requirement,
-            "submission": submission,
-            "phase_id": phase_id,
-            "feedback_tasks": feedback_tasks,
-            "feedback_passed": feedback_passed,
-        },
+    # Detect server-side errors so the template can tell the user
+    # this attempt was not counted against their cooldown/quota.
+    is_server_error = (
+        not result.is_valid and submission and not submission.verification_completed
+    )
+
+    return _render_card(
+        submission=submission,
+        feedback_tasks=feedback_tasks,
+        feedback_passed=feedback_passed,
+        server_error=is_server_error,
+        server_error_message=result.message if is_server_error else None,
     )
 
 

@@ -279,6 +279,106 @@ class TestCooldownEnforcement:
             assert call_kwargs["verification_completed"] is False
 
     @pytest.mark.asyncio
+    async def test_immediate_retry_allowed_after_server_error(self):
+        """User should be able to retry immediately after a server error.
+
+        Regression test: when the LLM service is misconfigured (e.g. wrong
+        env var name), the first attempt fails with server_error=True. The
+        second attempt should NOT be blocked by cooldown because server
+        errors set verification_completed=False — and the cooldown query
+        filters by verification_completed=True.
+        """
+        mock_db = AsyncMock()
+        mock_requirement = _make_mock_requirement()
+
+        with (
+            patch(
+                "services.submissions_service.get_requirement_by_id",
+                return_value=mock_requirement,
+            ),
+            patch(
+                "services.submissions_service.SubmissionRepository"
+            ) as mock_repo_class,
+            patch(
+                "services.submissions_service.validate_submission",
+                new_callable=AsyncMock,
+            ) as mock_validate,
+        ):
+            mock_repo = MagicMock()
+            mock_repo.count_submissions_today = AsyncMock(return_value=1)
+
+            # --- First submission: server error ---
+            mock_repo.get_by_user_and_requirement = AsyncMock(return_value=None)
+            mock_repo.get_last_submission_time = AsyncMock(return_value=None)
+            mock_repo.upsert = AsyncMock(
+                return_value=MagicMock(
+                    id=1,
+                    requirement_id="test-requirement",
+                    submission_type=SubmissionType.CODE_ANALYSIS,
+                    phase_id=3,
+                    submitted_value="https://github.com/user/repo",
+                    extracted_username="user",
+                    is_validated=False,
+                    validated_at=None,
+                    verification_completed=False,
+                    created_at=datetime.now(UTC),
+                )
+            )
+            mock_repo_class.return_value = mock_repo
+
+            mock_validate.return_value = ValidationResult(
+                is_valid=False,
+                message="Unable to connect to code analysis service.",
+                server_error=True,
+            )
+
+            result1 = await submit_validation(
+                db=mock_db,
+                user_id=456,
+                requirement_id="test-requirement",
+                submitted_value="https://github.com/user/repo",
+                github_username="user",
+            )
+            assert result1.is_valid is False
+
+            # --- Second submission (immediate retry): should NOT be blocked ---
+            # get_last_submission_time returns None because the server error
+            # submission has verification_completed=False.
+            mock_repo.get_by_user_and_requirement = AsyncMock(
+                return_value=MagicMock(is_validated=False)
+            )
+            mock_repo.get_last_submission_time = AsyncMock(return_value=None)
+            mock_repo.upsert = AsyncMock(
+                return_value=MagicMock(
+                    id=1,
+                    requirement_id="test-requirement",
+                    submission_type=SubmissionType.CODE_ANALYSIS,
+                    phase_id=3,
+                    submitted_value="https://github.com/user/repo",
+                    extracted_username="user",
+                    is_validated=True,
+                    validated_at=datetime.now(UTC),
+                    verification_completed=True,
+                    created_at=datetime.now(UTC),
+                )
+            )
+
+            mock_validate.return_value = ValidationResult(
+                is_valid=True,
+                message="All tasks passed",
+            )
+
+            # This should succeed — no CooldownActiveError
+            result2 = await submit_validation(
+                db=mock_db,
+                user_id=456,
+                requirement_id="test-requirement",
+                submitted_value="https://github.com/user/repo",
+                github_username="user",
+            )
+            assert result2.is_valid is True
+
+    @pytest.mark.asyncio
     async def test_cooldown_uses_correct_setting_for_code_analysis(self):
         """CODE_ANALYSIS should use code_analysis_cooldown_seconds setting."""
         mock_db = AsyncMock()
