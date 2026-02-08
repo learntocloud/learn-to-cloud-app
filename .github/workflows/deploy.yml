@@ -144,6 +144,15 @@ jobs:
           docker push ${{ needs.terraform.outputs.container_registry_endpoint }}/api:${{ github.sha }}
           docker push ${{ needs.terraform.outputs.container_registry_endpoint }}/api:latest
 
+      - name: Build and Push LLM CLI Sidecar Image
+        run: |
+          docker build -f llm-cli/Dockerfile \
+            --label git-commit=${{ github.sha }} \
+            -t ${{ needs.terraform.outputs.container_registry_endpoint }}/llm-cli:${{ github.sha }} \
+            -t ${{ needs.terraform.outputs.container_registry_endpoint }}/llm-cli:latest .
+          docker push ${{ needs.terraform.outputs.container_registry_endpoint }}/llm-cli:${{ github.sha }}
+          docker push ${{ needs.terraform.outputs.container_registry_endpoint }}/llm-cli:latest
+
       - name: Start PostgreSQL for Smoke Test
         run: |
           docker run --rm -d --name smoke-test-db \
