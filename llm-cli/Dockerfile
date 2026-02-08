@@ -32,5 +32,4 @@ ENTRYPOINT ["tini", "-g", "--"]
 # Run CLI in headless (server) mode on a fixed port.
 # Authentication is handled via BYOK — the SDK passes provider config
 # per-session and the CLI forwards requests to your model endpoint.
-# --verbose: emit request/response lifecycle logs to stderr for debugging
-CMD ["copilot", "--headless", "--port", "4321", "--verbose"]
+CMD ["copilot", "--headless", "--port", "4321"]
