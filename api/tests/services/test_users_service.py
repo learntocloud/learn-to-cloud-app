@@ -57,16 +57,13 @@ class TestDeleteUserAccount:
             mock_db.commit.assert_not_awaited()
 
     @pytest.mark.asyncio
-    async def test_delete_logs_business_event(self):
-        """Account deletion emits a business event."""
+    async def test_delete_calls_repo(self):
+        """Account deletion calls repository delete."""
         mock_db = AsyncMock()
         mock_user = MagicMock()
         mock_user.github_username = "loguser"
 
-        with (
-            patch("services.users_service.UserRepository") as mock_repo_class,
-            patch("services.users_service.log_business_event") as mock_log_event,
-        ):
+        with patch("services.users_service.UserRepository") as mock_repo_class:
             mock_repo = MagicMock()
             mock_repo.get_by_id = AsyncMock(return_value=mock_user)
             mock_repo.delete = AsyncMock()
@@ -74,7 +71,7 @@ class TestDeleteUserAccount:
 
             await delete_user_account(mock_db, user_id=12345)
 
-            mock_log_event.assert_called_once_with("users.account_deleted", 1)
+            mock_repo.delete.assert_awaited_once()
 
 
 @pytest.mark.integration

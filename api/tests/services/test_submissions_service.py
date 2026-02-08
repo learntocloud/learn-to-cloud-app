@@ -11,6 +11,7 @@ Tests cover:
 - Already-validated short-circuit
 """
 
+from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -45,6 +46,22 @@ def _make_mock_requirement(
     )
 
 
+def _mock_session_maker():
+    """Create a mock async_sessionmaker for testing.
+
+    Returns a callable that produces async context managers yielding
+    an AsyncMock session.  Since tests patch SubmissionRepository,
+    the actual session object is irrelevant — it just needs to support
+    the async-with protocol and have a .commit() coroutine.
+    """
+
+    @asynccontextmanager
+    async def _factory():
+        yield AsyncMock()
+
+    return _factory
+
+
 @pytest.mark.unit
 class TestCooldownEnforcement:
     """Tests for cooldown logic in submit_validation."""
@@ -52,7 +69,7 @@ class TestCooldownEnforcement:
     @pytest.mark.asyncio
     async def test_first_submission_allowed(self):
         """First submission should always be allowed (no cooldown)."""
-        mock_db = AsyncMock()
+        mock_session_maker = _mock_session_maker()
         mock_requirement = _make_mock_requirement()
 
         with (
@@ -95,7 +112,7 @@ class TestCooldownEnforcement:
 
             # Should not raise - first submission allowed
             result = await submit_validation(
-                db=mock_db,
+                session_maker=mock_session_maker,
                 user_id=123,
                 requirement_id="test-requirement",
                 submitted_value="https://github.com/user/repo",
@@ -108,7 +125,7 @@ class TestCooldownEnforcement:
     @pytest.mark.asyncio
     async def test_cooldown_blocks_rapid_resubmission(self):
         """Submission within cooldown period should raise CooldownActiveError."""
-        mock_db = AsyncMock()
+        mock_session_maker = _mock_session_maker()
         mock_requirement = _make_mock_requirement()
 
         # Last submission was 5 minutes ago (well within 1-hour cooldown)
@@ -138,7 +155,7 @@ class TestCooldownEnforcement:
 
             with pytest.raises(CooldownActiveError) as exc_info:
                 await submit_validation(
-                    db=mock_db,
+                    session_maker=mock_session_maker,
                     user_id=123,
                     requirement_id="test-requirement",
                     submitted_value="https://github.com/user/repo",
@@ -152,7 +169,7 @@ class TestCooldownEnforcement:
     @pytest.mark.asyncio
     async def test_cooldown_allows_after_expiry(self):
         """Submission after cooldown expires should be allowed."""
-        mock_db = AsyncMock()
+        mock_session_maker = _mock_session_maker()
         mock_requirement = _make_mock_requirement()
 
         # Last submission was 2 hours ago (cooldown expired)
@@ -205,7 +222,7 @@ class TestCooldownEnforcement:
 
             # Should not raise - cooldown expired
             result = await submit_validation(
-                db=mock_db,
+                session_maker=mock_session_maker,
                 user_id=123,
                 requirement_id="test-requirement",
                 submitted_value="https://github.com/user/repo",
@@ -222,7 +239,7 @@ class TestCooldownEnforcement:
         If validation fails due to server error (e.g., AI service down),
         the user should be able to retry immediately.
         """
-        mock_db = AsyncMock()
+        mock_session_maker = _mock_session_maker()
         mock_requirement = _make_mock_requirement()
 
         with (
@@ -267,7 +284,7 @@ class TestCooldownEnforcement:
             )
 
             await submit_validation(
-                db=mock_db,
+                session_maker=mock_session_maker,
                 user_id=123,
                 requirement_id="test-requirement",
                 submitted_value="https://github.com/user/repo",
@@ -288,7 +305,7 @@ class TestCooldownEnforcement:
         errors set verification_completed=False — and the cooldown query
         filters by verification_completed=True.
         """
-        mock_db = AsyncMock()
+        mock_session_maker = _mock_session_maker()
         mock_requirement = _make_mock_requirement()
 
         with (
@@ -333,7 +350,7 @@ class TestCooldownEnforcement:
             )
 
             result1 = await submit_validation(
-                db=mock_db,
+                session_maker=mock_session_maker,
                 user_id=456,
                 requirement_id="test-requirement",
                 submitted_value="https://github.com/user/repo",
@@ -370,7 +387,7 @@ class TestCooldownEnforcement:
 
             # This should succeed — no CooldownActiveError
             result2 = await submit_validation(
-                db=mock_db,
+                session_maker=mock_session_maker,
                 user_id=456,
                 requirement_id="test-requirement",
                 submitted_value="https://github.com/user/repo",
@@ -381,7 +398,7 @@ class TestCooldownEnforcement:
     @pytest.mark.asyncio
     async def test_cooldown_uses_correct_setting_for_code_analysis(self):
         """CODE_ANALYSIS should use code_analysis_cooldown_seconds setting."""
-        mock_db = AsyncMock()
+        mock_session_maker = _mock_session_maker()
         mock_requirement = _make_mock_requirement(
             submission_type=SubmissionType.CODE_ANALYSIS
         )
@@ -414,7 +431,7 @@ class TestCooldownEnforcement:
 
             with pytest.raises(CooldownActiveError) as exc_info:
                 await submit_validation(
-                    db=mock_db,
+                    session_maker=mock_session_maker,
                     user_id=123,
                     requirement_id="test-requirement",
                     submitted_value="https://github.com/user/repo",
@@ -427,7 +444,7 @@ class TestCooldownEnforcement:
     @pytest.mark.asyncio
     async def test_cooldown_uses_correct_setting_for_other_types(self):
         """Non-CODE_ANALYSIS types should use submission_cooldown_seconds."""
-        mock_db = AsyncMock()
+        mock_session_maker = _mock_session_maker()
         mock_requirement = _make_mock_requirement(
             submission_type=SubmissionType.REPO_FORK
         )
@@ -460,7 +477,7 @@ class TestCooldownEnforcement:
 
             with pytest.raises(CooldownActiveError) as exc_info:
                 await submit_validation(
-                    db=mock_db,
+                    session_maker=mock_session_maker,
                     user_id=123,
                     requirement_id="test-requirement",
                     submitted_value="https://github.com/user/repo",
@@ -479,7 +496,7 @@ class TestSubmissionValidationErrors:
     @pytest.mark.asyncio
     async def test_requirement_not_found_raises_error(self):
         """Unknown requirement ID should raise RequirementNotFoundError."""
-        mock_db = AsyncMock()
+        mock_session_maker = _mock_session_maker()
 
         with patch(
             "services.submissions_service.get_requirement_by_id",
@@ -487,7 +504,7 @@ class TestSubmissionValidationErrors:
         ):
             with pytest.raises(RequirementNotFoundError):
                 await submit_validation(
-                    db=mock_db,
+                    session_maker=mock_session_maker,
                     user_id=123,
                     requirement_id="nonexistent",
                     submitted_value="https://github.com/user/repo",
@@ -497,7 +514,7 @@ class TestSubmissionValidationErrors:
     @pytest.mark.asyncio
     async def test_github_username_required_for_code_analysis(self):
         """CODE_ANALYSIS without github_username should raise error."""
-        mock_db = AsyncMock()
+        mock_session_maker = _mock_session_maker()
         mock_requirement = _make_mock_requirement(
             submission_type=SubmissionType.CODE_ANALYSIS
         )
@@ -519,7 +536,7 @@ class TestSubmissionValidationErrors:
 
             with pytest.raises(GitHubUsernameRequiredError):
                 await submit_validation(
-                    db=mock_db,
+                    session_maker=mock_session_maker,
                     user_id=123,
                     requirement_id="test-requirement",
                     submitted_value="https://github.com/user/repo",
@@ -554,7 +571,7 @@ class TestConcurrentSubmissionProtection:
     @pytest.mark.asyncio
     async def test_concurrent_submission_raises_error(self):
         """Second submission while first is in progress should raise error."""
-        mock_db = AsyncMock()
+        mock_session_maker = _mock_session_maker()
         mock_requirement = _make_mock_requirement()
 
         # Pre-acquire the lock to simulate in-progress submission
@@ -580,7 +597,7 @@ class TestConcurrentSubmissionProtection:
                 # Second request should fail immediately
                 with pytest.raises(ConcurrentSubmissionError) as exc_info:
                     await submit_validation(
-                        db=mock_db,
+                        session_maker=mock_session_maker,
                         user_id=123,
                         requirement_id="test-requirement",
                         submitted_value="https://github.com/user/repo",
@@ -597,7 +614,7 @@ class TestAlreadyValidatedShortCircuit:
     @pytest.mark.asyncio
     async def test_already_validated_raises_error(self):
         """Re-submitting a validated requirement should raise AlreadyValidatedError."""
-        mock_db = AsyncMock()
+        mock_session_maker = _mock_session_maker()
         mock_requirement = _make_mock_requirement()
 
         with (
@@ -618,7 +635,7 @@ class TestAlreadyValidatedShortCircuit:
 
             with pytest.raises(AlreadyValidatedError):
                 await submit_validation(
-                    db=mock_db,
+                    session_maker=mock_session_maker,
                     user_id=123,
                     requirement_id="test-requirement",
                     submitted_value="https://github.com/user/repo",
@@ -628,7 +645,7 @@ class TestAlreadyValidatedShortCircuit:
     @pytest.mark.asyncio
     async def test_failed_submission_allows_retry(self):
         """A previously failed (not validated) submission should allow retry."""
-        mock_db = AsyncMock()
+        mock_session_maker = _mock_session_maker()
         mock_requirement = _make_mock_requirement()
 
         with (
@@ -673,7 +690,7 @@ class TestAlreadyValidatedShortCircuit:
             )
 
             result = await submit_validation(
-                db=mock_db,
+                session_maker=mock_session_maker,
                 user_id=123,
                 requirement_id="test-requirement",
                 submitted_value="https://github.com/user/repo",
@@ -690,7 +707,7 @@ class TestDailySubmissionCap:
     @pytest.mark.asyncio
     async def test_daily_limit_exceeded_raises_error(self):
         """Exceeding daily submission cap should raise DailyLimitExceededError."""
-        mock_db = AsyncMock()
+        mock_session_maker = _mock_session_maker()
         mock_requirement = _make_mock_requirement()
 
         with (
@@ -713,7 +730,7 @@ class TestDailySubmissionCap:
 
             with pytest.raises(DailyLimitExceededError) as exc_info:
                 await submit_validation(
-                    db=mock_db,
+                    session_maker=mock_session_maker,
                     user_id=123,
                     requirement_id="test-requirement",
                     submitted_value="https://github.com/user/repo",
@@ -725,7 +742,7 @@ class TestDailySubmissionCap:
     @pytest.mark.asyncio
     async def test_under_daily_limit_allowed(self):
         """Submissions under the daily cap should proceed normally."""
-        mock_db = AsyncMock()
+        mock_session_maker = _mock_session_maker()
         mock_requirement = _make_mock_requirement()
 
         with (
@@ -772,7 +789,7 @@ class TestDailySubmissionCap:
             )
 
             result = await submit_validation(
-                db=mock_db,
+                session_maker=mock_session_maker,
                 user_id=123,
                 requirement_id="test-requirement",
                 submitted_value="https://github.com/user/repo",
@@ -793,7 +810,7 @@ class TestEscalatingCooldowns:
     @pytest.mark.asyncio
     async def test_failure_counter_increments(self):
         """Failed validation should increment the failure counter."""
-        mock_db = AsyncMock()
+        mock_session_maker = _mock_session_maker()
         mock_requirement = _make_mock_requirement()
 
         with (
@@ -835,7 +852,7 @@ class TestEscalatingCooldowns:
             )
 
             await submit_validation(
-                db=mock_db,
+                session_maker=mock_session_maker,
                 user_id=123,
                 requirement_id="test-requirement",
                 submitted_value="https://github.com/user/repo",
@@ -851,7 +868,7 @@ class TestEscalatingCooldowns:
         # Pre-set failure count
         _failure_counts[(123, "test-requirement")] = 3
 
-        mock_db = AsyncMock()
+        mock_session_maker = _mock_session_maker()
         mock_requirement = _make_mock_requirement()
 
         with (
@@ -893,7 +910,7 @@ class TestEscalatingCooldowns:
             )
 
             await submit_validation(
-                db=mock_db,
+                session_maker=mock_session_maker,
                 user_id=123,
                 requirement_id="test-requirement",
                 submitted_value="https://github.com/user/repo",
@@ -909,7 +926,7 @@ class TestEscalatingCooldowns:
         # Pre-set 2 failures → cooldown = base * 2^2 = 4x
         _failure_counts[(123, "test-requirement")] = 2
 
-        mock_db = AsyncMock()
+        mock_session_maker = _mock_session_maker()
         mock_requirement = _make_mock_requirement()
 
         # Last submission was 2 hours ago (within 4x cooldown of 4h, outside 1x)
@@ -939,7 +956,7 @@ class TestEscalatingCooldowns:
 
             with pytest.raises(CooldownActiveError) as exc_info:
                 await submit_validation(
-                    db=mock_db,
+                    session_maker=mock_session_maker,
                     user_id=123,
                     requirement_id="test-requirement",
                     submitted_value="https://github.com/user/repo",
@@ -954,7 +971,7 @@ class TestEscalatingCooldowns:
     @pytest.mark.asyncio
     async def test_server_error_does_not_escalate(self):
         """Server errors should not increment the failure counter."""
-        mock_db = AsyncMock()
+        mock_session_maker = _mock_session_maker()
         mock_requirement = _make_mock_requirement()
 
         with (
@@ -997,7 +1014,7 @@ class TestEscalatingCooldowns:
             )
 
             await submit_validation(
-                db=mock_db,
+                session_maker=mock_session_maker,
                 user_id=123,
                 requirement_id="test-requirement",
                 submitted_value="https://github.com/user/repo",

@@ -8,15 +8,17 @@ This module handles:
 - Daily submission cap across all requirements (default 20/day)
 - Already-validated short-circuit (skip re-verification for passed requirements)
 - Concurrent request protection via per-user+requirement locks
+- DB connection release during long-running LLM calls
 
 Routes should delegate submission business logic to this module.
 """
 
 import asyncio
 import json
+import logging
 from datetime import UTC, datetime
 
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from core.cache import invalidate_progress_cache
 from core.config import get_settings
@@ -26,6 +28,8 @@ from schemas import SubmissionData, SubmissionResult
 from services.github_hands_on_verification_service import parse_github_url
 from services.hands_on_verification_service import validate_submission
 from services.phase_requirements_service import get_requirement_by_id
+
+logger = logging.getLogger(__name__)
 
 # =============================================================================
 # Concurrent Request Protection
@@ -129,15 +133,48 @@ _failure_counts: dict[tuple[int, str], int] = {}
 
 _MAX_COOLDOWN_SECONDS = 14400  # 4 hours — cap for escalating cooldowns
 
+# =============================================================================
+# Global LLM Concurrency Limit
+# =============================================================================
+# Caps the number of concurrent LLM verification calls across all users.
+# Prevents connection pool exhaustion: without this, N simultaneous users could
+# each hold a DB connection for 30-120s waiting on the LLM, starving all other
+# routes.  The semaphore is checked *before* acquiring the DB write session.
+_LLM_MAX_CONCURRENT = 3
+_llm_semaphore = asyncio.Semaphore(_LLM_MAX_CONCURRENT)
+
+
+def _is_llm_submission(submission_type: SubmissionType) -> bool:
+    """Return True for submission types that involve long-running LLM calls."""
+    return submission_type in (
+        SubmissionType.CODE_ANALYSIS,
+        SubmissionType.DEVOPS_ANALYSIS,
+    )
+
 
 async def submit_validation(
-    db: AsyncSession,
+    session_maker: async_sessionmaker[AsyncSession],
     user_id: int,
     requirement_id: str,
     submitted_value: str,
     github_username: str | None,
 ) -> SubmissionResult:
     """Submit a URL or token for hands-on validation.
+
+    DB connection lifecycle:
+        This function uses short-lived sessions instead of holding a single
+        session for the entire request.  The pre-validation checks use one
+        session (released in ~50ms), then the LLM call runs with NO session
+        held (30-120s), and finally a fresh session is opened for the upsert
+        (~50ms).  This prevents long-running LLM calls from pinning a
+        connection pool slot.
+
+    Args:
+        session_maker: Factory for creating short-lived DB sessions.
+        user_id: Authenticated user ID.
+        requirement_id: The hands-on requirement being submitted.
+        submitted_value: URL, token, or other submission payload.
+        github_username: GitHub username from OAuth (required for most types).
 
     Raises:
         RequirementNotFoundError: If requirement doesn't exist.
@@ -152,32 +189,35 @@ async def submit_validation(
     if not requirement:
         raise RequirementNotFoundError(f"Requirement not found: {requirement_id}")
 
-    submission_repo = SubmissionRepository(db)
+    # ── Phase 1: Pre-validation DB reads (short-lived session) ──────────
+    # Connection is held for only a few quick queries, then released before
+    # the potentially long-running LLM call.
+    async with session_maker() as read_session:
+        submission_repo = SubmissionRepository(read_session)
 
-    # --- Already-validated short-circuit ---
-    # If the user already passed this requirement, skip re-verification.
-    # This saves AI quota and prevents unnecessary reprocessing.
-    existing = await submission_repo.get_by_user_and_requirement(
-        user_id, requirement_id
-    )
-    if existing is not None and existing.is_validated:
-        raise AlreadyValidatedError("You have already completed this requirement.")
-
-    # --- Global daily submission cap ---
-    settings = get_settings()
-    today_count = await submission_repo.count_submissions_today(user_id)
-    if today_count >= settings.daily_submission_limit:
-        raise DailyLimitExceededError(
-            f"You have reached the daily limit of {settings.daily_submission_limit} "
-            f"submissions. Please try again tomorrow.",
-            limit=settings.daily_submission_limit,
+        # --- Already-validated short-circuit ---
+        existing = await submission_repo.get_by_user_and_requirement(
+            user_id, requirement_id
         )
+        if existing is not None and existing.is_validated:
+            raise AlreadyValidatedError("You have already completed this requirement.")
 
-    # --- Escalating cooldown enforcement ---
-    # Base cooldown is 1 hour. Each consecutive failure doubles it, capped at 4h.
-    last_submission_time = await submission_repo.get_last_submission_time(
-        user_id, requirement_id
-    )
+        # --- Global daily submission cap ---
+        settings = get_settings()
+        today_count = await submission_repo.count_submissions_today(user_id)
+        if today_count >= settings.daily_submission_limit:
+            raise DailyLimitExceededError(
+                f"You have reached the daily limit of "
+                f"{settings.daily_submission_limit} "
+                f"submissions. Please try again tomorrow.",
+                limit=settings.daily_submission_limit,
+            )
+
+        # --- Escalating cooldown enforcement ---
+        last_submission_time = await submission_repo.get_last_submission_time(
+            user_id, requirement_id
+        )
+    # read_session is now closed — connection returned to pool
 
     if last_submission_time is not None:
         base_cooldown = (
@@ -222,7 +262,6 @@ async def submit_validation(
             )
 
     # Prevent concurrent submissions for the same user+requirement.
-    # This avoids wasting AI quota if user has multiple tabs open.
     submission_lock = await _get_submission_lock(user_id, requirement_id)
     if submission_lock.locked():
         raise ConcurrentSubmissionError(
@@ -230,16 +269,31 @@ async def submit_validation(
         )
 
     async with submission_lock:
-        validation_result = await validate_submission(
-            requirement=requirement,
-            submitted_value=submitted_value,
-            expected_username=github_username,
-        )
+        # ── Phase 2: Run validation (NO DB session held) ────────────────
+        # LLM-based validations (CODE_ANALYSIS, DEVOPS_ANALYSIS) can take
+        # 30-120s.  We run them outside any DB session so they don't pin a
+        # connection pool slot.  A global semaphore caps concurrency to
+        # prevent overwhelming the LLM endpoint.
+        use_semaphore = _is_llm_submission(requirement.submission_type)
+
+        if use_semaphore:
+            logger.info(
+                "llm.semaphore.acquiring",
+                extra={
+                    "user_id": user_id,
+                    "requirement_id": requirement_id,
+                    "waiting": _LLM_MAX_CONCURRENT - _llm_semaphore._value,
+                },
+            )
+
+        async with _llm_semaphore if use_semaphore else _noop_context():
+            validation_result = await validate_submission(
+                requirement=requirement,
+                submitted_value=submitted_value,
+                expected_username=github_username,
+            )
 
         # Extract username from submission for audit/display purposes.
-        # For GitHub URLs: parse the username from the URL itself.
-        # For CTF tokens: the token embeds the expected username, so we store
-        # the authenticated user's GitHub username (tokens are user-specific).
         extracted_username = None
         if requirement.submission_type != SubmissionType.CTF_TOKEN:
             parsed = parse_github_url(submitted_value)
@@ -247,44 +301,41 @@ async def submit_validation(
         else:
             extracted_username = github_username
 
-        # Track whether verification actually completed (not blocked by server error).
-        # Only completed verifications count toward cooldowns.
         verification_completed = not validation_result.server_error
 
-        # Serialize task results for persistence (CODE_ANALYSIS submissions)
         feedback_json = None
         if validation_result.task_results:
             feedback_json = json.dumps(
                 [t.model_dump() for t in validation_result.task_results]
             )
 
-        submission_repo = SubmissionRepository(db)
+        # ── Phase 3: Persist result (short-lived session) ───────────────
+        # A fresh session is opened just for the upsert, keeping connection
+        # hold time to ~50ms.
+        async with session_maker() as write_session:
+            write_repo = SubmissionRepository(write_session)
 
-        # Repository handles upsert atomically (PostgreSQL ON CONFLICT)
-        db_submission = await submission_repo.upsert(
-            user_id=user_id,
-            requirement_id=requirement_id,
-            submission_type=requirement.submission_type,
-            phase_id=requirement.phase_id,
-            submitted_value=submitted_value,
-            extracted_username=extracted_username,
-            is_validated=validation_result.is_valid,
-            verification_completed=verification_completed,
-            feedback_json=feedback_json,
-        )
+            db_submission = await write_repo.upsert(
+                user_id=user_id,
+                requirement_id=requirement_id,
+                submission_type=requirement.submission_type,
+                phase_id=requirement.phase_id,
+                submitted_value=submitted_value,
+                extracted_username=extracted_username,
+                is_validated=validation_result.is_valid,
+                verification_completed=verification_completed,
+                feedback_json=feedback_json,
+            )
+            await write_session.commit()
 
         # --- Update escalating cooldown tracker ---
         failure_key = (user_id, requirement_id)
         if validation_result.is_valid:
-            # Reset failure counter on success
             _failure_counts.pop(failure_key, None)
-            # Invalidate cache so dashboard/progress refreshes immediately
             invalidate_progress_cache(user_id)
         elif validation_result.server_error:
-            # Don't escalate on server errors — not the user's fault
             pass
         else:
-            # Increment failure counter for escalating cooldowns
             _failure_counts[failure_key] = _failure_counts.get(failure_key, 0) + 1
 
         return SubmissionResult(
@@ -295,3 +346,13 @@ async def submit_validation(
             repo_exists=validation_result.repo_exists,
             task_results=validation_result.task_results,
         )
+
+
+class _noop_context:
+    """Async context manager that does nothing — used to skip the semaphore."""
+
+    async def __aenter__(self) -> None:
+        pass
+
+    async def __aexit__(self, *args: object) -> None:
+        pass

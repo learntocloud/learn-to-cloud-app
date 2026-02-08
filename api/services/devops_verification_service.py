@@ -631,7 +631,21 @@ async def _analyze_with_llm(
         instructions=prompt,
     )
 
-    result = await agent.run("Analyze the repository artifacts and grade all tasks.")
+    timeout_seconds = get_settings().llm_cli_timeout
+    try:
+        async with asyncio.timeout(timeout_seconds):
+            result = await agent.run(
+                "Analyze the repository artifacts and grade all tasks."
+            )
+    except TimeoutError:
+        logger.error(
+            "devops_analysis.timeout",
+            extra={"owner": owner, "repo": repo, "timeout": timeout_seconds},
+        )
+        raise DevOpsAnalysisError(
+            f"DevOps analysis timed out after {timeout_seconds}s",
+            retriable=True,
+        ) from None
     response_content = result.text
 
     if not response_content:

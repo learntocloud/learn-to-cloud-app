@@ -11,7 +11,7 @@ from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse
 
 from core.auth import UserId
-from core.database import DbSession
+from core.database import DbSession, DbSessionReadOnly
 from core.ratelimit import limiter
 from rendering.steps import build_step_data
 from repositories.submission_repository import SubmissionRepository
@@ -137,7 +137,7 @@ async def htmx_uncomplete_step(
 @limiter.limit("6/hour")
 async def htmx_submit_verification(
     request: Request,
-    db: DbSession,
+    db: DbSessionReadOnly,
     user_id: UserId,
     requirement_id: str = Form(..., max_length=100),
     phase_id: int = Form(...),
@@ -149,6 +149,10 @@ async def htmx_submit_verification(
     github_username = user.github_username if user else None
 
     requirement = get_requirement_by_id(requirement_id)
+
+    # session_maker lets submit_validation open short-lived sessions
+    # instead of holding the route's DbSession during long LLM calls.
+    session_maker = request.app.state.session_maker
 
     def _render_card(
         submission: object | None = None,
@@ -181,7 +185,7 @@ async def htmx_submit_verification(
 
     try:
         result = await submit_validation(
-            db=db,
+            session_maker=session_maker,
             user_id=user_id,
             requirement_id=requirement_id,
             submitted_value=submitted_value,

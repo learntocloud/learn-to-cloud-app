@@ -22,6 +22,7 @@ For LLM client infrastructure, see core/llm_client.py
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import re
@@ -659,7 +660,19 @@ async def _analyze_with_llm(
         tools=[fetch_github_file],
     )
 
-    result = await agent.run("Analyze the repository and grade all tasks.")
+    timeout_seconds = get_settings().llm_cli_timeout
+    try:
+        async with asyncio.timeout(timeout_seconds):
+            result = await agent.run("Analyze the repository and grade all tasks.")
+    except TimeoutError:
+        logger.error(
+            "code_analysis.timeout",
+            extra={"owner": owner, "repo": repo, "timeout": timeout_seconds},
+        )
+        raise CodeAnalysisError(
+            f"Code analysis timed out after {timeout_seconds}s",
+            retriable=True,
+        ) from None
     response_content = result.text
 
     if not response_content:
