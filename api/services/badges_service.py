@@ -12,8 +12,6 @@ CACHING:
 from functools import lru_cache
 
 from core.cache import get_cached_badges, set_cached_badges
-from core.telemetry import add_custom_attribute
-from core.wide_event import set_wide_event_fields
 from schemas import BadgeCatalogItem, BadgeData
 from services.content_service import get_all_phases
 from services.progress_service import get_phase_requirements
@@ -120,16 +118,6 @@ def compute_all_badges(
             return cached
 
     badges = compute_phase_badges(phase_completion_counts)
-
-    if badges:
-        phase_count = len(badges)
-        badge_ids = [b.id for b in badges]
-        set_wide_event_fields(
-            badges_earned=len(badges),
-            badges_phase_count=phase_count,
-            badge_ids=badge_ids,
-        )
-        add_custom_attribute("badges.phase_count", phase_count)
 
     if user_id:
         set_cached_badges(user_id, progress_hash, badges)

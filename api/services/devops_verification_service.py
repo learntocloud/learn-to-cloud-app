@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import re
 from typing import Any, TypedDict
 
@@ -34,14 +35,11 @@ from tenacity import (
     wait_exponential_jitter,
 )
 
-from core import get_logger
 from core.config import get_settings
 from core.llm_client import LLMClientError, get_llm_chat_client
-from core.telemetry import track_operation
-from core.wide_event import set_wide_event_fields
 from schemas import TaskResult, ValidationResult
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 # =============================================================================
 # Constants
@@ -311,9 +309,9 @@ async def _fetch_file_content(
     content_lower = content.lower()
     for pattern in SUSPICIOUS_PATTERNS:
         if pattern in content_lower:
-            set_wide_event_fields(
-                devops_analysis_suspicious_pattern=pattern,
-                devops_analysis_file=path,
+            logger.warning(
+                "devops_analysis.suspicious_pattern",
+                extra={"pattern": pattern, "file": path},
             )
             break
 
@@ -508,7 +506,10 @@ def _parse_analysis_response(response_text: str) -> list[dict[str, Any]]:
                 )
             task_id = task.get("task_id")
             if task_id not in valid_task_ids:
-                set_wide_event_fields(devops_invalid_task_id=task_id)
+                logger.warning(
+                    "devops_analysis.invalid_task_id",
+                    extra={"task_id": task_id},
+                )
 
         return tasks
     except json.JSONDecodeError as e:
@@ -598,7 +599,6 @@ RETRIABLE_EXCEPTIONS: tuple[type[Exception], ...] = (
 )
 
 
-@track_operation("devops_analysis")
 @circuit(
     failure_threshold=3,
     recovery_timeout=120,
@@ -626,12 +626,6 @@ async def _analyze_with_llm(
     chat_client = get_llm_chat_client()
     prompt = _build_verification_prompt(owner, repo, file_contents)
 
-    set_wide_event_fields(
-        devops_analysis_started=True,
-        devops_analysis_owner=owner,
-        devops_analysis_repo=repo,
-    )
-
     agent = ChatAgent(
         chat_client=chat_client,
         instructions=prompt,
@@ -651,13 +645,6 @@ async def _analyze_with_llm(
 
     passed_count = sum(1 for t in task_results if t.passed)
     total_count = len(task_results)
-
-    set_wide_event_fields(
-        devops_analysis_complete=True,
-        devops_tasks_passed=passed_count,
-        devops_tasks_total=total_count,
-        devops_all_passed=all_passed,
-    )
 
     if all_passed:
         message = (
@@ -720,11 +707,6 @@ async def analyze_devops_repository(
             username_match=False,
         )
 
-    set_wide_event_fields(
-        devops_analysis_owner=owner,
-        devops_analysis_repo=repo,
-    )
-
     try:
         # Step 1: Discover files in the repository
         try:
@@ -740,13 +722,8 @@ async def analyze_devops_repository(
                 )
             raise
 
-        set_wide_event_fields(devops_repo_file_count=len(all_files))
-
         # Step 2: Filter to DevOps-relevant files
         devops_files = _filter_devops_files(all_files)
-
-        files_found = {task_id: len(paths) for task_id, paths in devops_files.items()}
-        set_wide_event_fields(devops_files_found=str(files_found))
 
         # Step 3: Fetch file contents in parallel
         file_contents = await _fetch_all_devops_files(owner, repo, devops_files)
@@ -755,7 +732,6 @@ async def analyze_devops_repository(
         return await _analyze_with_llm(owner, repo, file_contents)
 
     except CircuitBreakerError:
-        set_wide_event_fields(devops_error="circuit_open")
         return ValidationResult(
             is_valid=False,
             message=(
@@ -765,21 +741,12 @@ async def analyze_devops_repository(
             server_error=True,
         )
     except DevOpsAnalysisError as e:
-        set_wide_event_fields(
-            devops_error="analysis_failed",
-            devops_error_detail=str(e),
-            devops_error_retriable=e.retriable,
-        )
         return ValidationResult(
             is_valid=False,
             message=f"DevOps analysis failed: {e}",
             server_error=e.retriable,
         )
-    except LLMClientError as e:
-        set_wide_event_fields(
-            devops_error="client_error",
-            devops_error_detail=str(e),
-        )
+    except LLMClientError:
         return ValidationResult(
             is_valid=False,
             message=("Unable to connect to analysis service. Please try again later."),

@@ -14,13 +14,12 @@ CACHING:
 - Call invalidate_progress_cache(user_id) after progress modifications
 """
 
+import logging
 from functools import lru_cache
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core import get_logger
 from core.cache import get_cached_progress, set_cached_progress
-from core.wide_event import set_wide_event_fields
 from repositories.progress_repository import StepProgressRepository
 from repositories.submission_repository import SubmissionRepository
 from schemas import (
@@ -36,7 +35,7 @@ from schemas import (
 from services.content_service import get_all_phases
 from services.phase_requirements_service import get_requirements_for_phase
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 @lru_cache(maxsize=1)
@@ -63,8 +62,10 @@ def _build_phase_requirements() -> dict[int, PhaseRequirements]:
 
     logger.info(
         "phase_requirements.built",
-        phases=len(requirements),
-        steps=sum(r.steps for r in requirements.values()),
+        extra={
+            "phases": len(requirements),
+            "steps": sum(r.steps for r in requirements.values()),
+        },
     )
     return requirements
 
@@ -165,14 +166,6 @@ async def fetch_user_progress(
         user_id=user_id, phases=phases, total_phases=len(all_phase_ids)
     )
     set_cached_progress(user_id, result)
-
-    # Add progress context to wide event for observability
-    set_wide_event_fields(
-        progress_phases_completed=result.phases_completed,
-        progress_total_phases=result.total_phases,
-        progress_percentage=round(result.overall_percentage, 1),
-        progress_is_complete=result.is_program_complete,
-    )
 
     return result
 

@@ -11,14 +11,13 @@ The response must:
 """
 
 import json
+import logging
 import re
 from datetime import datetime
 
-from core import get_logger
-from core.wide_event import set_wide_event_fields
 from schemas import ValidationResult
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 # UUID v4 pattern (standard format from Python's uuid module)
 _UUID_PATTERN = re.compile(
@@ -122,11 +121,7 @@ def validate_journal_api_response(json_response: str) -> ValidationResult:
     # Parse JSON
     try:
         data = json.loads(json_response)
-    except json.JSONDecodeError as e:
-        set_wide_event_fields(
-            journal_validation_error="json_parse",
-            journal_error_detail=str(e),
-        )
+    except json.JSONDecodeError:
         return ValidationResult(
             is_valid=False,
             message="Invalid JSON format. Make sure you copied the complete response.",
@@ -134,7 +129,6 @@ def validate_journal_api_response(json_response: str) -> ValidationResult:
 
     # Must be an array
     if not isinstance(data, list):
-        set_wide_event_fields(journal_validation_error="not_array")
         return ValidationResult(
             is_valid=False,
             message="Response must be an array of entries.",
@@ -142,7 +136,6 @@ def validate_journal_api_response(json_response: str) -> ValidationResult:
 
     # Must have at least one entry
     if len(data) == 0:
-        set_wide_event_fields(journal_validation_error="empty_array")
         return ValidationResult(
             is_valid=False,
             message="No entries found. Create an entry with POST /entries first.",
@@ -151,10 +144,6 @@ def validate_journal_api_response(json_response: str) -> ValidationResult:
     # Validate each entry
     for i, entry in enumerate(data):
         if not isinstance(entry, dict):
-            set_wide_event_fields(
-                journal_validation_error="entry_not_object",
-                journal_entry_index=i,
-            )
             return ValidationResult(
                 is_valid=False,
                 message=f"Entry {i + 1} is not a valid object.",
@@ -162,17 +151,10 @@ def validate_journal_api_response(json_response: str) -> ValidationResult:
 
         is_valid, error = _validate_entry(entry, i)
         if not is_valid:
-            set_wide_event_fields(
-                journal_validation_error="entry_validation_failed",
-                journal_entry_index=i,
-                journal_error_detail=error,
-            )
             return ValidationResult(
                 is_valid=False,
                 message=error or "Entry validation failed",
             )
-
-    set_wide_event_fields(journal_entries_validated=len(data))
 
     count = len(data)
     entry_word = "entry" if count == 1 else "entries"

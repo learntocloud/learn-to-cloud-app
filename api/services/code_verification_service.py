@@ -23,6 +23,7 @@ For LLM client infrastructure, see core/llm_client.py
 from __future__ import annotations
 
 import json
+import logging
 import re
 from typing import Any, TypedDict
 
@@ -36,14 +37,11 @@ from tenacity import (
     wait_exponential_jitter,
 )
 
-from core import get_logger
 from core.config import get_settings
 from core.llm_client import LLMClientError, get_llm_chat_client
-from core.telemetry import track_operation
-from core.wide_event import set_wide_event_fields
 from schemas import TaskResult, ValidationResult
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 # =============================================================================
 # Security Constants
@@ -339,9 +337,9 @@ async def _fetch_github_file_content(
     content_lower = content.lower()
     for pattern in SUSPICIOUS_PATTERNS:
         if pattern in content_lower:
-            set_wide_event_fields(
-                code_analysis_suspicious_pattern=pattern,
-                code_analysis_file=normalized_path,
+            logger.warning(
+                "code_analysis.suspicious_pattern",
+                extra={"pattern": pattern, "file": normalized_path},
             )
             break  # Log first match only
 
@@ -477,8 +475,9 @@ def _parse_analysis_response(response_text: str) -> list[dict[str, Any]]:
                 )
             task_id = task.get("task_id")
             if task_id not in valid_task_ids:
-                set_wide_event_fields(
-                    llm_invalid_task_id=task_id,
+                logger.warning(
+                    "code_analysis.invalid_task_id",
+                    extra={"task_id": task_id},
                 )
                 # Don't fail - just log and skip invalid tasks
 
@@ -606,7 +605,6 @@ class _retry_if_retriable(retry_base):  # noqa: N801
         return isinstance(exc, RETRIABLE_EXCEPTIONS)
 
 
-@track_operation("code_analysis")
 @circuit(
     failure_threshold=3,
     recovery_timeout=120,
@@ -642,14 +640,9 @@ async def _analyze_with_llm(
             path: File path within the repository.
             branch: Branch name (default: main).
         """
-        set_wide_event_fields(
-            llm_tool_fetch_file=path,
-            llm_tool_repo=f"{owner}/{repo}",
-        )
         try:
             return await _fetch_github_file_content(owner, repo, path, branch)
         except ValueError as e:
-            set_wide_event_fields(llm_tool_blocked_path=path)
             return f"Cannot fetch file: {e}"
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
@@ -659,12 +652,6 @@ async def _analyze_with_llm(
             return f"Error fetching file: {type(e).__name__}"
 
     prompt = _build_verification_prompt(owner, repo)
-
-    set_wide_event_fields(
-        llm_analysis_started=True,
-        llm_analysis_owner=owner,
-        llm_analysis_repo=repo,
-    )
 
     agent = ChatAgent(
         chat_client=chat_client,
@@ -678,8 +665,7 @@ async def _analyze_with_llm(
     if not response_content:
         logger.error(
             "code_analysis.empty_response",
-            owner=owner,
-            repo=repo,
+            extra={"owner": owner, "repo": repo},
         )
         raise CodeAnalysisError(
             "No response received from code analysis",
@@ -691,13 +677,6 @@ async def _analyze_with_llm(
 
     passed_count = sum(1 for t in task_results if t.passed)
     total_count = len(task_results)
-
-    set_wide_event_fields(
-        llm_analysis_complete=True,
-        llm_tasks_passed=passed_count,
-        llm_tasks_total=total_count,
-        llm_all_passed=all_passed,
-    )
 
     if all_passed:
         message = (
@@ -760,20 +739,13 @@ async def analyze_repository_code(
             username_match=False,
         )
 
-    set_wide_event_fields(
-        code_analysis_owner=owner,
-        code_analysis_repo=repo,
-    )
-
     try:
         return await _analyze_with_llm(owner, repo, github_username)
     except CircuitBreakerError:
         logger.error(
             "code_analysis.circuit_open",
-            owner=owner,
-            repo=repo,
+            extra={"owner": owner, "repo": repo},
         )
-        set_wide_event_fields(llm_error="circuit_open")
         return ValidationResult(
             is_valid=False,
             message=(
@@ -785,29 +757,17 @@ async def analyze_repository_code(
     except CodeAnalysisError as e:
         logger.exception(
             "code_analysis.failed",
-            owner=owner,
-            repo=repo,
-            retriable=e.retriable,
-        )
-        set_wide_event_fields(
-            llm_error="analysis_failed",
-            llm_error_detail=str(e),
-            llm_error_retriable=e.retriable,
+            extra={"owner": owner, "repo": repo, "retriable": e.retriable},
         )
         return ValidationResult(
             is_valid=False,
             message=f"Code analysis failed: {e}",
             server_error=True,  # Always server error — not the user's fault
         )
-    except LLMClientError as e:
+    except LLMClientError:
         logger.exception(
             "code_analysis.client_error",
-            owner=owner,
-            repo=repo,
-        )
-        set_wide_event_fields(
-            llm_error="client_error",
-            llm_error_detail=str(e),
+            extra={"owner": owner, "repo": repo},
         )
         return ValidationResult(
             is_valid=False,

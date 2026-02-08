@@ -1,10 +1,9 @@
 """User service for user-related business logic."""
 
+import logging
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core.logger import get_logger
-from core.telemetry import log_business_event, track_operation
-from core.wide_event import set_wide_event_fields
 from models import SubmissionType, User
 from repositories.submission_repository import SubmissionRepository
 from repositories.user_repository import UserRepository
@@ -54,7 +53,6 @@ async def ensure_user_exists(db: AsyncSession, user_id: int) -> None:
     await user_repo.get_or_create(user_id)
 
 
-@track_operation("user_get_or_create")
 async def get_or_create_user(db: AsyncSession, user_id: int) -> UserResponse:
     """Get user from DB. User must already exist (created during OAuth callback)."""
     user_repo = UserRepository(db)
@@ -66,7 +64,6 @@ async def get_or_create_user(db: AsyncSession, user_id: int) -> UserResponse:
     return _to_user_response(user)
 
 
-@track_operation("user_get_or_create_from_github")
 async def get_or_create_user_from_github(
     db: AsyncSession,
     *,
@@ -91,11 +88,6 @@ async def get_or_create_user_from_github(
         github_username=normalize_github_username(github_username),
     )
     await db.commit()
-
-    is_new_user = user.created_at == user.updated_at
-    if is_new_user:
-        log_business_event("users.registered", 1)
-        set_wide_event_fields(user_is_new=True)
 
     return user
 
@@ -173,13 +165,6 @@ async def get_public_profile(
         badges=earned_badges,
     )
 
-    set_wide_event_fields(
-        profile_viewed_user_id=profile_user.id,
-        profile_viewed_username=profile_user.github_username,
-        profile_phases_completed=phases_completed,
-        profile_badges_count=len(earned_badges),
-    )
-
     return profile_data
 
 
@@ -191,10 +176,9 @@ class UserNotFoundError(Exception):
         super().__init__(f"User not found: {user_id}")
 
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
-@track_operation("user_delete_account")
 async def delete_user_account(db: AsyncSession, user_id: int) -> None:
     """Permanently delete a user and all associated data.
 
@@ -212,13 +196,7 @@ async def delete_user_account(db: AsyncSession, user_id: int) -> None:
     await user_repo.delete(user_id)
     await db.commit()
 
-    set_wide_event_fields(
-        deleted_user_id=user_id,
-        deleted_github_username=github_username,
-    )
-    log_business_event("users.account_deleted", 1)
     logger.info(
         "user.account_deleted",
-        user_id=user_id,
-        github_username=github_username,
+        extra={"user_id": user_id, "github_username": github_username},
     )

@@ -6,6 +6,8 @@ Handles:
 - POST /auth/logout — clear session, redirect to home
 """
 
+import logging
+
 from authlib.integrations.starlette_client import OAuthError
 from fastapi import APIRouter, Request
 from fastapi.responses import RedirectResponse
@@ -13,12 +15,9 @@ from fastapi.responses import RedirectResponse
 from core.auth import oauth
 from core.config import get_settings
 from core.database import DbSession
-from core.logger import get_logger
-from core.telemetry import log_business_event
-from core.wide_event import set_wide_event_fields
 from services.users_service import get_or_create_user_from_github
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -100,13 +99,10 @@ async def callback(request: Request, db: DbSession) -> RedirectResponse:
     # Set session cookie
     request.session["user_id"] = user.id
 
-    set_wide_event_fields(
-        user_id=user.id,
-        auth_method="github_oauth",
-        github_username=github_username,
+    logger.info(
+        "auth.login.success",
+        extra={"user_id": user.id, "github_username": github_username},
     )
-    log_business_event("auth.login_success", 1)
-    logger.info("auth.login.success", user_id=user.id, github_username=github_username)
 
     return RedirectResponse(url="/dashboard", status_code=302)
 
@@ -122,7 +118,6 @@ async def logout(request: Request) -> RedirectResponse:
     request.session.clear()
 
     if user_id:
-        logger.info("auth.logout", user_id=user_id)
-        log_business_event("auth.logout", 1)
+        logger.info("auth.logout", extra={"user_id": user_id})
 
     return RedirectResponse(url="/", status_code=302)

@@ -15,6 +15,7 @@ SCALABILITY:
 """
 
 import asyncio
+import logging
 import re
 
 import httpx
@@ -27,13 +28,10 @@ from tenacity import (
     wait_exponential_jitter,
 )
 
-from core import get_logger
 from core.config import get_settings
-from core.telemetry import track_dependency
-from core.wide_event import set_wide_event_fields
 from schemas import ParsedGitHubUrl, ValidationResult
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 # Shared HTTP client for GitHub API requests (connection pooling)
 _github_http_client: httpx.AsyncClient | None = None
@@ -181,7 +179,6 @@ def parse_github_url(url: str) -> ParsedGitHubUrl:
     )
 
 
-@track_dependency("github_url_check", "HTTP")
 @circuit(
     failure_threshold=5,
     recovery_timeout=60,
@@ -228,28 +225,13 @@ async def check_github_url_exists(url: str) -> tuple[bool, str]:
     try:
         return await _check_github_url_exists_with_retry(url)
     except CircuitBreakerError:
-        set_wide_event_fields(
-            github_error="circuit_open",
-            github_url=url,
-        )
         return False, "GitHub service temporarily unavailable. Please try again later."
     except RETRIABLE_EXCEPTIONS as e:
-        set_wide_event_fields(
-            github_error="url_check_retries_exhausted",
-            github_url=url,
-            github_error_detail=str(e),
-        )
         return False, f"Request error: {str(e)}"
     except Exception as e:
-        set_wide_event_fields(
-            github_error="url_check_unexpected",
-            github_url=url,
-            github_error_detail=str(e),
-        )
         return False, f"Unexpected error: {str(e)}"
 
 
-@track_dependency("github_api_fork_check", "HTTP")
 @circuit(
     failure_threshold=5,
     recovery_timeout=60,
@@ -321,24 +303,10 @@ async def check_repo_is_fork_of(
             username, repo_name, original_repo
         )
     except CircuitBreakerError:
-        set_wide_event_fields(
-            github_error="circuit_open",
-            github_repo=f"{username}/{repo_name}",
-        )
         return False, "GitHub service temporarily unavailable. Please try again later."
     except RETRIABLE_EXCEPTIONS as e:
-        set_wide_event_fields(
-            github_error="fork_check_retries_exhausted",
-            github_repo=f"{username}/{repo_name}",
-            github_error_detail=str(e),
-        )
         return False, f"Request error: {str(e)}"
     except Exception as e:
-        set_wide_event_fields(
-            github_error="fork_check_unexpected",
-            github_repo=f"{username}/{repo_name}",
-            github_error_detail=str(e),
-        )
         return False, f"Unexpected error: {str(e)}"
 
 

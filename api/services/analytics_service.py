@@ -10,13 +10,12 @@ CACHING:
 """
 
 import asyncio
+import logging
 from datetime import UTC, datetime
 
 from cachetools import TTLCache
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core.logger import get_logger
-from core.wide_event import set_wide_event_fields
 from repositories.analytics_repository import AnalyticsRepository
 from schemas import (
     CommunityAnalytics,
@@ -29,7 +28,7 @@ from schemas import (
 from services.content_service import get_all_phases, get_topic_by_id
 from services.progress_service import get_phase_requirements
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 _CACHE_TTL = 300  # 5 minutes
 _cache: TTLCache[str, CommunityAnalytics] = TTLCache(maxsize=1, ttl=_CACHE_TTL)
@@ -191,16 +190,13 @@ async def get_community_analytics(
     async with _cache_lock:
         _cache["analytics"] = result
 
-    set_wide_event_fields(
-        analytics_total_users=total_users,
-        analytics_total_certificates=total_certificates,
-        analytics_active_30d=active_30d,
-    )
     logger.info(
         "analytics.computed",
-        total_users=total_users,
-        total_certificates=total_certificates,
-        active_30d=active_30d,
+        extra={
+            "total_users": total_users,
+            "total_certificates": total_certificates,
+            "active_30d": active_30d,
+        },
     )
 
     return result

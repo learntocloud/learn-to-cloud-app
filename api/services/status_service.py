@@ -6,17 +6,16 @@ public status page payload.  Only exposes "operational" /
 metrics, versions, or component breakdowns.
 """
 
+import logging
 from datetime import UTC, datetime
 
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
 from core.database import comprehensive_health_check
-from core.logger import get_logger
-from core.wide_event import set_wide_event_fields
 from schemas import SystemStatus
 from services.analytics_service import get_community_analytics
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 async def get_system_status(
@@ -62,11 +61,6 @@ async def get_system_status(
             top_topics=[],
             generated_at=now,
         )
-
-    set_wide_event_fields(
-        status_overall=overall,
-        status_db=db_ok,
-    )
 
     return SystemStatus(
         overall_status=overall,

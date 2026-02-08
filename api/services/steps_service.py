@@ -3,7 +3,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.cache import invalidate_progress_cache
-from core.telemetry import add_custom_attribute, log_business_event, track_operation
 from repositories import StepProgressRepository
 from schemas import StepCompletionResult, StepProgressData
 from services.content_service import get_topic_by_id
@@ -137,7 +136,6 @@ async def get_completed_steps(
     return await step_repo.get_completed_step_orders(user_id, topic_id)
 
 
-@track_operation("step_completion")
 async def complete_step(
     db: AsyncSession,
     user_id: int,
@@ -160,8 +158,6 @@ async def complete_step(
     Raises:
         StepAlreadyCompletedError: If step is already completed
     """
-    add_custom_attribute("step.topic_id", topic_id)
-    add_custom_attribute("step.order", step_order)
     _validate_step_order(topic_id, step_order)
 
     step_repo = StepProgressRepository(db)
@@ -177,10 +173,6 @@ async def complete_step(
 
     # Invalidate cache so dashboard/progress refreshes immediately
     invalidate_progress_cache(user_id)
-
-    # Extract phase from topic_id (e.g., "phase1-topic4" -> "phase1")
-    phase = topic_id.split("-")[0] if "-" in topic_id else "unknown"
-    log_business_event("steps.completed", 1, {"phase": phase, "topic_id": topic_id})
 
     return StepCompletionResult(
         topic_id=step_progress.topic_id,

@@ -15,7 +15,6 @@ from pathlib import Path
 import yaml
 
 from core.config import get_settings
-from core.wide_event import set_wide_event_fields
 from schemas import Phase, Topic
 
 
@@ -31,22 +30,13 @@ def _load_topic(phase_dir: Path, topic_slug: str) -> Topic | None:
     """Load a single topic from its YAML file."""
     topic_file = phase_dir / f"{topic_slug}.yaml"
     if not topic_file.exists():
-        set_wide_event_fields(
-            content_error="topic_not_found",
-            content_topic_file=str(topic_file),
-        )
         return None
 
     try:
         with open(topic_file, encoding="utf-8") as f:
             data = yaml.safe_load(f)
         return Topic.model_validate(data)
-    except Exception as e:
-        set_wide_event_fields(
-            content_error="topic_load_failed",
-            content_topic_slug=topic_slug,
-            content_error_detail=str(e),
-        )
+    except Exception:
         return None
 
 
@@ -56,10 +46,6 @@ def _load_phase(phase_slug: str) -> Phase | None:
     meta_file = phase_dir / "_phase.yaml"
 
     if not meta_file.exists():
-        set_wide_event_fields(
-            content_error="phase_meta_not_found",
-            content_meta_file=str(meta_file),
-        )
         return None
 
     try:
@@ -82,12 +68,7 @@ def _load_phase(phase_slug: str) -> Phase | None:
                 req.setdefault("phase_id", phase_id)
 
         return Phase.model_validate(data)
-    except Exception as e:
-        set_wide_event_fields(
-            content_error="phase_load_failed",
-            content_phase_slug=phase_slug,
-            content_error_detail=str(e),
-        )
+    except Exception:
         return None
 
 
@@ -101,10 +82,6 @@ def get_all_phases() -> tuple[Phase, ...]:
     phases: list[Phase] = []
     content_dir = _get_content_dir()
     if not content_dir.exists():
-        set_wide_event_fields(
-            content_error="content_dir_not_found",
-            content_dir=str(content_dir),
-        )
         return ()
 
     for phase_dir in sorted(content_dir.iterdir()):
@@ -112,12 +89,6 @@ def get_all_phases() -> tuple[Phase, ...]:
             phase = _load_phase(phase_dir.name)
             if phase:
                 phases.append(phase)
-
-    if not phases:
-        set_wide_event_fields(
-            content_error="no_phases_loaded",
-            content_dir=str(content_dir),
-        )
 
     return tuple(sorted(phases, key=lambda p: p.order))
 

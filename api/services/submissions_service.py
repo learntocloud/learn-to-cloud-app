@@ -20,8 +20,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.cache import invalidate_progress_cache
 from core.config import get_settings
-from core.telemetry import add_custom_attribute, log_business_event, track_operation
-from core.wide_event import set_wide_event_fields
 from models import Submission, SubmissionType
 from repositories.submission_repository import SubmissionRepository
 from schemas import SubmissionData, SubmissionResult
@@ -132,7 +130,6 @@ _failure_counts: dict[tuple[int, str], int] = {}
 _MAX_COOLDOWN_SECONDS = 14400  # 4 hours — cap for escalating cooldowns
 
 
-@track_operation("hands_on_submission")
 async def submit_validation(
     db: AsyncSession,
     user_id: int,
@@ -151,7 +148,6 @@ async def submit_validation(
         ConcurrentSubmissionError: If validation is already in progress for this
             user+requirement (prevents race conditions).
     """
-    add_custom_attribute("submission.requirement_id", requirement_id)
     requirement = get_requirement_by_id(requirement_id)
     if not requirement:
         raise RequirementNotFoundError(f"Requirement not found: {requirement_id}")
@@ -165,20 +161,12 @@ async def submit_validation(
         user_id, requirement_id
     )
     if existing is not None and existing.is_validated:
-        set_wide_event_fields(
-            submission_already_validated=True,
-            submission_type=requirement.submission_type.value,
-        )
         raise AlreadyValidatedError("You have already completed this requirement.")
 
     # --- Global daily submission cap ---
     settings = get_settings()
     today_count = await submission_repo.count_submissions_today(user_id)
     if today_count >= settings.daily_submission_limit:
-        set_wide_event_fields(
-            submission_daily_limit_exceeded=True,
-            submission_daily_count=today_count,
-        )
         raise DailyLimitExceededError(
             f"You have reached the daily limit of {settings.daily_submission_limit} "
             f"submissions. Please try again tomorrow.",
@@ -212,12 +200,6 @@ async def submit_validation(
         remaining = int(cooldown_seconds - elapsed)
 
         if remaining > 0:
-            set_wide_event_fields(
-                submission_cooldown_active=True,
-                submission_cooldown_remaining_seconds=remaining,
-                submission_cooldown_multiplier=2**failure_count,
-                submission_type=requirement.submission_type.value,
-            )
             raise CooldownActiveError(
                 f"Verification can only be submitted once per "
                 f"{cooldown_seconds // 3600}h {(cooldown_seconds % 3600) // 60}m. "
@@ -243,10 +225,6 @@ async def submit_validation(
     # This avoids wasting AI quota if user has multiple tabs open.
     submission_lock = await _get_submission_lock(user_id, requirement_id)
     if submission_lock.locked():
-        set_wide_event_fields(
-            submission_concurrent_blocked=True,
-            submission_type=requirement.submission_type.value,
-        )
         raise ConcurrentSubmissionError(
             "A verification is already in progress. Please wait for it to complete."
         )
@@ -280,12 +258,6 @@ async def submit_validation(
                 [t.model_dump() for t in validation_result.task_results]
             )
 
-        if validation_result.server_error:
-            set_wide_event_fields(
-                submission_server_error=True,
-                submission_server_error_message=validation_result.message,
-            )
-
         submission_repo = SubmissionRepository(db)
 
         # Repository handles upsert atomically (PostgreSQL ON CONFLICT)
@@ -303,32 +275,17 @@ async def submit_validation(
 
         # --- Update escalating cooldown tracker ---
         failure_key = (user_id, requirement_id)
-        phase = f"phase{requirement.phase_id}"
         if validation_result.is_valid:
             # Reset failure counter on success
             _failure_counts.pop(failure_key, None)
-            log_business_event(
-                "submissions.validated",
-                1,
-                {"phase": phase, "type": requirement.submission_type.value},
-            )
             # Invalidate cache so dashboard/progress refreshes immediately
             invalidate_progress_cache(user_id)
         elif validation_result.server_error:
             # Don't escalate on server errors — not the user's fault
-            log_business_event(
-                "submissions.server_error",
-                1,
-                {"phase": phase, "type": requirement.submission_type.value},
-            )
+            pass
         else:
             # Increment failure counter for escalating cooldowns
             _failure_counts[failure_key] = _failure_counts.get(failure_key, 0) + 1
-            log_business_event(
-                "submissions.failed",
-                1,
-                {"phase": phase, "type": requirement.submission_type.value},
-            )
 
         return SubmissionResult(
             submission=_to_submission_data(db_submission),

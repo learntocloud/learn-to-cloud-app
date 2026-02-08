@@ -17,7 +17,6 @@ from datetime import UTC, datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core.telemetry import log_business_event, track_operation
 from models import Certificate
 from rendering.certificates import (
     generate_certificate_svg as _render_certificate_svg,
@@ -122,7 +121,6 @@ class NotEligibleError(Exception):
         )
 
 
-@track_operation("certificate_creation")
 async def create_certificate(
     db: AsyncSession,
     user_id: int,
@@ -176,8 +174,6 @@ async def create_certificate(
         phases_completed=eligibility.phases_completed,
         total_phases=eligibility.total_phases,
     )
-
-    log_business_event("certificates.issued", 1)
 
     return CreateCertificateResult(
         certificate=_to_certificate_data(certificate),

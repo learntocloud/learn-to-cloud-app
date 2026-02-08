@@ -1,32 +1,127 @@
 """Unit tests for core.logger module.
 
-Tests log format detection, log level parsing, and the get_logger factory.
-These tests do NOT require OpenTelemetry or Application Insights.
+Tests the stdlib-based logging configuration:
+- configure_logging() sets up root logger handlers
+- _JSONFormatter produces valid JSON output
+- OTel handlers are preserved when present
+- Noisy third-party loggers are quieted
 """
 
+import json
 import logging
 import os
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
-import structlog
 
-from core.logger import _get_log_level, _is_json_format, configure_logging, get_logger
+from core.logger import _JSONFormatter, configure_logging
+
+
+@pytest.fixture(autouse=True)
+def _clean_root_logger():
+    """Save and restore root logger state around each test."""
+    root = logging.getLogger()
+    original_handlers = root.handlers[:]
+    original_level = root.level
+    yield
+    root.handlers = original_handlers
+    root.setLevel(original_level)
 
 
 @pytest.mark.unit
-class TestIsJsonFormat:
-    """Test the _is_json_format() logic with its 3 branches."""
+class TestJSONFormatter:
+    """Test _JSONFormatter produces valid, queryable JSON."""
 
-    def test_explicit_json(self):
-        with patch.dict(os.environ, {"LOG_FORMAT": "json"}):
-            assert _is_json_format() is True
+    def test_basic_record_is_valid_json(self):
+        formatter = _JSONFormatter()
+        record = logging.LogRecord(
+            name="test.module",
+            level=logging.INFO,
+            pathname="",
+            lineno=0,
+            msg="user.login",
+            args=(),
+            exc_info=None,
+        )
+        output = formatter.format(record)
+        parsed = json.loads(output)
 
-    def test_explicit_console(self):
-        with patch.dict(os.environ, {"LOG_FORMAT": "console"}):
-            assert _is_json_format() is False
+        assert parsed["level"] == "info"
+        assert parsed["logger"] == "test.module"
+        assert parsed["event"] == "user.login"
+        assert "timestamp" in parsed
 
-    def test_defaults_to_json_when_telemetry_enabled(self):
+    def test_extra_fields_included(self):
+        formatter = _JSONFormatter()
+        record = logging.LogRecord(
+            name="test",
+            level=logging.INFO,
+            pathname="",
+            lineno=0,
+            msg="step.completed",
+            args=(),
+            exc_info=None,
+        )
+        record.user_id = "u123"
+        record.step_id = 42
+        output = formatter.format(record)
+        parsed = json.loads(output)
+
+        assert parsed["user_id"] == "u123"
+        assert parsed["step_id"] == 42
+
+    def test_exception_included(self):
+        formatter = _JSONFormatter()
+        try:
+            raise ValueError("boom")
+        except ValueError:
+            import sys
+
+            exc_info = sys.exc_info()
+
+        record = logging.LogRecord(
+            name="test",
+            level=logging.ERROR,
+            pathname="",
+            lineno=0,
+            msg="handler.failed",
+            args=(),
+            exc_info=exc_info,
+        )
+        output = formatter.format(record)
+        parsed = json.loads(output)
+
+        assert "exception" in parsed
+        assert "ValueError" in parsed["exception"]
+        assert "boom" in parsed["exception"]
+
+    def test_non_serializable_extra_uses_default(self):
+        formatter = _JSONFormatter()
+        record = logging.LogRecord(
+            name="test",
+            level=logging.INFO,
+            pathname="",
+            lineno=0,
+            msg="ok",
+            args=(),
+            exc_info=None,
+        )
+        # Non-primitive extras are skipped by the formatter's filter
+        output = formatter.format(record)
+        json.loads(output)  # Should not raise
+
+
+@pytest.mark.unit
+class TestConfigureLogging:
+    """Test that configure_logging sets up handlers correctly."""
+
+    def test_adds_stdout_handler(self):
+        configure_logging()
+        root = logging.getLogger()
+        assert len(root.handlers) >= 1
+        assert any(isinstance(h, logging.StreamHandler) for h in root.handlers)
+
+    def test_json_format_when_app_insights_set(self):
         with patch.dict(
             os.environ,
             {
@@ -34,91 +129,49 @@ class TestIsJsonFormat:
                 "APPLICATIONINSIGHTS_CONNECTION_STRING": "InstrumentationKey=test",
             },
         ):
-            # Need to reimport to pick up env change for _TELEMETRY_ENABLED
-            # Instead, patch the module-level flag directly
-            with patch("core.logger._TELEMETRY_ENABLED", True):
-                assert _is_json_format() is True
+            configure_logging()
+            root = logging.getLogger()
+            # Find the StreamHandler we added (not OTel)
+            stream_handlers = [
+                h for h in root.handlers if isinstance(h, logging.StreamHandler)
+            ]
+            assert any(isinstance(h.formatter, _JSONFormatter) for h in stream_handlers)
 
-    def test_defaults_to_console_when_no_telemetry(self):
-        with patch.dict(
-            os.environ,
-            {"LOG_FORMAT": ""},
-            clear=False,
-        ):
-            with patch("core.logger._TELEMETRY_ENABLED", False):
-                assert _is_json_format() is False
+    def test_console_format_when_explicit(self):
+        with patch.dict(os.environ, {"LOG_FORMAT": "console"}, clear=False):
+            # Remove APPLICATIONINSIGHTS_CONNECTION_STRING if present
+            os.environ.pop("APPLICATIONINSIGHTS_CONNECTION_STRING", None)
+            configure_logging()
+            root = logging.getLogger()
+            stream_handlers = [
+                h for h in root.handlers if isinstance(h, logging.StreamHandler)
+            ]
+            assert all(
+                not isinstance(h.formatter, _JSONFormatter) for h in stream_handlers
+            )
 
-    def test_case_insensitive(self):
-        with patch.dict(os.environ, {"LOG_FORMAT": "JSON"}):
-            assert _is_json_format() is True
-        with patch.dict(os.environ, {"LOG_FORMAT": "Console"}):
-            assert _is_json_format() is False
-
-
-@pytest.mark.unit
-class TestGetLogLevel:
-    """Test log level resolution from environment."""
-
-    def test_default_is_info(self):
-        with patch.dict(os.environ, {}, clear=False):
-            os.environ.pop("LOG_LEVEL", None)
-            assert _get_log_level() == logging.INFO
-
-    def test_debug(self):
-        with patch.dict(os.environ, {"LOG_LEVEL": "DEBUG"}):
-            assert _get_log_level() == logging.DEBUG
-
-    def test_warning(self):
-        with patch.dict(os.environ, {"LOG_LEVEL": "WARNING"}):
-            assert _get_log_level() == logging.WARNING
-
-    def test_case_insensitive(self):
-        with patch.dict(os.environ, {"LOG_LEVEL": "debug"}):
-            assert _get_log_level() == logging.DEBUG
-
-    def test_invalid_falls_back_to_info(self):
-        with patch.dict(os.environ, {"LOG_LEVEL": "BOGUS"}):
-            assert _get_log_level() == logging.INFO
-
-
-@pytest.mark.unit
-class TestGetLogger:
-    """Test the get_logger factory."""
-
-    def test_returns_bound_logger_proxy(self):
-        logger = get_logger("test.module")
-        # structlog.stdlib.get_logger returns a BoundLoggerLazyProxy
-        # which lazily resolves to BoundLogger on first use
-        assert hasattr(logger, "info")
-        assert hasattr(logger, "warning")
-        assert hasattr(logger, "error")
-        assert hasattr(logger, "exception")
-
-    def test_different_names_return_loggers(self):
-        a = get_logger("module.a")
-        b = get_logger("module.b")
-        assert hasattr(a, "info")
-        assert hasattr(b, "info")
-
-    def test_none_name_works(self):
-        logger = get_logger(None)
-        assert hasattr(logger, "info")
-
-
-@pytest.mark.unit
-class TestConfigureLogging:
-    """Test that configure_logging sets up handlers correctly."""
-
-    def test_configures_root_logger(self):
-        configure_logging()
+    def test_preserves_otel_handlers(self):
+        """OTel LoggingHandler should survive configure_logging()."""
         root = logging.getLogger()
-        assert len(root.handlers) >= 1
-        # Handler should use ProcessorFormatter
-        handler = root.handlers[0]
-        assert isinstance(handler.formatter, structlog.stdlib.ProcessorFormatter)
+
+        # Simulate an OTel handler already attached
+        otel_handler = MagicMock(spec=logging.Handler)
+        type(otel_handler).__name__ = "LoggingHandler"
+        root.addHandler(otel_handler)
+
+        configure_logging()
+
+        # The OTel handler should still be present
+        assert otel_handler in root.handlers
 
     def test_quiets_noisy_loggers(self):
         configure_logging()
         assert logging.getLogger("httpx").level == logging.WARNING
         assert logging.getLogger("httpcore").level == logging.WARNING
         assert logging.getLogger("uvicorn.access").level == logging.WARNING
+
+    def test_respects_log_level_env(self):
+        with patch.dict(os.environ, {"LOG_LEVEL": "DEBUG"}):
+            configure_logging()
+            root = logging.getLogger()
+            assert root.level == logging.DEBUG

@@ -18,8 +18,6 @@ from tenacity import (
     wait_exponential,
 )
 
-from core.wide_event import set_wide_event_fields
-
 if TYPE_CHECKING:
     from azure.identity import DefaultAzureCredential
 
@@ -101,10 +99,6 @@ async def get_token() -> str:
 
     Includes retry logic with exponential backoff for transient failures
     (IMDS timeouts, network blips) and a per-attempt timeout.
-
-    Note: set_wide_event_fields calls during token acquisition may no-op
-    if called outside request context (e.g., during startup). Errors are
-    handled via exception propagation and logged in main.py lifespan.
     """
     # Fetch credential while still in async context (lock-protected)
     credential = await get_credential()
@@ -112,10 +106,6 @@ async def get_token() -> str:
         async with asyncio.timeout(AZURE_TOKEN_TIMEOUT):
             return await asyncio.to_thread(_get_token_sync, credential)
     except TimeoutError:
-        set_wide_event_fields(
-            db_error="azure_token_timeout",
-            db_timeout_seconds=AZURE_TOKEN_TIMEOUT,
-        )
         # Reset credential on timeout in case it's in a bad state
         await reset_credential()
         raise

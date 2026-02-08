@@ -25,7 +25,9 @@ from core.config import get_settings  # noqa: E402
 print(f"core.config: {(time.perf_counter()-t)*1000:.0f}ms", flush=True)
 
 t = time.perf_counter()
-from core.logger import configure_logging, get_logger  # noqa: E402
+import logging  # noqa: E402
+
+from core.logger import configure_logging  # noqa: E402
 
 print(f"core.logger: {(time.perf_counter()-t)*1000:.0f}ms", flush=True)
 
@@ -83,8 +85,8 @@ configure_logging()
 print(f"configure_logging(): {(time.perf_counter()-t)*1000:.0f}ms", flush=True)
 
 t = time.perf_counter()
-logger = get_logger(__name__)
-print(f"get_logger(): {(time.perf_counter()-t)*1000:.0f}ms", flush=True)
+logger = logging.getLogger(__name__)
+print(f"getLogger(): {(time.perf_counter()-t)*1000:.0f}ms", flush=True)
 
 t = time.perf_counter()
 settings = get_settings()

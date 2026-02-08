@@ -8,6 +8,7 @@ Authentication modes:
 from __future__ import annotations
 
 import asyncio
+import logging
 from collections.abc import AsyncGenerator
 from typing import Annotated, NamedTuple, TypedDict
 
@@ -25,10 +26,8 @@ from sqlalchemy.pool import QueuePool
 from core.azure_auth import get_token as _get_azure_token
 from core.azure_auth import reset_credential as _reset_azure_credential
 from core.config import get_settings
-from core.logger import get_logger
-from core.wide_event import set_wide_event_fields
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class Base(DeclarativeBase):
@@ -101,13 +100,8 @@ async def _azure_asyncpg_creator():
                 "statement_timeout": str(settings.db_statement_timeout_ms),
             },
         )
-    except asyncpg.PostgresConnectionError as e:
+    except asyncpg.PostgresConnectionError:
         # Log connection errors with host (but not credentials)
-        set_wide_event_fields(
-            db_error="connection_failed",
-            db_host=settings.postgres_host,
-            db_error_detail=str(e),
-        )
         raise
 
 
@@ -132,24 +126,20 @@ def _setup_pool_event_listeners(engine: AsyncEngine) -> None:
                 dbapi_conn._transaction = None
                 dbapi_conn._started = False
             except AttributeError:
-                set_wide_event_fields(
-                    db_error="checkout_reset_failed",
-                    db_error_detail=(
-                        "asyncpg adapter internals changed — "
-                        "_transaction/_started attributes missing"
-                    ),
-                )
+                pass
 
         if isinstance(pool, QueuePool):
             checked_out = pool.checkedout()
             overflow = pool.overflow()
             pool_size = pool.size()
             if overflow > 0:
-                set_wide_event_fields(
-                    db_pool_overflow=True,
-                    db_pool_checked_out=checked_out,
-                    db_pool_size=pool_size,
-                    db_pool_overflow_count=overflow,
+                logger.warning(
+                    "db.pool.overflow",
+                    extra={
+                        "db_pool_checked_out": checked_out,
+                        "db_pool_size": pool_size,
+                        "db_pool_overflow_count": overflow,
+                    },
                 )
 
 
@@ -194,11 +184,8 @@ def create_engine() -> AsyncEngine:
         from .telemetry import instrument_sqlalchemy_engine
 
         instrument_sqlalchemy_engine(engine)
-    except Exception as e:
-        set_wide_event_fields(
-            db_error="telemetry_instrumentation_failed",
-            db_error_detail=str(e),
-        )
+    except Exception:
+        pass
 
     return engine
 
@@ -234,7 +221,7 @@ async def get_db(request: Request) -> AsyncGenerator[AsyncSession]:
             try:
                 await session.rollback()
             except Exception as rollback_err:
-                logger.warning("db.rollback.failed", error=str(rollback_err))
+                logger.warning("db.rollback.failed", extra={"error": str(rollback_err)})
             raise
 
 
@@ -248,7 +235,7 @@ async def get_db_readonly(request: Request) -> AsyncGenerator[AsyncSession]:
             try:
                 await session.rollback()
             except Exception as rollback_err:
-                logger.warning("db.rollback.failed", error=str(rollback_err))
+                logger.warning("db.rollback.failed", extra={"error": str(rollback_err)})
             raise
 
 
@@ -275,10 +262,8 @@ async def init_db(engine: AsyncEngine) -> None:
                 await conn.rollback()
         logger.info("db.connectivity.verified")
     except TimeoutError:
-        set_wide_event_fields(db_error="connection_timeout", db_timeout_seconds=30)
         raise
-    except Exception as e:
-        set_wide_event_fields(db_error="connection_failed", db_error_detail=str(e))
+    except Exception:
         raise
 
 
@@ -294,7 +279,7 @@ async def warm_pool(engine: AsyncEngine) -> None:
     if warm_count <= 0:
         return
 
-    logger.info("db.pool.warming", extra_connections=warm_count)
+    logger.info("db.pool.warming", extra={"extra_connections": warm_count})
     try:
         async with asyncio.timeout(30):
 
@@ -310,7 +295,7 @@ async def warm_pool(engine: AsyncEngine) -> None:
         logger.info("db.pool.warmed")
     except Exception as e:
         # Non-fatal — the pool will create connections on demand
-        logger.warning("db.pool.warming.failed", error=str(e))
+        logger.warning("db.pool.warming.failed", extra={"error": str(e)})
 
 
 async def dispose_engine(engine: AsyncEngine) -> None:
@@ -384,11 +369,7 @@ async def comprehensive_health_check(engine: AsyncEngine) -> HealthCheckResult:
         try:
             await check_azure_token_acquisition()
             result["azure_auth"] = True
-        except Exception as e:
-            set_wide_event_fields(
-                db_error="azure_token_health_check_failed",
-                db_error_detail=str(e),
-            )
+        except Exception:
             result["azure_auth"] = False
             # Don't proceed to DB check if auth is broken
             return result
@@ -396,11 +377,7 @@ async def comprehensive_health_check(engine: AsyncEngine) -> HealthCheckResult:
     try:
         await check_db_connection(engine)
         result["database"] = True
-    except Exception as e:
-        set_wide_event_fields(
-            db_error="health_check_failed",
-            db_error_detail=str(e),
-        )
+    except Exception:
         result["database"] = False
 
     result["pool"] = get_pool_status(engine)

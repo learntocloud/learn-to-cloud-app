@@ -5,13 +5,13 @@ submissions, etc.) and return HTML partials instead of JSON.
 """
 
 import json
+import logging
 
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse
 
 from core.auth import UserId
 from core.database import DbSession
-from core.logger import get_logger
 from core.ratelimit import limiter
 from rendering.steps import build_step_data
 from repositories.submission_repository import SubmissionRepository
@@ -34,7 +34,7 @@ from services.users_service import (
     get_user_by_id,
 )
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/htmx", tags=["htmx"], include_in_schema=False)
 
@@ -292,9 +292,9 @@ async def htmx_create_certificate(
     )
 
     # Return a simple card for the new certificate
-    name = certificate.recipient_name
+    name = certificate.recipient_name  # type: ignore[attr-defined]
     code = certificate.verification_code
-    cert_id = certificate.id
+    cert_id = certificate.id  # type: ignore[attr-defined]
     pdf = f"/api/certificates/{cert_id}/pdf"
     png = f"/api/certificates/{cert_id}/png"
     link_cls = (

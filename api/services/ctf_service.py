@@ -12,14 +12,13 @@ import base64
 import hashlib
 import hmac
 import json
+import logging
 from datetime import UTC, datetime
 
-from core import get_logger
 from core.config import get_settings
-from core.wide_event import set_wide_event_fields
 from schemas import CTFVerificationResult
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 REQUIRED_CHALLENGES = 18
 
@@ -44,8 +43,7 @@ def verify_ctf_token(token: str, oauth_github_username: str) -> CTFVerificationR
         try:
             decoded = base64.b64decode(token).decode("utf-8")
             token_data = json.loads(decoded)
-        except (ValueError, json.JSONDecodeError) as e:
-            set_wide_event_fields(ctf_error="decode_failed", ctf_error_detail=str(e))
+        except (ValueError, json.JSONDecodeError):
             return CTFVerificationResult(
                 is_valid=False,
                 message="Invalid token format. Could not decode the token.",
@@ -64,11 +62,6 @@ def verify_ctf_token(token: str, oauth_github_username: str) -> CTFVerificationR
         oauth_username_lower = oauth_github_username.lower()
 
         if token_username != oauth_username_lower:
-            set_wide_event_fields(
-                ctf_error="username_mismatch",
-                ctf_token_username=token_username,
-                ctf_oauth_username=oauth_username_lower,
-            )
             return CTFVerificationResult(
                 is_valid=False,
                 message=(
@@ -103,7 +96,6 @@ def verify_ctf_token(token: str, oauth_github_username: str) -> CTFVerificationR
         ).hexdigest()
 
         if not hmac.compare_digest(signature, expected_sig):
-            set_wide_event_fields(ctf_error="signature_invalid")
             return CTFVerificationResult(
                 is_valid=False,
                 message=(
@@ -129,12 +121,6 @@ def verify_ctf_token(token: str, oauth_github_username: str) -> CTFVerificationR
                 message="Invalid timestamp. The token appears to be from the future.",
             )
 
-        set_wide_event_fields(
-            ctf_verified=True,
-            ctf_username=oauth_github_username,
-            ctf_challenges=challenges,
-        )
-
         return CTFVerificationResult(
             is_valid=True,
             message=(
@@ -148,7 +134,7 @@ def verify_ctf_token(token: str, oauth_github_username: str) -> CTFVerificationR
         )
 
     except Exception as e:
-        logger.exception("ctf.token.verification.failed", error=str(e))
+        logger.exception("ctf.token.verification.failed", extra={"error": str(e)})
         return CTFVerificationResult(
             is_valid=False,
             message="Token verification failed. Please try again or contact support.",

@@ -15,15 +15,15 @@ For business logic using this client, see:
 
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING
 
-from core import get_logger
 from core.config import get_settings
 
 if TYPE_CHECKING:
     from agent_framework.azure import AzureOpenAIChatClient
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 # Shared client instance (lazy initialization)
 _llm_client: AzureOpenAIChatClient | None = None
@@ -72,8 +72,7 @@ def get_llm_chat_client() -> AzureOpenAIChatClient:
 
     logger.info(
         "llm.client.created",
-        model=model,
-        endpoint=settings.llm_base_url,
+        extra={"model": model, "endpoint": settings.llm_base_url},
     )
 
     return _llm_client

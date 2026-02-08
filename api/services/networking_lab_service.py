@@ -16,14 +16,13 @@ import base64
 import hashlib
 import hmac
 import json
+import logging
 from datetime import UTC, datetime
 
-from core import get_logger
 from core.config import get_settings
-from core.wide_event import set_wide_event_fields
 from schemas import NetworkingLabVerificationResult
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 REQUIRED_CHALLENGES = 4
 EXPECTED_CHALLENGE_TYPE = "networking-lab-azure"
@@ -45,7 +44,7 @@ def _get_master_secret() -> str:
     if not secret:
         logger.warning(
             "networking.secret.missing",
-            hint="Set LABS_VERIFICATION_SECRET in .env for token verification",
+            extra={"hint": "Set LABS_VERIFICATION_SECRET in .env"},
         )
     return secret
 
@@ -78,10 +77,7 @@ def verify_networking_token(
         try:
             decoded = base64.b64decode(token).decode("utf-8")
             token_data = json.loads(decoded)
-        except (ValueError, json.JSONDecodeError) as e:
-            set_wide_event_fields(
-                networking_error="decode_failed", networking_error_detail=str(e)
-            )
+        except (ValueError, json.JSONDecodeError):
             return NetworkingLabVerificationResult(
                 is_valid=False,
                 message="Invalid token format. Could not decode the token.",
@@ -99,10 +95,6 @@ def verify_networking_token(
         # Verify challenge type
         challenge_type = payload.get("challenge")
         if challenge_type != EXPECTED_CHALLENGE_TYPE:
-            set_wide_event_fields(
-                networking_error="wrong_challenge_type",
-                networking_challenge_type=challenge_type,
-            )
             return NetworkingLabVerificationResult(
                 is_valid=False,
                 message=(
@@ -117,11 +109,6 @@ def verify_networking_token(
         oauth_username_lower = oauth_github_username.lower()
 
         if token_username != oauth_username_lower:
-            set_wide_event_fields(
-                networking_error="username_mismatch",
-                networking_token_username=token_username,
-                networking_oauth_username=oauth_username_lower,
-            )
             return NetworkingLabVerificationResult(
                 is_valid=False,
                 message=(
@@ -159,7 +146,6 @@ def verify_networking_token(
         ).hexdigest()
 
         if not hmac.compare_digest(signature, expected_sig):
-            set_wide_event_fields(networking_error="signature_invalid")
             return NetworkingLabVerificationResult(
                 is_valid=False,
                 message=(
@@ -188,12 +174,6 @@ def verify_networking_token(
             )
 
         # Success
-        set_wide_event_fields(
-            networking_verified=True,
-            networking_username=oauth_github_username,
-            networking_challenges=challenges,
-        )
-
         return NetworkingLabVerificationResult(
             is_valid=True,
             message=(
@@ -208,7 +188,10 @@ def verify_networking_token(
         )
 
     except Exception as e:
-        logger.exception("networking.token.verification.failed", error=str(e))
+        logger.exception(
+            "networking.token.verification.failed",
+            extra={"error": str(e)},
+        )
         return NetworkingLabVerificationResult(
             is_valid=False,
             message="Token verification failed. Please try again or contact support.",

@@ -11,16 +11,15 @@ The session contains: user_id (GitHub numeric ID).
 
 from __future__ import annotations
 
+import logging
 from typing import Annotated
 
 from authlib.integrations.starlette_client import OAuth
 from fastapi import Depends, HTTPException, Request
 
 from core.config import get_settings
-from core.logger import get_logger
-from core.wide_event import set_wide_event_fields
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 # Authlib OAuth registry - configured at module level, initialized lazily
 oauth = OAuth()
@@ -34,10 +33,7 @@ def init_oauth() -> None:
     """
     settings = get_settings()
     if not settings.github_client_id:
-        logger.warning(
-            "auth.github_oauth_disabled",
-            reason="GITHUB_CLIENT_ID not configured",
-        )
+        logger.warning("auth.github_oauth_disabled: GITHUB_CLIENT_ID not configured")
         return
 
     oauth.register(
@@ -72,7 +68,6 @@ def require_auth(request: Request) -> int:
         raise HTTPException(status_code=401, detail="Unauthorized")
 
     request.state.user_id = user_id
-    set_wide_event_fields(user_id=user_id)
     return user_id
 
 
@@ -81,7 +76,6 @@ def optional_auth(request: Request) -> int | None:
     user_id = get_user_id_from_session(request)
     if user_id is not None:
         request.state.user_id = user_id
-        set_wide_event_fields(user_id=user_id)
     return user_id
 
 

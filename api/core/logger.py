@@ -1,215 +1,74 @@
-"""Centralized logging configuration using structlog.
+"""Centralized logging configuration using stdlib logging.
 
-This module provides consistent, structured logging across the application with:
-- JSON output for production (LOG_FORMAT=json)
-- Colored console output for local development (default)
-- OpenTelemetry trace/span ID injection for correlation
-- Automatic configuration of third-party library logs (uvicorn, sqlalchemy, httpx)
+Simple JSON logging for production, human-readable console for local dev.
+Azure Monitor's OTel LoggingHandler picks up `extra` fields natively
+as queryable attributes in Application Insights AppTraces.
 
 Usage:
-    from core import get_logger
-    logger = get_logger(__name__)
-    logger.info("user.login", user_id="123", method="oauth")
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info("user.login", extra={"user_id": "123", "method": "oauth"})
 """
 
+import json
 import logging
 import os
 import sys
-
-import structlog
-from structlog.types import EventDict, Processor
-
-# Check if OpenTelemetry is available for trace correlation
-_TELEMETRY_ENABLED = bool(os.getenv("APPLICATIONINSIGHTS_CONNECTION_STRING"))
+from datetime import UTC, datetime
 
 
-def _add_open_telemetry_spans(
-    _logger: logging.Logger, _method_name: str, event_dict: EventDict
-) -> EventDict:
-    """Add OpenTelemetry trace and span IDs to log entries for correlation."""
-    if not _TELEMETRY_ENABLED:
-        return event_dict
+class _JSONFormatter(logging.Formatter):
+    """Format log records as single-line JSON for production log aggregation."""
 
-    try:
-        from opentelemetry import trace
-
-        span = trace.get_current_span()
-        if span and span.is_recording():
-            ctx = span.get_span_context()
-            if ctx.is_valid:
-                event_dict["trace_id"] = format(ctx.trace_id, "032x")
-                event_dict["span_id"] = format(ctx.span_id, "016x")
-    except Exception:
-        # Don't let telemetry errors break logging
-        pass
-
-    return event_dict
-
-
-def _get_log_level() -> int:
-    """Get log level from environment, defaulting to INFO."""
-    level_name = os.environ.get("LOG_LEVEL", "INFO").upper()
-    return getattr(logging, level_name, logging.INFO)
-
-
-def _is_json_format() -> bool:
-    """Determine if JSON output is enabled (production mode)."""
-    log_format = os.environ.get("LOG_FORMAT", "").lower()
-    # Default to JSON in production (when telemetry is enabled), console otherwise
-    if log_format == "json":
-        return True
-    if log_format == "console":
-        return False
-    return _TELEMETRY_ENABLED
-
-
-class _StructlogOTelBridge(logging.Filter):
-    """Bridge structlog event dict fields to LogRecord attributes for OTel.
-
-    When structlog logs through stdlib, wrap_for_formatter packs the event dict
-    into record.msg as a dict. The OTel LoggingHandler reads LogRecord.__dict__
-    for attributes. This filter copies serializable fields from the event dict
-    (record.msg) into the record so OTel can pick them up.
-
-    Also strips structlog internal attributes (_logger, _name) that OTel
-    cannot serialize.
-    """
-
-    _STRIP_KEYS = frozenset({"_logger", "_name"})
-    _SKIP_KEYS = frozenset({"event", "level", "timestamp"})
-
-    def filter(self, record: logging.LogRecord) -> bool:
-        # Strip structlog internal attributes
-        for key in self._STRIP_KEYS:
-            record.__dict__.pop(key, None)
-
-        # Copy structlog event dict fields to record attributes
-        if isinstance(record.msg, dict):
-            for key, value in record.msg.items():
-                if key.startswith("_") or key in self._SKIP_KEYS:
-                    continue
-                if isinstance(value, str | int | float | bool | None):
-                    record.__dict__.setdefault(key, value)
-
-        return True
-
-
-def _copy_to_record_extra(
-    _logger: logging.Logger, _method_name: str, event_dict: EventDict
-) -> EventDict:
-    """Copy structlog fields to stdlib LogRecord for foreign (non-structlog) logs.
-
-    For stdlib log records going through structlog's foreign_pre_chain,
-    the _record is available. This copies fields so OTel can read them.
-    """
-    record = event_dict.get("_record")
-    if record is not None:
-        for key, value in event_dict.items():
-            if key.startswith("_") or key in ("event", "level", "timestamp"):
-                continue
-            if isinstance(value, str | int | float | bool | None):
-                record.__dict__.setdefault(key, value)
-    return event_dict
+    def format(self, record: logging.LogRecord) -> str:
+        log_entry: dict[str, object] = {
+            "timestamp": datetime.now(UTC).isoformat(),
+            "level": record.levelname.lower(),
+            "logger": record.name,
+            "event": record.getMessage(),
+        }
+        # Include extra fields (user_id, step_id, etc.)
+        skip = set(logging.LogRecord("", 0, "", 0, "", (), None).__dict__)
+        for key, value in record.__dict__.items():
+            if key not in skip and isinstance(value, str | int | float | bool | None):
+                log_entry[key] = value
+        # Include exception info
+        if record.exc_info and record.exc_info[0] is not None:
+            log_entry["exception"] = self.formatException(record.exc_info)
+        return json.dumps(log_entry, default=str)
 
 
 def configure_logging() -> None:
-    """Configure structlog and stdlib logging. Call once at application startup.
-
-    This sets up:
-    1. structlog processors for structured logging
-    2. stdlib logging to use structlog's ProcessorFormatter
-    3. Third-party library log formatting (uvicorn, sqlalchemy, etc.)
-    """
-    log_level = _get_log_level()
-    use_json = _is_json_format()
-
-    # Shared processors for both structlog and stdlib logs
-    shared_processors: list[Processor] = [
-        structlog.contextvars.merge_contextvars,
-        structlog.stdlib.add_log_level,
-        structlog.stdlib.add_logger_name,
-        structlog.stdlib.PositionalArgumentsFormatter(),
-        _add_open_telemetry_spans,
-        structlog.processors.TimeStamper(fmt="iso"),
-        structlog.processors.StackInfoRenderer(),
-        structlog.processors.UnicodeDecoder(),
-    ]
-
-    if use_json:
-        # Production: JSON output for log aggregation
-        renderer: Processor = structlog.processors.JSONRenderer()
-    else:
-        # Development: Colored console output
-        renderer = structlog.dev.ConsoleRenderer(
-            colors=True, exception_formatter=structlog.dev.plain_traceback
-        )
-
-    # Configure structlog
-    structlog.configure(
-        processors=shared_processors
-        + [
-            structlog.processors.format_exc_info,
-            _copy_to_record_extra,
-            structlog.stdlib.ProcessorFormatter.wrap_for_formatter,
-        ],
-        logger_factory=structlog.stdlib.LoggerFactory(),
-        wrapper_class=structlog.stdlib.BoundLogger,
-        cache_logger_on_first_use=True,
+    """Configure stdlib logging. Call once at application startup."""
+    use_json = os.getenv("LOG_FORMAT", "").lower() != "console" and bool(
+        os.getenv("APPLICATIONINSIGHTS_CONNECTION_STRING")
     )
+    level = getattr(logging, os.environ.get("LOG_LEVEL", "INFO").upper(), logging.INFO)
 
-    # Configure stdlib logging with ProcessorFormatter
-    # This ensures third-party logs (uvicorn, sqlalchemy) get the same formatting
-    formatter = structlog.stdlib.ProcessorFormatter(
-        foreign_pre_chain=shared_processors,
-        processors=[
-            structlog.stdlib.ProcessorFormatter.remove_processors_meta,
-            structlog.processors.format_exc_info,
-            renderer,
-        ],
-    )
+    root = logging.getLogger()
 
-    # Configure root logger — preserve OTel LoggingHandler if present
-    root_logger = logging.getLogger()
-
-    # Remove only non-OTel handlers (preserve azure-monitor's LoggingHandler)
-    otel_handlers = [
-        h for h in root_logger.handlers if "LoggingHandler" in type(h).__name__
-    ]
-    root_logger.handlers.clear()
-
-    # Add OTel bridge filter to copy structlog fields to LogRecord
-    # attributes and strip internal attrs that OTel rejects.
-    bridge = _StructlogOTelBridge()
+    # Preserve OTel handlers added by configure_azure_monitor()
+    otel_handlers = [h for h in root.handlers if "LoggingHandler" in type(h).__name__]
+    root.handlers.clear()
     for h in otel_handlers:
-        h.addFilter(bridge)
-        root_logger.addHandler(h)
-    root_logger.addFilter(bridge)
+        root.addHandler(h)
 
+    # Add stdout handler
     handler = logging.StreamHandler(sys.stdout)
-    handler.setFormatter(formatter)
-    root_logger.addHandler(handler)
-    root_logger.setLevel(log_level)
+    handler.setFormatter(
+        _JSONFormatter()
+        if use_json
+        else logging.Formatter("%(levelname)-5s [%(name)s] %(message)s")
+    )
+    root.addHandler(handler)
+    root.setLevel(level)
 
     # Quiet noisy third-party loggers
-    logging.getLogger("httpx").setLevel(logging.WARNING)
-    logging.getLogger("httpcore").setLevel(logging.WARNING)
-    logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
-    logging.getLogger("openai").setLevel(logging.WARNING)
-    logging.getLogger("openai._base_client").setLevel(logging.WARNING)
-
-
-def get_logger(name: str | None = None) -> structlog.stdlib.BoundLogger:
-    """Get a structured logger instance.
-
-    Args:
-        name: Logger name, typically __name__ of the calling module.
-
-    Returns:
-        A structlog BoundLogger that supports structured key-value logging.
-
-    Example:
-        logger = get_logger(__name__)
-        logger.info("user.created", user_id="123", email="test@example.com")
-        logger.warning("rate.limit.exceeded", endpoint="/api/submit", ip="1.2.3.4")
-    """
-    return structlog.stdlib.get_logger(name)
+    for name in (
+        "httpx",
+        "httpcore",
+        "uvicorn.access",
+        "openai",
+        "openai._base_client",
+    ):
+        logging.getLogger(name).setLevel(logging.WARNING)

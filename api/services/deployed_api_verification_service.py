@@ -17,6 +17,7 @@ SCALABILITY:
 
 import asyncio
 import json
+import logging
 import re
 from datetime import datetime
 from urllib.parse import urlparse
@@ -31,12 +32,9 @@ from tenacity import (
     wait_exponential_jitter,
 )
 
-from core import get_logger
-from core.telemetry import track_dependency
-from core.wide_event import set_wide_event_fields
 from schemas import ValidationResult
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 # Shared HTTP client for deployed API requests (connection pooling)
 _deployed_api_client: httpx.AsyncClient | None = None
@@ -193,7 +191,6 @@ def _validate_entries_json(data: list) -> ValidationResult:
     """
     # Must have at least one entry
     if len(data) == 0:
-        set_wide_event_fields(deployed_api_error="empty_entries")
         return ValidationResult(
             is_valid=False,
             message="No entries found. Create at least one journal entry first.",
@@ -202,10 +199,6 @@ def _validate_entries_json(data: list) -> ValidationResult:
     # Validate each entry
     for i, entry in enumerate(data):
         if not isinstance(entry, dict):
-            set_wide_event_fields(
-                deployed_api_error="entry_not_object",
-                deployed_api_entry_index=i,
-            )
             return ValidationResult(
                 is_valid=False,
                 message=f"Entry {i + 1} is not a valid object.",
@@ -213,11 +206,6 @@ def _validate_entries_json(data: list) -> ValidationResult:
 
         is_valid, error = _validate_entry(entry, i)
         if not is_valid:
-            set_wide_event_fields(
-                deployed_api_error="entry_validation_failed",
-                deployed_api_entry_index=i,
-                deployed_api_error_detail=error,
-            )
             return ValidationResult(
                 is_valid=False,
                 message=error or "Entry validation failed",
@@ -236,7 +224,6 @@ def _wait_exponential(retry_state: RetryCallState) -> float:
     return wait_exponential_jitter(initial=0.5, max=10)(retry_state)
 
 
-@track_dependency("deployed_api_check", "HTTP")
 @circuit(
     failure_threshold=5,
     recovery_timeout=60,
@@ -303,19 +290,13 @@ async def validate_deployed_api(base_url: str) -> ValidationResult:
 
     entries_url = f"{base_url}/entries"
 
-    set_wide_event_fields(
-        deployed_api_url=base_url,
-        deployed_api_entries_url=entries_url,
-    )
-
     try:
         response = await _fetch_entries_with_retry(entries_url)
     except CircuitBreakerError:
         logger.warning(
             "deployed_api.circuit_open",
-            url=entries_url,
+            extra={"url": entries_url},
         )
-        set_wide_event_fields(deployed_api_error="circuit_open")
         return ValidationResult(
             is_valid=False,
             message=(
@@ -326,9 +307,8 @@ async def validate_deployed_api(base_url: str) -> ValidationResult:
     except httpx.TimeoutException:
         logger.warning(
             "deployed_api.timeout",
-            url=entries_url,
+            extra={"url": entries_url},
         )
-        set_wide_event_fields(deployed_api_error="timeout")
         return ValidationResult(
             is_valid=False,
             message=(
@@ -339,12 +319,7 @@ async def validate_deployed_api(base_url: str) -> ValidationResult:
     except httpx.RequestError as e:
         logger.warning(
             "deployed_api.request_error",
-            url=entries_url,
-            error=str(e),
-        )
-        set_wide_event_fields(
-            deployed_api_error="request_error",
-            deployed_api_error_detail=str(e),
+            extra={"url": entries_url, "error": str(e)},
         )
         return ValidationResult(
             is_valid=False,
@@ -353,12 +328,7 @@ async def validate_deployed_api(base_url: str) -> ValidationResult:
     except DeployedApiServerError as e:
         logger.warning(
             "deployed_api.server_error",
-            url=entries_url,
-            error=str(e),
-        )
-        set_wide_event_fields(
-            deployed_api_error="server_error",
-            deployed_api_error_detail=str(e),
+            extra={"url": entries_url, "error": str(e)},
         )
         return ValidationResult(
             is_valid=False,
@@ -367,8 +337,6 @@ async def validate_deployed_api(base_url: str) -> ValidationResult:
                 "Please check your deployment."
             ),
         )
-
-    set_wide_event_fields(deployed_api_status_code=response.status_code)
 
     # Check for non-success status codes
     if response.status_code == 404:
@@ -395,11 +363,7 @@ async def validate_deployed_api(base_url: str) -> ValidationResult:
     # Parse JSON response
     try:
         data = response.json()
-    except json.JSONDecodeError as e:
-        set_wide_event_fields(
-            deployed_api_error="json_parse",
-            deployed_api_error_detail=str(e),
-        )
+    except json.JSONDecodeError:
         return ValidationResult(
             is_valid=False,
             message="GET /entries did not return valid JSON.",
@@ -407,7 +371,6 @@ async def validate_deployed_api(base_url: str) -> ValidationResult:
 
     # Must be an array
     if not isinstance(data, list):
-        set_wide_event_fields(deployed_api_error="not_array")
         return ValidationResult(
             is_valid=False,
             message="GET /entries must return an array of entries.",
@@ -417,11 +380,9 @@ async def validate_deployed_api(base_url: str) -> ValidationResult:
     result = _validate_entries_json(data)
 
     if result.is_valid:
-        set_wide_event_fields(deployed_api_entries_validated=len(data))
         logger.info(
             "deployed_api.verified",
-            url=base_url,
-            entries_count=len(data),
+            extra={"url": base_url, "entries_count": len(data)},
         )
 
     return result

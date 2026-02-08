@@ -76,29 +76,6 @@ class TestDeleteUserAccount:
 
             mock_log_event.assert_called_once_with("users.account_deleted", 1)
 
-    @pytest.mark.asyncio
-    async def test_delete_sets_wide_event_fields(self):
-        """Account deletion enriches wide event with user context."""
-        mock_db = AsyncMock()
-        mock_user = MagicMock()
-        mock_user.github_username = "wideuser"
-
-        with (
-            patch("services.users_service.UserRepository") as mock_repo_class,
-            patch("services.users_service.set_wide_event_fields") as mock_set_fields,
-        ):
-            mock_repo = MagicMock()
-            mock_repo.get_by_id = AsyncMock(return_value=mock_user)
-            mock_repo.delete = AsyncMock()
-            mock_repo_class.return_value = mock_repo
-
-            await delete_user_account(mock_db, user_id=12345)
-
-            mock_set_fields.assert_called_once_with(
-                deleted_user_id=12345,
-                deleted_github_username="wideuser",
-            )
-
 
 @pytest.mark.integration
 class TestDeleteUserAccountIntegration:

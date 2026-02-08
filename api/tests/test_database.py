@@ -13,18 +13,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from core.wide_event import init_wide_event
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
-
-
-@pytest.fixture(autouse=True)
-def _wide_event_context():
-    """Ensure wide_event context is available for set_wide_event_fields."""
-    init_wide_event()
-    yield
 
 
 @pytest.fixture(autouse=True)

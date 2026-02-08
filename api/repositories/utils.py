@@ -1,5 +1,6 @@
 """Repository utility functions for common database operations."""
 
+import logging
 import time
 from collections.abc import Awaitable, Callable
 from functools import wraps
@@ -8,10 +9,7 @@ from typing import Any, ParamSpec, TypeVar
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core.logger import get_logger
-from core.wide_event import set_wide_event_fields
-
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 # Threshold for logging slow queries (milliseconds)
 SLOW_QUERY_THRESHOLD_MS = 500
@@ -42,20 +40,24 @@ def log_slow_query(
                 result = await func(*args, **kwargs)
                 duration_ms = (time.perf_counter() - start_time) * 1000
                 if duration_ms > SLOW_QUERY_THRESHOLD_MS:
-                    set_wide_event_fields(
-                        db_slow_query=True,
-                        db_operation=operation_name,
-                        db_duration_ms=round(duration_ms, 2),
+                    logger.debug(
+                        "db.slow_query",
+                        extra={
+                            "db_operation": operation_name,
+                            "db_duration_ms": round(duration_ms, 2),
+                        },
                     )
                 return result
             except Exception as e:
                 duration_ms = (time.perf_counter() - start_time) * 1000
-                set_wide_event_fields(
-                    db_query_error=True,
-                    db_operation=operation_name,
-                    db_duration_ms=round(duration_ms, 2),
-                    db_error=str(e),
-                    db_error_type=type(e).__name__,
+                logger.error(
+                    "db.query_error",
+                    extra={
+                        "db_operation": operation_name,
+                        "db_duration_ms": round(duration_ms, 2),
+                        "db_error": str(e),
+                        "db_error_type": type(e).__name__,
+                    },
                 )
                 raise
 

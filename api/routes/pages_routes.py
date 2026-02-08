@@ -5,6 +5,7 @@ JSON API routes but render HTML templates instead of returning JSON.
 """
 
 import json
+import logging
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Request
@@ -13,7 +14,6 @@ from fastapi.responses import HTMLResponse
 from core.auth import OptionalUserId, UserId
 from core.config import get_settings
 from core.database import DbSession
-from core.logger import get_logger
 from models import User
 from rendering.steps import build_step_data
 from repositories.submission_repository import SubmissionRepository
@@ -32,7 +32,7 @@ from services.progress_service import get_phase_detail_progress
 from services.steps_service import get_completed_steps
 from services.users_service import get_public_profile, get_user_by_id
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["pages"], include_in_schema=False)
 
