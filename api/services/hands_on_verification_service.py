@@ -239,7 +239,17 @@ async def validate_submission(
         return await validate_deployed_api(submitted_value)
 
     elif requirement.submission_type == SubmissionType.SECURITY_SCANNING:
-        return validate_evidence_url_submission(submitted_value)
+        if not expected_username:
+            return ValidationResult(
+                is_valid=False,
+                message=(
+                    "GitHub username is required for " "security scanning verification"
+                ),
+                username_match=False,
+            )
+        from services.security_verification_service import validate_security_scanning
+
+        return await validate_security_scanning(submitted_value, expected_username)
 
     else:
         return ValidationResult(

@@ -27,19 +27,20 @@ capstone:
   - Set up monitoring and security scanning
   topic_slug: capstone
 hands_on_verification:
-  summary: Show us you've got security scanning running and that you know how to handle what it finds.
+  summary: Finished the Security capstone? Submit your repo URL and the system will verify scanning is configured.
   includes:
-  - Enable security scanning (Dependabot, CodeQL, etc.)
-  - Show resolved or triaged findings
+  - Complete the Secure Your Journal API Capstone
+  - Submit your repository URL for automated verification
   requirements:
   - id: security-scanning
     submission_type: security_scanning
     name: Enabled Security Scanning
-    description: Enable security scanning (Dependabot, CodeQL, or similar) on your repository and resolve or triage the findings.
-    submission_instructions: Paste the URL to your repository's security scanning page (e.g. https://github.com/your-username/journal-starter/security/code-scanning).
-      Enable Dependabot, CodeQL, or another scanner, and ensure you have resolved or triaged at least some findings.
-    placeholder: https://github.com/username/repo/security
-    example_url: https://github.com/owner/repo/security/code-scanning
+    description: Submit your repository URL after completing the Security Capstone for automated verification.
+    submission_instructions: Paste the URL to your journal-starter fork (e.g. https://github.com/your-username/journal-starter).
+      The system will check your repository for security scanning configuration — either a Dependabot config file
+      (.github/dependabot.yml) or a CodeQL workflow in .github/workflows/. At least one must be present to pass.
+    placeholder: https://github.com/username/journal-starter
+    example_url: https://github.com/your-username/journal-starter
 prerequisites:
 - 'Completed Phase 4: Cloud Platform Fundamentals'
 - 'Completed Phase 5: DevOps Fundamentals (recommended but not required)'

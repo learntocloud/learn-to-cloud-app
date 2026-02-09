@@ -1,7 +1,7 @@
 id: phase4-topic9
 slug: capstone
 name: Cloud Deployment Capstone
-description: Deploy your Journal API from the Phase 2 Capstone to a secure 2-tier cloud architecture. This capstone challenges
+description: Deploy the Journal API you built in Phase 3 to a secure 2-tier cloud architecture. This capstone challenges
   you to research, design, and implement a production-ready environment with proper networking and security.
 short_description: Deploy your Journal API to a secure 2-tier cloud architecture with VMs, networking, and managed database.
 order: 9
@@ -32,13 +32,19 @@ learning_steps:
   description: Configure your API server to connect to the database in the private subnet. Verify all CRUD operations and
     the AI analysis endpoint work correctly.
 - order: 6
+  text: Create journal entries and verify HTTPS access
+  action: 'Hands-on:'
+  description: 'Create at least one journal entry via POST /entries on your deployed API. Then confirm you can access
+    GET /entries from your browser using HTTPS (not HTTP). This is what the verification system will check — it calls
+    GET /entries on your URL and validates the response.'
+- order: 7
   text: Verify your deployment meets success criteria
   action: 'Verify:'
   title: Success Criteria
-  description: 'Confirm your deployment meets these requirements: API accessible from the internet, database only accessible
-    from the API server, all CRUD operations work, AI analysis endpoint returns sentiment and summary, LLM API key stored
-    securely, and data persists between restarts.'
-- order: 7
+  description: 'Confirm your deployment meets these requirements: API accessible from the internet over HTTPS, database
+    only accessible from the API server, all CRUD operations work, AI analysis endpoint returns sentiment and summary,
+    LLM API key stored securely, data persists between restarts, and GET /entries returns at least one valid entry.'
+- order: 8
   text: Share your project
   action: 'Share:'
   title: Share Your Progress

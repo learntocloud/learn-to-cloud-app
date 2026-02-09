@@ -31,20 +31,21 @@ capstone:
   - Apply least-privilege networking and security controls
   topic_slug: capstone
 hands_on_verification:
-  summary: Submit a publicly reachable deployment so the system can validate your API endpoint.
+  summary: Finished the Cloud Deployment capstone? Submit your live API URL and the system will verify it automatically.
   includes:
-  - Submit your live Journal API base URL
-  - Ensure GET /entries is publicly accessible and returns valid data
+  - Complete the Cloud Deployment Capstone
+  - Submit your deployed API's HTTPS URL for automated verification
   requirements:
   - id: deployed-journal-api
     submission_type: deployed_api
     name: Deployed a Public Journal API
-    description: Deploy your Journal API to a public cloud endpoint and ensure GET /entries is accessible and returns valid data.
-    submission_instructions: Paste your deployed API's base URL (e.g. https://my-journal-api.azurewebsites.net). The system
-      will call GET /entries on your API and verify it returns a JSON array with at least one valid journal entry containing
-      id, work, struggle, intention, and created_at fields.
+    description: Submit your deployed Journal API URL after completing the Cloud Deployment Capstone for automated verification.
+    submission_instructions: "Paste your deployed API's base URL here (e.g. https://my-journal-api.azurewebsites.net).
+      Before submitting: 1) Make sure the URL uses HTTPS (HTTP will be rejected). 2) Create at least one journal
+      entry via POST /entries so the database is not empty. The system will call GET /entries on your URL and verify it returns
+      a JSON array with at least one valid entry containing id, work, struggle, intention, and created_at fields."
     placeholder: https://your-api.example.com
-    example_url: https://api.example.com
+    example_url: https://my-journal-api.azurewebsites.net
 prerequisites:
 - 'Completed Phase 1: Linux and Bash'
 - 'Completed Phase 2: Networking Fundamentals'

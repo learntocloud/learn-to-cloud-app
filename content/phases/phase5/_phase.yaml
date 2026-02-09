@@ -28,21 +28,19 @@ capstone:
   - Deploy with Kubernetes manifests
   topic_slug: capstone
 hands_on_verification:
-  summary: Submit your journal-starter fork for automated DevOps artifact verification.
+  summary: Finished the DevOps capstone? Submit your repo URL and the system will verify your work automatically.
   includes:
-  - Add a Dockerfile to containerize your application
-  - Create a GitHub Actions CI/CD workflow
-  - Add Terraform configuration in an infra/ directory
-  - Add Kubernetes manifests in a k8s/ directory
+  - Complete the DevOps Capstone Project
+  - Submit your journal-starter fork URL for automated verification
   requirements:
   - id: devops-implementation
     submission_type: devops_analysis
-    name: Implemented DevOps Practices
-    description: Add a Dockerfile, GitHub Actions CI/CD workflow, Terraform configuration in infra/, and Kubernetes manifests
-      in k8s/ to your journal-starter fork.
+    name: Completed DevOps Capstone
+    description: Submit your journal-starter fork after completing the DevOps Capstone Project for automated verification.
     submission_instructions: Paste the URL to your journal-starter fork (e.g. https://github.com/your-username/journal-starter).
-      The system will scan your repo for a Dockerfile, a CI/CD workflow in .github/workflows/, Terraform files in an infra/
-      directory, and Kubernetes manifests in a k8s/ directory.
+      The system will fetch and analyze your code to verify the capstone requirements. It reads the actual file contents
+      (not just filenames), so placeholder or empty files will not pass. You'll get per-task feedback explaining what
+      passed and what needs work.
     placeholder: https://github.com/username/journal-starter
     example_url: https://github.com/your-username/journal-starter
     note: You can only verify once per hour.
