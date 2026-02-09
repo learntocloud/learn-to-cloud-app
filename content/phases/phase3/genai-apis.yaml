@@ -54,9 +54,9 @@ learning_steps:
   description: 'Once you''ve completed the demos, apply your skills to your cloud provider''s AI service:'
   options:
   - provider: azure
-    title: Azure OpenAI Chat Completions Quickstart
-    url: https://learn.microsoft.com/en-us/azure/ai-foundry/openai/chatgpt-quickstart
-    description: If you're focusing on Azure (accessed via Azure AI Foundry)
+    title: Azure OpenAI Chat Completions
+    url: https://learn.microsoft.com/en-us/azure/ai-foundry/openai/how-to/chatgpt
+    description: If you're focusing on Azure (accessed via Microsoft Foundry)
   - provider: aws
     title: AWS Bedrock Getting Started
     url: https://docs.aws.amazon.com/bedrock/latest/userguide/getting-started.html

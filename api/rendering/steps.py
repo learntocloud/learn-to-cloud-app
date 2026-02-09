@@ -40,6 +40,7 @@ def build_step_data(
         "description_html": md_renderer(getattr(step, "description", "")),
         "code": getattr(step, "code", ""),
         "options": [],
+        "secondary_links": [],
     }
     for opt in getattr(step, "options", []):
         data["options"].append(
@@ -49,6 +50,13 @@ def build_step_data(
                 "title": getattr(opt, "title", ""),
                 "url": getattr(opt, "url", ""),
                 "description_html": md_renderer(getattr(opt, "description", "")),
+            }
+        )
+    for link in getattr(step, "secondary_links", []):
+        data["secondary_links"].append(
+            {
+                "text": getattr(link, "text", ""),
+                "url": getattr(link, "url", ""),
             }
         )
     return data

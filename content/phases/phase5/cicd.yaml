@@ -26,15 +26,22 @@ learning_steps:
   text: Choose a CI/CD Tool
   action: Choose a CI/CD Tool
   description: 'Learn about implementing CI/CD pipelines with these tools:'
+  options:
+  - provider: aws
+    title: AWS CodePipeline
+    url: https://www.youtube.com/watch?v=zZt-LTY9hAE
+    description: Build CI/CD pipelines with AWS CodePipeline
+  - provider: azure
+    title: Azure DevOps
+    url: https://www.youtube.com/watch?v=4BibQ69MD8c
+    description: Build CI/CD pipelines with Azure DevOps
+  - provider: gcp
+    title: GCP Cloud Build
+    url: https://www.youtube.com/watch?v=vCt5zMvgV5s
+    description: Build CI/CD pipelines with Google Cloud Build
   secondary_links:
   - text: GitHub Actions
     url: https://www.youtube.com/watch?v=R8_veQiYBjI
-  - text: AWS CodePipeline
-    url: https://www.youtube.com/watch?v=zZt-LTY9hAE
-  - text: Azure DevOps
-    url: https://www.youtube.com/watch?v=4BibQ69MD8c
-  - text: GCP Cloud Build
-    url: https://www.youtube.com/watch?v=vCt5zMvgV5s
 - order: 4
   text: Create a GitHub Actions workflow that builds and tests your app
   action: 'Hands-on:'

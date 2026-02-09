@@ -52,13 +52,19 @@ learning_steps:
   text: Use Pricing Calculators
   action: Use Pricing Calculators
   description: 'Estimate costs BEFORE you deploy. Each cloud provider has a calculator:'
-  secondary_links:
-  - text: Azure Pricing Calculator
+  options:
+  - provider: azure
+    title: Azure Pricing Calculator
     url: https://azure.microsoft.com/en-us/pricing/calculator/
-  - text: AWS Pricing Calculator
+    description: Estimate costs for Azure services before deploying
+  - provider: aws
+    title: AWS Pricing Calculator
     url: https://calculator.aws/#/
-  - text: GCP Pricing Calculator
+    description: Estimate costs for AWS services before deploying
+  - provider: gcp
+    title: GCP Pricing Calculator
     url: https://cloud.google.com/products/calculator
+    description: Estimate costs for Google Cloud services before deploying
 - order: 5
   text: Learn cost optimization best practices
   action: 'Learn:'

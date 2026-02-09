@@ -37,13 +37,19 @@ learning_steps:
   text: Cloud-Specific Providers
   action: Cloud-Specific Providers
   description: 'Explore Terraform providers for your cloud platform:'
-  secondary_links:
-  - text: AWS Provider
+  options:
+  - provider: aws
+    title: AWS Provider
     url: https://registry.terraform.io/providers/hashicorp/aws/latest/docs
-  - text: Azure Provider
+    description: Terraform provider for Amazon Web Services
+  - provider: azure
+    title: Azure Provider
     url: https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs
-  - text: GCP Provider
+    description: Terraform provider for Microsoft Azure
+  - provider: gcp
+    title: GCP Provider
     url: https://registry.terraform.io/providers/hashicorp/google/latest/docs
+    description: Terraform provider for Google Cloud Platform
 - order: 5
   text: Install Terraform
   action: 'Install Terraform:'
@@ -76,13 +82,19 @@ learning_steps:
   text: Watch a cloud-specific Terraform tutorial
   action: 'Watch:'
   description: 'Follow along with a tutorial for your cloud provider:'
-  secondary_links:
-  - text: AWS Terraform Example
+  options:
+  - provider: aws
+    title: AWS Terraform Example
     url: https://youtu.be/P4A62b1dkJE
-  - text: Azure Terraform Example
+    description: Video walkthrough of Terraform with AWS
+  - provider: azure
+    title: Azure Terraform Example
     url: https://youtu.be/HdMB2YCtVr4
-  - text: GCP Terraform Example
+    description: Video walkthrough of Terraform with Azure
+  - provider: gcp
+    title: GCP Terraform Example
     url: https://youtu.be/VCayKl82Lt8
+    description: Video walkthrough of Terraform with GCP
 - order: 11
   text: Explore Terraform best practices
   action: 'Read:'

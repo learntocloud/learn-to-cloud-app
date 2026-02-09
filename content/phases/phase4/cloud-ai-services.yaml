@@ -12,57 +12,87 @@ learning_steps:
   action: Platform Overview
   description: 'Each major cloud provider offers an AI platform for deploying and managing models. Learn about your chosen
     platform:'
-  secondary_links:
-  - text: Azure AI Foundry
-    url: https://learn.microsoft.com/en-us/azure/ai-foundry/what-is-ai-foundry
-  - text: AWS Bedrock
+  options:
+  - provider: azure
+    title: Microsoft Foundry
+    url: https://learn.microsoft.com/en-us/azure/ai-foundry/what-is-foundry
+    description: Microsoft's unified platform for building, deploying, and managing AI models
+  - provider: aws
+    title: AWS Bedrock
     url: https://docs.aws.amazon.com/bedrock/latest/userguide/what-is-bedrock.html
-  - text: GCP Vertex AI
+    description: Amazon's fully managed service for building generative AI applications
+  - provider: gcp
+    title: GCP Vertex AI
     url: https://cloud.google.com/vertex-ai/docs/start/introduction-unified-platform
+    description: Google's unified AI platform for building and deploying ML models
 - order: 2
   text: Explore Available Models
   action: Explore Available Models
   description: 'Each platform offers different models with varying capabilities, speeds, and costs:'
-  secondary_links:
-  - text: Azure AI Foundry Models
+  options:
+  - provider: azure
+    title: Microsoft Foundry Models
     url: https://learn.microsoft.com/en-us/azure/ai-foundry/concepts/foundry-models-overview
-  - text: AWS Bedrock Models
+    description: Browse models available in Microsoft Foundry including OpenAI, Meta, and Mistral models
+  - provider: aws
+    title: AWS Bedrock Models
     url: https://docs.aws.amazon.com/bedrock/latest/userguide/models-supported.html
-  - text: GCP Model Garden
+    description: Explore foundation models available in Amazon Bedrock
+  - provider: gcp
+    title: GCP Model Garden
     url: https://cloud.google.com/vertex-ai/generative-ai/docs/learn/models
+    description: Discover models available in Google's Vertex AI Model Garden
 - order: 3
   text: Understand Deployment Options
   action: Understand Deployment Options
   description: 'Learn how to deploy models in production:'
-  secondary_links:
-  - text: Azure Deployments
+  options:
+  - provider: azure
+    title: Microsoft Foundry Deployments
     url: https://learn.microsoft.com/en-us/azure/ai-foundry/concepts/deployments-overview
-  - text: AWS Bedrock Deployment
+    description: Understand model deployment options in Microsoft Foundry
+  - provider: aws
+    title: AWS Bedrock Deployment
     url: https://docs.aws.amazon.com/bedrock/latest/userguide/bedrock-marketplace-deploy-a-model.html
-  - text: GCP Deployment
+    description: Deploy and manage models with Amazon Bedrock
+  - provider: gcp
+    title: GCP Deployment
     url: https://cloud.google.com/vertex-ai/docs/general/deployment
+    description: Deploy models to endpoints in Vertex AI
 - order: 4
   text: Safety & Guardrails
   action: Safety & Guardrails
   description: 'Learn about content filtering and safety features to ensure responsible AI use:'
-  secondary_links:
-  - text: Azure Guardrails
+  options:
+  - provider: azure
+    title: Microsoft Foundry Guardrails
     url: https://learn.microsoft.com/en-us/azure/ai-foundry/guardrails/guardrails-overview
-  - text: AWS Bedrock Guardrails
+    description: Configure content filtering and safety guardrails in Microsoft Foundry
+  - provider: aws
+    title: AWS Bedrock Guardrails
     url: https://docs.aws.amazon.com/bedrock/latest/userguide/guardrails.html
-  - text: GCP Safety Overview
+    description: Set up guardrails for responsible AI use in Amazon Bedrock
+  - provider: gcp
+    title: GCP Safety Overview
     url: https://cloud.google.com/vertex-ai/generative-ai/docs/learn/safety-overview
+    description: Understand safety features and content filtering in Vertex AI
 - order: 5
   text: Platform Playgrounds
   action: Platform Playgrounds
   description: 'Use the playground to test models before writing code:'
-  secondary_links:
-  - text: Azure AI Playgrounds
+  options:
+  - provider: azure
+    title: Microsoft Foundry Playgrounds
     url: https://learn.microsoft.com/en-us/azure/ai-foundry/concepts/concept-playgrounds
-  - text: AWS Bedrock Playgrounds
+    description: Experiment with models in the Microsoft Foundry playground
+  - provider: aws
+    title: AWS Bedrock Playgrounds
     url: https://docs.aws.amazon.com/bedrock/latest/userguide/playgrounds.html
-  - text: GCP Model Garden
+    description: Test and compare models in the Amazon Bedrock playground
+  - provider: gcp
+    title: GCP Model Garden
     url: https://cloud.google.com/model-garden
+    description: Try models directly in Google's Model Garden
 - order: 6
   text: Compare at least 2 models in your platform's playground
   action: 'Hands-on:'

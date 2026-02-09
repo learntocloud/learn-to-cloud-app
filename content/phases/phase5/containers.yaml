@@ -41,15 +41,22 @@ learning_steps:
   text: Push to Container Registries
   action: Push to Container Registries
   description: 'Learn how to containerize an application and deploy to different registries:'
+  options:
+  - provider: aws
+    title: AWS ECR
+    url: https://docs.aws.amazon.com/AmazonECR/latest/userguide/docker-push-ecr-image.html
+    description: Push images to Amazon Elastic Container Registry
+  - provider: azure
+    title: Azure Container Registry
+    url: https://learn.microsoft.com/en-us/training/modules/deploy-use-azure-container-registry/
+    description: Push images to Azure Container Registry
+  - provider: gcp
+    title: Google Container Registry
+    url: https://www.youtube.com/watch?v=D1_FC6pGutQ
+    description: Push images to Google Container Registry
   secondary_links:
   - text: DockerHub
     url: https://docs.docker.com/get-started/workshop/04_sharing_app/
-  - text: AWS ECR
-    url: https://docs.aws.amazon.com/AmazonECR/latest/userguide/docker-push-ecr-image.html
-  - text: Azure Container Registry
-    url: https://learn.microsoft.com/en-us/training/modules/deploy-use-azure-container-registry/
-  - text: Google Container Registry
-    url: https://www.youtube.com/watch?v=D1_FC6pGutQ
 - order: 7
   text: Write a Dockerfile for your application
   action: 'Hands-on:'

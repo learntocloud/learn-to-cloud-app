@@ -83,5 +83,15 @@
             {% endfor %}
         </div>
         {% endif %}
+
+        {% if step.secondary_links %}
+        <ul class="mt-2 space-y-1">
+            {% for link in step.secondary_links %}
+            <li class="text-sm">
+                <a href="{{ link.url }}" target="_blank" rel="noopener" class="text-blue-600 hover:underline dark:text-blue-400">{{ link.text }}</a>
+            </li>
+            {% endfor %}
+        </ul>
+        {% endif %}
     </div>
 </div>

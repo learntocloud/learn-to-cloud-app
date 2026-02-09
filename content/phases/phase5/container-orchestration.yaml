@@ -33,13 +33,19 @@ learning_steps:
   text: Managed Kubernetes Services
   action: Managed Kubernetes Services
   description: 'Most cloud providers offer managed Kubernetes:'
-  secondary_links:
-  - text: AWS EKS
+  options:
+  - provider: aws
+    title: AWS EKS
     url: https://aws.amazon.com/eks/
-  - text: Azure AKS
+    description: Amazon Elastic Kubernetes Service — managed Kubernetes on AWS
+  - provider: azure
+    title: Azure AKS
     url: https://learn.microsoft.com/en-us/azure/aks/
-  - text: Google GKE
+    description: Azure Kubernetes Service — managed Kubernetes on Azure
+  - provider: gcp
+    title: Google GKE
     url: https://cloud.google.com/kubernetes-engine/docs/concepts/kubernetes-engine-overview
+    description: Google Kubernetes Engine — managed Kubernetes on GCP
 - order: 5
   text: AKS with Terraform
   action: 'Watch:'
