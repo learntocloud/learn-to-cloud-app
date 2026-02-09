@@ -262,6 +262,7 @@ class TestValidateSubmissionUsernameRequirements:
             SubmissionType.NETWORKING_TOKEN,
             SubmissionType.CODE_ANALYSIS,
             SubmissionType.DEVOPS_ANALYSIS,
+            SubmissionType.SECURITY_SCANNING,
         ],
     )
     async def test_github_dependent_types_require_username(
@@ -281,19 +282,6 @@ class TestValidateSubmissionUsernameRequirements:
 
         assert result.is_valid is False
         assert "username" in result.message.lower()
-
-    @pytest.mark.asyncio
-    async def test_security_scanning_doesnt_require_username(self):
-        """SECURITY_SCANNING should not require username."""
-        requirement = _make_requirement(SubmissionType.SECURITY_SCANNING, phase_id=6)
-
-        result = await validate_submission(
-            requirement=requirement,
-            submitted_value="https://example.com/evidence",
-            expected_username=None,
-        )
-
-        assert result.is_valid is True
 
     @pytest.mark.asyncio
     async def test_deployed_api_doesnt_require_username(self):
