@@ -1,12 +1,23 @@
 """Submission repository for hands-on validation database operations."""
 
 from datetime import UTC, datetime, timedelta
+from typing import NamedTuple
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models import Submission, SubmissionType
 from repositories.utils import upsert_on_conflict
+
+
+class ValidatedSubmissionSummary(NamedTuple):
+    """Lightweight projection for validated submission display."""
+
+    requirement_id: str
+    submission_type: SubmissionType
+    phase_id: int
+    submitted_value: str
+    validated_at: datetime | None
 
 
 class SubmissionRepository:
@@ -27,17 +38,25 @@ class SubmissionRepository:
         )
         return list(result.scalars().all())
 
-    async def get_validated_by_user(self, user_id: int) -> list[Submission]:
-        """Get all validated submissions for a user."""
+    async def get_validated_by_user(
+        self, user_id: int
+    ) -> list[ValidatedSubmissionSummary]:
+        """Get validated submission summaries for a user (lightweight projection)."""
         result = await self.db.execute(
-            select(Submission)
+            select(
+                Submission.requirement_id,
+                Submission.submission_type,
+                Submission.phase_id,
+                Submission.submitted_value,
+                Submission.validated_at,
+            )
             .where(
                 Submission.user_id == user_id,
                 Submission.is_validated.is_(True),
             )
             .order_by(Submission.phase_id, Submission.validated_at)
         )
-        return list(result.scalars().all())
+        return [ValidatedSubmissionSummary(*row) for row in result.all()]
 
     async def get_validated_counts_by_phase(self, user_id: int) -> dict[int, int]:
         result = await self.db.execute(

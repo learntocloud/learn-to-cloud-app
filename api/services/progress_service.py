@@ -19,9 +19,14 @@ from functools import lru_cache
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core.cache import get_cached_progress, set_cached_progress
+from core.cache import (
+    get_cached_phase_detail,
+    get_cached_progress,
+    set_cached_phase_detail,
+    set_cached_progress,
+)
+from repositories.progress_denormalized_repository import UserPhaseProgressRepository
 from repositories.progress_repository import StepProgressRepository
-from repositories.submission_repository import SubmissionRepository
 from schemas import (
     Phase,
     PhaseDetailProgress,
@@ -122,16 +127,14 @@ async def fetch_user_progress(
         if cached is not None:
             return cached
 
-    # Compute progress directly from source tables
-    # NOTE: queries are run sequentially because both repositories share the
-    # same AsyncSession/connection.  asyncpg connections are NOT safe for
-    # concurrent use; using asyncio.gather here caused InterfaceError:
-    # "cannot use Connection.transaction() in a manually started transaction".
-    step_repo = StepProgressRepository(db)
-    submission_repo = SubmissionRepository(db)
+    # Read pre-computed counts from the denormalized table (single query)
+    progress_repo = UserPhaseProgressRepository(db)
+    denormalized = await progress_repo.get_by_user(user_id)
 
-    phase_steps = await step_repo.get_step_counts_by_phase(user_id)
-    validated_counts = await submission_repo.get_validated_counts_by_phase(user_id)
+    phase_steps = {pid: row.completed_steps for pid, row in denormalized.items()}
+    validated_counts = {
+        pid: row.validated_submissions for pid, row in denormalized.items()
+    }
 
     phases: dict[int, PhaseProgress] = {}
     for phase_id in get_all_phase_ids():
@@ -230,12 +233,17 @@ async def get_phase_detail_progress(
 ) -> PhaseDetailProgress:
     """Compute per-topic and overall progress for the phase detail page.
 
-    Uses a single DB query filtered to this phase's topics, then derives
-    both per-topic and phase-level progress from the same result set.
+    Uses write-through cache: updated on step complete/uncomplete,
+    falls back to DB on cache miss.
     """
-    step_repo = StepProgressRepository(db)
-    topic_ids = [t.id for t in phase.topics]
-    completed_by_topic = await step_repo.get_completed_for_topics(user_id, topic_ids)
+    completed_by_topic = get_cached_phase_detail(user_id, phase.id)
+    if completed_by_topic is None:
+        step_repo = StepProgressRepository(db)
+        topic_ids = [t.id for t in phase.topics]
+        completed_by_topic = await step_repo.get_completed_for_topics(
+            user_id, topic_ids
+        )
+        set_cached_phase_detail(user_id, phase.id, completed_by_topic)
 
     topic_progress: dict[str, TopicProgressData] = {}
     total_completed = 0

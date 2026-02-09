@@ -23,7 +23,6 @@ from services.content_service import get_topic_by_id
 from services.hands_on_verification_service import get_requirement_by_id
 from services.steps_service import (
     complete_step,
-    get_completed_steps,
     parse_phase_id_from_topic_id,
     uncomplete_step,
 )
@@ -54,11 +53,13 @@ async def _render_step_toggle(
     topic_id: str,
     step_order: int,
     phase_id: int,
+    completed_steps: set[int],
 ) -> HTMLResponse:
     """Shared rendering for step complete/uncomplete HTMX responses.
 
-    Looks up the step content, fetches updated progress, and returns
-    the combined step + progress HTML partials.
+    Looks up the step content and returns the combined step + progress
+    HTML partials. Completed steps are passed in from the caller to
+    avoid a redundant database query.
     """
     topic = get_topic_by_id(topic_id)
     step = None
@@ -75,7 +76,6 @@ async def _render_step_toggle(
         )
         return HTMLResponse("")
 
-    completed_steps = await get_completed_steps(db, user_id, topic_id)
     step_data = build_step_data(step)
     user = await get_user_by_id(db, user_id)
 
@@ -115,9 +115,9 @@ async def htmx_complete_step(
     phase_id: int = Form(...),
 ) -> HTMLResponse:
     """Complete a step and return the updated step partial."""
-    await complete_step(db, user_id, topic_id, step_order)
+    _, completed_steps = await complete_step(db, user_id, topic_id, step_order)
     return await _render_step_toggle(
-        request, db, user_id, topic_id, step_order, phase_id
+        request, db, user_id, topic_id, step_order, phase_id, completed_steps
     )
 
 
@@ -130,12 +130,12 @@ async def htmx_uncomplete_step(
     user_id: UserId,
 ) -> HTMLResponse:
     """Uncomplete a step and return the updated step partial."""
-    await uncomplete_step(db, user_id, topic_id, step_order)
+    _, completed_steps = await uncomplete_step(db, user_id, topic_id, step_order)
 
     phase_id = parse_phase_id_from_topic_id(topic_id) or 0
 
     return await _render_step_toggle(
-        request, db, user_id, topic_id, step_order, phase_id
+        request, db, user_id, topic_id, step_order, phase_id, completed_steps
     )
 
 
@@ -329,7 +329,6 @@ async def htmx_delete_account(
     """Delete the current user's account and redirect to home via HTMX."""
     try:
         await delete_user_account(db, user_id)
-        await db.commit()
     except UserNotFoundError:
         logger.warning(
             "htmx.account_delete.not_found",

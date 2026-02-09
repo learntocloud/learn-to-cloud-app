@@ -4,8 +4,9 @@ import logging
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core.cache import invalidate_progress_cache
+from core.cache import invalidate_progress_cache, update_cached_phase_detail_step
 from repositories import StepProgressRepository
+from repositories.progress_denormalized_repository import UserPhaseProgressRepository
 from schemas import StepCompletionResult, StepProgressData
 from services.content_service import get_topic_by_id
 
@@ -146,7 +147,7 @@ async def complete_step(
     user_id: int,
     topic_id: str,
     step_order: int,
-) -> StepCompletionResult:
+) -> tuple[StepCompletionResult, set[int]]:
     """Mark a learning step as complete.
 
     Steps can be completed in any order.
@@ -158,7 +159,7 @@ async def complete_step(
         step_order: The step number to complete
 
     Returns:
-        StepCompletionResult with completion details
+        Tuple of (StepCompletionResult, updated completed step orders)
 
     Raises:
         StepAlreadyCompletedError: If step is already completed
@@ -178,6 +179,11 @@ async def complete_step(
     if step_progress is None:
         raise StepAlreadyCompletedError(topic_id, step_order)
 
+    # Update denormalized progress counts
+    if phase_id is not None:
+        denorm_repo = UserPhaseProgressRepository(db)
+        await denorm_repo.increment_steps(user_id, phase_id, delta=1)
+
     # Invalidate cache so dashboard/progress refreshes immediately
     invalidate_progress_cache(user_id)
 
@@ -190,11 +196,18 @@ async def complete_step(
         },
     )
 
+    # Fetch updated completed steps in same transaction (avoids re-query in route)
+    completed_steps = await step_repo.get_completed_step_orders(user_id, topic_id)
+
+    # Write-through: update phase-detail cache with new completed steps
+    if phase_id is not None:
+        update_cached_phase_detail_step(user_id, phase_id, topic_id, completed_steps)
+
     return StepCompletionResult(
         topic_id=step_progress.topic_id,
         step_order=step_progress.step_order,
         completed_at=step_progress.completed_at,
-    )
+    ), completed_steps
 
 
 async def uncomplete_step(
@@ -202,7 +215,7 @@ async def uncomplete_step(
     user_id: int,
     topic_id: str,
     step_order: int,
-) -> int:
+) -> tuple[int, set[int]]:
     """Mark a learning step as incomplete (uncomplete it).
 
     Also removes any steps after this one (cascading uncomplete).
@@ -214,7 +227,7 @@ async def uncomplete_step(
         step_order: The step number to uncomplete
 
     Returns:
-        Number of steps deleted
+        Tuple of (number of steps deleted, updated completed step orders)
 
     Raises:
         StepUnknownTopicError: If topic_id doesn't exist in content
@@ -227,6 +240,15 @@ async def uncomplete_step(
 
     # Invalidate cache so dashboard/progress refreshes immediately
     if deleted > 0:
+        # Recalculate denormalized counts since cascading uncomplete
+        # deletes multiple steps
+        phase_id = parse_phase_id_from_topic_id(topic_id)
+        if phase_id is not None:
+            denorm_repo = UserPhaseProgressRepository(db)
+            remaining = await step_repo.get_step_counts_by_phase(user_id)
+            new_count = remaining.get(phase_id, 0)
+            await denorm_repo.recalculate_steps_for_phase(user_id, phase_id, new_count)
+
         invalidate_progress_cache(user_id)
         logger.info(
             "step.uncompleted",
@@ -238,4 +260,12 @@ async def uncomplete_step(
             },
         )
 
-    return deleted
+    # Fetch updated completed steps in same transaction
+    completed_steps = await step_repo.get_completed_step_orders(user_id, topic_id)
+
+    # Write-through: update phase-detail cache with remaining completed steps
+    phase_id = parse_phase_id_from_topic_id(topic_id)
+    if phase_id is not None:
+        update_cached_phase_detail_step(user_id, phase_id, topic_id, completed_steps)
+
+    return deleted, completed_steps

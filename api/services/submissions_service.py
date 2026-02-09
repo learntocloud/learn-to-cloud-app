@@ -23,6 +23,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from core.cache import invalidate_progress_cache
 from core.config import get_settings
 from models import Submission, SubmissionType
+from repositories.progress_denormalized_repository import UserPhaseProgressRepository
 from repositories.submission_repository import SubmissionRepository
 from schemas import PhaseSubmissionContext, SubmissionData, SubmissionResult
 from services.github_hands_on_verification_service import parse_github_url
@@ -404,6 +405,16 @@ async def submit_validation(
                 verification_completed=verification_completed,
                 feedback_json=feedback_json,
             )
+
+            # Update denormalized counts for newly validated submissions
+            if validation_result.is_valid and not (
+                existing_data and existing_data.is_validated
+            ):
+                denorm_repo = UserPhaseProgressRepository(write_session)
+                await denorm_repo.increment_submissions(
+                    user_id, requirement.phase_id, delta=1
+                )
+
             await write_session.commit()
 
         if validation_result.is_valid:

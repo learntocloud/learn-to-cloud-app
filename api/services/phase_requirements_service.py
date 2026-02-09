@@ -27,10 +27,12 @@ def get_requirements_for_phase(phase_id: int) -> list[HandsOnRequirement]:
     return _get_requirements_map().get(phase_id, [])
 
 
+@lru_cache(maxsize=1)
+def _get_requirement_id_map() -> dict[str, HandsOnRequirement]:
+    """Build flat lookup map of requirement_id → HandsOnRequirement."""
+    return {req.id: req for reqs in _get_requirements_map().values() for req in reqs}
+
+
 def get_requirement_by_id(requirement_id: str) -> HandsOnRequirement | None:
     """Get a specific requirement by its ID."""
-    for requirements in _get_requirements_map().values():
-        for req in requirements:
-            if req.id == requirement_id:
-                return req
-    return None
+    return _get_requirement_id_map().get(requirement_id)

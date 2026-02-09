@@ -86,7 +86,6 @@ async def callback(request: Request, db: DbSession) -> RedirectResponse:
         avatar_url=avatar_url,
         github_username=github_username.lower(),
     )
-    await db.commit()
 
     request.session["user_id"] = user.id
 

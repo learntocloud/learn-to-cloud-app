@@ -10,7 +10,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 
 from core.auth import OptionalUserId
-from core.database import DbSession
+from core.database import DbSessionReadOnly
 from core.ratelimit import limiter
 from schemas import CommunityAnalytics, SystemStatus
 from services.analytics_service import get_community_analytics
@@ -31,7 +31,7 @@ router = APIRouter(tags=["analytics"])
 @limiter.limit("10/minute")
 async def system_status_api(
     request: Request,
-    db: DbSession,
+    db: DbSessionReadOnly,
 ) -> SystemStatus:
     """Return system health and aggregate community analytics.
 
@@ -50,7 +50,7 @@ async def system_status_api(
 @limiter.limit("10/minute")
 async def community_analytics_api(
     request: Request,
-    db: DbSession,
+    db: DbSessionReadOnly,
 ) -> CommunityAnalytics:
     """Return aggregate, anonymous community analytics.
 
@@ -66,7 +66,7 @@ async def community_analytics_api(
 @router.get("/status", response_class=HTMLResponse, include_in_schema=False)
 async def status_page(
     request: Request,
-    db: DbSession,
+    db: DbSessionReadOnly,
     user_id: OptionalUserId,
 ) -> HTMLResponse:
     """Public status page with system health and community analytics."""

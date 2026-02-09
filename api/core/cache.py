@@ -45,6 +45,14 @@ _badge_cache: TTLCache[tuple[int, int], list["BadgeData"]] = TTLCache(
     ttl=DEFAULT_TTL_SECONDS,
 )
 
+# Phase-detail completed steps cache: keyed by (user_id, phase_id)
+# Stores completed step orders per topic for a specific phase.
+# Write-through: updated directly on step complete/uncomplete instead of invalidated.
+_phase_detail_cache: TTLCache[tuple[int, int], dict[str, set[int]]] = TTLCache(
+    maxsize=DEFAULT_MAX_SIZE,
+    ttl=DEFAULT_TTL_SECONDS,
+)
+
 
 def get_cached_progress(user_id: int) -> "UserProgress | None":
     return _progress_cache.get(user_id)
@@ -62,6 +70,32 @@ def set_cached_steps_by_topic(user_id: int, steps: dict[str, set[int]]) -> None:
     _steps_by_topic_cache[user_id] = steps
 
 
+def get_cached_phase_detail(user_id: int, phase_id: int) -> dict[str, set[int]] | None:
+    """Get cached completed steps by topic for a phase."""
+    return _phase_detail_cache.get((user_id, phase_id))
+
+
+def set_cached_phase_detail(
+    user_id: int, phase_id: int, completed_by_topic: dict[str, set[int]]
+) -> None:
+    """Set cached completed steps by topic for a phase."""
+    _phase_detail_cache[(user_id, phase_id)] = completed_by_topic
+
+
+def update_cached_phase_detail_step(
+    user_id: int, phase_id: int, topic_id: str, completed_steps: set[int]
+) -> None:
+    """Write-through update: update a single topic's completed steps in the cache.
+
+    If the cache entry exists, updates it in place. If not, does nothing
+    (the next read will populate it from DB).
+    """
+    key = (user_id, phase_id)
+    cached = _phase_detail_cache.get(key)
+    if cached is not None:
+        cached[topic_id] = completed_steps
+
+
 def invalidate_progress_cache(user_id: int) -> None:
     """Invalidate cached progress for a user.
 
@@ -70,6 +104,10 @@ def invalidate_progress_cache(user_id: int) -> None:
     """
     _progress_cache.pop(user_id, None)
     _steps_by_topic_cache.pop(user_id, None)
+    # Invalidate phase-detail cache entries for this user
+    phase_detail_keys = [k for k in _phase_detail_cache.keys() if k[0] == user_id]
+    for key in phase_detail_keys:
+        _phase_detail_cache.pop(key, None)
     # Also invalidate any badge cache entries for this user
     # Badge cache keys are (user_id, hash), so we need to scan
     keys_to_remove = [k for k in _badge_cache.keys() if k[0] == user_id]
@@ -93,6 +131,7 @@ def clear_all_caches() -> None:
     _progress_cache.clear()
     _steps_by_topic_cache.clear()
     _badge_cache.clear()
+    _phase_detail_cache.clear()
 
 
 # Simple stats for monitoring
@@ -109,5 +148,9 @@ def get_cache_stats() -> dict[str, dict[str, int]]:
         "badge_cache": {
             "current_size": len(_badge_cache),
             "max_size": _badge_cache.maxsize,
+        },
+        "phase_detail_cache": {
+            "current_size": len(_phase_detail_cache),
+            "max_size": _phase_detail_cache.maxsize,
         },
     }

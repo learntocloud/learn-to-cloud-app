@@ -9,7 +9,7 @@
 <div class="space-y-6">
     {% set faqs = [
         ("What is Learn to Cloud?", "Learn to Cloud is a structured, hands-on guide to learning cloud computing. It takes you from the fundamentals through advanced topics with practical exercises verified by our platform."),
-        ("Is it free?", "Yes! Learn to Cloud is completely free and open source."),
+        ("Is it free?", 'Yes! Learn to Cloud is completely free. If you find it helpful, you can <a href="https://buymeacoffee.com/madebygps" target="_blank" rel="noopener noreferrer" class="text-blue-600 dark:text-blue-400 underline">buy us a coffee</a> to support the project.'),
         ("Do I need prior experience?", "No prior cloud experience is needed. Phase 0 covers prerequisites like Linux, networking, and programming fundamentals."),
         ("How long does it take?", "It depends on your pace and background. Most learners complete all phases in 3-6 months of part-time study."),
         ("How do I get my certificate?", "Complete all phases including the hands-on verification tasks. Once everything is verified, you can generate a certificate from your dashboard."),
@@ -17,6 +17,7 @@
         ("How does hands-on verification work?", "Each phase has practical tasks — creating a GitHub profile, deploying an API, analyzing code. You submit proof (URLs, tokens, or code) and our platform verifies it automatically."),
         ("What data do you collect about me?", "We only store information from your public GitHub profile: your GitHub user ID, username, display name, and avatar URL. We do not collect your email address, password, or any other personal information."),
         ("Can I delete my account?", 'Yes. Go to your <a href="/account" class="text-blue-600 dark:text-blue-400 underline">Account page</a>. Clicking "Delete Account" will permanently remove your profile and all associated data (progress, submissions, and certificates).'),
+        ("How can I support Learn to Cloud?", 'You can <a href="https://buymeacoffee.com/madebygps" target="_blank" rel="noopener noreferrer" class="text-blue-600 dark:text-blue-400 underline">buy us a coffee</a>, share the project with others, or <a href="https://discord.learntocloud.guide" target="_blank" rel="noopener noreferrer" class="text-blue-600 dark:text-blue-400 underline">join our Discord</a> to help fellow learners.'),
     ] %}
 
     {% for question, answer in faqs %}

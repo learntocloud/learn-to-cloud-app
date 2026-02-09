@@ -72,6 +72,10 @@ class User(TimestampMixin, Base):
         back_populates="user",
         cascade="all, delete-orphan",
     )
+    phase_progress: Mapped[list["UserPhaseProgress"]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
 
 
 class SubmissionType(str, PyEnum):
@@ -131,6 +135,25 @@ class Submission(TimestampMixin, Base):
             postgresql_where=text("is_validated"),
         ),
         Index("ix_submissions_user_updated_at", "user_id", "updated_at"),
+        Index(
+            "ix_submissions_user_verified_updated",
+            "user_id",
+            "verification_completed",
+            "updated_at",
+        ),
+        Index(
+            "ix_submissions_user_req_verified_updated",
+            "user_id",
+            "requirement_id",
+            "verification_completed",
+            "updated_at",
+        ),
+        Index(
+            "ix_submissions_user_phase_req",
+            "user_id",
+            "phase_id",
+            "requirement_id",
+        ),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -247,6 +270,36 @@ class StepProgress(Base):
     )
 
     user: Mapped["User"] = relationship(back_populates="step_progress")
+
+
+class UserPhaseProgress(Base):
+    """Denormalized per-user per-phase progress counts.
+
+    Pre-computed from step_progress and submissions tables.
+    Updated on step complete/uncomplete and submission validation.
+    Eliminates the need for two aggregate queries per dashboard load.
+    """
+
+    __tablename__ = "user_phase_progress"
+    __table_args__ = (
+        UniqueConstraint("user_id", "phase_id", name="uq_user_phase_progress"),
+        Index("ix_user_phase_progress_user", "user_id"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    phase_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    completed_steps: Mapped[int] = mapped_column(Integer, default=0)
+    validated_submissions: Mapped[int] = mapped_column(Integer, default=0)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, onupdate=utcnow
+    )
+
+    user: Mapped["User"] = relationship(back_populates="phase_progress")
 
 
 class AnalyticsSnapshot(Base):
