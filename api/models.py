@@ -126,7 +126,12 @@ class Submission(TimestampMixin, Base):
 
     __tablename__ = "submissions"
     __table_args__ = (
-        UniqueConstraint("user_id", "requirement_id", name="uq_user_requirement"),
+        UniqueConstraint(
+            "user_id",
+            "requirement_id",
+            "attempt_number",
+            name="uq_user_requirement_attempt",
+        ),
         Index("ix_submissions_user_phase", "user_id", "phase_id"),
         Index(
             "ix_submissions_user_phase_validated",
@@ -154,6 +159,12 @@ class Submission(TimestampMixin, Base):
             "phase_id",
             "requirement_id",
         ),
+        Index(
+            "ix_submissions_user_req_latest",
+            "user_id",
+            "requirement_id",
+            "created_at",
+        ),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -166,6 +177,7 @@ class Submission(TimestampMixin, Base):
         String(100),
         nullable=False,
     )
+    attempt_number: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     submission_type: Mapped[SubmissionType] = mapped_column(
         Enum(
             SubmissionType,

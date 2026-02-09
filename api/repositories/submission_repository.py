@@ -7,7 +7,6 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models import Submission, SubmissionType
-from repositories.utils import upsert_on_conflict
 
 
 class ValidatedSubmissionSummary(NamedTuple):
@@ -29,9 +28,28 @@ class SubmissionRepository:
     async def get_by_user_and_phase(
         self, user_id: int, phase_id: int
     ) -> list[Submission]:
-        """Get all submissions for a user in a specific phase."""
+        """Get the latest submission per requirement for a user in a phase."""
+        # Subquery to find the max created_at per requirement
+        latest_sq = (
+            select(
+                Submission.requirement_id,
+                func.max(Submission.created_at).label("max_created"),
+            )
+            .where(
+                Submission.user_id == user_id,
+                Submission.phase_id == phase_id,
+            )
+            .group_by(Submission.requirement_id)
+            .subquery()
+        )
         result = await self.db.execute(
-            select(Submission).where(
+            select(Submission)
+            .join(
+                latest_sq,
+                (Submission.requirement_id == latest_sq.c.requirement_id)
+                & (Submission.created_at == latest_sq.c.max_created),
+            )
+            .where(
                 Submission.user_id == user_id,
                 Submission.phase_id == phase_id,
             )
@@ -41,7 +59,20 @@ class SubmissionRepository:
     async def get_validated_by_user(
         self, user_id: int
     ) -> list[ValidatedSubmissionSummary]:
-        """Get validated submission summaries for a user (lightweight projection)."""
+        """Get validated submission summaries for a user (one per requirement)."""
+        # Subquery: earliest validated_at per requirement
+        earliest_sq = (
+            select(
+                Submission.requirement_id,
+                func.min(Submission.validated_at).label("min_validated"),
+            )
+            .where(
+                Submission.user_id == user_id,
+                Submission.is_validated.is_(True),
+            )
+            .group_by(Submission.requirement_id)
+            .subquery()
+        )
         result = await self.db.execute(
             select(
                 Submission.requirement_id,
@@ -49,6 +80,11 @@ class SubmissionRepository:
                 Submission.phase_id,
                 Submission.submitted_value,
                 Submission.validated_at,
+            )
+            .join(
+                earliest_sq,
+                (Submission.requirement_id == earliest_sq.c.requirement_id)
+                & (Submission.validated_at == earliest_sq.c.min_validated),
             )
             .where(
                 Submission.user_id == user_id,
@@ -75,15 +111,19 @@ class SubmissionRepository:
     async def get_by_user_and_requirement(
         self, user_id: int, requirement_id: str
     ) -> Submission | None:
+        """Get the latest submission for a user and requirement."""
         result = await self.db.execute(
-            select(Submission).where(
+            select(Submission)
+            .where(
                 Submission.user_id == user_id,
                 Submission.requirement_id == requirement_id,
             )
+            .order_by(Submission.created_at.desc())
+            .limit(1)
         )
         return result.scalar_one_or_none()
 
-    async def upsert(
+    async def create(
         self,
         user_id: int,
         requirement_id: str,
@@ -95,60 +135,43 @@ class SubmissionRepository:
         verification_completed: bool = True,
         feedback_json: str | None = None,
     ) -> Submission:
-        """Create or update a submission.
+        """Create a new submission attempt.
 
-        Uses upsert to handle concurrent submissions safely.
-        Returns the created/updated submission.
+        Automatically determines the next attempt number for the
+        user+requirement pair.
 
         Args:
             verification_completed: Whether the verification logic actually ran.
                 Set to False when blocked by server errors (e.g., LLM CLI down).
                 Only completed verifications count toward cooldowns.
             feedback_json: JSON-serialized task feedback for CODE_ANALYSIS submissions.
-
-        Raises:
-            ValueError: If update_fields contains keys not in values.
-            IntegrityError: If foreign key constraint violated (user_id not found).
-            RuntimeError: If upsert unexpectedly returns no row.
         """
         now = datetime.now(UTC)
-        values = {
-            "user_id": user_id,
-            "requirement_id": requirement_id,
-            "submission_type": submission_type,
-            "phase_id": phase_id,
-            "submitted_value": submitted_value,
-            "extracted_username": extracted_username,
-            "is_validated": is_validated,
-            "validated_at": now if is_validated else None,
-            "verification_completed": verification_completed,
-            "feedback_json": feedback_json,
-            "updated_at": now,
-        }
 
-        # Use returning=True to get the row in a single round-trip
-        submission = await upsert_on_conflict(
-            db=self.db,
-            model=Submission,
-            values=values,
-            index_elements=["user_id", "requirement_id"],
-            update_fields=[
-                "submission_type",
-                "phase_id",
-                "submitted_value",
-                "extracted_username",
-                "is_validated",
-                "validated_at",
-                "verification_completed",
-                "feedback_json",
-                "updated_at",
-            ],
-            returning=True,
+        # Get the next attempt number
+        result = await self.db.execute(
+            select(func.coalesce(func.max(Submission.attempt_number), 0)).where(
+                Submission.user_id == user_id,
+                Submission.requirement_id == requirement_id,
+            )
         )
+        max_attempt = result.scalar_one()
 
-        # After upsert with returning=True, the submission must exist
-        if submission is None:
-            raise RuntimeError("Upsert with returning=True returned no row")
+        submission = Submission(
+            user_id=user_id,
+            requirement_id=requirement_id,
+            attempt_number=max_attempt + 1,
+            submission_type=submission_type,
+            phase_id=phase_id,
+            submitted_value=submitted_value,
+            extracted_username=extracted_username,
+            is_validated=is_validated,
+            validated_at=now if is_validated else None,
+            verification_completed=verification_completed,
+            feedback_json=feedback_json,
+        )
+        self.db.add(submission)
+        await self.db.flush()
         return submission
 
     async def get_last_submission_time(
@@ -161,10 +184,6 @@ class SubmissionRepository:
         Used to enforce cooldown periods between verification attempts.
         Only considers submissions where verification actually ran (not blocked
         by server errors), so users aren't penalized for infrastructure issues.
-
-        Args:
-            user_id: The user's ID
-            requirement_id: The requirement ID to check
 
         Returns:
             The updated_at timestamp of the last completed verification,

@@ -394,7 +394,7 @@ async def submit_validation(
         async with session_maker() as write_session:
             write_repo = SubmissionRepository(write_session)
 
-            db_submission = await write_repo.upsert(
+            db_submission = await write_repo.create(
                 user_id=user_id,
                 requirement_id=requirement_id,
                 submission_type=requirement.submission_type,

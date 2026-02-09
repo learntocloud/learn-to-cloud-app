@@ -110,7 +110,7 @@ class TestCooldownEnforcement:
             mock_repo.get_by_user_and_requirement = AsyncMock(return_value=None)
             mock_repo.count_submissions_today = AsyncMock(return_value=0)
             mock_repo.get_last_submission_time = AsyncMock(return_value=None)
-            mock_repo.upsert = AsyncMock(
+            mock_repo.create = AsyncMock(
                 return_value=MagicMock(
                     id=1,
                     requirement_id="test-requirement",
@@ -230,7 +230,7 @@ class TestCooldownEnforcement:
             )
             mock_repo.count_submissions_today = AsyncMock(return_value=0)
             mock_repo.get_last_submission_time = AsyncMock(return_value=last_submission)
-            mock_repo.upsert = AsyncMock(
+            mock_repo.create = AsyncMock(
                 return_value=MagicMock(
                     id=1,
                     requirement_id="test-requirement",
@@ -296,7 +296,7 @@ class TestCooldownEnforcement:
             mock_repo.get_by_user_and_requirement = AsyncMock(return_value=None)
             mock_repo.count_submissions_today = AsyncMock(return_value=0)
             mock_repo.get_last_submission_time = AsyncMock(return_value=None)
-            mock_repo.upsert = AsyncMock(
+            mock_repo.create = AsyncMock(
                 return_value=MagicMock(
                     id=1,
                     requirement_id="test-requirement",
@@ -330,7 +330,7 @@ class TestCooldownEnforcement:
             )
 
             # Verify upsert was called with verification_completed=False
-            call_kwargs = mock_repo.upsert.call_args.kwargs
+            call_kwargs = mock_repo.create.call_args.kwargs
             assert call_kwargs["verification_completed"] is False
 
     @pytest.mark.asyncio
@@ -365,7 +365,7 @@ class TestCooldownEnforcement:
             # --- First submission: server error ---
             mock_repo.get_by_user_and_requirement = AsyncMock(return_value=None)
             mock_repo.get_last_submission_time = AsyncMock(return_value=None)
-            mock_repo.upsert = AsyncMock(
+            mock_repo.create = AsyncMock(
                 return_value=MagicMock(
                     id=1,
                     requirement_id="test-requirement",
@@ -405,7 +405,7 @@ class TestCooldownEnforcement:
                 return_value=_make_mock_submission()
             )
             mock_repo.get_last_submission_time = AsyncMock(return_value=None)
-            mock_repo.upsert = AsyncMock(
+            mock_repo.create = AsyncMock(
                 return_value=MagicMock(
                     id=1,
                     requirement_id="test-requirement",
@@ -524,7 +524,7 @@ class TestCooldownEnforcement:
             mock_repo.count_submissions_today = AsyncMock(return_value=0)
             # get_last_submission_time should NOT be called for lightweight types
             mock_repo.get_last_submission_time = AsyncMock(return_value=None)
-            mock_repo.upsert = AsyncMock(
+            mock_repo.create = AsyncMock(
                 return_value=MagicMock(
                     id=1,
                     requirement_id="test-requirement",
@@ -743,7 +743,7 @@ class TestAlreadyValidatedShortCircuit:
             )
             mock_repo.count_submissions_today = AsyncMock(return_value=0)
             mock_repo.get_last_submission_time = AsyncMock(return_value=None)
-            mock_repo.upsert = AsyncMock(
+            mock_repo.create = AsyncMock(
                 return_value=MagicMock(
                     id=1,
                     requirement_id="test-requirement",
@@ -840,7 +840,7 @@ class TestDailySubmissionCap:
             mock_repo.get_by_user_and_requirement = AsyncMock(return_value=None)
             mock_repo.count_submissions_today = AsyncMock(return_value=5)
             mock_repo.get_last_submission_time = AsyncMock(return_value=None)
-            mock_repo.upsert = AsyncMock(
+            mock_repo.create = AsyncMock(
                 return_value=MagicMock(
                     id=1,
                     requirement_id="test-requirement",
