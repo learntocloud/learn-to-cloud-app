@@ -487,31 +487,70 @@ resource "azurerm_portal_dashboard" "main" {
               type = "Extension/Microsoft_OperationsManagementSuite_Workspace/PartType/LogsDashboardPart"
               inputs = [
                 {
-                  name  = "resourceTypeMode"
-                  value = "components"
+                  name       = "resourceTypeMode"
+                  isOptional = true
                 },
                 {
-                  name = "ComponentId"
+                  name       = "ComponentId"
+                  isOptional = true
+                },
+                {
+                  name = "Scope"
                   value = {
-                    SubscriptionId = var.subscription_id
-                    ResourceGroup  = azurerm_resource_group.main.name
-                    Name           = azurerm_application_insights.main.name
-                    ResourceId     = azurerm_application_insights.main.id
+                    resourceIds = [azurerm_application_insights.main.id]
                   }
+                  isOptional = true
                 },
                 {
-                  name  = "Query"
-                  value = "requests | summarize P50=percentile(duration, 50), P95=percentile(duration, 95), P99=percentile(duration, 99) by bin(timestamp, 5m) | render timechart"
+                  name       = "PartId"
+                  value      = "a1b2c3d4-0001-4000-8000-000000000002"
+                  isOptional = true
                 },
                 {
-                  name  = "TimeRange"
-                  value = "PT24H"
+                  name       = "Version"
+                  value      = "2.0"
+                  isOptional = true
                 },
                 {
-                  name  = "PartTitle"
-                  value = "Response Time Percentiles (P50 / P95 / P99)"
+                  name       = "TimeRange"
+                  value      = "PT24H"
+                  isOptional = true
+                },
+                {
+                  name       = "DashboardId"
+                  isOptional = true
+                },
+                {
+                  name       = "DraftRequestParameters"
+                  isOptional = true
+                },
+                {
+                  name       = "Query"
+                  value      = "requests | summarize P50=percentile(duration, 50), P95=percentile(duration, 95), P99=percentile(duration, 99) by bin(timestamp, 5m) | render timechart"
+                  isOptional = true
+                },
+                {
+                  name       = "ControlType"
+                  value      = "FrameControlChart"
+                  isOptional = true
+                },
+                {
+                  name       = "SpecificChart"
+                  value      = "Line"
+                  isOptional = true
+                },
+                {
+                  name       = "PartTitle"
+                  value      = "Response Time Percentiles (P50 / P95 / P99)"
+                  isOptional = true
+                },
+                {
+                  name       = "IsQueryContainTimeRange"
+                  value      = false
+                  isOptional = true
                 }
               ]
+              settings = {}
             }
           }
           "3" = {
@@ -520,31 +559,65 @@ resource "azurerm_portal_dashboard" "main" {
               type = "Extension/Microsoft_OperationsManagementSuite_Workspace/PartType/LogsDashboardPart"
               inputs = [
                 {
-                  name  = "resourceTypeMode"
-                  value = "components"
+                  name       = "resourceTypeMode"
+                  isOptional = true
                 },
                 {
-                  name = "ComponentId"
+                  name       = "ComponentId"
+                  isOptional = true
+                },
+                {
+                  name = "Scope"
                   value = {
-                    SubscriptionId = var.subscription_id
-                    ResourceGroup  = azurerm_resource_group.main.name
-                    Name           = azurerm_application_insights.main.name
-                    ResourceId     = azurerm_application_insights.main.id
+                    resourceIds = [azurerm_application_insights.main.id]
                   }
+                  isOptional = true
                 },
                 {
-                  name  = "Query"
-                  value = "requests | where timestamp > ago(24h) | summarize P95=percentile(duration, 95), Count=count() by name | top 10 by P95 desc | project Route=name, P95_ms=round(P95, 0), Requests=Count"
+                  name       = "PartId"
+                  value      = "a1b2c3d4-0001-4000-8000-000000000003"
+                  isOptional = true
                 },
                 {
-                  name  = "TimeRange"
-                  value = "PT24H"
+                  name       = "Version"
+                  value      = "2.0"
+                  isOptional = true
                 },
                 {
-                  name  = "PartTitle"
-                  value = "Slowest Routes (P95 latency)"
+                  name       = "TimeRange"
+                  value      = "PT24H"
+                  isOptional = true
+                },
+                {
+                  name       = "DashboardId"
+                  isOptional = true
+                },
+                {
+                  name       = "DraftRequestParameters"
+                  isOptional = true
+                },
+                {
+                  name       = "Query"
+                  value      = "requests | where timestamp > ago(24h) | summarize P95=percentile(duration, 95), Count=count() by name | top 10 by P95 desc | project Route=name, P95_ms=round(P95, 0), Requests=Count"
+                  isOptional = true
+                },
+                {
+                  name       = "ControlType"
+                  value      = "AnalyticsGrid"
+                  isOptional = true
+                },
+                {
+                  name       = "PartTitle"
+                  value      = "Slowest Routes (P95 latency)"
+                  isOptional = true
+                },
+                {
+                  name       = "IsQueryContainTimeRange"
+                  value      = true
+                  isOptional = true
                 }
               ]
+              settings = {}
             }
           }
           # --- Row 8: Container App + LLM Dependency ---
@@ -578,31 +651,70 @@ resource "azurerm_portal_dashboard" "main" {
               type = "Extension/Microsoft_OperationsManagementSuite_Workspace/PartType/LogsDashboardPart"
               inputs = [
                 {
-                  name  = "resourceTypeMode"
-                  value = "components"
+                  name       = "resourceTypeMode"
+                  isOptional = true
                 },
                 {
-                  name = "ComponentId"
+                  name       = "ComponentId"
+                  isOptional = true
+                },
+                {
+                  name = "Scope"
                   value = {
-                    SubscriptionId = var.subscription_id
-                    ResourceGroup  = azurerm_resource_group.main.name
-                    Name           = azurerm_application_insights.main.name
-                    ResourceId     = azurerm_application_insights.main.id
+                    resourceIds = [azurerm_application_insights.main.id]
                   }
+                  isOptional = true
                 },
                 {
-                  name  = "Query"
-                  value = "dependencies | where target has 'openai' or target has 'oai-ltc' | summarize Calls=count(), Failures=countif(success == false), AvgDuration=avg(duration) by bin(timestamp, 15m) | render timechart"
+                  name       = "PartId"
+                  value      = "a1b2c3d4-0001-4000-8000-000000000005"
+                  isOptional = true
                 },
                 {
-                  name  = "TimeRange"
-                  value = "PT24H"
+                  name       = "Version"
+                  value      = "2.0"
+                  isOptional = true
                 },
                 {
-                  name  = "PartTitle"
-                  value = "LLM / OpenAI Dependency (calls, failures, latency)"
+                  name       = "TimeRange"
+                  value      = "PT24H"
+                  isOptional = true
+                },
+                {
+                  name       = "DashboardId"
+                  isOptional = true
+                },
+                {
+                  name       = "DraftRequestParameters"
+                  isOptional = true
+                },
+                {
+                  name       = "Query"
+                  value      = "dependencies | where target has 'openai' or target has 'oai-ltc' | summarize Calls=count(), Failures=countif(success == false), AvgDuration=avg(duration) by bin(timestamp, 15m) | render timechart"
+                  isOptional = true
+                },
+                {
+                  name       = "ControlType"
+                  value      = "FrameControlChart"
+                  isOptional = true
+                },
+                {
+                  name       = "SpecificChart"
+                  value      = "Line"
+                  isOptional = true
+                },
+                {
+                  name       = "PartTitle"
+                  value      = "LLM / OpenAI Dependency (calls, failures, latency)"
+                  isOptional = true
+                },
+                {
+                  name       = "IsQueryContainTimeRange"
+                  value      = false
+                  isOptional = true
                 }
               ]
+              settings = {}
             }
           }
           # --- Row 12: Database ---
@@ -685,31 +797,70 @@ resource "azurerm_portal_dashboard" "main" {
               type = "Extension/Microsoft_OperationsManagementSuite_Workspace/PartType/LogsDashboardPart"
               inputs = [
                 {
-                  name  = "resourceTypeMode"
-                  value = "components"
+                  name       = "resourceTypeMode"
+                  isOptional = true
                 },
                 {
-                  name = "ComponentId"
+                  name       = "ComponentId"
+                  isOptional = true
+                },
+                {
+                  name = "Scope"
                   value = {
-                    SubscriptionId = var.subscription_id
-                    ResourceGroup  = azurerm_resource_group.main.name
-                    Name           = azurerm_application_insights.main.name
-                    ResourceId     = azurerm_application_insights.main.id
+                    resourceIds = [azurerm_application_insights.main.id]
                   }
+                  isOptional = true
                 },
                 {
-                  name  = "Query"
-                  value = "requests | where timestamp > ago(24h) | where name !has 'health' and name !has 'static' | summarize UniqueUsers=dcount(user_AuthenticatedId), Requests=count() by bin(timestamp, 1h) | render timechart"
+                  name       = "PartId"
+                  value      = "a1b2c3d4-0001-4000-8000-000000000009"
+                  isOptional = true
                 },
                 {
-                  name  = "TimeRange"
-                  value = "PT24H"
+                  name       = "Version"
+                  value      = "2.0"
+                  isOptional = true
                 },
                 {
-                  name  = "PartTitle"
-                  value = "Active Users & Request Volume (hourly)"
+                  name       = "TimeRange"
+                  value      = "PT24H"
+                  isOptional = true
+                },
+                {
+                  name       = "DashboardId"
+                  isOptional = true
+                },
+                {
+                  name       = "DraftRequestParameters"
+                  isOptional = true
+                },
+                {
+                  name       = "Query"
+                  value      = "requests | where timestamp > ago(24h) | where name !has 'health' and name !has 'static' | summarize UniqueUsers=dcount(user_AuthenticatedId), Requests=count() by bin(timestamp, 1h) | render timechart"
+                  isOptional = true
+                },
+                {
+                  name       = "ControlType"
+                  value      = "FrameControlChart"
+                  isOptional = true
+                },
+                {
+                  name       = "SpecificChart"
+                  value      = "Line"
+                  isOptional = true
+                },
+                {
+                  name       = "PartTitle"
+                  value      = "Active Users & Request Volume (hourly)"
+                  isOptional = true
+                },
+                {
+                  name       = "IsQueryContainTimeRange"
+                  value      = true
+                  isOptional = true
                 }
               ]
+              settings = {}
             }
           }
           # --- Row 20: Error Breakdown + GitHub Dependency ---
@@ -719,31 +870,65 @@ resource "azurerm_portal_dashboard" "main" {
               type = "Extension/Microsoft_OperationsManagementSuite_Workspace/PartType/LogsDashboardPart"
               inputs = [
                 {
-                  name  = "resourceTypeMode"
-                  value = "components"
+                  name       = "resourceTypeMode"
+                  isOptional = true
                 },
                 {
-                  name = "ComponentId"
+                  name       = "ComponentId"
+                  isOptional = true
+                },
+                {
+                  name = "Scope"
                   value = {
-                    SubscriptionId = var.subscription_id
-                    ResourceGroup  = azurerm_resource_group.main.name
-                    Name           = azurerm_application_insights.main.name
-                    ResourceId     = azurerm_application_insights.main.id
+                    resourceIds = [azurerm_application_insights.main.id]
                   }
+                  isOptional = true
                 },
                 {
-                  name  = "Query"
-                  value = "requests | where timestamp > ago(24h) | where toint(resultCode) >= 400 | summarize Count=count() by resultCode, name | top 15 by Count desc | project Status=resultCode, Route=name, Count"
+                  name       = "PartId"
+                  value      = "a1b2c3d4-0001-4000-8000-000000000010"
+                  isOptional = true
                 },
                 {
-                  name  = "TimeRange"
-                  value = "PT24H"
+                  name       = "Version"
+                  value      = "2.0"
+                  isOptional = true
                 },
                 {
-                  name  = "PartTitle"
-                  value = "Error Breakdown (status code × route)"
+                  name       = "TimeRange"
+                  value      = "PT24H"
+                  isOptional = true
+                },
+                {
+                  name       = "DashboardId"
+                  isOptional = true
+                },
+                {
+                  name       = "DraftRequestParameters"
+                  isOptional = true
+                },
+                {
+                  name       = "Query"
+                  value      = "requests | where timestamp > ago(24h) | where toint(resultCode) >= 400 | summarize Count=count() by resultCode, name | top 15 by Count desc | project Status=resultCode, Route=name, Count"
+                  isOptional = true
+                },
+                {
+                  name       = "ControlType"
+                  value      = "AnalyticsGrid"
+                  isOptional = true
+                },
+                {
+                  name       = "PartTitle"
+                  value      = "Error Breakdown (status code × route)"
+                  isOptional = true
+                },
+                {
+                  name       = "IsQueryContainTimeRange"
+                  value      = true
+                  isOptional = true
                 }
               ]
+              settings = {}
             }
           }
           "11" = {
@@ -752,31 +937,70 @@ resource "azurerm_portal_dashboard" "main" {
               type = "Extension/Microsoft_OperationsManagementSuite_Workspace/PartType/LogsDashboardPart"
               inputs = [
                 {
-                  name  = "resourceTypeMode"
-                  value = "components"
+                  name       = "resourceTypeMode"
+                  isOptional = true
                 },
                 {
-                  name = "ComponentId"
+                  name       = "ComponentId"
+                  isOptional = true
+                },
+                {
+                  name = "Scope"
                   value = {
-                    SubscriptionId = var.subscription_id
-                    ResourceGroup  = azurerm_resource_group.main.name
-                    Name           = azurerm_application_insights.main.name
-                    ResourceId     = azurerm_application_insights.main.id
+                    resourceIds = [azurerm_application_insights.main.id]
                   }
+                  isOptional = true
                 },
                 {
-                  name  = "Query"
-                  value = "dependencies | where target has 'github' | summarize Calls=count(), Failures=countif(success == false), AvgDuration=avg(duration) by bin(timestamp, 15m) | render timechart"
+                  name       = "PartId"
+                  value      = "a1b2c3d4-0001-4000-8000-000000000011"
+                  isOptional = true
                 },
                 {
-                  name  = "TimeRange"
-                  value = "PT24H"
+                  name       = "Version"
+                  value      = "2.0"
+                  isOptional = true
                 },
                 {
-                  name  = "PartTitle"
-                  value = "GitHub API Dependency (calls, failures, latency)"
+                  name       = "TimeRange"
+                  value      = "PT24H"
+                  isOptional = true
+                },
+                {
+                  name       = "DashboardId"
+                  isOptional = true
+                },
+                {
+                  name       = "DraftRequestParameters"
+                  isOptional = true
+                },
+                {
+                  name       = "Query"
+                  value      = "dependencies | where target has 'github' | summarize Calls=count(), Failures=countif(success == false), AvgDuration=avg(duration) by bin(timestamp, 15m) | render timechart"
+                  isOptional = true
+                },
+                {
+                  name       = "ControlType"
+                  value      = "FrameControlChart"
+                  isOptional = true
+                },
+                {
+                  name       = "SpecificChart"
+                  value      = "Line"
+                  isOptional = true
+                },
+                {
+                  name       = "PartTitle"
+                  value      = "GitHub API Dependency (calls, failures, latency)"
+                  isOptional = true
+                },
+                {
+                  name       = "IsQueryContainTimeRange"
+                  value      = false
+                  isOptional = true
                 }
               ]
+              settings = {}
             }
           }
         }
