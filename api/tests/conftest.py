@@ -4,8 +4,6 @@ This module provides:
 - Test database setup with real PostgreSQL (via Docker)
 - Async session fixtures for repository/service tests
 - FastAPI test client for route integration tests
-- Auth bypass fixtures
-- External service mocking (Clerk, GitHub)
 
 Architecture follows best practices from:
 - https://pythonspeed.com/articles/faster-db-tests/
@@ -19,19 +17,15 @@ os.environ.setdefault(
     "DATABASE_URL",
     "postgresql+asyncpg://postgres:postgres@localhost:5432/test_learn_to_cloud",
 )
-os.environ.setdefault("CLERK_SECRET_KEY", "test_clerk_secret")
-os.environ.setdefault("CLERK_WEBHOOK_SIGNING_SECRET", "test_webhook_secret")
 os.environ.setdefault("GITHUB_TOKEN", "test_github_token")
 os.environ.setdefault("LABS_VERIFICATION_SECRET", "test_ctf_secret_must_be_32_chars!")
 os.environ.setdefault("DEBUG", "true")
 
-from collections.abc import AsyncGenerator, Generator
-from unittest.mock import AsyncMock, MagicMock, patch
+from collections.abc import AsyncGenerator
 
 import pytest
 import pytest_asyncio
 from fastapi import FastAPI
-from httpx import ASGITransport, AsyncClient
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
@@ -41,7 +35,7 @@ from sqlalchemy.ext.asyncio import (
 )
 from sqlalchemy.pool import NullPool
 
-from core.config import Settings, clear_settings_cache
+from core.config import Settings
 from core.database import Base
 
 # =============================================================================
@@ -222,13 +216,10 @@ async def cleanup_database(
 @pytest_asyncio.fixture(scope="function")
 async def app(
     test_engine: AsyncEngine,
-    mock_clerk_auth: MagicMock,
 ) -> AsyncGenerator[FastAPI]:
     """Create FastAPI app configured for testing.
 
     - Uses test database
-    - Bypasses Clerk authentication
-    - Mocks external services
     """
     # Import here to avoid circular imports and ensure fresh app state
     from main import app as fastapi_app
@@ -244,144 +235,3 @@ async def app(
     fastapi_app.state.init_error = None
 
     yield fastapi_app
-
-
-@pytest_asyncio.fixture(scope="function")
-async def client(app: FastAPI) -> AsyncGenerator[AsyncClient]:
-    """Create async HTTP client for testing routes."""
-    async with AsyncClient(
-        transport=ASGITransport(app=app),
-        base_url="http://test",
-    ) as ac:
-        yield ac
-
-
-@pytest_asyncio.fixture(scope="function")
-async def authenticated_client(
-    app: FastAPI,
-    test_user_id: str,
-) -> AsyncGenerator[AsyncClient]:
-    """Create authenticated async HTTP client.
-
-    Includes Authorization header that passes mocked Clerk validation.
-    """
-    async with AsyncClient(
-        transport=ASGITransport(app=app),
-        base_url="http://test",
-        headers={"Authorization": f"Bearer test_token_{test_user_id}"},
-    ) as ac:
-        yield ac
-
-
-@pytest_asyncio.fixture(scope="function")
-async def unauthenticated_client(
-    test_engine: AsyncEngine,
-    mock_clerk_unauthenticated: MagicMock,
-) -> AsyncGenerator[AsyncClient]:
-    """Create unauthenticated async HTTP client.
-
-    Uses mocked Clerk that returns is_signed_in=False.
-    """
-    from main import app as fastapi_app
-
-    # Store test engine and session maker in app state
-    fastapi_app.state.engine = test_engine
-    fastapi_app.state.session_maker = async_sessionmaker(
-        bind=test_engine,
-        class_=AsyncSession,
-        expire_on_commit=False,
-    )
-    fastapi_app.state.init_done = True
-    fastapi_app.state.init_error = None
-
-    async with AsyncClient(
-        transport=ASGITransport(app=fastapi_app),
-        base_url="http://test",
-    ) as ac:
-        yield ac
-
-
-# =============================================================================
-# Auth Fixtures
-# =============================================================================
-
-# Module-level constant for tests that need to set up data directly
-TEST_USER_ID = "user_test_123456789"
-
-
-@pytest.fixture
-def test_user_id() -> str:
-    """Default test user ID (matches Clerk's format)."""
-    return TEST_USER_ID
-
-
-@pytest.fixture
-def mock_clerk_auth(test_user_id: str) -> Generator[MagicMock]:
-    """Mock Clerk authentication to bypass JWT verification.
-
-    Returns the test_user_id for any valid-looking token.
-    """
-    with patch("core.auth._clerk_client") as mock_client:
-        # Create a mock request state that indicates successful auth
-        mock_state = MagicMock()
-        mock_state.is_signed_in = True
-        # The auth code uses payload.get("sub") to get user ID
-        mock_state.payload = {"sub": test_user_id}
-
-        mock_client.authenticate_request = MagicMock(return_value=mock_state)
-
-        # Also patch the initialized flag
-        with patch("core.auth._clerk_initialized", True):
-            yield mock_client
-
-
-@pytest.fixture
-def mock_clerk_unauthenticated() -> Generator[MagicMock]:
-    """Mock Clerk to return unauthenticated state."""
-    with patch("core.auth._clerk_client") as mock_client:
-        mock_state = MagicMock()
-        mock_state.is_signed_in = False
-        mock_state.payload = None
-
-        mock_client.authenticate_request = MagicMock(return_value=mock_state)
-
-        with patch("core.auth._clerk_initialized", True):
-            yield mock_client
-
-
-# =============================================================================
-# External Service Mocks
-# =============================================================================
-
-
-@pytest.fixture
-def mock_github_client() -> Generator[AsyncMock]:
-    """Mock GitHub API client for hands-on verification tests.
-
-    Uses autospec=True to catch interface mismatches early.
-    """
-    with patch(
-        "services.github_hands_on_verification_service._github_client", autospec=True
-    ) as mock:
-        mock_client = AsyncMock()
-        mock.return_value = mock_client
-        yield mock_client
-
-
-# =============================================================================
-# Utility Fixtures
-# =============================================================================
-
-
-@pytest.fixture
-def anyio_backend() -> str:
-    """Use asyncio backend for anyio (required by httpx)."""
-    return "asyncio"
-
-
-@pytest.fixture(autouse=True)
-def reset_settings_cache() -> Generator[None]:
-    """Reset settings cache before each test."""
-    clear_settings_cache()
-    yield
-    clear_settings_cache()

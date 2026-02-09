@@ -64,10 +64,6 @@ print(f"routes (all routers): {(time.perf_counter()-t)*1000:.0f}ms", flush=True)
 
 t = time.perf_counter()
 
-print(f"services.clerk_service: {(time.perf_counter()-t)*1000:.0f}ms", flush=True)
-
-t = time.perf_counter()
-
 print(
     f"services.github_hands_on_verification: {(time.perf_counter()-t)*1000:.0f}ms",
     flush=True,

@@ -85,23 +85,6 @@ def get_all_phase_ids() -> list[int]:
     return sorted(_build_phase_requirements().keys())
 
 
-def _parse_phase_from_topic_id(topic_id: str) -> int | None:
-    """Extract phase number from topic_id format (phase{N}-topic{M}).
-
-    Args:
-        topic_id: Topic ID in format "phase{N}-topic{M}"
-
-    Returns:
-        Phase number or None if parsing fails
-    """
-    if not isinstance(topic_id, str) or not topic_id.startswith("phase"):
-        return None
-    try:
-        return int(topic_id.split("-")[0].replace("phase", ""))
-    except (ValueError, IndexError):
-        return None
-
-
 async def fetch_user_progress(
     db: AsyncSession,
     user_id: int,

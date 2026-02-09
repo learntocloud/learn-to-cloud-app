@@ -55,6 +55,12 @@ learning_steps:
   description: 'Practice using dig and nslookup to query DNS records. Try: dig google.com, dig +trace google.com, nslookup
     -type=MX gmail.com'
 - order: 8
+  text: Connectivity Testing with ping and traceroute
+  action: 'Practice:'
+  title: Testing Network Connectivity
+  description: Use ping to test host reachability and measure round-trip latency, and traceroute (tracert on Windows) to trace
+    the path packets take to a destination. Try ping google.com, traceroute google.com, and ping between VMs to verify connectivity.
+- order: 9
   text: Watch NetworkChuck Overview
   action: 'Watch:'
   title: Networking Fundamentals Playlist

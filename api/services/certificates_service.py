@@ -31,7 +31,6 @@ from rendering.certificates import (
 from repositories.certificate_repository import CertificateRepository
 from schemas import (
     CertificateData,
-    CertificateVerificationResult,
     CreateCertificateResult,
     EligibilityResult,
 )
@@ -238,6 +237,20 @@ async def get_certificate_by_id(
     return _to_certificate_data(cert) if cert else None
 
 
+async def get_user_certificate(
+    db: AsyncSession,
+    user_id: int,
+) -> CertificateData | None:
+    """Get the certificate for a user.
+
+    Returns:
+        Certificate if the user has one, else None
+    """
+    cert_repo = CertificateRepository(db)
+    cert = await cert_repo.get_by_user(user_id)
+    return _to_certificate_data(cert) if cert else None
+
+
 async def verify_certificate(
     db: AsyncSession,
     verification_code: str,
@@ -254,39 +267,6 @@ async def verify_certificate(
     cert_repo = CertificateRepository(db)
     cert = await cert_repo.get_by_verification_code(verification_code)
     return _to_certificate_data(cert) if cert else None
-
-
-async def verify_certificate_with_message(
-    db: AsyncSession,
-    verification_code: str,
-) -> CertificateVerificationResult:
-    """Verify a certificate and return a user-friendly result.
-
-    Args:
-        db: Database session
-        verification_code: The verification code to look up
-
-    Returns:
-        CertificateVerificationResult with validation status and message
-    """
-    certificate = await verify_certificate(db, verification_code)
-
-    if not certificate:
-        return CertificateVerificationResult(
-            is_valid=False,
-            certificate=None,
-            message="Certificate not found. Please check the verification code.",
-        )
-
-    issued_date = certificate.issued_at.strftime("%B %d, %Y")
-
-    return CertificateVerificationResult(
-        is_valid=True,
-        certificate=certificate,
-        message=(
-            "Valid certificate for Full Program Completion" f" issued on {issued_date}"
-        ),
-    )
 
 
 def generate_certificate_svg(certificate: CertificateData) -> str:

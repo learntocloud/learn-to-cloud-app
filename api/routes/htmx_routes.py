@@ -314,7 +314,7 @@ async def htmx_create_certificate(
         "partials/certificate_card.html",
         {
             "request": request,
-            "certificate": certificate,
+            "certificate": certificate.certificate,
         },
     )
 

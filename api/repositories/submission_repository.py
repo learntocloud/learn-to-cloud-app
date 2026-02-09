@@ -94,20 +94,6 @@ class SubmissionRepository:
         )
         return [ValidatedSubmissionSummary(*row) for row in result.all()]
 
-    async def get_validated_counts_by_phase(self, user_id: int) -> dict[int, int]:
-        result = await self.db.execute(
-            select(
-                Submission.phase_id,
-                func.count(func.distinct(Submission.requirement_id)),
-            )
-            .where(
-                Submission.user_id == user_id,
-                Submission.is_validated.is_(True),
-            )
-            .group_by(Submission.phase_id)
-        )
-        return {row[0]: row[1] for row in result.all()}
-
     async def get_by_user_and_requirement(
         self, user_id: int, requirement_id: str
     ) -> Submission | None:

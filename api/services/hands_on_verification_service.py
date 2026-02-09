@@ -23,7 +23,6 @@ For phase requirements, see phase_requirements.py
 """
 
 import logging
-from urllib.parse import urlparse
 
 from models import SubmissionType
 from schemas import HandsOnRequirement, ValidationResult
@@ -87,32 +86,6 @@ def validate_networking_token_submission(
         message=result.message,
         username_match=result.is_valid,
         server_error=result.server_error,
-    )
-
-
-def _is_valid_url(value: str) -> bool:
-    parsed = urlparse(value)
-    return parsed.scheme == "https" and bool(parsed.netloc)
-
-
-def validate_evidence_url_submission(submitted_value: str) -> ValidationResult:
-    """Validate a generic evidence URL submission."""
-    value = submitted_value.strip()
-    if not value:
-        return ValidationResult(
-            is_valid=False,
-            message="Please submit a valid URL.",
-        )
-
-    if not _is_valid_url(value):
-        return ValidationResult(
-            is_valid=False,
-            message="Please submit a valid https:// URL.",
-        )
-
-    return ValidationResult(
-        is_valid=True,
-        message="Submission verified.",
     )
 
 

@@ -26,18 +26,12 @@ learning_steps:
   url: https://youtu.be/3c-iBn73dDE
   description: Comprehensive video introduction to Docker and containerization.
 - order: 4
-  text: MCP - Model Context Protocol
-  action: 'Learn:'
-  title: What is MCP (Model Context Protocol)?
-  url: https://modelcontextprotocol.io/docs/getting-started/intro
-  description: Learn how containers enable running MCP servers that integrate with LLMs and AI tools.
-- order: 5
   text: Container Registries
   action: 'Container Registries:'
   title: What is a Container Registry?
   url: https://docs.docker.com/get-started/docker-concepts/the-basics/what-is-a-registry/
   description: Learn how container registries store and distribute Docker images.
-- order: 6
+- order: 5
   text: Push to Container Registries
   action: Push to Container Registries
   description: 'Learn how to containerize an application and deploy to different registries:'
@@ -57,12 +51,12 @@ learning_steps:
   secondary_links:
   - text: DockerHub
     url: https://docs.docker.com/get-started/workshop/04_sharing_app/
-- order: 7
+- order: 6
   text: Write a Dockerfile for your application
   action: 'Hands-on:'
   description: Write a Dockerfile for a simple application (or use an existing one like your Journal API). Use the sample
     below as a reference.
-- order: 8
+- order: 7
   text: Sample Dockerfile
   action: 'Reference:'
   description: 'Here''s a basic Dockerfile for a FastAPI application:'
@@ -84,24 +78,17 @@ learning_steps:
 
 
     CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]'
-- order: 9
+- order: 8
   text: Build and run your container locally
   action: 'Hands-on:'
   description: Build the Docker image from your Dockerfile and run it locally. Test that your application works correctly
     inside the container.
-- order: 10
+- order: 9
   text: Push your image to a container registry
   action: 'Hands-on:'
   description: Create an account on DockerHub (or another registry), tag your image, and push it. Pull and run it on a different
     machine to verify portability.
-- order: 11
-  text: Run the GitHub MCP Server in Docker (optional)
-  action: 'Advanced:'
-  title: GitHub MCP Server
-  url: https://github.com/github/github-mcp-server
-  description: Install the GitHub MCP Server in Docker Desktop, create a GitHub Personal Access Token, and test querying your
-    repos from VS Code with Agent mode.
-- order: 12
+- order: 10
   text: Review Docker troubleshooting resources
   action: 'Read:'
   title: Docker Troubleshooting
@@ -110,3 +97,16 @@ learning_steps:
   secondary_links:
   - text: Dockerfile Best Practices
     url: https://docs.docker.com/develop/develop-images/dockerfile_best-practices/
+- order: 11
+  text: (Optional) MCP - Model Context Protocol
+  action: 'Learn:'
+  title: What is MCP (Model Context Protocol)?
+  url: https://modelcontextprotocol.io/docs/getting-started/intro
+  description: Learn how containers enable running MCP servers that integrate with LLMs and AI tools.
+- order: 12
+  text: Run the GitHub MCP Server in Docker (optional)
+  action: 'Advanced:'
+  title: GitHub MCP Server
+  url: https://github.com/github/github-mcp-server
+  description: Install the GitHub MCP Server in Docker Desktop, create a GitHub Personal Access Token, and test querying your
+    repos from VS Code with Agent mode.

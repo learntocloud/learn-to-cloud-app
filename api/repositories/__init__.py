@@ -13,7 +13,6 @@ from repositories.progress_denormalized_repository import UserPhaseProgressRepos
 from repositories.progress_repository import StepProgressRepository
 from repositories.submission_repository import SubmissionRepository
 from repositories.user_repository import UserRepository
-from repositories.utils import log_slow_query
 
 __all__ = [
     "CertificateRepository",
@@ -21,5 +20,4 @@ __all__ = [
     "SubmissionRepository",
     "UserPhaseProgressRepository",
     "UserRepository",
-    "log_slow_query",
 ]

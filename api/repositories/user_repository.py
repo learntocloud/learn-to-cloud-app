@@ -124,67 +124,6 @@ class UserRepository:
         result = await self.db.execute(stmt)
         return result.scalar_one()
 
-    async def get_many_by_ids(self, user_ids: list[int]) -> list[User]:
-        """Get multiple users by their IDs in a single query.
-
-        Returns users in no guaranteed order. Missing IDs are silently skipped.
-        """
-        if not user_ids:
-            return []
-        result = await self.db.execute(select(User).where(User.id.in_(user_ids)))
-        return list(result.scalars().all())
-
-    async def create(
-        self,
-        user_id: int,
-        first_name: str | None = None,
-        last_name: str | None = None,
-        avatar_url: str | None = None,
-        github_username: str | None = None,
-    ) -> User:
-        """Create a new user.
-
-        Expects github_username to be pre-normalized (lowercase) by service layer.
-        """
-        user = User(
-            id=user_id,
-            first_name=first_name,
-            last_name=last_name,
-            avatar_url=avatar_url,
-            github_username=github_username,
-        )
-        self.db.add(user)
-        return user
-
-    async def update(
-        self,
-        user: User,
-        *,
-        first_name: str | None = None,
-        last_name: str | None = None,
-        avatar_url: str | None = None,
-        github_username: str | None = None,
-        is_admin: bool | None = None,
-    ) -> User:
-        """Update user fields. Only non-None values are updated.
-
-        Expects github_username to be pre-normalized (lowercase) by service layer.
-        The caller is responsible for resolving username conflicts before calling.
-        """
-        if first_name is not None:
-            user.first_name = first_name
-        if last_name is not None:
-            user.last_name = last_name
-        if avatar_url is not None:
-            user.avatar_url = avatar_url
-        if github_username is not None:
-            user.github_username = github_username
-        if is_admin is not None:
-            user.is_admin = is_admin
-
-        user.updated_at = datetime.now(UTC)
-        return user
-
     async def clear_github_username(self, user_id: int) -> None:
         """Clear the github_username field for a specific user."""
         user = await self.get_by_id(user_id)

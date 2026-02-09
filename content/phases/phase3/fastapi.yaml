@@ -13,3 +13,30 @@ learning_steps:
   url: https://fastapi.tiangolo.com/tutorial/
   description: Work through the official FastAPI tutorial by the framework creator. This comprehensive guide covers everything
     from basic setup to advanced features.
+- order: 2
+  text: 'Learn: Path Operations & CRUD'
+  action: 'Learn:'
+  title: FastAPI Path Operations
+  url: https://fastapi.tiangolo.com/tutorial/first-steps/
+  description: Understand how to create API endpoints using path operation decorators (@app.get, @app.post, @app.put, @app.delete).
+    These map directly to the CRUD operations you'll implement in the Journal API.
+- order: 3
+  text: 'Learn: Request & Response Models with Pydantic'
+  action: 'Learn:'
+  title: Pydantic Models in FastAPI
+  url: https://fastapi.tiangolo.com/tutorial/body/
+  description: Learn how FastAPI uses Pydantic models to validate request bodies and serialize responses. Your Journal API will
+    use models to define entry schemas with fields like work, struggle, and intention.
+- order: 4
+  text: 'Practice: Build a simple CRUD API'
+  action: 'Practice:'
+  title: Build a Mini CRUD API
+  description: 'Before tackling the capstone, practice by building a minimal CRUD API. Create a FastAPI app with endpoints to
+    create, read, update, and delete items stored in a Python list. Test your endpoints using the auto-generated /docs page.'
+- order: 5
+  text: 'Learn: Async Endpoints'
+  action: 'Learn:'
+  title: Async and Await in FastAPI
+  url: https://fastapi.tiangolo.com/async/
+  description: Understand when to use async def vs def for your endpoints. The Journal API uses async endpoints for database
+    and LLM operations, so understanding this pattern is important.

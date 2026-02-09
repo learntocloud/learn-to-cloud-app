@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.cache import invalidate_progress_cache, update_cached_phase_detail_step
 from repositories import StepProgressRepository
 from repositories.progress_denormalized_repository import UserPhaseProgressRepository
-from schemas import StepCompletionResult, StepProgressData
+from schemas import StepCompletionResult
 from services.content_service import get_topic_by_id
 
 logger = logging.getLogger(__name__)
@@ -95,37 +95,6 @@ def _validate_step_order(topic_id: str, step_order: int) -> int:
     if step_order < 1 or step_order > total_steps:
         raise StepInvalidStepOrderError(topic_id, step_order, total_steps)
     return total_steps
-
-
-async def get_topic_step_progress(
-    db: AsyncSession,
-    user_id: int,
-    topic_id: str,
-) -> StepProgressData:
-    """Get the step progress for a topic.
-
-    Args:
-        db: Database session
-        user_id: The user's ID
-        topic_id: The topic ID (e.g., "phase1-topic5")
-
-    Returns:
-        StepProgressData with completed steps
-
-    Raises:
-        StepUnknownTopicError: If topic_id doesn't exist in content
-    """
-    total_steps = _resolve_total_steps(topic_id)
-
-    step_repo = StepProgressRepository(db)
-    completed_step_orders = await step_repo.get_completed_step_orders(user_id, topic_id)
-    completed_steps = sorted(completed_step_orders)
-
-    return StepProgressData(
-        topic_id=topic_id,
-        completed_steps=completed_steps,
-        total_steps=total_steps,
-    )
 
 
 async def get_completed_steps(

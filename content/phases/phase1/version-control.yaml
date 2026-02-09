@@ -53,27 +53,16 @@ learning_steps:
   title: Command Line for Beginners – How to Use the Terminal Like a Pro
   url: https://www.freecodecamp.org/news/command-line-for-beginners/#heading-most-common-and-useful-commands-to-use
 - order: 8
-  text: Create your workspace
-  action: Create your workspace
-  description: Using a Terminal, create a folder on your computer where you will store all your labs and projects. Name it
-    `l2c`. Use the `mkdir` and `cd` commands for this.
-  code: mkdir l2c && cd l2c
-- order: 9
-  text: Clone the lab repository
-  action: Clone the lab repository
-  description: 'Inside your `l2c` folder, run:'
-  code: git clone https://github.com/learntocloud/linux-ctfs
-- order: 10
   text: Learn Markdown
   action: 'Learn Markdown:'
   title: Communicate using markdown
   url: https://learn.microsoft.com/en-us/training/modules/communicate-using-markdown/
-- order: 11
+- order: 9
   text: Create your GitHub profile README
   action: 'Create your GitHub profile README:'
   title: Adding a profile README
   url: https://docs.github.com/en/account-and-profile/setting-up-and-managing-your-github-profile/customizing-your-profile/managing-your-profile-readme#adding-a-profile-readme
-- order: 12
+- order: 10
   text: Practice Git workflow
   action: Practice Git workflow
   description: Clone your README repo to your local machine. Use VS Code to edit it and push changes back to GitHub from the

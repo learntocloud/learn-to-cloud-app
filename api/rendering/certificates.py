@@ -12,7 +12,6 @@ Phase display info is pulled from content JSON files via content_service to ensu
 certificate text stays in sync with curriculum changes.
 """
 
-import base64
 import html
 import re
 from datetime import datetime
@@ -128,11 +127,6 @@ def _get_logo_inline_svg() -> str | None:
     )
 
 
-def get_certificate_display_info() -> PhaseInfo:
-    """Get display information for the completion certificate."""
-    return FULL_COMPLETION_INFO
-
-
 def generate_certificate_svg(
     recipient_name: str,
     verification_code: str,
@@ -152,7 +146,7 @@ def generate_certificate_svg(
     Returns:
         SVG content as a string
     """
-    cert_info = get_certificate_display_info()
+    cert_info = FULL_COMPLETION_INFO
     issued_date = issued_at.strftime("%B %d, %Y")
 
     safe_name = html.escape(recipient_name, quote=True)
@@ -290,12 +284,6 @@ def generate_certificate_svg(
 </svg>"""
 
     return svg
-
-
-def svg_to_base64_data_uri(svg_content: str) -> str:
-    """Convert SVG string to base64 data URI for embedding."""
-    encoded = base64.b64encode(svg_content.encode("utf-8")).decode("utf-8")
-    return f"data:image/svg+xml;base64,{encoded}"
 
 
 def svg_to_pdf(svg_content: str) -> bytes:

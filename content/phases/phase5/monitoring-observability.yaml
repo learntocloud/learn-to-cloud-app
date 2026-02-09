@@ -75,7 +75,7 @@ learning_steps:
   - text: FastAPI Monitoring Tutorial
     url: https://dev.to/ken_mwaura1/getting-started-monitoring-a-fastapi-app-with-grafana-and-prometheus-a-step-by-step-guide-3fbn
 - order: 8
-  text: Learn about AI agents for monitoring
+  text: '(Optional) Learn about AI agents for monitoring'
   action: 'Learn:'
   title: What are AI Agents?
   url: https://aws.amazon.com/what-is/ai-agents/
@@ -85,7 +85,7 @@ learning_steps:
   - text: Agentic Workflows
     url: https://www.ibm.com/think/topics/agentic-workflows
 - order: 9
-  text: Install n8n and build an AI monitoring agent
+  text: '(Optional) Install n8n and build an AI monitoring agent'
   action: 'Hands-on:'
   title: n8n Overview
   url: https://n8n.io/features/

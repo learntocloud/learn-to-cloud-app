@@ -1,9 +1,9 @@
 id: phase3-topic2
 slug: apis
 name: REST APIs
-description: In the previous topic, the recommended book introduced you to Django, so you should have some context about how
-  REST APIs work. Now let's deepen that knowledge.
-order: 3
+description: APIs are how applications communicate with each other. In this topic, you'll deepen your understanding of REST
+  APIs — the architectural style you'll use to build your Journal API in the capstone.
+order: 2
 is_capstone: false
 learning_steps:
 - order: 1

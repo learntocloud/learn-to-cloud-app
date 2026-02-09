@@ -82,22 +82,6 @@ def _to_submission_data(submission: Submission) -> SubmissionData:
     )
 
 
-def get_validated_ids_by_phase(
-    submissions: list[Submission],
-) -> dict[int, set[str]]:
-    """Get validated requirement IDs grouped by phase.
-
-    Used for determining phase completion status for badges and progress.
-    """
-    by_phase: dict[int, set[str]] = {}
-    for sub in submissions:
-        if sub.is_validated:
-            if sub.phase_id not in by_phase:
-                by_phase[sub.phase_id] = set()
-            by_phase[sub.phase_id].add(sub.requirement_id)
-    return by_phase
-
-
 async def get_phase_submission_context(
     db: AsyncSession,
     user_id: int,

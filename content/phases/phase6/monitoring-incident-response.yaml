@@ -52,6 +52,16 @@ learning_steps:
     url: https://cloud.google.com/security-command-center/docs/concepts-security-command-center-overview
     description: Threat detection in Google Cloud
 - order: 5
+  text: Enable security scanning on your GitHub repository
+  action: 'Hands-on:'
+  title: GitHub Security Scanning
+  description: 'Enable at least one scanning tool on your journal-starter repository. Dependabot monitors your dependencies for known vulnerabilities — enable it by adding a .github/dependabot.yml file. CodeQL analyzes your code for security issues — enable it via the Security tab or by adding a workflow to .github/workflows/. This is what the phase verification checks.'
+  secondary_links:
+  - text: Configuring Dependabot
+    url: https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuring-dependabot-version-updates
+  - text: Setting up CodeQL
+    url: https://docs.github.com/en/code-security/code-scanning/creating-an-advanced-setup-for-code-scanning/configuring-advanced-setup-for-code-scanning
+- order: 6
   text: Write a basic incident response runbook
   action: 'Hands-on:'
   description: Write a short runbook answering "What do we do if credentials are leaked?" Include steps to rotate credentials,

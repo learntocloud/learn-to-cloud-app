@@ -67,15 +67,27 @@ learning_steps:
 
     # Create /etc/systemd/system/fastapi.service'
 - order: 5
+  text: Set up HTTPS with a reverse proxy
+  action: 'Learn:'
+  title: HTTPS with Caddy or Nginx
+  description: 'Your capstone requires HTTPS. The simplest approach is to put a reverse proxy in front of uvicorn that handles
+    TLS automatically. Caddy auto-provisions Let''s Encrypt certificates with zero configuration. Alternatively, use Nginx
+    with Certbot.'
+  secondary_links:
+  - text: Caddy Quick-start
+    url: https://caddyserver.com/docs/quick-starts/reverse-proxy
+  - text: Certbot (Let's Encrypt) for Nginx
+    url: https://certbot.eff.org/
+- order: 6
   text: Deploy a VM in the public subnet and install dependencies
   action: 'Hands-on:'
   description: Deploy a VM in the public subnet. Install Python and your application's dependencies on it.
-- order: 6
+- order: 7
   text: Clone your app and configure environment variables
   action: 'Hands-on:'
   description: Clone your FastAPI application code onto the VM. Set database credentials and API keys as environment variables
     — never hardcode secrets.
-- order: 7
+- order: 8
   text: Start the application and verify it works
   action: 'Hands-on:'
   description: Start your FastAPI app with uvicorn and verify the API is accessible from the internet by visiting the /docs

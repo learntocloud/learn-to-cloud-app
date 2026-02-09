@@ -2,9 +2,6 @@
 
 These endpoints serve certificate files (PDF/PNG) for download.
 Certificate creation is handled via HTMX routes.
-
-Route ordering note: Literal path segments (/verify/) are defined
-before parameterized segments (/{certificate_id}/) to prevent routing conflicts.
 """
 
 from functools import lru_cache
@@ -19,7 +16,7 @@ from schemas import CertificateData
 from services.certificates_service import (
     generate_certificate_pdf,
     generate_certificate_png,
-    get_certificate_by_id,
+    get_user_certificate,
     verify_certificate,
 )
 
@@ -43,8 +40,16 @@ async def _build_pdf_response(
     *,
     disposition: str = "attachment",
 ) -> Response:
-    """Generate a PDF and wrap it in a Response with proper headers."""
-    pdf_content = await generate_certificate_pdf(certificate)
+    """Generate a PDF and wrap it in a Response with proper headers.
+
+    Raises:
+        HTTPException: 501 if PDF generation is not available.
+    """
+    try:
+        pdf_content = await generate_certificate_pdf(certificate)
+    except RuntimeError as e:
+        raise HTTPException(status_code=501, detail=str(e)) from e
+
     return Response(
         content=pdf_content,
         media_type="application/pdf",
@@ -138,46 +143,47 @@ async def get_verified_certificate_png_endpoint(
 
 
 @router.get(
-    "/{certificate_id}/pdf",
+    "/mine/pdf",
     responses={
         200: {"content": {"application/pdf": {}}, "description": "PDF certificate"},
         401: {"description": "Not authenticated"},
         404: {"description": "Certificate not found"},
+        501: {"description": "PDF generation not available"},
     },
+    summary="Download your certificate as PDF",
 )
 @limiter.limit("10/minute")
 async def get_certificate_pdf_endpoint(
     request: Request,
-    certificate_id: int,
     user_id: UserId,
     db: DbSessionReadOnly,
 ) -> Response:
-    """Get the PDF for a certificate."""
-    certificate = await get_certificate_by_id(db, certificate_id, user_id)
+    """Get the PDF for the authenticated user's certificate."""
+    certificate = await get_user_certificate(db, user_id)
     if not certificate:
         raise HTTPException(status_code=404, detail="Certificate not found")
     return await _build_pdf_response(certificate)
 
 
 @router.get(
-    "/{certificate_id}/png",
+    "/mine/png",
     responses={
         200: {"content": {"image/png": {}}, "description": "PNG certificate image"},
         401: {"description": "Not authenticated"},
         404: {"description": "Certificate not found"},
-        501: {"description": "PNG generation not implemented"},
+        501: {"description": "PNG generation not available"},
     },
+    summary="Download your certificate as PNG",
 )
 @limiter.limit("10/minute")
 async def get_certificate_png_endpoint(
     request: Request,
-    certificate_id: int,
     user_id: UserId,
     db: DbSessionReadOnly,
     scale: float = Query(2.0, ge=1.0, le=4.0),
 ) -> Response:
-    """Get a PNG image for a certificate."""
-    certificate = await get_certificate_by_id(db, certificate_id, user_id)
+    """Get a PNG image for the authenticated user's certificate."""
+    certificate = await get_user_certificate(db, user_id)
     if not certificate:
         raise HTTPException(status_code=404, detail="Certificate not found")
     return await _build_png_response(certificate, scale=scale)

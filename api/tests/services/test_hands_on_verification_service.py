@@ -15,7 +15,6 @@ import pytest
 from models import SubmissionType
 from schemas import HandsOnRequirement, ValidationResult
 from services.hands_on_verification_service import (
-    validate_evidence_url_submission,
     validate_submission,
 )
 
@@ -144,55 +143,8 @@ class TestValidateSubmissionRouting:
 
 
 @pytest.mark.unit
-class TestEvidenceUrlValidation:
-    """Tests for evidence URL validation (Phase 4-6 types)."""
-
-    def test_valid_https_url_succeeds(self):
-        """Valid HTTPS URL should pass."""
-        result = validate_evidence_url_submission("https://example.com/my-deployment")
-
-        assert result.is_valid is True
-        assert "verified" in result.message.lower()
-
-    def test_plain_http_url_fails(self):
-        """Plain HTTP URL should be rejected — HTTPS is required."""
-        result = validate_evidence_url_submission("http://localhost:8080/api")
-
-        assert result.is_valid is False
-        assert "https" in result.message.lower()
-
-    def test_empty_url_fails(self):
-        """Empty string should fail."""
-        result = validate_evidence_url_submission("")
-
-        assert result.is_valid is False
-        assert "valid URL" in result.message
-
-    def test_whitespace_only_fails(self):
-        """Whitespace-only input should fail."""
-        result = validate_evidence_url_submission("   ")
-
-        assert result.is_valid is False
-        assert "valid URL" in result.message
-
-    def test_non_url_string_fails(self):
-        """Non-URL string should fail."""
-        result = validate_evidence_url_submission("not a url")
-
-        assert result.is_valid is False
-        assert "http" in result.message.lower()
-
-    def test_ftp_url_fails(self):
-        """Non-http(s) schemes should fail."""
-        result = validate_evidence_url_submission("ftp://files.example.com/file")
-
-        assert result.is_valid is False
-
-    def test_url_with_whitespace_trimmed(self):
-        """Leading/trailing whitespace should be trimmed."""
-        result = validate_evidence_url_submission("  https://example.com  ")
-
-        assert result.is_valid is True
+class TestSubmissionRouting:
+    """Tests for submission routing to verification services."""
 
     @pytest.mark.asyncio
     async def test_deployed_api_routes_to_verification_service(self):
