@@ -13,9 +13,29 @@ certificate text stays in sync with curriculum changes.
 """
 
 import html
+import os
 import re
+import subprocess
+import sys
 from datetime import datetime
 from functools import lru_cache
+
+# Ensure cairocffi can find the Homebrew-installed Cairo library on macOS.
+# On Apple Silicon, Homebrew installs to /opt/homebrew which is not in the
+# default dynamic library search path, so ctypes.util.find_library('cairo')
+# returns None. We detect this once at import time and extend DYLD_FALLBACK_LIBRARY_PATH.
+if sys.platform == "darwin" and not os.environ.get("DYLD_FALLBACK_LIBRARY_PATH"):
+    try:
+        brew_prefix = subprocess.check_output(
+            ["brew", "--prefix", "cairo"],
+            stderr=subprocess.DEVNULL,
+            text=True,
+        ).strip()
+        lib_dir = os.path.join(brew_prefix, "lib")
+        if os.path.isdir(lib_dir):
+            os.environ["DYLD_FALLBACK_LIBRARY_PATH"] = lib_dir
+    except (FileNotFoundError, subprocess.CalledProcessError):
+        pass  # Homebrew not installed or cairo not available — handled later
 from pathlib import Path
 from typing import TypedDict
 

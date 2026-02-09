@@ -8,9 +8,9 @@
         <code class="bg-gray-100 dark:bg-gray-800 px-1 rounded text-xs">{{ certificate.verification_code }}</code>
     </p>
     <div class="flex gap-3">
-        <a href="/api/certificates/mine/pdf"
+        <a href="/api/certificates/mine/pdf" download hx-boost="false"
            class="text-sm font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400">📄 PDF</a>
-        <a href="/api/certificates/mine/png"
+        <a href="/api/certificates/mine/png" download hx-boost="false"
            class="text-sm font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400">🖼️ PNG</a>
     </div>
 </div>

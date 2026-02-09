@@ -32,10 +32,10 @@
     </div>
 
     <div class="mt-6 flex justify-center gap-4">
-        <a href="/api/certificates/verify/{{ certificate.verification_code }}/pdf" class="text-sm font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400">
+        <a href="/api/certificates/verify/{{ certificate.verification_code }}/pdf" download hx-boost="false" class="text-sm font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400">
             📄 Download PDF
         </a>
-        <a href="/api/certificates/verify/{{ certificate.verification_code }}/png" class="text-sm font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400">
+        <a href="/api/certificates/verify/{{ certificate.verification_code }}/png" download hx-boost="false" class="text-sm font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400">
             🖼️ Download PNG
         </a>
     </div>

@@ -67,7 +67,7 @@ async def _build_png_response(
     certificate: CertificateData,
     *,
     scale: float = 2.0,
-    disposition: str = "inline",
+    disposition: str = "attachment",
 ) -> Response:
     """Generate a PNG and wrap it in a Response with proper headers.
 

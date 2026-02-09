@@ -17,7 +17,7 @@
         </button>
     </form>
 </div>
-{% elif not eligible %}
+{% elif not eligible and not certificate %}
 <div class="mb-8 p-6 rounded-lg bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
     <p class="text-gray-600 dark:text-gray-400">Complete all phases to earn your certificate.</p>
 </div>
@@ -53,10 +53,10 @@
             ></button>
         </p>
         <div class="flex gap-3">
-            <a href="/api/certificates/mine/pdf" class="text-sm font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400">
+            <a href="/api/certificates/mine/pdf" download hx-boost="false" class="text-sm font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400">
                 📄 Download PDF
             </a>
-            <a href="/api/certificates/mine/png" class="text-sm font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400">
+            <a href="/api/certificates/mine/png" download hx-boost="false" class="text-sm font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400">
                 🖼️ Download PNG
             </a>
             <a href="/verify/{{ certificate.verification_code }}" class="text-sm font-medium text-gray-600 hover:text-gray-500 dark:text-gray-400">
