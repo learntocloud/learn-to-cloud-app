@@ -139,12 +139,17 @@ def add_user_span_processor() -> None:
     try:
         from opentelemetry import context as otel_context
         from opentelemetry.context import Context
-        from opentelemetry.sdk.trace import ReadableSpan, Span, TracerProvider
+        from opentelemetry.sdk.trace import (
+            ReadableSpan,
+            Span,
+            SpanProcessor,
+            TracerProvider,
+        )
         from opentelemetry.trace import get_tracer_provider
 
         _USER_ID_KEY = otel_context.create_key("ltc.user_id")
 
-        class _UserIdSpanProcessor:
+        class _UserIdSpanProcessor(SpanProcessor):
             """Lightweight SpanProcessor — reads user_id from OTel context."""
 
             def on_start(
@@ -198,7 +203,7 @@ class UserTrackingMiddleware:
             await self.app(scope, receive, send)
             return
 
-        session: dict = scope.get("session", {})  # type: ignore[assignment]
+        session: dict = scope.get("session", {})
         user_id = session.get("user_id")
 
         if user_id is not None and _telemetry_enabled:
@@ -351,7 +356,9 @@ def _configure_otlp(endpoint: str) -> None:
 
     # ── Outbound HTTP instrumentation ─────────────────────────────────
     try:
-        from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
+        from opentelemetry.instrumentation.httpx import (
+            HTTPXClientInstrumentor,  # type: ignore[import-not-found]
+        )
 
         HTTPXClientInstrumentor().instrument()
     except (ImportError, Exception):
