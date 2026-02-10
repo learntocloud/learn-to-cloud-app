@@ -275,12 +275,19 @@ async def htmx_submit_verification(
         not result.is_valid and submission and not submission.verification_completed
     )
 
+    # Show the validation message as an error banner when the submission
+    # failed but there are no per-task feedback details (e.g. deployed API).
+    error_banner = None
+    if not result.is_valid and not is_server_error and not feedback_tasks:
+        error_banner = result.message
+
     return _render_card(
         submission=submission,
         feedback_tasks=feedback_tasks,
         feedback_passed=feedback_passed,
         server_error=is_server_error,
         server_error_message=result.message if is_server_error else None,
+        error_banner=error_banner,
     )
 
 

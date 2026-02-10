@@ -356,11 +356,10 @@ def _configure_otlp(endpoint: str) -> None:
 
     # ── Outbound HTTP instrumentation ─────────────────────────────────
     try:
-        from opentelemetry.instrumentation.httpx import (
-            HTTPXClientInstrumentor,  # type: ignore[import-not-found]
-        )
+        import importlib
 
-        HTTPXClientInstrumentor().instrument()
+        httpx_mod = importlib.import_module("opentelemetry.instrumentation.httpx")
+        httpx_mod.HTTPXClientInstrumentor().instrument()
     except (ImportError, Exception):
         pass
 
