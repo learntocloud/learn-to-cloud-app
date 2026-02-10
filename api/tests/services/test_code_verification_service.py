@@ -14,6 +14,7 @@ from services.code_verification_service import (
     PHASE3_TASKS,
     SUSPICIOUS_PATTERNS,
     CodeAnalysisResponse,
+    TaskGrade,
     _build_task_results,
     _sanitize_feedback,
 )
@@ -146,19 +147,19 @@ class TestBuildTaskResults:
         """Valid task results should be parsed correctly."""
         analysis = CodeAnalysisResponse(
             tasks=[
-                {
-                    "task_id": "logging-setup",
-                    "passed": True,
-                    "feedback": "Good logging!",
-                },
-                {
-                    "task_id": "get-single-entry",
-                    "passed": False,
-                    "feedback": "Missing 404",
-                },
-                {"task_id": "delete-entry", "passed": False, "feedback": "Not done"},
-                {"task_id": "ai-analysis", "passed": False, "feedback": "Not done"},
-                {"task_id": "cloud-cli-setup", "passed": False, "feedback": "Not done"},
+                TaskGrade(
+                    task_id="logging-setup",
+                    passed=True,
+                    feedback="Good logging!",
+                ),
+                TaskGrade(
+                    task_id="get-single-entry",
+                    passed=False,
+                    feedback="Missing 404",
+                ),
+                TaskGrade(task_id="delete-entry", passed=False, feedback="Not done"),
+                TaskGrade(task_id="ai-analysis", passed=False, feedback="Not done"),
+                TaskGrade(task_id="cloud-cli-setup", passed=False, feedback="Not done"),
             ]
         )
         results, all_passed = _build_task_results(analysis)
@@ -179,15 +180,15 @@ class TestBuildTaskResults:
         # Test that _build_task_results handles the valid subset correctly.
         analysis = CodeAnalysisResponse(
             tasks=[
-                {"task_id": "logging-setup", "passed": True, "feedback": "Real task"},
-                {
-                    "task_id": "get-single-entry",
-                    "passed": False,
-                    "feedback": "Not done",
-                },
-                {"task_id": "delete-entry", "passed": False, "feedback": "Not done"},
-                {"task_id": "ai-analysis", "passed": False, "feedback": "Not done"},
-                {"task_id": "cloud-cli-setup", "passed": False, "feedback": "Not done"},
+                TaskGrade(task_id="logging-setup", passed=True, feedback="Real task"),
+                TaskGrade(
+                    task_id="get-single-entry",
+                    passed=False,
+                    feedback="Not done",
+                ),
+                TaskGrade(task_id="delete-entry", passed=False, feedback="Not done"),
+                TaskGrade(task_id="ai-analysis", passed=False, feedback="Not done"),
+                TaskGrade(task_id="cloud-cli-setup", passed=False, feedback="Not done"),
             ]
         )
         results, all_passed = _build_task_results(analysis)
@@ -203,11 +204,11 @@ class TestBuildTaskResults:
         # where one valid task is present and others are filled.
         analysis = CodeAnalysisResponse(
             tasks=[
-                {"task_id": "logging-setup", "passed": True, "feedback": "Done"},
-                {"task_id": "logging-setup", "passed": True, "feedback": "Done"},
-                {"task_id": "logging-setup", "passed": True, "feedback": "Done"},
-                {"task_id": "logging-setup", "passed": True, "feedback": "Done"},
-                {"task_id": "logging-setup", "passed": True, "feedback": "Done"},
+                TaskGrade(task_id="logging-setup", passed=True, feedback="Done"),
+                TaskGrade(task_id="logging-setup", passed=True, feedback="Done"),
+                TaskGrade(task_id="logging-setup", passed=True, feedback="Done"),
+                TaskGrade(task_id="logging-setup", passed=True, feedback="Done"),
+                TaskGrade(task_id="logging-setup", passed=True, feedback="Done"),
             ]
         )
         results, all_passed = _build_task_results(analysis)
@@ -224,15 +225,15 @@ class TestBuildTaskResults:
         """Feedback should be sanitized in results."""
         analysis = CodeAnalysisResponse(
             tasks=[
-                {
-                    "task_id": "logging-setup",
-                    "passed": True,
-                    "feedback": "Visit <script>evil</script> https://bad.com",
-                },
-                {"task_id": "get-single-entry", "passed": False, "feedback": "No"},
-                {"task_id": "delete-entry", "passed": False, "feedback": "No"},
-                {"task_id": "ai-analysis", "passed": False, "feedback": "No"},
-                {"task_id": "cloud-cli-setup", "passed": False, "feedback": "No"},
+                TaskGrade(
+                    task_id="logging-setup",
+                    passed=True,
+                    feedback="Visit <script>evil</script> https://bad.com",
+                ),
+                TaskGrade(task_id="get-single-entry", passed=False, feedback="No"),
+                TaskGrade(task_id="delete-entry", passed=False, feedback="No"),
+                TaskGrade(task_id="ai-analysis", passed=False, feedback="No"),
+                TaskGrade(task_id="cloud-cli-setup", passed=False, feedback="No"),
             ]
         )
         results, _ = _build_task_results(analysis)
@@ -245,11 +246,11 @@ class TestBuildTaskResults:
         """all_passed should be True only when all 5 tasks pass."""
         analysis = CodeAnalysisResponse(
             tasks=[
-                {"task_id": "logging-setup", "passed": True, "feedback": "OK"},
-                {"task_id": "get-single-entry", "passed": True, "feedback": "OK"},
-                {"task_id": "delete-entry", "passed": True, "feedback": "OK"},
-                {"task_id": "ai-analysis", "passed": True, "feedback": "OK"},
-                {"task_id": "cloud-cli-setup", "passed": True, "feedback": "OK"},
+                TaskGrade(task_id="logging-setup", passed=True, feedback="OK"),
+                TaskGrade(task_id="get-single-entry", passed=True, feedback="OK"),
+                TaskGrade(task_id="delete-entry", passed=True, feedback="OK"),
+                TaskGrade(task_id="ai-analysis", passed=True, feedback="OK"),
+                TaskGrade(task_id="cloud-cli-setup", passed=True, feedback="OK"),
             ]
         )
         results, all_passed = _build_task_results(analysis)

@@ -20,6 +20,7 @@ from services.devops_verification_service import (
     PHASE5_TASKS,
     DevOpsAnalysisError,
     DevOpsAnalysisLLMResponse,
+    DevOpsTaskGrade,
     _build_task_results,
     _build_verification_prompt,
     _extract_repo_info,
@@ -138,7 +139,7 @@ class TestParseStructuredResponse:
         """Should extract response from result.value."""
         expected = DevOpsAnalysisLLMResponse(
             tasks=[
-                {"task_id": t["id"], "passed": True, "feedback": "Good"}
+                DevOpsTaskGrade(task_id=t["id"], passed=True, feedback="Good")
                 for t in PHASE5_TASKS
             ]
         )
@@ -223,7 +224,7 @@ class TestBuildTaskResults:
     def test_all_passed(self):
         analysis = DevOpsAnalysisLLMResponse(
             tasks=[
-                {"task_id": t["id"], "passed": True, "feedback": "Done"}
+                DevOpsTaskGrade(task_id=t["id"], passed=True, feedback="Done")
                 for t in PHASE5_TASKS
             ]
         )
@@ -234,14 +235,16 @@ class TestBuildTaskResults:
     def test_some_failed(self):
         analysis = DevOpsAnalysisLLMResponse(
             tasks=[
-                {"task_id": "dockerfile", "passed": True, "feedback": "Done"},
-                {"task_id": "cicd-pipeline", "passed": False, "feedback": "Missing"},
-                {"task_id": "terraform-iac", "passed": True, "feedback": "Done"},
-                {
-                    "task_id": "kubernetes-manifests",
-                    "passed": False,
-                    "feedback": "Missing",
-                },
+                DevOpsTaskGrade(task_id="dockerfile", passed=True, feedback="Done"),
+                DevOpsTaskGrade(
+                    task_id="cicd-pipeline", passed=False, feedback="Missing"
+                ),
+                DevOpsTaskGrade(task_id="terraform-iac", passed=True, feedback="Done"),
+                DevOpsTaskGrade(
+                    task_id="kubernetes-manifests",
+                    passed=False,
+                    feedback="Missing",
+                ),
             ]
         )
         results, all_passed = _build_task_results(analysis)
@@ -254,10 +257,10 @@ class TestBuildTaskResults:
         # the fallback by providing duplicate task_ids.
         analysis = DevOpsAnalysisLLMResponse(
             tasks=[
-                {"task_id": "dockerfile", "passed": True, "feedback": "Done"},
-                {"task_id": "dockerfile", "passed": True, "feedback": "Done"},
-                {"task_id": "dockerfile", "passed": True, "feedback": "Done"},
-                {"task_id": "dockerfile", "passed": True, "feedback": "Done"},
+                DevOpsTaskGrade(task_id="dockerfile", passed=True, feedback="Done"),
+                DevOpsTaskGrade(task_id="dockerfile", passed=True, feedback="Done"),
+                DevOpsTaskGrade(task_id="dockerfile", passed=True, feedback="Done"),
+                DevOpsTaskGrade(task_id="dockerfile", passed=True, feedback="Done"),
             ]
         )
         results, all_passed = _build_task_results(analysis)
@@ -270,14 +273,16 @@ class TestBuildTaskResults:
     def test_feedback_sanitized(self):
         analysis = DevOpsAnalysisLLMResponse(
             tasks=[
-                {
-                    "task_id": "dockerfile",
-                    "passed": True,
-                    "feedback": "Visit <script>evil</script>",
-                },
-                {"task_id": "cicd-pipeline", "passed": True, "feedback": "Done"},
-                {"task_id": "terraform-iac", "passed": True, "feedback": "Done"},
-                {"task_id": "kubernetes-manifests", "passed": True, "feedback": "Done"},
+                DevOpsTaskGrade(
+                    task_id="dockerfile",
+                    passed=True,
+                    feedback="Visit <script>evil</script>",
+                ),
+                DevOpsTaskGrade(task_id="cicd-pipeline", passed=True, feedback="Done"),
+                DevOpsTaskGrade(task_id="terraform-iac", passed=True, feedback="Done"),
+                DevOpsTaskGrade(
+                    task_id="kubernetes-manifests", passed=True, feedback="Done"
+                ),
             ]
         )
         results, _ = _build_task_results(analysis)
