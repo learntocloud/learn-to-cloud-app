@@ -105,11 +105,11 @@ which must run **before** FastAPI is imported.
 | **HTTP requests** | FastAPI auto-instrumentation → App Insights `AppRequests` |
 | **SQL queries** | `instrument_sqlalchemy_engine()` → query spans with `sqlcommenter` |
 | **Outbound HTTP** | `requests` / `urllib` / `urllib3` auto-instrumented |
-| **LLM calls** | Agent Framework `setup_observability()` traces LLM interactions |
+| **LLM calls** | Agent Framework `enable_instrumentation()` traces LLM calls + token usage |
 
 ### `SecurityHeadersMiddleware`
 
-`core/telemetry.py` also provides `SecurityHeadersMiddleware` (CSP, HSTS, X-Frame-Options, etc.),
+`core/observability.py` also provides `SecurityHeadersMiddleware` (CSP, HSTS, X-Frame-Options, etc.),
 added in `main.py`'s middleware stack.
 
 ---

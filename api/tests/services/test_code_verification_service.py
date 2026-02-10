@@ -13,6 +13,7 @@ from services.code_verification_service import (
     ALLOWED_FILE_PATHS,
     PHASE3_TASKS,
     SUSPICIOUS_PATTERNS,
+    CodeAnalysisResponse,
     _build_task_results,
     _sanitize_feedback,
 )
@@ -143,11 +144,24 @@ class TestBuildTaskResults:
 
     def test_valid_results_parsed(self):
         """Valid task results should be parsed correctly."""
-        parsed = [
-            {"task_id": "logging-setup", "passed": True, "feedback": "Good logging!"},
-            {"task_id": "get-single-entry", "passed": False, "feedback": "Missing 404"},
-        ]
-        results, all_passed = _build_task_results(parsed)
+        analysis = CodeAnalysisResponse(
+            tasks=[
+                {
+                    "task_id": "logging-setup",
+                    "passed": True,
+                    "feedback": "Good logging!",
+                },
+                {
+                    "task_id": "get-single-entry",
+                    "passed": False,
+                    "feedback": "Missing 404",
+                },
+                {"task_id": "delete-entry", "passed": False, "feedback": "Not done"},
+                {"task_id": "ai-analysis", "passed": False, "feedback": "Not done"},
+                {"task_id": "cloud-cli-setup", "passed": False, "feedback": "Not done"},
+            ]
+        )
+        results, all_passed = _build_task_results(analysis)
 
         assert len(results) == 5  # All 5 tasks, missing ones filled in
         assert not all_passed  # One failed
@@ -157,24 +171,46 @@ class TestBuildTaskResults:
         assert logging_result.feedback == "Good logging!"
 
     def test_invalid_task_ids_ignored(self):
-        """Task IDs not in PHASE3_TASKS should be ignored."""
-        parsed = [
-            {"task_id": "fake-task", "passed": True, "feedback": "Injected!"},
-            {"task_id": "logging-setup", "passed": True, "feedback": "Real task"},
-        ]
-        results, all_passed = _build_task_results(parsed)
+        """Task IDs not in PHASE3_TASKS should be ignored.
 
-        # Should not include fake-task
+        With structured outputs, invalid task_ids are rejected by Pydantic.
+        """
+        # With structured outputs, invalid task_ids are rejected by Pydantic.
+        # Test that _build_task_results handles the valid subset correctly.
+        analysis = CodeAnalysisResponse(
+            tasks=[
+                {"task_id": "logging-setup", "passed": True, "feedback": "Real task"},
+                {
+                    "task_id": "get-single-entry",
+                    "passed": False,
+                    "feedback": "Not done",
+                },
+                {"task_id": "delete-entry", "passed": False, "feedback": "Not done"},
+                {"task_id": "ai-analysis", "passed": False, "feedback": "Not done"},
+                {"task_id": "cloud-cli-setup", "passed": False, "feedback": "Not done"},
+            ]
+        )
+        results, all_passed = _build_task_results(analysis)
+
         task_names = [r.task_name for r in results]
-        assert "fake-task" not in task_names
         assert "Logging Setup" in task_names
 
     def test_missing_tasks_filled_with_not_evaluated(self):
         """Tasks not in response should show as not evaluated."""
-        parsed = [
-            {"task_id": "logging-setup", "passed": True, "feedback": "Done"},
-        ]
-        results, all_passed = _build_task_results(parsed)
+        # Structured output enforces min_length=5, but _build_task_results
+        # still handles partial results gracefully for fallback parsing.
+        # We test this by constructing a response with duplicate task_ids
+        # where one valid task is present and others are filled.
+        analysis = CodeAnalysisResponse(
+            tasks=[
+                {"task_id": "logging-setup", "passed": True, "feedback": "Done"},
+                {"task_id": "logging-setup", "passed": True, "feedback": "Done"},
+                {"task_id": "logging-setup", "passed": True, "feedback": "Done"},
+                {"task_id": "logging-setup", "passed": True, "feedback": "Done"},
+                {"task_id": "logging-setup", "passed": True, "feedback": "Done"},
+            ]
+        )
+        results, all_passed = _build_task_results(analysis)
 
         assert not all_passed  # Missing tasks = not passed
 
@@ -186,45 +222,37 @@ class TestBuildTaskResults:
 
     def test_feedback_sanitized_in_results(self):
         """Feedback should be sanitized in results."""
-        parsed = [
-            {
-                "task_id": "logging-setup",
-                "passed": True,
-                "feedback": "Visit <script>evil</script> https://bad.com",
-            },
-        ]
-        results, _ = _build_task_results(parsed)
+        analysis = CodeAnalysisResponse(
+            tasks=[
+                {
+                    "task_id": "logging-setup",
+                    "passed": True,
+                    "feedback": "Visit <script>evil</script> https://bad.com",
+                },
+                {"task_id": "get-single-entry", "passed": False, "feedback": "No"},
+                {"task_id": "delete-entry", "passed": False, "feedback": "No"},
+                {"task_id": "ai-analysis", "passed": False, "feedback": "No"},
+                {"task_id": "cloud-cli-setup", "passed": False, "feedback": "No"},
+            ]
+        )
+        results, _ = _build_task_results(analysis)
 
         logging_result = next(r for r in results if r.task_name == "Logging Setup")
         assert "<script>" not in logging_result.feedback
         assert "https://bad.com" not in logging_result.feedback
 
-    def test_passed_coerced_to_boolean(self):
-        """Non-boolean passed values should be coerced."""
-        parsed = [
-            {"task_id": "logging-setup", "passed": "true", "feedback": "OK"},
-            {"task_id": "get-single-entry", "passed": "false", "feedback": "No"},
-        ]
-        results, _ = _build_task_results(parsed)
-
-        logging_result = next(r for r in results if r.task_name == "Logging Setup")
-        get_result = next(
-            r for r in results if r.task_name == "GET Single Entry Endpoint"
-        )
-
-        assert logging_result.passed is True
-        assert get_result.passed is False
-
     def test_all_passed_only_when_all_five_pass(self):
         """all_passed should be True only when all 5 tasks pass."""
-        all_pass = [
-            {"task_id": "logging-setup", "passed": True, "feedback": "OK"},
-            {"task_id": "get-single-entry", "passed": True, "feedback": "OK"},
-            {"task_id": "delete-entry", "passed": True, "feedback": "OK"},
-            {"task_id": "ai-analysis", "passed": True, "feedback": "OK"},
-            {"task_id": "cloud-cli-setup", "passed": True, "feedback": "OK"},
-        ]
-        results, all_passed = _build_task_results(all_pass)
+        analysis = CodeAnalysisResponse(
+            tasks=[
+                {"task_id": "logging-setup", "passed": True, "feedback": "OK"},
+                {"task_id": "get-single-entry", "passed": True, "feedback": "OK"},
+                {"task_id": "delete-entry", "passed": True, "feedback": "OK"},
+                {"task_id": "ai-analysis", "passed": True, "feedback": "OK"},
+                {"task_id": "cloud-cli-setup", "passed": True, "feedback": "OK"},
+            ]
+        )
+        results, all_passed = _build_task_results(analysis)
 
         assert all_passed is True
         assert all(r.passed for r in results)

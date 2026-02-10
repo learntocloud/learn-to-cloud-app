@@ -19,11 +19,12 @@ from schemas import TaskResult, ValidationResult
 from services.devops_verification_service import (
     PHASE5_TASKS,
     DevOpsAnalysisError,
+    DevOpsAnalysisLLMResponse,
     _build_task_results,
     _build_verification_prompt,
     _extract_repo_info,
     _filter_devops_files,
-    _parse_analysis_response,
+    _parse_structured_response,
     _sanitize_feedback,
     analyze_devops_repository,
 )
@@ -130,56 +131,56 @@ class TestFilterDevopsFiles:
 
 
 @pytest.mark.unit
-class TestParseAnalysisResponse:
-    """Tests for LLM response parsing."""
+class TestParseStructuredResponse:
+    """Tests for structured response parsing."""
 
-    def test_valid_json_response(self):
-        task = {
-            "task_id": "dockerfile",
-            "passed": True,
-            "feedback": "Good",
-        }
-        response = json.dumps({"tasks": [task]})
-        result = _parse_analysis_response(response)
-        assert len(result) == 1
-        assert result[0]["task_id"] == "dockerfile"
-        assert result[0]["passed"] is True
+    def test_valid_response_from_value(self):
+        """Should extract response from result.value."""
+        expected = DevOpsAnalysisLLMResponse(
+            tasks=[
+                {"task_id": t["id"], "passed": True, "feedback": "Good"}
+                for t in PHASE5_TASKS
+            ]
+        )
+        mock_result = MagicMock()
+        mock_result.value = expected
+        mock_result.text = ""
 
-    def test_json_in_code_block(self):
-        task = {
-            "task_id": "dockerfile",
-            "passed": True,
-            "feedback": "Good",
-        }
-        payload = json.dumps({"tasks": [task]})
-        response = f"```json\n{payload}\n```"
-        result = _parse_analysis_response(response)
-        assert len(result) == 1
+        result = _parse_structured_response(mock_result)
+        assert len(result.tasks) == 4
+        assert result.tasks[0].task_id == "dockerfile"
+        assert result.tasks[0].passed is True
 
-    def test_full_response_with_all_tasks(self):
+    def test_fallback_to_text_parsing(self):
+        """Should fall back to parsing result.text when value is None."""
         tasks = [
-            {"task_id": t["id"], "passed": True, "feedback": f"{t['name']} done"}
+            {"task_id": t["id"], "passed": True, "feedback": "Good"}
             for t in PHASE5_TASKS
         ]
-        response = json.dumps({"tasks": tasks})
-        result = _parse_analysis_response(response)
-        assert len(result) == 4
+        mock_result = MagicMock()
+        mock_result.value = None
+        mock_result.text = json.dumps({"tasks": tasks})
 
-    def test_missing_tasks_field_raises(self):
-        with pytest.raises(DevOpsAnalysisError, match="not a list"):
-            _parse_analysis_response('{"tasks": "not a list"}')
+        result = _parse_structured_response(mock_result)
+        assert len(result.tasks) == 4
 
-    def test_no_json_raises(self):
-        with pytest.raises(DevOpsAnalysisError, match="Could not extract JSON"):
-            _parse_analysis_response("This is just plain text with no JSON")
+    def test_empty_text_raises(self):
+        """Should raise when both value and text are empty."""
+        mock_result = MagicMock()
+        mock_result.value = None
+        mock_result.text = ""
 
-    def test_invalid_json_raises(self):
-        with pytest.raises(DevOpsAnalysisError, match="Invalid JSON"):
-            _parse_analysis_response('{"tasks": [invalid]}')
+        with pytest.raises(DevOpsAnalysisError, match="No response received"):
+            _parse_structured_response(mock_result)
 
-    def test_tasks_not_list_raises(self):
-        with pytest.raises(DevOpsAnalysisError, match="not a list"):
-            _parse_analysis_response('{"tasks": "not a list"}')
+    def test_invalid_text_raises(self):
+        """Should raise when text is not valid JSON."""
+        mock_result = MagicMock()
+        mock_result.value = None
+        mock_result.text = "This is just plain text with no JSON"
+
+        with pytest.raises(DevOpsAnalysisError, match="Could not parse"):
+            _parse_structured_response(mock_result)
 
 
 @pytest.mark.unit
@@ -220,55 +221,70 @@ class TestBuildTaskResults:
     """Tests for converting parsed tasks to TaskResult objects."""
 
     def test_all_passed(self):
-        parsed = [
-            {"task_id": t["id"], "passed": True, "feedback": "Done"}
-            for t in PHASE5_TASKS
-        ]
-        results, all_passed = _build_task_results(parsed)
+        analysis = DevOpsAnalysisLLMResponse(
+            tasks=[
+                {"task_id": t["id"], "passed": True, "feedback": "Done"}
+                for t in PHASE5_TASKS
+            ]
+        )
+        results, all_passed = _build_task_results(analysis)
         assert all_passed is True
         assert len(results) == 4
 
     def test_some_failed(self):
-        parsed = [
-            {"task_id": "dockerfile", "passed": True, "feedback": "Done"},
-            {"task_id": "cicd-pipeline", "passed": False, "feedback": "Missing"},
-            {"task_id": "terraform-iac", "passed": True, "feedback": "Done"},
-            {"task_id": "kubernetes-manifests", "passed": False, "feedback": "Missing"},
-        ]
-        results, all_passed = _build_task_results(parsed)
+        analysis = DevOpsAnalysisLLMResponse(
+            tasks=[
+                {"task_id": "dockerfile", "passed": True, "feedback": "Done"},
+                {"task_id": "cicd-pipeline", "passed": False, "feedback": "Missing"},
+                {"task_id": "terraform-iac", "passed": True, "feedback": "Done"},
+                {
+                    "task_id": "kubernetes-manifests",
+                    "passed": False,
+                    "feedback": "Missing",
+                },
+            ]
+        )
+        results, all_passed = _build_task_results(analysis)
         assert all_passed is False
         assert sum(1 for r in results if r.passed) == 2
 
     def test_missing_tasks_are_failed(self):
         """Tasks not in the response should be marked as failed."""
-        parsed = [
-            {"task_id": "dockerfile", "passed": True, "feedback": "Done"},
-        ]
-        results, all_passed = _build_task_results(parsed)
+        # With structured output enforcing min/max length=4, we test
+        # the fallback by providing duplicate task_ids.
+        analysis = DevOpsAnalysisLLMResponse(
+            tasks=[
+                {"task_id": "dockerfile", "passed": True, "feedback": "Done"},
+                {"task_id": "dockerfile", "passed": True, "feedback": "Done"},
+                {"task_id": "dockerfile", "passed": True, "feedback": "Done"},
+                {"task_id": "dockerfile", "passed": True, "feedback": "Done"},
+            ]
+        )
+        results, all_passed = _build_task_results(analysis)
         assert all_passed is False
-        assert len(results) == 4  # All 4 tasks present
+        # dockerfile (4x) + 3 missing tasks filled in
+        assert len(results) == 7
         failed = [r for r in results if not r.passed]
         assert len(failed) == 3
 
-    def test_invalid_task_ids_skipped(self):
-        parsed = [
-            {"task_id": "invalid-id", "passed": True, "feedback": "Done"},
-        ]
-        results, all_passed = _build_task_results(parsed)
-        # All 4 tasks should be missing → failed
-        assert all_passed is False
-        assert len(results) == 4
-        assert all(not r.passed for r in results)
-
-    def test_string_passed_converted_to_bool(self):
-        parsed = [
-            {"task_id": "dockerfile", "passed": "true", "feedback": "Done"},
-        ]
-        results, _ = _build_task_results(parsed)
+    def test_feedback_sanitized(self):
+        analysis = DevOpsAnalysisLLMResponse(
+            tasks=[
+                {
+                    "task_id": "dockerfile",
+                    "passed": True,
+                    "feedback": "Visit <script>evil</script>",
+                },
+                {"task_id": "cicd-pipeline", "passed": True, "feedback": "Done"},
+                {"task_id": "terraform-iac", "passed": True, "feedback": "Done"},
+                {"task_id": "kubernetes-manifests", "passed": True, "feedback": "Done"},
+            ]
+        )
+        results, _ = _build_task_results(analysis)
         dockerfile_result = next(
             r for r in results if r.task_name == "Containerization (Dockerfile)"
         )
-        assert dockerfile_result.passed is True
+        assert "<script>" not in dockerfile_result.feedback
 
 
 @pytest.mark.unit

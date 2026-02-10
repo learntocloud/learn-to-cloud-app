@@ -21,13 +21,13 @@ For LLM client infrastructure, see core/llm_client.py
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 import re
-from typing import Any, TypedDict
+from typing import Any, Literal, TypedDict
 
 import httpx
 from circuitbreaker import CircuitBreakerError, circuit
+from pydantic import BaseModel, Field
 from tenacity import (
     retry,
     retry_if_exception_type,
@@ -183,6 +183,36 @@ PHASE5_TASKS: list[TaskDefinition] = [
         ],
     },
 ]
+
+
+# Valid task IDs as a Literal type for structured output validation
+_VALID_TASK_IDS = Literal[
+    "dockerfile",
+    "cicd-pipeline",
+    "terraform-iac",
+    "kubernetes-manifests",
+]
+
+
+class DevOpsTaskGrade(BaseModel):
+    """Structured output model for a single DevOps task grade."""
+
+    task_id: _VALID_TASK_IDS = Field(description="The task identifier")
+    passed: bool = Field(description="Whether the task implementation is complete")
+    feedback: str = Field(
+        description="1-3 sentences of specific, educational feedback",
+        max_length=500,
+    )
+
+
+class DevOpsAnalysisLLMResponse(BaseModel):
+    """Structured output model for the full DevOps analysis LLM response."""
+
+    tasks: list[DevOpsTaskGrade] = Field(
+        description="Grading results for all 4 tasks",
+        min_length=4,
+        max_length=4,
+    )
 
 
 class DevOpsAnalysisError(Exception):
@@ -404,7 +434,6 @@ def _build_verification_prompt(
         )
 
     tasks_text = "\n\n---\n\n".join(tasks_section)
-    task_ids = [t["id"] for t in PHASE5_TASKS]
 
     return f"""You are a DevOps instructor grading the Learn to Cloud Phase 5 capstone.
 
@@ -436,24 +465,6 @@ For each task:
 ## Tasks to Grade
 
 {tasks_text}
-
-## Response Format
-
-CRITICAL REQUIREMENTS:
-- Use EXACTLY these task_id values: {task_ids}
-- Include ALL 4 tasks
-- Set passed=true ONLY if the implementation is complete (not just started)
-- Feedback must be 1-3 sentences, specific to the code you saw
-
-Respond with ONLY this JSON (no markdown, no explanation):
-{{
-  "tasks": [
-    {{"task_id": "dockerfile", "passed": false, "feedback": "..."}},
-    {{"task_id": "cicd-pipeline", "passed": false, "feedback": "..."}},
-    {{"task_id": "terraform-iac", "passed": false, "feedback": "..."}},
-    {{"task_id": "kubernetes-manifests", "passed": false, "feedback": "..."}}
-  ]
-}}
 """
 
 
@@ -462,59 +473,45 @@ Respond with ONLY this JSON (no markdown, no explanation):
 # =============================================================================
 
 
-def _parse_analysis_response(response_text: str) -> list[dict[str, Any]]:
-    """Parse the LLM response to extract task results.
+def _parse_structured_response(
+    result: Any,
+) -> DevOpsAnalysisLLMResponse:
+    """Extract the structured response from the agent result.
+
+    Uses ``result.value`` when the LLM returned structured output.
+    Falls back to parsing ``result.text`` if value is not populated.
+
+    Args:
+        result: The AgentRunResponse from ChatAgent.run().
+
+    Returns:
+        Validated DevOpsAnalysisLLMResponse.
 
     Raises:
         DevOpsAnalysisError: If response cannot be parsed.
     """
-    # Try markdown code block first, then raw JSON
-    json_match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", response_text, re.DOTALL)
-    if json_match:
-        json_str = json_match.group(1)
-    else:
-        json_match = re.search(r"\{.*\"tasks\".*\}", response_text, re.DOTALL)
-        if json_match:
-            json_str = json_match.group(0)
-        else:
-            raise DevOpsAnalysisError(
-                "Could not extract JSON from analysis response",
-                retriable=True,
-            )
+    # Prefer structured output value (populated by response_format)
+    if result.value is not None:
+        if isinstance(result.value, DevOpsAnalysisLLMResponse):
+            return result.value
+        try:
+            return DevOpsAnalysisLLMResponse.model_validate(result.value)
+        except Exception:
+            pass
+
+    # Fallback: parse from text
+    text = result.text
+    if not text:
+        raise DevOpsAnalysisError(
+            "No response received from DevOps analysis",
+            retriable=True,
+        )
 
     try:
-        data = json.loads(json_str)
-        if "tasks" not in data:
-            raise DevOpsAnalysisError(
-                "Response missing 'tasks' field",
-                retriable=True,
-            )
-
-        tasks = data["tasks"]
-        if not isinstance(tasks, list):
-            raise DevOpsAnalysisError(
-                "Response 'tasks' field is not a list",
-                retriable=True,
-            )
-
-        valid_task_ids = {t["id"] for t in PHASE5_TASKS}
-        for task in tasks:
-            if not isinstance(task, dict):
-                raise DevOpsAnalysisError(
-                    "Task entry is not an object",
-                    retriable=True,
-                )
-            task_id = task.get("task_id")
-            if task_id not in valid_task_ids:
-                logger.warning(
-                    "devops_analysis.invalid_task_id",
-                    extra={"task_id": task_id},
-                )
-
-        return tasks
-    except json.JSONDecodeError as e:
+        return DevOpsAnalysisLLMResponse.model_validate_json(text)
+    except Exception as e:
         raise DevOpsAnalysisError(
-            f"Invalid JSON in analysis response: {e}",
+            f"Could not parse analysis response: {e}",
             retriable=True,
         ) from e
 
@@ -536,41 +533,37 @@ def _sanitize_feedback(feedback: str) -> str:
 
 
 def _build_task_results(
-    parsed_tasks: list[dict[str, Any]],
+    analysis: DevOpsAnalysisLLMResponse,
 ) -> tuple[list[TaskResult], bool]:
-    """Convert parsed task data to TaskResult objects with sanitization."""
+    """Convert structured analysis response to TaskResult objects.
+
+    Sanitizes feedback and ensures all expected tasks have results.
+    """
     task_names = {task["id"]: task["name"] for task in PHASE5_TASKS}
     valid_task_ids = set(task_names.keys())
 
     results: list[TaskResult] = []
     all_passed = True
 
-    for task in parsed_tasks:
-        task_id = task.get("task_id", "unknown")
-        if task_id not in valid_task_ids:
+    for grade in analysis.tasks:
+        if grade.task_id not in valid_task_ids:
             continue
 
-        passed = task.get("passed", False)
-        feedback = _sanitize_feedback(task.get("feedback", ""))
+        feedback = _sanitize_feedback(grade.feedback)
 
-        if not isinstance(passed, bool):
-            passed = str(passed).lower() == "true"
-
-        if not passed:
+        if not grade.passed:
             all_passed = False
 
         results.append(
             TaskResult(
-                task_name=task_names.get(task_id, task_id),
-                passed=passed,
+                task_name=task_names.get(grade.task_id, grade.task_id),
+                passed=grade.passed,
                 feedback=feedback,
             )
         )
 
     # Ensure all expected tasks have results
-    found_ids = {
-        t.get("task_id") for t in parsed_tasks if t.get("task_id") in valid_task_ids
-    }
+    found_ids = {g.task_id for g in analysis.tasks if g.task_id in valid_task_ids}
     for task in PHASE5_TASKS:
         if task["id"] not in found_ids:
             all_passed = False
@@ -626,13 +619,14 @@ async def _analyze_with_llm(
     agent = ChatAgent(
         chat_client=chat_client,
         instructions=prompt,
+        response_format=DevOpsAnalysisLLMResponse,
     )
 
     timeout_seconds = get_settings().llm_cli_timeout
     try:
         async with asyncio.timeout(timeout_seconds):
             result = await agent.run(
-                "Analyze the repository artifacts and grade all tasks."
+                "Analyze the repository artifacts and grade all 4 tasks."
             )
     except TimeoutError:
         logger.error(
@@ -643,20 +637,9 @@ async def _analyze_with_llm(
             f"DevOps analysis timed out after {timeout_seconds}s",
             retriable=True,
         ) from None
-    response_content = result.text
 
-    if not response_content:
-        logger.error(
-            "devops_analysis.empty_response",
-            extra={"owner": owner, "repo": repo},
-        )
-        raise DevOpsAnalysisError(
-            "No response received from DevOps analysis",
-            retriable=True,
-        )
-
-    parsed_tasks = _parse_analysis_response(response_content)
-    task_results, all_passed = _build_task_results(parsed_tasks)
+    analysis = _parse_structured_response(result)
+    task_results, all_passed = _build_task_results(analysis)
 
     passed_count = sum(1 for t in task_results if t.passed)
     total_count = len(task_results)

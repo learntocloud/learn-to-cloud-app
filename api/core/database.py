@@ -181,7 +181,7 @@ def create_engine() -> AsyncEngine:
     _setup_pool_event_listeners(engine)
 
     try:
-        from .telemetry import instrument_sqlalchemy_engine
+        from .observability import instrument_sqlalchemy_engine
 
         instrument_sqlalchemy_engine(engine)
     except Exception:

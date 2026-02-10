@@ -3,7 +3,6 @@
 import asyncio
 import hashlib
 import logging
-import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -12,59 +11,9 @@ from pathlib import Path
 # time. If FastAPI is imported first, requests won't appear in AppRequests.
 # See: https://learn.microsoft.com/en-us/troubleshoot/azure/azure-monitor/
 #      app-insights/telemetry/opentelemetry-troubleshooting-python
+from core.observability import configure_observability  # noqa: E402
 
-
-def _configure_observability() -> None:
-    """Set up Azure Monitor + Agent Framework observability if configured."""
-    conn_str = os.getenv("APPLICATIONINSIGHTS_CONNECTION_STRING")
-    if not conn_str:
-        return
-
-    try:
-        from azure.monitor.opentelemetry import configure_azure_monitor
-
-        configure_azure_monitor(
-            enable_live_metrics=True,
-            instrumentation_options={
-                "azure_sdk": {"enabled": True},
-                "flask": {"enabled": False},
-                "django": {"enabled": False},
-                "fastapi": {"enabled": True},
-                "psycopg2": {"enabled": False},
-                "requests": {"enabled": True},
-                "urllib": {"enabled": True},
-                "urllib3": {"enabled": True},
-            },
-        )
-    except (ValueError, Exception) as exc:
-        # Invalid connection string (e.g. placeholder instrumentation key)
-        # — log warning and continue without Azure Monitor
-        import logging
-
-        logging.getLogger(__name__).warning(
-            "azure.monitor.init.failed",
-            extra={"error": str(exc)},
-        )
-        return
-
-    # Enable Agent Framework built-in OTel tracing for LLM calls.
-    # Skip if Azure Monitor already configured providers — calling
-    # setup_observability() would override them and trigger
-    # "Overriding of current TracerProvider" warnings.
-    try:
-        from opentelemetry.trace import get_tracer_provider
-
-        provider = get_tracer_provider()
-        already_configured = type(provider).__name__ != "ProxyTracerProvider"
-        if not already_configured:
-            from agent_framework.observability import setup_observability
-
-            setup_observability()
-    except (ImportError, Exception):
-        pass
-
-
-_configure_observability()
+configure_observability()
 
 # ── Now safe to import FastAPI and everything else ────────────────────
 from fastapi import FastAPI, Request  # noqa: E402
@@ -87,12 +36,13 @@ from core.database import (  # noqa: E402
     warm_pool,
 )
 from core.logger import configure_logging  # noqa: E402
-from core.ratelimit import limiter, rate_limit_exceeded_handler  # noqa: E402
-from core.telemetry import (  # noqa: E402
+from core.observability import (  # noqa: E402
     SecurityHeadersMiddleware,
     UserTrackingMiddleware,
     add_user_span_processor,
+    instrument_app,
 )
+from core.ratelimit import limiter, rate_limit_exceeded_handler  # noqa: E402
 from routes import (  # noqa: E402
     analytics_router,
     auth_router,
@@ -305,6 +255,8 @@ app = FastAPI(
     redoc_url="/redoc" if _settings.enable_docs or _settings.debug else None,
     openapi_url=("/openapi.json" if _settings.enable_docs or _settings.debug else None),
 )
+
+instrument_app(app)
 
 app.state.templates = templates
 app.state.limiter = limiter
