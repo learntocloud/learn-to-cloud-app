@@ -139,8 +139,12 @@ class TestParseStructuredResponse:
         """Should extract response from result.value."""
         expected = DevOpsAnalysisLLMResponse(
             tasks=[
-                DevOpsTaskGrade(task_id=t["id"], passed=True, feedback="Good")
-                for t in PHASE5_TASKS
+                DevOpsTaskGrade(task_id="dockerfile", passed=True, feedback="Good"),
+                DevOpsTaskGrade(task_id="cicd-pipeline", passed=True, feedback="Good"),
+                DevOpsTaskGrade(task_id="terraform-iac", passed=True, feedback="Good"),
+                DevOpsTaskGrade(
+                    task_id="kubernetes-manifests", passed=True, feedback="Good"
+                ),
             ]
         )
         mock_result = MagicMock()
@@ -224,8 +228,12 @@ class TestBuildTaskResults:
     def test_all_passed(self):
         analysis = DevOpsAnalysisLLMResponse(
             tasks=[
-                DevOpsTaskGrade(task_id=t["id"], passed=True, feedback="Done")
-                for t in PHASE5_TASKS
+                DevOpsTaskGrade(task_id="dockerfile", passed=True, feedback="Done"),
+                DevOpsTaskGrade(task_id="cicd-pipeline", passed=True, feedback="Done"),
+                DevOpsTaskGrade(task_id="terraform-iac", passed=True, feedback="Done"),
+                DevOpsTaskGrade(
+                    task_id="kubernetes-manifests", passed=True, feedback="Done"
+                ),
             ]
         )
         results, all_passed = _build_task_results(analysis)

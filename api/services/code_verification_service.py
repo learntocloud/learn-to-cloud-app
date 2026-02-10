@@ -493,7 +493,7 @@ def _parse_structured_response(
         ) from e
 
 
-def _sanitize_feedback(feedback: str) -> str:
+def _sanitize_feedback(feedback: str | None) -> str:
     """Sanitize LLM-generated feedback before displaying to users.
 
     Removes potentially harmful content while preserving educational value.
