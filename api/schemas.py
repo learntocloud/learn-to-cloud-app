@@ -537,6 +537,7 @@ class SubmissionData(FrozenModel):
     validated_at: datetime | None = None
     verification_completed: bool = True
     feedback_json: str | None = None
+    validation_message: str | None = None
     created_at: datetime
     updated_at: datetime | None = None
 

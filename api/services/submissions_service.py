@@ -77,6 +77,7 @@ def _to_submission_data(submission: Submission) -> SubmissionData:
         validated_at=submission.validated_at,
         verification_completed=submission.verification_completed,
         feedback_json=submission.feedback_json,
+        validation_message=submission.validation_message,
         created_at=submission.created_at,
         updated_at=submission.updated_at,
     )
@@ -372,6 +373,11 @@ async def submit_validation(
                 [t.model_dump() for t in validation_result.task_results]
             )
 
+        # Persist the user-facing message so it survives page reloads.
+        validation_message = (
+            validation_result.message if not validation_result.is_valid else None
+        )
+
         # ── Phase 3: Persist result (short-lived session) ───────────────
         # A fresh session is opened just for the upsert, keeping connection
         # hold time to ~50ms.
@@ -388,6 +394,7 @@ async def submit_validation(
                 is_validated=validation_result.is_valid,
                 verification_completed=verification_completed,
                 feedback_json=feedback_json,
+                validation_message=validation_message,
             )
 
             # Update denormalized counts for newly validated submissions

@@ -62,7 +62,8 @@
         {% set feedback_tasks = fb.get('tasks', []) if fb else [] %}
         {% set feedback_passed = fb.get('passed', 0) if fb else 0 %}
         {% set cooldown_secs = fb.get('cooldown_seconds', None) if fb else None %}
-        {% with requirement=req, submission=submission, feedback_tasks=feedback_tasks, feedback_passed=feedback_passed, phase_id=phase.order, cooldown_seconds=cooldown_secs, cooldown_message=None, error_banner=None, server_error=False, server_error_message=None %}
+        {% set persisted_error = submission.validation_message if submission and not submission.is_validated and submission.validation_message else None %}
+        {% with requirement=req, submission=submission, feedback_tasks=feedback_tasks, feedback_passed=feedback_passed, phase_id=phase.order, cooldown_seconds=cooldown_secs, cooldown_message=None, error_banner=persisted_error, server_error=False, server_error_message=None %}
         {% include "partials/requirement_card.html" %}
         {% endwith %}
         {% endfor %}

@@ -207,6 +207,8 @@ class Submission(TimestampMixin, Base):
     # JSON-serialized task feedback for CODE_ANALYSIS submissions
     # Stores list of TaskResult dicts so feedback persists across page reloads
     feedback_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # User-facing validation error message (persists across page reloads)
+    validation_message: Mapped[str | None] = mapped_column(String(1024), nullable=True)
 
     user: Mapped["User"] = relationship(back_populates="submissions")
 

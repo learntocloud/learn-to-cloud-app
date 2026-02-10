@@ -120,6 +120,7 @@ class SubmissionRepository:
         is_validated: bool,
         verification_completed: bool = True,
         feedback_json: str | None = None,
+        validation_message: str | None = None,
     ) -> Submission:
         """Create a new submission attempt.
 
@@ -155,6 +156,7 @@ class SubmissionRepository:
             validated_at=now if is_validated else None,
             verification_completed=verification_completed,
             feedback_json=feedback_json,
+            validation_message=validation_message,
         )
         self.db.add(submission)
         await self.db.flush()
