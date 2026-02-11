@@ -24,7 +24,7 @@
             <span class="font-medium text-blue-600 dark:text-blue-400">{{ step.action }}</span>
             {% endif %}
             {% if step.title and step.url %}
-            <a href="{{ step.url }}" target="_blank" rel="noopener" class="underline hover:text-blue-600 dark:hover:text-blue-400">{{ step.title }}</a>
+            <a href="{{ step.url }}" target="_blank" rel="noopener" hx-boost="false" class="underline hover:text-blue-600 dark:hover:text-blue-400">{{ step.title }}</a>
             {% elif step.title %}
             <span class="font-medium">{{ step.title }}</span>
             {% endif %}
@@ -77,7 +77,7 @@
             <div x-show="tab === '{{ option.provider | default(loop.index0) }}'" class="mt-2 text-sm text-gray-700 dark:text-gray-300">
                 {{ option.description_html | safe }}
                 {% if option.url %}
-                <a href="{{ option.url }}" target="_blank" rel="noopener" class="text-blue-600 hover:underline dark:text-blue-400">{{ option.title | default('Learn more') }}</a>
+                <a href="{{ option.url }}" target="_blank" rel="noopener" hx-boost="false" class="text-blue-600 hover:underline dark:text-blue-400">{{ option.title | default('Learn more') }}</a>
                 {% endif %}
             </div>
             {% endfor %}
@@ -88,7 +88,7 @@
         <ul class="mt-2 space-y-1">
             {% for link in step.secondary_links %}
             <li class="text-sm">
-                <a href="{{ link.url }}" target="_blank" rel="noopener" class="text-blue-600 hover:underline dark:text-blue-400">{{ link.text }}</a>
+                <a href="{{ link.url }}" target="_blank" rel="noopener" hx-boost="false" class="text-blue-600 hover:underline dark:text-blue-400">{{ link.text }}</a>
             </li>
             {% endfor %}
         </ul>
