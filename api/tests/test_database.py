@@ -390,10 +390,11 @@ class TestGetDbReadonlyDependency:
 
     def _make_mock_request(self):
         mock_session = AsyncMock(
-            spec_set=["commit", "rollback", "__aenter__", "__aexit__"],
+            spec_set=["commit", "rollback", "execute", "__aenter__", "__aexit__"],
         )
         mock_session.commit = AsyncMock()
         mock_session.rollback = AsyncMock()
+        mock_session.execute = AsyncMock()
         mock_session.__aenter__ = AsyncMock(return_value=mock_session)
         mock_session.__aexit__ = AsyncMock(return_value=False)
 
