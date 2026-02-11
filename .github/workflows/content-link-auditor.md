@@ -1,7 +1,6 @@
 ---
 on:
-  schedule:
-    - cron: "0 9 * * 1" # Every Monday at 9 AM UTC
+  schedule: weekly on monday
   workflow_dispatch:
 
 description: >
@@ -12,7 +11,6 @@ engine: copilot
 
 permissions:
   contents: read
-  issues: write
 
 tools:
   github:
@@ -25,31 +23,54 @@ network:
   allowed:
     - defaults
     - github
+    # Video
     - "*.youtube.com"
     - "*.youtu.be"
+    # Cloud providers
     - "*.microsoft.com"
     - "*.amazon.com"
-    - "*.aws.amazon.com"
+    - "*.aws"
     - "*.google.com"
-    - "*.cloud.google.com"
+    # Certifications
     - "*.comptia.org"
+    # Learning platforms
+    - "*.freecodecamp.org"
+    - "*.khanacademy.org"
+    - "*.kodekloud.com"
+    - "*.geeksforgeeks.org"
+    - "*.dev.to"
+    # Docs & tools
     - "*.linux.com"
     - "*.opensource.com"
     - "*.hashicorp.com"
     - "*.docker.com"
     - "*.kubernetes.io"
+    - "*.k8s.io"
     - "*.terraform.io"
-    - "*.python.org"
-    - "*.fastapi.tiangolo.com"
+    - "*.terraform-best-practices.com"
     - "*.tiangolo.com"
     - "*.sqlalchemy.org"
     - "*.postgresql.org"
-    - "*.w3schools.com"
-    - "*.freecodecamp.org"
-    - "*.codecademy.com"
-    - "*.udemy.com"
-    - "*.coursera.org"
     - "*.cloudflare.com"
+    - "*.prometheus.io"
+    - "*.grafana.com"
+    - "*.uvicorn.org"
+    - "*.caddyserver.com"
+    - "*.modelcontextprotocol.io"
+    - "*.n8n.io"
+    # Developer tools
+    - "*.visualstudio.com"
+    - "*.github.io"
+    - "*.atlassian.com"
+    - "*.jetbrains.com"
+    - "*.ibm.com"
+    # Other
+    - "*.aka.ms"
+    - "*.httpbin.org"
+    - "*.overthewire.org"
+    - "*.subnetipv4.com"
+    - "*.nostarch.com"
+    - "*.certbot.eff.org"
 
 safe-outputs:
   create-issue:
@@ -78,6 +99,17 @@ find content/phases -name "*.yaml" -exec grep -nH 'https\?://' {} \;
 
 Parse out the unique URLs and track which file and field each one came from.
 
+URLs can appear in these YAML fields:
+- `learning_steps[].url` — primary learning link
+- `learning_steps[].secondary_links[].url` — additional links within a step
+- `learning_steps[].options[].url` — provider-specific alternatives (AWS/Azure/GCP)
+- `certifications.url` or `certifications[].url` — in `_phase.yaml` files
+- `additional_resources[].url` — in `_phase.yaml` files
+- `entry_level_jobs.resources[].url` — in `_phase.yaml` files
+- `security_overviews[].url` — in `_phase.yaml` files
+
+Ignore template/placeholder URLs like `https://github.com/your-username` or localhost URLs.
+
 ### Step 2: Check each URL
 
 For each unique URL, use `web-fetch` to check if the page loads successfully. Note:
@@ -91,9 +123,14 @@ For YouTube URLs (`youtu.be`, `youtube.com`), a 200 response is sufficient — d
 
 ### Step 3: Check certification relevance
 
-For URLs under the `certifications` section of `_phase.yaml` files, also check:
+Only **Phase 0** and **Phase 4** have a `certifications` section in their `_phase.yaml`.
+
+- **Phase 0** (`content/phases/phase0/_phase.yaml`): single certification object with `title` and `url` fields (CompTIA A+).
+- **Phase 4** (`content/phases/phase4/_phase.yaml`): list of certification objects, each with `provider`, `title`, and `url` fields (AWS, Azure, GCP).
+
+For each certification URL, check:
 - Is the certification page still active (not showing "retired" or "discontinued")?
-- Has the certification name or code changed?
+- Has the certification name or exam code changed?
 
 ### Step 4: Generate the report
 
