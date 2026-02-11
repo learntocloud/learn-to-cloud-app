@@ -109,8 +109,8 @@ which must run **before** FastAPI is imported.
 
 ### `SecurityHeadersMiddleware`
 
-`core/observability.py` also provides `SecurityHeadersMiddleware` (CSP, HSTS, X-Frame-Options, etc.),
-added in `main.py`'s middleware stack.
+`core/middleware.py` provides `SecurityHeadersMiddleware` (CSP, HSTS, X-Frame-Options, etc.)
+and `UserTrackingMiddleware`, added in `main.py`'s middleware stack.
 
 ---
 

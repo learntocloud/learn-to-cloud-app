@@ -1,24 +1,19 @@
 """Unified observability configuration — traces, metrics, logs.
 
-Owns all OpenTelemetry provider setup.  Called once from ``main.py``
-**before** FastAPI is imported so auto-instrumentation hooks work.
+Called once from ``main.py`` **before** FastAPI is imported so
+auto-instrumentation hooks work.
 
-Two modes
----------
-1. **Production** — ``APPLICATIONINSIGHTS_CONNECTION_STRING`` is set.
-   Delegates entirely to ``configure_azure_monitor()`` which creates
-   its own providers, exporters, and instrumentors.
+Two modes:
 
-2. **Local dev** — ``OTLP_ENDPOINT`` is set (no App Insights string).
-   Explicitly creates TracerProvider / MeterProvider / LoggerProvider
-   with OTLP gRPC exporters pointed at the endpoint (e.g. Aspire
-   Dashboard on ``http://localhost:4317``).
+- **Production** — ``APPLICATIONINSIGHTS_CONNECTION_STRING`` is set.
+  ``configure_azure_monitor()`` creates all providers and instrumentors.
+- **Local dev** — ``OTLP_ENDPOINT`` is set.  Manually creates providers
+  with OTLP gRPC exporters (e.g. Aspire Dashboard on port 4317).
 
-In both modes the Agent Framework's ``OBSERVABILITY_SETTINGS.enable_otel``
-flag is set directly — we do NOT call ``setup_observability()`` because it
-creates duplicate providers and attaches a ``ConsoleLogExporter`` handler
-to the root logger.  The framework's LLM tracing decorators resolve
-tracers/meters through the global OTel providers (ours), so this is safe.
+The Agent Framework's ``OBSERVABILITY_SETTINGS.enable_otel`` flag is set
+directly — we skip ``setup_observability()`` to avoid duplicate providers.
+The framework's decorators resolve tracers/meters through our global
+providers.
 """
 
 from __future__ import annotations
@@ -27,15 +22,8 @@ import logging
 import os
 from typing import Any
 
-from starlette.types import ASGIApp, Message, Receive, Scope, Send
-
 logger = logging.getLogger(__name__)
 
-# ---------------------------------------------------------------------------
-# Module-level flag set by configure_observability() at import time.
-# Other modules (UserTrackingMiddleware, instrument_sqlalchemy_engine, etc.)
-# check this before touching OTel APIs.
-# ---------------------------------------------------------------------------
 _telemetry_enabled: bool = False
 
 
@@ -44,20 +32,13 @@ def is_telemetry_enabled() -> bool:
     return _telemetry_enabled
 
 
-# ---------------------------------------------------------------------------
-# Public API called from main.py — the ONLY entry point
-# ---------------------------------------------------------------------------
-
-
 def configure_observability() -> None:
     """Set up all OTel providers and instrumentors.
 
     Must be called **before** FastAPI or any instrumented library is imported.
     """
-    global _telemetry_enabled  # noqa: PLW0603
+    global _telemetry_enabled
 
-    # Load .env into os.environ early so OTLP_ENDPOINT, OTEL_SERVICE_NAME,
-    # APPLICATIONINSIGHTS_CONNECTION_STRING, etc. are visible to os.getenv.
     from dotenv import load_dotenv
 
     load_dotenv()
@@ -75,21 +56,14 @@ def configure_observability() -> None:
     else:
         _configure_otlp(otlp_endpoint)  # type: ignore[arg-type] — checked above
 
-    # Agent Framework LLM instrumentation (token usage spans/metrics).
-    # This only enables *its* instrumentors — we already own the providers.
     _enable_agent_framework_instrumentation()
 
 
 def instrument_app(app: Any) -> None:
-    """Instrument a FastAPI app instance for HTTP tracing + metrics.
-
-    Call this *after* the app is created.  In production the Azure Monitor
-    distro handles this automatically; in OTLP-only mode we do it ourselves.
-    """
+    """Instrument a FastAPI app instance (OTLP-only; Azure Monitor auto-instruments)."""
     if not _telemetry_enabled:
         return
 
-    # Azure Monitor's distro auto-instruments FastAPI at import time.
     if os.getenv("APPLICATIONINSIGHTS_CONNECTION_STRING"):
         return
 
@@ -106,7 +80,7 @@ def instrument_app(app: Any) -> None:
 
 
 def instrument_sqlalchemy_engine(engine: Any) -> None:
-    """Add OpenTelemetry instrumentation for SQLAlchemy query tracing."""
+    """Instrument a SQLAlchemy engine for query tracing."""
     if not _telemetry_enabled:
         return
 
@@ -127,152 +101,7 @@ def instrument_sqlalchemy_engine(engine: Any) -> None:
         )
 
 
-def add_user_span_processor() -> None:
-    """Stamp ``enduser.id`` from the session onto every span.
-
-    Populates the ``UserId`` column in App Insights ``AppRequests``
-    and ``AppDependencies``.
-    """
-    if not _telemetry_enabled:
-        return
-
-    try:
-        from opentelemetry import context as otel_context
-        from opentelemetry.context import Context
-        from opentelemetry.sdk.trace import (
-            ReadableSpan,
-            Span,
-            SpanProcessor,
-            TracerProvider,
-        )
-        from opentelemetry.trace import get_tracer_provider
-
-        _USER_ID_KEY = otel_context.create_key("ltc.user_id")
-
-        class _UserIdSpanProcessor(SpanProcessor):
-            """Lightweight SpanProcessor — reads user_id from OTel context."""
-
-            def on_start(
-                self,
-                span: Span,
-                parent_context: Context | None = None,
-            ) -> None:
-                ctx = parent_context or otel_context.get_current()
-                user_id = ctx.get(_USER_ID_KEY)
-                if user_id is not None:
-                    span.set_attribute("enduser.id", str(user_id))
-
-            def on_end(self, span: ReadableSpan) -> None:
-                pass
-
-            def shutdown(self) -> None:
-                pass
-
-            def force_flush(self, timeout_millis: int = 30000) -> bool:
-                return True
-
-        provider = get_tracer_provider()
-        if isinstance(provider, TracerProvider):
-            provider.add_span_processor(_UserIdSpanProcessor())
-            logger.info("telemetry.user_span_processor.enabled")
-    except Exception as exc:
-        logger.warning(
-            "telemetry.user_span_processor.failed",
-            extra={"error": str(exc)},
-        )
-
-
-# ---------------------------------------------------------------------------
-# Middleware (no change in behaviour, just consolidated here)
-# ---------------------------------------------------------------------------
-
-
-class UserTrackingMiddleware:
-    """ASGI middleware injecting user_id into OTel context.
-
-    Must sit AFTER SessionMiddleware so ``scope["session"]`` is populated.
-    Works with ``add_user_span_processor()`` — this sets the context value,
-    the processor copies it onto every span.
-    """
-
-    def __init__(self, app: ASGIApp) -> None:
-        self.app = app
-
-    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        if scope["type"] != "http":
-            await self.app(scope, receive, send)
-            return
-
-        session: dict = scope.get("session", {})
-        user_id = session.get("user_id")
-
-        if user_id is not None and _telemetry_enabled:
-            from opentelemetry import context as otel_context
-
-            _USER_ID_KEY = otel_context.create_key("ltc.user_id")
-            ctx = otel_context.set_value(_USER_ID_KEY, user_id)
-            token = otel_context.attach(ctx)
-            try:
-                await self.app(scope, receive, send)
-            finally:
-                otel_context.detach(token)
-        else:
-            await self.app(scope, receive, send)
-
-
-class SecurityHeadersMiddleware:
-    """Adds security headers (CSP, HSTS, X-Frame-Options, etc.)."""
-
-    SECURITY_HEADERS: list[tuple[bytes, bytes]] = [
-        (b"x-content-type-options", b"nosniff"),
-        (b"x-frame-options", b"DENY"),
-        (b"x-xss-protection", b"0"),
-        (b"referrer-policy", b"strict-origin-when-cross-origin"),
-        (
-            b"content-security-policy",
-            b"default-src 'self';"
-            b" script-src 'self' 'unsafe-inline' 'unsafe-eval';"
-            b" style-src 'self' 'unsafe-inline';"
-            b" img-src 'self' https://avatars.githubusercontent.com data:;"
-            b" connect-src 'self' https://github.com;"
-            b" font-src 'self';"
-            b" frame-ancestors 'none'",
-        ),
-        (b"strict-transport-security", b"max-age=31536000; includeSubDomains"),
-        (b"permissions-policy", b"camera=(), microphone=(), geolocation=()"),
-    ]
-
-    def __init__(self, app: ASGIApp) -> None:
-        self.app = app
-
-    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        if scope["type"] != "http":
-            await self.app(scope, receive, send)
-            return
-
-        is_static = scope.get("path", "").startswith("/static/")
-
-        async def send_wrapper(message: Message) -> None:
-            if message.get("type") == "http.response.start":
-                headers: list[tuple[bytes, bytes]] = list(message.get("headers", []))
-                headers.extend(self.SECURITY_HEADERS)
-                if is_static:
-                    headers.append(
-                        (b"cache-control", b"public, max-age=31536000, immutable")
-                    )
-                message["headers"] = headers
-            await send(message)
-
-        await self.app(scope, receive, send_wrapper)
-
-
-# ===================================================================
-# Private helpers — production (Azure Monitor) vs local dev (OTLP)
-# ===================================================================
-
-
 def _configure_azure_monitor(conn_str: str, otlp_endpoint: str | None) -> None:
-    """Production: Azure Monitor creates all providers + instrumentors."""
     try:
         from azure.monitor.opentelemetry import configure_azure_monitor
 
@@ -295,12 +124,6 @@ def _configure_azure_monitor(conn_str: str, otlp_endpoint: str | None) -> None:
 
 
 def _configure_otlp(endpoint: str) -> None:
-    """Local dev: create our own providers with OTLP gRPC exporters.
-
-    Follows the canonical pattern from the OTel Python SDK docs:
-    one TracerProvider / MeterProvider / LoggerProvider, each with a
-    BatchProcessor wrapping an OTLPExporter pointed at the collector.
-    """
     from opentelemetry import metrics, trace
     from opentelemetry._logs import set_logger_provider
     from opentelemetry.exporter.otlp.proto.grpc._log_exporter import (
@@ -346,15 +169,13 @@ def _configure_otlp(endpoint: str) -> None:
     )
     set_logger_provider(logger_provider)
 
-    # Bridge stdlib logging → OTel LoggerProvider so every logger.info()
-    # call flows to the OTLP collector as a structured log record.
+    # Bridge stdlib logging → OTel LoggerProvider.
     otel_handler = LoggingHandler(
         level=logging.NOTSET,
         logger_provider=logger_provider,
     )
     logging.getLogger().addHandler(otel_handler)
 
-    # ── Outbound HTTP instrumentation ─────────────────────────────────
     try:
         import importlib
 
@@ -370,20 +191,7 @@ def _configure_otlp(endpoint: str) -> None:
 
 
 def _enable_agent_framework_instrumentation() -> None:
-    """Enable Agent Framework LLM instrumentation without provider conflicts.
-
-    The framework's ``setup_observability()`` creates its own TracerProvider,
-    MeterProvider, LoggerProvider (with ConsoleExporter fallbacks) and adds
-    a ``LoggingHandler`` to the root logger — all of which conflict with
-    providers we've already registered.
-
-    Instead we skip ``setup_observability()`` entirely and flip the only
-    flag the framework's tracing decorators actually check:
-    ``OBSERVABILITY_SETTINGS.enable_otel``.  The decorators call
-    ``get_tracer()`` / ``get_meter()`` which resolve through the global
-    OTel providers — i.e., ours — so LLM spans and metrics flow to
-    our exporters with zero duplication.
-    """
+    """Flip ``enable_otel`` so the framework's decorators use our providers."""
     try:
         from agent_framework.observability import OBSERVABILITY_SETTINGS
 

@@ -1,11 +1,11 @@
 ---
 name: ship-it
-description: Run pre-commit, resolve issues, commit, push, then monitor the deploy workflow and resolve any deploy failures. Use when user says "ship it", "commit and deploy", "push and deploy", or "land this".
+description: Run prek, resolve issues, commit, push, then monitor the deploy workflow and resolve any deploy failures. Use when user says "ship it", "commit and deploy", "push and deploy", or "land this".
 ---
 
-# Ship It — Pre-commit, Commit, Push & Monitor Deploy
+# Ship It — Prek, Commit, Push & Monitor Deploy
 
-End-to-end workflow: run pre-commit checks, fix failures, commit, push, and monitor the GitHub Actions deploy pipeline through to a healthy production readiness check.
+End-to-end workflow: run prek checks, fix failures, commit, push, and monitor the GitHub Actions deploy pipeline through to a healthy production readiness check.
 
 **This skill orchestrates the full ship cycle. Do NOT skip steps.**
 
@@ -23,7 +23,7 @@ End-to-end workflow: run pre-commit checks, fix failures, commit, push, and moni
 
 - `gh` CLI authenticated (`gh auth status`)
 - `git` configured with push access to the remote
-- `uv` available for running pre-commit
+- `prek` installed (brew install j178/tap/prek)
 - Working directory is inside the repository
 
 ---
@@ -42,34 +42,34 @@ End-to-end workflow: run pre-commit checks, fix failures, commit, push, and moni
 Reply with "LFG 🚀 I'll ship it" to acknowledge the user's intent and energy around shipping their changes.
 
 
-## Step 1: Run Pre-commit
+## Step 1: Run Prek
 
-Run pre-commit on all files to catch lint, format, and type errors before committing.
+Run prek on all files to catch lint, format, and type errors before committing.
 
 ### Windows (PowerShell)
 ```powershell
-Set-Location <workspace>\api; uv run pre-commit run --all-files
+Set-Location <workspace>; prek run --all-files
 ```
 
 ### macOS/Linux
 ```bash
-cd <workspace>/api && uv run pre-commit run --all-files
+cd <workspace> && prek run --all-files
 ```
 
 ### Handling Failures
 
-Pre-commit hooks may auto-fix issues (ruff lint `--fix`, ruff format, trailing whitespace, end-of-file).
+Prek hooks may auto-fix issues (ruff lint `--fix`, ruff format, trailing whitespace, end-of-file).
 
-**If pre-commit fails:**
+**If prek fails:**
 
-1. **Check if hooks auto-fixed files** — many hooks (ruff, trailing-whitespace, end-of-file-fixer) modify files in place. Re-run pre-commit to confirm fixes are clean:
+1. **Check if hooks auto-fixed files** — many hooks (ruff, trailing-whitespace, end-of-file-fixer) modify files in place. Re-run prek to confirm fixes are clean:
    ```powershell
    # Windows
-   uv run pre-commit run --all-files
+   prek run --all-files
    ```
    ```bash
    # macOS/Linux
-   uv run pre-commit run --all-files
+   prek run --all-files
    ```
 
 2. **If the second run passes** — the auto-fixes resolved everything. Proceed to Step 2.
@@ -81,9 +81,9 @@ Pre-commit hooks may auto-fix issues (ruff lint `--fix`, ruff format, trailing w
    - **check-added-large-files**: Remove or `.gitignore` the large file.
    - **check-merge-conflict**: Resolve merge conflict markers.
 
-4. **Keep re-running pre-commit** until all hooks pass with no failures.
+4. **Keep re-running prek** until all hooks pass with no failures.
 
-**Do NOT proceed to commit until pre-commit passes cleanly.**
+**Do NOT proceed to commit until prek passes cleanly.**
 
 ---
 

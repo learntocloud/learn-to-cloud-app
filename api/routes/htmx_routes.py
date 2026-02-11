@@ -271,7 +271,7 @@ async def htmx_submit_verification(
 
     # Detect server-side errors so the template can tell the user
     # this attempt was not counted against their cooldown/quota.
-    is_server_error = (
+    is_server_error = bool(
         not result.is_valid and submission and not submission.verification_completed
     )
 

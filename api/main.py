@@ -11,39 +11,38 @@ from pathlib import Path
 # time. If FastAPI is imported first, requests won't appear in AppRequests.
 # See: https://learn.microsoft.com/en-us/troubleshoot/azure/azure-monitor/
 #      app-insights/telemetry/opentelemetry-troubleshooting-python
-from core.observability import configure_observability  # noqa: E402
+from core.observability import configure_observability
 
 configure_observability()
 
 # ── Now safe to import FastAPI and everything else ────────────────────
-from fastapi import FastAPI, Request  # noqa: E402
-from fastapi.exceptions import RequestValidationError  # noqa: E402
-from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
-from fastapi.middleware.gzip import GZipMiddleware  # noqa: E402
-from fastapi.responses import JSONResponse  # noqa: E402
-from fastapi.staticfiles import StaticFiles  # noqa: E402
-from fastapi.templating import Jinja2Templates  # noqa: E402
-from slowapi.errors import RateLimitExceeded  # noqa: E402
-from starlette.middleware.sessions import SessionMiddleware  # noqa: E402
+from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+from slowapi.errors import RateLimitExceeded
+from starlette.middleware.sessions import SessionMiddleware
 
-from core.auth import init_oauth  # noqa: E402
-from core.config import get_settings  # noqa: E402
-from core.database import (  # noqa: E402
+from core.auth import init_oauth
+from core.config import get_settings
+from core.database import (
     create_engine,
     create_session_maker,
     dispose_engine,
     init_db,
     warm_pool,
 )
-from core.logger import configure_logging  # noqa: E402
-from core.observability import (  # noqa: E402
+from core.logger import configure_logging
+from core.middleware import (
     SecurityHeadersMiddleware,
     UserTrackingMiddleware,
-    add_user_span_processor,
-    instrument_app,
 )
-from core.ratelimit import limiter, rate_limit_exceeded_handler  # noqa: E402
-from routes import (  # noqa: E402
+from core.observability import instrument_app
+from core.ratelimit import limiter, rate_limit_exceeded_handler
+from routes import (
     analytics_router,
     auth_router,
     certificates_router,
@@ -52,10 +51,10 @@ from routes import (  # noqa: E402
     pages_router,
     users_router,
 )
-from services.deployed_api_verification_service import (  # noqa: E402
+from services.deployed_api_verification_service import (
     close_deployed_api_client,
 )
-from services.github_hands_on_verification_service import (  # noqa: E402
+from services.github_hands_on_verification_service import (
     close_github_client,
 )
 
@@ -75,7 +74,7 @@ def _build_static_file_hashes(static_dir: Path) -> dict[str, str]:
     for file_path in static_dir.rglob("*"):
         if file_path.is_file():
             rel = file_path.relative_to(static_dir).as_posix()
-            digest = hashlib.md5(file_path.read_bytes()).hexdigest()[:8]  # noqa: S324
+            digest = hashlib.md5(file_path.read_bytes()).hexdigest()[:8]
             hashes[rel] = digest
     return hashes
 
@@ -273,8 +272,6 @@ app.add_middleware(
     https_only=_settings.require_https,
 )
 app.add_middleware(UserTrackingMiddleware)
-
-add_user_span_processor()
 
 app.add_middleware(GZipMiddleware, minimum_size=500)
 app.add_middleware(SecurityHeadersMiddleware)

@@ -137,6 +137,8 @@ async def complete_step(
 
     step_repo = StepProgressRepository(db)
     phase_id = parse_phase_id_from_topic_id(topic_id)
+    if phase_id is None:
+        raise StepUnknownTopicError(topic_id)
 
     # Atomic check-and-insert: saves 1 round-trip vs exists() + create()
     step_progress = await step_repo.create_if_not_exists(
@@ -149,12 +151,15 @@ async def complete_step(
         raise StepAlreadyCompletedError(topic_id, step_order)
 
     # Update denormalized progress counts
-    if phase_id is not None:
-        denorm_repo = UserPhaseProgressRepository(db)
-        await denorm_repo.increment_steps(user_id, phase_id, delta=1)
+    denorm_repo = UserPhaseProgressRepository(db)
+    await denorm_repo.increment_steps(user_id, phase_id, delta=1)
 
     # Invalidate cache so dashboard/progress refreshes immediately
     invalidate_progress_cache(user_id)
+
+    from core.metrics import STEP_COMPLETED_COUNTER
+
+    STEP_COMPLETED_COUNTER.add(1, {"phase_id": str(phase_id)})
 
     logger.info(
         "step.completed",
@@ -212,6 +217,14 @@ async def uncomplete_step(
         # Recalculate denormalized counts since cascading uncomplete
         # deletes multiple steps
         phase_id = parse_phase_id_from_topic_id(topic_id)
+
+        from core.metrics import STEP_UNCOMPLETED_COUNTER
+
+        STEP_UNCOMPLETED_COUNTER.add(
+            deleted,
+            {"phase_id": str(phase_id)},
+        )
+
         if phase_id is not None:
             denorm_repo = UserPhaseProgressRepository(db)
             remaining = await step_repo.get_step_counts_by_phase(user_id)

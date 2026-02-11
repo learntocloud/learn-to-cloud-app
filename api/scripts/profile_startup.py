@@ -7,7 +7,7 @@ t0 = time.perf_counter()
 print("--- IMPORT TIMING ---", flush=True)
 
 t = time.perf_counter()
-import asyncio  # noqa: E402
+import asyncio
 
 print(f"stdlib imports: {(time.perf_counter()-t)*1000:.0f}ms", flush=True)
 
@@ -20,24 +20,24 @@ t = time.perf_counter()
 print(f"slowapi: {(time.perf_counter()-t)*1000:.0f}ms", flush=True)
 
 t = time.perf_counter()
-from core.config import get_settings  # noqa: E402
+from core.config import get_settings
 
 print(f"core.config: {(time.perf_counter()-t)*1000:.0f}ms", flush=True)
 
 t = time.perf_counter()
-import logging  # noqa: E402
+import logging
 
-from core.logger import configure_logging  # noqa: E402
+from core.logger import configure_logging
 
 print(f"core.logger: {(time.perf_counter()-t)*1000:.0f}ms", flush=True)
 
 t = time.perf_counter()
-from core.auth import init_oauth  # noqa: E402
+from core.auth import init_oauth
 
 print(f"core.auth: {(time.perf_counter()-t)*1000:.0f}ms", flush=True)
 
 t = time.perf_counter()
-from core.database import (  # noqa: E402
+from core.database import (
     create_engine,
     create_session_maker,
     dispose_engine,

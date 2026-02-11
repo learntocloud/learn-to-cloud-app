@@ -32,7 +32,7 @@ async def reset() -> None:
     await admin.dispose()
 
     # Import models so they register with Base.metadata
-    import models as models  # noqa: F811
+    import models as models
     from core.database import Base
 
     engine = create_async_engine(

@@ -6,18 +6,18 @@ Pydantic models in `api/schemas.py` and `api/models.py` are the source of truth 
 
 When working on backend routes, reference those files for accurate type information and endpoint contracts.
 
-## Pre-commit
+## Pre-commit (prek)
 
-Before committing and pushing code, **always** run pre-commit locally to catch lint, format, and type errors early:
-
-```bash
-cd api && uv run pre-commit run --all-files
-```
-
-If pre-commit is not yet installed as a git hook, install it first:
+Before committing and pushing code, **always** run prek locally to catch lint, format, and type errors early:
 
 ```bash
-cd api && uv run pre-commit install
+prek run --all-files
 ```
 
-Do not commit or push code that fails pre-commit checks.
+If prek is not yet installed as a git hook, install it first:
+
+```bash
+prek install
+```
+
+Do not commit or push code that fails prek checks.

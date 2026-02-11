@@ -80,7 +80,7 @@ class StepProgressRepository:
                 StepProgress.step_order >= from_step_order,
             )
         )
-        return result.rowcount or 0
+        return getattr(result, "rowcount", 0) or 0
 
     async def get_completed_for_topics(
         self,

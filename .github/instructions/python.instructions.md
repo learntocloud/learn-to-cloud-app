@@ -147,7 +147,7 @@ Always provide a `close_*_client()` function and register it in `main.py` lifesp
 - Run tools via `uv run --directory api ...`
 
 ## Testing
-- Mock external services (Clerk, LLM, GitHub API) with `autospec=True`
+- Mock external services (LLM, GitHub API) with `autospec=True`
 
 ## SQLAlchemy Patterns
 - Upserts: `pg_insert().on_conflict_do_update()` with explicit `set_`
@@ -157,7 +157,3 @@ Always provide a `close_*_client()` function and register it in `main.py` lifesp
 ## Docstrings
 - Skip self-documenting Args (e.g., `db: AsyncSession`)
 - Keep Warning/Note sections for non-obvious behavior
-
-## Special Comments
-- `# type: ignore` — always add explanation: `# type: ignore[arg-type] - httpx stub incomplete`
-- `# noqa` — always include rule: `# noqa: E501`

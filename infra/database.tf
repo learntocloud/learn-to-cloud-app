@@ -7,7 +7,7 @@ resource "azurerm_postgresql_flexible_server" "main" {
   location                      = azurerm_resource_group.main.location
   version                       = "16"
   storage_mb                    = 32768
-  sku_name                      = "B_Standard_B1ms"
+  sku_name                      = "B_Standard_B2s"
   backup_retention_days         = 7
   geo_redundant_backup_enabled  = false
   public_network_access_enabled = true

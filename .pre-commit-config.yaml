@@ -1,6 +1,7 @@
 # Pre-commit hooks for Learn to Cloud
-# Install: cd api && uv run pre-commit install
-# Run all: uv run pre-commit run --all-files
+# Requires: prek (brew install j178/tap/prek)
+# Install: prek install
+# Run all: prek run --all-files
 
 repos:
   # Ruff - Python linting and formatting
@@ -25,18 +26,22 @@ repos:
         files: ^api/.*\.py$
         pass_filenames: false
 
-  # General file hygiene
-  - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
+  # General file hygiene (prek builtin — no clone, no Python env, instant)
+  - repo: builtin
     hooks:
       - id: trailing-whitespace
         exclude: ^api/htmlcov/
       - id: end-of-file-fixer
         exclude: ^(api/htmlcov/|.*\.svg$)
-      - id: check-yaml
-        args: [--unsafe]
       - id: check-json
         exclude: ^\.vscode/
       - id: check-added-large-files
         args: [--maxkb=500]
       - id: check-merge-conflict
+
+  # check-yaml with --unsafe (not supported by builtin, keep on remote)
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: check-yaml
+        args: [--unsafe]

@@ -23,6 +23,7 @@ For phase requirements, see phase_requirements.py
 """
 
 import logging
+import time
 
 from models import SubmissionType
 from schemas import HandsOnRequirement, ValidationResult
@@ -106,6 +107,32 @@ async def validate_submission(
         expected_username: The expected GitHub username
             (required for GitHub-based validations)
     """
+    from core.metrics import VERIFICATION_COUNTER, VERIFICATION_DURATION
+
+    start = time.monotonic()
+    sub_type = requirement.submission_type
+    submission_type = sub_type.value if sub_type else "unknown"
+    result_attr = "error"
+
+    try:
+        validation_result = await _dispatch_validation(
+            requirement, submitted_value, expected_username
+        )
+        result_attr = "pass" if validation_result.is_valid else "fail"
+        return validation_result
+    finally:
+        elapsed = time.monotonic() - start
+        attrs = {"submission_type": submission_type, "result": result_attr}
+        VERIFICATION_COUNTER.add(1, attrs)
+        VERIFICATION_DURATION.record(elapsed, attrs)
+
+
+async def _dispatch_validation(
+    requirement: HandsOnRequirement,
+    submitted_value: str,
+    expected_username: str | None = None,
+) -> ValidationResult:
+    """Route to the appropriate validator based on submission type."""
     if requirement.submission_type == SubmissionType.GITHUB_PROFILE:
         if not expected_username:
             return ValidationResult(

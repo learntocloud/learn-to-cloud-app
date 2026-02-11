@@ -584,7 +584,7 @@ RETRIABLE_EXCEPTIONS: tuple[type[Exception], ...] = (
 )
 
 
-class _retry_if_retriable(retry_base):  # noqa: N801
+class _retry_if_retriable(retry_base):
     """Only retry LLMClientError when its retriable flag is True.
 
     Config errors have retriable=False and

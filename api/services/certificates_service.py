@@ -150,12 +150,16 @@ async def create_certificate(
     """
     eligibility = await check_eligibility(db, user_id)
 
+    from core.metrics import CERTIFICATE_CREATION_FAILED_COUNTER
+
     if eligibility.existing_certificate:
+        CERTIFICATE_CREATION_FAILED_COUNTER.add(1, {"reason": "already_exists"})
         raise CertificateAlreadyExistsError(
             "Certificate already issued. Use GET /certificates to retrieve it."
         )
 
     if not eligibility.is_eligible:
+        CERTIFICATE_CREATION_FAILED_COUNTER.add(1, {"reason": "not_eligible"})
         raise NotEligibleError(
             phases_completed=eligibility.phases_completed,
             total_phases=eligibility.total_phases,
@@ -176,6 +180,10 @@ async def create_certificate(
         phases_completed=eligibility.phases_completed,
         total_phases=eligibility.total_phases,
     )
+
+    from core.metrics import CERTIFICATE_CREATED_COUNTER
+
+    CERTIFICATE_CREATED_COUNTER.add(1)
 
     logger.info(
         "certificate.created",
@@ -264,8 +272,13 @@ async def verify_certificate(
     Returns:
         Certificate if valid, else None
     """
+    from core.metrics import CERTIFICATE_VERIFIED_COUNTER
+
     cert_repo = CertificateRepository(db)
     cert = await cert_repo.get_by_verification_code(verification_code)
+
+    CERTIFICATE_VERIFIED_COUNTER.add(1, {"valid": str(cert is not None).lower()})
+
     return _to_certificate_data(cert) if cert else None
 
 

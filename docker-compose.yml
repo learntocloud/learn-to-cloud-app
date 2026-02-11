@@ -28,7 +28,6 @@ services:
       - "8000:8000"
     environment:
       - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/learn_to_cloud
-      - CLERK_SECRET_KEY=test_secret
       - GITHUB_TOKEN=test_token
       - LLM_API_KEY=test_key
       - AZURE_APP_INSIGHTS_CONNECTION_STRING=
