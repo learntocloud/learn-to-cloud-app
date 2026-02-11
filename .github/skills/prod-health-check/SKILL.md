@@ -24,6 +24,8 @@ Reports on app status, errors, performance, database, scaling, and dependencies.
 
 - Azure CLI (`az`) installed and logged in
 - Correct subscription set (check `infra/terraform.tfvars` for `subscription_id`)
+- Azure CLI extension `rdbms-connect` (for DB queries): `az extension add --name rdbms-connect --yes`
+- **Windows/PowerShell**: All date commands below use PowerShell syntax. See [Cross-platform date commands](#cross-platform-date-commands).
 
 ---
 
@@ -32,8 +34,11 @@ Reports on app status, errors, performance, database, scaling, and dependencies.
 **Step 0**: Set the correct subscription and discover resource names.
 
 ```bash
-# Set subscription from terraform.tfvars
-SUBSCRIPTION_ID=$(grep 'subscription_id' infra/terraform.tfvars | cut -d'"' -f2)
+# Set subscription — terraform.tfvars is gitignored, so fall back to az account show
+SUBSCRIPTION_ID=$(grep 'subscription_id' infra/terraform.tfvars 2>/dev/null | cut -d'"' -f2)
+if [ -z "$SUBSCRIPTION_ID" ]; then
+  SUBSCRIPTION_ID=$(az account show --query id -o tsv)
+fi
 az account set --subscription "$SUBSCRIPTION_ID"
 
 # Resource group is always rg-ltc-{environment}
@@ -41,6 +46,14 @@ RG="rg-ltc-dev"
 
 # Discover actual resource names (suffix is random)
 az resource list --resource-group "$RG" --query "[].{name:name, type:type}" -o table
+```
+
+**PowerShell equivalent**:
+```powershell
+$SUBSCRIPTION_ID = (az account show --query id -o tsv)
+az account set --subscription $SUBSCRIPTION_ID
+$RG = "rg-ltc-dev"
+az resource list --resource-group $RG --query "[].{name:name, type:type}" -o table
 ```
 
 From the output, extract:
@@ -80,7 +93,7 @@ az containerapp replica list -n $CA_NAME -g $RG \
 - `provisioningState` should be `Succeeded`
 - `runningStatus` should be `Running`
 - Replica count should be ≥ `minReplicas` (1)
-- Max replicas is 2 (limited by B1ms PostgreSQL 35-connection limit)
+- Max replicas is 2 (limited by B_Standard_B2s PostgreSQL ~120-connection limit)
 
 ---
 
@@ -229,16 +242,16 @@ az monitor metrics list --resource "$PSQL_RESOURCE_ID" \
   -o table
 ```
 
-**Thresholds** (B1ms tier):
+**Thresholds** (B_Standard_B2s tier — 2 vCores, 4 GB RAM):
 | Metric | Healthy | Warning | Critical |
 |--------|---------|---------|----------|
-| CPU | < 40% | 40–70% | > 70% |
+| CPU | < 50% | 50–80% | > 80% |
 | Memory | < 70% | 70–85% | > 85% |
 | Storage | < 70% | 70–85% | > 85% |
-| Active connections | < 25 | 25–30 | > 30 (limit ~35) |
+| Active connections | < 80 | 80–100 | > 100 (limit ~120) |
 | Failed connections | 0 | 1–5 | > 5 |
 
-**Connection budget**: Each replica uses up to 10 connections (pool_size=5 + max_overflow=5). 2 replicas × 10 = 20. B1ms allows 35 user connections.
+**Connection budget**: Each replica uses up to 10 connections (pool_size=5 + max_overflow=5). 2 replicas × 10 = 20. B_Standard_B2s allows ~120 user connections.
 
 ---
 
@@ -323,11 +336,12 @@ After gathering all data, present a summary like this:
 | DB CPU | ✅/⚠️ | Avg {X}%, Peak {X}% |
 | DB Memory | ✅/⚠️ | Avg {X}%, Peak {X}% |
 | DB Storage | ✅ | {X}% used |
-| DB Connections | ✅/⚠️ | Avg {X}, Peak {X} (limit: 35) |
+| DB Connections | ✅/⚠️ | Avg {X}, Peak {X} (limit: ~120) |
 | Failed DB Connections | ✅ | {N} in 24h |
 | Container Events | ✅/⚠️ | {details about BackOff/Unhealthy if any} |
 | Dependencies | ✅ | DB P95: {X}ms, 0 failures |
 | Alerts | ✅ | All {N} alerts enabled, none fired |
+| Users | ✅ | {N} total, {N} with submissions, {N} active 30d |
 
 ### ⚠️ Items to Watch
 - {any warnings or notes}
@@ -338,9 +352,69 @@ After gathering all data, present a summary like this:
 
 ---
 
+## Step 11: User & Engagement Stats (Database Query)
+
+Query the production database for user and engagement metrics. This answers "how many users do we have?" which is almost always part of a health check.
+
+**Prerequisites**: Ensure your IP is allowed through the PostgreSQL firewall.
+
+```bash
+# Check/create firewall rule for your IP
+MY_IP=$(curl -s ifconfig.me)
+az postgres flexible-server firewall-rule create \
+  --resource-group $RG --name $PSQL_NAME \
+  --rule-name AllowMyIP --start-ip-address $MY_IP --end-ip-address $MY_IP 2>/dev/null || true
+
+# Get Entra ID token
+TOKEN=$(az account get-access-token --resource-type oss-rdbms --query accessToken -o tsv)
+ADMIN_USER=$(az ad signed-in-user show --query displayName -o tsv)
+
+# Query user stats (uses az postgres — no psql binary needed)
+az postgres flexible-server execute \
+  --name $PSQL_NAME \
+  --admin-user "$ADMIN_USER" --admin-password "$TOKEN" \
+  --database-name learntocloud \
+  --querytext "SELECT 'total_users' as metric, COUNT(*)::text as value FROM users UNION ALL SELECT 'users_with_github', COUNT(*)::text FROM users WHERE github_username IS NOT NULL UNION ALL SELECT 'users_with_submissions', COUNT(DISTINCT user_id)::text FROM submissions UNION ALL SELECT 'total_submissions', COUNT(*)::text FROM submissions UNION ALL SELECT 'total_certificates', COUNT(*)::text FROM certificates;" \
+  -o json
+```
+
+**PowerShell equivalent**:
+```powershell
+$myip = (Invoke-RestMethod -Uri "https://ifconfig.me/ip" -TimeoutSec 10)
+az postgres flexible-server firewall-rule create --resource-group $RG --name $PSQL_NAME `
+  --rule-name AllowMyIP --start-ip-address $myip --end-ip-address $myip 2>$null
+
+$token = (az account get-access-token --resource-type oss-rdbms --query accessToken -o tsv)
+$user = (az ad signed-in-user show --query displayName -o tsv)
+az postgres flexible-server execute --name $PSQL_NAME `
+  --admin-user "$user" --admin-password "$token" `
+  --database-name learntocloud `
+  --querytext "SELECT 'total_users' as metric, COUNT(*)::text as value FROM users UNION ALL SELECT 'users_with_github', COUNT(*)::text FROM users WHERE github_username IS NOT NULL UNION ALL SELECT 'users_with_submissions', COUNT(DISTINCT user_id)::text FROM submissions UNION ALL SELECT 'total_submissions', COUNT(*)::text FROM submissions UNION ALL SELECT 'total_certificates', COUNT(*)::text FROM certificates;" `
+  -o json
+```
+
+**Note**: This command requires the `rdbms-connect` Azure CLI extension. Install with `az extension add --name rdbms-connect --yes`. Unlike `psql`, this works without a local PostgreSQL client installation.
+
+**What to look for**:
+- Total user count trending upward
+- Ratio of users with submissions (engagement rate)
+- Certificate count relative to active users
+
+---
+
 ## Notes
 
-- **macOS date flag**: Use `-v-24H` for 24h ago. On Linux, use `--date='24 hours ago'`.
-- **Subscription**: Always verify you're on the correct subscription before running queries.
+- **Subscription**: `infra/terraform.tfvars` is gitignored — use `az account show --query id -o tsv` as fallback.
 - **Timeframes**: Default to 24h for operational metrics, 7d for error/event trends.
 - **BackOff events on old revisions**: During development with many iterative deploys, high BackOff counts on old/failed revisions are expected and not a production concern. Only worry if they're on the **current active revision**.
+- **DB access**: The `az postgres flexible-server execute` command (via `rdbms-connect` extension) is preferred over `psql` since it doesn't require a local PostgreSQL client. Always ensure your IP has a firewall rule before querying.
+
+### Cross-platform date commands
+
+The DB metrics commands in Step 6 use `date -u -v-24H` (macOS). Use the appropriate variant:
+
+| OS | 24 hours ago | Now |
+|---|---|---|
+| **macOS** | `$(date -u -v-24H '+%Y-%m-%dT%H:%M:%SZ')` | `$(date -u '+%Y-%m-%dT%H:%M:%SZ')` |
+| **Linux** | `$(date -u --date='24 hours ago' '+%Y-%m-%dT%H:%M:%SZ')` | `$(date -u '+%Y-%m-%dT%H:%M:%SZ')` |
+| **PowerShell** | `(Get-Date).AddHours(-24).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")` | `(Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")` |

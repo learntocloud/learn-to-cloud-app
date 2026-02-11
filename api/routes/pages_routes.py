@@ -283,6 +283,11 @@ async def certificates_page(
     user = await _get_user_or_none(db, user_id)
     certificate, eligible = await get_user_certificate_with_eligibility(db, user_id)
 
+    # Fetch progress to show users what they need to complete
+    from services.progress_service import fetch_user_progress
+
+    progress = await fetch_user_progress(db, user_id)
+
     return request.app.state.templates.TemplateResponse(
         "pages/certificates.html",
         _template_context(
@@ -290,6 +295,7 @@ async def certificates_page(
             user=user,
             certificate=certificate,
             eligible=eligible,
+            progress=progress,
         ),
     )
 

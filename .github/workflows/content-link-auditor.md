@@ -9,6 +9,13 @@ description: >
 
 engine: copilot
 
+steps:
+  - name: Checkout content files
+    uses: actions/checkout@v4
+    with:
+      sparse-checkout: content/phases
+      sparse-checkout-cone-mode: true
+
 permissions:
   contents: read
 
@@ -112,11 +119,15 @@ Ignore template/placeholder URLs like `https://github.com/your-username` or loca
 
 ### Step 2: Check each URL
 
-For each unique URL, use `web-fetch` to check if the page loads successfully. Note:
+For each unique URL, use the `web-fetch` tool to check if the page loads successfully.
+
+**Important:** Do NOT try to install Python packages or use `pip`, `curl`, or `wget`. You only have the `web-fetch` tool and the allowed `bash` commands (`cat`, `find`, `grep`, `head`, `tail`, `wc`, `echo`, `sort`, `uniq`, `ls`). Use `web-fetch` for every URL check.
+
+Classify results as:
 
 - **Working** (200): Record as healthy.
-- **Redirect** (301/302): Record the redirect target. Flag permanent redirects (301) — the YAML should be updated to the new URL.
-- **Broken** (404, 410, connection error, timeout): Record as broken with the error.
+- **Redirect** (301/302): If `web-fetch` returns content from a different URL than requested, record it as a redirect. Flag permanent redirects — the YAML should be updated to the new URL.
+- **Broken** (404, 410, connection error, timeout): If `web-fetch` fails or returns an error, record as broken with the error.
 - **Soft 404**: If the page loads but the content is clearly a "page not found" or "content removed" message, flag it.
 
 For YouTube URLs (`youtu.be`, `youtube.com`), a 200 response is sufficient — don't try to parse the page content.

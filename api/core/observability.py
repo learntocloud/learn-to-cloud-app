@@ -2,18 +2,6 @@
 
 Called once from ``main.py`` **before** FastAPI is imported so
 auto-instrumentation hooks work.
-
-Two modes:
-
-- **Production** — ``APPLICATIONINSIGHTS_CONNECTION_STRING`` is set.
-  ``configure_azure_monitor()`` creates all providers and instrumentors.
-- **Local dev** — ``OTLP_ENDPOINT`` is set.  Manually creates providers
-  with OTLP gRPC exporters (e.g. Aspire Dashboard on port 4317).
-
-The Agent Framework's ``OBSERVABILITY_SETTINGS.enable_otel`` flag is set
-directly — we skip ``setup_observability()`` to avoid duplicate providers.
-The framework's decorators resolve tracers/meters through our global
-providers.
 """
 
 from __future__ import annotations
@@ -60,17 +48,22 @@ def configure_observability() -> None:
 
 
 def instrument_app(app: Any) -> None:
-    """Instrument a FastAPI app instance (OTLP-only; Azure Monitor auto-instruments)."""
-    if not _telemetry_enabled:
-        return
+    """Instrument a FastAPI app with ASGI internal spans excluded.
 
-    if os.getenv("APPLICATIONINSIGHTS_CONNECTION_STRING"):
+    Azure Monitor's FastAPI auto-instrumentation is disabled so we can
+    pass ``exclude_spans`` to suppress InProc ``http send``/``receive``
+    spans.  See https://github.com/open-telemetry/opentelemetry-python-contrib/pull/2802
+    """
+    if not _telemetry_enabled:
         return
 
     try:
         from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 
-        FastAPIInstrumentor.instrument_app(app)
+        FastAPIInstrumentor.instrument_app(
+            app,
+            exclude_spans=["send", "receive"],
+        )
         logger.info("telemetry.fastapi.instrumented")
     except (ImportError, Exception) as exc:
         logger.warning(
@@ -111,7 +104,7 @@ def _configure_azure_monitor(conn_str: str, otlp_endpoint: str | None) -> None:
                 "azure_sdk": {"enabled": True},
                 "flask": {"enabled": False},
                 "django": {"enabled": False},
-                "fastapi": {"enabled": True},
+                "fastapi": {"enabled": False},  # manual via instrument_app()
                 "psycopg2": {"enabled": False},
                 "requests": {"enabled": True},
                 "urllib": {"enabled": True},

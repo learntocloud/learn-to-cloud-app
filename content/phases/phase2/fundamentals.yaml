@@ -61,8 +61,8 @@ learning_steps:
   description: Use ping to test host reachability and measure round-trip latency, and traceroute (tracert on Windows) to trace
     the path packets take to a destination. Try ping google.com, traceroute google.com, and ping between VMs to verify connectivity.
 - order: 9
-  text: Watch NetworkChuck Overview
+  text: Watch Kunal Kushwaha's Networking Overview
   action: 'Watch:'
   title: Networking Fundamentals Playlist
   url: https://www.youtube.com/watch?v=IPvYjXCsTg8
-  description: NetworkChuck's engaging overview of networking concepts. Great for reinforcing what you've learned.
+  description: Kunal Kushwaha's engaging overview of networking concepts. Great for reinforcing what you've learned.

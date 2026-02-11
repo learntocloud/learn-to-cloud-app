@@ -21,7 +21,7 @@
 #
 # Weekly audit of all external URLs in Learn to Cloud content YAML files. Checks for broken links, redirects, and retired certifications.
 #
-# frontmatter-hash: 88afd8de5fd4ca90a5ac603bf6c7fa8fd87611e9549ce41a5c2fe8fb674279ff
+# frontmatter-hash: a225d03508b944ddc925fc07f98fae2398faacc709231075abb14e08567b843f
 
 name: "Content Link Auditor"
 "on":
@@ -89,16 +89,14 @@ jobs:
         uses: github/gh-aw/actions/setup@ab43451fcdaecb07e55df4cdf45ceb9490c69242 # v0.43.5
         with:
           destination: /opt/gh-aw/actions
-      - name: Checkout .github and .agents folders
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          sparse-checkout: |
-            .github
-            .agents
-          fetch-depth: 1
-          persist-credentials: false
       - name: Create gh-aw temp directory
         run: bash /opt/gh-aw/actions/create_gh_aw_tmp_dir.sh
+      - name: Checkout content files
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          sparse-checkout: content/phases
+          sparse-checkout-cone-mode: true
+
       - name: Configure Git credentials
         env:
           REPO_NAME: ${{ github.repository }}
