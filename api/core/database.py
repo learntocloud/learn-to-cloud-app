@@ -52,7 +52,7 @@ class HealthCheckResult(TypedDict):
 
 
 # =============================================================================
-# Engine Creation (called once at startup)
+# Engine Creation
 # =============================================================================
 
 
@@ -66,21 +66,12 @@ def _build_azure_database_url() -> str:
 
 
 async def _azure_asyncpg_creator():
-    """Create an asyncpg connection using a fresh AAD token.
+    """Create an asyncpg connection using a fresh Entra ID token.
 
-    AAD tokens expire (often ~1 hour). Providing the token dynamically per new
-    connection prevents the app from failing once the original token expires.
-
-    Note: connect_args from create_async_engine is bypassed when using async_creator,
-    so we must set server_settings (like statement_timeout) directly here.
-
-    Raises:
-        TimeoutError: If token acquisition or connection takes too long.
-        asyncpg.PostgresError: If connection fails after token is obtained.
+    Tokens expire (~1 hour), so each new connection fetches a fresh one
+    via managed identity.
     """
     settings = get_settings()
-
-    # Token acquisition has its own retry/timeout logic
     token = await _get_azure_token()
 
     import asyncpg
@@ -94,34 +85,30 @@ async def _azure_asyncpg_creator():
             database=settings.postgres_database,
             ssl="require",
             timeout=30,
-            # Apply statement_timeout here since connect_args is bypassed
-            # with async_creator
             server_settings={
                 "statement_timeout": str(settings.db_statement_timeout_ms),
             },
         )
     except asyncpg.PostgresConnectionError:
-        # Log connection errors with host (but not credentials)
+        logger.exception(
+            "db.connection.failed",
+            extra={"host": settings.postgres_host, "port": settings.postgres_port},
+        )
         raise
 
 
 def _setup_pool_event_listeners(engine: AsyncEngine) -> None:
-    # Note: AsyncAdaptedQueuePool is a subclass of QueuePool
     pool = engine.sync_engine.pool
 
     @event.listens_for(pool, "checkout")
     def _on_checkout(dbapi_conn, connection_record, connection_proxy):
-        # asyncpg tracks protocol-level transaction state independently from
-        # the SQLAlchemy adapter.  If a connection is returned to the pool
-        # with lingering state (e.g. after an interrupted request), the next
-        # checkout raises "cannot use Connection.transaction() in a manually
-        # started transaction".
+        # Clean up lingering transaction state that causes asyncpg's
+        # "cannot use Connection.transaction() in a manually started
+        # transaction" error on next use.
         raw_conn = dbapi_conn._connection
         if raw_conn.is_in_transaction():
             dbapi_conn.await_(raw_conn.execute("ROLLBACK"))
-            # Private attrs of SQLAlchemy's asyncpg AdaptedConnection
-            # (verified against 2.0.46). try/except so a future upgrade
-            # surfaces a warning instead of crashing.
+            # Reset private asyncpg adapter state (verified 2.0.46).
             try:
                 dbapi_conn._transaction = None
                 dbapi_conn._started = False
@@ -166,7 +153,6 @@ def create_engine() -> AsyncEngine:
         "pool_pre_ping": False,
     }
 
-    # connect_args only applies when NOT using async_creator
     if async_creator is None:
         engine_kwargs["connect_args"] = {
             "server_settings": {
@@ -226,10 +212,15 @@ async def get_db(request: Request) -> AsyncGenerator[AsyncSession]:
 
 
 async def get_db_readonly(request: Request) -> AsyncGenerator[AsyncSession]:
-    """Session for read-only operations (no commit)."""
+    """Read-only session — PostgreSQL rejects any write attempts.
+
+    Uses SET TRANSACTION READ ONLY so INSERT/UPDATE/DELETE raise
+    an immediate error instead of silently rolling back on close.
+    """
     session_maker: async_sessionmaker[AsyncSession] = request.app.state.session_maker
     async with session_maker() as session:
         try:
+            await session.execute(text("SET TRANSACTION READ ONLY"))
             yield session
         except Exception:
             try:
@@ -244,7 +235,7 @@ DbSessionReadOnly = Annotated[AsyncSession, Depends(get_db_readonly)]
 
 
 # =============================================================================
-# Lifecycle Functions (called from lifespan)
+# Lifecycle Functions
 # =============================================================================
 
 
@@ -252,28 +243,15 @@ async def init_db(engine: AsyncEngine) -> None:
     """Verify database is reachable. Schema managed via migrations."""
     logger.info("db.connectivity.verifying")
 
-    try:
-        async with asyncio.timeout(30):
-            async with engine.connect() as conn:
-                await conn.execute(text("SELECT 1"))
-                # Explicit rollback so asyncpg 0.30.0 doesn't leave the
-                # connection in a "manually started transaction" state when
-                # it's returned to the pool.
-                await conn.rollback()
-        logger.info("db.connectivity.verified")
-    except TimeoutError:
-        raise
-    except Exception:
-        raise
+    async with asyncio.timeout(30):
+        async with engine.connect() as conn:
+            await conn.execute(text("SELECT 1"))
+            await conn.rollback()
+    logger.info("db.connectivity.verified")
 
 
 async def warm_pool(engine: AsyncEngine) -> None:
-    """Pre-fill the connection pool in the background.
-
-    Called as a fire-and-forget task *after* the app starts serving so
-    startup latency isn't affected.  The first few requests may still
-    create connections on demand, but subsequent ones will hit warm slots.
-    """
+    """Pre-fill the connection pool so early requests don't pay connection cost."""
     settings = get_settings()
     warm_count = min(settings.db_pool_size - 1, 3)  # already have 1 from init_db
     if warm_count <= 0:
@@ -304,17 +282,12 @@ async def dispose_engine(engine: AsyncEngine) -> None:
 
 
 # =============================================================================
-# Health Check Functions (accept engine parameter)
+# Health Check Functions
 # =============================================================================
 
 
 async def check_db_connection(engine: AsyncEngine) -> None:
-    """Verify database is reachable with a timeout guard.
-
-    Raises:
-        TimeoutError: If the check exceeds 30 seconds.
-        Exception: If the database is unreachable.
-    """
+    """Verify database is reachable (30s timeout)."""
     async with asyncio.timeout(30):
         async with engine.connect() as conn:
             await conn.execute(text("SELECT 1"))
@@ -336,18 +309,7 @@ def get_pool_status(engine: AsyncEngine) -> PoolStatus | None:
 
 
 async def check_azure_token_acquisition() -> bool:
-    """Verify Azure AD token acquisition is working.
-
-    This is a deeper health check than check_db_connection() - it validates
-    that the managed identity can obtain tokens, which is useful for
-    diagnosing auth issues separately from database connectivity.
-
-    Returns:
-        True if token was acquired successfully.
-
-    Raises:
-        Exception if token acquisition fails.
-    """
+    """Verify managed identity can acquire tokens (separate from DB connectivity)."""
     settings = get_settings()
     if not settings.use_azure_postgres:
         return True

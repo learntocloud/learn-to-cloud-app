@@ -6,21 +6,12 @@ import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-# ── OTel must be configured BEFORE importing FastAPI ──────────────────
-# Azure Monitor's FastAPI instrumentor monkey-patches FastAPI at import
-# time. If FastAPI is imported first, requests won't appear in AppRequests.
-# See: https://learn.microsoft.com/en-us/troubleshoot/azure/azure-monitor/
-#      app-insights/telemetry/opentelemetry-troubleshooting-python
-from core.observability import configure_observability
-
-configure_observability()
-
-# ── Now safe to import FastAPI and everything else ────────────────────
-from fastapi import FastAPI, Request
+import fastapi
+from fastapi import Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from slowapi.errors import RateLimitExceeded
@@ -40,7 +31,7 @@ from core.middleware import (
     SecurityHeadersMiddleware,
     UserTrackingMiddleware,
 )
-from core.observability import instrument_app
+from core.observability import configure_observability, instrument_app
 from core.ratelimit import limiter, rate_limit_exceeded_handler
 from routes import (
     analytics_router,
@@ -58,6 +49,12 @@ from services.github_hands_on_verification_service import (
     close_github_client,
 )
 
+# OTel must be configured before fastapi.FastAPI() is instantiated.
+# Azure Monitor replaces fastapi.FastAPI at instrument time; module-level
+# attribute lookup picks up the patched class.
+# See: https://learn.microsoft.com/en-us/troubleshoot/azure/azure-monitor/
+#      app-insights/telemetry/opentelemetry-troubleshooting-python
+configure_observability()
 configure_logging()
 logger = logging.getLogger(__name__)
 
@@ -127,7 +124,7 @@ async def validation_exception_handler(
     )
 
 
-async def _background_warmup(app: FastAPI) -> None:
+async def _background_warmup(app: fastapi.FastAPI) -> None:
     """Warm caches in the background after the app starts serving."""
     from services.content_service import get_all_phases
     from services.progress_service import get_all_phase_ids
@@ -183,7 +180,7 @@ async def _run_alembic_migrations() -> None:
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: fastapi.FastAPI):
     """Create DB engine at startup, dispose on shutdown."""
     app.state.engine = create_engine()
     app.state.session_maker = create_session_maker(app.state.engine)
@@ -246,7 +243,7 @@ async def lifespan(app: FastAPI):
 
 _settings = get_settings()
 
-app = FastAPI(
+app = fastapi.FastAPI(
     title="Learn to Cloud API",
     version="1.0.0",
     lifespan=lifespan,
@@ -294,6 +291,34 @@ if _static_dir.exists():
 
 # Expose cache-busted URL helper to all Jinja2 templates
 templates.env.globals["static_url"] = _static_url
+
+
+# Browser-requested root assets — browsers always request these at /
+_favicon_ico = _static_dir / "favicon.ico"
+_apple_touch_icon = _static_dir / "apple-touch-icon.png"
+_icon_cache = "public, max-age=86400, immutable"
+
+
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon_ico() -> FileResponse:
+    """Serve favicon.ico from static assets."""
+    return FileResponse(
+        _favicon_ico,
+        media_type="image/x-icon",
+        headers={"Cache-Control": _icon_cache},
+    )
+
+
+@app.get("/apple-touch-icon.png", include_in_schema=False)
+@app.get("/apple-touch-icon-precomposed.png", include_in_schema=False)
+async def apple_touch_icon() -> FileResponse:
+    """Serve apple-touch-icon.png from static assets."""
+    return FileResponse(
+        _apple_touch_icon,
+        media_type="image/png",
+        headers={"Cache-Control": _icon_cache},
+    )
+
 
 # API routes (JSON)
 app.include_router(health_router)

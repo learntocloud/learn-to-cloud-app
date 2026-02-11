@@ -80,9 +80,9 @@ resource "azurerm_container_app" "api" {
 
   template {
     min_replicas = 1
-    # B1ms PostgreSQL allows 35 user connections.
+    # B2s PostgreSQL allows 414 user connections (429 total - 15 reserved).
     # Each replica uses up to 10 (pool_size=5 + max_overflow=5).
-    # 2 replicas × 10 = 20 connections — safely under the limit.
+    # 2 replicas × 10 = 20 connections — well under the 414 limit.
     # Scaling uses the default HTTP rule (10 concurrent requests per replica).
     max_replicas = 2
 

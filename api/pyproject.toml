@@ -82,10 +82,6 @@ select = ["E", "F", "I", "UP"]
 [tool.ruff.lint.per-file-ignores]
 # SVG templates have long inline attribute strings that can't be broken
 "rendering/certificates.py" = ["E501"]
-# OTel must be configured before importing FastAPI (monkey-patching)
-"main.py" = ["E402"]
-# Intentionally interleaves imports with timing measurements
-"scripts/profile_startup.py" = ["E402"]
 
 [tool.ty.environment]
 # Use the current Python interpreter to resolve third-party imports

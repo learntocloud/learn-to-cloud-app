@@ -491,7 +491,10 @@ resource "azurerm_portal_dashboard" "main" {
                   isOptional = true
                 },
                 {
-                  name       = "ComponentId"
+                  name  = "ComponentId"
+                  value = {
+                    ResourceId = azurerm_application_insights.main.id
+                  }
                   isOptional = true
                 },
                 {
@@ -563,7 +566,10 @@ resource "azurerm_portal_dashboard" "main" {
                   isOptional = true
                 },
                 {
-                  name       = "ComponentId"
+                  name  = "ComponentId"
+                  value = {
+                    ResourceId = azurerm_application_insights.main.id
+                  }
                   isOptional = true
                 },
                 {
@@ -655,7 +661,10 @@ resource "azurerm_portal_dashboard" "main" {
                   isOptional = true
                 },
                 {
-                  name       = "ComponentId"
+                  name  = "ComponentId"
+                  value = {
+                    ResourceId = azurerm_application_insights.main.id
+                  }
                   isOptional = true
                 },
                 {
@@ -801,7 +810,10 @@ resource "azurerm_portal_dashboard" "main" {
                   isOptional = true
                 },
                 {
-                  name       = "ComponentId"
+                  name  = "ComponentId"
+                  value = {
+                    ResourceId = azurerm_application_insights.main.id
+                  }
                   isOptional = true
                 },
                 {
@@ -874,7 +886,10 @@ resource "azurerm_portal_dashboard" "main" {
                   isOptional = true
                 },
                 {
-                  name       = "ComponentId"
+                  name  = "ComponentId"
+                  value = {
+                    ResourceId = azurerm_application_insights.main.id
+                  }
                   isOptional = true
                 },
                 {
@@ -941,7 +956,10 @@ resource "azurerm_portal_dashboard" "main" {
                   isOptional = true
                 },
                 {
-                  name       = "ComponentId"
+                  name  = "ComponentId"
+                  value = {
+                    ResourceId = azurerm_application_insights.main.id
+                  }
                   isOptional = true
                 },
                 {
