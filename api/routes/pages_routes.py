@@ -372,3 +372,33 @@ async def faq_page(
         "pages/faq.html",
         _template_context(request, user=user),
     )
+
+
+@router.get("/privacy", response_class=HTMLResponse)
+async def privacy_page(
+    request: Request,
+    db: DbSession,
+    user_id: OptionalUserId,
+) -> HTMLResponse:
+    """Privacy policy page."""
+    user = await _get_user_or_none(db, user_id)
+
+    return request.app.state.templates.TemplateResponse(
+        "pages/privacy.html",
+        _template_context(request, user=user),
+    )
+
+
+@router.get("/terms", response_class=HTMLResponse)
+async def terms_page(
+    request: Request,
+    db: DbSession,
+    user_id: OptionalUserId,
+) -> HTMLResponse:
+    """Terms of service page."""
+    user = await _get_user_or_none(db, user_id)
+
+    return request.app.state.templates.TemplateResponse(
+        "pages/terms.html",
+        _template_context(request, user=user),
+    )

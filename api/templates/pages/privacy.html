@@ -1,0 +1,147 @@
+{% extends "layouts/content_page.html" %}
+{% block title %}Privacy Policy - Learn to Cloud{% endblock %}
+
+{% block page_header %}
+<h1 class="text-3xl font-bold text-gray-900 dark:text-white text-center">Privacy Policy</h1>
+<p class="mt-2 text-sm text-gray-500 dark:text-gray-400 text-center">Last updated: February 11, 2026</p>
+{% endblock %}
+
+{% block page_body %}
+<div class="prose prose-gray dark:prose-invert max-w-none space-y-8">
+
+    <section>
+        <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Overview</h2>
+        <p class="text-sm text-gray-600 dark:text-gray-400">
+            Learn to Cloud is a free, open-source educational platform that helps you learn cloud computing through
+            structured, hands-on exercises. We are committed to protecting your privacy and being transparent about
+            the data we collect and how we use it.
+        </p>
+    </section>
+
+    <section>
+        <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Data We Collect</h2>
+        <p class="text-sm text-gray-600 dark:text-gray-400">
+            When you sign in with GitHub, we collect only the following from your <strong>public</strong> GitHub profile:
+        </p>
+        <ul class="mt-2 list-disc list-inside text-sm text-gray-600 dark:text-gray-400 space-y-1">
+            <li><strong>GitHub user ID</strong> — used as your account identifier</li>
+            <li><strong>Username</strong> — displayed on your profile and used for lookups</li>
+            <li><strong>Display name</strong> — shown as your first and last name</li>
+            <li><strong>Avatar URL</strong> — shown on your profile and dashboard</li>
+        </ul>
+        <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">
+            We do <strong>not</strong> collect your email address, password, private repositories, or any other personal
+            information beyond what is listed above.
+        </p>
+    </section>
+
+    <section>
+        <h2 class="text-xl font-semibold text-gray-900 dark:text-white">GitHub OAuth Scope</h2>
+        <p class="text-sm text-gray-600 dark:text-gray-400">
+            We request the <code class="text-xs bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded">read:user</code>
+            OAuth scope, which grants read-only access to your public profile information. We do not request access to
+            your repositories, organizations, or any private data. Your GitHub access token is used only during
+            sign-in and is never stored.
+        </p>
+    </section>
+
+    <section>
+        <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Data You Submit</h2>
+        <p class="text-sm text-gray-600 dark:text-gray-400">
+            As part of hands-on verification, you voluntarily submit URLs and tokens (such as GitHub repository URLs,
+            deployed application URLs, and CTF tokens) to prove completion of exercises. This submitted data is stored
+            alongside your account and may be visible on your public profile, with the exception of sensitive values
+            (such as CTF tokens) which are redacted.
+        </p>
+    </section>
+
+    <section>
+        <h2 class="text-xl font-semibold text-gray-900 dark:text-white">How We Use Your Data</h2>
+        <p class="text-sm text-gray-600 dark:text-gray-400">Your data is used solely to:</p>
+        <ul class="mt-2 list-disc list-inside text-sm text-gray-600 dark:text-gray-400 space-y-1">
+            <li>Identify your account and maintain your session</li>
+            <li>Track your learning progress across phases</li>
+            <li>Verify completion of hands-on exercises</li>
+            <li>Generate completion certificates</li>
+            <li>Display your public profile and earned badges</li>
+            <li>Compute anonymous, aggregate community statistics (shown on the <a href="/status" class="text-blue-600 dark:text-blue-400 underline">Status</a> page)</li>
+        </ul>
+    </section>
+
+    <section>
+        <h2 class="text-xl font-semibold text-gray-900 dark:text-white">What We Do Not Do</h2>
+        <ul class="mt-2 list-disc list-inside text-sm text-gray-600 dark:text-gray-400 space-y-1">
+            <li>We do not sell, rent, or share your personal information with third parties</li>
+            <li>We do not use your data for advertising, recruiting, or marketing purposes</li>
+            <li>We do not send unsolicited emails (we don't even collect your email)</li>
+            <li>We do not scrape or crawl GitHub profiles beyond your own authenticated data</li>
+            <li>We do not store your GitHub access token</li>
+        </ul>
+    </section>
+
+    <section>
+        <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Public Profiles</h2>
+        <p class="text-sm text-gray-600 dark:text-gray-400">
+            Your profile is publicly accessible at <code class="text-xs bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded">/profile/your-username</code>.
+            It displays your first name, avatar, GitHub username, learning progress, earned badges, and validated
+            submission URLs. All of this information is derived from data you voluntarily provided or submitted.
+        </p>
+    </section>
+
+    <section>
+        <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Cookies</h2>
+        <p class="text-sm text-gray-600 dark:text-gray-400">
+            We use a single session cookie to keep you signed in. This cookie is signed, HTTP-only, and contains only
+            your user ID. We do not use tracking cookies, analytics cookies, or any third-party cookies.
+        </p>
+    </section>
+
+    <section>
+        <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Data Retention &amp; Deletion</h2>
+        <p class="text-sm text-gray-600 dark:text-gray-400">
+            Your data is retained as long as your account exists. You can permanently delete your account and all
+            associated data (progress, submissions, and certificates) at any time from your
+            <a href="/account" class="text-blue-600 dark:text-blue-400 underline">Account page</a>.
+            Deletion is immediate and irreversible.
+        </p>
+    </section>
+
+    <section>
+        <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Third-Party Services</h2>
+        <p class="text-sm text-gray-600 dark:text-gray-400">
+            We interact with the following external services on your behalf, only when you initiate a verification:
+        </p>
+        <ul class="mt-2 list-disc list-inside text-sm text-gray-600 dark:text-gray-400 space-y-1">
+            <li><strong>GitHub API</strong> — to verify repositories and profiles you submit</li>
+            <li><strong>Azure OpenAI</strong> — to analyze code you submit for verification (code is not stored by the LLM)</li>
+        </ul>
+    </section>
+
+    <section>
+        <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Open Source</h2>
+        <p class="text-sm text-gray-600 dark:text-gray-400">
+            This application is open source. You can review the full source code to verify our data practices at
+            <a href="https://github.com/learntocloud/learn-to-cloud-app" target="_blank" rel="noopener noreferrer" class="text-blue-600 dark:text-blue-400 underline">github.com/learntocloud/learn-to-cloud-app</a>.
+        </p>
+    </section>
+
+    <section>
+        <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Changes to This Policy</h2>
+        <p class="text-sm text-gray-600 dark:text-gray-400">
+            We may update this policy from time to time. Changes will be reflected on this page with an updated date.
+            Continued use of the platform after changes constitutes acceptance of the revised policy.
+        </p>
+    </section>
+
+    <section>
+        <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Contact</h2>
+        <p class="text-sm text-gray-600 dark:text-gray-400">
+            If you have questions about this privacy policy, please open an issue on our
+            <a href="https://github.com/learntocloud/learn-to-cloud-app/issues" target="_blank" rel="noopener noreferrer" class="text-blue-600 dark:text-blue-400 underline">GitHub repository</a>
+            or reach out on our
+            <a href="https://discord.learntocloud.guide" target="_blank" rel="noopener noreferrer" class="text-blue-600 dark:text-blue-400 underline">Discord</a>.
+        </p>
+    </section>
+
+</div>
+{% endblock %}
