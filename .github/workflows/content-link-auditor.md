@@ -25,7 +25,7 @@ tools:
   github:
     toolsets: [repos]
     read-only: true
-  bash: ["cat", "find", "grep", "head", "tail", "wc", "echo", "sort", "uniq", "ls", "sed", "awk", "yq", "which", "python3"]
+  bash: ["cat", "find", "grep", "head", "tail", "wc", "echo", "sort", "uniq", "ls", "sed", "awk", "yq", "which", "python3", "curl"]
   web-fetch:
 
 network:
@@ -129,7 +129,7 @@ Ignore template/placeholder URLs like `https://github.com/your-username` or loca
 
 For each unique URL, use the `web-fetch` tool to check if the page loads successfully.
 
-**Important:** Do NOT try to install Python packages or use `pip`, `curl`, or `wget`. You only have the `web-fetch` tool and the allowed `bash` commands (`cat`, `find`, `grep`, `head`, `tail`, `wc`, `echo`, `sort`, `uniq`, `ls`, `sed`, `awk`, `yq`, `which`, `python3`). Use `web-fetch` for every URL check. Use `yq` for YAML parsing and `sed`/`awk` for text processing.
+**Important:** Do NOT try to install Python packages or use `pip` or `wget`. Prefer the `web-fetch` tool for URL checks. If `web-fetch` is denied in non-interactive mode, use `curl` as the fallback (HEAD first, then GET with redirect-follow if needed). Use `yq` for YAML parsing and `sed`/`awk` for text processing.
 
 Classify results as:
 
