@@ -1,7 +1,9 @@
 """Unit tests for deployed_api_verification_service.
 
-Tests the live API health check and JSON response validation:
+Tests the challenge-response API ownership verification:
 - URL normalization and validation
+- Challenge nonce generation
+- POST/GET/DELETE flow for ownership proof
 - HTTP request handling (success, errors, timeouts)
 - JSON response parsing and entry validation
 - Circuit breaker behavior
@@ -16,6 +18,8 @@ from circuitbreaker import CircuitBreakerError
 
 from services.deployed_api_verification_service import (
     DeployedApiServerError,
+    _extract_entries_list,
+    _generate_challenge_nonce,
     _normalize_base_url,
     _validate_entries_json,
     _validate_entry,
@@ -170,9 +174,111 @@ class TestValidateEntriesJson:
         assert "not a valid object" in result.message.lower()
 
 
+class TestExtractEntriesList:
+    """Tests for _extract_entries_list helper."""
+
+    def test_raw_array_rejected(self):
+        """Raw array is not the journal-starter format and should return None."""
+        data = [{"id": "1"}]
+        assert _extract_entries_list(data) is None
+
+    def test_wrapped_object(self):
+        """Object with 'entries' key should extract the list."""
+        entries = [{"id": "1"}]
+        data = {"entries": entries, "count": 1}
+        assert _extract_entries_list(data) == entries
+
+    def test_unrecognised_format(self):
+        """Unrecognised format should return None."""
+        assert _extract_entries_list({"error": "bad"}) is None
+        assert _extract_entries_list("string") is None
+
+    def test_empty_entries_list(self):
+        """Empty entries list should still be returned."""
+        assert _extract_entries_list({"entries": [], "count": 0}) == []
+
+
+class TestGenerateChallengeNonce:
+    """Tests for challenge nonce generation."""
+
+    def test_nonce_has_prefix(self):
+        """Generated nonce should start with ltc-verify-."""
+        nonce = _generate_challenge_nonce()
+        assert nonce.startswith("ltc-verify-")
+
+    def test_nonces_are_unique(self):
+        """Each call should produce a different nonce."""
+        nonces = {_generate_challenge_nonce() for _ in range(10)}
+        assert len(nonces) == 10
+
+
+def _mock_fetch_side_effect(
+    *,
+    nonce: str,
+    post_status: int = 200,
+    post_entry_id: str = "challenge-uuid",
+    get_status: int = 200,
+    get_entries: list | None = None,
+    get_response_format: str = "array",
+):
+    """Build a side_effect callable for _fetch_with_retry that handles POST then GET.
+
+    Args:
+        nonce: The nonce that will be in the POST body (matched dynamically)
+        post_status: HTTP status for the POST response
+        post_entry_id: ID returned for the created challenge entry
+        get_status: HTTP status for the GET response
+        get_entries: Entries to return from GET (nonce entry auto-added)
+        get_response_format: 'array' or 'wrapped'
+    """
+    real_entries = get_entries or []
+
+    async def side_effect(url, *, method="GET", json_body=None):
+        resp = MagicMock(spec=httpx.Response)
+
+        if method == "POST":
+            resp.status_code = post_status
+            # Build the nonce entry from what was posted
+            challenge_entry = {
+                "id": post_entry_id,
+                **(json_body or {}),
+                "created_at": "2026-01-01T00:00:00Z",
+            }
+            resp.json.return_value = {
+                "detail": "Entry created successfully",
+                "entry": challenge_entry,
+            }
+            return resp
+
+        if method == "GET":
+            resp.status_code = get_status
+            # Include the challenge entry (simulating real persistence)
+            challenge_entry = {
+                "id": post_entry_id,
+                "work": json_body["work"] if json_body else nonce,
+                "struggle": "LTC verification challenge",
+                "intention": "Proving API ownership",
+                "created_at": "2026-01-01T00:00:00Z",
+            }
+            # We need to capture the nonce from the POST call
+            all_entries = real_entries + [challenge_entry]
+            if get_response_format == "wrapped":
+                resp.json.return_value = {
+                    "entries": all_entries,
+                    "count": len(all_entries),
+                }
+            else:
+                resp.json.return_value = all_entries
+            return resp
+
+        return resp
+
+    return side_effect
+
+
 @pytest.mark.unit
 class TestValidateDeployedApi:
-    """Tests for the main validation function."""
+    """Tests for the challenge-response validation function."""
 
     @pytest.mark.asyncio
     async def test_empty_url_fails(self):
@@ -189,8 +295,8 @@ class TestValidateDeployedApi:
         assert "valid HTTP(S) URL" in result.message
 
     @pytest.mark.asyncio
-    async def test_successful_verification(self):
-        """Successful API call with valid response should pass."""
+    async def test_successful_challenge_response(self):
+        """Full POST-GET-DELETE flow should verify ownership."""
         valid_entry = {
             "id": "12345678-1234-4567-89ab-123456789abc",
             "work": "Built an API",
@@ -199,27 +305,81 @@ class TestValidateDeployedApi:
             "created_at": "2025-01-25T10:30:00Z",
         }
 
-        mock_response = MagicMock(spec=httpx.Response)
-        mock_response.status_code = 200
-        mock_response.json.return_value = [valid_entry]
+        # Track calls to distinguish POST vs GET
+        call_log = []
 
-        with patch(
-            "services.deployed_api_verification_service._fetch_entries_with_retry",
-            new_callable=AsyncMock,
-        ) as mock_fetch:
-            mock_fetch.return_value = mock_response
+        async def mock_fetch(url, *, method="GET", json_body=None):
+            call_log.append(method)
+            resp = MagicMock(spec=httpx.Response)
 
+            if method == "POST":
+                resp.status_code = 200
+                nonce = json_body["work"]
+                resp.json.return_value = {
+                    "detail": "Entry created successfully",
+                    "entry": {
+                        "id": "challenge-id",
+                        "work": nonce,
+                        "struggle": json_body["struggle"],
+                        "intention": json_body["intention"],
+                        "created_at": "2026-01-01T00:00:00Z",
+                    },
+                }
+                return resp
+
+            if method == "GET":
+                # Return the valid entry + challenge entry
+                nonce_entry = {
+                    "id": "challenge-id",
+                    "work": call_log_nonce,
+                    "struggle": "LTC verification challenge",
+                    "intention": "Proving API ownership",
+                    "created_at": "2026-01-01T00:00:00Z",
+                }
+                all_entries = [valid_entry, nonce_entry]
+                resp.status_code = 200
+                resp.json.return_value = {
+                    "entries": all_entries,
+                    "count": len(all_entries),
+                }
+                return resp
+
+            return resp
+
+        # We need to capture the nonce from the POST call
+        call_log_nonce = None
+        original_mock_fetch = mock_fetch
+
+        async def capturing_mock_fetch(url, *, method="GET", json_body=None):
+            nonlocal call_log_nonce
+            if method == "POST" and json_body:
+                call_log_nonce = json_body["work"]
+            return await original_mock_fetch(url, method=method, json_body=json_body)
+
+        with (
+            patch(
+                "services.deployed_api_verification_service._fetch_with_retry",
+                side_effect=capturing_mock_fetch,
+            ),
+            patch(
+                "services.deployed_api_verification_service._cleanup_challenge_entry",
+                new_callable=AsyncMock,
+            ) as mock_cleanup,
+        ):
             result = await validate_deployed_api("https://api.example.com")
 
-            mock_fetch.assert_called_once_with("https://api.example.com/entries")
             assert result.is_valid is True
-            assert "verified" in result.message.lower()
+            assert "ownership confirmed" in result.message.lower()
+            assert "1 valid entry" in result.message
+            mock_cleanup.assert_called_once_with(
+                "https://api.example.com/entries", "challenge-id"
+            )
 
     @pytest.mark.asyncio
-    async def test_timeout_error(self):
-        """Timeout should return appropriate error."""
+    async def test_post_timeout_error(self):
+        """Timeout on POST should return appropriate error."""
         with patch(
-            "services.deployed_api_verification_service._fetch_entries_with_retry",
+            "services.deployed_api_verification_service._fetch_with_retry",
             new_callable=AsyncMock,
         ) as mock_fetch:
             mock_fetch.side_effect = httpx.TimeoutException("Request timed out")
@@ -230,10 +390,10 @@ class TestValidateDeployedApi:
             assert "timed out" in result.message.lower()
 
     @pytest.mark.asyncio
-    async def test_connection_error(self):
-        """Connection error should return appropriate message."""
+    async def test_post_connection_error(self):
+        """Connection error on POST should return appropriate message."""
         with patch(
-            "services.deployed_api_verification_service._fetch_entries_with_retry",
+            "services.deployed_api_verification_service._fetch_with_retry",
             new_callable=AsyncMock,
         ) as mock_fetch:
             mock_fetch.side_effect = httpx.ConnectError("Connection refused")
@@ -244,10 +404,10 @@ class TestValidateDeployedApi:
             assert "could not connect" in result.message.lower()
 
     @pytest.mark.asyncio
-    async def test_server_error(self):
-        """5xx errors should return appropriate message."""
+    async def test_post_server_error(self):
+        """5xx errors on POST should return appropriate message."""
         with patch(
-            "services.deployed_api_verification_service._fetch_entries_with_retry",
+            "services.deployed_api_verification_service._fetch_with_retry",
             new_callable=AsyncMock,
         ) as mock_fetch:
             mock_fetch.side_effect = DeployedApiServerError("Server returned 500")
@@ -261,7 +421,7 @@ class TestValidateDeployedApi:
     async def test_circuit_breaker_open(self):
         """Circuit breaker open should return retry message."""
         with patch(
-            "services.deployed_api_verification_service._fetch_entries_with_retry",
+            "services.deployed_api_verification_service._fetch_with_retry",
             new_callable=AsyncMock,
         ) as mock_fetch:
             mock_fetch.side_effect = CircuitBreakerError(MagicMock())
@@ -272,13 +432,13 @@ class TestValidateDeployedApi:
             assert "try again" in result.message.lower()
 
     @pytest.mark.asyncio
-    async def test_404_not_found(self):
-        """404 response should indicate endpoint doesn't exist."""
+    async def test_post_404_not_found(self):
+        """POST 404 should indicate endpoint doesn't exist."""
         mock_response = MagicMock(spec=httpx.Response)
         mock_response.status_code = 404
 
         with patch(
-            "services.deployed_api_verification_service._fetch_entries_with_retry",
+            "services.deployed_api_verification_service._fetch_with_retry",
             new_callable=AsyncMock,
         ) as mock_fetch:
             mock_fetch.return_value = mock_response
@@ -287,16 +447,15 @@ class TestValidateDeployedApi:
 
             assert result.is_valid is False
             assert "404" in result.message
-            assert "endpoint exists" in result.message.lower()
 
     @pytest.mark.asyncio
-    async def test_401_unauthorized(self):
-        """401 response should indicate endpoint is not public."""
+    async def test_post_422_validation_error(self):
+        """POST 422 should indicate validation error."""
         mock_response = MagicMock(spec=httpx.Response)
-        mock_response.status_code = 401
+        mock_response.status_code = 422
 
         with patch(
-            "services.deployed_api_verification_service._fetch_entries_with_retry",
+            "services.deployed_api_verification_service._fetch_with_retry",
             new_callable=AsyncMock,
         ) as mock_fetch:
             mock_fetch.return_value = mock_response
@@ -304,64 +463,95 @@ class TestValidateDeployedApi:
             result = await validate_deployed_api("https://api.example.com")
 
             assert result.is_valid is False
-            assert "publicly accessible" in result.message.lower()
+            assert "422" in result.message
 
     @pytest.mark.asyncio
-    async def test_403_forbidden(self):
-        """403 response should indicate endpoint is not public."""
-        mock_response = MagicMock(spec=httpx.Response)
-        mock_response.status_code = 403
+    async def test_nonce_not_found_in_get(self):
+        """If nonce is not in GET response, ownership verification fails."""
+        post_response = MagicMock(spec=httpx.Response)
+        post_response.status_code = 200
+        post_response.json.return_value = {
+            "entry": {"id": "challenge-id", "work": "ltc-verify-abc"}
+        }
 
-        with patch(
-            "services.deployed_api_verification_service._fetch_entries_with_retry",
-            new_callable=AsyncMock,
-        ) as mock_fetch:
-            mock_fetch.return_value = mock_response
+        get_response = MagicMock(spec=httpx.Response)
+        get_response.status_code = 200
+        # Return entries that don't contain the nonce (wrapped format)
+        get_response.json.return_value = {
+            "entries": [
+                {
+                    "id": "12345678-1234-4567-89ab-123456789abc",
+                    "work": "Some real work",
+                    "struggle": "stuff",
+                    "intention": "things",
+                    "created_at": "2025-01-01T00:00:00Z",
+                }
+            ],
+            "count": 1,
+        }
 
+        call_count = 0
+
+        async def mock_fetch(url, *, method="GET", json_body=None):
+            nonlocal call_count
+            call_count += 1
+            if method == "POST":
+                return post_response
+            return get_response
+
+        with (
+            patch(
+                "services.deployed_api_verification_service._fetch_with_retry",
+                side_effect=mock_fetch,
+            ),
+            patch(
+                "services.deployed_api_verification_service._cleanup_challenge_entry",
+                new_callable=AsyncMock,
+            ),
+        ):
             result = await validate_deployed_api("https://api.example.com")
 
             assert result.is_valid is False
-            assert "publicly accessible" in result.message.lower()
+            assert "ownership verification failed" in result.message.lower()
 
     @pytest.mark.asyncio
-    async def test_invalid_json_response(self):
-        """Non-JSON response should fail."""
-        mock_response = MagicMock(spec=httpx.Response)
-        mock_response.status_code = 200
-        mock_response.json.side_effect = json.JSONDecodeError("Invalid", "", 0)
+    async def test_get_returns_invalid_json(self):
+        """Non-JSON GET response should fail after POST succeeds."""
+        post_response = MagicMock(spec=httpx.Response)
+        post_response.status_code = 200
+        post_response.json.return_value = {"entry": {"id": "cid"}}
 
-        with patch(
-            "services.deployed_api_verification_service._fetch_entries_with_retry",
-            new_callable=AsyncMock,
-        ) as mock_fetch:
-            mock_fetch.return_value = mock_response
+        get_response = MagicMock(spec=httpx.Response)
+        get_response.status_code = 200
+        get_response.json.side_effect = json.JSONDecodeError("Invalid", "", 0)
 
+        call_count = 0
+
+        async def mock_fetch(url, *, method="GET", json_body=None):
+            nonlocal call_count
+            call_count += 1
+            if method == "POST":
+                return post_response
+            return get_response
+
+        with (
+            patch(
+                "services.deployed_api_verification_service._fetch_with_retry",
+                side_effect=mock_fetch,
+            ),
+            patch(
+                "services.deployed_api_verification_service._cleanup_challenge_entry",
+                new_callable=AsyncMock,
+            ),
+        ):
             result = await validate_deployed_api("https://api.example.com")
 
             assert result.is_valid is False
             assert "valid JSON" in result.message
 
     @pytest.mark.asyncio
-    async def test_non_array_response(self):
-        """Non-array JSON response should fail."""
-        mock_response = MagicMock(spec=httpx.Response)
-        mock_response.status_code = 200
-        mock_response.json.return_value = {"error": "not an array"}
-
-        with patch(
-            "services.deployed_api_verification_service._fetch_entries_with_retry",
-            new_callable=AsyncMock,
-        ) as mock_fetch:
-            mock_fetch.return_value = mock_response
-
-            result = await validate_deployed_api("https://api.example.com")
-
-            assert result.is_valid is False
-            assert "array" in result.message.lower()
-
-    @pytest.mark.asyncio
-    async def test_url_with_entries_suffix_normalized(self):
-        """URL ending in /entries should be normalized."""
+    async def test_wrapped_response_format(self):
+        """API returning {"entries": [...], "count": N} should also work."""
         valid_entry = {
             "id": "12345678-1234-4567-89ab-123456789abc",
             "work": "Built an API",
@@ -370,21 +560,111 @@ class TestValidateDeployedApi:
             "created_at": "2025-01-25T10:30:00Z",
         }
 
-        mock_response = MagicMock(spec=httpx.Response)
-        mock_response.status_code = 200
-        mock_response.json.return_value = [valid_entry]
+        captured_nonce = None
 
-        with patch(
-            "services.deployed_api_verification_service._fetch_entries_with_retry",
-            new_callable=AsyncMock,
-        ) as mock_fetch:
-            mock_fetch.return_value = mock_response
+        async def mock_fetch(url, *, method="GET", json_body=None):
+            nonlocal captured_nonce
+            resp = MagicMock(spec=httpx.Response)
 
-            # User submits with /entries already
+            if method == "POST":
+                captured_nonce = json_body["work"]
+                resp.status_code = 200
+                resp.json.return_value = {
+                    "entry": {"id": "cid", "work": captured_nonce}
+                }
+                return resp
+
+            if method == "GET":
+                nonce_entry = {
+                    "id": "cid",
+                    "work": captured_nonce,
+                    "struggle": "LTC verification challenge",
+                    "intention": "Proving API ownership",
+                    "created_at": "2026-01-01T00:00:00Z",
+                }
+                resp.status_code = 200
+                all_entries = [valid_entry, nonce_entry]
+                resp.json.return_value = {
+                    "entries": all_entries,
+                    "count": len(all_entries),
+                }
+                return resp
+
+            return resp
+
+        with (
+            patch(
+                "services.deployed_api_verification_service._fetch_with_retry",
+                side_effect=mock_fetch,
+            ),
+            patch(
+                "services.deployed_api_verification_service._cleanup_challenge_entry",
+                new_callable=AsyncMock,
+            ),
+        ):
+            result = await validate_deployed_api("https://api.example.com")
+
+            assert result.is_valid is True
+            assert "ownership confirmed" in result.message.lower()
+
+    @pytest.mark.asyncio
+    async def test_url_with_entries_suffix_normalized(self):
+        """URL ending in /entries should be normalized."""
+        captured_nonce = None
+
+        valid_entry = {
+            "id": "12345678-1234-4567-89ab-123456789abc",
+            "work": "Built an API",
+            "struggle": "CORS issues",
+            "intention": "Deploy to cloud",
+            "created_at": "2025-01-25T10:30:00Z",
+        }
+
+        async def mock_fetch(url, *, method="GET", json_body=None):
+            nonlocal captured_nonce
+            resp = MagicMock(spec=httpx.Response)
+
+            if method == "POST":
+                captured_nonce = json_body["work"]
+                resp.status_code = 200
+                resp.json.return_value = {
+                    "entry": {"id": "cid", "work": captured_nonce}
+                }
+                return resp
+
+            if method == "GET":
+                nonce_entry = {
+                    "id": "cid",
+                    "work": captured_nonce,
+                    "struggle": "LTC verification challenge",
+                    "intention": "Proving API ownership",
+                    "created_at": "2026-01-01T00:00:00Z",
+                }
+                all_entries = [valid_entry, nonce_entry]
+                resp.status_code = 200
+                resp.json.return_value = {
+                    "entries": all_entries,
+                    "count": len(all_entries),
+                }
+                return resp
+
+            return resp
+
+        with (
+            patch(
+                "services.deployed_api_verification_service._fetch_with_retry",
+                side_effect=mock_fetch,
+            ) as mock,
+            patch(
+                "services.deployed_api_verification_service._cleanup_challenge_entry",
+                new_callable=AsyncMock,
+            ),
+        ):
             result = await validate_deployed_api("https://api.example.com/entries")
 
-            # Should still call /entries (not /entries/entries)
-            mock_fetch.assert_called_once_with("https://api.example.com/entries")
+            # Should call /entries (not /entries/entries)
+            for call in mock.call_args_list:
+                assert "/entries/entries" not in call.args[0]
             assert result.is_valid is True
 
 

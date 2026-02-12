@@ -24,6 +24,28 @@ import sys
 from datetime import UTC, datetime
 
 
+class _RequestContextFilter(logging.Filter):
+    """Inject request-scoped context vars into every log record.
+
+    Reads ``request_github_username`` from the context var set by
+    ``UserTrackingMiddleware`` and attaches it to the record so
+    formatters (JSON and console) include it automatically.
+
+    Only sets the attribute when a value is present *and* the log
+    record doesn't already have an explicit ``github_username``
+    (so manual ``extra={"github_username": ...}`` wins).
+    """
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        from core.middleware import request_github_username
+
+        if not getattr(record, "github_username", None):
+            username = request_github_username.get()
+            if username:
+                record.github_username = username
+        return True
+
+
 class _JSONFormatter(logging.Formatter):
     """Format log records as single-line JSON for production log aggregation."""
 
@@ -77,6 +99,9 @@ def configure_logging() -> None:
     )
     root.addHandler(console)
     root.setLevel(level)
+
+    # Inject request-scoped github_username into all log records.
+    root.addFilter(_RequestContextFilter())
 
     # Quiet noisy third-party loggers.
     for name in (

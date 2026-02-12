@@ -4,7 +4,7 @@ This module provides the central orchestration for Phase 0 through Phase 6
 hands-on verification:
 - Routes submissions to appropriate validators
 - Supports GitHub profile, profile README, repo fork, CTF token, networking token,
-  journal API response, code analysis, and evidence URL validations
+  code analysis, and evidence URL validations
 
 Phase requirements are defined in phase_requirements.py.
 
@@ -203,13 +203,6 @@ async def _dispatch_validation(
                 repo_exists=False,
             )
         return validate_networking_token_submission(submitted_value, expected_username)
-
-    elif requirement.submission_type == SubmissionType.JOURNAL_API_RESPONSE:
-        from services.journal_verification_service import (
-            validate_journal_api_response,
-        )
-
-        return validate_journal_api_response(submitted_value)
 
     elif requirement.submission_type == SubmissionType.CODE_ANALYSIS:
         if not expected_username:

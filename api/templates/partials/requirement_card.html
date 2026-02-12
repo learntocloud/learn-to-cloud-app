@@ -33,15 +33,7 @@
         <input type="hidden" name="phase_id" value="{{ phase_id }}">
         <input type="hidden" name="submission_type" value="{{ requirement.submission_type }}">
 
-        {% if requirement.submission_type in ['journal_api_response'] %}
-        <textarea
-            name="submitted_value"
-            rows="3"
-            placeholder="{{ requirement.placeholder | default('Paste your JSON response here...') }}"
-            class="flex-1 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-            required
-        >{% if submission %}{{ submission.submitted_value }}{% endif %}</textarea>
-        {% elif requirement.submission_type in ['ctf_token', 'networking_token'] %}
+        {% if requirement.submission_type in ['ctf_token', 'networking_token'] %}
         <input
             type="text"
             name="submitted_value"

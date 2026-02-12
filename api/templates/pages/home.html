@@ -28,15 +28,21 @@
         {% for phase in phases %}
         <div class="rounded-lg border border-gray-200 dark:border-gray-700 p-4">
             <div class="flex items-center gap-2 mb-1">
-                <h3 class="text-sm font-semibold text-gray-900 dark:text-white">
+                <span class="text-sm font-medium text-gray-400 dark:text-gray-500">{{ phase.order }}</span>
+                <h3 class="text-base font-semibold text-gray-900 dark:text-white">
                     {{ phase.name }}
                 </h3>
             </div>
-            <p class="text-xs leading-relaxed text-gray-500 dark:text-gray-400">
+            <p class="text-sm leading-relaxed text-gray-500 dark:text-gray-400">
                 {{ phase.short_description | default(phase.description[:120] + '...' if phase.description | length > 120 else phase.description) }}
             </p>
         </div>
         {% endfor %}
+    </div>
+    <div class="mt-6 text-center">
+        <a href="/curriculum" class="text-base font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300">
+            View full curriculum →
+        </a>
     </div>
 </div>
 {% endif %}

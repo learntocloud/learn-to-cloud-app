@@ -17,7 +17,7 @@ prerequisites:
 - 'Completed Phase 1: Linux and Bash'
 - 'Completed Phase 1: Linux CTFs'
 capstone:
-  title: Learning Journal API
+  title: 'Capstone: Learning Journal API'
   summary: Build a working FastAPI + PostgreSQL API and integrate an LLM for entry analysis. This project becomes the foundation
     for later phases.
   includes:
@@ -51,15 +51,7 @@ hands_on_verification:
     placeholder: https://github.com/username/journal-starter
     example_url: https://github.com/madebygps/journal-starter
     note: You can only verify once per hour.
-  - id: journal-api-response
-    submission_type: journal_api_response
-    name: Validated Journal API Response
-    description: Run your Journal API locally, create at least one entry via POST /entries, then submit the JSON response
-      from GET /entries.
-    submission_instructions: Run your Journal API locally, create at least one entry via POST /entries, then copy the full
-      JSON array response from GET /entries and paste it here. Each entry must have id (UUID), work, struggle, intention,
-      and created_at fields.
-    placeholder: Paste the JSON array from GET /entries
+
 warning: As learners finish this phase, many will share their code. We recommend you do not copy and paste anybody's solution.
   You are only doing a disservice to yourself and will not make it in this field if that is the mentality you have. Additionally,
   we recommend you turn off any AI assistants for code completion—you need to build muscle memory and understanding first.

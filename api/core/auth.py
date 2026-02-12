@@ -60,12 +60,21 @@ def get_user_id_from_session(request: Request) -> int | None:
 
 
 def require_auth(request: Request) -> int:
-    """Dependency: raises 401 if not authenticated. Sets request.state.user_id."""
+    """Dependency: raises 401 if not authenticated. Sets request.state.user_id.
+
+    For HTMX requests, returns 401 so the htmx:responseError handler
+    can redirect client-side. For regular browser page requests,
+    redirects to /auth/login directly.
+    """
     user_id = get_user_id_from_session(request)
     if user_id is None:
-        # For HTMX requests, return 401 so htmx:responseError can redirect
-        # For regular requests, also 401 (page routes handle redirect themselves)
-        raise HTTPException(status_code=401, detail="Unauthorized")
+        is_htmx = request.headers.get("hx-request") == "true"
+        if is_htmx:
+            raise HTTPException(status_code=401, detail="Unauthorized")
+        raise HTTPException(
+            status_code=307,
+            headers={"Location": "/auth/login"},
+        )
 
     request.state.user_id = user_id
     return user_id

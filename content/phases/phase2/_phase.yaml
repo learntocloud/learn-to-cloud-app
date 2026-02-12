@@ -17,7 +17,7 @@ prerequisites:
 - 'Completed Phase 1: Linux and Bash'
 - Basic command line comfort
 capstone:
-  title: Network Troubleshooting Lab
+  title: 'Capstone: Network Troubleshooting Lab'
   summary: Diagnose and fix network connectivity issues in a simulated broken environment. Apply your networking knowledge
     to identify DNS, routing, firewall, and port problems.
   includes:

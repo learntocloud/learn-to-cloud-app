@@ -87,7 +87,6 @@ class SubmissionType(str, PyEnum):
     1. Add the enum value here
     2. Add a validator function in the appropriate module:
        - GitHub-based: api/services/github_hands_on_verification_service.py
-       - JSON validation: api/services/journal_verification_service.py
        - Or create a new module for complex verification types
     3. Add the routing case in validate_submission() in hands_on_verification.py
     4. Add optional fields to HandsOnRequirement schema if needed
@@ -105,6 +104,7 @@ class SubmissionType(str, PyEnum):
     NETWORKING_TOKEN = "networking_token"
 
     # Phase 3: Journal API implementation
+    # JOURNAL_API_RESPONSE kept for backward compatibility with existing DB records
     JOURNAL_API_RESPONSE = "journal_api_response"
     CODE_ANALYSIS = "code_analysis"
 

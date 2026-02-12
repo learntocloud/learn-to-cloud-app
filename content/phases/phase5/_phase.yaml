@@ -18,7 +18,7 @@ topics:
 - monitoring-observability
 - capstone
 capstone:
-  title: DevOps Capstone Project
+  title: 'Capstone: DevOps Project'
   summary: 'Apply DevOps practices end-to-end on your Journal API: containerization, automation, infrastructure as code, and
     orchestration.'
   includes:
@@ -30,13 +30,13 @@ capstone:
 hands_on_verification:
   summary: Finished the DevOps capstone? Submit your repo URL and the system will verify your work automatically.
   includes:
-  - Complete the DevOps Capstone Project
+  - 'Complete the Capstone: DevOps Project'
   - Submit your journal-starter fork URL for automated verification
   requirements:
   - id: devops-implementation
     submission_type: devops_analysis
-    name: Completed DevOps Capstone
-    description: Submit your journal-starter fork after completing the DevOps Capstone Project for automated verification.
+    name: 'Completed Capstone: DevOps'
+    description: 'Submit your journal-starter fork after completing the Capstone: DevOps Project for automated verification.'
     submission_instructions: Paste the URL to your journal-starter fork (e.g. https://github.com/your-username/journal-starter).
       The system will fetch and analyze your code to verify the capstone requirements. It reads the actual file contents
       (not just filenames), so placeholder or empty files will not pass. You'll get per-task feedback explaining what

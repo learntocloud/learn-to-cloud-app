@@ -1,6 +1,6 @@
 id: phase4-topic9
 slug: capstone
-name: Cloud Deployment Capstone
+name: 'Capstone: Cloud Deployment'
 description: Deploy the Journal API you built in Phase 3 to a secure 2-tier cloud architecture. This capstone challenges
   you to research, design, and implement a production-ready environment with proper networking and security.
 short_description: Deploy your Journal API to a secure 2-tier cloud architecture with VMs, networking, and managed database.

@@ -16,6 +16,7 @@ from core.ratelimit import limiter
 from rendering.steps import build_step_data
 from services.certificates_service import (
     CertificateAlreadyExistsError,
+    InvalidRecipientNameError,
     NotEligibleError,
     create_certificate,
 )
@@ -309,6 +310,11 @@ async def htmx_create_certificate(
         return HTMLResponse(
             '<div class="text-amber-600 dark:text-amber-400 text-sm p-2">'
             "You already have a certificate.</div>",
+            status_code=200,
+        )
+    except InvalidRecipientNameError as e:
+        return HTMLResponse(
+            f'<div class="text-red-600 dark:text-red-400 text-sm p-2">{e}</div>',
             status_code=200,
         )
     except NotEligibleError as e:

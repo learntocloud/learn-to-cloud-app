@@ -13,6 +13,7 @@ Routes should delegate all certificate business logic to this module.
 import asyncio
 import hashlib
 import logging
+import re
 import secrets
 from datetime import UTC, datetime
 
@@ -123,6 +124,48 @@ class NotEligibleError(Exception):
         )
 
 
+class InvalidRecipientNameError(Exception):
+    """Raised when recipient_name fails validation."""
+
+    pass
+
+
+# Matches printable Unicode letters, spaces, hyphens, apostrophes, and periods
+_RECIPIENT_NAME_PATTERN = re.compile(r"^[\w\s.''\-]+$", re.UNICODE)
+
+
+def _validate_recipient_name(name: str) -> str:
+    """Validate and sanitize the recipient name for a certificate.
+
+    Args:
+        name: Raw name input from the user.
+
+    Returns:
+        Cleaned name string.
+
+    Raises:
+        InvalidRecipientNameError: If the name is empty, too long,
+            or contains disallowed characters.
+    """
+    name = name.strip()
+
+    if not name:
+        raise InvalidRecipientNameError("Please enter your name for the certificate.")
+
+    if len(name) > 100:
+        raise InvalidRecipientNameError("Name must be 100 characters or fewer.")
+
+    if len(name) < 2:
+        raise InvalidRecipientNameError("Name must be at least 2 characters.")
+
+    # Strip control characters (U+0000–U+001F, U+007F–U+009F)
+    cleaned = "".join(ch for ch in name if ch.isprintable())
+    if cleaned != name:
+        raise InvalidRecipientNameError("Name contains invalid characters.")
+
+    return cleaned
+
+
 async def create_certificate(
     db: AsyncSession,
     user_id: int,
@@ -148,6 +191,9 @@ async def create_certificate(
         CertificateAlreadyExistsError: If certificate already issued
         NotEligibleError: If user doesn't meet requirements
     """
+    # Validate recipient name before anything else
+    recipient_name = _validate_recipient_name(recipient_name)
+
     eligibility = await check_eligibility(db, user_id)
 
     from core.metrics import CERTIFICATE_CREATION_FAILED_COUNTER

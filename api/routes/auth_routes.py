@@ -88,6 +88,7 @@ async def callback(request: Request, db: DbSession) -> RedirectResponse:
     )
 
     request.session["user_id"] = user.id
+    request.session["github_username"] = user.github_username or ""
 
     logger.info(
         "auth.login.success",

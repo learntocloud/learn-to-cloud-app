@@ -1,6 +1,6 @@
 id: phase3-topic7
 slug: build-the-app
-name: Build the App
+name: 'Capstone: Learning Journal API'
 description: Time to put everything together! In this capstone project, you'll build a working Learning Journal API that combines
   Python, FastAPI, databases, and LLM integration. This project synthesizes all Phase 3 skills into a complete application.
 short_description: Build a Learning Journal API with FastAPI, PostgreSQL, and AI-powered entry analysis using LLMs.

@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+@theme {
+    --container-content: 56rem;
+}
+
 /* Dark mode via class strategy (matches Alpine.js toggle on <html>) */
 @custom-variant dark (&:where(.dark, .dark *));
 

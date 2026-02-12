@@ -68,14 +68,30 @@ async def home_page(
     )
 
 
+@router.get("/curriculum", response_class=HTMLResponse)
+async def curriculum_page(
+    request: Request,
+    db: DbSession,
+    user_id: OptionalUserId,
+) -> HTMLResponse:
+    """Full curriculum overview with all phases and topics."""
+    user = await _get_user_or_none(db, user_id)
+    phases = get_all_phases()
+
+    return request.app.state.templates.TemplateResponse(
+        "pages/curriculum.html",
+        _template_context(request, user=user, phases=phases),
+    )
+
+
 @router.get("/phase/{phase_id:int}", response_class=HTMLResponse)
 async def phase_page(
     request: Request,
     phase_id: int,
     db: DbSession,
-    user_id: OptionalUserId,
+    user_id: UserId,
 ) -> HTMLResponse:
-    """Single phase detail with topics and verification."""
+    """Single phase detail with topics and verification (requires auth)."""
     user = await _get_user_or_none(db, user_id)
     phase = get_phase_by_slug(f"phase{phase_id}")
     if phase is None:
@@ -103,29 +119,24 @@ async def phase_page(
     if hands_on and hasattr(hands_on, "requirements"):
         requirements = hands_on.requirements
 
-    # Single service call for all progress (per-topic + phase-level)
-    progress = None
-    submissions_by_req: dict = {}
-    feedback_by_req: dict = {}
-    if user_id is not None:
-        # Delegate submission fetching + feedback parsing to service layer
-        sub_context = await get_phase_submission_context(db, user_id, phase_id)
-        submissions_by_req = sub_context.submissions_by_req
-        feedback_by_req = sub_context.feedback_by_req
+    # Fetch progress + submissions (user is always authenticated here)
+    sub_context = await get_phase_submission_context(db, user_id, phase_id)
+    submissions_by_req = sub_context.submissions_by_req
+    feedback_by_req = sub_context.feedback_by_req
 
-        detail = await get_phase_detail_progress(db, user_id, phase)
-        for i, t in enumerate(phase.topics):
-            tp = detail.topic_progress.get(t.id)
-            if tp:
-                topics[i]["progress"] = {
-                    "completed": tp.steps_completed,
-                    "total": tp.steps_total,
-                }
-        progress = {
-            "percentage": detail.percentage,
-            "steps_completed": detail.steps_completed,
-            "steps_required": detail.steps_total,
-        }
+    detail = await get_phase_detail_progress(db, user_id, phase)
+    for i, t in enumerate(phase.topics):
+        tp = detail.topic_progress.get(t.id)
+        if tp:
+            topics[i]["progress"] = {
+                "completed": tp.steps_completed,
+                "total": tp.steps_total,
+            }
+    progress = {
+        "percentage": detail.percentage,
+        "steps_completed": detail.steps_completed,
+        "steps_required": detail.steps_total,
+    }
 
     return request.app.state.templates.TemplateResponse(
         "pages/phase.html",
@@ -148,9 +159,9 @@ async def topic_page(
     phase_id: int,
     topic_slug: str,
     db: DbSession,
-    user_id: OptionalUserId,
+    user_id: UserId,
 ) -> HTMLResponse:
-    """Single topic with learning steps."""
+    """Single topic with learning steps (requires auth)."""
     user = await _get_user_or_none(db, user_id)
     phase_slug = f"phase{phase_id}"
     phase = get_phase_by_slug(phase_slug)
@@ -163,9 +174,7 @@ async def topic_page(
             status_code=404,
         )
 
-    completed_steps: set[int] = set()
-    if user_id is not None:
-        completed_steps = await get_completed_steps(db, user_id, topic.id)
+    completed_steps = await get_completed_steps(db, user_id, topic.id)
 
     # Pre-render markdown for step descriptions
     steps = [build_step_data(step) for step in getattr(topic, "learning_steps", [])]
@@ -200,7 +209,7 @@ async def topic_page(
     # Progress calculation
     total_steps = len(steps)
     progress = None
-    if user_id is not None and total_steps > 0:
+    if total_steps > 0:
         progress = {
             "completed": len(completed_steps),
             "total": total_steps,

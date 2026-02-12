@@ -2,8 +2,16 @@
 
 from __future__ import annotations
 
+from contextvars import ContextVar
+
 from opentelemetry import trace
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
+
+# Request-scoped context vars — set per request, auto-reset after.
+# The logging filter in core.logger reads these to enrich every log record.
+request_github_username: ContextVar[str | None] = ContextVar(
+    "request_github_username", default=None
+)
 
 
 class SecurityHeadersMiddleware:
@@ -53,7 +61,12 @@ class SecurityHeadersMiddleware:
 
 
 class UserTrackingMiddleware:
-    """Stamps ``enduser.id`` on the active span from the session.
+    """Stamps user identity on the active OTel span and logging context.
+
+    Sets ``enduser.id`` and ``enduser.name`` on the span, and populates
+    the ``request_github_username`` context var so the logging filter
+    in ``core.logger`` can auto-inject ``github_username`` into every
+    log record for the duration of the request.
 
     Must sit AFTER SessionMiddleware so ``scope["session"]`` is populated.
     """
@@ -66,10 +79,19 @@ class UserTrackingMiddleware:
             await self.app(scope, receive, send)
             return
 
-        user_id = scope.get("session", {}).get("user_id")
+        session = scope.get("session", {})
+        user_id = session.get("user_id")
+        github_username = session.get("github_username")
+
         if user_id is not None:
             span = trace.get_current_span()
             if span.is_recording():
                 span.set_attribute("enduser.id", str(user_id))
+                if github_username:
+                    span.set_attribute("enduser.name", github_username)
 
-        await self.app(scope, receive, send)
+        token = request_github_username.set(github_username)
+        try:
+            await self.app(scope, receive, send)
+        finally:
+            request_github_username.reset(token)

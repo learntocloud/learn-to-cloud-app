@@ -2,27 +2,34 @@
 {% block title %}Dashboard - Learn to Cloud{% endblock %}
 
 {% block page_header %}
-<h1 class="text-3xl font-bold text-gray-900 dark:text-white">Your Progress</h1>
+<h1 class="text-3xl font-bold text-gray-900 dark:text-white">Welcome, {{ user.first_name or user.github_username }} 👋</h1>
 {% endblock %}
 
 {% block page_body %}
-{# ── Overall progress + phases completed ── #}
-<div class="p-4 rounded-lg border border-gray-200 dark:border-gray-700 mb-6">
-    <div class="flex items-center justify-between mb-2">
-        <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Overall completion</span>
-        <span class="text-sm font-semibold text-gray-900 dark:text-white">{{ dashboard.phases_completed }}/{{ dashboard.total_phases }} phases</span>
-    </div>
-    <div class="h-2 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
-        <div class="h-full rounded-full transition-all {{ 'bg-green-500' if dashboard.is_program_complete else 'bg-blue-500' }}" style="width: {{ dashboard.overall_percentage }}%"></div>
-    </div>
-    <div class="flex items-center justify-between mt-2">
-        <p class="text-xs text-gray-500 dark:text-gray-400">{{ dashboard.overall_percentage }}% complete</p>
-        <a href="/certificates" class="inline-flex items-center gap-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-            </svg>
-            View Certificate
-        </a>
+{# ── Overall progress hero card ── #}
+<div class="relative overflow-hidden p-5 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 dark:from-blue-600 dark:to-blue-800 mb-8 shadow">
+    <div class="flex items-center justify-between gap-6">
+        {# Left: title, counts, progress bar #}
+        <div class="flex-1 min-w-0">
+            <h2 class="text-lg font-bold text-white mb-1">Overall Progress</h2>
+            <p class="text-sm text-blue-100 mb-3">{{ dashboard.phases_completed }} of {{ dashboard.total_phases }} phases completed</p>
+            <div class="h-2 bg-white/20 rounded-full overflow-hidden">
+                <div class="h-full rounded-full transition-all {{ 'bg-green-400' if dashboard.is_program_complete else 'bg-white' }}" style="width: {{ dashboard.overall_percentage }}%"></div>
+            </div>
+            <div class="flex items-center justify-between mt-2">
+                <p class="text-xs text-blue-200">{{ dashboard.overall_percentage }}% complete</p>
+                <a href="/certificates" class="inline-flex items-center gap-1.5 text-xs font-medium text-blue-100 hover:text-white transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                    </svg>
+                    View Certificate
+                </a>
+            </div>
+        </div>
+        {# Right: percentage number #}
+        <div class="shrink-0 text-right hidden sm:block">
+            <span class="text-3xl font-bold text-white">{{ dashboard.overall_percentage }}%</span>
+        </div>
     </div>
 </div>
 
@@ -42,10 +49,10 @@
 {# ── Phase list ── #}
 <div class="space-y-3">
     {% for phase in dashboard.phases %}
-    <a href="/phase/{{ phase.order }}" class="block p-4 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+    <a href="/phase/{{ phase.order }}" class="block p-4 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors {% if phase.progress and phase.progress.status == 'completed' %}border-l-3 border-l-green-500 dark:border-l-green-400{% elif phase.progress and phase.progress.status == 'in_progress' %}border-l-3 border-l-blue-500 dark:border-l-blue-400{% endif %}">
         <div class="flex items-center justify-between mb-2">
-            <div class="flex items-center gap-2">
-                <span class="text-sm font-medium text-gray-400 dark:text-gray-500">{{ phase.order }}</span>
+            <div class="flex items-center gap-2.5">
+                <span class="flex items-center justify-center h-6 w-6 rounded-full text-xs font-semibold {% if phase.progress and phase.progress.status == 'completed' %}bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400{% elif phase.progress and phase.progress.status == 'in_progress' %}bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400{% else %}bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-500{% endif %}">{{ phase.order }}</span>
                 <h2 class="text-sm font-semibold text-gray-900 dark:text-white">{{ phase.name }}</h2>
             </div>
             {% if phase.progress and phase.progress.status == "completed" %}

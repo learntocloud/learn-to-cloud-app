@@ -18,7 +18,7 @@ topics:
 - monitoring-incident-response
 - capstone
 capstone:
-  title: Secure Your Journal API
+  title: 'Capstone: Secure Your Journal API'
   summary: Harden your Journal API with IAM, secrets management, network controls, and monitoring.
   includes:
   - Create a service account with least-privilege permissions
@@ -29,13 +29,13 @@ capstone:
 hands_on_verification:
   summary: Finished the Security capstone? Submit your repo URL and the system will verify scanning is configured.
   includes:
-  - Complete the Secure Your Journal API Capstone
+  - 'Complete the Capstone: Secure Your Journal API'
   - Submit your repository URL for automated verification
   requirements:
   - id: security-scanning
     submission_type: security_scanning
     name: Enabled Security Scanning
-    description: Submit your repository URL after completing the Security Capstone for automated verification.
+    description: 'Submit your repository URL after completing the Capstone: Secure Your Journal API for automated verification.'
     submission_instructions: Paste the URL to your journal-starter fork (e.g. https://github.com/your-username/journal-starter).
       The system will check your repository for security scanning configuration — either a Dependabot config file
       (.github/dependabot.yml) or a CodeQL workflow in .github/workflows/. At least one must be present to pass.

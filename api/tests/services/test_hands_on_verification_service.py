@@ -254,31 +254,3 @@ class TestValidateSubmissionUsernameRequirements:
 
             # Should succeed - DEPLOYED_API doesn't require GitHub auth
             assert result.is_valid is True
-
-
-@pytest.mark.unit
-class TestJournalApiResponse:
-    """Tests for JOURNAL_API_RESPONSE routing."""
-
-    @pytest.mark.asyncio
-    async def test_journal_api_routes_correctly(self):
-        """JOURNAL_API_RESPONSE should route to journal_verification_service."""
-        requirement = _make_requirement(
-            SubmissionType.JOURNAL_API_RESPONSE,
-            phase_id=3,
-        )
-
-        valid_json = (
-            '[{"id": "550e8400-e29b-41d4-a716-446655440000", '
-            '"work": "test", "struggle": "none", "intention": "learn", '
-            '"created_at": "2026-02-05T10:00:00Z"}]'
-        )
-
-        result = await validate_submission(
-            requirement=requirement,
-            submitted_value=valid_json,
-            expected_username=None,  # Not required for journal validation
-        )
-
-        assert result.is_valid is True
-        assert "verified" in result.message.lower()
