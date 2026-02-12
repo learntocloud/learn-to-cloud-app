@@ -3,6 +3,12 @@
 # The Agent Framework calls this endpoint directly via AzureOpenAIChatClient.
 # -----------------------------------------------------------------------------
 
+# Import existing gpt-5-mini deployment that was created outside Terraform
+import {
+  to = azurerm_cognitive_deployment.llm
+  id = "${azurerm_cognitive_account.openai.id}/deployments/${var.llm_model}"
+}
+
 resource "azurerm_cognitive_account" "openai" {
   name                  = "oai-ltc-${var.environment}-${local.suffix}"
   resource_group_name   = azurerm_resource_group.main.name

@@ -165,3 +165,24 @@ class AnalyticsRepository:
             )
         )
         await self.db.execute(stmt)
+
+    async def get_provider_distribution(self) -> list[tuple[str, int]]:
+        """Count validated submissions per cloud provider.
+
+        Only includes submissions where cloud_provider is set and the
+        submission was validated.  Returns (provider, count) tuples
+        ordered by count descending.
+        """
+        result = await self.db.execute(
+            select(
+                Submission.cloud_provider,
+                func.count().label("cnt"),
+            )
+            .where(
+                Submission.cloud_provider.is_not(None),
+                Submission.is_validated.is_(True),
+            )
+            .group_by(Submission.cloud_provider)
+            .order_by(func.count().desc())
+        )
+        return [(row[0], row[1]) for row in result.all()]

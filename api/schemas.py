@@ -519,6 +519,7 @@ class SubmissionData(FrozenModel):
     verification_completed: bool = True
     feedback_json: str | None = None
     validation_message: str | None = None
+    cloud_provider: str | None = None
     created_at: datetime
     updated_at: datetime | None = None
 
@@ -569,6 +570,8 @@ class ValidationResult(FrozenModel):
         server_error: True if validation failed due to a server-side issue
             (e.g., service unavailable, config error). When True, cooldowns
             should not be applied since the user isn't at fault.
+        cloud_provider: Cloud provider for multi-cloud labs ("aws",
+            "azure", "gcp"). None for non-multi-cloud validations.
     """
 
     is_valid: bool
@@ -577,6 +580,7 @@ class ValidationResult(FrozenModel):
     repo_exists: bool | None = None
     task_results: list[TaskResult] | None = None
     server_error: bool = False
+    cloud_provider: str | None = None
 
 
 # =============================================================================
@@ -663,6 +667,13 @@ class DayActivity(FrozenModel):
     completions: int
 
 
+class ProviderDistribution(FrozenModel):
+    """Submission counts per cloud provider."""
+
+    provider: str  # "aws", "azure", "gcp"
+    count: int
+
+
 class CommunityAnalytics(FrozenModel):
     """Aggregate, anonymous community analytics.
 
@@ -679,4 +690,5 @@ class CommunityAnalytics(FrozenModel):
     certificate_trends: list[MonthlyTrend]
     verification_stats: list[VerificationStat]
     activity_by_day: list[DayActivity]
+    provider_distribution: list["ProviderDistribution"] = Field(default_factory=list)
     generated_at: datetime

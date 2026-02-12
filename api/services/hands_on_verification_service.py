@@ -76,17 +76,23 @@ def validate_networking_token_submission(
         expected_username: The expected GitHub username from OAuth
 
     Returns:
-        ValidationResult with verification status
+        ValidationResult with verification status and cloud_provider
     """
     from services.networking_lab_service import verify_networking_token
 
     result = verify_networking_token(token, expected_username)
+
+    # Extract provider from challenge_type (e.g. "networking-lab-azure" -> "azure")
+    cloud_provider = None
+    if result.is_valid and result.challenge_type:
+        cloud_provider = result.challenge_type.removeprefix("networking-lab-")
 
     return ValidationResult(
         is_valid=result.is_valid,
         message=result.message,
         username_match=result.is_valid,
         server_error=result.server_error,
+        cloud_provider=cloud_provider,
     )
 
 

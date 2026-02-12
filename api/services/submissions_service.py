@@ -78,6 +78,7 @@ def _to_submission_data(submission: Submission) -> SubmissionData:
         verification_completed=submission.verification_completed,
         feedback_json=submission.feedback_json,
         validation_message=submission.validation_message,
+        cloud_provider=submission.cloud_provider,
         created_at=submission.created_at,
         updated_at=submission.updated_at,
     )
@@ -378,6 +379,9 @@ async def submit_validation(
             validation_result.message if not validation_result.is_valid else None
         )
 
+        # Cloud provider (populated for multi-cloud labs like networking).
+        cloud_provider = validation_result.cloud_provider
+
         # ── Phase 3: Persist result (short-lived session) ───────────────
         # A fresh session is opened just for the upsert, keeping connection
         # hold time to ~50ms.
@@ -395,6 +399,7 @@ async def submit_validation(
                 verification_completed=verification_completed,
                 feedback_json=feedback_json,
                 validation_message=validation_message,
+                cloud_provider=cloud_provider,
             )
 
             # Update denormalized counts for newly validated submissions

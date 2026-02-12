@@ -26,6 +26,7 @@ from schemas import (
     DayActivity,
     MonthlyTrend,
     PhaseDistributionItem,
+    ProviderDistribution,
     VerificationStat,
 )
 from services.content_service import get_all_phases
@@ -149,6 +150,7 @@ async def _compute_analytics(db: AsyncSession) -> CommunityAnalytics:
     cert_raw = await repo.get_certificates_by_month()
     submission_stats = await repo.get_submission_stats_by_phase()
     activity_dow = await repo.get_activity_by_day_of_week()
+    provider_raw = await repo.get_provider_distribution()
 
     # Derive users_reached per phase from the histogram instead of a
     # separate query — the histogram already contains all the data.
@@ -204,6 +206,12 @@ async def _compute_analytics(db: AsyncSession) -> CommunityAnalytics:
             )
         )
 
+    # --- Provider distribution (multi-cloud labs) ---
+    provider_distribution = [
+        ProviderDistribution(provider=provider, count=count)
+        for provider, count in provider_raw
+    ]
+
     # --- Completion rate ---
     completion_rate = (
         round(total_certificates / total_users * 100, 1) if total_users > 0 else 0.0
@@ -219,6 +227,7 @@ async def _compute_analytics(db: AsyncSession) -> CommunityAnalytics:
         certificate_trends=certificate_trends,
         verification_stats=verification_stats,
         activity_by_day=activity_by_day,
+        provider_distribution=provider_distribution,
         generated_at=datetime.now(UTC),
     )
 

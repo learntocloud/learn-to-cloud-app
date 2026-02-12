@@ -121,6 +121,7 @@ class SubmissionRepository:
         verification_completed: bool = True,
         feedback_json: str | None = None,
         validation_message: str | None = None,
+        cloud_provider: str | None = None,
     ) -> Submission:
         """Create a new submission attempt.
 
@@ -132,6 +133,8 @@ class SubmissionRepository:
                 Set to False when blocked by server errors (e.g., LLM CLI down).
                 Only completed verifications count toward cooldowns.
             feedback_json: JSON-serialized task feedback for CODE_ANALYSIS submissions.
+            cloud_provider: Cloud provider slug ("aws", "azure", "gcp") for
+                multi-cloud labs. None for non-multi-cloud submissions.
         """
         now = datetime.now(UTC)
 
@@ -157,6 +160,7 @@ class SubmissionRepository:
             verification_completed=verification_completed,
             feedback_json=feedback_json,
             validation_message=validation_message,
+            cloud_provider=cloud_provider,
         )
         self.db.add(submission)
         await self.db.flush()
