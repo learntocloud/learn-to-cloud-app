@@ -104,8 +104,9 @@ class TestAzureTokenRetryTimeout:
             patch("asyncio.to_thread", side_effect=hang_forever),
         ):
             # We call the inner logic directly via __wrapped__ to bypass tenacity
+            unwrapped = getattr(auth_mod.get_token, "__wrapped__")
             with pytest.raises(TimeoutError):
-                await auth_mod.get_token.__wrapped__()
+                await unwrapped()
 
         # Credential should have been reset
         async with auth_mod._credential_lock:
@@ -124,7 +125,8 @@ class TestAzureTokenRetryTimeout:
             "azure.identity.DefaultAzureCredential",
             return_value=fake_credential,
         ):
-            token = await auth_mod.get_token.__wrapped__()
+            unwrapped = getattr(auth_mod.get_token, "__wrapped__")
+            token = await unwrapped()
 
         assert token == "test-token-123"
         fake_credential.get_token.assert_called_once()
