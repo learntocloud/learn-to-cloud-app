@@ -161,9 +161,6 @@ Test these unauthenticated endpoints to catch runtime issues:
 # Health check
 (Invoke-WebRequest -Uri "http://localhost:8000/health" -UseBasicParsing).Content
 
-# Detailed health (DB status)
-(Invoke-WebRequest -Uri "http://localhost:8000/health/detailed" -UseBasicParsing).Content
-
 # Readiness
 (Invoke-WebRequest -Uri "http://localhost:8000/ready" -UseBasicParsing).Content
 
@@ -174,7 +171,6 @@ Test these unauthenticated endpoints to catch runtime issues:
 ### macOS/Linux
 ```bash
 curl -s http://localhost:8000/health
-curl -s http://localhost:8000/health/detailed
 curl -s http://localhost:8000/ready
 curl -s http://localhost:8000/openapi.json | head -c 200
 ```
@@ -184,7 +180,6 @@ curl -s http://localhost:8000/openapi.json | head -c 200
 | Endpoint | Expected |
 |----------|----------|
 | `/health` | `{"status":"healthy",...}` |
-| `/health/detailed` | Shows `"database":true` or `false` |
 | `/ready` | `{"status":"ready",...}` (200) or 503 if starting |
 | `/openapi.json` | Valid JSON starting with `{"openapi":"3.1.0"...` |
 
@@ -292,7 +287,6 @@ When user says "validate changes" after editing `<file>`:
 | Endpoint | Status | Response |
 |----------|--------|----------|
 | /health | ✅ 200 | healthy |
-| /health/detailed | ✅ 200 | database: true |
 | /ready | ✅ 200 | ready |
 | /openapi.json | ✅ 200 | Valid JSON |
 

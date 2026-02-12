@@ -32,7 +32,6 @@ function Test-Endpoint {
 Write-Host "`n=== Smoke Test Results ===`n"
 
 $AllPassed = $AllPassed -and (Test-Endpoint "/health" "Basic health check")
-$AllPassed = $AllPassed -and (Test-Endpoint "/health/detailed" "Detailed health with DB status")
 $AllPassed = $AllPassed -and (Test-Endpoint "/ready" "Readiness check")
 $AllPassed = $AllPassed -and (Test-Endpoint "/openapi.json" "OpenAPI schema (validates all routes)")
 

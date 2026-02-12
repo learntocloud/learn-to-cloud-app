@@ -13,7 +13,9 @@ steps:
   - name: Checkout content files
     uses: actions/checkout@v4
     with:
-      sparse-checkout: content/phases
+      sparse-checkout: |
+        content/phases
+        .github/workflows
       sparse-checkout-cone-mode: true
 
 permissions:
