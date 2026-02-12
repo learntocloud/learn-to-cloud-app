@@ -18,7 +18,7 @@ async def count_users():
         shell=True
     )
     token = result.stdout.strip()
-    
+
     # Get user email
     result = subprocess.run(
         "az ad signed-in-user show --query displayName -o tsv",
@@ -28,17 +28,17 @@ async def count_users():
         shell=True
     )
     username = result.stdout.strip()
-    
+
     # Connect to production database
     db_url = f"postgresql+asyncpg://{username}:{token}@psql-ltc-dev-8v4tyz.postgres.database.azure.com:5432/learntocloud"
-    
+
     engine = create_async_engine(db_url, echo=False, connect_args={"ssl": "require"})
-    
+
     try:
         async with engine.connect() as conn:
             # Get comprehensive user stats
             query = sqlalchemy.text("""
-                SELECT 
+                SELECT
                     (SELECT COUNT(*) FROM users) as total_users,
                     (SELECT COUNT(*) FROM users WHERE github_username IS NOT NULL) as users_with_github,
                     (SELECT COUNT(DISTINCT user_id) FROM submissions) as users_with_submissions,
@@ -48,7 +48,7 @@ async def count_users():
             """)
             result = await conn.execute(query)
             row = result.first()
-            
+
             print(f"Total users: {row[0]}")
             print(f"Users with GitHub: {row[1]}")
             print(f"Users with submissions: {row[2]}")

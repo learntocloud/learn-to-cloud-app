@@ -313,6 +313,7 @@ class TestValidateDeployedApi:
             resp = MagicMock(spec=httpx.Response)
 
             if method == "POST":
+                assert json_body is not None
                 resp.status_code = 200
                 nonce = json_body["work"]
                 resp.json.return_value = {
@@ -567,6 +568,7 @@ class TestValidateDeployedApi:
             resp = MagicMock(spec=httpx.Response)
 
             if method == "POST":
+                assert json_body is not None
                 captured_nonce = json_body["work"]
                 resp.status_code = 200
                 resp.json.return_value = {
@@ -625,6 +627,7 @@ class TestValidateDeployedApi:
             resp = MagicMock(spec=httpx.Response)
 
             if method == "POST":
+                assert json_body is not None
                 captured_nonce = json_body["work"]
                 resp.status_code = 200
                 resp.json.return_value = {

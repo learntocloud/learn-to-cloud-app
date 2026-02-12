@@ -154,21 +154,21 @@ async def _run_alembic_migrations() -> None:
     import subprocess
     import sys
 
+    cmd = [
+        sys.executable,
+        "-c",
+        (
+            "from alembic import command; "
+            "from alembic.config import Config; "
+            "command.upgrade(Config('alembic.ini'), 'head')"
+        ),
+    ]
+    cwd = Path(__file__).parent
+
     result = await asyncio.to_thread(
-        subprocess.run,
-        [
-            sys.executable,
-            "-c",
-            (
-                "from alembic import command; "
-                "from alembic.config import Config; "
-                "command.upgrade(Config('alembic.ini'), 'head')"
-            ),
-        ],
-        cwd=Path(__file__).parent,
-        capture_output=True,
-        text=True,
-        timeout=120,
+        lambda: subprocess.run(
+            cmd, cwd=cwd, capture_output=True, text=True, timeout=120
+        )
     )
 
     if result.returncode != 0:

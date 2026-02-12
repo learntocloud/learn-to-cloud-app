@@ -19,12 +19,15 @@ SCALABILITY:
 - Connection pooling via shared httpx.AsyncClient
 """
 
+from __future__ import annotations
+
 import asyncio
 import json
 import logging
 import re
 import secrets
 from datetime import datetime
+from typing import Any
 from urllib.parse import urlparse
 
 import httpx
@@ -229,7 +232,7 @@ def _generate_challenge_nonce() -> str:
     return f"{_CHALLENGE_PREFIX}{secrets.token_hex(16)}"
 
 
-def _extract_entries_list(data: object) -> list | None:
+def _extract_entries_list(data: Any) -> list | None:
     """Extract the entries list from a GET /entries response.
 
     The journal-starter returns: {"entries": [...], "count": N}
