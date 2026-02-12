@@ -25,7 +25,7 @@ tools:
   github:
     toolsets: [repos]
     read-only: true
-  bash: ["cat", "find", "grep", "head", "tail", "wc", "echo", "sort", "uniq", "ls"]
+  bash: ["cat", "find", "grep", "head", "tail", "wc", "echo", "sort", "uniq", "ls", "sed", "awk", "yq"]
   web-fetch:
 
 network:
@@ -100,10 +100,16 @@ Audit every external URL found in the content YAML files under `content/phases/`
 
 ### Step 1: Extract all URLs
 
-Use `bash` to find every URL across all YAML files in `content/phases/`:
+Use `yq` and `bash` to find every URL across all YAML files in `content/phases/`. Since `yq` can parse YAML natively, prefer it over regex-based extraction:
 
 ```
-find content/phases -name "*.yaml" -exec grep -nH 'https\?://' {} \;
+yq -r '.. | select(type == "string" and test("^https?://"))' content/phases/**/*.yaml
+```
+
+Or use `grep` + `sed` as a fallback:
+
+```
+grep -rh 'url:' content/phases/ --include="*.yaml" | sed 's/^[[:space:]]*url:[[:space:]]*//' | sort -u
 ```
 
 Parse out the unique URLs and track which file and field each one came from.
@@ -123,7 +129,7 @@ Ignore template/placeholder URLs like `https://github.com/your-username` or loca
 
 For each unique URL, use the `web-fetch` tool to check if the page loads successfully.
 
-**Important:** Do NOT try to install Python packages or use `pip`, `curl`, or `wget`. You only have the `web-fetch` tool and the allowed `bash` commands (`cat`, `find`, `grep`, `head`, `tail`, `wc`, `echo`, `sort`, `uniq`, `ls`). Use `web-fetch` for every URL check.
+**Important:** Do NOT try to install Python packages or use `pip`, `curl`, or `wget`. You only have the `web-fetch` tool and the allowed `bash` commands (`cat`, `find`, `grep`, `head`, `tail`, `wc`, `echo`, `sort`, `uniq`, `ls`, `sed`, `awk`, `yq`). Use `web-fetch` for every URL check. Use `yq` for YAML parsing and `sed`/`awk` for text processing.
 
 Classify results as:
 
