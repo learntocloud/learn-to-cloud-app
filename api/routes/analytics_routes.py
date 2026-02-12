@@ -1,66 +1,23 @@
-"""Community analytics and system status routes.
+"""Community analytics routes.
 
 Public endpoints — no authentication required. All data is aggregate
 and anonymous, safe for public dashboards and conference presentations.
 """
 
+import logging
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 
 from core.auth import OptionalUserId
-from core.database import DbSessionReadOnly
-from core.ratelimit import limiter
-from schemas import CommunityAnalytics, SystemStatus
+from core.database import DbSessionReadOnly, comprehensive_health_check
+from schemas import CommunityAnalytics
 from services.analytics_service import get_community_analytics
-from services.status_service import get_system_status
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["analytics"])
-
-
-# ── JSON APIs (literal paths before parameterized) ──
-
-
-@router.get(
-    "/api/status",
-    response_model=SystemStatus,
-    summary="System status with health and analytics",
-    responses={429: {"description": "Rate limit exceeded"}},
-)
-@limiter.limit("10/minute")
-async def system_status_api(
-    request: Request,
-    db: DbSessionReadOnly,
-) -> SystemStatus:
-    """Return system health and aggregate community analytics.
-
-    Combines infrastructure health checks with anonymous trend data.
-    Designed for status page integrations and monitoring dashboards.
-    """
-    return await get_system_status(request.app.state.engine, db)
-
-
-@router.get(
-    "/api/analytics/community",
-    response_model=CommunityAnalytics,
-    summary="Aggregate community analytics",
-    responses={429: {"description": "Rate limit exceeded"}},
-)
-@limiter.limit("10/minute")
-async def community_analytics_api(
-    request: Request,
-    db: DbSessionReadOnly,
-) -> CommunityAnalytics:
-    """Return aggregate, anonymous community analytics.
-
-    Designed for programmatic access — conference slides, data exports,
-    and external dashboards. All data is privacy-safe.
-    """
-    return await get_community_analytics(db)
-
-
-# ── HTML page ──
 
 
 @router.get("/status", response_class=HTMLResponse, include_in_schema=False)
@@ -76,15 +33,38 @@ async def status_page(
     if user_id is not None:
         user = await get_user_by_id(db, user_id)
 
-    status = await get_system_status(request.app.state.engine, db)
+    # Health check — quick SELECT 1 + optional token check
+    health = await comprehensive_health_check(request.app.state.engine)
+    db_ok = health["database"]
+    auth_ok = health.get("azure_auth")  # None when not using Azure
+    overall_status = "down" if (not db_ok or auth_ok is False) else "operational"
+
+    # Analytics — may fail independently of health
+    try:
+        analytics = await get_community_analytics(db)
+    except Exception:
+        logger.exception("status_page.analytics_failed")
+        analytics = CommunityAnalytics(
+            total_users=0,
+            total_certificates=0,
+            active_learners_30d=0,
+            completion_rate=0.0,
+            phase_distribution=[],
+            signup_trends=[],
+            certificate_trends=[],
+            verification_stats=[],
+            activity_by_day=[],
+            generated_at=datetime.now(UTC),
+        )
 
     return request.app.state.templates.TemplateResponse(
         "pages/status.html",
         {
             "request": request,
             "user": user,
-            "status": status,
-            "analytics": status.analytics,
+            "overall_status": overall_status,
+            "analytics": analytics,
+            "checked_at": datetime.now(UTC),
             "now": datetime.now(UTC),
         },
     )

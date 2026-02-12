@@ -1,17 +1,16 @@
 """Community analytics service.
 
 Composes raw aggregate queries with content metadata to produce
-a privacy-safe analytics payload for public dashboards and
-conference storytelling.
+a privacy-safe analytics payload for the public status page.
 
 ARCHITECTURE:
 - A background task (started in main.py lifespan) calls
   refresh_analytics() on a timer to pre-compute the analytics payload.
 - The result is persisted to the analytics_snapshot DB table so it
   survives restarts and is consistent across replicas.
-- Request handlers call get_community_analytics() which reads from
-  a short-lived in-memory cache backed by the DB table.  No request
-  ever triggers the 10 aggregate queries directly.
+- The status page route calls get_community_analytics() which reads
+  from a short-lived in-memory cache backed by the DB table.  No
+  request ever triggers the 10 aggregate queries directly.
 """
 
 import asyncio
@@ -36,7 +35,7 @@ logger = logging.getLogger(__name__)
 
 # Short in-memory cache to avoid hitting the DB on every request.
 # The background task refreshes the DB row; this cache avoids redundant
-# SELECT on rapid successive requests (e.g., status page + analytics API).
+# SELECT on rapid successive requests to the status page.
 _LOCAL_CACHE_TTL = 60  # seconds
 _local_cache: TTLCache[str, CommunityAnalytics] = TTLCache(
     maxsize=1, ttl=_LOCAL_CACHE_TTL

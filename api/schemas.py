@@ -96,25 +96,6 @@ class HealthResponse(BaseModel):
     service: str
 
 
-class PoolStatusResponse(BaseModel):
-    """Connection pool status."""
-
-    pool_size: int
-    checked_out: int
-    overflow: int
-    checked_in: int
-
-
-class DetailedHealthResponse(BaseModel):
-    """Detailed health check response with component status."""
-
-    status: str
-    service: str
-    database: bool
-    azure_auth: bool | None = None
-    pool: PoolStatusResponse | None = None
-
-
 class StepProgressData(FrozenModel):
     """Step progress data for a topic (service-layer response model)."""
 
@@ -699,20 +680,3 @@ class CommunityAnalytics(FrozenModel):
     verification_stats: list[VerificationStat]
     activity_by_day: list[DayActivity]
     generated_at: datetime
-
-
-# =============================================================================
-# System Status Schemas
-# =============================================================================
-
-
-class SystemStatus(FrozenModel):
-    """Overall system status combining health + community analytics.
-
-    Public status page payload — no secrets or internal details exposed.
-    Shows a simple operational indicator and community trend data.
-    """
-
-    overall_status: str  # "operational", "degraded", "down"
-    analytics: CommunityAnalytics
-    checked_at: datetime
