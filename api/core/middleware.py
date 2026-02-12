@@ -25,10 +25,10 @@ class SecurityHeadersMiddleware:
         (
             b"content-security-policy",
             b"default-src 'self';"
-            b" script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net;"
-            b" style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;"
+            b" script-src 'self' 'unsafe-inline' 'unsafe-eval';"
+            b" style-src 'self' 'unsafe-inline';"
             b" img-src 'self' https://avatars.githubusercontent.com data:;"
-            b" connect-src 'self' https://github.com https://cdn.jsdelivr.net;"
+            b" connect-src 'self' https://github.com;"
             b" font-src 'self';"
             b" frame-ancestors 'none'",
         ),

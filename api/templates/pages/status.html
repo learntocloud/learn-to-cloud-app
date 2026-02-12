@@ -148,7 +148,7 @@
     function loadChartJs(cb) {
         if (typeof Chart !== 'undefined') { cb(); return; }
         var s = document.createElement('script');
-        s.src = 'https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js';
+        s.src = '/static/js/chart.umd.min.js';
         s.onload = cb;
         document.head.appendChild(s);
     }
