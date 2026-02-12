@@ -13,7 +13,7 @@ badge:
 order: 1
 prerequisites:
 - Mac OS or an Ubuntu based computer. If you're on Windows, you'll use WSL.
-- Join the Learn to Cloud Discord - Here you can ask questions, just make sure to ask in the right phase channel.
+- Join the Learn to Cloud community channels to ask questions and get support from other learners.
 capstone:
   title: 'Capstone: Linux CTF Lab'
   summary: Deploy the Linux CTF lab and complete 18 progressive challenges to validate your command line skills in a real

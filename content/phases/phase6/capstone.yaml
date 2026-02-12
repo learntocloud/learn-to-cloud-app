@@ -42,5 +42,5 @@ learning_steps:
   text: Share your project
   action: 'Share:'
   title: Share Your Progress
-  description: Push your work to GitHub. Consider sharing it on LinkedIn or the Learn to Cloud community Discord to get feedback
+  description: Push your work to GitHub. Consider sharing it on LinkedIn or with the Learn to Cloud community to get feedback
     and celebrate your progress.

@@ -49,5 +49,5 @@ learning_steps:
   action: 'Share:'
   title: Share Your Progress
   description: When you've completed the capstone, push your work to GitHub and write a brief technical writeup covering
-    your architecture, security decisions, and key learnings. Share it on LinkedIn or the Learn to Cloud community Discord
+    your architecture, security decisions, and key learnings. Share it on LinkedIn or with the Learn to Cloud community
     to get feedback and celebrate your progress.
