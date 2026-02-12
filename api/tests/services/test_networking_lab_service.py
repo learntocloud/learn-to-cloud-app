@@ -20,7 +20,7 @@ from datetime import UTC, datetime
 import pytest
 
 from services.networking_lab_service import (
-    EXPECTED_CHALLENGE_TYPE,
+    ACCEPTED_CHALLENGE_TYPES,
     REQUIRED_CHALLENGES,
     verify_networking_token,
 )
@@ -39,7 +39,7 @@ def _create_valid_token(
     github_username: str = "testuser",
     instance_id: str = "test-instance-123",
     challenges: int = REQUIRED_CHALLENGES,
-    challenge_type: str = EXPECTED_CHALLENGE_TYPE,
+    challenge_type: str = "networking-lab-azure",
     timestamp: float | None = None,
 ) -> str:
     """Create a valid networking lab token for testing."""
@@ -82,7 +82,7 @@ class TestVerifyNetworkingToken:
         assert "Congratulations" in result.message
         assert result.github_username == "validuser"
         assert result.challenges_completed == REQUIRED_CHALLENGES
-        assert result.challenge_type == EXPECTED_CHALLENGE_TYPE
+        assert result.challenge_type in ACCEPTED_CHALLENGE_TYPES
 
     def test_valid_token_case_insensitive_username(self):
         """Username comparison should be case-insensitive."""
@@ -137,7 +137,23 @@ class TestVerifyNetworkingToken:
 
         assert result.is_valid is False
         assert "Invalid challenge type" in result.message
-        assert EXPECTED_CHALLENGE_TYPE in result.message
+
+    @pytest.mark.parametrize(
+        "challenge_type",
+        ["networking-lab-azure", "networking-lab-aws", "networking-lab-gcp"],
+    )
+    def test_all_provider_challenge_types_succeed(self, challenge_type: str):
+        """Tokens from any provider variant should verify."""
+        token = _create_valid_token(
+            github_username="testuser",
+            challenge_type=challenge_type,
+        )
+
+        result = verify_networking_token(token, "testuser")
+
+        assert result.is_valid is True
+        assert "Congratulations" in result.message
+        assert result.challenge_type == challenge_type
 
     def test_username_mismatch_fails(self):
         """Token username must match OAuth username."""
@@ -214,7 +230,7 @@ class TestVerifyNetworkingToken:
             "github_username": "testuser",
             # Missing instance_id
             "challenges": 4,
-            "challenge": EXPECTED_CHALLENGE_TYPE,
+            "challenge": "networking-lab-azure",
             "timestamp": datetime.now(UTC).timestamp(),
         }
 
@@ -264,6 +280,6 @@ class TestNetworkingTokenEdgeCases:
         assert result.is_valid is True
         assert result.github_username == "fulltest"
         assert result.challenges_completed == 4
-        assert result.challenge_type == EXPECTED_CHALLENGE_TYPE
+        assert result.challenge_type in ACCEPTED_CHALLENGE_TYPES
         assert result.completion_date is not None
         assert result.completion_time is not None

@@ -6,7 +6,7 @@ Uses the Agent Framework's AzureOpenAIChatClient with API key auth.
 Configure via environment variables:
   LLM_BASE_URL: Azure OpenAI endpoint (e.g., https://<resource>.openai.azure.com)
   LLM_API_KEY: API key for the deployment
-  LLM_MODEL: Deployment/model name (e.g., gpt-4o-mini, gpt-5-mini)
+  LLM_MODEL: Deployment/model name (e.g., gpt-5-mini)
 
 For business logic using this client, see:
   - services/code_verification_service.py (Phase 3)
@@ -61,7 +61,7 @@ def get_llm_chat_client() -> AzureOpenAIChatClient:
 
     from agent_framework.azure import AzureOpenAIChatClient
 
-    model = settings.llm_model or "gpt-4o-mini"
+    model = settings.llm_model or "gpt-5-mini"
 
     _llm_client = AzureOpenAIChatClient(
         endpoint=settings.llm_base_url,

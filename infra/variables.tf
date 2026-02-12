@@ -63,19 +63,19 @@ variable "slack_webhook_url" {
 # The endpoint and API key are wired from the Terraform resource.
 # -----------------------------------------------------------------------------
 variable "llm_model" {
-  description = "Azure OpenAI model to deploy (e.g. gpt-4o-mini, gpt-5-mini)"
+  description = "Azure OpenAI model to deploy (e.g. gpt-5-mini)"
   type        = string
-  default     = "gpt-4o-mini"
+  default     = "gpt-5-mini"
 }
 
 variable "llm_model_version" {
   description = "Model version to deploy"
   type        = string
-  default     = "2024-07-18"
+  default     = "2025-08-07"
 }
 
 variable "llm_capacity" {
-  description = "Tokens-per-minute capacity in thousands (e.g. 10 = 10K TPM)"
+  description = "Tokens-per-minute capacity in thousands (e.g. 100 = 100K TPM)"
   type        = number
-  default     = 10
+  default     = 100
 }

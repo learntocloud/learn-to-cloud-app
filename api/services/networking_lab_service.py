@@ -5,7 +5,8 @@ The verification process ensures:
 1. Token is properly signed with HMAC
 2. GitHub username in the token matches the authenticated user
 3. All 4 incidents are resolved
-4. Challenge type is "networking-lab-azure"
+4. Challenge type is one of: networking-lab-azure,
+   networking-lab-aws, networking-lab-gcp
 5. Timestamp is valid
 
 Token format matches the Linux CTF for consistency but validates
@@ -25,7 +26,11 @@ from schemas import NetworkingLabVerificationResult
 logger = logging.getLogger(__name__)
 
 REQUIRED_CHALLENGES = 4
-EXPECTED_CHALLENGE_TYPE = "networking-lab-azure"
+ACCEPTED_CHALLENGE_TYPES = {
+    "networking-lab-azure",
+    "networking-lab-aws",
+    "networking-lab-gcp",
+}
 
 
 def _get_master_secret() -> str:
@@ -92,14 +97,13 @@ def verify_networking_token(
                 message="Invalid token structure. Missing payload or signature.",
             )
 
-        challenge_type = payload.get("challenge")
-        if challenge_type != EXPECTED_CHALLENGE_TYPE:
+        challenge_type = payload.get("challenge") or ""
+        if challenge_type not in ACCEPTED_CHALLENGE_TYPES:
             return NetworkingLabVerificationResult(
                 is_valid=False,
                 message=(
-                    f"Invalid challenge type. Expected '{EXPECTED_CHALLENGE_TYPE}', "
-                    f"got '{challenge_type}'. Make sure you're submitting "
-                    "a token from the Networking Lab."
+                    f"Invalid challenge type '{challenge_type}'. "
+                    "Make sure you're submitting a token from the Networking Lab."
                 ),
             )
 

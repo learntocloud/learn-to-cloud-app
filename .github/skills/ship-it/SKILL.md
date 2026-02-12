@@ -105,7 +105,7 @@ git diff --stat
 
 ### Stage Files
 
-Stage all changed files (including any auto-fixed files from pre-commit):
+**CRITICAL: Always stage ALL changes. Never cherry-pick files. `ship it` means ship everything.**
 
 ```powershell
 # Windows / macOS / Linux
