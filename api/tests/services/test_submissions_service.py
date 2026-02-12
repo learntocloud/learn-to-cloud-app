@@ -63,6 +63,7 @@ def _make_mock_submission(
         verification_completed=verification_completed,
         feedback_json=None,
         validation_message=None,
+        cloud_provider=None,
         created_at=datetime.now(UTC),
         updated_at=datetime.now(UTC),
     )
@@ -125,6 +126,7 @@ class TestCooldownEnforcement:
                     created_at=datetime.now(UTC),
                     feedback_json=None,
                     validation_message=None,
+                    cloud_provider=None,
                     updated_at=datetime.now(UTC),
                 )
             )
@@ -180,6 +182,7 @@ class TestCooldownEnforcement:
                     verification_completed=True,
                     feedback_json=None,
                     validation_message=None,
+                    cloud_provider=None,
                     created_at=datetime.now(UTC),
                     updated_at=datetime.now(UTC),
                 )
@@ -247,6 +250,7 @@ class TestCooldownEnforcement:
                     created_at=datetime.now(UTC),
                     feedback_json=None,
                     validation_message=None,
+                    cloud_provider=None,
                     updated_at=datetime.now(UTC),
                 )
             )
@@ -314,6 +318,7 @@ class TestCooldownEnforcement:
                     created_at=datetime.now(UTC),
                     feedback_json=None,
                     validation_message=None,
+                    cloud_provider=None,
                     updated_at=datetime.now(UTC),
                 )
             )
@@ -384,6 +389,7 @@ class TestCooldownEnforcement:
                     created_at=datetime.now(UTC),
                     feedback_json=None,
                     validation_message=None,
+                    cloud_provider=None,
                     updated_at=datetime.now(UTC),
                 )
             )
@@ -425,6 +431,7 @@ class TestCooldownEnforcement:
                     created_at=datetime.now(UTC),
                     feedback_json=None,
                     validation_message=None,
+                    cloud_provider=None,
                     updated_at=datetime.now(UTC),
                 )
             )
@@ -479,6 +486,7 @@ class TestCooldownEnforcement:
                     verification_completed=True,
                     feedback_json=None,
                     validation_message=None,
+                    cloud_provider=None,
                     created_at=datetime.now(UTC),
                     updated_at=datetime.now(UTC),
                 )
@@ -546,6 +554,7 @@ class TestCooldownEnforcement:
                     created_at=datetime.now(UTC),
                     feedback_json=None,
                     validation_message=None,
+                    cloud_provider=None,
                     updated_at=datetime.now(UTC),
                 )
             )
@@ -766,6 +775,7 @@ class TestAlreadyValidatedShortCircuit:
                     created_at=datetime.now(UTC),
                     feedback_json=None,
                     validation_message=None,
+                    cloud_provider=None,
                     updated_at=datetime.now(UTC),
                 )
             )
@@ -864,6 +874,7 @@ class TestDailySubmissionCap:
                     created_at=datetime.now(UTC),
                     feedback_json=None,
                     validation_message=None,
+                    cloud_provider=None,
                     updated_at=datetime.now(UTC),
                 )
             )
