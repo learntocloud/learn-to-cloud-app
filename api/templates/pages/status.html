@@ -57,7 +57,7 @@
     {# ── Phase Funnel (pure HTML bars + Chart.js enhancement) ── #}
     <div class="mb-8 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
         <h3 class="text-base font-semibold text-gray-900 dark:text-white mb-1">Learning Funnel</h3>
-        <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">How many learners reached and completed each phase</p>
+        <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">Everyone starts at Phase 1. This shows how far people get — the taller the bar, the more learners made it to that phase.</p>
         {% if analytics.phase_distribution %}
         {# HTML fallback bars (always visible, hidden when Chart.js loads) #}
         {% set max_reached = analytics.phase_distribution | map(attribute='users_reached') | max or 1 %}
@@ -91,7 +91,7 @@
     {# ── Growth Trends (pure HTML fallback + Chart.js) ── #}
     <div class="mb-8 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
         <h3 class="text-base font-semibold text-gray-900 dark:text-white mb-1">Community Growth</h3>
-        <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">Cumulative signups and program completions over time</p>
+        <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">How the community is growing over time — each month shows how many people have joined and how many finished the whole program.</p>
         {% if analytics.signup_trends %}
         {# HTML fallback table #}
         <div id="growthFallback">
@@ -123,53 +123,6 @@
         {# Canvas for Chart.js #}
         <div id="growthChartWrap" class="h-64 hidden">
             <canvas id="growthChart"></canvas>
-        </div>
-        {% else %}
-        <p class="text-sm text-gray-400 dark:text-gray-500 text-center py-8">No data yet</p>
-        {% endif %}
-    </div>
-
-    {# ── Verification Pass Rates ── #}
-    {% if analytics.verification_stats %}
-    <div class="mb-8 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
-        <h3 class="text-base font-semibold text-gray-900 dark:text-white mb-1">Verification Challenge</h3>
-        <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">Hands-on verification pass rates by phase</p>
-        <div class="space-y-3">
-            {% for stat in analytics.verification_stats %}
-            <div>
-                <div class="flex items-center justify-between mb-1">
-                    <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ stat.phase_name }}</span>
-                    <span class="text-xs text-gray-500 dark:text-gray-400">{{ stat.pass_rate }}% ({{ stat.successful }}/{{ stat.total_attempts }})</span>
-                </div>
-                <div class="h-2 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
-                    <div class="h-full rounded-full transition-all {% if stat.pass_rate >= 70 %}bg-green-500{% elif stat.pass_rate >= 40 %}bg-yellow-500{% else %}bg-red-500{% endif %}"
-                         style="width: {{ stat.pass_rate }}%"></div>
-                </div>
-            </div>
-            {% endfor %}
-        </div>
-    </div>
-    {% endif %}
-
-    {# ── Activity by Day of Week (HTML bars + Chart.js) ── #}
-    <div class="mb-8 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
-        <h3 class="text-base font-semibold text-gray-900 dark:text-white mb-1">When Do People Learn?</h3>
-        <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">Step completions by day of the week</p>
-        {% if analytics.activity_by_day %}
-        {% set max_completions = analytics.activity_by_day | map(attribute='completions') | max or 1 %}
-        {# HTML fallback bars #}
-        <div id="activityFallback" class="flex items-end gap-2 h-40">
-            {% for d in analytics.activity_by_day %}
-            <div class="flex-1 flex flex-col items-center gap-1">
-                <span class="text-xs text-gray-500 dark:text-gray-400">{{ d.completions }}</span>
-                <div class="w-full rounded-t-sm bg-blue-500" style="height: {{ (d.completions / max_completions * 100) | round if d.completions > 0 else 2 }}%"></div>
-                <span class="text-xs text-gray-500 dark:text-gray-400">{{ d.day_name[:3] }}</span>
-            </div>
-            {% endfor %}
-        </div>
-        {# Canvas for Chart.js #}
-        <div id="activityChartWrap" class="h-48 hidden">
-            <canvas id="activityChart"></canvas>
         </div>
         {% else %}
         <p class="text-sm text-gray-400 dark:text-gray-500 text-center py-8">No data yet</p>
@@ -298,44 +251,6 @@
                 scales: {
                     y: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: gridColor } },
                     x: { grid: { display: false }, ticks: { maxTicksLimit: 8 } }
-                }
-            }
-        });
-    }
-    {% endif %}
-
-    // ── Activity by Day Chart ──
-    {% if analytics.activity_by_day %}
-    const activityCtx = document.getElementById('activityChart');
-    if (activityCtx) {
-        swapToCanvas('activityFallback', 'activityChartWrap');
-        const dayColors = [
-            'rgba(59, 130, 246, 0.8)',
-            'rgba(99, 102, 241, 0.8)',
-            'rgba(139, 92, 246, 0.8)',
-            'rgba(168, 85, 247, 0.8)',
-            'rgba(217, 70, 239, 0.8)',
-            'rgba(236, 72, 153, 0.8)',
-            'rgba(244, 63, 94, 0.8)',
-        ];
-        new Chart(activityCtx, {
-            type: 'bar',
-            data: {
-                labels: [{% for d in analytics.activity_by_day %}'{{ d.day_name[:3] }}'{% if not loop.last %}, {% endif %}{% endfor %}],
-                datasets: [{
-                    label: 'Step Completions',
-                    data: [{% for d in analytics.activity_by_day %}{{ d.completions }}{% if not loop.last %}, {% endif %}{% endfor %}],
-                    backgroundColor: dayColors,
-                    borderRadius: 4,
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: {
-                    y: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: gridColor } },
-                    x: { grid: { display: false } }
                 }
             }
         });

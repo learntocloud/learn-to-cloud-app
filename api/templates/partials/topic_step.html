@@ -13,6 +13,7 @@
         {% endif %}
         hx-target="#step-{{ topic_id }}-{{ step.order }}"
         hx-swap="outerHTML"
+        hx-disabled-elt="this"
     >
     {% else %}
     <div class="mt-1 h-4 w-4 rounded-sm border border-gray-300 dark:border-gray-600 flex-shrink-0"></div>

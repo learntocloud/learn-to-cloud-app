@@ -5,6 +5,7 @@ import logging
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.cache import invalidate_progress_cache, update_cached_phase_detail_step
+from models import utcnow
 from repositories import StepProgressRepository
 from repositories.progress_denormalized_repository import UserPhaseProgressRepository
 from schemas import StepCompletionResult
@@ -130,8 +131,9 @@ async def complete_step(
     Returns:
         Tuple of (StepCompletionResult, updated completed step orders)
 
-    Raises:
-        StepAlreadyCompletedError: If step is already completed
+    Note:
+        Idempotent — completing an already-completed step is a no-op
+        that returns the current state without error.
     """
     _validate_step_order(topic_id, step_order)
 
@@ -148,7 +150,22 @@ async def complete_step(
         phase_id=phase_id,
     )
     if step_progress is None:
-        raise StepAlreadyCompletedError(topic_id, step_order)
+        # Idempotent: already completed is a no-op, not an error.
+        # This handles double-clicks, multiple tabs, back-button replays, etc.
+        completed_steps = await step_repo.get_completed_step_orders(user_id, topic_id)
+        logger.info(
+            "step.already_completed",
+            extra={
+                "user_id": user_id,
+                "topic_id": topic_id,
+                "step_order": step_order,
+            },
+        )
+        return StepCompletionResult(
+            topic_id=topic_id,
+            step_order=step_order,
+            completed_at=utcnow(),
+        ), completed_steps
 
     # Update denormalized progress counts
     denorm_repo = UserPhaseProgressRepository(db)
