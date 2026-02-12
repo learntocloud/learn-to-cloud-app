@@ -3,10 +3,11 @@
 # The Agent Framework calls this endpoint directly via AzureOpenAIChatClient.
 # -----------------------------------------------------------------------------
 
-# Import existing gpt-5-mini deployment that was created outside Terraform
+# One-time import: gpt-5-mini deployment was created outside Terraform.
+# Remove this block after the first successful apply.
 import {
   to = azurerm_cognitive_deployment.llm
-  id = "${azurerm_cognitive_account.openai.id}/deployments/${var.llm_model}"
+  id = "/subscriptions/96e40cb1-d5eb-46c6-b0fd-8e64eb9c119d/resourceGroups/rg-ltc-dev/providers/Microsoft.CognitiveServices/accounts/oai-ltc-dev-8v4tyz/deployments/gpt-5-mini"
 }
 
 resource "azurerm_cognitive_account" "openai" {
