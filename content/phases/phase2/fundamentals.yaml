@@ -19,37 +19,37 @@ learning_steps:
   title: IP Addresses Explained
   url: https://www.youtube.com/watch?v=LIzTo6e4FgY
   description: Understand IPv4 addresses, octets, and how binary relates to IP addressing. Know the difference between public and private IP ranges (10.x.x.x, 172.16-31.x.x, 192.168.x.x).
-  id: phase2-topic1-ip-addresses-explained-watch-https-www-youtube-com-watch-v-lizto6e4fgy-understand-ipv4-addresses-octets-and-how-binary-relates-to-ip-addressing-know-the-difference-between-public-and-private-ip-ranges-10-x-x-x-172-16-31-x-x-192-168-x-x
+  id: phase2-topic1-watch-ip-addresses-explained
 - order: 2
   action: 'Watch:'
   title: Subnetting Made Simple
   url: https://www.youtube.com/watch?v=ecCuyq-Wprc
   description: Learn CIDR notation (/24, /16, etc.), subnet masks, and how to calculate network ranges. Practice subnetting until it becomes second nature.
-  id: phase2-topic1-subnetting-made-simple-watch-https-www-youtube-com-watch-v-eccuyq-wprc-learn-cidr-notation-24-16-etc-subnet-masks-and-how-to-calculate-network-ranges-practice-subnetting-until-it-becomes-second-nature
+  id: phase2-topic1-watch-subnetting-made-simple
 - order: 3
   action: 'Practice:'
   title: Subnet Practice Tool
   url: https://subnetipv4.com/
   description: Use this interactive tool to practice subnetting. Aim to answer subnet questions quickly and accurately before moving on.
-  id: phase2-topic1-subnet-practice-tool-practice-https-subnetipv4-com-use-this-interactive-tool-to-practice-subnetting-aim-to-answer-subnet-questions-quickly-and-accurately-before-moving-on
+  id: phase2-topic1-practice-subnet-practice-tool
 - order: 4
   action: 'Watch:'
   title: How Routing Works
   url: https://www.youtube.com/watch?v=AkxqkoxErRk
   description: 'Understand how packets travel between networks: routing tables, default gateways, and how routers make forwarding decisions.'
-  id: phase2-topic1-how-routing-works-watch-https-www-youtube-com-watch-v-akxqkoxerrk-understand-how-packets-travel-between-networks-routing-tables-default-gateways-and-how-routers-make-forwarding-decisions
+  id: phase2-topic1-watch-how-routing-works
 - order: 5
   action: 'Watch:'
   title: Network Address Translation
   url: https://www.youtube.com/watch?v=FTUV0t6JaDA
   description: Learn how NAT allows private IP addresses to communicate with the internet. Understand SNAT, DNAT, and port forwarding.
-  id: phase2-topic1-network-address-translation-watch-https-www-youtube-com-watch-v-ftuv0t6jada-learn-how-nat-allows-private-ip-addresses-to-communicate-with-the-internet-understand-snat-dnat-and-port-forwarding
+  id: phase2-topic1-watch-network-address-translation
 - order: 6
   action: 'Watch:'
   title: DNS Explained
   url: https://www.youtube.com/watch?v=27r4Bzuj5NQ
   description: 'Understand how DNS resolves domain names: recursive resolvers, root servers, authoritative servers, and common record types (A, AAAA, CNAME, MX, TXT).'
-  id: phase2-topic1-dns-explained-watch-https-www-youtube-com-watch-v-27r4bzuj5nq-understand-how-dns-resolves-domain-names-recursive-resolvers-root-servers-authoritative-servers-and-common-record-types-a-aaaa-cname-mx-txt
+  id: phase2-topic1-watch-dns-explained
 - order: 7
   action: 'Practice:'
   title: Using dig and nslookup
@@ -59,7 +59,7 @@ learning_steps:
     dig +trace google.com
 
     nslookup -type=MX gmail.com'
-  id: phase2-topic1-using-dig-and-nslookup-practice-practice-using-dig-and-nslookup-to-query-dns-records-try-dig-google-com-dig-trace-google-com-nslookup-type-mx-gmail-com
+  id: phase2-topic1-practice-using-dig-and-nslookup
 - order: 8
   action: 'Practice:'
   title: Testing Network Connectivity
@@ -69,10 +69,10 @@ learning_steps:
     traceroute google.com
 
     tracert google.com'
-  id: phase2-topic1-testing-network-connectivity-practice-use-ping-to-test-host-reachability-and-measure-round-trip-latency-and-traceroute-tracert-on-windows-to-trace-the-path-packets-take-to-a-destination-try-ping-google-com-traceroute-google-com-and-ping-between-vms-to-verify-connectivity
+  id: phase2-topic1-practice-testing-network-connectivity
 - order: 9
   action: 'Watch:'
   title: Networking Fundamentals Recap (Optional)
   url: https://www.youtube.com/watch?v=IPvYjXCsTg8
   description: Comprehensive recap of networking concepts (including extra topics) to consolidate your understanding after completing steps 1-8.
-  id: phase2-topic1-networking-fundamentals-recap-optional-watch-https-www-youtube-com-watch-v-ipvyjxcstg8-comprehensive-recap-of-networking-concepts-including-extra-topics-to-consolidate-your-understanding-after-completing-steps-1-8
+  id: phase2-topic1-watch-networking-fundamentals-recap-optional

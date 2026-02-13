@@ -111,7 +111,8 @@ class SubmissionType(str, PyEnum):
     # Phase 4: Cloud deployment validation
     DEPLOYED_API = "deployed_api"
 
-    # Phase 5: DevOps analysis
+    # Phase 5: DevOps analysis + IaC token verification
+    IAC_TOKEN = "iac_token"
     DEVOPS_ANALYSIS = "devops_analysis"
 
     # Phase 6: Security posture

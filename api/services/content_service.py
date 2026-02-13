@@ -37,6 +37,11 @@ def _validate_topic_payload(data: dict, topic_file: Path) -> None:
         step_id = str(step.get("id", "")).strip()
         if not step_id:
             raise ValueError(f"Missing learning_steps[].id in topic '{topic_name}'")
+        if len(step_id) > 100:
+            raise ValueError(
+                f"learning_steps[].id '{step_id[:60]}...' is {len(step_id)} chars "
+                f"(max 100) in topic '{topic_name}'"
+            )
         if step_id in seen:
             raise ValueError(
                 f"Duplicate learning_steps[].id '{step_id}' in topic '{topic_name}'"

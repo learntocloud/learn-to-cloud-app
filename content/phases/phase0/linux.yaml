@@ -19,16 +19,16 @@ learning_steps:
   title: Linux Documentary (The Story of Linux)
   url: https://www.youtube.com/watch?v=XMm0HsmOTFI
   description: Watch this documentary for the history, ecosystem, and culture behind Linux so you understand why it became the foundation of modern cloud infrastructure.
-  id: phase0-topic1-linux-documentary-the-story-of-linux-watch-https-www-youtube-com-watch-v-xmm0hsmotfi-watch-this-documentary-for-the-history-ecosystem-and-culture-behind-linux-so-you-understand-why-it-became-the-foundation-of-modern-cloud-infrastructure
+  id: phase0-topic1-watch-linux-documentary-the-story
 - order: 2
   action: 'Practice:'
   title: Bash Scripting and Command Line for Beginners
   url: https://www.freecodecamp.org/news/bash-scripting-tutorial-linux-shell-script-and-command-line-for-beginners/
   description: Learn the basics of Bash and the command line so you can understand how Linux terminal commands work.
-  id: phase0-topic1-bash-scripting-and-command-line-for-beginners-practice-https-www-freecodecamp-org-news-bash-scripting-tutorial-linux-shell-script-and-command-line-for-beginners-learn-the-basics-of-bash-and-the-command-line-so-you-can-understand-how-linux-terminal-commands-work
+  id: phase0-topic1-practice-bash-scripting-and-command
 - order: 3
   action: 'Watch:'
   title: Every LINUX DISTRO Explained in 4 minutes
   url: https://youtu.be/VKNMI6cYOFk?si=zudsWVGRxBCpRlyA
   description: Get a quick overview of common Linux distributions and how they differ.
-  id: phase0-topic1-every-linux-distro-explained-in-4-minutes-watch-https-youtu-be-vknmi6cyofk-si-zudswvgrxbcprlya-get-a-quick-overview-of-common-linux-distributions-and-how-they-differ
+  id: phase0-topic1-watch-every-linux-distro-explained

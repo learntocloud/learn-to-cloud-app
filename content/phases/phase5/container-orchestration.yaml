@@ -19,18 +19,18 @@ learning_steps:
   title: Kubernetes Overview
   url: https://kubernetes.io/docs/concepts/overview/
   description: Understand what Kubernetes is and why it was created — automated deployment, self-healing, load balancing, and declarative configuration.
-  id: phase5-topic4-kubernetes-overview-read-https-kubernetes-io-docs-concepts-overview-understand-what-kubernetes-is-and-why-it-was-created-automated-deployment-self-healing-load-balancing-and-declarative-configuration
+  id: phase5-topic4-read-kubernetes-overview
 - order: 2
   action: 'Read:'
   title: Kubernetes Components
   url: https://kubernetes.io/docs/concepts/overview/components/
   description: Understand the building blocks — clusters, nodes, pods, services, deployments, ConfigMaps, and Secrets.
-  id: phase5-topic4-kubernetes-components-read-https-kubernetes-io-docs-concepts-overview-components-understand-the-building-blocks-clusters-nodes-pods-services-deployments-configmaps-and-secrets
+  id: phase5-topic4-read-kubernetes-components
 - order: 3
   action: 'Practice:'
   description: 'For local development, use one of these tools:'
   title: Local Setup
-  id: phase5-topic4-local-setup-practice-for-local-development-use-one-of-these-tools
+  id: phase5-topic4-practice-local-setup
 - order: 4
   action: 'Practice:'
   description: 'Most cloud providers offer managed Kubernetes:'
@@ -48,7 +48,7 @@ learning_steps:
     url: https://cloud.google.com/kubernetes-engine/docs/concepts/kubernetes-engine-overview
     description: Google Kubernetes Engine — managed Kubernetes on GCP
   title: Managed Kubernetes Services
-  id: phase5-topic4-managed-kubernetes-services-practice-most-cloud-providers-offer-managed-kubernetes
+  id: phase5-topic4-practice-managed-kubernetes-services
 - order: 5
   action: 'Watch:'
   description: Review a quick managed-Kubernetes setup workflow using your chosen cloud provider.
@@ -66,7 +66,7 @@ learning_steps:
     url: https://cloud.google.com/kubernetes-engine/docs/quickstarts/deploy-an-application
     description: Create and validate a Google Kubernetes Engine cluster quickly.
   title: Managed Kubernetes quickstart by provider
-  id: phase5-topic4-managed-kubernetes-quickstart-by-provider-watch-review-a-quick-managed-kubernetes-setup-workflow-using-your-chosen-cloud-provider
+  id: phase5-topic4-watch-managed-kubernetes-quickstart-by
 - order: 6
   action: 'Explore:'
   description: 'Essential Kubernetes commands:'
@@ -99,31 +99,31 @@ learning_steps:
 
     kubectl delete -f deployment.yaml'
   title: Basic Commands
-  id: phase5-topic4-basic-commands-explore-essential-kubernetes-commands
+  id: phase5-topic4-explore-basic-commands
 - order: 7
   action: 'Practice:'
   description: Install Minikube or Kind on your local machine to run a local Kubernetes cluster for development.
   title: Install Minikube or Kind locally
-  id: phase5-topic4-install-minikube-or-kind-locally-practice-install-minikube-or-kind-on-your-local-machine-to-run-a-local-kubernetes-cluster-for-development
+  id: phase5-topic4-practice-install-minikube-or-kind
 - order: 8
   action: 'Practice:'
   description: Create a Kubernetes deployment YAML file (see the sample below) and apply it with `kubectl apply -f deployment.yaml`. Verify pods are running with `kubectl get pods`.
   title: Deploy an application using a YAML manifest
-  id: phase5-topic4-deploy-an-application-using-a-yaml-manifest-practice-create-a-kubernetes-deployment-yaml-file-see-the-sample-below-and-apply-it-with-kubectl-apply-f-deployment-yaml-verify-pods-are-running-with-kubectl-get-pods
+  id: phase5-topic4-practice-deploy-an-application-using
 - order: 9
   action: 'Read:'
   description: 'Basic nginx deployment:'
   code: "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: nginx-deployment\nspec:\n  replicas: 2\n  selector:\n    matchLabels:\n      app: nginx\n  template:\n    metadata:\n      labels:\n        app: nginx\n    spec:\n      containers:\n      - name: nginx\n        image: nginx:latest\n        ports:\n        - containerPort: 80"
   title: Review the sample Deployment YAML
-  id: phase5-topic4-review-the-sample-deployment-yaml-read-basic-nginx-deployment
+  id: phase5-topic4-read-review-the-sample-deployment
 - order: 10
   action: 'Practice:'
   description: Expose your deployment with `kubectl expose deployment nginx-deployment --type=NodePort --port=80` and access the application in your browser using the NodePort.
   title: Expose your deployment and access it in a browser
-  id: phase5-topic4-expose-your-deployment-and-access-it-in-a-browser-practice-expose-your-deployment-with-kubectl-expose-deployment-nginx-deployment-type-nodeport-port-80-and-access-the-application-in-your-browser-using-the-nodeport
+  id: phase5-topic4-practice-expose-your-deployment-and
 - order: 11
   action: 'Read:'
   title: Kubernetes Official Documentation
   url: https://kubernetes.io/docs/concepts/
   description: Dive deeper into Kubernetes concepts, workloads, and best practices.
-  id: phase5-topic4-kubernetes-official-documentation-read-https-kubernetes-io-docs-concepts-dive-deeper-into-kubernetes-concepts-workloads-and-best-practices
+  id: phase5-topic4-read-kubernetes-official-documentation

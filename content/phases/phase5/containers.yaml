@@ -19,25 +19,25 @@ learning_steps:
   title: What is Containerization?
   url: https://github.com/resources/articles/devops/containerization
   description: Learn how containers package applications with their dependencies for consistent deployment.
-  id: phase5-topic1-what-is-containerization-read-https-github-com-resources-articles-devops-containerization-learn-how-containers-package-applications-with-their-dependencies-for-consistent-deployment
+  id: phase5-topic1-read-what-is-containerization
 - order: 2
   action: 'Read:'
   title: Containerization vs Virtualization
   url: https://kodekloud.com/blog/virtualization-vs-containerization/
   description: Understand the key differences between containers and virtual machines.
-  id: phase5-topic1-containerization-vs-virtualization-read-https-kodekloud-com-blog-virtualization-vs-containerization-understand-the-key-differences-between-containers-and-virtual-machines
+  id: phase5-topic1-read-containerization-vs-virtualization
 - order: 3
   action: 'Watch:'
   title: What is Docker?
   url: https://youtu.be/3c-iBn73dDE
   description: Comprehensive video introduction to Docker and containerization.
-  id: phase5-topic1-what-is-docker-watch-https-youtu-be-3c-ibn73dde-comprehensive-video-introduction-to-docker-and-containerization
+  id: phase5-topic1-watch-what-is-docker
 - order: 4
   action: 'Explore:'
   title: What is a Container Registry?
   url: https://docs.docker.com/get-started/docker-concepts/the-basics/what-is-a-registry/
   description: Learn how container registries store and distribute Docker images.
-  id: phase5-topic1-what-is-a-container-registry-explore-https-docs-docker-com-get-started-docker-concepts-the-basics-what-is-a-registry-learn-how-container-registries-store-and-distribute-docker-images
+  id: phase5-topic1-explore-what-is-a-container
 - order: 5
   action: 'Practice:'
   description: 'Learn how to containerize an application and deploy to different registries:'
@@ -55,12 +55,12 @@ learning_steps:
     url: https://www.youtube.com/watch?v=D1_FC6pGutQ
     description: Push images to Google Container Registry
   title: Push to Container Registries
-  id: phase5-topic1-push-to-container-registries-practice-learn-how-to-containerize-an-application-and-deploy-to-different-registries
+  id: phase5-topic1-practice-push-to-container-registries
 - order: 6
   action: 'Practice:'
   description: Write a Dockerfile for a simple application (or use an existing one like your Journal API). Use the sample below as a reference.
   title: Write a Dockerfile for your application
-  id: phase5-topic1-write-a-dockerfile-for-your-application-practice-write-a-dockerfile-for-a-simple-application-or-use-an-existing-one-like-your-journal-api-use-the-sample-below-as-a-reference
+  id: phase5-topic1-practice-write-a-dockerfile-for
 - order: 7
   action: 'Read:'
   description: 'Here''s a basic Dockerfile for a FastAPI application:'
@@ -83,32 +83,32 @@ learning_steps:
 
     CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]'
   title: Sample Dockerfile
-  id: phase5-topic1-sample-dockerfile-read-here-s-a-basic-dockerfile-for-a-fastapi-application
+  id: phase5-topic1-read-sample-dockerfile
 - order: 8
   action: 'Practice:'
   description: Build the Docker image from your Dockerfile and run it locally. Test that your application works correctly inside the container.
   title: Build and run your container locally
-  id: phase5-topic1-build-and-run-your-container-locally-practice-build-the-docker-image-from-your-dockerfile-and-run-it-locally-test-that-your-application-works-correctly-inside-the-container
+  id: phase5-topic1-practice-build-and-run-your
 - order: 9
   action: 'Practice:'
   description: Create an account on DockerHub (or another registry), tag your image, and push it. Pull and run it on a different machine to verify portability.
   title: Push your image to a container registry
-  id: phase5-topic1-push-your-image-to-a-container-registry-practice-create-an-account-on-dockerhub-or-another-registry-tag-your-image-and-push-it-pull-and-run-it-on-a-different-machine-to-verify-portability
+  id: phase5-topic1-practice-push-your-image-to
 - order: 10
   action: 'Read:'
   title: Docker Troubleshooting
   url: https://docs.docker.com/engine/daemon/troubleshoot/
   description: Reference for common Docker issues and solutions.
-  id: phase5-topic1-docker-troubleshooting-read-https-docs-docker-com-engine-daemon-troubleshoot-reference-for-common-docker-issues-and-solutions
+  id: phase5-topic1-read-docker-troubleshooting
 - order: 11
   action: 'Read:'
   title: What is MCP (Model Context Protocol)?
   url: https://modelcontextprotocol.io/docs/getting-started/intro
   description: Learn how containers enable running MCP servers that integrate with LLMs and AI tools.
-  id: phase5-topic1-what-is-mcp-model-context-protocol-read-https-modelcontextprotocol-io-docs-getting-started-intro-learn-how-containers-enable-running-mcp-servers-that-integrate-with-llms-and-ai-tools
+  id: phase5-topic1-read-what-is-mcp-model
 - order: 12
   action: 'Explore:'
   title: GitHub MCP Server
   url: https://github.com/github/github-mcp-server
   description: Install the GitHub MCP Server in Docker Desktop, create a GitHub Personal Access Token, and test querying your repos from VS Code with Agent mode.
-  id: phase5-topic1-github-mcp-server-explore-https-github-com-github-github-mcp-server-install-the-github-mcp-server-in-docker-desktop-create-a-github-personal-access-token-and-test-querying-your-repos-from-vs-code-with-agent-mode
+  id: phase5-topic1-explore-github-mcp-server

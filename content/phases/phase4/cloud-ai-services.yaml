@@ -31,7 +31,7 @@ learning_steps:
     url: https://cloud.google.com/vertex-ai/docs/start/introduction-unified-platform
     description: Google's unified AI platform for building and deploying ML models
   title: Platform Overview
-  id: phase4-topic8-platform-overview-read-each-major-cloud-provider-offers-an-ai-platform-for-deploying-and-managing-models-learn-about-your-chosen-platform
+  id: phase4-topic8-read-platform-overview
 - order: 2
   action: 'Explore:'
   description: 'Each platform offers different models with varying capabilities, speeds, and costs:'
@@ -49,7 +49,7 @@ learning_steps:
     url: https://cloud.google.com/vertex-ai/generative-ai/docs/learn/models
     description: Discover models available in Google's Vertex AI Model Garden
   title: Explore Available Models
-  id: phase4-topic8-explore-available-models-explore-each-platform-offers-different-models-with-varying-capabilities-speeds-and-costs
+  id: phase4-topic8-explore-explore-available-models
 - order: 3
   action: 'Read:'
   description: 'Learn how to deploy models in production:'
@@ -67,7 +67,7 @@ learning_steps:
     url: https://cloud.google.com/vertex-ai/docs/general/deployment
     description: Deploy models to endpoints in Vertex AI
   title: Understand Deployment Options
-  id: phase4-topic8-understand-deployment-options-read-learn-how-to-deploy-models-in-production
+  id: phase4-topic8-read-understand-deployment-options
 - order: 4
   action: 'Practice:'
   description: 'Learn about content filtering and safety features to ensure responsible AI use:'
@@ -85,7 +85,7 @@ learning_steps:
     url: https://cloud.google.com/vertex-ai/generative-ai/docs/learn/safety-overview
     description: Understand safety features and content filtering in Vertex AI
   title: Safety & Guardrails
-  id: phase4-topic8-safety-guardrails-practice-learn-about-content-filtering-and-safety-features-to-ensure-responsible-ai-use
+  id: phase4-topic8-practice-safety-guardrails
 - order: 5
   action: 'Practice:'
   description: 'Use your cloud AI playground to compare at least 2 models using your Phase 3 sentiment-analysis prompt set, then choose the model for your Journal API based on quality, speed, cost, reliability, and safety:'
@@ -103,9 +103,9 @@ learning_steps:
     url: https://cloud.google.com/model-garden
     description: Try models directly in Google's Model Garden
   title: Compare and choose a cloud model in the playground
-  id: phase4-topic8-compare-and-choose-a-cloud-model-in-the-playground-practice-use-your-cloud-ai-playground-to-compare-at-least-2-models-using-your-phase-3-sentiment-analysis-prompt-set-then-choose-the-model-for-your-journal-api-based-on-quality-speed-cost-reliability-and-safety
+  id: phase4-topic8-practice-compare-and-choose-a
 - order: 6
   action: 'Practice:'
   description: Deploy your chosen model on your cloud platform, then update your Journal API integration to call the cloud endpoint instead of GitHub Models for capstone readiness.
   title: Deploy and switch your Journal API to cloud AI
-  id: phase4-topic8-deploy-and-switch-your-journal-api-to-cloud-ai-practice-deploy-your-chosen-model-on-your-cloud-platform-then-update-your-journal-api-integration-to-call-the-cloud-endpoint-instead-of-github-models-for-capstone-readiness
+  id: phase4-topic8-practice-deploy-and-switch-your

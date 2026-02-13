@@ -19,16 +19,16 @@ learning_steps:
   title: What is Computer Programming
   url: https://youtu.be/ifo76VyrBYo
   description: Learn core computer programming concepts including what a program, programmer, and programming language are, types of languages (machine, assembly, middle, and high level), and how compilation vs interpretation works.
-  id: phase0-topic3-what-is-computer-programming-watch-https-youtu-be-ifo76vyrbyo-learn-core-computer-programming-concepts-including-what-a-program-programmer-and-programming-language-are-types-of-languages-machine-assembly-middle-and-high-level-and-how-compilation-vs-interpretation-works
+  id: phase0-topic3-watch-what-is-computer-programming
 - order: 2
   action: 'Practice:'
   title: Install Python and Complete Day 1
   url: https://7daysofpython.com/days/day1/
   description: Install Python on your computer, then complete Day 1 of this beginner track to set up your environment and run your first Python exercises.
-  id: phase0-topic3-install-python-and-complete-day-1-practice-https-7daysofpython-com-days-day1-install-python-on-your-computer-then-complete-day-1-of-this-beginner-track-to-set-up-your-environment-and-run-your-first-python-exercises
+  id: phase0-topic3-practice-install-python-and-complete
 - order: 3
   action: 'Practice:'
   title: Parse JSON with a Simple Python Script
   description: Run this small script to practice reading JSON data like you'll do when working with APIs in later phases.
   code: "sample = {\n  \"service\": \"journal-api\",\n  \"status\": \"healthy\",\n  \"region\": \"eastus\",\n  \"requests_last_hour\": 128,\n}\n\nfor key, value in sample.items():\n    print(f\"{key}: {value}\")\n"
-  id: phase0-topic3-parse-json-with-a-simple-python-script-practice-run-this-small-script-to-practice-reading-json-data-like-you-ll-do-when-working-with-apis-in-later-phases
+  id: phase0-topic3-practice-parse-json-with-a

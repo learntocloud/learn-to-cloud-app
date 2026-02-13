@@ -96,6 +96,35 @@ def validate_networking_token_submission(
     )
 
 
+def validate_iac_token_submission(
+    token: str, expected_username: str
+) -> ValidationResult:
+    """Validate an IaC Lab token submission.
+
+    Args:
+        token: The base64-encoded IaC lab completion token
+        expected_username: The expected GitHub username from OAuth
+
+    Returns:
+        ValidationResult with verification status and cloud_provider
+    """
+    from services.iac_lab_service import verify_iac_token
+
+    result = verify_iac_token(token, expected_username)
+
+    cloud_provider = None
+    if result.challenge_type and result.challenge_type.startswith("devops-lab-"):
+        cloud_provider = result.challenge_type.removeprefix("devops-lab-")
+
+    return ValidationResult(
+        is_valid=result.is_valid,
+        message=result.message,
+        username_match=result.is_valid,
+        server_error=result.server_error,
+        cloud_provider=cloud_provider,
+    )
+
+
 async def validate_submission(
     requirement: HandsOnRequirement,
     submitted_value: str,
@@ -209,6 +238,16 @@ async def _dispatch_validation(
                 repo_exists=False,
             )
         return validate_networking_token_submission(submitted_value, expected_username)
+
+    elif requirement.submission_type == SubmissionType.IAC_TOKEN:
+        if not expected_username:
+            return ValidationResult(
+                is_valid=False,
+                message="GitHub username is required for IaC token validation",
+                username_match=False,
+                repo_exists=False,
+            )
+        return validate_iac_token_submission(submitted_value, expected_username)
 
     elif requirement.submission_type == SubmissionType.CODE_ANALYSIS:
         if not expected_username:

@@ -19,13 +19,13 @@ learning_steps:
   title: Star the Learn to Cloud App repository
   url: https://github.com/learntocloud/learn-to-cloud-app
   description: Open the repository and click Star so you can keep up with updates.
-  id: phase1-topic1-star-the-learn-to-cloud-app-repository-practice-https-github-com-learntocloud-learn-to-cloud-app-open-the-repository-and-click-star-so-you-can-keep-up-with-updates
+  id: phase1-topic1-practice-star-the-learn-to
 - order: 2
   action: 'Practice:'
   title: Install VS Code
   url: https://code.visualstudio.com/
   description: We use VS Code for all programming and labs in this course.
-  id: phase1-topic1-install-vs-code-practice-https-code-visualstudio-com-we-use-vs-code-for-all-programming-and-labs-in-this-course
+  id: phase1-topic1-practice-install-vs-code
 - order: 3
   action: 'Practice:'
   title: Practice terminal usage on your operating system
@@ -43,33 +43,33 @@ learning_steps:
     title: macOS terminal
     url: https://support.apple.com/guide/terminal/welcome/mac
     description: Use the built-in Terminal app and practice basic command-line workflow.
-  id: phase1-topic1-practice-terminal-usage-on-your-operating-system-practice-you-were-introduced-to-terminal-basics-in-phase-0-in-this-step-open-your-local-terminal-and-practice-core-commands-for-example-pwd-ls-cd-mkdir-and-cat-using-the-path-for-your-operating-system
+  id: phase1-topic1-practice-practice-terminal-usage-on
 - order: 4
   action: 'Read:'
   title: Set up GitHub Copilot
   url: https://code.visualstudio.com/blogs/2024/12/18/free-github-copilot
   description: Every GitHub account includes free usage of GitHub Copilot, so you do not need a paid plan to start. Enable Copilot and use it as a learning assistant while working through Learn to Cloud.
-  id: phase1-topic1-set-up-github-copilot-read-https-code-visualstudio-com-blogs-2024-12-18-free-github-copilot-every-github-account-includes-free-usage-of-github-copilot-so-you-do-not-need-a-paid-plan-to-start-enable-copilot-and-use-it-as-a-learning-assistant-while-working-through-learn-to-cloud
+  id: phase1-topic1-read-set-up-github-copilot
 - order: 5
   action: 'Practice:'
   title: Communicate using markdown
   url: https://learn.microsoft.com/en-us/training/modules/communicate-using-markdown/
   description: Learn Markdown basics so you can write clean documentation in READMEs, issues, and project notes.
-  id: phase1-topic1-communicate-using-markdown-practice-https-learn-microsoft-com-en-us-training-modules-communicate-using-markdown-learn-markdown-basics-so-you-can-write-clean-documentation-in-readmes-issues-and-project-notes
+  id: phase1-topic1-practice-communicate-using-markdown
 - order: 6
   action: 'Practice:'
   title: Adding a profile README
   url: https://docs.github.com/en/account-and-profile/setting-up-and-managing-your-github-profile/customizing-your-profile/managing-your-profile-readme#adding-a-profile-readme
   description: Follow this guide to create the special repository that powers your GitHub profile README.
-  id: phase1-topic1-adding-a-profile-readme-practice-https-docs-github-com-en-account-and-profile-setting-up-and-managing-your-github-profile-customizing-your-profile-managing-your-profile-readme-adding-a-profile-readme-follow-this-guide-to-create-the-special-repository-that-powers-your-github-profile-readme
+  id: phase1-topic1-practice-adding-a-profile-readme
 - order: 7
   action: 'Practice:'
   description: Clone your README repo to your local machine. Use VS Code to edit it and push changes back to GitHub from the terminal. Don't feel like you have to make a very fancy README—write a brief description on who you are and add links to your socials.
   title: Practice Git workflow
-  id: phase1-topic1-practice-git-workflow-practice-clone-your-readme-repo-to-your-local-machine-use-vs-code-to-edit-it-and-push-changes-back-to-github-from-the-terminal-don-t-feel-like-you-have-to-make-a-very-fancy-readme-write-a-brief-description-on-who-you-are-and-add-links-to-your-socials
+  id: phase1-topic1-practice-practice-git-workflow
 - order: 8
   action: 'Practice:'
   title: Join the Learn to Cloud community
   description: Open the Learn to Cloud discussions page and bookmark it. If you ever have questions while working through the curriculum, this is the primary place to ask, share progress, and get support.
   url: https://github.com/learntocloud/learn-to-cloud-app/discussions
-  id: phase1-topic1-join-the-learn-to-cloud-community-practice-https-github-com-learntocloud-learn-to-cloud-app-discussions-open-the-learn-to-cloud-discussions-page-and-bookmark-it-if-you-ever-have-questions-while-working-through-the-curriculum-this-is-the-primary-place-to-ask-share-progress-and-get-support
+  id: phase1-topic1-practice-join-the-learn-to

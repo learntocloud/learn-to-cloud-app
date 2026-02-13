@@ -31,7 +31,7 @@ learning_steps:
     url: https://cloud.google.com/monitoring/docs/monitoring-overview
     description: Learn Google Cloud Monitoring fundamentals for infrastructure and services.
   title: Learn your provider's monitoring fundamentals
-  id: phase4-topic6-learn-your-provider-s-monitoring-fundamentals-read-start-with-your-cloud-provider-s-monitoring-platform-and-understand-how-logs-metrics-traces-and-alerts-are-organized
+  id: phase4-topic6-read-learn-your-providers-monitoring
 - order: 2
   action: 'Read:'
   description: Learn where application logs and infrastructure metrics come from in your provider and how to query them during incident response.
@@ -49,7 +49,7 @@ learning_steps:
     url: https://cloud.google.com/logging/docs/overview
     description: Understand structured logs and query workflows in Cloud Logging.
   title: Understand logs and metrics collection paths
-  id: phase4-topic6-understand-logs-and-metrics-collection-paths-read-learn-where-application-logs-and-infrastructure-metrics-come-from-in-your-provider-and-how-to-query-them-during-incident-response
+  id: phase4-topic6-read-understand-logs-and-metrics
 - order: 3
   action: 'Read:'
   description: Learn secure patterns for environment variables and secrets management. Use your provider's managed secret service instead of hardcoding credentials.
@@ -67,10 +67,10 @@ learning_steps:
     url: https://cloud.google.com/secret-manager/docs/overview
     description: Learn how to manage and access application secrets securely.
   title: Store environment variables and secrets securely
-  id: phase4-topic6-store-environment-variables-and-secrets-securely-read-learn-secure-patterns-for-environment-variables-and-secrets-management-use-your-provider-s-managed-secret-service-instead-of-hardcoding-credentials
+  id: phase4-topic6-read-store-environment-variables-and
 - order: 4
   action: 'Read:'
   title: Uvicorn Process Management
   url: https://www.uvicorn.org/deployment/
   description: Learn reliable process patterns for Python APIs (workers, restarts, and service management).
-  id: phase4-topic6-uvicorn-process-management-read-https-www-uvicorn-org-deployment-learn-reliable-process-patterns-for-python-apis-workers-restarts-and-service-management
+  id: phase4-topic6-read-uvicorn-process-management

@@ -19,25 +19,25 @@ learning_steps:
   title: How HTTP Works
   url: https://www.youtube.com/watch?v=iYM2zFP3Zn0
   description: 'Understand the HTTP request/response cycle: methods (GET, POST, PUT, DELETE), headers, body, and how clients communicate with servers.'
-  id: phase2-topic3-how-http-works-watch-https-www-youtube-com-watch-v-iym2zfp3zn0-understand-the-http-request-response-cycle-methods-get-post-put-delete-headers-body-and-how-clients-communicate-with-servers
+  id: phase2-topic3-watch-how-http-works
 - order: 2
   action: 'Read:'
   title: Status Code Categories
   url: https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Status
   description: 'Understand the status code categories: 2xx (success), 3xx (redirect), 4xx (client error), and 5xx (server error). Focus on recognizing patterns and meanings, not memorizing long code lists.'
-  id: phase2-topic3-status-code-categories-read-https-developer-mozilla-org-en-us-docs-web-http-reference-status-understand-the-status-code-categories-2xx-success-3xx-redirect-4xx-client-error-and-5xx-server-error-focus-on-recognizing-patterns-and-meanings-not-memorizing-long-code-lists
+  id: phase2-topic3-read-status-code-categories
 - order: 3
   action: 'Read:'
   title: Common HTTP Headers
   url: https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers
   description: 'Understand common headers: Content-Type, Authorization, Accept, Cache-Control, User-Agent. Know how headers control request/response behavior.'
-  id: phase2-topic3-common-http-headers-read-https-developer-mozilla-org-en-us-docs-web-http-reference-headers-understand-common-headers-content-type-authorization-accept-cache-control-user-agent-know-how-headers-control-request-response-behavior
+  id: phase2-topic3-read-common-http-headers
 - order: 4
   action: 'Watch:'
   title: TLS/SSL Explained
   url: https://www.youtube.com/watch?v=j9QmMEWmcfo
   description: 'Understand how TLS encrypts HTTP traffic: certificates, certificate authorities, the TLS handshake, and why HTTPS matters for security.'
-  id: phase2-topic3-tls-ssl-explained-watch-https-www-youtube-com-watch-v-j9qmmewmcfo-understand-how-tls-encrypts-http-traffic-certificates-certificate-authorities-the-tls-handshake-and-why-https-matters-for-security
+  id: phase2-topic3-watch-tlsssl-explained
 - order: 5
   action: 'Practice:'
   title: curl for HTTP Testing
@@ -51,10 +51,10 @@ learning_steps:
     curl https://httpbin.org/status/404
 
     curl -H "X-Demo: l2c" https://httpbin.org/headers'
-  id: phase2-topic3-curl-for-http-testing-practice-practice-curl-with-safe-public-test-endpoints-use-verbose-output-inspect-headers-only-responses-and-send-test-payloads-do-not-send-real-secrets-or-personal-data-in-these-requests
+  id: phase2-topic3-practice-curl-for-http-testing
 - order: 6
   action: 'Practice:'
   title: Inspect Network Traffic
   url: https://developer.chrome.com/docs/devtools/network
   description: Use browser DevTools Network tab to inspect HTTP traffic. Observe request/response headers, timing, and payload data on your favorite websites.
-  id: phase2-topic3-inspect-network-traffic-practice-https-developer-chrome-com-docs-devtools-network-use-browser-devtools-network-tab-to-inspect-http-traffic-observe-request-response-headers-timing-and-payload-data-on-your-favorite-websites
+  id: phase2-topic3-practice-inspect-network-traffic

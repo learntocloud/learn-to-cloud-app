@@ -19,39 +19,39 @@ learning_steps:
   action: 'Explore:'
   description: Use your Topic 5 database planning and Topic 6 deployment runbook as inputs. Then plan your cloud infrastructure on paper or a diagram. You need a public tier for your FastAPI application server and a private tier for your PostgreSQL database. Decide how you'll separate them with networking.
   title: Design your 2-tier architecture
-  id: phase4-topic9-design-your-2-tier-architecture-explore-use-your-topic-5-database-planning-and-topic-6-deployment-runbook-as-inputs-then-plan-your-cloud-infrastructure-on-paper-or-a-diagram-you-need-a-public-tier-for-your-fastapi-application-server-and-a-private-tier-for-your-postgresql-database-decide-how-you-ll-separate-them-with-networking
+  id: phase4-topic9-explore-design-your-2-tier-architecture
 - order: 2
   action: 'Practice:'
   description: Create a VPC or VNet with at least two subnets — one public (for the API) and one private (for the database). Configure routing and security groups.
   title: Set up your VPC with public and private subnets
-  id: phase4-topic9-set-up-your-vpc-with-public-and-private-subnets-practice-create-a-vpc-or-vnet-with-at-least-two-subnets-one-public-for-the-api-and-one-private-for-the-database-configure-routing-and-security-groups
+  id: phase4-topic9-practice-set-up-your-vpc
 - order: 3
   action: 'Practice:'
   description: Deploy a VM in the public subnet, install your Journal API, and configure it to be accessible from the internet.
   title: Deploy the API server in the public subnet
-  id: phase4-topic9-deploy-the-api-server-in-the-public-subnet-practice-deploy-a-vm-in-the-public-subnet-install-your-journal-api-and-configure-it-to-be-accessible-from-the-internet
+  id: phase4-topic9-practice-deploy-the-api-server
 - order: 4
   action: 'Practice:'
   description: Deploy PostgreSQL in the private subnet. Ensure it is NOT directly accessible from the internet and only accepts connections from your API server.
   title: Deploy the database in the private subnet
-  id: phase4-topic9-deploy-the-database-in-the-private-subnet-practice-deploy-postgresql-in-the-private-subnet-ensure-it-is-not-directly-accessible-from-the-internet-and-only-accepts-connections-from-your-api-server
+  id: phase4-topic9-practice-deploy-the-database-in
 - order: 5
   action: 'Practice:'
   description: Configure your API server to connect to the database in the private subnet. Verify all CRUD operations and the AI analysis endpoint work correctly.
   title: Connect the API to the database and test
-  id: phase4-topic9-connect-the-api-to-the-database-and-test-practice-configure-your-api-server-to-connect-to-the-database-in-the-private-subnet-verify-all-crud-operations-and-the-ai-analysis-endpoint-work-correctly
+  id: phase4-topic9-practice-connect-the-api-to
 - order: 6
   action: 'Practice:'
   description: Submit an HTTPS base URL for your deployed API. The automated verifier will POST a challenge entry to /entries, call GET /entries, and confirm that the challenge appears in the response. It also checks response format and basic entry structure when real entries are present.
   title: Create journal entries and verify HTTPS access
-  id: phase4-topic9-create-journal-entries-and-verify-https-access-practice-submit-an-https-base-url-for-your-deployed-api-the-automated-verifier-will-post-a-challenge-entry-to-entries-call-get-entries-and-confirm-that-the-challenge-appears-in-the-response-it-also-checks-response-format-and-basic-entry-structure-when-real-entries-are-present
+  id: phase4-topic9-practice-create-journal-entries-and
 - order: 7
   action: 'Practice:'
   title: Success Criteria
   description: 'Confirm your deployment meets these production goals: API accessible from the internet over HTTPS, database only accessible from the API server, CRUD operations behave correctly, AI analysis endpoint returns sentiment and summary, LLM/API secrets are stored securely, data persists between restarts, and telemetry is configured so you can see API requests/errors and application logs in your cloud monitoring service. Note: these are broader engineering goals; automated hands-on verification focuses specifically on HTTPS + POST/GET challenge-response for /entries.'
-  id: phase4-topic9-success-criteria-practice-confirm-your-deployment-meets-these-production-goals-api-accessible-from-the-internet-over-https-database-only-accessible-from-the-api-server-crud-operations-behave-correctly-ai-analysis-endpoint-returns-sentiment-and-summary-llm-api-secrets-are-stored-securely-data-persists-between-restarts-and-telemetry-is-configured-so-you-can-see-api-requests-errors-and-application-logs-in-your-cloud-monitoring-service-note-these-are-broader-engineering-goals-automated-hands-on-verification-focuses-specifically-on-https-post-get-challenge-response-for-entries
+  id: phase4-topic9-practice-success-criteria
 - order: 8
   action: 'Reflect:'
   title: Share Your Progress
   description: When you've completed the capstone, push your work to GitHub and write a brief technical writeup covering your architecture, security decisions, and key learnings. Share it on LinkedIn or with the Learn to Cloud community to get feedback and celebrate your progress.
-  id: phase4-topic9-share-your-progress-reflect-when-you-ve-completed-the-capstone-push-your-work-to-github-and-write-a-brief-technical-writeup-covering-your-architecture-security-decisions-and-key-learnings-share-it-on-linkedin-or-with-the-learn-to-cloud-community-to-get-feedback-and-celebrate-your-progress
+  id: phase4-topic9-reflect-share-your-progress

@@ -31,17 +31,17 @@ learning_steps:
     title: GCP Cloud Monitoring
     url: https://cloud.google.com/monitoring/docs/monitoring-overview
     description: Monitoring in Google Cloud
-  id: phase6-topic4-cloud-monitoring-overview-read-each-cloud-provider-has-monitoring-metrics-and-audit-logging-who-did-what-read-the-overview-for-your-provider
+  id: phase6-topic4-read-cloud-monitoring-overview
 - order: 2
   action: 'Practice:'
   description: Enable CloudTrail (AWS), Activity Log (Azure), or Cloud Logging (GCP) so you have a record of all actions taken on your cloud resources.
   title: Enable audit logging for your cloud services
-  id: phase6-topic4-enable-audit-logging-for-your-cloud-services-practice-enable-cloudtrail-aws-activity-log-azure-or-cloud-logging-gcp-so-you-have-a-record-of-all-actions-taken-on-your-cloud-resources
+  id: phase6-topic4-practice-enable-audit-logging-for
 - order: 3
   action: 'Practice:'
   description: Create at least one alert — for example, notify you when someone modifies a security group or when there are repeated failed login attempts.
   title: Set up an alert for a critical security event
-  id: phase6-topic4-set-up-an-alert-for-a-critical-security-event-practice-create-at-least-one-alert-for-example-notify-you-when-someone-modifies-a-security-group-or-when-there-are-repeated-failed-login-attempts
+  id: phase6-topic4-practice-set-up-an-alert
 - order: 4
   action: 'Practice:'
   description: Turn on the managed threat detection service that scans your environment for suspicious activity.
@@ -59,14 +59,14 @@ learning_steps:
     url: https://cloud.google.com/security-command-center/docs/concepts-security-command-center-overview
     description: Threat detection in Google Cloud
   title: Enable your cloud provider's threat detection service
-  id: phase6-topic4-enable-your-cloud-provider-s-threat-detection-service-practice-turn-on-the-managed-threat-detection-service-that-scans-your-environment-for-suspicious-activity
+  id: phase6-topic4-practice-enable-your-cloud-providers
 - order: 5
   action: 'Practice:'
   title: GitHub Security Scanning
   description: Enable at least one scanning tool on your journal-starter repository. Dependabot monitors your dependencies for known vulnerabilities — enable it by adding a .github/dependabot.yml file. CodeQL analyzes your code for security issues — enable it via the Security tab or by adding a workflow to .github/workflows/. This is what the phase verification checks.
-  id: phase6-topic4-github-security-scanning-practice-enable-at-least-one-scanning-tool-on-your-journal-starter-repository-dependabot-monitors-your-dependencies-for-known-vulnerabilities-enable-it-by-adding-a-github-dependabot-yml-file-codeql-analyzes-your-code-for-security-issues-enable-it-via-the-security-tab-or-by-adding-a-workflow-to-github-workflows-this-is-what-the-phase-verification-checks
+  id: phase6-topic4-practice-github-security-scanning
 - order: 6
   action: 'Practice:'
   description: Write a short runbook answering "What do we do if credentials are leaked?" Include steps to rotate credentials, check for unauthorized access, and notify stakeholders.
   title: Write a basic incident response runbook
-  id: phase6-topic4-write-a-basic-incident-response-runbook-practice-write-a-short-runbook-answering-what-do-we-do-if-credentials-are-leaked-include-steps-to-rotate-credentials-check-for-unauthorized-access-and-notify-stakeholders
+  id: phase6-topic4-practice-write-a-basic-incident

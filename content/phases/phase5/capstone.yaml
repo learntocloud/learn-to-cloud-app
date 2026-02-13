@@ -19,40 +19,40 @@ learning_steps:
   action: 'Build:'
   description: Write a Dockerfile at the root of your repository that packages your Journal API into a container image. Build and test it locally before pushing to a registry.
   title: Containerize the Application
-  id: phase5-topic6-containerize-the-application-build-write-a-dockerfile-at-the-root-of-your-repository-that-packages-your-journal-api-into-a-container-image-build-and-test-it-locally-before-pushing-to-a-registry
+  id: phase5-topic6-build-containerize-the-application
 - order: 2
   action: 'Build:'
   description: Create Terraform configuration files in an `infra/` directory to define and provision your cloud infrastructure.
   title: Infrastructure as Code
-  id: phase5-topic6-infrastructure-as-code-build-create-terraform-configuration-files-in-an-infra-directory-to-define-and-provision-your-cloud-infrastructure
+  id: phase5-topic6-build-infrastructure-as-code
 - order: 3
   action: 'Build:'
   description: Set up a GitHub Actions workflow in `.github/workflows/` that automatically builds, tests, and deploys your application on every push.
   title: CI/CD Pipeline
-  id: phase5-topic6-ci-cd-pipeline-build-set-up-a-github-actions-workflow-in-github-workflows-that-automatically-builds-tests-and-deploys-your-application-on-every-push
+  id: phase5-topic6-build-cicd-pipeline
 - order: 4
   action: 'Build:'
   description: Write Kubernetes manifests in a `k8s/` directory to deploy and expose your containerized application.
   title: Container Orchestration
-  id: phase5-topic6-container-orchestration-build-write-kubernetes-manifests-in-a-k8s-directory-to-deploy-and-expose-your-containerized-application
+  id: phase5-topic6-build-container-orchestration
 - order: 5
   action: 'Build:'
   description: Set up monitoring to track your application's health and performance. This step is not auto-verified but is essential for production readiness.
   title: Monitoring & Observability
-  id: phase5-topic6-monitoring-observability-build-set-up-monitoring-to-track-your-application-s-health-and-performance-this-step-is-not-auto-verified-but-is-essential-for-production-readiness
+  id: phase5-topic6-build-monitoring-observability
 - order: 6
   action: 'Build:'
   description: Document your setup and deployment process so others can understand and reproduce your work. This step is not auto-verified but strengthens your portfolio.
   title: Documentation
-  id: phase5-topic6-documentation-build-document-your-setup-and-deployment-process-so-others-can-understand-and-reproduce-your-work-this-step-is-not-auto-verified-but-strengthens-your-portfolio
+  id: phase5-topic6-build-documentation
 - order: 7
   action: 'Build:'
   description: Your repository must include these directories and files for auto-verification. Steps 1–4 are verified automatically when you submit your repo URL.
   code: "your-journal-starter/\n  ├── Dockerfile              # Step 1: Container definition\n  ├── .github/\n  │   └── workflows/          # Step 3: CI/CD pipeline configs\n  │       └── *.yml\n  ├── infra/                   # Step 2: Terraform IaC configs\n  │   ├── main.tf\n  │   └── variables.tf\n  ├── k8s/                     # Step 4: Kubernetes manifests\n  │   ├── deployment.yaml\n  │   └── service.yaml\n  ├── app/                     # Your FastAPI app code\n  └── README.md                # Step 6: Documentation"
   title: Required Project Structure
-  id: phase5-topic6-required-project-structure-build-your-repository-must-include-these-directories-and-files-for-auto-verification-steps-1-4-are-verified-automatically-when-you-submit-your-repo-url
+  id: phase5-topic6-build-required-project-structure
 - order: 8
   action: 'Reflect:'
   title: Share Your Progress
   description: When you've completed the capstone, push your work to GitHub! This becomes part of your portfolio. Consider sharing it on LinkedIn or with the Learn to Cloud community to get feedback and celebrate your progress.
-  id: phase5-topic6-share-your-progress-reflect-when-you-ve-completed-the-capstone-push-your-work-to-github-this-becomes-part-of-your-portfolio-consider-sharing-it-on-linkedin-or-with-the-learn-to-cloud-community-to-get-feedback-and-celebrate-your-progress
+  id: phase5-topic6-reflect-share-your-progress

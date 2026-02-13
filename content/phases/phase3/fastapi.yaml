@@ -19,28 +19,28 @@ learning_steps:
   title: FastAPI First Steps
   url: https://fastapi.tiangolo.com/tutorial/first-steps/
   description: Complete the first-steps tutorial end to end in code. This gives you the minimum FastAPI workflow needed to run endpoints and use /docs for the capstone.
-  id: phase3-topic2-fastapi-first-steps-practice-https-fastapi-tiangolo-com-tutorial-first-steps-complete-the-first-steps-tutorial-end-to-end-in-code-this-gives-you-the-minimum-fastapi-workflow-needed-to-run-endpoints-and-use-docs-for-the-capstone
+  id: phase3-topic2-practice-fastapi-first-steps
 - order: 2
   action: 'Read:'
   title: Path Parameters
   url: https://fastapi.tiangolo.com/tutorial/path-params/
   description: Focus on path parameter patterns for routes like /entries/{entry_id} used by GET single entry, DELETE single entry, and analyze entry endpoints.
-  id: phase3-topic2-path-parameters-read-https-fastapi-tiangolo-com-tutorial-path-params-focus-on-path-parameter-patterns-for-routes-like-entries-entry-id-used-by-get-single-entry-delete-single-entry-and-analyze-entry-endpoints
+  id: phase3-topic2-read-path-parameters
 - order: 3
   action: 'Read:'
   title: Request Body and Pydantic Models
   url: https://fastapi.tiangolo.com/tutorial/body/
   description: Learn request validation and schema modeling to handle journal entry payloads and consistent API responses.
-  id: phase3-topic2-request-body-and-pydantic-models-read-https-fastapi-tiangolo-com-tutorial-body-learn-request-validation-and-schema-modeling-to-handle-journal-entry-payloads-and-consistent-api-responses
+  id: phase3-topic2-read-request-body-and-pydantic
 - order: 4
   action: 'Read:'
   title: Handling Errors
   url: https://fastapi.tiangolo.com/tutorial/handling-errors/
   description: Use HTTPException correctly for not found and validation scenarios, especially 404 behavior required in the capstone tasks.
-  id: phase3-topic2-handling-errors-read-https-fastapi-tiangolo-com-tutorial-handling-errors-use-httpexception-correctly-for-not-found-and-validation-scenarios-especially-404-behavior-required-in-the-capstone-tasks
+  id: phase3-topic2-read-handling-errors
 - order: 5
   action: 'Read:'
   title: Async and Await in FastAPI
   url: https://fastapi.tiangolo.com/async/
   description: Understand when to use async def vs def for your endpoints. The Journal API uses async endpoints for database and LLM operations, so understanding this pattern is important.
-  id: phase3-topic2-async-and-await-in-fastapi-read-https-fastapi-tiangolo-com-async-understand-when-to-use-async-def-vs-def-for-your-endpoints-the-journal-api-uses-async-endpoints-for-database-and-llm-operations-so-understanding-this-pattern-is-important
+  id: phase3-topic2-read-async-and-await-in

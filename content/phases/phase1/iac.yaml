@@ -19,33 +19,33 @@ learning_steps:
   title: What is IaC
   url: https://www.hashicorp.com/resources/what-is-infrastructure-as-code
   description: Learn the fundamentals of Infrastructure as Code and why it's important.
-  id: phase1-topic3-what-is-iac-read-https-www-hashicorp-com-resources-what-is-infrastructure-as-code-learn-the-fundamentals-of-infrastructure-as-code-and-why-it-s-important
+  id: phase1-topic3-read-what-is-iac
 - order: 2
   action: 'Read:'
   title: What is Infrastructure as Code with Terraform?
   url: https://developer.hashicorp.com/terraform/intro
-  id: phase1-topic3-what-is-infrastructure-as-code-with-terraform-read-https-developer-hashicorp-com-terraform-intro
+  id: phase1-topic3-read-what-is-infrastructure-as
 - order: 3
   action: 'Read:'
   title: Terraform init
   url: https://developer.hashicorp.com/terraform/cli/commands/init
   description: Learn what terraform init does and why it's the first command you run.
-  id: phase1-topic3-terraform-init-read-https-developer-hashicorp-com-terraform-cli-commands-init-learn-what-terraform-init-does-and-why-it-s-the-first-command-you-run
+  id: phase1-topic3-read-terraform-init
 - order: 4
   action: 'Read:'
   title: Terraform apply
   url: https://developer.hashicorp.com/terraform/cli/commands/apply
   description: Learn how terraform apply creates and updates infrastructure.
-  id: phase1-topic3-terraform-apply-read-https-developer-hashicorp-com-terraform-cli-commands-apply-learn-how-terraform-apply-creates-and-updates-infrastructure
+  id: phase1-topic3-read-terraform-apply
 - order: 5
   action: 'Read:'
   description: 'Remember: The goal is for AI to challenge your understanding, not give you the answer. Use this prompt to verify you understand IaC concepts:'
   code: 'I''m studying cloud engineering and recently learned about Infrastructure as Code. I will provide you an explanation about it and please ask me any questions if my explanation is not clear. I want to make sure I really understand this concept so please do not correct me, simply ask questions until I get the explanation right. Here is my explanation: IaC is...'
   title: Test your understanding with an AI assistant
-  id: phase1-topic3-test-your-understanding-with-an-ai-assistant-read-remember-the-goal-is-for-ai-to-challenge-your-understanding-not-give-you-the-answer-use-this-prompt-to-verify-you-understand-iac-concepts
+  id: phase1-topic3-read-test-your-understanding-with
 - order: 6
   action: 'Practice:'
   title: Install Terraform
   url: https://developer.hashicorp.com/terraform/install
   description: 'Windows users: Make sure you''re installing Terraform inside Ubuntu via WSL.'
-  id: phase1-topic3-install-terraform-practice-https-developer-hashicorp-com-terraform-install-windows-users-make-sure-you-re-installing-terraform-inside-ubuntu-via-wsl
+  id: phase1-topic3-practice-install-terraform

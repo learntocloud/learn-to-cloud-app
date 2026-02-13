@@ -20,9 +20,9 @@ learning_steps:
   title: Journal Starter Repository
   url: https://github.com/learntocloud/journal-starter
   description: 'Time to complete the capstone. The repository README has everything you need: Dev Container setup, development tasks using feature branches, LLM provider configuration, and troubleshooting tips. Fork the repo and follow the instructions there to build your Journal API.'
-  id: phase3-topic5-journal-starter-repository-practice-https-github-com-learntocloud-journal-starter-time-to-complete-the-capstone-the-repository-readme-has-everything-you-need-dev-container-setup-development-tasks-using-feature-branches-llm-provider-configuration-and-troubleshooting-tips-fork-the-repo-and-follow-the-instructions-there-to-build-your-journal-api
+  id: phase3-topic5-practice-journal-starter-repository
 - order: 2
   action: 'Reflect:'
   title: Share Your Progress
   description: When you've completed the capstone, push your work to GitHub! This becomes part of your portfolio. Consider sharing it on LinkedIn or with the Learn to Cloud community to get feedback and celebrate your progress.
-  id: phase3-topic5-share-your-progress-reflect-when-you-ve-completed-the-capstone-push-your-work-to-github-this-becomes-part-of-your-portfolio-consider-sharing-it-on-linkedin-or-with-the-learn-to-cloud-community-to-get-feedback-and-celebrate-your-progress
+  id: phase3-topic5-reflect-share-your-progress

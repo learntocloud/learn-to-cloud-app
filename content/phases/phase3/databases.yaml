@@ -19,27 +19,27 @@ learning_steps:
   title: PostgreSQL Tutorial for Beginners
   url: https://www.youtube.com/watch?v=SpfIwlAYaKk
   description: Learn SQL fundamentals that directly support the capstone. Focus on SELECT, INSERT, UPDATE, DELETE, WHERE, ORDER BY, and basic joins.
-  id: phase3-topic3-postgresql-tutorial-for-beginners-watch-https-www-youtube-com-watch-v-spfiwlayakk-learn-sql-fundamentals-that-directly-support-the-capstone-focus-on-select-insert-update-delete-where-order-by-and-basic-joins
+  id: phase3-topic3-watch-postgresql-tutorial-for-beginners
 - order: 2
   action: 'Practice:'
   title: PostgreSQL in Docker
   url: https://www.docker.com/blog/how-to-use-the-postgres-docker-official-image/
   description: Learn how to run PostgreSQL in a Docker container. This is the easiest way to get a database running locally without installing PostgreSQL on your system.
-  id: phase3-topic3-postgresql-in-docker-practice-https-www-docker-com-blog-how-to-use-the-postgres-docker-official-image-learn-how-to-run-postgresql-in-a-docker-container-this-is-the-easiest-way-to-get-a-database-running-locally-without-installing-postgresql-on-your-system
+  id: phase3-topic3-practice-postgresql-in-docker
 - order: 3
   action: 'Practice:'
   title: Install VS Code PostgreSQL Extension
   url: https://www.youtube.com/watch?v=d_wpn8wW2sw
   description: Install the PostgreSQL extension in VS Code so you can connect to your local database, inspect tables, and run queries while building the capstone. For a guided walkthrough, watch https://www.youtube.com/watch?v=d_wpn8wW2sw.
-  id: phase3-topic3-install-vs-code-postgresql-extension-practice-https-www-youtube-com-watch-v-d-wpn8ww2sw-install-the-postgresql-extension-in-vs-code-so-you-can-connect-to-your-local-database-inspect-tables-and-run-queries-while-building-the-capstone-for-a-guided-walkthrough-watch-https-www-youtube-com-watch-v-d-wpn8ww2sw
+  id: phase3-topic3-practice-install-vs-code-postgresql
 - order: 4
   action: 'Practice:'
   title: SQLAlchemy Tutorial
   url: https://docs.sqlalchemy.org/en/20/tutorial/index.html
   description: Learn how to connect to PostgreSQL from Python using SQLAlchemy, the most popular Python ORM. This is the same library used in the capstone project.
-  id: phase3-topic3-sqlalchemy-tutorial-practice-https-docs-sqlalchemy-org-en-20-tutorial-index-html-learn-how-to-connect-to-postgresql-from-python-using-sqlalchemy-the-most-popular-python-orm-this-is-the-same-library-used-in-the-capstone-project
+  id: phase3-topic3-practice-sqlalchemy-tutorial
 - order: 5
   action: 'Practice:'
   title: Capstone DB Workflow Check
   description: Create a local PostgreSQL database, verify connection from the app, and run simple CRUD queries against the journal entry table shape used in the capstone.
-  id: phase3-topic3-capstone-db-workflow-check-practice-create-a-local-postgresql-database-verify-connection-from-the-app-and-run-simple-crud-queries-against-the-journal-entry-table-shape-used-in-the-capstone
+  id: phase3-topic3-practice-capstone-db-workflow-check

@@ -19,7 +19,7 @@ learning_steps:
   title: Terraform workflow refresher (optional)
   url: https://developer.hashicorp.com/terraform/intro
   description: Skim this only as needed to refresh core Terraform concepts before the hands-on steps.
-  id: phase5-topic3-terraform-workflow-refresher-optional-read-https-developer-hashicorp-com-terraform-intro-skim-this-only-as-needed-to-refresh-core-terraform-concepts-before-the-hands-on-steps
+  id: phase5-topic3-read-terraform-workflow-refresher-optional
 - order: 2
   action: 'Watch:'
   description: 'Choose one cloud tutorial and follow the full workflow:'
@@ -37,7 +37,7 @@ learning_steps:
     url: https://youtu.be/VCayKl82Lt8
     description: Video walkthrough of Terraform with GCP
   title: Watch a cloud-specific Terraform tutorial
-  id: phase5-topic3-watch-a-cloud-specific-terraform-tutorial-watch-choose-one-cloud-tutorial-and-follow-the-full-workflow
+  id: phase5-topic3-watch-watch-a-cloud-specific-terraform
 - order: 3
   action: 'Practice:'
   description: 'Use the provider docs for your selected cloud to confirm resource arguments and defaults:'
@@ -55,25 +55,44 @@ learning_steps:
     url: https://registry.terraform.io/providers/hashicorp/google/latest/docs
     description: Terraform provider for Google Cloud Platform
   title: Cloud-Specific Providers
-  id: phase5-topic3-cloud-specific-providers-practice-use-the-provider-docs-for-your-selected-cloud-to-confirm-resource-arguments-and-defaults
+  id: phase5-topic3-practice-cloud-specific-providers
 - order: 4
   action: 'Practice:'
   description: Write a Terraform configuration file that creates a virtual machine on your cloud provider with a security group allowing SSH access.
   title: Write a Terraform config to create a VM
-  id: phase5-topic3-write-a-terraform-config-to-create-a-vm-practice-write-a-terraform-configuration-file-that-creates-a-virtual-machine-on-your-cloud-provider-with-a-security-group-allowing-ssh-access
+  id: phase5-topic3-practice-write-a-terraform-config
 - order: 5
   action: 'Practice:'
   description: Initialize Terraform with `terraform init`, preview your changes with `terraform plan`, then create the resources with `terraform apply`. Verify the resources exist in your cloud console.
   title: Run terraform init, plan, and apply
-  id: phase5-topic3-run-terraform-init-plan-and-apply-practice-initialize-terraform-with-terraform-init-preview-your-changes-with-terraform-plan-then-create-the-resources-with-terraform-apply-verify-the-resources-exist-in-your-cloud-console
+  id: phase5-topic3-practice-run-terraform-init-plan
 - order: 6
   action: 'Practice:'
   description: Run `terraform destroy` to remove all resources you created, and verify cleanup in your cloud console.
   title: Clean up with terraform destroy
-  id: phase5-topic3-clean-up-with-terraform-destroy-practice-run-terraform-destroy-to-remove-all-resources-you-created-and-verify-cleanup-in-your-cloud-console
+  id: phase5-topic3-practice-clean-up-with-terraform
 - order: 7
   action: 'Read:'
   title: Terraform Best Practices
   url: https://www.terraform-best-practices.com/
   description: Learn about module organization, state management, and variable patterns.
-  id: phase5-topic3-terraform-best-practices-read-https-www-terraform-best-practices-com-learn-about-module-organization-state-management-and-variable-patterns
+  id: phase5-topic3-read-terraform-best-practices
+
+- order: 8
+  action: 'Practice:'
+  title: Complete the DevOps IaC Lab and submit your token
+  description: Follow the DevOps lab for your chosen cloud provider. At the end, generate your completion token and submit it in the Phase 5 hands-on verification requirement “Submit the DevOps IaC Lab Completion Token”.
+  options:
+  - provider: azure
+    title: DevOps Lab (Azure)
+    url: https://github.com/learntocloud/devops-lab/blob/main/azure/README.md
+    description: Complete the Azure DevOps lab, then run the validation script to generate your completion token.
+  - provider: aws
+    title: DevOps Lab (AWS)
+    url: https://github.com/learntocloud/devops-lab/blob/main/aws/README.md
+    description: Complete the AWS DevOps lab, then generate your completion token.
+  - provider: gcp
+    title: DevOps Lab (GCP)
+    url: https://github.com/learntocloud/devops-lab/blob/main/gcp/README.md
+    description: Complete the GCP DevOps lab, then generate your completion token.
+  id: phase5-topic3-practice-complete-the-devops-iac

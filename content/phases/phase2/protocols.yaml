@@ -19,30 +19,30 @@ learning_steps:
   title: TCP and UDP Explained
   url: https://www.youtube.com/watch?v=uwoD5YsGACg
   description: Understand the difference between TCP (connection-oriented, reliable) and UDP (connectionless, fast). Know when to use each protocol.
-  id: phase2-topic2-tcp-and-udp-explained-watch-https-www-youtube-com-watch-v-uwod5ysgacg-understand-the-difference-between-tcp-connection-oriented-reliable-and-udp-connectionless-fast-know-when-to-use-each-protocol
+  id: phase2-topic2-watch-tcp-and-udp-explained
 - order: 2
   action: 'Watch:'
   title: TCP Three-Way Handshake
   url: https://www.youtube.com/watch?v=xMtP5ZB3wSk
   description: Understand SYN, SYN-ACK, ACK and how TCP connections are established. This knowledge is crucial for troubleshooting connection issues.
-  id: phase2-topic2-tcp-three-way-handshake-watch-https-www-youtube-com-watch-v-xmtp5zb3wsk-understand-syn-syn-ack-ack-and-how-tcp-connections-are-established-this-knowledge-is-crucial-for-troubleshooting-connection-issues
+  id: phase2-topic2-watch-tcp-three-way-handshake
 - order: 3
   action: 'Read:'
   title: Common Port Numbers
   url: https://www.cloudflare.com/learning/network-layer/what-is-a-computer-port/
   description: Every service you run uses a port. Some services have well-known, commonly used ports—read this overview to understand the most important ones.
-  id: phase2-topic2-common-port-numbers-read-https-www-cloudflare-com-learning-network-layer-what-is-a-computer-port-every-service-you-run-uses-a-port-some-services-have-well-known-commonly-used-ports-read-this-overview-to-understand-the-most-important-ones
+  id: phase2-topic2-read-common-port-numbers
 - order: 4
   action: 'Watch:'
   title: How Firewalls Work
   url: https://www.youtube.com/watch?v=kDEX1HXybrU
   description: Understand how firewalls filter traffic based on IP, port, and protocol. Learn about stateful vs stateless firewalls.
-  id: phase2-topic2-how-firewalls-work-watch-https-www-youtube-com-watch-v-kdex1hxybru-understand-how-firewalls-filter-traffic-based-on-ip-port-and-protocol-learn-about-stateful-vs-stateless-firewalls
+  id: phase2-topic2-watch-how-firewalls-work
 - order: 5
   action: 'Read:'
   title: Cloud Security Groups
   description: Preview how cloud providers implement firewalls as security groups. Understand inbound vs outbound rules and the concept of least privilege.
-  id: phase2-topic2-cloud-security-groups-read-preview-how-cloud-providers-implement-firewalls-as-security-groups-understand-inbound-vs-outbound-rules-and-the-concept-of-least-privilege
+  id: phase2-topic2-read-cloud-security-groups
 - order: 6
   action: 'Practice:'
   title: View Active Connections
@@ -66,4 +66,4 @@ learning_steps:
     netstat -tulpn
 
     sudo netstat -tulpn'
-  id: phase2-topic2-view-active-connections-practice-use-ss-lntup-as-your-primary-command-to-see-listening-ports-and-owning-processes-if-you-re-on-windows-run-these-commands-inside-wsl-use-netstat-only-as-a-fallback-on-older-systems-you-may-need-sudo-to-see-process-names-pids-for-services-owned-by-other-users
+  id: phase2-topic2-practice-view-active-connections

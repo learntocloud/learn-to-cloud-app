@@ -19,52 +19,52 @@ learning_steps:
   title: 'Python + AI: Large Language Models'
   url: https://www.youtube.com/live/X967IsYvhTM?si=qDi7Rcu8fN1UE5iE
   description: A strong intro session on LLM fundamentals, model options, the OpenAI Python SDK, streaming, chat history, prompt engineering, and async app patterns. Watch this first, then move to the hands-on demos.
-  id: phase3-topic4-python-ai-large-language-models-watch-https-www-youtube-com-live-x967isyvhtm-si-qdi7rcu8fn1ue5ie-a-strong-intro-session-on-llm-fundamentals-model-options-the-openai-python-sdk-streaming-chat-history-prompt-engineering-and-async-app-patterns-watch-this-first-then-move-to-the-hands-on-demos
+  id: phase3-topic4-watch-python-ai-large-language
 - order: 2
   action: 'Explore:'
   title: Star the Python OpenAI Demos Repository
   url: https://github.com/Azure-Samples/python-openai-demos?tab=readme-ov-file#openai-chat-completions
   description: This GitHub repository contains several examples that show how to use the OpenAI Python SDK to build Generative AI Python applications. For this curriculum, focus on the OpenAI Chat Completions examples.
-  id: phase3-topic4-star-the-python-openai-demos-repository-explore-https-github-com-azure-samples-python-openai-demos-tab-readme-ov-file-openai-chat-completions-this-github-repository-contains-several-examples-that-show-how-to-use-the-openai-python-sdk-to-build-generative-ai-python-applications-for-this-curriculum-focus-on-the-openai-chat-completions-examples
+  id: phase3-topic4-explore-star-the-python-openai
 - order: 3
   action: 'Practice:'
   title: Fork the Repository
   url: https://github.com/Azure-Samples/python-openai-demos
   description: Fork the repository to your GitHub account so you can run and experiment with the examples in your own environment.
-  id: phase3-topic4-fork-the-repository-practice-https-github-com-azure-samples-python-openai-demos-fork-the-repository-to-your-github-account-so-you-can-run-and-experiment-with-the-examples-in-your-own-environment
+  id: phase3-topic4-practice-fork-the-repository
 - order: 4
   action: 'Read:'
   title: Set Up the Python Environment
   url: https://github.com/Azure-Samples/python-openai-demos?tab=readme-ov-file#setting-up-the-python-environment
   description: Follow the repository instructions to prepare your local or Codespaces environment before running any examples.
-  id: phase3-topic4-set-up-the-python-environment-read-https-github-com-azure-samples-python-openai-demos-tab-readme-ov-file-setting-up-the-python-environment-follow-the-repository-instructions-to-prepare-your-local-or-codespaces-environment-before-running-any-examples
+  id: phase3-topic4-read-set-up-the-python
 - order: 5
   action: 'Read:'
   title: Configure GitHub Models Environment Variables
   url: https://github.com/Azure-Samples/python-openai-demos?tab=readme-ov-file#using-github-models
   description: Configure your environment for GitHub Models as documented in the repository so the examples run successfully.
-  id: phase3-topic4-configure-github-models-environment-variables-read-https-github-com-azure-samples-python-openai-demos-tab-readme-ov-file-using-github-models-configure-your-environment-for-github-models-as-documented-in-the-repository-so-the-examples-run-successfully
+  id: phase3-topic4-read-configure-github-models-environment
 - order: 6
   action: 'Practice:'
   title: Run chat.py
   url: https://github.com/Azure-Samples/python-openai-demos?tab=readme-ov-file#openai-chat-completions
   description: Run chat.py and confirm you can get a successful completion response.
-  id: phase3-topic4-run-chat-py-practice-https-github-com-azure-samples-python-openai-demos-tab-readme-ov-file-openai-chat-completions-run-chat-py-and-confirm-you-can-get-a-successful-completion-response
+  id: phase3-topic4-practice-run-chatpy
 - order: 7
   action: 'Practice:'
   title: Run chat_stream.py
   url: https://github.com/Azure-Samples/python-openai-demos?tab=readme-ov-file#openai-chat-completions
   description: Run chat_stream.py and verify streaming output works in your terminal.
-  id: phase3-topic4-run-chat-stream-py-practice-https-github-com-azure-samples-python-openai-demos-tab-readme-ov-file-openai-chat-completions-run-chat-stream-py-and-verify-streaming-output-works-in-your-terminal
+  id: phase3-topic4-practice-run-chatstreampy
 - order: 8
   action: 'Practice:'
   title: Run chat_history.py
   url: https://github.com/Azure-Samples/python-openai-demos?tab=readme-ov-file#openai-chat-completions
   description: Run chat_history.py to practice multi-turn conversations with message history.
-  id: phase3-topic4-run-chat-history-py-practice-https-github-com-azure-samples-python-openai-demos-tab-readme-ov-file-openai-chat-completions-run-chat-history-py-to-practice-multi-turn-conversations-with-message-history
+  id: phase3-topic4-practice-run-chathistorypy
 - order: 9
   action: 'Practice:'
   title: Run chat_history_stream.py
   url: https://github.com/Azure-Samples/python-openai-demos?tab=readme-ov-file#openai-chat-completions
   description: Run chat_history_stream.py to combine multi-turn history with streaming. You can explore additional repository examples after completing these required ones.
-  id: phase3-topic4-run-chat-history-stream-py-practice-https-github-com-azure-samples-python-openai-demos-tab-readme-ov-file-openai-chat-completions-run-chat-history-stream-py-to-combine-multi-turn-history-with-streaming-you-can-explore-additional-repository-examples-after-completing-these-required-ones
+  id: phase3-topic4-practice-run-chathistorystreampy

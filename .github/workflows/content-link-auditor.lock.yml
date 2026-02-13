@@ -21,7 +21,7 @@
 #
 # Weekly audit of all external URLs in Learn to Cloud content YAML files. Checks for broken links and redirects.
 #
-# frontmatter-hash: 05fef31757e092d097f57c79480059033a794c0d9bd92713c97cf0ef10cf132f
+# frontmatter-hash: c491e3f9ae26a1d508155074f82d9f3d32e1e946b065315426c7f4f6ba1e1121
 
 name: "Content Link Auditor"
 "on":
@@ -151,7 +151,7 @@ jobs:
               actor: context.actor,
               event_name: context.eventName,
               staged: false,
-              allowed_domains: ["defaults","github","*.youtube.com","*.youtu.be","*.microsoft.com","*.amazon.com","*.aws","*.google.com","*.comptia.org","*.freecodecamp.org","*.khanacademy.org","*.kodekloud.com","*.geeksforgeeks.org","*.dev.to","*.linux.com","*.opensource.com","*.hashicorp.com","*.docker.com","*.kubernetes.io","*.k8s.io","*.terraform.io","*.terraform-best-practices.com","*.tiangolo.com","*.sqlalchemy.org","*.postgresql.org","*.cloudflare.com","*.prometheus.io","*.grafana.com","*.uvicorn.org","*.caddyserver.com","*.modelcontextprotocol.io","*.n8n.io","*.visualstudio.com","*.github.io","*.atlassian.com","*.jetbrains.com","*.ibm.com","*.aka.ms","*.httpbin.org","*.overthewire.org","*.subnetipv4.com","*.nostarch.com","*.certbot.eff.org"],
+              allowed_domains: ["defaults","github","*.youtube.com","*.youtu.be","*.microsoft.com","*.amazon.com","*.aws","*.google.com","*.freecodecamp.org","*.khanacademy.org","*.kodekloud.com","*.geeksforgeeks.org","*.dev.to","*.linux.com","*.opensource.com","*.hashicorp.com","*.docker.com","*.kubernetes.io","*.k8s.io","*.terraform.io","*.terraform-best-practices.com","*.tiangolo.com","*.sqlalchemy.org","*.postgresql.org","*.cloudflare.com","*.prometheus.io","*.grafana.com","*.uvicorn.org","*.caddyserver.com","*.modelcontextprotocol.io","*.n8n.io","*.visualstudio.com","*.github.io","*.atlassian.com","*.jetbrains.com","*.ibm.com","*.aka.ms","*.httpbin.org","*.overthewire.org","*.subnetipv4.com","*.nostarch.com","*.certbot.eff.org"],
               firewall_enabled: true,
               awf_version: "v0.14.0",
               awmg_version: "",
@@ -613,8 +613,8 @@ jobs:
         # --allow-tool shell(grep)
         # --allow-tool shell(head)
         # --allow-tool shell(ls)
-        # --allow-tool shell(python3)
         # --allow-tool shell(pwd)
+        # --allow-tool shell(python3)
         # --allow-tool shell(sed)
         # --allow-tool shell(sort)
         # --allow-tool shell(tail)
@@ -627,8 +627,8 @@ jobs:
         timeout-minutes: 20
         run: |
           set -o pipefail
-          sudo -E awf --enable-chroot --env-all --container-workdir "${GITHUB_WORKSPACE}" --allow-domains '*.aka.ms,*.amazon.com,*.atlassian.com,*.aws,*.caddyserver.com,*.certbot.eff.org,*.cloudflare.com,*.comptia.org,*.dev.to,*.docker.com,*.freecodecamp.org,*.geeksforgeeks.org,*.github.io,*.githubusercontent.com,*.google.com,*.grafana.com,*.hashicorp.com,*.httpbin.org,*.ibm.com,*.jetbrains.com,*.k8s.io,*.khanacademy.org,*.kodekloud.com,*.kubernetes.io,*.linux.com,*.microsoft.com,*.modelcontextprotocol.io,*.n8n.io,*.nostarch.com,*.opensource.com,*.overthewire.org,*.postgresql.org,*.prometheus.io,*.sqlalchemy.org,*.subnetipv4.com,*.terraform-best-practices.com,*.terraform.io,*.tiangolo.com,*.uvicorn.org,*.visualstudio.com,*.youtu.be,*.youtube.com,api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,codeload.github.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,github-cloud.githubusercontent.com,github-cloud.s3.amazonaws.com,github.com,github.githubassets.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,lfs.github.com,objects.githubusercontent.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,registry.npmjs.org,s.symcb.com,s.symcd.com,security.ubuntu.com,telemetry.enterprise.githubcopilot.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com' --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --enable-host-access --image-tag 0.14.0 --skip-pull \
-            -- '/usr/local/bin/copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --allow-tool github --allow-tool safeoutputs --allow-tool '\''shell(awk)'\'' --allow-tool '\''shell(cat)'\'' --allow-tool '\''shell(curl)'\'' --allow-tool '\''shell(date)'\'' --allow-tool '\''shell(echo)'\'' --allow-tool '\''shell(find)'\'' --allow-tool '\''shell(grep)'\'' --allow-tool '\''shell(head)'\'' --allow-tool '\''shell(ls)'\'' --allow-tool '\''shell(python3)'\'' --allow-tool '\''shell(pwd)'\'' --allow-tool '\''shell(sed)'\'' --allow-tool '\''shell(sort)'\'' --allow-tool '\''shell(tail)'\'' --allow-tool '\''shell(uniq)'\'' --allow-tool '\''shell(wc)'\'' --allow-tool '\''shell(which)'\'' --allow-tool '\''shell(yq)'\'' --allow-tool web_fetch --allow-tool write --allow-all-paths --share /tmp/gh-aw/sandbox/agent/logs/conversation.md --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_AGENT_COPILOT:+ --model "$GH_AW_MODEL_AGENT_COPILOT"}' \
+          sudo -E awf --enable-chroot --env-all --container-workdir "${GITHUB_WORKSPACE}" --allow-domains '*.aka.ms,*.amazon.com,*.atlassian.com,*.aws,*.caddyserver.com,*.certbot.eff.org,*.cloudflare.com,*.dev.to,*.docker.com,*.freecodecamp.org,*.geeksforgeeks.org,*.github.io,*.githubusercontent.com,*.google.com,*.grafana.com,*.hashicorp.com,*.httpbin.org,*.ibm.com,*.jetbrains.com,*.k8s.io,*.khanacademy.org,*.kodekloud.com,*.kubernetes.io,*.linux.com,*.microsoft.com,*.modelcontextprotocol.io,*.n8n.io,*.nostarch.com,*.opensource.com,*.overthewire.org,*.postgresql.org,*.prometheus.io,*.sqlalchemy.org,*.subnetipv4.com,*.terraform-best-practices.com,*.terraform.io,*.tiangolo.com,*.uvicorn.org,*.visualstudio.com,*.youtu.be,*.youtube.com,api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,codeload.github.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,github-cloud.githubusercontent.com,github-cloud.s3.amazonaws.com,github.com,github.githubassets.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,lfs.github.com,objects.githubusercontent.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,registry.npmjs.org,s.symcb.com,s.symcd.com,security.ubuntu.com,telemetry.enterprise.githubcopilot.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com' --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --enable-host-access --image-tag 0.14.0 --skip-pull \
+            -- '/usr/local/bin/copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-tool github --allow-tool safeoutputs --allow-tool '\''shell(awk)'\'' --allow-tool '\''shell(cat)'\'' --allow-tool '\''shell(curl)'\'' --allow-tool '\''shell(date)'\'' --allow-tool '\''shell(echo)'\'' --allow-tool '\''shell(find)'\'' --allow-tool '\''shell(grep)'\'' --allow-tool '\''shell(head)'\'' --allow-tool '\''shell(ls)'\'' --allow-tool '\''shell(pwd)'\'' --allow-tool '\''shell(python3)'\'' --allow-tool '\''shell(sed)'\'' --allow-tool '\''shell(sort)'\'' --allow-tool '\''shell(tail)'\'' --allow-tool '\''shell(uniq)'\'' --allow-tool '\''shell(wc)'\'' --allow-tool '\''shell(which)'\'' --allow-tool '\''shell(yq)'\'' --allow-tool web_fetch --allow-tool write --allow-all-paths --share /tmp/gh-aw/sandbox/agent/logs/conversation.md --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_AGENT_COPILOT:+ --model "$GH_AW_MODEL_AGENT_COPILOT"}' \
             2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
@@ -706,7 +706,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_ALLOWED_DOMAINS: "*.aka.ms,*.amazon.com,*.atlassian.com,*.aws,*.caddyserver.com,*.certbot.eff.org,*.cloudflare.com,*.comptia.org,*.dev.to,*.docker.com,*.freecodecamp.org,*.geeksforgeeks.org,*.github.io,*.githubusercontent.com,*.google.com,*.grafana.com,*.hashicorp.com,*.httpbin.org,*.ibm.com,*.jetbrains.com,*.k8s.io,*.khanacademy.org,*.kodekloud.com,*.kubernetes.io,*.linux.com,*.microsoft.com,*.modelcontextprotocol.io,*.n8n.io,*.nostarch.com,*.opensource.com,*.overthewire.org,*.postgresql.org,*.prometheus.io,*.sqlalchemy.org,*.subnetipv4.com,*.terraform-best-practices.com,*.terraform.io,*.tiangolo.com,*.uvicorn.org,*.visualstudio.com,*.youtu.be,*.youtube.com,api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,codeload.github.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,github-cloud.githubusercontent.com,github-cloud.s3.amazonaws.com,github.com,github.githubassets.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,lfs.github.com,objects.githubusercontent.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,registry.npmjs.org,s.symcb.com,s.symcd.com,security.ubuntu.com,telemetry.enterprise.githubcopilot.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com"
+          GH_AW_ALLOWED_DOMAINS: "*.aka.ms,*.amazon.com,*.atlassian.com,*.aws,*.caddyserver.com,*.certbot.eff.org,*.cloudflare.com,*.dev.to,*.docker.com,*.freecodecamp.org,*.geeksforgeeks.org,*.github.io,*.githubusercontent.com,*.google.com,*.grafana.com,*.hashicorp.com,*.httpbin.org,*.ibm.com,*.jetbrains.com,*.k8s.io,*.khanacademy.org,*.kodekloud.com,*.kubernetes.io,*.linux.com,*.microsoft.com,*.modelcontextprotocol.io,*.n8n.io,*.nostarch.com,*.opensource.com,*.overthewire.org,*.postgresql.org,*.prometheus.io,*.sqlalchemy.org,*.subnetipv4.com,*.terraform-best-practices.com,*.terraform.io,*.tiangolo.com,*.uvicorn.org,*.visualstudio.com,*.youtu.be,*.youtube.com,api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,codeload.github.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,github-cloud.githubusercontent.com,github-cloud.s3.amazonaws.com,github.com,github.githubassets.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,lfs.github.com,objects.githubusercontent.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,registry.npmjs.org,s.symcb.com,s.symcd.com,security.ubuntu.com,telemetry.enterprise.githubcopilot.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com"
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_API_URL: ${{ github.api_url }}
         with:
@@ -819,12 +819,6 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs/
           find "/tmp/gh-aw/safeoutputs/" -type f -print
           echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
-      - name: Fail if agent reported missing tool
-        run: |
-          if [ -f "${GH_AW_AGENT_OUTPUT}" ] && grep -q '"type":"missing_tool"' "${GH_AW_AGENT_OUTPUT}"; then
-            echo "Agent output includes missing_tool; failing workflow to avoid false-success audits."
-            exit 1
-          fi
       - name: Process No-Op Messages
         id: noop
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -852,13 +846,6 @@ jobs:
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/opt/gh-aw/actions/missing_tool.cjs');
             await main();
-      - name: Fail on missing required tools
-        if: steps.missing_tool.outputs.total_count != '' && steps.missing_tool.outputs.total_count != '0'
-        run: |
-          echo "Missing tool outputs detected: ${{ steps.missing_tool.outputs.total_count }}"
-          echo "Tools reported: ${{ steps.missing_tool.outputs.tools_reported }}"
-          echo "Failing workflow because link audit could not complete due to missing tools."
-          exit 1
       - name: Handle Agent Failure
         id: handle_agent_failure
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8

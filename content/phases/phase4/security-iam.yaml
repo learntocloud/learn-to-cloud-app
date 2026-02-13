@@ -31,7 +31,7 @@ learning_steps:
     url: https://cloud.google.com/iam/docs/overview
     description: Understanding Identity and Access Management in Google Cloud
   title: Learn IAM concepts across cloud providers
-  id: phase4-topic2-learn-iam-concepts-across-cloud-providers-read-identity-and-access-management-iam-is-how-you-control-who-can-do-what-in-your-cloud-environment-master-these-core-concepts-users-groups-roles-and-policies
+  id: phase4-topic2-read-learn-iam-concepts-across
 - order: 2
   action: 'Read:'
   description: Security groups act as virtual firewalls for your cloud resources, controlling inbound and outbound traffic.
@@ -49,7 +49,7 @@ learning_steps:
     url: https://cloud.google.com/firewall/docs/firewalls
     description: Understanding firewall rules in Google Cloud
   title: Understand Security Groups & Firewall Rules
-  id: phase4-topic2-understand-security-groups-firewall-rules-read-security-groups-act-as-virtual-firewalls-for-your-cloud-resources-controlling-inbound-and-outbound-traffic
+  id: phase4-topic2-read-understand-security-groups-firewall
 - order: 3
   action: 'Read:'
   description: Understand role-based access control and the principle of least privilege — granting only the minimum permissions needed for a task.
@@ -67,4 +67,4 @@ learning_steps:
     url: https://cloud.google.com/iam/docs/using-iam-securely
     description: Review IAM security best practices and least-privilege guidance in GCP
   title: Learn least-privilege IAM practices by provider
-  id: phase4-topic2-learn-least-privilege-iam-practices-by-provider-read-understand-role-based-access-control-and-the-principle-of-least-privilege-granting-only-the-minimum-permissions-needed-for-a-task
+  id: phase4-topic2-read-learn-least-privilege-iam-practices

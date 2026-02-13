@@ -31,7 +31,7 @@ learning_steps:
     url: https://cloud.google.com/sdk/docs/install
     description: Follow the official guide to install the gcloud CLI on your system.
   title: Install your cloud provider's CLI
-  id: phase1-topic2-install-your-cloud-provider-s-cli-practice-choose-and-install-the-cli-for-your-preferred-cloud-platform
+  id: phase1-topic2-practice-install-your-cloud-providers
 - order: 2
   action: 'Practice:'
   description: 'Run a simple command to verify your CLI is working correctly:'
@@ -55,7 +55,7 @@ learning_steps:
 
       ```bash gcloud --version ```'
   title: Test your CLI installation
-  id: phase1-topic2-test-your-cli-installation-practice-run-a-simple-command-to-verify-your-cli-is-working-correctly
+  id: phase1-topic2-practice-test-your-cli-installation
 - order: 3
   action: 'Practice:'
   description: 'Set up your credentials to authenticate with your cloud provider:'
@@ -79,4 +79,4 @@ learning_steps:
 
       ```bash gcloud auth login ```'
   title: Configure authentication
-  id: phase1-topic2-configure-authentication-practice-set-up-your-credentials-to-authenticate-with-your-cloud-provider
+  id: phase1-topic2-practice-configure-authentication

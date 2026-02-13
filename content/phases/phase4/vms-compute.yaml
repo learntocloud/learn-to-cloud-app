@@ -19,13 +19,13 @@ learning_steps:
   title: What are Compute Services?
   url: https://aws.amazon.com/what-is/compute/
   description: Learn the fundamentals of cloud compute - the on-demand delivery of computing power that forms the foundation of cloud infrastructure.
-  id: phase4-topic1-what-are-compute-services-read-https-aws-amazon-com-what-is-compute-learn-the-fundamentals-of-cloud-compute-the-on-demand-delivery-of-computing-power-that-forms-the-foundation-of-cloud-infrastructure
+  id: phase4-topic1-read-what-are-compute-services
 - order: 2
   action: 'Read:'
   title: Understanding Virtualization
   url: https://aws.amazon.com/what-is/virtualization/
   description: Understand how virtualization technology enables running multiple virtual machines on a single physical server, enabling cloud scalability.
-  id: phase4-topic1-understanding-virtualization-read-https-aws-amazon-com-what-is-virtualization-understand-how-virtualization-technology-enables-running-multiple-virtual-machines-on-a-single-physical-server-enabling-cloud-scalability
+  id: phase4-topic1-read-understanding-virtualization
 - order: 3
   action: 'Read:'
   description: Compare VM sizing and instance-family guidance across major providers to choose the right CPU, memory, and storage profile for your workload.
@@ -43,7 +43,7 @@ learning_steps:
     url: https://cloud.google.com/compute/docs/machine-resource
     description: Learn how Google Cloud machine families map to common workload requirements.
   title: Compare VM sizing guidance by cloud provider
-  id: phase4-topic1-compare-vm-sizing-guidance-by-cloud-provider-read-compare-vm-sizing-and-instance-family-guidance-across-major-providers-to-choose-the-right-cpu-memory-and-storage-profile-for-your-workload
+  id: phase4-topic1-read-compare-vm-sizing-guidance
 - order: 4
   action: 'Practice:'
   description: 'Choose your cloud platform and follow the official guide to deploy your first virtual machine:'
@@ -61,9 +61,9 @@ learning_steps:
     url: https://cloud.google.com/products/compute#create-your-first-vm
     description: Get started with Google Compute Engine
   title: Deploy a VM on your cloud provider
-  id: phase4-topic1-deploy-a-vm-on-your-cloud-provider-practice-choose-your-cloud-platform-and-follow-the-official-guide-to-deploy-your-first-virtual-machine
+  id: phase4-topic1-practice-deploy-a-vm-on
 - order: 5
   action: 'Practice:'
   description: Use the VM you deployed in step 4 to verify it is healthy and reachable. Confirm basic access (SSH/RDP/console), note the selected VM size/instance type, and document one reason why that size matches your workload.
   title: 'Hands-on: Verify and document your VM deployment'
-  id: phase4-topic1-hands-on-verify-and-document-your-vm-deployment-practice-use-the-vm-you-deployed-in-step-4-to-verify-it-is-healthy-and-reachable-confirm-basic-access-ssh-rdp-console-note-the-selected-vm-size-instance-type-and-document-one-reason-why-that-size-matches-your-workload
+  id: phase4-topic1-practice-hands-on-verify-and-document

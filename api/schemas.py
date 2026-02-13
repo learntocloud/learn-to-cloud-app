@@ -594,6 +594,19 @@ class NetworkingLabVerificationResult(FrozenModel):
     challenge_type: str | None = None
 
 
+class IaCVerificationResult(FrozenModel):
+    """Result of verifying a DevOps IaC lab completion token."""
+
+    is_valid: bool
+    message: str
+    server_error: bool = False
+    github_username: str | None = None
+    completion_date: str | None = None
+    completion_time: str | None = None
+    challenges_completed: int | None = None
+    challenge_type: str | None = None
+
+
 # =============================================================================
 # GitHub URL Parsing Schema
 # =============================================================================

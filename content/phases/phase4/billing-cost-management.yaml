@@ -31,7 +31,7 @@ learning_steps:
     url: https://cloud.google.com/billing/docs/concepts
     description: Review how billing accounts, projects, and charges work in Google Cloud.
   title: Learn cloud pricing and billing fundamentals by provider
-  id: phase4-topic7-learn-cloud-pricing-and-billing-fundamentals-by-provider-read-understand-pay-as-you-go-pricing-common-billing-dimensions-and-core-cost-drivers-for-compute-storage-and-network-resources
+  id: phase4-topic7-read-learn-cloud-pricing-and
 - order: 2
   action: 'Practice:'
   description: 'Learn the billing and cost management tools for your cloud provider:'
@@ -49,7 +49,7 @@ learning_steps:
     url: https://cloud.google.com/billing/docs/how-to
     description: How to manage billing in Google Cloud
   title: Cost Management Overview
-  id: phase4-topic7-cost-management-overview-practice-learn-the-billing-and-cost-management-tools-for-your-cloud-provider
+  id: phase4-topic7-practice-cost-management-overview
 - order: 3
   action: 'Practice:'
   description: Get notified before you overspend! Configure alerts at thresholds like 50%, 80%, 100% of your budget.
@@ -67,7 +67,7 @@ learning_steps:
     url: https://cloud.google.com/billing/docs/how-to/budgets
     description: Configuring budget alerts in Google Cloud
   title: Set Up Budget Alerts
-  id: phase4-topic7-set-up-budget-alerts-practice-get-notified-before-you-overspend-configure-alerts-at-thresholds-like-50-80-100-of-your-budget
+  id: phase4-topic7-practice-set-up-budget-alerts
 - order: 4
   action: 'Practice:'
   description: 'Estimate costs BEFORE you deploy. Each cloud provider has a calculator:'
@@ -85,7 +85,7 @@ learning_steps:
     url: https://cloud.google.com/products/calculator
     description: Estimate costs for Google Cloud services before deploying
   title: Use Pricing Calculators
-  id: phase4-topic7-use-pricing-calculators-practice-estimate-costs-before-you-deploy-each-cloud-provider-has-a-calculator
+  id: phase4-topic7-practice-use-pricing-calculators
 - order: 5
   action: 'Read:'
   description: Review cost-optimization best practices from your cloud provider's architecture framework. Focus on right-sizing, eliminating idle resources, and reducing avoidable data-transfer/storage costs.
@@ -103,19 +103,19 @@ learning_steps:
     url: https://cloud.google.com/architecture/framework/cost-optimization
     description: Follow GCP cost-optimization recommendations for architecture and operations.
   title: Review cost-optimization frameworks by provider
-  id: phase4-topic7-review-cost-optimization-frameworks-by-provider-read-review-cost-optimization-best-practices-from-your-cloud-provider-s-architecture-framework-focus-on-right-sizing-eliminating-idle-resources-and-reducing-avoidable-data-transfer-storage-costs
+  id: phase4-topic7-read-review-cost-optimization-frameworks-by
 - order: 6
   action: 'Practice:'
   description: Open your cloud provider's billing dashboard and review your current month's charges. Identify which resources are costing the most.
   title: Review your current month's charges
-  id: phase4-topic7-review-your-current-month-s-charges-practice-open-your-cloud-provider-s-billing-dashboard-and-review-your-current-month-s-charges-identify-which-resources-are-costing-the-most
+  id: phase4-topic7-practice-review-your-current-months
 - order: 7
   action: 'Practice:'
   description: Create a budget alert for $50/month (or your chosen limit) so you get notified before you overspend.
   title: Set up a budget alert
-  id: phase4-topic7-set-up-a-budget-alert-practice-create-a-budget-alert-for-50-month-or-your-chosen-limit-so-you-get-notified-before-you-overspend
+  id: phase4-topic7-practice-set-up-a-budget
 - order: 8
   action: 'Practice:'
   description: Use your cloud provider's pricing calculator to estimate what your Journal API deployment will cost per month.
   title: Estimate costs for a new deployment using the pricing calculator
-  id: phase4-topic7-estimate-costs-for-a-new-deployment-using-the-pricing-calculator-practice-use-your-cloud-provider-s-pricing-calculator-to-estimate-what-your-journal-api-deployment-will-cost-per-month
+  id: phase4-topic7-practice-estimate-costs-for-a

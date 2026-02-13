@@ -40,8 +40,6 @@ network:
     - "*.amazon.com"
     - "*.aws"
     - "*.google.com"
-    # Certifications
-    - "*.comptia.org"
     # Learning platforms
     - "*.freecodecamp.org"
     - "*.khanacademy.org"
@@ -100,27 +98,36 @@ Audit every external URL found in the content YAML files under `content/phases/`
 
 ### Step 1: Extract all URLs
 
-Use `yq` and `bash` to find every URL across all YAML files in `content/phases/`. Since `yq` can parse YAML natively, prefer it over regex-based extraction:
+Only verify **resource links** (the URLs learners click), which are represented as YAML `url:` fields in the content.
 
+Important: do **not** rely on `**` globbing (globstar is often disabled in non-interactive shells). Use `find` to enumerate files.
+
+Preferred extraction (robust; preserves file + line number context):
+
+```bash
+find content/phases -type f \( -name "*.yaml" -o -name "*.yml" \) -print0 | \
+  xargs -0 -n 50 grep -RInE '^[[:space:]]*url:[[:space:]]*https?://' | \
+  sort -u
 ```
-yq -r '.. | select(type == "string" and test("^https?://"))' content/phases/**/*.yaml
+
+To build a deduplicated list of URLs only:
+
+```bash
+find content/phases -type f \( -name "*.yaml" -o -name "*.yml" \) -print0 | \
+  xargs -0 -n 50 grep -RInE '^[[:space:]]*url:[[:space:]]*https?://' | \
+  sed -E 's/^[^:]+:[0-9]+:[[:space:]]*url:[[:space:]]*//' | \
+  sort -u
 ```
 
-Or use `grep` + `sed` as a fallback:
+URLs can appear in many YAML fields (the schema evolves). Historically common locations include:
+- `learning_steps[].url`
+- `learning_steps[].options[].url`
+- `security_overviews[].url` (often in `_phase.yaml`)
 
-```
-grep -rh 'url:' content/phases/ --include="*.yaml" | sed 's/^[[:space:]]*url:[[:space:]]*//' | sort -u
-```
-
-Parse out the unique URLs and track which file and field each one came from.
-
-URLs can appear in these YAML fields:
-- `learning_steps[].url` — primary learning link
-- `learning_steps[].secondary_links[].url` — additional links within a step
-- `learning_steps[].options[].url` — provider-specific alternatives (AWS/Azure/GCP)
-- `security_overviews[].url` — in `_phase.yaml` files
-
-Ignore template/placeholder URLs like `https://github.com/your-username` or localhost URLs.
+Ignore template/placeholder URLs and non-external/local URLs, including (but not limited to):
+- `https://github.com/your-username`, `https://github.com/username`, `https://github.com/yourname`, etc.
+- `http://localhost`, `http://127.0.0.1`, `http://host.docker.internal`, `http://0.0.0.0`
+- Any URL under an explicit `placeholder:` key (these are user prompts, not curriculum resources)
 
 ### Step 2: Check each URL
 
@@ -170,6 +177,7 @@ All {N} other links are healthy.
 
 ## Important Guidelines
 
+- This workflow must ONLY verify resource link health (working/broken/redirect). Do not audit certifications, difficulty, correctness, or any other content quality dimensions.
 - Do NOT create an issue if everything is healthy — use the noop output instead with a message like "All {N} links healthy, no issues found."
 - Group related broken links by phase for easier fixing.
 - Be conservative: only flag a link as broken if you're confident it's not a transient error. If a URL times out once, note it as "possibly broken" rather than definitely broken.

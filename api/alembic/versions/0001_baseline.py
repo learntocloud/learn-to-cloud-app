@@ -49,6 +49,7 @@ def upgrade() -> None:
                 "repo_fork",
                 "ctf_token",
                 "networking_token",
+                "iac_token",
                 "journal_api_response",
                 "code_analysis",
                 "deployed_api",

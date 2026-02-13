@@ -31,7 +31,7 @@ learning_steps:
     title: GCP VPC Network Overview
     url: https://cloud.google.com/vpc/docs/vpc
     description: Google Cloud VPC documentation
-  id: phase6-topic3-vpc-overview-read-a-vpc-is-your-private-network-in-the-cloud-your-api-server-goes-in-a-public-subnet-your-database-goes-in-a-private-subnet
+  id: phase6-topic3-read-vpc-overview
 - order: 2
   action: 'Read:'
   description: Security groups are stateful firewalls around individual resources (allow rules only). Network ACLs are stateless firewalls around entire subnets (allow AND deny rules). For your Journal API, a security group on the database should allow port 5432 only from your API server.
@@ -49,13 +49,13 @@ learning_steps:
     url: https://cloud.google.com/firewall/docs/firewalls
     description: Firewall rules in Google Cloud
   title: Understand security groups vs network ACLs
-  id: phase6-topic3-understand-security-groups-vs-network-acls-read-security-groups-are-stateful-firewalls-around-individual-resources-allow-rules-only-network-acls-are-stateless-firewalls-around-entire-subnets-allow-and-deny-rules-for-your-journal-api-a-security-group-on-the-database-should-allow-port-5432-only-from-your-api-server
+  id: phase6-topic3-read-understand-security-groups-vs
 - order: 3
   action: 'Read:'
   title: Azure Network Security Best Practices
   url: https://learn.microsoft.com/en-us/azure/security/fundamentals/network-best-practices
   description: Public subnets face the internet (load balancer, API). Private subnets are internal only (database). This separation is the foundation of secure cloud architecture.
-  id: phase6-topic3-azure-network-security-best-practices-read-https-learn-microsoft-com-en-us-azure-security-fundamentals-network-best-practices-public-subnets-face-the-internet-load-balancer-api-private-subnets-are-internal-only-database-this-separation-is-the-foundation-of-secure-cloud-architecture
+  id: phase6-topic3-read-azure-network-security-best
 - order: 4
   action: 'Watch:'
   description: Follow along in your own account if you can.
@@ -73,4 +73,4 @@ learning_steps:
     url: https://www.youtube.com/watch?v=cNb4xzAyTiQ
     description: GCP networking walkthrough
   title: Watch a network security walkthrough for your provider
-  id: phase6-topic3-watch-a-network-security-walkthrough-for-your-provider-watch-follow-along-in-your-own-account-if-you-can
+  id: phase6-topic3-watch-watch-a-network-security

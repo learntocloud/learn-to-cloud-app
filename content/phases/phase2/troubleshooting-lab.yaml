@@ -19,9 +19,9 @@ learning_steps:
   title: Networking Lab Repository
   url: https://github.com/learntocloud/networking-lab
   description: 'The repository README has everything you need: setup instructions, lab scenarios, and troubleshooting exercises. Follow the instructions there to complete the lab.'
-  id: phase2-topic4-networking-lab-repository-practice-https-github-com-learntocloud-networking-lab-the-repository-readme-has-everything-you-need-setup-instructions-lab-scenarios-and-troubleshooting-exercises-follow-the-instructions-there-to-complete-the-lab
+  id: phase2-topic4-practice-networking-lab-repository
 - order: 2
   action: 'Reflect:'
   title: Share Your Progress
   description: When you've completed the networking lab, share your experience on LinkedIn or the Learn to Cloud community to celebrate your progress and help others.
-  id: phase2-topic4-share-your-progress-reflect-when-you-ve-completed-the-networking-lab-share-your-experience-on-linkedin-or-the-learn-to-cloud-community-to-celebrate-your-progress-and-help-others
+  id: phase2-topic4-reflect-share-your-progress

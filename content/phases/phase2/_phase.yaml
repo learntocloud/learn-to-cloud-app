@@ -23,7 +23,7 @@ hands_on_verification:
     submission_type: networking_token
     name: Submit the Networking Lab Completion Token
     description: Finish all four networking challenges and submit the completion token shown at the end.
-    placeholder: Paste your networking lab completion token here
+    placeholder: Paste your Networking Lab completion token here
 topics:
 - fundamentals
 - protocols

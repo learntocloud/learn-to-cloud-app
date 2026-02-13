@@ -20,9 +20,9 @@ learning_steps:
   title: Linux CTFs Repository
   url: https://github.com/learntocloud/linux-ctfs
   description: 'The repository README has everything you need: setup instructions for AWS/Azure/GCP, challenge descriptions, and tips. Follow the instructions there to deploy and complete the challenges.'
-  id: phase1-topic6-linux-ctfs-repository-practice-https-github-com-learntocloud-linux-ctfs-the-repository-readme-has-everything-you-need-setup-instructions-for-aws-azure-gcp-challenge-descriptions-and-tips-follow-the-instructions-there-to-deploy-and-complete-the-challenges
+  id: phase1-topic6-practice-linux-ctfs-repository
 - order: 2
   action: 'Reflect:'
   title: Share Your Progress
   description: When you've completed the CTF challenges, share your experience on LinkedIn or the Learn to Cloud community to celebrate your progress and help others.
-  id: phase1-topic6-share-your-progress-reflect-when-you-ve-completed-the-ctf-challenges-share-your-experience-on-linkedin-or-the-learn-to-cloud-community-to-celebrate-your-progress-and-help-others
+  id: phase1-topic6-reflect-share-your-progress

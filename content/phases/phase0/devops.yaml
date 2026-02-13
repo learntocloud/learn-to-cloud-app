@@ -19,40 +19,40 @@ learning_steps:
   title: What is DevOps
   url: https://youtu.be/UbtB4sMaaNM?si=8uH2Gr76QSrvCmAY
   description: Get a practical introduction to DevOps and how it connects software development, operations, and automation.
-  id: phase0-topic5-what-is-devops-watch-https-youtu-be-ubtb4smaanm-si-8uh2gr76qsrvcmay-get-a-practical-introduction-to-devops-and-how-it-connects-software-development-operations-and-automation
+  id: phase0-topic5-watch-what-is-devops
 - order: 2
   action: 'Read:'
   title: What is Version Control?
   url: https://github.blog/developer-skills/programming-languages-and-frameworks/what-is-git-our-beginners-guide-to-version-control/
   description: Learn version control fundamentals with Git and how to track changes safely when collaborating on code.
-  id: phase0-topic5-what-is-version-control-read-https-github-blog-developer-skills-programming-languages-and-frameworks-what-is-git-our-beginners-guide-to-version-control-learn-version-control-fundamentals-with-git-and-how-to-track-changes-safely-when-collaborating-on-code
+  id: phase0-topic5-read-what-is-version-control
 - order: 3
   action: 'Read:'
   title: What is Infrastructure as Code (IaC)?
   url: https://www.hashicorp.com/resources/what-is-infrastructure-as-code
   description: Understand how infrastructure is defined with code for consistency, repeatability, and automation.
-  id: phase0-topic5-what-is-infrastructure-as-code-iac-read-https-www-hashicorp-com-resources-what-is-infrastructure-as-code-understand-how-infrastructure-is-defined-with-code-for-consistency-repeatability-and-automation
+  id: phase0-topic5-read-what-is-infrastructure-as
 - order: 4
   action: 'Read:'
   title: What is CI/CD?
   url: https://www.redhat.com/en/topics/devops/what-is-ci-cd
   description: Learn how continuous integration and continuous delivery automate build, test, and release workflows.
-  id: phase0-topic5-what-is-ci-cd-read-https-www-redhat-com-en-topics-devops-what-is-ci-cd-learn-how-continuous-integration-and-continuous-delivery-automate-build-test-and-release-workflows
+  id: phase0-topic5-read-what-is-cicd
 - order: 5
   action: 'Read:'
   title: What is Observability?
   url: https://www.ibm.com/think/topics/observability
   description: Understand how logs, metrics, and traces help you monitor and troubleshoot systems in production.
-  id: phase0-topic5-what-is-observability-read-https-www-ibm-com-think-topics-observability-understand-how-logs-metrics-and-traces-help-you-monitor-and-troubleshoot-systems-in-production
+  id: phase0-topic5-read-what-is-observability
 - order: 6
   action: 'Read:'
   title: What are Containers?
   url: https://www.docker.com/resources/what-container/
   description: Learn how containers package applications and dependencies so software runs consistently across environments.
-  id: phase0-topic5-what-are-containers-read-https-www-docker-com-resources-what-container-learn-how-containers-package-applications-and-dependencies-so-software-runs-consistently-across-environments
+  id: phase0-topic5-read-what-are-containers
 - order: 7
   action: 'Read:'
   title: What is Kubernetes?
   url: https://kubernetes.io/docs/concepts/overview/
   description: Understand Kubernetes as a container orchestration platform for deployment, scaling, and management.
-  id: phase0-topic5-what-is-kubernetes-read-https-kubernetes-io-docs-concepts-overview-understand-kubernetes-as-a-container-orchestration-platform-for-deployment-scaling-and-management
+  id: phase0-topic5-read-what-is-kubernetes

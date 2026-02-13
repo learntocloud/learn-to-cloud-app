@@ -19,7 +19,7 @@ learning_steps:
   title: What is SSH
   url: https://www.cloudflare.com/learning/access-management/what-is-ssh/
   description: Learn what SSH is and why it's used for secure remote access.
-  id: phase1-topic4-what-is-ssh-read-https-www-cloudflare-com-learning-access-management-what-is-ssh-learn-what-ssh-is-and-why-it-s-used-for-secure-remote-access
+  id: phase1-topic4-read-what-is-ssh
 - order: 2
   action: 'Practice:'
   description: 'Follow your cloud provider''s guide to connect to a VM via SSH:'
@@ -37,4 +37,4 @@ learning_steps:
     url: https://cloud.google.com/compute/docs/connect/standard-ssh
     description: GCP documentation for SSH access to Compute Engine instances.
   title: Practice connecting to a VM
-  id: phase1-topic4-practice-connecting-to-a-vm-practice-follow-your-cloud-provider-s-guide-to-connect-to-a-vm-via-ssh
+  id: phase1-topic4-practice-practice-connecting-to-a

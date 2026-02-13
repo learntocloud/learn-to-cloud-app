@@ -326,6 +326,7 @@ async def submit_validation(
         SubmissionType.REPO_FORK,
         SubmissionType.CTF_TOKEN,
         SubmissionType.NETWORKING_TOKEN,
+        SubmissionType.IAC_TOKEN,
         SubmissionType.CODE_ANALYSIS,
         SubmissionType.DEVOPS_ANALYSIS,
     ):
@@ -369,11 +370,15 @@ async def submit_validation(
 
         # Extract username from submission for audit/display purposes.
         extracted_username = None
-        if requirement.submission_type != SubmissionType.CTF_TOKEN:
+        if requirement.submission_type in (
+            SubmissionType.CTF_TOKEN,
+            SubmissionType.NETWORKING_TOKEN,
+            SubmissionType.IAC_TOKEN,
+        ):
+            extracted_username = github_username
+        else:
             parsed = parse_github_url(submitted_value)
             extracted_username = parsed.username if parsed.is_valid else None
-        else:
-            extracted_username = github_username
 
         verification_completed = not validation_result.server_error
 

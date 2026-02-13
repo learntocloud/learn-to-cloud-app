@@ -31,24 +31,24 @@ learning_steps:
     url: https://cloud.google.com/monitoring/docs/monitoring-overview
     description: Understand how Cloud Monitoring collects and visualizes service telemetry.
   title: 'Prerequisite refresher: provider monitoring basics (optional)'
-  id: phase5-topic5-prerequisite-refresher-provider-monitoring-basics-optional-read-optional-refresher-from-phase-4-if-you-ve-already-completed-the-monitoring-foundations-topic-skim-this-quickly-to-reconnect-with-your-provider-s-core-monitoring-services
+  id: phase5-topic5-read-prerequisite-refresher-provider-monitoring
 - order: 2
   action: 'Read:'
   title: Monitoring vs Observability
   url: https://www.ibm.com/think/topics/observability-vs-monitoring
   description: Understand the difference between monitoring and observability in DevOps.
-  id: phase5-topic5-monitoring-vs-observability-read-https-www-ibm-com-think-topics-observability-vs-monitoring-understand-the-difference-between-monitoring-and-observability-in-devops
+  id: phase5-topic5-read-monitoring-vs-observability
 - order: 3
   action: 'Read:'
   title: Observability Patterns (Microsoft Learn)
   url: https://learn.microsoft.com/en-us/dotnet/architecture/cloud-native/observability-patterns
   description: Learn the three pillars of observability — metrics, logs, and traces — and how dashboards and alerts are built from these telemetry signals.
-  id: phase5-topic5-observability-patterns-microsoft-learn-read-https-learn-microsoft-com-en-us-dotnet-architecture-cloud-native-observability-patterns-learn-the-three-pillars-of-observability-metrics-logs-and-traces-and-how-dashboards-and-alerts-are-built-from-these-telemetry-signals
+  id: phase5-topic5-read-observability-patterns-microsoft-learn
 - order: 4
   action: 'Read:'
   description: 'The industry-standard monitoring stack:'
   title: Prometheus & Grafana
-  id: phase5-topic5-prometheus-grafana-read-the-industry-standard-monitoring-stack
+  id: phase5-topic5-read-prometheus-grafana
 - order: 5
   action: 'Practice:'
   description: 'Install Prometheus using Docker:'
@@ -64,7 +64,7 @@ learning_steps:
 
     docker run \ -p 9090:9090 \ -v /path/to/prometheus.yml:/etc/prometheus/prometheus.yml \ prom/prometheus'
   title: Set Up Prometheus
-  id: phase5-topic5-set-up-prometheus-practice-install-prometheus-using-docker
+  id: phase5-topic5-practice-set-up-prometheus
 - order: 6
   action: 'Practice:'
   description: 'Install Grafana and connect to Prometheus:'
@@ -82,27 +82,27 @@ learning_steps:
 
     # URL: http://host.docker.internal:9090'
   title: Set Up Grafana
-  id: phase5-topic5-set-up-grafana-practice-install-grafana-and-connect-to-prometheus
+  id: phase5-topic5-practice-set-up-grafana
 - order: 7
   action: 'Practice:'
   description: 'Add metrics to your application:'
   title: Instrument Your App
-  id: phase5-topic5-instrument-your-app-practice-add-metrics-to-your-application
+  id: phase5-topic5-practice-instrument-your-app
 - order: 8
   action: 'Read:'
   title: What are AI Agents? (Optional advanced)
   url: https://www.ibm.com/think/topics/ai-agents
   description: Optional extension topic. Understand how AI agents can assist monitoring by responding to alerts, analyzing logs for potential causes, and suggesting remediation steps.
-  id: phase5-topic5-what-are-ai-agents-optional-advanced-read-https-www-ibm-com-think-topics-ai-agents-optional-extension-topic-understand-how-ai-agents-can-assist-monitoring-by-responding-to-alerts-analyzing-logs-for-potential-causes-and-suggesting-remediation-steps
+  id: phase5-topic5-read-what-are-ai-agents
 - order: 9
   action: 'Practice:'
   title: n8n Overview (Optional advanced)
   url: https://n8n.io/features/
   description: Optional extension lab. Install n8n with Docker (`docker run -d -p 5678:5678 --name n8n n8nio/n8n:latest`), then build a workflow that queries Prometheus for a metric, checks a threshold, and calls an LLM to analyze anomalies.
-  id: phase5-topic5-n8n-overview-optional-advanced-practice-https-n8n-io-features-optional-extension-lab-install-n8n-with-docker-docker-run-d-p-5678-5678-name-n8n-n8nio-n8n-latest-then-build-a-workflow-that-queries-prometheus-for-a-metric-checks-a-threshold-and-calls-an-llm-to-analyze-anomalies
+  id: phase5-topic5-practice-n8n-overview-optional-advanced
 - order: 10
   action: 'Read:'
   title: Prometheus & Grafana Documentation
   url: https://prometheus.io/docs/
   description: Explore the official Prometheus and Grafana docs for deeper monitoring configuration.
-  id: phase5-topic5-prometheus-grafana-documentation-read-https-prometheus-io-docs-explore-the-official-prometheus-and-grafana-docs-for-deeper-monitoring-configuration
+  id: phase5-topic5-read-prometheus-grafana-documentation

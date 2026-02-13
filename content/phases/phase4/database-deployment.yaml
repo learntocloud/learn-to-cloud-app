@@ -31,7 +31,7 @@ learning_steps:
     url: https://cloud.google.com/postgresql
     description: Understand PostgreSQL options on Google Cloud and choose the right deployment path.
   title: Compare PostgreSQL deployment options by provider
-  id: phase4-topic5-compare-postgresql-deployment-options-by-provider-read-review-your-provider-s-postgresql-options-managed-services-vs-self-hosted-on-vms-and-choose-the-model-you-ll-use-for-this-topic
+  id: phase4-topic5-read-compare-postgresql-deployment-options
 - order: 2
   action: 'Practice:'
   description: Deploy a VM in a private subnet on your cloud provider and install PostgreSQL. Use provider networking guidance plus the PostgreSQL Linux packages docs to complete the setup.
@@ -49,13 +49,13 @@ learning_steps:
     url: https://cloud.google.com/compute/docs/instances/create-vm-specific-subnet
     description: Launch a VM in your chosen subnet and use no external IP for private-only database hosting.
   title: Deploy a VM in a private subnet and install PostgreSQL
-  id: phase4-topic5-deploy-a-vm-in-a-private-subnet-and-install-postgresql-practice-deploy-a-vm-in-a-private-subnet-on-your-cloud-provider-and-install-postgresql-use-provider-networking-guidance-plus-the-postgresql-linux-packages-docs-to-complete-the-setup
+  id: phase4-topic5-practice-deploy-a-vm-in
 - order: 3
   action: 'Practice:'
   description: Edit pg_hba.conf to allow connections only from your API server's IP range. Create database users with appropriate permissions.
   url: https://www.postgresql.org/docs/current/auth-pg-hba-conf.html
   title: Configure pg_hba.conf for secure remote access
-  id: phase4-topic5-configure-pg-hba-conf-for-secure-remote-access-practice-https-www-postgresql-org-docs-current-auth-pg-hba-conf-html-edit-pg-hba-conf-to-allow-connections-only-from-your-api-server-s-ip-range-create-database-users-with-appropriate-permissions
+  id: phase4-topic5-practice-configure-pghbaconf-for-secure
 - order: 4
   action: 'Practice:'
   description: Test that your API server (in the public subnet) can connect to the database. Use your secure admin access path (for example Bastion/SSM/IAP) to validate from inside the network, and verify the database is NOT accessible from the internet.
@@ -73,4 +73,4 @@ learning_steps:
     url: https://cloud.google.com/iap/docs/using-tcp-forwarding
     description: Test secure admin connectivity to VMs that do not have external IP addresses.
   title: Verify database connectivity and security
-  id: phase4-topic5-verify-database-connectivity-and-security-practice-test-that-your-api-server-in-the-public-subnet-can-connect-to-the-database-use-your-secure-admin-access-path-for-example-bastion-ssm-iap-to-validate-from-inside-the-network-and-verify-the-database-is-not-accessible-from-the-internet
+  id: phase4-topic5-practice-verify-database-connectivity-and
