@@ -68,16 +68,9 @@ class HandsOnRequirement(FrozenModel):
     """
 
     id: str
-    phase_id: int
     submission_type: SubmissionType
     name: str
     description: str
-    example_url: str | None = None
-    note: str | None = None  # Optional note displayed separately (e.g., cooldown info)
-    # Actionable instructions for the verification form (what to submit).
-    # Falls back to `description` if not set.
-    submission_instructions: str | None = None
-    # Short hint shown inside the input/textarea (e.g., "https://github.com/your-username/repo")
     placeholder: str | None = None
 
     # For REPO_FORK: the original repo to verify fork from
@@ -100,7 +93,7 @@ class StepProgressData(FrozenModel):
     """Step progress data for a topic (service-layer response model)."""
 
     topic_id: str
-    completed_steps: list[int]
+    completed_steps: list[str]
     total_steps: int
 
 
@@ -108,7 +101,7 @@ class StepCompletionResult(FrozenModel):
     """Result of completing a step (service-layer response model)."""
 
     topic_id: str
-    step_order: int
+    step_id: str
     completed_at: datetime
 
 
@@ -215,13 +208,6 @@ class CertificateVerificationResult(FrozenModel):
 # =============================================================================
 
 
-class SecondaryLink(FrozenModel):
-    """A secondary link in a learning step description."""
-
-    text: str
-    url: str
-
-
 class ProviderOption(FrozenModel):
     """Cloud provider-specific option for a learning step."""
 
@@ -234,15 +220,13 @@ class ProviderOption(FrozenModel):
 class LearningStep(FrozenModel):
     """A learning step within a topic."""
 
+    id: str
     order: int
-    text: str
     action: str | None = None
     title: str | None = None
     url: str | None = None
     description: str | None = None
-    checklist: list[str] = Field(default_factory=list)
     code: str | None = None
-    secondary_links: list[SecondaryLink] = Field(default_factory=list)
     options: list[ProviderOption] = Field(default_factory=list)
 
 
@@ -262,7 +246,6 @@ class Topic(FrozenModel):
     name: str
     description: str
     order: int
-    is_capstone: bool
     learning_steps: list[LearningStep]
     learning_objectives: list[LearningObjective] = Field(default_factory=list)
 
@@ -279,8 +262,6 @@ class PhaseCapstoneOverview(FrozenModel):
 class PhaseHandsOnVerificationOverview(FrozenModel):
     """High-level hands-on verification overview for a phase (public summary)."""
 
-    summary: str
-    includes: list[str] = Field(default_factory=list)
     requirements: list[HandsOnRequirement] = Field(default_factory=list)
 
 

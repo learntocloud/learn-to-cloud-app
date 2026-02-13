@@ -17,49 +17,10 @@ topics:
 - network-security
 - monitoring-incident-response
 - capstone
-capstone:
-  title: 'Capstone: Secure Your Journal API'
-  summary: Harden your Journal API with IAM, secrets management, network controls, and monitoring.
-  includes:
-  - Create a service account with least-privilege permissions
-  - Move secrets to a cloud secrets manager
-  - Verify network security and enable HTTPS
-  - Set up monitoring and security scanning
-  topic_slug: capstone
 hands_on_verification:
-  summary: Finished the Security capstone? Submit your repo URL and the system will verify scanning is configured.
-  includes:
-  - 'Complete the Capstone: Secure Your Journal API'
-  - Submit your repository URL for automated verification
   requirements:
   - id: security-scanning
     submission_type: security_scanning
-    name: Enabled Security Scanning
-    description: 'Submit your repository URL after completing the Capstone: Secure Your Journal API for automated verification.'
-    submission_instructions: Paste the URL to your journal-starter fork (e.g. https://github.com/your-username/journal-starter).
-      The system will check your repository for security scanning configuration — either a Dependabot config file
-      (.github/dependabot.yml) or a CodeQL workflow in .github/workflows/. At least one must be present to pass.
+    name: Enable Security Scanning
+    description: Submit your repository URL so automated checks can verify Dependabot or CodeQL scanning is configured.
     placeholder: https://github.com/username/journal-starter
-    example_url: https://github.com/your-username/journal-starter
-prerequisites:
-- 'Completed Phase 4: Cloud Platform Fundamentals'
-- 'Completed Phase 5: DevOps Fundamentals (recommended but not required)'
-- Access to the Journal API application and infrastructure from previous phases
-- A cloud platform account (AWS, Azure, or GCP) with administrative permissions
-connections:
-- phase: Phase 1-3
-  description: Your Linux, networking, and Python skills come back here—you'll use them to configure security tools and audit
-    your setup
-- phase: Phase 4
-  description: Remember those cloud resources you deployed? Time to make sure nobody else can mess with them
-- phase: Phase 5
-  description: Your CI/CD pipelines get security scanning baked right in
-- phase: Phase 6
-  description: This is where it all comes together—your app goes from working to production-ready
-security_overviews:
-- text: AWS Security Pillar - Well Architected Framework
-  url: https://docs.aws.amazon.com/wellarchitected/latest/security-pillar/welcome.html
-- text: Microsoft Azure - Secure
-  url: https://learn.microsoft.com/en-us/azure/architecture/framework/security/overview
-- text: Google Cloud - Security Foundations
-  url: https://cloud.google.com/architecture/security-foundations

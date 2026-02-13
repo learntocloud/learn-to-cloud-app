@@ -1,26 +1,34 @@
 id: phase0-topic1
 slug: linux
 name: What is Linux
-description: Linux is the backbone of many cloud environments. Understanding what it is and why it matters is essential for
-  cloud engineering.
+description: Linux is the backbone of all cloud environments. Understanding what it is and why it matters is essential for cloud engineering.
 order: 1
-is_capstone: false
+learning_objectives:
+- id: linux-basics
+  text: Understand the history and importance of Linux.
+  order: 1
+- id: linux-core-concepts
+  text: Get hands-on with the most basic Linux commands.
+  order: 2
+- id: linux-cloud-context
+  text: Understand what the most popular Linux distros are.
+  order: 3
 learning_steps:
 - order: 1
-  text: 'Watch: What is Linux'
   action: 'Watch:'
-  title: What is Linux
-  url: https://youtu.be/PwugmcN1hf8
-  description: This video introduces Linux and explains why it's so important in the tech industry, especially for cloud computing.
+  title: Linux Documentary (The Story of Linux)
+  url: https://www.youtube.com/watch?v=XMm0HsmOTFI
+  description: Watch this documentary for the history, ecosystem, and culture behind Linux so you understand why it became the foundation of modern cloud infrastructure.
+  id: phase0-topic1-linux-documentary-the-story-of-linux-watch-https-www-youtube-com-watch-v-xmm0hsmotfi-watch-this-documentary-for-the-history-ecosystem-and-culture-behind-linux-so-you-understand-why-it-became-the-foundation-of-modern-cloud-infrastructure
 - order: 2
-  text: 'Read: Linux Overview'
-  action: 'Read:'
-  title: What is Linux?
-  url: https://opensource.com/resources/linux
-  description: A quick overview of Linux, its history, and why it powers most of the internet.
+  action: 'Practice:'
+  title: Bash Scripting and Command Line for Beginners
+  url: https://www.freecodecamp.org/news/bash-scripting-tutorial-linux-shell-script-and-command-line-for-beginners/
+  description: Learn the basics of Bash and the command line so you can understand how Linux terminal commands work.
+  id: phase0-topic1-bash-scripting-and-command-line-for-beginners-practice-https-www-freecodecamp-org-news-bash-scripting-tutorial-linux-shell-script-and-command-line-for-beginners-learn-the-basics-of-bash-and-the-command-line-so-you-can-understand-how-linux-terminal-commands-work
 - order: 3
-  text: 'Explore: Linux Distributions'
-  action: 'Explore:'
-  title: Popular Linux Distributions
-  url: https://www.linux.com/what-is-linux/
-  description: Learn about Ubuntu, CentOS, Debian, and other popular distributions used in cloud environments.
+  action: 'Watch:'
+  title: Every LINUX DISTRO Explained in 4 minutes
+  url: https://youtu.be/VKNMI6cYOFk?si=zudsWVGRxBCpRlyA
+  description: Get a quick overview of common Linux distributions and how they differ.
+  id: phase0-topic1-every-linux-distro-explained-in-4-minutes-watch-https-youtu-be-vknmi6cyofk-si-zudswvgrxbcprlya-get-a-quick-overview-of-common-linux-distributions-and-how-they-differ

@@ -22,13 +22,11 @@ from services.hands_on_verification_service import (
 def _make_requirement(
     submission_type: SubmissionType,
     required_repo: str | None = None,
-    phase_id: int = 2,
     requirement_id: str = "test-req",
 ) -> HandsOnRequirement:
     """Helper to create test requirements."""
     return HandsOnRequirement(
         id=requirement_id,
-        phase_id=phase_id,
         submission_type=submission_type,
         name="Test Requirement",
         description="Test description",
@@ -151,7 +149,6 @@ class TestSubmissionRouting:
         """DEPLOYED_API type should route to deployed_api_verification_service."""
         requirement = _make_requirement(
             SubmissionType.DEPLOYED_API,
-            phase_id=4,
         )
 
         with patch(
@@ -176,7 +173,6 @@ class TestSubmissionRouting:
         """DEVOPS_ANALYSIS type should route to devops_verification_service."""
         requirement = _make_requirement(
             SubmissionType.DEVOPS_ANALYSIS,
-            phase_id=5,
         )
 
         with patch(
@@ -238,7 +234,7 @@ class TestValidateSubmissionUsernameRequirements:
     @pytest.mark.asyncio
     async def test_deployed_api_doesnt_require_username(self):
         """DEPLOYED_API should not require username."""
-        requirement = _make_requirement(SubmissionType.DEPLOYED_API, phase_id=4)
+        requirement = _make_requirement(SubmissionType.DEPLOYED_API)
 
         with patch(
             "services.deployed_api_verification_service.validate_deployed_api",

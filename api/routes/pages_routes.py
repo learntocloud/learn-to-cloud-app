@@ -106,7 +106,6 @@ async def phase_page(
         {
             "name": t.name,
             "slug": t.slug,
-            "is_capstone": getattr(t, "is_capstone", False),
             "progress": None,
         }
         for t in phase.topics
@@ -174,7 +173,9 @@ async def topic_page(
             status_code=404,
         )
 
-    completed_steps = await get_completed_steps(db, user_id, topic.id)
+    completed_step_ids = await get_completed_steps(db, user_id, topic.id)
+    valid_step_ids = {step.id for step in topic.learning_steps}
+    completed_step_ids = completed_step_ids & valid_step_ids
 
     # Pre-render markdown for step descriptions
     steps = [build_step_data(step) for step in getattr(topic, "learning_steps", [])]
@@ -211,9 +212,9 @@ async def topic_page(
     progress = None
     if total_steps > 0:
         progress = {
-            "completed": len(completed_steps),
+            "completed": len(completed_step_ids),
             "total": total_steps,
-            "percentage": round(len(completed_steps) / total_steps * 100),
+            "percentage": round(len(completed_step_ids) / total_steps * 100),
         }
 
     return request.app.state.templates.TemplateResponse(
@@ -226,7 +227,7 @@ async def topic_page(
             phase_slug=phase_slug,
             phase_name=phase.name,
             phase_id=phase.order,
-            completed_steps=completed_steps,
+            completed_steps=completed_step_ids,
             prev_topic=prev_topic,
             next_topic=next_topic,
             progress=progress,

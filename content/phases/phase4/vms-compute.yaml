@@ -1,52 +1,69 @@
 id: phase4-topic1
 slug: vms-compute
 name: Virtual Machines & Compute Services
-description: Virtualization and compute services are fundamental to cloud engineering, enabling scalable and flexible infrastructure.
-  In this topic, you will focus on deploying virtual machines on various cloud providers (such as AWS, Azure, and GCP).
+description: Virtualization and compute services are fundamental to cloud engineering, enabling scalable and flexible infrastructure. In this topic, you will focus on deploying virtual machines on various cloud providers (such as AWS, Azure, and GCP).
 order: 1
-is_capstone: false
+learning_objectives:
+- id: vms-compute-foundations
+  text: Explain virtualization and cloud compute fundamentals across AWS, Azure, and GCP.
+  order: 1
+- id: vms-compute-sizing
+  text: Select appropriate VM sizes or instance types based on workload, performance, and cost constraints.
+  order: 2
+- id: vms-compute-deployment
+  text: Deploy and verify a working cloud virtual machine in your chosen cloud provider.
+  order: 3
 learning_steps:
 - order: 1
-  text: Understand what Compute Services are
-  action: 'Understand:'
+  action: 'Read:'
   title: What are Compute Services?
   url: https://aws.amazon.com/what-is/compute/
-  description: Learn the fundamentals of cloud compute - the on-demand delivery of computing power that forms the foundation
-    of cloud infrastructure.
+  description: Learn the fundamentals of cloud compute - the on-demand delivery of computing power that forms the foundation of cloud infrastructure.
+  id: phase4-topic1-what-are-compute-services-read-https-aws-amazon-com-what-is-compute-learn-the-fundamentals-of-cloud-compute-the-on-demand-delivery-of-computing-power-that-forms-the-foundation-of-cloud-infrastructure
 - order: 2
-  text: Learn about Virtualization
-  action: 'Learn:'
+  action: 'Read:'
   title: Understanding Virtualization
   url: https://aws.amazon.com/what-is/virtualization/
-  description: Understand how virtualization technology enables running multiple virtual machines on a single physical server,
-    enabling cloud scalability.
+  description: Understand how virtualization technology enables running multiple virtual machines on a single physical server, enabling cloud scalability.
+  id: phase4-topic1-understanding-virtualization-read-https-aws-amazon-com-what-is-virtualization-understand-how-virtualization-technology-enables-running-multiple-virtual-machines-on-a-single-physical-server-enabling-cloud-scalability
 - order: 3
-  text: Learn about VM instance types and sizing
-  action: 'Learn:'
-  title: Sizes for Virtual Machines in Azure
-  url: https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/overview
-  description: Understand how to choose the right VM specs (CPU, RAM, storage) based on workload requirements. Learn the difference
-    between general purpose, compute optimized, memory optimized, and storage optimized instances.
+  action: 'Read:'
+  description: Compare VM sizing and instance-family guidance across major providers to choose the right CPU, memory, and storage profile for your workload.
+  options:
+  - provider: azure
+    title: Sizes for Virtual Machines in Azure
+    url: https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/overview
+    description: Review Azure VM size families and guidance for selecting the right SKU.
+  - provider: aws
+    title: Amazon EC2 Instance Types
+    url: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instance-types.html
+    description: Compare EC2 instance families and choose the right type for your workload.
+  - provider: gcp
+    title: Machine Families Resource and Comparison Guide
+    url: https://cloud.google.com/compute/docs/machine-resource
+    description: Learn how Google Cloud machine families map to common workload requirements.
+  title: Compare VM sizing guidance by cloud provider
+  id: phase4-topic1-compare-vm-sizing-guidance-by-cloud-provider-read-compare-vm-sizing-and-instance-family-guidance-across-major-providers-to-choose-the-right-cpu-memory-and-storage-profile-for-your-workload
 - order: 4
-  text: Deploy a VM on your cloud provider
-  action: Deploy a VM on your cloud provider
+  action: 'Practice:'
   description: 'Choose your cloud platform and follow the official guide to deploy your first virtual machine:'
   options:
-  - provider: aws
-    title: Get Started with Amazon EC2
-    url: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/EC2_GetStarted.html
-    description: Launch your first Linux instance on AWS Elastic Compute Cloud
   - provider: azure
     title: Azure Virtual Machines Documentation
     url: https://learn.microsoft.com/en-us/azure/virtual-machines/
     description: Create and manage virtual machines in Azure
+  - provider: aws
+    title: Get Started with Amazon EC2
+    url: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/EC2_GetStarted.html
+    description: Launch your first Linux instance on AWS Elastic Compute Cloud
   - provider: gcp
     title: Create Your First VM on GCP
     url: https://cloud.google.com/products/compute#create-your-first-vm
     description: Get started with Google Compute Engine
+  title: Deploy a VM on your cloud provider
+  id: phase4-topic1-deploy-a-vm-on-your-cloud-provider-practice-choose-your-cloud-platform-and-follow-the-official-guide-to-deploy-your-first-virtual-machine
 - order: 5
-  text: 'Hands-on: Deploy a VM using default configuration'
-  action: 'Hands-on Task:'
-  description: Deploy a Virtual Machine on any cloud provider using the default configuration. Don't worry about custom networking
-    or security groups yet - just get comfortable with the deployment process and verify your VM is running and accessible.
-  title: 'Hands-on: Deploy a VM using default configuration'
+  action: 'Practice:'
+  description: Use the VM you deployed in step 4 to verify it is healthy and reachable. Confirm basic access (SSH/RDP/console), note the selected VM size/instance type, and document one reason why that size matches your workload.
+  title: 'Hands-on: Verify and document your VM deployment'
+  id: phase4-topic1-hands-on-verify-and-document-your-vm-deployment-practice-use-the-vm-you-deployed-in-step-4-to-verify-it-is-healthy-and-reachable-confirm-basic-access-ssh-rdp-console-note-the-selected-vm-size-instance-type-and-document-one-reason-why-that-size-matches-your-workload

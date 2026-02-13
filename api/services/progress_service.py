@@ -110,14 +110,39 @@ async def fetch_user_progress(
         if cached is not None:
             return cached
 
+    phases = get_all_phases()
+
     # Read pre-computed counts from the denormalized table (single query)
     progress_repo = UserPhaseProgressRepository(db)
     denormalized = await progress_repo.get_by_user(user_id)
 
-    phase_steps = {pid: row.completed_steps for pid, row in denormalized.items()}
     validated_counts = {
         pid: row.validated_submissions for pid, row in denormalized.items()
     }
+
+    # Canonical step completion: filter persisted completions by currently-defined
+    # step ids so content edits (add/remove/reorder) cannot inflate progress.
+    step_repo = StepProgressRepository(db)
+    all_topic_ids = [topic.id for phase in phases for topic in phase.topics]
+    completed_by_topic = await step_repo.get_completed_for_topics(
+        user_id, all_topic_ids
+    )
+
+    phase_steps: dict[int, int] = {}
+    for phase in phases:
+        total_completed = 0
+        for topic in phase.topics:
+            valid_step_ids = {step.id for step in topic.learning_steps}
+            completed = completed_by_topic.get(topic.id, set())
+            total_completed += len(completed & valid_step_ids)
+        phase_steps[phase.id] = total_completed
+
+    for phase_id, canonical_count in phase_steps.items():
+        denorm_row = denormalized.get(phase_id)
+        if denorm_row is not None and denorm_row.completed_steps != canonical_count:
+            await progress_repo.recalculate_steps_for_phase(
+                user_id, phase_id, canonical_count
+            )
 
     phases: dict[int, PhaseProgress] = {}
     for phase_id in get_all_phase_ids():
@@ -172,7 +197,7 @@ def get_phase_completion_counts(
 
 def compute_topic_progress(
     topic: Topic,
-    completed_steps: set[int],
+    completed_steps: set[str],
 ) -> TopicProgressData:
     """Compute progress for a single topic.
 
@@ -180,11 +205,12 @@ def compute_topic_progress(
 
     Args:
         topic: The topic content definition
-        completed_steps: Set of completed step order numbers
+        completed_steps: Set of completed step IDs
     Returns:
         TopicProgressData with completion status and percentages
     """
-    steps_completed = len(completed_steps)
+    valid_step_ids = {step.id for step in topic.learning_steps}
+    steps_completed = len(completed_steps & valid_step_ids)
     steps_total = len(topic.learning_steps)
     total = steps_total
     completed = steps_completed

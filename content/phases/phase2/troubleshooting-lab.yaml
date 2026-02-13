@@ -1,21 +1,27 @@
 id: phase2-topic4
 slug: troubleshooting-lab
 name: 'Capstone: Network Troubleshooting Lab'
-description: Put your networking knowledge to the test! Diagnose and fix connectivity issues in a broken environment using
-  the tools you've learned.
+description: Put your networking knowledge to the test! Diagnose and fix connectivity issues in a broken environment using the tools you've learned.
 order: 4
-is_capstone: true
+learning_objectives:
+- id: networking-lab-diagnosis
+  text: Diagnose broken network behavior using structured troubleshooting methods.
+  order: 1
+- id: networking-lab-remediation
+  text: Apply targeted fixes for DNS, routing, firewall, and service connectivity issues.
+  order: 2
+- id: networking-lab-validation
+  text: Validate restored connectivity and communicate the troubleshooting process clearly.
+  order: 3
 learning_steps:
 - order: 1
-  text: Go to the Networking Lab Repository
-  action: Go to the
+  action: 'Practice:'
   title: Networking Lab Repository
   url: https://github.com/learntocloud/networking-lab
-  description: 'The repository README has everything you need: setup instructions, lab scenarios, and troubleshooting exercises.
-    Follow the instructions there to complete the lab.'
+  description: 'The repository README has everything you need: setup instructions, lab scenarios, and troubleshooting exercises. Follow the instructions there to complete the lab.'
+  id: phase2-topic4-networking-lab-repository-practice-https-github-com-learntocloud-networking-lab-the-repository-readme-has-everything-you-need-setup-instructions-lab-scenarios-and-troubleshooting-exercises-follow-the-instructions-there-to-complete-the-lab
 - order: 2
-  text: Share your project
-  action: 'Share:'
+  action: 'Reflect:'
   title: Share Your Progress
-  description: When you've completed the networking lab, share your experience on LinkedIn or the Learn to Cloud community
-    to celebrate your progress and help others.
+  description: When you've completed the networking lab, share your experience on LinkedIn or the Learn to Cloud community to celebrate your progress and help others.
+  id: phase2-topic4-share-your-progress-reflect-when-you-ve-completed-the-networking-lab-share-your-experience-on-linkedin-or-the-learn-to-cloud-community-to-celebrate-your-progress-and-help-others

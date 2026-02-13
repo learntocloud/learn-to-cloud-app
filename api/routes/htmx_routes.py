@@ -52,9 +52,9 @@ async def _render_step_toggle(
     db: DbSession,
     user_id: int,
     topic_id: str,
-    step_order: int,
+    step_id: str,
     phase_id: int,
-    completed_steps: set[int],
+    completed_steps: set[str],
 ) -> HTMLResponse:
     """Shared rendering for step complete/uncomplete HTMX responses.
 
@@ -66,19 +66,21 @@ async def _render_step_toggle(
     step = None
     if topic:
         for s in getattr(topic, "learning_steps", []):
-            if s.order == step_order:
+            if s.id == step_id:
                 step = s
                 break
 
     if step is None:
         logger.warning(
             "htmx.step_toggle.step_not_found",
-            extra={"user_id": user_id, "topic_id": topic_id, "step_order": step_order},
+            extra={"user_id": user_id, "topic_id": topic_id, "step_id": step_id},
         )
         return HTMLResponse("")
 
     step_data = build_step_data(step)
     user = await get_user_by_id(db, user_id)
+    valid_step_ids = {s.id for s in getattr(topic, "learning_steps", [])}
+    completed_steps = completed_steps & valid_step_ids
 
     total_steps = len(getattr(topic, "learning_steps", []))
     progress = {
@@ -112,31 +114,31 @@ async def htmx_complete_step(
     db: DbSession,
     user_id: UserId,
     topic_id: str = Form(...),
-    step_order: int = Form(...),
+    step_id: str = Form(...),
     phase_id: int = Form(...),
 ) -> HTMLResponse:
     """Complete a step and return the updated step partial."""
-    _, completed_steps = await complete_step(db, user_id, topic_id, step_order)
+    _, completed_steps = await complete_step(db, user_id, topic_id, step_id)
     return await _render_step_toggle(
-        request, db, user_id, topic_id, step_order, phase_id, completed_steps
+        request, db, user_id, topic_id, step_id, phase_id, completed_steps
     )
 
 
-@router.delete("/steps/{topic_id}/{step_order}", response_class=HTMLResponse)
+@router.delete("/steps/{topic_id}/{step_id}", response_class=HTMLResponse)
 async def htmx_uncomplete_step(
     request: Request,
     topic_id: str,
-    step_order: int,
+    step_id: str,
     db: DbSession,
     user_id: UserId,
 ) -> HTMLResponse:
     """Uncomplete a step and return the updated step partial."""
-    _, completed_steps = await uncomplete_step(db, user_id, topic_id, step_order)
+    _, completed_steps = await uncomplete_step(db, user_id, topic_id, step_id)
 
     phase_id = parse_phase_id_from_topic_id(topic_id) or 0
 
     return await _render_step_toggle(
-        request, db, user_id, topic_id, step_order, phase_id, completed_steps
+        request, db, user_id, topic_id, step_id, phase_id, completed_steps
     )
 
 
@@ -146,7 +148,6 @@ async def htmx_submit_verification(
     db: DbSessionReadOnly,
     user_id: UserId,
     requirement_id: str = Form(..., max_length=100),
-    phase_id: int = Form(...),
     submitted_value: str = Form(..., max_length=2048),
 ) -> HTMLResponse:
     """Submit a hands-on verification and return the updated requirement card."""
@@ -177,7 +178,6 @@ async def htmx_submit_verification(
                 "request": request,
                 "requirement": requirement,
                 "submission": submission,
-                "phase_id": phase_id,
                 "feedback_tasks": feedback_tasks or [],
                 "feedback_passed": feedback_passed,
                 "server_error": server_error,

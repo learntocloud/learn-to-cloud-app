@@ -33,7 +33,10 @@ Phase 0→6: Explorer (Bronze) → Practitioner (Silver) → Builder (Blue) → 
 
 ## Important
 
-Step/question counts are **dynamically derived** from content JSON—do NOT hardcode.
+Step/topic counts are **dynamically derived** from content YAML—do NOT hardcode.
+
+Step completion identity is based on stable `step_id` values (not positional order), and
+progress is reconciled against currently loaded content to avoid drift after curriculum edits.
 
 ---
 

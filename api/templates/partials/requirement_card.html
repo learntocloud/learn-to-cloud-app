@@ -30,7 +30,6 @@
         class="flex gap-2"
     >
         <input type="hidden" name="requirement_id" value="{{ requirement.id }}">
-        <input type="hidden" name="phase_id" value="{{ phase_id }}">
         <input type="hidden" name="submission_type" value="{{ requirement.submission_type }}">
 
         {% if requirement.submission_type in ['ctf_token', 'networking_token'] %}

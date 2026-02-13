@@ -1,51 +1,45 @@
-id: phase3-topic4
+id: phase3-topic3
 slug: databases
 name: Databases
-description: We will be using a PostgreSQL database to store our application data. You'll learn SQL fundamentals, run PostgreSQL
-  locally using Docker, and connect to it from Python.
-order: 4
-is_capstone: false
+description: We will be using a PostgreSQL database to store our application data. You'll learn SQL fundamentals, run PostgreSQL locally using Docker, and connect to it from Python.
+order: 3
+learning_objectives:
+- id: databases-sql-foundations
+  text: Apply SQL fundamentals for querying and mutating relational data.
+  order: 1
+- id: databases-postgres-setup
+  text: Run and configure PostgreSQL locally for development workflows.
+  order: 2
+- id: databases-python-integration
+  text: Implement database access patterns in Python with SQLAlchemy.
+  order: 3
 learning_steps:
 - order: 1
-  text: Study SQL basics
-  action: 'Study SQL basics:'
-  title: Intro to SQL
-  url: https://www.khanacademy.org/computing/computer-programming/sql
-  description: Learn the fundamentals of SQL with Khan Academy's interactive course. Focus on SELECT, INSERT, UPDATE, DELETE,
-    and basic joins.
+  action: 'Watch:'
+  title: PostgreSQL Tutorial for Beginners
+  url: https://www.youtube.com/watch?v=SpfIwlAYaKk
+  description: Learn SQL fundamentals that directly support the capstone. Focus on SELECT, INSERT, UPDATE, DELETE, WHERE, ORDER BY, and basic joins.
+  id: phase3-topic3-postgresql-tutorial-for-beginners-watch-https-www-youtube-com-watch-v-spfiwlayakk-learn-sql-fundamentals-that-directly-support-the-capstone-focus-on-select-insert-update-delete-where-order-by-and-basic-joins
 - order: 2
-  text: Run PostgreSQL locally with Docker
-  action: 'Run PostgreSQL locally:'
+  action: 'Practice:'
   title: PostgreSQL in Docker
   url: https://www.docker.com/blog/how-to-use-the-postgres-docker-official-image/
-  description: Learn how to run PostgreSQL in a Docker container. This is the easiest way to get a database running locally
-    without installing PostgreSQL on your system.
+  description: Learn how to run PostgreSQL in a Docker container. This is the easiest way to get a database running locally without installing PostgreSQL on your system.
+  id: phase3-topic3-postgresql-in-docker-practice-https-www-docker-com-blog-how-to-use-the-postgres-docker-official-image-learn-how-to-run-postgresql-in-a-docker-container-this-is-the-easiest-way-to-get-a-database-running-locally-without-installing-postgresql-on-your-system
 - order: 3
-  text: Connect to PostgreSQL from Python
-  action: 'Connect from Python:'
+  action: 'Practice:'
+  title: Install VS Code PostgreSQL Extension
+  url: https://www.youtube.com/watch?v=d_wpn8wW2sw
+  description: Install the PostgreSQL extension in VS Code so you can connect to your local database, inspect tables, and run queries while building the capstone. For a guided walkthrough, watch https://www.youtube.com/watch?v=d_wpn8wW2sw.
+  id: phase3-topic3-install-vs-code-postgresql-extension-practice-https-www-youtube-com-watch-v-d-wpn8ww2sw-install-the-postgresql-extension-in-vs-code-so-you-can-connect-to-your-local-database-inspect-tables-and-run-queries-while-building-the-capstone-for-a-guided-walkthrough-watch-https-www-youtube-com-watch-v-d-wpn8ww2sw
+- order: 4
+  action: 'Practice:'
   title: SQLAlchemy Tutorial
   url: https://docs.sqlalchemy.org/en/20/tutorial/index.html
-  description: Learn how to connect to PostgreSQL from Python using SQLAlchemy, the most popular Python ORM. This is the same
-    library used in the capstone project.
-- order: 4
-  text: Create a database and a table for storing notes
-  action: 'Hands-on:'
-  title: Create a Database and Table
-  description: Using your local PostgreSQL, create a new database and a table for storing notes with columns like id, title,
-    content, and created_at.
+  description: Learn how to connect to PostgreSQL from Python using SQLAlchemy, the most popular Python ORM. This is the same library used in the capstone project.
+  id: phase3-topic3-sqlalchemy-tutorial-practice-https-docs-sqlalchemy-org-en-20-tutorial-index-html-learn-how-to-connect-to-postgresql-from-python-using-sqlalchemy-the-most-popular-python-orm-this-is-the-same-library-used-in-the-capstone-project
 - order: 5
-  text: Write Python code to insert, read, update, and delete notes
-  action: 'Hands-on:'
-  title: CRUD Operations in Python
-  description: Write a Python script using SQLAlchemy to insert, read, update, and delete notes in your database.
-- order: 6
-  text: Add a second table and practice joins
-  action: 'Hands-on:'
-  title: Tables and Joins
-  description: Add a second table (e.g., categories) to your database and write queries that join the two tables together.
-- order: 7
-  text: Experiment with SQLAlchemy models and relationships
-  action: 'Hands-on:'
-  title: SQLAlchemy Models and Relationships
-  description: Define SQLAlchemy ORM models for your tables and set up relationships between them (e.g., a note belongs to
-    a category).
+  action: 'Practice:'
+  title: Capstone DB Workflow Check
+  description: Create a local PostgreSQL database, verify connection from the app, and run simple CRUD queries against the journal entry table shape used in the capstone.
+  id: phase3-topic3-capstone-db-workflow-check-practice-create-a-local-postgresql-database-verify-connection-from-the-app-and-run-simple-crud-queries-against-the-journal-entry-table-shape-used-in-the-capstone

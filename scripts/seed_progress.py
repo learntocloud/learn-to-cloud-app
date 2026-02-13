@@ -7,14 +7,12 @@ Usage: uv run --directory api python ../scripts/seed_progress.py <github_usernam
 """
 
 import asyncio
-import os
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
 
 import asyncpg
 import yaml
-
 
 DATABASE_URL = "postgresql://postgres:postgres@localhost:5432/learn_to_cloud"
 
@@ -96,13 +94,21 @@ async def main(github_username: str) -> None:
         for phase_id, topics in phase_topics.items():
             for topic_id, num_steps in topics:
                 for step_order in range(1, num_steps + 1):
+                    step_id = f"{topic_id}-step-{step_order}"
                     await conn.execute(
                         """
-                        INSERT INTO step_progress (user_id, topic_id, phase_id, step_order, completed_at)
-                        VALUES ($1, $2, $3, $4, $5)
-                        ON CONFLICT (user_id, topic_id, step_order) DO NOTHING
+                        INSERT INTO step_progress (
+                            user_id,
+                            topic_id,
+                            step_id,
+                            phase_id,
+                            step_order,
+                            completed_at
+                        )
+                        VALUES ($1, $2, $3, $4, $5, $6)
+                        ON CONFLICT (user_id, topic_id, step_id) DO NOTHING
                         """,
-                        user_id, topic_id, phase_id, step_order, now,
+                        user_id, topic_id, step_id, phase_id, step_order, now,
                     )
                     step_count += 1
         print(f"Inserted {step_count} step_progress records")
@@ -136,7 +142,13 @@ async def main(github_username: str) -> None:
             validated_subs = len(phase_requirements.get(phase_id, []))
             await conn.execute(
                 """
-                INSERT INTO user_phase_progress (user_id, phase_id, completed_steps, validated_submissions, updated_at)
+                INSERT INTO user_phase_progress (
+                    user_id,
+                    phase_id,
+                    completed_steps,
+                    validated_submissions,
+                    updated_at
+                )
                 VALUES ($1, $2, $3, $4, $5)
                 ON CONFLICT (user_id, phase_id) DO UPDATE SET
                     completed_steps = $3,
@@ -147,7 +159,9 @@ async def main(github_username: str) -> None:
             )
         print(f"Updated user_phase_progress for {len(phase_topics)} phases")
 
-        print("\nDone! All progress seeded. You should now be eligible for a certificate.")
+        print(
+            "\nDone! All progress seeded. You should now be eligible for a certificate."
+        )
 
     finally:
         await conn.close()

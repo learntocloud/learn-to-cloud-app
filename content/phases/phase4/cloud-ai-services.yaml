@@ -1,17 +1,22 @@
 id: phase4-topic8
 slug: cloud-ai-services
 name: Cloud AI Service Platforms
-description: Cloud providers offer comprehensive AI service platforms. In this topic, you'll learn about model options, deployment
-  strategies, and operational features. Understanding these platforms helps you make informed architectural decisions when
-  integrating AI into applications.
+description: Cloud providers offer comprehensive AI service platforms. In this topic, you'll take the same LLM workflow you built in Phase 3 and run it on a cloud AI platform. You'll learn model options, deployment strategies, safety controls, and operational features needed for production use.
 order: 8
-is_capstone: false
+learning_objectives:
+- id: cloud-ai-platform-overview
+  text: Map your Phase 3 GitHub Models workflow to your cloud AI platform's model catalog and deployment options.
+  order: 1
+- id: cloud-ai-safety-governance
+  text: Evaluate safety and guardrail features for responsible AI application design.
+  order: 2
+- id: cloud-ai-model-selection
+  text: Select and deploy an appropriate cloud-hosted model for your capstone use case.
+  order: 3
 learning_steps:
 - order: 1
-  text: Platform Overview
-  action: Platform Overview
-  description: 'Each major cloud provider offers an AI platform for deploying and managing models. Learn about your chosen
-    platform:'
+  action: 'Read:'
+  description: 'Each major cloud provider offers an AI platform for deploying and managing models. Learn about your chosen platform:'
   options:
   - provider: azure
     title: Microsoft Foundry
@@ -25,9 +30,10 @@ learning_steps:
     title: GCP Vertex AI
     url: https://cloud.google.com/vertex-ai/docs/start/introduction-unified-platform
     description: Google's unified AI platform for building and deploying ML models
+  title: Platform Overview
+  id: phase4-topic8-platform-overview-read-each-major-cloud-provider-offers-an-ai-platform-for-deploying-and-managing-models-learn-about-your-chosen-platform
 - order: 2
-  text: Explore Available Models
-  action: Explore Available Models
+  action: 'Explore:'
   description: 'Each platform offers different models with varying capabilities, speeds, and costs:'
   options:
   - provider: azure
@@ -42,14 +48,15 @@ learning_steps:
     title: GCP Model Garden
     url: https://cloud.google.com/vertex-ai/generative-ai/docs/learn/models
     description: Discover models available in Google's Vertex AI Model Garden
+  title: Explore Available Models
+  id: phase4-topic8-explore-available-models-explore-each-platform-offers-different-models-with-varying-capabilities-speeds-and-costs
 - order: 3
-  text: Understand Deployment Options
-  action: Understand Deployment Options
+  action: 'Read:'
   description: 'Learn how to deploy models in production:'
   options:
   - provider: azure
     title: Microsoft Foundry Deployments
-    url: https://learn.microsoft.com/en-us/azure/ai-foundry/concepts/deployments-overview
+    url: https://learn.microsoft.com/azure/ai-foundry/concepts/deployments-overview
     description: Understand model deployment options in Microsoft Foundry
   - provider: aws
     title: AWS Bedrock Deployment
@@ -59,14 +66,15 @@ learning_steps:
     title: GCP Deployment
     url: https://cloud.google.com/vertex-ai/docs/general/deployment
     description: Deploy models to endpoints in Vertex AI
+  title: Understand Deployment Options
+  id: phase4-topic8-understand-deployment-options-read-learn-how-to-deploy-models-in-production
 - order: 4
-  text: Safety & Guardrails
-  action: Safety & Guardrails
+  action: 'Practice:'
   description: 'Learn about content filtering and safety features to ensure responsible AI use:'
   options:
   - provider: azure
     title: Microsoft Foundry Guardrails
-    url: https://learn.microsoft.com/en-us/azure/ai-foundry/guardrails/guardrails-overview
+    url: https://learn.microsoft.com/azure/ai-foundry/guardrails/guardrails-overview
     description: Configure content filtering and safety guardrails in Microsoft Foundry
   - provider: aws
     title: AWS Bedrock Guardrails
@@ -76,14 +84,15 @@ learning_steps:
     title: GCP Safety Overview
     url: https://cloud.google.com/vertex-ai/generative-ai/docs/learn/safety-overview
     description: Understand safety features and content filtering in Vertex AI
+  title: Safety & Guardrails
+  id: phase4-topic8-safety-guardrails-practice-learn-about-content-filtering-and-safety-features-to-ensure-responsible-ai-use
 - order: 5
-  text: Platform Playgrounds
-  action: Platform Playgrounds
-  description: 'Use the playground to test models before writing code:'
+  action: 'Practice:'
+  description: 'Use your cloud AI playground to compare at least 2 models using your Phase 3 sentiment-analysis prompt set, then choose the model for your Journal API based on quality, speed, cost, reliability, and safety:'
   options:
   - provider: azure
     title: Microsoft Foundry Playgrounds
-    url: https://learn.microsoft.com/en-us/azure/ai-foundry/concepts/concept-playgrounds
+    url: https://learn.microsoft.com/azure/ai-foundry/concepts/concept-playgrounds
     description: Experiment with models in the Microsoft Foundry playground
   - provider: aws
     title: AWS Bedrock Playgrounds
@@ -93,17 +102,10 @@ learning_steps:
     title: GCP Model Garden
     url: https://cloud.google.com/model-garden
     description: Try models directly in Google's Model Garden
+  title: Compare and choose a cloud model in the playground
+  id: phase4-topic8-compare-and-choose-a-cloud-model-in-the-playground-practice-use-your-cloud-ai-playground-to-compare-at-least-2-models-using-your-phase-3-sentiment-analysis-prompt-set-then-choose-the-model-for-your-journal-api-based-on-quality-speed-cost-reliability-and-safety
 - order: 6
-  text: Compare at least 2 models in your platform's playground
-  action: 'Hands-on:'
-  description: Test different prompts with at least 2 models in your cloud AI playground. Observe differences in quality,
-    speed, and cost.
-- order: 7
-  text: Choose a model for your Journal API
-  action: 'Hands-on:'
-  description: Based on your testing, decide which model you'll use for your journal application. Consider cost per token,
-    latency, and whether you need simple sentiment analysis or complex reasoning.
-- order: 8
-  text: Deploy a model for the capstone
-  action: 'Hands-on:'
-  description: Deploy your chosen model on your cloud platform so it's ready to use in the capstone project.
+  action: 'Practice:'
+  description: Deploy your chosen model on your cloud platform, then update your Journal API integration to call the cloud endpoint instead of GitHub Models for capstone readiness.
+  title: Deploy and switch your Journal API to cloud AI
+  id: phase4-topic8-deploy-and-switch-your-journal-api-to-cloud-ai-practice-deploy-your-chosen-model-on-your-cloud-platform-then-update-your-journal-api-integration-to-call-the-cloud-endpoint-instead-of-github-models-for-capstone-readiness

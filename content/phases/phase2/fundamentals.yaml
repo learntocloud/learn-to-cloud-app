@@ -1,68 +1,78 @@
 id: phase2-topic1
 slug: fundamentals
 name: Networking Fundamentals
-description: 'Master the building blocks of networking: IP addresses, subnets, routing, and DNS. These concepts are the foundation
-  for everything in cloud infrastructure.'
+description: 'Master the building blocks of networking: IP addresses, subnets, routing, and DNS. These concepts are the foundation for everything in cloud infrastructure.'
 order: 1
-is_capstone: false
+learning_objectives:
+- id: networking-fundamentals-core-models
+  text: Explain core networking concepts including IP addressing, subnetting, routing, and DNS.
+  order: 1
+- id: networking-fundamentals-diagnostics
+  text: Use foundational networking commands to inspect connectivity and resolve common issues.
+  order: 2
+- id: networking-fundamentals-cloud-readiness
+  text: Build a strong networking baseline for cloud architecture and troubleshooting tasks.
+  order: 3
 learning_steps:
 - order: 1
-  text: IP Addresses and Binary
-  action: 'Learn:'
+  action: 'Watch:'
   title: IP Addresses Explained
   url: https://www.youtube.com/watch?v=LIzTo6e4FgY
-  description: Understand IPv4 addresses, octets, and how binary relates to IP addressing. Know the difference between public
-    and private IP ranges (10.x.x.x, 172.16-31.x.x, 192.168.x.x).
+  description: Understand IPv4 addresses, octets, and how binary relates to IP addressing. Know the difference between public and private IP ranges (10.x.x.x, 172.16-31.x.x, 192.168.x.x).
+  id: phase2-topic1-ip-addresses-explained-watch-https-www-youtube-com-watch-v-lizto6e4fgy-understand-ipv4-addresses-octets-and-how-binary-relates-to-ip-addressing-know-the-difference-between-public-and-private-ip-ranges-10-x-x-x-172-16-31-x-x-192-168-x-x
 - order: 2
-  text: Subnetting and CIDR
-  action: 'Learn:'
+  action: 'Watch:'
   title: Subnetting Made Simple
   url: https://www.youtube.com/watch?v=ecCuyq-Wprc
-  description: Learn CIDR notation (/24, /16, etc.), subnet masks, and how to calculate network ranges. Practice subnetting
-    until it becomes second nature.
+  description: Learn CIDR notation (/24, /16, etc.), subnet masks, and how to calculate network ranges. Practice subnetting until it becomes second nature.
+  id: phase2-topic1-subnetting-made-simple-watch-https-www-youtube-com-watch-v-eccuyq-wprc-learn-cidr-notation-24-16-etc-subnet-masks-and-how-to-calculate-network-ranges-practice-subnetting-until-it-becomes-second-nature
 - order: 3
-  text: Practice Subnetting
   action: 'Practice:'
   title: Subnet Practice Tool
   url: https://subnetipv4.com/
-  description: Use this interactive tool to practice subnetting. Aim to answer subnet questions quickly and accurately before
-    moving on.
+  description: Use this interactive tool to practice subnetting. Aim to answer subnet questions quickly and accurately before moving on.
+  id: phase2-topic1-subnet-practice-tool-practice-https-subnetipv4-com-use-this-interactive-tool-to-practice-subnetting-aim-to-answer-subnet-questions-quickly-and-accurately-before-moving-on
 - order: 4
-  text: Routing Basics
-  action: 'Learn:'
+  action: 'Watch:'
   title: How Routing Works
   url: https://www.youtube.com/watch?v=AkxqkoxErRk
-  description: 'Understand how packets travel between networks: routing tables, default gateways, and how routers make forwarding
-    decisions.'
+  description: 'Understand how packets travel between networks: routing tables, default gateways, and how routers make forwarding decisions.'
+  id: phase2-topic1-how-routing-works-watch-https-www-youtube-com-watch-v-akxqkoxerrk-understand-how-packets-travel-between-networks-routing-tables-default-gateways-and-how-routers-make-forwarding-decisions
 - order: 5
-  text: NAT and Private Networks
-  action: 'Learn:'
+  action: 'Watch:'
   title: Network Address Translation
   url: https://www.youtube.com/watch?v=FTUV0t6JaDA
-  description: Learn how NAT allows private IP addresses to communicate with the internet. Understand SNAT, DNAT, and port
-    forwarding.
+  description: Learn how NAT allows private IP addresses to communicate with the internet. Understand SNAT, DNAT, and port forwarding.
+  id: phase2-topic1-network-address-translation-watch-https-www-youtube-com-watch-v-ftuv0t6jada-learn-how-nat-allows-private-ip-addresses-to-communicate-with-the-internet-understand-snat-dnat-and-port-forwarding
 - order: 6
-  text: DNS Deep Dive
-  action: 'Learn:'
+  action: 'Watch:'
   title: DNS Explained
   url: https://www.youtube.com/watch?v=27r4Bzuj5NQ
-  description: 'Understand how DNS resolves domain names: recursive resolvers, root servers, authoritative servers, and common
-    record types (A, AAAA, CNAME, MX, TXT).'
+  description: 'Understand how DNS resolves domain names: recursive resolvers, root servers, authoritative servers, and common record types (A, AAAA, CNAME, MX, TXT).'
+  id: phase2-topic1-dns-explained-watch-https-www-youtube-com-watch-v-27r4bzuj5nq-understand-how-dns-resolves-domain-names-recursive-resolvers-root-servers-authoritative-servers-and-common-record-types-a-aaaa-cname-mx-txt
 - order: 7
-  text: DNS Troubleshooting
   action: 'Practice:'
   title: Using dig and nslookup
-  description: 'Practice using dig and nslookup to query DNS records. Try: dig google.com, dig +trace google.com, nslookup
-    -type=MX gmail.com'
+  description: 'Practice using dig and nslookup to query DNS records. Try: dig google.com, dig +trace google.com, nslookup -type=MX gmail.com'
+  code: 'dig google.com
+
+    dig +trace google.com
+
+    nslookup -type=MX gmail.com'
+  id: phase2-topic1-using-dig-and-nslookup-practice-practice-using-dig-and-nslookup-to-query-dns-records-try-dig-google-com-dig-trace-google-com-nslookup-type-mx-gmail-com
 - order: 8
-  text: Connectivity Testing with ping and traceroute
   action: 'Practice:'
   title: Testing Network Connectivity
-  description: Use ping to test host reachability and measure round-trip latency, and traceroute (tracert on Windows) to trace
-    the path packets take to a destination. Try ping google.com, traceroute google.com, and ping between VMs to verify connectivity.
+  description: Use ping to test host reachability and measure round-trip latency, and traceroute (tracert on Windows) to trace the path packets take to a destination. Try ping google.com, traceroute google.com, and ping between VMs to verify connectivity.
+  code: 'ping google.com
+
+    traceroute google.com
+
+    tracert google.com'
+  id: phase2-topic1-testing-network-connectivity-practice-use-ping-to-test-host-reachability-and-measure-round-trip-latency-and-traceroute-tracert-on-windows-to-trace-the-path-packets-take-to-a-destination-try-ping-google-com-traceroute-google-com-and-ping-between-vms-to-verify-connectivity
 - order: 9
-  text: Watch Kunal Kushwaha's Networking Overview
   action: 'Watch:'
-  title: Networking Fundamentals Playlist
+  title: Networking Fundamentals Recap (Optional)
   url: https://www.youtube.com/watch?v=IPvYjXCsTg8
-  description: Kunal Kushwaha's engaging overview of networking concepts. Great for reinforcing what you've learned.
+  description: Comprehensive recap of networking concepts (including extra topics) to consolidate your understanding after completing steps 1-8.
+  id: phase2-topic1-networking-fundamentals-recap-optional-watch-https-www-youtube-com-watch-v-ipvyjxcstg8-comprehensive-recap-of-networking-concepts-including-extra-topics-to-consolidate-your-understanding-after-completing-steps-1-8

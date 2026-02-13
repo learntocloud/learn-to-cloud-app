@@ -1,4 +1,4 @@
----
+and ---
 name: prod-health-check
 description: Check Azure production health — app logs, errors, CPU, memory, database, scaling, and dependencies. Use when user says "check prod", "health check", "check logs", "any errors?", "how's the app doing?", or "check Azure".
 ---
@@ -7,6 +7,13 @@ description: Check Azure production health — app logs, errors, CPU, memory, da
 
 Run a comprehensive health check against the Azure deployment using Azure CLI.
 Reports on app status, errors, performance, database, scaling, and dependencies.
+
+Use a phased workflow aligned with Copilot agent loops:
+1. **Research** (read-only checks, no changes)
+2. **Plan** (summarize findings and risks)
+3. **Execute** (only if user asks for deeper checks or remediation)
+4. **Validate** (re-check impacted signals)
+5. **Report** (status + action items)
 
 ---
 
@@ -17,6 +24,36 @@ Reports on app status, errors, performance, database, scaling, and dependencies.
 - User says "check database", "check CPU", "check memory"
 - After a deployment to verify everything is healthy
 - Periodic health audit
+
+---
+
+## Research vs Code Modes (Important)
+
+When this skill is invoked, choose the lightest mode that satisfies the request.
+
+### Mode A — Research-Only (default)
+
+Use for prompts like:
+- "how's our app doing"
+- "any errors?"
+- "quick health check"
+
+Behavior:
+- Run read-only checks first (Steps 0-10)
+- Skip firewall changes and DB query unless user explicitly asks for user counts/engagement
+- Return concise status with risk callouts
+
+### Mode B — Code/Execution (deeper investigation or remediation)
+
+Use for prompts like:
+- "investigate and fix"
+- "why did alerts fire"
+- "resolve unhealthy replicas"
+
+Behavior:
+- Start with Mode A
+- Then run deeper checks (Step 11, targeted logs, revision-level analysis)
+- Only perform mutating actions (restart/redeploy/firewall changes) when explicitly requested
 
 ---
 
@@ -32,6 +69,8 @@ Reports on app status, errors, performance, database, scaling, and dependencies.
 ## Resource Discovery
 
 **Step 0**: Set the correct subscription and discover resource names.
+
+Prefer auto-discovery to avoid copy/paste mistakes when resource suffixes change.
 
 ```bash
 # Set subscription — terraform.tfvars is gitignored, so fall back to az account show
@@ -54,6 +93,13 @@ $SUBSCRIPTION_ID = (az account show --query id -o tsv)
 az account set --subscription $SUBSCRIPTION_ID
 $RG = "rg-ltc-dev"
 az resource list --resource-group $RG --query "[].{name:name, type:type}" -o table
+
+# Optional: auto-discover resource names directly into variables
+$CA_NAME = (az resource list --resource-group $RG --resource-type Microsoft.App/containerApps --query "[?starts_with(name, 'ca-ltc-api-')].name | [0]" -o tsv)
+$APPI_NAME = (az resource list --resource-group $RG --resource-type Microsoft.Insights/components --query "[?starts_with(name, 'appi-ltc-')].name | [0]" -o tsv)
+$PSQL_NAME = (az resource list --resource-group $RG --resource-type Microsoft.DBforPostgreSQL/flexibleServers --query "[?starts_with(name, 'psql-ltc-')].name | [0]" -o tsv)
+$LOG_NAME = (az resource list --resource-group $RG --resource-type Microsoft.OperationalInsights/workspaces --query "[?starts_with(name, 'log-ltc-')].name | [0]" -o tsv)
+$PSQL_RESOURCE_ID = "/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RG/providers/Microsoft.DBforPostgreSQL/flexibleServers/$PSQL_NAME"
 ```
 
 From the output, extract:
@@ -114,6 +160,22 @@ requests
 | where timestamp > ago(24h)
 | summarize TotalRequests=count(), FailedRequests=countif(success == false), AvgDuration=avg(duration), P95Duration=percentile(duration, 95) by bin(timestamp, 1h)
 | order by timestamp desc
+" -o json
+```
+
+If your tenant rejects duration conversion expressions, use this fallback (reliability first, latency second):
+
+```bash
+az monitor app-insights query --app $APPI_NAME -g $RG --analytics-query "
+requests
+| where timestamp > ago(24h)
+| summarize TotalRequests=count(), FailedRequests=countif(success == false)
+" -o json
+
+az monitor app-insights query --app $APPI_NAME -g $RG --analytics-query "
+requests
+| where timestamp > ago(24h)
+| summarize AvgDuration=avg(duration), P95Duration=percentile(duration,95), P99Duration=percentile(duration,99)
 " -o json
 ```
 
@@ -188,6 +250,15 @@ ContainerAppSystemLogs_CL
 | where TimeGenerated > ago(24h) and Reason_s in ('ContainerBackOff', 'ReplicaUnhealthy', 'Error', 'Deployment Progress Deadline Exceeded. 0/1 replicas ready.')
 | summarize count() by Reason_s, bin(TimeGenerated, 1h)
 | order by TimeGenerated desc
+" -o table
+
+# Critical: isolate warnings on the CURRENT active revision only
+CURRENT_REVISION=$(az containerapp show -n $CA_NAME -g $RG --query properties.latestRevisionName -o tsv)
+az monitor log-analytics query --workspace "$WORKSPACE_ID" --analytics-query "
+ContainerAppSystemLogs_CL
+| where TimeGenerated > ago(24h) and RevisionName_s == '$CURRENT_REVISION'
+| summarize Count=count() by Reason_s, Type_s
+| order by Count desc
 " -o table
 ```
 
@@ -284,6 +355,18 @@ dependencies
 " -o json
 ```
 
+Fallback (if duration conversion/projection fails in your environment):
+
+```bash
+az monitor app-insights query --app $APPI_NAME -g $RG --analytics-query "
+dependencies
+| where timestamp > ago(24h)
+| summarize Count=count(), FailureCount=countif(success == false) by type, target
+| order by Count desc
+| take 10
+" -o json
+```
+
 **What to look for**:
 - PostgreSQL P95 latency under 100ms
 - Zero `FailureCount` on database dependencies
@@ -314,6 +397,21 @@ az monitor metrics alert list -g $RG \
 # Configured scheduled query alerts
 az monitor scheduled-query list -g $RG \
   --query "[].{name:name, enabled:enabled, severity:severity}" -o table 2>/dev/null || true
+
+# Fired alerts in last 24h (use Activity Log as source of truth)
+az monitor activity-log list --resource-group $RG \
+  --start-time "$(date -u -v-24H '+%Y-%m-%dT%H:%M:%SZ')" \
+  --status Activated \
+  --query "[?contains(operationName.value, 'microsoft.insights/metricalerts') || contains(operationName.value, 'microsoft.insights/scheduledqueryrules')].{time:eventTimestamp, operation:operationName.localizedValue, status:status.localizedValue, subStatus:subStatus.localizedValue}" \
+  -o table
+```
+
+**PowerShell variant (fired alerts in last 24h)**:
+```powershell
+$start = (Get-Date).AddHours(-24).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+az monitor activity-log list --resource-group $RG --start-time $start --status Activated `
+  --query "[?contains(operationName.value, 'microsoft.insights/metricalerts') || contains(operationName.value, 'microsoft.insights/scheduledqueryrules')].{time:eventTimestamp, operation:operationName.localizedValue, status:status.localizedValue, subStatus:subStatus.localizedValue}" `
+  -o table
 ```
 
 ---
@@ -340,7 +438,7 @@ After gathering all data, present a summary like this:
 | Failed DB Connections | ✅ | {N} in 24h |
 | Container Events | ✅/⚠️ | {details about BackOff/Unhealthy if any} |
 | Dependencies | ✅ | DB P95: {X}ms, 0 failures |
-| Alerts | ✅ | All {N} alerts enabled, none fired |
+| Alerts | ✅/⚠️ | All {N} alerts enabled; {N} fired in 24h |
 | Users | ✅ | {N} total, {N} with submissions, {N} active 30d |
 
 ### ⚠️ Items to Watch
@@ -355,6 +453,8 @@ After gathering all data, present a summary like this:
 ## Step 11: User & Engagement Stats (Database Query)
 
 Query the production database for user and engagement metrics. This answers "how many users do we have?" which is almost always part of a health check.
+
+Run this step only when the user asks for user counts, engagement metrics, or deeper product-health context.
 
 **Prerequisites**: Ensure your IP is allowed through the PostgreSQL firewall.
 
@@ -391,6 +491,9 @@ az postgres flexible-server execute --name $PSQL_NAME `
   --database-name learntocloud `
   --querytext "SELECT 'total_users' as metric, COUNT(*)::text as value FROM users UNION ALL SELECT 'users_with_github', COUNT(*)::text FROM users WHERE github_username IS NOT NULL UNION ALL SELECT 'users_with_submissions', COUNT(DISTINCT user_id)::text FROM submissions UNION ALL SELECT 'total_submissions', COUNT(*)::text FROM submissions UNION ALL SELECT 'total_certificates', COUNT(*)::text FROM certificates;" `
   -o json
+
+# Optional cleanup: remove temporary firewall rule after query
+az postgres flexible-server firewall-rule delete --resource-group $RG --name $PSQL_NAME --rule-name AllowMyIP --yes
 ```
 
 **Note**: This command requires the `rdbms-connect` Azure CLI extension. Install with `az extension add --name rdbms-connect --yes`. Unlike `psql`, this works without a local PostgreSQL client installation.
@@ -407,6 +510,9 @@ az postgres flexible-server execute --name $PSQL_NAME `
 - **Subscription**: `infra/terraform.tfvars` is gitignored — use `az account show --query id -o tsv` as fallback.
 - **Timeframes**: Default to 24h for operational metrics, 7d for error/event trends.
 - **BackOff events on old revisions**: During development with many iterative deploys, high BackOff counts on old/failed revisions are expected and not a production concern. Only worry if they're on the **current active revision**.
+- **Revision-aware triage**: Treat `ReplicaUnhealthy` or `ContainerBackOff` as action-required only when repeated on the current active revision.
+- **Alerts health**: "Enabled" is configuration health. Use Activity Log to confirm whether alerts actually fired recently.
+- **Research-first default**: For broad status prompts, complete read-only checks first and present findings before taking any mutating action.
 - **DB access**: The `az postgres flexible-server execute` command (via `rdbms-connect` extension) is preferred over `psql` since it doesn't require a local PostgreSQL client. Always ensure your IP has a firewall rule before querying.
 
 ### Cross-platform date commands

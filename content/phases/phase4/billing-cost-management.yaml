@@ -1,22 +1,39 @@
 id: phase4-topic7
 slug: billing-cost-management
 name: Cloud Billing & Cost Management
-description: Cloud services are billed based on consumption. Every VM, database, and API call has a cost. In this topic, you'll
-  learn to monitor spending, set up cost alerts, and estimate expenses before deploying infrastructure. These skills prevent
-  surprise bills and teach you to make cost-aware architecture decisions.
+description: Cloud services are billed based on consumption. Every VM, database, and API call has a cost. In this topic, you'll learn to monitor spending, set up cost alerts, and estimate expenses before deploying infrastructure. These skills prevent surprise bills and teach you to make cost-aware architecture decisions.
 order: 7
-is_capstone: false
+learning_objectives:
+- id: billing-cost-pricing-models
+  text: Explain cloud pricing mechanics and billing drivers for common resource types.
+  order: 1
+- id: billing-cost-guardrails
+  text: Configure budgets and alerts to reduce cost overruns and surprise spend.
+  order: 2
+- id: billing-cost-estimation
+  text: Estimate deployment costs and apply cost-aware decision making before provisioning.
+  order: 3
 learning_steps:
 - order: 1
-  text: Learn cloud billing basics
-  action: 'Learn:'
-  title: Describe Cloud Computing (Microsoft Learn)
-  url: https://learn.microsoft.com/en-us/training/modules/describe-cloud-compute/
-  description: Understand the pay-as-you-go pricing model, how different resource types are priced, and how billing cycles
-    work in the cloud.
+  action: 'Read:'
+  description: Understand pay-as-you-go pricing, common billing dimensions, and core cost drivers for compute, storage, and network resources.
+  options:
+  - provider: azure
+    title: Plan and Manage Costs for Azure
+    url: https://learn.microsoft.com/en-us/azure/cost-management-billing/understand/plan-manage-costs
+    description: Learn foundational Azure pricing and cost management concepts.
+  - provider: aws
+    title: AWS Cloud Financial Management Basics
+    url: https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/concepts.html
+    description: Understand billing concepts, pricing dimensions, and account charges in AWS.
+  - provider: gcp
+    title: Cloud Billing Concepts
+    url: https://cloud.google.com/billing/docs/concepts
+    description: Review how billing accounts, projects, and charges work in Google Cloud.
+  title: Learn cloud pricing and billing fundamentals by provider
+  id: phase4-topic7-learn-cloud-pricing-and-billing-fundamentals-by-provider-read-understand-pay-as-you-go-pricing-common-billing-dimensions-and-core-cost-drivers-for-compute-storage-and-network-resources
 - order: 2
-  text: Cost Management Overview
-  action: Cost Management Overview
+  action: 'Practice:'
   description: 'Learn the billing and cost management tools for your cloud provider:'
   options:
   - provider: azure
@@ -31,9 +48,10 @@ learning_steps:
     title: GCP Cloud Billing
     url: https://cloud.google.com/billing/docs/how-to
     description: How to manage billing in Google Cloud
+  title: Cost Management Overview
+  id: phase4-topic7-cost-management-overview-practice-learn-the-billing-and-cost-management-tools-for-your-cloud-provider
 - order: 3
-  text: Set Up Budget Alerts
-  action: Set Up Budget Alerts
+  action: 'Practice:'
   description: Get notified before you overspend! Configure alerts at thresholds like 50%, 80%, 100% of your budget.
   options:
   - provider: azure
@@ -48,9 +66,10 @@ learning_steps:
     title: Create GCP Budget Alerts
     url: https://cloud.google.com/billing/docs/how-to/budgets
     description: Configuring budget alerts in Google Cloud
+  title: Set Up Budget Alerts
+  id: phase4-topic7-set-up-budget-alerts-practice-get-notified-before-you-overspend-configure-alerts-at-thresholds-like-50-80-100-of-your-budget
 - order: 4
-  text: Use Pricing Calculators
-  action: Use Pricing Calculators
+  action: 'Practice:'
   description: 'Estimate costs BEFORE you deploy. Each cloud provider has a calculator:'
   options:
   - provider: azure
@@ -65,23 +84,38 @@ learning_steps:
     title: GCP Pricing Calculator
     url: https://cloud.google.com/products/calculator
     description: Estimate costs for Google Cloud services before deploying
+  title: Use Pricing Calculators
+  id: phase4-topic7-use-pricing-calculators-practice-estimate-costs-before-you-deploy-each-cloud-provider-has-a-calculator
 - order: 5
-  text: Learn cost optimization best practices
-  action: 'Learn:'
-  title: Cost Optimization Checklist (Azure Well-Architected)
-  url: https://learn.microsoft.com/en-us/azure/well-architected/cost-optimization/checklist
-  description: Review the Azure Well-Architected Framework checklist for cost optimization. Key takeaways include stopping
-    unused VMs, right-sizing instances, and monitoring data transfer costs.
+  action: 'Read:'
+  description: Review cost-optimization best practices from your cloud provider's architecture framework. Focus on right-sizing, eliminating idle resources, and reducing avoidable data-transfer/storage costs.
+  options:
+  - provider: azure
+    title: Azure Well-Architected Cost Optimization Checklist
+    url: https://learn.microsoft.com/en-us/azure/well-architected/cost-optimization/checklist
+    description: Use Azure's cost-optimization checklist to improve cloud spend efficiency.
+  - provider: aws
+    title: AWS Well-Architected Cost Optimization Pillar
+    url: https://docs.aws.amazon.com/wellarchitected/latest/cost-optimization-pillar/welcome.html
+    description: Apply AWS cost-optimization design principles and workload review practices.
+  - provider: gcp
+    title: 'Google Cloud Architecture Framework: Cost Optimization'
+    url: https://cloud.google.com/architecture/framework/cost-optimization
+    description: Follow GCP cost-optimization recommendations for architecture and operations.
+  title: Review cost-optimization frameworks by provider
+  id: phase4-topic7-review-cost-optimization-frameworks-by-provider-read-review-cost-optimization-best-practices-from-your-cloud-provider-s-architecture-framework-focus-on-right-sizing-eliminating-idle-resources-and-reducing-avoidable-data-transfer-storage-costs
 - order: 6
-  text: Review your current month's charges
-  action: 'Hands-on:'
-  description: Open your cloud provider's billing dashboard and review your current month's charges. Identify which resources
-    are costing the most.
+  action: 'Practice:'
+  description: Open your cloud provider's billing dashboard and review your current month's charges. Identify which resources are costing the most.
+  title: Review your current month's charges
+  id: phase4-topic7-review-your-current-month-s-charges-practice-open-your-cloud-provider-s-billing-dashboard-and-review-your-current-month-s-charges-identify-which-resources-are-costing-the-most
 - order: 7
-  text: Set up a budget alert
-  action: 'Hands-on:'
+  action: 'Practice:'
   description: Create a budget alert for $50/month (or your chosen limit) so you get notified before you overspend.
+  title: Set up a budget alert
+  id: phase4-topic7-set-up-a-budget-alert-practice-create-a-budget-alert-for-50-month-or-your-chosen-limit-so-you-get-notified-before-you-overspend
 - order: 8
-  text: Estimate costs for a new deployment using the pricing calculator
-  action: 'Hands-on:'
+  action: 'Practice:'
   description: Use your cloud provider's pricing calculator to estimate what your Journal API deployment will cost per month.
+  title: Estimate costs for a new deployment using the pricing calculator
+  id: phase4-topic7-estimate-costs-for-a-new-deployment-using-the-pricing-calculator-practice-use-your-cloud-provider-s-pricing-calculator-to-estimate-what-your-journal-api-deployment-will-cost-per-month

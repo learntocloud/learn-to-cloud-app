@@ -1,25 +1,34 @@
 id: phase0-topic2
 slug: networking
-name: What is Networking
-description: Networking is how data moves across the internet and within cloud environments. Understanding the basics is crucial.
+name: What is Computer Networking
+description: Computer networking is how data moves across the internet and within cloud environments. Understanding the basics is crucial.
 order: 2
-is_capstone: false
+learning_objectives:
+- id: networking-basics
+  text: Describe how data moves between devices across local and internet networks.
+  order: 1
+- id: networking-ip-dns
+  text: Explain the role of IP addresses and DNS in finding and reaching services.
+  order: 2
+- id: networking-cloud-relevance
+  text: Relate networking fundamentals to cloud deployment and troubleshooting tasks.
+  order: 3
 learning_steps:
 - order: 1
-  text: 'Watch: What is Networking'
   action: 'Watch:'
   title: What is Networking
   url: https://youtu.be/3QhU9jd03a0
   description: Learn how data moves across networks and why networking knowledge is essential for cloud engineering.
+  id: phase0-topic2-what-is-networking-watch-https-youtu-be-3qhu9jd03a0-learn-how-data-moves-across-networks-and-why-networking-knowledge-is-essential-for-cloud-engineering
 - order: 2
-  text: 'Read: IP Addresses Explained'
   action: 'Read:'
   title: What is an IP Address?
   url: https://www.cloudflare.com/learning/dns/glossary/what-is-my-ip-address/
   description: Understand IP addresses—the unique identifiers that allow devices to communicate.
+  id: phase0-topic2-what-is-an-ip-address-read-https-www-cloudflare-com-learning-dns-glossary-what-is-my-ip-address-understand-ip-addresses-the-unique-identifiers-that-allow-devices-to-communicate
 - order: 3
-  text: 'Read: DNS Basics'
   action: 'Read:'
   title: What is DNS?
   url: https://www.cloudflare.com/learning/dns/what-is-dns/
   description: Learn how DNS translates domain names into IP addresses—the phonebook of the internet.
+  id: phase0-topic2-what-is-dns-read-https-www-cloudflare-com-learning-dns-what-is-dns-learn-how-dns-translates-domain-names-into-ip-addresses-the-phonebook-of-the-internet

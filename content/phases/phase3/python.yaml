@@ -1,94 +1,88 @@
 id: phase3-topic1
 slug: python
 name: Python Basics
-description: Python is the most popular programming language in cloud engineering. Work through Python Crash Course chapter
-  by chapter to build a solid foundation.
+description: Python is the most popular programming language in cloud engineering. Work through Python Crash Course chapter by chapter to build a solid foundation.
 order: 1
-is_capstone: false
+learning_objectives:
+- id: python-fundamentals-core-syntax
+  text: Build fluency with Python syntax, data structures, control flow, and functions.
+  order: 1
+- id: python-fundamentals-code-quality
+  text: Apply foundational practices like testing, file handling, and error management.
+  order: 2
+- id: python-fundamentals-api-readiness
+  text: Prepare for API development by applying Python fundamentals to structured data, modular code, and problem solving.
+  order: 3
 learning_steps:
 - order: 1
-  text: Get the book
-  action: 'Get the book:'
+  action: 'Explore:'
   title: Python Crash Course, 3rd Edition
   url: https://nostarch.com/python-crash-course-3rd-edition
-  description: Purchase or borrow Python Crash Course by Eric Matthes. We'll work through Part I (chapters 1-11), which covers
-    all the Python fundamentals you need.
+  description: Purchase or borrow Python Crash Course by Eric Matthes. We'll work through Part I (chapters 1-11), which covers all the Python fundamentals you need.
+  id: phase3-topic1-python-crash-course-3rd-edition-explore-https-nostarch-com-python-crash-course-3rd-edition-purchase-or-borrow-python-crash-course-by-eric-matthes-we-ll-work-through-part-i-chapters-1-11-which-covers-all-the-python-fundamentals-you-need
 - order: 2
-  text: 'Chapter 1: Getting Started'
-  action: 'Read Chapter 1:'
+  action: 'Read:'
   title: Getting Started
   description: Set up your Python environment, install VS Code, and write your first 'Hello World' program.
   url: https://nostarch.com/python-crash-course-3rd-edition
+  id: phase3-topic1-getting-started-read-https-nostarch-com-python-crash-course-3rd-edition-set-up-your-python-environment-install-vs-code-and-write-your-first-hello-world-program
 - order: 3
-  text: 'Chapter 2: Variables and Simple Data Types'
-  action: 'Read Chapter 2:'
+  action: 'Read:'
   title: Variables and Simple Data Types
   url: https://nostarch.com/download/PCC3e_ch2sample_8.17.22.pdf
   description: Learn about variables, strings, integers, and floats. Free sample chapter available!
+  id: phase3-topic1-variables-and-simple-data-types-read-https-nostarch-com-download-pcc3e-ch2sample-8-17-22-pdf-learn-about-variables-strings-integers-and-floats-free-sample-chapter-available
 - order: 4
-  text: 'Chapter 3: Introducing Lists'
-  action: 'Read Chapter 3:'
+  action: 'Read:'
   title: Introducing Lists
   description: Create lists, access elements by index, and use methods like append, insert, and remove.
   url: https://nostarch.com/python-crash-course-3rd-edition
+  id: phase3-topic1-introducing-lists-read-https-nostarch-com-python-crash-course-3rd-edition-create-lists-access-elements-by-index-and-use-methods-like-append-insert-and-remove
 - order: 5
-  text: 'Chapter 4: Working with Lists'
-  action: 'Read Chapter 4:'
+  action: 'Read:'
   title: Working with Lists
   description: Master for loops, list comprehensions, slicing, and tuples.
   url: https://nostarch.com/python-crash-course-3rd-edition
+  id: phase3-topic1-working-with-lists-read-https-nostarch-com-python-crash-course-3rd-edition-master-for-loops-list-comprehensions-slicing-and-tuples
 - order: 6
-  text: 'Chapter 5: if Statements'
-  action: 'Read Chapter 5:'
+  action: 'Read:'
   title: if Statements
   description: 'Learn conditional logic: if, elif, else, and boolean expressions.'
   url: https://nostarch.com/python-crash-course-3rd-edition
+  id: phase3-topic1-if-statements-read-https-nostarch-com-python-crash-course-3rd-edition-learn-conditional-logic-if-elif-else-and-boolean-expressions
 - order: 7
-  text: 'Chapter 6: Dictionaries'
-  action: 'Read Chapter 6:'
+  action: 'Read:'
   title: Dictionaries
   description: Understand key-value pairs—essential for working with JSON and APIs.
   url: https://nostarch.com/python-crash-course-3rd-edition
+  id: phase3-topic1-dictionaries-read-https-nostarch-com-python-crash-course-3rd-edition-understand-key-value-pairs-essential-for-working-with-json-and-apis
 - order: 8
-  text: 'Chapter 7: User Input and while Loops'
-  action: 'Read Chapter 7:'
+  action: 'Read:'
   title: User Input and while Loops
   description: Accept user input and control program flow with while loops.
   url: https://nostarch.com/python-crash-course-3rd-edition
+  id: phase3-topic1-user-input-and-while-loops-read-https-nostarch-com-python-crash-course-3rd-edition-accept-user-input-and-control-program-flow-with-while-loops
 - order: 9
-  text: 'Chapter 8: Functions'
-  action: 'Read Chapter 8:'
+  action: 'Read:'
   title: Functions
   description: Define functions, pass arguments, and return values. The building blocks of clean code.
   url: https://nostarch.com/python-crash-course-3rd-edition
+  id: phase3-topic1-functions-read-https-nostarch-com-python-crash-course-3rd-edition-define-functions-pass-arguments-and-return-values-the-building-blocks-of-clean-code
 - order: 10
-  text: 'Chapter 9: Classes'
-  action: 'Read Chapter 9:'
+  action: 'Read:'
   title: Classes
   description: 'Introduction to object-oriented programming: classes, instances, attributes, and methods.'
   url: https://nostarch.com/python-crash-course-3rd-edition
+  id: phase3-topic1-classes-read-https-nostarch-com-python-crash-course-3rd-edition-introduction-to-object-oriented-programming-classes-instances-attributes-and-methods
 - order: 11
-  text: 'Chapter 10: Files and Exceptions'
-  action: 'Read Chapter 10:'
+  action: 'Read:'
   title: Files and Exceptions
   description: Read and write files, handle errors gracefully with try/except.
   url: https://nostarch.com/python-crash-course-3rd-edition
+  id: phase3-topic1-files-and-exceptions-read-https-nostarch-com-python-crash-course-3rd-edition-read-and-write-files-handle-errors-gracefully-with-try-except
 - order: 12
-  text: 'Chapter 11: Testing Your Code'
-  action: 'Read Chapter 11:'
+  action: 'Read:'
   title: Testing Your Code
   description: Write tests with pytest—a professional skill that catches bugs early.
   url: https://nostarch.com/python-crash-course-3rd-edition
-- order: 13
-  text: Watch CS50 Python Lecture
-  action: 'Watch:'
-  title: CS50 Lecture on Python
-  url: https://youtu.be/LfaMVlDaQ24?feature=shared&t=49364
-  description: Harvard's CS50 lecture on Python. Everything should make sense—if not, revisit the relevant chapters.
-- order: 14
-  text: 'Networking Refresher: Python HTTP Client'
-  action: 'Practice:'
-  title: Build a Simple HTTP Client
-  description: 'Reinforce your Phase 2 networking knowledge: write a Python script using the requests library to fetch data
-    from an API, inspect response headers and status codes, and handle connection errors gracefully. This connects Python
-    to the HTTP concepts you learned earlier.'
+  id: phase3-topic1-testing-your-code-read-https-nostarch-com-python-crash-course-3rd-edition-write-tests-with-pytest-a-professional-skill-that-catches-bugs-early

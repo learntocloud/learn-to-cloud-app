@@ -1,44 +1,62 @@
 id: phase4-topic4
 slug: secure-remote-access
 name: Secure Remote Access
-description: In the previous topic, you learned about cloud networking fundamentals, including VPCs, subnets, and traffic
-  flow. Now, the focus is on understanding secure remote access mechanisms that protect cloud resources from unauthorized
-  access.
-order: 5
-is_capstone: false
+description: In the previous topic, you learned about cloud networking fundamentals, including VPCs, subnets, and traffic flow. Now, the focus is on understanding secure remote access mechanisms that protect cloud resources from unauthorized access.
+order: 4
+learning_objectives:
+- id: secure-access-patterns
+  text: Explain modern session-based remote access patterns and their security benefits.
+  order: 1
+- id: secure-access-implementation
+  text: Configure secure VM access using provider-native tooling without exposing unnecessary ports.
+  order: 2
+- id: secure-access-auditability
+  text: Review and interpret remote access audit logs for accountability and compliance.
+  order: 3
 learning_steps:
 - order: 1
-  text: Understand Session-Based Access Management
-  action: Learn about session-based access
-  description: Modern cloud security recommends session-based access over direct SSH/RDP connections. These services provide
-    audit logging, don't require opening SSH ports, and integrate with your cloud IAM.
+  action: 'Read:'
+  description: Modern cloud security recommends session-based access over direct SSH/RDP connections. These services provide audit logging, don't require opening SSH ports, and integrate with your cloud IAM.
   options:
-  - provider: aws
-    title: AWS Systems Manager Session Manager
-    url: https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager.html
-    description: Connect to your instances without SSH keys or open ports
   - provider: azure
     title: Azure Bastion
     url: https://learn.microsoft.com/en-us/azure/bastion/
     description: Secure RDP/SSH connectivity to your VMs directly in the Azure portal
+  - provider: aws
+    title: AWS Systems Manager Session Manager
+    url: https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager.html
+    description: Connect to your instances without SSH keys or open ports
   - provider: gcp
     title: GCP Identity-Aware Proxy
     url: https://cloud.google.com/iap/docs/concepts-overview
     description: Official guide to using IAP for secure access to GCP resources
+  title: Understand Session-Based Access Management
+  id: phase4-topic4-understand-session-based-access-management-read-modern-cloud-security-recommends-session-based-access-over-direct-ssh-rdp-connections-these-services-provide-audit-logging-don-t-require-opening-ssh-ports-and-integrate-with-your-cloud-iam
 - order: 2
-  text: Read about Session Manager vs SSH
   action: 'Read:'
-  title: Connect to EC2 Using Session Manager
-  url: https://docs.aws.amazon.com/prescriptive-guidance/latest/patterns/connect-to-an-amazon-ec2-instance-by-using-session-manager.html
-  description: Understand why session-based access is preferred over traditional SSH — no exposed ports, integrated IAM, full
-    audit logging, and browser-based access.
+  description: Understand how to connect to VMs with provider-native session-based access, without exposing SSH/RDP to the public internet.
+  options:
+  - provider: azure
+    title: Connect to a VM using Azure Bastion
+    url: https://learn.microsoft.com/en-us/azure/bastion/quickstart-host-portal
+    description: Use Azure Bastion to securely connect to VMs from the Azure portal.
+  - provider: aws
+    title: Connect to EC2 Using Session Manager
+    url: https://docs.aws.amazon.com/prescriptive-guidance/latest/patterns/connect-to-an-amazon-ec2-instance-by-using-session-manager.html
+    description: Connect to EC2 without open inbound ports using AWS Systems Manager.
+  - provider: gcp
+    title: Connect to Linux VMs using IAP
+    url: https://cloud.google.com/compute/docs/connect/ssh-using-iap
+    description: Access VMs securely through Identity-Aware Proxy instead of direct external SSH exposure.
+  title: Compare secure VM access workflows by provider
+  id: phase4-topic4-compare-secure-vm-access-workflows-by-provider-read-understand-how-to-connect-to-vms-with-provider-native-session-based-access-without-exposing-ssh-rdp-to-the-public-internet
 - order: 3
-  text: Configure session-based access for a VM
-  action: 'Hands-on:'
-  description: Set up session-based access for one of your VMs using AWS SSM, Azure Bastion, or GCP IAP. Connect to the VM
-    without using traditional SSH.
+  action: 'Practice:'
+  description: Set up session-based access for one of your VMs using AWS SSM, Azure Bastion, or GCP IAP. Connect to the VM without using traditional SSH.
+  title: Configure session-based access for a VM
+  id: phase4-topic4-configure-session-based-access-for-a-vm-practice-set-up-session-based-access-for-one-of-your-vms-using-aws-ssm-azure-bastion-or-gcp-iap-connect-to-the-vm-without-using-traditional-ssh
 - order: 4
-  text: Review the audit logs from your session
-  action: 'Hands-on:'
-  description: After connecting via session-based access, review the audit logs generated by your session. Understand what
-    information is captured for security and compliance.
+  action: 'Practice:'
+  description: After connecting via session-based access, review the audit logs generated by your session. Understand what information is captured for security and compliance.
+  title: Review the audit logs from your session
+  id: phase4-topic4-review-the-audit-logs-from-your-session-practice-after-connecting-via-session-based-access-review-the-audit-logs-generated-by-your-session-understand-what-information-is-captured-for-security-and-compliance

@@ -1,17 +1,17 @@
 <!-- Single learning step - swappable via HTMX -->
-<div id="step-{{ topic_id }}-{{ step.order }}" class="flex items-start gap-3 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+<div id="step-{{ topic_id }}-{{ step.id }}" class="flex items-start gap-3 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
     {% if user %}
     <input
         type="checkbox"
-        {% if step.order in completed_steps %}checked{% endif %}
+        {% if step.id in completed_steps %}checked{% endif %}
         class="mt-1 h-4 w-4 rounded-sm border-gray-300 text-blue-600 focus:ring-3 focus:ring-blue-500 cursor-pointer"
-        {% if step.order in completed_steps %}
-        hx-delete="/htmx/steps/{{ topic_id }}/{{ step.order }}"
+        {% if step.id in completed_steps %}
+        hx-delete="/htmx/steps/{{ topic_id }}/{{ step.id }}"
         {% else %}
         hx-post="/htmx/steps/complete"
-        hx-vals='{"topic_id": "{{ topic_id }}", "step_order": {{ step.order }}, "phase_id": {{ phase_id }}}'
+        hx-vals='{"topic_id": "{{ topic_id }}", "step_id": "{{ step.id }}", "phase_id": {{ phase_id }}}'
         {% endif %}
-        hx-target="#step-{{ topic_id }}-{{ step.order }}"
+        hx-target="#step-{{ topic_id }}-{{ step.id }}"
         hx-swap="outerHTML"
         hx-disabled-elt="this"
     >
@@ -20,7 +20,7 @@
     {% endif %}
 
     <div class="flex-1 min-w-0">
-        <p class="text-sm {% if step.order in completed_steps %}line-through text-gray-400 dark:text-gray-500{% else %}text-gray-900 dark:text-gray-100{% endif %}">
+        <p class="text-sm {% if step.id in completed_steps %}line-through text-gray-400 dark:text-gray-500{% else %}text-gray-900 dark:text-gray-100{% endif %}">
             {% if step.action %}
             <span class="font-medium text-blue-600 dark:text-blue-400">{{ step.action }}</span>
             {% endif %}
@@ -85,14 +85,5 @@
         </div>
         {% endif %}
 
-        {% if step.secondary_links %}
-        <ul class="mt-2 space-y-1">
-            {% for link in step.secondary_links %}
-            <li class="text-sm">
-                <a href="{{ link.url }}" target="_blank" rel="noopener" hx-boost="false" class="text-blue-600 hover:underline dark:text-blue-400">{{ link.text }}</a>
-            </li>
-            {% endfor %}
-        </ul>
-        {% endif %}
     </div>
 </div>

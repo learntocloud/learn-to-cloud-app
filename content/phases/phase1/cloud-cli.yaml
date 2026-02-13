@@ -3,56 +3,80 @@ slug: cloud-cli
 name: Cloud CLI
 description: Learn to interact with cloud platforms through the command line. The CLI is essential for automation and scripting.
 order: 2
-is_capstone: false
+learning_objectives:
+- id: cloud-cli-installation
+  text: Install the CLI for your chosen cloud provider and verify it works locally.
+  order: 1
+- id: cloud-cli-authentication
+  text: Configure authentication securely for command-line access to cloud resources.
+  order: 2
+- id: cloud-cli-readiness
+  text: Build baseline CLI fluency needed for upcoming labs and automation tasks.
+  order: 3
 learning_steps:
 - order: 1
-  text: Install your cloud provider's CLI
-  action: Install your cloud provider's CLI
+  action: 'Practice:'
   description: 'Choose and install the CLI for your preferred cloud platform:'
   options:
+  - provider: azure
+    title: Install the Azure CLI
+    url: https://learn.microsoft.com/cli/azure/install-azure-cli
+    description: Follow the official guide to install the Azure CLI on your system.
   - provider: aws
     title: Install the AWS CLI
     url: https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html
     description: Follow the official guide to install the AWS CLI on your system.
-  - provider: azure
-    title: Install the Azure CLI
-    url: https://learn.microsoft.com/en-us/cli/azure/install-azure-cli
-    description: Follow the official guide to install the Azure CLI on your system.
   - provider: gcp
     title: Install the Google Cloud CLI
     url: https://cloud.google.com/sdk/docs/install
     description: Follow the official guide to install the gcloud CLI on your system.
+  title: Install your cloud provider's CLI
+  id: phase1-topic2-install-your-cloud-provider-s-cli-practice-choose-and-install-the-cli-for-your-preferred-cloud-platform
 - order: 2
-  text: Test your CLI installation
-  action: Test your installation
+  action: 'Practice:'
   description: 'Run a simple command to verify your CLI is working correctly:'
-  code: '# AWS
+  options:
+  - provider: azure
+    title: Verify Azure CLI
+    url: https://learn.microsoft.com/en-us/cli/azure/reference-index?view=azure-cli-latest#az-version
+    description: 'Run this command in your terminal:
 
-    aws --version
+      ```bash az --version ```'
+  - provider: aws
+    title: Verify AWS CLI
+    url: https://docs.aws.amazon.com/cli/latest/reference/#global-options
+    description: 'Run this command in your terminal:
 
+      ```bash aws --version ```'
+  - provider: gcp
+    title: Verify Google Cloud CLI
+    url: https://docs.cloud.google.com/sdk/gcloud/reference/version
+    description: 'Run this command in your terminal:
 
-    # Azure
-
-    az --version
-
-
-    # GCP
-
-    gcloud --version'
+      ```bash gcloud --version ```'
+  title: Test your CLI installation
+  id: phase1-topic2-test-your-cli-installation-practice-run-a-simple-command-to-verify-your-cli-is-working-correctly
 - order: 3
-  text: Configure authentication
-  action: Configure authentication
+  action: 'Practice:'
   description: 'Set up your credentials to authenticate with your cloud provider:'
-  code: '# AWS
+  options:
+  - provider: azure
+    title: Authenticate Azure CLI
+    url: https://learn.microsoft.com/cli/azure/authenticate-azure-cli
+    description: 'Run this command in your terminal:
 
-    aws configure
+      ```bash az login ```'
+  - provider: aws
+    title: Authenticate AWS CLI
+    url: https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-quickstart.html
+    description: 'Run this command in your terminal:
 
+      ```bash aws configure ```'
+  - provider: gcp
+    title: Authenticate Google Cloud CLI
+    url: https://cloud.google.com/sdk/docs/authorizing
+    description: 'Run this command in your terminal:
 
-    # Azure
-
-    az login
-
-
-    # GCP
-
-    gcloud auth login'
+      ```bash gcloud auth login ```'
+  title: Configure authentication
+  id: phase1-topic2-configure-authentication-practice-set-up-your-credentials-to-authenticate-with-your-cloud-provider

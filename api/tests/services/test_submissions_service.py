@@ -30,9 +30,17 @@ from services.submissions_service import (
 )
 
 
+@pytest.fixture(autouse=True)
+def _mock_phase_id_mapping():
+    """Mock requirement → phase mapping for all tests in this module."""
+    with patch(
+        "services.submissions_service.get_phase_id_for_requirement", return_value=3
+    ):
+        yield
+
+
 def _make_mock_requirement(
     submission_type: SubmissionType = SubmissionType.CODE_ANALYSIS,
-    phase_id: int = 3,
 ) -> HandsOnRequirement:
     """Create a mock requirement for testing."""
     return HandsOnRequirement(
@@ -40,7 +48,6 @@ def _make_mock_requirement(
         submission_type=submission_type,
         name="Test Requirement",
         description="Test description",
-        phase_id=phase_id,
     )
 
 

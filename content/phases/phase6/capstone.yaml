@@ -1,46 +1,57 @@
 id: phase6-capstone
 slug: capstone
 name: 'Capstone: Secure Your Journal API'
-description: Apply everything from this phase to harden your Journal API with real security controls. By the end, your app
-  will be production-ready.
+description: Apply everything from this phase to harden your Journal API with real security controls. By the end, your app will be production-ready.
 short_description: Harden your Journal API with IAM, secrets management, network controls, and monitoring.
 order: 4
-is_capstone: true
+learning_objectives:
+- id: security-capstone-hardening
+  text: Apply layered security controls to harden your deployed Journal API.
+  order: 1
+- id: security-capstone-governance
+  text: Implement IAM, secret handling, network controls, and monitoring in a production mindset.
+  order: 2
+- id: security-capstone-validation
+  text: Demonstrate verifiable security posture improvements through scanning and operational checks.
+  order: 3
 learning_steps:
 - order: 1
-  text: Create a dedicated service account for your Journal API
-  action: 'IAM:'
+  action: 'Practice:'
   description: Stop using your personal credentials. Create a service account with only the permissions your API needs.
+  title: Create a dedicated service account for your Journal API
+  id: phase6-capstone-create-a-dedicated-service-account-for-your-journal-api-practice-stop-using-your-personal-credentials-create-a-service-account-with-only-the-permissions-your-api-needs
 - order: 2
-  text: Move secrets to a cloud secrets manager
-  action: 'Secrets:'
-  description: Move your database password, LLM API key, and any other secrets from .env files into Azure Key Vault, AWS
-    Secrets Manager, or GCP Secret Manager.
+  action: 'Practice:'
+  description: Move your database password, LLM API key, and any other secrets from .env files into Azure Key Vault, AWS Secrets Manager, or GCP Secret Manager.
+  title: Move secrets to a cloud secrets manager
+  id: phase6-capstone-move-secrets-to-a-cloud-secrets-manager-practice-move-your-database-password-llm-api-key-and-any-other-secrets-from-env-files-into-azure-key-vault-aws-secrets-manager-or-gcp-secret-manager
 - order: 3
-  text: Verify your database is in a private subnet
-  action: 'Network:'
-  description: Confirm your database is NOT accessible from the public internet and only accepts connections from your API
-    server's security group.
+  action: 'Practice:'
+  description: Confirm your database is NOT accessible from the public internet and only accepts connections from your API server's security group.
+  title: Verify your database is in a private subnet
+  id: phase6-capstone-verify-your-database-is-in-a-private-subnet-practice-confirm-your-database-is-not-accessible-from-the-public-internet-and-only-accepts-connections-from-your-api-server-s-security-group
 - order: 4
-  text: Configure HTTPS for all API traffic
-  action: 'Network:'
+  action: 'Practice:'
   description: Ensure your API only accepts HTTPS connections. No plaintext traffic.
+  title: Configure HTTPS for all API traffic
+  id: phase6-capstone-configure-https-for-all-api-traffic-practice-ensure-your-api-only-accepts-https-connections-no-plaintext-traffic
 - order: 5
-  text: Enable audit logging
-  action: 'Monitoring:'
+  action: 'Practice:'
   description: Enable CloudTrail (AWS), Activity Log (Azure), or Cloud Logging (GCP) for your cloud services.
+  title: Enable audit logging
+  id: phase6-capstone-enable-audit-logging-practice-enable-cloudtrail-aws-activity-log-azure-or-cloud-logging-gcp-for-your-cloud-services
 - order: 6
-  text: Set up at least one security alert
-  action: 'Monitoring:'
-  description: Create an alert for a critical event — failed authentication attempts, security group changes, or unusual
-    traffic patterns.
+  action: 'Practice:'
+  description: Create an alert for a critical event — failed authentication attempts, security group changes, or unusual traffic patterns.
+  title: Set up at least one security alert
+  id: phase6-capstone-set-up-at-least-one-security-alert-practice-create-an-alert-for-a-critical-event-failed-authentication-attempts-security-group-changes-or-unusual-traffic-patterns
 - order: 7
-  text: Enable security scanning on your repository
-  action: 'Scanning:'
+  action: 'Practice:'
   description: Enable Dependabot, CodeQL, or another scanner on your GitHub repository. Review and triage any findings.
+  title: Enable security scanning on your repository
+  id: phase6-capstone-enable-security-scanning-on-your-repository-practice-enable-dependabot-codeql-or-another-scanner-on-your-github-repository-review-and-triage-any-findings
 - order: 8
-  text: Share your project
-  action: 'Share:'
+  action: 'Reflect:'
   title: Share Your Progress
-  description: Push your work to GitHub. Consider sharing it on LinkedIn or with the Learn to Cloud community to get feedback
-    and celebrate your progress.
+  description: Push your work to GitHub. Consider sharing it on LinkedIn or with the Learn to Cloud community to get feedback and celebrate your progress.
+  id: phase6-capstone-share-your-progress-reflect-push-your-work-to-github-consider-sharing-it-on-linkedin-or-with-the-learn-to-cloud-community-to-get-feedback-and-celebrate-your-progress

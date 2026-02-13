@@ -17,34 +17,10 @@ topics:
 - container-orchestration
 - monitoring-observability
 - capstone
-capstone:
-  title: 'Capstone: DevOps Project'
-  summary: 'Apply DevOps practices end-to-end on your Journal API: containerization, automation, infrastructure as code, and
-    orchestration.'
-  includes:
-  - Containerize your application and publish an image
-  - Build a CI/CD pipeline that runs reliably
-  - Provision infrastructure with Terraform
-  - Deploy with Kubernetes manifests
-  topic_slug: capstone
 hands_on_verification:
-  summary: Finished the DevOps capstone? Submit your repo URL and the system will verify your work automatically.
-  includes:
-  - 'Complete the Capstone: DevOps Project'
-  - Submit your journal-starter fork URL for automated verification
   requirements:
   - id: devops-implementation
     submission_type: devops_analysis
-    name: 'Completed Capstone: DevOps'
-    description: 'Submit your journal-starter fork after completing the Capstone: DevOps Project for automated verification.'
-    submission_instructions: Paste the URL to your journal-starter fork (e.g. https://github.com/your-username/journal-starter).
-      The system will fetch and analyze your code to verify the capstone requirements. It reads the actual file contents
-      (not just filenames), so placeholder or empty files will not pass. You'll get per-task feedback explaining what
-      passed and what needs work.
+    name: Complete the DevOps Capstone
+    description: Submit your journal-starter fork after finishing the DevOps capstone so automated checks can validate your implementation.
     placeholder: https://github.com/username/journal-starter
-    example_url: https://github.com/your-username/journal-starter
-    note: You can only verify once per hour.
-prerequisites:
-- 'Completed Phase 3: Programming Fundamentals (capstone)'
-- 'Completed Phase 4: Cloud Platform Fundamentals (capstone)'
-- This phase builds on the project from previous phases

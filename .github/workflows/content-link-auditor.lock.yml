@@ -19,7 +19,7 @@
 #   gh aw compile
 # For more information: https://github.com/github/gh-aw/blob/main/.github/aw/github-agentic-workflows.md
 #
-# Weekly audit of all external URLs in Learn to Cloud content YAML files. Checks for broken links, redirects, and retired certifications.
+# Weekly audit of all external URLs in Learn to Cloud content YAML files. Checks for broken links and redirects.
 #
 # frontmatter-hash: 05fef31757e092d097f57c79480059033a794c0d9bd92713c97cf0ef10cf132f
 
@@ -949,7 +949,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           WORKFLOW_NAME: "Content Link Auditor"
-          WORKFLOW_DESCRIPTION: "Weekly audit of all external URLs in Learn to Cloud content YAML files. Checks for broken links, redirects, and retired certifications."
+          WORKFLOW_DESCRIPTION: "Weekly audit of all external URLs in Learn to Cloud content YAML files. Checks for broken links and redirects."
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
         with:
           script: |

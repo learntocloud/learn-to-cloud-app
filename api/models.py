@@ -257,9 +257,7 @@ class StepProgress(Base):
 
     __tablename__ = "step_progress"
     __table_args__ = (
-        UniqueConstraint(
-            "user_id", "topic_id", "step_order", name="uq_user_topic_step"
-        ),
+        UniqueConstraint("user_id", "topic_id", "step_id", name="uq_user_topic_step"),
         Index("ix_step_progress_user_topic", "user_id", "topic_id"),
         Index("ix_step_progress_user_phase", "user_id", "phase_id"),
         Index("ix_step_progress_completed_at", "completed_at"),
@@ -275,6 +273,7 @@ class StepProgress(Base):
         String(100),
         nullable=False,
     )
+    step_id: Mapped[str] = mapped_column(String(255), nullable=False)
     phase_id: Mapped[int] = mapped_column(Integer, nullable=False)
     step_order: Mapped[int] = mapped_column(
         Integer,

@@ -13,14 +13,14 @@ class StepProgressRepository:
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
 
-    async def get_completed_step_orders(
+    async def get_completed_step_ids(
         self,
         user_id: int,
         topic_id: str,
-    ) -> set[int]:
-        """Get set of completed step orders for a user in a topic."""
+    ) -> set[str]:
+        """Get set of completed step IDs for a user in a topic."""
         result = await self.db.execute(
-            select(StepProgress.step_order).where(
+            select(StepProgress.step_id).where(
                 StepProgress.user_id == user_id,
                 StepProgress.topic_id == topic_id,
             )
@@ -31,6 +31,7 @@ class StepProgressRepository:
         self,
         user_id: int,
         topic_id: str,
+        step_id: str,
         step_order: int,
         phase_id: int,
     ) -> StepProgress | None:
@@ -47,6 +48,7 @@ class StepProgressRepository:
             .values(
                 user_id=user_id,
                 topic_id=topic_id,
+                step_id=step_id,
                 phase_id=phase_id,
                 step_order=step_order,
             )
@@ -86,7 +88,7 @@ class StepProgressRepository:
         self,
         user_id: int,
         topic_ids: list[str],
-    ) -> dict[str, set[int]]:
+    ) -> dict[str, set[str]]:
         """Get completed steps for a user, filtered to specific topics.
 
         More targeted than get_all_completed_by_user when only one phase
@@ -96,13 +98,13 @@ class StepProgressRepository:
             return {}
 
         result = await self.db.execute(
-            select(StepProgress.topic_id, StepProgress.step_order).where(
+            select(StepProgress.topic_id, StepProgress.step_id).where(
                 StepProgress.user_id == user_id,
                 StepProgress.topic_id.in_(topic_ids),
             )
         )
 
-        by_topic: dict[str, set[int]] = {}
+        by_topic: dict[str, set[str]] = {}
         for row in result.all():
-            by_topic.setdefault(row.topic_id, set()).add(row.step_order)
+            by_topic.setdefault(row.topic_id, set()).add(row.step_id)
         return by_topic

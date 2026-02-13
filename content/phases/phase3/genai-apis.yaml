@@ -1,98 +1,70 @@
-id: phase3-topic5
+id: phase3-topic4
 slug: genai-apis
 name: Generative AI APIs
-description: Generative AI and Large Language Models (LLMs) are transforming how we build applications. In this topic, you'll
-  learn how to integrate LLM APIs into your Python applications. These skills are essential for modern cloud engineering as
-  AI services are becoming core components of cloud platforms.
-order: 5
-is_capstone: false
+description: Generative AI and Large Language Models (LLMs) are transforming how we build applications. In this topic, you'll learn how to integrate LLM APIs into your Python applications using GitHub Models. This topic is intentionally focused on coding fundamentals before moving to cloud AI platform operations in Phase 4.
+order: 4
+learning_objectives:
+- id: genai-apis-request-patterns
+  text: Understand core LLM API patterns including messages, parameters, and structured outputs.
+  order: 1
+- id: genai-apis-tooling-practice
+  text: Set up provider credentials and run the required OpenAI Chat Completions Python examples successfully.
+  order: 2
+- id: genai-apis-project-integration
+  text: Run and validate GitHub Models-backed chat completion workflows you can adapt to your Journal API use case.
+  order: 3
 learning_steps:
 - order: 1
-  text: Understand the messages format
-  action: 'Learn:'
-  title: LLM Message Format
-  description: 'LLMs work with conversation-style inputs: system messages (set behavior), user messages (your input), and
-    assistant messages (LLM responses). Understanding this structure is key to working with any LLM API.'
+  action: 'Watch:'
+  title: 'Python + AI: Large Language Models'
+  url: https://www.youtube.com/live/X967IsYvhTM?si=qDi7Rcu8fN1UE5iE
+  description: A strong intro session on LLM fundamentals, model options, the OpenAI Python SDK, streaming, chat history, prompt engineering, and async app patterns. Watch this first, then move to the hands-on demos.
+  id: phase3-topic4-python-ai-large-language-models-watch-https-www-youtube-com-live-x967isyvhtm-si-qdi7rcu8fn1ue5ie-a-strong-intro-session-on-llm-fundamentals-model-options-the-openai-python-sdk-streaming-chat-history-prompt-engineering-and-async-app-patterns-watch-this-first-then-move-to-the-hands-on-demos
 - order: 2
-  text: Understand completions and parameters
-  action: 'Learn:'
-  title: Completions & Parameters
-  description: 'The API generates text (completions) based on your input. Key parameters to understand: temperature (0 = deterministic,
-    1 = creative), max_tokens (response length), and model (which LLM version). You can also request structured outputs like
-    JSON instead of free text.'
+  action: 'Explore:'
+  title: Star the Python OpenAI Demos Repository
+  url: https://github.com/Azure-Samples/python-openai-demos?tab=readme-ov-file#openai-chat-completions
+  description: This GitHub repository contains several examples that show how to use the OpenAI Python SDK to build Generative AI Python applications. For this curriculum, focus on the OpenAI Chat Completions examples.
+  id: phase3-topic4-star-the-python-openai-demos-repository-explore-https-github-com-azure-samples-python-openai-demos-tab-readme-ov-file-openai-chat-completions-this-github-repository-contains-several-examples-that-show-how-to-use-the-openai-python-sdk-to-build-generative-ai-python-applications-for-this-curriculum-focus-on-the-openai-chat-completions-examples
 - order: 3
-  text: 'Hands-On: Python OpenAI Demos'
-  action: 'Hands-On:'
-  title: Python OpenAI Demos
-  url: https://aka.ms/python-openai-demos
-  description: Start with this free hands-on practice using GitHub Models. This repository teaches you the OpenAI Python SDK
-    through progressively complex examples—the same SDK used by Azure OpenAI. You can run it completely free using GitHub
-    Models in GitHub Codespaces.
-  secondary_links:
-  - text: Video Walkthrough
-    url: https://www.youtube.com/watch?v=_daw48A-RZI
+  action: 'Practice:'
+  title: Fork the Repository
+  url: https://github.com/Azure-Samples/python-openai-demos
+  description: Fork the repository to your GitHub account so you can run and experiment with the examples in your own environment.
+  id: phase3-topic4-fork-the-repository-practice-https-github-com-azure-samples-python-openai-demos-fork-the-repository-to-your-github-account-so-you-can-run-and-experiment-with-the-examples-in-your-own-environment
 - order: 4
-  text: Work through Chat Completions examples
-  action: 'Practice:'
-  title: Chat Completions
-  description: Start with chat.py, then try chat_stream.py and chat_history.py to understand how conversations work with
-    LLMs.
+  action: 'Read:'
+  title: Set Up the Python Environment
+  url: https://github.com/Azure-Samples/python-openai-demos?tab=readme-ov-file#setting-up-the-python-environment
+  description: Follow the repository instructions to prepare your local or Codespaces environment before running any examples.
+  id: phase3-topic4-set-up-the-python-environment-read-https-github-com-azure-samples-python-openai-demos-tab-readme-ov-file-setting-up-the-python-environment-follow-the-repository-instructions-to-prepare-your-local-or-codespaces-environment-before-running-any-examples
 - order: 5
-  text: Work through Structured Outputs examples
-  action: 'Practice:'
-  title: Structured Outputs
-  description: Learn to get JSON responses from LLMs with structured_outputs_basic.py.
+  action: 'Read:'
+  title: Configure GitHub Models Environment Variables
+  url: https://github.com/Azure-Samples/python-openai-demos?tab=readme-ov-file#using-github-models
+  description: Configure your environment for GitHub Models as documented in the repository so the examples run successfully.
+  id: phase3-topic4-configure-github-models-environment-variables-read-https-github-com-azure-samples-python-openai-demos-tab-readme-ov-file-using-github-models-configure-your-environment-for-github-models-as-documented-in-the-repository-so-the-examples-run-successfully
 - order: 6
-  text: Work through Function Calling examples
   action: 'Practice:'
-  title: Function Calling
-  description: See how LLMs can call your code with function_calling_basic.py.
+  title: Run chat.py
+  url: https://github.com/Azure-Samples/python-openai-demos?tab=readme-ov-file#openai-chat-completions
+  description: Run chat.py and confirm you can get a successful completion response.
+  id: phase3-topic4-run-chat-py-practice-https-github-com-azure-samples-python-openai-demos-tab-readme-ov-file-openai-chat-completions-run-chat-py-and-confirm-you-can-get-a-successful-completion-response
 - order: 7
-  text: Choose your cloud provider's AI service
-  action: 'Choose:'
-  title: Your Cloud AI Provider
-  description: 'Once you''ve completed the demos, apply your skills to your cloud provider''s AI service:'
-  options:
-  - provider: azure
-    title: Azure OpenAI Chat Completions
-    url: https://learn.microsoft.com/en-us/azure/ai-foundry/openai/how-to/chatgpt
-    description: If you're focusing on Azure (accessed via Microsoft Foundry)
-  - provider: aws
-    title: AWS Bedrock Getting Started
-    url: https://docs.aws.amazon.com/bedrock/latest/userguide/getting-started.html
-    description: If you're focusing on AWS (supports Claude, Llama, and other models)
-  - provider: gcp
-    title: Vertex AI Generative AI Overview
-    url: https://cloud.google.com/vertex-ai/generative-ai/docs/learn/overview
-    description: If you're focusing on Google Cloud (supports Gemini and other models)
+  action: 'Practice:'
+  title: Run chat_stream.py
+  url: https://github.com/Azure-Samples/python-openai-demos?tab=readme-ov-file#openai-chat-completions
+  description: Run chat_stream.py and verify streaming output works in your terminal.
+  id: phase3-topic4-run-chat-stream-py-practice-https-github-com-azure-samples-python-openai-demos-tab-readme-ov-file-openai-chat-completions-run-chat-stream-py-and-verify-streaming-output-works-in-your-terminal
 - order: 8
-  text: Test a simple completion in the playground
-  action: 'Test:'
-  title: Simple Completion
-  description: 'Test this prompt in your provider''s web playground: "Analyze the sentiment of this text: I learned so much
-    today!"'
+  action: 'Practice:'
+  title: Run chat_history.py
+  url: https://github.com/Azure-Samples/python-openai-demos?tab=readme-ov-file#openai-chat-completions
+  description: Run chat_history.py to practice multi-turn conversations with message history.
+  id: phase3-topic4-run-chat-history-py-practice-https-github-com-azure-samples-python-openai-demos-tab-readme-ov-file-openai-chat-completions-run-chat-history-py-to-practice-multi-turn-conversations-with-message-history
 - order: 9
-  text: Test structured output in the playground
-  action: 'Test:'
-  title: Structured Output
-  description: Request a JSON response with sentiment and summary fields from the playground.
-- order: 10
-  text: Test system messages in the playground
-  action: 'Test:'
-  title: System Messages
-  description: Add a system message that sets a "learning coach" persona and see how it changes the LLM's responses.
-- order: 11
-  text: Create a Python test script
-  action: 'Build:'
-  title: Python LLM Test Script
-  description: Create a simple Python script llm_test.py that loads API credentials from environment variables, sends a journal
-    entry to the LLM, requests sentiment analysis, and prints the results.
-  code: '# Example journal entry to test:
-
-    "Today I learned about FastAPI and built my first endpoint.
-
-    The automatic documentation is amazing! I struggled a bit with
-
-    async functions but the official tutorial helped. Tomorrow I''ll
-
-    tackle database integration."'
+  action: 'Practice:'
+  title: Run chat_history_stream.py
+  url: https://github.com/Azure-Samples/python-openai-demos?tab=readme-ov-file#openai-chat-completions
+  description: Run chat_history_stream.py to combine multi-turn history with streaming. You can explore additional repository examples after completing these required ones.
+  id: phase3-topic4-run-chat-history-stream-py-practice-https-github-com-azure-samples-python-openai-demos-tab-readme-ov-file-openai-chat-completions-run-chat-history-stream-py-to-combine-multi-turn-history-with-streaming-you-can-explore-additional-repository-examples-after-completing-these-required-ones

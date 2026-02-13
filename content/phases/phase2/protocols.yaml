@@ -1,47 +1,69 @@
 id: phase2-topic2
 slug: protocols
 name: Ports and Protocols
-description: Learn how applications communicate over networks through ports and protocols. Understand TCP vs UDP, common port
-  numbers, and how firewalls control traffic flow.
+description: Learn how applications communicate over networks through ports and protocols. Understand TCP vs UDP, common port numbers, and how firewalls control traffic flow.
 order: 2
-is_capstone: false
+learning_objectives:
+- id: protocols-tcp-udp
+  text: Differentiate TCP and UDP behavior and identify appropriate use cases.
+  order: 1
+- id: protocols-ports-firewalls
+  text: Identify common ports and explain how firewall rules control network traffic.
+  order: 2
+- id: protocols-connection-analysis
+  text: Analyze active connections and listening services with practical host-level tools.
+  order: 3
 learning_steps:
 - order: 1
-  text: TCP vs UDP
-  action: 'Learn:'
+  action: 'Watch:'
   title: TCP and UDP Explained
   url: https://www.youtube.com/watch?v=uwoD5YsGACg
-  description: Understand the difference between TCP (connection-oriented, reliable) and UDP (connectionless, fast). Know
-    when to use each protocol.
+  description: Understand the difference between TCP (connection-oriented, reliable) and UDP (connectionless, fast). Know when to use each protocol.
+  id: phase2-topic2-tcp-and-udp-explained-watch-https-www-youtube-com-watch-v-uwod5ysgacg-understand-the-difference-between-tcp-connection-oriented-reliable-and-udp-connectionless-fast-know-when-to-use-each-protocol
 - order: 2
-  text: The TCP Handshake
-  action: 'Learn:'
+  action: 'Watch:'
   title: TCP Three-Way Handshake
   url: https://www.youtube.com/watch?v=xMtP5ZB3wSk
-  description: Understand SYN, SYN-ACK, ACK and how TCP connections are established. This knowledge is crucial for troubleshooting
-    connection issues.
+  description: Understand SYN, SYN-ACK, ACK and how TCP connections are established. This knowledge is crucial for troubleshooting connection issues.
+  id: phase2-topic2-tcp-three-way-handshake-watch-https-www-youtube-com-watch-v-xmtp5zb3wsk-understand-syn-syn-ack-ack-and-how-tcp-connections-are-established-this-knowledge-is-crucial-for-troubleshooting-connection-issues
 - order: 3
-  text: Port Numbers
-  action: 'Memorize:'
+  action: 'Read:'
   title: Common Port Numbers
-  description: 'Know the common ports: 22 (SSH), 80 (HTTP), 443 (HTTPS), 53 (DNS), 25/587 (SMTP), 3306 (MySQL), 5432 (PostgreSQL),
-    6379 (Redis), 27017 (MongoDB).'
+  url: https://www.cloudflare.com/learning/network-layer/what-is-a-computer-port/
+  description: Every service you run uses a port. Some services have well-known, commonly used ports—read this overview to understand the most important ones.
+  id: phase2-topic2-common-port-numbers-read-https-www-cloudflare-com-learning-network-layer-what-is-a-computer-port-every-service-you-run-uses-a-port-some-services-have-well-known-commonly-used-ports-read-this-overview-to-understand-the-most-important-ones
 - order: 4
-  text: Firewalls Basics
-  action: 'Learn:'
+  action: 'Watch:'
   title: How Firewalls Work
   url: https://www.youtube.com/watch?v=kDEX1HXybrU
-  description: Understand how firewalls filter traffic based on IP, port, and protocol. Learn about stateful vs stateless
-    firewalls.
+  description: Understand how firewalls filter traffic based on IP, port, and protocol. Learn about stateful vs stateless firewalls.
+  id: phase2-topic2-how-firewalls-work-watch-https-www-youtube-com-watch-v-kdex1hxybru-understand-how-firewalls-filter-traffic-based-on-ip-port-and-protocol-learn-about-stateful-vs-stateless-firewalls
 - order: 5
-  text: Security Groups Preview
-  action: 'Learn:'
+  action: 'Read:'
   title: Cloud Security Groups
-  description: Preview how cloud providers implement firewalls as security groups. Understand inbound vs outbound rules and
-    the concept of least privilege.
+  description: Preview how cloud providers implement firewalls as security groups. Understand inbound vs outbound rules and the concept of least privilege.
+  id: phase2-topic2-cloud-security-groups-read-preview-how-cloud-providers-implement-firewalls-as-security-groups-understand-inbound-vs-outbound-rules-and-the-concept-of-least-privilege
 - order: 6
-  text: Using netstat and ss
   action: 'Practice:'
   title: View Active Connections
-  description: Use netstat -tulpn or ss -tulpn to see what ports are listening on your system. Identify which processes are
-    using which ports.
+  description: Use ss -lntup as your primary command to see listening ports and owning processes. If you're on Windows, run these commands inside WSL. Use netstat only as a fallback on older systems. You may need sudo to see process names/PIDs for services owned by other users.
+  code: '# Primary (modern)
+
+    ss -lntup
+
+    sudo ss -lntup
+
+
+    # Optional (process-oriented view)
+
+    lsof -i -P -n | grep LISTEN
+
+    sudo lsof -i -P -n | grep LISTEN
+
+
+    # Fallback (older systems)
+
+    netstat -tulpn
+
+    sudo netstat -tulpn'
+  id: phase2-topic2-view-active-connections-practice-use-ss-lntup-as-your-primary-command-to-see-listening-ports-and-owning-processes-if-you-re-on-windows-run-these-commands-inside-wsl-use-netstat-only-as-a-fallback-on-older-systems-you-may-need-sudo-to-see-process-names-pids-for-services-owned-by-other-users

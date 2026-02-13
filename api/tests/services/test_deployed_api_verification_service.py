@@ -684,7 +684,6 @@ class TestValidateSubmissionIntegration:
 
         requirement = HandsOnRequirement(
             id="deployed-journal-api",
-            phase_id=4,
             submission_type=SubmissionType.DEPLOYED_API,
             name="Deployed API",
             description="Test",

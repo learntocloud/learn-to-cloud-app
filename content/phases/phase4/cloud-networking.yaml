@@ -1,84 +1,126 @@
 id: phase4-topic3
 slug: cloud-networking
 name: Cloud Networking Fundamentals
-description: In the previous topic you worked on deploying a VM in the cloud, using default configurations like the VPC, Security
-  Groups etc. This topic focuses on deepening your understanding of cloud networking concepts essential for secure deployments.
+description: In the previous topic you worked on deploying a VM in the cloud, using default configurations like the VPC, Security Groups etc. This topic focuses on deepening your understanding of cloud networking concepts essential for secure deployments. It builds on Phase 2 networking fundamentals and applies them to provider-specific architecture and validation workflows.
 order: 3
-is_capstone: false
+learning_objectives:
+- id: cloud-networking-architecture
+  text: Describe VPC/VNet architecture, CIDR planning, and subnet segmentation.
+  order: 1
+- id: cloud-networking-routing
+  text: Configure routing components such as gateways, NAT, and route tables correctly.
+  order: 2
+- id: cloud-networking-validation
+  text: Validate secure network behavior through practical deployment and connectivity testing.
+  order: 3
 learning_steps:
 - order: 1
-  text: Understand Virtual Private Cloud (VPC/VNet)
-  action: Understand Virtual Private Cloud
-  description: A VPC is your private network in the cloud - an isolated section where you can launch resources with full control
-    over IP addressing, subnets, and routing.
+  action: 'Read:'
+  description: A VPC is your private network in the cloud - an isolated section where you can launch resources with full control over IP addressing, subnets, and routing.
   options:
-  - provider: aws
-    title: What is Amazon VPC?
-    url: https://docs.aws.amazon.com/vpc/latest/userguide/what-is-amazon-vpc.html
-    description: Amazon Virtual Private Cloud documentation
   - provider: azure
     title: Azure Virtual Network Overview
     url: https://learn.microsoft.com/en-us/azure/virtual-network/virtual-networks-overview
     description: Azure Virtual Network fundamentals
+  - provider: aws
+    title: What is Amazon VPC?
+    url: https://docs.aws.amazon.com/vpc/latest/userguide/what-is-amazon-vpc.html
+    description: Amazon Virtual Private Cloud documentation
   - provider: gcp
     title: GCP Virtual Private Cloud
     url: https://cloud.google.com/vpc/docs/overview
     description: Google Cloud VPC documentation
+  title: Understand Virtual Private Cloud (VPC/VNet)
+  id: phase4-topic3-understand-virtual-private-cloud-vpc-vnet-read-a-vpc-is-your-private-network-in-the-cloud-an-isolated-section-where-you-can-launch-resources-with-full-control-over-ip-addressing-subnets-and-routing
 - order: 2
-  text: Learn Subnetting
-  action: 'Learn Subnetting:'
-  title: AWS VPC CIDR Blocks and Subnetting
-  url: https://docs.aws.amazon.com/vpc/latest/userguide/vpc-cidr-blocks.html
-  description: Understand public vs. private subnets and CIDR block notation. This is fundamental to designing secure cloud
-    architectures.
-- order: 3
-  text: Learn about Internet Gateways
-  action: 'Learn:'
-  title: Internet Gateways (AWS)
-  url: https://docs.aws.amazon.com/vpc/latest/userguide/VPC_Internet_Gateway.html
-  description: Understand how Internet Gateways enable internet access for resources in public subnets.
+  action: 'Read:'
+  description: Understand public vs. private subnets and CIDR block notation. This is fundamental to designing secure cloud architectures.
   options:
+  - provider: azure
+    title: Azure VNet Planning and Design
+    url: https://learn.microsoft.com/en-us/azure/virtual-network/virtual-network-vnet-plan-design-arm
+    description: Plan address spaces and subnet segmentation for Azure virtual networks.
+  - provider: aws
+    title: AWS VPC CIDR Blocks and Subnetting
+    url: https://docs.aws.amazon.com/vpc/latest/userguide/vpc-cidr-blocks.html
+    description: Learn how CIDR ranges and subnetting are designed in AWS VPC.
+  - provider: gcp
+    title: GCP VPC Networks and Subnets
+    url: https://cloud.google.com/vpc/docs/vpc
+    description: Understand subnet ranges and IP design in Google Cloud VPC.
+  title: Learn CIDR and subnet design by provider
+  id: phase4-topic3-learn-cidr-and-subnet-design-by-provider-read-understand-public-vs-private-subnets-and-cidr-block-notation-this-is-fundamental-to-designing-secure-cloud-architectures
+- order: 3
+  action: 'Read:'
+  description: Understand how public-facing network components enable internet connectivity for resources in public subnets.
+  options:
+  - provider: azure
+    title: Azure Public IP Addresses
+    url: https://learn.microsoft.com/en-us/azure/virtual-network/ip-services/public-ip-addresses
+    description: Learn how internet-routable connectivity is provided to Azure resources.
   - provider: aws
     title: Internet Gateways
     url: https://docs.aws.amazon.com/vpc/latest/userguide/VPC_Internet_Gateway.html
-    description: How to enable internet access for a VPC
+    description: Learn how Internet Gateways provide VPC internet connectivity.
+  - provider: gcp
+    title: GCP External IP Addresses
+    url: https://cloud.google.com/compute/docs/ip-addresses
+    description: Understand how public IP addresses provide external access in GCP.
+  title: Understand internet connectivity components by provider
+  id: phase4-topic3-understand-internet-connectivity-components-by-provider-read-understand-how-public-facing-network-components-enable-internet-connectivity-for-resources-in-public-subnets
+- order: 4
+  action: 'Read:'
+  description: NAT services allow private subnet resources to access the internet for updates and package downloads without direct inbound exposure.
+  options:
   - provider: azure
     title: Azure NAT Gateway Overview
     url: https://learn.microsoft.com/en-us/azure/nat-gateway/nat-overview
-    description: Understand Network Address Translation in Azure
+    description: Learn outbound internet connectivity for private Azure subnets.
+  - provider: aws
+    title: NAT Gateway Basics (AWS)
+    url: https://docs.aws.amazon.com/vpc/latest/userguide/nat-gateway-basics.html
+    description: Learn how AWS NAT Gateways provide outbound access from private subnets.
   - provider: gcp
     title: Cloud NAT Overview
     url: https://cloud.google.com/nat/docs/overview
-    description: Learn about NAT in Google Cloud
-- order: 4
-  text: Learn about NAT Gateways
-  action: 'Learn:'
-  title: NAT Gateway Basics (AWS)
-  url: https://docs.aws.amazon.com/vpc/latest/userguide/nat-gateway-basics.html
-  description: NAT Gateways enable resources in private subnets to access the internet without being directly accessible
-    from the internet.
+    description: Configure private Google Cloud workloads to reach the internet via NAT.
+  title: Compare NAT patterns across cloud providers
+  id: phase4-topic3-compare-nat-patterns-across-cloud-providers-read-nat-services-allow-private-subnet-resources-to-access-the-internet-for-updates-and-package-downloads-without-direct-inbound-exposure
 - order: 5
-  text: Review AWS Networking Fundamentals
-  action: 'Review:'
-  title: AWS Networking Fundamentals
-  url: https://docs.aws.amazon.com/whitepapers/latest/aws-overview/networking-services.html
-  description: Review AWS networking concepts. Make sure you understand VPCs, subnets, IP addressing, and routing before moving
-    on.
+  action: 'Read:'
+  description: Use provider-native diagnostics to validate effective routes and security policy decisions. Focus on proving why traffic is allowed or denied, not re-learning networking basics.
+  options:
+  - provider: azure
+    title: Azure Network Watcher - IP Flow Verify
+    url: https://learn.microsoft.com/en-us/azure/network-watcher/ip-flow-verify-overview
+    description: Validate NSG decisions for allowed and denied VM traffic flows.
+  - provider: aws
+    title: AWS Reachability Analyzer
+    url: https://docs.aws.amazon.com/vpc/latest/reachability/what-is-reachability-analyzer.html
+    description: Analyze network path reachability across route tables, gateways, and security controls.
+  - provider: gcp
+    title: GCP Connectivity Tests Overview
+    url: https://cloud.google.com/network-intelligence-center/docs/connectivity-tests/concepts/overview
+    description: Run path analysis to verify routing and firewall behavior for target endpoints.
+  title: Validate routing and security decisions by provider
+  id: phase4-topic3-validate-routing-and-security-decisions-by-provider-read-use-provider-native-diagnostics-to-validate-effective-routes-and-security-policy-decisions-focus-on-proving-why-traffic-is-allowed-or-denied-not-re-learning-networking-basics
 - order: 6
-  text: Set up a cloud network (VPC/VNet)
-  action: 'Hands-on:'
+  action: 'Practice:'
   description: Create a VPC or VNet on your cloud provider with a custom CIDR block.
+  title: Set up a cloud network (VPC/VNet)
+  id: phase4-topic3-set-up-a-cloud-network-vpc-vnet-practice-create-a-vpc-or-vnet-on-your-cloud-provider-with-a-custom-cidr-block
 - order: 7
-  text: Create a public and a private subnet
-  action: 'Hands-on:'
-  description: Create two subnets inside your VPC — one public (with a route to the internet gateway) and one private (no
-    direct internet access).
+  action: 'Practice:'
+  description: Create two subnets inside your VPC — one public (with a route to the internet gateway) and one private (no direct internet access).
+  title: Create a public and a private subnet
+  id: phase4-topic3-create-a-public-and-a-private-subnet-practice-create-two-subnets-inside-your-vpc-one-public-with-a-route-to-the-internet-gateway-and-one-private-no-direct-internet-access
 - order: 8
-  text: Configure routing and security groups
-  action: 'Hands-on:'
+  action: 'Practice:'
   description: Associate subnets with appropriate route tables and set up security groups for each subnet.
+  title: Configure routing and security groups
+  id: phase4-topic3-configure-routing-and-security-groups-practice-associate-subnets-with-appropriate-route-tables-and-set-up-security-groups-for-each-subnet
 - order: 9
-  text: Deploy VMs in each subnet and verify access
-  action: 'Hands-on:'
-  description: Deploy a VM in the public subnet and another in the private subnet. Verify the public VM is accessible from
-    the internet and the private VM is not.
+  action: 'Practice:'
+  description: Deploy a VM in the public subnet and another in the private subnet. Verify the public VM is accessible from the internet and the private VM is not.
+  title: Deploy VMs in each subnet and verify access
+  id: phase4-topic3-deploy-vms-in-each-subnet-and-verify-access-practice-deploy-a-vm-in-the-public-subnet-and-another-in-the-private-subnet-verify-the-public-vm-is-accessible-from-the-internet-and-the-private-vm-is-not

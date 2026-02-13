@@ -1,13 +1,20 @@
 id: phase6-topic4
 slug: monitoring-incident-response
 name: Monitoring & Incident Response
-description: Set up logging and alerts so you know when something goes wrong, and have a basic plan for what to do when it
-  does.
+description: Set up logging and alerts so you know when something goes wrong, and have a basic plan for what to do when it does.
 order: 3
-is_capstone: false
+learning_objectives:
+- id: security-monitoring-foundations
+  text: Configure monitoring and audit logging needed for cloud security visibility.
+  order: 1
+- id: security-monitoring-alerting
+  text: Implement targeted alerts for critical security-relevant events.
+  order: 2
+- id: security-monitoring-response
+  text: Create an actionable incident response baseline for common compromise scenarios.
+  order: 3
 learning_steps:
 - order: 1
-  text: Read your cloud provider's monitoring documentation
   action: 'Read:'
   title: Cloud Monitoring Overview
   description: Each cloud provider has monitoring (metrics) and audit logging (who did what). Read the overview for your provider.
@@ -24,19 +31,19 @@ learning_steps:
     title: GCP Cloud Monitoring
     url: https://cloud.google.com/monitoring/docs/monitoring-overview
     description: Monitoring in Google Cloud
+  id: phase6-topic4-cloud-monitoring-overview-read-each-cloud-provider-has-monitoring-metrics-and-audit-logging-who-did-what-read-the-overview-for-your-provider
 - order: 2
-  text: Enable audit logging for your cloud services
-  action: 'Hands-on:'
-  description: Enable CloudTrail (AWS), Activity Log (Azure), or Cloud Logging (GCP) so you have a record of all actions
-    taken on your cloud resources.
+  action: 'Practice:'
+  description: Enable CloudTrail (AWS), Activity Log (Azure), or Cloud Logging (GCP) so you have a record of all actions taken on your cloud resources.
+  title: Enable audit logging for your cloud services
+  id: phase6-topic4-enable-audit-logging-for-your-cloud-services-practice-enable-cloudtrail-aws-activity-log-azure-or-cloud-logging-gcp-so-you-have-a-record-of-all-actions-taken-on-your-cloud-resources
 - order: 3
-  text: Set up an alert for a critical security event
-  action: 'Hands-on:'
-  description: Create at least one alert — for example, notify you when someone modifies a security group or when there are
-    repeated failed login attempts.
+  action: 'Practice:'
+  description: Create at least one alert — for example, notify you when someone modifies a security group or when there are repeated failed login attempts.
+  title: Set up an alert for a critical security event
+  id: phase6-topic4-set-up-an-alert-for-a-critical-security-event-practice-create-at-least-one-alert-for-example-notify-you-when-someone-modifies-a-security-group-or-when-there-are-repeated-failed-login-attempts
 - order: 4
-  text: Enable your cloud provider's threat detection service
-  action: 'Hands-on:'
+  action: 'Practice:'
   description: Turn on the managed threat detection service that scans your environment for suspicious activity.
   options:
   - provider: azure
@@ -51,18 +58,15 @@ learning_steps:
     title: Security Command Center
     url: https://cloud.google.com/security-command-center/docs/concepts-security-command-center-overview
     description: Threat detection in Google Cloud
+  title: Enable your cloud provider's threat detection service
+  id: phase6-topic4-enable-your-cloud-provider-s-threat-detection-service-practice-turn-on-the-managed-threat-detection-service-that-scans-your-environment-for-suspicious-activity
 - order: 5
-  text: Enable security scanning on your GitHub repository
-  action: 'Hands-on:'
+  action: 'Practice:'
   title: GitHub Security Scanning
-  description: 'Enable at least one scanning tool on your journal-starter repository. Dependabot monitors your dependencies for known vulnerabilities — enable it by adding a .github/dependabot.yml file. CodeQL analyzes your code for security issues — enable it via the Security tab or by adding a workflow to .github/workflows/. This is what the phase verification checks.'
-  secondary_links:
-  - text: Configuring Dependabot
-    url: https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuring-dependabot-version-updates
-  - text: Setting up CodeQL
-    url: https://docs.github.com/en/code-security/code-scanning/creating-an-advanced-setup-for-code-scanning/configuring-advanced-setup-for-code-scanning
+  description: Enable at least one scanning tool on your journal-starter repository. Dependabot monitors your dependencies for known vulnerabilities — enable it by adding a .github/dependabot.yml file. CodeQL analyzes your code for security issues — enable it via the Security tab or by adding a workflow to .github/workflows/. This is what the phase verification checks.
+  id: phase6-topic4-github-security-scanning-practice-enable-at-least-one-scanning-tool-on-your-journal-starter-repository-dependabot-monitors-your-dependencies-for-known-vulnerabilities-enable-it-by-adding-a-github-dependabot-yml-file-codeql-analyzes-your-code-for-security-issues-enable-it-via-the-security-tab-or-by-adding-a-workflow-to-github-workflows-this-is-what-the-phase-verification-checks
 - order: 6
-  text: Write a basic incident response runbook
-  action: 'Hands-on:'
-  description: Write a short runbook answering "What do we do if credentials are leaked?" Include steps to rotate credentials,
-    check for unauthorized access, and notify stakeholders.
+  action: 'Practice:'
+  description: Write a short runbook answering "What do we do if credentials are leaked?" Include steps to rotate credentials, check for unauthorized access, and notify stakeholders.
+  title: Write a basic incident response runbook
+  id: phase6-topic4-write-a-basic-incident-response-runbook-practice-write-a-short-runbook-answering-what-do-we-do-if-credentials-are-leaked-include-steps-to-rotate-credentials-check-for-unauthorized-access-and-notify-stakeholders

@@ -3,17 +3,25 @@ slug: cloud-engineer
 name: What is a Cloud Engineer
 description: Learn about the cloud engineer role, what they do day-to-day, and how to become one.
 order: 6
-is_capstone: false
+learning_objectives:
+- id: cloud-engineer-role
+  text: Explain what cloud engineers do and the types of problems they solve.
+  order: 1
+- id: cloud-engineer-skills
+  text: Identify foundational skills and habits needed to grow in cloud engineering.
+  order: 2
+- id: cloud-engineer-self-assessment
+  text: Reflect on personal fit and readiness for continuous learning in this career path.
+  order: 3
 learning_steps:
 - order: 1
-  text: 'Watch: What is a Cloud Engineer'
   action: 'Watch:'
   title: What is a Cloud Engineer
   url: https://youtu.be/7i1WMGxyt4Q
   description: Discover what cloud engineers do, what skills they need, and the path to becoming one.
+  id: phase0-topic6-what-is-a-cloud-engineer-watch-https-youtu-be-7i1wmgxyt4q-discover-what-cloud-engineers-do-what-skills-they-need-and-the-path-to-becoming-one
 - order: 2
-  text: 'Reflect: Is this for me?'
   action: 'Reflect:'
-  description: 'Cloud engineering requires continuous learning and problem-solving. Consider: Do you enjoy figuring out how
-    things work? Are you comfortable with change? Can you commit to learning new technologies regularly?'
+  description: 'Cloud engineering requires continuous learning and problem-solving. Consider: Do you enjoy figuring out how things work? Are you comfortable with change? Can you commit to learning new technologies regularly?'
   title: Is this for me?
+  id: phase0-topic6-is-this-for-me-reflect-cloud-engineering-requires-continuous-learning-and-problem-solving-consider-do-you-enjoy-figuring-out-how-things-work-are-you-comfortable-with-change-can-you-commit-to-learning-new-technologies-regularly

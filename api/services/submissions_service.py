@@ -28,7 +28,10 @@ from repositories.submission_repository import SubmissionRepository
 from schemas import PhaseSubmissionContext, SubmissionData, SubmissionResult
 from services.github_hands_on_verification_service import parse_github_url
 from services.hands_on_verification_service import validate_submission
-from services.phase_requirements_service import get_requirement_by_id
+from services.phase_requirements_service import (
+    get_phase_id_for_requirement,
+    get_requirement_by_id,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -250,6 +253,12 @@ async def submit_validation(
     if not requirement:
         raise RequirementNotFoundError(f"Requirement not found: {requirement_id}")
 
+    phase_id = get_phase_id_for_requirement(requirement_id)
+    if phase_id is None:
+        raise RequirementNotFoundError(
+            f"Requirement not mapped to a phase: {requirement_id}"
+        )
+
     # ── Phase 1: Pre-validation DB reads (short-lived session) ──────────
     # Connection is held for only a few quick queries, then released before
     # the potentially long-running LLM call.
@@ -392,7 +401,7 @@ async def submit_validation(
                 user_id=user_id,
                 requirement_id=requirement_id,
                 submission_type=requirement.submission_type,
-                phase_id=requirement.phase_id,
+                phase_id=phase_id,
                 submitted_value=submitted_value,
                 extracted_username=extracted_username,
                 is_validated=validation_result.is_valid,
@@ -407,9 +416,7 @@ async def submit_validation(
                 existing_data and existing_data.is_validated
             ):
                 denorm_repo = UserPhaseProgressRepository(write_session)
-                await denorm_repo.increment_submissions(
-                    user_id, requirement.phase_id, delta=1
-                )
+                await denorm_repo.increment_submissions(user_id, phase_id, delta=1)
 
             await write_session.commit()
 

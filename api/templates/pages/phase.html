@@ -26,9 +26,6 @@
         {% for topic in topics %}
         <a href="/phase/{{ phase.order }}/{{ topic.slug }}" class="flex items-center justify-between p-4 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-blue-500 dark:hover:border-blue-400 transition-colors">
             <div class="flex items-center gap-3">
-                {% if topic.is_capstone %}
-                <span class="text-yellow-500">⭐</span>
-                {% endif %}
                 <span class="font-medium text-gray-900 dark:text-gray-100">{{ topic.name }}</span>
             </div>
             {% if topic.progress %}
@@ -50,10 +47,6 @@
 {% if requirements %}
 <div id="verification-section">
     <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Hands-on Verification</h2>
-
-    {% if phase.hands_on_verification and phase.hands_on_verification.summary %}
-    <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">{{ phase.hands_on_verification.summary }}</p>
-    {% endif %}
 
     <div class="space-y-4">
         {% for req in requirements %}

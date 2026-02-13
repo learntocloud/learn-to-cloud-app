@@ -1,23 +1,28 @@
-id: phase3-topic7
+id: phase3-topic5
 slug: build-the-app
 name: 'Capstone: Learning Journal API'
-description: Time to put everything together! In this capstone project, you'll build a working Learning Journal API that combines
-  Python, FastAPI, databases, and LLM integration. This project synthesizes all Phase 3 skills into a complete application.
+description: Time to put everything together! In this capstone project, you'll build a working Learning Journal API that combines Python, FastAPI, databases, and LLM integration. This project synthesizes all Phase 3 skills into a complete application.
 short_description: Build a Learning Journal API with FastAPI, PostgreSQL, and AI-powered entry analysis using LLMs.
-order: 7
-is_capstone: true
+order: 5
+learning_objectives:
+- id: build-app-system-integration
+  text: Integrate FastAPI routing, request/response models, PostgreSQL data access, and LLM analysis into one working API.
+  order: 1
+- id: build-app-feature-delivery
+  text: Implement required capstone behaviors end to end, including path-parameter routes, correct 404 handling, and async-ready service flows.
+  order: 2
+- id: build-app-portfolio-readiness
+  text: Validate required API behaviors, publish your implementation on GitHub, and present it as a cloud engineering project artifact.
+  order: 3
 learning_steps:
 - order: 1
-  text: Go to the Journal Starter Repository
-  action: Go to the
+  action: 'Practice:'
   title: Journal Starter Repository
   url: https://github.com/learntocloud/journal-starter
-  description: 'The repository README has everything you need: Dev Container setup, development tasks using feature branches,
-    LLM provider configuration, and troubleshooting tips. Fork the repo and follow the instructions there to build your Journal
-    API.'
+  description: 'Time to complete the capstone. The repository README has everything you need: Dev Container setup, development tasks using feature branches, LLM provider configuration, and troubleshooting tips. Fork the repo and follow the instructions there to build your Journal API.'
+  id: phase3-topic5-journal-starter-repository-practice-https-github-com-learntocloud-journal-starter-time-to-complete-the-capstone-the-repository-readme-has-everything-you-need-dev-container-setup-development-tasks-using-feature-branches-llm-provider-configuration-and-troubleshooting-tips-fork-the-repo-and-follow-the-instructions-there-to-build-your-journal-api
 - order: 2
-  text: Share your project
-  action: 'Share:'
+  action: 'Reflect:'
   title: Share Your Progress
-  description: When you've completed the capstone, push your work to GitHub! This becomes part of your portfolio. Consider
-    sharing it on LinkedIn or with the Learn to Cloud community to get feedback and celebrate your progress.
+  description: When you've completed the capstone, push your work to GitHub! This becomes part of your portfolio. Consider sharing it on LinkedIn or with the Learn to Cloud community to get feedback and celebrate your progress.
+  id: phase3-topic5-share-your-progress-reflect-when-you-ve-completed-the-capstone-push-your-work-to-github-this-becomes-part-of-your-portfolio-consider-sharing-it-on-linkedin-or-with-the-learn-to-cloud-community-to-get-feedback-and-celebrate-your-progress

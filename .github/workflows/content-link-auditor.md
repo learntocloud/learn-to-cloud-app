@@ -5,7 +5,7 @@ on:
 
 description: >
   Weekly audit of all external URLs in Learn to Cloud content YAML files.
-  Checks for broken links, redirects, and retired certifications.
+  Checks for broken links and redirects.
 
 engine: copilot
 
@@ -118,9 +118,6 @@ URLs can appear in these YAML fields:
 - `learning_steps[].url` — primary learning link
 - `learning_steps[].secondary_links[].url` — additional links within a step
 - `learning_steps[].options[].url` — provider-specific alternatives (AWS/Azure/GCP)
-- `certifications.url` or `certifications[].url` — in `_phase.yaml` files
-- `additional_resources[].url` — in `_phase.yaml` files
-- `entry_level_jobs.resources[].url` — in `_phase.yaml` files
 - `security_overviews[].url` — in `_phase.yaml` files
 
 Ignore template/placeholder URLs like `https://github.com/your-username` or localhost URLs.
@@ -140,18 +137,7 @@ Classify results as:
 
 For YouTube URLs (`youtu.be`, `youtube.com`), a 200 response is sufficient — don't try to parse the page content.
 
-### Step 3: Check certification relevance
-
-Only **Phase 0** and **Phase 4** have a `certifications` section in their `_phase.yaml`.
-
-- **Phase 0** (`content/phases/phase0/_phase.yaml`): single certification object with `title` and `url` fields (CompTIA A+).
-- **Phase 4** (`content/phases/phase4/_phase.yaml`): list of certification objects, each with `provider`, `title`, and `url` fields (AWS, Azure, GCP).
-
-For each certification URL, check:
-- Is the certification page still active (not showing "retired" or "discontinued")?
-- Has the certification name or exam code changed?
-
-### Step 4: Generate the report
+### Step 3: Generate the report
 
 Create a GitHub issue with the findings. Structure the issue body as:
 
@@ -173,12 +159,6 @@ Create a GitHub issue with the findings. Structure the issue body as:
 |------|-------|-------------|--------------|
 | ... | ... | ... | ... |
 
-### 🟠 Certification Concerns
-
-| Phase | Certification | Issue |
-|-------|--------------|-------|
-| phase4 | AWS CCP | Name changed to "AWS Certified Cloud Practitioner (CLF-C02)" |
-
 ### ✅ Summary
 
 All {N} other links are healthy.
@@ -186,7 +166,6 @@ All {N} other links are healthy.
 ### Recommended Actions
 - [ ] Update redirected URLs to their final destinations
 - [ ] Remove or replace broken links
-- [ ] Verify certification name/code changes
 ```
 
 ## Important Guidelines

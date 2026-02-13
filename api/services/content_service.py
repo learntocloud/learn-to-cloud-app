@@ -21,6 +21,29 @@ from schemas import Phase, Topic
 logger = logging.getLogger(__name__)
 
 
+def _validate_topic_payload(data: dict, topic_file: Path) -> None:
+    """Validate topic payload learning step IDs are explicit and unique."""
+    topic_id = str(data.get("id", "")).strip()
+    topic_name = topic_id or topic_file.stem
+    steps = data.get("learning_steps", [])
+    if not isinstance(steps, list):
+        raise ValueError("learning_steps must be a list")
+
+    seen: set[str] = set()
+    for step in steps:
+        if not isinstance(step, dict):
+            raise ValueError("Each learning step must be a mapping")
+
+        step_id = str(step.get("id", "")).strip()
+        if not step_id:
+            raise ValueError(f"Missing learning_steps[].id in topic '{topic_name}'")
+        if step_id in seen:
+            raise ValueError(
+                f"Duplicate learning_steps[].id '{step_id}' in topic '{topic_name}'"
+            )
+        seen.add(step_id)
+
+
 def _get_content_dir() -> Path:
     """Get the content directory from settings.
 
@@ -38,6 +61,7 @@ def _load_topic(phase_dir: Path, topic_slug: str) -> Topic | None:
     try:
         with open(topic_file, encoding="utf-8") as f:
             data = yaml.safe_load(f)
+        _validate_topic_payload(data, topic_file)
         return Topic.model_validate(data)
     except Exception:
         logger.exception(
@@ -66,13 +90,6 @@ def _load_phase(phase_slug: str) -> Phase | None:
         ]
         data["topic_slugs"] = topic_slugs
         data["topics"] = topics
-
-        # Inject phase_id into each hands-on requirement
-        phase_id = data.get("id", 0)
-        hov = data.get("hands_on_verification")
-        if isinstance(hov, dict):
-            for req in hov.get("requirements", []) or []:
-                req.setdefault("phase_id", phase_id)
 
         return Phase.model_validate(data)
     except Exception:

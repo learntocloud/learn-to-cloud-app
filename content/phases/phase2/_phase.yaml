@@ -10,45 +10,19 @@ badge:
   name: Network Navigator
   description: Completed Phase 2
   icon: 🌐
-additional_context: These fundamentals apply everywhere—whether you're debugging a local dev environment or architecting cloud
-  infrastructure. Take time to understand the concepts deeply; you'll use this knowledge daily.
 order: 2
-prerequisites:
-- 'Completed Phase 1: Linux and Bash'
-- Basic command line comfort
-capstone:
-  title: 'Capstone: Network Troubleshooting Lab'
-  summary: Diagnose and fix network connectivity issues in a simulated broken environment. Apply your networking knowledge
-    to identify DNS, routing, firewall, and port problems.
-  includes:
-  - Set up a local multi-container environment with intentional network issues
-  - Use ping, traceroute, dig, curl, and netstat to diagnose problems
-  - Document your troubleshooting process and findings
-  - Apply fixes and verify connectivity is restored
-  topic_slug: troubleshooting-lab
 hands_on_verification:
-  summary: Demonstrate your networking troubleshooting skills by completing the lab and documenting your process.
-  includes:
-  - Complete the Network Troubleshooting Lab
-  - Document at least 3 issues found and how you diagnosed them
-  - Submit your troubleshooting report
   requirements:
   - id: networking-lab-fork
     submission_type: repo_fork
-    name: Forked the Networking Lab Repo
-    description: Fork the Networking Lab repository to your GitHub account. You'll use this fork to work through the networking
-      challenges.
-    submission_instructions: Paste the URL to your fork of the networking-lab repo (e.g. https://github.com/your-username/networking-lab).
-      The system will verify it is a fork of learntocloud/networking-lab under your GitHub account.
+    name: Fork the Networking Lab Repository
+    description: Fork learntocloud/networking-lab so you can complete and track the lab in your own account.
     placeholder: https://github.com/username/networking-lab
-    example_url: https://github.com/madebygps/networking-lab
     required_repo: learntocloud/networking-lab
   - id: networking-lab-token
     submission_type: networking_token
-    name: Completed Networking Lab
-    description: Complete all four networking challenges and submit the completion token displayed at the end of the lab.
-    submission_instructions: Paste the completion token you received after finishing all four networking challenges. The token
-      is displayed at the end of the lab.
+    name: Submit the Networking Lab Completion Token
+    description: Finish all four networking challenges and submit the completion token shown at the end.
     placeholder: Paste your networking lab completion token here
 topics:
 - fundamentals

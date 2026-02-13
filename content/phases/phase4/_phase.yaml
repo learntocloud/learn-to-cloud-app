@@ -14,61 +14,18 @@ badge:
 order: 4
 topics:
 - vms-compute
+- billing-cost-management
 - security-iam
 - cloud-networking
 - secure-remote-access
 - database-deployment
-- fastapi-deployment
-- billing-cost-management
+- monitor-application-infrastructure
 - cloud-ai-services
 - capstone
-capstone:
-  title: 'Capstone: Cloud Deployment'
-  summary: Deploy your Journal API to a secure 2-tier cloud architecture and document your design decisions.
-  includes:
-  - Deploy the API to an internet-accessible compute layer
-  - Use a private database tier (managed or VM-based)
-  - Apply least-privilege networking and security controls
-  topic_slug: capstone
 hands_on_verification:
-  summary: Finished the Cloud Deployment capstone? Submit your live API URL and the system will verify it automatically.
-  includes:
-  - 'Complete the Capstone: Cloud Deployment'
-  - Submit your deployed API's HTTPS URL for automated verification
   requirements:
   - id: deployed-journal-api
     submission_type: deployed_api
-    name: Deployed a Public Journal API
-    description: Submit your deployed Journal API's HTTPS URL. The system will verify you own the API by creating a test
-      entry, confirming it appears, and deleting it. Your POST, GET, and DELETE /entries endpoints must all be working.
-    submission_instructions: "Paste your deployed API's base URL (e.g. https://my-journal-api.azurewebsites.net).
-      Before submitting, make sure: 1) The URL uses HTTPS. 2) Your API's POST /entries, GET /entries, and
-      DELETE /entries/{id} endpoints are all working. 3) You have at least one journal entry already created.
-      The system will post a temporary challenge entry to your API, check that it appears in GET /entries,
-      then delete it. This proves you control the API — not just that some URL returns JSON."
+    name: Deploy a Public Journal API
+    description: Submit your HTTPS API base URL so the verifier can run POST/GET challenge-response checks on /entries and validate the response format.
     placeholder: https://your-api.example.com
-    example_url: https://my-journal-api.azurewebsites.net
-prerequisites:
-- 'Completed Phase 1: Linux and Bash'
-- 'Completed Phase 2: Networking Fundamentals'
-- 'Completed Phase 3: Programming Fundamentals'
-- A cloud platform account (AWS, Azure, or GCP)
-certifications:
-- provider: AWS
-  title: AWS Certified Cloud Practitioner
-  url: https://aws.amazon.com/certification/certified-cloud-practitioner/
-  description: Entry-level certification covering AWS fundamentals
-  is_necessary: false
-  recommendation: Good for validating foundational AWS knowledge
-- provider: Azure
-  title: 'AZ-900: Azure Fundamentals'
-  url: https://learn.microsoft.com/en-us/certifications/azure-fundamentals/
-  description: Entry-level certification covering Azure fundamentals
-  is_necessary: false
-  recommendation: Great starting point for Azure learners
-- provider: GCP
-  title: Cloud Digital Leader
-  url: https://cloud.google.com/learn/certification/cloud-digital-leader
-  description: Entry-level certification covering GCP fundamentals
-  is_necessary: false
-  recommendation: Good for validating foundational GCP knowledge

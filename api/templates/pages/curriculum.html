@@ -41,11 +41,7 @@
                 <ul class="space-y-2">
                     {% for topic in phase.topics %}
                     <li class="flex items-center gap-2 text-base">
-                        {% if topic.is_capstone %}
-                        <span class="text-yellow-500 flex-shrink-0">⭐</span>
-                        {% else %}
                         <span class="text-gray-300 dark:text-gray-600 flex-shrink-0">•</span>
-                        {% endif %}
                         <span class="text-gray-700 dark:text-gray-300">{{ topic.name }}</span>
                     </li>
                     {% endfor %}

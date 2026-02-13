@@ -1,42 +1,46 @@
-id: phase3-topic3
+id: phase3-topic2
 slug: fastapi
 name: FastAPI
-description: FastAPI is a modern, fast (high-performance) web framework for building APIs with Python 3.6+ based on standard
-  Python type hints. It is the framework we use to build the L2C Journal application and what you will use as well.
-order: 4
-is_capstone: false
+description: FastAPI is a modern, fast (high-performance) web framework for building APIs with Python 3.6+ based on standard Python type hints. It is the framework we use to build the L2C Journal application and what you will use as well.
+order: 2
+learning_objectives:
+- id: fastapi-framework-basics
+  text: Implement and test FastAPI endpoints with path parameters, /docs workflows, and clear HTTP method semantics.
+  order: 1
+- id: fastapi-data-validation
+  text: Apply Pydantic models and HTTPException handling to enforce request validation and required 404 behaviors.
+  order: 2
+- id: fastapi-async-practice
+  text: Build async-ready endpoint patterns for I/O-bound workflows such as database and external API calls.
+  order: 3
 learning_steps:
 - order: 1
-  text: 'Study: FastAPI official tutorial'
-  action: 'Study:'
-  title: FastAPI official tutorial
-  url: https://fastapi.tiangolo.com/tutorial/
-  description: Work through the official FastAPI tutorial by the framework creator. This comprehensive guide covers everything
-    from basic setup to advanced features.
-- order: 2
-  text: 'Learn: Path Operations & CRUD'
-  action: 'Learn:'
-  title: FastAPI Path Operations
-  url: https://fastapi.tiangolo.com/tutorial/first-steps/
-  description: Understand how to create API endpoints using path operation decorators (@app.get, @app.post, @app.put, @app.delete).
-    These map directly to the CRUD operations you'll implement in the Journal API.
-- order: 3
-  text: 'Learn: Request & Response Models with Pydantic'
-  action: 'Learn:'
-  title: Pydantic Models in FastAPI
-  url: https://fastapi.tiangolo.com/tutorial/body/
-  description: Learn how FastAPI uses Pydantic models to validate request bodies and serialize responses. Your Journal API will
-    use models to define entry schemas with fields like work, struggle, and intention.
-- order: 4
-  text: 'Practice: Build a simple CRUD API'
   action: 'Practice:'
-  title: Build a Mini CRUD API
-  description: 'Before tackling the capstone, practice by building a minimal CRUD API. Create a FastAPI app with endpoints to
-    create, read, update, and delete items stored in a Python list. Test your endpoints using the auto-generated /docs page.'
+  title: FastAPI First Steps
+  url: https://fastapi.tiangolo.com/tutorial/first-steps/
+  description: Complete the first-steps tutorial end to end in code. This gives you the minimum FastAPI workflow needed to run endpoints and use /docs for the capstone.
+  id: phase3-topic2-fastapi-first-steps-practice-https-fastapi-tiangolo-com-tutorial-first-steps-complete-the-first-steps-tutorial-end-to-end-in-code-this-gives-you-the-minimum-fastapi-workflow-needed-to-run-endpoints-and-use-docs-for-the-capstone
+- order: 2
+  action: 'Read:'
+  title: Path Parameters
+  url: https://fastapi.tiangolo.com/tutorial/path-params/
+  description: Focus on path parameter patterns for routes like /entries/{entry_id} used by GET single entry, DELETE single entry, and analyze entry endpoints.
+  id: phase3-topic2-path-parameters-read-https-fastapi-tiangolo-com-tutorial-path-params-focus-on-path-parameter-patterns-for-routes-like-entries-entry-id-used-by-get-single-entry-delete-single-entry-and-analyze-entry-endpoints
+- order: 3
+  action: 'Read:'
+  title: Request Body and Pydantic Models
+  url: https://fastapi.tiangolo.com/tutorial/body/
+  description: Learn request validation and schema modeling to handle journal entry payloads and consistent API responses.
+  id: phase3-topic2-request-body-and-pydantic-models-read-https-fastapi-tiangolo-com-tutorial-body-learn-request-validation-and-schema-modeling-to-handle-journal-entry-payloads-and-consistent-api-responses
+- order: 4
+  action: 'Read:'
+  title: Handling Errors
+  url: https://fastapi.tiangolo.com/tutorial/handling-errors/
+  description: Use HTTPException correctly for not found and validation scenarios, especially 404 behavior required in the capstone tasks.
+  id: phase3-topic2-handling-errors-read-https-fastapi-tiangolo-com-tutorial-handling-errors-use-httpexception-correctly-for-not-found-and-validation-scenarios-especially-404-behavior-required-in-the-capstone-tasks
 - order: 5
-  text: 'Learn: Async Endpoints'
-  action: 'Learn:'
+  action: 'Read:'
   title: Async and Await in FastAPI
   url: https://fastapi.tiangolo.com/async/
-  description: Understand when to use async def vs def for your endpoints. The Journal API uses async endpoints for database
-    and LLM operations, so understanding this pattern is important.
+  description: Understand when to use async def vs def for your endpoints. The Journal API uses async endpoints for database and LLM operations, so understanding this pattern is important.
+  id: phase3-topic2-async-and-await-in-fastapi-read-https-fastapi-tiangolo-com-async-understand-when-to-use-async-def-vs-def-for-your-endpoints-the-journal-api-uses-async-endpoints-for-database-and-llm-operations-so-understanding-this-pattern-is-important

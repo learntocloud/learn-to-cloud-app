@@ -11,6 +11,17 @@ import markdown
 _md = markdown.Markdown(extensions=["fenced_code", "tables"])
 
 
+def _provider_sort_key(provider: str) -> tuple[int, str]:
+    provider_key = (provider or "").strip().lower()
+    if provider_key == "azure":
+        return (0, provider_key)
+    if provider_key == "aws":
+        return (1, provider_key)
+    if provider_key == "gcp":
+        return (2, provider_key)
+    return (3, provider_key)
+
+
 def render_md(text: str | None) -> str:
     """Render markdown text to HTML. Returns empty string if falsy input."""
     if not text:
@@ -31,8 +42,8 @@ def build_step_data(
         md_renderer: Markdown-to-HTML callable (default: module-level render_md).
     """
     data: dict = {
+        "id": getattr(step, "id"),
         "order": step.order,
-        "text": getattr(step, "text", ""),
         "action": getattr(step, "action", ""),
         "title": getattr(step, "title", ""),
         "url": getattr(step, "url", ""),
@@ -40,9 +51,13 @@ def build_step_data(
         "description_html": md_renderer(getattr(step, "description", "")),
         "code": getattr(step, "code", ""),
         "options": [],
-        "secondary_links": [],
     }
-    for opt in getattr(step, "options", []):
+    sorted_options = sorted(
+        getattr(step, "options", []),
+        key=lambda option: _provider_sort_key(getattr(option, "provider", "")),
+    )
+
+    for opt in sorted_options:
         data["options"].append(
             {
                 "provider": getattr(opt, "provider", ""),
@@ -50,13 +65,6 @@ def build_step_data(
                 "title": getattr(opt, "title", ""),
                 "url": getattr(opt, "url", ""),
                 "description_html": md_renderer(getattr(opt, "description", "")),
-            }
-        )
-    for link in getattr(step, "secondary_links", []):
-        data["secondary_links"].append(
-            {
-                "text": getattr(link, "text", ""),
-                "url": getattr(link, "url", ""),
             }
         )
     return data

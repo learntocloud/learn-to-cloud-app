@@ -1,20 +1,34 @@
 id: phase0-topic3
 slug: programming
-name: What is Programming
-description: Programming enables you to automate tasks and manage cloud resources efficiently. Understanding the basics will
-  help you throughout your cloud journey.
+name: What is Computer Programming
+description: Computer programming enables you to automate tasks and manage cloud resources efficiently. Understanding the basics will help you throughout your cloud journey.
 order: 3
-is_capstone: false
+learning_objectives:
+- id: programming-purpose
+  text: Understand what computer programming is and why it matters for cloud and DevOps automation.
+  order: 1
+- id: programming-install-python
+  text: Install Python and complete beginner Day 1 exercises to set up your coding environment.
+  order: 2
+- id: programming-json-practice
+  text: Build confidence reading API-style JSON data with a simple Python script.
+  order: 3
 learning_steps:
 - order: 1
-  text: 'Watch: What is Programming'
   action: 'Watch:'
-  title: What is Programming
+  title: What is Computer Programming
   url: https://youtu.be/ifo76VyrBYo
-  description: Discover what programming is and how it's used to automate tasks and build applications in cloud environments.
+  description: Learn core computer programming concepts including what a program, programmer, and programming language are, types of languages (machine, assembly, middle, and high level), and how compilation vs interpretation works.
+  id: phase0-topic3-what-is-computer-programming-watch-https-youtu-be-ifo76vyrbyo-learn-core-computer-programming-concepts-including-what-a-program-programmer-and-programming-language-are-types-of-languages-machine-assembly-middle-and-high-level-and-how-compilation-vs-interpretation-works
 - order: 2
-  text: 'Read: Programming vs Scripting'
-  action: 'Read:'
-  title: Programming vs Scripting Languages
-  url: https://www.geeksforgeeks.org/whats-the-difference-between-scripting-and-programming-languages/
-  description: Understand the difference between programming and scripting—both are useful in cloud engineering.
+  action: 'Practice:'
+  title: Install Python and Complete Day 1
+  url: https://7daysofpython.com/days/day1/
+  description: Install Python on your computer, then complete Day 1 of this beginner track to set up your environment and run your first Python exercises.
+  id: phase0-topic3-install-python-and-complete-day-1-practice-https-7daysofpython-com-days-day1-install-python-on-your-computer-then-complete-day-1-of-this-beginner-track-to-set-up-your-environment-and-run-your-first-python-exercises
+- order: 3
+  action: 'Practice:'
+  title: Parse JSON with a Simple Python Script
+  description: Run this small script to practice reading JSON data like you'll do when working with APIs in later phases.
+  code: "sample = {\n  \"service\": \"journal-api\",\n  \"status\": \"healthy\",\n  \"region\": \"eastus\",\n  \"requests_last_hour\": 128,\n}\n\nfor key, value in sample.items():\n    print(f\"{key}: {value}\")\n"
+  id: phase0-topic3-parse-json-with-a-simple-python-script-practice-run-this-small-script-to-practice-reading-json-data-like-you-ll-do-when-working-with-apis-in-later-phases

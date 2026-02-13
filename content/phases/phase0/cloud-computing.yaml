@@ -1,26 +1,51 @@
 id: phase0-topic4
 slug: cloud-computing
 name: What is Cloud Computing
-description: Cloud computing is the foundation of modern infrastructure. Learn about IaaS, PaaS, SaaS, and different service
-  models.
+description: Cloud computing is the foundation of modern infrastructure. Learn about IaaS, PaaS, SaaS, and different service models.
 order: 4
-is_capstone: false
+learning_objectives:
+- id: cloud-models
+  text: Define cloud computing and differentiate IaaS, PaaS, and SaaS models.
+  order: 1
+- id: cloud-provider-awareness
+  text: Identify AWS, Azure, and GCP as major cloud providers and understand their shared fundamentals.
+  order: 2
+- id: cloud-learning-direction
+  text: Choose a primary cloud provider while keeping concepts transferable across platforms.
+  order: 3
 learning_steps:
 - order: 1
-  text: 'Watch: What is Cloud Computing'
   action: 'Watch:'
   title: What is Cloud Computing
   url: https://youtu.be/eZLcyTxi8ZI
   description: Learn about IaaS, PaaS, SaaS and the different service models that make up cloud computing.
+  id: phase0-topic4-what-is-cloud-computing-watch-https-youtu-be-ezlcytxi8zi-learn-about-iaas-paas-saas-and-the-different-service-models-that-make-up-cloud-computing
 - order: 2
-  text: 'Read: Cloud Service Models'
   action: 'Read:'
   title: IaaS vs PaaS vs SaaS
   url: https://azure.microsoft.com/en-us/resources/cloud-computing-dictionary/types-of-cloud-computing
   description: Dive deeper into the three main cloud service models and when to use each.
+  id: phase0-topic4-iaas-vs-paas-vs-saas-read-https-azure-microsoft-com-en-us-resources-cloud-computing-dictionary-types-of-cloud-computing-dive-deeper-into-the-three-main-cloud-service-models-and-when-to-use-each
 - order: 3
-  text: 'Explore: Major Cloud Providers'
-  action: 'Explore:'
-  description: The three major cloud providers are AWS (Amazon), Azure (Microsoft), and GCP (Google). You'll choose one to
-    focus on throughout this guide, but the concepts you learn apply to all of them.
-  title: Major Cloud Providers
+  action: 'Practice:'
+  title: Choose One Cloud and Stick With It
+  description: Select one cloud provider and stick with it throughout the entire curriculum—do not switch, because changing providers mid-way wastes time. Research job listings in your local area for roles like "sysadmin," "helpdesk," "cloud engineer," and "devops," then pick the cloud provider that appears most often.
+  id: phase0-topic4-choose-one-cloud-and-stick-with-it-practice-select-one-cloud-provider-and-stick-with-it-throughout-the-entire-curriculum-do-not-switch-because-changing-providers-mid-way-wastes-time-research-job-listings-in-your-local-area-for-roles-like-sysadmin-helpdesk-cloud-engineer-and-devops-then-pick-the-cloud-provider-that-appears-most-often
+- order: 4
+  action: 'Practice:'
+  title: Create Your Cloud Account
+  description: Use your cloud picker decision from the previous step, then create an account in your chosen provider.
+  options:
+  - provider: azure
+    title: Create an Azure account
+    url: https://portal.azure.com
+    description: Sign in or create your Azure account in the Azure portal.
+  - provider: aws
+    title: Create an AWS account
+    url: https://console.aws.amazon.com
+    description: Sign in or create your AWS account in the AWS Management Console.
+  - provider: gcp
+    title: Create a Google Cloud account
+    url: https://console.cloud.google.com
+    description: Sign in or create your Google Cloud account in the Google Cloud console.
+  id: phase0-topic4-create-your-cloud-account-practice-use-your-cloud-picker-decision-from-the-previous-step-then-create-an-account-in-your-chosen-provider

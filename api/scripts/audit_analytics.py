@@ -47,14 +47,14 @@ async def audit():
 
         r = await db.execute(
             text(
-                "SELECT phase_id, topic_id, step_order, completed_at "
+                "SELECT phase_id, topic_id, step_id, step_order, completed_at "
                 "FROM step_progress ORDER BY completed_at DESC LIMIT 5"
             )
         )
         for row in r.all():
             print(
                 f"[RAW] step: phase={row[0]}, topic={row[1]}, "
-                f"step={row[2]}, completed_at={row[3]}"
+                f"step_id={row[2]}, step_order={row[3]}, completed_at={row[4]}"
             )
 
         r = await db.execute(

@@ -1,17 +1,23 @@
 id: phase6-topic3
 slug: network-security
 name: Network Security
-description: Your Journal API's database should not be accessible from the public internet. Set up the network boundaries
-  that make that possible — VPCs, subnets, and security groups.
+description: Your Journal API's database should not be accessible from the public internet. Set up the network boundaries that make that possible — VPCs, subnets, and security groups.
 order: 2
-is_capstone: false
+learning_objectives:
+- id: network-security-segmentation
+  text: Explain secure subnet segmentation for internet-facing and internal workloads.
+  order: 1
+- id: network-security-policy-controls
+  text: Apply firewall and security group policies to restrict unnecessary network exposure.
+  order: 2
+- id: network-security-database-protection
+  text: Enforce private database access paths aligned with production security expectations.
+  order: 3
 learning_steps:
 - order: 1
-  text: Read your cloud provider's VPC documentation
   action: 'Read:'
   title: VPC Overview
-  description: A VPC is your private network in the cloud. Your API server goes in a public subnet, your database goes in
-    a private subnet.
+  description: A VPC is your private network in the cloud. Your API server goes in a public subnet, your database goes in a private subnet.
   options:
   - provider: azure
     title: Azure Virtual Network Overview
@@ -25,12 +31,10 @@ learning_steps:
     title: GCP VPC Network Overview
     url: https://cloud.google.com/vpc/docs/vpc
     description: Google Cloud VPC documentation
+  id: phase6-topic3-vpc-overview-read-a-vpc-is-your-private-network-in-the-cloud-your-api-server-goes-in-a-public-subnet-your-database-goes-in-a-private-subnet
 - order: 2
-  text: Understand security groups vs network ACLs
-  action: 'Learn:'
-  description: Security groups are stateful firewalls around individual resources (allow rules only). Network ACLs are stateless
-    firewalls around entire subnets (allow AND deny rules). For your Journal API, a security group on the database should
-    allow port 5432 only from your API server.
+  action: 'Read:'
+  description: Security groups are stateful firewalls around individual resources (allow rules only). Network ACLs are stateless firewalls around entire subnets (allow AND deny rules). For your Journal API, a security group on the database should allow port 5432 only from your API server.
   options:
   - provider: azure
     title: Azure Network Security Groups
@@ -44,15 +48,15 @@ learning_steps:
     title: GCP Firewall Rules
     url: https://cloud.google.com/firewall/docs/firewalls
     description: Firewall rules in Google Cloud
+  title: Understand security groups vs network ACLs
+  id: phase6-topic3-understand-security-groups-vs-network-acls-read-security-groups-are-stateful-firewalls-around-individual-resources-allow-rules-only-network-acls-are-stateless-firewalls-around-entire-subnets-allow-and-deny-rules-for-your-journal-api-a-security-group-on-the-database-should-allow-port-5432-only-from-your-api-server
 - order: 3
-  text: Learn about network segmentation with public and private subnets
-  action: 'Learn:'
+  action: 'Read:'
   title: Azure Network Security Best Practices
   url: https://learn.microsoft.com/en-us/azure/security/fundamentals/network-best-practices
-  description: Public subnets face the internet (load balancer, API). Private subnets are internal only (database). This
-    separation is the foundation of secure cloud architecture.
+  description: Public subnets face the internet (load balancer, API). Private subnets are internal only (database). This separation is the foundation of secure cloud architecture.
+  id: phase6-topic3-azure-network-security-best-practices-read-https-learn-microsoft-com-en-us-azure-security-fundamentals-network-best-practices-public-subnets-face-the-internet-load-balancer-api-private-subnets-are-internal-only-database-this-separation-is-the-foundation-of-secure-cloud-architecture
 - order: 4
-  text: Watch a network security walkthrough for your provider
   action: 'Watch:'
   description: Follow along in your own account if you can.
   options:
@@ -68,3 +72,5 @@ learning_steps:
     title: GCP Networking Fundamentals (40 min)
     url: https://www.youtube.com/watch?v=cNb4xzAyTiQ
     description: GCP networking walkthrough
+  title: Watch a network security walkthrough for your provider
+  id: phase6-topic3-watch-a-network-security-walkthrough-for-your-provider-watch-follow-along-in-your-own-account-if-you-can

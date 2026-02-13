@@ -1,0 +1,76 @@
+id: phase4-topic6
+slug: monitoring-foundations-for-apps-and-vms
+name: Monitoring Foundations for Apps and VMs
+description: This topic focuses on operating and monitoring cloud-hosted applications. You'll learn provider monitoring fundamentals, how logs and metrics are collected, secure environment variable and secret handling patterns, and reliable Uvicorn process management guidance.
+order: 6
+learning_objectives:
+- id: monitor-application-infrastructure-provider-basics
+  text: Understand core monitoring services across Azure, AWS, and GCP for app and VM visibility.
+  order: 1
+- id: monitor-application-infrastructure-secure-config
+  text: Configure environment variables and secret handling safely on virtual machines.
+  order: 2
+- id: monitor-application-infrastructure-operational-signals
+  text: Understand operational logging and metrics signals for runtime visibility.
+  order: 3
+learning_steps:
+- order: 1
+  action: 'Read:'
+  description: 'Start with your cloud provider''s monitoring platform and understand how logs, metrics, traces, and alerts are organized:'
+  options:
+  - provider: azure
+    title: What is Azure Monitor?
+    url: https://learn.microsoft.com/en-us/azure/azure-monitor/fundamentals/overview
+    description: Learn Azure Monitor fundamentals for application and VM observability.
+  - provider: aws
+    title: What is Amazon CloudWatch?
+    url: https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/WhatIsCloudWatch.html
+    description: Learn CloudWatch fundamentals for metrics, logs, alarms, and dashboards.
+  - provider: gcp
+    title: Cloud Monitoring Overview
+    url: https://cloud.google.com/monitoring/docs/monitoring-overview
+    description: Learn Google Cloud Monitoring fundamentals for infrastructure and services.
+  title: Learn your provider's monitoring fundamentals
+  id: phase4-topic6-learn-your-provider-s-monitoring-fundamentals-read-start-with-your-cloud-provider-s-monitoring-platform-and-understand-how-logs-metrics-traces-and-alerts-are-organized
+- order: 2
+  action: 'Read:'
+  description: Learn where application logs and infrastructure metrics come from in your provider and how to query them during incident response.
+  options:
+  - provider: azure
+    title: Azure Monitor Logs Overview
+    url: https://learn.microsoft.com/en-us/azure/azure-monitor/logs/data-platform-logs
+    description: Understand log ingestion and querying with Log Analytics.
+  - provider: aws
+    title: CloudWatch Logs User Guide
+    url: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/WhatIsCloudWatchLogs.html
+    description: Understand log groups, streams, and search workflows.
+  - provider: gcp
+    title: Cloud Logging Overview
+    url: https://cloud.google.com/logging/docs/overview
+    description: Understand structured logs and query workflows in Cloud Logging.
+  title: Understand logs and metrics collection paths
+  id: phase4-topic6-understand-logs-and-metrics-collection-paths-read-learn-where-application-logs-and-infrastructure-metrics-come-from-in-your-provider-and-how-to-query-them-during-incident-response
+- order: 3
+  action: 'Read:'
+  description: Learn secure patterns for environment variables and secrets management. Use your provider's managed secret service instead of hardcoding credentials.
+  options:
+  - provider: azure
+    title: Azure Key Vault Overview
+    url: https://learn.microsoft.com/en-us/azure/key-vault/general/overview
+    description: Learn how to store and control access to secrets, keys, and certificates.
+  - provider: aws
+    title: What is AWS Secrets Manager?
+    url: https://docs.aws.amazon.com/secretsmanager/latest/userguide/intro.html
+    description: Learn how to store, rotate, and retrieve secrets securely.
+  - provider: gcp
+    title: Secret Manager Overview
+    url: https://cloud.google.com/secret-manager/docs/overview
+    description: Learn how to manage and access application secrets securely.
+  title: Store environment variables and secrets securely
+  id: phase4-topic6-store-environment-variables-and-secrets-securely-read-learn-secure-patterns-for-environment-variables-and-secrets-management-use-your-provider-s-managed-secret-service-instead-of-hardcoding-credentials
+- order: 4
+  action: 'Read:'
+  title: Uvicorn Process Management
+  url: https://www.uvicorn.org/deployment/
+  description: Learn reliable process patterns for Python APIs (workers, restarts, and service management).
+  id: phase4-topic6-uvicorn-process-management-read-https-www-uvicorn-org-deployment-learn-reliable-process-patterns-for-python-apis-workers-restarts-and-service-management
