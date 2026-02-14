@@ -18,6 +18,13 @@ from services.progress_service import fetch_user_progress, get_phase_completion_
 
 logger = logging.getLogger(__name__)
 
+# Submission types whose values are secrets and must not appear on public profiles
+_TOKEN_TYPES = {
+    SubmissionType.CTF_TOKEN.value,
+    SubmissionType.NETWORKING_TOKEN.value,
+    SubmissionType.IAC_TOKEN.value,
+}
+
 
 def normalize_github_username(username: str | None) -> str | None:
     """Normalize GitHub username to lowercase for consistency.
@@ -147,26 +154,22 @@ async def get_public_profile(
     db_submissions = await submission_repo.get_validated_by_user(profile_user.id)
     progress = await fetch_user_progress(db, profile_user.id)
 
-    sensitive_submission_types = {
-        SubmissionType.CTF_TOKEN,
-    }
-
     submissions = []
     for sub in db_submissions:
         requirement = get_requirement_by_id(sub.requirement_id)
-        submitted_value = (
-            "[redacted]"
-            if sub.submission_type in sensitive_submission_types
-            else sub.submitted_value
+        sub_type = (
+            sub.submission_type.value
+            if hasattr(sub.submission_type, "value")
+            else str(sub.submission_type)
         )
+        # Redact secret token values — only the fact of validation is public
+        display_value = "" if sub_type in _TOKEN_TYPES else sub.submitted_value
         submissions.append(
             PublicSubmissionInfo(
                 requirement_id=sub.requirement_id,
-                submission_type=sub.submission_type.value
-                if hasattr(sub.submission_type, "value")
-                else str(sub.submission_type),
+                submission_type=sub_type,
                 phase_id=sub.phase_id,
-                submitted_value=submitted_value,
+                submitted_value=display_value,
                 name=requirement.name if requirement else sub.requirement_id,
                 description=requirement.description if requirement else None,
                 validated_at=sub.validated_at,

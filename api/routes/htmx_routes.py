@@ -23,6 +23,7 @@ from services.certificates_service import (
 from services.content_service import get_topic_by_id
 from services.hands_on_verification_service import get_requirement_by_id
 from services.steps_service import (
+    StepValidationError,
     complete_step,
     parse_phase_id_from_topic_id,
     uncomplete_step,
@@ -118,7 +119,23 @@ async def htmx_complete_step(
     phase_id: int = Form(...),
 ) -> HTMLResponse:
     """Complete a step and return the updated step partial."""
-    _, completed_steps = await complete_step(db, user_id, topic_id, step_id)
+    try:
+        _, completed_steps = await complete_step(db, user_id, topic_id, step_id)
+    except StepValidationError as e:
+        logger.warning(
+            "htmx.step_complete.invalid",
+            extra={
+                "user_id": user_id,
+                "topic_id": topic_id,
+                "step_id": step_id,
+                "error": str(e),
+            },
+        )
+        # Step ID doesn't exist in current content (stale cached page).
+        # Force a full page reload so the user gets the current steps.
+        response = HTMLResponse("")
+        response.headers["HX-Refresh"] = "true"
+        return response
     return await _render_step_toggle(
         request, db, user_id, topic_id, step_id, phase_id, completed_steps
     )
@@ -133,7 +150,21 @@ async def htmx_uncomplete_step(
     user_id: UserId,
 ) -> HTMLResponse:
     """Uncomplete a step and return the updated step partial."""
-    _, completed_steps = await uncomplete_step(db, user_id, topic_id, step_id)
+    try:
+        _, completed_steps = await uncomplete_step(db, user_id, topic_id, step_id)
+    except StepValidationError as e:
+        logger.warning(
+            "htmx.step_uncomplete.invalid",
+            extra={
+                "user_id": user_id,
+                "topic_id": topic_id,
+                "step_id": step_id,
+                "error": str(e),
+            },
+        )
+        response = HTMLResponse("")
+        response.headers["HX-Refresh"] = "true"
+        return response
 
     phase_id = parse_phase_id_from_topic_id(topic_id) or 0
 

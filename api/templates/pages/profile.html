@@ -43,26 +43,59 @@
 <div>
     <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Projects</h2>
     {% if profile.submissions %}
-    <div class="space-y-3">
-        {% for sub in profile.submissions %}
-        <div class="p-4 rounded-lg border border-gray-200 dark:border-gray-700">
-            <div class="flex items-center justify-between">
-                <div>
-                    <span class="font-medium text-gray-900 dark:text-gray-100">{{ sub.name }}</span>
-                    <span class="text-xs text-gray-500 dark:text-gray-400 ml-2">Phase {{ sub.phase_id }}</span>
+    {% set token_types = ['ctf_token', 'networking_token', 'iac_token'] %}
+    {% set url_types = ['github_profile', 'profile_readme', 'repo_fork', 'code_analysis', 'devops_analysis', 'security_scanning', 'deployed_api', 'journal_api_response'] %}
+    {% set phase_colors = {
+        0: 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300',
+        1: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400',
+        2: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400',
+        3: 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-400',
+        4: 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400',
+        5: 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-400',
+        6: 'bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-400'
+    } %}
+
+    {# Group submissions by phase #}
+    {% set phases_seen = [] %}
+    {% for sub in profile.submissions %}
+        {% if sub.phase_id not in phases_seen %}
+            {% if phases_seen.append(sub.phase_id) %}{% endif %}
+        {% endif %}
+    {% endfor %}
+
+    {% for phase_id in phases_seen | sort %}
+    <div class="{% if not loop.first %}mt-6{% endif %}">
+        <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Phase {{ phase_id }}</h3>
+        <div class="space-y-2">
+            {% for sub in profile.submissions if sub.phase_id == phase_id %}
+            <div class="flex items-center gap-3 px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800/50">
+                <svg class="h-5 w-5 flex-shrink-0 text-green-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div class="min-w-0 flex-1">
+                    <div class="flex items-center gap-2">
+                        <span class="font-medium text-gray-900 dark:text-gray-100 text-sm">{{ sub.name }}</span>
+                    </div>
+                    {% if sub.submitted_value %}
+                    <div class="mt-0.5">
+                        {% if sub.submission_type in url_types and sub.submitted_value.startswith('http') %}
+                        <a href="{{ sub.submitted_value }}" target="_blank" rel="noopener" class="text-xs text-blue-600 dark:text-blue-400 hover:underline truncate block">{{ sub.submitted_value | replace('https://github.com/', '') | replace('https://', '') }}</a>
+                        {% elif sub.submission_type in token_types %}
+                        <span class="text-xs text-gray-400 dark:text-gray-500 italic">Token verified</span>
+                        {% else %}
+                        <span class="text-xs text-gray-500 dark:text-gray-400 truncate block">{{ sub.submitted_value }}</span>
+                        {% endif %}
+                    </div>
+                    {% endif %}
                 </div>
                 {% if sub.validated_at %}
-                <span class="text-xs text-gray-500 dark:text-gray-400">{{ sub.validated_at.strftime('%b %d, %Y') }}</span>
+                <span class="text-xs text-gray-400 dark:text-gray-500 flex-shrink-0 whitespace-nowrap">{{ sub.validated_at.strftime('%b %d, %Y') }}</span>
                 {% endif %}
             </div>
-            {% if sub.submitted_value and sub.submitted_value != '[redacted]' %}
-            <p class="text-sm text-blue-600 dark:text-blue-400 mt-1 truncate">
-                <a href="{{ sub.submitted_value }}" target="_blank" rel="noopener" class="hover:underline">{{ sub.submitted_value }}</a>
-            </p>
-            {% endif %}
+            {% endfor %}
         </div>
-        {% endfor %}
     </div>
+    {% endfor %}
     {% else %}
     <p class="text-sm text-gray-400 dark:text-gray-500">No projects yet</p>
     {% endif %}
