@@ -161,6 +161,11 @@ resource "azurerm_container_app" "api" {
         value = var.llm_model
       }
 
+      env {
+        name  = "FRONTEND_URL"
+        value = "https://learntocloud.guide"
+      }
+
       liveness_probe {
         transport               = "HTTP"
         path                    = "/health"
