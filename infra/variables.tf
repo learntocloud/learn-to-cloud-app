@@ -44,10 +44,10 @@ variable "location" {
   default     = "centralus"
 }
 
-variable "alert_email" {
-  description = "Email address to receive monitoring alerts"
-  type        = string
-  default     = "learntocloudguide@gmail.com"
+variable "alert_emails" {
+  description = "Email addresses to receive monitoring alerts"
+  type        = list(string)
+  default     = ["learntocloudguide@gmail.com"]
 }
 
 variable "slack_webhook_url" {

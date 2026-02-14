@@ -28,10 +28,13 @@ resource "azurerm_monitor_action_group" "critical" {
   short_name          = "ltccrit"
   tags                = local.tags
 
-  email_receiver {
-    name                    = "admin"
-    email_address           = var.alert_email
-    use_common_alert_schema = true
+  dynamic "email_receiver" {
+    for_each = var.alert_emails
+    content {
+      name                    = "alert-${email_receiver.key}"
+      email_address           = email_receiver.value
+      use_common_alert_schema = true
+    }
   }
 }
 
@@ -43,10 +46,13 @@ resource "azurerm_monitor_action_group" "warning" {
   short_name          = "ltcwarn"
   tags                = local.tags
 
-  email_receiver {
-    name                    = "team"
-    email_address           = var.alert_email
-    use_common_alert_schema = true
+  dynamic "email_receiver" {
+    for_each = var.alert_emails
+    content {
+      name                    = "alert-${email_receiver.key}"
+      email_address           = email_receiver.value
+      use_common_alert_schema = true
+    }
   }
 
   # Optional Slack webhook for warning notifications

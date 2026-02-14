@@ -29,4 +29,4 @@ labs_verification_secret = "L2C_CTF_MASTER_2024"
 # Optional - Override defaults
 # location    = "centralus"
 # environment = "dev"
-# alert_email = "learntocloud@gmail.com"
+# alert_emails = ["learntocloud@gmail.com"]
