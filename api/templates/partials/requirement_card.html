@@ -32,7 +32,7 @@
         <input type="hidden" name="requirement_id" value="{{ requirement.id }}">
         <input type="hidden" name="submission_type" value="{{ requirement.submission_type }}">
 
-        {% if requirement.submission_type in ['ctf_token', 'networking_token', 'iac_token'] %}
+        {% if requirement.submission_type in ['ctf_token', 'networking_token'] %}
         <input
             type="text"
             name="submitted_value"

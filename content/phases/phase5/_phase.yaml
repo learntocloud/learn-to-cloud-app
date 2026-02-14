@@ -19,11 +19,6 @@ topics:
 - capstone
 hands_on_verification:
   requirements:
-  - id: devops-iac-token
-    submission_type: iac_token
-    name: Submit the DevOps IaC Lab Completion Token
-    description: Complete the DevOps lab for your chosen cloud provider and submit your completion token. Tokens for Azure, AWS, and GCP are fully verifiable.
-    placeholder: Paste your DevOps IaC lab completion token here
   - id: devops-implementation
     submission_type: devops_analysis
     name: Complete the DevOps Capstone

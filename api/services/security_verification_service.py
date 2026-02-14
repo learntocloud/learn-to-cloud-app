@@ -51,23 +51,60 @@ class SecurityVerificationError(Exception):
         self.retriable = retriable
 
 
-def _check_dependabot(file_paths: list[str]) -> TaskResult:
-    """Check for a Dependabot configuration file in the repo tree."""
+async def _check_dependabot(owner: str, repo: str, file_paths: list[str]) -> TaskResult:
+    """Check for a valid Dependabot configuration file in the repo tree.
+
+    Verifies both file existence and content: the file must contain
+    a ``version`` key and at least one ``updates`` entry.
+    """
     dependabot_paths = {".github/dependabot.yml", ".github/dependabot.yaml"}
     found = [p for p in file_paths if p in dependabot_paths]
 
-    if found:
+    if not found:
+        return TaskResult(
+            task_name="Dependabot Configuration",
+            passed=False,
+            feedback=(
+                "No Dependabot config found. Add a .github/dependabot.yml file "
+                "to enable automated dependency updates."
+            ),
+        )
+
+    content = await _fetch_workflow_content(owner, repo, found[0])
+    if not content:
+        return TaskResult(
+            task_name="Dependabot Configuration",
+            passed=False,
+            feedback=(
+                f"Found {found[0]} but could not read its content. "
+                "Make sure the repository is public."
+            ),
+        )
+
+    # Validate required keys exist in the file content
+    has_version = "version" in content
+    has_updates = "updates" in content
+
+    if has_version and has_updates:
         return TaskResult(
             task_name="Dependabot Configuration",
             passed=True,
-            feedback=f"Found Dependabot config: {found[0]}",
+            feedback=f"Found valid Dependabot config: {found[0]}",
         )
+
+    missing = []
+    if not has_version:
+        missing.append("version")
+    if not has_updates:
+        missing.append("updates")
+
     return TaskResult(
         task_name="Dependabot Configuration",
         passed=False,
         feedback=(
-            "No Dependabot config found. Add a .github/dependabot.yml file "
-            "to enable automated dependency updates."
+            f"Found {found[0]} but it is missing required keys: "
+            f"{', '.join(missing)}. A valid Dependabot config needs a "
+            "'version' key and at least one 'updates' entry."
         ),
     )
 
@@ -189,7 +226,7 @@ async def _verify_security_scanning(
     owner: str, repo: str, file_paths: list[str]
 ) -> ValidationResult:
     """Internal: run security scanning checks with circuit breaker + retry."""
-    dependabot_result = _check_dependabot(file_paths)
+    dependabot_result = await _check_dependabot(owner, repo, file_paths)
     codeql_result = await _check_codeql(owner, repo, file_paths)
 
     task_results = [dependabot_result, codeql_result]

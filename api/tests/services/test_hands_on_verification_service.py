@@ -74,44 +74,6 @@ class TestValidateSubmissionRouting:
         assert "GitHub username is required" in result.message
 
     @pytest.mark.asyncio
-    async def test_iac_token_routes_correctly(self):
-        """IAC_TOKEN should route to iac_lab_service."""
-        requirement = _make_requirement(SubmissionType.IAC_TOKEN)
-
-        with patch(
-            "services.hands_on_verification_service.validate_iac_token_submission"
-        ) as mock:
-            mock.return_value = ValidationResult(
-                is_valid=True,
-                message="IaC token verified!",
-                cloud_provider="azure",
-            )
-
-            result = await validate_submission(
-                requirement=requirement,
-                submitted_value="test-token",
-                expected_username="testuser",
-            )
-
-            mock.assert_called_once_with("test-token", "testuser")
-            assert result.is_valid is True
-            assert result.cloud_provider == "azure"
-
-    @pytest.mark.asyncio
-    async def test_iac_token_requires_username(self):
-        """IAC_TOKEN should fail without username."""
-        requirement = _make_requirement(SubmissionType.IAC_TOKEN)
-
-        result = await validate_submission(
-            requirement=requirement,
-            submitted_value="test-token",
-            expected_username=None,
-        )
-
-        assert result.is_valid is False
-        assert "GitHub username is required" in result.message
-
-    @pytest.mark.asyncio
     async def test_repo_fork_routes_correctly(self):
         """REPO_FORK should route to validate_repo_fork."""
         requirement = _make_requirement(
@@ -246,7 +208,6 @@ class TestValidateSubmissionUsernameRequirements:
             SubmissionType.REPO_FORK,
             SubmissionType.CTF_TOKEN,
             SubmissionType.NETWORKING_TOKEN,
-            SubmissionType.IAC_TOKEN,
             SubmissionType.CODE_ANALYSIS,
             SubmissionType.DEVOPS_ANALYSIS,
             SubmissionType.SECURITY_SCANNING,
