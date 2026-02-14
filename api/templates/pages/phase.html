@@ -48,17 +48,36 @@
 <div id="verification-section">
     <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Hands-on Verification</h2>
 
-    <div class="space-y-4">
+    {% set ns = namespace(found_active=false) %}
+    <div class="space-y-2">
         {% for req in requirements %}
         {% set submission = submissions_by_req.get(req.id) %}
+        {% set is_verified = submission and submission.is_validated %}
         {% set fb = feedback_by_req.get(req.id, {}) if feedback_by_req is defined else {} %}
         {% set feedback_tasks = fb.get('tasks', []) if fb else [] %}
         {% set feedback_passed = fb.get('passed', 0) if fb else 0 %}
         {% set cooldown_secs = fb.get('cooldown_seconds', None) if fb else None %}
         {% set persisted_error = submission.validation_message if submission and not submission.is_validated and submission.validation_message else None %}
+
+        {% if is_verified %}
+        {# Compact verified row #}
+        <div id="requirement-{{ req.id }}" class="flex items-center gap-3 rounded-lg border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 px-4 py-2.5">
+            <span class="text-green-600 dark:text-green-400">✓</span>
+            <span class="text-sm font-medium text-green-800 dark:text-green-200">{{ req.name }}</span>
+        </div>
+        {% elif not ns.found_active %}
+        {# First incomplete — show full card #}
+        {% set ns.found_active = true %}
         {% with requirement=req, submission=submission, feedback_tasks=feedback_tasks, feedback_passed=feedback_passed, phase_id=phase.order, cooldown_seconds=cooldown_secs, cooldown_message=None, error_banner=persisted_error, server_error=False, server_error_message=None %}
         {% include "partials/requirement_card.html" %}
         {% endwith %}
+        {% else %}
+        {# Future steps — compact locked row #}
+        <div class="flex items-center gap-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 px-4 py-2.5 opacity-50">
+            <span class="text-gray-400 dark:text-gray-500">○</span>
+            <span class="text-sm text-gray-500 dark:text-gray-400">{{ req.name }}</span>
+        </div>
+        {% endif %}
         {% endfor %}
     </div>
 </div>

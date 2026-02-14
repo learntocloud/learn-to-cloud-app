@@ -210,6 +210,17 @@ async def _dispatch_validation(
             )
         return validate_networking_token_submission(submitted_value, expected_username)
 
+    elif requirement.submission_type == SubmissionType.PR_REVIEW:
+        if not expected_username:
+            return ValidationResult(
+                is_valid=False,
+                message="GitHub username is required for PR verification",
+                username_match=False,
+            )
+        from services.pr_verification_service import validate_pr
+
+        return await validate_pr(submitted_value, expected_username, requirement)
+
     elif requirement.submission_type == SubmissionType.CODE_ANALYSIS:
         if not expected_username:
             return ValidationResult(

@@ -1,6 +1,6 @@
-and ---
+---
 name: prod-health-check
-description: Check Azure production health — app logs, errors, CPU, memory, database, scaling, and dependencies. Use when user says "check prod", "health check", "check logs", "any errors?", "how's the app doing?", or "check Azure".
+description: Check Azure production health — app logs, errors, CPU, memory, database, scaling, and dependencies. Use when user says "check prod", "how's prod", "hows prod doing", "is prod up", "prod status", "health check", "check logs", "any errors?", "how's the app doing?", or "check Azure".
 ---
 
 # Production Health Check

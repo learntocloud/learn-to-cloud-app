@@ -107,6 +107,7 @@ class SubmissionType(str, PyEnum):
     # JOURNAL_API_RESPONSE kept for backward compatibility with existing DB records
     JOURNAL_API_RESPONSE = "journal_api_response"
     CODE_ANALYSIS = "code_analysis"
+    PR_REVIEW = "pr_review"
 
     # Phase 4: Cloud deployment validation
     DEPLOYED_API = "deployed_api"

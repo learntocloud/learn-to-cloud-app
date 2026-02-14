@@ -11,15 +11,18 @@ learning_objectives:
 - id: build-app-feature-delivery
   text: Implement required capstone behaviors end to end, including path-parameter routes, correct 404 handling, and async-ready service flows.
   order: 2
+- id: build-app-dev-workflow
+  text: Follow a professional development workflow using feature branches, pull requests, and test-driven development for each task.
+  order: 3
 - id: build-app-portfolio-readiness
   text: Validate required API behaviors, publish your implementation on GitHub, and present it as a cloud engineering project artifact.
-  order: 3
+  order: 4
 learning_steps:
 - order: 1
   action: 'Practice:'
   title: Journal Starter Repository
   url: https://github.com/learntocloud/journal-starter
-  description: 'Time to complete the capstone. The repository README has everything you need: Dev Container setup, development tasks using feature branches, LLM provider configuration, and troubleshooting tips. Fork the repo and follow the instructions there to build your Journal API.'
+  description: "Time to complete the capstone. The repository README has everything you need: Dev Container setup, development tasks, LLM provider configuration, and troubleshooting tips. Fork the repo and follow the instructions there to build your Journal API. Important: Follow the development workflow — create a feature branch for each task, run the tests, then open a Pull Request to merge into main. You'll need to submit each merged PR link for verification."
   id: phase3-topic5-practice-journal-starter-repository
 - order: 2
   action: 'Reflect:'

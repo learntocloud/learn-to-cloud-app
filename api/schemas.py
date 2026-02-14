@@ -76,6 +76,9 @@ class HandsOnRequirement(FrozenModel):
     # For REPO_FORK: the original repo to verify fork from
     required_repo: str | None = None
 
+    # For PR_REVIEW: files the merged PR must have touched
+    expected_files: list[str] | None = None
+
 
 # =============================================================================
 # Health Check Schemas

@@ -169,6 +169,40 @@ class TestSubmissionRouting:
             assert result.is_valid is True
 
     @pytest.mark.asyncio
+    async def test_pr_review_routes_to_pr_service(self):
+        """PR_REVIEW type should route to pr_verification_service."""
+        requirement = HandsOnRequirement(
+            id="journal-pr-logging",
+            submission_type=SubmissionType.PR_REVIEW,
+            name="PR: Logging Setup",
+            description="Test",
+            expected_files=["api/main.py"],
+        )
+
+        with patch(
+            "services.pr_verification_service.validate_pr",
+            new_callable=AsyncMock,
+        ) as mock:
+            mock.return_value = ValidationResult(
+                is_valid=True,
+                message="PR #1 verified!",
+                username_match=True,
+            )
+
+            result = await validate_submission(
+                requirement=requirement,
+                submitted_value="https://github.com/testuser/journal-starter/pull/1",
+                expected_username="testuser",
+            )
+
+            mock.assert_called_once_with(
+                "https://github.com/testuser/journal-starter/pull/1",
+                "testuser",
+                requirement,
+            )
+            assert result.is_valid is True
+
+    @pytest.mark.asyncio
     async def test_devops_analysis_routes_to_devops_service(self):
         """DEVOPS_ANALYSIS type should route to devops_verification_service."""
         requirement = _make_requirement(
@@ -208,6 +242,7 @@ class TestValidateSubmissionUsernameRequirements:
             SubmissionType.REPO_FORK,
             SubmissionType.CTF_TOKEN,
             SubmissionType.NETWORKING_TOKEN,
+            SubmissionType.PR_REVIEW,
             SubmissionType.CODE_ANALYSIS,
             SubmissionType.DEVOPS_ANALYSIS,
             SubmissionType.SECURITY_SCANNING,

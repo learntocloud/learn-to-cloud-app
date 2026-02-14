@@ -328,6 +328,7 @@ async def submit_validation(
         SubmissionType.NETWORKING_TOKEN,
         SubmissionType.CODE_ANALYSIS,
         SubmissionType.DEVOPS_ANALYSIS,
+        SubmissionType.PR_REVIEW,
     ):
         if not github_username:
             raise GitHubUsernameRequiredError(

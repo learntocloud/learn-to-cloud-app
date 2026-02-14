@@ -281,6 +281,18 @@ async def htmx_submit_verification(
         return _render_card(
             error_banner=str(e),
         )
+    except Exception:
+        logger.exception(
+            "htmx.submit.unexpected_error",
+            extra={"user_id": user_id, "requirement_id": requirement_id},
+        )
+        return _render_card(
+            server_error=True,
+            server_error_message=(
+                "An unexpected error occurred during verification. "
+                "This attempt was not counted — please try again."
+            ),
+        )
 
     # submit_validation returns SubmissionResult which already contains the
     # upserted submission — no need to re-fetch from the repository.
@@ -313,7 +325,7 @@ async def htmx_submit_verification(
     if not result.is_valid and not is_server_error and not feedback_tasks:
         error_banner = result.message
 
-    return _render_card(
+    response = _render_card(
         submission=submission,
         feedback_tasks=feedback_tasks,
         feedback_passed=feedback_passed,
@@ -321,6 +333,13 @@ async def htmx_submit_verification(
         server_error_message=result.message if is_server_error else None,
         error_banner=error_banner,
     )
+
+    # On successful verification, refresh the page so the stepper UI
+    # reveals the next requirement card.
+    if result.is_valid:
+        response.headers["HX-Refresh"] = "true"
+
+    return response
 
 
 @router.post("/certificates", response_class=HTMLResponse)

@@ -12,16 +12,46 @@ badge:
 order: 3
 hands_on_verification:
   requirements:
-  - id: journal-starter-fork
-    submission_type: repo_fork
-    name: Fork the Journal Starter Repository
-    description: Fork learntocloud/journal-starter and set up the project for local FastAPI and PostgreSQL development.
-    placeholder: https://github.com/username/journal-starter
-    required_repo: learntocloud/journal-starter
+  - id: journal-pr-logging
+    submission_type: pr_review
+    name: 'PR: Logging Setup'
+    description: Submit the merged PR where you configured logging in api/main.py.
+    placeholder: https://github.com/username/journal-starter/pull/1
+    expected_files:
+    - api/main.py
+  - id: journal-pr-get-entry
+    submission_type: pr_review
+    name: 'PR: GET Single Entry'
+    description: Submit the merged PR where you implemented GET /entries/{entry_id} in the journal router.
+    placeholder: https://github.com/username/journal-starter/pull/2
+    expected_files:
+    - api/routers/journal_router.py
+  - id: journal-pr-delete-entry
+    submission_type: pr_review
+    name: 'PR: DELETE Entry'
+    description: Submit the merged PR where you implemented DELETE /entries/{entry_id} in the journal router.
+    placeholder: https://github.com/username/journal-starter/pull/3
+    expected_files:
+    - api/routers/journal_router.py
+  - id: journal-pr-ai-analysis
+    submission_type: pr_review
+    name: 'PR: AI Analysis'
+    description: Submit the merged PR where you implemented analyze_journal_entry() in llm_service.py and the analyze endpoint.
+    placeholder: https://github.com/username/journal-starter/pull/4
+    expected_files:
+    - api/services/llm_service.py
+    - api/routers/journal_router.py
+  - id: journal-pr-cloud-cli
+    submission_type: pr_review
+    name: 'PR: Cloud CLI Setup'
+    description: Submit the merged PR where you uncommented your cloud CLI tool in devcontainer.json.
+    placeholder: https://github.com/username/journal-starter/pull/5
+    expected_files:
+    - .devcontainer/devcontainer.json
   - id: journal-api-implementation
     submission_type: code_analysis
-    name: Implement the Journal API
-    description: Complete the required CRUD endpoints, database models, and LLM integration, then submit your fork for automated verification.
+    name: Verify Journal API Implementation
+    description: After all PRs are merged, submit your fork for automated code analysis to verify the final implementation on main.
     placeholder: https://github.com/username/journal-starter
 topics:
 - python
