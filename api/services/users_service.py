@@ -22,7 +22,6 @@ logger = logging.getLogger(__name__)
 _TOKEN_TYPES = {
     SubmissionType.CTF_TOKEN.value,
     SubmissionType.NETWORKING_TOKEN.value,
-    SubmissionType.IAC_TOKEN.value,
 }
 
 

@@ -43,8 +43,8 @@
 <div>
     <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Projects</h2>
     {% if profile.submissions %}
-    {% set token_types = ['ctf_token', 'networking_token', 'iac_token'] %}
-    {% set url_types = ['github_profile', 'profile_readme', 'repo_fork', 'code_analysis', 'devops_analysis', 'security_scanning', 'deployed_api', 'journal_api_response'] %}
+    {% set token_types = ['ctf_token', 'networking_token'] %}
+    {% set url_types = ['github_profile', 'profile_readme', 'repo_fork', 'code_analysis', 'pr_review', 'devops_analysis', 'security_scanning', 'deployed_api', 'journal_api_response'] %}
     {% set phase_colors = {
         0: 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300',
         1: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400',
