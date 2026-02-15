@@ -136,7 +136,7 @@ class TestValidatePr:
         )
 
     @pytest.mark.asyncio
-    @patch("services.pr_verification_service._fetch_pr_data")
+    @patch("services.pr_verification_service._fetch_pr_data", autospec=True)
     async def test_open_pr_fails(self, mock_fetch):
         mock_fetch.return_value = {"merged": False, "state": "open"}
         requirement = _make_pr_requirement(expected_files=["api/main.py"])
@@ -149,7 +149,7 @@ class TestValidatePr:
         assert "still open" in result.message
 
     @pytest.mark.asyncio
-    @patch("services.pr_verification_service._fetch_pr_data")
+    @patch("services.pr_verification_service._fetch_pr_data", autospec=True)
     async def test_closed_unmerged_pr_fails(self, mock_fetch):
         mock_fetch.return_value = {"merged": False, "state": "closed"}
         requirement = _make_pr_requirement(expected_files=["api/main.py"])
@@ -162,8 +162,8 @@ class TestValidatePr:
         assert "without merging" in result.message
 
     @pytest.mark.asyncio
-    @patch("services.pr_verification_service._fetch_pr_files")
-    @patch("services.pr_verification_service._fetch_pr_data")
+    @patch("services.pr_verification_service._fetch_pr_files", autospec=True)
+    @patch("services.pr_verification_service._fetch_pr_data", autospec=True)
     async def test_merged_pr_wrong_files_fails(self, mock_data, mock_files):
         mock_data.return_value = {
             "merged": True,
@@ -182,8 +182,8 @@ class TestValidatePr:
         assert "didn't modify" in result.message
 
     @pytest.mark.asyncio
-    @patch("services.pr_verification_service._fetch_pr_files")
-    @patch("services.pr_verification_service._fetch_pr_data")
+    @patch("services.pr_verification_service._fetch_pr_files", autospec=True)
+    @patch("services.pr_verification_service._fetch_pr_data", autospec=True)
     async def test_merged_pr_correct_files_passes(self, mock_data, mock_files):
         mock_data.return_value = {
             "merged": True,
@@ -203,8 +203,8 @@ class TestValidatePr:
         assert "feature/logging-setup" in result.message
 
     @pytest.mark.asyncio
-    @patch("services.pr_verification_service._fetch_pr_files")
-    @patch("services.pr_verification_service._fetch_pr_data")
+    @patch("services.pr_verification_service._fetch_pr_files", autospec=True)
+    @patch("services.pr_verification_service._fetch_pr_data", autospec=True)
     async def test_merged_pr_no_expected_files_passes(self, mock_data, mock_files):
         """When expected_files is None, skip file check."""
         mock_data.return_value = {
@@ -223,8 +223,8 @@ class TestValidatePr:
         mock_files.assert_not_called()
 
     @pytest.mark.asyncio
-    @patch("services.pr_verification_service._fetch_pr_files")
-    @patch("services.pr_verification_service._fetch_pr_data")
+    @patch("services.pr_verification_service._fetch_pr_files", autospec=True)
+    @patch("services.pr_verification_service._fetch_pr_data", autospec=True)
     async def test_file_matching_is_case_insensitive(self, mock_data, mock_files):
         mock_data.return_value = {
             "merged": True,
@@ -244,8 +244,8 @@ class TestValidatePr:
         assert result.is_valid
 
     @pytest.mark.asyncio
-    @patch("services.pr_verification_service._fetch_pr_files")
-    @patch("services.pr_verification_service._fetch_pr_data")
+    @patch("services.pr_verification_service._fetch_pr_files", autospec=True)
+    @patch("services.pr_verification_service._fetch_pr_data", autospec=True)
     async def test_multi_file_requirement_any_match(self, mock_data, mock_files):
         """For ai-analysis, PR should match at least one of the expected files."""
         mock_data.return_value = {
@@ -274,7 +274,7 @@ class TestValidatePrErrorHandling:
     """Tests for GitHub API error handling."""
 
     @pytest.mark.asyncio
-    @patch("services.pr_verification_service._fetch_pr_data")
+    @patch("services.pr_verification_service._fetch_pr_data", autospec=True)
     async def test_pr_not_found_404(self, mock_fetch):
         response = httpx.Response(404, request=httpx.Request("GET", "https://test"))
         mock_fetch.side_effect = httpx.HTTPStatusError(
@@ -291,7 +291,7 @@ class TestValidatePrErrorHandling:
         assert result.server_error is not True
 
     @pytest.mark.asyncio
-    @patch("services.pr_verification_service._fetch_pr_data")
+    @patch("services.pr_verification_service._fetch_pr_data", autospec=True)
     async def test_github_server_error_marks_server_error(self, mock_fetch):
         response = httpx.Response(500, request=httpx.Request("GET", "https://test"))
         mock_fetch.side_effect = httpx.HTTPStatusError(

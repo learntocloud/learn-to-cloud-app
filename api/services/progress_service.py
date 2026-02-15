@@ -136,14 +136,7 @@ async def fetch_user_progress(
             total_completed += len(completed & valid_step_ids)
         phase_steps[phase.id] = total_completed
 
-    for phase_id, canonical_count in phase_steps.items():
-        denorm_row = denormalized.get(phase_id)
-        if denorm_row is not None and denorm_row.completed_steps != canonical_count:
-            await progress_repo.recalculate_steps_for_phase(
-                user_id, phase_id, canonical_count
-            )
-
-    phases: dict[int, PhaseProgress] = {}
+    phase_progress_map: dict[int, PhaseProgress] = {}
     for phase_id in get_all_phase_ids():
         requirements = get_phase_requirements(phase_id)
         if not requirements:
@@ -161,7 +154,7 @@ async def fetch_user_progress(
             else True
         )
 
-        phases[phase_id] = PhaseProgress(
+        phase_progress_map[phase_id] = PhaseProgress(
             phase_id=phase_id,
             steps_completed=steps_completed,
             steps_required=requirements.steps,
@@ -173,7 +166,7 @@ async def fetch_user_progress(
 
     all_phase_ids = get_all_phase_ids()
     result = UserProgress(
-        user_id=user_id, phases=phases, total_phases=len(all_phase_ids)
+        user_id=user_id, phases=phase_progress_map, total_phases=len(all_phase_ids)
     )
     set_cached_progress(user_id, result)
 

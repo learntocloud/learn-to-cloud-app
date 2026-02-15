@@ -41,6 +41,7 @@ _LOCAL_CACHE_TTL = 60  # seconds
 _local_cache: TTLCache[str, CommunityAnalytics] = TTLCache(
     maxsize=1, ttl=_LOCAL_CACHE_TTL
 )
+_local_cache_lock = asyncio.Lock()
 
 _DAY_NAMES = {
     1: "Monday",
@@ -99,7 +100,8 @@ async def get_community_analytics(
             the in-memory cache only (used by callers that don't have a
             session handy).
     """
-    cached = _local_cache.get("analytics")
+    async with _local_cache_lock:
+        cached = _local_cache.get("analytics")
     if cached is not None:
         return cached
 
@@ -108,7 +110,8 @@ async def get_community_analytics(
         row = await repo.get_snapshot_data()
         if row is not None:
             analytics = CommunityAnalytics.model_validate_json(row)
-            _local_cache["analytics"] = analytics
+            async with _local_cache_lock:
+                _local_cache["analytics"] = analytics
             return analytics
 
     return _empty_analytics()
@@ -242,7 +245,8 @@ async def refresh_analytics(
         await repo.upsert_snapshot(data_json, now)
         await db.commit()
 
-    _local_cache["analytics"] = result
+    async with _local_cache_lock:
+        _local_cache["analytics"] = result
 
     logger.info(
         "analytics.refreshed",

@@ -113,6 +113,5 @@ The [debug-deploy.sh](./debug-deploy.sh) script automates the debugging process 
 ## Prevention
 
 The workflows are configured with these safeguards:
-- `cancel-in-progress: false` - Prevents state lock issues from cancelled runs (in both `deploy.yml` and `infra.yml`)
-- `-lock-timeout=120s` - Waits for locks instead of failing immediately (in `infra.yml` which runs `terraform plan/apply`)
-- Retry logic - Retries Terraform plan up to 3 times with 30s delays (in `infra.yml`)
+- `cancel-in-progress: true` - Cancels in-progress runs when a new push arrives (in `deploy.yml`)
+- `-lock-timeout=120s` - Waits for locks instead of failing immediately (in `deploy.yml` terraform job)

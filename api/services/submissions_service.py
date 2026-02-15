@@ -369,7 +369,10 @@ async def submit_validation(
                 extra={
                     "user_id": user_id,
                     "requirement_id": requirement_id,
-                    "waiting": _LLM_MAX_CONCURRENT - _llm_semaphore._value,
+                    "waiting": max(
+                        0,
+                        _LLM_MAX_CONCURRENT - _llm_semaphore._value,  # noqa: SLF001
+                    ),
                 },
             )
 

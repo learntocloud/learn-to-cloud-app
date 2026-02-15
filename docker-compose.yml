@@ -34,7 +34,7 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    # Uses default CMD from Dockerfile which runs with 2 workers
+    # Uses default CMD from Dockerfile (single uvicorn worker)
 
 volumes:
   postgres_data:

@@ -80,7 +80,7 @@ def compute_phase_badges(
             continue
 
         completed_steps, hands_on_validated = phase_completion_counts.get(
-            phase_id, (0, True)
+            phase_id, (0, False)
         )
 
         if completed_steps >= requirements.steps and hands_on_validated:

@@ -111,6 +111,7 @@ async def _render_step_toggle(
 
 
 @router.post("/steps/complete", response_class=HTMLResponse)
+@limiter.limit("30/minute")
 async def htmx_complete_step(
     request: Request,
     db: DbSession,
@@ -143,6 +144,7 @@ async def htmx_complete_step(
 
 
 @router.delete("/steps/{topic_id}/{step_id}", response_class=HTMLResponse)
+@limiter.limit("30/minute")
 async def htmx_uncomplete_step(
     request: Request,
     topic_id: str,
@@ -175,9 +177,10 @@ async def htmx_uncomplete_step(
 
 
 @router.post("/github/submit", response_class=HTMLResponse)
+@limiter.limit("10/minute")
 async def htmx_submit_verification(
     request: Request,
-    db: DbSessionReadOnly,
+    db: DbSessionReadOnly,  # Read-only: write sessions created via session_maker below
     user_id: UserId,
     requirement_id: str = Form(..., max_length=100),
     submitted_value: str = Form(..., max_length=2048),
@@ -346,6 +349,7 @@ async def htmx_submit_verification(
 
 
 @router.post("/certificates", response_class=HTMLResponse)
+@limiter.limit("5/minute")
 async def htmx_create_certificate(
     request: Request,
     db: DbSession,

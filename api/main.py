@@ -70,7 +70,9 @@ def _build_static_file_hashes(static_dir: Path) -> dict[str, str]:
     for file_path in static_dir.rglob("*"):
         if file_path.is_file():
             rel = file_path.relative_to(static_dir).as_posix()
-            digest = hashlib.md5(file_path.read_bytes()).hexdigest()[:8]
+            digest = hashlib.md5(
+                file_path.read_bytes(), usedforsecurity=False
+            ).hexdigest()[:8]
             hashes[rel] = digest
     return hashes
 
@@ -209,7 +211,11 @@ async def lifespan(app: fastapi.FastAPI):
         raise RuntimeError("Application startup timed out")
     except Exception as e:
         app.state.init_error = str(e)
-        logger.error("init.failed: %s", e, exc_info=True)
+        logger.error(
+            "init.failed",
+            extra={"error": str(e)},
+            exc_info=True,
+        )
         raise
 
     warmup_task = asyncio.create_task(_background_warmup(app))

@@ -6,8 +6,10 @@ description: "Jinja2 templates, HTMX interactions, Alpine.js reactivity, Tailwin
 # HTMX / Jinja2 / Alpine.js Coding Standards
 
 ## Jinja2 Templates
-- Templates live in `api/templates/` — `pages/` for full pages, `partials/` for fragments
-- All pages extend `base.html`
+- Templates live in `api/templates/` — `pages/` for full pages, `partials/` for fragments, `layouts/` for intermediate layouts
+- All pages ultimately extend `base.html`
+- Content-oriented pages (dashboard, account, profile, topic, terms, privacy, FAQ, certificates, status) extend `layouts/content_page.html`, which provides breadcrumb + header + body blocks
+- Full-bleed pages (home, curriculum, phase, verify, 404) extend `base.html` directly
 - Use `{% include %}` for reusable partials
 - Pass context via route handlers; avoid logic in templates
 

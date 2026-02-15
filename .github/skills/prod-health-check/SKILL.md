@@ -62,7 +62,6 @@ Behavior:
 - Azure CLI (`az`) installed and logged in
 - Correct subscription set (check `infra/terraform.tfvars` for `subscription_id`)
 - Azure CLI extension `rdbms-connect` (for DB queries): `az extension add --name rdbms-connect --yes`
-- **Windows/PowerShell**: All date commands below use PowerShell syntax. See [Cross-platform date commands](#cross-platform-date-commands).
 
 ---
 
@@ -85,21 +84,6 @@ RG="rg-ltc-dev"
 
 # Discover actual resource names (suffix is random)
 az resource list --resource-group "$RG" --query "[].{name:name, type:type}" -o table
-```
-
-**PowerShell equivalent**:
-```powershell
-$SUBSCRIPTION_ID = (az account show --query id -o tsv)
-az account set --subscription $SUBSCRIPTION_ID
-$RG = "rg-ltc-dev"
-az resource list --resource-group $RG --query "[].{name:name, type:type}" -o table
-
-# Optional: auto-discover resource names directly into variables
-$CA_NAME = (az resource list --resource-group $RG --resource-type Microsoft.App/containerApps --query "[?starts_with(name, 'ca-ltc-api-')].name | [0]" -o tsv)
-$APPI_NAME = (az resource list --resource-group $RG --resource-type Microsoft.Insights/components --query "[?starts_with(name, 'appi-ltc-')].name | [0]" -o tsv)
-$PSQL_NAME = (az resource list --resource-group $RG --resource-type Microsoft.DBforPostgreSQL/flexibleServers --query "[?starts_with(name, 'psql-ltc-')].name | [0]" -o tsv)
-$LOG_NAME = (az resource list --resource-group $RG --resource-type Microsoft.OperationalInsights/workspaces --query "[?starts_with(name, 'log-ltc-')].name | [0]" -o tsv)
-$PSQL_RESOURCE_ID = "/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RG/providers/Microsoft.DBforPostgreSQL/flexibleServers/$PSQL_NAME"
 ```
 
 From the output, extract:
@@ -406,14 +390,6 @@ az monitor activity-log list --resource-group $RG \
   -o table
 ```
 
-**PowerShell variant (fired alerts in last 24h)**:
-```powershell
-$start = (Get-Date).AddHours(-24).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
-az monitor activity-log list --resource-group $RG --start-time $start --status Activated `
-  --query "[?contains(operationName.value, 'microsoft.insights/metricalerts') || contains(operationName.value, 'microsoft.insights/scheduledqueryrules')].{time:eventTimestamp, operation:operationName.localizedValue, status:status.localizedValue, subStatus:subStatus.localizedValue}" `
-  -o table
-```
-
 ---
 
 ## Summary Report Format
@@ -478,24 +454,6 @@ az postgres flexible-server execute \
   -o json
 ```
 
-**PowerShell equivalent**:
-```powershell
-$myip = (Invoke-RestMethod -Uri "https://ifconfig.me/ip" -TimeoutSec 10)
-az postgres flexible-server firewall-rule create --resource-group $RG --name $PSQL_NAME `
-  --rule-name AllowMyIP --start-ip-address $myip --end-ip-address $myip 2>$null
-
-$token = (az account get-access-token --resource-type oss-rdbms --query accessToken -o tsv)
-$user = (az ad signed-in-user show --query displayName -o tsv)
-az postgres flexible-server execute --name $PSQL_NAME `
-  --admin-user "$user" --admin-password "$token" `
-  --database-name learntocloud `
-  --querytext "SELECT 'total_users' as metric, COUNT(*)::text as value FROM users UNION ALL SELECT 'users_with_github', COUNT(*)::text FROM users WHERE github_username IS NOT NULL UNION ALL SELECT 'users_with_submissions', COUNT(DISTINCT user_id)::text FROM submissions UNION ALL SELECT 'total_submissions', COUNT(*)::text FROM submissions UNION ALL SELECT 'total_certificates', COUNT(*)::text FROM certificates;" `
-  -o json
-
-# Optional cleanup: remove temporary firewall rule after query
-az postgres flexible-server firewall-rule delete --resource-group $RG --name $PSQL_NAME --rule-name AllowMyIP --yes
-```
-
 **Note**: This command requires the `rdbms-connect` Azure CLI extension. Install with `az extension add --name rdbms-connect --yes`. Unlike `psql`, this works without a local PostgreSQL client installation.
 
 **What to look for**:
@@ -517,10 +475,9 @@ az postgres flexible-server firewall-rule delete --resource-group $RG --name $PS
 
 ### Cross-platform date commands
 
-The DB metrics commands in Step 6 use `date -u -v-24H` (macOS). Use the appropriate variant:
+The DB metrics commands in Step 6 use `date -u -v-24H` (macOS). On Linux (CI), use `date -u --date='24 hours ago'` instead.
 
 | OS | 24 hours ago | Now |
 |---|---|---|
 | **macOS** | `$(date -u -v-24H '+%Y-%m-%dT%H:%M:%SZ')` | `$(date -u '+%Y-%m-%dT%H:%M:%SZ')` |
 | **Linux** | `$(date -u --date='24 hours ago' '+%Y-%m-%dT%H:%M:%SZ')` | `$(date -u '+%Y-%m-%dT%H:%M:%SZ')` |
-| **PowerShell** | `(Get-Date).AddHours(-24).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")` | `(Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")` |

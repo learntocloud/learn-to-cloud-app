@@ -74,7 +74,7 @@ def _get_token_sync(credential: DefaultAzureCredential) -> str:
     return token.token
 
 
-# tenacity's before_sleep_log requires a stdlib Logger, not structlog BoundLogger
+# tenacity's before_sleep_log requires a stdlib Logger
 _stdlib_logger = logging.getLogger(__name__)
 
 

@@ -14,8 +14,9 @@ Reference those files for type information and endpoint contracts when working o
 | Layer | Does | Does NOT |
 |-------|------|----------|
 | **Routes** (`routes/`) | Validate input, call services, return responses, raise `HTTPException` | Business logic, direct DB access |
-| **Services** (`services/`) | Orchestrate operations, enforce rules, log domain events, raise domain exceptions, commit transactions | HTTP concerns, direct SQL |
+| **Services** (`services/`) | Orchestrate operations, enforce rules, log domain events, raise domain exceptions | HTTP concerns, direct SQL |
 | **Repositories** (`repositories/`) | Execute queries, return models/DTOs | Business rules, HTTP exceptions, commit transactions |
+| **Rendering** (`rendering/`) | Presentation helpers, template data conversion, SVG/PDF generation | Business logic, DB access, HTTP concerns |
 
 ## Exception Handling
 
@@ -152,7 +153,16 @@ Always provide a `close_*_client()` function and register it in `main.py` lifesp
 ## SQLAlchemy Patterns
 - Upserts: `pg_insert().on_conflict_do_update()` with explicit `set_`
 - **Gotcha**: Python-side column defaults are NOT applied on conflict update—include `updated_at` explicitly
-- Repository methods do NOT call `commit()`—services own the transaction and call `await db.commit()`
+- Repository methods do NOT call `commit()`
+- The `get_db` / `get_db_readonly` DI dependencies auto-commit on success and auto-rollback on error—most services rely on this and do NOT call `commit()` themselves
+- Exception: services that manage their own `session_maker()` sessions (e.g., `submissions_service.py` for long-running LLM flows) must call `commit()` explicitly
+
+## Sequential Phase Gating
+Phases 4–6 require the prior phase's hands-on verification to be fully completed:
+- `_PHASE_PREREQUISITES` in `phase_requirements_service.py` defines the chain: 4→3, 5→4, 6→5
+- `is_phase_verification_locked()` checks if a phase is gated (used by page routes for UI lock state)
+- `PriorPhaseNotCompleteError` is raised in `submit_validation()` and caught by htmx routes
+- `get_requirement_ids_for_phase()` dynamically pulls requirement IDs from YAML—no hardcoding
 
 ## Docstrings
 - Skip self-documenting Args (e.g., `db: AsyncSession`)

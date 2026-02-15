@@ -166,7 +166,7 @@ def create_engine() -> AsyncEngine:
 
         instrument_sqlalchemy_engine(engine)
     except Exception:
-        pass
+        logger.warning("database.observability_setup.failed", exc_info=True)
 
     return engine
 

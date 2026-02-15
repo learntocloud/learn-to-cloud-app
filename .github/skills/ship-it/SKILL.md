@@ -23,35 +23,19 @@ End-to-end workflow: run prek checks, fix failures, commit, push, and monitor th
 
 - `gh` CLI authenticated (`gh auth status`)
 - `git` configured with push access to the remote
-- `prek` installed (brew install j178/tap/prek)
+- `prek` installed (`brew install j178/tap/prek`)
 - Working directory is inside the repository
 
 ---
 
-## Platform Detection
+## Step 0: Match User's Energy
 
-**CRITICAL**: Detect the OS first and use appropriate commands:
-
-- **Windows**: Use PowerShell commands
-- **macOS/Linux**: Use bash commands
+Reply with "LFG 🚀 I'll ship it" to acknowledge the user's intent.
 
 ---
 
-## Step 0: Match users energy
-
-Reply with "LFG 🚀 I'll ship it" to acknowledge the user's intent and energy around shipping their changes.
-
-
 ## Step 1: Run Prek
 
-Run prek on all files to catch lint, format, and type errors before committing.
-
-### Windows (PowerShell)
-```powershell
-Set-Location <workspace>; prek run --all-files
-```
-
-### macOS/Linux
 ```bash
 cd <workspace> && prek run --all-files
 ```
@@ -62,26 +46,21 @@ Prek hooks may auto-fix issues (ruff lint `--fix`, ruff format, trailing whitesp
 
 **If prek fails:**
 
-1. **Check if hooks auto-fixed files** — many hooks (ruff, trailing-whitespace, end-of-file-fixer) modify files in place. Re-run prek to confirm fixes are clean:
-   ```powershell
-   # Windows
-   prek run --all-files
-   ```
+1. **Check if hooks auto-fixed files** — many hooks modify files in place. Re-run prek:
    ```bash
-   # macOS/Linux
    prek run --all-files
    ```
 
 2. **If the second run passes** — the auto-fixes resolved everything. Proceed to Step 2.
 
-3. **If the second run still fails** — there are issues that require manual intervention:
-   - **Ruff lint errors**: Read the error output, fix the code, re-run.
-   - **ty type errors**: Read the error output, fix type issues, re-run.
-   - **check-yaml / check-json**: Fix malformed YAML/JSON files.
-   - **check-added-large-files**: Remove or `.gitignore` the large file.
-   - **check-merge-conflict**: Resolve merge conflict markers.
+3. **If the second run still fails** — manual intervention needed:
+   - **Ruff lint errors**: Read error output, fix the code, re-run
+   - **ty type errors**: Read error output, fix type issues, re-run
+   - **check-yaml / check-json**: Fix malformed YAML/JSON files
+   - **check-added-large-files**: Remove or `.gitignore` the large file
+   - **check-merge-conflict**: Resolve merge conflict markers
 
-4. **Keep re-running prek** until all hooks pass with no failures.
+4. **Keep re-running prek** until all hooks pass.
 
 **Do NOT proceed to commit until prek passes cleanly.**
 
@@ -89,31 +68,15 @@ Prek hooks may auto-fix issues (ruff lint `--fix`, ruff format, trailing whitesp
 
 ## Step 2: Stage Changed Files
 
-After pre-commit passes (including any auto-fixed files), stage the changes.
-
-### Check What Changed
-```powershell
-# Windows
-git status
-git diff --stat
-```
 ```bash
-# macOS/Linux
 git status
 git diff --stat
 ```
 
-### Stage Files
+**Always stage ALL changes. Never cherry-pick files. `ship it` means ship everything.**
 
-**CRITICAL: Always stage ALL changes. Never cherry-pick files. `ship it` means ship everything.**
-
-```powershell
-# Windows / macOS / Linux
+```bash
 git add -A
-```
-
-**Review what's staged** to ensure nothing unexpected is included:
-```powershell
 git diff --cached --stat
 ```
 
@@ -121,24 +84,15 @@ git diff --cached --stat
 
 ## Step 3: Commit
 
-Commit with a clear, conventional-commit-style message.
-
 **If the user provided a commit message**, use it directly.
 
 **If no commit message was provided**, generate one based on the changes:
 
-```powershell
+```bash
 git commit -m "<type>: <concise description>"
 ```
 
-Conventional commit types:
-- `feat:` — new feature
-- `fix:` — bug fix
-- `refactor:` — code restructuring
-- `docs:` — documentation only
-- `style:` — formatting, no logic change
-- `test:` — adding or fixing tests
-- `chore:` — maintenance, dependencies
+Conventional commit types: `feat:`, `fix:`, `refactor:`, `docs:`, `style:`, `test:`, `chore:`
 
 Ask the user for a commit message if the intent is ambiguous.
 
@@ -146,18 +100,16 @@ Ask the user for a commit message if the intent is ambiguous.
 
 ## Step 4: Push
 
-Push to the current branch:
-
-```powershell
+```bash
 git push
 ```
 
-If the push is rejected (e.g., behind remote), pull first:
-```powershell
+If rejected (behind remote):
+```bash
 git pull --rebase && git push
 ```
 
-**Note the branch name** — the deploy workflow triggers on pushes to `main`. If on a different branch, inform the user that deployment won't trigger automatically and they may need to open a PR.
+**Note**: The deploy workflow triggers on pushes to `main`. If on a different branch, inform the user that deployment won't trigger automatically.
 
 ---
 
@@ -167,25 +119,18 @@ After pushing to `main`, the `deploy.yml` workflow triggers automatically.
 
 ### Wait for Workflow to Appear
 
-The workflow may take a few seconds to start. Poll until it appears:
-
-```powershell
-# Windows / macOS / Linux
-Start-Sleep -Seconds 5  # or: sleep 5
+```bash
+sleep 5
 gh run list --workflow=deploy.yml --limit 1
 ```
 
 ### Watch the Workflow
 
-Use `gh run watch` to monitor in real-time:
-
-```powershell
+```bash
 gh run watch --exit-status
 ```
 
-This blocks until the workflow completes and exits with:
-- **Exit code 0**: Workflow succeeded
-- **Non-zero exit code**: Workflow failed
+This blocks until the workflow completes. Exit code 0 = success, non-zero = failure.
 
 **If the workflow succeeds** — report success and the deploy URL. Done!
 
@@ -193,66 +138,51 @@ This blocks until the workflow completes and exits with:
 
 ## Step 6: Diagnose Deploy Failures
 
-If the workflow fails, diagnose the issue.
-
-### Get the Failed Run ID
-
-```powershell
-$runId = (gh run list --workflow=deploy.yml --limit 1 --json databaseId --jq '.[0].databaseId')
-```
+If the workflow fails:
 
 ```bash
 run_id=$(gh run list --workflow=deploy.yml --limit 1 --json databaseId --jq '.[0].databaseId')
+gh run view $run_id --log-failed
 ```
 
-### View Failed Logs
-
-```powershell
-gh run view $runId --log-failed
-```
-
-### Common Failure Patterns and Fixes
+### Common Failure Patterns
 
 #### CI Failures (lint-and-test job)
 
-| Pattern | Cause | Fix |
-|---------|-------|-----|
-| `ruff` lint errors | Lint failures in CI | Run `cd api && uv run ruff check --fix .`, commit & push |
-| `ruff-format` | Format differences | Run `cd api && uv run ruff format .`, commit & push |
-| `ty` type errors | Type checking failures | Fix type errors, commit & push |
-| `pytest` / `FAILED` | Test failures | Run `cd api && uv run pytest tests/ -x`, fix failing tests, commit & push |
+| Pattern | Fix |
+|---------|-----|
+| `ruff` lint errors | `cd api && uv run ruff check --fix .`, commit & push |
+| `ruff-format` | `cd api && uv run ruff format .`, commit & push |
+| `ty` type errors | Fix type errors, commit & push |
+| `pytest` / `FAILED` | `cd api && uv run pytest tests/ -x`, fix, commit & push |
 
 #### Terraform Failures
 
-| Pattern | Cause | Fix |
-|---------|-------|-----|
-| `Error acquiring the state lock` | State locked by a prior run | Extract Lock ID, run `cd infra && terraform force-unlock -force <lock-id>`, then re-run |
-| `AuthorizationFailed` | Expired credentials | Check `AZURE_CREDENTIALS` secret — not fixable locally |
-| `ResourceNotFound` | Resource deleted outside TF | Run `terraform refresh` or re-import |
+| Pattern | Fix |
+|---------|-----|
+| `Error acquiring the state lock` | Extract Lock ID, `cd infra && terraform force-unlock -force <lock-id>`, re-run |
+| `AuthorizationFailed` | Check `AZURE_CREDENTIALS` secret — not fixable locally |
+| `ResourceNotFound` | `terraform refresh` or re-import |
 
 #### Build/Deploy Failures
 
-| Pattern | Cause | Fix |
-|---------|-------|-----|
-| `docker build` fails | Dockerfile or dependency issue | Fix Dockerfile or `pyproject.toml`, commit & push |
-| Smoke test `curl -f` fails | API doesn't start in container | Check `docker logs`, fix startup issue, commit & push |
-| `Trivy` vulnerabilities | Security scan found HIGH/CRITICAL CVEs | Warning only (non-blocking), note in report |
-| Container app update fails | Azure deployment error | Check Azure resource status, may need re-run |
-| API readiness timeout | App didn't become ready in 5 min | Check app logs: `az containerapp logs show ...` |
+| Pattern | Fix |
+|---------|-----|
+| `docker build` fails | Fix Dockerfile or `pyproject.toml`, commit & push |
+| Smoke test `curl -f` fails | Check `docker logs`, fix startup issue, commit & push |
+| API readiness timeout | Check app logs: `az containerapp logs show ...` |
 
 ### Fix and Re-deploy
 
-After fixing the issue:
+After fixing:
+1. Run prek again (Step 1)
+2. `git add -A && git commit -m "fix: resolve deploy failure"`
+3. `git push`
+4. Monitor again (Step 5)
 
-1. **Run pre-commit again** (go back to Step 1)
-2. **Commit the fix**: `git add -A && git commit -m "fix: resolve deploy failure"`
-3. **Push**: `git push`
-4. **Monitor again** (go back to Step 5)
-
-If the fix doesn't require code changes (e.g., Terraform state lock), re-run the workflow:
-
-```powershell
-gh run rerun $runId
+If no code changes needed (e.g., state lock):
+```bash
+gh run rerun $run_id
 gh run watch --exit-status
 ```
 
@@ -260,23 +190,9 @@ gh run watch --exit-status
 
 ## Step 7: Verify Production
 
-After a successful deploy, verify the production API is healthy:
-
-```powershell
-# Get the API URL from the workflow output
-gh run view $runId --json jobs --jq '.jobs[] | select(.name | contains("deploy")) | .steps[] | select(.name | contains("Wait for API")) | .name'
-```
-
-Or check the known production URL if available:
-
-```powershell
-# Windows
-(Invoke-WebRequest -Uri "https://<api-url>/health" -UseBasicParsing).Content
-(Invoke-WebRequest -Uri "https://<api-url>/ready" -UseBasicParsing).Content
-```
+After a successful deploy:
 
 ```bash
-# macOS/Linux
 curl -s https://<api-url>/health
 curl -s https://<api-url>/ready
 ```
@@ -284,8 +200,6 @@ curl -s https://<api-url>/ready
 ---
 
 ## Full Ship-It Flow Summary
-
-Report progress using this format:
 
 ```markdown
 ## Ship It: <branch-name>
@@ -316,9 +230,9 @@ Report progress using this format:
 
 ## Retry Policy
 
-- **Pre-commit auto-fixes**: Re-run up to 3 times (auto-fixes cascade)
+- **Pre-commit auto-fixes**: Re-run up to 3 times
 - **Deploy failures**: Attempt fix + re-deploy up to 2 times
-- **If still failing after retries**: Stop and report the issue to the user with full error context
+- **If still failing**: Stop and report the issue with full error context
 
 ---
 
@@ -328,5 +242,4 @@ Report progress using this format:
 - "commit and deploy"
 - "push and deploy"
 - "land this"
-- "commit push and monitor"
 - "deploy this"

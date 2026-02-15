@@ -7,6 +7,7 @@ Usage: uv run --directory api python ../scripts/seed_progress.py <github_usernam
 """
 
 import asyncio
+import os
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
@@ -14,7 +15,9 @@ from pathlib import Path
 import asyncpg
 import yaml
 
-DATABASE_URL = "postgresql://postgres:postgres@localhost:5432/learn_to_cloud"
+DATABASE_URL = os.environ.get(
+    "DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/learn_to_cloud"
+)
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 CONTENT_DIR = REPO_ROOT / "content" / "phases"

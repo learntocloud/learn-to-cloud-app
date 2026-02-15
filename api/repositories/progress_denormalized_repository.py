@@ -25,27 +25,6 @@ class UserPhaseProgressRepository:
         )
         return {row.phase_id: row for row in result.scalars().all()}
 
-    async def increment_steps(
-        self, user_id: int, phase_id: int, delta: int = 1
-    ) -> None:
-        """Increment completed_steps count. Creates row if not exists."""
-        now = datetime.now(UTC)
-        stmt = pg_insert(UserPhaseProgress).values(
-            user_id=user_id,
-            phase_id=phase_id,
-            completed_steps=max(delta, 0),
-            validated_submissions=0,
-            updated_at=now,
-        )
-        stmt = stmt.on_conflict_do_update(
-            constraint="uq_user_phase_progress",
-            set_={
-                "completed_steps": UserPhaseProgress.completed_steps + delta,
-                "updated_at": now,
-            },
-        )
-        await self.db.execute(stmt)
-
     async def increment_submissions(
         self, user_id: int, phase_id: int, delta: int = 1
     ) -> None:
@@ -54,7 +33,6 @@ class UserPhaseProgressRepository:
         stmt = pg_insert(UserPhaseProgress).values(
             user_id=user_id,
             phase_id=phase_id,
-            completed_steps=0,
             validated_submissions=max(delta, 0),
             updated_at=now,
         )
@@ -63,30 +41,6 @@ class UserPhaseProgressRepository:
             set_={
                 "validated_submissions": UserPhaseProgress.validated_submissions
                 + delta,
-                "updated_at": now,
-            },
-        )
-        await self.db.execute(stmt)
-
-    async def recalculate_steps_for_phase(
-        self, user_id: int, phase_id: int, new_count: int
-    ) -> None:
-        """Set completed_steps to an exact count.
-
-        Used after cascading uncomplete.
-        """
-        now = datetime.now(UTC)
-        stmt = pg_insert(UserPhaseProgress).values(
-            user_id=user_id,
-            phase_id=phase_id,
-            completed_steps=new_count,
-            validated_submissions=0,
-            updated_at=now,
-        )
-        stmt = stmt.on_conflict_do_update(
-            constraint="uq_user_phase_progress",
-            set_={
-                "completed_steps": new_count,
                 "updated_at": now,
             },
         )

@@ -3,31 +3,33 @@
 import asyncio
 import os
 import subprocess
-import sys
+
+import sqlalchemy
 from sqlalchemy.ext.asyncio import create_async_engine
+
+_DEFAULT_DB_HOST = "psql-ltc-dev-8v4tyz.postgres.database.azure.com"
 
 
 async def count_users():
     """Query production database for user count."""
     result = subprocess.run(
-        "az account get-access-token --resource-type oss-rdbms --query accessToken -o tsv",
+        ["az", "account", "get-access-token", "--resource-type", "oss-rdbms", "--query", "accessToken", "-o", "tsv"],
         capture_output=True,
         text=True,
         check=True,
-        shell=True
     )
     token = result.stdout.strip()
 
     result = subprocess.run(
-        "az ad signed-in-user show --query displayName -o tsv",
+        ["az", "ad", "signed-in-user", "show", "--query", "displayName", "-o", "tsv"],
         capture_output=True,
         text=True,
         check=True,
-        shell=True
     )
     username = result.stdout.strip()
 
-    db_url = f"postgresql+asyncpg://{username}:{token}@psql-ltc-dev-8v4tyz.postgres.database.azure.com:5432/learntocloud"
+    db_host = os.environ.get("DATABASE_HOST", _DEFAULT_DB_HOST)
+    db_url = f"postgresql+asyncpg://{username}:{token}@{db_host}:5432/learntocloud"
 
     engine = create_async_engine(db_url, echo=False, connect_args={"ssl": "require"})
 
@@ -56,5 +58,4 @@ async def count_users():
 
 
 if __name__ == "__main__":
-    import sqlalchemy
     asyncio.run(count_users())

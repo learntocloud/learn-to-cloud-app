@@ -94,6 +94,7 @@ async def _build_png_response(
 
 @router.get(
     "/verify/{verification_code}/pdf",
+    summary="Download verified certificate PDF",
     responses={
         200: {"content": {"application/pdf": {}}, "description": "PDF certificate"},
         404: {"description": "Certificate not found"},
@@ -115,6 +116,7 @@ async def get_verified_certificate_pdf_endpoint(
 
 @router.get(
     "/verify/{verification_code}/png",
+    summary="Download verified certificate PNG",
     responses={
         200: {"content": {"image/png": {}}, "description": "PNG certificate image"},
         404: {"description": "Certificate not found"},

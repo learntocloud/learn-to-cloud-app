@@ -49,6 +49,8 @@ class _RequestContextFilter(logging.Filter):
 class _JSONFormatter(logging.Formatter):
     """Format log records as single-line JSON for production log aggregation."""
 
+    _SKIP_KEYS = set(logging.LogRecord("", 0, "", 0, "", (), None).__dict__)
+
     def format(self, record: logging.LogRecord) -> str:
         log_entry: dict[str, object] = {
             "timestamp": datetime.now(UTC).isoformat(),
@@ -56,9 +58,10 @@ class _JSONFormatter(logging.Formatter):
             "logger": record.name,
             "event": record.getMessage(),
         }
-        skip = set(logging.LogRecord("", 0, "", 0, "", (), None).__dict__)
         for key, value in record.__dict__.items():
-            if key not in skip and isinstance(value, str | int | float | bool | None):
+            if key not in self._SKIP_KEYS and isinstance(
+                value, str | int | float | bool | None
+            ):
                 log_entry[key] = value
         if record.exc_info and record.exc_info[0] is not None:
             log_entry["exception"] = self.formatException(record.exc_info)

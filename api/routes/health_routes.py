@@ -10,7 +10,7 @@ from schemas import HealthResponse
 router = APIRouter(tags=["health"])
 
 
-@router.get("/health", response_model=HealthResponse)
+@router.get("/health", response_model=HealthResponse, summary="Health check")
 async def health() -> HealthResponse:
     """Health check endpoint."""
     return HealthResponse(status="healthy", service="learn-to-cloud-api")
@@ -19,6 +19,7 @@ async def health() -> HealthResponse:
 @router.get(
     "/ready",
     response_model=HealthResponse,
+    summary="Readiness check",
     responses={
         503: {
             "description": "Service unavailable - init failed or DB unreachable",

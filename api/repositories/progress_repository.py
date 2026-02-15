@@ -1,6 +1,6 @@
 """Repository for step progress operations."""
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -60,26 +60,18 @@ class StepProgressRepository:
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def get_step_counts_by_phase(self, user_id: int) -> dict[int, int]:
-        result = await self.db.execute(
-            select(StepProgress.phase_id, func.count(StepProgress.id))
-            .where(StepProgress.user_id == user_id)
-            .group_by(StepProgress.phase_id)
-        )
-        return {row[0]: row[1] for row in result.all()}
-
-    async def delete_from_step(
+    async def delete_step(
         self,
         user_id: int,
         topic_id: str,
-        from_step_order: int,
+        step_id: str,
     ) -> int:
-        """Delete step progress from a given step onwards (cascading uncomplete)."""
+        """Delete a single step progress record."""
         result = await self.db.execute(
             delete(StepProgress).where(
                 StepProgress.user_id == user_id,
                 StepProgress.topic_id == topic_id,
-                StepProgress.step_order >= from_step_order,
+                StepProgress.step_id == step_id,
             )
         )
         return getattr(result, "rowcount", 0) or 0

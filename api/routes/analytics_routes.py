@@ -14,6 +14,7 @@ from core.auth import OptionalUserId
 from core.database import DbSessionReadOnly, comprehensive_health_check
 from schemas import CommunityAnalytics
 from services.analytics_service import get_community_analytics
+from services.users_service import get_user_by_id
 
 logger = logging.getLogger(__name__)
 
@@ -27,8 +28,6 @@ async def status_page(
     user_id: OptionalUserId,
 ) -> HTMLResponse:
     """Public status page with system health and community analytics."""
-    from services.users_service import get_user_by_id
-
     user = None
     if user_id is not None:
         user = await get_user_by_id(db, user_id)

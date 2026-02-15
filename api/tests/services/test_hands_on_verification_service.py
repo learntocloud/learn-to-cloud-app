@@ -8,7 +8,7 @@ Tests the submission routing logic in validate_submission():
 - Evidence URL validation for deployment types
 """
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -44,7 +44,8 @@ class TestValidateSubmissionRouting:
         requirement = _make_requirement(SubmissionType.NETWORKING_TOKEN)
 
         with patch(
-            "services.hands_on_verification_service.validate_networking_token_submission"
+            "services.hands_on_verification_service.validate_networking_token_submission",
+            autospec=True,
         ) as mock:
             mock.return_value = ValidationResult(
                 is_valid=True, message="Token verified!"
@@ -83,7 +84,7 @@ class TestValidateSubmissionRouting:
 
         with patch(
             "services.github_hands_on_verification_service.validate_repo_fork",
-            new_callable=AsyncMock,
+            autospec=True,
         ) as mock:
             mock.return_value = ValidationResult(
                 is_valid=True,
@@ -153,7 +154,7 @@ class TestSubmissionRouting:
 
         with patch(
             "services.deployed_api_verification_service.validate_deployed_api",
-            new_callable=AsyncMock,
+            autospec=True,
         ) as mock:
             mock.return_value = ValidationResult(
                 is_valid=True, message="Deployed API verified!"
@@ -181,7 +182,7 @@ class TestSubmissionRouting:
 
         with patch(
             "services.pr_verification_service.validate_pr",
-            new_callable=AsyncMock,
+            autospec=True,
         ) as mock:
             mock.return_value = ValidationResult(
                 is_valid=True,
@@ -211,7 +212,7 @@ class TestSubmissionRouting:
 
         with patch(
             "services.devops_verification_service.analyze_devops_repository",
-            new_callable=AsyncMock,
+            autospec=True,
         ) as mock:
             mock.return_value = ValidationResult(
                 is_valid=True, message="All DevOps tasks verified!"
@@ -273,7 +274,7 @@ class TestValidateSubmissionUsernameRequirements:
 
         with patch(
             "services.deployed_api_verification_service.validate_deployed_api",
-            new_callable=AsyncMock,
+            autospec=True,
         ) as mock:
             mock.return_value = ValidationResult(is_valid=True, message="API verified!")
 

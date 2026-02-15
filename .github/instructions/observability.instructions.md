@@ -104,7 +104,7 @@ which must run **before** FastAPI is imported.
 |-------|----------------|
 | **HTTP requests** | FastAPI auto-instrumentation → App Insights `AppRequests` |
 | **SQL queries** | `instrument_sqlalchemy_engine()` → query spans with `sqlcommenter` |
-| **Outbound HTTP** | `requests` / `urllib` / `urllib3` auto-instrumented |
+| **Outbound HTTP** | `httpx` auto-instrumented via `HTTPXClientInstrumentor` (OTLP path); `requests`/`urllib3` enabled for Azure Monitor fallback |
 | **LLM calls** | Agent Framework `enable_instrumentation()` traces LLM calls + token usage |
 
 ### `SecurityHeadersMiddleware`

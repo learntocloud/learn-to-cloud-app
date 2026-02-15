@@ -220,10 +220,7 @@ class Certificate(TimestampMixin, Base):
     """Tracks completion certificates issued to users."""
 
     __tablename__ = "certificates"
-    __table_args__ = (
-        UniqueConstraint("user_id", name="uq_user_certificate"),
-        Index("ix_certificates_user", "user_id"),
-    )
+    __table_args__ = (UniqueConstraint("user_id", name="uq_user_certificate"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(
@@ -289,11 +286,11 @@ class StepProgress(Base):
 
 
 class UserPhaseProgress(Base):
-    """Denormalized per-user per-phase progress counts.
+    """Denormalized per-user per-phase submission counts.
 
-    Pre-computed from step_progress and submissions tables.
-    Updated on step complete/uncomplete and submission validation.
-    Eliminates the need for two aggregate queries per dashboard load.
+    Tracks validated_submissions per phase to avoid aggregate queries
+    on the submissions table for every dashboard load.
+    Step completion is computed live from step_progress rows.
     """
 
     __tablename__ = "user_phase_progress"
@@ -309,7 +306,6 @@ class UserPhaseProgress(Base):
         nullable=False,
     )
     phase_id: Mapped[int] = mapped_column(Integer, nullable=False)
-    completed_steps: Mapped[int] = mapped_column(Integer, default=0)
     validated_submissions: Mapped[int] = mapped_column(Integer, default=0)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow, onupdate=utcnow

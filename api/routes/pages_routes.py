@@ -28,7 +28,7 @@ from services.dashboard_service import get_dashboard_data
 from services.phase_requirements_service import (
     is_phase_verification_locked,
 )
-from services.progress_service import get_phase_detail_progress
+from services.progress_service import fetch_user_progress, get_phase_detail_progress
 from services.steps_service import get_completed_steps
 from services.submissions_service import get_phase_submission_context
 from services.users_service import get_public_profile, get_user_by_id
@@ -296,8 +296,6 @@ async def certificates_page(
     """Certificate management page."""
     user = await _get_user_or_none(db, user_id)
     certificate, eligible = await get_user_certificate_with_eligibility(db, user_id)
-
-    from services.progress_service import fetch_user_progress
 
     progress = await fetch_user_progress(db, user_id)
 

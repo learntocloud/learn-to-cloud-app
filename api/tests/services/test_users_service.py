@@ -28,11 +28,12 @@ class TestDeleteUserAccount:
         mock_user = MagicMock()
         mock_user.github_username = "testuser"
 
-        with patch("services.users_service.UserRepository") as mock_repo_class:
-            mock_repo = MagicMock()
+        with patch(
+            "services.users_service.UserRepository", autospec=True
+        ) as mock_repo_class:
+            mock_repo = mock_repo_class.return_value
             mock_repo.get_by_id = AsyncMock(return_value=mock_user)
             mock_repo.delete = AsyncMock()
-            mock_repo_class.return_value = mock_repo
 
             await delete_user_account(mock_db, user_id=12345)
 
@@ -46,10 +47,11 @@ class TestDeleteUserAccount:
         """Deleting a user that doesn't exist raises UserNotFoundError."""
         mock_db = AsyncMock()
 
-        with patch("services.users_service.UserRepository") as mock_repo_class:
-            mock_repo = MagicMock()
+        with patch(
+            "services.users_service.UserRepository", autospec=True
+        ) as mock_repo_class:
+            mock_repo = mock_repo_class.return_value
             mock_repo.get_by_id = AsyncMock(return_value=None)
-            mock_repo_class.return_value = mock_repo
 
             with pytest.raises(UserNotFoundError) as exc_info:
                 await delete_user_account(mock_db, user_id=99999)
@@ -64,11 +66,12 @@ class TestDeleteUserAccount:
         mock_user = MagicMock()
         mock_user.github_username = "loguser"
 
-        with patch("services.users_service.UserRepository") as mock_repo_class:
-            mock_repo = MagicMock()
+        with patch(
+            "services.users_service.UserRepository", autospec=True
+        ) as mock_repo_class:
+            mock_repo = mock_repo_class.return_value
             mock_repo.get_by_id = AsyncMock(return_value=mock_user)
             mock_repo.delete = AsyncMock()
-            mock_repo_class.return_value = mock_repo
 
             await delete_user_account(mock_db, user_id=12345)
 

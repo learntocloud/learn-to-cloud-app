@@ -40,7 +40,7 @@ def configure_observability() -> None:
     _telemetry_enabled = True
 
     if conn_str:
-        _configure_azure_monitor(conn_str, otlp_endpoint)
+        _configure_azure_monitor(conn_str)
     else:
         _configure_otlp(otlp_endpoint)  # type: ignore[arg-type] — checked above
 
@@ -94,7 +94,7 @@ def instrument_sqlalchemy_engine(engine: Any) -> None:
         )
 
 
-def _configure_azure_monitor(conn_str: str, otlp_endpoint: str | None) -> None:
+def _configure_azure_monitor(conn_str: str) -> None:
     try:
         from azure.monitor.opentelemetry import configure_azure_monitor
 

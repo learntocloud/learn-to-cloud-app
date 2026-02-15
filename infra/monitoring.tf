@@ -386,12 +386,96 @@ resource "azurerm_monitor_smart_detector_alert_rule" "failure_anomalies" {
   }
 }
 
+# External availability test — pings /health from Azure's infrastructure every 5min.
+# This is the only alert that fires when the app is completely unreachable (DNS,
+# networking, container crashed with no restarts, etc.).
+resource "azurerm_application_insights_standard_web_test" "availability" {
+  name                    = "webtest-ltc-availability-${var.environment}"
+  resource_group_name     = azurerm_resource_group.main.name
+  location                = azurerm_resource_group.main.location
+  application_insights_id = azurerm_application_insights.main.id
+  geo_locations           = ["us-va-ash-azr", "us-il-ch1-azr", "emea-nl-ams-azr"]
+  frequency               = 300
+  timeout                 = 30
+  enabled                 = true
+  tags                    = local.tags
+
+  request {
+    url = "https://${azurerm_container_app.api.ingress[0].fqdn}/health"
+  }
+
+  validation_rules {
+    expected_status_code = 200
+  }
+}
+
+resource "azurerm_monitor_metric_alert" "availability" {
+  name                = "alert-ltc-availability-${var.environment}"
+  resource_group_name = azurerm_resource_group.main.name
+  description         = "Alert when app is unreachable from 2+ Azure regions"
+  severity            = 0
+  enabled             = true
+  tags                = local.tags
+
+  scopes      = [azurerm_application_insights.main.id]
+  frequency   = "PT1M"
+  window_size = "PT5M"
+
+  criteria {
+    metric_namespace = "microsoft.insights/components"
+    metric_name      = "availabilityResults/availabilityPercentage"
+    aggregation      = "Average"
+    operator         = "LessThan"
+    threshold        = 100
+  }
+
+  action {
+    action_group_id = azurerm_monitor_action_group.critical.id
+  }
+}
+
+# Detect startup/migration failures from structured logs.
+# main.py logs "init.failed" when lifespan startup fails (including Alembic
+# migrations). A single occurrence is enough to fire — deploy failures are
+# always actionable.
+resource "azurerm_monitor_scheduled_query_rules_alert_v2" "migration_failure" {
+  name                = "alert-ltc-init-failed-${var.environment}"
+  resource_group_name = azurerm_resource_group.main.name
+  location            = azurerm_resource_group.main.location
+  description         = "Alert when app startup or migration fails (init.failed log event)"
+  severity            = 1
+  enabled             = true
+  tags                = local.tags
+
+  scopes                = [azurerm_application_insights.main.id]
+  evaluation_frequency  = "PT5M"
+  window_duration       = "PT5M"
+  target_resource_types = ["microsoft.insights/components"]
+
+  criteria {
+    query                   = <<-QUERY
+      AppTraces
+      | where Message has "init.failed"
+      | summarize Count = count() by bin(TimeGenerated, 5m)
+    QUERY
+    time_aggregation_method = "Count"
+    operator                = "GreaterThanOrEqual"
+    threshold               = 1
+
+    failing_periods {
+      minimum_failing_periods_to_trigger_alert = 1
+      number_of_evaluation_periods             = 1
+    }
+  }
+
+  action {
+    action_groups = [azurerm_monitor_action_group.critical.id]
+  }
+}
+
 # Dashboard layout (12-column grid):
-#   Row 0  : Request Rate | Failed Requests (by status code)
-#   Row 4  : P95 Response Time | Response Time by Route (top 5 slowest)
-#   Row 8  : Replica Count | LLM Dependency Latency & Failures
-#   Row 12 : DB CPU % | DB Connections (vs 35 max on B1ms)
-#   Row 16 : DB Storage % | Active Users (unique authenticated sessions)
+#   Row 0: Failed Requests | Response Time Percentiles
+#   Row 4: Database CPU % | Active Users & Request Volume
 resource "azurerm_portal_dashboard" "main" {
   name                = "dash-ltc-${var.environment}"
   resource_group_name = azurerm_resource_group.main.name
@@ -403,33 +487,9 @@ resource "azurerm_portal_dashboard" "main" {
       "0" = {
         order = 0
         parts = {
-          # --- Row 0: Traffic Overview ---
+          # --- Row 0: Errors + Latency ---
           "0" = {
             position = { x = 0, y = 0, colSpan = 6, rowSpan = 4 }
-            metadata = {
-              type = "Extension/HubsExtension/PartType/MonitorChartPart"
-              inputs = [
-                {
-                  name = "options"
-                  value = {
-                    chart = {
-                      title = "API Request Rate"
-                      metrics = [{
-                        resourceMetadata = { id = azurerm_application_insights.main.id }
-                        name             = "requests/count"
-                        aggregationType  = 7
-                        namespace        = "microsoft.insights/components"
-                      }]
-                      visualization = { chartType = 2 }
-                      timespan      = { relative = { duration = 86400000 } }
-                    }
-                  }
-                }
-              ]
-            }
-          }
-          "1" = {
-            position = { x = 6, y = 0, colSpan = 6, rowSpan = 4 }
             metadata = {
               type = "Extension/HubsExtension/PartType/MonitorChartPart"
               inputs = [
@@ -452,9 +512,8 @@ resource "azurerm_portal_dashboard" "main" {
               ]
             }
           }
-          # --- Row 4: Latency ---
-          "2" = {
-            position = { x = 0, y = 4, colSpan = 6, rowSpan = 4 }
+          "1" = {
+            position = { x = 6, y = 0, colSpan = 6, rowSpan = 4 }
             metadata = {
               type = "Extension/Microsoft_OperationsManagementSuite_Workspace/PartType/LogsDashboardPart"
               inputs = [
@@ -463,7 +522,7 @@ resource "azurerm_portal_dashboard" "main" {
                   isOptional = true
                 },
                 {
-                  name  = "ComponentId"
+                  name = "ComponentId"
                   value = {
                     ResourceId = azurerm_application_insights.main.id
                   }
@@ -528,179 +587,9 @@ resource "azurerm_portal_dashboard" "main" {
               settings = {}
             }
           }
-          "3" = {
-            position = { x = 6, y = 4, colSpan = 6, rowSpan = 4 }
-            metadata = {
-              type = "Extension/Microsoft_OperationsManagementSuite_Workspace/PartType/LogsDashboardPart"
-              inputs = [
-                {
-                  name       = "resourceTypeMode"
-                  isOptional = true
-                },
-                {
-                  name  = "ComponentId"
-                  value = {
-                    ResourceId = azurerm_application_insights.main.id
-                  }
-                  isOptional = true
-                },
-                {
-                  name = "Scope"
-                  value = {
-                    resourceIds = [azurerm_application_insights.main.id]
-                  }
-                  isOptional = true
-                },
-                {
-                  name       = "PartId"
-                  value      = "a1b2c3d4-0001-4000-8000-000000000003"
-                  isOptional = true
-                },
-                {
-                  name       = "Version"
-                  value      = "2.0"
-                  isOptional = true
-                },
-                {
-                  name       = "TimeRange"
-                  value      = "PT24H"
-                  isOptional = true
-                },
-                {
-                  name       = "DashboardId"
-                  isOptional = true
-                },
-                {
-                  name       = "DraftRequestParameters"
-                  isOptional = true
-                },
-                {
-                  name       = "Query"
-                  value      = "requests | where timestamp > ago(24h) | summarize P95=percentile(duration, 95), Count=count() by name | top 10 by P95 desc | project Route=name, P95_ms=round(P95, 0), Requests=Count"
-                  isOptional = true
-                },
-                {
-                  name       = "ControlType"
-                  value      = "AnalyticsGrid"
-                  isOptional = true
-                },
-                {
-                  name       = "PartTitle"
-                  value      = "Slowest Routes (P95 latency)"
-                  isOptional = true
-                },
-                {
-                  name       = "IsQueryContainTimeRange"
-                  value      = true
-                  isOptional = true
-                }
-              ]
-              settings = {}
-            }
-          }
-          # --- Row 8: Container App + LLM Dependency ---
-          "4" = {
-            position = { x = 0, y = 8, colSpan = 6, rowSpan = 4 }
-            metadata = {
-              type = "Extension/HubsExtension/PartType/MonitorChartPart"
-              inputs = [
-                {
-                  name = "options"
-                  value = {
-                    chart = {
-                      title = "Container App Replica Count"
-                      metrics = [{
-                        resourceMetadata = { id = azurerm_container_app.api.id }
-                        name             = "Replicas"
-                        aggregationType  = 3
-                        namespace        = "Microsoft.App/containerApps"
-                      }]
-                      visualization = { chartType = 2 }
-                      timespan      = { relative = { duration = 86400000 } }
-                    }
-                  }
-                }
-              ]
-            }
-          }
-          "5" = {
-            position = { x = 6, y = 8, colSpan = 6, rowSpan = 4 }
-            metadata = {
-              type = "Extension/Microsoft_OperationsManagementSuite_Workspace/PartType/LogsDashboardPart"
-              inputs = [
-                {
-                  name       = "resourceTypeMode"
-                  isOptional = true
-                },
-                {
-                  name  = "ComponentId"
-                  value = {
-                    ResourceId = azurerm_application_insights.main.id
-                  }
-                  isOptional = true
-                },
-                {
-                  name = "Scope"
-                  value = {
-                    resourceIds = [azurerm_application_insights.main.id]
-                  }
-                  isOptional = true
-                },
-                {
-                  name       = "PartId"
-                  value      = "a1b2c3d4-0001-4000-8000-000000000005"
-                  isOptional = true
-                },
-                {
-                  name       = "Version"
-                  value      = "2.0"
-                  isOptional = true
-                },
-                {
-                  name       = "TimeRange"
-                  value      = "PT24H"
-                  isOptional = true
-                },
-                {
-                  name       = "DashboardId"
-                  isOptional = true
-                },
-                {
-                  name       = "DraftRequestParameters"
-                  isOptional = true
-                },
-                {
-                  name       = "Query"
-                  value      = "dependencies | where target has 'openai' or target has 'oai-ltc' | summarize Calls=count(), Failures=countif(success == false), AvgDuration=avg(duration) by bin(timestamp, 15m) | render timechart"
-                  isOptional = true
-                },
-                {
-                  name       = "ControlType"
-                  value      = "FrameControlChart"
-                  isOptional = true
-                },
-                {
-                  name       = "SpecificChart"
-                  value      = "Line"
-                  isOptional = true
-                },
-                {
-                  name       = "PartTitle"
-                  value      = "LLM / OpenAI Dependency (calls, failures, latency)"
-                  isOptional = true
-                },
-                {
-                  name       = "IsQueryContainTimeRange"
-                  value      = false
-                  isOptional = true
-                }
-              ]
-              settings = {}
-            }
-          }
-          # --- Row 12: Database ---
-          "6" = {
-            position = { x = 0, y = 12, colSpan = 6, rowSpan = 4 }
+          # --- Row 4: Infrastructure + Usage ---
+          "2" = {
+            position = { x = 0, y = 4, colSpan = 6, rowSpan = 4 }
             metadata = {
               type = "Extension/HubsExtension/PartType/MonitorChartPart"
               inputs = [
@@ -723,57 +612,8 @@ resource "azurerm_portal_dashboard" "main" {
               ]
             }
           }
-          "7" = {
-            position = { x = 6, y = 12, colSpan = 6, rowSpan = 4 }
-            metadata = {
-              type = "Extension/HubsExtension/PartType/MonitorChartPart"
-              inputs = [
-                {
-                  name = "options"
-                  value = {
-                    chart = {
-                      title = "Database Active Connections (max 35 on B1ms)"
-                      metrics = [{
-                        resourceMetadata = { id = azurerm_postgresql_flexible_server.main.id }
-                        name             = "active_connections"
-                        aggregationType  = 4
-                        namespace        = "Microsoft.DBforPostgreSQL/flexibleServers"
-                      }]
-                      visualization = { chartType = 2 }
-                      timespan      = { relative = { duration = 86400000 } }
-                    }
-                  }
-                }
-              ]
-            }
-          }
-          # --- Row 16: Storage + User Activity ---
-          "8" = {
-            position = { x = 0, y = 16, colSpan = 6, rowSpan = 4 }
-            metadata = {
-              type = "Extension/HubsExtension/PartType/MonitorChartPart"
-              inputs = [
-                {
-                  name = "options"
-                  value = {
-                    chart = {
-                      title = "Database Storage %"
-                      metrics = [{
-                        resourceMetadata = { id = azurerm_postgresql_flexible_server.main.id }
-                        name             = "storage_percent"
-                        aggregationType  = 4
-                        namespace        = "Microsoft.DBforPostgreSQL/flexibleServers"
-                      }]
-                      visualization = { chartType = 2 }
-                      timespan      = { relative = { duration = 86400000 } }
-                    }
-                  }
-                }
-              ]
-            }
-          }
-          "9" = {
-            position = { x = 6, y = 16, colSpan = 6, rowSpan = 4 }
+          "3" = {
+            position = { x = 6, y = 4, colSpan = 6, rowSpan = 4 }
             metadata = {
               type = "Extension/Microsoft_OperationsManagementSuite_Workspace/PartType/LogsDashboardPart"
               inputs = [
@@ -782,7 +622,7 @@ resource "azurerm_portal_dashboard" "main" {
                   isOptional = true
                 },
                 {
-                  name  = "ComponentId"
+                  name = "ComponentId"
                   value = {
                     ResourceId = azurerm_application_insights.main.id
                   }
@@ -841,152 +681,6 @@ resource "azurerm_portal_dashboard" "main" {
                 {
                   name       = "IsQueryContainTimeRange"
                   value      = true
-                  isOptional = true
-                }
-              ]
-              settings = {}
-            }
-          }
-          # --- Row 20: Error Breakdown + GitHub Dependency ---
-          "10" = {
-            position = { x = 0, y = 20, colSpan = 6, rowSpan = 4 }
-            metadata = {
-              type = "Extension/Microsoft_OperationsManagementSuite_Workspace/PartType/LogsDashboardPart"
-              inputs = [
-                {
-                  name       = "resourceTypeMode"
-                  isOptional = true
-                },
-                {
-                  name  = "ComponentId"
-                  value = {
-                    ResourceId = azurerm_application_insights.main.id
-                  }
-                  isOptional = true
-                },
-                {
-                  name = "Scope"
-                  value = {
-                    resourceIds = [azurerm_application_insights.main.id]
-                  }
-                  isOptional = true
-                },
-                {
-                  name       = "PartId"
-                  value      = "a1b2c3d4-0001-4000-8000-000000000010"
-                  isOptional = true
-                },
-                {
-                  name       = "Version"
-                  value      = "2.0"
-                  isOptional = true
-                },
-                {
-                  name       = "TimeRange"
-                  value      = "PT24H"
-                  isOptional = true
-                },
-                {
-                  name       = "DashboardId"
-                  isOptional = true
-                },
-                {
-                  name       = "DraftRequestParameters"
-                  isOptional = true
-                },
-                {
-                  name       = "Query"
-                  value      = "requests | where timestamp > ago(24h) | where toint(resultCode) >= 400 | summarize Count=count() by resultCode, name | top 15 by Count desc | project Status=resultCode, Route=name, Count"
-                  isOptional = true
-                },
-                {
-                  name       = "ControlType"
-                  value      = "AnalyticsGrid"
-                  isOptional = true
-                },
-                {
-                  name       = "PartTitle"
-                  value      = "Error Breakdown (status code × route)"
-                  isOptional = true
-                },
-                {
-                  name       = "IsQueryContainTimeRange"
-                  value      = true
-                  isOptional = true
-                }
-              ]
-              settings = {}
-            }
-          }
-          "11" = {
-            position = { x = 6, y = 20, colSpan = 6, rowSpan = 4 }
-            metadata = {
-              type = "Extension/Microsoft_OperationsManagementSuite_Workspace/PartType/LogsDashboardPart"
-              inputs = [
-                {
-                  name       = "resourceTypeMode"
-                  isOptional = true
-                },
-                {
-                  name  = "ComponentId"
-                  value = {
-                    ResourceId = azurerm_application_insights.main.id
-                  }
-                  isOptional = true
-                },
-                {
-                  name = "Scope"
-                  value = {
-                    resourceIds = [azurerm_application_insights.main.id]
-                  }
-                  isOptional = true
-                },
-                {
-                  name       = "PartId"
-                  value      = "a1b2c3d4-0001-4000-8000-000000000011"
-                  isOptional = true
-                },
-                {
-                  name       = "Version"
-                  value      = "2.0"
-                  isOptional = true
-                },
-                {
-                  name       = "TimeRange"
-                  value      = "PT24H"
-                  isOptional = true
-                },
-                {
-                  name       = "DashboardId"
-                  isOptional = true
-                },
-                {
-                  name       = "DraftRequestParameters"
-                  isOptional = true
-                },
-                {
-                  name       = "Query"
-                  value      = "dependencies | where target has 'github' | summarize Calls=count(), Failures=countif(success == false), AvgDuration=avg(duration) by bin(timestamp, 15m) | render timechart"
-                  isOptional = true
-                },
-                {
-                  name       = "ControlType"
-                  value      = "FrameControlChart"
-                  isOptional = true
-                },
-                {
-                  name       = "SpecificChart"
-                  value      = "Line"
-                  isOptional = true
-                },
-                {
-                  name       = "PartTitle"
-                  value      = "GitHub API Dependency (calls, failures, latency)"
-                  isOptional = true
-                },
-                {
-                  name       = "IsQueryContainTimeRange"
-                  value      = false
                   isOptional = true
                 }
               ]

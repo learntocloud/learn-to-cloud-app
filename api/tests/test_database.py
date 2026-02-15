@@ -38,7 +38,7 @@ async def _reset_credential():
 class TestAzureCredentialLocking:
     """Verify get_credential uses asyncio.Lock correctly."""
 
-    @patch("azure.identity.DefaultAzureCredential")
+    @patch("azure.identity.DefaultAzureCredential", autospec=True)
     async def test_single_credential_created_on_concurrent_calls(
         self, mock_cred_cls: MagicMock
     ):
@@ -64,6 +64,7 @@ class TestAzureCredentialLocking:
 
         with patch(
             "azure.identity.DefaultAzureCredential",
+            autospec=True,
             return_value=MagicMock(),
         ):
             await get_credential()
@@ -96,11 +97,12 @@ class TestAzureTokenRetryTimeout:
         with (
             patch(
                 "azure.identity.DefaultAzureCredential",
+                autospec=True,
                 return_value=fake_credential,
             ),
             patch.object(auth_mod, "AZURE_TOKEN_TIMEOUT", 0.05),
             patch.object(auth_mod, "_AZURE_RETRY_ATTEMPTS", 1),
-            patch("asyncio.to_thread", side_effect=hang_forever),
+            patch("asyncio.to_thread", autospec=True, side_effect=hang_forever),
         ):
             # We call the inner logic directly via __wrapped__ to bypass tenacity
             unwrapped = getattr(auth_mod.get_token, "__wrapped__")
@@ -121,6 +123,7 @@ class TestAzureTokenRetryTimeout:
 
         with patch(
             "azure.identity.DefaultAzureCredential",
+            autospec=True,
             return_value=fake_credential,
         ):
             unwrapped = getattr(auth_mod.get_token, "__wrapped__")
@@ -168,7 +171,11 @@ class TestCheckoutEventTransactionCleanup:
 
             return decorator
 
-        with patch("core.database.event.listens_for", side_effect=fake_listens_for):
+        with patch(
+            "core.database.event.listens_for",
+            autospec=True,
+            side_effect=fake_listens_for,
+        ):
             _setup_pool_event_listeners(mock_engine)
 
         checkout_fn = listeners["checkout"]
@@ -197,7 +204,11 @@ class TestCheckoutEventTransactionCleanup:
 
             return decorator
 
-        with patch("core.database.event.listens_for", side_effect=fake_listens_for):
+        with patch(
+            "core.database.event.listens_for",
+            autospec=True,
+            side_effect=fake_listens_for,
+        ):
             _setup_pool_event_listeners(mock_engine)
 
         checkout_fn = listeners["checkout"]
@@ -224,7 +235,11 @@ class TestCheckoutEventTransactionCleanup:
 
             return decorator
 
-        with patch("core.database.event.listens_for", side_effect=fake_listens_for):
+        with patch(
+            "core.database.event.listens_for",
+            autospec=True,
+            side_effect=fake_listens_for,
+        ):
             _setup_pool_event_listeners(mock_engine)
 
         checkout_fn = listeners["checkout"]
@@ -280,6 +295,7 @@ class TestCheckDbConnection:
         with (
             patch(
                 "core.database.asyncio.timeout",
+                autospec=True,
                 side_effect=lambda _: real_timeout(0.05),
             ),
             pytest.raises(TimeoutError),

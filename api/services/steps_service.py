@@ -7,7 +7,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.cache import invalidate_progress_cache, update_cached_phase_detail_step
 from models import utcnow
 from repositories import StepProgressRepository
-from repositories.progress_denormalized_repository import UserPhaseProgressRepository
 from schemas import StepCompletionResult
 from services.content_service import get_topic_by_id
 
@@ -20,34 +19,12 @@ class StepValidationError(Exception):
     pass
 
 
-class StepAlreadyCompletedError(StepValidationError):
-    """Raised when trying to complete an already completed step."""
-
-    def __init__(self, topic_id: str, step_order: int):
-        self.topic_id = topic_id
-        self.step_order = step_order
-        super().__init__(f"Step {step_order} in {topic_id} already completed")
-
-
 class StepUnknownTopicError(StepValidationError):
     """Raised when a topic_id doesn't exist in content."""
 
     def __init__(self, topic_id: str):
         self.topic_id = topic_id
         super().__init__(f"Unknown topic_id: {topic_id}")
-
-
-class StepInvalidStepOrderError(StepValidationError):
-    """Raised when step_order is out of range for the topic."""
-
-    def __init__(self, topic_id: str, step_order: int, total_steps: int):
-        self.topic_id = topic_id
-        self.step_order = step_order
-        self.total_steps = total_steps
-        super().__init__(
-            f"Invalid step_order {step_order} for {topic_id}. "
-            f"Must be between 1 and {total_steps}."
-        )
 
 
 class StepInvalidStepIdError(StepValidationError):
@@ -57,24 +34,6 @@ class StepInvalidStepIdError(StepValidationError):
         self.topic_id = topic_id
         self.step_id = step_id
         super().__init__(f"Invalid step_id '{step_id}' for {topic_id}")
-
-
-def _resolve_total_steps(topic_id: str) -> int:
-    """Get total number of learning steps for a topic.
-
-    Args:
-        topic_id: The topic ID (e.g., "phase1-topic5")
-
-    Returns:
-        Total number of learning steps in the topic
-
-    Raises:
-        StepUnknownTopicError: If topic_id doesn't exist in content
-    """
-    topic = get_topic_by_id(topic_id)
-    if topic is None:
-        raise StepUnknownTopicError(topic_id)
-    return len(topic.learning_steps)
 
 
 def _resolve_step(topic_id: str, step_id: str) -> tuple[str, int, int]:
@@ -174,10 +133,6 @@ async def complete_step(
             completed_at=utcnow(),
         ), completed_steps
 
-    # Update denormalized progress counts
-    denorm_repo = UserPhaseProgressRepository(db)
-    await denorm_repo.increment_steps(user_id, phase_id, delta=1)
-
     # Invalidate cache so dashboard/progress refreshes immediately
     invalidate_progress_cache(user_id)
 
@@ -213,9 +168,9 @@ async def uncomplete_step(
     topic_id: str,
     step_id: str,
 ) -> tuple[int, set[str]]:
-    """Mark a learning step as incomplete (uncomplete it).
+    """Mark a single learning step as incomplete.
 
-    Also removes any steps after this one (cascading uncomplete).
+    Only removes the specified step — does not cascade to other steps.
 
     Args:
         db: Database session
@@ -228,17 +183,14 @@ async def uncomplete_step(
 
     Raises:
         StepUnknownTopicError: If topic_id doesn't exist in content
-        StepInvalidStepOrderError: If step_order is out of range
+        StepInvalidStepIdError: If step_id doesn't exist in the topic
     """
-    _, step_order, _ = _resolve_step(topic_id, step_id)
+    resolved_step_id, step_order, _ = _resolve_step(topic_id, step_id)
 
     step_repo = StepProgressRepository(db)
-    deleted = await step_repo.delete_from_step(user_id, topic_id, step_order)
+    deleted = await step_repo.delete_step(user_id, topic_id, resolved_step_id)
 
-    # Invalidate cache so dashboard/progress refreshes immediately
     if deleted > 0:
-        # Recalculate denormalized counts since cascading uncomplete
-        # deletes multiple steps
         phase_id = parse_phase_id_from_topic_id(topic_id)
 
         from core.metrics import STEP_UNCOMPLETED_COUNTER
@@ -248,21 +200,14 @@ async def uncomplete_step(
             {"phase_id": str(phase_id)},
         )
 
-        if phase_id is not None:
-            denorm_repo = UserPhaseProgressRepository(db)
-            remaining = await step_repo.get_step_counts_by_phase(user_id)
-            new_count = remaining.get(phase_id, 0)
-            await denorm_repo.recalculate_steps_for_phase(user_id, phase_id, new_count)
-
         invalidate_progress_cache(user_id)
         logger.info(
             "step.uncompleted",
             extra={
                 "user_id": user_id,
                 "topic_id": topic_id,
-                "step_id": step_id,
+                "step_id": resolved_step_id,
                 "step_order": step_order,
-                "steps_deleted": deleted,
             },
         )
 

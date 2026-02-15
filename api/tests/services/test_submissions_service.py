@@ -37,14 +37,17 @@ def _mock_phase_id_mapping():
     with (
         patch(
             "services.submissions_service.get_phase_id_for_requirement",
+            autospec=True,
             return_value=3,
         ),
         patch(
             "services.submissions_service.get_prerequisite_phase",
+            autospec=True,
             return_value=None,
         ),
         patch(
             "services.submissions_service.get_requirement_ids_for_phase",
+            autospec=True,
             return_value=[],
         ),
     ):
@@ -117,14 +120,16 @@ class TestCooldownEnforcement:
         with (
             patch(
                 "services.submissions_service.get_requirement_by_id",
+                autospec=True,
                 return_value=mock_requirement,
             ),
             patch(
-                "services.submissions_service.SubmissionRepository"
+                "services.submissions_service.SubmissionRepository",
+                autospec=True,
             ) as mock_repo_class,
             patch(
                 "services.submissions_service.validate_submission",
-                new_callable=AsyncMock,
+                autospec=True,
             ) as mock_validate,
         ):
             mock_repo = MagicMock()
@@ -179,12 +184,16 @@ class TestCooldownEnforcement:
         with (
             patch(
                 "services.submissions_service.get_requirement_by_id",
+                autospec=True,
                 return_value=mock_requirement,
             ),
             patch(
-                "services.submissions_service.SubmissionRepository"
+                "services.submissions_service.SubmissionRepository",
+                autospec=True,
             ) as mock_repo_class,
-            patch("services.submissions_service.get_settings") as mock_settings,
+            patch(
+                "services.submissions_service.get_settings", autospec=True
+            ) as mock_settings,
         ):
             mock_repo = MagicMock()
             mock_repo.get_by_user_and_requirement = AsyncMock(
@@ -237,15 +246,19 @@ class TestCooldownEnforcement:
         with (
             patch(
                 "services.submissions_service.get_requirement_by_id",
+                autospec=True,
                 return_value=mock_requirement,
             ),
             patch(
-                "services.submissions_service.SubmissionRepository"
+                "services.submissions_service.SubmissionRepository",
+                autospec=True,
             ) as mock_repo_class,
-            patch("services.submissions_service.get_settings") as mock_settings,
+            patch(
+                "services.submissions_service.get_settings", autospec=True
+            ) as mock_settings,
             patch(
                 "services.submissions_service.validate_submission",
-                new_callable=AsyncMock,
+                autospec=True,
             ) as mock_validate,
         ):
             mock_repo = MagicMock()
@@ -306,14 +319,16 @@ class TestCooldownEnforcement:
         with (
             patch(
                 "services.submissions_service.get_requirement_by_id",
+                autospec=True,
                 return_value=mock_requirement,
             ),
             patch(
-                "services.submissions_service.SubmissionRepository"
+                "services.submissions_service.SubmissionRepository",
+                autospec=True,
             ) as mock_repo_class,
             patch(
                 "services.submissions_service.validate_submission",
-                new_callable=AsyncMock,
+                autospec=True,
             ) as mock_validate,
         ):
             mock_repo = MagicMock()
@@ -373,14 +388,16 @@ class TestCooldownEnforcement:
         with (
             patch(
                 "services.submissions_service.get_requirement_by_id",
+                autospec=True,
                 return_value=mock_requirement,
             ),
             patch(
-                "services.submissions_service.SubmissionRepository"
+                "services.submissions_service.SubmissionRepository",
+                autospec=True,
             ) as mock_repo_class,
             patch(
                 "services.submissions_service.validate_submission",
-                new_callable=AsyncMock,
+                autospec=True,
             ) as mock_validate,
         ):
             mock_repo = MagicMock()
@@ -476,12 +493,16 @@ class TestCooldownEnforcement:
         with (
             patch(
                 "services.submissions_service.get_requirement_by_id",
+                autospec=True,
                 return_value=mock_requirement,
             ),
             patch(
-                "services.submissions_service.SubmissionRepository"
+                "services.submissions_service.SubmissionRepository",
+                autospec=True,
             ) as mock_repo_class,
-            patch("services.submissions_service.get_settings") as mock_settings,
+            patch(
+                "services.submissions_service.get_settings", autospec=True
+            ) as mock_settings,
         ):
             mock_repo = MagicMock()
             mock_repo.get_by_user_and_requirement = AsyncMock(
@@ -532,15 +553,19 @@ class TestCooldownEnforcement:
         with (
             patch(
                 "services.submissions_service.get_requirement_by_id",
+                autospec=True,
                 return_value=mock_requirement,
             ),
             patch(
-                "services.submissions_service.SubmissionRepository"
+                "services.submissions_service.SubmissionRepository",
+                autospec=True,
             ) as mock_repo_class,
-            patch("services.submissions_service.get_settings") as mock_settings,
+            patch(
+                "services.submissions_service.get_settings", autospec=True
+            ) as mock_settings,
             patch(
                 "services.submissions_service.validate_submission",
-                new_callable=AsyncMock,
+                autospec=True,
             ) as mock_validate,
         ):
             mock_repo = MagicMock()
@@ -601,6 +626,7 @@ class TestSubmissionValidationErrors:
 
         with patch(
             "services.submissions_service.get_requirement_by_id",
+            autospec=True,
             return_value=None,
         ):
             with pytest.raises(RequirementNotFoundError):
@@ -623,10 +649,12 @@ class TestSubmissionValidationErrors:
         with (
             patch(
                 "services.submissions_service.get_requirement_by_id",
+                autospec=True,
                 return_value=mock_requirement,
             ),
             patch(
-                "services.submissions_service.SubmissionRepository"
+                "services.submissions_service.SubmissionRepository",
+                autospec=True,
             ) as mock_repo_class,
         ):
             mock_repo = MagicMock()
@@ -681,10 +709,12 @@ class TestConcurrentSubmissionProtection:
         with (
             patch(
                 "services.submissions_service.get_requirement_by_id",
+                autospec=True,
                 return_value=mock_requirement,
             ),
             patch(
-                "services.submissions_service.SubmissionRepository"
+                "services.submissions_service.SubmissionRepository",
+                autospec=True,
             ) as mock_repo_class,
         ):
             mock_repo = MagicMock()
@@ -721,10 +751,12 @@ class TestAlreadyValidatedShortCircuit:
         with (
             patch(
                 "services.submissions_service.get_requirement_by_id",
+                autospec=True,
                 return_value=mock_requirement,
             ),
             patch(
-                "services.submissions_service.SubmissionRepository"
+                "services.submissions_service.SubmissionRepository",
+                autospec=True,
             ) as mock_repo_class,
         ):
             mock_repo = MagicMock()
@@ -752,14 +784,16 @@ class TestAlreadyValidatedShortCircuit:
         with (
             patch(
                 "services.submissions_service.get_requirement_by_id",
+                autospec=True,
                 return_value=mock_requirement,
             ),
             patch(
-                "services.submissions_service.SubmissionRepository"
+                "services.submissions_service.SubmissionRepository",
+                autospec=True,
             ) as mock_repo_class,
             patch(
                 "services.submissions_service.validate_submission",
-                new_callable=AsyncMock,
+                autospec=True,
             ) as mock_validate,
         ):
             mock_repo = MagicMock()
@@ -818,12 +852,16 @@ class TestDailySubmissionCap:
         with (
             patch(
                 "services.submissions_service.get_requirement_by_id",
+                autospec=True,
                 return_value=mock_requirement,
             ),
             patch(
-                "services.submissions_service.SubmissionRepository"
+                "services.submissions_service.SubmissionRepository",
+                autospec=True,
             ) as mock_repo_class,
-            patch("services.submissions_service.get_settings") as mock_settings,
+            patch(
+                "services.submissions_service.get_settings", autospec=True
+            ) as mock_settings,
         ):
             mock_repo = MagicMock()
             mock_repo.get_by_user_and_requirement = AsyncMock(return_value=None)
@@ -852,15 +890,19 @@ class TestDailySubmissionCap:
         with (
             patch(
                 "services.submissions_service.get_requirement_by_id",
+                autospec=True,
                 return_value=mock_requirement,
             ),
             patch(
-                "services.submissions_service.SubmissionRepository"
+                "services.submissions_service.SubmissionRepository",
+                autospec=True,
             ) as mock_repo_class,
-            patch("services.submissions_service.get_settings") as mock_settings,
+            patch(
+                "services.submissions_service.get_settings", autospec=True
+            ) as mock_settings,
             patch(
                 "services.submissions_service.validate_submission",
-                new_callable=AsyncMock,
+                autospec=True,
             ) as mock_validate,
         ):
             mock_repo = MagicMock()
@@ -922,22 +964,27 @@ class TestSequentialPhaseGating:
         with (
             patch(
                 "services.submissions_service.get_requirement_by_id",
+                autospec=True,
                 return_value=mock_requirement,
             ),
             patch(
                 "services.submissions_service.get_phase_id_for_requirement",
-                return_value=4,
+                return_value=4,  # no autospec: autouse fixture
             ),
             patch(
                 "services.submissions_service.get_prerequisite_phase",
-                return_value=3,
+                return_value=3,  # no autospec: autouse fixture
             ),
             patch(
                 "services.submissions_service.get_requirement_ids_for_phase",
-                return_value=["journal-pr-logging", "journal-pr-get-entry"],
+                return_value=[
+                    "journal-pr-logging",
+                    "journal-pr-get-entry",
+                ],  # no autospec: autouse fixture
             ),
             patch(
-                "services.submissions_service.SubmissionRepository"
+                "services.submissions_service.SubmissionRepository",
+                autospec=True,
             ) as mock_repo_class,
         ):
             mock_repo = MagicMock()
@@ -969,26 +1016,28 @@ class TestSequentialPhaseGating:
         with (
             patch(
                 "services.submissions_service.get_requirement_by_id",
+                autospec=True,
                 return_value=mock_requirement,
             ),
             patch(
                 "services.submissions_service.get_phase_id_for_requirement",
-                return_value=4,
+                return_value=4,  # no autospec: autouse fixture
             ),
             patch(
                 "services.submissions_service.get_prerequisite_phase",
-                return_value=3,
+                return_value=3,  # no autospec: autouse fixture
             ),
             patch(
                 "services.submissions_service.get_requirement_ids_for_phase",
-                return_value=["journal-pr-logging"],
+                return_value=["journal-pr-logging"],  # no autospec: autouse fixture
             ),
             patch(
-                "services.submissions_service.SubmissionRepository"
+                "services.submissions_service.SubmissionRepository",
+                autospec=True,
             ) as mock_repo_class,
             patch(
                 "services.submissions_service.validate_submission",
-                new_callable=AsyncMock,
+                autospec=True,
             ) as mock_validate,
         ):
             mock_repo = MagicMock()

@@ -10,7 +10,7 @@ Tests cover:
 """
 
 import json
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import httpx
 import pytest
@@ -379,7 +379,7 @@ class TestAnalyzeDevopsRepository:
 
         with patch(
             "services.devops_verification_service._fetch_repo_tree",
-            new_callable=AsyncMock,
+            autospec=True,
             side_effect=httpx.HTTPStatusError(
                 "Not Found", request=MagicMock(), response=mock_response
             ),
@@ -436,17 +436,17 @@ class TestAnalyzeDevopsRepository:
         with (
             patch(
                 "services.devops_verification_service._fetch_repo_tree",
-                new_callable=AsyncMock,
+                autospec=True,
                 return_value=mock_files,
             ),
             patch(
                 "services.devops_verification_service._fetch_all_devops_files",
-                new_callable=AsyncMock,
+                autospec=True,
                 return_value=mock_file_contents,
             ),
             patch(
                 "services.devops_verification_service._analyze_with_llm",
-                new_callable=AsyncMock,
+                autospec=True,
                 return_value=mock_validation,
             ),
         ):
@@ -465,17 +465,17 @@ class TestAnalyzeDevopsRepository:
         with (
             patch(
                 "services.devops_verification_service._fetch_repo_tree",
-                new_callable=AsyncMock,
+                autospec=True,
                 return_value=["Dockerfile"],
             ),
             patch(
                 "services.devops_verification_service._fetch_all_devops_files",
-                new_callable=AsyncMock,
+                autospec=True,
                 return_value={t["id"]: [] for t in PHASE5_TASKS},
             ),
             patch(
                 "services.devops_verification_service._analyze_with_llm",
-                new_callable=AsyncMock,
+                autospec=True,
                 side_effect=LLMClientError("Connection failed", retriable=True),
             ),
         ):
@@ -493,17 +493,17 @@ class TestAnalyzeDevopsRepository:
         with (
             patch(
                 "services.devops_verification_service._fetch_repo_tree",
-                new_callable=AsyncMock,
+                autospec=True,
                 return_value=["Dockerfile"],
             ),
             patch(
                 "services.devops_verification_service._fetch_all_devops_files",
-                new_callable=AsyncMock,
+                autospec=True,
                 return_value={t["id"]: [] for t in PHASE5_TASKS},
             ),
             patch(
                 "services.devops_verification_service._analyze_with_llm",
-                new_callable=AsyncMock,
+                autospec=True,
                 side_effect=DevOpsAnalysisError("Timeout", retriable=True),
             ),
         ):

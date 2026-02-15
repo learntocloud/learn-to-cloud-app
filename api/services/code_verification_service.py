@@ -930,7 +930,7 @@ async def analyze_repository_code(
             message=f"Code analysis failed: {e}",
             server_error=True,  # Always server error — not the user's fault
         )
-    except (LLMClientError, Exception):
+    except Exception:
         logger.exception(
             "code_analysis.client_error",
             extra={"owner": owner, "repo": repo, "github_username": github_username},

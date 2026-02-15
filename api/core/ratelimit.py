@@ -20,10 +20,14 @@ def _get_request_identifier(request: Request) -> str:
     return get_remote_address(request)
 
 
+def _get_storage_uri() -> str:
+    return get_settings().ratelimit_storage_uri
+
+
 limiter = Limiter(
     key_func=_get_request_identifier,
     default_limits=["100/minute"],
-    storage_uri=get_settings().ratelimit_storage_uri,
+    storage_uri=_get_storage_uri(),
 )
 
 
@@ -37,5 +41,5 @@ def rate_limit_exceeded_handler(request: Request, exc: Exception) -> Response:
             "detail": "Rate limit exceeded. Please slow down.",
             "retry_after": exc.detail,
         },
-        headers={"Retry-After": str(getattr(exc, "retry_after", 60))},
+        headers={"Retry-After": str(int(getattr(exc, "retry_after", 60)))},
     )

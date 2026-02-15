@@ -70,7 +70,7 @@ output "AZURE_CONTAINER_REGISTRY_ENDPOINT" {
 }
 
 output "apiUrl" {
-  description = "API URL (for CI/CD)"
+  description = "API URL (for CI/CD) — prefer api_url instead"
   value       = "https://${azurerm_container_app.api.ingress[0].fqdn}"
 }
 

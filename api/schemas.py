@@ -130,7 +130,7 @@ class PublicSubmissionInfo(FrozenModel):
     submitted_value: str
     name: str
     description: str | None = None
-    validated_at: object | None = None
+    validated_at: datetime | None = None
 
 
 class PublicProfileData(FrozenModel):
@@ -458,7 +458,7 @@ class SubmissionData(FrozenModel):
     extracted_username: str | None = None
     is_validated: bool
     validated_at: datetime | None = None
-    verification_completed: bool = True
+    verification_completed: bool = False
     feedback_json: str | None = None
     validation_message: str | None = None
     cloud_provider: str | None = None

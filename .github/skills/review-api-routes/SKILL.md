@@ -5,69 +5,41 @@ description: Deep dive review of FastAPI routes file - analyzes route ordering, 
 
 # FastAPI Routes Deep Dive Review
 
-**THIS IS NOT A SURFACE-LEVEL REVIEW.**
-
-**SINGLE FILE FOCUS**: Review the ONE routes file the user specifies. Only read other files (services, schemas, frontend) when cross-referencing is needed to verify alignment.
-
-For every route in **this file**, you MUST:
-1. Verify HTTP method semantics (GET/POST/PUT/DELETE/PATCH)
-2. Check route ordering for conflicts
-3. Validate OpenAPI documentation completeness
-4. Audit dependency injection patterns
-5. Review response handling and status codes
-6. Check rate limiting appropriateness
-
-**Time/token budget**: This review is intentionally exhaustive.
+**SINGLE FILE FOCUS**: Review the ONE routes file the user specifies. Only read other files when cross-referencing is needed to verify alignment.
 
 ---
 
 ## When to Use
 
 - User says "review api", "review routes", or "review endpoints" on a `routes/*.py` file
-- User asks about "API design" or "endpoint patterns"
-- User wants to check route configuration
 - File path contains `routes/` and ends in `.py`
-
-**Scope**: ONE file at a time. If user has multiple routes files to review, they'll trigger this skill separately for each.
 
 ---
 
-## PHASE 1: Route Inventory (Required First Step)
+## Phase 1: Route Inventory
 
 ### Step 1.1: Extract All Routes
 
-Read the file and create a comprehensive route table:
+Read the file and create a route table:
 
-```markdown
-## Route Inventory
+| Order | Method | Path | Function | Auth | Rate Limit | Status Code | Response |
+|-------|--------|------|----------|------|------------|-------------|----------|
 
-| Order | Method | Path | Function | Auth | Rate Limit | Status Code | Response Model |
-|-------|--------|------|----------|------|------------|-------------|----------------|
-| 1 | GET | `/items` | `list_items` | Required | 30/min | 200 | `list[Item]` |
-| 2 | POST | `/items` | `create_item` | Required | 10/min | 201 | `Item` |
-| 3 | GET | `/items/{item_id}` | `get_item` | Optional | None | 200 | `Item` |
-```
+### Step 1.2: Classify Route Type
 
-### Step 1.2: Identify Patterns
-
-List all patterns used:
-- Authentication (required, optional, none)
-- Rate limiting strategies
-- Dependency injection
-- Response models
-- Error handling
+| Route Type | Characteristics | Review Approach |
+|-----------|----------------|-----------------|
+| **JSON API** | `response_model=...`, Pydantic schemas, included in OpenAPI | Full OpenAPI + schema review |
+| **HTMX** | `response_class=HTMLResponse`, `include_in_schema=False`, returns HTML fragments | Skip OpenAPI, verify templates. Input uses `Form(...)`, errors return inline HTML |
+| **Pages** | `response_class=HTMLResponse`, `include_in_schema=False`, full pages via `TemplateResponse` | Skip OpenAPI, verify catch-all ordering |
 
 ---
 
-## PHASE 2: Route Ordering Analysis (CRITICAL)
+## Phase 2: Route Ordering Analysis (CRITICAL)
 
 **FastAPI matches routes in declaration order. Incorrect ordering causes routing bugs.**
 
-> **Note**: Route ordering rules are also documented in `.github/instructions/python.instructions.md` (FastAPI Routes section).
-
-### Step 2.1: Check for Routing Conflicts
-
-Look for these dangerous patterns:
+### Dangerous Patterns
 
 | Pattern | Example | Problem |
 |---------|---------|---------|
@@ -75,398 +47,91 @@ Look for these dangerous patterns:
 | Overlapping paths | `/users/{id}` and `/users/me` | Order matters |
 | Catch-all routes | `/{path:path}` | Must be last |
 
-### Step 2.2: Verify Correct Ordering
+### Correct Ordering
 
 Routes MUST be ordered:
 1. **Collection endpoints** (`/items`, `/items/search`)
-2. **Literal paths** (`/items/me`, `/items/stats`, `/items/export`)
+2. **Literal paths** (`/items/me`, `/items/stats`)
 3. **Parameterized routes** (`/items/{id}`)
 4. **Nested parameterized** (`/items/{id}/subitems`)
 
-```markdown
-### Route Ordering Analysis
-
-| Current Order | Route | Type | Correct Position | Issue? |
-|---------------|-------|------|------------------|--------|
-| 1 | `GET /items/{id}` | Parameterized | Should be after literals | 🔴 Yes |
-| 2 | `GET /items/stats` | Literal | Should be before `/{id}` | 🔴 Yes |
-```
-
-### Step 2.3: Determine Route Type
-
-Before proceeding, classify the routes file:
-
-| Route Type | Characteristics | Review Approach |
-|-----------|----------------|-----------------|
-| **JSON API** | `response_model=...`, returns Pydantic schemas, included in OpenAPI | Full OpenAPI + schema review |
-| **HTMX** | `response_class=HTMLResponse`, `include_in_schema=False`, returns HTML fragments | Skip OpenAPI checks, verify template rendering |
-| **Pages** | `response_class=HTMLResponse`, `include_in_schema=False`, returns full pages via `TemplateResponse` | Skip OpenAPI, verify catch-all ordering |
-
-For **HTMX routes** (`htmx_routes.py`, `pages_routes.py`):
-- Skip Phase 4 (OpenAPI documentation)
-- Input uses `Form(...)` parameters, not Pydantic request models
-- Output is `HTMLResponse` or `TemplateResponse`, not JSON
-- Error handling returns inline HTML snippets, not JSON `{"detail": ...}`
-
-For **JSON API routes** (`users_routes.py`, `certificates_routes.py`):
-- Full OpenAPI review applies
-- Check `response_model` and Pydantic schemas
+If reordering is needed, check frontend templates for `hx-get`/`hx-post` references to ensure no breaking changes.
 
 ---
 
-## PHASE 3: HTTP Semantics Review
+## Phase 3: Project-Specific Patterns
 
-> **See**: `.github/instructions/python.instructions.md` for status code conventions.
+### Dependency Type Aliases
 
-### Step 3.1: Verify Method-Resource Alignment
+This project uses `Annotated` type aliases — verify routes use them instead of raw `Depends()`:
 
-```markdown
-### HTTP Semantics Check
+| Alias | Definition | Use For |
+|-------|-----------|---------|
+| `DbSession` | `Annotated[AsyncSession, Depends(get_db)]` | Write routes |
+| `DbSessionReadOnly` | `Annotated[AsyncSession, Depends(get_db_readonly)]` | Read-only routes |
+| `UserId` | `Annotated[int, Depends(require_auth)]` | Auth-required routes |
+| `OptionalUserId` | `Annotated[int \| None, Depends(optional_auth)]` | Optional auth routes |
 
-| Route | Method | Action | Correct Method? | Issue |
-|-------|--------|--------|-----------------|-------|
-| `/items` | POST | Creates item | ✅ | - |
-| `/items/{id}` | POST | Updates item | ❌ | Should be PUT or PATCH |
-```
+These are defined in `core/auth.py` and `core/database.py`.
 
-### Step 3.2: Status Code Validation
+### Rate Limiting
 
-| Method | Success Code | Notes |
-|--------|--------------|-------|
-| GET | 200 | Resource found |
-| POST (create) | **201** | Resource created |
-| PUT/PATCH | 200 | Resource updated |
-| DELETE | 204 | No content, or 200 with deleted resource |
+This project uses slowapi with a combined key function (`_get_request_identifier` in `core/ratelimit.py`):
+- Authenticated: keyed by `user:{user_id}`
+- Unauthenticated: keyed by IP
+- Default limit: `100/minute` (when no explicit `@limiter.limit()`)
 
-```markdown
-### Status Code Review
+Recommended limits by endpoint type:
 
-| Route | Method | Current Status | Expected | Issue? |
-|-------|--------|----------------|----------|--------|
-| `POST /items` | POST | 200 (default) | 201 | 🟠 Missing `status_code=201` |
-```
-
----
-
-## PHASE 4: OpenAPI Documentation Review
-
-### Step 4.1: Fetch FastAPI OpenAPI Best Practices
-
-Fetch: `https://fastapi.tiangolo.com/tutorial/response-model/`
-Fetch: `https://fastapi.tiangolo.com/advanced/additional-responses/`
-
-### Step 4.2: Response Documentation Checklist
-
-| Check | Status | Notes |
-|-------|--------|-------|
-| All routes have `response_model` or return type | ✅/❌ | |
-| Binary responses have `responses={200: {"content": {...}}}` | ✅/❌ | |
-| Error responses documented (4xx, 5xx) | ✅/❌ | |
-| `summary` and `description` provided | ✅/❌ | |
-| Path parameters have descriptions | ✅/❌ | |
-| Query parameters have descriptions | ✅/❌ | |
-
-### Step 4.3: Binary Response Documentation
-
-For endpoints returning non-JSON (PDF, PNG, etc.):
-
-```python
-# ❌ Missing OpenAPI documentation
-@router.get("/export/pdf")
-async def export_pdf():
-    return Response(content=pdf_bytes, media_type="application/pdf")
-
-# ✅ Properly documented
-@router.get(
-    "/export/pdf",
-    responses={
-        200: {
-            "content": {"application/pdf": {"schema": {"type": "string", "format": "binary"}}},
-            "description": "PDF document"
-        }
-    }
-)
-async def export_pdf():
-    return Response(content=pdf_bytes, media_type="application/pdf")
-```
+| Endpoint Type | Recommended Limit |
+|---------------|-------------------|
+| Read (GET list) | 30-60/min |
+| Read (GET single) | 60-100/min |
+| Write (POST/PUT) | 10-30/min |
+| Expensive (PDF generation) | 5-10/min |
+| HTMX interactions | 30-60/min |
+| Verification submissions | 5-10/hour |
 
 ---
 
-## PHASE 5: Dependency Injection Review
+## Phase 4: Full Review
 
-### Step 5.1: Fetch FastAPI Dependencies Documentation
-
-Fetch: `https://fastapi.tiangolo.com/tutorial/dependencies/`
-
-### Step 5.2: Dependency Patterns Audit
-
-```markdown
-### Dependency Inventory
-
-| Dependency | Type | Scope | Used In Routes | Pattern |
-|------------|------|-------|----------------|---------|
-| `DbSession` | `Annotated[AsyncSession, Depends(get_db)]` | Request | Write routes | ✅ Type alias |
-| `DbSessionReadOnly` | `Annotated[AsyncSession, Depends(get_db_readonly)]` | Request | Read-only routes | ✅ Type alias |
-| `UserId` | `Annotated[int, Depends(require_auth)]` | Request | Auth-required routes | ✅ Type alias |
-| `OptionalUserId` | `Annotated[int \| None, Depends(optional_auth)]` | Request | Optional auth routes | ✅ Type alias |
-| `Request` | `Request` | Request | Rate limited routes | ✅ Required by slowapi |
-```
-
-### Step 5.3: Dependency Anti-Patterns
-
-| Anti-Pattern | Example | Issue | Fix |
-|--------------|---------|-------|-----|
-| Raw `Depends()` in signature | `db: AsyncSession = Depends(get_db)` | Verbose, old style | Use `Annotated` type alias |
-| Service instantiation in route | `service = MyService()` | No DI, hard to test | Inject via `Depends()` |
-| Missing dependencies | Route accesses `request.state.user` | Implicit dependency | Make explicit with `Depends()` |
+Review each route for:
+- HTTP method semantics (GET reads, POST creates with 201, PUT/PATCH updates, DELETE returns 204)
+- OpenAPI documentation (JSON API routes only — `response_model`, `summary`, documented error responses, binary response schemas)
+- Auth requirements (correct level for each endpoint)
+- Input validation
+- Error response consistency (`{"detail": "..."}` for JSON, inline HTML for HTMX)
+- No redundant model conversions (use `model_validate()` directly, not `model_validate(obj.model_dump())`)
 
 ---
 
-## PHASE 6: Rate Limiting Review
-
-### Step 6.1: Rate Limit Appropriateness
-
-| Endpoint Type | Recommended Limit | Rationale |
-|---------------|-------------------|-----------|
-| Read (GET list) | 30-60/min | Normal browsing |
-| Read (GET single) | 60-100/min | Frequent access |
-| Write (POST/PUT) | 10-30/min | Prevent spam |
-| Expensive (PDF generation) | 5-10/min | Resource intensive |
-| Auth endpoints | 5-10/min | Prevent brute force |
-
-```markdown
-### Rate Limit Analysis
-
-| Route | Current Limit | Recommended | Issue? |
-|-------|---------------|-------------|--------|
-| `POST /certificates` | None | 10/min | 🔴 Missing - expensive operation |
-| `GET /certificates/{id}/pdf` | 10/min | 5/min | 🟡 Could be stricter |
-```
-
-### Step 6.2: Rate Limit Key Strategy
-
-This project uses slowapi with a **combined key function** (`_get_request_identifier` in `core/ratelimit.py`):
-- Authenticated requests: keyed by `user:{user_id}`
-- Unauthenticated requests: keyed by IP address
-- Default limit: `100/minute` (applied when no explicit `@limiter.limit()` decorator)
-
-Verify rate limits use appropriate values:
-
-| Endpoint Type | Recommended Limit | Rationale |
-|---------------|-------------------|-----------|
-| Read (GET list) | 30-60/min | Normal browsing |
-| Read (GET single) | 60-100/min | Frequent access |
-| Write (POST/PUT) | 10-30/min | Prevent spam |
-| Expensive (PDF generation) | 5-10/min | Resource intensive |
-| HTMX interactions | 30-60/min | Frequent partial updates |
-| Verification submissions | 5-10/hour | Prevent abuse |
-
----
-
-## PHASE 7: Response Handling Review
-
-### Step 7.1: Model Conversion Patterns
-
-Check for redundant conversions:
-
-```python
-# ❌ Redundant conversion
-return CertificateResponse.model_validate(certificate.model_dump())
-
-# ✅ Direct conversion (Pydantic v2)
-return CertificateResponse.model_validate(certificate)
-
-# ✅ Or with from_attributes=True in model config
-return CertificateResponse.from_orm(certificate)
-```
-
-### Step 7.2: Error Response Consistency
-
-| Error Type | Expected Status | Expected Response |
-|------------|-----------------|-------------------|
-| Not found | 404 | `{"detail": "Resource not found"}` |
-| Validation error | 422 | FastAPI automatic |
-| Unauthorized | 401 | `{"detail": "Not authenticated"}` |
-| Forbidden | 403 | `{"detail": "Not authorized"}` |
-| Rate limited | 429 | `{"detail": "Rate limit exceeded"}` |
-
-```markdown
-### Error Handling Audit
-
-| Route | Error Case | Current Handling | Correct? |
-|-------|------------|------------------|----------|
-| `GET /items/{id}` | Not found | Returns `None` | ❌ Should raise 404 |
-| `POST /items` | Duplicate | Raises 500 | ❌ Should raise 409 |
-```
-
----
-
-## PHASE 8: Security Review
-
-### Step 8.1: Authentication Requirements
-
-```markdown
-### Authentication Audit
-
-| Route | Current Auth | Expected Auth | Issue? |
-|-------|--------------|---------------|--------|
-| `GET /items` | None | Required | 🔴 Unprotected |
-| `GET /items/{id}` | Optional | Optional | ✅ |
-| `POST /items` | Required | Required | ✅ |
-| `DELETE /items/{id}` | Required | Required + Owner | 🟠 Missing ownership check |
-```
-
-### Step 8.2: Input Validation
-
-| Check | Status | Notes |
-|-------|--------|-------|
-| Path parameters validated (type, range) | ✅/❌ | |
-| Query parameters have constraints | ✅/❌ | |
-| Request body uses Pydantic models | ✅/❌ | |
-| File uploads have size/type limits | ✅/❌ | |
-
----
-
-## PHASE 9: Cross-Reference Verification (Read Other Files Only Here)
-
-**Only read external files in this phase** - and only when needed to verify findings.
-
-### Step 9.1: Service Layer Alignment
-
-If issues were found, read the corresponding service file to verify:
-
-```markdown
-### Service Layer Check
-
-| Route | Service Function | Exists? | Signature Match? |
-|-------|------------------|---------|------------------|
-| `GET /items` | `items_service.list_items()` | ✅ | ✅ |
-| `POST /items` | `items_service.create_item()` | ✅ | ⚠️ Different params |
-```
-
-### Step 9.2: Schema Alignment (JSON API routes only)
-
-For JSON API routes, verify request/response schemas match service layer:
-
-```markdown
-### Schema Alignment
-
-| Route | Request Schema | Response Schema | Matches Service? |
-|-------|----------------|-----------------|------------------|
-| `POST /items` | `ItemCreate` | `ItemResponse` | ✅ |
-```
-
-For HTMX routes, verify:
-- `Form(...)` parameters match what templates submit
-- HTML responses render the correct template partials
-- Template context variables match what the route passes
-
----
-
-## PHASE 10: Comprehensive Checklist
-
-| Category | Check | Status |
-|----------|-------|--------|
-| **Route Ordering** | No parameterized routes before literals | ✅/❌ |
-| **Route Ordering** | Collection endpoints first | ✅/❌ |
-| **HTTP Semantics** | Correct methods for actions | ✅/❌ |
-| **HTTP Semantics** | POST returns 201 | ✅/❌ |
-| **HTTP Semantics** | DELETE returns 204 or 200 | ✅/❌ |
-| **OpenAPI** | All routes documented | ✅/❌ |
-| **OpenAPI** | Binary responses documented | ✅/❌ |
-| **OpenAPI** | Error responses documented | ✅/❌ |
-| **Dependencies** | Uses `Annotated` pattern | ✅/❌ |
-| **Dependencies** | No service instantiation in routes | ✅/❌ |
-| **Rate Limiting** | Expensive operations limited | ✅/❌ |
-| **Rate Limiting** | Appropriate limits per endpoint | ✅/❌ |
-| **Response** | No redundant model conversions | ✅/❌ |
-| **Response** | Consistent error responses | ✅/❌ |
-| **Security** | Auth required where needed | ✅/❌ |
-| **Security** | Input validation present | ✅/❌ |
-
----
-
-## Output Format Requirements
-
-1. **Tables for every analysis** - structured comparisons are essential
-2. **Route order diagram** - visual representation of current vs recommended order
-3. **Severity indicators**: 🔴 Critical, 🟠 Medium, 🟡 Low, ✅ Good, ❌ Issue
-4. **Code examples** - show before/after for all fixes
-5. **Frontend impact** - always check for breaking changes before recommending reordering
-
----
-
-## Suggested Fixes Format
-
-```markdown
-## Suggested Fixes
-
-### Fix [N]: [Title]
-
-**Severity**: 🔴/🟠/🟡
-
-**Location**: `routes/items_routes.py` line X
-
-**Problem**:
-Description.
-
-**Before**:
-```python
-# current code
-```
-
-**After**:
-```python
-# fixed code
-```
-
-**Why**:
-- Cite FastAPI docs: "..."
-- Cite HTTP spec: "..."
-
-**Breaking Changes**: None / List affected clients
-```
-
----
-
-## Execution Strategy
-
-### Single File Focus
-
-1. **Primary**: Analyze the ONE routes file the user specified
-2. **Cross-reference only when needed**: Read services/schemas/frontend only to verify specific findings
-3. **Don't expand scope**: If other routes files have issues, note them but don't review in detail
-
-### Research Order
-
-1. **First**: Inventory all routes in THIS file (method, path, function, decorators)
-2. **Second**: Analyze route ordering for conflicts within THIS file
-3. **Third**: Fetch FastAPI docs for specific patterns used
-4. **Fourth**: (If reordering needed) Check frontend for breaking changes
-5. **Fifth**: Review each route against checklists
-6. **Sixth**: (If issues found) Cross-reference services/schemas to verify
-7. **Seventh**: Compile findings and fixes
-
-### When to Read Other Files
+## Phase 5: Cross-Reference (only when needed)
 
 | Situation | File to Read | Why |
 |-----------|--------------|-----|
-| Recommending route reorder | `api/templates/**/*.html` | Check for `hx-get`/`hx-post` references to routes |
-| Service function mismatch suspected | `services/*_service.py` | Verify function exists/signature |
+| Recommending route reorder | `api/templates/**/*.html` | Check `hx-get`/`hx-post` references |
+| Service mismatch suspected | `services/*_service.py` | Verify function exists/signature |
 | Schema issue suspected | `schemas.py` | Verify model fields |
 | Router order matters | `main.py` | Check registration order |
-| HTMX form submission issues | `api/templates/partials/*.html` | Check `hx-post`/`hx-target` attributes |
 
-**DO NOT** read other files "just to be thorough" - only when a specific finding requires verification.
+**Do NOT read other files "just to be thorough"** — only when a specific finding requires verification.
 
 ---
 
-## Example Trigger Phrases
+## Output Format
+
+For each issue:
+- **Severity**: 🔴 Critical / 🟠 Medium / 🟡 Low
+- **Location**: file + line
+- **Problem + Fix**: before/after code blocks
+- **Breaking Changes**: note any affected clients/templates
+
+---
+
+## Trigger Phrases
 
 - "review api"
 - "review routes"
 - "review endpoints"
-- "check this routes file"
-- "api design review"
-- "audit these endpoints"
 - "review this fastapi file"
