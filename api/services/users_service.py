@@ -13,6 +13,7 @@ from schemas import (
     UserResponse,
 )
 from services.badges_service import compute_all_badges
+from services.certificates_service import get_user_certificate
 from services.hands_on_verification_service import get_requirement_by_id
 from services.progress_service import fetch_user_progress, get_phase_completion_counts
 
@@ -182,6 +183,8 @@ async def get_public_profile(
         user_id=profile_user.id,
     )
 
+    certificate = await get_user_certificate(db, profile_user.id)
+
     phases_completed = progress.phases_completed
     current_phase = progress.current_phase
 
@@ -191,8 +194,10 @@ async def get_public_profile(
         avatar_url=profile_user.avatar_url,
         current_phase=current_phase,
         phases_completed=phases_completed,
+        total_phases=progress.total_phases,
         submissions=submissions,
         badges=earned_badges,
+        certificate=certificate,
     )
 
     return profile_data

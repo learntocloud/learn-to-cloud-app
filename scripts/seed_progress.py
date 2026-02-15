@@ -21,10 +21,13 @@ CONTENT_DIR = REPO_ROOT / "content" / "phases"
 
 
 def load_content() -> (
-    tuple[dict[int, list[tuple[str, int]]], dict[int, list[tuple[str, str, str]]]]
+    tuple[
+        dict[int, list[tuple[str, list[str]]]],
+        dict[int, list[tuple[str, str, str]]],
+    ]
 ):
-    """Load topic IDs, step counts, and requirements from content YAML files."""
-    phase_topics: dict[int, list[tuple[str, int]]] = {}
+    """Load topic IDs, step IDs, and requirements from content YAML files."""
+    phase_topics: dict[int, list[tuple[str, list[str]]]] = {}
     phase_requirements: dict[int, list[tuple[str, str, str]]] = {}
 
     for phase_dir in sorted(CONTENT_DIR.iterdir()):
@@ -53,8 +56,8 @@ def load_content() -> (
             with open(topic_file, encoding="utf-8") as f:
                 data = yaml.safe_load(f)
             topic_id = data["id"]
-            step_count = len(data.get("learning_steps", []))
-            topics.append((topic_id, step_count))
+            step_ids = [s["id"] for s in data.get("learning_steps", [])]
+            topics.append((topic_id, step_ids))
         phase_topics[phase_id] = topics
 
     return phase_topics, phase_requirements
@@ -87,9 +90,8 @@ async def main(github_username: str) -> None:
 
         step_count = 0
         for phase_id, topics in phase_topics.items():
-            for topic_id, num_steps in topics:
-                for step_order in range(1, num_steps + 1):
-                    step_id = f"{topic_id}-step-{step_order}"
+            for topic_id, step_ids in topics:
+                for step_order, step_id in enumerate(step_ids, 1):
                     await conn.execute(
                         """
                         INSERT INTO step_progress (
@@ -131,7 +133,7 @@ async def main(github_username: str) -> None:
         print(f"Inserted {sub_count} submission records")
 
         for phase_id, topics in phase_topics.items():
-            total_steps = sum(s for _, s in topics)
+            total_steps = sum(len(step_ids) for _, step_ids in topics)
             validated_subs = len(phase_requirements.get(phase_id, []))
             await conn.execute(
                 """

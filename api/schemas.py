@@ -141,8 +141,10 @@ class PublicProfileData(FrozenModel):
     avatar_url: str | None
     current_phase: int
     phases_completed: int
+    total_phases: int
     submissions: list[PublicSubmissionInfo]
     badges: list[BadgeData]
+    certificate: "CertificateData | None" = None
 
 
 class CertificateData(FrozenModel):
