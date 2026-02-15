@@ -1,6 +1,3 @@
-# -----------------------------------------------------------------------------
-# PostgreSQL Flexible Server
-# -----------------------------------------------------------------------------
 resource "azurerm_postgresql_flexible_server" "main" {
   name                          = "psql-ltc-${var.environment}-${local.suffix}"
   resource_group_name           = azurerm_resource_group.main.name
@@ -34,9 +31,7 @@ resource "azurerm_postgresql_flexible_server_firewall_rule" "allow_azure" {
   end_ip_address   = "0.0.0.0"
 }
 
-# -----------------------------------------------------------------------------
-# PostgreSQL Entra Admin (Managed Identity)
-# -----------------------------------------------------------------------------
+# Entra admin is the API's managed identity (not a human user)
 resource "azurerm_postgresql_flexible_server_active_directory_administrator" "api" {
   server_name         = azurerm_postgresql_flexible_server.main.name
   resource_group_name = azurerm_resource_group.main.name

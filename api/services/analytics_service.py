@@ -99,12 +99,10 @@ async def get_community_analytics(
             the in-memory cache only (used by callers that don't have a
             session handy).
     """
-    # Fast path: in-memory cache hit
     cached = _local_cache.get("analytics")
     if cached is not None:
         return cached
 
-    # Read from DB if session provided
     if db is not None:
         repo = AnalyticsRepository(db)
         row = await repo.get_snapshot_data()
@@ -113,7 +111,6 @@ async def get_community_analytics(
             _local_cache["analytics"] = analytics
             return analytics
 
-    # No snapshot yet — return placeholder
     return _empty_analytics()
 
 
@@ -158,7 +155,6 @@ async def _compute_analytics(db: AsyncSession) -> CommunityAnalytics:
     for phase_id, _step_count, num_users in histogram:
         users_reached[phase_id] = users_reached.get(phase_id, 0) + num_users
 
-    # --- Phase distribution (funnel) ---
     phases = get_all_phases()
     phase_distribution: list[PhaseDistributionItem] = []
     for phase in sorted(phases, key=lambda p: p.order):
@@ -176,11 +172,9 @@ async def _compute_analytics(db: AsyncSession) -> CommunityAnalytics:
             )
         )
 
-    # --- Trends ---
     signup_trends = _build_cumulative_trends(signup_raw)
     certificate_trends = _build_cumulative_trends(cert_raw)
 
-    # --- Verification stats ---
     verification_stats: list[VerificationStat] = []
     phase_name_map = {p.id: p.name for p in phases}
     for phase_id in sorted(submission_stats.keys()):
@@ -196,7 +190,6 @@ async def _compute_analytics(db: AsyncSession) -> CommunityAnalytics:
             )
         )
 
-    # --- Activity by day of week ---
     activity_by_day: list[DayActivity] = []
     for iso_day in range(1, 8):
         activity_by_day.append(
@@ -206,13 +199,11 @@ async def _compute_analytics(db: AsyncSession) -> CommunityAnalytics:
             )
         )
 
-    # --- Provider distribution (multi-cloud labs) ---
     provider_distribution = [
         ProviderDistribution(provider=provider, count=count)
         for provider, count in provider_raw
     ]
 
-    # --- Completion rate ---
     completion_rate = (
         round(total_certificates / total_users * 100, 1) if total_users > 0 else 0.0
     )
@@ -251,7 +242,6 @@ async def refresh_analytics(
         await repo.upsert_snapshot(data_json, now)
         await db.commit()
 
-    # Update local cache so this replica sees the new data immediately
     _local_cache["analytics"] = result
 
     logger.info(

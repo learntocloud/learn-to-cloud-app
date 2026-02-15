@@ -18,78 +18,57 @@ class Settings(BaseSettings):
         frozen=True,
     )
 
-    # PostgreSQL connection - set via DATABASE_URL env var
-    # For Azure: set postgres_host + postgres_user (Managed Identity)
-    # For local: use "postgresql+asyncpg://postgres:postgres@localhost:5432/learn_to_cloud"
     database_url: str = ""
 
-    # Azure PostgreSQL with Managed Identity - takes precedence over database_url
-    # When postgres_host is set, database_url is derived automatically
+    # Azure PostgreSQL with Managed Identity — takes precedence over database_url
     postgres_host: str = ""
     postgres_port: int = 5432
     postgres_database: str = "learntocloud"
     postgres_user: str = ""
 
-    # Comma-separated list of allowed CORS origins (in addition to localhost defaults)
-    # Example: "https://app.example.com,https://staging.example.com"
     cors_allowed_origins: str = ""
 
-    # GitHub OAuth (Authlib)
     github_client_id: str = ""
     github_client_secret: str = ""
 
-    # Session cookie signing key
-    # Generate with: python -c "import secrets; print(secrets.token_hex(32))"
     session_secret_key: str = "dev-secret-key-change-in-production"
 
     github_token: str = ""
 
-    # CTF secret - must be set via env var in non-development environments
     labs_verification_secret: str = ""
 
     http_timeout: float = 10.0
 
-    # LLM configuration for AI-powered code verification
-    # Uses Microsoft Agent Framework with Azure OpenAI
-    llm_cli_timeout: int = 120  # Seconds to wait for code analysis completion
-    code_analysis_cooldown_seconds: int = 3600  # 1 hr between LLM verifications
-    daily_submission_limit: int = 20  # Max submissions per user per day (all reqs)
+    llm_cli_timeout: int = 120
+    code_analysis_cooldown_seconds: int = 3600
+    daily_submission_limit: int = 20
 
-    # Azure OpenAI — used by Agent Framework's AzureOpenAIChatClient
-    llm_base_url: str = ""  # e.g. "https://<resource>.openai.azure.com"
-    llm_api_key: str = ""  # Azure OpenAI API key
-    llm_model: str = ""  # Deployment/model name (e.g. "gpt-5-mini")
-    llm_api_version: str = "2024-10-21"  # Azure API version
+    llm_base_url: str = ""
+    llm_api_key: str = ""
+    llm_model: str = ""
+    llm_api_version: str = "2024-10-21"
 
-    # Use "redis://host:port" in production for distributed rate limiting
     # memory:// only works for single-instance deployments
     ratelimit_storage_uri: str = "memory://"
 
     frontend_url: str = "http://localhost:4280"
 
-    # Content directory for course phases JSON files
-    # Defaults to content/phases for local dev
     content_dir: str = ""
 
-    # Database pool settings (PostgreSQL only)
-    # Keep pool sizes small for horizontal scaling (multiple workers/replicas)
     # Total connections per worker = pool_size + max_overflow
     db_pool_size: int = 5
     db_pool_max_overflow: int = 5
     db_pool_timeout: int = 30
     db_pool_recycle: int = 300
-    db_statement_timeout_ms: int = 10000  # 10 seconds - prevents pool starvation
-    db_echo: bool = False  # Set True to log all SQL queries (very verbose)
+    db_statement_timeout_ms: int = 10000
+    db_echo: bool = False
 
-    # Feature flags — production defaults (fail-safe)
-    # Set DEBUG=true in .env for local development
-    debug: bool = False  # Enables docs, CORS localhost, relaxes validation
-    require_https: bool = True  # Session cookies require HTTPS
-    enable_docs: bool = False  # Swagger UI at /docs
+    debug: bool = False
+    require_https: bool = True
+    enable_docs: bool = False
 
     @model_validator(mode="after")
     def validate_config(self) -> Self:
-        # Require PostgreSQL configuration
         if not self.database_url and not self.use_azure_postgres:
             raise ValueError(
                 "Database configuration required. "
@@ -97,7 +76,7 @@ class Settings(BaseSettings):
                 "or POSTGRES_HOST + POSTGRES_USER for Azure Managed Identity."
             )
 
-        # In production (debug=False), require auth and security config
+        # Require auth and security config in production (debug=False)
         if not self.debug:
             if not self.github_client_id or not self.github_client_secret:
                 raise ValueError(
@@ -129,7 +108,6 @@ class Settings(BaseSettings):
         """Combines localhost (dev only), frontend_url, and cors_allowed_origins."""
         origins: list[str] = []
 
-        # Only include localhost origins in debug mode
         if self.debug:
             origins.extend(
                 [
@@ -138,11 +116,9 @@ class Settings(BaseSettings):
                 ]
             )
 
-        # Add frontend_url if not already present
         if self.frontend_url and self.frontend_url not in origins:
             origins.append(self.frontend_url)
 
-        # Add any additional origins from cors_allowed_origins (comma-separated)
         if self.cors_allowed_origins:
             for origin in self.cors_allowed_origins.split(","):
                 origin = origin.strip()

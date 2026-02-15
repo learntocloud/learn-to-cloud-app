@@ -80,7 +80,6 @@ async def get_dashboard_data(
         for phase in phases
     ]
 
-    # Determine the "continue" phase — first incomplete phase
     continue_phase: ContinuePhaseData | None = None
     if not user_progress.is_program_complete:
         current_id = user_progress.current_phase
@@ -93,7 +92,6 @@ async def get_dashboard_data(
                 order=current.order,
             )
 
-    # Compute badges from the same progress data (no extra DB calls)
     completion_counts = get_phase_completion_counts(user_progress)
     earned_badges = compute_all_badges(completion_counts, user_id=user_id)
 

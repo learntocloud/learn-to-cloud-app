@@ -33,13 +33,11 @@ async def status_page(
     if user_id is not None:
         user = await get_user_by_id(db, user_id)
 
-    # Health check — quick SELECT 1 + optional token check
     health = await comprehensive_health_check(request.app.state.engine)
     db_ok = health["database"]
     auth_ok = health.get("azure_auth")  # None when not using Azure
     overall_status = "down" if (not db_ok or auth_ok is False) else "operational"
 
-    # Analytics — may fail independently of health
     try:
         analytics = await get_community_analytics(db)
     except Exception:

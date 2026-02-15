@@ -158,7 +158,6 @@ def _validate_recipient_name(name: str) -> str:
     if len(name) < 2:
         raise InvalidRecipientNameError("Name must be at least 2 characters.")
 
-    # Strip control characters (U+0000–U+001F, U+007F–U+009F)
     cleaned = "".join(ch for ch in name if ch.isprintable())
     if cleaned != name:
         raise InvalidRecipientNameError("Name contains invalid characters.")
@@ -191,7 +190,6 @@ async def create_certificate(
         CertificateAlreadyExistsError: If certificate already issued
         NotEligibleError: If user doesn't meet requirements
     """
-    # Validate recipient name before anything else
     recipient_name = _validate_recipient_name(recipient_name)
 
     eligibility = await check_eligibility(db, user_id)
@@ -266,7 +264,6 @@ async def get_user_certificate_with_eligibility(
     if certificate:
         return _to_certificate_data(certificate), False
 
-    # Only check progress if no cert exists yet
     progress = await fetch_user_progress(db, user_id)
     return None, progress.is_program_complete
 

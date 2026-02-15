@@ -84,7 +84,6 @@ async def _get_github_client() -> httpx.AsyncClient:
         return _github_http_client
 
     async with _github_client_lock:
-        # Double-check after acquiring lock
         if _github_http_client is not None and not _github_http_client.is_closed:
             return _github_http_client
 
@@ -196,11 +195,9 @@ async def _check_github_url_exists_with_retry(url: str) -> tuple[bool, str]:
     client = await _get_github_client()
     response = await client.head(url)
 
-    # 5xx errors are retriable
     if response.status_code >= 500:
         raise GitHubServerError(f"GitHub returned {response.status_code}")
 
-    # 429 rate limit is retriable
     if response.status_code == 429:
         retry_after = _parse_retry_after(response.headers.get("Retry-After"))
         raise GitHubServerError("GitHub rate limited (429)", retry_after=retry_after)
@@ -270,11 +267,9 @@ async def _check_repo_is_fork_of_with_retry(
     client = await _get_github_client()
     response = await client.get(api_url, headers=_get_github_headers())
 
-    # 5xx errors are retriable
     if response.status_code >= 500:
         raise GitHubServerError(f"GitHub API returned {response.status_code}")
 
-    # 429 rate limit is retriable
     if response.status_code == 429:
         retry_after = _parse_retry_after(response.headers.get("Retry-After"))
         raise GitHubServerError("GitHub rate limited (429)", retry_after=retry_after)

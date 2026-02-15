@@ -7,7 +7,6 @@ import asyncio
 import sys
 from pathlib import Path
 
-# Ensure api/ is on sys.path when running from scripts/
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from sqlalchemy import text
@@ -20,7 +19,6 @@ async def audit():
     await init_db(engine)
     sm = create_session_maker(engine)
     async with sm() as db:
-        # ── RAW SQL ──
         r = await db.execute(text("SELECT count(*) FROM users"))
         print(f"[RAW] users count: {r.scalar_one()}")
 
@@ -85,7 +83,6 @@ async def audit():
         )
         print("[RAW] users_reached:", [(row[0], row[1]) for row in r.all()])
 
-        # ── REPO LAYER ──
         print("\n=== REPO LAYER ===")
         from repositories.analytics_repository import AnalyticsRepository
 
@@ -99,7 +96,6 @@ async def audit():
         print(f"submissions: {await repo.get_submission_stats_by_phase()}")
         print(f"activity_dow: {await repo.get_activity_by_day_of_week()}")
 
-        # ── SERVICE LAYER ──
         print("\n=== SERVICE LAYER ===")
         from services.analytics_service import get_community_analytics
 

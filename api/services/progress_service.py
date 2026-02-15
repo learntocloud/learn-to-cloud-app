@@ -112,7 +112,6 @@ async def fetch_user_progress(
 
     phases = get_all_phases()
 
-    # Read pre-computed counts from the denormalized table (single query)
     progress_repo = UserPhaseProgressRepository(db)
     denormalized = await progress_repo.get_by_user(user_id)
 

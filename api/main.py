@@ -58,7 +58,6 @@ configure_observability()
 configure_logging()
 logger = logging.getLogger(__name__)
 
-# Jinja2 templates
 _templates_dir = Path(__file__).parent / "templates"
 templates = Jinja2Templates(directory=str(_templates_dir))
 
@@ -289,11 +288,9 @@ if _static_dir.exists():
     _static_hashes.update(_build_static_file_hashes(_static_dir))
     app.mount("/static", StaticFiles(directory=str(_static_dir)), name="static")
 
-# Expose cache-busted URL helper to all Jinja2 templates
 templates.env.globals["static_url"] = _static_url
 
 
-# Browser-requested root assets — browsers always request these at /
 _favicon_ico = _static_dir / "favicon.ico"
 _apple_touch_icon = _static_dir / "apple-touch-icon.png"
 _icon_cache = "public, max-age=86400, immutable"
@@ -320,15 +317,11 @@ async def apple_touch_icon() -> FileResponse:
     )
 
 
-# API routes (JSON)
 app.include_router(health_router)
 app.include_router(auth_router)
 app.include_router(certificates_router)
 app.include_router(users_router)
 app.include_router(analytics_router)
-
-# HTMX routes (HTML fragments)
 app.include_router(htmx_router)
-
-# Page routes (HTML - must be last to avoid catching API routes)
+# Must be last to avoid catching API routes
 app.include_router(pages_router)

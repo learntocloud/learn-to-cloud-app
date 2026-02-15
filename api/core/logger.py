@@ -56,7 +56,6 @@ class _JSONFormatter(logging.Formatter):
             "logger": record.name,
             "event": record.getMessage(),
         }
-        # Include extra fields (user_id, step_id, etc.)
         skip = set(logging.LogRecord("", 0, "", 0, "", (), None).__dict__)
         for key, value in record.__dict__.items():
             if key not in skip and isinstance(value, str | int | float | bool | None):
@@ -90,7 +89,6 @@ def configure_logging() -> None:
     for h in otel_handlers:
         root.addHandler(h)
 
-    # Add our own console handler for stdout output.
     console = logging.StreamHandler(sys.stdout)
     console.setFormatter(
         _JSONFormatter()
@@ -100,10 +98,8 @@ def configure_logging() -> None:
     root.addHandler(console)
     root.setLevel(level)
 
-    # Inject request-scoped github_username into all log records.
     root.addFilter(_RequestContextFilter())
 
-    # Quiet noisy third-party loggers.
     for name in (
         "httpx",
         "httpcore",

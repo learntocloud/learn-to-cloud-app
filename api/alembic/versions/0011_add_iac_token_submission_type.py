@@ -7,7 +7,6 @@ Create Date: 2026-02-13
 
 from alembic import op
 
-# revision identifiers, used by Alembic.
 revision = "0011_add_iac_token_submission_type"
 down_revision = "0010_step_progress_step_id_identity"
 branch_labels = None

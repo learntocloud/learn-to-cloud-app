@@ -51,11 +51,6 @@ class HealthCheckResult(TypedDict):
     pool: PoolStatus | None
 
 
-# =============================================================================
-# Engine Creation
-# =============================================================================
-
-
 def _build_azure_database_url() -> str:
     settings = get_settings()
     return (
@@ -186,11 +181,6 @@ def create_session_maker(engine: AsyncEngine) -> async_sessionmaker[AsyncSession
     )
 
 
-# =============================================================================
-# FastAPI Dependencies (access state via Request)
-# =============================================================================
-
-
 async def get_db(request: Request) -> AsyncGenerator[AsyncSession]:
     """Auto-commits on success, rolls back on exception.
 
@@ -234,11 +224,6 @@ DbSession = Annotated[AsyncSession, Depends(get_db)]
 DbSessionReadOnly = Annotated[AsyncSession, Depends(get_db_readonly)]
 
 
-# =============================================================================
-# Lifecycle Functions
-# =============================================================================
-
-
 async def init_db(engine: AsyncEngine) -> None:
     """Verify database is reachable. Schema managed via migrations."""
     logger.info("db.connectivity.verifying")
@@ -279,11 +264,6 @@ async def warm_pool(engine: AsyncEngine) -> None:
 async def dispose_engine(engine: AsyncEngine) -> None:
     await engine.dispose()
     logger.info("db.engine.disposed")
-
-
-# =============================================================================
-# Health Check Functions
-# =============================================================================
 
 
 async def check_db_connection(engine: AsyncEngine) -> None:
@@ -345,11 +325,6 @@ async def comprehensive_health_check(engine: AsyncEngine) -> HealthCheckResult:
     result["pool"] = get_pool_status(engine)
 
     return result
-
-
-# =============================================================================
-# Testing Utilities
-# =============================================================================
 
 
 async def reset_azure_credential() -> None:

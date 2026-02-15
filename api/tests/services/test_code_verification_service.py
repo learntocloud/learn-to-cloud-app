@@ -180,8 +180,6 @@ class TestBuildTaskResults:
 
         With structured outputs, invalid task_ids are rejected by Pydantic.
         """
-        # With structured outputs, invalid task_ids are rejected by Pydantic.
-        # Test that _build_task_results handles the valid subset correctly.
         analysis = CodeAnalysisResponse(
             tasks=[
                 TaskGrade(task_id="logging-setup", passed=True, feedback="Real task"),

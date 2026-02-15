@@ -2,7 +2,6 @@
 {% block title %}{{ phase.name }} - Learn to Cloud{% endblock %}
 
 {% block content %}
-<!-- Phase header -->
 <div class="mb-8">
     <div class="flex items-center gap-3 mb-2">
         <h1 class="text-3xl font-bold text-gray-900 dark:text-white">{{ phase.name }}</h1>
@@ -19,7 +18,6 @@
     {% endif %}
 </div>
 
-<!-- Topics list -->
 <div class="mb-12">
     <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Topics</h2>
     <div class="space-y-3">
@@ -43,7 +41,6 @@
     </div>
 </div>
 
-<!-- Hands-on verification section -->
 {% if requirements %}
 <div id="verification-section">
     <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Hands-on Verification</h2>

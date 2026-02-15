@@ -9,7 +9,6 @@ from sqlalchemy.ext.asyncio import create_async_engine
 
 async def count_users():
     """Query production database for user count."""
-    # Get Azure token for PostgreSQL
     result = subprocess.run(
         "az account get-access-token --resource-type oss-rdbms --query accessToken -o tsv",
         capture_output=True,
@@ -19,7 +18,6 @@ async def count_users():
     )
     token = result.stdout.strip()
 
-    # Get user email
     result = subprocess.run(
         "az ad signed-in-user show --query displayName -o tsv",
         capture_output=True,
@@ -29,14 +27,12 @@ async def count_users():
     )
     username = result.stdout.strip()
 
-    # Connect to production database
     db_url = f"postgresql+asyncpg://{username}:{token}@psql-ltc-dev-8v4tyz.postgres.database.azure.com:5432/learntocloud"
 
     engine = create_async_engine(db_url, echo=False, connect_args={"ssl": "require"})
 
     try:
         async with engine.connect() as conn:
-            # Get comprehensive user stats
             query = sqlalchemy.text("""
                 SELECT
                     (SELECT COUNT(*) FROM users) as total_users,

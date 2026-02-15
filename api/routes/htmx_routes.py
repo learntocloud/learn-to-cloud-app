@@ -250,7 +250,6 @@ async def htmx_submit_verification(
     except CooldownActiveError as e:
         existing = e.existing_submission
 
-        # Restore previous feedback tasks from stored JSON
         feedback_tasks = []
         feedback_passed = 0
         if existing and existing.feedback_json:
@@ -298,7 +297,6 @@ async def htmx_submit_verification(
     # upserted submission — no need to re-fetch from the repository.
     submission = result.submission
 
-    # Parse feedback tasks if available
     feedback_tasks = []
     feedback_passed = 0
     if result.task_results:

@@ -29,7 +29,6 @@ class SubmissionRepository:
         self, user_id: int, phase_id: int
     ) -> list[Submission]:
         """Get the latest submission per requirement for a user in a phase."""
-        # Subquery to find the max created_at per requirement
         latest_sq = (
             select(
                 Submission.requirement_id,
@@ -60,7 +59,6 @@ class SubmissionRepository:
         self, user_id: int
     ) -> list[ValidatedSubmissionSummary]:
         """Get validated submission summaries for a user (one per requirement)."""
-        # Subquery: earliest validated_at per requirement
         earliest_sq = (
             select(
                 Submission.requirement_id,
@@ -138,7 +136,6 @@ class SubmissionRepository:
         """
         now = datetime.now(UTC)
 
-        # Get the next attempt number
         result = await self.db.execute(
             select(func.coalesce(func.max(Submission.attempt_number), 0)).where(
                 Submission.user_id == user_id,

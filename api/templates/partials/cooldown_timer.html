@@ -37,7 +37,6 @@
     x-on:destroy.window="clearInterval(interval)"
 >
     <div class="flex items-center gap-3">
-        <!-- Clock icon -->
         <div class="flex-shrink-0">
             <svg class="w-5 h-5 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
@@ -58,7 +57,6 @@
             </p>
         </div>
 
-        <!-- Re-submit button appears when timer expires -->
         <div x-show="remaining <= 0" x-cloak class="flex-shrink-0">
             <button
                 onclick="this.closest('[id^=requirement-]').querySelector('form button[type=submit]')?.click()"
@@ -69,7 +67,6 @@
         </div>
     </div>
 
-    <!-- Progress bar -->
     <div class="mt-2 h-1 bg-amber-200 dark:bg-amber-800 rounded-full overflow-hidden" x-show="remaining > 0">
         <div
             class="h-full bg-amber-500 dark:bg-amber-400 rounded-full transition-all duration-1000 ease-linear"

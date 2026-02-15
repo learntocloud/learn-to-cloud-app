@@ -1,6 +1,3 @@
-# -----------------------------------------------------------------------------
-# Container Registry
-# -----------------------------------------------------------------------------
 resource "azurerm_container_registry" "main" {
   name                = "crltc${local.suffix}"
   resource_group_name = azurerm_resource_group.main.name
@@ -10,9 +7,6 @@ resource "azurerm_container_registry" "main" {
   tags                = local.tags
 }
 
-# -----------------------------------------------------------------------------
-# Container Apps Environment
-# -----------------------------------------------------------------------------
 resource "azurerm_container_app_environment" "main" {
   name                       = "cae-ltc-${var.environment}"
   location                   = azurerm_resource_group.main.location
@@ -21,9 +15,6 @@ resource "azurerm_container_app_environment" "main" {
   tags                       = local.tags
 }
 
-# -----------------------------------------------------------------------------
-# API Container App
-# -----------------------------------------------------------------------------
 resource "azurerm_container_app" "api" {
   name                         = "ca-ltc-api-${var.environment}"
   container_app_environment_id = azurerm_container_app_environment.main.id

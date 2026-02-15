@@ -196,7 +196,6 @@ async def validate_pr(
             username_match=False,
         )
 
-    # Check owner matches authenticated user
     if parsed.owner.lower() != expected_username.lower():
         return ValidationResult(
             is_valid=False,
@@ -207,7 +206,6 @@ async def validate_pr(
             username_match=False,
         )
 
-    # Fetch PR data from GitHub API
     try:
         pr_data = await _fetch_pr_data(parsed.owner, parsed.repo, parsed.number)
     except CircuitBreakerError:
@@ -260,7 +258,6 @@ async def validate_pr(
             server_error=True,
         )
 
-    # Check PR is merged
     if not pr_data.get("merged"):
         state = pr_data.get("state", "unknown")
         if state == "open":
@@ -281,7 +278,6 @@ async def validate_pr(
             username_match=True,
         )
 
-    # Check PR files (if expected_files configured on the requirement)
     expected_files = requirement.expected_files
     if expected_files:
         try:
@@ -320,7 +316,6 @@ async def validate_pr(
                 server_error=True,
             )
 
-        # Check if ANY expected file was modified in the PR
         changed_set = {f.lower() for f in changed_files}
         expected_set = {f.lower() for f in expected_files}
         matched = changed_set & expected_set

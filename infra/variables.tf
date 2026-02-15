@@ -1,6 +1,3 @@
-# -----------------------------------------------------------------------------
-# Required Variables
-# -----------------------------------------------------------------------------
 variable "subscription_id" {
   description = "Azure subscription ID"
   type        = string
@@ -29,9 +26,6 @@ variable "labs_verification_secret" {
   sensitive   = true
 }
 
-# -----------------------------------------------------------------------------
-# Optional Variables with Defaults
-# -----------------------------------------------------------------------------
 variable "environment" {
   description = "Environment name (dev, staging, prod)"
   type        = string
@@ -57,11 +51,7 @@ variable "slack_webhook_url" {
   sensitive   = true
 }
 
-# -----------------------------------------------------------------------------
 # LLM — Azure OpenAI model deployment for code analysis
-# Terraform deploys the Azure OpenAI resource and model automatically.
-# The endpoint and API key are wired from the Terraform resource.
-# -----------------------------------------------------------------------------
 variable "llm_model" {
   description = "Azure OpenAI model to deploy (e.g. gpt-5-mini)"
   type        = string

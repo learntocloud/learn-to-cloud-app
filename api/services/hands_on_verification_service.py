@@ -268,6 +268,3 @@ async def _dispatch_validation(
             username_match=False,
             repo_exists=False,
         )
-
-    # This line is unreachable due to the explicit returns above,
-    # but the function is kept for readability.

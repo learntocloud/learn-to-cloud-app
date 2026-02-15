@@ -78,7 +78,6 @@ def verify_networking_token(
         NetworkingLabVerificationResult with verification status and details
     """
     try:
-        # Decode and parse token
         try:
             decoded = base64.b64decode(token).decode("utf-8")
             token_data = json.loads(decoded)
@@ -107,7 +106,6 @@ def verify_networking_token(
                 ),
             )
 
-        # Verify username match
         token_username = (payload.get("github_username") or "").lower()
         oauth_username_lower = oauth_github_username.lower()
 
@@ -121,7 +119,6 @@ def verify_networking_token(
                 ),
             )
 
-        # Verify instance ID exists
         instance_id = payload.get("instance_id")
         if not instance_id:
             return NetworkingLabVerificationResult(
@@ -129,7 +126,6 @@ def verify_networking_token(
                 message="Invalid token: missing instance ID.",
             )
 
-        # Derive verification secret
         try:
             verification_secret = _derive_secret(instance_id)
         except RuntimeError:
@@ -169,7 +165,6 @@ def verify_networking_token(
                 ),
             )
 
-        # Verify timestamp is not from the future
         timestamp = payload.get("timestamp", 0)
         now = datetime.now(UTC).timestamp()
         if timestamp > now + 3600:

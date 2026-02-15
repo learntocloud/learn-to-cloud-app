@@ -32,7 +32,6 @@ def load_content() -> (
             continue
         phase_id = int(phase_dir.name.replace("phase", ""))
 
-        # Load requirements from _phase.yaml
         phase_meta = phase_dir / "_phase.yaml"
         if phase_meta.exists():
             with open(phase_meta, encoding="utf-8") as f:
@@ -47,7 +46,6 @@ def load_content() -> (
                 ))
             phase_requirements[phase_id] = reqs
 
-        # Load topics
         topics = []
         for topic_file in sorted(phase_dir.glob("*.yaml")):
             if topic_file.name == "_phase.yaml":
@@ -68,7 +66,6 @@ async def main(github_username: str) -> None:
 
     conn = await asyncpg.connect(DATABASE_URL)
     try:
-        # Find user
         user = await conn.fetchrow(
             "SELECT id, github_username FROM users WHERE github_username = $1",
             github_username,
@@ -83,13 +80,11 @@ async def main(github_username: str) -> None:
 
         now = datetime.now(UTC)
 
-        # Clean up any previously-seeded bad data (wrong topic_id format)
         deleted = await conn.execute(
             "DELETE FROM step_progress WHERE user_id = $1", user_id
         )
         print(f"Cleaned existing step_progress: {deleted}")
 
-        # Insert step progress for all phases
         step_count = 0
         for phase_id, topics in phase_topics.items():
             for topic_id, num_steps in topics:
@@ -113,7 +108,6 @@ async def main(github_username: str) -> None:
                     step_count += 1
         print(f"Inserted {step_count} step_progress records")
 
-        # Insert validated submissions for all requirements
         sub_count = 0
         for phase_id, requirements in phase_requirements.items():
             for req_id, sub_type, submitted_value in requirements:
@@ -136,7 +130,6 @@ async def main(github_username: str) -> None:
                 sub_count += 1
         print(f"Inserted {sub_count} submission records")
 
-        # Update denormalized user_phase_progress
         for phase_id, topics in phase_topics.items():
             total_steps = sum(s for _, s in topics)
             validated_subs = len(phase_requirements.get(phase_id, []))

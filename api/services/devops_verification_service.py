@@ -41,10 +41,6 @@ from schemas import TaskResult, ValidationResult
 
 logger = logging.getLogger(__name__)
 
-# =============================================================================
-# Constants
-# =============================================================================
-
 # Directories / path prefixes where DevOps artifacts are expected
 DEVOPS_PATH_PATTERNS: dict[str, list[str]] = {
     "dockerfile": ["Dockerfile", "dockerfile"],
@@ -223,11 +219,6 @@ class DevOpsAnalysisError(Exception):
         self.retriable = retriable
 
 
-# =============================================================================
-# Repository File Discovery & Fetching
-# =============================================================================
-
-
 def _extract_repo_info(repo_url: str) -> tuple[str, str]:
     """Extract owner and repo name from GitHub URL.
 
@@ -291,17 +282,14 @@ def _filter_devops_files(all_files: list[str]) -> dict[str, list[str]]:
         for file_path in all_files:
             for pattern in task["path_patterns"]:
                 if pattern.endswith("/"):
-                    # Directory prefix match
                     if file_path.startswith(pattern):
                         matching.append(file_path)
                         break
                 else:
-                    # Exact file match (case-insensitive for Dockerfile)
                     if file_path.lower() == pattern.lower():
                         matching.append(file_path)
                         break
 
-        # Limit files per category to prevent token exhaustion
         result[task["id"]] = matching[:MAX_FILES_PER_CATEGORY]
 
     return result
@@ -359,7 +347,6 @@ async def _fetch_all_devops_files(
     Returns:
         Dict mapping task_id -> list of file content strings.
     """
-    # Flatten all file paths with their task_id
     fetch_tasks: list[tuple[str, str]] = []
     for task_id, paths in devops_files.items():
         for path in paths:
@@ -381,7 +368,6 @@ async def _fetch_all_devops_files(
         return_exceptions=True,
     )
 
-    # Group results by task_id
     grouped: dict[str, list[str]] = {task["id"]: [] for task in PHASE5_TASKS}
     total_bytes = 0
 
@@ -399,11 +385,6 @@ async def _fetch_all_devops_files(
         grouped[task_id].append(content)
 
     return grouped
-
-
-# =============================================================================
-# Prompt Construction
-# =============================================================================
 
 
 def _build_verification_prompt(
@@ -468,11 +449,6 @@ For each task:
 """
 
 
-# =============================================================================
-# Response Parsing
-# =============================================================================
-
-
 def _parse_structured_response(
     result: Any,
 ) -> DevOpsAnalysisLLMResponse:
@@ -490,7 +466,6 @@ def _parse_structured_response(
     Raises:
         DevOpsAnalysisError: If response cannot be parsed.
     """
-    # Prefer structured output value (populated by response_format)
     if result.value is not None:
         if isinstance(result.value, DevOpsAnalysisLLMResponse):
             return result.value
@@ -577,10 +552,6 @@ def _build_task_results(
 
     return results, all_passed
 
-
-# =============================================================================
-# Main Analysis Flow
-# =============================================================================
 
 RETRIABLE_EXCEPTIONS: tuple[type[Exception], ...] = (
     LLMClientError,

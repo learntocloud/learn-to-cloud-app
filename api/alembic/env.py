@@ -83,7 +83,6 @@ def _get_sync_database_url() -> str:
     """
     settings = get_settings()
     if settings.use_azure_postgres:
-        # For Azure with Entra ID auth, we need to get a token with retry
         token = _get_azure_token_with_retry()
         return (
             f"postgresql+psycopg2://{settings.postgres_user}:{token}"
@@ -121,7 +120,6 @@ def _run_migrations(connection: Connection) -> None:
     # We use a session-level advisory lock with a timeout to prevent deadlocks.
     lock_acquired = False
     if dialect_name == "postgresql":
-        # Try to acquire lock with timeout (prevents indefinite blocking)
         # pg_try_advisory_lock returns immediately, we poll with timeout
         start_time = time.time()
         while time.time() - start_time < _LOCK_TIMEOUT_SECONDS:
@@ -137,7 +135,6 @@ def _run_migrations(connection: Connection) -> None:
                 connection.commit()
                 logger.info("Acquired migration advisory lock")
                 break
-            # Another process has the lock, wait and retry
             logger.debug("Waiting for migration lock...")
             time.sleep(2)
         else:
@@ -167,13 +164,11 @@ def _run_migrations(connection: Connection) -> None:
             logger.info("Migrations already applied by another process, continuing...")
             migration_error = None  # Don't re-raise this error
         else:
-            # For other errors, rollback the failed transaction
             try:
                 connection.rollback()
             except Exception:
                 pass  # Ignore rollback errors
     finally:
-        # Always release the advisory lock for PostgreSQL
         if lock_acquired:
             try:
                 result = connection.execute(
@@ -186,7 +181,6 @@ def _run_migrations(connection: Connection) -> None:
                 # Log but don't raise - lock released when session ends anyway
                 logger.warning("advisory.lock.release.failed: %s", unlock_error)
 
-    # Re-raise the migration error if it wasn't a "table already exists" error
     if migration_error is not None:
         raise migration_error
 
@@ -208,7 +202,6 @@ def run() -> None:
     if context.is_offline_mode():
         run_migrations_offline()
     else:
-        # run_migrations_online is now synchronous (uses psycopg2)
         run_migrations_online()
 
 

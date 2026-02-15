@@ -42,7 +42,6 @@ from core.database import Base
 # Test Settings
 # =============================================================================
 
-# Test database URL - uses same PostgreSQL from docker-compose
 TEST_DATABASE_URL = (
     "postgresql+asyncpg://postgres:postgres@localhost:5432/test_learn_to_cloud"
 )
@@ -71,7 +70,6 @@ def test_settings() -> Settings:
 # Database Fixtures
 # =============================================================================
 
-# Check if database is available (skip DB tests in CI without database)
 _DB_AVAILABLE = None
 
 
@@ -105,7 +103,6 @@ async def test_engine() -> AsyncGenerator[AsyncEngine]:
     if not _check_db_available():
         pytest.skip("PostgreSQL not available - skipping database test")
 
-    # Connect to default database to create test database if needed
     admin_engine = create_async_engine(
         "postgresql+asyncpg://postgres:postgres@localhost:5432/postgres",
         poolclass=NullPool,
@@ -113,7 +110,6 @@ async def test_engine() -> AsyncGenerator[AsyncEngine]:
     )
 
     async with admin_engine.connect() as conn:
-        # Check if test database exists
         result = await conn.execute(
             text("SELECT 1 FROM pg_database WHERE datname = 'test_learn_to_cloud'")
         )
@@ -122,7 +118,6 @@ async def test_engine() -> AsyncGenerator[AsyncEngine]:
 
     await admin_engine.dispose()
 
-    # Create engine for test database
     engine = create_async_engine(
         TEST_DATABASE_URL,
         poolclass=NullPool,
@@ -151,13 +146,10 @@ async def db_session(
     Each test runs in a transaction that's rolled back at the end,
     ensuring test isolation without the overhead of recreating tables.
     """
-    # Create a connection for this test
     connection = await test_engine.connect()
 
-    # Begin a transaction that we'll roll back
     transaction = await connection.begin()
 
-    # Create a session bound to this connection
     async_session_factory = async_sessionmaker(
         bind=connection,
         class_=AsyncSession,
@@ -171,7 +163,6 @@ async def db_session(
         yield session
     finally:
         await session.close()
-        # Rollback the transaction - all test data disappears
         await transaction.rollback()
         await connection.close()
 
@@ -224,7 +215,6 @@ async def app(
     # Import here to avoid circular imports and ensure fresh app state
     from main import app as fastapi_app
 
-    # Store test engine and session maker in app state
     fastapi_app.state.engine = test_engine
     fastapi_app.state.session_maker = async_sessionmaker(
         bind=test_engine,

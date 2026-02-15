@@ -144,7 +144,6 @@ class TestCooldownEnforcement:
                 message="All tasks passed",
             )
 
-            # Should not raise - first submission allowed
             result = await submit_validation(
                 session_maker=mock_session_maker,
                 user_id=123,
@@ -271,7 +270,6 @@ class TestCooldownEnforcement:
                 message="All tasks passed",
             )
 
-            # Should not raise - cooldown expired
             result = await submit_validation(
                 session_maker=mock_session_maker,
                 user_id=123,
@@ -307,7 +305,6 @@ class TestCooldownEnforcement:
             ) as mock_validate,
         ):
             mock_repo = MagicMock()
-            # No prior submission
             mock_repo.get_by_user_and_requirement = AsyncMock(return_value=None)
             mock_repo.count_submissions_today = AsyncMock(return_value=0)
             mock_repo.get_last_submission_time = AsyncMock(return_value=None)
@@ -331,7 +328,6 @@ class TestCooldownEnforcement:
             )
             mock_repo_class.return_value = mock_repo
 
-            # Simulate server error
             mock_validate.return_value = ValidationResult(
                 is_valid=False,
                 message="Code analysis service unavailable",
@@ -346,7 +342,6 @@ class TestCooldownEnforcement:
                 github_username="user",
             )
 
-            # Verify upsert was called with verification_completed=False
             call_kwargs = mock_repo.create.call_args.kwargs
             assert call_kwargs["verification_completed"] is False
 
@@ -418,8 +413,6 @@ class TestCooldownEnforcement:
             assert result1.is_valid is False
 
             # --- Second submission (immediate retry): should NOT be blocked ---
-            # get_last_submission_time returns None because the server error
-            # submission has verification_completed=False.
             mock_repo.get_by_user_and_requirement = AsyncMock(
                 return_value=_make_mock_submission()
             )
@@ -448,7 +441,6 @@ class TestCooldownEnforcement:
                 message="All tasks passed",
             )
 
-            # This should succeed — no CooldownActiveError
             result2 = await submit_validation(
                 session_maker=mock_session_maker,
                 user_id=456,
@@ -502,7 +494,6 @@ class TestCooldownEnforcement:
             mock_repo.get_last_submission_time = AsyncMock(return_value=last_submission)
             mock_repo_class.return_value = mock_repo
 
-            # Different cooldowns for different types
             mock_settings.return_value.code_analysis_cooldown_seconds = 7200  # 2 hours
             mock_settings.return_value.daily_submission_limit = 20
 
@@ -575,7 +566,6 @@ class TestCooldownEnforcement:
                 message="Verified",
             )
 
-            # Should succeed immediately — no cooldown for lightweight types
             result = await submit_validation(
                 session_maker=mock_session_maker,
                 user_id=123,
@@ -585,7 +575,6 @@ class TestCooldownEnforcement:
             )
             assert result.is_valid is True
 
-            # Verify get_last_submission_time was never called
             mock_repo.get_last_submission_time.assert_not_called()
 
 
@@ -826,7 +815,6 @@ class TestDailySubmissionCap:
         ):
             mock_repo = MagicMock()
             mock_repo.get_by_user_and_requirement = AsyncMock(return_value=None)
-            # User has already hit the daily limit
             mock_repo.count_submissions_today = AsyncMock(return_value=20)
             mock_repo_class.return_value = mock_repo
 

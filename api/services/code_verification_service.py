@@ -55,10 +55,6 @@ from schemas import TaskResult, ValidationResult
 
 logger = logging.getLogger(__name__)
 
-# =============================================================================
-# Security Constants
-# =============================================================================
-
 # Allowlist of files that can be fetched - prevents path traversal attacks
 # and limits exposure of learner's repository
 ALLOWED_FILE_PATHS: frozenset[str] = frozenset(
@@ -112,10 +108,6 @@ class TaskDefinition(TypedDict, total=False):
 # =============================================================================
 # Task Definitions with Detailed Grading Rubrics
 # =============================================================================
-# Each task includes:
-# - Specific criteria to evaluate
-# - Starter code hints (what unchanged code looks like)
-# - Pass/fail indicators for deterministic grading
 
 PHASE3_TASKS: list[TaskDefinition] = [
     {
@@ -348,7 +340,6 @@ async def _fetch_github_file_content(
         ValueError: If path is not in the allowlist
         httpx.HTTPStatusError: If file not found or request fails
     """
-    # Security: Enforce file allowlist
     normalized_path = path.lstrip("/").strip()
     if normalized_path not in ALLOWED_FILE_PATHS:
         raise ValueError(
@@ -372,12 +363,10 @@ async def _fetch_github_file_content(
 
     content = response.text
 
-    # Security: Enforce size limit
     if len(content.encode("utf-8")) > MAX_FILE_SIZE_BYTES:
         content = content[: MAX_FILE_SIZE_BYTES // 2]  # Rough char limit
         content += "\n\n[FILE TRUNCATED - exceeded size limit]"
 
-    # Security: Log suspicious patterns found in file content
     content_lower = content.lower()
     detected_patterns: list[str] = []
     for pattern in SUSPICIOUS_PATTERNS:
@@ -416,7 +405,6 @@ def _build_verification_prompt(
     """
     tasks_section = []
     for task in PHASE3_TASKS:
-        # Collect the file content(s) relevant to this task
         task_files = []
         if "file" in task:
             task_files.append(
@@ -502,17 +490,14 @@ def _parse_structured_response(
     Raises:
         CodeAnalysisError: If response cannot be parsed.
     """
-    # Prefer structured output value (populated by response_format)
     if result.value is not None:
         if isinstance(result.value, CodeAnalysisResponse):
             return result.value
-        # Framework may set value but not as our type — try parsing
         try:
             return CodeAnalysisResponse.model_validate(result.value)
         except Exception:
             pass
 
-    # Fallback: parse from text (e.g. if model doesn't support structured output)
     text = result.text
     if not text:
         raise CodeAnalysisError(
@@ -543,18 +528,14 @@ def _sanitize_feedback(feedback: str | None) -> str:
     if not feedback or not isinstance(feedback, str):
         return "No feedback provided"
 
-    # Truncate excessively long feedback
     max_length = 500
     if len(feedback) > max_length:
         feedback = feedback[:max_length].rsplit(" ", 1)[0] + "..."
 
-    # Remove any remaining XML/HTML-like tags that might be injection attempts
     feedback = re.sub(r"<[^>]+>", "", feedback)
 
-    # Remove markdown code blocks that might contain instructions
     feedback = re.sub(r"```[\s\S]*?```", "[code snippet]", feedback)
 
-    # Remove URLs (prevent phishing/redirect attempts)
     feedback = re.sub(r"https?://\S+", "[link removed]", feedback)
 
     return feedback.strip() or "No feedback provided"
@@ -590,7 +571,6 @@ def _enforce_deterministic_guardrails(
             corrected_tasks.append(grade)
             continue
 
-        # Gather raw content for this task's file(s)
         task_file_keys: list[str] = []
         if "file" in task_def:
             task_file_keys.append(task_def["file"])
@@ -682,7 +662,6 @@ def _build_task_results(
         if grade.task_id not in valid_task_ids:
             continue
 
-        # Security: Sanitize feedback before including in results
         feedback = _sanitize_feedback(grade.feedback)
 
         if not grade.passed:
@@ -696,7 +675,6 @@ def _build_task_results(
             )
         )
 
-    # Ensure all expected tasks have results
     found_ids = {g.task_id for g in analysis.tasks if g.task_id in valid_task_ids}
     for task in PHASE3_TASKS:
         if task["id"] not in found_ids:
@@ -787,7 +765,6 @@ async def _analyze_with_llm(
 
     chat_client = get_llm_chat_client()
 
-    # Pre-fetch all files in parallel (~0.2s total vs ~0.8s sequential)
     file_contents = await _prefetch_all_files(owner, repo)
 
     prompt = _build_verification_prompt(owner, repo, file_contents)
@@ -824,7 +801,7 @@ async def _analyze_with_llm(
     # Security: check if Azure's built-in content filter was triggered.
     # FinishReason.CONTENT_FILTER means the model's response was blocked
     # by Azure AI Content Safety — likely due to adversarial content in
-    # the submission. Available via agent_framework's response chain.
+    # the submission.
     chat_response = getattr(result, "raw_representation", None)
     finish_reason = getattr(chat_response, "finish_reason", None)
     if finish_reason == FinishReason.CONTENT_FILTER:
@@ -843,9 +820,8 @@ async def _analyze_with_llm(
 
     analysis = _parse_structured_response(result)
 
-    # Security: deterministic guardrails override LLM grades when
-    # file contents contradict the LLM's assessment or contain
-    # prompt injection attempts.
+    # Deterministic guardrails override LLM grades when file contents
+    # contradict the LLM's assessment or contain prompt injection attempts.
     analysis = _enforce_deterministic_guardrails(analysis, file_contents)
 
     task_results, all_passed = _build_task_results(analysis)
@@ -914,7 +890,6 @@ async def analyze_repository_code(
             message=str(e),
         )
 
-    # Verify the repo belongs to the expected user
     if owner.lower() != github_username.lower():
         return ValidationResult(
             is_valid=False,

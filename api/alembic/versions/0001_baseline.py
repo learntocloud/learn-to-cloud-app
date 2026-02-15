@@ -12,7 +12,6 @@ import sqlalchemy as sa
 
 from alembic import op
 
-# revision identifiers, used by Alembic.
 revision = "0001_baseline"
 down_revision = None
 branch_labels = None
@@ -20,7 +19,6 @@ depends_on = None
 
 
 def upgrade() -> None:
-    # Users table - GitHub numeric user ID as PK
     op.create_table(
         "users",
         sa.Column("id", sa.BigInteger(), nullable=False),
@@ -35,7 +33,6 @@ def upgrade() -> None:
         sa.UniqueConstraint("github_username", name="uq_users_github_username"),
     )
 
-    # Submissions table
     op.create_table(
         "submissions",
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
@@ -81,7 +78,6 @@ def upgrade() -> None:
         postgresql_where=sa.text("is_validated"),
     )
 
-    # Step Progress table
     op.create_table(
         "step_progress",
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
@@ -103,7 +99,6 @@ def upgrade() -> None:
         "ix_step_progress_user_phase", "step_progress", ["user_id", "phase_id"]
     )
 
-    # Certificates table
     op.create_table(
         "certificates",
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
@@ -122,7 +117,6 @@ def upgrade() -> None:
     )
     op.create_index("ix_certificates_user", "certificates", ["user_id"])
 
-    # User Activities table
     op.create_table(
         "user_activities",
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),

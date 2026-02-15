@@ -21,7 +21,6 @@ from core.config import get_settings
 
 logger = logging.getLogger(__name__)
 
-# Authlib OAuth registry - configured at module level, initialized lazily
 oauth = OAuth()
 
 

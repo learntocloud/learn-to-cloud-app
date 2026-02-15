@@ -14,7 +14,6 @@ import sqlalchemy as sa
 
 from alembic import op
 
-# revision identifiers, used by Alembic.
 revision = "0004_analytics_snapshot_and_indexes"
 down_revision = "0003_drop_certificate_type"
 branch_labels = None
@@ -22,13 +21,11 @@ depends_on = None
 
 
 def upgrade() -> None:
-    # -- Widen alembic_version.version_num (default varchar(32) is too short) --
-    # This revision ID is 40 chars; must widen BEFORE Alembic stamps the version.
+    # Widen column BEFORE Alembic stamps — this revision ID exceeds varchar(32)
     op.execute(
         "ALTER TABLE alembic_version " "ALTER COLUMN version_num TYPE varchar(128)"
     )
 
-    # -- Analytics snapshot table (single-row, stores pre-computed JSON) --
     op.create_table(
         "analytics_snapshot",
         sa.Column("id", sa.Integer, primary_key=True, default=1),
@@ -42,7 +39,6 @@ def upgrade() -> None:
         sa.CheckConstraint("id = 1", name="ck_analytics_snapshot_single_row"),
     )
 
-    # -- Missing indexes for query performance --
     # Used by: get_active_learners(30), get_activity_by_day_of_week()
     op.create_index(
         "ix_step_progress_completed_at",

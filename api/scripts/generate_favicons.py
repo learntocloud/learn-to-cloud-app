@@ -13,7 +13,6 @@ def main() -> None:
     if not svg_path.exists():
         raise FileNotFoundError(f"SVG not found: {svg_path}")
 
-    # Generate apple-touch-icon.png (180x180)
     apple_icon = static_dir / "apple-touch-icon.png"
     subprocess.run(
         [
@@ -30,7 +29,6 @@ def main() -> None:
     )
     print(f"Created {apple_icon} ({apple_icon.stat().st_size} bytes)")
 
-    # Generate multi-size favicon.ico (16, 32, 48)
     sizes = [16, 32, 48]
     png_data: list[tuple[int, bytes]] = []
 
@@ -52,7 +50,6 @@ def main() -> None:
             )
             png_data.append((size, tmp_png.read_bytes()))
 
-    # Build ICO file (PNG-in-ICO format)
     num_images = len(png_data)
     header = struct.pack("<HHH", 0, 1, num_images)  # reserved=0, type=1(ICO), count
 
@@ -82,7 +79,6 @@ def main() -> None:
     ico_path.write_bytes(header + directory + image_data)
     print(f"Created {ico_path} ({ico_path.stat().st_size} bytes)")
 
-    # Verify
     from PIL import Image
 
     ico = Image.open(ico_path)

@@ -54,7 +54,6 @@ class TestAzureCredentialLocking:
             get_credential(),
         )
 
-        # All three should return the same instance
         assert all(r is sentinel for r in results)
         mock_cred_cls.assert_called_once()
 
@@ -108,7 +107,6 @@ class TestAzureTokenRetryTimeout:
             with pytest.raises(TimeoutError):
                 await unwrapped()
 
-        # Credential should have been reset
         async with auth_mod._credential_lock:
             assert auth_mod._azure_credential is None
 
@@ -178,9 +176,7 @@ class TestCheckoutEventTransactionCleanup:
 
         checkout_fn(dbapi_conn, MagicMock(), MagicMock())
 
-        # Should have executed ROLLBACK
         dbapi_conn.await_.assert_called_once_with(raw_conn.execute("ROLLBACK"))
-        # Adapter state should be reset
         assert dbapi_conn._transaction is None
         assert dbapi_conn._started is False
 
@@ -209,7 +205,6 @@ class TestCheckoutEventTransactionCleanup:
 
         checkout_fn(dbapi_conn, MagicMock(), MagicMock())
 
-        # Should NOT have called await_ (no ROLLBACK needed)
         dbapi_conn.await_.assert_not_called()
 
     def test_safety_net_on_missing_private_attrs(self):
@@ -240,7 +235,6 @@ class TestCheckoutEventTransactionCleanup:
         dbapi_conn = MagicMock()
         dbapi_conn._connection = raw_conn
 
-        # Make _transaction assignment raise AttributeError
         type(dbapi_conn)._transaction = property(
             fget=lambda self: None,
             fset=MagicMock(side_effect=AttributeError("no such attr")),
@@ -249,7 +243,6 @@ class TestCheckoutEventTransactionCleanup:
         # Should NOT raise — safety net catches AttributeError
         checkout_fn(dbapi_conn, MagicMock(), MagicMock())
 
-        # ROLLBACK should still have been attempted
         dbapi_conn.await_.assert_called_once()
 
 
@@ -306,7 +299,6 @@ class TestCheckDbConnection:
         # connect() is a sync call returning an async CM
         mock_engine.connect = MagicMock(return_value=mock_cm)
 
-        # Should not raise
         await check_db_connection(mock_engine)
 
         mock_conn.execute.assert_awaited_once()

@@ -35,13 +35,6 @@ from services.phase_requirements_service import (
 
 logger = logging.getLogger(__name__)
 
-# =============================================================================
-# Concurrent Request Protection
-# =============================================================================
-# In-memory locks to prevent concurrent AI calls for the same user+requirement.
-# This prevents wasting quota on race conditions (e.g., user opens multiple tabs).
-# TTLCache auto-evicts entries after 2 hours to prevent unbounded memory growth.
-
 _LOCK_TTL = 7200  # 2 hours — comfortably above the max cooldown (1 hour)
 _submission_locks: TTLCache[tuple[int, str], asyncio.Lock] = TTLCache(
     maxsize=2000, ttl=_LOCK_TTL
@@ -197,9 +190,6 @@ class AlreadyValidatedError(Exception):
     pass
 
 
-# =============================================================================
-# Global LLM Concurrency Limit
-# =============================================================================
 # Caps the number of concurrent LLM verification calls across all users.
 # Prevents connection pool exhaustion: without this, N simultaneous users could
 # each hold a DB connection for 30-120s waiting on the LLM, starving all other
@@ -265,7 +255,6 @@ async def submit_validation(
     async with session_maker() as read_session:
         submission_repo = SubmissionRepository(read_session)
 
-        # --- Already-validated short-circuit ---
         existing = await submission_repo.get_by_user_and_requirement(
             user_id, requirement_id
         )
@@ -299,8 +288,6 @@ async def submit_validation(
         else:
             last_submission_time = None
 
-        # Convert to DTO while session is still open so it's safe to use
-        # after the session closes (detached from SQLAlchemy).
         existing_data = _to_submission_data(existing) if existing else None
     # read_session is now closed — connection returned to pool
 
@@ -368,7 +355,6 @@ async def submit_validation(
                 expected_username=github_username,
             )
 
-        # Extract username from submission for audit/display purposes.
         extracted_username = None
         if requirement.submission_type in (
             SubmissionType.CTF_TOKEN,

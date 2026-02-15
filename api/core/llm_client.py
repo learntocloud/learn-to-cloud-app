@@ -25,7 +25,6 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# Shared client instance (lazy initialization)
 _llm_client: AzureOpenAIChatClient | None = None
 
 

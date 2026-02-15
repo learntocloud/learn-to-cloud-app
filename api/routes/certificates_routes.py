@@ -92,9 +92,6 @@ async def _build_png_response(
     )
 
 
-# --- Verification download endpoints (public) ---
-
-
 @router.get(
     "/verify/{verification_code}/pdf",
     responses={
@@ -137,9 +134,6 @@ async def get_verified_certificate_png_endpoint(
     if not certificate:
         raise HTTPException(status_code=404, detail="Certificate not found")
     return await _build_png_response(certificate, scale=scale)
-
-
-# --- Authenticated download endpoints ---
 
 
 @router.get(

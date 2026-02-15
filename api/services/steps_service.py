@@ -149,7 +149,6 @@ async def complete_step(
     if phase_id is None:
         raise StepUnknownTopicError(topic_id)
 
-    # Atomic check-and-insert: saves 1 round-trip vs exists() + create()
     step_progress = await step_repo.create_if_not_exists(
         user_id=user_id,
         topic_id=topic_id,
@@ -196,10 +195,8 @@ async def complete_step(
         },
     )
 
-    # Fetch updated completed steps in same transaction (avoids re-query in route)
     completed_steps = await step_repo.get_completed_step_ids(user_id, topic_id)
 
-    # Write-through: update phase-detail cache with new completed steps
     if phase_id is not None:
         update_cached_phase_detail_step(user_id, phase_id, topic_id, completed_steps)
 
@@ -269,10 +266,8 @@ async def uncomplete_step(
             },
         )
 
-    # Fetch updated completed steps in same transaction
     completed_steps = await step_repo.get_completed_step_ids(user_id, topic_id)
 
-    # Write-through: update phase-detail cache with remaining completed steps
     phase_id = parse_phase_id_from_topic_id(topic_id)
     if phase_id is not None:
         update_cached_phase_detail_step(user_id, phase_id, topic_id, completed_steps)

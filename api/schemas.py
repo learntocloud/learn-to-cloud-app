@@ -13,20 +13,11 @@ from pydantic import BaseModel, ConfigDict, Field, computed_field
 
 from models import SubmissionType
 
-# =============================================================================
-# Base Configuration
-# =============================================================================
-
 
 class FrozenModel(BaseModel):
     """Base class for immutable Pydantic models (replaces frozen dataclasses)."""
 
     model_config = ConfigDict(frozen=True)
-
-
-# =============================================================================
-# User Schemas
-# =============================================================================
 
 
 class UserBase(BaseModel):
@@ -46,11 +37,6 @@ class UserResponse(UserBase):
     id: int
     is_admin: bool = False
     created_at: datetime
-
-
-# =============================================================================
-# Hands-On Requirements & Submissions
-# =============================================================================
 
 
 class HandsOnRequirement(FrozenModel):
@@ -78,11 +64,6 @@ class HandsOnRequirement(FrozenModel):
 
     # For PR_REVIEW: files the merged PR must have touched
     expected_files: list[str] | None = None
-
-
-# =============================================================================
-# Health Check Schemas
-# =============================================================================
 
 
 class HealthResponse(BaseModel):
@@ -164,11 +145,6 @@ class PublicProfileData(FrozenModel):
     badges: list[BadgeData]
 
 
-# =============================================================================
-# Certificate Schemas
-# =============================================================================
-
-
 class CertificateData(FrozenModel):
     """Certificate data (service-layer response model)."""
 
@@ -204,11 +180,6 @@ class CertificateVerificationResult(FrozenModel):
     is_valid: bool
     certificate: CertificateData | None = None
     message: str
-
-
-# =============================================================================
-# Content Schemas (loaded from JSON files)
-# =============================================================================
 
 
 class ProviderOption(FrozenModel):
@@ -295,11 +266,6 @@ class Phase(FrozenModel):
     topics: list[Topic] = Field(default_factory=list)
 
 
-# =============================================================================
-# Progress Schemas
-# =============================================================================
-
-
 class TopicProgressData(FrozenModel):
     """Progress status for a topic (service-layer response model)."""
 
@@ -367,11 +333,6 @@ class DashboardData(FrozenModel):
     is_program_complete: bool
     continue_phase: ContinuePhaseData | None = None
     earned_badges: list["BadgeData"] = Field(default_factory=list)
-
-
-# =============================================================================
-# Progress Service Schemas (with computed fields)
-# =============================================================================
 
 
 class PhaseRequirements(FrozenModel):
@@ -484,11 +445,6 @@ class UserProgress(FrozenModel):
         return (completed / total) * 100
 
 
-# =============================================================================
-# Submission Service Schemas
-# =============================================================================
-
-
 class SubmissionData(FrozenModel):
     """Submission data (service-layer response model)."""
 
@@ -567,11 +523,6 @@ class ValidationResult(FrozenModel):
     cloud_provider: str | None = None
 
 
-# =============================================================================
-# CTF Verification Schema
-# =============================================================================
-
-
 class CTFVerificationResult(FrozenModel):
     """Result of verifying a CTF token."""
 
@@ -597,11 +548,6 @@ class NetworkingLabVerificationResult(FrozenModel):
     challenge_type: str | None = None
 
 
-# =============================================================================
-# GitHub URL Parsing Schema
-# =============================================================================
-
-
 class ParsedGitHubUrl(FrozenModel):
     """Parsed components of a GitHub URL."""
 
@@ -610,11 +556,6 @@ class ParsedGitHubUrl(FrozenModel):
     file_path: str | None = None
     is_valid: bool = True
     error: str | None = None
-
-
-# =============================================================================
-# Community Analytics Schemas
-# =============================================================================
 
 
 class PhaseDistributionItem(FrozenModel):

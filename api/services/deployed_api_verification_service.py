@@ -88,7 +88,6 @@ async def _get_client() -> httpx.AsyncClient:
         return _deployed_api_client
 
     async with _client_lock:
-        # Double-check after acquiring lock
         if _deployed_api_client is not None and not _deployed_api_client.is_closed:
             return _deployed_api_client
 
@@ -222,8 +221,6 @@ def _validate_entries_json(data: list) -> ValidationResult:
     )
 
 
-# --- Challenge nonce helpers ---
-
 _CHALLENGE_PREFIX = "ltc-verify-"
 
 
@@ -293,7 +290,6 @@ async def _fetch_with_retry(
         headers={"Accept": "application/json"},
     )
 
-    # Treat 5xx as retriable server errors
     if response.status_code >= 500:
         raise DeployedApiServerError(
             f"Server returned {response.status_code}: {response.text[:200]}"
@@ -463,11 +459,9 @@ async def validate_deployed_api(base_url: str) -> ValidationResult:
             ),
         )
 
-    # Extract the created entry ID for cleanup
     try:
         post_data = post_response.json()
         if isinstance(post_data, dict):
-            # Support {"entry": {"id": ...}} or {"id": ...}
             entry_obj = post_data.get("entry", post_data)
             if isinstance(entry_obj, dict):
                 challenge_entry_id = entry_obj.get("id")
@@ -521,12 +515,10 @@ async def validate_deployed_api(base_url: str) -> ValidationResult:
             ),
         )
 
-    # Look for our nonce in the entries
     nonce_found = False
     for entry in entries:
         if isinstance(entry, dict) and entry.get("work") == nonce:
             nonce_found = True
-            # Grab the ID from the GET response if we didn't get it from POST
             if not challenge_entry_id:
                 challenge_entry_id = entry.get("id")
             break

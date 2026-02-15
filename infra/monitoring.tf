@@ -1,6 +1,3 @@
-# -----------------------------------------------------------------------------
-# Log Analytics & Application Insights
-# -----------------------------------------------------------------------------
 resource "azurerm_log_analytics_workspace" "main" {
   name                = "log-ltc-${var.environment}-${local.suffix}"
   location            = azurerm_resource_group.main.location
@@ -19,9 +16,6 @@ resource "azurerm_application_insights" "main" {
   tags                = local.tags
 }
 
-# -----------------------------------------------------------------------------
-# Monitoring - Action Group
-# -----------------------------------------------------------------------------
 resource "azurerm_monitor_action_group" "critical" {
   name                = "ag-ltc-critical-${var.environment}"
   resource_group_name = azurerm_resource_group.main.name
@@ -66,11 +60,6 @@ resource "azurerm_monitor_action_group" "warning" {
   }
 }
 
-# -----------------------------------------------------------------------------
-# Monitoring - API Alerts
-# -----------------------------------------------------------------------------
-
-# Alert: API 5xx Errors (Sev1 - Critical)
 # Threshold ≥3 with 2/3 failing periods to suppress single transient errors
 # (e.g., one DB hiccup during a deploy) and reduce alert fatigue.
 resource "azurerm_monitor_scheduled_query_rules_alert_v2" "api_5xx_errors" {
@@ -108,7 +97,6 @@ resource "azurerm_monitor_scheduled_query_rules_alert_v2" "api_5xx_errors" {
   }
 }
 
-# Alert: Container Restarts (Sev1 - Critical)
 # Threshold >2 to ignore normal deploy restarts while catching crash loops.
 resource "azurerm_monitor_metric_alert" "api_restarts" {
   name                = "alert-ltc-api-restarts-${var.environment}"
@@ -135,7 +123,6 @@ resource "azurerm_monitor_metric_alert" "api_restarts" {
   }
 }
 
-# Alert: API High CPU (Sev2 - Warning)
 resource "azurerm_monitor_metric_alert" "api_high_cpu" {
   name                = "alert-ltc-api-cpu-${var.environment}"
   resource_group_name = azurerm_resource_group.main.name
@@ -162,7 +149,6 @@ resource "azurerm_monitor_metric_alert" "api_high_cpu" {
   }
 }
 
-# Alert: API High Memory (Sev2 - Warning)
 resource "azurerm_monitor_metric_alert" "api_high_memory" {
   name                = "alert-ltc-api-memory-${var.environment}"
   resource_group_name = azurerm_resource_group.main.name
@@ -189,7 +175,6 @@ resource "azurerm_monitor_metric_alert" "api_high_memory" {
   }
 }
 
-# Alert: API High Latency P95 (Sev2 - Warning)
 # Uses P95 instead of avg — avg hides tail latency that affects real users.
 resource "azurerm_monitor_scheduled_query_rules_alert_v2" "api_high_latency" {
   name                = "alert-ltc-api-latency-${var.environment}"
@@ -226,11 +211,6 @@ resource "azurerm_monitor_scheduled_query_rules_alert_v2" "api_high_latency" {
   }
 }
 
-# -----------------------------------------------------------------------------
-# Monitoring - Database Alerts
-# -----------------------------------------------------------------------------
-
-# Alert: Database Connection Failures (Sev1 - Critical)
 # Threshold >5 to suppress transient failures from pool expansion under burst load.
 resource "azurerm_monitor_metric_alert" "db_connection_failures" {
   name                = "alert-ltc-db-connections-${var.environment}"
@@ -257,7 +237,6 @@ resource "azurerm_monitor_metric_alert" "db_connection_failures" {
   }
 }
 
-# Alert: Database Storage >80% (Sev2 - Warning)
 resource "azurerm_monitor_metric_alert" "db_storage" {
   name                = "alert-ltc-db-storage-${var.environment}"
   resource_group_name = azurerm_resource_group.main.name
@@ -283,7 +262,6 @@ resource "azurerm_monitor_metric_alert" "db_storage" {
   }
 }
 
-# Alert: Database High CPU (Sev2 - Warning)
 resource "azurerm_monitor_metric_alert" "db_high_cpu" {
   name                = "alert-ltc-db-cpu-${var.environment}"
   resource_group_name = azurerm_resource_group.main.name
@@ -309,11 +287,6 @@ resource "azurerm_monitor_metric_alert" "db_high_cpu" {
   }
 }
 
-# -----------------------------------------------------------------------------
-# Monitoring - Dependency Alerts
-# -----------------------------------------------------------------------------
-
-# Alert: LLM / Azure OpenAI Dependency Failures (Sev1 - Critical)
 # Code verification is a core feature — if OpenAI is down or rate-limiting,
 # users can't verify their hands-on projects.
 resource "azurerm_monitor_scheduled_query_rules_alert_v2" "llm_dependency_failures" {
@@ -353,7 +326,6 @@ resource "azurerm_monitor_scheduled_query_rules_alert_v2" "llm_dependency_failur
   }
 }
 
-# Alert: 4xx Spike (Sev2 - Warning)
 # A sudden jump in 401/403 could indicate auth misconfiguration (OAuth secrets
 # rotated, session key mismatch). 404s are excluded since they're normal.
 resource "azurerm_monitor_scheduled_query_rules_alert_v2" "api_4xx_spike" {
@@ -391,9 +363,6 @@ resource "azurerm_monitor_scheduled_query_rules_alert_v2" "api_4xx_spike" {
   }
 }
 
-# -----------------------------------------------------------------------------
-# Monitoring - Smart Detection (AI-powered anomaly detection)
-# -----------------------------------------------------------------------------
 # Azure automatically creates a FailureAnomaliesDetector when Application Insights
 # is created. We import and manage the existing one to link our action group.
 # The name follows Azure's convention: "Failure Anomalies - {app_insights_name}"
@@ -417,10 +386,7 @@ resource "azurerm_monitor_smart_detector_alert_rule" "failure_anomalies" {
   }
 }
 
-# -----------------------------------------------------------------------------
-# Monitoring - Dashboard
-# -----------------------------------------------------------------------------
-# Layout (12-column grid):
+# Dashboard layout (12-column grid):
 #   Row 0  : Request Rate | Failed Requests (by status code)
 #   Row 4  : P95 Response Time | Response Time by Route (top 5 slowest)
 #   Row 8  : Replica Count | LLM Dependency Latency & Failures

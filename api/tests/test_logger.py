@@ -139,7 +139,6 @@ class TestConfigureLogging:
 
     def test_console_format_when_explicit(self):
         with patch.dict(os.environ, {"LOG_FORMAT": "console"}, clear=False):
-            # Remove APPLICATIONINSIGHTS_CONNECTION_STRING if present
             os.environ.pop("APPLICATIONINSIGHTS_CONNECTION_STRING", None)
             configure_logging()
             root = logging.getLogger()
@@ -154,14 +153,12 @@ class TestConfigureLogging:
         """OTel LoggingHandler should survive configure_logging()."""
         root = logging.getLogger()
 
-        # Simulate an OTel handler already attached
         otel_handler = MagicMock(spec=logging.Handler)
         type(otel_handler).__name__ = "LoggingHandler"
         root.addHandler(otel_handler)
 
         configure_logging()
 
-        # The OTel handler should still be present
         assert otel_handler in root.handlers
 
     def test_quiets_noisy_loggers(self):

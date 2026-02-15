@@ -21,18 +21,14 @@ from tenacity import (
 if TYPE_CHECKING:
     from azure.identity import DefaultAzureCredential
 
-# Timeout for Azure AD token acquisition (seconds)
 AZURE_TOKEN_TIMEOUT = 30
 
-# Retry configuration for transient Azure failures
 _AZURE_RETRY_ATTEMPTS = 3
 _AZURE_RETRY_MIN_WAIT = 1  # seconds
 _AZURE_RETRY_MAX_WAIT = 10  # seconds
 
-# Azure PostgreSQL OAuth scope
 AZURE_PG_SCOPE = "https://ossrdbms-aad.database.windows.net/.default"
 
-# Module-level credential cache (stateless - just caches the credential object)
 _azure_credential: DefaultAzureCredential | None = None
 _credential_lock = asyncio.Lock()
 
@@ -100,7 +96,6 @@ async def get_token() -> str:
     Includes retry logic with exponential backoff for transient failures
     (IMDS timeouts, network blips) and a per-attempt timeout.
     """
-    # Fetch credential while still in async context (lock-protected)
     credential = await get_credential()
     try:
         async with asyncio.timeout(AZURE_TOKEN_TIMEOUT):

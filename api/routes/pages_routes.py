@@ -101,7 +101,6 @@ async def phase_page(
             status_code=404,
         )
 
-    # Topics are already full Topic objects on the Phase
     topics = [
         {
             "name": t.name,
@@ -111,14 +110,12 @@ async def phase_page(
         for t in phase.topics
     ]
 
-    # Build requirements and submissions
     requirements = []
     submissions_by_req = {}
     hands_on = getattr(phase, "hands_on_verification", None)
     if hands_on and hasattr(hands_on, "requirements"):
         requirements = hands_on.requirements
 
-    # Fetch progress + submissions (user is always authenticated here)
     sub_context = await get_phase_submission_context(db, user_id, phase_id)
     submissions_by_req = sub_context.submissions_by_req
     feedback_by_req = sub_context.feedback_by_req
@@ -177,10 +174,8 @@ async def topic_page(
     valid_step_ids = {step.id for step in topic.learning_steps}
     completed_step_ids = completed_step_ids & valid_step_ids
 
-    # Pre-render markdown for step descriptions
     steps = [build_step_data(step) for step in getattr(topic, "learning_steps", [])]
 
-    # Prev/next navigation — phase.topics is a list of Topic objects
     all_topics = phase.topics
     current_idx = next(
         (i for i, t in enumerate(all_topics) if t.slug == topic_slug), -1
@@ -207,7 +202,6 @@ async def topic_page(
             "url": f"/phase/{phase_id}/{next_t.slug}",
         }
 
-    # Progress calculation
     total_steps = len(steps)
     progress = None
     if total_steps > 0:
@@ -293,7 +287,6 @@ async def certificates_page(
     user = await _get_user_or_none(db, user_id)
     certificate, eligible = await get_user_certificate_with_eligibility(db, user_id)
 
-    # Fetch progress to show users what they need to complete
     from services.progress_service import fetch_user_progress
 
     progress = await fetch_user_progress(db, user_id)

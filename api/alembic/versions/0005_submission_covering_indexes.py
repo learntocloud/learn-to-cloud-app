@@ -7,7 +7,6 @@ Create Date: 2026-02-09
 
 from alembic import op
 
-# revision identifiers, used by Alembic.
 revision = "0005_submission_covering_indexes"
 down_revision = "0004_analytics_snapshot_and_indexes"
 branch_labels = None

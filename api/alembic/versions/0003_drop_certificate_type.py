@@ -13,7 +13,6 @@ import sqlalchemy as sa
 
 from alembic import op
 
-# revision identifiers, used by Alembic.
 revision = "0003_drop_certificate_type"
 down_revision = "0002_drop_activities"
 branch_labels = None

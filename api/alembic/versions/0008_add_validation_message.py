@@ -13,7 +13,6 @@ import sqlalchemy as sa
 
 from alembic import op
 
-# revision identifiers, used by Alembic.
 revision = "0008_add_validation_message"
 down_revision = "0007_submission_attempt_history"
 branch_labels = None

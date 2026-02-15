@@ -9,7 +9,6 @@ import sqlalchemy as sa
 
 from alembic import op
 
-# revision identifiers, used by Alembic.
 revision = "0006_user_phase_progress"
 down_revision = "0005_submission_covering_indexes"
 branch_labels = None
@@ -33,7 +32,6 @@ def upgrade() -> None:
     )
     op.create_index("ix_user_phase_progress_user", "user_phase_progress", ["user_id"])
 
-    # Backfill from existing data
     op.execute(
         """
         INSERT INTO user_phase_progress
