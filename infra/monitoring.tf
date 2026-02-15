@@ -454,9 +454,9 @@ resource "azurerm_monitor_scheduled_query_rules_alert_v2" "migration_failure" {
 
   criteria {
     query                   = <<-QUERY
-      AppTraces
-      | where Message has "init.failed"
-      | summarize Count = count() by bin(TimeGenerated, 5m)
+      traces
+      | where message has "init.failed"
+      | summarize Count = count() by bin(timestamp, 5m)
     QUERY
     time_aggregation_method = "Count"
     operator                = "GreaterThanOrEqual"
