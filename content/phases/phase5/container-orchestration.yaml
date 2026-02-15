@@ -28,48 +28,13 @@ learning_steps:
   id: phase5-topic4-read-kubernetes-components
 - order: 3
   action: 'Practice:'
-  description: 'For local development, use one of these tools:'
-  title: Local Setup
+  description: Install Minikube or Kind on your local machine to run a local Kubernetes cluster for development. Verify your cluster is running with `kubectl cluster-info`.
+  title: Set up a local Kubernetes cluster
+  url: https://minikube.sigs.k8s.io/docs/start/
   id: phase5-topic4-practice-local-setup
 - order: 4
-  action: 'Practice:'
-  description: 'Most cloud providers offer managed Kubernetes:'
-  options:
-  - provider: azure
-    title: Azure AKS
-    url: https://learn.microsoft.com/en-us/azure/aks/
-    description: Azure Kubernetes Service — managed Kubernetes on Azure
-  - provider: aws
-    title: AWS EKS
-    url: https://aws.amazon.com/eks/
-    description: Amazon Elastic Kubernetes Service — managed Kubernetes on AWS
-  - provider: gcp
-    title: Google GKE
-    url: https://cloud.google.com/kubernetes-engine/docs/concepts/kubernetes-engine-overview
-    description: Google Kubernetes Engine — managed Kubernetes on GCP
-  title: Managed Kubernetes Services
-  id: phase5-topic4-practice-managed-kubernetes-services
-- order: 5
-  action: 'Watch:'
-  description: Review a quick managed-Kubernetes setup workflow using your chosen cloud provider.
-  options:
-  - provider: azure
-    title: Quickstart - Deploy an AKS cluster
-    url: https://learn.microsoft.com/en-us/azure/aks/learn/quick-kubernetes-deploy-cli
-    description: Provision and validate an AKS cluster from the command line.
-  - provider: aws
-    title: Create an EKS cluster - getting started
-    url: https://docs.aws.amazon.com/eks/latest/userguide/getting-started-console.html
-    description: Launch your first Amazon EKS cluster and verify node health.
-  - provider: gcp
-    title: Deploy a GKE cluster
-    url: https://cloud.google.com/kubernetes-engine/docs/quickstarts/deploy-an-application
-    description: Create and validate a Google Kubernetes Engine cluster quickly.
-  title: Managed Kubernetes quickstart by provider
-  id: phase5-topic4-watch-managed-kubernetes-quickstart-by
-- order: 6
-  action: 'Explore:'
-  description: 'Essential Kubernetes commands:'
+  action: 'Read:'
+  description: 'Now that you have a cluster running, familiarize yourself with these essential kubectl commands:'
   code: '# View cluster information
 
     kubectl cluster-info
@@ -98,32 +63,57 @@ learning_steps:
     # Delete a resource
 
     kubectl delete -f deployment.yaml'
-  title: Basic Commands
-  id: phase5-topic4-explore-basic-commands
-- order: 7
+  title: Essential kubectl commands
+  id: phase5-topic4-read-essential-kubectl-commands
+- order: 5
   action: 'Practice:'
-  description: Install Minikube or Kind on your local machine to run a local Kubernetes cluster for development.
-  title: Install Minikube or Kind locally
-  id: phase5-topic4-practice-install-minikube-or-kind
-- order: 8
+  description: 'Create a Kubernetes deployment YAML file for your Journal API and apply it with `kubectl apply -f deployment.yaml`. Verify pods are running with `kubectl get pods`. Use this sample as a starting point:'
+  code: "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: journal-api\nspec:\n  replicas: 2\n  selector:\n    matchLabels:\n      app: journal-api\n  template:\n    metadata:\n      labels:\n        app: journal-api\n    spec:\n      containers:\n      - name: journal-api\n        image: your-registry/journal-api:latest\n        ports:\n        - containerPort: 8000"
+  title: Deploy your Journal API locally
+  id: phase5-topic4-practice-deploy-journal-api-locally
+- order: 6
   action: 'Practice:'
-  description: Create a Kubernetes deployment YAML file (see the sample below) and apply it with `kubectl apply -f deployment.yaml`. Verify pods are running with `kubectl get pods`.
-  title: Deploy an application using a YAML manifest
-  id: phase5-topic4-practice-deploy-an-application-using
-- order: 9
-  action: 'Read:'
-  description: 'Basic nginx deployment:'
-  code: "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: nginx-deployment\nspec:\n  replicas: 2\n  selector:\n    matchLabels:\n      app: nginx\n  template:\n    metadata:\n      labels:\n        app: nginx\n    spec:\n      containers:\n      - name: nginx\n        image: nginx:latest\n        ports:\n        - containerPort: 80"
-  title: Review the sample Deployment YAML
-  id: phase5-topic4-read-review-the-sample-deployment
-- order: 10
-  action: 'Practice:'
-  description: Expose your deployment with `kubectl expose deployment nginx-deployment --type=NodePort --port=80` and access the application in your browser using the NodePort.
+  description: Expose your deployment with `kubectl expose deployment journal-api --type=NodePort --port=8000` and access the application in your browser using the NodePort.
   title: Expose your deployment and access it in a browser
   id: phase5-topic4-practice-expose-your-deployment-and
-- order: 11
+- order: 7
   action: 'Read:'
-  title: Kubernetes Official Documentation
-  url: https://kubernetes.io/docs/concepts/
-  description: Dive deeper into Kubernetes concepts, workloads, and best practices.
-  id: phase5-topic4-read-kubernetes-official-documentation
+  description: 'Most cloud providers offer managed Kubernetes services that handle control plane management for you:'
+  options:
+  - provider: azure
+    title: Azure AKS
+    url: https://learn.microsoft.com/en-us/azure/aks/
+    description: Azure Kubernetes Service — managed Kubernetes on Azure
+  - provider: aws
+    title: AWS EKS
+    url: https://aws.amazon.com/eks/
+    description: Amazon Elastic Kubernetes Service — managed Kubernetes on AWS
+  - provider: gcp
+    title: Google GKE
+    url: https://cloud.google.com/kubernetes-engine/docs/concepts/kubernetes-engine-overview
+    description: Google Kubernetes Engine — managed Kubernetes on GCP
+  title: Managed Kubernetes Services
+  id: phase5-topic4-read-managed-kubernetes-services
+- order: 8
+  action: 'Practice:'
+  description: 'Follow the quickstart for your cloud provider to provision a managed Kubernetes cluster and deploy your Journal API to it:'
+  options:
+  - provider: azure
+    title: Quickstart - Deploy an AKS cluster
+    url: https://learn.microsoft.com/en-us/azure/aks/learn/quick-kubernetes-deploy-cli
+    description: Provision and validate an AKS cluster from the command line.
+  - provider: aws
+    title: Create an EKS cluster - getting started
+    url: https://docs.aws.amazon.com/eks/latest/userguide/getting-started-console.html
+    description: Launch your first Amazon EKS cluster and verify node health.
+  - provider: gcp
+    title: Deploy a GKE cluster
+    url: https://cloud.google.com/kubernetes-engine/docs/quickstarts/deploy-an-application
+    description: Create and validate a Google Kubernetes Engine cluster quickly.
+  title: Deploy to a managed Kubernetes cluster
+  id: phase5-topic4-practice-deploy-to-managed-k8s
+- order: 9
+  action: 'Note:'
+  title: Keep your cluster for the capstone
+  description: You'll reuse your managed Kubernetes cluster in the DevOps capstone project. Managed clusters do incur ongoing costs, so be mindful — but you'll need it for the capstone steps ahead.
+  id: phase5-topic4-note-keep-cluster-for-capstone

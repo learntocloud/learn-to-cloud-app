@@ -259,6 +259,7 @@ app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
 app.add_exception_handler(RequestValidationError, validation_exception_handler)
 app.add_exception_handler(Exception, global_exception_handler)
 
+app.add_middleware(UserTrackingMiddleware)
 app.add_middleware(
     SessionMiddleware,
     secret_key=_settings.session_secret_key,
@@ -267,7 +268,6 @@ app.add_middleware(
     same_site="lax",
     https_only=_settings.require_https,
 )
-app.add_middleware(UserTrackingMiddleware)
 
 app.add_middleware(GZipMiddleware, minimum_size=500)
 app.add_middleware(SecurityHeadersMiddleware)

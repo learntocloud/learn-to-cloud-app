@@ -1,18 +1,21 @@
 id: phase4-topic3
 slug: cloud-networking
 name: Cloud Networking Fundamentals
-description: In the previous topic you worked on deploying a VM in the cloud, using default configurations like the VPC, Security Groups etc. This topic focuses on deepening your understanding of cloud networking concepts essential for secure deployments. It builds on Phase 2 networking fundamentals and applies them to provider-specific architecture and validation workflows.
+description: This topic focuses on cloud networking concepts essential for secure deployments, building on Phase 2 networking fundamentals. You'll learn VPC/VNet architecture, subnet segmentation, security groups, and routing — then validate your understanding by deploying and testing resources in a real cloud network.
 order: 3
 learning_objectives:
 - id: cloud-networking-architecture
   text: Describe VPC/VNet architecture, CIDR planning, and subnet segmentation.
   order: 1
+- id: cloud-networking-security-groups
+  text: Explain security group and firewall principles used to control network traffic.
+  order: 2
 - id: cloud-networking-routing
   text: Configure routing components such as gateways, NAT, and route tables correctly.
-  order: 2
+  order: 3
 - id: cloud-networking-validation
   text: Validate secure network behavior through practical deployment and connectivity testing.
-  order: 3
+  order: 4
 learning_steps:
 - order: 1
   action: 'Read:'
@@ -34,6 +37,24 @@ learning_steps:
   id: phase4-topic3-read-understand-virtual-private-cloud
 - order: 2
   action: 'Read:'
+  description: Security groups act as virtual firewalls for your cloud resources, controlling inbound and outbound traffic.
+  options:
+  - provider: azure
+    title: Azure Network Security Groups
+    url: https://learn.microsoft.com/en-us/azure/virtual-network/network-security-groups-overview
+    description: Overview of Network Security Groups in Azure
+  - provider: aws
+    title: AWS Security Groups
+    url: https://docs.aws.amazon.com/vpc/latest/userguide/vpc-security-groups.html
+    description: Official documentation for controlling inbound and outbound traffic
+  - provider: gcp
+    title: GCP Firewall Rules
+    url: https://cloud.google.com/firewall/docs/firewalls
+    description: Understanding firewall rules in Google Cloud
+  title: Understand Security Groups & Firewall Rules
+  id: phase4-topic3-read-understand-security-groups-firewall
+- order: 3
+  action: 'Read:'
   description: Understand public vs. private subnets and CIDR block notation. This is fundamental to designing secure cloud architectures.
   options:
   - provider: azure
@@ -50,7 +71,7 @@ learning_steps:
     description: Understand subnet ranges and IP design in Google Cloud VPC.
   title: Learn CIDR and subnet design by provider
   id: phase4-topic3-read-learn-cidr-and-subnet
-- order: 3
+- order: 4
   action: 'Read:'
   description: Understand how public-facing network components enable internet connectivity for resources in public subnets.
   options:
@@ -68,7 +89,7 @@ learning_steps:
     description: Understand how public IP addresses provide external access in GCP.
   title: Understand internet connectivity components by provider
   id: phase4-topic3-read-understand-internet-connectivity-components
-- order: 4
+- order: 5
   action: 'Read:'
   description: NAT services allow private subnet resources to access the internet for updates and package downloads without direct inbound exposure.
   options:
@@ -86,7 +107,7 @@ learning_steps:
     description: Configure private Google Cloud workloads to reach the internet via NAT.
   title: Compare NAT patterns across cloud providers
   id: phase4-topic3-read-compare-nat-patterns-across
-- order: 5
+- order: 6
   action: 'Read:'
   description: Use provider-native diagnostics to validate effective routes and security policy decisions. Focus on proving why traffic is allowed or denied, not re-learning networking basics.
   options:
@@ -104,23 +125,28 @@ learning_steps:
     description: Run path analysis to verify routing and firewall behavior for target endpoints.
   title: Validate routing and security decisions by provider
   id: phase4-topic3-read-validate-routing-and-security
-- order: 6
+- order: 7
   action: 'Practice:'
   description: Create a VPC or VNet on your cloud provider with a custom CIDR block.
   title: Set up a cloud network (VPC/VNet)
   id: phase4-topic3-practice-set-up-a-cloud
-- order: 7
+- order: 8
   action: 'Practice:'
   description: Create two subnets inside your VPC — one public (with a route to the internet gateway) and one private (no direct internet access).
   title: Create a public and a private subnet
   id: phase4-topic3-practice-create-a-public-and
-- order: 8
+- order: 9
   action: 'Practice:'
   description: Associate subnets with appropriate route tables and set up security groups for each subnet.
   title: Configure routing and security groups
   id: phase4-topic3-practice-configure-routing-and-security
-- order: 9
+- order: 10
   action: 'Practice:'
   description: Deploy a VM in the public subnet and another in the private subnet. Verify the public VM is accessible from the internet and the private VM is not.
   title: Deploy VMs in each subnet and verify access
   id: phase4-topic3-practice-deploy-vms-in-each
+- order: 11
+  action: 'Practice:'
+  title: Clean up your cloud resources
+  description: Delete all resources you created in this topic — VMs, VPC/VNet, subnets, route tables, internet gateways, NAT gateways, and security groups. Check your cloud console to confirm nothing is still running. Leaving resources active will incur charges.
+  id: phase4-topic3-practice-clean-up-your-cloud

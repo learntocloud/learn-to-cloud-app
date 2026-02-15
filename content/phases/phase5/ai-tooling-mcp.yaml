@@ -1,0 +1,86 @@
+id: phase5-topic7
+slug: ai-tooling-mcp
+name: AI Tooling & MCP
+description: Modern DevOps workflows increasingly integrate AI-powered tools. The Model Context Protocol (MCP) provides a standard way for AI assistants to interact with external services through containerized servers. In this topic, you'll learn what MCP is, set up MCP servers in VS Code, and use GitHub Copilot to query your CI/CD pipelines and cloud telemetry.
+order: 6
+learning_objectives:
+- id: mcp-concepts
+  text: Explain the Model Context Protocol and how it connects AI assistants to external tools.
+  order: 1
+- id: mcp-practical-setup
+  text: Set up and configure MCP servers in VS Code for use with GitHub Copilot.
+  order: 2
+- id: mcp-devops-workflows
+  text: Use GitHub Copilot with MCP to query CI/CD workflows and cloud telemetry data.
+  order: 3
+learning_steps:
+- order: 1
+  action: 'Read:'
+  title: What is MCP (Model Context Protocol)?
+  url: https://modelcontextprotocol.io/docs/getting-started/intro
+  description: Learn how the Model Context Protocol enables AI assistants to interact with external services through a standardized interface.
+  id: phase5-topic7-read-what-is-mcp-model
+- order: 2
+  action: 'Read:'
+  title: GitHub Copilot Agent Mode
+  url: https://github.blog/ai-and-ml/github-copilot/agent-mode-101-all-about-github-copilots-powerful-mode/
+  description: Learn what agent mode is, how it works autonomously to complete multi-step tasks, and why it matters for modern development workflows.
+  id: phase5-topic7-read-copilot-agent-mode-mcp
+- order: 3
+  action: 'Practice:'
+  title: Install the GitHub MCP Server in VS Code
+  url: https://github.com/github/github-mcp-server
+  description: Follow the setup instructions to add the GitHub MCP server to your VS Code configuration. Create a GitHub Personal Access Token, configure the server in your .vscode/mcp.json, and verify the server starts successfully.
+  id: phase5-topic7-practice-install-github-mcp
+- order: 4
+  action: 'Practice:'
+  title: Query Your CI/CD with GitHub MCP
+  description: Open GitHub Copilot in agent mode and ask it to review your latest GitHub Actions workflow run. For example, try prompts like "Review my latest workflow run and summarize any failures" or "What's the status of my most recent CI pipeline?" Confirm that Copilot uses the GitHub MCP server tools to fetch and analyze the results.
+  id: phase5-topic7-practice-query-cicd-github-mcp
+- order: 5
+  action: 'Read:'
+  title: Cloud Provider MCP Servers
+  description: Read about your cloud provider's MCP server and how it lets GitHub Copilot query monitoring data, inspect resources, and troubleshoot deployments.
+  options:
+  - provider: azure
+    title: Azure MCP Server
+    url: https://github.com/microsoft/mcp/blob/main/servers/Azure.Mcp.Server/README.md
+    description: The Azure MCP server exposes tools for querying App Insights, managing resources, checking deployments, and running KQL queries — all from GitHub Copilot.
+  - provider: aws
+    title: AWS MCP Servers
+    url: https://github.com/awslabs/mcp
+    description: AWS Labs MCP servers for CloudWatch logs, CDK infrastructure, and AWS documentation — enabling GitHub Copilot to query and manage AWS resources.
+  - provider: gcp
+    title: Google Cloud MCP Servers
+    url: https://github.com/GoogleCloudPlatform/google-cloud-mcp
+    description: Google Cloud MCP servers for querying Cloud Monitoring, managing GCP resources, and interacting with Google Cloud services through GitHub Copilot.
+  id: phase5-topic7-read-cloud-provider-mcp-servers
+- order: 6
+  action: 'Practice:'
+  title: Query Cloud Telemetry with MCP
+  description: Install and configure your cloud provider's MCP server in VS Code, then use GitHub Copilot to query the monitoring data from the resources you deployed earlier in this phase.
+  options:
+  - provider: azure
+    title: Azure MCP — Query App Insights
+    url: https://github.com/microsoft/mcp/blob/main/servers/Azure.Mcp.Server/README.md
+    description: Install the Azure MCP server, authenticate with your Azure account, and ask Copilot to query App Insights for recent errors, list your resource groups, or run a KQL query against your deployed application.
+  - provider: aws
+    title: AWS MCP — Query CloudWatch
+    url: https://github.com/awslabs/mcp
+    description: Install the AWS MCP servers, authenticate with your AWS credentials, and ask Copilot to query CloudWatch for recent log events, errors, or metrics from your deployed application.
+  - provider: gcp
+    title: GCP MCP — Query Cloud Monitoring
+    url: https://github.com/GoogleCloudPlatform/google-cloud-mcp
+    description: Install the Google Cloud MCP servers, authenticate with your GCP account, and ask Copilot to query Cloud Monitoring for metrics, logs, or errors from your deployed application.
+  id: phase5-topic7-practice-query-cloud-telemetry
+- order: 7
+  action: 'Read:'
+  title: Agent Skills in VS Code
+  url: https://code.visualstudio.com/docs/copilot/customization/agent-skills
+  description: Learn what Agent Skills are — reusable folders of instructions and scripts that Copilot loads on demand to perform specialized tasks. Understand the SKILL.md format, directory structure, and how progressive disclosure keeps context efficient.
+  id: phase5-topic7-read-agent-skills
+- order: 8
+  action: 'Practice:'
+  title: Create a Capstone Preflight Check Skill
+  description: Create an Agent Skill at `.github/skills/preflight-check/SKILL.md` that validates your capstone project is submission-ready. The skill should instruct Copilot to run bash commands that check for required files, verify the Docker build, run terraform validate, and confirm Kubernetes manifests are valid YAML. Then trigger it by asking Copilot to run the preflight check and fix any issues it finds.
+  id: phase5-topic7-practice-create-preflight-skill

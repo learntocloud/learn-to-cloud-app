@@ -68,7 +68,9 @@ class UserTrackingMiddleware:
     in ``core.logger`` can auto-inject ``github_username`` into every
     log record for the duration of the request.
 
-    Must sit AFTER SessionMiddleware so ``scope["session"]`` is populated.
+    Must be added BEFORE ``SessionMiddleware`` in ``add_middleware()``
+    calls so that Starlette's ``insert(0, ...)`` ordering places it
+    inside the session layer (Session runs first, then UserTracking).
     """
 
     def __init__(self, app: ASGIApp) -> None:

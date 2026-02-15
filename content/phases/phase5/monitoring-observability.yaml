@@ -2,7 +2,7 @@ id: phase5-topic5
 slug: monitoring-observability
 name: Monitoring & Observability
 description: Monitoring and observability are essential DevOps practices that help you understand the health, performance, and reliability of your applications and infrastructure. In this topic, you'll learn how to set up monitoring using Prometheus and visualize metrics with Grafana. You'll then explore AI agents with n8n to automate incident response.
-order: 6
+order: 5
 learning_objectives:
 - id: observability-principles
   text: Differentiate monitoring and observability and explain their role in reliability engineering.

@@ -109,13 +109,3 @@ learning_steps:
   description: Open your cloud provider's billing dashboard and review your current month's charges. Identify which resources are costing the most.
   title: Review your current month's charges
   id: phase4-topic7-practice-review-your-current-months
-- order: 7
-  action: 'Practice:'
-  description: Create a budget alert for $50/month (or your chosen limit) so you get notified before you overspend.
-  title: Set up a budget alert
-  id: phase4-topic7-practice-set-up-a-budget
-- order: 8
-  action: 'Practice:'
-  description: Use your cloud provider's pricing calculator to estimate what your Journal API deployment will cost per month.
-  title: Estimate costs for a new deployment using the pricing calculator
-  id: phase4-topic7-practice-estimate-costs-for-a

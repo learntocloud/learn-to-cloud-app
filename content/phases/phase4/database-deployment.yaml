@@ -33,6 +33,24 @@ learning_steps:
   title: Compare PostgreSQL deployment options by provider
   id: phase4-topic5-read-compare-postgresql-deployment-options
 - order: 2
+  action: 'Read:'
+  description: Before deploying PostgreSQL in the cloud, learn how to install it on a Linux VM. This covers adding the official PostgreSQL repository, installing the server package, starting the service, and performing initial setup like creating a database and setting a password.
+  options:
+  - provider: azure
+    title: Install PostgreSQL on an Azure Linux VM
+    url: https://learn.microsoft.com/en-us/azure/virtual-machines/linux/postgresql-install
+    description: Step-by-step guide to installing and configuring PostgreSQL on a Linux VM in Azure.
+  - provider: aws
+    title: PostgreSQL Linux Downloads (Official)
+    url: https://www.postgresql.org/download/linux/
+    description: Official PostgreSQL installation instructions for Ubuntu, Debian, RHEL, and other Linux distributions.
+  - provider: gcp
+    title: PostgreSQL Linux Downloads (Official)
+    url: https://www.postgresql.org/download/linux/
+    description: Official PostgreSQL installation instructions for Ubuntu, Debian, RHEL, and other Linux distributions.
+  title: Learn how to install PostgreSQL on Linux
+  id: phase4-topic5-read-install-postgresql-on-linux
+- order: 3
   action: 'Practice:'
   description: Deploy a VM in a private subnet on your cloud provider and install PostgreSQL. Use provider networking guidance plus the PostgreSQL Linux packages docs to complete the setup.
   options:
@@ -50,27 +68,32 @@ learning_steps:
     description: Launch a VM in your chosen subnet and use no external IP for private-only database hosting.
   title: Deploy a VM in a private subnet and install PostgreSQL
   id: phase4-topic5-practice-deploy-a-vm-in
-- order: 3
+- order: 4
   action: 'Practice:'
-  description: Edit pg_hba.conf to allow connections only from your API server's IP range. Create database users with appropriate permissions.
+  description: "Even though your database VM sits in a private subnet, network controls alone aren't enough. A misconfigured NSG/security-group rule, a compromised peer workload, or a future subnet expansion could expose the database to unintended clients. pg_hba.conf is PostgreSQL's own host-based authentication layer. Edit pg_hba.conf to allow connections only from your API server's IP range and require strong authentication. Then create database users with least-privilege permissions for your application."
   url: https://www.postgresql.org/docs/current/auth-pg-hba-conf.html
   title: Configure pg_hba.conf for secure remote access
   id: phase4-topic5-practice-configure-pghbaconf-for-secure
-- order: 4
+- order: 5
   action: 'Practice:'
-  description: Test that your API server (in the public subnet) can connect to the database. Use your secure admin access path (for example Bastion/SSM/IAP) to validate from inside the network, and verify the database is NOT accessible from the internet.
+  description: "Your database VM has no public IP, so you can't SSH in directly — you need a way to reach it securely. Use your provider's approach to connect to the database VM, then run psql to verify PostgreSQL is running and your pg_hba.conf rules work. Next, launch a second VM in a different subnet (simulating an application server), connect to it the same way, and test that it can reach the database with psql over the private network. Finally, confirm the database is NOT reachable from the public internet — try connecting from your local machine directly and verify it times out or is refused."
   options:
   - provider: azure
-    title: Connect to Linux VM via Azure Bastion
+    title: Connect to a Private VM via Azure Bastion
     url: https://learn.microsoft.com/en-us/azure/bastion/bastion-connect-vm-ssh-linux
-    description: Validate private VM administration without exposing SSH publicly.
+    description: A managed PaaS bastion host — provides browser-based SSH/RDP through the Azure portal. No agent needed on the VM.
   - provider: aws
-    title: Connect to EC2 with Session Manager
+    title: Connect to a Private Instance via Session Manager
     url: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/connect-with-systems-manager-session-manager.html
-    description: Verify access to private instances without opening inbound SSH to the internet.
+    description: Agent-based access through the AWS control plane — requires the SSM agent on the instance. No bastion host, no open inbound ports. Also supports port forwarding and session logging.
   - provider: gcp
-    title: Using IAP for TCP Forwarding
+    title: Connect to a Private VM via IAP TCP Forwarding
     url: https://cloud.google.com/iap/docs/using-tcp-forwarding
-    description: Test secure admin connectivity to VMs that do not have external IP addresses.
+    description: An identity-aware tunnel proxy — creates an encrypted tunnel from your machine authenticated via IAM, then you use your own SSH client through it. No agent required.
   title: Verify database connectivity and security
   id: phase4-topic5-practice-verify-database-connectivity-and
+- order: 6
+  action: 'Practice:'
+  title: Clean up your cloud resources
+  description: Delete all resources you created — VMs, PostgreSQL installations, Bastion/SSM/IAP configurations, VPC/VNet, subnets, and security groups. Check your cloud console to confirm nothing is still running. Leaving resources active will incur charges.
+  id: phase4-topic5-practice-clean-up-your-cloud

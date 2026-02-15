@@ -1,18 +1,24 @@
 id: phase4-topic2
 slug: security-iam
 name: Security & Identity Management
-description: This section focuses on identity and access management (IAM) to control permissions and protect cloud resources, as well as securing cloud instances using security groups and firewall rules.
+description: This section focuses on identity and access management (IAM) to control permissions and protect cloud resources through users, roles, policies, and the principle of least privilege.
 order: 2
 learning_objectives:
 - id: security-iam-core-concepts
   text: Explain IAM primitives including users, groups, roles, and policy-based access.
   order: 1
-- id: security-iam-network-controls
-  text: Explain security group and firewall principles used to protect cloud resources.
-  order: 2
 - id: security-iam-least-privilege
   text: Apply least-privilege access principles for safer day-to-day operations.
+  order: 2
+- id: security-iam-managed-identities
+  text: Explain how managed identities and service accounts allow workloads to authenticate without long-lived credentials.
   order: 3
+- id: security-iam-mfa-credentials
+  text: Describe the importance of MFA enforcement and secure credential management.
+  order: 4
+- id: security-iam-hands-on
+  text: Create and scope IAM roles and policies through hands-on practice.
+  order: 5
 learning_steps:
 - order: 1
   action: 'Read:'
@@ -34,24 +40,6 @@ learning_steps:
   id: phase4-topic2-read-learn-iam-concepts-across
 - order: 2
   action: 'Read:'
-  description: Security groups act as virtual firewalls for your cloud resources, controlling inbound and outbound traffic.
-  options:
-  - provider: azure
-    title: Azure Network Security Groups
-    url: https://learn.microsoft.com/en-us/azure/virtual-network/network-security-groups-overview
-    description: Overview of Network Security Groups in Azure
-  - provider: aws
-    title: AWS Security Groups
-    url: https://docs.aws.amazon.com/vpc/latest/userguide/vpc-security-groups.html
-    description: Official documentation for controlling inbound and outbound traffic
-  - provider: gcp
-    title: GCP Firewall Rules
-    url: https://cloud.google.com/firewall/docs/firewalls
-    description: Understanding firewall rules in Google Cloud
-  title: Understand Security Groups & Firewall Rules
-  id: phase4-topic2-read-understand-security-groups-firewall
-- order: 3
-  action: 'Read:'
   description: Understand role-based access control and the principle of least privilege — granting only the minimum permissions needed for a task.
   options:
   - provider: azure
@@ -68,3 +56,49 @@ learning_steps:
     description: Review IAM security best practices and least-privilege guidance in GCP
   title: Learn least-privilege IAM practices by provider
   id: phase4-topic2-read-learn-least-privilege-iam-practices
+- order: 3
+  action: 'Read:'
+  description: In production, workloads (VMs, containers, functions) need their own identity to access other cloud services. Managed identities and service accounts eliminate the need for storing secrets or rotating access keys manually.
+  options:
+  - provider: azure
+    title: Azure Managed Identities
+    url: https://learn.microsoft.com/en-us/entra/identity/managed-identities-azure-resources/overview
+    description: Learn how Azure resources authenticate to services without credentials in code
+  - provider: aws
+    title: IAM Roles for AWS Services
+    url: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_common-scenarios_services.html
+    description: Understand how EC2 instances and Lambda functions assume IAM roles
+  - provider: gcp
+    title: GCP Service Accounts
+    url: https://cloud.google.com/iam/docs/service-account-overview
+    description: Learn how GCP workloads use service accounts for authentication
+  title: Understand managed identities and service accounts
+  id: phase4-topic2-read-understand-managed-identities
+- order: 4
+  action: 'Read:'
+  description: Multi-factor authentication (MFA) adds a critical second layer of protection. Understand why MFA should be enforced for all human users and why long-lived access keys should be avoided.
+  options:
+  - provider: azure
+    title: Azure MFA Setup and Enforcement
+    url: https://learn.microsoft.com/en-us/entra/identity/authentication/concept-mfa-howitworks
+    description: Learn how Azure enforces multi-factor authentication for user accounts
+  - provider: aws
+    title: Enable MFA in AWS
+    url: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_mfa.html
+    description: Configure MFA for IAM users and understand credential best practices
+  - provider: gcp
+    title: GCP 2-Step Verification
+    url: https://cloud.google.com/identity/docs/concepts/overview
+    description: Enforce MFA across Google Cloud user accounts
+  title: Learn MFA and credential hygiene by provider
+  id: phase4-topic2-read-learn-mfa-credential-hygiene
+- order: 5
+  action: 'Practice:'
+  description: "Create a storage bucket or container (S3, Azure Blob Storage, or GCS). Upload a test file using your admin account. Then create a new IAM role or user with a policy that grants ONLY read access to that storage service. Sign in or assume that restricted role and verify: (1) you can list and download the file, (2) you CANNOT upload or delete files."
+  title: Create a read-only storage role and test its limits
+  id: phase4-topic2-practice-create-scoped-iam-role
+- order: 6
+  action: 'Practice:'
+  title: Clean up your cloud resources
+  description: Delete the storage bucket, test files, and IAM role or user you created. Check your cloud console to confirm all resources are removed.
+  id: phase4-topic2-practice-clean-up-your-cloud

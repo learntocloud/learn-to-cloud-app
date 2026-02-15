@@ -44,3 +44,9 @@ learning_steps:
   url: https://fastapi.tiangolo.com/async/
   description: Understand when to use async def vs def for your endpoints. The Journal API uses async endpoints for database and LLM operations, so understanding this pattern is important.
   id: phase3-topic2-read-async-and-await-in
+- order: 6
+  action: 'Read:'
+  title: Uvicorn Process Management
+  url: https://www.uvicorn.org/deployment/
+  description: Learn reliable process patterns for running FastAPI in production — workers, restarts, and service management with Uvicorn.
+  id: phase3-topic2-read-uvicorn-process-management

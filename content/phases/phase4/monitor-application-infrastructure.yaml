@@ -1,18 +1,21 @@
 id: phase4-topic6
 slug: monitoring-foundations-for-apps-and-vms
 name: Monitoring Foundations for Apps and VMs
-description: This topic focuses on operating and monitoring cloud-hosted applications. You'll learn provider monitoring fundamentals, how logs and metrics are collected, secure environment variable and secret handling patterns, and reliable Uvicorn process management guidance.
+description: This topic focuses on monitoring cloud-hosted applications. You'll learn provider monitoring fundamentals, how application logs are collected and queried, and how infrastructure and application metrics give you runtime visibility.
 order: 6
 learning_objectives:
 - id: monitor-application-infrastructure-provider-basics
   text: Understand core monitoring services across Azure, AWS, and GCP for app and VM visibility.
   order: 1
-- id: monitor-application-infrastructure-secure-config
-  text: Configure environment variables and secret handling safely on virtual machines.
+- id: monitor-application-infrastructure-logs
+  text: Understand where application logs come from and how to query them during incident response.
   order: 2
-- id: monitor-application-infrastructure-operational-signals
-  text: Understand operational logging and metrics signals for runtime visibility.
+- id: monitor-application-infrastructure-metrics
+  text: Understand how infrastructure and application metrics are collected and used for runtime visibility.
   order: 3
+- id: monitor-application-infrastructure-query-logs
+  text: Configure a VM to emit logs and metrics, then query the data in your provider's console.
+  order: 4
 learning_steps:
 - order: 1
   action: 'Read:'
@@ -34,7 +37,7 @@ learning_steps:
   id: phase4-topic6-read-learn-your-providers-monitoring
 - order: 2
   action: 'Read:'
-  description: Learn where application logs and infrastructure metrics come from in your provider and how to query them during incident response.
+  description: Learn where application logs come from in your provider and how to query them during incident response.
   options:
   - provider: azure
     title: Azure Monitor Logs Overview
@@ -48,29 +51,64 @@ learning_steps:
     title: Cloud Logging Overview
     url: https://cloud.google.com/logging/docs/overview
     description: Understand structured logs and query workflows in Cloud Logging.
-  title: Understand logs and metrics collection paths
-  id: phase4-topic6-read-understand-logs-and-metrics
+  title: Understand logs
+  id: phase4-topic6-read-understand-logs
 - order: 3
   action: 'Read:'
-  description: Learn secure patterns for environment variables and secrets management. Use your provider's managed secret service instead of hardcoding credentials.
+  description: Learn how infrastructure and application metrics are collected and how to use them for dashboards, alerts, and capacity planning.
   options:
   - provider: azure
-    title: Azure Key Vault Overview
-    url: https://learn.microsoft.com/en-us/azure/key-vault/general/overview
-    description: Learn how to store and control access to secrets, keys, and certificates.
+    title: Azure Monitor Metrics Overview
+    url: https://learn.microsoft.com/en-us/azure/azure-monitor/essentials/data-platform-metrics
+    description: Understand platform and custom metrics collection and analysis.
   - provider: aws
-    title: What is AWS Secrets Manager?
-    url: https://docs.aws.amazon.com/secretsmanager/latest/userguide/intro.html
-    description: Learn how to store, rotate, and retrieve secrets securely.
+    title: Using Amazon CloudWatch Metrics
+    url: https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/working_with_metrics.html
+    description: Understand metric namespaces, dimensions, and alarm workflows.
   - provider: gcp
-    title: Secret Manager Overview
-    url: https://cloud.google.com/secret-manager/docs/overview
-    description: Learn how to manage and access application secrets securely.
-  title: Store environment variables and secrets securely
-  id: phase4-topic6-read-store-environment-variables-and
+    title: Cloud Monitoring Metrics Overview
+    url: https://cloud.google.com/monitoring/docs/metrics
+    description: Understand built-in and custom metrics in Google Cloud Monitoring.
+  title: Understand metrics
+  id: phase4-topic6-read-understand-metrics
 - order: 4
-  action: 'Read:'
-  title: Uvicorn Process Management
-  url: https://www.uvicorn.org/deployment/
-  description: Learn reliable process patterns for Python APIs (workers, restarts, and service management).
-  id: phase4-topic6-read-uvicorn-process-management
+  action: 'Practice:'
+  description: Deploy a VM on your cloud provider and install your provider's monitoring agent so the VM emits logs and metrics to your monitoring platform.
+  options:
+  - provider: azure
+    title: Install the Azure Monitor Agent on a VM
+    url: https://learn.microsoft.com/en-us/azure/azure-monitor/agents/azure-monitor-agent-manage
+    description: Install the Azure Monitor Agent and configure a data collection rule to send VM logs and metrics to a Log Analytics workspace.
+  - provider: aws
+    title: Install the CloudWatch Agent on an EC2 Instance
+    url: https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/install-CloudWatch-Agent-on-EC2-Instance.html
+    description: Install and configure the CloudWatch Agent to send system metrics and logs from your EC2 instance to CloudWatch.
+  - provider: gcp
+    title: Install the Ops Agent on a Compute Engine VM
+    url: https://cloud.google.com/stackdriver/docs/solutions/agents/ops-agent/installation
+    description: Install the Ops Agent to collect logs and metrics from your Compute Engine VM and send them to Cloud Monitoring and Cloud Logging.
+  title: Configure a VM to emit logs and metrics
+  id: phase4-topic6-practice-configure-vm-monitoring
+- order: 5
+  action: 'Practice:'
+  description: 'Now that your VM is emitting data, open your provider''s log query tool and find all SSH login attempts on your VM from the last hour. You SSH''d in to install the agent, so you should see at least your own session. This is the same workflow you''d use during a real security investigation.'
+  options:
+  - provider: azure
+    title: 'Log Analytics Tutorial: Run a KQL Query'
+    url: https://learn.microsoft.com/en-us/azure/azure-monitor/logs/log-analytics-tutorial
+    description: Open your Log Analytics workspace and write a query to find SSH login events from the last hour.
+  - provider: aws
+    title: 'CloudWatch Logs Insights: Run a Sample Query'
+    url: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CWL_AnalyzeLogData_RunSampleQuery.html
+    description: Open Logs Insights, select your VM's log group, and write a query to find SSH login events from the last hour.
+  - provider: gcp
+    title: 'Logs Explorer: Query Your Logs'
+    url: https://cloud.google.com/logging/docs/view/logs-explorer-interface
+    description: Open Logs Explorer and write a query to find SSH login events on your VM from the last hour.
+  title: Query your VM's logs for SSH login events
+  id: phase4-topic6-practice-query-vm-logs
+- order: 6
+  action: 'Practice:'
+  title: Clean up your cloud resources
+  description: Delete the VM, monitoring agent configuration, and any associated resources (disks, public IPs, security groups, Log Analytics workspace or log groups). Check your cloud console to confirm nothing is still running. Leaving resources active will incur charges.
+  id: phase4-topic6-practice-clean-up-your-cloud

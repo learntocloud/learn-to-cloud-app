@@ -106,6 +106,6 @@ learning_steps:
   id: phase4-topic8-practice-compare-and-choose-a
 - order: 6
   action: 'Practice:'
-  description: Deploy your chosen model on your cloud platform, then update your Journal API integration to call the cloud endpoint instead of GitHub Models for capstone readiness.
-  title: Deploy and switch your Journal API to cloud AI
-  id: phase4-topic8-practice-deploy-and-switch-your
+  title: Clean up your cloud resources
+  description: Delete the model deployment and any associated resources on your cloud AI platform. Check your cloud console to confirm nothing is still running. AI model deployments can incur significant per-hour charges.
+  id: phase4-topic8-practice-clean-up-your-cloud

@@ -3,7 +3,7 @@ slug: capstone
 name: 'Capstone: DevOps Project'
 description: Now that you've learned the fundamentals of DevOps, it's time to apply these practices to the Journal API app you built in Phase 3 and deployed in Phase 4. In this capstone, you'll containerize the app, automate its deployment, manage infrastructure as code, set up monitoring, and orchestrate containers with Kubernetes—demonstrating your end-to-end DevOps skills.
 short_description: Containerize your app with Docker, deploy to Kubernetes, automate with CI/CD, and monitor with Prometheus/Grafana.
-order: 6
+order: 7
 learning_objectives:
 - id: devops-capstone-integration
   text: Integrate containerization, CI/CD, IaC, and orchestration into one delivery workflow.
@@ -27,7 +27,7 @@ learning_steps:
   id: phase5-topic6-build-infrastructure-as-code
 - order: 3
   action: 'Build:'
-  description: Set up a GitHub Actions workflow in `.github/workflows/` that automatically builds, tests, and deploys your application on every push.
+  description: Apply the GitHub Actions workflow you built in the CI/CD Pipelines topic to your Journal API repository. Ensure it automatically builds, tests, and deploys your application on every push to main.
   title: CI/CD Pipeline
   id: phase5-topic6-build-cicd-pipeline
 - order: 4
@@ -56,3 +56,8 @@ learning_steps:
   title: Share Your Progress
   description: When you've completed the capstone, push your work to GitHub! This becomes part of your portfolio. Consider sharing it on LinkedIn or with the Learn to Cloud community to get feedback and celebrate your progress.
   id: phase5-topic6-reflect-share-your-progress
+- order: 9
+  action: 'Practice:'
+  title: Clean up your cloud resources
+  description: After you have submitted your repo for hands-on verification and received a passing result, delete all cloud resources — Kubernetes clusters, container registries, Terraform-provisioned infrastructure, and any other resources. Run `terraform destroy` for IaC-managed resources. Check your cloud console to confirm nothing is still running.
+  id: phase5-topic6-practice-clean-up-your-cloud

@@ -50,7 +50,7 @@ learning_steps:
   options:
   - provider: azure
     title: Azure Virtual Machines Documentation
-    url: https://learn.microsoft.com/en-us/azure/virtual-machines/
+    url: https://learn.microsoft.com/azure/virtual-machines/linux/quick-create-cli
     description: Create and manage virtual machines in Azure
   - provider: aws
     title: Get Started with Amazon EC2
@@ -64,6 +64,6 @@ learning_steps:
   id: phase4-topic1-practice-deploy-a-vm-on
 - order: 5
   action: 'Practice:'
-  description: Use the VM you deployed in step 4 to verify it is healthy and reachable. Confirm basic access (SSH/RDP/console), note the selected VM size/instance type, and document one reason why that size matches your workload.
-  title: 'Hands-on: Verify and document your VM deployment'
-  id: phase4-topic1-practice-hands-on-verify-and-document
+  title: Clean up your cloud resources
+  description: Delete the virtual machine you created and any associated resources (disks, public IPs, security groups). Check your cloud console to confirm nothing is still running. Leaving resources active will incur charges.
+  id: phase4-topic1-practice-clean-up-your-cloud

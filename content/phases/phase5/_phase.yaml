@@ -16,6 +16,7 @@ topics:
 - infrastructure-as-code
 - container-orchestration
 - monitoring-observability
+- ai-tooling-mcp
 - capstone
 hands_on_verification:
   requirements:

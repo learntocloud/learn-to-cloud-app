@@ -51,6 +51,11 @@ learning_steps:
   title: Enable security scanning on your repository
   id: phase6-capstone-practice-enable-security-scanning-on
 - order: 8
+  action: 'Practice:'
+  title: Clean up your cloud resources
+  description: Once you've completed your security hardening and verified everything works, delete all cloud resources — VMs, databases, secrets manager entries, service accounts, and networking configurations. Check your cloud console to confirm nothing is still running. This is the final phase, so make sure no billable resources remain.
+  id: phase6-capstone-practice-clean-up-your-cloud
+- order: 9
   action: 'Reflect:'
   title: Share Your Progress
   description: Push your work to GitHub. Consider sharing it on LinkedIn or with the Learn to Cloud community to get feedback and celebrate your progress.

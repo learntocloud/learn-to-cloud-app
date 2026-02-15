@@ -40,30 +40,7 @@ learning_steps:
   id: phase5-topic1-explore-what-is-a-container
 - order: 5
   action: 'Practice:'
-  description: 'Learn how to containerize an application and deploy to different registries:'
-  options:
-  - provider: azure
-    title: Azure Container Registry
-    url: https://learn.microsoft.com/en-us/training/modules/deploy-use-azure-container-registry/
-    description: Push images to Azure Container Registry
-  - provider: aws
-    title: AWS ECR
-    url: https://docs.aws.amazon.com/AmazonECR/latest/userguide/docker-push-ecr-image.html
-    description: Push images to Amazon Elastic Container Registry
-  - provider: gcp
-    title: Google Container Registry
-    url: https://www.youtube.com/watch?v=D1_FC6pGutQ
-    description: Push images to Google Container Registry
-  title: Push to Container Registries
-  id: phase5-topic1-practice-push-to-container-registries
-- order: 6
-  action: 'Practice:'
-  description: Write a Dockerfile for a simple application (or use an existing one like your Journal API). Use the sample below as a reference.
-  title: Write a Dockerfile for your application
-  id: phase5-topic1-practice-write-a-dockerfile-for
-- order: 7
-  action: 'Read:'
-  description: 'Here''s a basic Dockerfile for a FastAPI application:'
+  description: 'Write a Dockerfile for your Journal API. Use the sample below as a reference:'
   code: 'FROM python:3.11-slim
 
 
@@ -82,33 +59,39 @@ learning_steps:
 
 
     CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]'
-  title: Sample Dockerfile
-  id: phase5-topic1-read-sample-dockerfile
-- order: 8
+  title: Write a Dockerfile for your Journal API
+  id: phase5-topic1-practice-write-a-dockerfile-for
+- order: 6
   action: 'Practice:'
-  description: Build the Docker image from your Dockerfile and run it locally. Test that your application works correctly inside the container.
+  description: Build the Docker image from your Dockerfile and run it locally. Test that your Journal API works correctly inside the container.
   title: Build and run your container locally
   id: phase5-topic1-practice-build-and-run-your
-- order: 9
+- order: 7
   action: 'Practice:'
-  description: Create an account on DockerHub (or another registry), tag your image, and push it. Pull and run it on a different machine to verify portability.
+  description: 'Tag your image and push it to a container registry. Follow the guide for your cloud provider:'
+  options:
+  - provider: azure
+    title: Azure Container Registry
+    url: https://learn.microsoft.com/en-us/training/modules/deploy-use-azure-container-registry/
+    description: Push images to Azure Container Registry
+  - provider: aws
+    title: AWS ECR
+    url: https://docs.aws.amazon.com/AmazonECR/latest/userguide/docker-push-ecr-image.html
+    description: Push images to Amazon Elastic Container Registry
+  - provider: gcp
+    title: Google Container Registry
+    url: https://www.youtube.com/watch?v=D1_FC6pGutQ
+    description: Push images to Google Container Registry
   title: Push your image to a container registry
   id: phase5-topic1-practice-push-your-image-to
-- order: 10
+- order: 8
   action: 'Read:'
   title: Docker Troubleshooting
   url: https://docs.docker.com/engine/daemon/troubleshoot/
   description: Reference for common Docker issues and solutions.
   id: phase5-topic1-read-docker-troubleshooting
-- order: 11
-  action: 'Read:'
-  title: What is MCP (Model Context Protocol)?
-  url: https://modelcontextprotocol.io/docs/getting-started/intro
-  description: Learn how containers enable running MCP servers that integrate with LLMs and AI tools.
-  id: phase5-topic1-read-what-is-mcp-model
-- order: 12
-  action: 'Explore:'
-  title: GitHub MCP Server
-  url: https://github.com/github/github-mcp-server
-  description: Install the GitHub MCP Server in Docker Desktop, create a GitHub Personal Access Token, and test querying your repos from VS Code with Agent mode.
-  id: phase5-topic1-explore-github-mcp-server
+- order: 9
+  action: 'Note:'
+  title: Keep your container image for the capstone
+  description: Don't delete the container image you pushed to your registry — you'll need it for the DevOps capstone project. Registry storage for a single image is minimal cost.
+  id: phase5-topic1-note-keep-your-container-image

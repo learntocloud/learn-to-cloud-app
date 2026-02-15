@@ -1,7 +1,7 @@
 id: phase0-topic6
 slug: cloud-engineer
 name: What is a Cloud Engineer
-description: Learn about the cloud engineer role, what they do day-to-day, and how to become one.
+description: Learn about the cloud engineer role, what they do day-to-day, and whether it's the right fit for you.
 order: 6
 learning_objectives:
 - id: cloud-engineer-role
@@ -15,13 +15,31 @@ learning_objectives:
   order: 3
 learning_steps:
 - order: 1
-  action: 'Watch:'
-  title: What is a Cloud Engineer
-  url: https://youtu.be/7i1WMGxyt4Q
-  description: Discover what cloud engineers do, what skills they need, and the path to becoming one.
-  id: phase0-topic6-watch-what-is-a-cloud
+  action: 'Read:'
+  title: What Does a Cloud Engineer Do?
+  description: >
+    A cloud engineer designs, builds, and maintains the infrastructure that runs applications in the cloud.
+    Day-to-day, that can include provisioning servers and databases, writing infrastructure-as-code,
+    setting up CI/CD pipelines, monitoring system health, managing costs, and responding to incidents.
+    They work across teams — with developers to deploy code reliably, with security to lock down access,
+    and with leadership to choose the right services for the job. The role blends system administration,
+    networking, automation, and software development. No two days look the same, and the tooling evolves
+    constantly, so curiosity and a willingness to learn are just as important as any specific technology.
+  id: phase0-topic6-read-what-does-a-cloud
 - order: 2
   action: 'Reflect:'
   description: 'Cloud engineering requires continuous learning and problem-solving. Consider: Do you enjoy figuring out how things work? Are you comfortable with change? Can you commit to learning new technologies regularly?'
   title: Is this for me?
   id: phase0-topic6-reflect-is-this-for-me
+- order: 3
+  action: 'Practice:'
+  title: Follow Made by GPS on GitHub
+  url: https://github.com/madebygps
+  description: Follow the creator of Learn to Cloud on GitHub to stay connected with the community.
+  id: phase0-topic6-practice-follow-made-by-gps
+- order: 4
+  action: 'Practice:'
+  title: Subscribe to youtube.com/made-by-gps
+  url: https://youtube.com/made-by-gps
+  description: Keep up to date with video tutorials and updates on the guide.
+  id: phase0-topic6-practice-subscribe-youtube
