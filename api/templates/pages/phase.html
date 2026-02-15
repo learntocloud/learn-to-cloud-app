@@ -45,6 +45,32 @@
 <div id="verification-section">
     <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Hands-on Verification</h2>
 
+    {% if verification_locked %}
+    {# Phase verification is gated — prerequisite phase not yet complete #}
+    <div class="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 p-4 mb-4">
+        <div class="flex items-start gap-3">
+            <span class="text-amber-500 dark:text-amber-400 text-lg mt-0.5">🔒</span>
+            <div>
+                <p class="text-sm font-medium text-amber-800 dark:text-amber-200">
+                    Phase {{ prerequisite_phase_id }} verification required
+                </p>
+                <p class="text-sm text-amber-700 dark:text-amber-300 mt-1">
+                    Complete all hands-on verifications in
+                    <a href="/phase/{{ prerequisite_phase_id }}" class="underline hover:no-underline font-medium">Phase {{ prerequisite_phase_id }}</a>
+                    before submitting here.
+                </p>
+            </div>
+        </div>
+    </div>
+    <div class="space-y-2">
+        {% for req in requirements %}
+        <div class="flex items-center gap-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 px-4 py-2.5 opacity-50">
+            <span class="text-gray-400 dark:text-gray-500">🔒</span>
+            <span class="text-sm text-gray-500 dark:text-gray-400">{{ req.name }}</span>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
     {% set ns = namespace(found_active=false) %}
     <div class="space-y-2">
         {% for req in requirements %}
@@ -77,6 +103,7 @@
         {% endif %}
         {% endfor %}
     </div>
+    {% endif %}
 </div>
 {% endif %}
 {% endblock %}

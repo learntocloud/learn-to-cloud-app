@@ -25,6 +25,9 @@ from services.content_service import (
     get_topic_by_slugs,
 )
 from services.dashboard_service import get_dashboard_data
+from services.phase_requirements_service import (
+    is_phase_verification_locked,
+)
 from services.progress_service import get_phase_detail_progress
 from services.steps_service import get_completed_steps
 from services.submissions_service import get_phase_submission_context
@@ -120,6 +123,11 @@ async def phase_page(
     submissions_by_req = sub_context.submissions_by_req
     feedback_by_req = sub_context.feedback_by_req
 
+    # Sequential phase gating — check if prerequisite phase is complete
+    verification_locked, prerequisite_phase_id = await is_phase_verification_locked(
+        db, user_id, phase_id
+    )
+
     detail = await get_phase_detail_progress(db, user_id, phase)
     for i, t in enumerate(phase.topics):
         tp = detail.topic_progress.get(t.id)
@@ -145,6 +153,8 @@ async def phase_page(
             submissions_by_req=submissions_by_req,
             feedback_by_req=feedback_by_req,
             progress=progress,
+            verification_locked=verification_locked,
+            prerequisite_phase_id=prerequisite_phase_id,
         ),
     )
 

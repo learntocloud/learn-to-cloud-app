@@ -30,7 +30,9 @@ from services.github_hands_on_verification_service import parse_github_url
 from services.hands_on_verification_service import validate_submission
 from services.phase_requirements_service import (
     get_phase_id_for_requirement,
+    get_prerequisite_phase,
     get_requirement_by_id,
+    get_requirement_ids_for_phase,
 )
 
 logger = logging.getLogger(__name__)
@@ -190,6 +192,14 @@ class AlreadyValidatedError(Exception):
     pass
 
 
+class PriorPhaseNotCompleteError(Exception):
+    """Raised when submitting for a phase whose prerequisite isn't fully verified."""
+
+    def __init__(self, message: str, prerequisite_phase: int):
+        super().__init__(message)
+        self.prerequisite_phase = prerequisite_phase
+
+
 # Caps the number of concurrent LLM verification calls across all users.
 # Prevents connection pool exhaustion: without this, N simultaneous users could
 # each hold a DB connection for 30-120s waiting on the LLM, starving all other
@@ -260,6 +270,21 @@ async def submit_validation(
         )
         if existing is not None and existing.is_validated:
             raise AlreadyValidatedError("You have already completed this requirement.")
+
+        # --- Sequential phase gating ---
+        prereq_phase = get_prerequisite_phase(phase_id)
+        if prereq_phase is not None:
+            prereq_req_ids = get_requirement_ids_for_phase(prereq_phase)
+            if prereq_req_ids:
+                all_done = await submission_repo.are_all_requirements_validated(
+                    user_id, prereq_req_ids
+                )
+                if not all_done:
+                    raise PriorPhaseNotCompleteError(
+                        f"You must complete all Phase {prereq_phase} "
+                        f"verifications before submitting for Phase {phase_id}.",
+                        prerequisite_phase=prereq_phase,
+                    )
 
         # --- Global daily submission cap ---
         settings = get_settings()

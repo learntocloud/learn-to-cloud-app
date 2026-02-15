@@ -42,11 +42,11 @@ def load_content() -> (
             reqs = []
             hov = meta.get("hands_on_verification", {})
             for req in hov.get("requirements", []):
-                reqs.append((
-                    req["id"],
-                    req["submission_type"],
-                    f"https://seed-data.example.com/{req['id']}",
-                ))
+                reqs.append({
+                    "id": req["id"],
+                    "submission_type": req["submission_type"],
+                    "required_repo": req.get("required_repo"),
+                })
             phase_requirements[phase_id] = reqs
 
         topics = []
@@ -112,7 +112,35 @@ async def main(github_username: str) -> None:
 
         sub_count = 0
         for phase_id, requirements in phase_requirements.items():
-            for req_id, sub_type, submitted_value in requirements:
+            for req in requirements:
+                req_id = req["id"]
+                sub_type = req["submission_type"]
+                # Generate realistic submitted_value per submission type
+                if sub_type == "github_profile":
+                    submitted_value = f"https://github.com/{github_username}"
+                elif sub_type == "profile_readme":
+                    submitted_value = (
+                        f"https://github.com/{github_username}/{github_username}"
+                    )
+                elif sub_type == "repo_fork" and req.get("required_repo"):
+                    repo_name = req["required_repo"].split("/")[-1]
+                    submitted_value = (
+                        f"https://github.com/{github_username}/{repo_name}"
+                    )
+                elif sub_type in ("code_analysis", "devops_analysis", "security_scanning"):
+                    submitted_value = (
+                        f"https://github.com/{github_username}/journal-starter"
+                    )
+                elif sub_type == "pr_review":
+                    submitted_value = (
+                        f"https://seed-data.example.com/{req_id}"
+                    )
+                elif sub_type == "deployed_api":
+                    submitted_value = "https://journal-api.example.com"
+                else:
+                    submitted_value = (
+                        f"https://seed-data.example.com/{req_id}"
+                    )
                 await conn.execute(
                     """
                     INSERT INTO submissions (
@@ -122,6 +150,7 @@ async def main(github_username: str) -> None:
                     )
                     VALUES ($1, $2, 1, $3, $4, $5, true, $6, true, $6, $6)
                     ON CONFLICT (user_id, requirement_id, attempt_number) DO UPDATE SET
+                        submitted_value = $5,
                         is_validated = true,
                         validated_at = $6,
                         verification_completed = true,

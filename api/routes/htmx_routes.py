@@ -34,6 +34,7 @@ from services.submissions_service import (
     CooldownActiveError,
     DailyLimitExceededError,
     GitHubUsernameRequiredError,
+    PriorPhaseNotCompleteError,
     RequirementNotFoundError,
     submit_validation,
 )
@@ -275,6 +276,10 @@ async def htmx_submit_verification(
         return _render_card(
             error_banner="You need to link your GitHub account to submit. "
             "Please sign out and sign in with GitHub.",
+        )
+    except PriorPhaseNotCompleteError as e:
+        return _render_card(
+            error_banner=str(e),
         )
     except ConcurrentSubmissionError as e:
         return _render_card(

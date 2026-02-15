@@ -161,52 +161,42 @@
 </div>
 
 {% else %}
-{# ── Not eligible: show progress toward certificate ── #}
-<div class="rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
-    <div class="p-6 border-b border-gray-100 dark:border-gray-800">
-        <div class="flex items-center gap-3 mb-1">
-            <span class="text-2xl">🏆</span>
+{# ── Not eligible: show what's remaining ── #}
+<div class="rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+    <div class="flex items-center gap-3 mb-4">
+        <span class="text-2xl">🏆</span>
+        <div>
             <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Earn Your Certificate</h2>
+            <p class="text-sm text-gray-600 dark:text-gray-400">
+                {{ progress.phases_completed }} of {{ progress.total_phases }} phases done — finish the remaining {{ progress.total_phases - progress.phases_completed }} to unlock your certificate.
+            </p>
         </div>
-        <p class="text-sm text-gray-600 dark:text-gray-400 ml-9">
-            Complete all {{ progress.total_phases }} phases to earn your Learn to Cloud certificate.
-        </p>
     </div>
 
-    {# Overall progress bar #}
-    <div class="px-6 pt-5 pb-2">
-        <div class="flex items-center justify-between mb-2">
-            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Overall Progress</span>
-            <span class="text-sm font-semibold text-gray-900 dark:text-white">{{ "%.0f"|format(progress.overall_percentage) }}%</span>
-        </div>
-        <div class="h-2.5 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
-            <div class="h-full rounded-full bg-blue-500 transition-all" style="width: {{ progress.overall_percentage }}%"></div>
-        </div>
-        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1.5">{{ progress.phases_completed }} of {{ progress.total_phases }} phases completed</p>
-    </div>
-
-    {# Per-phase progress #}
-    <div class="p-6 space-y-3">
-        {% for phase_id in progress.phases | sort %}
+    {# Only show incomplete phases #}
+    {% set incomplete_phases = [] %}
+    {% for phase_id in progress.phases | sort %}
         {% set phase = progress.phases[phase_id] %}
-        <a href="/phase/{{ phase_id }}" class="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+        {% if not phase.is_complete %}
+            {% set _ = incomplete_phases.append((phase_id, phase)) %}
+        {% endif %}
+    {% endfor %}
+
+    {% if incomplete_phases %}
+    <div class="space-y-2 mb-5">
+        <p class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Remaining</p>
+        {% for phase_id, phase in incomplete_phases %}
+        <a href="/phase/{{ phase_id }}" class="flex items-center gap-3 p-3 rounded-lg border border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
             <span class="flex items-center justify-center h-7 w-7 rounded-full text-xs font-semibold shrink-0
-                {% if phase.is_complete %}bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400
-                {% elif phase.steps_completed > 0 %}bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400
+                {% if phase.steps_completed > 0 %}bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400
                 {% else %}bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-500{% endif %}">
-                {% if phase.is_complete %}
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-                </svg>
-                {% else %}
                 {{ phase_id }}
-                {% endif %}
             </span>
             <div class="flex-1 min-w-0">
-                <p class="text-sm font-medium text-gray-900 dark:text-white truncate">Phase {{ phase_id }}</p>
+                <p class="text-sm font-medium text-gray-900 dark:text-white">Phase {{ phase_id }}</p>
                 <div class="flex items-center gap-2 mt-1">
                     <div class="flex-1 h-1.5 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
-                        <div class="h-full rounded-full transition-all {% if phase.is_complete %}bg-green-500{% else %}bg-blue-500{% endif %}" style="width: {{ phase.overall_percentage }}%"></div>
+                        <div class="h-full rounded-full bg-blue-500 transition-all" style="width: {{ phase.overall_percentage }}%"></div>
                     </div>
                     <span class="text-xs text-gray-500 dark:text-gray-400 shrink-0">{{ phase.steps_completed }}/{{ phase.steps_required }}</span>
                 </div>
@@ -214,15 +204,14 @@
         </a>
         {% endfor %}
     </div>
+    {% endif %}
 
-    <div class="px-6 pb-6">
-        <a href="/dashboard" class="inline-flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400 transition-colors">
-            Go to Dashboard
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
-            </svg>
-        </a>
-    </div>
+    <a href="/dashboard" class="inline-flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400 transition-colors">
+        Continue on Dashboard
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+        </svg>
+    </a>
 </div>
 {% endif %}
 

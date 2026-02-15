@@ -56,9 +56,18 @@
 <div>
     <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Projects</h2>
     {% if profile.submissions %}
-    {% set token_types = ['ctf_token', 'networking_token'] %}
-    {% set url_types = ['github_profile', 'profile_readme', 'repo_fork', 'code_analysis', 'pr_review', 'devops_analysis', 'security_scanning', 'deployed_api', 'journal_api_response'] %}
+    {# Only show capstone/portfolio-worthy submissions — skip PRs, tokens, and duplicate forks #}
+    {% set showcase_types = ['github_profile', 'profile_readme', 'code_analysis', 'deployed_api', 'devops_analysis', 'security_scanning'] %}
     {% set phase_colors = {
+        0: 'border-gray-300 dark:border-gray-600',
+        1: 'border-green-400 dark:border-green-700',
+        2: 'border-blue-400 dark:border-blue-700',
+        3: 'border-purple-400 dark:border-purple-700',
+        4: 'border-orange-400 dark:border-orange-700',
+        5: 'border-rose-400 dark:border-rose-700',
+        6: 'border-teal-400 dark:border-teal-700'
+    } %}
+    {% set phase_badge_colors = {
         0: 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300',
         1: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400',
         2: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400',
@@ -68,47 +77,76 @@
         6: 'bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-400'
     } %}
 
-    {# Group submissions by phase #}
-    {% set phases_seen = [] %}
+    {# Build showcase list: capstone types + repo_fork only for phases without a capstone type #}
+    {% set showcase_subs = [] %}
+    {% set phases_with_capstone = [] %}
     {% for sub in profile.submissions %}
-        {% if sub.phase_id not in phases_seen %}
-            {% if phases_seen.append(sub.phase_id) %}{% endif %}
+        {% if sub.submission_type in showcase_types %}
+            {% if showcase_subs.append(sub) %}{% endif %}
+            {% if sub.phase_id not in phases_with_capstone %}
+                {% if phases_with_capstone.append(sub.phase_id) %}{% endif %}
+            {% endif %}
+        {% endif %}
+    {% endfor %}
+    {# Include repo_fork only for phases that have no capstone submission (e.g., Phase 2) #}
+    {% for sub in profile.submissions %}
+        {% if sub.submission_type == 'repo_fork' and sub.phase_id not in phases_with_capstone %}
+            {% if showcase_subs.append(sub) %}{% endif %}
+            {% if phases_with_capstone.append(sub.phase_id) %}{% endif %}
         {% endif %}
     {% endfor %}
 
-    {% for phase_id in phases_seen | sort %}
-    <div class="{% if not loop.first %}mt-6{% endif %}">
-        <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Phase {{ phase_id }}</h3>
-        <div class="space-y-2">
-            {% for sub in profile.submissions if sub.phase_id == phase_id %}
-            <div class="flex items-center gap-3 px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800/50">
-                <svg class="h-5 w-5 flex-shrink-0 text-green-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <div class="min-w-0 flex-1">
-                    <div class="flex items-center gap-2">
-                        <span class="font-medium text-gray-900 dark:text-gray-100 text-sm">{{ sub.name }}</span>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {% for sub in showcase_subs | sort(attribute='phase_id') %}
+        {% set has_url = sub.submitted_value and sub.submitted_value.startswith('http') %}
+        {% set display_url = sub.submitted_value | replace('https://github.com/', '') | replace('https://', '') %}
+        {% if has_url %}
+        <a href="{{ sub.submitted_value }}" target="_blank" rel="noopener"
+           class="group flex flex-col gap-3 p-4 rounded-xl border-l-4 {{ phase_colors.get(sub.phase_id, 'border-gray-300 dark:border-gray-600') }} border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800/50 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+        {% else %}
+        <div class="flex flex-col gap-3 p-4 rounded-xl border-l-4 {{ phase_colors.get(sub.phase_id, 'border-gray-300 dark:border-gray-600') }} border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800/50">
+        {% endif %}
+            <div class="flex items-start justify-between gap-2">
+                <div class="min-w-0">
+                    <div class="flex items-center gap-2 mb-1">
+                        <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium {{ phase_badge_colors.get(sub.phase_id, 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300') }}">Phase {{ sub.phase_id }}</span>
                     </div>
-                    {% if sub.submitted_value %}
-                    <div class="mt-0.5">
-                        {% if sub.submission_type in url_types and sub.submitted_value.startswith('http') %}
-                        <a href="{{ sub.submitted_value }}" target="_blank" rel="noopener" class="text-xs text-blue-600 dark:text-blue-400 hover:underline truncate block">{{ sub.submitted_value | replace('https://github.com/', '') | replace('https://', '') }}</a>
-                        {% elif sub.submission_type in token_types %}
-                        <span class="text-xs text-gray-400 dark:text-gray-500 italic">Token verified</span>
-                        {% else %}
-                        <span class="text-xs text-gray-500 dark:text-gray-400 truncate block">{{ sub.submitted_value }}</span>
-                        {% endif %}
-                    </div>
+                    <h3 class="font-semibold text-gray-900 dark:text-gray-100 text-sm leading-snug">{{ sub.name }}</h3>
+                    {% if sub.description %}
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">{{ sub.description }}</p>
                     {% endif %}
                 </div>
-                {% if sub.validated_at %}
-                <span class="text-xs text-gray-400 dark:text-gray-500 flex-shrink-0 whitespace-nowrap">{{ sub.validated_at.strftime('%b %d, %Y') }}</span>
+                {% if has_url %}
+                <svg class="h-4 w-4 shrink-0 mt-1 text-gray-400 dark:text-gray-500 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+                </svg>
                 {% endif %}
             </div>
-            {% endfor %}
+            {% if has_url %}
+            <div class="flex items-center gap-1.5 mt-auto">
+                {# GitHub icon for github.com links, globe for others #}
+                {% if 'github.com' in sub.submitted_value %}
+                <svg class="h-3.5 w-3.5 shrink-0 text-gray-400 dark:text-gray-500" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                    <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
+                </svg>
+                {% else %}
+                <svg class="h-3.5 w-3.5 shrink-0 text-gray-400 dark:text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5a17.92 17.92 0 01-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418" />
+                </svg>
+                {% endif %}
+                <span class="text-xs text-gray-500 dark:text-gray-400 truncate">{{ display_url }}</span>
+            </div>
+            {% endif %}
+            {% if sub.validated_at %}
+            <span class="text-[11px] text-gray-400 dark:text-gray-500 mt-auto">{{ sub.validated_at.strftime('%b %Y') }}</span>
+            {% endif %}
+        {% if has_url %}
+        </a>
+        {% else %}
         </div>
+        {% endif %}
+        {% endfor %}
     </div>
-    {% endfor %}
     {% else %}
     <p class="text-sm text-gray-400 dark:text-gray-500">No projects yet</p>
     {% endif %}

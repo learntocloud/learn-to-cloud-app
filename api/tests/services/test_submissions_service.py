@@ -24,6 +24,7 @@ from services.submissions_service import (
     CooldownActiveError,
     DailyLimitExceededError,
     GitHubUsernameRequiredError,
+    PriorPhaseNotCompleteError,
     RequirementNotFoundError,
     _get_submission_lock,
     submit_validation,
@@ -32,9 +33,20 @@ from services.submissions_service import (
 
 @pytest.fixture(autouse=True)
 def _mock_phase_id_mapping():
-    """Mock requirement → phase mapping for all tests in this module."""
-    with patch(
-        "services.submissions_service.get_phase_id_for_requirement", return_value=3
+    """Mock requirement → phase mapping and prerequisite functions for all tests."""
+    with (
+        patch(
+            "services.submissions_service.get_phase_id_for_requirement",
+            return_value=3,
+        ),
+        patch(
+            "services.submissions_service.get_prerequisite_phase",
+            return_value=None,
+        ),
+        patch(
+            "services.submissions_service.get_requirement_ids_for_phase",
+            return_value=[],
+        ),
     ):
         yield
 
@@ -892,3 +904,130 @@ class TestDailySubmissionCap:
             )
 
             assert result.is_valid is True
+
+
+@pytest.mark.unit
+class TestSequentialPhaseGating:
+    """Tests for sequential phase verification gating."""
+
+    @pytest.mark.asyncio
+    async def test_submission_blocked_when_prior_phase_incomplete(self):
+        """Submission should raise PriorPhaseNotCompleteError
+        when prerequisite phase is incomplete."""
+        mock_session_maker = _mock_session_maker()
+        mock_requirement = _make_mock_requirement(
+            submission_type=SubmissionType.DEPLOYED_API,
+        )
+
+        with (
+            patch(
+                "services.submissions_service.get_requirement_by_id",
+                return_value=mock_requirement,
+            ),
+            patch(
+                "services.submissions_service.get_phase_id_for_requirement",
+                return_value=4,
+            ),
+            patch(
+                "services.submissions_service.get_prerequisite_phase",
+                return_value=3,
+            ),
+            patch(
+                "services.submissions_service.get_requirement_ids_for_phase",
+                return_value=["journal-pr-logging", "journal-pr-get-entry"],
+            ),
+            patch(
+                "services.submissions_service.SubmissionRepository"
+            ) as mock_repo_class,
+        ):
+            mock_repo = MagicMock()
+            mock_repo.get_by_user_and_requirement = AsyncMock(return_value=None)
+            mock_repo.count_submissions_today = AsyncMock(return_value=0)
+            mock_repo.are_all_requirements_validated = AsyncMock(return_value=False)
+            mock_repo_class.return_value = mock_repo
+
+            with pytest.raises(PriorPhaseNotCompleteError) as exc_info:
+                await submit_validation(
+                    session_maker=mock_session_maker,
+                    user_id=123,
+                    requirement_id="deployed-journal-api",
+                    submitted_value="https://api.example.com",
+                    github_username="user",
+                )
+
+            assert exc_info.value.prerequisite_phase == 3
+            assert "Phase 3" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_submission_allowed_when_prior_phase_complete(self):
+        """Submission should proceed when prerequisite phase is fully verified."""
+        mock_session_maker = _mock_session_maker()
+        mock_requirement = _make_mock_requirement(
+            submission_type=SubmissionType.DEPLOYED_API,
+        )
+
+        with (
+            patch(
+                "services.submissions_service.get_requirement_by_id",
+                return_value=mock_requirement,
+            ),
+            patch(
+                "services.submissions_service.get_phase_id_for_requirement",
+                return_value=4,
+            ),
+            patch(
+                "services.submissions_service.get_prerequisite_phase",
+                return_value=3,
+            ),
+            patch(
+                "services.submissions_service.get_requirement_ids_for_phase",
+                return_value=["journal-pr-logging"],
+            ),
+            patch(
+                "services.submissions_service.SubmissionRepository"
+            ) as mock_repo_class,
+            patch(
+                "services.submissions_service.validate_submission",
+                new_callable=AsyncMock,
+            ) as mock_validate,
+        ):
+            mock_repo = MagicMock()
+            mock_repo.get_by_user_and_requirement = AsyncMock(return_value=None)
+            mock_repo.count_submissions_today = AsyncMock(return_value=0)
+            mock_repo.get_last_submission_time = AsyncMock(return_value=None)
+            mock_repo.are_all_requirements_validated = AsyncMock(return_value=True)
+            mock_repo.create = AsyncMock(
+                return_value=MagicMock(
+                    id=1,
+                    requirement_id="deployed-journal-api",
+                    submission_type=SubmissionType.DEPLOYED_API,
+                    phase_id=4,
+                    submitted_value="https://api.example.com",
+                    extracted_username=None,
+                    is_validated=True,
+                    validated_at=datetime.now(UTC),
+                    verification_completed=True,
+                    created_at=datetime.now(UTC),
+                    feedback_json=None,
+                    validation_message=None,
+                    cloud_provider=None,
+                    updated_at=datetime.now(UTC),
+                )
+            )
+            mock_repo_class.return_value = mock_repo
+
+            mock_validate.return_value = ValidationResult(
+                is_valid=True,
+                message="Deployed API verified!",
+            )
+
+            result = await submit_validation(
+                session_maker=mock_session_maker,
+                user_id=123,
+                requirement_id="deployed-journal-api",
+                submitted_value="https://api.example.com",
+                github_username="user",
+            )
+
+            assert result.is_valid is True
+            mock_validate.assert_called_once()

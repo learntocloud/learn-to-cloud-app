@@ -191,6 +191,27 @@ class SubmissionRepository:
         row = result.scalar_one_or_none()
         return row
 
+    async def are_all_requirements_validated(
+        self, user_id: int, requirement_ids: list[str]
+    ) -> bool:
+        """Check if the user has validated ALL of the given requirements.
+
+        Used for sequential phase gating — ensures prior phase verification
+        is fully complete before allowing the next phase's submissions.
+        """
+        if not requirement_ids:
+            return True
+
+        result = await self.db.execute(
+            select(func.count(func.distinct(Submission.requirement_id))).where(
+                Submission.user_id == user_id,
+                Submission.requirement_id.in_(requirement_ids),
+                Submission.is_validated.is_(True),
+            )
+        )
+        validated_count = result.scalar_one() or 0
+        return validated_count >= len(requirement_ids)
+
     async def count_submissions_today(self, user_id: int) -> int:
         """Count completed verification attempts by this user in the last 24 hours.
 
