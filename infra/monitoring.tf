@@ -582,6 +582,24 @@ resource "azurerm_portal_dashboard" "main" {
                   name       = "IsQueryContainTimeRange"
                   value      = false
                   isOptional = true
+                },
+                {
+                  name = "Dimensions"
+                  value = {
+                    xAxis = { name = "timestamp", type = "datetime" }
+                    yAxis = [
+                      { name = "P50", type = "real" },
+                      { name = "P95", type = "real" },
+                      { name = "P99", type = "real" }
+                    ]
+                    splitBy     = []
+                    aggregation = "Sum"
+                  }
+                  isOptional = true
+                },
+                {
+                  name       = "LegendOptions"
+                  isOptional = true
                 }
               ]
               settings = {}
@@ -681,6 +699,23 @@ resource "azurerm_portal_dashboard" "main" {
                 {
                   name       = "IsQueryContainTimeRange"
                   value      = true
+                  isOptional = true
+                },
+                {
+                  name = "Dimensions"
+                  value = {
+                    xAxis = { name = "timestamp", type = "datetime" }
+                    yAxis = [
+                      { name = "UniqueUsers", type = "long" },
+                      { name = "Requests", type = "long" }
+                    ]
+                    splitBy     = []
+                    aggregation = "Sum"
+                  }
+                  isOptional = true
+                },
+                {
+                  name       = "LegendOptions"
                   isOptional = true
                 }
               ]
