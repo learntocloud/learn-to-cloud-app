@@ -31,13 +31,22 @@ class AnalyticsRepository:
         return result.scalar_one() or 0
 
     async def get_active_learners(self, days: int = 30) -> int:
-        """Count users with at least one step completion in the last N days."""
+        """Count users with any learning activity in the last N days.
+
+        Includes users who completed reading steps OR submitted
+        verification attempts — not just step_progress alone.
+        """
         cutoff = datetime.now(UTC) - timedelta(days=days)
-        result = await self.db.execute(
-            select(func.count(func.distinct(StepProgress.user_id))).where(
-                StepProgress.completed_at >= cutoff,
-            )
+
+        step_users = select(StepProgress.user_id).where(
+            StepProgress.completed_at >= cutoff,
         )
+        submission_users = select(Submission.user_id).where(
+            Submission.created_at >= cutoff,
+        )
+        combined = step_users.union(submission_users).subquery()
+
+        result = await self.db.execute(select(func.count()).select_from(combined))
         return result.scalar_one() or 0
 
     async def get_step_completion_histogram(
