@@ -11,7 +11,7 @@ from fastapi import Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from slowapi.errors import RateLimitExceeded
@@ -264,6 +264,45 @@ app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
 app.add_exception_handler(RequestValidationError, validation_exception_handler)
 app.add_exception_handler(Exception, global_exception_handler)
+
+
+_legacy_phase_path_re = re.compile(r"^/phase(?P<phase_id>\d+)(?P<rest>/.*)?$")
+_legacy_topic_redirects: dict[str, str] = {
+    # Phase 1's CTF topic slug is "ctf-lab" (not "ctf").
+    "/phase1/ctf": "/phase/1/ctf-lab",
+    "/phase1/ctf/": "/phase/1/ctf-lab/",
+}
+
+
+@app.middleware("http")
+async def legacy_phase_url_redirects(request: Request, call_next):
+    """Redirect legacy /phaseN URLs to canonical /phase/N URLs (permanent)."""
+    path = request.url.path
+    query = request.url.query
+
+    target_path = _legacy_topic_redirects.get(path)
+    if target_path is None:
+        match = _legacy_phase_path_re.match(path)
+        if match and not path.startswith("/phase/"):
+            phase_id = match.group("phase_id")
+            rest = match.group("rest") or ""
+            target_path = f"/phase/{phase_id}{rest}"
+
+    if target_path is not None and target_path != path:
+        target_url = target_path if not query else f"{target_path}?{query}"
+        logger.info(
+            "legacy_url.redirect",
+            extra={
+                "from_path": path,
+                "to_path": target_path,
+                "query": query,
+                "status_code": 308,
+            },
+        )
+        return RedirectResponse(url=target_url, status_code=308)
+
+    return await call_next(request)
+
 
 app.add_middleware(UserTrackingMiddleware)
 app.add_middleware(
