@@ -9,7 +9,6 @@ Tests the challenge-response API ownership verification:
 - Circuit breaker behavior
 """
 
-import asyncio
 import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -752,6 +751,9 @@ class TestIsPrivateIp:
     def test_invalid_string(self):
         assert _is_private_ip("not-an-ip") is True
 
+    def test_cgnat_range(self):
+        assert _is_private_ip("100.64.0.1") is True
+
 
 @pytest.mark.unit
 class TestValidateUrlTarget:
@@ -791,13 +793,9 @@ class TestValidateUrlTarget:
         with patch(
             "services.deployed_api_verification_service.asyncio.get_running_loop"
         ) as mock_loop:
-            fut = asyncio.get_event_loop().create_future()
-            fut.set_result(
-                [
-                    (2, 1, 6, "", ("127.0.0.1", 443)),
-                ]
+            mock_loop.return_value.getaddrinfo = AsyncMock(
+                return_value=[(2, 1, 6, "", ("127.0.0.1", 443))]
             )
-            mock_loop.return_value.getaddrinfo = MagicMock(return_value=fut)
             result = await _validate_url_target("https://evil.example.com/entries")
             assert result is not None
             assert "publicly accessible" in result
@@ -808,13 +806,9 @@ class TestValidateUrlTarget:
         with patch(
             "services.deployed_api_verification_service.asyncio.get_running_loop"
         ) as mock_loop:
-            fut = asyncio.get_event_loop().create_future()
-            fut.set_result(
-                [
-                    (2, 1, 6, "", ("20.50.2.100", 443)),
-                ]
+            mock_loop.return_value.getaddrinfo = AsyncMock(
+                return_value=[(2, 1, 6, "", ("20.50.2.100", 443))]
             )
-            mock_loop.return_value.getaddrinfo = MagicMock(return_value=fut)
             result = await _validate_url_target("https://myapi.azurewebsites.net")
             assert result is None
 
@@ -826,9 +820,9 @@ class TestValidateUrlTarget:
         with patch(
             "services.deployed_api_verification_service.asyncio.get_running_loop"
         ) as mock_loop:
-            fut = asyncio.get_event_loop().create_future()
-            fut.set_exception(_socket.gaierror("Name resolution failed"))
-            mock_loop.return_value.getaddrinfo = MagicMock(return_value=fut)
+            mock_loop.return_value.getaddrinfo = AsyncMock(
+                side_effect=_socket.gaierror("Name resolution failed")
+            )
             result = await _validate_url_target("https://nonexistent.invalid/entries")
             assert result is not None
             assert "could not resolve" in result.lower()
@@ -863,6 +857,13 @@ class TestSsrfIntegration:
     async def test_rejects_localhost(self):
         """validate_deployed_api should reject localhost URLs."""
         result = await validate_deployed_api("https://127.0.0.1")
+        assert result.is_valid is False
+        assert "publicly accessible" in result.message
+
+    @pytest.mark.asyncio
+    async def test_rejects_cgnat_ip(self):
+        """validate_deployed_api should reject CGNAT (100.64.0.0/10) URLs."""
+        result = await validate_deployed_api("https://100.64.0.1")
         assert result.is_valid is False
         assert "publicly accessible" in result.message
 

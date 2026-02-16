@@ -116,19 +116,15 @@ def _is_valid_url(value: str) -> bool:
 
 
 def _is_private_ip(addr: str) -> bool:
-    """Check if an IP address is private, loopback, link-local, or non-routable."""
+    """Check if an IP address is private or otherwise non-globally-routable."""
     try:
         ip = ipaddress.ip_address(addr)
     except ValueError:
         return True  # Unparseable — treat as unsafe
-    return (
-        ip.is_private
-        or ip.is_loopback
-        or ip.is_link_local
-        or ip.is_multicast
-        or ip.is_reserved
-        or ip.is_unspecified
-    )
+    # is_global covers private, loopback, link-local, reserved, unspecified,
+    # CGNAT (100.64.0.0/10), and documentation ranges. Multicast addresses
+    # incorrectly report is_global=True in Python 3.13, so we guard explicitly.
+    return not ip.is_global or ip.is_multicast
 
 
 async def _validate_url_target(url: str) -> str | None:
@@ -408,8 +404,12 @@ async def _cleanup_challenge_entry(
     """Best-effort DELETE of the challenge entry. Failures are logged, not raised."""
     try:
         delete_url = f"{entries_url}/{entry_id}"
-        client = await _get_client()
-        await client.delete(delete_url, timeout=httpx.Timeout(10.0, connect=5.0))
+        await _fetch_with_retry(delete_url, method="DELETE")
+    except _SsrfError:
+        logger.warning(
+            "deployed_api.ssrf_blocked",
+            extra={"entry_id": entry_id, "reason": "cleanup_dns_rebinding"},
+        )
     except Exception:
         logger.debug(
             "deployed_api.challenge_cleanup_failed",
