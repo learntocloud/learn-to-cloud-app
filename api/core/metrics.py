@@ -49,23 +49,3 @@ VERIFICATION_DURATION = _meter.create_histogram(
     description="Time taken to complete a verification attempt",
     unit="s",
 )
-
-# ── Certificate metrics ───────────────────────────────────────────────
-
-CERTIFICATE_CREATED_COUNTER = _meter.create_counter(
-    name="certificate.created",
-    description="Certificates successfully issued",
-    unit="{certificate}",
-)
-
-CERTIFICATE_CREATION_FAILED_COUNTER = _meter.create_counter(
-    name="certificate.creation_failed",
-    description="Certificate creation attempts that were rejected",
-    unit="{attempt}",
-)
-
-CERTIFICATE_VERIFIED_COUNTER = _meter.create_counter(
-    name="certificate.verified",
-    description="Certificate verification lookups",
-    unit="{lookup}",
-)

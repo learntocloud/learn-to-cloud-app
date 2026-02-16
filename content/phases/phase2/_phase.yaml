@@ -6,10 +6,6 @@ description: Welcome to Phase 2! This phase covers the core networking concepts 
   learn to troubleshoot connectivity issues and build a mental model of how data flows across networks.
 short_description: 'Learn core networking: IP/subnetting, routing, DNS, HTTP, ports, and troubleshooting. Build the foundation
   for cloud networking.'
-badge:
-  name: Network Navigator
-  description: Completed Phase 2
-  icon: 🌐
 order: 2
 hands_on_verification:
   requirements:

@@ -5,10 +5,6 @@ description: This phase covers DevOps fundamentals - the practices and tools tha
   and more reliably. You'll learn containerization, CI/CD pipelines, Infrastructure as Code, and monitoring.
 short_description: Master Docker containers, Kubernetes orchestration, CI/CD pipelines, Terraform IaC, and monitoring with
   Prometheus and Grafana.
-badge:
-  name: DevOps Rocketeer
-  description: Completed Phase 5
-  icon: 🚀
 order: 5
 topics:
 - containers

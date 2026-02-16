@@ -6,7 +6,7 @@ A **Phase is Complete** when ALL requirements are met:
 1. ✅ All **Learning Steps** completed
 2. ✅ All **Hands-on Requirements** validated
 
-This drives: badges, profile stats, and certificates.
+This drives: profile stats and dashboard progress.
 
 ## Content Access
 
@@ -20,7 +20,7 @@ All phases, topics, and steps are **fully unlocked** - users can access any cont
 
 ## Badge Tiers
 
-Phase 0→6: Explorer (Bronze) → Practitioner (Silver) → Builder (Blue) → Specialist (Purple) → Architect (Gold) → Master (Red) → Legend (Rainbow)
+(Badges have been removed from the platform.)
 
 ## Key Files
 
@@ -28,8 +28,6 @@ Phase 0→6: Explorer (Bronze) → Practitioner (Silver) → Builder (Blue) → 
 |---------|------|
 | Progress | `services/progress_service.py` |
 | Hands-on | `services/phase_requirements_service.py` |
-| Badges | `services/badges_service.py` |
-| Certificates | `services/certificates_service.py` |
 
 ## Important
 

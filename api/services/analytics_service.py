@@ -121,12 +121,10 @@ def _empty_analytics() -> CommunityAnalytics:
     """Return zeroed-out analytics for when no snapshot exists yet."""
     return CommunityAnalytics(
         total_users=0,
-        total_certificates=0,
         active_learners_30d=0,
         completion_rate=0.0,
         phase_distribution=[],
         signup_trends=[],
-        certificate_trends=[],
         verification_stats=[],
         activity_by_day=[],
         generated_at=datetime.now(UTC),
@@ -143,11 +141,9 @@ async def _compute_analytics(db: AsyncSession) -> CommunityAnalytics:
 
     # Sequential queries — same session/connection, cannot run concurrently
     total_users = await repo.get_total_users()
-    total_certificates = await repo.get_total_certificates()
     active_30d = await repo.get_active_learners(days=30)
     histogram = await repo.get_step_completion_histogram()
     signup_raw = await repo.get_signups_by_month()
-    cert_raw = await repo.get_certificates_by_month()
     submission_stats = await repo.get_submission_stats_by_phase()
     activity_dow = await repo.get_activity_by_day_of_week()
     provider_raw = await repo.get_provider_distribution()
@@ -176,7 +172,6 @@ async def _compute_analytics(db: AsyncSession) -> CommunityAnalytics:
         )
 
     signup_trends = _build_cumulative_trends(signup_raw)
-    certificate_trends = _build_cumulative_trends(cert_raw)
 
     verification_stats: list[VerificationStat] = []
     phase_name_map = {p.id: p.name for p in phases}
@@ -207,18 +202,14 @@ async def _compute_analytics(db: AsyncSession) -> CommunityAnalytics:
         for provider, count in provider_raw
     ]
 
-    completion_rate = (
-        round(total_certificates / total_users * 100, 1) if total_users > 0 else 0.0
-    )
+    completion_rate = 0.0
 
     return CommunityAnalytics(
         total_users=total_users,
-        total_certificates=total_certificates,
         active_learners_30d=active_30d,
         completion_rate=completion_rate,
         phase_distribution=phase_distribution,
         signup_trends=signup_trends,
-        certificate_trends=certificate_trends,
         verification_stats=verification_stats,
         activity_by_day=activity_by_day,
         provider_distribution=provider_distribution,
@@ -252,7 +243,6 @@ async def refresh_analytics(
         "analytics.refreshed",
         extra={
             "total_users": result.total_users,
-            "total_certificates": result.total_certificates,
             "active_30d": result.active_learners_30d,
         },
     )

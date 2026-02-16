@@ -41,7 +41,6 @@ async def count_users():
                     (SELECT COUNT(*) FROM users WHERE github_username IS NOT NULL) as users_with_github,
                     (SELECT COUNT(DISTINCT user_id) FROM submissions) as users_with_submissions,
                     (SELECT COUNT(*) FROM submissions) as total_submissions,
-                    (SELECT COUNT(*) FROM certificates) as total_certificates,
                     (SELECT COUNT(*) FROM step_progress) as total_steps_completed
             """)
             result = await conn.execute(query)
@@ -51,8 +50,7 @@ async def count_users():
             print(f"Users with GitHub: {row[1]}")
             print(f"Users with submissions: {row[2]}")
             print(f"Total submissions: {row[3]}")
-            print(f"Total certificates: {row[4]}")
-            print(f"Total steps completed: {row[5]}")
+            print(f"Total steps completed: {row[4]}")
     finally:
         await engine.dispose()
 

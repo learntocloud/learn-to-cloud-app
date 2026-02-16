@@ -15,18 +15,12 @@ from typing import TYPE_CHECKING
 from cachetools import TTLCache
 
 if TYPE_CHECKING:
-    from schemas import BadgeData
     from services.progress_service import UserProgress
 
 DEFAULT_TTL_SECONDS = 60
 DEFAULT_MAX_SIZE = 1000
 
 _progress_cache: TTLCache[int, "UserProgress"] = TTLCache(
-    maxsize=DEFAULT_MAX_SIZE,
-    ttl=DEFAULT_TTL_SECONDS,
-)
-
-_badge_cache: TTLCache[tuple[int, int], list["BadgeData"]] = TTLCache(
     maxsize=DEFAULT_MAX_SIZE,
     ttl=DEFAULT_TTL_SECONDS,
 )
@@ -82,17 +76,3 @@ def invalidate_progress_cache(user_id: int) -> None:
     phase_detail_keys = [k for k in _phase_detail_cache.keys() if k[0] == user_id]
     for key in phase_detail_keys:
         _phase_detail_cache.pop(key, None)
-    keys_to_remove = [k for k in _badge_cache.keys() if k[0] == user_id]
-    for key in keys_to_remove:
-        _badge_cache.pop(key, None)
-
-
-def get_cached_badges(user_id: int, progress_hash: int) -> "list[BadgeData] | None":
-    """progress_hash ensures cache invalidation when completion data changes."""
-    return _badge_cache.get((user_id, progress_hash))
-
-
-def set_cached_badges(
-    user_id: int, progress_hash: int, badges: "list[BadgeData]"
-) -> None:
-    _badge_cache[(user_id, progress_hash)] = badges

@@ -11,7 +11,7 @@ from sqlalchemy import Integer, func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from models import AnalyticsSnapshot, Certificate, StepProgress, Submission, User
+from models import AnalyticsSnapshot, StepProgress, Submission, User
 
 
 class AnalyticsRepository:
@@ -23,11 +23,6 @@ class AnalyticsRepository:
     async def get_total_users(self) -> int:
         """Count total registered users."""
         result = await self.db.execute(select(func.count()).select_from(User))
-        return result.scalar_one() or 0
-
-    async def get_total_certificates(self) -> int:
-        """Count total certificates issued (program completions)."""
-        result = await self.db.execute(select(func.count()).select_from(Certificate))
         return result.scalar_one() or 0
 
     async def get_active_learners(self, days: int = 30) -> int:
@@ -89,24 +84,6 @@ class AnalyticsRepository:
             select(
                 func.to_char(
                     func.date_trunc("month", User.created_at), "YYYY-MM"
-                ).label("month"),
-                func.count().label("cnt"),
-            )
-            .group_by("month")
-            .order_by("month")
-        )
-        return [(row[0], row[1]) for row in result.all()]
-
-    async def get_certificates_by_month(self) -> list[tuple[str, int]]:
-        """Count certificates issued aggregated by month.
-
-        Returns:
-            List of (month_str, count) ordered chronologically.
-        """
-        result = await self.db.execute(
-            select(
-                func.to_char(
-                    func.date_trunc("month", Certificate.issued_at), "YYYY-MM"
                 ).label("month"),
                 func.count().label("cnt"),
             )

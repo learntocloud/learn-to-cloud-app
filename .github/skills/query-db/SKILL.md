@@ -35,8 +35,7 @@ GROUP BY github_username HAVING COUNT(*) > 1;
 -- User progress summary
 SELECT u.github_username,
   (SELECT COUNT(*) FROM submissions WHERE user_id = u.id) as submissions,
-  (SELECT COUNT(*) FROM step_progress WHERE user_id = u.id) as steps,
-  (SELECT COUNT(*) FROM certificates WHERE user_id = u.id) as certificates
+  (SELECT COUNT(*) FROM step_progress WHERE user_id = u.id) as steps
 FROM users u WHERE u.github_username = 'USERNAME';
 
 -- User's submissions by phase
@@ -48,10 +47,6 @@ SELECT s.phase_id, s.requirement_id, s.is_validated, s.created_at, u.github_user
 FROM submissions s JOIN users u ON s.user_id = u.id
 ORDER BY s.created_at DESC LIMIT 20;
 
--- User's certificates
-SELECT verification_code, recipient_name, issued_at, phases_completed
-FROM certificates WHERE user_id = 'USER_ID';
-
 -- User's step progress
 SELECT topic_id, phase_id, step_order, completed_at
 FROM step_progress WHERE user_id = 'USER_ID' ORDER BY phase_id, step_order;
@@ -59,4 +54,4 @@ FROM step_progress WHERE user_id = 'USER_ID' ORDER BY phase_id, step_order;
 
 ## Tables
 
-`users` · `submissions` · `step_progress` · `certificates`
+`users` · `submissions` · `step_progress`

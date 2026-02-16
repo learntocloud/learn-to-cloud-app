@@ -129,6 +129,7 @@ async def test_engine() -> AsyncGenerator[AsyncEngine]:
         await conn.execute(text("DROP TABLE IF EXISTS question_attempts CASCADE"))
         await conn.execute(text("DROP TABLE IF EXISTS user_scenarios CASCADE"))
         await conn.execute(text("DROP TABLE IF EXISTS user_activities CASCADE"))
+        await conn.execute(text("DROP TABLE IF EXISTS certificates CASCADE"))
         await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
 

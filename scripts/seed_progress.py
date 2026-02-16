@@ -1,4 +1,4 @@
-"""Seed all progress data for a user so they can test certificate generation.
+"""Seed all progress data for a user so they can test full completion.
 
 Reads topic IDs and step counts directly from the content YAML files to ensure
 the seeded data matches exactly what the app expects.
@@ -187,7 +187,7 @@ async def main(github_username: str) -> None:
         print(f"Updated user_phase_progress for {len(phase_topics)} phases")
 
         print(
-            "\nDone! All progress seeded. You should now be eligible for a certificate."
+            "\nDone! All progress seeded. You should now show as fully complete."
         )
 
     finally:

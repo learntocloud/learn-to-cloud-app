@@ -14,12 +14,6 @@ from core.auth import UserId
 from core.database import DbSession, DbSessionReadOnly
 from core.ratelimit import limiter
 from rendering.steps import build_step_data
-from services.certificates_service import (
-    CertificateAlreadyExistsError,
-    InvalidRecipientNameError,
-    NotEligibleError,
-    create_certificate,
-)
 from services.content_service import get_topic_by_id
 from services.hands_on_verification_service import get_requirement_by_id
 from services.steps_service import (
@@ -346,47 +340,6 @@ async def htmx_submit_verification(
         response.headers["HX-Refresh"] = "true"
 
     return response
-
-
-@router.post("/certificates", response_class=HTMLResponse)
-@limiter.limit("5/minute")
-async def htmx_create_certificate(
-    request: Request,
-    db: DbSession,
-    user_id: UserId,
-    recipient_name: str = Form(""),
-) -> HTMLResponse:
-    """Create a certificate and return the certificate card HTML."""
-    try:
-        certificate = await create_certificate(
-            db=db,
-            user_id=user_id,
-            recipient_name=recipient_name,
-        )
-    except CertificateAlreadyExistsError:
-        return HTMLResponse(
-            '<div class="text-amber-600 dark:text-amber-400 text-sm p-2">'
-            "You already have a certificate.</div>",
-            status_code=200,
-        )
-    except InvalidRecipientNameError as e:
-        return HTMLResponse(
-            f'<div class="text-red-600 dark:text-red-400 text-sm p-2">{e}</div>',
-            status_code=200,
-        )
-    except NotEligibleError as e:
-        return HTMLResponse(
-            f'<div class="text-red-600 dark:text-red-400 text-sm p-2">{e}</div>',
-            status_code=200,
-        )
-
-    return request.app.state.templates.TemplateResponse(
-        "partials/certificate_card.html",
-        {
-            "request": request,
-            "certificate": certificate.certificate,
-        },
-    )
 
 
 @router.delete("/account", response_class=HTMLResponse)

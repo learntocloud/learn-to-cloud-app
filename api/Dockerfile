@@ -35,10 +35,10 @@ FROM python:3.13-slim AS runtime
 
 WORKDIR /app
 
-# Install Cairo library for PDF generation (required by cairosvg) and tini for proper signal handling
+# Install tini for proper signal handling
 RUN apt-get update && \
     apt-get -y upgrade && \
-    apt-get install -y --no-install-recommends libcairo2 tini && \
+    apt-get install -y --no-install-recommends tini && \
     rm -rf /var/lib/apt/lists/*
 
 # Create non-root user
@@ -51,7 +51,7 @@ COPY --from=builder /app/.venv /app/.venv
 ENV PATH="/app/.venv/bin:$PATH"
 ENV VIRTUAL_ENV="/app/.venv"
 
-# Enable Python fault handler for C crash debugging (useful for cairosvg/Cairo)
+# Enable Python fault handler for debugging
 ENV PYTHONFAULTHANDLER=1
 
 # Set content directory for Docker

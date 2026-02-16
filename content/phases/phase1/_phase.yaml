@@ -6,10 +6,6 @@ description: Phase 1 gets you hands-on immediately with Linux and Bash through a
   and practicing the tools you’ll use throughout the rest of the curriculum.
 short_description: Build practical Linux and Bash skills with Git, cloud CLI, SSH, and Infrastructure as Code fundamentals
   through hands-on CTF lab work.
-badge:
-  name: Terminal Ninja
-  description: Completed Phase 1
-  icon: 🐧
 order: 1
 hands_on_verification:
   requirements:

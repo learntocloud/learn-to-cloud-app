@@ -5,10 +5,6 @@ description: Welcome to Phase 3! This phase is all about programming with Python
   is a fundamental skill for cloud engineering, enabling you to create, manage, and optimize cloud resources efficiently.
   You'll build a working API with database integration—the foundation for everything that follows.
 short_description: Learn Python programming, FastAPI, and databases. Build a real-world Journal API project.
-badge:
-  name: Code Crafter
-  description: Completed Phase 3
-  icon: 🐍
 order: 3
 hands_on_verification:
   requirements:

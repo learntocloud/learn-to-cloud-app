@@ -5,7 +5,7 @@ This module provides a single source of truth for:
 - User progress calculation
 - Phase completion status
 
-All progress-related logic (certificates, dashboard, badges) should use this module
+All progress-related logic (dashboard, badges) should use this module
 to ensure consistency across the application.
 
 CACHING:

@@ -82,7 +82,7 @@ class TestDeleteUserAccount:
 class TestDeleteUserAccountIntegration:
     """Integration tests for account deletion.
 
-    Cascade behavior (submissions, step_progress, certificates) is enforced
+    Cascade behavior (submissions, step_progress) is enforced
     by SQLAlchemy model definitions (cascade="all, delete-orphan") and
     PostgreSQL ON DELETE CASCADE foreign keys.
     """

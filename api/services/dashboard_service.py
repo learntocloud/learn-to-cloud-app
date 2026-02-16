@@ -1,6 +1,6 @@
 """Dashboard service.
 
-Provides phase listing with user progress, badges, and summary stats
+Provides phase listing with user progress and summary stats
 for the dashboard page.
 
 Source of truth: .github/skills/progression-system/progression-system.md
@@ -17,11 +17,9 @@ from schemas import (
     PhaseProgressData,
     PhaseSummaryData,
 )
-from services.badges_service import compute_all_badges
 from services.content_service import get_all_phases
 from services.progress_service import (
     fetch_user_progress,
-    get_phase_completion_counts,
     phase_progress_to_data,
 )
 
@@ -92,15 +90,11 @@ async def get_dashboard_data(
                 order=current.order,
             )
 
-    completion_counts = get_phase_completion_counts(user_progress)
-    earned_badges = compute_all_badges(completion_counts, user_id=user_id)
-
     logger.info(
         "dashboard.built",
         extra={
             "user_id": user_id,
             "phases_completed": user_progress.phases_completed,
-            "badges_earned": len(earned_badges),
         },
     )
 
@@ -111,5 +105,4 @@ async def get_dashboard_data(
         total_phases=user_progress.total_phases,
         is_program_complete=user_progress.is_program_complete,
         continue_phase=continue_phase,
-        earned_badges=earned_badges,
     )

@@ -43,12 +43,10 @@ async def status_page(
         logger.exception("status_page.analytics_failed")
         analytics = CommunityAnalytics(
             total_users=0,
-            total_certificates=0,
             active_learners_30d=0,
             completion_rate=0.0,
             phase_distribution=[],
             signup_trends=[],
-            certificate_trends=[],
             verification_stats=[],
             activity_by_day=[],
             generated_at=datetime.now(UTC),

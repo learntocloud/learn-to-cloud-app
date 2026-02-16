@@ -8,16 +8,9 @@ from fastapi import HTTPException
 
 from routes.users_routes import (
     delete_current_user,
-    get_badge_catalog_endpoint,
     get_current_user,
-    get_public_profile_endpoint,
 )
-from schemas import (
-    BadgeCatalogItem,
-    BadgeCatalogResponse,
-    PublicProfileData,
-    UserResponse,
-)
+from schemas import UserResponse
 from services.users_service import UserNotFoundError
 
 
@@ -54,86 +47,6 @@ class TestGetCurrentUser:
         mock_service.assert_awaited_once_with(mock_db, 1)
         assert result.id == 1
         assert result.github_username == "testuser"
-
-
-@pytest.mark.unit
-class TestGetPublicProfile:
-    """Tests for GET /api/user/profile/{username}."""
-
-    async def test_returns_profile(self):
-        """Returns PublicProfileData when user exists."""
-        mock_db = AsyncMock()
-        mock_request = MagicMock()
-        profile = PublicProfileData(
-            username="testuser",
-            first_name="Test",
-            avatar_url=None,
-            current_phase=1,
-            phases_completed=0,
-            total_phases=7,
-            submissions=[],
-            badges=[],
-        )
-
-        with patch(
-            "routes.users_routes.get_public_profile",
-            autospec=True,
-            return_value=profile,
-        ) as mock_service:
-            result = await get_public_profile_endpoint(
-                mock_request, username="testuser", db=mock_db, user_id=None
-            )
-
-        mock_service.assert_awaited_once_with(mock_db, "testuser", None)
-        assert result.username == "testuser"
-
-    async def test_returns_404_when_not_found(self):
-        """Returns 404 when profile is None."""
-        mock_db = AsyncMock()
-        mock_request = MagicMock()
-
-        with patch(
-            "routes.users_routes.get_public_profile",
-            autospec=True,
-            return_value=None,
-        ):
-            with pytest.raises(HTTPException) as exc_info:
-                await get_public_profile_endpoint(
-                    mock_request, username="nobody", db=mock_db, user_id=None
-                )
-
-        assert exc_info.value.status_code == 404
-
-
-@pytest.mark.unit
-class TestGetBadgeCatalog:
-    """Tests for GET /api/user/badges/catalog."""
-
-    async def test_returns_badge_catalog(self):
-        """Returns BadgeCatalogResponse from get_badge_catalog."""
-        mock_request = MagicMock()
-        items = [
-            BadgeCatalogItem(
-                id="phase-1",
-                name="Phase 1",
-                description="Complete phase 1",
-                icon="🏅",
-                num="1",
-                how_to="Complete all steps in phase 1",
-            ),
-        ]
-
-        with patch(
-            "routes.users_routes.get_badge_catalog",
-            autospec=True,
-            return_value=(items, 1),
-        ) as mock_service:
-            result = await get_badge_catalog_endpoint(mock_request)
-
-        mock_service.assert_called_once()
-        assert isinstance(result, BadgeCatalogResponse)
-        assert result.total_badges == 1
-        assert len(result.phase_badges) == 1
 
 
 @pytest.mark.unit
