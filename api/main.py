@@ -5,6 +5,7 @@ import hashlib
 import logging
 import re
 from contextlib import asynccontextmanager
+from functools import lru_cache
 from pathlib import Path
 
 import fastapi
@@ -267,12 +268,51 @@ app.add_exception_handler(RequestValidationError, validation_exception_handler)
 app.add_exception_handler(Exception, global_exception_handler)
 
 
-_legacy_phase_path_re = re.compile(r"^/phase(?P<phase_id>\d+)(?P<rest>/.*)?$")
+_legacy_phase_path_re = re.compile(r"^/phase[-_]?(?P<phase_id>\d+)(?P<rest>/.*)?$")
 _legacy_topic_redirects: dict[str, str] = {
     # Phase 1's CTF topic slug is "ctf-lab" (not "ctf").
     "/phase1/ctf": "/phase/1/ctf-lab",
-    "/phase1/ctf/": "/phase/1/ctf-lab/",
+    "/phase1/ctf/": "/phase/1/ctf-lab",
 }
+
+
+def _normalize_legacy_slug(slug: str) -> str:
+    slug = slug.lower()
+    if slug.endswith(".html"):
+        slug = slug.removesuffix(".html")
+    return re.sub(r"[^a-z0-9]+", "", slug)
+
+
+@lru_cache(maxsize=1)
+def _topic_slug_aliases_by_phase() -> dict[str, dict[str, str]]:
+    """Build a mapping of legacy topic slugs -> current topic slugs per phase."""
+    from services.content_service import get_all_phases
+
+    aliases: dict[str, dict[str, str]] = {}
+    for phase in get_all_phases():
+        phase_id = str(phase.order)
+        phase_aliases: dict[str, str] = {}
+        for topic_slug in getattr(phase, "topic_slugs", []):
+            phase_aliases[_normalize_legacy_slug(topic_slug)] = topic_slug
+        aliases[phase_id] = phase_aliases
+
+    # Known legacy slugs from older docs / bookmarks.
+    manual_aliases: dict[str, dict[str, str]] = {
+        "1": {
+            "ctf": "ctf-lab",
+            "versioncontrol": "developer-setup",
+        },
+        "2": {
+            "networkingfundamentals": "fundamentals",
+            "portsandprotocols": "protocols",
+            "troubleshooting": "troubleshooting-lab",
+        },
+    }
+    for phase_id, slug_map in manual_aliases.items():
+        phase_aliases = aliases.setdefault(phase_id, {})
+        for legacy_slug, canonical_slug in slug_map.items():
+            phase_aliases[_normalize_legacy_slug(legacy_slug)] = canonical_slug
+    return aliases
 
 
 @app.middleware("http")
@@ -287,7 +327,27 @@ async def legacy_phase_url_redirects(request: Request, call_next):
         if match and not path.startswith("/phase/"):
             phase_id = match.group("phase_id")
             rest = match.group("rest") or ""
-            target_path = f"/phase/{phase_id}{rest}"
+
+            # Normalize phase roots (/phase1 and /phase1/) to /phase/1.
+            if rest in ("", "/"):
+                target_path = f"/phase/{phase_id}"
+            else:
+                # Try to map /phaseN/<topic> to /phase/N/<topic-slug>; otherwise
+                # fall back to the phase root so we don't redirect to a 404 topic.
+                parts = rest.lstrip("/").split("/")
+                legacy_topic = parts[0]
+                remainder = [p for p in parts[1:] if p]
+
+                topic_aliases = _topic_slug_aliases_by_phase().get(str(phase_id), {})
+                canonical_topic = topic_aliases.get(
+                    _normalize_legacy_slug(legacy_topic)
+                )
+                if canonical_topic:
+                    target_path = f"/phase/{phase_id}/{canonical_topic}"
+                    if remainder:
+                        target_path = f"{target_path}/{'/'.join(remainder)}"
+                else:
+                    target_path = f"/phase/{phase_id}"
 
     if target_path is not None and target_path != path:
         target_url = target_path if not query else f"{target_path}?{query}"
