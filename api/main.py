@@ -3,9 +3,7 @@
 import asyncio
 import hashlib
 import logging
-import re
 from contextlib import asynccontextmanager
-from functools import lru_cache
 from pathlib import Path
 
 import fastapi
@@ -13,12 +11,11 @@ from fastapi import Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from slowapi.errors import RateLimitExceeded
 from starlette.middleware.sessions import SessionMiddleware
-from starlette.types import ASGIApp, Receive, Scope, Send
 
 from core.auth import init_oauth
 from core.config import get_settings
@@ -36,6 +33,7 @@ from core.middleware import (
 )
 from core.observability import configure_observability, instrument_app
 from core.ratelimit import limiter, rate_limit_exceeded_handler
+from core.redirects import LegacyPhaseRedirectMiddleware
 from routes import (
     analytics_router,
     auth_router,
@@ -51,6 +49,7 @@ from services.deployed_api_verification_service import (
 from services.github_hands_on_verification_service import (
     close_github_client,
 )
+from services.redirect_service import resolve_legacy_phase_redirect
 
 # OTel must be configured before fastapi.FastAPI() is instantiated.
 # Azure Monitor replaces fastapi.FastAPI at instrument time; module-level
@@ -269,123 +268,6 @@ app.add_exception_handler(RequestValidationError, validation_exception_handler)
 app.add_exception_handler(Exception, global_exception_handler)
 
 
-_legacy_phase_path_re = re.compile(r"^/phase[-_]?(?P<phase_id>\d+)(?P<rest>/.*)?$")
-
-
-def _normalize_legacy_slug(slug: str) -> str:
-    slug = slug.lower()
-    if slug.endswith(".html"):
-        slug = slug.removesuffix(".html")
-    return re.sub(r"[^a-z0-9]+", "", slug)
-
-
-@lru_cache(maxsize=1)
-def _topic_slug_aliases_by_phase() -> dict[str, dict[str, str]]:
-    """Build a mapping of legacy topic slugs -> current topic slugs per phase.
-
-    Note:
-        Cached for the lifetime of the process. If content YAML changes, a server
-        restart is required for this mapping to update.
-    """
-    # Deferred import to avoid circular dependency with services.content_service.
-    from services.content_service import get_all_phases
-
-    aliases: dict[str, dict[str, str]] = {}
-    for phase in get_all_phases():
-        phase_id = str(phase.id)
-        phase_aliases: dict[str, str] = {}
-        for topic_slug in phase.topic_slugs:
-            phase_aliases[_normalize_legacy_slug(topic_slug)] = topic_slug
-        aliases[phase_id] = phase_aliases
-
-    # Known legacy slugs from older docs / bookmarks.
-    manual_aliases: dict[str, dict[str, str]] = {
-        "1": {
-            "ctf": "ctf-lab",
-            "versioncontrol": "developer-setup",
-        },
-        "2": {
-            "networkingfundamentals": "fundamentals",
-            "portsandprotocols": "protocols",
-            "troubleshooting": "troubleshooting-lab",
-        },
-    }
-    for phase_id, slug_map in manual_aliases.items():
-        phase_aliases = aliases.setdefault(phase_id, {})
-        for legacy_slug, canonical_slug in slug_map.items():
-            phase_aliases[_normalize_legacy_slug(legacy_slug)] = canonical_slug
-    return aliases
-
-
-def _resolve_legacy_phase_redirect(path: str) -> str | None:
-    """Return the canonical redirect path for a legacy /phaseN URL, or None."""
-    match = _legacy_phase_path_re.match(path)
-    if not match or path.startswith("/phase/"):
-        return None
-
-    phase_id = match.group("phase_id")
-    rest = match.group("rest") or ""
-
-    # Normalize phase roots (/phase1 and /phase1/) to /phase/1.
-    if rest in ("", "/"):
-        return f"/phase/{phase_id}"
-
-    # Try to map /phaseN/<topic> to /phase/N/<topic-slug>; otherwise
-    # fall back to the phase root so we don't redirect to a 404 topic.
-    parts = rest.lstrip("/").split("/")
-    legacy_topic = parts[0]
-    # Filter empty segments so double-slashes are normalised away.
-    remainder = [p for p in parts[1:] if p]
-
-    topic_aliases = _topic_slug_aliases_by_phase().get(str(phase_id), {})
-    canonical_topic = topic_aliases.get(_normalize_legacy_slug(legacy_topic))
-    if canonical_topic:
-        target_path = f"/phase/{phase_id}/{canonical_topic}"
-        if remainder:
-            target_path = f"{target_path}/{'/'.join(remainder)}"
-        return target_path
-
-    return f"/phase/{phase_id}"
-
-
-class LegacyPhaseRedirectMiddleware:
-    """Redirect legacy /phaseN URLs to canonical /phase/N URLs (308 Permanent).
-
-    Registered as the outermost middleware so redirects are served before
-    session or user-tracking middleware run — avoids creating sessions and
-    tracking users for requests that will immediately redirect.
-    """
-
-    def __init__(self, app: ASGIApp) -> None:
-        self.app = app
-
-    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        if scope["type"] != "http":
-            await self.app(scope, receive, send)
-            return
-
-        path: str = scope["path"]
-        target_path = _resolve_legacy_phase_redirect(path)
-
-        if target_path is not None and target_path != path:
-            query = scope.get("query_string", b"").decode("latin-1")
-            target_url = target_path if not query else f"{target_path}?{query}"
-            logger.info(
-                "legacy_url.redirect",
-                extra={
-                    "from_path": path,
-                    "to_path": target_path,
-                    "query": query,
-                    "status_code": 308,
-                },
-            )
-            response = RedirectResponse(url=target_url, status_code=308)
-            await response(scope, receive, send)
-            return
-
-        await self.app(scope, receive, send)
-
-
 app.add_middleware(UserTrackingMiddleware)
 app.add_middleware(
     SessionMiddleware,
@@ -411,7 +293,9 @@ if _settings.debug:
     )
 
 # Outermost — runs before session/user-tracking to avoid wasted work on redirects.
-app.add_middleware(LegacyPhaseRedirectMiddleware)
+app.add_middleware(
+    LegacyPhaseRedirectMiddleware, resolver=resolve_legacy_phase_redirect
+)
 
 _static_dir = Path(__file__).parent / "static"
 if _static_dir.exists():
