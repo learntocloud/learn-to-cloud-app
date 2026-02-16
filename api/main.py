@@ -18,6 +18,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from slowapi.errors import RateLimitExceeded
 from starlette.middleware.sessions import SessionMiddleware
+from starlette.types import ASGIApp, Receive, Scope, Send
 
 from core.auth import init_oauth
 from core.config import get_settings
@@ -316,52 +317,73 @@ def _topic_slug_aliases_by_phase() -> dict[str, dict[str, str]]:
     return aliases
 
 
-@app.middleware("http")
-async def legacy_phase_url_redirects(request: Request, call_next):
-    """Redirect legacy /phaseN URLs to canonical /phase/N URLs (permanent)."""
-    path = request.url.path
-    query = request.url.query
-
-    target_path = None
+def _resolve_legacy_phase_redirect(path: str) -> str | None:
+    """Return the canonical redirect path for a legacy /phaseN URL, or None."""
     match = _legacy_phase_path_re.match(path)
-    if match and not path.startswith("/phase/"):
-        phase_id = match.group("phase_id")
-        rest = match.group("rest") or ""
+    if not match or path.startswith("/phase/"):
+        return None
 
-        # Normalize phase roots (/phase1 and /phase1/) to /phase/1.
-        if rest in ("", "/"):
-            target_path = f"/phase/{phase_id}"
-        else:
-            # Try to map /phaseN/<topic> to /phase/N/<topic-slug>; otherwise
-            # fall back to the phase root so we don't redirect to a 404 topic.
-            parts = rest.lstrip("/").split("/")
-            legacy_topic = parts[0]
-            # Filter empty segments so double-slashes are normalised away.
-            remainder = [p for p in parts[1:] if p]
+    phase_id = match.group("phase_id")
+    rest = match.group("rest") or ""
 
-            topic_aliases = _topic_slug_aliases_by_phase().get(str(phase_id), {})
-            canonical_topic = topic_aliases.get(_normalize_legacy_slug(legacy_topic))
-            if canonical_topic:
-                target_path = f"/phase/{phase_id}/{canonical_topic}"
-                if remainder:
-                    target_path = f"{target_path}/{'/'.join(remainder)}"
-            else:
-                target_path = f"/phase/{phase_id}"
+    # Normalize phase roots (/phase1 and /phase1/) to /phase/1.
+    if rest in ("", "/"):
+        return f"/phase/{phase_id}"
 
-    if target_path is not None and target_path != path:
-        target_url = target_path if not query else f"{target_path}?{query}"
-        logger.info(
-            "legacy_url.redirect",
-            extra={
-                "from_path": path,
-                "to_path": target_path,
-                "query": query,
-                "status_code": 308,
-            },
-        )
-        return RedirectResponse(url=target_url, status_code=308)
+    # Try to map /phaseN/<topic> to /phase/N/<topic-slug>; otherwise
+    # fall back to the phase root so we don't redirect to a 404 topic.
+    parts = rest.lstrip("/").split("/")
+    legacy_topic = parts[0]
+    # Filter empty segments so double-slashes are normalised away.
+    remainder = [p for p in parts[1:] if p]
 
-    return await call_next(request)
+    topic_aliases = _topic_slug_aliases_by_phase().get(str(phase_id), {})
+    canonical_topic = topic_aliases.get(_normalize_legacy_slug(legacy_topic))
+    if canonical_topic:
+        target_path = f"/phase/{phase_id}/{canonical_topic}"
+        if remainder:
+            target_path = f"{target_path}/{'/'.join(remainder)}"
+        return target_path
+
+    return f"/phase/{phase_id}"
+
+
+class LegacyPhaseRedirectMiddleware:
+    """Redirect legacy /phaseN URLs to canonical /phase/N URLs (308 Permanent).
+
+    Registered as the outermost middleware so redirects are served before
+    session or user-tracking middleware run — avoids creating sessions and
+    tracking users for requests that will immediately redirect.
+    """
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        path: str = scope["path"]
+        target_path = _resolve_legacy_phase_redirect(path)
+
+        if target_path is not None and target_path != path:
+            query = scope.get("query_string", b"").decode("latin-1")
+            target_url = target_path if not query else f"{target_path}?{query}"
+            logger.info(
+                "legacy_url.redirect",
+                extra={
+                    "from_path": path,
+                    "to_path": target_path,
+                    "query": query,
+                    "status_code": 308,
+                },
+            )
+            response = RedirectResponse(url=target_url, status_code=308)
+            await response(scope, receive, send)
+            return
+
+        await self.app(scope, receive, send)
 
 
 app.add_middleware(UserTrackingMiddleware)
@@ -387,6 +409,9 @@ if _settings.debug:
         expose_headers=["X-Request-Duration-Ms", "X-Request-Id"],
         max_age=600,
     )
+
+# Outermost — runs before session/user-tracking to avoid wasted work on redirects.
+app.add_middleware(LegacyPhaseRedirectMiddleware)
 
 _static_dir = Path(__file__).parent / "static"
 if _static_dir.exists():

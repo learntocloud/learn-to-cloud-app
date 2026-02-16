@@ -1,131 +1,102 @@
 """Unit tests for legacy /phaseN* URL redirect middleware."""
 
-from unittest.mock import AsyncMock, MagicMock
-
 import pytest
-from starlette.datastructures import URL
-from starlette.responses import PlainTextResponse, RedirectResponse
 
-from main import legacy_phase_url_redirects
+from main import _resolve_legacy_phase_redirect
 
 
 @pytest.mark.unit
-class TestLegacyPhaseRedirects:
-    async def test_redirects_phase_root_no_trailing_slash(self) -> None:
-        request = MagicMock()
-        request.url = URL("https://testserver/phase1")
+class TestResolveLegacyPhaseRedirect:
+    """Tests for the pure redirect-resolution function."""
 
-        call_next = AsyncMock(return_value=PlainTextResponse("ok"))
-        resp = await legacy_phase_url_redirects(request, call_next)
+    def test_phase_root_no_trailing_slash(self) -> None:
+        assert _resolve_legacy_phase_redirect("/phase1") == "/phase/1"
 
-        assert isinstance(resp, RedirectResponse)
-        assert resp.status_code == 308
-        assert resp.headers["location"] == "/phase/1"
-        call_next.assert_not_awaited()
+    def test_phase_root_with_trailing_slash(self) -> None:
+        assert _resolve_legacy_phase_redirect("/phase0/") == "/phase/0"
 
-    async def test_redirects_phase_root_with_trailing_slash(self) -> None:
-        request = MagicMock()
-        request.url = URL("https://testserver/phase0/")
+    def test_phase_hyphen_variant(self) -> None:
+        assert _resolve_legacy_phase_redirect("/phase-6") == "/phase/6"
 
-        call_next = AsyncMock(return_value=PlainTextResponse("ok"))
-        resp = await legacy_phase_url_redirects(request, call_next)
+    def test_phase_underscore_variant(self) -> None:
+        assert _resolve_legacy_phase_redirect("/phase_4") == "/phase/4"
 
-        assert isinstance(resp, RedirectResponse)
-        assert resp.status_code == 308
-        assert resp.headers["location"] == "/phase/0"
-        call_next.assert_not_awaited()
+    def test_multi_digit_phase(self) -> None:
+        assert _resolve_legacy_phase_redirect("/phase10") == "/phase/10"
 
-    async def test_redirects_phase_root_with_query_string(self) -> None:
-        request = MagicMock()
-        request.url = URL("https://testserver/phase2?utm=abc")
+    def test_legacy_topic_slug(self) -> None:
+        assert (
+            _resolve_legacy_phase_redirect("/phase1/clibasics/")
+            == "/phase/1/cli-basics"
+        )
 
-        call_next = AsyncMock(return_value=PlainTextResponse("ok"))
-        resp = await legacy_phase_url_redirects(request, call_next)
+    def test_legacy_topic_slug_preserves_remainder(self) -> None:
+        assert (
+            _resolve_legacy_phase_redirect("/phase1/clibasics/step1/substep2")
+            == "/phase/1/cli-basics/step1/substep2"
+        )
 
-        assert isinstance(resp, RedirectResponse)
+    def test_known_topic_override(self) -> None:
+        assert _resolve_legacy_phase_redirect("/phase1/ctf") == "/phase/1/ctf-lab"
+
+    def test_unknown_topic_falls_back_to_phase_root(self) -> None:
+        assert _resolve_legacy_phase_redirect("/phase3/does-not-exist") == "/phase/3"
+
+    def test_canonical_path_returns_none(self) -> None:
+        assert _resolve_legacy_phase_redirect("/phase/1") is None
+
+    def test_canonical_path_with_topic_returns_none(self) -> None:
+        assert _resolve_legacy_phase_redirect("/phase/1/cli-basics") is None
+
+    def test_unrelated_path_returns_none(self) -> None:
+        assert _resolve_legacy_phase_redirect("/dashboard") is None
+
+    def test_no_digits_returns_none(self) -> None:
+        assert _resolve_legacy_phase_redirect("/phases") is None
+
+    def test_double_slashes_normalised(self) -> None:
+        result = _resolve_legacy_phase_redirect("/phase1/clibasics//step1")
+        assert result == "/phase/1/cli-basics/step1"
+
+
+@pytest.mark.unit
+class TestLegacyPhaseRedirectMiddleware:
+    """Integration test: middleware returns 308 or passes through."""
+
+    async def test_redirects_with_query_string(self) -> None:
+        from starlette.applications import Starlette
+        from starlette.responses import PlainTextResponse
+        from starlette.routing import Route
+        from starlette.testclient import TestClient
+
+        from main import LegacyPhaseRedirectMiddleware
+
+        async def homepage(request):
+            return PlainTextResponse("ok")
+
+        inner_app = Starlette(routes=[Route("/phase/{phase_id:int}", homepage)])
+        inner_app.add_middleware(LegacyPhaseRedirectMiddleware)
+        client = TestClient(inner_app, raise_server_exceptions=False)
+
+        resp = client.get("/phase2?utm=abc", follow_redirects=False)
         assert resp.status_code == 308
         assert resp.headers["location"] == "/phase/2?utm=abc"
-        call_next.assert_not_awaited()
-
-    async def test_redirects_phase_hyphen_variant(self) -> None:
-        request = MagicMock()
-        request.url = URL("https://testserver/phase-6")
-
-        call_next = AsyncMock(return_value=PlainTextResponse("ok"))
-        resp = await legacy_phase_url_redirects(request, call_next)
-
-        assert isinstance(resp, RedirectResponse)
-        assert resp.status_code == 308
-        assert resp.headers["location"] == "/phase/6"
-        call_next.assert_not_awaited()
-
-    async def test_redirects_phase_underscore_variant(self) -> None:
-        request = MagicMock()
-        request.url = URL("https://testserver/phase_4")
-
-        call_next = AsyncMock(return_value=PlainTextResponse("ok"))
-        resp = await legacy_phase_url_redirects(request, call_next)
-
-        assert isinstance(resp, RedirectResponse)
-        assert resp.status_code == 308
-        assert resp.headers["location"] == "/phase/4"
-        call_next.assert_not_awaited()
-
-    async def test_redirects_legacy_topic_slug(self) -> None:
-        request = MagicMock()
-        request.url = URL("https://testserver/phase1/clibasics/")
-
-        call_next = AsyncMock(return_value=PlainTextResponse("ok"))
-        resp = await legacy_phase_url_redirects(request, call_next)
-
-        assert isinstance(resp, RedirectResponse)
-        assert resp.status_code == 308
-        assert resp.headers["location"] == "/phase/1/cli-basics"
-        call_next.assert_not_awaited()
-
-    async def test_redirects_legacy_topic_slug_preserves_remainder(self) -> None:
-        request = MagicMock()
-        request.url = URL("https://testserver/phase1/clibasics/step1/substep2")
-
-        call_next = AsyncMock(return_value=PlainTextResponse("ok"))
-        resp = await legacy_phase_url_redirects(request, call_next)
-
-        assert isinstance(resp, RedirectResponse)
-        assert resp.status_code == 308
-        assert resp.headers["location"] == "/phase/1/cli-basics/step1/substep2"
-        call_next.assert_not_awaited()
-
-    async def test_redirects_known_topic_override(self) -> None:
-        request = MagicMock()
-        request.url = URL("https://testserver/phase1/ctf")
-
-        call_next = AsyncMock(return_value=PlainTextResponse("ok"))
-        resp = await legacy_phase_url_redirects(request, call_next)
-
-        assert isinstance(resp, RedirectResponse)
-        assert resp.status_code == 308
-        assert resp.headers["location"] == "/phase/1/ctf-lab"
-        call_next.assert_not_awaited()
-
-    async def test_unknown_topic_falls_back_to_phase_root(self) -> None:
-        request = MagicMock()
-        request.url = URL("https://testserver/phase3/does-not-exist")
-
-        call_next = AsyncMock(return_value=PlainTextResponse("ok"))
-        resp = await legacy_phase_url_redirects(request, call_next)
-
-        assert isinstance(resp, RedirectResponse)
-        assert resp.status_code == 308
-        assert resp.headers["location"] == "/phase/3"
-        call_next.assert_not_awaited()
 
     async def test_canonical_paths_pass_through(self) -> None:
-        request = MagicMock()
-        request.url = URL("https://testserver/phase/1")
+        from starlette.applications import Starlette
+        from starlette.responses import PlainTextResponse
+        from starlette.routing import Route
+        from starlette.testclient import TestClient
 
-        downstream = PlainTextResponse("ok")
-        call_next = AsyncMock(return_value=downstream)
-        resp = await legacy_phase_url_redirects(request, call_next)
+        from main import LegacyPhaseRedirectMiddleware
 
-        assert resp is downstream
-        call_next.assert_awaited_once()
+        async def homepage(request):
+            return PlainTextResponse("ok")
+
+        inner_app = Starlette(routes=[Route("/phase/{phase_id:int}", homepage)])
+        inner_app.add_middleware(LegacyPhaseRedirectMiddleware)
+        client = TestClient(inner_app, raise_server_exceptions=False)
+
+        resp = client.get("/phase/1")
+        assert resp.status_code == 200
+        assert resp.text == "ok"
