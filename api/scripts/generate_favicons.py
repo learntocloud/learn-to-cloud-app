@@ -79,10 +79,13 @@ def main() -> None:
     ico_path.write_bytes(header + directory + image_data)
     print(f"Created {ico_path} ({ico_path.stat().st_size} bytes)")
 
-    from PIL import Image
+    try:
+        from PIL import Image
 
-    ico = Image.open(ico_path)
-    print(f"ICO sizes: {ico.info.get('sizes')}")
+        ico = Image.open(ico_path)
+        print(f"ICO sizes: {ico.info.get('sizes')}")
+    except ImportError:
+        print("(Pillow not installed — skipping ICO size verification)")
 
 
 if __name__ == "__main__":
