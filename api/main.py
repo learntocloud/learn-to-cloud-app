@@ -3,6 +3,7 @@
 import asyncio
 import hashlib
 import logging
+import re
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -19,6 +20,7 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from core.auth import init_oauth
 from core.config import get_settings
+from core.csrf import CSRFMiddleware
 from core.database import (
     create_engine,
     create_session_maker,
@@ -266,6 +268,10 @@ app.add_exception_handler(RequestValidationError, validation_exception_handler)
 app.add_exception_handler(Exception, global_exception_handler)
 
 app.add_middleware(UserTrackingMiddleware)
+app.add_middleware(
+    CSRFMiddleware,
+    exempt_urls=[re.compile(r"^/auth/callback$")],
+)
 app.add_middleware(
     SessionMiddleware,
     secret_key=_settings.session_secret_key,
