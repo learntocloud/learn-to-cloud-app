@@ -3,6 +3,7 @@
 import asyncio
 import hashlib
 import logging
+import re
 from contextlib import asynccontextmanager
 from pathlib import Path
 
