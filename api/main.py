@@ -269,11 +269,6 @@ app.add_exception_handler(Exception, global_exception_handler)
 
 
 _legacy_phase_path_re = re.compile(r"^/phase[-_]?(?P<phase_id>\d+)(?P<rest>/.*)?$")
-_legacy_topic_redirects: dict[str, str] = {
-    # Phase 1's CTF topic slug is "ctf-lab" (not "ctf").
-    "/phase1/ctf": "/phase/1/ctf-lab",
-    "/phase1/ctf/": "/phase/1/ctf-lab",
-}
 
 
 def _normalize_legacy_slug(slug: str) -> str:
@@ -296,7 +291,7 @@ def _topic_slug_aliases_by_phase() -> dict[str, dict[str, str]]:
 
     aliases: dict[str, dict[str, str]] = {}
     for phase in get_all_phases():
-        phase_id = str(phase.order)
+        phase_id = str(phase.id)
         phase_aliases: dict[str, str] = {}
         for topic_slug in phase.topic_slugs:
             phase_aliases[_normalize_legacy_slug(topic_slug)] = topic_slug
@@ -327,34 +322,31 @@ async def legacy_phase_url_redirects(request: Request, call_next):
     path = request.url.path
     query = request.url.query
 
-    target_path = _legacy_topic_redirects.get(path)
-    if target_path is None:
-        match = _legacy_phase_path_re.match(path)
-        if match and not path.startswith("/phase/"):
-            phase_id = match.group("phase_id")
-            rest = match.group("rest") or ""
+    target_path = None
+    match = _legacy_phase_path_re.match(path)
+    if match and not path.startswith("/phase/"):
+        phase_id = match.group("phase_id")
+        rest = match.group("rest") or ""
 
-            # Normalize phase roots (/phase1 and /phase1/) to /phase/1.
-            if rest in ("", "/"):
-                target_path = f"/phase/{phase_id}"
+        # Normalize phase roots (/phase1 and /phase1/) to /phase/1.
+        if rest in ("", "/"):
+            target_path = f"/phase/{phase_id}"
+        else:
+            # Try to map /phaseN/<topic> to /phase/N/<topic-slug>; otherwise
+            # fall back to the phase root so we don't redirect to a 404 topic.
+            parts = rest.lstrip("/").split("/")
+            legacy_topic = parts[0]
+            # Filter empty segments so double-slashes are normalised away.
+            remainder = [p for p in parts[1:] if p]
+
+            topic_aliases = _topic_slug_aliases_by_phase().get(str(phase_id), {})
+            canonical_topic = topic_aliases.get(_normalize_legacy_slug(legacy_topic))
+            if canonical_topic:
+                target_path = f"/phase/{phase_id}/{canonical_topic}"
+                if remainder:
+                    target_path = f"{target_path}/{'/'.join(remainder)}"
             else:
-                # Try to map /phaseN/<topic> to /phase/N/<topic-slug>; otherwise
-                # fall back to the phase root so we don't redirect to a 404 topic.
-                parts = rest.lstrip("/").split("/")
-                legacy_topic = parts[0]
-                # Filter empty segments so double-slashes are normalised away.
-                remainder = [p for p in parts[1:] if p]
-
-                topic_aliases = _topic_slug_aliases_by_phase().get(str(phase_id), {})
-                canonical_topic = topic_aliases.get(
-                    _normalize_legacy_slug(legacy_topic)
-                )
-                if canonical_topic:
-                    target_path = f"/phase/{phase_id}/{canonical_topic}"
-                    if remainder:
-                        target_path = f"{target_path}/{'/'.join(remainder)}"
-                else:
-                    target_path = f"/phase/{phase_id}"
+                target_path = f"/phase/{phase_id}"
 
     if target_path is not None and target_path != path:
         target_url = target_path if not query else f"{target_path}?{query}"
