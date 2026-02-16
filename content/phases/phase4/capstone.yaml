@@ -47,20 +47,15 @@ learning_steps:
   id: phase4-topic9-practice-deploy-and-switch-your
 - order: 7
   action: 'Practice:'
-  description: Submit an HTTPS base URL for your deployed API. The automated verifier will POST a challenge entry to /entries, call GET /entries, and confirm that the challenge appears in the response. It also checks response format and basic entry structure when real entries are present.
-  title: Create journal entries and verify HTTPS access
-  id: phase4-topic9-practice-create-journal-entries-and
+  title: Verify your deployment
+  description: 'Submit an HTTPS base URL for your deployed API. The automated verifier will POST a challenge entry to /entries, call GET /entries, and confirm the challenge appears in the response. Beyond automated verification, ensure your deployment meets these production goals: API accessible from the internet over HTTPS, database only accessible from the API server, CRUD operations behave correctly, AI analysis endpoint returns sentiment and summary, LLM/API secrets are stored securely, data persists between restarts, and telemetry is configured so you can see API requests/errors and application logs in your cloud monitoring service.'
+  id: phase4-topic9-practice-verify-your-deployment
 - order: 8
-  action: 'Practice:'
-  title: Success Criteria
-  description: 'Confirm your deployment meets these production goals: API accessible from the internet over HTTPS, database only accessible from the API server, CRUD operations behave correctly, AI analysis endpoint returns sentiment and summary, LLM/API secrets are stored securely, data persists between restarts, and telemetry is configured so you can see API requests/errors and application logs in your cloud monitoring service. Note: these are broader engineering goals; automated hands-on verification focuses specifically on HTTPS + POST/GET challenge-response for /entries.'
-  id: phase4-topic9-practice-success-criteria
-- order: 9
   action: 'Practice:'
   title: Clean up your cloud resources
   description: Once your capstone has been verified, delete all cloud resources — VMs, VPC/VNet, subnets, security groups, databases, and any other infrastructure you provisioned. Check your cloud console to confirm nothing is still running. You will redeploy in later phases using containers and infrastructure as code.
   id: phase4-topic9-practice-clean-up-your-cloud
-- order: 10
+- order: 9
   action: 'Reflect:'
   title: Share Your Progress
   description: When you've completed the capstone, push your work to GitHub and write a brief technical writeup covering your architecture, security decisions, and key learnings. Share it on LinkedIn or with the Learn to Cloud community to get feedback and celebrate your progress.
