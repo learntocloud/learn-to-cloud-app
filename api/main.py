@@ -3,6 +3,7 @@
 import asyncio
 import hashlib
 import logging
+import re
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -19,6 +20,7 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from core.auth import init_oauth
 from core.config import get_settings
+from core.csrf import CSRFMiddleware
 from core.database import (
     create_engine,
     create_session_maker,
@@ -267,6 +269,10 @@ app.add_exception_handler(Exception, global_exception_handler)
 
 app.add_middleware(UserTrackingMiddleware)
 app.add_middleware(
+    CSRFMiddleware,
+    exempt_urls=[re.compile(r"^/auth/callback$")],
+)
+app.add_middleware(
     SessionMiddleware,
     secret_key=_settings.session_secret_key,
     session_cookie="session",
@@ -288,6 +294,19 @@ if _settings.debug:
         expose_headers=["X-Request-Duration-Ms", "X-Request-Id"],
         max_age=600,
     )
+
+_middleware_classes = [m.cls for m in app.user_middleware]
+if SessionMiddleware in _middleware_classes and CSRFMiddleware in _middleware_classes:
+    # Starlette prepends middleware via insert(0, ...), then evaluates the resulting
+    # list top-to-bottom. If CSRF ends up outside Session, it becomes a silent no-op
+    # (scope["session"] is missing) and unsafe requests can slip through.
+    if _middleware_classes.index(SessionMiddleware) > _middleware_classes.index(
+        CSRFMiddleware
+    ):
+        raise RuntimeError(
+            "Invalid middleware ordering: SessionMiddleware must run before "
+            "CSRFMiddleware (add CSRFMiddleware BEFORE SessionMiddleware in code)."
+        )
 
 _static_dir = Path(__file__).parent / "static"
 if _static_dir.exists():
