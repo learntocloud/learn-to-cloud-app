@@ -89,101 +89,6 @@ class StepCompletionResult(FrozenModel):
     completed_at: datetime
 
 
-class BadgeData(FrozenModel):
-    """Badge information (service-layer response model)."""
-
-    id: str
-    name: str
-    description: str
-    icon: str
-
-
-class BadgeCatalogItem(FrozenModel):
-    """Badge metadata for catalog display."""
-
-    id: str
-    name: str
-    description: str
-    icon: str
-    num: str
-    how_to: str
-    phase_id: int | None = None
-    phase_name: str | None = None
-
-
-class BadgeCatalogResponse(FrozenModel):
-    """Response model for the badge catalog endpoint."""
-
-    phase_badges: list[BadgeCatalogItem]
-    total_badges: int
-
-
-class PublicSubmissionInfo(FrozenModel):
-    """Public submission information for profile display.
-
-    Also used as service-layer response model.
-    """
-
-    requirement_id: str
-    submission_type: str
-    phase_id: int
-    submitted_value: str
-    name: str
-    description: str | None = None
-    validated_at: datetime | None = None
-
-
-class PublicProfileData(FrozenModel):
-    """Complete public profile data (service-layer response model)."""
-
-    username: str | None
-    first_name: str | None
-    avatar_url: str | None
-    current_phase: int
-    phases_completed: int
-    total_phases: int
-    submissions: list[PublicSubmissionInfo]
-    badges: list[BadgeData]
-    certificate: "CertificateData | None" = None
-
-
-class CertificateData(FrozenModel):
-    """Certificate data (service-layer response model)."""
-
-    id: int
-    verification_code: str
-    recipient_name: str
-    issued_at: datetime
-    phases_completed: int
-    total_phases: int
-
-
-class EligibilityResult(FrozenModel):
-    """Result of certificate eligibility check (service-layer response model)."""
-
-    is_eligible: bool
-    phases_completed: int
-    total_phases: int
-    completion_percentage: float
-    existing_certificate: CertificateData | None = None
-    message: str
-
-
-class CreateCertificateResult(FrozenModel):
-    """Result of certificate creation (service-layer response model)."""
-
-    certificate: CertificateData
-    verification_code: str
-
-
-class CertificateVerificationResult(FrozenModel):
-    """Result of certificate verification (service-layer response model)."""
-
-    is_valid: bool
-    certificate: CertificateData | None = None
-    message: str
-
-
 class ProviderOption(FrozenModel):
     """Cloud provider-specific option for a learning step."""
 
@@ -241,14 +146,6 @@ class PhaseHandsOnVerificationOverview(FrozenModel):
     requirements: list[HandsOnRequirement] = Field(default_factory=list)
 
 
-class PhaseBadgeMeta(FrozenModel):
-    """Badge metadata for a phase (content-driven)."""
-
-    name: str
-    description: str
-    icon: str
-
-
 class Phase(FrozenModel):
     """A phase in the curriculum."""
 
@@ -263,7 +160,6 @@ class Phase(FrozenModel):
     objectives: list[str] = Field(default_factory=list)
     capstone: PhaseCapstoneOverview | None = None
     hands_on_verification: PhaseHandsOnVerificationOverview | None = None
-    badge: PhaseBadgeMeta | None = None
     topic_slugs: list[str] = Field(default_factory=list)
     topics: list[Topic] = Field(default_factory=list)
 
@@ -334,7 +230,6 @@ class DashboardData(FrozenModel):
     total_phases: int
     is_program_complete: bool
     continue_phase: ContinuePhaseData | None = None
-    earned_badges: list["BadgeData"] = Field(default_factory=list)
 
 
 class PhaseRequirements(FrozenModel):
@@ -609,12 +504,10 @@ class CommunityAnalytics(FrozenModel):
     """
 
     total_users: int
-    total_certificates: int
     active_learners_30d: int
     completion_rate: float
     phase_distribution: list[PhaseDistributionItem]
     signup_trends: list[MonthlyTrend]
-    certificate_trends: list[MonthlyTrend]
     verification_stats: list[VerificationStat]
     activity_by_day: list[DayActivity]
     provider_distribution: list["ProviderDistribution"] = Field(default_factory=list)

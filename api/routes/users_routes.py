@@ -2,20 +2,14 @@
 
 from fastapi import APIRouter, HTTPException, Request
 
-from core.auth import OptionalUserId, UserId
-from core.database import DbSession, DbSessionReadOnly
+from core.auth import UserId
+from core.database import DbSession
 from core.ratelimit import limiter
-from schemas import (
-    BadgeCatalogResponse,
-    PublicProfileData,
-    UserResponse,
-)
-from services.badges_service import get_badge_catalog
+from schemas import UserResponse
 from services.users_service import (
     UserNotFoundError,
     delete_user_account,
     get_or_create_user,
-    get_public_profile,
 )
 
 __all__ = ["router"]
@@ -36,44 +30,6 @@ async def get_current_user(
     """Get current user info."""
     user = await get_or_create_user(db, user_id)
     return UserResponse.model_validate(user)
-
-
-@router.get(
-    "/profile/{username}",
-    response_model=PublicProfileData,
-    summary="Get public user profile",
-    responses={404: {"description": "User not found"}},
-)
-@limiter.limit("30/minute")
-async def get_public_profile_endpoint(
-    request: Request,
-    username: str,
-    db: DbSessionReadOnly,
-    user_id: OptionalUserId = None,
-) -> PublicProfileData:
-    """Get a user's public profile by username (GitHub username)."""
-    result = await get_public_profile(db, username, user_id)
-
-    if result is None:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    return result
-
-
-@router.get(
-    "/badges/catalog",
-    response_model=BadgeCatalogResponse,
-    summary="Get badge catalog",
-    responses={200: {"description": "Badge catalog"}},
-)
-@limiter.limit("30/minute")
-async def get_badge_catalog_endpoint(request: Request) -> BadgeCatalogResponse:
-    """Get the badge catalog for public display."""
-    phase_badges, total_badges = get_badge_catalog()
-    return BadgeCatalogResponse(
-        phase_badges=phase_badges,
-        total_badges=total_badges,
-    )
 
 
 @router.delete(

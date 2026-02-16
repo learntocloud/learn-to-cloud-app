@@ -64,10 +64,6 @@ class User(TimestampMixin, Base):
         back_populates="user",
         cascade="all, delete-orphan",
     )
-    certificates: Mapped[list["Certificate"]] = relationship(
-        back_populates="user",
-        cascade="all, delete-orphan",
-    )
     step_progress: Mapped[list["StepProgress"]] = relationship(
         back_populates="user",
         cascade="all, delete-orphan",
@@ -214,37 +210,6 @@ class Submission(TimestampMixin, Base):
     cloud_provider: Mapped[str | None] = mapped_column(String(16), nullable=True)
 
     user: Mapped["User"] = relationship(back_populates="submissions")
-
-
-class Certificate(TimestampMixin, Base):
-    """Tracks completion certificates issued to users."""
-
-    __tablename__ = "certificates"
-    __table_args__ = (UniqueConstraint("user_id", name="uq_user_certificate"),)
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    user_id: Mapped[int] = mapped_column(
-        BigInteger,
-        ForeignKey("users.id", ondelete="CASCADE"),
-        nullable=False,
-    )
-    verification_code: Mapped[str] = mapped_column(
-        String(64),
-        nullable=False,
-        unique=True,
-    )
-    recipient_name: Mapped[str] = mapped_column(
-        String(255),
-        nullable=False,
-    )
-    issued_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        default=utcnow,
-    )
-    phases_completed: Mapped[int] = mapped_column(Integer, nullable=False)
-    total_phases: Mapped[int] = mapped_column(Integer, nullable=False)
-
-    user: Mapped["User"] = relationship(back_populates="certificates")
 
 
 class StepProgress(Base):

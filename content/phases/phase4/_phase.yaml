@@ -7,10 +7,6 @@ description: This phase focuses on cloud platform fundamentals - the core concep
   professionally.
 short_description: 'Deploy on AWS, Azure, or GCP: virtual machines, cloud networking, IAM security, databases, and application
   hosting.'
-badge:
-  name: Cloud Explorer
-  description: Completed Phase 4
-  icon: ☁️
 order: 4
 topics:
 - vms-compute

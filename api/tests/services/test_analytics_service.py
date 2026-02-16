@@ -131,12 +131,10 @@ class TestEmptyAnalytics:
     def test_returns_zeroed_payload(self):
         result = _empty_analytics()
         assert result.total_users == 0
-        assert result.total_certificates == 0
         assert result.active_learners_30d == 0
         assert result.completion_rate == 0.0
         assert result.phase_distribution == []
         assert result.signup_trends == []
-        assert result.certificate_trends == []
         assert result.verification_stats == []
         assert result.activity_by_day == []
         assert result.generated_at is not None

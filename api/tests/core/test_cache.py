@@ -3,21 +3,17 @@
 Tests in-memory TTL caching utilities:
 - Progress cache: get/set/invalidate
 - Phase detail cache: get/set/update
-- Badge cache: get/set
 - Invalidation clears all related caches for a user
 """
 
 import pytest
 
 from core.cache import (
-    _badge_cache,
     _phase_detail_cache,
     _progress_cache,
-    get_cached_badges,
     get_cached_phase_detail,
     get_cached_progress,
     invalidate_progress_cache,
-    set_cached_badges,
     set_cached_phase_detail,
     set_cached_progress,
     update_cached_phase_detail_step,
@@ -29,11 +25,9 @@ def _clear_caches():
     """Clear all caches before and after each test."""
     _progress_cache.clear()
     _phase_detail_cache.clear()
-    _badge_cache.clear()
     yield
     _progress_cache.clear()
     _phase_detail_cache.clear()
-    _badge_cache.clear()
 
 
 @pytest.mark.unit
@@ -98,27 +92,8 @@ class TestUpdateCachedPhaseDetailStep:
 
 
 @pytest.mark.unit
-class TestBadgeCache:
-    """Test badge cache get/set."""
-
-    def test_set_and_get(self):
-        badges = [{"id": "badge-1", "name": "First Steps"}]
-        set_cached_badges(1, 12345, badges)
-        assert get_cached_badges(1, 12345) == badges
-
-    def test_get_returns_none_when_not_cached(self):
-        assert get_cached_badges(1, 99999) is None
-
-    def test_different_hashes_are_independent(self):
-        set_cached_badges(1, 100, [{"id": "a"}])
-        set_cached_badges(1, 200, [{"id": "b"}])
-        assert get_cached_badges(1, 100) == [{"id": "a"}]
-        assert get_cached_badges(1, 200) == [{"id": "b"}]
-
-
-@pytest.mark.unit
 class TestInvalidateProgressCache:
-    """Test invalidation clears progress, phase_detail, and badge caches."""
+    """Test invalidation clears progress and phase_detail caches."""
 
     def test_clears_progress_cache(self):
         set_cached_progress(1, {"data": True})
@@ -132,27 +107,17 @@ class TestInvalidateProgressCache:
         assert get_cached_phase_detail(1, 10) is None
         assert get_cached_phase_detail(1, 20) is None
 
-    def test_clears_badge_caches_for_user(self):
-        set_cached_badges(1, 100, [{"id": "b"}])
-        set_cached_badges(1, 200, [{"id": "c"}])
-        invalidate_progress_cache(1)
-        assert get_cached_badges(1, 100) is None
-        assert get_cached_badges(1, 200) is None
-
     def test_does_not_affect_other_users(self):
         set_cached_progress(1, {"user1": True})
         set_cached_progress(2, {"user2": True})
         set_cached_phase_detail(1, 10, {"t": {"s"}})
         set_cached_phase_detail(2, 10, {"t": {"s"}})
-        set_cached_badges(1, 100, [{"id": "a"}])
-        set_cached_badges(2, 100, [{"id": "b"}])
 
         invalidate_progress_cache(1)
 
         assert get_cached_progress(1) is None
         assert get_cached_progress(2) == {"user2": True}
         assert get_cached_phase_detail(2, 10) == {"t": {"s"}}
-        assert get_cached_badges(2, 100) == [{"id": "b"}]
 
     def test_noop_when_nothing_cached(self):
         # Should not raise

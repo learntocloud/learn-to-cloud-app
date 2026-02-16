@@ -11,7 +11,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from models import SubmissionType
 from repositories.analytics_repository import AnalyticsRepository
-from repositories.certificate_repository import CertificateRepository
 from repositories.progress_repository import StepProgressRepository
 from repositories.submission_repository import SubmissionRepository
 from repositories.user_repository import UserRepository
@@ -49,26 +48,6 @@ class TestGetTotalUsers:
     async def test_counts_all_users(self, db_session: AsyncSession, users):
         repo = AnalyticsRepository(db_session)
         assert await repo.get_total_users() == 4
-
-
-# =========================================================================
-# get_total_certificates
-# =========================================================================
-
-
-class TestGetTotalCertificates:
-    async def test_returns_zero_when_empty(self, db_session: AsyncSession, users):
-        repo = AnalyticsRepository(db_session)
-        assert await repo.get_total_certificates() == 0
-
-    async def test_counts_certificates(self, db_session: AsyncSession, users):
-        cert_repo = CertificateRepository(db_session)
-        await cert_repo.create(USER_A, "code-a", "User A", 6, 6)
-        await cert_repo.create(USER_B, "code-b", "User B", 6, 6)
-        await db_session.flush()
-
-        repo = AnalyticsRepository(db_session)
-        assert await repo.get_total_certificates() == 2
 
 
 # =========================================================================
@@ -253,30 +232,6 @@ class TestGetSignupsByMonth:
         # Month should be YYYY-MM format
         assert len(month_str) == 7
         assert "-" in month_str
-
-
-# =========================================================================
-# get_certificates_by_month
-# =========================================================================
-
-
-class TestGetCertificatesByMonth:
-    async def test_returns_empty_when_no_certificates(
-        self, db_session: AsyncSession, users
-    ):
-        repo = AnalyticsRepository(db_session)
-        assert await repo.get_certificates_by_month() == []
-
-    async def test_counts_certificates_by_month(self, db_session: AsyncSession, users):
-        cert_repo = CertificateRepository(db_session)
-        await cert_repo.create(USER_A, "cert-a", "User A", 6, 6)
-        await cert_repo.create(USER_B, "cert-b", "User B", 6, 6)
-        await db_session.flush()
-
-        repo = AnalyticsRepository(db_session)
-        result = await repo.get_certificates_by_month()
-        assert len(result) == 1
-        assert result[0][1] == 2
 
 
 # =========================================================================

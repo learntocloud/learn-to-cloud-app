@@ -22,9 +22,6 @@ async def audit():
         r = await db.execute(text("SELECT count(*) FROM users"))
         print(f"[RAW] users count: {r.scalar_one()}")
 
-        r = await db.execute(text("SELECT count(*) FROM certificates"))
-        print(f"[RAW] certificates count: {r.scalar_one()}")
-
         r = await db.execute(text("SELECT count(*) FROM step_progress"))
         print(f"[RAW] step_progress count: {r.scalar_one()}")
 
@@ -36,12 +33,6 @@ async def audit():
         )
         for row in r.all():
             print(f"[RAW] user: id={row[0]}, username={row[1]}, created_at={row[2]}")
-
-        r = await db.execute(
-            text("SELECT id, user_id, issued_at FROM certificates LIMIT 5")
-        )
-        for row in r.all():
-            print(f"[RAW] cert: id={row[0]}, user_id={row[1]}, issued_at={row[2]}")
 
         r = await db.execute(
             text(
@@ -88,11 +79,9 @@ async def audit():
 
         repo = AnalyticsRepository(db)
         print(f"total_users: {await repo.get_total_users()}")
-        print(f"total_certs: {await repo.get_total_certificates()}")
         print(f"active_30d: {await repo.get_active_learners(days=30)}")
         print(f"histogram: {await repo.get_step_completion_histogram()}")
         print(f"signups: {await repo.get_signups_by_month()}")
-        print(f"certs_monthly: {await repo.get_certificates_by_month()}")
         print(f"submissions: {await repo.get_submission_stats_by_phase()}")
         print(f"activity_dow: {await repo.get_activity_by_day_of_week()}")
 
@@ -101,7 +90,6 @@ async def audit():
 
         a = await get_community_analytics(db)
         print(f"total_users: {a.total_users}")
-        print(f"total_certs: {a.total_certificates}")
         print(f"active_30d: {a.active_learners_30d}")
         print(f"completion_rate: {a.completion_rate}%")
         pd = [
@@ -111,8 +99,6 @@ async def audit():
         print(f"phase_dist: {pd}")
         st = [(t.month, t.count, t.cumulative) for t in a.signup_trends]
         print(f"signup_trends: {st}")
-        ct = [(t.month, t.count, t.cumulative) for t in a.certificate_trends]
-        print(f"cert_trends: {ct}")
         ad = [(d.day_name, d.completions) for d in a.activity_by_day]
         print(f"activity: {ad}")
 

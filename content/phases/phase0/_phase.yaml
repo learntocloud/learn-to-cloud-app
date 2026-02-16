@@ -5,10 +5,6 @@ description: This phase is designed for complete beginners who are starting from
   You will learn the core ideas behind Linux, networking, programming, cloud computing, and DevOps in a beginner-friendly
   sequence. A strong foundation here will make every later phase easier to understand and apply in real projects.
 short_description: Build your beginner-friendly IT foundation across Linux, networking, programming, cloud computing, and DevOps.
-badge:
-  name: Cloud Seedling
-  description: Completed Phase 0
-  icon: 🌱
 order: 0
 hands_on_verification:
   requirements:

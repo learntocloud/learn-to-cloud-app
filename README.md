@@ -8,8 +8,6 @@ A web application for tracking your progress through the [Learn to Cloud](https:
 
 - 📚 All 7 phases of the Learn to Cloud curriculum
 - ✅ Progress tracking with steps, questions, and hands-on projects
-- 🏆 Badges and achievements for completing phases
-- 📜 Certificates for phase completion
 - 🔐 Authentication via GitHub OAuth
 - 📊 Dashboard with progress visualization
 - 🐙 GitHub integration for project submissions

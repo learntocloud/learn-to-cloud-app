@@ -14,11 +14,6 @@ from core.auth import OptionalUserId, UserId
 from core.database import DbSession
 from models import User
 from rendering.steps import build_step_data
-from services.badges_service import get_badge_catalog
-from services.certificates_service import (
-    get_user_certificate_with_eligibility,
-    verify_certificate,
-)
 from services.content_service import (
     get_all_phases,
     get_phase_by_slug,
@@ -28,10 +23,10 @@ from services.dashboard_service import get_dashboard_data
 from services.phase_requirements_service import (
     is_phase_verification_locked,
 )
-from services.progress_service import fetch_user_progress, get_phase_detail_progress
+from services.progress_service import get_phase_detail_progress
 from services.steps_service import get_completed_steps
 from services.submissions_service import get_phase_submission_context
-from services.users_service import get_public_profile, get_user_by_id
+from services.users_service import get_user_by_id
 
 logger = logging.getLogger(__name__)
 
@@ -284,80 +279,6 @@ async def account_page(
     return request.app.state.templates.TemplateResponse(
         "pages/account.html",
         _template_context(request, user=user),
-    )
-
-
-@router.get("/certificates", response_class=HTMLResponse)
-async def certificates_page(
-    request: Request,
-    db: DbSession,
-    user_id: UserId,
-) -> HTMLResponse:
-    """Certificate management page."""
-    user = await _get_user_or_none(db, user_id)
-    certificate, eligible = await get_user_certificate_with_eligibility(db, user_id)
-
-    progress = await fetch_user_progress(db, user_id)
-
-    return request.app.state.templates.TemplateResponse(
-        "pages/certificates.html",
-        _template_context(
-            request,
-            user=user,
-            certificate=certificate,
-            eligible=eligible,
-            progress=progress,
-        ),
-    )
-
-
-@router.get("/profile/{username}", response_class=HTMLResponse)
-async def profile_page(
-    request: Request,
-    username: str,
-    db: DbSession,
-    user_id: OptionalUserId,
-) -> HTMLResponse:
-    """Public user profile."""
-    user = await _get_user_or_none(db, user_id)
-    profile = await get_public_profile(db, username, user_id)
-
-    if profile is None:
-        return request.app.state.templates.TemplateResponse(
-            "pages/404.html",
-            _template_context(request, user=user),
-            status_code=404,
-        )
-
-    badge_catalog, _ = get_badge_catalog()
-    earned_badge_ids = {b.id for b in profile.badges}
-
-    return request.app.state.templates.TemplateResponse(
-        "pages/profile.html",
-        _template_context(
-            request,
-            user=user,
-            profile=profile,
-            badge_catalog=badge_catalog,
-            earned_badge_ids=earned_badge_ids,
-        ),
-    )
-
-
-@router.get("/verify/{code}", response_class=HTMLResponse)
-async def verify_page(
-    request: Request,
-    code: str,
-    db: DbSession,
-    user_id: OptionalUserId,
-) -> HTMLResponse:
-    """Certificate verification page."""
-    user = await _get_user_or_none(db, user_id)
-    certificate = await verify_certificate(db, code)
-
-    return request.app.state.templates.TemplateResponse(
-        "pages/verify.html",
-        _template_context(request, user=user, certificate=certificate),
     )
 
 

@@ -5,6 +5,7 @@ import hashlib
 import logging
 import re
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime
 from pathlib import Path
 
 import fastapi
@@ -12,7 +13,7 @@ from fastapi import Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from slowapi.errors import RateLimitExceeded
@@ -38,7 +39,6 @@ from core.ratelimit import limiter, rate_limit_exceeded_handler
 from routes import (
     analytics_router,
     auth_router,
-    certificates_router,
     health_router,
     htmx_router,
     pages_router,
@@ -88,6 +88,22 @@ def _static_url(path: str) -> str:
     if version:
         return f"/static/{path}?v={version}"
     return f"/static/{path}"
+
+
+async def not_found_handler(
+    request: Request, exc: Exception
+) -> HTMLResponse | JSONResponse:
+    """Render nice 404 page for browsers, JSON for API clients."""
+    if request.url.path.startswith("/api/"):
+        return JSONResponse(
+            status_code=404,
+            content={"detail": "Not found"},
+        )
+    return templates.TemplateResponse(
+        "pages/404.html",
+        {"request": request, "user": None, "now": datetime.now(UTC)},
+        status_code=404,
+    )
 
 
 async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
@@ -265,6 +281,7 @@ app.state.templates = templates
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
 app.add_exception_handler(RequestValidationError, validation_exception_handler)
+app.add_exception_handler(404, not_found_handler)
 app.add_exception_handler(Exception, global_exception_handler)
 
 app.add_middleware(UserTrackingMiddleware)
@@ -344,7 +361,6 @@ async def apple_touch_icon() -> FileResponse:
 
 app.include_router(health_router)
 app.include_router(auth_router)
-app.include_router(certificates_router)
 app.include_router(users_router)
 app.include_router(analytics_router)
 app.include_router(htmx_router)

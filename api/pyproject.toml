@@ -35,7 +35,6 @@ dependencies = [
     "sqlalchemy>=2.0.37",
     "tenacity>=8.2.0",
     "uvicorn[standard]==0.34.0",
-    "cairosvg>=2.7.0",
     "starlette>=0.41.3",
     "pyyaml>=6.0",
     "agent-framework[azure]>=1.0.0b251120",
@@ -80,8 +79,6 @@ target-version = "py313"
 select = ["E", "F", "I", "UP"]
 
 [tool.ruff.lint.per-file-ignores]
-# SVG templates have long inline attribute strings that can't be broken
-"rendering/certificates.py" = ["E501"]
 
 [tool.ty.environment]
 # Use the current Python interpreter to resolve third-party imports

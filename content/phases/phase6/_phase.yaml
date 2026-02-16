@@ -7,10 +7,6 @@ description: You've built your Journal API, deployed it to the cloud, and set up
   your Journal API will be hardened and production-ready.
 short_description: Secure your Journal API with IAM, secrets management, network controls, monitoring, and incident response.
   Make it production-ready.
-badge:
-  name: Security Guardian
-  description: Completed Phase 6
-  icon: 🔐
 order: 6
 topics:
 - iam-secrets

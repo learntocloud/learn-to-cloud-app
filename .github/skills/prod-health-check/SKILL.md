@@ -450,7 +450,7 @@ az postgres flexible-server execute \
   --name $PSQL_NAME \
   --admin-user "$ADMIN_USER" --admin-password "$TOKEN" \
   --database-name learntocloud \
-  --querytext "SELECT 'total_users' as metric, COUNT(*)::text as value FROM users UNION ALL SELECT 'users_with_github', COUNT(*)::text FROM users WHERE github_username IS NOT NULL UNION ALL SELECT 'users_with_submissions', COUNT(DISTINCT user_id)::text FROM submissions UNION ALL SELECT 'total_submissions', COUNT(*)::text FROM submissions UNION ALL SELECT 'total_certificates', COUNT(*)::text FROM certificates;" \
+  --querytext "SELECT 'total_users' as metric, COUNT(*)::text as value FROM users UNION ALL SELECT 'users_with_github', COUNT(*)::text FROM users WHERE github_username IS NOT NULL UNION ALL SELECT 'users_with_submissions', COUNT(DISTINCT user_id)::text FROM submissions UNION ALL SELECT 'total_submissions', COUNT(*)::text FROM submissions;" \
   -o json
 ```
 
@@ -459,7 +459,6 @@ az postgres flexible-server execute \
 **What to look for**:
 - Total user count trending upward
 - Ratio of users with submissions (engagement rate)
-- Certificate count relative to active users
 
 ---
 

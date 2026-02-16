@@ -4,26 +4,11 @@ import logging
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from models import SubmissionType, User
-from repositories.submission_repository import SubmissionRepository
+from models import User
 from repositories.user_repository import UserRepository
-from schemas import (
-    PublicProfileData,
-    PublicSubmissionInfo,
-    UserResponse,
-)
-from services.badges_service import compute_all_badges
-from services.certificates_service import get_user_certificate
-from services.hands_on_verification_service import get_requirement_by_id
-from services.progress_service import fetch_user_progress, get_phase_completion_counts
+from schemas import UserResponse
 
 logger = logging.getLogger(__name__)
-
-# Submission types whose values are secrets and must not appear on public profiles
-_TOKEN_TYPES = {
-    SubmissionType.CTF_TOKEN.value,
-    SubmissionType.NETWORKING_TOKEN.value,
-}
 
 
 def normalize_github_username(username: str | None) -> str | None:
@@ -127,82 +112,6 @@ async def get_or_create_user_from_github(
     return user
 
 
-async def get_public_profile(
-    db: AsyncSession,
-    username: str,
-    viewer_user_id: int | None = None,
-) -> PublicProfileData | None:
-    """Build complete public profile data for a user.
-
-    Returns None if user not found.
-    Username lookup is case-insensitive (GitHub usernames are case-insensitive).
-    """
-    user_repo = UserRepository(db)
-    submission_repo = SubmissionRepository(db)
-
-    # Normalize username (GitHub usernames are case-insensitive)
-    normalized_username = normalize_github_username(username)
-    if not normalized_username:
-        return None
-    profile_user = await user_repo.get_by_github_username(normalized_username)
-    if not profile_user:
-        return None
-
-    # Run sequentially - asyncpg connections are NOT safe for concurrent use
-    # on the same AsyncSession. Using TaskGroup/gather here caused intermittent
-    # InterfaceError on cache-miss when both queries hit the DB.
-    db_submissions = await submission_repo.get_validated_by_user(profile_user.id)
-    progress = await fetch_user_progress(db, profile_user.id)
-
-    submissions = []
-    for sub in db_submissions:
-        requirement = get_requirement_by_id(sub.requirement_id)
-        sub_type = (
-            sub.submission_type.value
-            if hasattr(sub.submission_type, "value")
-            else str(sub.submission_type)
-        )
-        # Redact secret token values — only the fact of validation is public
-        display_value = "" if sub_type in _TOKEN_TYPES else sub.submitted_value
-        submissions.append(
-            PublicSubmissionInfo(
-                requirement_id=sub.requirement_id,
-                submission_type=sub_type,
-                phase_id=sub.phase_id,
-                submitted_value=display_value,
-                name=requirement.name if requirement else sub.requirement_id,
-                description=requirement.description if requirement else None,
-                validated_at=sub.validated_at,
-            )
-        )
-
-    phase_completion_counts = get_phase_completion_counts(progress)
-
-    earned_badges = compute_all_badges(
-        phase_completion_counts=phase_completion_counts,
-        user_id=profile_user.id,
-    )
-
-    certificate = await get_user_certificate(db, profile_user.id)
-
-    phases_completed = progress.phases_completed
-    current_phase = progress.current_phase
-
-    profile_data = PublicProfileData(
-        username=profile_user.github_username,
-        first_name=profile_user.first_name,
-        avatar_url=profile_user.avatar_url,
-        current_phase=current_phase,
-        phases_completed=phases_completed,
-        total_phases=progress.total_phases,
-        submissions=submissions,
-        badges=earned_badges,
-        certificate=certificate,
-    )
-
-    return profile_data
-
-
 class UserNotFoundError(Exception):
     """Raised when a user is not found in the database."""
 
@@ -214,7 +123,7 @@ class UserNotFoundError(Exception):
 async def delete_user_account(db: AsyncSession, user_id: int) -> None:
     """Permanently delete a user and all associated data.
 
-    Cascades to submissions, certificates, and step progress.
+    Cascades to submissions and step progress.
 
     Raises:
         UserNotFoundError: If the user does not exist.

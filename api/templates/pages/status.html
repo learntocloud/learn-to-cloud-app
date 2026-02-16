@@ -35,14 +35,10 @@
 <div>
 
     {# ── Key Metrics (2x2 grid, 4-col on wider screens) ── #}
-    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
+    <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-8">
         <div class="p-4 rounded-lg border border-gray-200 dark:border-gray-700 text-center">
             <p class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Total Learners</p>
             <p class="mt-1 text-2xl font-bold text-gray-900 dark:text-white">{{ "{:,}".format(analytics.total_users) }}</p>
-        </div>
-        <div class="p-4 rounded-lg border border-gray-200 dark:border-gray-700 text-center">
-            <p class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Completions</p>
-            <p class="mt-1 text-2xl font-bold text-green-600 dark:text-green-400">{{ "{:,}".format(analytics.total_certificates) }}</p>
         </div>
         <div class="p-4 rounded-lg border border-gray-200 dark:border-gray-700 text-center">
             <p class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Active (30d)</p>
@@ -102,18 +98,14 @@
                             <th class="text-left py-1.5 font-medium text-gray-500 dark:text-gray-400">Month</th>
                             <th class="text-right py-1.5 font-medium text-gray-500 dark:text-gray-400">New</th>
                             <th class="text-right py-1.5 font-medium text-gray-500 dark:text-gray-400">Total</th>
-                            <th class="text-right py-1.5 font-medium text-green-600 dark:text-green-400">Completions</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {% set cert_map = {} %}
-                        {% for c in analytics.certificate_trends %}{% if cert_map.update({c.month: c.cumulative}) %}{% endif %}{% endfor %}
                         {% for t in analytics.signup_trends %}
                         <tr class="border-b border-gray-100 dark:border-gray-800">
                             <td class="py-1.5 text-gray-700 dark:text-gray-300">{{ t.month }}</td>
                             <td class="py-1.5 text-right text-gray-700 dark:text-gray-300">+{{ t.count }}</td>
                             <td class="py-1.5 text-right font-medium text-blue-600 dark:text-blue-400">{{ "{:,}".format(t.cumulative) }}</td>
-                            <td class="py-1.5 text-right font-medium text-green-600 dark:text-green-400">{{ cert_map.get(t.month, 0) }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -221,22 +213,7 @@
                         fill: true,
                         tension: 0.3,
                         pointRadius: 2,
-                    },
-                    {% if analytics.certificate_trends %}
-                    {
-                        label: 'Completions',
-                        data: [
-                            {% set cert_map = {} %}
-                            {% for c in analytics.certificate_trends %}{% if cert_map.update({c.month: c.cumulative}) %}{% endif %}{% endfor %}
-                            {% for t in analytics.signup_trends %}{{ cert_map.get(t.month, 0) }}{% if not loop.last %}, {% endif %}{% endfor %}
-                        ],
-                        borderColor: '#22C55E',
-                        backgroundColor: 'rgba(34, 197, 94, 0.1)',
-                        fill: true,
-                        tension: 0.3,
-                        pointRadius: 2,
                     }
-                    {% endif %}
                 ]
             },
             options: {
