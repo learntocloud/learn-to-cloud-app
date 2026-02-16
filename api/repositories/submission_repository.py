@@ -203,7 +203,7 @@ class SubmissionRepository:
             return True
 
         result = await self.db.execute(
-            select(func.count(func.distinct(Submission.requirement_id))).where(
+            select(func.count(Submission.requirement_id.distinct())).where(
                 Submission.user_id == user_id,
                 Submission.requirement_id.in_(requirement_ids),
                 Submission.is_validated.is_(True),
