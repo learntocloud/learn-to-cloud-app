@@ -342,6 +342,7 @@ async def legacy_phase_url_redirects(request: Request, call_next):
                 # fall back to the phase root so we don't redirect to a 404 topic.
                 parts = rest.lstrip("/").split("/")
                 legacy_topic = parts[0]
+                # Filter empty segments so double-slashes are normalised away.
                 remainder = [p for p in parts[1:] if p]
 
                 topic_aliases = _topic_slug_aliases_by_phase().get(str(phase_id), {})
