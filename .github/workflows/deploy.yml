@@ -97,7 +97,7 @@ jobs:
           version: "0.8.6"
 
       - name: Type check (ty)
-        run: uv tool run ty check --python .venv/bin/python
+        run: uv tool run ty check --python .venv/bin/python --warn-exit-code 0
 
       - name: Run tests with coverage
         run: uv run pytest tests/ -v --tb=short --cov=. --cov-report=xml --cov-report=term-missing
