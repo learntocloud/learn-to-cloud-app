@@ -9,8 +9,9 @@ Tests the challenge-response API ownership verification:
 - Circuit breaker behavior
 """
 
+import asyncio
 import json
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
@@ -18,11 +19,15 @@ from circuitbreaker import CircuitBreakerError
 
 from services.deployed_api_verification_service import (
     DeployedApiServerError,
+    _check_response_ip,
     _extract_entries_list,
     _generate_challenge_nonce,
+    _is_private_ip,
     _normalize_base_url,
+    _SsrfError,
     _validate_entries_json,
     _validate_entry,
+    _validate_url_target,
     validate_deployed_api,
 )
 
@@ -277,25 +282,30 @@ def _mock_fetch_side_effect(
 
 
 @pytest.mark.unit
+@patch(
+    "services.deployed_api_verification_service._validate_url_target",
+    new_callable=AsyncMock,
+    return_value=None,
+)
 class TestValidateDeployedApi:
     """Tests for the challenge-response validation function."""
 
     @pytest.mark.asyncio
-    async def test_empty_url_fails(self):
+    async def test_empty_url_fails(self, _mock_ssrf):
         """Empty URL should fail."""
         result = await validate_deployed_api("")
         assert result.is_valid is False
         assert "submit your deployed api" in result.message.lower()
 
     @pytest.mark.asyncio
-    async def test_invalid_url_fails(self):
+    async def test_invalid_url_fails(self, _mock_ssrf):
         """Invalid URL format should fail."""
         result = await validate_deployed_api("not-a-url")
         assert result.is_valid is False
         assert "valid HTTP(S) URL" in result.message
 
     @pytest.mark.asyncio
-    async def test_successful_challenge_response(self):
+    async def test_successful_challenge_response(self, _mock_ssrf):
         """Full POST-GET-DELETE flow should verify ownership."""
         valid_entry = {
             "id": "12345678-1234-4567-89ab-123456789abc",
@@ -378,7 +388,7 @@ class TestValidateDeployedApi:
             )
 
     @pytest.mark.asyncio
-    async def test_post_timeout_error(self):
+    async def test_post_timeout_error(self, _mock_ssrf):
         """Timeout on POST should return appropriate error."""
         with patch(
             "services.deployed_api_verification_service._fetch_with_retry",
@@ -392,7 +402,7 @@ class TestValidateDeployedApi:
             assert "timed out" in result.message.lower()
 
     @pytest.mark.asyncio
-    async def test_post_connection_error(self):
+    async def test_post_connection_error(self, _mock_ssrf):
         """Connection error on POST should return appropriate message."""
         with patch(
             "services.deployed_api_verification_service._fetch_with_retry",
@@ -406,7 +416,7 @@ class TestValidateDeployedApi:
             assert "could not connect" in result.message.lower()
 
     @pytest.mark.asyncio
-    async def test_post_server_error(self):
+    async def test_post_server_error(self, _mock_ssrf):
         """5xx errors on POST should return appropriate message."""
         with patch(
             "services.deployed_api_verification_service._fetch_with_retry",
@@ -420,7 +430,7 @@ class TestValidateDeployedApi:
             assert "server error" in result.message.lower()
 
     @pytest.mark.asyncio
-    async def test_circuit_breaker_open(self):
+    async def test_circuit_breaker_open(self, _mock_ssrf):
         """Circuit breaker open should return retry message."""
         with patch(
             "services.deployed_api_verification_service._fetch_with_retry",
@@ -434,7 +444,7 @@ class TestValidateDeployedApi:
             assert "try again" in result.message.lower()
 
     @pytest.mark.asyncio
-    async def test_post_404_not_found(self):
+    async def test_post_404_not_found(self, _mock_ssrf):
         """POST 404 should indicate endpoint doesn't exist."""
         mock_response = MagicMock(spec=httpx.Response)
         mock_response.status_code = 404
@@ -451,7 +461,7 @@ class TestValidateDeployedApi:
             assert "404" in result.message
 
     @pytest.mark.asyncio
-    async def test_post_422_validation_error(self):
+    async def test_post_422_validation_error(self, _mock_ssrf):
         """POST 422 should indicate validation error."""
         mock_response = MagicMock(spec=httpx.Response)
         mock_response.status_code = 422
@@ -463,7 +473,7 @@ class TestValidateDeployedApi:
             mock_fetch.return_value = mock_response
 
     @pytest.mark.asyncio
-    async def test_nonce_not_found_in_get(self):
+    async def test_nonce_not_found_in_get(self, _mock_ssrf):
         """If nonce is not in GET response, ownership verification fails."""
         post_response = MagicMock(spec=httpx.Response)
         post_response.status_code = 200
@@ -513,7 +523,7 @@ class TestValidateDeployedApi:
             assert "ownership verification failed" in result.message.lower()
 
     @pytest.mark.asyncio
-    async def test_get_returns_invalid_json(self):
+    async def test_get_returns_invalid_json(self, _mock_ssrf):
         """Non-JSON GET response should fail after POST succeeds."""
         post_response = MagicMock(spec=httpx.Response)
         post_response.status_code = 200
@@ -549,7 +559,7 @@ class TestValidateDeployedApi:
             assert "valid JSON" in result.message
 
     @pytest.mark.asyncio
-    async def test_wrapped_response_format(self):
+    async def test_wrapped_response_format(self, _mock_ssrf):
         """API returning {"entries": [...], "count": N} should also work."""
         valid_entry = {
             "id": "12345678-1234-4567-89ab-123456789abc",
@@ -609,7 +619,7 @@ class TestValidateDeployedApi:
             assert "ownership confirmed" in result.message.lower()
 
     @pytest.mark.asyncio
-    async def test_url_with_entries_suffix_normalized(self):
+    async def test_url_with_entries_suffix_normalized(self, _mock_ssrf):
         """URL ending in /entries should be normalized."""
         captured_nonce = None
 
@@ -703,3 +713,196 @@ class TestValidateSubmissionIntegration:
 
             mock.assert_called_once_with("https://api.example.com")
             assert result.is_valid is True
+
+
+@pytest.mark.unit
+class TestIsPrivateIp:
+    """Tests for _is_private_ip helper."""
+
+    def test_loopback_ipv4(self):
+        assert _is_private_ip("127.0.0.1") is True
+
+    def test_loopback_ipv6(self):
+        assert _is_private_ip("::1") is True
+
+    def test_private_10_range(self):
+        assert _is_private_ip("10.0.0.1") is True
+
+    def test_private_172_range(self):
+        assert _is_private_ip("172.16.0.1") is True
+
+    def test_private_192_range(self):
+        assert _is_private_ip("192.168.1.1") is True
+
+    def test_link_local(self):
+        assert _is_private_ip("169.254.169.254") is True
+
+    def test_multicast(self):
+        assert _is_private_ip("224.0.0.1") is True
+
+    def test_unspecified(self):
+        assert _is_private_ip("0.0.0.0") is True
+
+    def test_public_ip(self):
+        assert _is_private_ip("8.8.8.8") is False
+
+    def test_public_ip_2(self):
+        assert _is_private_ip("1.1.1.1") is False
+
+    def test_invalid_string(self):
+        assert _is_private_ip("not-an-ip") is True
+
+
+@pytest.mark.unit
+class TestValidateUrlTarget:
+    """Tests for SSRF protection via _validate_url_target."""
+
+    @pytest.mark.asyncio
+    async def test_blocks_localhost(self):
+        """URLs pointing to localhost should be blocked."""
+        result = await _validate_url_target("https://127.0.0.1/entries")
+        assert result is not None
+        assert "publicly accessible" in result
+
+    @pytest.mark.asyncio
+    async def test_blocks_metadata_endpoint(self):
+        """Cloud metadata endpoint (169.254.169.254) should be blocked."""
+        result = await _validate_url_target("https://169.254.169.254/latest/meta-data/")
+        assert result is not None
+        assert "publicly accessible" in result
+
+    @pytest.mark.asyncio
+    async def test_blocks_private_10_range(self):
+        """Private 10.x.x.x IPs should be blocked."""
+        result = await _validate_url_target("https://10.0.0.1/entries")
+        assert result is not None
+        assert "publicly accessible" in result
+
+    @pytest.mark.asyncio
+    async def test_blocks_private_192_range(self):
+        """Private 192.168.x.x IPs should be blocked."""
+        result = await _validate_url_target("https://192.168.1.1/entries")
+        assert result is not None
+        assert "publicly accessible" in result
+
+    @pytest.mark.asyncio
+    async def test_blocks_dns_resolving_to_private(self):
+        """Hostnames resolving to private IPs should be blocked."""
+        with patch(
+            "services.deployed_api_verification_service.asyncio.get_running_loop"
+        ) as mock_loop:
+            fut = asyncio.get_event_loop().create_future()
+            fut.set_result(
+                [
+                    (2, 1, 6, "", ("127.0.0.1", 443)),
+                ]
+            )
+            mock_loop.return_value.getaddrinfo = MagicMock(return_value=fut)
+            result = await _validate_url_target("https://evil.example.com/entries")
+            assert result is not None
+            assert "publicly accessible" in result
+
+    @pytest.mark.asyncio
+    async def test_allows_dns_resolving_to_public(self):
+        """Hostnames resolving to public IPs should be allowed."""
+        with patch(
+            "services.deployed_api_verification_service.asyncio.get_running_loop"
+        ) as mock_loop:
+            fut = asyncio.get_event_loop().create_future()
+            fut.set_result(
+                [
+                    (2, 1, 6, "", ("20.50.2.100", 443)),
+                ]
+            )
+            mock_loop.return_value.getaddrinfo = MagicMock(return_value=fut)
+            result = await _validate_url_target("https://myapi.azurewebsites.net")
+            assert result is None
+
+    @pytest.mark.asyncio
+    async def test_blocks_unresolvable_host(self):
+        """Hostnames that cannot be resolved should be blocked."""
+        import socket as _socket
+
+        with patch(
+            "services.deployed_api_verification_service.asyncio.get_running_loop"
+        ) as mock_loop:
+            fut = asyncio.get_event_loop().create_future()
+            fut.set_exception(_socket.gaierror("Name resolution failed"))
+            mock_loop.return_value.getaddrinfo = MagicMock(return_value=fut)
+            result = await _validate_url_target("https://nonexistent.invalid/entries")
+            assert result is not None
+            assert "could not resolve" in result.lower()
+
+    @pytest.mark.asyncio
+    async def test_blocks_ipv6_loopback(self):
+        """IPv6 loopback should be blocked."""
+        result = await _validate_url_target("https://[::1]/entries")
+        assert result is not None
+        assert "publicly accessible" in result
+
+
+@pytest.mark.unit
+class TestSsrfIntegration:
+    """Integration tests ensuring SSRF protection in validate_deployed_api."""
+
+    @pytest.mark.asyncio
+    async def test_rejects_private_ip_url(self):
+        """validate_deployed_api should reject private IP URLs."""
+        result = await validate_deployed_api("https://10.0.0.1")
+        assert result.is_valid is False
+        assert "publicly accessible" in result.message
+
+    @pytest.mark.asyncio
+    async def test_rejects_metadata_url(self):
+        """validate_deployed_api should reject cloud metadata URLs."""
+        result = await validate_deployed_api("https://169.254.169.254")
+        assert result.is_valid is False
+        assert "publicly accessible" in result.message
+
+    @pytest.mark.asyncio
+    async def test_rejects_localhost(self):
+        """validate_deployed_api should reject localhost URLs."""
+        result = await validate_deployed_api("https://127.0.0.1")
+        assert result.is_valid is False
+        assert "publicly accessible" in result.message
+
+
+@pytest.mark.unit
+class TestCheckResponseIp:
+    """Tests for post-connect SSRF validation via _check_response_ip."""
+
+    def test_raises_on_private_ip(self):
+        """Should raise _SsrfError when connected IP is private."""
+        stream = MagicMock()
+        stream.get_extra_info.return_value = ("10.0.0.1", 443)
+        response = MagicMock(spec=httpx.Response)
+        response.extensions = {"network_stream": stream}
+
+        with pytest.raises(_SsrfError):
+            _check_response_ip(response)
+
+    def test_allows_public_ip(self):
+        """Should not raise when connected IP is public."""
+        stream = MagicMock()
+        stream.get_extra_info.return_value = ("20.50.2.100", 443)
+        response = MagicMock(spec=httpx.Response)
+        response.extensions = {"network_stream": stream}
+
+        _check_response_ip(response)  # Should not raise
+
+    def test_no_stream_is_safe(self):
+        """Should not raise when no network_stream (e.g. mocked response)."""
+        response = MagicMock(spec=httpx.Response)
+        response.extensions = {}
+
+        _check_response_ip(response)  # Should not raise
+
+    def test_raises_on_metadata_ip(self):
+        """Should catch DNS rebinding to cloud metadata endpoint."""
+        stream = MagicMock()
+        stream.get_extra_info.return_value = ("169.254.169.254", 80)
+        response = MagicMock(spec=httpx.Response)
+        response.extensions = {"network_stream": stream}
+
+        with pytest.raises(_SsrfError):
+            _check_response_ip(response)
