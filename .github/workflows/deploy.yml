@@ -78,9 +78,7 @@ jobs:
           enable-cache: true
 
       - name: Install dependencies
-        run: |
-          uv sync --extra dev --group dev
-          uv tool install ty
+        run: uv sync --extra dev --group dev
 
       - name: Ruff lint
         uses: astral-sh/ruff-action@v3
@@ -97,7 +95,7 @@ jobs:
           version: "0.8.6"
 
       - name: Type check (ty)
-        run: uv tool run ty check --python .venv/bin/python
+        run: uv run ty check --python .venv/bin/python
 
       - name: Run tests with coverage
         run: uv run pytest tests/ -v --tb=short --cov=. --cov-report=xml --cov-report=term-missing
