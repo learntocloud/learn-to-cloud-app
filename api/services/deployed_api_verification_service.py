@@ -22,10 +22,12 @@ SCALABILITY:
 from __future__ import annotations
 
 import asyncio
+import ipaddress
 import json
 import logging
 import re
 import secrets
+import socket
 from datetime import datetime
 from typing import Any
 from urllib.parse import urlparse
@@ -93,7 +95,7 @@ async def _get_client() -> httpx.AsyncClient:
 
         _deployed_api_client = httpx.AsyncClient(
             timeout=httpx.Timeout(15.0, connect=5.0),
-            follow_redirects=True,
+            follow_redirects=False,
             limits=httpx.Limits(max_connections=20, max_keepalive_connections=10),
         )
         return _deployed_api_client
@@ -111,6 +113,99 @@ def _is_valid_url(value: str) -> bool:
     """Check if a string is a valid HTTPS URL."""
     parsed = urlparse(value)
     return parsed.scheme == "https" and bool(parsed.netloc)
+
+
+def _is_private_ip(addr: str) -> bool:
+    """Check if an IP address is private or otherwise non-globally-routable."""
+    try:
+        ip = ipaddress.ip_address(addr)
+    except ValueError:
+        return True  # Unparseable — treat as unsafe
+    # is_global covers private, loopback, link-local, reserved, unspecified,
+    # CGNAT (100.64.0.0/10), and documentation ranges. Multicast addresses
+    # incorrectly report is_global=True in Python 3.13, so we guard explicitly.
+    return not ip.is_global or ip.is_multicast
+
+
+async def _validate_url_target(url: str) -> str | None:
+    """Validate that a URL's hostname does not target a private IP address.
+
+    Performs pre-flight DNS resolution to catch obvious SSRF attempts
+    (direct IPs, hostnames resolving to private ranges). A second
+    validation occurs post-connect in ``_check_response_ip`` to close
+    the DNS-rebinding TOCTOU window.
+
+    Returns None if safe, or an error message string.
+    """
+    parsed = urlparse(url)
+    hostname = parsed.hostname
+    if not hostname:
+        return "Invalid URL: no hostname."
+
+    # Reject raw IP addresses that are private
+    try:
+        ip = ipaddress.ip_address(hostname)
+        if _is_private_ip(str(ip)):
+            logger.warning(
+                "deployed_api.ssrf_blocked",
+                extra={"url": url, "reason": "private_ip_literal"},
+            )
+            return "URL must point to a publicly accessible server."
+        return None
+    except ValueError:
+        pass  # hostname is a domain name, resolve it below
+
+    # Resolve hostname and check all resulting IPs
+    loop = asyncio.get_running_loop()
+    try:
+        addrinfo = await loop.getaddrinfo(
+            hostname, parsed.port or 443, type=socket.SOCK_STREAM
+        )
+    except socket.gaierror:
+        return f"Could not resolve hostname: {hostname}"
+
+    if not addrinfo:
+        return f"Could not resolve hostname: {hostname}"
+
+    for family, _type, _proto, _canonname, sockaddr in addrinfo:
+        addr = sockaddr[0]
+        if _is_private_ip(addr):
+            logger.warning(
+                "deployed_api.ssrf_blocked",
+                extra={
+                    "url": url,
+                    "resolved_ip": addr,
+                    "reason": "private_ip_resolved",
+                },
+            )
+            return "URL must point to a publicly accessible server."
+
+    return None
+
+
+class _SsrfError(Exception):
+    """Raised when a response reveals a connection to a private IP."""
+
+
+def _check_response_ip(response: httpx.Response) -> None:
+    """Verify the actual connected IP is not private (closes DNS-rebinding gap).
+
+    Raises:
+        _SsrfError: If the connection was made to a private/internal IP.
+    """
+    stream = response.extensions.get("network_stream")
+    if stream is None:
+        return
+    server_addr = stream.get_extra_info("server_addr")
+    if server_addr is None:
+        return
+    addr = server_addr[0]
+    if _is_private_ip(addr):
+        logger.warning(
+            "deployed_api.ssrf_blocked",
+            extra={"resolved_ip": addr, "reason": "dns_rebinding"},
+        )
+        raise _SsrfError(addr)
 
 
 def _normalize_base_url(url: str) -> str:
@@ -278,6 +373,7 @@ async def _fetch_with_retry(
         The httpx Response object
 
     Raises:
+        _SsrfError: If the connection resolved to a private IP
         DeployedApiServerError: If the API returns a 5xx error
         httpx.RequestError: For connection/network errors
         httpx.TimeoutException: If the request times out
@@ -289,6 +385,9 @@ async def _fetch_with_retry(
         json=json_body,
         headers={"Accept": "application/json"},
     )
+
+    # Post-connect SSRF check — closes DNS-rebinding TOCTOU window
+    _check_response_ip(response)
 
     if response.status_code >= 500:
         raise DeployedApiServerError(
@@ -305,8 +404,12 @@ async def _cleanup_challenge_entry(
     """Best-effort DELETE of the challenge entry. Failures are logged, not raised."""
     try:
         delete_url = f"{entries_url}/{entry_id}"
-        client = await _get_client()
-        await client.delete(delete_url, timeout=httpx.Timeout(10.0, connect=5.0))
+        await _fetch_with_retry(delete_url, method="DELETE")
+    except _SsrfError:
+        logger.warning(
+            "deployed_api.ssrf_blocked",
+            extra={"entry_id": entry_id, "reason": "cleanup_dns_rebinding"},
+        )
     except Exception:
         logger.debug(
             "deployed_api.challenge_cleanup_failed",
@@ -412,6 +515,14 @@ async def validate_deployed_api(base_url: str) -> ValidationResult:
             message="Please submit a valid HTTP(S) URL.",
         )
 
+    # SSRF protection: resolve hostname and block private/internal IPs
+    ssrf_error = await _validate_url_target(base_url)
+    if ssrf_error:
+        return ValidationResult(
+            is_valid=False,
+            message=ssrf_error,
+        )
+
     entries_url = f"{base_url}/entries"
     nonce = _generate_challenge_nonce()
     challenge_entry_id: str | None = None
@@ -426,6 +537,11 @@ async def validate_deployed_api(base_url: str) -> ValidationResult:
     try:
         post_response = await _fetch_with_retry(
             entries_url, method="POST", json_body=challenge_body
+        )
+    except _SsrfError:
+        return ValidationResult(
+            is_valid=False,
+            message="URL must point to a publicly accessible server.",
         )
     except (
         CircuitBreakerError,
@@ -471,6 +587,13 @@ async def validate_deployed_api(base_url: str) -> ValidationResult:
     # --- Step 2: GET /entries and find the nonce ---
     try:
         get_response = await _fetch_with_retry(entries_url)
+    except _SsrfError:
+        if challenge_entry_id:
+            await _cleanup_challenge_entry(entries_url, challenge_entry_id)
+        return ValidationResult(
+            is_valid=False,
+            message="URL must point to a publicly accessible server.",
+        )
     except (
         CircuitBreakerError,
         httpx.TimeoutException,
