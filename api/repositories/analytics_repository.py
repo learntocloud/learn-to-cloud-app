@@ -31,36 +31,12 @@ class AnalyticsRepository:
         return result.scalar_one() or 0
 
     async def get_active_learners(self, days: int = 30) -> int:
-        """Count users with step completion or submission activity in last N days.
-
-        A user is considered "active" if they have either:
-        - Completed at least one step in the last N days, OR
-        - Created at least one submission in the last N days
-
-        This provides a more accurate picture of engagement than step
-        completions alone, since hands-on verification is a major part
-        of the curriculum and users can be active without completing new steps.
-        """
+        """Count users with at least one step completion in the last N days."""
         cutoff = datetime.now(UTC) - timedelta(days=days)
-
-        # Users with recent step completions
-        step_users = (
-            select(StepProgress.user_id)
-            .where(StepProgress.completed_at >= cutoff)
-            .distinct()
-        )
-
-        # Users with recent submission activity
-        submission_users = (
-            select(Submission.user_id)
-            .where(Submission.created_at >= cutoff)
-            .distinct()
-        )
-
-        # Union both sets and count distinct users
         result = await self.db.execute(
-            select(func.count())
-            .select_from(step_users.union(submission_users).subquery())
+            select(func.count(func.distinct(StepProgress.user_id))).where(
+                StepProgress.completed_at >= cutoff,
+            )
         )
         return result.scalar_one() or 0
 
