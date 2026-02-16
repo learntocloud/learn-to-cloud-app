@@ -295,6 +295,19 @@ if _settings.debug:
         max_age=600,
     )
 
+_middleware_classes = [m.cls for m in app.user_middleware]
+if SessionMiddleware in _middleware_classes and CSRFMiddleware in _middleware_classes:
+    # Starlette prepends middleware via insert(0, ...), then evaluates the resulting
+    # list top-to-bottom. If CSRF ends up outside Session, it becomes a silent no-op
+    # (scope["session"] is missing) and unsafe requests can slip through.
+    if _middleware_classes.index(SessionMiddleware) > _middleware_classes.index(
+        CSRFMiddleware
+    ):
+        raise RuntimeError(
+            "Invalid middleware ordering: SessionMiddleware must run before "
+            "CSRFMiddleware (add CSRFMiddleware BEFORE SessionMiddleware in code)."
+        )
+
 _static_dir = Path(__file__).parent / "static"
 if _static_dir.exists():
     _static_hashes.update(_build_static_file_hashes(_static_dir))
