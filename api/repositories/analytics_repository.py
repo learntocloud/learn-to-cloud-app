@@ -34,7 +34,7 @@ class AnalyticsRepository:
         """Count users with at least one step completion in the last N days."""
         cutoff = datetime.now(UTC) - timedelta(days=days)
         result = await self.db.execute(
-            select(func.count(func.distinct(StepProgress.user_id))).where(
+            select(func.count(StepProgress.user_id.distinct())).where(
                 StepProgress.completed_at >= cutoff,
             )
         )
