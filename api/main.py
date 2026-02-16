@@ -285,14 +285,20 @@ def _normalize_legacy_slug(slug: str) -> str:
 
 @lru_cache(maxsize=1)
 def _topic_slug_aliases_by_phase() -> dict[str, dict[str, str]]:
-    """Build a mapping of legacy topic slugs -> current topic slugs per phase."""
+    """Build a mapping of legacy topic slugs -> current topic slugs per phase.
+
+    Note:
+        Cached for the lifetime of the process. If content YAML changes, a server
+        restart is required for this mapping to update.
+    """
+    # Deferred import to avoid circular dependency with services.content_service.
     from services.content_service import get_all_phases
 
     aliases: dict[str, dict[str, str]] = {}
     for phase in get_all_phases():
         phase_id = str(phase.order)
         phase_aliases: dict[str, str] = {}
-        for topic_slug in getattr(phase, "topic_slugs", []):
+        for topic_slug in phase.topic_slugs:
             phase_aliases[_normalize_legacy_slug(topic_slug)] = topic_slug
         aliases[phase_id] = phase_aliases
 

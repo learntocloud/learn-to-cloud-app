@@ -59,6 +59,18 @@ class TestLegacyPhaseRedirects:
         assert resp.headers["location"] == "/phase/6"
         call_next.assert_not_awaited()
 
+    async def test_redirects_phase_underscore_variant(self) -> None:
+        request = MagicMock()
+        request.url = URL("https://testserver/phase_4")
+
+        call_next = AsyncMock(return_value=PlainTextResponse("ok"))
+        resp = await legacy_phase_url_redirects(request, call_next)
+
+        assert isinstance(resp, RedirectResponse)
+        assert resp.status_code == 308
+        assert resp.headers["location"] == "/phase/4"
+        call_next.assert_not_awaited()
+
     async def test_redirects_legacy_topic_slug(self) -> None:
         request = MagicMock()
         request.url = URL("https://testserver/phase1/clibasics/")
@@ -69,6 +81,18 @@ class TestLegacyPhaseRedirects:
         assert isinstance(resp, RedirectResponse)
         assert resp.status_code == 308
         assert resp.headers["location"] == "/phase/1/cli-basics"
+        call_next.assert_not_awaited()
+
+    async def test_redirects_legacy_topic_slug_preserves_remainder(self) -> None:
+        request = MagicMock()
+        request.url = URL("https://testserver/phase1/clibasics/step1/substep2")
+
+        call_next = AsyncMock(return_value=PlainTextResponse("ok"))
+        resp = await legacy_phase_url_redirects(request, call_next)
+
+        assert isinstance(resp, RedirectResponse)
+        assert resp.status_code == 308
+        assert resp.headers["location"] == "/phase/1/cli-basics/step1/substep2"
         call_next.assert_not_awaited()
 
     async def test_redirects_known_topic_override(self) -> None:
