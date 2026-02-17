@@ -2,7 +2,7 @@ id: phase4-topic9
 slug: capstone
 name: 'Capstone: Cloud Deployment'
 description: Deploy the Journal API you built in Phase 3 to a secure 2-tier cloud architecture. This capstone challenges you to research, design, and implement a production-ready environment with proper networking and security, using the database and deployment preparation work you completed in earlier Phase 4 topics.
-short_description: Deploy your Journal API to a secure 2-tier cloud architecture with VMs, networking, and managed database.
+short_description: Deploy your Journal API to a secure 2-tier cloud architecture with VMs, networking, and HTTPS.
 order: 9
 learning_objectives:
 - id: cloud-capstone-architecture
@@ -11,57 +11,88 @@ learning_objectives:
 - id: cloud-capstone-implementation
   text: Implement networking, compute, and database components to run the Journal API end to end.
   order: 2
+- id: cloud-capstone-cloud-ai
+  text: Deploy and integrate a cloud-hosted AI model with your application.
+  order: 3
 - id: cloud-capstone-verification
   text: Validate deployment success criteria including HTTPS, connectivity controls, and functional API behavior.
-  order: 3
+  order: 4
 learning_steps:
 - order: 1
   action: 'Explore:'
-  description: Use your Topic 5 database planning and Topic 6 deployment runbook as inputs. Then plan your cloud infrastructure on paper or a diagram. You need a public tier for your FastAPI application server and a private tier for your PostgreSQL database. Decide how you'll separate them with networking.
   title: Design your 2-tier architecture
+  description: |
+    Use your **Database Deployment & Configuration** topic work as input. Sketch your infrastructure on paper or a diagram before touching the cloud console — CIDR ranges, ports between tiers, and what traffic to block.
+
+    > [!TIP] If your cloud platform requires approval for AI model access, request it now so you are not blocked at the AI deployment step.
+
+    **Done when:** you have a diagram showing public subnet (API), private subnet (database), CIDR ranges, and firewall rules.
   id: phase4-topic9-explore-design-your-2-tier-architecture
 - order: 2
   action: 'Practice:'
-  description: Create a VPC or VNet with at least two subnets — one public (for the API) and one private (for the database). Configure routing and security groups.
-  title: Set up your VPC with public and private subnets
-  id: phase4-topic9-practice-set-up-your-vpc
+  title: Create your virtual network with public and private subnets
+  description: |
+    Create a virtual network with at least two subnets — one public (API) and one private (database). Configure security groups or firewall rules so the **public subnet** allows inbound HTTP (80) and HTTPS (443), and the **private subnet** only allows database traffic (port 5432) from the public subnet.
+
+    **Done when:** both subnets exist and your firewall rules match the design from Step 1.
+  id: phase4-topic9-practice-create-your-virtual-network
 - order: 3
   action: 'Practice:'
-  description: Deploy a VM in the public subnet, install your Journal API, and configure it to be accessible from the internet.
-  title: Deploy the API server in the public subnet
-  id: phase4-topic9-practice-deploy-the-api-server
+  title: Deploy the database in the private subnet
+  description: |
+    Deploy a VM in the private subnet, install PostgreSQL, create the `career_journal` database with a dedicated user, and run your schema migration. Configure PostgreSQL to accept connections from your API subnet (not just localhost).
+
+    > [!TIP] The DB VM needs outbound internet to install packages — use a temporary public IP (remove after) or a managed NAT service. If your VM has 1 GiB RAM or less, configure swap space (2 GiB recommended) or PostgreSQL may be killed by the OS out-of-memory handler.
+
+    **Done when:** you can connect to PostgreSQL from the API subnet via private IP, and the database is **not** reachable from the internet.
+  id: phase4-topic9-practice-deploy-the-database-in
 - order: 4
   action: 'Practice:'
-  description: Deploy PostgreSQL in the private subnet. Ensure it is NOT directly accessible from the internet and only accepts connections from your API server.
-  title: Deploy the database in the private subnet
-  id: phase4-topic9-practice-deploy-the-database-in
+  title: Deploy the API server and connect to the database
+  description: |
+    Deploy a VM in the public subnet, install the Journal API, and connect it to the database using the DB VM's **private IP address**. Set `DATABASE_URL` and run the application as a background service so it survives SSH disconnection and VM restarts.
+
+    > [!TIP] The Journal API requires Python 3.11+. Ubuntu 24.04 LTS ships Python 3.12 as its system Python — older images may need a separate install.
+
+    **Done when:** all CRUD operations work — create, list, get, update, and delete an entry.
+  id: phase4-topic9-practice-deploy-the-api-server
 - order: 5
   action: 'Practice:'
-  description: Configure your API server to connect to the database in the private subnet. Verify all CRUD operations and the AI analysis endpoint work correctly.
-  title: Connect the API to the database and test
-  id: phase4-topic9-practice-connect-the-api-to
+  title: Expose your API over HTTPS
+  description: |
+    Set up a **domain name** pointing to your VM's public IP, obtain a **TLS certificate** from a CA that supports automated issuance, and configure a **reverse proxy** to terminate TLS and forward traffic to your application on localhost.
+
+    > [!WARNING] The automated verifier does **not** follow HTTP redirects. Ensure `/entries` returns a direct 200, not a 3xx redirect. Watch for trailing-slash redirects in your proxy config.
+
+    **Done when:** `curl -v https://yourdomain/entries` returns valid JSON with a trusted certificate and no redirects.
+  id: phase4-topic9-practice-expose-your-api-over-https
 - order: 6
   action: 'Practice:'
-  description: Deploy your chosen model on your cloud platform, then update your Journal API integration to call the cloud endpoint instead of GitHub Models.
   title: Deploy and switch your Journal API to cloud AI
+  description: |
+    Deploy an LLM on your cloud platform and update your Journal API environment variables to point to the cloud endpoint. No code changes needed — only environment variable changes.
+
+    **Done when:** `/entries/{id}/analyze` returns sentiment, summary, and topics from your cloud-hosted model.
   id: phase4-topic9-practice-deploy-and-switch-your
 - order: 7
   action: 'Practice:'
-  description: Submit an HTTPS base URL for your deployed API. The automated verifier will POST a challenge entry to /entries, call GET /entries, and confirm that the challenge appears in the response. It also checks response format and basic entry structure when real entries are present.
-  title: Create journal entries and verify HTTPS access
-  id: phase4-topic9-practice-create-journal-entries-and
+  title: Verify and submit your deployment
+  description: |
+    Submit your HTTPS base URL (e.g., `https://your-api.example.com`). The verifier POSTs a challenge entry to `/entries`, confirms it appears in GET `/entries`, then deletes it.
+
+    > [!TIP] Your API's response format must match the data schema defined in the journal-starter README. Your API must respond within 15 seconds.
+
+    **Done when:** the verifier shows "Deployed API verified!"
+  id: phase4-topic9-practice-verify-and-submit-your
 - order: 8
   action: 'Practice:'
-  title: Success Criteria
-  description: 'Confirm your deployment meets these production goals: API accessible from the internet over HTTPS, database only accessible from the API server, CRUD operations behave correctly, AI analysis endpoint returns sentiment and summary, LLM/API secrets are stored securely, data persists between restarts, and telemetry is configured so you can see API requests/errors and application logs in your cloud monitoring service. Note: these are broader engineering goals; automated hands-on verification focuses specifically on HTTPS + POST/GET challenge-response for /entries.'
-  id: phase4-topic9-practice-success-criteria
-- order: 9
-  action: 'Practice:'
   title: Clean up your cloud resources
-  description: Once your capstone has been verified, delete all cloud resources — VMs, VPC/VNet, subnets, security groups, databases, and any other infrastructure you provisioned. Check your cloud console to confirm nothing is still running. You will redeploy in later phases using containers and infrastructure as code.
+  description: |
+    Delete all cloud resources — VMs, virtual networks, subnets, security groups, public IPs, and any other infrastructure you provisioned. Check your cloud console to confirm nothing is still running or incurring charges.
   id: phase4-topic9-practice-clean-up-your-cloud
-- order: 10
+- order: 9
   action: 'Reflect:'
-  title: Share Your Progress
-  description: When you've completed the capstone, push your work to GitHub and write a brief technical writeup covering your architecture, security decisions, and key learnings. Share it on LinkedIn or with the Learn to Cloud community to get feedback and celebrate your progress.
+  title: Share your progress
+  description: |
+    Push your work to GitHub and write a brief technical writeup covering your architecture decisions, what networking and security controls you implemented, and what you'd do differently. Share it on LinkedIn or with the Learn to Cloud community to get feedback and celebrate your progress.
   id: phase4-topic9-reflect-share-your-progress

@@ -26,3 +26,72 @@
 .dark .scrollbar-thin {
     scrollbar-color: theme(--color-gray-600) transparent;
 }
+
+/* Callout / admonition components (GitHub-style > [!TIP] etc.) */
+.callout {
+    display: flex;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    border-radius: 0.5rem;
+    border-left: 3px solid;
+    margin-top: 0.75rem;
+    margin-bottom: 0.75rem;
+    font-size: 0.8125rem;
+    line-height: 1.5;
+}
+.callout-icon {
+    flex-shrink: 0;
+    font-size: 0.875rem;
+    line-height: 1.5;
+}
+.callout-content {
+    min-width: 0;
+}
+
+/* Tip / Hint — green */
+.callout-tip {
+    background-color: theme(--color-green-50);
+    border-color: theme(--color-green-300);
+    color: theme(--color-green-800);
+}
+.dark .callout-tip {
+    background-color: color-mix(in srgb, theme(--color-green-900) 20%, transparent);
+    border-color: theme(--color-green-700);
+    color: theme(--color-green-200);
+}
+
+/* Warning — amber */
+.callout-warning {
+    background-color: theme(--color-amber-50);
+    border-color: theme(--color-amber-300);
+    color: theme(--color-amber-800);
+}
+.dark .callout-warning {
+    background-color: color-mix(in srgb, theme(--color-amber-900) 20%, transparent);
+    border-color: theme(--color-amber-700);
+    color: theme(--color-amber-200);
+}
+
+/* Important — red */
+.callout-important {
+    background-color: theme(--color-red-50);
+    border-color: theme(--color-red-300);
+    color: theme(--color-red-800);
+}
+.dark .callout-important {
+    background-color: color-mix(in srgb, theme(--color-red-900) 20%, transparent);
+    border-color: theme(--color-red-700);
+    color: theme(--color-red-200);
+}
+
+/* Note — blue */
+.callout-note {
+    background-color: theme(--color-blue-50);
+    border-color: theme(--color-blue-300);
+    color: theme(--color-blue-800);
+}
+.dark .callout-note {
+    background-color: color-mix(in srgb, theme(--color-blue-900) 20%, transparent);
+    border-color: theme(--color-blue-700);
+    color: theme(--color-blue-200);
+}
