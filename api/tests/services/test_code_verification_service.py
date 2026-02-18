@@ -2,11 +2,14 @@
 
 Tests cover:
 - File allowlist enforcement (security)
-- Feedback sanitization (security)
 - Task result building (grading)
-- Prompt injection detection (security)
+- Prompt construction
 - Deterministic guardrails against LLM jailbreaking (security)
 - Pydantic model hardening with extra=forbid (security)
+
+Shared utility tests (URL parsing, feedback sanitization, suspicious patterns,
+generic parsing, generic task-result building) live in
+test_llm_verification_base.py.
 """
 
 import pytest
@@ -14,13 +17,11 @@ import pytest
 from services.code_verification_service import (
     ALLOWED_FILE_PATHS,
     PHASE3_TASKS,
-    SUSPICIOUS_PATTERNS,
     CodeAnalysisResponse,
     TaskGrade,
     _build_task_results,
     _build_verification_prompt,
     _enforce_deterministic_guardrails,
-    _sanitize_feedback,
 )
 
 
@@ -81,66 +82,6 @@ class TestPhase3Tasks:
     def test_expected_task_count(self):
         """Should have exactly 5 tasks for Phase 3."""
         assert len(PHASE3_TASKS) == 5
-
-
-@pytest.mark.unit
-class TestSuspiciousPatterns:
-    """Tests for prompt injection detection patterns."""
-
-    def test_suspicious_patterns_defined(self):
-        """Should have patterns to detect common injection attempts."""
-        assert len(SUSPICIOUS_PATTERNS) > 0
-        assert "ignore all previous" in SUSPICIOUS_PATTERNS
-        assert "system prompt" in SUSPICIOUS_PATTERNS
-
-
-@pytest.mark.unit
-class TestSanitizeFeedback:
-    """Tests for feedback sanitization security function."""
-
-    def test_normal_feedback_unchanged(self):
-        """Normal feedback should pass through unchanged."""
-        feedback = "Good job! You implemented logging correctly."
-        assert _sanitize_feedback(feedback) == feedback
-
-    def test_empty_feedback_returns_default(self):
-        """Empty or None feedback returns default message."""
-        assert _sanitize_feedback("") == "No feedback provided"
-        assert _sanitize_feedback(None) == "No feedback provided"
-
-    def test_long_feedback_truncated(self):
-        """Excessively long feedback should be truncated."""
-        long_feedback = "x" * 1000
-        result = _sanitize_feedback(long_feedback)
-        assert len(result) <= 503  # 500 + "..."
-
-    def test_html_tags_stripped(self):
-        """HTML/XML tags should be removed."""
-        feedback = "Good <script>alert('xss')</script> job!"
-        result = _sanitize_feedback(feedback)
-        assert "<script>" not in result
-        assert "</script>" not in result
-        # Content between tags is preserved (just tags removed)
-        assert "Good" in result
-        assert "job!" in result
-
-    def test_code_blocks_replaced(self):
-        """Markdown code blocks should be replaced."""
-        feedback = "Check this: ```python\nprint('injection')```"
-        result = _sanitize_feedback(feedback)
-        assert "```" not in result
-        assert "[code snippet]" in result
-
-    def test_urls_removed(self):
-        """URLs should be removed to prevent phishing."""
-        feedback = "Visit https://malicious.com for more info"
-        result = _sanitize_feedback(feedback)
-        assert "https://malicious.com" not in result
-        assert "[link removed]" in result
-
-    def test_whitespace_only_returns_default(self):
-        """Whitespace-only feedback returns default."""
-        assert _sanitize_feedback("   ") == "No feedback provided"
 
 
 @pytest.mark.unit

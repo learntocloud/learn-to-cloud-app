@@ -34,8 +34,8 @@ from services.github_hands_on_verification_service import (
     RETRIABLE_EXCEPTIONS,
     _get_github_client,
     _get_github_headers,
-    parse_github_url,
 )
+from services.llm_verification_base import VerificationError, validate_repo_url
 
 logger = logging.getLogger(__name__)
 
@@ -43,12 +43,8 @@ logger = logging.getLogger(__name__)
 CODEQL_ACTION_PATTERN = "github/codeql-action"
 
 
-class SecurityVerificationError(Exception):
-    """Raised when security scanning verification fails."""
-
-    def __init__(self, message: str, retriable: bool = False):
-        super().__init__(message)
-        self.retriable = retriable
+class SecurityVerificationError(VerificationError):
+    """Raised when Phase 6 security scanning verification fails."""
 
 
 async def _check_dependabot(owner: str, repo: str, file_paths: list[str]) -> TaskResult:
@@ -298,62 +294,34 @@ async def validate_security_scanning(
         ValidationResult with is_valid=True if at least one security feature
         is found, and detailed task_results for feedback.
     """
-    parsed = parse_github_url(repo_url)
-
-    if not parsed.is_valid:
-        return ValidationResult(
-            is_valid=False,
-            message=parsed.error or "Invalid GitHub URL",
-            username_match=False,
-        )
-
-    if not parsed.repo_name:
-        return ValidationResult(
-            is_valid=False,
-            message=(
-                "Could not extract repository name from URL. "
-                "Please submit a repository URL."
-            ),
-            username_match=False,
-        )
-
-    username_match = parsed.username.lower() == github_username.lower()
-    if not username_match:
-        return ValidationResult(
-            is_valid=False,
-            message=(
-                f"Repository owner '{parsed.username}' does not match your "
-                f"GitHub username '{github_username}'. "
-                f"Please submit your own repository."
-            ),
-            username_match=False,
-        )
+    result = validate_repo_url(repo_url, github_username)
+    if isinstance(result, ValidationResult):
+        return result
+    owner, repo = result
 
     try:
         try:
-            all_files = await _fetch_repo_tree(parsed.username, parsed.repo_name)
+            all_files = await _fetch_repo_tree(owner, repo)
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
                 return ValidationResult(
                     is_valid=False,
                     message=(
-                        f"Repository '{parsed.username}/{parsed.repo_name}' not found. "
+                        f"Repository '{owner}/{repo}' not found. "
                         "Make sure the repository is public."
                     ),
                     username_match=True,
                 )
             raise
 
-        return await _verify_security_scanning(
-            parsed.username, parsed.repo_name, all_files
-        )
+        return await _verify_security_scanning(owner, repo, all_files)
 
     except CircuitBreakerError:
         logger.error(
             "security_scanning.circuit_open",
             extra={
-                "owner": parsed.username,
-                "repo": parsed.repo_name,
+                "owner": owner,
+                "repo": repo,
                 "github_username": github_username,
             },
         )
@@ -369,8 +337,8 @@ async def validate_security_scanning(
         logger.exception(
             "security_scanning.failed",
             extra={
-                "owner": parsed.username,
-                "repo": parsed.repo_name,
+                "owner": owner,
+                "repo": repo,
                 "retriable": e.retriable,
                 "github_username": github_username,
             },
@@ -384,8 +352,8 @@ async def validate_security_scanning(
         logger.exception(
             "security_scanning.request_error",
             extra={
-                "owner": parsed.username,
-                "repo": parsed.repo_name,
+                "owner": owner,
+                "repo": repo,
                 "github_username": github_username,
             },
         )

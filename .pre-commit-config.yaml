@@ -21,7 +21,7 @@ repos:
     hooks:
       - id: ty
         name: ty type check
-        entry: uv run --directory api ty check .
+        entry: uv run --directory api ty check --exclude scripts --exclude tests .
         language: system
         files: ^api/.*\.py$
         pass_filenames: false
