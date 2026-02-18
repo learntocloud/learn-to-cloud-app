@@ -1,12 +1,14 @@
 """Unit tests for devops_verification_service.
 
 Tests cover:
-- GitHub URL parsing and validation
 - Repository file tree filtering
 - Prompt construction
-- LLM response parsing
-- Feedback sanitization
+- LLM response parsing (service-specific wrapper)
+- Task result building (service-specific wrapper)
 - End-to-end analyze_devops_repository flow
+
+Shared utility tests (URL parsing, feedback sanitization, generic parsing)
+live in test_llm_verification_base.py.
 """
 
 import json
@@ -23,60 +25,10 @@ from services.devops_verification_service import (
     DevOpsTaskGrade,
     _build_task_results,
     _build_verification_prompt,
-    _extract_repo_info,
     _filter_devops_files,
     _parse_structured_response,
-    _sanitize_feedback,
     analyze_devops_repository,
 )
-
-
-@pytest.mark.unit
-class TestExtractRepoInfo:
-    """Tests for GitHub URL parsing."""
-
-    def test_standard_url(self):
-        owner, repo = _extract_repo_info("https://github.com/testuser/journal-starter")
-        assert owner == "testuser"
-        assert repo == "journal-starter"
-
-    def test_url_with_trailing_slash(self):
-        owner, repo = _extract_repo_info("https://github.com/testuser/journal-starter/")
-        assert owner == "testuser"
-        assert repo == "journal-starter"
-
-    def test_url_with_git_suffix(self):
-        owner, repo = _extract_repo_info(
-            "https://github.com/testuser/journal-starter.git"
-        )
-        assert owner == "testuser"
-        assert repo == "journal-starter"
-
-    def test_url_with_subpath(self):
-        owner, repo = _extract_repo_info(
-            "https://github.com/testuser/journal-starter/tree/main/infra"
-        )
-        assert owner == "testuser"
-        assert repo == "journal-starter"
-
-    def test_url_with_whitespace(self):
-        owner, repo = _extract_repo_info(
-            "  https://github.com/testuser/journal-starter  "
-        )
-        assert owner == "testuser"
-        assert repo == "journal-starter"
-
-    def test_invalid_url_raises(self):
-        with pytest.raises(ValueError, match="Invalid GitHub repository URL"):
-            _extract_repo_info("https://gitlab.com/testuser/repo")
-
-    def test_empty_url_raises(self):
-        with pytest.raises(ValueError, match="Invalid GitHub repository URL"):
-            _extract_repo_info("")
-
-    def test_non_url_raises(self):
-        with pytest.raises(ValueError, match="Invalid GitHub repository URL"):
-            _extract_repo_info("not-a-url")
 
 
 @pytest.mark.unit
@@ -186,39 +138,6 @@ class TestParseStructuredResponse:
 
         with pytest.raises(DevOpsAnalysisError, match="Could not parse"):
             _parse_structured_response(mock_result)
-
-
-@pytest.mark.unit
-class TestSanitizeFeedback:
-    """Tests for feedback sanitization."""
-
-    def test_normal_feedback(self):
-        assert _sanitize_feedback("Great job!") == "Great job!"
-
-    def test_empty_feedback(self):
-        assert _sanitize_feedback("") == "No feedback provided"
-
-    def test_none_feedback(self):
-        assert _sanitize_feedback(None) == "No feedback provided"
-
-    def test_truncates_long_feedback(self):
-        long = "x " * 500
-        result = _sanitize_feedback(long)
-        assert len(result) <= 503  # 500 + "..."
-
-    def test_removes_html_tags(self):
-        result = _sanitize_feedback("Good <script>alert('xss')</script> job!")
-        assert "<script>" not in result
-        assert "</script>" not in result
-
-    def test_removes_urls(self):
-        result = _sanitize_feedback("See https://malicious.com for details")
-        assert "https://" not in result
-        assert "[link removed]" in result
-
-    def test_removes_code_blocks(self):
-        result = _sanitize_feedback("Try ```\nmalicious code\n``` this")
-        assert "malicious code" not in result
 
 
 @pytest.mark.unit

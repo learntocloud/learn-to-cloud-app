@@ -6,80 +6,61 @@ The verification process ensures:
 2. GitHub username in the token matches the authenticated user
 3. All 18 challenges are completed
 4. Timestamp is valid
+
+Shared token verification logic (decoding, HMAC, username matching)
+lives in ``services.token_verification_base``.
 """
 
-import base64
-import hashlib
-import hmac
-import json
 import logging
-from datetime import UTC, datetime
 
-from core.config import get_settings
 from schemas import CTFVerificationResult
+from services.token_verification_base import (
+    decode_token,
+    verify_challenge_count,
+    verify_instance_id,
+    verify_signature,
+    verify_timestamp,
+    verify_username,
+)
 
 logger = logging.getLogger(__name__)
 
 REQUIRED_CHALLENGES = 18
 
 
-def _get_master_secret() -> str:
-    settings = get_settings()
-    secret = settings.labs_verification_secret
-    if not settings.debug and not secret:
-        raise RuntimeError("Labs verification secret is not configured")
-    return secret
-
-
-def _derive_secret(instance_id: str) -> str:
-    master_secret = _get_master_secret()
-    data = f"{master_secret}:{instance_id}"
-    return hashlib.sha256(data.encode()).hexdigest()
-
-
 def verify_ctf_token(token: str, oauth_github_username: str) -> CTFVerificationResult:
     """Verify a CTF completion token."""
     try:
+        decoded = decode_token(token)
+        if not decoded.is_valid:
+            return CTFVerificationResult(is_valid=False, message=decoded.error or "")
+
+        payload = decoded.payload
+        if payload is None:
+            return CTFVerificationResult(
+                is_valid=False,
+                message="Invalid CTF token: missing payload.",
+            )
+
+        signature = decoded.signature
+        if signature is None:
+            return CTFVerificationResult(
+                is_valid=False,
+                message="Invalid CTF token: missing signature.",
+            )
+
+        # Username check
+        if err := verify_username(payload, oauth_github_username):
+            return CTFVerificationResult(is_valid=False, message=err)
+
+        # Instance ID check
+        if err := verify_instance_id(payload):
+            return CTFVerificationResult(is_valid=False, message=err)
+
+        # HMAC signature check
         try:
-            decoded = base64.b64decode(token).decode("utf-8")
-            token_data = json.loads(decoded)
-        except (ValueError, json.JSONDecodeError):
-            return CTFVerificationResult(
-                is_valid=False,
-                message="Invalid token format. Could not decode the token.",
-            )
-
-        payload = token_data.get("payload")
-        signature = token_data.get("signature")
-
-        if not payload or not signature:
-            return CTFVerificationResult(
-                is_valid=False,
-                message="Invalid token structure. Missing payload or signature.",
-            )
-
-        token_username = (payload.get("github_username") or "").lower()
-        oauth_username_lower = oauth_github_username.lower()
-
-        if token_username != oauth_username_lower:
-            return CTFVerificationResult(
-                is_valid=False,
-                message=(
-                    f"GitHub username mismatch. "
-                    f"Token is for '{payload.get('github_username')}', "
-                    f"but you signed in as '{oauth_github_username}'."
-                ),
-            )
-
-        instance_id = payload.get("instance_id")
-        if not instance_id:
-            return CTFVerificationResult(
-                is_valid=False,
-                message="Invalid token: missing instance ID.",
-            )
-
-        try:
-            verification_secret = _derive_secret(instance_id)
+            if err := verify_signature(payload, signature, payload["instance_id"]):
+                return CTFVerificationResult(is_valid=False, message=err)
         except RuntimeError:
             logger.exception(
                 "ctf.verification.misconfigured",
@@ -91,45 +72,21 @@ def verify_ctf_token(token: str, oauth_github_username: str) -> CTFVerificationR
                 server_error=True,
             )
 
-        payload_str = json.dumps(payload, separators=(",", ":"))
+        # Challenge count check
+        if err := verify_challenge_count(
+            payload, REQUIRED_CHALLENGES, label="challenges"
+        ):
+            return CTFVerificationResult(is_valid=False, message=err)
 
-        expected_sig = hmac.new(
-            verification_secret.encode(),
-            payload_str.encode(),
-            hashlib.sha256,
-        ).hexdigest()
-
-        if not hmac.compare_digest(signature, expected_sig):
-            return CTFVerificationResult(
-                is_valid=False,
-                message=(
-                    "Invalid token signature. The token may have been tampered with."
-                ),
-            )
-
-        challenges = payload.get("challenges", 0)
-        if challenges != REQUIRED_CHALLENGES:
-            return CTFVerificationResult(
-                is_valid=False,
-                message=(
-                    f"Incomplete challenges: {challenges}/{REQUIRED_CHALLENGES}. "
-                    "Complete all challenges to get a valid token."
-                ),
-            )
-
-        timestamp = payload.get("timestamp", 0)
-        now = datetime.now(UTC).timestamp()
-        if timestamp > now + 3600:
-            return CTFVerificationResult(
-                is_valid=False,
-                message="Invalid timestamp. The token appears to be from the future.",
-            )
+        # Timestamp check
+        if err := verify_timestamp(payload):
+            return CTFVerificationResult(is_valid=False, message=err)
 
         logger.info(
             "ctf.verification.passed",
             extra={
                 "github_username": payload.get("github_username"),
-                "challenges": challenges,
+                "challenges": payload.get("challenges"),
             },
         )
 
@@ -142,7 +99,7 @@ def verify_ctf_token(token: str, oauth_github_username: str) -> CTFVerificationR
             github_username=payload.get("github_username"),
             completion_date=payload.get("date"),
             completion_time=payload.get("time"),
-            challenges_completed=challenges,
+            challenges_completed=payload.get("challenges"),
         )
 
     except Exception as e:
