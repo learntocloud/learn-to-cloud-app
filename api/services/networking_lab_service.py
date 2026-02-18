@@ -55,9 +55,18 @@ def verify_networking_token(
             )
 
         payload = decoded.payload
-        assert payload is not None  # guaranteed by is_valid
+        if payload is None:
+            return NetworkingLabVerificationResult(
+                is_valid=False,
+                message="Invalid token: missing payload.",
+            )
+
         signature = decoded.signature
-        assert signature is not None
+        if signature is None:
+            return NetworkingLabVerificationResult(
+                is_valid=False,
+                message="Invalid token: missing signature.",
+            )
 
         # Challenge type check (networking-specific)
         challenge_type = payload.get("challenge") or ""

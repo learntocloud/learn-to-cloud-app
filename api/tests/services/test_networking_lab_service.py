@@ -114,7 +114,7 @@ class TestVerifyNetworkingToken:
         result = verify_networking_token(token, "testuser")
 
         assert result.is_valid is False
-        assert "Missing payload or signature" in result.message
+        assert "Missing or malformed" in result.message
 
     def test_missing_signature_fails(self):
         """Token without signature field should fail."""
@@ -124,7 +124,7 @@ class TestVerifyNetworkingToken:
         result = verify_networking_token(token, "testuser")
 
         assert result.is_valid is False
-        assert "Missing payload or signature" in result.message
+        assert "Missing or malformed" in result.message
 
     def test_wrong_challenge_type_fails(self):
         """Token with wrong challenge type should fail."""

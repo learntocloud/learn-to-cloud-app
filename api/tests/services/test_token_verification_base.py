@@ -83,13 +83,13 @@ class TestDecodeToken:
         token = base64.b64encode(json.dumps({"signature": "sig"}).encode()).decode()
         result = decode_token(token)
         assert not result.is_valid
-        assert "Missing payload" in (result.error or "")
+        assert "Missing or malformed" in (result.error or "")
 
     def test_missing_signature(self):
         token = base64.b64encode(json.dumps({"payload": {"k": "v"}}).encode()).decode()
         result = decode_token(token)
         assert not result.is_valid
-        assert "Missing payload or signature" in (result.error or "")
+        assert "Missing or malformed" in (result.error or "")
 
 
 # ---------------------------------------------------------------------------

@@ -1,14 +1,21 @@
 """Shared utilities for LLM-powered verification services.
 
-Provides common patterns used by Phase 3 (code_verification_service)
-and Phase 5 (devops_verification_service) to eliminate duplication:
+Provides common patterns intended for use across verification services
+(e.g. Phase 3 code_verification, Phase 5 devops_verification,
+Phase 6 security_verification):
 
 - GitHub URL parsing and ownership validation
 - LLM structured response parsing (generic over response type)
-- Task result building from LLM grades
+- Task result builder from LLM grades
 - Feedback sanitization for safe display
 - Prompt-injection detection patterns
 - Retriable exception types for circuit breakers / retries
+
+Note:
+    Currently consumed by ``security_verification_service`` (Phase 6).
+    Migration of ``code_verification_service`` (Phase 3) and
+    ``devops_verification_service`` (Phase 5) to use these shared
+    utilities is planned for follow-up PRs.
 
 Phase-specific concerns stay in their respective modules:
 - Phase 3: deterministic guardrails, content filter checks, allowlisted file fetching
@@ -127,7 +134,7 @@ def validate_repo_url(
             is_valid=False,
             message=(
                 f"Repository owner '{owner}' does not match your GitHub username "
-                f"'{github_username}'. Please submit your own fork."
+                f"'{github_username}'. Please submit your own repository."
             ),
             username_match=False,
         )

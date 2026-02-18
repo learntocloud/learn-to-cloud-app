@@ -36,9 +36,18 @@ def verify_ctf_token(token: str, oauth_github_username: str) -> CTFVerificationR
             return CTFVerificationResult(is_valid=False, message=decoded.error or "")
 
         payload = decoded.payload
-        assert payload is not None  # guaranteed by is_valid
+        if payload is None:
+            return CTFVerificationResult(
+                is_valid=False,
+                message="Invalid CTF token: missing payload.",
+            )
+
         signature = decoded.signature
-        assert signature is not None
+        if signature is None:
+            return CTFVerificationResult(
+                is_valid=False,
+                message="Invalid CTF token: missing signature.",
+            )
 
         # Username check
         if err := verify_username(payload, oauth_github_username):

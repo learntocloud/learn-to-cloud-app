@@ -33,6 +33,7 @@ Lab-specific steps (handled by each service):
 from __future__ import annotations
 
 import base64
+import binascii
 import hashlib
 import hmac
 import json
@@ -110,17 +111,17 @@ def decode_token(token: str) -> TokenPayload:
     Returns a :class:`TokenPayload` with ``error`` set on failure.
     """
     try:
-        decoded = base64.b64decode(token).decode("utf-8")
+        decoded = base64.b64decode(token, validate=True).decode("utf-8")
         token_data = json.loads(decoded)
-    except (ValueError, json.JSONDecodeError):
+    except (ValueError, json.JSONDecodeError, binascii.Error):
         return TokenPayload(error="Invalid token format. Could not decode the token.")
 
     payload = token_data.get("payload")
     signature = token_data.get("signature")
 
-    if not payload or not signature:
+    if not isinstance(payload, dict) or not isinstance(signature, str) or not signature:
         return TokenPayload(
-            error="Invalid token structure. Missing payload or signature."
+            error="Invalid token structure. Missing or malformed payload/signature."
         )
 
     return TokenPayload(payload=payload, signature=signature)
@@ -199,6 +200,8 @@ def verify_challenge_count(
 def verify_timestamp(payload: dict[str, Any]) -> str | None:
     """Return an error if the timestamp is more than 1 hour in the future."""
     timestamp = payload.get("timestamp", 0)
+    if not isinstance(timestamp, int | float):
+        return "Invalid timestamp format in token."
     now = datetime.now(UTC).timestamp()
     if timestamp > now + 3600:
         return "Invalid timestamp. The token appears to be from the future."
