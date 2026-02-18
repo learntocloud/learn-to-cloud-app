@@ -27,6 +27,7 @@ from __future__ import annotations
 import logging
 import re
 from typing import Any, TypeVar
+from urllib.parse import urlparse
 
 import httpx
 
@@ -92,28 +93,42 @@ class VerificationError(Exception):
 # GitHub URL helpers
 # ---------------------------------------------------------------------------
 
-_GITHUB_URL_PATTERNS: list[str] = [
-    r"https?://github\.com/([^/]+)/([^/]+)/?.*",
-    r"github\.com/([^/]+)/([^/]+)/?.*",
-]
-
 
 def extract_repo_info(repo_url: str) -> tuple[str, str]:
     """Extract owner and repo name from a GitHub URL.
 
+    Handles common variants: ``https://``, ``http://``, ``www.github.com``,
+    trailing slashes, ``.git`` suffixes, sub-paths, query strings, and
+    fragment identifiers.
+
     Raises:
         ValueError: If *repo_url* is not a valid GitHub repository URL.
     """
-    url = repo_url.strip().rstrip("/")
+    url = repo_url.strip()
+    if not url:
+        raise ValueError(f"Invalid GitHub repository URL: {repo_url}")
 
-    for pattern in _GITHUB_URL_PATTERNS:
-        match = re.match(pattern, url)
-        if match:
-            owner, repo = match.groups()
-            repo = repo.removesuffix(".git")
-            return owner, repo
+    # Ensure a scheme so urlparse can parse the host correctly.
+    if not url.startswith(("http://", "https://")):
+        # Bare "github.com/…" or "www.github.com/…"
+        url = "https://" + url
 
-    raise ValueError(f"Invalid GitHub repository URL: {repo_url}")
+    parsed = urlparse(url)
+    host = (parsed.hostname or "").lower()
+
+    # Accept github.com and www.github.com
+    if host not in ("github.com", "www.github.com"):
+        raise ValueError(f"Invalid GitHub repository URL: {repo_url}")
+
+    # Path segments: filter out empty strings from leading/trailing slashes
+    segments = [s for s in parsed.path.split("/") if s]
+    if len(segments) < 2:
+        raise ValueError(f"Invalid GitHub repository URL: {repo_url}")
+
+    owner = segments[0]
+    repo = segments[1].removesuffix(".git")
+
+    return owner, repo
 
 
 def validate_repo_url(

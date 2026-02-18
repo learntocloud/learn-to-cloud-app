@@ -95,6 +95,33 @@ class TestExtractRepoInfo:
         with pytest.raises(ValueError, match="Invalid GitHub repository URL"):
             extract_repo_info("not-a-url")
 
+    def test_www_github_url(self):
+        owner, repo = extract_repo_info("https://www.github.com/testuser/my-repo")
+        assert owner == "testuser"
+        assert repo == "my-repo"
+
+    def test_http_url(self):
+        owner, repo = extract_repo_info("http://github.com/testuser/my-repo")
+        assert owner == "testuser"
+        assert repo == "my-repo"
+
+    def test_query_string_stripped(self):
+        owner, repo = extract_repo_info(
+            "https://github.com/testuser/my-repo?tab=readme"
+        )
+        assert owner == "testuser"
+        assert repo == "my-repo"
+
+    def test_fragment_stripped(self):
+        owner, repo = extract_repo_info("https://github.com/testuser/my-repo#readme")
+        assert owner == "testuser"
+        assert repo == "my-repo"
+
+    def test_bare_github_url_without_scheme(self):
+        owner, repo = extract_repo_info("github.com/testuser/my-repo")
+        assert owner == "testuser"
+        assert repo == "my-repo"
+
 
 # ---------------------------------------------------------------------------
 # validate_repo_url
