@@ -34,7 +34,7 @@
         <p class="text-xs font-medium text-blue-600 dark:text-blue-400 mb-0.5">Continue where you left off</p>
         <p class="text-sm font-semibold text-gray-900 dark:text-white">Phase {{ dashboard.continue_phase.order }}: {{ dashboard.continue_phase.name }}</p>
     </div>
-    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-500 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-500 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
         <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
     </svg>
 </a>
@@ -70,22 +70,12 @@
 <div class="mt-16 p-6 rounded-lg bg-gray-50 dark:bg-gray-800/50">
     <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Need Help?</h2>
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        <a href="https://github.com/learntocloud/learn-to-cloud-app/discussions" target="_blank" rel="noopener noreferrer" class="flex items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-white dark:hover:bg-gray-800 transition-colors">
-            <svg class="h-5 w-5 shrink-0 text-indigo-500 dark:text-indigo-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-4l-3 3-3-3z"/></svg>
-            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Join the Community</span>
+        {% for link in help_links %}
+        <a href="{{ link.url }}" target="_blank" rel="noopener noreferrer" class="flex items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-white dark:hover:bg-gray-800 transition-colors">
+            <span class="h-5 w-5 shrink-0 {{ link.color }}" aria-hidden="true">{{ link.icon | safe }}</span>
+            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ link.label }}</span>
         </a>
-        <a href="https://x.com/madebygps" target="_blank" rel="noopener noreferrer" class="flex items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-white dark:hover:bg-gray-800 transition-colors">
-            <svg class="h-5 w-5 shrink-0 text-gray-800 dark:text-gray-200" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
-            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Follow @madebygps</span>
-        </a>
-        <a href="https://x.com/learntocloud" target="_blank" rel="noopener noreferrer" class="flex items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-white dark:hover:bg-gray-800 transition-colors">
-            <svg class="h-5 w-5 shrink-0 text-gray-800 dark:text-gray-200" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
-            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Follow @learntocloud</span>
-        </a>
-        <a href="https://github.com/learntocloud/learn-to-cloud-app/issues/new" target="_blank" rel="noopener noreferrer" class="flex items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-white dark:hover:bg-gray-800 transition-colors">
-            <svg class="h-5 w-5 shrink-0 text-orange-500 dark:text-orange-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z"/></svg>
-            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Report an Issue</span>
-        </a>
+        {% endfor %}
     </div>
 </div>
 

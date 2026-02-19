@@ -204,17 +204,15 @@ def compute_topic_progress(
     valid_step_ids = {step.id for step in topic.learning_steps}
     steps_completed = len(completed_steps & valid_step_ids)
     steps_total = len(topic.learning_steps)
-    total = steps_total
-    completed = steps_completed
 
-    if total == 0:
+    if steps_total == 0:
         percentage = 100.0
         status = "completed"
     else:
-        percentage = (completed / total) * 100
+        percentage = (steps_completed / steps_total) * 100
         if steps_completed >= steps_total:
             status = "completed"
-        elif completed > 0:
+        elif steps_completed > 0:
             status = "in_progress"
         else:
             status = "not_started"

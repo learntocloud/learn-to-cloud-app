@@ -1,0 +1,17 @@
+{# Reusable progress bar with percentage display.
+
+   Required context:
+     progress  – dict with 'percentage' key
+   Optional:
+     progress_label  – text next to the bar (default: "X% complete")
+     progress_id     – id attribute for HTMX OOB swaps
+     oob             – if true, adds hx-swap-oob="true"
+#}
+<div{% if progress_id %} id="{{ progress_id }}"{% endif %}{% if oob %} hx-swap-oob="true"{% endif %} class="mt-4 flex items-center gap-3">
+    <div class="flex-1 max-w-xs h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+        <div class="h-full bg-blue-600 rounded-full transition-all" style="width: {{ progress.percentage }}%"></div>
+    </div>
+    <span class="text-sm font-medium text-gray-600 dark:text-gray-400">
+        {{ progress_label | default(progress.completed ~ '/' ~ progress.total ~ ' steps') }}
+    </span>
+</div>

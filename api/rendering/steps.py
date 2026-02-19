@@ -8,8 +8,11 @@ from __future__ import annotations
 
 import re
 from collections.abc import Callable
+from typing import Any
 
 import markdown
+
+from schemas import LearningStep
 
 _md = markdown.Markdown(extensions=["fenced_code", "tables"])
 
@@ -106,40 +109,40 @@ def render_md(text: str | None) -> str:
 
 
 def build_step_data(
-    step,
+    step: LearningStep,
     *,
     md_renderer: Callable[[str | None], str] = render_md,
-) -> dict:
+) -> dict[str, Any]:
     """Convert a content LearningStep object to a template-ready dict.
 
     Args:
         step: A LearningStep content object.
         md_renderer: Markdown-to-HTML callable (default: module-level render_md).
     """
-    data: dict = {
-        "id": getattr(step, "id"),
+    data: dict[str, Any] = {
+        "id": step.id,
         "order": step.order,
-        "action": getattr(step, "action", ""),
-        "title": getattr(step, "title", ""),
-        "url": getattr(step, "url", ""),
-        "description": getattr(step, "description", ""),
-        "description_html": md_renderer(getattr(step, "description", "")),
-        "code": getattr(step, "code", ""),
+        "action": step.action or "",
+        "title": step.title or "",
+        "url": step.url or "",
+        "description": step.description or "",
+        "description_html": md_renderer(step.description),
+        "code": step.code or "",
         "options": [],
     }
     sorted_options = sorted(
-        getattr(step, "options", []),
-        key=lambda option: _provider_sort_key(getattr(option, "provider", "")),
+        step.options,
+        key=lambda option: _provider_sort_key(option.provider),
     )
 
     for opt in sorted_options:
         data["options"].append(
             {
-                "provider": getattr(opt, "provider", ""),
-                "label": getattr(opt, "label", getattr(opt, "provider", "")),
-                "title": getattr(opt, "title", ""),
-                "url": getattr(opt, "url", ""),
-                "description_html": md_renderer(getattr(opt, "description", "")),
+                "provider": opt.provider,
+                "label": opt.provider,
+                "title": opt.title,
+                "url": opt.url,
+                "description_html": md_renderer(opt.description),
             }
         )
     return data

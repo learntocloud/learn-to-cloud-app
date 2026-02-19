@@ -22,7 +22,7 @@ class ValidatedSubmissionSummary(NamedTuple):
 class SubmissionRepository:
     """Repository for Submission database operations."""
 
-    def __init__(self, db: AsyncSession):
+    def __init__(self, db: AsyncSession) -> None:
         self.db = db
 
     async def get_by_user_and_phase(

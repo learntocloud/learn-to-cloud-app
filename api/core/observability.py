@@ -65,7 +65,7 @@ def instrument_app(app: Any) -> None:
             exclude_spans=["send", "receive"],
         )
         logger.info("telemetry.fastapi.instrumented")
-    except (ImportError, Exception) as exc:
+    except Exception as exc:
         logger.warning(
             "telemetry.fastapi.failed",
             extra={"error": str(exc)},
@@ -112,7 +112,7 @@ def _configure_azure_monitor(conn_str: str) -> None:
             },
         )
         logger.info("telemetry.azure_monitor.configured")
-    except (ValueError, Exception) as exc:
+    except Exception as exc:
         logger.warning("telemetry.azure_monitor.failed", extra={"error": str(exc)})
 
 
@@ -174,7 +174,7 @@ def _configure_otlp(endpoint: str) -> None:
 
         httpx_mod = importlib.import_module("opentelemetry.instrumentation.httpx")
         httpx_mod.HTTPXClientInstrumentor().instrument()
-    except (ImportError, Exception):
+    except ImportError:
         pass
 
     logger.info(
@@ -189,5 +189,5 @@ def _enable_agent_framework_instrumentation() -> None:
         from agent_framework.observability import OBSERVABILITY_SETTINGS
 
         OBSERVABILITY_SETTINGS.enable_otel = True
-    except (ImportError, Exception):
+    except ImportError:
         pass

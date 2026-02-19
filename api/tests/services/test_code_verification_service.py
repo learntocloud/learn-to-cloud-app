@@ -19,10 +19,10 @@ from services.code_verification_service import (
     PHASE3_TASKS,
     CodeAnalysisResponse,
     TaskGrade,
-    _build_task_results,
     _build_verification_prompt,
     _enforce_deterministic_guardrails,
 )
+from services.llm_verification_base import build_task_results
 
 
 @pytest.mark.unit
@@ -107,7 +107,7 @@ class TestBuildTaskResults:
                 TaskGrade(task_id="cloud-cli-setup", passed=False, feedback="Not done"),
             ]
         )
-        results, all_passed = _build_task_results(analysis)
+        results, all_passed = build_task_results(analysis.tasks, PHASE3_TASKS)
 
         assert len(results) == 5  # All 5 tasks, missing ones filled in
         assert not all_passed  # One failed
@@ -134,7 +134,7 @@ class TestBuildTaskResults:
                 TaskGrade(task_id="cloud-cli-setup", passed=False, feedback="Not done"),
             ]
         )
-        results, all_passed = _build_task_results(analysis)
+        results, all_passed = build_task_results(analysis.tasks, PHASE3_TASKS)
 
         task_names = [r.task_name for r in results]
         assert "Logging Setup" in task_names
@@ -154,7 +154,7 @@ class TestBuildTaskResults:
                 TaskGrade(task_id="logging-setup", passed=True, feedback="Done"),
             ]
         )
-        results, all_passed = _build_task_results(analysis)
+        results, all_passed = build_task_results(analysis.tasks, PHASE3_TASKS)
 
         assert not all_passed  # Missing tasks = not passed
 
@@ -179,7 +179,7 @@ class TestBuildTaskResults:
                 TaskGrade(task_id="cloud-cli-setup", passed=False, feedback="No"),
             ]
         )
-        results, _ = _build_task_results(analysis)
+        results, _ = build_task_results(analysis.tasks, PHASE3_TASKS)
 
         logging_result = next(r for r in results if r.task_name == "Logging Setup")
         assert "<script>" not in logging_result.feedback
@@ -196,7 +196,7 @@ class TestBuildTaskResults:
                 TaskGrade(task_id="cloud-cli-setup", passed=True, feedback="OK"),
             ]
         )
-        results, all_passed = _build_task_results(analysis)
+        results, all_passed = build_task_results(analysis.tasks, PHASE3_TASKS)
 
         assert all_passed is True
         assert all(r.passed for r in results)

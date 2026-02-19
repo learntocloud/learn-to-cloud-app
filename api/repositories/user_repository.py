@@ -22,7 +22,7 @@ class UserRepository:
         (lowercase) by the service layer.
     """
 
-    def __init__(self, db: AsyncSession):
+    def __init__(self, db: AsyncSession) -> None:
         self.db = db
 
     async def get_by_id(self, user_id: int) -> User | None:

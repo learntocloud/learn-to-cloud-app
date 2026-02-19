@@ -1,7 +1,7 @@
 """Shared utilities for LLM-powered verification services.
 
-Provides common patterns intended for use across verification services
-(e.g. Phase 3 code_verification, Phase 5 devops_verification,
+Provides common patterns used across verification services
+(Phase 3 code_verification, Phase 5 devops_verification,
 Phase 6 security_verification):
 
 - GitHub URL parsing and ownership validation
@@ -10,12 +10,6 @@ Phase 6 security_verification):
 - Feedback sanitization for safe display
 - Prompt-injection detection patterns
 - Retriable exception types for circuit breakers / retries
-
-Note:
-    Currently consumed by ``security_verification_service`` (Phase 6).
-    Migration of ``code_verification_service`` (Phase 3) and
-    ``devops_verification_service`` (Phase 5) to use these shared
-    utilities is planned for follow-up PRs.
 
 Phase-specific concerns stay in their respective modules:
 - Phase 3: deterministic guardrails, content filter checks, allowlisted file fetching
@@ -216,7 +210,7 @@ def parse_structured_response(
             return result.value
         try:
             return response_type.model_validate(result.value)
-        except Exception:
+        except (ValueError, TypeError):
             pass
 
     text = result.text
@@ -228,7 +222,7 @@ def parse_structured_response(
 
     try:
         return response_type.model_validate_json(text)
-    except Exception as e:
+    except (ValueError, TypeError) as e:
         raise error_class(
             f"Could not parse analysis response: {e}",
             retriable=True,

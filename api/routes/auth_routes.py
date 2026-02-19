@@ -15,6 +15,7 @@ from fastapi.responses import RedirectResponse
 from core.auth import oauth
 from core.config import get_settings
 from core.database import DbSession
+from core.ratelimit import limiter
 from services.users_service import get_or_create_user_from_github, parse_display_name
 
 logger = logging.getLogger(__name__)
@@ -103,6 +104,7 @@ async def callback(request: Request, db: DbSession) -> RedirectResponse:
     summary="Log out and clear session",
     include_in_schema=False,
 )
+@limiter.limit("10/minute")
 async def logout(request: Request) -> RedirectResponse:
     """Clear the session cookie and redirect to home."""
     user_id = request.session.get("user_id")

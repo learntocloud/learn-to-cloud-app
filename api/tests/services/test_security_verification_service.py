@@ -40,7 +40,7 @@ class TestValidateSecurityScanningURLValidation:
     async def test_www_github_url_accepted(self):
         """www.github.com URLs should be parsed correctly."""
         with patch(
-            "services.security_verification_service._fetch_repo_tree",
+            "services.security_verification_service.fetch_repo_tree",
             new_callable=AsyncMock,
             return_value=[],
         ):
@@ -54,7 +54,7 @@ class TestValidateSecurityScanningURLValidation:
     async def test_http_url_accepted(self):
         """http:// URLs should be parsed correctly."""
         with patch(
-            "services.security_verification_service._fetch_repo_tree",
+            "services.security_verification_service.fetch_repo_tree",
             new_callable=AsyncMock,
             return_value=[],
         ):
@@ -67,7 +67,7 @@ class TestValidateSecurityScanningURLValidation:
     async def test_url_with_query_string_accepted(self):
         """Query strings should be stripped, not included in repo name."""
         with patch(
-            "services.security_verification_service._fetch_repo_tree",
+            "services.security_verification_service.fetch_repo_tree",
             new_callable=AsyncMock,
             return_value=[],
         ):
@@ -80,7 +80,7 @@ class TestValidateSecurityScanningURLValidation:
     async def test_url_with_fragment_accepted(self):
         """Fragment identifiers should be stripped."""
         with patch(
-            "services.security_verification_service._fetch_repo_tree",
+            "services.security_verification_service.fetch_repo_tree",
             new_callable=AsyncMock,
             return_value=[],
         ):
@@ -105,7 +105,7 @@ class TestValidateSecurityScanning404:
             status_code=404, request=httpx.Request("GET", "https://api.github.com")
         )
         with patch(
-            "services.security_verification_service._fetch_repo_tree",
+            "services.security_verification_service.fetch_repo_tree",
             new_callable=AsyncMock,
             side_effect=httpx.HTTPStatusError(
                 "Not Found", request=mock_response.request, response=mock_response

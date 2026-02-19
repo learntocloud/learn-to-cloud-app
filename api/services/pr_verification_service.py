@@ -28,12 +28,12 @@ from tenacity import (
     wait_exponential_jitter,
 )
 
+from core.github_client import get_github_client as _get_github_client
 from schemas import HandsOnRequirement, ValidationResult
 from services.github_hands_on_verification_service import (
     RETRIABLE_EXCEPTIONS,
     GitHubServerError,
-    _get_github_client,
-    _get_github_headers,
+    get_github_headers,
 )
 
 logger = logging.getLogger(__name__)
@@ -116,7 +116,7 @@ async def _fetch_pr_data(owner: str, repo: str, pr_number: int) -> dict:
     """
     api_url = f"https://api.github.com/repos/{owner}/{repo}/pulls/{pr_number}"
     client = await _get_github_client()
-    response = await client.get(api_url, headers=_get_github_headers())
+    response = await client.get(api_url, headers=get_github_headers())
 
     if response.status_code >= 500:
         raise GitHubServerError(f"GitHub API returned {response.status_code}")
@@ -152,7 +152,7 @@ async def _fetch_pr_files(owner: str, repo: str, pr_number: int) -> list[str]:
     client = await _get_github_client()
     response = await client.get(
         api_url,
-        headers=_get_github_headers(),
+        headers=get_github_headers(),
         params={"per_page": 100},
     )
 

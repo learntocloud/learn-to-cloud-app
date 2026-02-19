@@ -9,12 +9,9 @@
     <p class="text-gray-600 dark:text-gray-400 mt-2">{{ phase.description }}</p>
 
     {% if progress %}
-    <div class="mt-4 flex items-center gap-3">
-        <div class="flex-1 max-w-xs h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-            <div class="h-full bg-blue-600 rounded-full transition-all" style="width: {{ progress.percentage }}%"></div>
-        </div>
-        <span class="text-sm font-medium text-gray-600 dark:text-gray-400">{{ progress.percentage }}% complete</span>
-    </div>
+    {% with progress=progress, progress_label=progress.percentage ~ '% complete' %}
+    {% include "partials/progress_bar.html" %}
+    {% endwith %}
     {% endif %}
 </div>
 

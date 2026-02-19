@@ -9,7 +9,7 @@ All schemas use frozen=True for immutability where appropriate.
 
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field, computed_field
+from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator
 
 from models import SubmissionType
 
@@ -89,10 +89,13 @@ class StepCompletionResult(FrozenModel):
     completed_at: datetime
 
 
-class ProviderOption(FrozenModel):
-    """Cloud provider-specific option for a learning step."""
+_VALID_CLOUD_PROVIDERS = {"aws", "azure", "gcp"}
 
-    provider: str  # "aws", "azure", "gcp"
+
+class ProviderOption(FrozenModel):
+    """Cloud provider or platform-specific option for a learning step."""
+
+    provider: str
     title: str
     url: str
     description: str | None = None
@@ -371,6 +374,17 @@ class SubmissionResult(FrozenModel):
     repo_exists: bool | None = None
     task_results: list["TaskResult"] | None = None
 
+    @computed_field
+    @property
+    def is_server_error(self) -> bool:
+        """Whether this failure was caused by a server-side error.
+
+        True when validation failed but verification never completed
+        (e.g. LLM timeout, external service down). These attempts are
+        not counted against the user's cooldown or daily quota.
+        """
+        return not self.is_valid and not self.submission.verification_completed
+
 
 class TaskResult(FrozenModel):
     """Result of verifying a single task in code analysis.
@@ -494,6 +508,17 @@ class ProviderDistribution(FrozenModel):
 
     provider: str  # "aws", "azure", "gcp"
     count: int
+
+    @field_validator("provider")
+    @classmethod
+    def validate_provider(cls, v: str) -> str:
+        if v not in _VALID_CLOUD_PROVIDERS:
+            msg = (
+                f"Invalid provider '{v}',"
+                f" must be one of {sorted(_VALID_CLOUD_PROVIDERS)}"
+            )
+            raise ValueError(msg)
+        return v
 
 
 class CommunityAnalytics(FrozenModel):

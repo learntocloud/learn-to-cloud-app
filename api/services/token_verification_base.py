@@ -38,6 +38,7 @@ import hashlib
 import hmac
 import json
 import logging
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
@@ -206,3 +207,165 @@ def verify_timestamp(payload: dict[str, Any]) -> str | None:
     if timestamp > now + 3600:
         return "Invalid timestamp. The token appears to be from the future."
     return None
+
+
+# ---------------------------------------------------------------------------
+# Generic lab token verification
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True, slots=True)
+class LabConfig:
+    """Configuration for a lab token verification flow.
+
+    Attributes:
+        required_challenges: Number of challenges/incidents required.
+        challenge_label: Noun for error messages
+            (``"challenges"`` or ``"incidents"``).
+        log_prefix: Dot-notation prefix for log events
+            (e.g. ``"ctf"`` or ``"networking"``).
+        service_display_name: Human-readable name for user-facing messages.
+        success_message: User-facing congratulations message on success.
+        accepted_challenge_types: If set, ``payload["challenge"]``
+            must be in this set.
+    """
+
+    required_challenges: int
+    challenge_label: str
+    log_prefix: str
+    service_display_name: str
+    success_message: str
+    accepted_challenge_types: frozenset[str] | None = None
+
+
+def verify_lab_token(
+    token: str,
+    oauth_github_username: str,
+    config: LabConfig,
+) -> dict[str, Any]:
+    """Verify a lab completion token using the shared flow.
+
+    Returns a dict with verification result fields. The caller wraps this
+    into the appropriate Pydantic result type (``CTFVerificationResult``
+    or ``NetworkingLabVerificationResult``).
+
+    Keys always present: ``is_valid``, ``message``, ``server_error``.
+    On success, also includes: ``github_username``, ``completion_date``,
+    ``completion_time``, ``challenges_completed``.
+    If ``config.accepted_challenge_types`` is set, ``challenge_type`` is also included.
+    """
+    try:
+        decoded = decode_token(token)
+        if not decoded.is_valid:
+            return {
+                "is_valid": False,
+                "message": decoded.error or "",
+                "server_error": False,
+            }
+
+        payload = decoded.payload
+        if payload is None:
+            return {
+                "is_valid": False,
+                "message": (
+                    f"Invalid {config.service_display_name} " "token: missing payload."
+                ),
+                "server_error": False,
+            }
+
+        signature = decoded.signature
+        if signature is None:
+            return {
+                "is_valid": False,
+                "message": (
+                    f"Invalid {config.service_display_name} "
+                    "token: missing signature."
+                ),
+                "server_error": False,
+            }
+
+        # Challenge type check (only for labs that require it)
+        challenge_type: str | None = None
+        if config.accepted_challenge_types is not None:
+            challenge_type = payload.get("challenge") or ""
+            if challenge_type not in config.accepted_challenge_types:
+                return {
+                    "is_valid": False,
+                    "message": (
+                        f"Invalid challenge type '{challenge_type}'. "
+                        f"Make sure you're submitting a token "
+                        f"from the {config.service_display_name}."
+                    ),
+                    "server_error": False,
+                }
+
+        # Username check
+        if err := verify_username(payload, oauth_github_username):
+            return {"is_valid": False, "message": err, "server_error": False}
+
+        # Instance ID check
+        if err := verify_instance_id(payload):
+            return {"is_valid": False, "message": err, "server_error": False}
+
+        # HMAC signature check
+        try:
+            if err := verify_signature(payload, signature, payload["instance_id"]):
+                return {"is_valid": False, "message": err, "server_error": False}
+        except RuntimeError:
+            logger.exception(
+                f"{config.log_prefix}.verification.misconfigured",
+                extra={"expected_username": oauth_github_username},
+            )
+            return {
+                "is_valid": False,
+                "message": (
+                    f"{config.service_display_name} verification "
+                    "is not available right now."
+                ),
+                "server_error": True,
+            }
+
+        # Challenge count check
+        if err := verify_challenge_count(
+            payload, config.required_challenges, label=config.challenge_label
+        ):
+            return {"is_valid": False, "message": err, "server_error": False}
+
+        # Timestamp check
+        if err := verify_timestamp(payload):
+            return {"is_valid": False, "message": err, "server_error": False}
+
+        logger.info(
+            f"{config.log_prefix}.verification.passed",
+            extra={
+                "github_username": payload.get("github_username"),
+                "challenges": payload.get("challenges"),
+                **({"challenge_type": challenge_type} if challenge_type else {}),
+            },
+        )
+
+        result: dict[str, Any] = {
+            "is_valid": True,
+            "message": config.success_message,
+            "server_error": False,
+            "github_username": payload.get("github_username"),
+            "completion_date": payload.get("date"),
+            "completion_time": payload.get("time"),
+            "challenges_completed": payload.get("challenges"),
+        }
+        if challenge_type is not None:
+            result["challenge_type"] = challenge_type
+        return result
+
+    except Exception as e:
+        logger.exception(
+            f"{config.log_prefix}.token.verification.failed",
+            extra={"error": str(e), "expected_username": oauth_github_username},
+        )
+        return {
+            "is_valid": False,
+            "message": (
+                "Token verification failed. " "Please try again or contact support."
+            ),
+            "server_error": True,
+        }

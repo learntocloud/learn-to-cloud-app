@@ -1,11 +1,15 @@
 """Health check endpoints."""
 
+import logging
+
 from fastapi import APIRouter, HTTPException, Request
 from starlette import status
 
 from core.database import check_db_connection
 from core.ratelimit import limiter
 from schemas import HealthResponse
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["health"])
 
@@ -54,6 +58,7 @@ async def ready(request: Request) -> HealthResponse:
     try:
         await check_db_connection(request.app.state.engine)
     except Exception as e:
+        logger.warning("health.ready.db_unavailable", extra={"error": str(e)})
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Database unavailable",

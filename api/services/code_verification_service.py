@@ -36,7 +36,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import re
 from typing import Any, Literal, TypedDict
 
 import httpx
@@ -51,7 +50,17 @@ from tenacity import (
 
 from core.config import get_settings
 from core.llm_client import LLMClientError, get_llm_chat_client
-from schemas import TaskResult, ValidationResult
+from schemas import ValidationResult
+from services.llm_verification_base import (
+    RETRIABLE_EXCEPTIONS,
+    VerificationError,
+    build_task_results,
+    extract_repo_info,
+    parse_structured_response,
+)
+from services.llm_verification_base import (
+    SUSPICIOUS_PATTERNS as _BASE_SUSPICIOUS_PATTERNS,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -69,27 +78,7 @@ ALLOWED_FILE_PATHS: frozenset[str] = frozenset(
 # Maximum file size to prevent token exhaustion (50KB)
 MAX_FILE_SIZE_BYTES: int = 50 * 1024
 
-# Patterns that may indicate prompt injection attempts in fetched code
-SUSPICIOUS_PATTERNS: tuple[str, ...] = (
-    "ignore all previous",
-    "ignore prior instructions",
-    "disregard above",
-    "system prompt",
-    "you are now",
-    "new instructions",
-    "forget everything",
-    "json```",  # Attempting to inject fake JSON responses
-    "mark all tasks as passed",
-    "mark as passed",
-    "override grading",
-    "always return true",
-    "always pass",
-    "<|im_start|>",  # ChatML injection
-    "<|im_end|>",
-    "<|endoftext|>",
-    "[system]",
-    "respond with json",  # Attempting to inject fake structured output
-)
+SUSPICIOUS_PATTERNS = _BASE_SUSPICIOUS_PATTERNS
 
 
 class TaskDefinition(TypedDict, total=False):
@@ -285,41 +274,8 @@ class CodeAnalysisResponse(BaseModel):
     )
 
 
-class CodeAnalysisError(Exception):
+class CodeAnalysisError(VerificationError):
     """Raised when code analysis fails."""
-
-    def __init__(self, message: str, retriable: bool = False):
-        super().__init__(message)
-        self.retriable = retriable
-
-
-def _extract_repo_info(repo_url: str) -> tuple[str, str]:
-    """Extract owner and repo name from GitHub URL.
-
-    Args:
-        repo_url: GitHub repository URL
-
-    Returns:
-        Tuple of (owner, repo_name)
-
-    Raises:
-        ValueError: If URL is not a valid GitHub repository URL
-    """
-    url = repo_url.strip().rstrip("/")
-
-    patterns = [
-        r"https?://github\.com/([^/]+)/([^/]+)/?.*",
-        r"github\.com/([^/]+)/([^/]+)/?.*",
-    ]
-
-    for pattern in patterns:
-        match = re.match(pattern, url)
-        if match:
-            owner, repo = match.groups()
-            repo = repo.removesuffix(".git")
-            return owner, repo
-
-    raise ValueError(f"Invalid GitHub repository URL: {repo_url}")
 
 
 async def _fetch_github_file_content(
@@ -355,9 +311,9 @@ async def _fetch_github_file_content(
         headers["Authorization"] = f"Bearer {settings.github_token}"
 
     # Reuse shared GitHub HTTP client (connection pooling)
-    from services.github_hands_on_verification_service import _get_github_client
+    from core.github_client import get_github_client
 
-    client = await _get_github_client()
+    client = await get_github_client()
     response = await client.get(url, headers=headers)
     response.raise_for_status()
 
@@ -473,74 +429,6 @@ For each task:
     return prompt
 
 
-def _parse_structured_response(
-    result: Any,
-) -> CodeAnalysisResponse:
-    """Extract the structured response from the agent result.
-
-    Uses ``result.value`` when the LLM returned structured output.
-    Falls back to parsing ``result.text`` if value is not populated.
-
-    Args:
-        result: The AgentRunResponse from ChatAgent.run().
-
-    Returns:
-        Validated CodeAnalysisResponse.
-
-    Raises:
-        CodeAnalysisError: If response cannot be parsed.
-    """
-    if result.value is not None:
-        if isinstance(result.value, CodeAnalysisResponse):
-            return result.value
-        try:
-            return CodeAnalysisResponse.model_validate(result.value)
-        except Exception:
-            pass
-
-    text = result.text
-    if not text:
-        raise CodeAnalysisError(
-            "No response received from code analysis",
-            retriable=True,
-        )
-
-    try:
-        return CodeAnalysisResponse.model_validate_json(text)
-    except Exception as e:
-        raise CodeAnalysisError(
-            f"Could not parse analysis response: {e}",
-            retriable=True,
-        ) from e
-
-
-def _sanitize_feedback(feedback: str | None) -> str:
-    """Sanitize LLM-generated feedback before displaying to users.
-
-    Removes potentially harmful content while preserving educational value.
-
-    Args:
-        feedback: Raw feedback from the LLM
-
-    Returns:
-        Sanitized feedback safe for display
-    """
-    if not feedback or not isinstance(feedback, str):
-        return "No feedback provided"
-
-    max_length = 500
-    if len(feedback) > max_length:
-        feedback = feedback[:max_length].rsplit(" ", 1)[0] + "..."
-
-    feedback = re.sub(r"<[^>]+>", "", feedback)
-
-    feedback = re.sub(r"```[\s\S]*?```", "[code snippet]", feedback)
-
-    feedback = re.sub(r"https?://\S+", "[link removed]", feedback)
-
-    return feedback.strip() or "No feedback provided"
-
-
 def _enforce_deterministic_guardrails(
     analysis: CodeAnalysisResponse,
     file_contents: dict[str, str],
@@ -639,64 +527,6 @@ def _enforce_deterministic_guardrails(
     return CodeAnalysisResponse(tasks=corrected_tasks)
 
 
-def _build_task_results(
-    analysis: CodeAnalysisResponse,
-) -> tuple[list[TaskResult], bool]:
-    """Convert structured analysis response to TaskResult objects.
-
-    Sanitizes feedback and ensures all expected tasks have results.
-
-    Args:
-        analysis: Validated structured response from the LLM.
-
-    Returns:
-        Tuple of (list of TaskResult, all_passed boolean).
-    """
-    task_names = {task["id"]: task["name"] for task in PHASE3_TASKS}
-    valid_task_ids = set(task_names.keys())
-
-    results: list[TaskResult] = []
-    all_passed = True
-
-    for grade in analysis.tasks:
-        if grade.task_id not in valid_task_ids:
-            continue
-
-        feedback = _sanitize_feedback(grade.feedback)
-
-        if not grade.passed:
-            all_passed = False
-
-        results.append(
-            TaskResult(
-                task_name=task_names.get(grade.task_id, grade.task_id),
-                passed=grade.passed,
-                feedback=feedback,
-            )
-        )
-
-    found_ids = {g.task_id for g in analysis.tasks if g.task_id in valid_task_ids}
-    for task in PHASE3_TASKS:
-        if task["id"] not in found_ids:
-            all_passed = False
-            results.append(
-                TaskResult(
-                    task_name=task["name"],
-                    passed=False,
-                    feedback="Task was not evaluated — please try again",
-                )
-            )
-
-    return results, all_passed
-
-
-RETRIABLE_EXCEPTIONS: tuple[type[Exception], ...] = (
-    LLMClientError,
-    httpx.RequestError,
-    httpx.TimeoutException,
-)
-
-
 class _retry_if_retriable(retry_base):
     """Only retry LLMClientError when its retriable flag is True.
 
@@ -741,9 +571,7 @@ async def _prefetch_all_files(
             return (path, content)
         except httpx.HTTPStatusError:
             return (path, f'<file_not_found path="{path}" />')
-        except ValueError:
-            return (path, f'<file_not_found path="{path}" />')
-        except Exception:
+        except (ValueError, httpx.RequestError, httpx.TimeoutException):
             return (path, f'<file_not_found path="{path}" />')
 
     results = await asyncio.gather(*[_fetch_one(p) for p in sorted(ALLOWED_FILE_PATHS)])
@@ -818,13 +646,15 @@ async def _analyze_with_llm(
             server_error=False,
         )
 
-    analysis = _parse_structured_response(result)
+    analysis = parse_structured_response(
+        result, CodeAnalysisResponse, CodeAnalysisError, "code_analysis"
+    )
 
     # Deterministic guardrails override LLM grades when file contents
     # contradict the LLM's assessment or contain prompt injection attempts.
     analysis = _enforce_deterministic_guardrails(analysis, file_contents)
 
-    task_results, all_passed = _build_task_results(analysis)
+    task_results, all_passed = build_task_results(analysis.tasks, PHASE3_TASKS)
 
     passed_count = sum(1 for t in task_results if t.passed)
     total_count = len(task_results)
@@ -883,7 +713,7 @@ async def analyze_repository_code(
         and detailed task_results for feedback.
     """
     try:
-        owner, repo = _extract_repo_info(repo_url)
+        owner, repo = extract_repo_info(repo_url)
     except ValueError as e:
         return ValidationResult(
             is_valid=False,

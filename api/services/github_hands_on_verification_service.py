@@ -14,7 +14,6 @@ SCALABILITY:
 - Connection pooling via shared httpx.AsyncClient
 """
 
-import asyncio
 import logging
 import re
 
@@ -29,13 +28,15 @@ from tenacity import (
 )
 
 from core.config import get_settings
+from core.github_client import (  # noqa: F401  # re-exported for backward compat
+    close_github_client,
+)
+from core.github_client import (
+    get_github_client as _get_github_client,
+)
 from schemas import ParsedGitHubUrl, ValidationResult
 
 logger = logging.getLogger(__name__)
-
-# Shared HTTP client for GitHub API requests (connection pooling)
-_github_http_client: httpx.AsyncClient | None = None
-_github_client_lock = asyncio.Lock()
 
 
 class GitHubServerError(Exception):
@@ -72,39 +73,7 @@ RETRIABLE_EXCEPTIONS: tuple[type[Exception], ...] = (
 )
 
 
-async def _get_github_client() -> httpx.AsyncClient:
-    """Get or create a shared HTTP client for GitHub API requests.
-
-    Uses connection pooling to reduce overhead from per-request client creation.
-    Thread-safe via asyncio.Lock to prevent race conditions.
-    """
-    global _github_http_client
-
-    if _github_http_client is not None and not _github_http_client.is_closed:
-        return _github_http_client
-
-    async with _github_client_lock:
-        if _github_http_client is not None and not _github_http_client.is_closed:
-            return _github_http_client
-
-        settings = get_settings()
-        _github_http_client = httpx.AsyncClient(
-            timeout=settings.http_timeout,
-            follow_redirects=True,
-            limits=httpx.Limits(max_connections=20, max_keepalive_connections=10),
-        )
-        return _github_http_client
-
-
-async def close_github_client() -> None:
-    """Close the shared GitHub HTTP client (called on application shutdown)."""
-    global _github_http_client
-    if _github_http_client is not None and not _github_http_client.is_closed:
-        await _github_http_client.aclose()
-    _github_http_client = None
-
-
-def _get_github_headers() -> dict[str, str]:
+def get_github_headers() -> dict[str, str]:
     """Get headers for GitHub API requests, including auth token if available."""
     headers = {"Accept": "application/vnd.github.v3+json"}
     settings = get_settings()
@@ -265,7 +234,7 @@ async def _check_repo_is_fork_of_with_retry(
     api_url = f"https://api.github.com/repos/{username}/{repo_name}"
 
     client = await _get_github_client()
-    response = await client.get(api_url, headers=_get_github_headers())
+    response = await client.get(api_url, headers=get_github_headers())
 
     if response.status_code >= 500:
         raise GitHubServerError(f"GitHub API returned {response.status_code}")

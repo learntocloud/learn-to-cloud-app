@@ -28,12 +28,12 @@ from tenacity import (
     wait_exponential_jitter,
 )
 
+from core.github_client import get_github_client as _get_github_client
 from schemas import TaskResult, ValidationResult
-from services.devops_verification_service import _fetch_repo_tree
+from services.devops_verification_service import fetch_repo_tree
 from services.github_hands_on_verification_service import (
     RETRIABLE_EXCEPTIONS,
-    _get_github_client,
-    _get_github_headers,
+    get_github_headers,
 )
 from services.llm_verification_base import VerificationError, validate_repo_url
 
@@ -134,7 +134,7 @@ def _find_codeql_workflow_candidates(file_paths: list[str]) -> list[str]:
 async def _fetch_workflow_content(owner: str, repo: str, path: str) -> str | None:
     """Fetch a single workflow file's raw content from GitHub."""
     client = await _get_github_client()
-    headers = _get_github_headers()
+    headers = get_github_headers()
 
     url = f"https://raw.githubusercontent.com/{owner}/{repo}/main/{path}"
     try:
@@ -301,7 +301,7 @@ async def validate_security_scanning(
 
     try:
         try:
-            all_files = await _fetch_repo_tree(owner, repo)
+            all_files = await fetch_repo_tree(owner, repo)
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
                 return ValidationResult(

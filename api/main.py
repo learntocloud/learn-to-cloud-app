@@ -29,6 +29,7 @@ from core.database import (
     init_db,
     warm_pool,
 )
+from core.github_client import close_github_client
 from core.logger import configure_logging
 from core.middleware import (
     SecurityHeadersMiddleware,
@@ -47,9 +48,6 @@ from routes import (
 )
 from services.deployed_api_verification_service import (
     close_deployed_api_client,
-)
-from services.github_hands_on_verification_service import (
-    close_github_client,
 )
 
 # OTel must be configured before fastapi.FastAPI() is instantiated.
@@ -305,7 +303,7 @@ app.add_middleware(SecurityHeadersMiddleware)
 if _settings.debug:
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=get_settings().allowed_origins,
+        allow_origins=_settings.allowed_origins,
         allow_credentials=True,
         allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
         allow_headers=["Authorization", "Content-Type"],

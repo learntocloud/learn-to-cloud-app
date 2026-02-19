@@ -23,12 +23,11 @@ from services.devops_verification_service import (
     DevOpsAnalysisError,
     DevOpsAnalysisLLMResponse,
     DevOpsTaskGrade,
-    _build_task_results,
     _build_verification_prompt,
     _filter_devops_files,
-    _parse_structured_response,
     analyze_devops_repository,
 )
+from services.llm_verification_base import build_task_results, parse_structured_response
 
 
 @pytest.mark.unit
@@ -103,7 +102,12 @@ class TestParseStructuredResponse:
         mock_result.value = expected
         mock_result.text = ""
 
-        result = _parse_structured_response(mock_result)
+        result = parse_structured_response(
+            mock_result,
+            DevOpsAnalysisLLMResponse,
+            DevOpsAnalysisError,
+            "devops_analysis",
+        )
         assert len(result.tasks) == 4
         assert result.tasks[0].task_id == "dockerfile"
         assert result.tasks[0].passed is True
@@ -118,7 +122,12 @@ class TestParseStructuredResponse:
         mock_result.value = None
         mock_result.text = json.dumps({"tasks": tasks})
 
-        result = _parse_structured_response(mock_result)
+        result = parse_structured_response(
+            mock_result,
+            DevOpsAnalysisLLMResponse,
+            DevOpsAnalysisError,
+            "devops_analysis",
+        )
         assert len(result.tasks) == 4
 
     def test_empty_text_raises(self):
@@ -128,7 +137,12 @@ class TestParseStructuredResponse:
         mock_result.text = ""
 
         with pytest.raises(DevOpsAnalysisError, match="No response received"):
-            _parse_structured_response(mock_result)
+            parse_structured_response(
+                mock_result,
+                DevOpsAnalysisLLMResponse,
+                DevOpsAnalysisError,
+                "devops_analysis",
+            )
 
     def test_invalid_text_raises(self):
         """Should raise when text is not valid JSON."""
@@ -137,7 +151,12 @@ class TestParseStructuredResponse:
         mock_result.text = "This is just plain text with no JSON"
 
         with pytest.raises(DevOpsAnalysisError, match="Could not parse"):
-            _parse_structured_response(mock_result)
+            parse_structured_response(
+                mock_result,
+                DevOpsAnalysisLLMResponse,
+                DevOpsAnalysisError,
+                "devops_analysis",
+            )
 
 
 @pytest.mark.unit
@@ -155,7 +174,7 @@ class TestBuildTaskResults:
                 ),
             ]
         )
-        results, all_passed = _build_task_results(analysis)
+        results, all_passed = build_task_results(analysis.tasks, PHASE5_TASKS)
         assert all_passed is True
         assert len(results) == 4
 
@@ -174,7 +193,7 @@ class TestBuildTaskResults:
                 ),
             ]
         )
-        results, all_passed = _build_task_results(analysis)
+        results, all_passed = build_task_results(analysis.tasks, PHASE5_TASKS)
         assert all_passed is False
         assert sum(1 for r in results if r.passed) == 2
 
@@ -190,7 +209,7 @@ class TestBuildTaskResults:
                 DevOpsTaskGrade(task_id="dockerfile", passed=True, feedback="Done"),
             ]
         )
-        results, all_passed = _build_task_results(analysis)
+        results, all_passed = build_task_results(analysis.tasks, PHASE5_TASKS)
         assert all_passed is False
         # dockerfile (4x) + 3 missing tasks filled in
         assert len(results) == 7
@@ -212,7 +231,7 @@ class TestBuildTaskResults:
                 ),
             ]
         )
-        results, _ = _build_task_results(analysis)
+        results, _ = build_task_results(analysis.tasks, PHASE5_TASKS)
         dockerfile_result = next(
             r for r in results if r.task_name == "Containerization (Dockerfile)"
         )
@@ -297,7 +316,7 @@ class TestAnalyzeDevopsRepository:
         mock_response.status_code = 404
 
         with patch(
-            "services.devops_verification_service._fetch_repo_tree",
+            "services.devops_verification_service.fetch_repo_tree",
             autospec=True,
             side_effect=httpx.HTTPStatusError(
                 "Not Found", request=MagicMock(), response=mock_response
@@ -354,7 +373,7 @@ class TestAnalyzeDevopsRepository:
 
         with (
             patch(
-                "services.devops_verification_service._fetch_repo_tree",
+                "services.devops_verification_service.fetch_repo_tree",
                 autospec=True,
                 return_value=mock_files,
             ),
@@ -383,7 +402,7 @@ class TestAnalyzeDevopsRepository:
 
         with (
             patch(
-                "services.devops_verification_service._fetch_repo_tree",
+                "services.devops_verification_service.fetch_repo_tree",
                 autospec=True,
                 return_value=["Dockerfile"],
             ),
@@ -411,7 +430,7 @@ class TestAnalyzeDevopsRepository:
         """Retriable DevOpsAnalysisError should return server_error=True."""
         with (
             patch(
-                "services.devops_verification_service._fetch_repo_tree",
+                "services.devops_verification_service.fetch_repo_tree",
                 autospec=True,
                 return_value=["Dockerfile"],
             ),

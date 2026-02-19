@@ -1,5 +1,7 @@
 """User-related endpoints."""
 
+import logging
+
 from fastapi import APIRouter, HTTPException, Request
 
 from core.auth import UserId
@@ -11,6 +13,8 @@ from services.users_service import (
     delete_user_account,
     get_or_create_user,
 )
+
+logger = logging.getLogger(__name__)
 
 __all__ = ["router"]
 
@@ -50,4 +54,5 @@ async def delete_current_user(request: Request, user_id: UserId, db: DbSession) 
     except UserNotFoundError:
         raise HTTPException(status_code=404, detail="User not found")
 
+    logger.info("user.account_deleted_via_api", extra={"user_id": user_id})
     request.session.clear()

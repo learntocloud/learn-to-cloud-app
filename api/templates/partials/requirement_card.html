@@ -32,7 +32,9 @@
         <input type="hidden" name="submission_type" value="{{ requirement.submission_type }}">
 
         {% if requirement.submission_type in ['ctf_token', 'networking_token'] %}
+        <label for="input-{{ requirement.id }}" class="sr-only">{{ requirement.name }}</label>
         <input
+            id="input-{{ requirement.id }}"
             type="text"
             name="submitted_value"
             placeholder="{{ requirement.placeholder | default('Paste your completion token here') }}"
@@ -41,7 +43,9 @@
             required
         >
         {% else %}
+        <label for="input-{{ requirement.id }}" class="sr-only">{{ requirement.name }}</label>
         <input
+            id="input-{{ requirement.id }}"
             type="url"
             name="submitted_value"
             placeholder="{{ requirement.placeholder | default('https://github.com/username/repo') }}"

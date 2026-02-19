@@ -13,26 +13,31 @@ Shared token verification logic (decoding, HMAC, username matching)
 lives in ``services.token_verification_base``.
 """
 
-import logging
-
 from schemas import NetworkingLabVerificationResult
-from services.token_verification_base import (
-    decode_token,
-    verify_challenge_count,
-    verify_instance_id,
-    verify_signature,
-    verify_timestamp,
-    verify_username,
+from services.token_verification_base import LabConfig, verify_lab_token
+
+_NETWORKING_CONFIG = LabConfig(
+    required_challenges=4,
+    challenge_label="incidents",
+    log_prefix="networking",
+    service_display_name="Networking Lab",
+    success_message=(
+        "🎉 Congratulations! You have resolved all 4 "
+        "network incidents in the Networking Lab!"
+    ),
+    accepted_challenge_types=frozenset(
+        {
+            "networking-lab-azure",
+            "networking-lab-aws",
+            "networking-lab-gcp",
+        }
+    ),
 )
 
-logger = logging.getLogger(__name__)
-
-REQUIRED_CHALLENGES = 4
-ACCEPTED_CHALLENGE_TYPES = {
-    "networking-lab-azure",
-    "networking-lab-aws",
-    "networking-lab-gcp",
-}
+# Public constants derived from config (used by tests)
+REQUIRED_CHALLENGES = _NETWORKING_CONFIG.required_challenges
+assert _NETWORKING_CONFIG.accepted_challenge_types is not None
+ACCEPTED_CHALLENGE_TYPES: frozenset[str] = _NETWORKING_CONFIG.accepted_challenge_types
 
 
 def verify_networking_token(
@@ -47,100 +52,5 @@ def verify_networking_token(
     Returns:
         NetworkingLabVerificationResult with verification status and details
     """
-    try:
-        decoded = decode_token(token)
-        if not decoded.is_valid:
-            return NetworkingLabVerificationResult(
-                is_valid=False, message=decoded.error or ""
-            )
-
-        payload = decoded.payload
-        if payload is None:
-            return NetworkingLabVerificationResult(
-                is_valid=False,
-                message="Invalid token: missing payload.",
-            )
-
-        signature = decoded.signature
-        if signature is None:
-            return NetworkingLabVerificationResult(
-                is_valid=False,
-                message="Invalid token: missing signature.",
-            )
-
-        # Challenge type check (networking-specific)
-        challenge_type = payload.get("challenge") or ""
-        if challenge_type not in ACCEPTED_CHALLENGE_TYPES:
-            return NetworkingLabVerificationResult(
-                is_valid=False,
-                message=(
-                    f"Invalid challenge type '{challenge_type}'. "
-                    "Make sure you're submitting a token from the Networking Lab."
-                ),
-            )
-
-        # Username check
-        if err := verify_username(payload, oauth_github_username):
-            return NetworkingLabVerificationResult(is_valid=False, message=err)
-
-        # Instance ID check
-        if err := verify_instance_id(payload):
-            return NetworkingLabVerificationResult(is_valid=False, message=err)
-
-        # HMAC signature check
-        try:
-            if err := verify_signature(payload, signature, payload["instance_id"]):
-                return NetworkingLabVerificationResult(is_valid=False, message=err)
-        except RuntimeError:
-            logger.exception(
-                "networking.verification.misconfigured",
-                extra={"expected_username": oauth_github_username},
-            )
-            return NetworkingLabVerificationResult(
-                is_valid=False,
-                message="Networking lab verification is not available right now.",
-                server_error=True,
-            )
-
-        # Challenge count check
-        if err := verify_challenge_count(
-            payload, REQUIRED_CHALLENGES, label="incidents"
-        ):
-            return NetworkingLabVerificationResult(is_valid=False, message=err)
-
-        # Timestamp check
-        if err := verify_timestamp(payload):
-            return NetworkingLabVerificationResult(is_valid=False, message=err)
-
-        logger.info(
-            "networking.verification.passed",
-            extra={
-                "github_username": payload.get("github_username"),
-                "challenges": payload.get("challenges"),
-                "challenge_type": challenge_type,
-            },
-        )
-
-        return NetworkingLabVerificationResult(
-            is_valid=True,
-            message=(
-                f"🎉 Congratulations! You have resolved all {REQUIRED_CHALLENGES} "
-                "network incidents in the Networking Lab!"
-            ),
-            github_username=payload.get("github_username"),
-            completion_date=payload.get("date"),
-            completion_time=payload.get("time"),
-            challenges_completed=payload.get("challenges"),
-            challenge_type=challenge_type,
-        )
-
-    except Exception as e:
-        logger.exception(
-            "networking.token.verification.failed",
-            extra={"error": str(e), "expected_username": oauth_github_username},
-        )
-        return NetworkingLabVerificationResult(
-            is_valid=False,
-            message="Token verification failed. Please try again or contact support.",
-            server_error=True,
-        )
+    result = verify_lab_token(token, oauth_github_username, _NETWORKING_CONFIG)
+    return NetworkingLabVerificationResult(**result)

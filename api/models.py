@@ -207,7 +207,10 @@ class Submission(TimestampMixin, Base):
     # User-facing validation error message (persists across page reloads)
     validation_message: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     # Cloud provider for multi-cloud labs ("aws", "azure", "gcp", or None)
-    cloud_provider: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    cloud_provider: Mapped[str | None] = mapped_column(
+        String(16),
+        nullable=True,
+    )
 
     user: Mapped["User"] = relationship(back_populates="submissions")
 

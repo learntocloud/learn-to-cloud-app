@@ -13,6 +13,13 @@ from fastapi.responses import HTMLResponse
 from core.auth import OptionalUserId, UserId
 from core.database import DbSession
 from models import User
+from rendering.context import (
+    FAQS,
+    HELP_LINKS,
+    build_phase_topics,
+    build_progress_dict,
+    build_topic_nav,
+)
 from rendering.steps import build_step_data
 from services.content_service import (
     get_all_phases,
@@ -24,7 +31,7 @@ from services.phase_requirements_service import (
     is_phase_verification_locked,
 )
 from services.progress_service import get_phase_detail_progress
-from services.steps_service import get_completed_steps
+from services.steps_service import get_valid_completed_steps
 from services.submissions_service import get_phase_submission_context
 from services.users_service import get_user_by_id
 
@@ -40,7 +47,9 @@ async def _get_user_or_none(db: DbSession, user_id: int | None) -> User | None:
     return await get_user_by_id(db, user_id)
 
 
-def _template_context(request: Request, user=None, **kwargs) -> dict:
+def _template_context(
+    request: Request, user: User | None = None, **kwargs: object
+) -> dict:
     """Build common template context."""
     return {
         "request": request,
@@ -50,7 +59,7 @@ def _template_context(request: Request, user=None, **kwargs) -> dict:
     }
 
 
-@router.get("/", response_class=HTMLResponse)
+@router.get("/", response_class=HTMLResponse, summary="Home page")
 async def home_page(
     request: Request,
     db: DbSession,
@@ -66,7 +75,7 @@ async def home_page(
     )
 
 
-@router.get("/curriculum", response_class=HTMLResponse)
+@router.get("/curriculum", response_class=HTMLResponse, summary="Curriculum overview")
 async def curriculum_page(
     request: Request,
     db: DbSession,
@@ -82,7 +91,11 @@ async def curriculum_page(
     )
 
 
-@router.get("/phase/{phase_id:int}", response_class=HTMLResponse)
+@router.get(
+    "/phase/{phase_id:int}",
+    response_class=HTMLResponse,
+    summary="Phase detail",
+)
 async def phase_page(
     request: Request,
     phase_id: int,
@@ -99,19 +112,12 @@ async def phase_page(
             status_code=404,
         )
 
-    topics = [
-        {
-            "name": t.name,
-            "slug": t.slug,
-            "progress": None,
-        }
-        for t in phase.topics
-    ]
+    detail = await get_phase_detail_progress(db, user_id, phase)
+    topics, progress = build_phase_topics(phase, detail)
 
     requirements = []
-    submissions_by_req = {}
-    hands_on = getattr(phase, "hands_on_verification", None)
-    if hands_on and hasattr(hands_on, "requirements"):
+    hands_on = phase.hands_on_verification
+    if hands_on:
         requirements = hands_on.requirements
 
     sub_context = await get_phase_submission_context(db, user_id, phase_id)
@@ -122,20 +128,6 @@ async def phase_page(
     verification_locked, prerequisite_phase_id = await is_phase_verification_locked(
         db, user_id, phase_id
     )
-
-    detail = await get_phase_detail_progress(db, user_id, phase)
-    for i, t in enumerate(phase.topics):
-        tp = detail.topic_progress.get(t.id)
-        if tp:
-            topics[i]["progress"] = {
-                "completed": tp.steps_completed,
-                "total": tp.steps_total,
-            }
-    progress = {
-        "percentage": detail.percentage,
-        "steps_completed": detail.steps_completed,
-        "steps_required": detail.steps_total,
-    }
 
     return request.app.state.templates.TemplateResponse(
         "pages/phase.html",
@@ -154,7 +146,11 @@ async def phase_page(
     )
 
 
-@router.get("/phase/{phase_id:int}/{topic_slug}", response_class=HTMLResponse)
+@router.get(
+    "/phase/{phase_id:int}/{topic_slug}",
+    response_class=HTMLResponse,
+    summary="Topic detail",
+)
 async def topic_page(
     request: Request,
     phase_id: int,
@@ -175,46 +171,21 @@ async def topic_page(
             status_code=404,
         )
 
-    completed_step_ids = await get_completed_steps(db, user_id, topic.id)
-    valid_step_ids = {step.id for step in topic.learning_steps}
-    completed_step_ids = completed_step_ids & valid_step_ids
+    completed_step_ids = await get_valid_completed_steps(db, user_id, topic)
 
-    steps = [build_step_data(step) for step in getattr(topic, "learning_steps", [])]
+    steps = [build_step_data(step) for step in topic.learning_steps]
 
     all_topics = phase.topics
-    current_idx = next(
-        (i for i, t in enumerate(all_topics) if t.slug == topic_slug), -1
+    prev_topic, next_topic = build_topic_nav(
+        all_topics, topic_slug, phase_id, phase.name
     )
-    phase_link = {"slug": None, "name": phase.name, "url": f"/phase/{phase_id}"}
-    prev_topic = None
-    next_topic = None
-    if current_idx == 0:
-        prev_topic = phase_link
-    elif current_idx > 0:
-        prev_t = all_topics[current_idx - 1]
-        prev_topic = {
-            "slug": prev_t.slug,
-            "name": prev_t.name,
-            "url": f"/phase/{phase_id}/{prev_t.slug}",
-        }
-    if current_idx == len(all_topics) - 1:
-        next_topic = phase_link
-    elif 0 <= current_idx < len(all_topics) - 1:
-        next_t = all_topics[current_idx + 1]
-        next_topic = {
-            "slug": next_t.slug,
-            "name": next_t.name,
-            "url": f"/phase/{phase_id}/{next_t.slug}",
-        }
 
     total_steps = len(steps)
-    progress = None
-    if total_steps > 0:
-        progress = {
-            "completed": len(completed_step_ids),
-            "total": total_steps,
-            "percentage": round(len(completed_step_ids) / total_steps * 100),
-        }
+    progress = (
+        build_progress_dict(len(completed_step_ids), total_steps)
+        if total_steps > 0
+        else None
+    )
 
     return request.app.state.templates.TemplateResponse(
         "pages/topic.html",
@@ -234,7 +205,7 @@ async def topic_page(
     )
 
 
-@router.get("/dashboard", response_class=HTMLResponse)
+@router.get("/dashboard", response_class=HTMLResponse, summary="User dashboard")
 async def dashboard_page(
     request: Request,
     db: DbSession,
@@ -257,11 +228,12 @@ async def dashboard_page(
             request,
             user=user,
             dashboard=dashboard,
+            help_links=HELP_LINKS,
         ),
     )
 
 
-@router.get("/account", response_class=HTMLResponse)
+@router.get("/account", response_class=HTMLResponse, summary="Account settings")
 async def account_page(
     request: Request,
     db: DbSession,
@@ -282,7 +254,7 @@ async def account_page(
     )
 
 
-@router.get("/faq", response_class=HTMLResponse)
+@router.get("/faq", response_class=HTMLResponse, summary="FAQ")
 async def faq_page(
     request: Request,
     db: DbSession,
@@ -293,11 +265,11 @@ async def faq_page(
 
     return request.app.state.templates.TemplateResponse(
         "pages/faq.html",
-        _template_context(request, user=user),
+        _template_context(request, user=user, faqs=FAQS),
     )
 
 
-@router.get("/privacy", response_class=HTMLResponse)
+@router.get("/privacy", response_class=HTMLResponse, summary="Privacy policy")
 async def privacy_page(
     request: Request,
     db: DbSession,
@@ -312,7 +284,7 @@ async def privacy_page(
     )
 
 
-@router.get("/terms", response_class=HTMLResponse)
+@router.get("/terms", response_class=HTMLResponse, summary="Terms of service")
 async def terms_page(
     request: Request,
     db: DbSession,

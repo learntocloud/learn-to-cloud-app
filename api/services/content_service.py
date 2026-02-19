@@ -21,29 +21,35 @@ from schemas import Phase, Topic
 logger = logging.getLogger(__name__)
 
 
+class ContentValidationError(Exception):
+    """Raised when content YAML fails structural validation."""
+
+
 def _validate_topic_payload(data: dict, topic_file: Path) -> None:
     """Validate topic payload learning step IDs are explicit and unique."""
     topic_id = str(data.get("id", "")).strip()
     topic_name = topic_id or topic_file.stem
     steps = data.get("learning_steps", [])
     if not isinstance(steps, list):
-        raise ValueError("learning_steps must be a list")
+        raise ContentValidationError("learning_steps must be a list")
 
     seen: set[str] = set()
     for step in steps:
         if not isinstance(step, dict):
-            raise ValueError("Each learning step must be a mapping")
+            raise ContentValidationError("Each learning step must be a mapping")
 
         step_id = str(step.get("id", "")).strip()
         if not step_id:
-            raise ValueError(f"Missing learning_steps[].id in topic '{topic_name}'")
+            raise ContentValidationError(
+                f"Missing learning_steps[].id in topic '{topic_name}'"
+            )
         if len(step_id) > 100:
-            raise ValueError(
+            raise ContentValidationError(
                 f"learning_steps[].id '{step_id[:60]}...' is {len(step_id)} chars "
                 f"(max 100) in topic '{topic_name}'"
             )
         if step_id in seen:
-            raise ValueError(
+            raise ContentValidationError(
                 f"Duplicate learning_steps[].id '{step_id}' in topic '{topic_name}'"
             )
         seen.add(step_id)
@@ -68,7 +74,7 @@ def _load_topic(phase_dir: Path, topic_slug: str) -> Topic | None:
             data = yaml.safe_load(f)
         _validate_topic_payload(data, topic_file)
         return Topic.model_validate(data)
-    except Exception:
+    except (yaml.YAMLError, ContentValidationError, ValueError, KeyError):
         logger.exception(
             "content.topic.load_failed",
             extra={"topic_slug": topic_slug, "path": str(topic_file)},
@@ -97,7 +103,7 @@ def _load_phase(phase_slug: str) -> Phase | None:
         data["topics"] = topics
 
         return Phase.model_validate(data)
-    except Exception:
+    except (yaml.YAMLError, ContentValidationError, ValueError, KeyError):
         logger.exception(
             "content.phase.load_failed",
             extra={"phase_slug": phase_slug, "path": str(meta_file)},

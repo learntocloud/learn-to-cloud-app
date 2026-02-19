@@ -11,104 +11,21 @@ Shared token verification logic (decoding, HMAC, username matching)
 lives in ``services.token_verification_base``.
 """
 
-import logging
-
 from schemas import CTFVerificationResult
-from services.token_verification_base import (
-    decode_token,
-    verify_challenge_count,
-    verify_instance_id,
-    verify_signature,
-    verify_timestamp,
-    verify_username,
+from services.token_verification_base import LabConfig, verify_lab_token
+
+_CTF_CONFIG = LabConfig(
+    required_challenges=18,
+    challenge_label="challenges",
+    log_prefix="ctf",
+    service_display_name="CTF",
+    success_message=(
+        "🎉 Congratulations! You have completed all 18 " "Linux CTF challenges!"
+    ),
 )
-
-logger = logging.getLogger(__name__)
-
-REQUIRED_CHALLENGES = 18
 
 
 def verify_ctf_token(token: str, oauth_github_username: str) -> CTFVerificationResult:
     """Verify a CTF completion token."""
-    try:
-        decoded = decode_token(token)
-        if not decoded.is_valid:
-            return CTFVerificationResult(is_valid=False, message=decoded.error or "")
-
-        payload = decoded.payload
-        if payload is None:
-            return CTFVerificationResult(
-                is_valid=False,
-                message="Invalid CTF token: missing payload.",
-            )
-
-        signature = decoded.signature
-        if signature is None:
-            return CTFVerificationResult(
-                is_valid=False,
-                message="Invalid CTF token: missing signature.",
-            )
-
-        # Username check
-        if err := verify_username(payload, oauth_github_username):
-            return CTFVerificationResult(is_valid=False, message=err)
-
-        # Instance ID check
-        if err := verify_instance_id(payload):
-            return CTFVerificationResult(is_valid=False, message=err)
-
-        # HMAC signature check
-        try:
-            if err := verify_signature(payload, signature, payload["instance_id"]):
-                return CTFVerificationResult(is_valid=False, message=err)
-        except RuntimeError:
-            logger.exception(
-                "ctf.verification.misconfigured",
-                extra={"expected_username": oauth_github_username},
-            )
-            return CTFVerificationResult(
-                is_valid=False,
-                message="CTF verification is not available right now.",
-                server_error=True,
-            )
-
-        # Challenge count check
-        if err := verify_challenge_count(
-            payload, REQUIRED_CHALLENGES, label="challenges"
-        ):
-            return CTFVerificationResult(is_valid=False, message=err)
-
-        # Timestamp check
-        if err := verify_timestamp(payload):
-            return CTFVerificationResult(is_valid=False, message=err)
-
-        logger.info(
-            "ctf.verification.passed",
-            extra={
-                "github_username": payload.get("github_username"),
-                "challenges": payload.get("challenges"),
-            },
-        )
-
-        return CTFVerificationResult(
-            is_valid=True,
-            message=(
-                f"🎉 Congratulations! You have completed all {REQUIRED_CHALLENGES} "
-                "Linux CTF challenges!"
-            ),
-            github_username=payload.get("github_username"),
-            completion_date=payload.get("date"),
-            completion_time=payload.get("time"),
-            challenges_completed=payload.get("challenges"),
-        )
-
-    except Exception as e:
-        logger.exception(
-            "ctf.token.verification.failed",
-            extra={"error": str(e), "expected_username": oauth_github_username},
-        )
-        return CTFVerificationResult(
-            is_valid=False,
-            message="Token verification failed. Please try again or contact support.",
-            server_error=True,
-        )
+    result = verify_lab_token(token, oauth_github_username, _CTF_CONFIG)
+    return CTFVerificationResult(**result)

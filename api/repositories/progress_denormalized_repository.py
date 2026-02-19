@@ -12,7 +12,7 @@ from models import UserPhaseProgress
 class UserPhaseProgressRepository:
     """Repository for UserPhaseProgress denormalized table."""
 
-    def __init__(self, db: AsyncSession):
+    def __init__(self, db: AsyncSession) -> None:
         self.db = db
 
     async def get_by_user(self, user_id: int) -> dict[int, UserPhaseProgress]:

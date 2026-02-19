@@ -4,7 +4,6 @@ These routes handle interactive HTMX requests (step toggles, form
 submissions, etc.) and return HTML partials instead of JSON.
 """
 
-import json
 import logging
 
 from fastapi import APIRouter, Form, Request
@@ -13,12 +12,19 @@ from fastapi.responses import HTMLResponse
 from core.auth import UserId
 from core.database import DbSession, DbSessionReadOnly
 from core.ratelimit import limiter
+from rendering.context import (
+    build_feedback_tasks,
+    build_feedback_tasks_from_results,
+    build_progress_dict,
+)
 from rendering.steps import build_step_data
+from schemas import SubmissionData
 from services.content_service import get_topic_by_id
 from services.hands_on_verification_service import get_requirement_by_id
 from services.steps_service import (
     StepValidationError,
     complete_step,
+    get_valid_completed_steps,
     parse_phase_id_from_topic_id,
     uncomplete_step,
 )
@@ -50,18 +56,16 @@ async def _render_step_toggle(
     topic_id: str,
     step_id: str,
     phase_id: int,
-    completed_steps: set[str],
 ) -> HTMLResponse:
     """Shared rendering for step complete/uncomplete HTMX responses.
 
     Looks up the step content and returns the combined step + progress
-    HTML partials. Completed steps are passed in from the caller to
-    avoid a redundant database query.
+    HTML partials.
     """
     topic = get_topic_by_id(topic_id)
     step = None
     if topic:
-        for s in getattr(topic, "learning_steps", []):
+        for s in topic.learning_steps:
             if s.id == step_id:
                 step = s
                 break
@@ -73,19 +77,13 @@ async def _render_step_toggle(
         )
         return HTMLResponse("")
 
+    assert topic is not None  # guaranteed: topic=None → step=None → early return
     step_data = build_step_data(step)
     user = await get_user_by_id(db, user_id)
-    valid_step_ids = {s.id for s in getattr(topic, "learning_steps", [])}
-    completed_steps = completed_steps & valid_step_ids
+    completed_steps = await get_valid_completed_steps(db, user_id, topic)
 
-    total_steps = len(getattr(topic, "learning_steps", []))
-    progress = {
-        "completed": len(completed_steps),
-        "total": total_steps,
-        "percentage": round(len(completed_steps) / total_steps * 100)
-        if total_steps > 0
-        else 0,
-    }
+    total_steps = len(topic.learning_steps)
+    progress = build_progress_dict(len(completed_steps), total_steps)
 
     step_html = request.app.state.templates.get_template(
         "partials/topic_step.html"
@@ -116,7 +114,7 @@ async def htmx_complete_step(
 ) -> HTMLResponse:
     """Complete a step and return the updated step partial."""
     try:
-        _, completed_steps = await complete_step(db, user_id, topic_id, step_id)
+        await complete_step(db, user_id, topic_id, step_id)
     except StepValidationError as e:
         logger.warning(
             "htmx.step_complete.invalid",
@@ -132,9 +130,7 @@ async def htmx_complete_step(
         response = HTMLResponse("")
         response.headers["HX-Refresh"] = "true"
         return response
-    return await _render_step_toggle(
-        request, db, user_id, topic_id, step_id, phase_id, completed_steps
-    )
+    return await _render_step_toggle(request, db, user_id, topic_id, step_id, phase_id)
 
 
 @router.delete("/steps/{topic_id}/{step_id}", response_class=HTMLResponse)
@@ -148,7 +144,7 @@ async def htmx_uncomplete_step(
 ) -> HTMLResponse:
     """Uncomplete a step and return the updated step partial."""
     try:
-        _, completed_steps = await uncomplete_step(db, user_id, topic_id, step_id)
+        await uncomplete_step(db, user_id, topic_id, step_id)
     except StepValidationError as e:
         logger.warning(
             "htmx.step_uncomplete.invalid",
@@ -165,9 +161,7 @@ async def htmx_uncomplete_step(
 
     phase_id = parse_phase_id_from_topic_id(topic_id) or 0
 
-    return await _render_step_toggle(
-        request, db, user_id, topic_id, step_id, phase_id, completed_steps
-    )
+    return await _render_step_toggle(request, db, user_id, topic_id, step_id, phase_id)
 
 
 @router.post("/github/submit", response_class=HTMLResponse)
@@ -190,7 +184,7 @@ async def htmx_submit_verification(
     session_maker = request.app.state.session_maker
 
     def _render_card(
-        submission: object | None = None,
+        submission: SubmissionData | None = None,
         *,
         feedback_tasks: list | None = None,
         feedback_passed: int = 0,
@@ -248,19 +242,9 @@ async def htmx_submit_verification(
     except CooldownActiveError as e:
         existing = e.existing_submission
 
-        feedback_tasks = []
-        feedback_passed = 0
-        if existing and existing.feedback_json:
-            for task_data in json.loads(existing.feedback_json):
-                feedback_tasks.append(
-                    {
-                        "name": task_data.get("task_name", ""),
-                        "passed": task_data.get("passed", False),
-                        "message": task_data.get("feedback", ""),
-                    }
-                )
-                if task_data.get("passed"):
-                    feedback_passed += 1
+        feedback_tasks, feedback_passed = build_feedback_tasks(
+            existing.feedback_json if existing else None
+        )
 
         return _render_card(
             submission=existing,
@@ -299,38 +283,22 @@ async def htmx_submit_verification(
     # upserted submission — no need to re-fetch from the repository.
     submission = result.submission
 
-    feedback_tasks = []
-    feedback_passed = 0
-    if result.task_results:
-        for task in result.task_results:
-            feedback_tasks.append(
-                {
-                    "name": task.task_name,
-                    "passed": task.passed,
-                    "message": task.feedback,
-                }
-            )
-            if task.passed:
-                feedback_passed += 1
-
-    # Detect server-side errors so the template can tell the user
-    # this attempt was not counted against their cooldown/quota.
-    is_server_error = bool(
-        not result.is_valid and submission and not submission.verification_completed
+    feedback_tasks, feedback_passed = build_feedback_tasks_from_results(
+        result.task_results
     )
 
     # Show the validation message as an error banner when the submission
     # failed but there are no per-task feedback details (e.g. deployed API).
     error_banner = None
-    if not result.is_valid and not is_server_error and not feedback_tasks:
+    if not result.is_valid and not result.is_server_error and not feedback_tasks:
         error_banner = result.message
 
     response = _render_card(
         submission=submission,
         feedback_tasks=feedback_tasks,
         feedback_passed=feedback_passed,
-        server_error=is_server_error,
-        server_error_message=result.message if is_server_error else None,
+        server_error=result.is_server_error,
+        server_error_message=result.message if result.is_server_error else None,
         error_banner=error_banner,
     )
 

@@ -1,6 +1,7 @@
 """Step progress service for learning step management."""
 
 import logging
+from typing import TYPE_CHECKING
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -9,6 +10,9 @@ from models import utcnow
 from repositories import StepProgressRepository
 from schemas import StepCompletionResult
 from services.content_service import get_topic_by_id
+
+if TYPE_CHECKING:
+    from schemas import Topic
 
 logger = logging.getLogger(__name__)
 
@@ -76,6 +80,21 @@ async def get_completed_steps(
     """
     step_repo = StepProgressRepository(db)
     return await step_repo.get_completed_step_ids(user_id, topic_id)
+
+
+async def get_valid_completed_steps(
+    db: AsyncSession,
+    user_id: int,
+    topic: "Topic",
+) -> set[str]:
+    """Get completed step IDs filtered to only steps that exist in content.
+
+    Prevents stale step IDs (from removed/renamed content) from inflating
+    progress counts.
+    """
+    completed = await get_completed_steps(db, user_id, topic.id)
+    valid_ids = {step.id for step in topic.learning_steps}
+    return completed & valid_ids
 
 
 async def complete_step(
@@ -152,8 +171,7 @@ async def complete_step(
 
     completed_steps = await step_repo.get_completed_step_ids(user_id, topic_id)
 
-    if phase_id is not None:
-        update_cached_phase_detail_step(user_id, phase_id, topic_id, completed_steps)
+    update_cached_phase_detail_step(user_id, phase_id, topic_id, completed_steps)
 
     return StepCompletionResult(
         topic_id=step_progress.topic_id,
@@ -190,9 +208,9 @@ async def uncomplete_step(
     step_repo = StepProgressRepository(db)
     deleted = await step_repo.delete_step(user_id, topic_id, resolved_step_id)
 
-    if deleted > 0:
-        phase_id = parse_phase_id_from_topic_id(topic_id)
+    phase_id = parse_phase_id_from_topic_id(topic_id)
 
+    if deleted > 0:
         from core.metrics import STEP_UNCOMPLETED_COUNTER
 
         STEP_UNCOMPLETED_COUNTER.add(
@@ -213,7 +231,6 @@ async def uncomplete_step(
 
     completed_steps = await step_repo.get_completed_step_ids(user_id, topic_id)
 
-    phase_id = parse_phase_id_from_topic_id(topic_id)
     if phase_id is not None:
         update_cached_phase_detail_step(user_id, phase_id, topic_id, completed_steps)
 

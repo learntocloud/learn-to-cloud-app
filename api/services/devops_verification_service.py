@@ -22,8 +22,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import re
-from typing import Any, Literal, TypedDict
+from typing import Literal, TypedDict
 
 import httpx
 from circuitbreaker import CircuitBreakerError, circuit
@@ -37,7 +36,15 @@ from tenacity import (
 
 from core.config import get_settings
 from core.llm_client import LLMClientError, get_llm_chat_client
-from schemas import TaskResult, ValidationResult
+from schemas import ValidationResult
+from services.llm_verification_base import (
+    RETRIABLE_EXCEPTIONS,
+    SUSPICIOUS_PATTERNS,
+    VerificationError,
+    build_task_results,
+    extract_repo_info,
+    parse_structured_response,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -57,18 +64,6 @@ MAX_FILE_SIZE_BYTES: int = 50 * 1024
 
 # Maximum total content size sent to the LLM (200 KB)
 MAX_TOTAL_CONTENT_BYTES: int = 200 * 1024
-
-# Patterns that may indicate prompt injection in fetched code
-SUSPICIOUS_PATTERNS: tuple[str, ...] = (
-    "ignore all previous",
-    "ignore prior instructions",
-    "disregard above",
-    "system prompt",
-    "you are now",
-    "new instructions",
-    "forget everything",
-    "json```",
-)
 
 
 class TaskDefinition(TypedDict):
@@ -211,38 +206,11 @@ class DevOpsAnalysisLLMResponse(BaseModel):
     )
 
 
-class DevOpsAnalysisError(Exception):
+class DevOpsAnalysisError(VerificationError):
     """Raised when DevOps analysis fails."""
 
-    def __init__(self, message: str, retriable: bool = False):
-        super().__init__(message)
-        self.retriable = retriable
 
-
-def _extract_repo_info(repo_url: str) -> tuple[str, str]:
-    """Extract owner and repo name from GitHub URL.
-
-    Raises:
-        ValueError: If URL is not a valid GitHub repository URL.
-    """
-    url = repo_url.strip().rstrip("/")
-
-    patterns = [
-        r"https?://github\.com/([^/]+)/([^/]+)/?.*",
-        r"github\.com/([^/]+)/([^/]+)/?.*",
-    ]
-
-    for pattern in patterns:
-        match = re.match(pattern, url)
-        if match:
-            owner, repo = match.groups()
-            repo = repo.removesuffix(".git")
-            return owner, repo
-
-    raise ValueError(f"Invalid GitHub repository URL: {repo_url}")
-
-
-async def _fetch_repo_tree(owner: str, repo: str, branch: str = "main") -> list[str]:
+async def fetch_repo_tree(owner: str, repo: str, branch: str = "main") -> list[str]:
     """Fetch the file tree of a GitHub repository.
 
     Uses the Git Trees API with recursive=1 to get all files in one call.
@@ -250,10 +218,10 @@ async def _fetch_repo_tree(owner: str, repo: str, branch: str = "main") -> list[
     Returns:
         List of file paths in the repository.
     """
-    from services.github_hands_on_verification_service import _get_github_client
+    from core.github_client import get_github_client
 
     settings = get_settings()
-    client = await _get_github_client()
+    client = await get_github_client()
 
     url = f"https://api.github.com/repos/{owner}/{repo}/git/trees/{branch}?recursive=1"
     headers = {"Accept": "application/vnd.github.v3+json"}
@@ -303,10 +271,10 @@ async def _fetch_file_content(
     Returns:
         File content wrapped in safety delimiters.
     """
-    from services.github_hands_on_verification_service import _get_github_client
+    from core.github_client import get_github_client
 
     settings = get_settings()
-    client = await _get_github_client()
+    client = await get_github_client()
 
     url = f"https://raw.githubusercontent.com/{owner}/{repo}/{branch}/{path}"
     headers = {"Accept": "application/vnd.github.v3+json"}
@@ -449,117 +417,6 @@ For each task:
 """
 
 
-def _parse_structured_response(
-    result: Any,
-) -> DevOpsAnalysisLLMResponse:
-    """Extract the structured response from the agent result.
-
-    Uses ``result.value`` when the LLM returned structured output.
-    Falls back to parsing ``result.text`` if value is not populated.
-
-    Args:
-        result: The AgentRunResponse from ChatAgent.run().
-
-    Returns:
-        Validated DevOpsAnalysisLLMResponse.
-
-    Raises:
-        DevOpsAnalysisError: If response cannot be parsed.
-    """
-    if result.value is not None:
-        if isinstance(result.value, DevOpsAnalysisLLMResponse):
-            return result.value
-        try:
-            return DevOpsAnalysisLLMResponse.model_validate(result.value)
-        except Exception:
-            pass
-
-    # Fallback: parse from text
-    text = result.text
-    if not text:
-        raise DevOpsAnalysisError(
-            "No response received from DevOps analysis",
-            retriable=True,
-        )
-
-    try:
-        return DevOpsAnalysisLLMResponse.model_validate_json(text)
-    except Exception as e:
-        raise DevOpsAnalysisError(
-            f"Could not parse analysis response: {e}",
-            retriable=True,
-        ) from e
-
-
-def _sanitize_feedback(feedback: str | None) -> str:
-    """Sanitize LLM-generated feedback before displaying to users."""
-    if not feedback or not isinstance(feedback, str):
-        return "No feedback provided"
-
-    max_length = 500
-    if len(feedback) > max_length:
-        feedback = feedback[:max_length].rsplit(" ", 1)[0] + "..."
-
-    feedback = re.sub(r"<[^>]+>", "", feedback)
-    feedback = re.sub(r"```[\s\S]*?```", "[code snippet]", feedback)
-    feedback = re.sub(r"https?://\S+", "[link removed]", feedback)
-
-    return feedback.strip() or "No feedback provided"
-
-
-def _build_task_results(
-    analysis: DevOpsAnalysisLLMResponse,
-) -> tuple[list[TaskResult], bool]:
-    """Convert structured analysis response to TaskResult objects.
-
-    Sanitizes feedback and ensures all expected tasks have results.
-    """
-    task_names = {task["id"]: task["name"] for task in PHASE5_TASKS}
-    valid_task_ids = set(task_names.keys())
-
-    results: list[TaskResult] = []
-    all_passed = True
-
-    for grade in analysis.tasks:
-        if grade.task_id not in valid_task_ids:
-            continue
-
-        feedback = _sanitize_feedback(grade.feedback)
-
-        if not grade.passed:
-            all_passed = False
-
-        results.append(
-            TaskResult(
-                task_name=task_names.get(grade.task_id, grade.task_id),
-                passed=grade.passed,
-                feedback=feedback,
-            )
-        )
-
-    # Ensure all expected tasks have results
-    found_ids = {g.task_id for g in analysis.tasks if g.task_id in valid_task_ids}
-    for task in PHASE5_TASKS:
-        if task["id"] not in found_ids:
-            all_passed = False
-            results.append(
-                TaskResult(
-                    task_name=task["name"],
-                    passed=False,
-                    feedback="Task was not evaluated — please try again",
-                )
-            )
-
-    return results, all_passed
-
-
-RETRIABLE_EXCEPTIONS: tuple[type[Exception], ...] = (
-    LLMClientError,
-    httpx.RequestError,
-    httpx.TimeoutException,
-)
-
-
 @circuit(
     failure_threshold=3,
     recovery_timeout=120,
@@ -609,8 +466,10 @@ async def _analyze_with_llm(
             retriable=True,
         ) from None
 
-    analysis = _parse_structured_response(result)
-    task_results, all_passed = _build_task_results(analysis)
+    analysis = parse_structured_response(
+        result, DevOpsAnalysisLLMResponse, DevOpsAnalysisError, "devops_analysis"
+    )
+    task_results, all_passed = build_task_results(analysis.tasks, PHASE5_TASKS)
 
     passed_count = sum(1 for t in task_results if t.passed)
     total_count = len(task_results)
@@ -669,7 +528,7 @@ async def analyze_devops_repository(
         and detailed task_results for feedback.
     """
     try:
-        owner, repo = _extract_repo_info(repo_url)
+        owner, repo = extract_repo_info(repo_url)
     except ValueError as e:
         return ValidationResult(
             is_valid=False,
@@ -689,7 +548,7 @@ async def analyze_devops_repository(
 
     try:
         try:
-            all_files = await _fetch_repo_tree(owner, repo)
+            all_files = await fetch_repo_tree(owner, repo)
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
                 return ValidationResult(

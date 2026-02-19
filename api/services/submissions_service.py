@@ -13,6 +13,7 @@ Routes should delegate submission business logic to this module.
 """
 
 import asyncio
+import contextlib
 import json
 import logging
 from datetime import UTC, datetime
@@ -142,7 +143,10 @@ async def get_phase_submission_context(
                     "cooldown_seconds": cooldown_remaining,
                 }
             except (json.JSONDecodeError, TypeError):
-                pass
+                logger.debug(
+                    "submission.feedback_parse_failed",
+                    extra={"requirement_id": sub.requirement_id},
+                )
 
     return PhaseSubmissionContext(
         submissions_by_req=submissions_by_req,
@@ -376,7 +380,7 @@ async def submit_validation(
                 },
             )
 
-        async with _llm_semaphore if use_semaphore else _noop_context():
+        async with _llm_semaphore if use_semaphore else contextlib.nullcontext():
             validation_result = await validate_submission(
                 requirement=requirement,
                 submitted_value=submitted_value,
@@ -459,13 +463,3 @@ async def submit_validation(
             repo_exists=validation_result.repo_exists,
             task_results=validation_result.task_results,
         )
-
-
-class _noop_context:
-    """Async context manager that does nothing — used to skip the semaphore."""
-
-    async def __aenter__(self) -> None:
-        pass
-
-    async def __aexit__(self, *args: object) -> None:
-        pass

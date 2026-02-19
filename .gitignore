@@ -92,3 +92,7 @@ override.tf.json
 *.tfplan
 tfplan
 .api-pid
+
+# Dogfood / QA artifacts
+dogfood-*
+screenshot-*
