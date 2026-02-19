@@ -48,6 +48,7 @@ learning_steps:
   action: 'Read:'
   description: 'The industry-standard monitoring stack:'
   title: Prometheus & Grafana
+  url: https://grafana.com/docs/grafana/latest/fundamentals/getting-started/first-dashboards/get-started-grafana-prometheus/
   id: phase5-topic5-read-prometheus-grafana
 - order: 5
   action: 'Practice:'
@@ -87,6 +88,7 @@ learning_steps:
   action: 'Practice:'
   description: 'Add metrics to your application:'
   title: Instrument Your App
+  url: https://opentelemetry-python-contrib.readthedocs.io/en/latest/instrumentation/fastapi/fastapi.html
   id: phase5-topic5-practice-instrument-your-app
 - order: 8
   action: 'Read:'

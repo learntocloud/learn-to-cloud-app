@@ -36,11 +36,37 @@ learning_steps:
   action: 'Practice:'
   description: Enable CloudTrail (AWS), Activity Log (Azure), or Cloud Logging (GCP) so you have a record of all actions taken on your cloud resources.
   title: Enable audit logging for your cloud services
+  options:
+  - provider: aws
+    title: Getting Started with AWS CloudTrail
+    url: https://docs.aws.amazon.com/awscloudtrail/latest/userguide/cloudtrail-tutorial.html
+    description: Tutorial for creating and managing CloudTrail trails
+  - provider: azure
+    title: Azure Activity Log
+    url: https://learn.microsoft.com/en-us/azure/azure-monitor/essentials/activity-log
+    description: Platform log for control-plane events on Azure resources
+  - provider: gcp
+    title: Cloud Audit Logs Overview
+    url: https://docs.cloud.google.com/logging/docs/audit
+    description: Audit logging for Google Cloud services and APIs
   id: phase6-topic4-practice-enable-audit-logging-for
 - order: 3
   action: 'Practice:'
   description: Create at least one alert — for example, notify you when someone modifies a security group or when there are repeated failed login attempts.
   title: Set up an alert for a critical security event
+  options:
+  - provider: aws
+    title: Getting Started with CloudWatch Alarms
+    url: https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/example_cloudwatch_Scenario_GettingStarted_section.html
+    description: Create, describe, and manage CloudWatch alarms
+  - provider: azure
+    title: Azure Monitor Alerts Overview
+    url: https://learn.microsoft.com/en-us/azure/azure-monitor/alerts/alerts-overview
+    description: Configure alert rules and action groups in Azure Monitor
+  - provider: gcp
+    title: Cloud Monitoring Alerting Overview
+    url: https://docs.cloud.google.com/monitoring/alerts
+    description: Create alerting policies for metrics, logs, and uptime checks
   id: phase6-topic4-practice-set-up-an-alert
 - order: 4
   action: 'Practice:'
@@ -63,10 +89,12 @@ learning_steps:
 - order: 5
   action: 'Practice:'
   title: GitHub Security Scanning
+  url: https://docs.github.com/en/code-security/tutorials
   description: Enable at least one scanning tool on your journal-starter repository. Dependabot monitors your dependencies for known vulnerabilities — enable it by adding a .github/dependabot.yml file. CodeQL analyzes your code for security issues — enable it via the Security tab or by adding a workflow to .github/workflows/. This is what the phase verification checks.
   id: phase6-topic4-practice-github-security-scanning
 - order: 6
   action: 'Practice:'
   description: Write a short runbook answering "What do we do if credentials are leaked?" Include steps to rotate credentials, check for unauthorized access, and notify stakeholders.
   title: Write a basic incident response runbook
+  url: https://rootly.com/incident-response/runbooks
   id: phase6-topic4-practice-write-a-basic-incident

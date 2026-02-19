@@ -42,6 +42,19 @@ learning_steps:
   action: 'Read:'
   title: Cloud Security Groups
   description: Preview how cloud providers implement firewalls as security groups. Understand inbound vs outbound rules and the concept of least privilege.
+  options:
+  - provider: aws
+    title: AWS Security Groups
+    url: https://docs.aws.amazon.com/vpc/latest/userguide/default-security-group.html
+    description: Virtual firewall rules for EC2 instances in a VPC
+  - provider: azure
+    title: Azure Network Security Groups
+    url: https://learn.microsoft.com/en-us/azure/virtual-network/network-security-groups-overview
+    description: Filter network traffic with inbound and outbound security rules
+  - provider: gcp
+    title: GCP VPC Firewall Rules
+    url: https://docs.cloud.google.com/firewall/docs/firewalls
+    description: Ingress and egress firewall rules for VPC networks
   id: phase2-topic2-read-cloud-security-groups
 - order: 6
   action: 'Practice:'
