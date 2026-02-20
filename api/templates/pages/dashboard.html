@@ -71,7 +71,13 @@
     <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Need Help?</h2>
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {% for link in help_links %}
-        <a href="{{ link.url }}" target="_blank" rel="noopener noreferrer" class="flex items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-white dark:hover:bg-gray-800 transition-colors">
+        <a
+            href="{{ link.url }}"
+            {% if link.label == "Report an Issue" %}data-report-issue data-issue-title="Issue: Dashboard" data-issue-labels="bug" data-issue-context="page=dashboard"{% endif %}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="flex items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-white dark:hover:bg-gray-800 transition-colors"
+        >
             <span class="h-5 w-5 shrink-0 {{ link.color }}" aria-hidden="true">{{ link.icon | safe }}</span>
             <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ link.label }}</span>
         </a>

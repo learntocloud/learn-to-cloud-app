@@ -66,7 +66,17 @@
 </div>
 
 <div class="mt-8 flex justify-center">
-    <a href="https://github.com/learntocloud/learn-to-cloud-app/issues/new?title=Issue+with+{{ topic.name | urlencode }}&labels=content" class="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200" target="_blank" rel="noopener" hx-boost="false">
+    <a
+        href="https://github.com/learntocloud/learn-to-cloud-app/issues/new"
+        data-report-issue
+        data-issue-title="Issue with {{ topic.name }}"
+        data-issue-labels="content"
+        data-issue-context="phase={{ phase_id }}, topic={{ topic.id }}"
+        class="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+        target="_blank"
+        rel="noopener"
+        hx-boost="false"
+    >
         <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" /></svg>
         Report an issue with this page
     </a>

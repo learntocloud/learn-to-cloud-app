@@ -43,6 +43,61 @@
         });
     </script>
 
+    <script>
+        // Prefill GitHub issue links with useful debugging context.
+        (function() {
+            function decorateIssueLink(anchor) {
+                if (!anchor || anchor.dataset.issueDecorated === '1') return;
+                var baseUrl = anchor.getAttribute('href') || '';
+                if (!baseUrl.startsWith('https://github.com/learntocloud/learn-to-cloud-app/issues/new')) return;
+
+                var url = new URL(baseUrl);
+                var title = anchor.dataset.issueTitle || ('Issue: ' + document.title);
+                var labels = anchor.dataset.issueLabels || url.searchParams.get('labels') || '';
+                var context = anchor.dataset.issueContext || '';
+
+                var bodyLines = [
+                    '**Page:** ' + window.location.href,
+                    '**Title:** ' + document.title,
+                    context ? ('**Context:** ' + context) : null,
+                    '**When:** ' + new Date().toISOString(),
+                    '',
+                    '## What happened?',
+                    '',
+                    '## Steps to reproduce',
+                    '1. ',
+                    '',
+                    '## Expected',
+                    '',
+                    '## Actual',
+                    '',
+                    '## Environment',
+                    '- Browser: ' + navigator.userAgent
+                ].filter(Boolean);
+
+                url.searchParams.set('title', title);
+                if (labels) url.searchParams.set('labels', labels);
+                url.searchParams.set('body', bodyLines.join('\n'));
+
+                anchor.href = url.toString();
+                anchor.dataset.issueDecorated = '1';
+            }
+
+            function handle(event) {
+                var anchor = event.target && event.target.closest
+                    ? event.target.closest('a[data-report-issue]')
+                    : null;
+                if (anchor) decorateIssueLink(anchor);
+            }
+
+            // Use early events so the updated href is used for navigation/new tabs.
+            document.addEventListener('pointerdown', handle, true);
+            document.addEventListener('keydown', function(event) {
+                if (event.key === 'Enter') handle(event);
+            }, true);
+        })();
+    </script>
+
     <meta name="csrf-token" content="{{ request.scope.get('csrf_token', '') }}">
 
     {% block head %}{% endblock %}
