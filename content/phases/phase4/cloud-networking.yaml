@@ -126,26 +126,44 @@ learning_steps:
   title: Validate routing and security decisions by provider
   id: phase4-topic3-read-validate-routing-and-security
 - order: 7
+  action: 'Read:'
+  title: Restrict database access to your API server only
+  description: Your database should accept connections only from your API server — not from the public internet. Use private endpoints or private IP connectivity to eliminate the public network path to your database entirely.
+  options:
+  - provider: aws
+    title: RDS in a Private Subnet
+    url: https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_VPC.WorkingWithRDSInstanceinaVPC.html
+    description: Deploy RDS in a private subnet and restrict access with security group rules allowing port 5432 only from your API server
+  - provider: azure
+    title: Azure Private Endpoint Overview
+    url: https://learn.microsoft.com/en-us/azure/private-link/private-endpoint-overview
+    description: Eliminate public network access to your Azure database with Private Endpoint
+  - provider: gcp
+    title: Cloud SQL Private IP
+    url: https://cloud.google.com/sql/docs/postgres/private-ip
+    description: Connect to Cloud SQL over private IP with no public internet exposure
+  id: phase4-topic3-read-restrict-database-access
+- order: 8
   action: 'Practice:'
   description: Create a VPC or VNet on your cloud provider with a custom CIDR block.
   title: Set up a cloud network (VPC/VNet)
   id: phase4-topic3-practice-set-up-a-cloud
-- order: 8
+- order: 9
   action: 'Practice:'
   description: Create two subnets inside your VPC — one public (with a route to the internet gateway) and one private (no direct internet access).
   title: Create a public and a private subnet
   id: phase4-topic3-practice-create-a-public-and
-- order: 9
+- order: 10
   action: 'Practice:'
   description: Associate subnets with appropriate route tables and set up security groups for each subnet.
   title: Configure routing and security groups
   id: phase4-topic3-practice-configure-routing-and-security
-- order: 10
+- order: 11
   action: 'Practice:'
   description: Deploy a VM in the public subnet and another in the private subnet. Verify the public VM is accessible from the internet and the private VM is not.
   title: Deploy VMs in each subnet and verify access
   id: phase4-topic3-practice-deploy-vms-in-each
-- order: 11
+- order: 12
   action: 'Practice:'
   title: Clean up your cloud resources
   description: Delete all resources you created in this topic — VMs, VPC/VNet, subnets, route tables, internet gateways, NAT gateways, and security groups. Check your cloud console to confirm nothing is still running. Leaving resources active will incur charges.

@@ -1,38 +1,17 @@
 id: phase6-topic3
 slug: network-security
 name: Network Security
-description: Harden your Journal API's network against external threats. You'll configure private database access, add WAF and DDoS protection, and enable flow logs — the controls that separate a hardened production environment from an exposed one.
+description: Harden your Journal API's network against external threats. You'll add WAF and DDoS protection to the API tier and enable flow logs — the controls that separate a hardened production environment from an exposed one.
 order: 2
 learning_objectives:
-- id: network-security-private-db
-  text: Configure private database connectivity that eliminates public network exposure.
-  order: 1
 - id: network-security-waf-ddos
   text: Apply WAF and DDoS protection controls to the API tier.
-  order: 2
+  order: 1
 - id: network-security-flow-logs
   text: Enable network flow logging to support security visibility and incident investigation.
-  order: 3
+  order: 2
 learning_steps:
 - order: 1
-  action: 'Read:'
-  title: Restrict database access to your API server only
-  description: Your database should accept connections only from your API server — not from the public internet. Use private endpoints or private IP connectivity to eliminate the public network path to your database entirely.
-  options:
-  - provider: aws
-    title: RDS in a Private Subnet
-    url: https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_VPC.WorkingWithRDSInstanceinaVPC.html
-    description: Deploy RDS in a private subnet and restrict access with security group rules allowing port 5432 only from your API server
-  - provider: azure
-    title: Azure Private Endpoint Overview
-    url: https://learn.microsoft.com/en-us/azure/private-link/private-endpoint-overview
-    description: Eliminate public network access to your Azure database with Private Endpoint
-  - provider: gcp
-    title: Cloud SQL Private IP
-    url: https://cloud.google.com/sql/docs/postgres/private-ip
-    description: Connect to Cloud SQL over private IP with no public internet exposure
-  id: phase6-topic3-read-restrict-database-access
-- order: 2
   action: 'Read:'
   title: Web Application Firewall (WAF)
   description: A WAF sits in front of your API and filters malicious HTTP requests — SQL injection, cross-site scripting, and other OWASP Top 10 attacks — before they reach your application code.
@@ -50,7 +29,7 @@ learning_steps:
     url: https://cloud.google.com/armor/docs/cloud-armor-overview
     description: Protect your GCP services with Cloud Armor WAF rules and preconfigured policies
   id: phase6-topic3-read-web-application-firewall
-- order: 3
+- order: 2
   action: 'Read:'
   title: DDoS protection by provider
   description: DDoS attacks flood your service with traffic to take it offline. Every major cloud provider includes a baseline DDoS protection tier automatically. Read what protection is included and when to consider enabling advanced coverage.
@@ -68,7 +47,7 @@ learning_steps:
     url: https://cloud.google.com/armor/docs/adaptive-protection-overview
     description: Adaptive Protection and DDoS mitigations in Cloud Armor
   id: phase6-topic3-read-ddos-protection-by-provider
-- order: 4
+- order: 3
   action: 'Read:'
   title: Network security best practices by provider
   description: Review the network security recommendations for your provider. Focus on what applies to your Journal API — particularly controlling inbound and outbound traffic and encrypting data in transit.
@@ -86,7 +65,7 @@ learning_steps:
     url: https://cloud.google.com/docs/security/infrastructure/design#network-security
     description: Network security design principles in Google Cloud
   id: phase6-topic3-read-network-security-best-practices
-- order: 5
+- order: 4
   action: 'Read:'
   title: Enable network flow logs
   description: VPC flow logs record accepted and rejected traffic at the network level. Use them to investigate suspicious connections, verify your security rules are working, and build an evidence trail for incident response.
@@ -104,7 +83,7 @@ learning_steps:
     url: https://cloud.google.com/vpc/docs/flow-logs
     description: Record network flows to and from VMs and GKE nodes in GCP
   id: phase6-topic3-read-enable-network-flow-logs
-- order: 6
+- order: 5
   action: 'Watch:'
   title: Watch a cloud network security walkthrough for your provider
   description: Follow along in your own account if you can.
