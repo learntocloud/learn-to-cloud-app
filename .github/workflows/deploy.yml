@@ -40,6 +40,28 @@ env:
 
 jobs:
   # -----------------------------------------------------------------------
+  # Changes — determine whether deploy jobs should run
+  # -----------------------------------------------------------------------
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      deploy: ${{ steps.filter.outputs.deploy }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Detect deploy-relevant changes
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            deploy:
+              - 'api/**'
+              - 'infra/**'
+              - '.github/workflows/deploy.yml'
+
+  # -----------------------------------------------------------------------
   # CI — lint, type-check, test (runs on push AND PR)
   # -----------------------------------------------------------------------
   ci:
@@ -104,8 +126,8 @@ jobs:
   # Terraform — plan + apply (push to main only)
   # -----------------------------------------------------------------------
   terraform:
-    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
-    needs: [ci]
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && (github.event_name == 'workflow_dispatch' || needs.changes.outputs.deploy == 'true')
+    needs: [ci, changes]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     defaults:
@@ -162,7 +184,7 @@ jobs:
   # Deploy — build image, push, update container app (push to main only)
   # -----------------------------------------------------------------------
   deploy:
-    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && (github.event_name == 'workflow_dispatch' || needs.changes.outputs.deploy == 'true')
     needs: [terraform]
     runs-on: ubuntu-latest
     timeout-minutes: 20
