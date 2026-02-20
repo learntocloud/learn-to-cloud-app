@@ -79,27 +79,24 @@ if [ -z "$SUBSCRIPTION_ID" ]; then
 fi
 az account set --subscription "$SUBSCRIPTION_ID"
 
-# Resource group is always rg-ltc-{environment}
+# Resource group is fixed for this project
 RG="rg-ltc-dev"
 
-# Discover actual resource names (suffix is random)
-az resource list --resource-group "$RG" --query "[].{name:name, type:type}" -o table
-```
+# Auto-discover resource names (suffix is random)
+CA_NAME=$(az resource list -g "$RG" --resource-type "Microsoft.App/containerApps" --query "[?contains(name,'api')].name | [0]" -o tsv)
+APPI_NAME=$(az resource list -g "$RG" --resource-type "microsoft.insights/components" --query "[0].name" -o tsv)
+PSQL_NAME=$(az resource list -g "$RG" --resource-type "Microsoft.DBforPostgreSQL/flexibleServers" --query "[0].name" -o tsv)
+LOG_NAME=$(az resource list -g "$RG" --resource-type "microsoft.operationalinsights/workspaces" --query "[0].name" -o tsv)
 
-From the output, extract:
-- **Container App**: name matching `ca-ltc-api-*`
-- **App Insights**: name matching `appi-ltc-*`
-- **PostgreSQL**: name matching `psql-ltc-*`
-- **Log Analytics**: name matching `log-ltc-*`
+# Fail fast if any required resource is missing (prevents confusing blank query output later)
+if [ -z "$CA_NAME" ] || [ -z "$APPI_NAME" ] || [ -z "$PSQL_NAME" ] || [ -z "$LOG_NAME" ]; then
+  echo "ERROR: Could not discover all required resources in RG=$RG" >&2
+  echo "CA_NAME=$CA_NAME APPI_NAME=$APPI_NAME PSQL_NAME=$PSQL_NAME LOG_NAME=$LOG_NAME" >&2
+  exit 1
+fi
 
-Store these in variables for subsequent steps:
-
-```bash
-CA_NAME="ca-ltc-api-dev"
-APPI_NAME="appi-ltc-dev-SUFFIX"
-PSQL_NAME="psql-ltc-dev-SUFFIX"
-LOG_NAME="log-ltc-dev-SUFFIX"
 PSQL_RESOURCE_ID="/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RG/providers/Microsoft.DBforPostgreSQL/flexibleServers/$PSQL_NAME"
+WORKSPACE_ID=$(az monitor log-analytics workspace show -g "$RG" -n "$LOG_NAME" --query customerId -o tsv)
 ```
 
 ---
@@ -130,6 +127,9 @@ az containerapp replica list -n $CA_NAME -g $RG \
 ## Step 2: Request Volume & Latency (Application Insights)
 
 ```bash
+# Tip: `az monitor app-insights query` can render blank with `-o table`. Prefer `-o json`
+# or extract rows directly: `--query 'tables[0].rows' -o tsv`.
+
 # 7-day daily summary
 az monitor app-insights query --app $APPI_NAME -g $RG --analytics-query "
 requests
@@ -145,6 +145,13 @@ requests
 | summarize TotalRequests=count(), FailedRequests=countif(success == false), AvgDuration=avg(duration), P95Duration=percentile(duration, 95) by bin(timestamp, 1h)
 | order by timestamp desc
 " -o json
+
+# Quick single-row summary (24h): total / failed / p95
+az monitor app-insights query --app $APPI_NAME -g $RG --analytics-query "
+requests
+| where timestamp > ago(24h)
+| summarize total=count(), failed=countif(success == false), p95=percentile(duration,95)
+" --query "tables[0].rows[0]" -o tsv
 ```
 
 If your tenant rejects duration conversion expressions, use this fallback (reliability first, latency second):
@@ -179,6 +186,24 @@ requests
 | summarize Count=count() by resultCode, name
 | order by Count desc
 " -o json
+
+# Quick view (24h): status code counts only
+az monitor app-insights query --app $APPI_NAME -g $RG --analytics-query "
+requests
+| where timestamp > ago(24h) and toint(resultCode) >= 400
+| summarize Count=count() by resultCode
+| order by Count desc
+| take 10
+" --query "tables[0].rows" -o tsv
+
+# 24h breakdown of common 404/405 noise (favicon/robots/scanners/etc.)
+az monitor app-insights query --app $APPI_NAME -g $RG --analytics-query "
+requests
+| where timestamp > ago(24h) and toint(resultCode) in (404,405)
+| summarize Count=count() by resultCode, url
+| order by Count desc
+| take 25
+" --query "tables[0].rows" -o tsv
 ```
 
 **What to look for**:
@@ -199,10 +224,10 @@ exceptions
 | take 20
 " -o json
 
-# Warning/Error log traces
+# Warning+ log traces (severityLevel: 2=Warning, 3=Error, 4=Critical)
 az monitor app-insights query --app $APPI_NAME -g $RG --analytics-query "
 traces
-| where timestamp > ago(24h) and severityLevel >= 3
+| where timestamp > ago(24h) and severityLevel >= 2
 | project timestamp, message, severityLevel, customDimensions
 | order by timestamp desc
 | take 20
@@ -211,7 +236,7 @@ traces
 
 **What to look for**:
 - No recurring exceptions
-- No `severityLevel >= 3` (WARNING) or `>= 4` (ERROR) traces
+- No `severityLevel >= 2` (Warning+) traces
 
 ---
 
@@ -244,6 +269,38 @@ ContainerAppSystemLogs_CL
 | summarize Count=count() by Reason_s, Type_s
 | order by Count desc
 " -o table
+
+# If you see `ReplicaUnhealthy` on the current revision, pull console logs around the last event time.
+LAST_UNHEALTHY=$(az monitor log-analytics query --workspace "$WORKSPACE_ID" --analytics-query "
+ContainerAppSystemLogs_CL
+| extend reason=trim(' ', tostring(Reason_s))
+| where TimeGenerated > ago(24h) and RevisionName_s == '$CURRENT_REVISION' and reason == 'ReplicaUnhealthy'
+| top 1 by TimeGenerated desc
+| project TimeGenerated
+" --query "[0].TimeGenerated" -o tsv 2>/dev/null || true)
+
+if [ -n "$LAST_UNHEALTHY" ]; then
+  echo "ReplicaUnhealthy last seen: $LAST_UNHEALTHY"
+
+  # Show the raw system log row(s) around the event.
+  az monitor log-analytics query --workspace "$WORKSPACE_ID" --analytics-query "
+  ContainerAppSystemLogs_CL
+  | where RevisionName_s == '$CURRENT_REVISION'
+  | where TimeGenerated between (datetime_add('minute', -30, todatetime('$LAST_UNHEALTHY')) .. datetime_add('minute', 30, todatetime('$LAST_UNHEALTHY')))
+  | project TimeGenerated, Reason_s, Type_s, Message
+  | order by TimeGenerated desc
+  | take 20
+  " -o table
+
+  # Console logs can lag system events or not line up perfectly; use a wider window.
+  az monitor log-analytics query --workspace "$WORKSPACE_ID" --analytics-query "
+  ContainerAppConsoleLogs_CL
+  | where TimeGenerated between (datetime_add('minute', -30, todatetime('$LAST_UNHEALTHY')) .. datetime_add('minute', 30, todatetime('$LAST_UNHEALTHY')))
+  | project TimeGenerated, Log_s
+  | order by TimeGenerated desc
+  | take 50
+  " -o table
+fi
 ```
 
 **What to look for**:
@@ -337,6 +394,18 @@ dependencies
 | order by Count desc
 | take 10
 " -o json
+
+# Filter out local/internal noise so external dependencies stand out (if present in your telemetry):
+az monitor app-insights query --app $APPI_NAME -g $RG --analytics-query "
+dependencies
+| where timestamp > ago(24h)
+| where isnotempty(target)
+| where not(target has 'localhost' or target has '127.0.0.1' or target has '100.100.')
+| where not(type == 'N/A' and target == 'GET')
+| summarize Count=count(), FailureCount=countif(success == false) by type, target
+| order by Count desc
+| take 10
+" --query "tables[0].rows" -o tsv
 ```
 
 Fallback (if duration conversion/projection fails in your environment):
@@ -355,6 +424,57 @@ dependencies
 - PostgreSQL P95 latency under 100ms
 - Zero `FailureCount` on database dependencies
 - Any HTTP dependency failures (GitHub API, OpenAI)
+
+---
+
+## Step 8b: Telemetry Richness (Sanity Check)
+
+Validate that logs are structured (rich `customDimensions`), and that tracing captures
+dependencies (e.g. PostgreSQL) and correlates with requests.
+
+```bash
+# Traces: volume + sample with customDimensions
+az monitor app-insights query --app $APPI_NAME -g $RG --analytics-query "
+traces
+| where timestamp > ago(24h)
+| summarize total=count()
+" --query "tables[0].rows[0][0]" -o tsv
+
+az monitor app-insights query --app $APPI_NAME -g $RG --analytics-query "
+traces
+| where timestamp > ago(24h)
+| project timestamp, severityLevel, message, customDimensions
+| order by timestamp desc
+| take 10
+" -o json
+
+# Traces: which structured keys are present
+az monitor app-insights query --app $APPI_NAME -g $RG --analytics-query "
+traces
+| where timestamp > ago(24h)
+| extend k=bag_keys(customDimensions)
+| mv-expand k
+| summarize keys=make_set(k, 50)
+" -o json
+
+# Dependencies: ensure DB spans exist
+az monitor app-insights query --app $APPI_NAME -g $RG --analytics-query "
+dependencies
+| where timestamp > ago(24h)
+| summarize Count=count(), FailureCount=countif(success == false) by type, target
+| order by Count desc
+| take 10
+" -o json
+
+# Correlation: join traces <-> requests by operation_Id
+az monitor app-insights query --app $APPI_NAME -g $RG --analytics-query "
+let t = traces | where timestamp > ago(1h) | project operation_Id, event=message;
+let r = requests | where timestamp > ago(1h) | project operation_Id, req=name, code=resultCode;
+t | join kind=inner (r) on operation_Id
+| project req, code, event
+| take 20
+" --query "tables[0].rows" -o tsv
+```
 
 ---
 
