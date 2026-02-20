@@ -2,7 +2,7 @@
 
 A web application for tracking your progress through the [Learn to Cloud](https://learntocloud.guide) guide.
 
-> **Note:** This is a closed-source project. All rights reserved.
+> **Note:** This project is open source under the MIT License.
 
 ## Features
 
@@ -107,4 +107,4 @@ Push to `main` triggers automated deployment via GitHub Actions â†’ Terraform â†
 
 ## License
 
-This project is proprietary and closed source. All rights reserved.
+MIT License. See [LICENSE](LICENSE).
