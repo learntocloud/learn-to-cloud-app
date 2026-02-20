@@ -1,6 +1,6 @@
 ---
 name: dog-food
-description: Launch the local API, open a Playwright browser, let the user log in, then systematically navigate every page checking for errors, broken UI, and console messages.
+description: Launch the local API, open a Playwright browser, auto-authenticate via session cookie, then systematically navigate every page checking for errors, broken UI, and console messages.
 tools:
   - powershell
   - read_powershell
@@ -92,43 +92,66 @@ Write a Python script to a temp file and execute it. The script should:
 
 ---
 
-## Step 3 — User Login (Visible Browser)
+## Step 3 — Authenticate via Session Cookie (No Manual Login)
 
-Write a **second** Python script that:
+Instead of asking the user to log in manually, generate a signed session cookie
+and inject it into the browser. This keeps auth bypass entirely in the test
+tooling — zero production code changes.
 
-1. Launches Chromium with `headless=False` and a **persistent context**
-   (`launch_persistent_context`) so cookies survive across navigations.
-2. Navigates to `http://localhost:8000/auth/login` (which redirects to GitHub).
-3. Prints `WAITING_FOR_LOGIN` and calls `input()` to block.
-4. After the user presses Enter, proceeds to test authenticated pages.
+### How it works
 
-Run this script with `mode="async"`. Then **ask the user** to log in via the
-browser window. After they confirm, send `{enter}` via `write_powershell`.
+1. Run the `dogfood_session.py` script to generate a signed cookie:
 
-### Login redirect detection
+```powershell
+cd <workspace>\api
+uv run python ../scripts/dogfood_session.py
+```
 
-Do NOT poll for redirect — just use `input()` and let the user tell you when
-they're done. After receiving input, use `safe_goto` (see below) to navigate.
+This prints JSON: `{"cookie_name": "session", "cookie_value": "...", "user_id": ..., "domain": "localhost", "path": "/"}`
 
-### safe_goto helper
-
-The OAuth callback can cause redirect chain interruptions. Use this pattern:
+2. In your Playwright script, inject the cookie before navigating to authenticated pages:
 
 ```python
-def safe_goto(page, url, name):
-    try:
-        page.goto(url, wait_until="domcontentloaded", timeout=15000)
-        page.wait_for_timeout(2000)
-    except Exception:
-        page.wait_for_load_state("domcontentloaded")
-        page.wait_for_timeout(2000)
+import json, subprocess
+
+# Generate signed session cookie
+result = subprocess.run(
+    ["uv", "run", "python", "../scripts/dogfood_session.py"],
+    capture_output=True, text=True, cwd="<workspace>/api"
+)
+cookie_data = json.loads(result.stdout)
+
+# Inject into browser context
+context.add_cookies([{
+    "name": cookie_data["cookie_name"],
+    "value": cookie_data["cookie_value"],
+    "domain": cookie_data["domain"],
+    "path": cookie_data["path"],
+}])
 ```
+
+3. Navigate to `/dashboard` and verify the user is authenticated (username in navbar).
+
+### Fallback
+
+If cookie injection fails (e.g., no users in DB), fall back to asking the user
+to log in manually via the old flow:
+1. Launch with `headless=False`
+2. Navigate to `/auth/login`
+3. Ask the user to complete GitHub OAuth
+4. Wait for confirmation
+
+### Security notes
+
+- The script only works with the **dev secret key** (`dev-secret-key-change-in-production`)
+- Production rejects this secret at startup (config validator in `core/config.py`)
+- No routes, endpoints, or API code are modified — the cookie is forged client-side
 
 ---
 
 ## Step 4 — Authenticated Pages
 
-After login, the script should test:
+After authentication (via cookie or manual login), the script should test:
 
 | Page | URL | Verify |
 |------|-----|--------|
@@ -147,6 +170,20 @@ topic_links = page.query_selector_all('a[href^="/phase/1/"]')
 ```
 
 **Do NOT use** `a[href*="/topic/"]` — that pattern does not exist in this app.
+
+### safe_goto helper
+
+The OAuth callback can cause redirect chain interruptions. Use this pattern:
+
+```python
+def safe_goto(page, url, name):
+    try:
+        page.goto(url, wait_until="domcontentloaded", timeout=15000)
+        page.wait_for_timeout(2000)
+    except Exception:
+        page.wait_for_load_state("domcontentloaded")
+        page.wait_for_timeout(2000)
+```
 
 ---
 
@@ -232,7 +269,7 @@ observations about visual quality.
 ## Rules
 
 - **Never stop on a single page failure** — record it and keep going.
-- If the user cannot log in, skip authenticated steps and report public results only.
+- If cookie injection fails AND the user cannot log in, skip authenticated steps and report public results only.
 - If the API won't start, stop immediately and report the startup error.
 - Always clean up the API process when finished.
 - Write Python scripts to temp files — do not use inline `python -c` (quoting breaks).
