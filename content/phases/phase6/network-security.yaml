@@ -1,76 +1,124 @@
 id: phase6-topic3
 slug: network-security
 name: Network Security
-description: Your Journal API's database should not be accessible from the public internet. Set up the network boundaries that make that possible — VPCs, subnets, and security groups.
+description: Harden your Journal API's network against external threats. You'll configure private database access, add WAF and DDoS protection, and enable flow logs — the controls that separate a hardened production environment from an exposed one.
 order: 2
 learning_objectives:
-- id: network-security-segmentation
-  text: Explain secure subnet segmentation for internet-facing and internal workloads.
+- id: network-security-private-db
+  text: Configure private database connectivity that eliminates public network exposure.
   order: 1
-- id: network-security-policy-controls
-  text: Apply firewall and security group policies to restrict unnecessary network exposure.
+- id: network-security-waf-ddos
+  text: Apply WAF and DDoS protection controls to the API tier.
   order: 2
-- id: network-security-database-protection
-  text: Enforce private database access paths aligned with production security expectations.
+- id: network-security-flow-logs
+  text: Enable network flow logging to support security visibility and incident investigation.
   order: 3
 learning_steps:
 - order: 1
   action: 'Read:'
-  title: VPC Overview
-  description: A VPC is your private network in the cloud. Your API server goes in a public subnet, your database goes in a private subnet.
+  title: Restrict database access to your API server only
+  description: Your database should accept connections only from your API server — not from the public internet. Use private endpoints or private IP connectivity to eliminate the public network path to your database entirely.
   options:
-  - provider: azure
-    title: Azure Virtual Network Overview
-    url: https://learn.microsoft.com/en-us/azure/virtual-network/virtual-networks-overview
-    description: Azure Virtual Network fundamentals
   - provider: aws
-    title: What is Amazon VPC?
-    url: https://docs.aws.amazon.com/vpc/latest/userguide/what-is-amazon-vpc.html
-    description: Amazon Virtual Private Cloud documentation
+    title: RDS in a Private Subnet
+    url: https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_VPC.WorkingWithRDSInstanceinaVPC.html
+    description: Deploy RDS in a private subnet and restrict access with security group rules allowing port 5432 only from your API server
+  - provider: azure
+    title: Azure Private Endpoint Overview
+    url: https://learn.microsoft.com/en-us/azure/private-link/private-endpoint-overview
+    description: Eliminate public network access to your Azure database with Private Endpoint
   - provider: gcp
-    title: GCP VPC Network Overview
-    url: https://cloud.google.com/vpc/docs/vpc
-    description: Google Cloud VPC documentation
-  id: phase6-topic3-read-vpc-overview
+    title: Cloud SQL Private IP
+    url: https://cloud.google.com/sql/docs/postgres/private-ip
+    description: Connect to Cloud SQL over private IP with no public internet exposure
+  id: phase6-topic3-read-restrict-database-access
 - order: 2
   action: 'Read:'
-  description: Security groups are stateful firewalls around individual resources (allow rules only). Network ACLs are stateless firewalls around entire subnets (allow AND deny rules). For your Journal API, a security group on the database should allow port 5432 only from your API server.
+  title: Web Application Firewall (WAF)
+  description: A WAF sits in front of your API and filters malicious HTTP requests — SQL injection, cross-site scripting, and other OWASP Top 10 attacks — before they reach your application code.
   options:
-  - provider: azure
-    title: Azure Network Security Groups
-    url: https://learn.microsoft.com/en-us/azure/virtual-network/network-security-groups-overview
-    description: NSG overview in Azure
   - provider: aws
-    title: AWS Security Groups
-    url: https://docs.aws.amazon.com/vpc/latest/userguide/vpc-security-groups.html
-    description: Controlling traffic with security groups
+    title: AWS WAF Overview
+    url: https://docs.aws.amazon.com/waf/latest/developerguide/what-is-aws-waf.html
+    description: Filter web traffic and protect against common web exploits with AWS WAF
+  - provider: azure
+    title: Azure Web Application Firewall
+    url: https://learn.microsoft.com/en-us/azure/web-application-firewall/overview
+    description: Protect your applications from common exploits with Azure WAF
   - provider: gcp
-    title: GCP Firewall Rules
-    url: https://cloud.google.com/firewall/docs/firewalls
-    description: Firewall rules in Google Cloud
-  title: Understand security groups vs network ACLs
-  id: phase6-topic3-read-understand-security-groups-vs
+    title: Cloud Armor WAF Overview
+    url: https://cloud.google.com/armor/docs/cloud-armor-overview
+    description: Protect your GCP services with Cloud Armor WAF rules and preconfigured policies
+  id: phase6-topic3-read-web-application-firewall
 - order: 3
   action: 'Read:'
-  title: Azure Network Security Best Practices
-  url: https://learn.microsoft.com/en-us/azure/security/fundamentals/network-best-practices
-  description: Public subnets face the internet (load balancer, API). Private subnets are internal only (database). This separation is the foundation of secure cloud architecture.
-  id: phase6-topic3-read-azure-network-security-best
+  title: DDoS protection by provider
+  description: DDoS attacks flood your service with traffic to take it offline. Every major cloud provider includes a baseline DDoS protection tier automatically. Read what protection is included and when to consider enabling advanced coverage.
+  options:
+  - provider: aws
+    title: AWS Shield
+    url: https://docs.aws.amazon.com/waf/latest/developerguide/shield-chapter.html
+    description: AWS Shield Standard is automatic and free — Shield Advanced adds detection and response support
+  - provider: azure
+    title: Azure DDoS Protection
+    url: https://learn.microsoft.com/en-us/azure/ddos-protection/ddos-protection-overview
+    description: Azure DDoS Protection tiers and what is included by default
+  - provider: gcp
+    title: Cloud Armor DDoS Mitigation
+    url: https://cloud.google.com/armor/docs/adaptive-protection-overview
+    description: Adaptive Protection and DDoS mitigations in Cloud Armor
+  id: phase6-topic3-read-ddos-protection-by-provider
 - order: 4
+  action: 'Read:'
+  title: Network security best practices by provider
+  description: Review the network security recommendations for your provider. Focus on what applies to your Journal API — particularly controlling inbound and outbound traffic and encrypting data in transit.
+  options:
+  - provider: aws
+    title: AWS VPC Security Best Practices
+    url: https://docs.aws.amazon.com/vpc/latest/userguide/vpc-security-best-practices.html
+    description: Security best practices for Amazon VPC
+  - provider: azure
+    title: Azure Network Security Best Practices
+    url: https://learn.microsoft.com/en-us/azure/security/fundamentals/network-best-practices
+    description: Network security best practices for Azure deployments
+  - provider: gcp
+    title: GCP Networking Security Best Practices
+    url: https://cloud.google.com/docs/security/infrastructure/design#network-security
+    description: Network security design principles in Google Cloud
+  id: phase6-topic3-read-network-security-best-practices
+- order: 5
+  action: 'Read:'
+  title: Enable network flow logs
+  description: VPC flow logs record accepted and rejected traffic at the network level. Use them to investigate suspicious connections, verify your security rules are working, and build an evidence trail for incident response.
+  options:
+  - provider: aws
+    title: VPC Flow Logs
+    url: https://docs.aws.amazon.com/vpc/latest/userguide/flow-logs.html
+    description: Capture IP traffic flow information for your VPC interfaces
+  - provider: azure
+    title: NSG Flow Logs
+    url: https://learn.microsoft.com/en-us/azure/network-watcher/network-watcher-nsg-flow-logging-overview
+    description: Log network traffic to and from Azure network security groups
+  - provider: gcp
+    title: VPC Flow Logs
+    url: https://cloud.google.com/vpc/docs/flow-logs
+    description: Record network flows to and from VMs and GKE nodes in GCP
+  id: phase6-topic3-read-enable-network-flow-logs
+- order: 6
   action: 'Watch:'
+  title: Watch a cloud network security walkthrough for your provider
   description: Follow along in your own account if you can.
   options:
-  - provider: azure
-    title: Azure Networking Explained (35 min)
-    url: https://www.youtube.com/watch?v=5NMcM4zJPM4
-    description: Azure networking walkthrough
   - provider: aws
-    title: AWS VPC Deep Dive (45 min)
-    url: https://www.youtube.com/watch?v=fnxXNZdf6ew
-    description: AWS VPC walkthrough
+    title: DDoS Protection on AWS with Shield and WAF
+    url: https://www.youtube.com/watch?v=-9YzrRCzaKM
+    description: Official AWS walkthrough of DDoS protection using Shield and WAF
+  - provider: azure
+    title: Multi-Layered Security with Azure DDoS Protection and WAF
+    url: https://www.youtube.com/watch?v=qPz5ldEBrk0
+    description: Microsoft Security Community walkthrough of Azure DDoS and WAF controls
   - provider: gcp
-    title: Google Cloud Networking Deep Dive
-    url: https://www.youtube.com/watch?v=Q96XNgpK1yo
-    description: GCP networking walkthrough
-  title: Watch a network security walkthrough for your provider
-  id: phase6-topic3-watch-watch-a-network-security
+    title: Cloud Armor Preconfigured WAF Rules
+    url: https://www.youtube.com/watch?v=0j4BEhNT5S0
+    description: Hands-on walkthrough of Cloud Armor WAF rules on GCP
+  id: phase6-topic3-watch-cloud-network-security-walkthrough
