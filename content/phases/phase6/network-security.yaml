@@ -97,7 +97,7 @@ learning_steps:
     url: https://www.youtube.com/watch?v=qPz5ldEBrk0
     description: Microsoft Security Community walkthrough of Azure DDoS and WAF controls
   - provider: gcp
-    title: Cloud Armor Preconfigured WAF Rules
-    url: https://www.youtube.com/watch?v=0j4BEhNT5S0
-    description: Hands-on walkthrough of Cloud Armor WAF rules on GCP
+    title: Google Cloud Armor - Deep Dive
+    url: https://www.youtube.com/watch?v=RsXbmOb3L2E
+    description: Deep dive walkthrough of Cloud Armor WAF rules, Adaptive Protection, and DDoS mitigation on GCP
   id: phase6-topic3-watch-cloud-network-security-walkthrough
