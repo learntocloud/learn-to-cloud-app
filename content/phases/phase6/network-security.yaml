@@ -69,8 +69,8 @@ learning_steps:
     url: https://www.youtube.com/watch?v=fnxXNZdf6ew
     description: AWS VPC walkthrough
   - provider: gcp
-    title: GCP Networking Fundamentals (40 min)
-    url: https://www.youtube.com/watch?v=cNb4xzAyTiQ
+    title: Google Cloud Networking Deep Dive
+    url: https://www.youtube.com/watch?v=Q96XNgpK1yo
     description: GCP networking walkthrough
   title: Watch a network security walkthrough for your provider
   id: phase6-topic3-watch-watch-a-network-security
