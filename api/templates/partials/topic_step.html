@@ -1,111 +1,147 @@
 <!-- Single learning step - swappable via HTMX -->
-<div id="step-{{ topic_id }}-{{ step.id }}" class="flex items-start gap-3 p-3 rounded-lg">
-    {% if user %}
-    <input
-        type="checkbox"
-        {% if step.id in completed_steps %}checked{% endif %}
-        class="mt-1 h-4 w-4 rounded-sm border-gray-300 text-blue-600 focus:ring-3 focus:ring-blue-500 cursor-pointer"
-        {% if step.id in completed_steps %}
-        hx-delete="/htmx/steps/{{ topic_id }}/{{ step.id }}"
-        {% else %}
-        hx-post="/htmx/steps/complete"
-        hx-vals='{"topic_id": "{{ topic_id }}", "step_id": "{{ step.id }}", "phase_id": {{ phase_id }}}'
-        {% endif %}
-        hx-target="#step-{{ topic_id }}-{{ step.id }}"
-        hx-swap="outerHTML"
-        hx-disabled-elt="this"
-    >
-    {% else %}
-    <div class="mt-1 h-4 w-4 rounded-sm border border-gray-300 dark:border-gray-600 flex-shrink-0"></div>
-    {% endif %}
-
-    <div class="flex-1 min-w-0">
-        <p class="text-sm {% if step.id in completed_steps %}line-through text-gray-400 dark:text-gray-500{% else %}text-gray-900 dark:text-gray-100{% endif %}">
-            {% if step.action %}
-            <span class="font-medium text-blue-600 dark:text-blue-400">{{ step.action }}</span>
+<div id="step-{{ topic_id }}-{{ step.id }}"
+    class="rounded-xl border {% if step.id in completed_steps %}border-green-200 bg-green-50/40 dark:border-green-800/50 dark:bg-green-900/10{% else %}border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800/50{% endif %} shadow-sm transition-colors"
+    x-data="{ expanded: {{ 'false' if step.id in completed_steps else 'true' }} }"
+>
+    <!-- Step header — always visible -->
+    <div class="flex items-center gap-3 px-4 py-3 cursor-pointer select-none" @click="expanded = !expanded">
+        {% if user %}
+        <input
+            type="checkbox"
+            {% if step.id in completed_steps %}checked{% endif %}
+            class="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-3 focus:ring-blue-500 cursor-pointer flex-shrink-0"
+            {% if step.id in completed_steps %}
+            hx-delete="/htmx/steps/{{ topic_id }}/{{ step.id }}"
+            {% else %}
+            hx-post="/htmx/steps/complete"
+            hx-vals='{"topic_id": "{{ topic_id }}", "step_id": "{{ step.id }}", "phase_id": {{ phase_id }}}'
             {% endif %}
-            {% if step.title and step.url %}
-            <a href="{{ step.url }}" target="_blank" rel="noopener" hx-boost="false" class="underline hover:text-blue-600 dark:hover:text-blue-400">{{ step.title }}</a>
-            {% elif step.title %}
-            <span class="font-medium">{{ step.title }}</span>
-            {% endif %}
-        </p>
-        {% if step.description %}
-        <div class="mt-1 text-sm text-gray-600 dark:text-gray-400 prose prose-sm dark:prose-invert max-w-none"
-            x-data
-            x-init="
-                $el.querySelectorAll('pre').forEach((pre, i) => {
-                    if (pre.querySelector('.copy-btn')) return;
-                    pre.style.position = 'relative';
-                    const btn = document.createElement('button');
-                    btn.className = 'copy-btn absolute top-2 right-2 p-1 rounded-sm text-gray-400 hover:text-gray-600 dark:hover:text-gray-300';
-                    btn.setAttribute('aria-label', 'Copy code to clipboard');
-                    btn.innerHTML = '📋';
-                    btn.addEventListener('click', () => {
-                        const code = pre.querySelector('code');
-                        const text = code ? code.textContent : pre.textContent;
-                        navigator.clipboard.writeText(text).then(() => {
-                            btn.innerHTML = '✓';
-                            btn.classList.add('text-green-500');
-                            setTimeout(() => { btn.innerHTML = '📋'; btn.classList.remove('text-green-500'); }, 2000);
-                        });
-                    });
-                    pre.appendChild(btn);
-                });
-            "
+            hx-target="#step-{{ topic_id }}-{{ step.id }}"
+            hx-swap="outerHTML"
+            hx-disabled-elt="this"
+            @click.stop
         >
-            {{ step.description_html | safe }}
-        </div>
+        {% else %}
+        <div class="h-5 w-5 rounded border-2 border-gray-300 dark:border-gray-600 flex-shrink-0"></div>
         {% endif %}
 
-        {% if step.code %}
-        <div class="mt-2 relative" x-data="{ copied: false }">
-            <pre class="bg-gray-100 dark:bg-gray-800 rounded-md p-3 text-sm overflow-x-auto"><code x-ref="code{{ step.order }}">{{ step.code }}</code></pre>
-            <button
-                @click="
-                    const text = $refs.code{{ step.order }}.textContent;
-                    if (navigator.clipboard && navigator.clipboard.writeText) {
-                        navigator.clipboard.writeText(text).then(() => { copied = true; setTimeout(() => copied = false, 2000); });
-                    } else {
-                        const ta = document.createElement('textarea');
-                        ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
-                        document.body.appendChild(ta); ta.select(); document.execCommand('copy');
-                        document.body.removeChild(ta); copied = true; setTimeout(() => copied = false, 2000);
-                    }
+        <!-- Step number badge -->
+        <span class="flex-shrink-0 flex items-center justify-center h-6 w-6 rounded-full text-xs font-bold
+            {% if step.id in completed_steps %}bg-green-100 text-green-700 dark:bg-green-800/40 dark:text-green-300
+            {% else %}bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300{% endif %}">
+            {{ step.order }}
+        </span>
+
+        <!-- Action badge + title -->
+        <div class="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
+            {% if step.action %}
+            {% set action_lower = step.action | lower | replace(':', '') | trim %}
+            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold tracking-wide uppercase
+                {% if action_lower == 'explore' %}bg-purple-100 text-purple-700 dark:bg-purple-800/40 dark:text-purple-300
+                {% elif action_lower == 'practice' %}bg-blue-100 text-blue-700 dark:bg-blue-800/40 dark:text-blue-300
+                {% elif action_lower == 'reflect' %}bg-amber-100 text-amber-700 dark:bg-amber-800/40 dark:text-amber-300
+                {% else %}bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300{% endif %}">
+                {{ step.action | replace(':', '') }}
+            </span>
+            {% endif %}
+            <span class="text-sm font-semibold {% if step.id in completed_steps %}line-through text-gray-400 dark:text-gray-500{% else %}text-gray-900 dark:text-gray-100{% endif %}">
+                {% if step.title and step.url %}
+                <a href="{{ step.url }}" target="_blank" rel="noopener" hx-boost="false" class="underline hover:text-blue-600 dark:hover:text-blue-400" @click.stop>{{ step.title }}</a>
+                {% elif step.title %}
+                {{ step.title }}
+                {% endif %}
+            </span>
+        </div>
+
+        <!-- Expand/collapse chevron -->
+        {% if step.description or step.code or step.options %}
+        <svg class="h-5 w-5 text-gray-400 dark:text-gray-500 flex-shrink-0 transition-transform duration-200" :class="expanded ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+        </svg>
+        {% endif %}
+    </div>
+
+    <!-- Collapsible body -->
+    {% if step.description or step.code or step.options %}
+    <div x-show="expanded" x-collapse>
+        <div class="px-4 pb-4 pl-[4.5rem]">
+            {% if step.description %}
+            <div class="text-sm text-gray-600 dark:text-gray-400 prose prose-sm dark:prose-invert max-w-none"
+                x-data
+                x-init="
+                    $el.querySelectorAll('pre').forEach((pre, i) => {
+                        if (pre.querySelector('.copy-btn')) return;
+                        pre.style.position = 'relative';
+                        const btn = document.createElement('button');
+                        btn.className = 'copy-btn absolute top-2 right-2 p-1 rounded-sm text-gray-400 hover:text-gray-600 dark:hover:text-gray-300';
+                        btn.setAttribute('aria-label', 'Copy code to clipboard');
+                        btn.innerHTML = '📋';
+                        btn.addEventListener('click', () => {
+                            const code = pre.querySelector('code');
+                            const text = code ? code.textContent : pre.textContent;
+                            navigator.clipboard.writeText(text).then(() => {
+                                btn.innerHTML = '✓';
+                                btn.classList.add('text-green-500');
+                                setTimeout(() => { btn.innerHTML = '📋'; btn.classList.remove('text-green-500'); }, 2000);
+                            });
+                        });
+                        pre.appendChild(btn);
+                    });
                 "
-                class="absolute top-2 right-2 p-1 rounded-sm text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                :class="{ 'text-green-500': copied }"
-                aria-label="Copy code to clipboard"
             >
-                <span x-show="!copied">📋</span>
-                <span x-show="copied">✓</span>
-            </button>
-        </div>
-        {% endif %}
+                {{ step.description_html | safe }}
+            </div>
+            {% endif %}
 
-        {% if step.options %}
-        <div class="mt-2" x-data="{ tab: '{{ step.options[0].provider | default('option-0') }}' }">
-            <div class="flex gap-1 border-b border-gray-200 dark:border-gray-700">
-                {% for option in step.options %}
+            {% if step.code %}
+            <div class="mt-3 relative" x-data="{ copied: false }">
+                <pre class="bg-gray-100 dark:bg-gray-800 rounded-md p-3 text-sm overflow-x-auto"><code x-ref="code{{ step.order }}">{{ step.code }}</code></pre>
                 <button
-                    @click="tab = '{{ option.provider | default(loop.index0) }}'"
-                    :class="tab === '{{ option.provider | default(loop.index0) }}' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400'"
-                    class="px-3 py-2 text-sm font-medium border-b-2 -mb-px"
+                    @click="
+                        const text = $refs.code{{ step.order }}.textContent;
+                        if (navigator.clipboard && navigator.clipboard.writeText) {
+                            navigator.clipboard.writeText(text).then(() => { copied = true; setTimeout(() => copied = false, 2000); });
+                        } else {
+                            const ta = document.createElement('textarea');
+                            ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+                            document.body.appendChild(ta); ta.select(); document.execCommand('copy');
+                            document.body.removeChild(ta); copied = true; setTimeout(() => copied = false, 2000);
+                        }
+                    "
+                    class="absolute top-2 right-2 p-1 rounded-sm text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                    :class="{ 'text-green-500': copied }"
+                    aria-label="Copy code to clipboard"
                 >
-                    {{ option.label | default(option.provider) }}
+                    <span x-show="!copied">📋</span>
+                    <span x-show="copied">✓</span>
                 </button>
+            </div>
+            {% endif %}
+
+            {% if step.options %}
+            <div class="mt-3" x-data="{ tab: '{{ step.options[0].provider | default('option-0') }}' }">
+                <div class="flex gap-1 border-b border-gray-200 dark:border-gray-700">
+                    {% for option in step.options %}
+                    <button
+                        @click.stop="tab = '{{ option.provider | default(loop.index0) }}'"
+                        :class="tab === '{{ option.provider | default(loop.index0) }}' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400'"
+                        class="px-3 py-2 text-sm font-medium border-b-2 -mb-px"
+                    >
+                        {{ option.label | default(option.provider) }}
+                    </button>
+                    {% endfor %}
+                </div>
+                {% for option in step.options %}
+                <div x-show="tab === '{{ option.provider | default(loop.index0) }}'" class="mt-2 text-sm text-gray-700 dark:text-gray-300">
+                    {{ option.description_html | safe }}
+                    {% if option.url %}
+                    <a href="{{ option.url }}" target="_blank" rel="noopener" hx-boost="false" class="text-blue-600 hover:underline dark:text-blue-400" @click.stop>{{ option.title | default('Learn more') }}</a>
+                    {% endif %}
+                </div>
                 {% endfor %}
             </div>
-            {% for option in step.options %}
-            <div x-show="tab === '{{ option.provider | default(loop.index0) }}'" class="mt-2 text-sm text-gray-700 dark:text-gray-300">
-                {{ option.description_html | safe }}
-                {% if option.url %}
-                <a href="{{ option.url }}" target="_blank" rel="noopener" hx-boost="false" class="text-blue-600 hover:underline dark:text-blue-400">{{ option.title | default('Learn more') }}</a>
-                {% endif %}
-            </div>
-            {% endfor %}
+            {% endif %}
         </div>
-        {% endif %}
-
     </div>
+    {% endif %}
 </div>

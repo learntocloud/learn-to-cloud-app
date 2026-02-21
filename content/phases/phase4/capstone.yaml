@@ -1,8 +1,8 @@
 id: phase4-topic9
 slug: capstone
 name: 'Capstone: Cloud Deployment'
-description: Deploy the Journal API you built in Phase 3 to a secure 2-tier cloud architecture. This capstone challenges you to research, design, and implement a production-ready environment with proper networking and security, using the database and deployment preparation work you completed in earlier Phase 4 topics.
-short_description: Deploy your Journal API to a secure 2-tier cloud architecture with VMs, networking, and HTTPS.
+description: Deploy the Journal API you built in Phase 3 to a secure 2-tier cloud architecture. This capstone challenges you to research, design, and implement a production-ready environment with proper networking and security, using the database and deployment preparation work you completed in earlier Phase 4 topics. You must have all Phase 3 endpoints implemented (GET single entry, DELETE single entry, and AI analysis) before starting.
+short_description: Deploy your completed Journal API to a secure 2-tier cloud architecture with VMs, networking, and HTTPS.
 order: 9
 learning_objectives:
 - id: cloud-capstone-architecture
@@ -22,19 +22,33 @@ learning_steps:
   action: 'Explore:'
   title: Design your 2-tier architecture
   description: |
-    Use your **Database Deployment & Configuration** topic work as input. Sketch your infrastructure on paper or a diagram before touching the cloud console — CIDR ranges, ports between tiers, and what traffic to block.
+    Use your **Database Deployment & Configuration** topic work as input. Sketch your infrastructure on paper or a diagram before touching the cloud console. Your design should include:
 
-    > [!TIP] If your cloud platform requires approval for AI model access, request it now so you are not blocked at the AI deployment step.
+    - A virtual network with a CIDR range (e.g., `10.0.0.0/16`)
+    - A **public subnet** for the API (e.g., `10.0.1.0/24`)
+    - A **private subnet** for the database (e.g., `10.0.2.0/24`)
+    - Firewall rules for each subnet, including **SSH (22)** for management access — not just application ports
+    - The traffic flow: Internet → port 443 (reverse proxy) → port 8000 (your application) → port 5432 (database)
+    - How you will manage the private VM (e.g., SSH through the public VM as a jump box, since the database VM has no public IP)
 
-    **Done when:** you have a diagram showing public subnet (API), private subnet (database), CIDR ranges, and firewall rules.
+    > [!TIP] If your cloud platform requires approval for AI model access (e.g., Azure OpenAI, AWS Bedrock), request it now — approval can take days and will block Step 6.
+
+    > [!NOTE] On some cloud platforms, subnets are not inherently "public" or "private" — visibility depends on whether a VM has a public IP and what the firewall rules allow.
+
+    **Done when:** you have a diagram showing public subnet (API), private subnet (database), CIDR ranges, firewall rules including SSH access, and the port chain from internet to database.
   id: phase4-topic9-explore-design-your-2-tier-architecture
 - order: 2
   action: 'Practice:'
   title: Create your virtual network with public and private subnets
   description: |
-    Create a virtual network with at least two subnets — one public (API) and one private (database). Configure security groups or firewall rules so the **public subnet** allows inbound HTTP (80) and HTTPS (443), and the **private subnet** only allows database traffic (port 5432) from the public subnet.
+    Create a virtual network with at least two subnets — one public (API) and one private (database). Create security groups or firewall rules for each:
 
-    **Done when:** both subnets exist and your firewall rules match the design from Step 1.
+    - **Public subnet:** allow inbound SSH (22), HTTP (80), and HTTPS (443) from the internet
+    - **Private subnet:** allow inbound PostgreSQL (5432) and SSH (22) **only from the public subnet's CIDR range** — deny all other inbound from the internet
+
+    Associate each security group with its respective subnet. Verify that outbound internet access is allowed for both subnets (needed for package installation — most platforms allow this by default).
+
+    **Done when:** both subnets exist, security groups are associated with them, and your firewall rules match the design from Step 1.
   id: phase4-topic9-practice-create-your-virtual-network
 - order: 3
   action: 'Practice:'
@@ -42,37 +56,75 @@ learning_steps:
   description: |
     Deploy a VM in the private subnet, install PostgreSQL, create the `career_journal` database with a dedicated user, and run your schema migration. Configure PostgreSQL to accept connections from your API subnet (not just localhost).
 
-    > [!TIP] The DB VM needs outbound internet to install packages — use a temporary public IP (remove after) or a managed NAT service. If your VM has 1 GiB RAM or less, configure swap space (2 GiB recommended) or PostgreSQL may be killed by the OS out-of-memory handler.
+    Key sub-steps:
 
-    **Done when:** you can connect to PostgreSQL from the API subnet via private IP, and the database is **not** reachable from the internet.
+    1. Create a VM in the private subnet with a **temporary public IP** and a temporary firewall rule allowing SSH from the internet (you need both to access the VM for setup)
+    2. Install PostgreSQL
+    3. Create the database and a dedicated user
+    4. Upload and execute the `database_setup.sql` file from your repository to create the `entries` table and indexes
+    5. **Grant table-level permissions** to your dedicated user — if you ran the schema as the `postgres` superuser, your app user won't have access to the tables without explicit `GRANT` statements on the schema and tables
+    6. Configure PostgreSQL for remote connections — you'll need to modify two files: `postgresql.conf` (set `listen_addresses`) and `pg_hba.conf` (allow your API subnet)
+    7. Restart PostgreSQL
+    8. Note the **private IP**, **username**, **password**, and **database name** — you'll need these to build the `DATABASE_URL` in the next step
+
+    > [!TIP] The DB VM needs outbound internet to install packages — use a temporary public IP (remove after) or a managed NAT service. You'll also need a temporary firewall rule allowing SSH to the private subnet during setup. If your VM has 1 GiB RAM or less, configure swap space (2 GiB recommended) or PostgreSQL may be killed by the OS out-of-memory handler.
+
+    **Done when:** you can connect to PostgreSQL from the API subnet via private IP, your dedicated user can read and write the `entries` table, and the database is **not** reachable from the internet.
   id: phase4-topic9-practice-deploy-the-database-in
 - order: 4
   action: 'Practice:'
   title: Deploy the API server and connect to the database
   description: |
-    Deploy a VM in the public subnet, install the Journal API, and connect it to the database using the DB VM's **private IP address**. Set `DATABASE_URL` and run the application as a background service so it survives SSH disconnection and VM restarts.
+    Deploy a VM in the public subnet, install the Journal API, and connect it to the database using the DB VM's **private IP address**.
 
-    > [!TIP] The Journal API requires Python 3.11+. Ubuntu 24.04 LTS ships Python 3.12 as its system Python — older images may need a separate install.
+    Key sub-steps:
 
-    **Done when:** all CRUD operations work — create, list, get, update, and delete an entry.
+    1. Create a VM in the public subnet with a public IP
+    2. Clone your completed Journal API repository onto the VM
+    3. Install **`uv`** (the project's package manager): `curl -LsSf https://astral.sh/uv/install.sh | sh` — then run `uv sync` to install dependencies
+    4. Create a `.env` file in the project root with your database connection string: `DATABASE_URL=postgresql://youruser:yourpassword@db-private-ip:5432/career_journal`
+    5. Run the application as a background service (e.g., systemd) so it survives SSH disconnection and VM restarts. Important service configuration:
+        - Set `PYTHONPATH` to your project directory (required for Python imports)
+        - Include the `uv` binary path in your service's `PATH`
+        - The application entry point is: `uv run uvicorn api.main:app --host 0.0.0.0 --port 8000`
+        - Do **not** use `--reload` in production — that flag is for development only
+    6. Test from the VM: `curl http://localhost:8000/entries`
+
+    > [!TIP] The Journal API requires Python 3.11+. Ubuntu 24.04 LTS ships Python 3.12 as its system Python — older images may need a separate install. If your VM has 1 GiB RAM or less, configure swap space (2 GiB recommended) as with the database VM.
+
+    **Done when:** all CRUD operations work from the VM — create (`POST /entries`), list (`GET /entries`), get (`GET /entries/{id}`), update (`PATCH /entries/{id}`), and delete (`DELETE /entries/{id}`).
   id: phase4-topic9-practice-deploy-the-api-server
 - order: 5
   action: 'Practice:'
   title: Expose your API over HTTPS
   description: |
-    Set up a **domain name** pointing to your VM's public IP, obtain a **TLS certificate** from a CA that supports automated issuance, and configure a **reverse proxy** to terminate TLS and forward traffic to your application on localhost.
+    Set up a **domain name** pointing to your VM's public IP, obtain a **TLS certificate**, and configure a **reverse proxy** to terminate TLS and forward traffic to your application on `localhost:8000`.
 
-    > [!WARNING] The automated verifier does **not** follow HTTP redirects. Ensure `/entries` returns a direct 200, not a 3xx redirect. Watch for trailing-slash redirects in your proxy config.
+    Key sub-steps:
 
-    **Done when:** `curl -v https://yourdomain/entries` returns valid JSON with a trusted certificate and no redirects.
+    1. **Domain name:** Create an A record pointing to your VM's public IP. You can use a domain registrar, a free DNS service, or your cloud platform's DNS features (many platforms let you assign a DNS label to a public IP for a free subdomain)
+    2. **Reverse proxy:** Common choices are **Nginx** and **Caddy**. Nginx is more widely documented; Caddy handles TLS certificates automatically. Configure your proxy to forward requests to `http://127.0.0.1:8000`
+    3. **TLS certificate:** **Let's Encrypt** is a free certificate authority with automated issuance. Tools like **Certbot** (for Nginx) automate the process of obtaining and installing certificates
+
+    > [!WARNING] The automated verifier does **not** follow HTTP redirects. Ensure `GET /entries` on your HTTPS URL returns a direct `200 OK`, not a `3xx` redirect. Watch for trailing-slash behavior — FastAPI redirects `/entries/` (with trailing slash) to `/entries` with a 307 by default. Use `/entries` (no trailing slash).
+
+    **Done when:** `curl -v https://yourdomain/entries` returns valid JSON with a trusted certificate, a 200 status code, and no redirects.
   id: phase4-topic9-practice-expose-your-api-over-https
 - order: 6
   action: 'Practice:'
   title: Deploy and switch your Journal API to cloud AI
   description: |
-    Deploy an LLM on your cloud platform and update your Journal API environment variables to point to the cloud endpoint. No code changes needed — only environment variable changes.
+    Deploy or provision access to an LLM on your cloud platform and update your Journal API to use it instead of the default GitHub Models endpoint.
 
-    **Done when:** `/entries/{id}/analyze` returns sentiment, summary, and topics from your cloud-hosted model.
+    Your Journal API's AI integration lives in `api/services/llm_service.py` and uses the `openai` Python package. The `openai` package works natively with any **OpenAI-compatible endpoint** — you just update the `OPENAI_BASE_URL`, `OPENAI_API_KEY`, and `OPENAI_MODEL` environment variables in your `.env` file.
+
+    However, **not all cloud AI endpoints are OpenAI-compatible out of the box**. Some cloud providers require a different client class, additional authentication parameters, or a different URL format. If your cloud's AI endpoint doesn't work with just environment variable changes, you'll need to modify the client creation logic in `llm_service.py` to use your provider's SDK or client class. Check your cloud provider's documentation for how to use their AI service with the `openai` Python package.
+
+    After updating your code (if needed) and `.env`, redeploy to the VM and restart your service.
+
+    > [!TIP] The `openai` Python package includes client classes for multiple providers. Check your cloud provider's documentation for the recommended approach — it may be as simple as changing a URL, or it may require a provider-specific client class with additional parameters.
+
+    **Done when:** `curl -X POST https://yourdomain/entries/{id}/analyze` returns sentiment, summary, and topics from your cloud-hosted model.
   id: phase4-topic9-practice-deploy-and-switch-your
 - order: 7
   action: 'Practice:'
@@ -88,7 +140,9 @@ learning_steps:
   action: 'Practice:'
   title: Clean up your cloud resources
   description: |
-    Delete all cloud resources — VMs, virtual networks, subnets, security groups, public IPs, and any other infrastructure you provisioned. Check your cloud console to confirm nothing is still running or incurring charges.
+    Delete all cloud resources — VMs, virtual networks, subnets, security groups, public IPs, AI resources, and any other infrastructure you provisioned. Don't forget to also remove the temporary public IP and SSH rule from the database VM if you haven't already. Check your cloud console to confirm nothing is still running or incurring charges.
+
+    > [!TIP] If your cloud platform supports resource groups or tagging, use them — deleting a single group or filtering by tag makes cleanup straightforward.
   id: phase4-topic9-practice-clean-up-your-cloud
 - order: 9
   action: 'Reflect:'

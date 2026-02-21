@@ -37,7 +37,22 @@
 </div>
 {% endif %}
 
-<div class="space-y-1">
+<!-- Expand / Collapse all -->
+{% if steps | length > 3 %}
+<div class="flex justify-end mb-3 gap-2" x-data>
+    <button
+        @click="document.querySelectorAll('[x-data]').forEach(el => { if (el._x_dataStack && el._x_dataStack[0] && 'expanded' in el._x_dataStack[0]) el._x_dataStack[0].expanded = true })"
+        class="text-xs font-medium text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 px-2 py-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+    >Expand all</button>
+    <span class="text-gray-300 dark:text-gray-600">|</span>
+    <button
+        @click="document.querySelectorAll('[x-data]').forEach(el => { if (el._x_dataStack && el._x_dataStack[0] && 'expanded' in el._x_dataStack[0]) el._x_dataStack[0].expanded = false })"
+        class="text-xs font-medium text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 px-2 py-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+    >Collapse all</button>
+</div>
+{% endif %}
+
+<div class="space-y-4">
     {% for step in steps %}
     {% with topic_id=topic.id, phase_id=phase_id, completed_steps=completed_steps %}
     {% include "partials/topic_step.html" %}
