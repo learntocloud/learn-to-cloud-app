@@ -18,11 +18,14 @@ permissions:
   discussions: read
   issues: read
 
+env:
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 tools:
   github:
     toolsets: [repos]
     read-only: true
-  bash: ["date", "python3"]
+  bash: ["curl", "date", "gh", "python3"]
 
 network:
   allowed:
@@ -62,7 +65,22 @@ Use a rolling 7-day window from "now" (the workflow run time).
 
 ### Step 2: Fetch Q&A discussions and comments
 
-Use the GitHub API (GraphQL preferred) against the current repository (`owner/name` from the workflow context).
+Use `gh api graphql` to query the current repository's Discussions. The `GITHUB_TOKEN` environment variable is already set and `gh` will use it automatically.
+
+Example:
+```bash
+gh api graphql -f query='query($owner:String!,$repo:String!){
+  repository(owner:$owner,name:$repo){
+    discussionCategories(first:10){ nodes{ id name isAnswerable } }
+    discussions(first:50, orderBy:{field:UPDATED_AT, direction:DESC}){
+      nodes{ number title url updatedAt
+        comments(first:50){ nodes{ createdAt author{ login } } }
+        answer{ createdAt author{ login } }
+      }
+    }
+  }
+}' -f owner='learntocloud' -f repo='learn-to-cloud-app'
+```
 
 High-level approach:
 1. List discussion categories and identify which ones are **answerable** (Q&A).
@@ -77,7 +95,12 @@ Be conservative with pagination: fetch enough items to cover typical weekly volu
 
 ### Step 3: Fetch issues opened in the last 7 days
 
-Use the GitHub REST or GraphQL API to list issues (not pull requests) created in the last 7 days.
+Use `gh api` or `gh issue list` to list issues (not pull requests) created in the last 7 days.
+
+Example:
+```bash
+gh issue list --repo learntocloud/learn-to-cloud-app --state all --json number,title,url,author,createdAt --limit 50
+```
 
 For each issue, record:
 - `author.login`
