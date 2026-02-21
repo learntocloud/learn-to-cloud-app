@@ -71,9 +71,9 @@ resource "azurerm_container_app" "api" {
 
   template {
     min_replicas = 1
-    # B2s PostgreSQL allows 414 user connections (429 total - 15 reserved).
+    # PostgreSQL max connections vary by SKU.
     # Each replica uses up to 10 (pool_size=5 + max_overflow=5).
-    # 2 replicas × 10 = 20 connections — well under the 414 limit.
+    # 2 replicas × 10 = 20 connections — well under typical SKU limits.
     # Scaling uses the default HTTP rule (10 concurrent requests per replica).
     max_replicas = 2
 
