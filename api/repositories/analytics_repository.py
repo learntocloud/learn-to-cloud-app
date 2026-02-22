@@ -152,6 +152,76 @@ class AnalyticsRepository:
         )
         await self.db.execute(stmt)
 
+    async def get_program_completers(
+        self,
+        phase_requirements: dict[int, tuple[int, int]],
+    ) -> int:
+        """Count users who completed ALL phases (steps + hands-on).
+
+        A user completed the program if for every phase they have:
+        - step_count >= required_steps (reading steps)
+        - distinct validated requirement_ids >= required_hands_on
+
+        Args:
+            phase_requirements: Mapping of phase_id ->
+                (required_steps, required_hands_on).
+
+        Returns:
+            Number of users who meet all thresholds for every phase.
+        """
+        if not phase_requirements:
+            return 0
+
+        per_user_steps = (
+            select(
+                StepProgress.user_id,
+                StepProgress.phase_id,
+                func.count().label("step_count"),
+            )
+            .group_by(StepProgress.user_id, StepProgress.phase_id)
+            .subquery()
+        )
+
+        per_user_hands_on = (
+            select(
+                Submission.user_id,
+                Submission.phase_id,
+                func.count(func.distinct(Submission.requirement_id)).label(
+                    "validated_count"
+                ),
+            )
+            .where(Submission.is_validated.is_(True))
+            .group_by(Submission.user_id, Submission.phase_id)
+            .subquery()
+        )
+
+        phase_queries = []
+        for phase_id, (req_steps, req_hands_on) in phase_requirements.items():
+            if req_steps > 0:
+                steps_q = select(per_user_steps.c.user_id).where(
+                    per_user_steps.c.phase_id == phase_id,
+                    per_user_steps.c.step_count >= req_steps,
+                )
+            else:
+                steps_q = select(User.id.label("user_id"))
+
+            if req_hands_on > 0:
+                hands_on_q = select(per_user_hands_on.c.user_id).where(
+                    per_user_hands_on.c.phase_id == phase_id,
+                    per_user_hands_on.c.validated_count >= req_hands_on,
+                )
+                combined = steps_q.intersect(hands_on_q)
+            else:
+                combined = steps_q
+
+            phase_queries.append(combined)
+
+        all_phases = phase_queries[0].intersect_all(*phase_queries[1:])
+        result = await self.db.execute(
+            select(func.count()).select_from(all_phases.subquery())
+        )
+        return result.scalar_one() or 0
+
     async def get_provider_distribution(self) -> list[tuple[str, int]]:
         """Count validated submissions per cloud provider.
 

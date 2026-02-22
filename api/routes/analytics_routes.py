@@ -22,6 +22,54 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["analytics"])
 
 
+def _derive_insights(
+    analytics: CommunityAnalytics,
+) -> list[dict[str, str]]:
+    insights: list[dict[str, str]] = []
+    if analytics.activity_by_day:
+        busiest = max(
+            analytics.activity_by_day,
+            key=lambda d: d.completions,
+        )
+        if busiest.completions > 0:
+            insights.append(
+                {
+                    "icon": "\U0001f525",
+                    "text": f"Most active day: {busiest.day_name}",
+                    "detail": f"{busiest.completions:,} completions",
+                }
+            )
+    if analytics.verification_stats:
+        hardest = min(
+            (v for v in analytics.verification_stats if v.total_attempts > 0),
+            key=lambda v: v.pass_rate,
+            default=None,
+        )
+        if hardest:
+            insights.append(
+                {
+                    "icon": "\U0001f4aa",
+                    "text": f"Hardest phase: {hardest.phase_name}",
+                    "detail": f"{hardest.pass_rate}% pass rate",
+                }
+            )
+    if analytics.provider_distribution:
+        top = max(
+            analytics.provider_distribution,
+            key=lambda p: p.count,
+        )
+        total = sum(p.count for p in analytics.provider_distribution)
+        pct = round(top.count / total * 100) if total > 0 else 0
+        insights.append(
+            {
+                "icon": "\u2601\ufe0f",
+                "text": f"Top provider: {top.provider.upper()}",
+                "detail": f"{pct}% of submissions",
+            }
+        )
+    return insights
+
+
 @router.get("/status", response_class=HTMLResponse, include_in_schema=False)
 async def status_page(
     request: Request,
@@ -53,6 +101,9 @@ async def status_page(
             generated_at=datetime.now(UTC),
         )
 
+    insights = _derive_insights(analytics)
+    new_this_month = analytics.signup_trends[-1].count if analytics.signup_trends else 0
+
     return templates.TemplateResponse(
         "pages/status.html",
         {
@@ -60,6 +111,8 @@ async def status_page(
             "user": user,
             "overall_status": overall_status,
             "analytics": analytics,
+            "insights": insights,
+            "new_this_month": new_this_month,
             "checked_at": datetime.now(UTC),
             "now": datetime.now(UTC),
         },

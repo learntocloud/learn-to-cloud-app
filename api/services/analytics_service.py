@@ -30,6 +30,7 @@ from schemas import (
     VerificationStat,
 )
 from services.content_service import get_all_phases
+from services.phase_requirements_service import get_requirements_for_phase
 from services.progress_service import get_phase_requirements
 
 logger = logging.getLogger(__name__)
@@ -202,7 +203,22 @@ async def _compute_analytics(db: AsyncSession) -> CommunityAnalytics:
         for provider, count in provider_raw
     ]
 
-    completion_rate = 0.0
+    phase_requirements_map: dict[int, tuple[int, int]] = {}
+    for phase in phases:
+        reqs = get_phase_requirements(phase.id)
+        required_steps = reqs.steps if reqs else 0
+        hands_on_reqs = get_requirements_for_phase(phase.id)
+        required_hands_on = len(hands_on_reqs)
+        if required_steps > 0 or required_hands_on > 0:
+            phase_requirements_map[phase.id] = (
+                required_steps,
+                required_hands_on,
+            )
+    if phase_requirements_map and total_users > 0:
+        completers = await repo.get_program_completers(phase_requirements_map)
+        completion_rate = round(completers / total_users * 100, 1)
+    else:
+        completion_rate = 0.0
 
     return CommunityAnalytics(
         total_users=total_users,

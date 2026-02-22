@@ -28,34 +28,47 @@
 
 {% block page_body %}
 
-{# ═══════════════════════════════════════════════════════════
-   COMMUNITY ANALYTICS
-   ═══════════════════════════════════════════════════════════ #}
-
 <div>
 
-    {# ── Key Metrics (2x2 grid, 4-col on wider screens) ── #}
-    <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-8">
-        <div class="p-4 rounded-lg border border-gray-200 dark:border-gray-700 text-center">
+    {# ── Key Metrics ── #}
+    <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
+        <div class="p-5 rounded-xl bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-800/50 border border-gray-200 dark:border-gray-700 text-center">
             <p class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Total Learners</p>
-            <p class="mt-1 text-2xl font-bold text-gray-900 dark:text-white">{{ "{:,}".format(analytics.total_users) }}</p>
+            <p class="mt-1 text-3xl font-bold text-gray-900 dark:text-white" data-count-target="{{ analytics.total_users }}">{{ "{:,}".format(analytics.total_users) }}</p>
         </div>
-        <div class="p-4 rounded-lg border border-gray-200 dark:border-gray-700 text-center">
-            <p class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Active (30d)</p>
-            <p class="mt-1 text-2xl font-bold text-blue-600 dark:text-blue-400">{{ "{:,}".format(analytics.active_learners_30d) }}</p>
+        <div class="p-5 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-900/10 border border-blue-200 dark:border-blue-800 text-center">
+            <p class="text-xs font-medium text-blue-600 dark:text-blue-400 uppercase tracking-wide">Active (30d)</p>
+            <p class="mt-1 text-3xl font-bold text-blue-600 dark:text-blue-400" data-count-target="{{ analytics.active_learners_30d }}">{{ "{:,}".format(analytics.active_learners_30d) }}</p>
+            {% if new_this_month > 0 %}
+            <p class="mt-1 text-xs text-blue-500 dark:text-blue-400/70">↑ {{ "{:,}".format(new_this_month) }} new this month</p>
+            {% endif %}
         </div>
-        <div class="p-4 rounded-lg border border-gray-200 dark:border-gray-700 text-center">
-            <p class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Completion Rate</p>
-            <p class="mt-1 text-2xl font-bold text-purple-600 dark:text-purple-400">{{ analytics.completion_rate }}%</p>
+        <div class="p-5 rounded-xl bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-900/10 border border-purple-200 dark:border-purple-800 text-center">
+            <p class="text-xs font-medium text-purple-600 dark:text-purple-400 uppercase tracking-wide">Completion Rate</p>
+            <p class="mt-1 text-3xl font-bold text-purple-600 dark:text-purple-400">{{ analytics.completion_rate }}%</p>
         </div>
     </div>
 
-    {# ── Phase Funnel (pure HTML bars + Chart.js enhancement) ── #}
+    {# ── Insights Strip ── #}
+    {% if insights %}
+    <div class="grid grid-cols-1 sm:grid-cols-{{ insights | length }} gap-3 mb-8">
+        {% for insight in insights %}
+        <div class="flex items-center gap-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700">
+            <span class="text-lg">{{ insight.icon }}</span>
+            <div>
+                <p class="text-sm font-medium text-gray-900 dark:text-white">{{ insight.text }}</p>
+                <p class="text-xs text-gray-500 dark:text-gray-400">{{ insight.detail }}</p>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {# ── Learning Funnel ── #}
     <div class="mb-8 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
         <h3 class="text-base font-semibold text-gray-900 dark:text-white mb-1">Learning Funnel</h3>
         <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">Everyone starts at Phase 1. This shows how far people get — the taller the bar, the more learners made it to that phase.</p>
         {% if analytics.phase_distribution %}
-        {# HTML fallback bars (always visible, hidden when Chart.js loads) #}
         {% set max_reached = analytics.phase_distribution | map(attribute='users_reached') | max or 1 %}
         <div id="funnelFallback" class="space-y-3">
             {% for p in analytics.phase_distribution %}
@@ -75,7 +88,6 @@
                 <span class="flex items-center gap-1"><span class="h-2.5 w-2.5 rounded-sm bg-green-500"></span> Completed Steps</span>
             </div>
         </div>
-        {# Canvas for Chart.js (hidden until JS loads) #}
         <div id="funnelChartWrap" class="h-64 hidden">
             <canvas id="funnelChart"></canvas>
         </div>
@@ -84,12 +96,66 @@
         {% endif %}
     </div>
 
-    {# ── Growth Trends (pure HTML fallback + Chart.js) ── #}
+    {# ── Phase Difficulty + Cloud Providers (side-by-side) ── #}
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+
+        {# ── Phase Difficulty (pass rates) ── #}
+        {% if analytics.verification_stats %}
+        <div class="p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+            <h3 class="text-base font-semibold text-gray-900 dark:text-white mb-1">Phase Difficulty</h3>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">Pass rates for hands-on verification challenges.</p>
+            <div id="verificationFallback" class="space-y-3">
+                {% for v in analytics.verification_stats %}
+                {% if v.total_attempts > 0 %}
+                <div>
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="text-xs font-medium text-gray-700 dark:text-gray-300 truncate">{{ v.phase_name }}</span>
+                        <span class="text-xs font-semibold {% if v.pass_rate >= 70 %}text-green-600 dark:text-green-400{% elif v.pass_rate >= 40 %}text-yellow-600 dark:text-yellow-400{% else %}text-red-600 dark:text-red-400{% endif %}">{{ v.pass_rate }}%</span>
+                    </div>
+                    <div class="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                        <div class="h-full rounded-full {% if v.pass_rate >= 70 %}bg-green-500{% elif v.pass_rate >= 40 %}bg-yellow-500{% else %}bg-red-500{% endif %}" style="width: {{ v.pass_rate }}%"></div>
+                    </div>
+                    <p class="mt-0.5 text-xs text-gray-400 dark:text-gray-500">{{ "{:,}".format(v.total_attempts) }} attempts</p>
+                </div>
+                {% endif %}
+                {% endfor %}
+            </div>
+            <div id="verificationChartWrap" class="h-48 hidden">
+                <canvas id="verificationChart"></canvas>
+            </div>
+        </div>
+        {% endif %}
+
+        {# ── Cloud Providers (doughnut) ── #}
+        {% if analytics.provider_distribution %}
+        <div class="p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+            <h3 class="text-base font-semibold text-gray-900 dark:text-white mb-1">Cloud Providers</h3>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">Which cloud platforms learners are using.</p>
+            {% set total_submissions = analytics.provider_distribution | map(attribute='count') | sum %}
+            <div id="providersFallback" class="space-y-2">
+                {% for p in analytics.provider_distribution %}
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <span class="h-3 w-3 rounded-full {% if p.provider == 'aws' %}bg-orange-500{% elif p.provider == 'azure' %}bg-blue-500{% elif p.provider == 'gcp' %}bg-red-500{% else %}bg-gray-400{% endif %}"></span>
+                        <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ p.provider | upper }}</span>
+                    </div>
+                    <span class="text-sm text-gray-500 dark:text-gray-400">{{ p.count }} ({{ (p.count / total_submissions * 100) | round | int }}%)</span>
+                </div>
+                {% endfor %}
+            </div>
+            <div id="providersChartWrap" class="h-48 hidden">
+                <canvas id="providersChart"></canvas>
+            </div>
+        </div>
+        {% endif %}
+
+    </div>
+
+    {# ── Community Growth ── #}
     <div class="mb-8 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
         <h3 class="text-base font-semibold text-gray-900 dark:text-white mb-1">Community Growth</h3>
         <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">How the community is growing over time — each month shows how many people have joined and how many finished the whole program.</p>
         {% if analytics.signup_trends %}
-        {# HTML fallback table #}
         <div id="growthFallback">
             <div class="overflow-x-auto">
                 <table class="w-full text-xs">
@@ -112,7 +178,6 @@
                 </table>
             </div>
         </div>
-        {# Canvas for Chart.js #}
         <div id="growthChartWrap" class="h-64 hidden">
             <canvas id="growthChart"></canvas>
         </div>
@@ -120,6 +185,26 @@
         <p class="text-sm text-gray-400 dark:text-gray-500 text-center py-8">No data yet</p>
         {% endif %}
     </div>
+
+    {# ── Weekly Activity ── #}
+    {% if analytics.activity_by_day %}
+    {% set max_completions = analytics.activity_by_day | map(attribute='completions') | max or 1 %}
+    <div class="mb-8 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+        <h3 class="text-base font-semibold text-gray-900 dark:text-white mb-1">Weekly Rhythm</h3>
+        <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">When the community learns — step completions by day of week.</p>
+        <div id="activityFallback" class="flex items-end justify-between gap-1 h-32">
+            {% for d in analytics.activity_by_day %}
+            <div class="flex-1 flex flex-col items-center gap-1">
+                <div class="w-full bg-blue-500/80 dark:bg-blue-400/70 rounded-t-sm" style="height: {{ (d.completions / max_completions * 100) | round }}%" title="{{ d.completions }} completions"></div>
+                <span class="text-xs text-gray-500 dark:text-gray-400">{{ d.day_name[:3] }}</span>
+            </div>
+            {% endfor %}
+        </div>
+        <div id="activityChartWrap" class="h-48 hidden">
+            <canvas id="activityChart"></canvas>
+        </div>
+    </div>
+    {% endif %}
 
 </div>
 
@@ -130,7 +215,8 @@
 </div>
 
 {# ── Chart data + initialization ── #}
-{% if analytics.phase_distribution or analytics.signup_trends %}
+{% set has_chart_data = analytics.phase_distribution or analytics.signup_trends or analytics.verification_stats or analytics.provider_distribution or analytics.activity_by_day %}
+{% if has_chart_data %}
 <script id="chart-data" type="application/json">
 {
     {% if analytics.phase_distribution %}
@@ -138,14 +224,33 @@
         "labels": [{% for p in analytics.phase_distribution %}"{{ p.phase_name }}"{% if not loop.last %}, {% endif %}{% endfor %}],
         "reached": [{% for p in analytics.phase_distribution %}{{ p.users_reached }}{% if not loop.last %}, {% endif %}{% endfor %}],
         "completed": [{% for p in analytics.phase_distribution %}{{ p.users_completed_steps }}{% if not loop.last %}, {% endif %}{% endfor %}]
-    }{% if analytics.signup_trends %},{% endif %}
+    },
     {% endif %}
     {% if analytics.signup_trends %}
     "growth": {
         "labels": [{% for t in analytics.signup_trends %}"{{ t.month }}"{% if not loop.last %}, {% endif %}{% endfor %}],
         "cumulative": [{% for t in analytics.signup_trends %}{{ t.cumulative }}{% if not loop.last %}, {% endif %}{% endfor %}]
-    }
+    },
     {% endif %}
+    {% if analytics.verification_stats %}
+    "verification": {
+        "labels": [{% for v in analytics.verification_stats %}{% if v.total_attempts > 0 %}"{{ v.phase_name }}"{% if not loop.last %}, {% endif %}{% endif %}{% endfor %}],
+        "passRates": [{% for v in analytics.verification_stats %}{% if v.total_attempts > 0 %}{{ v.pass_rate }}{% if not loop.last %}, {% endif %}{% endif %}{% endfor %}]
+    },
+    {% endif %}
+    {% if analytics.provider_distribution %}
+    "providers": {
+        "labels": [{% for p in analytics.provider_distribution %}"{{ p.provider | upper }}"{% if not loop.last %}, {% endif %}{% endfor %}],
+        "counts": [{% for p in analytics.provider_distribution %}{{ p.count }}{% if not loop.last %}, {% endif %}{% endfor %}]
+    },
+    {% endif %}
+    {% if analytics.activity_by_day %}
+    "activity": {
+        "labels": [{% for d in analytics.activity_by_day %}"{{ d.day_name[:3] }}"{% if not loop.last %}, {% endif %}{% endfor %}],
+        "completions": [{% for d in analytics.activity_by_day %}{{ d.completions }}{% if not loop.last %}, {% endif %}{% endfor %}]
+    },
+    {% endif %}
+    "_": 0
 }
 </script>
 <script src="{{ static_url('js/status-charts.js') }}"></script>

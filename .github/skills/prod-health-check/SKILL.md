@@ -1,12 +1,33 @@
 ---
 name: prod-health-check
-description: Check Azure production health — app logs, errors, CPU, memory, database, scaling, and dependencies. Use when user says "check prod", "how's prod", "hows prod doing", "is prod up", "prod status", "health check", "check logs", "any errors?", "how's the app doing?", or "check Azure".
+description: Check Azure production health — app status, errors, latency, database, dependencies. Use when user says "check prod", "how's prod", "hows prod doing", "is prod up", "prod status", "health check", "any errors?", "how's the app doing?", or "check Azure".
 ---
 
 # Production Health Check
 
-Run a lean health check against the Azure deployment using Azure CLI.
-All checks are read-only. Reports on app status, errors, performance, database, scaling, and dependencies.
+10 checks. One verdict. All read-only. Uses Azure CLI.
+
+---
+
+## Overall Verdict Logic
+
+Evaluated top-down, first match wins:
+
+**🔴 Critical** — ANY of:
+- Readiness probe non-200
+- Any 5xx errors in 24h
+- DB CPU > 80% (peak)
+- Fired Sev0 or Sev1 alerts in 24h
+- Container crashes on current revision
+
+**⚠️ Warning** — ANY of:
+- P95 latency > 500ms
+- DB CPU 50–80% (peak) or Memory 70–85% or Storage 70–85%
+- Any failed availability tests in 24h
+- Non-zero unhandled exceptions in 7d
+- Active connections > 80
+
+**✅ Healthy** — none of the above
 
 ---
 
@@ -38,30 +59,22 @@ WORKSPACE_ID=$(az monitor log-analytics workspace show -g "$RG" -n "$LOG_NAME" -
 
 ---
 
-## Step 1: Container App Status
+## Step 1: Container App Status + Live Readiness Probe
 
 ```bash
 az containerapp show -n $CA_NAME -g $RG \
   --query "{provisioningState:properties.provisioningState, runningStatus:properties.runningStatus, latestRevision:properties.latestRevisionName, fqdn:properties.configuration.ingress.fqdn, minReplicas:properties.template.scale.minReplicas, maxReplicas:properties.template.scale.maxReplicas}" \
   -o json
-```
 
-**Look for**: `provisioningState: Succeeded`, `runningStatus: Running`, replica count ≥ 1.
-
----
-
-## Step 1b: Live Readiness Probe
-
-```bash
 FQDN=$(az containerapp show -n $CA_NAME -g $RG --query properties.configuration.ingress.fqdn -o tsv)
 curl -s --max-time 5 -o /dev/null -w "ready_status=%{http_code} response_time=%{time_total}s\n" "https://$FQDN/ready"
 ```
 
-**Look for**: `ready_status=200`. If 503, the app reports itself as not ready (check DB connectivity or init errors). Response time > 2s is a warning.
+**Look for**: `provisioningState: Succeeded`, `runningStatus: Running`, replica count ≥ 1. `ready_status=200`. If 503, the app reports itself as not ready (check DB connectivity or init errors). Response time > 2s is a warning.
 
 ---
 
-## Step 1c: Availability (Synthetic Uptime Test)
+## Step 2: Availability Tests (24h)
 
 ```bash
 az monitor app-insights query --app $APPI_NAME -g $RG --offset P1D --analytics-query "
@@ -75,38 +88,21 @@ availabilityResults
 
 ---
 
-## Step 2: Request Volume & Latency (24h)
+## Step 3: Request Latency P95 (24h)
 
 ```bash
 az monitor app-insights query --app $APPI_NAME -g $RG --offset P1D --analytics-query "
 requests
 | where timestamp > ago(24h)
-| summarize total=count(), failed=countif(success == false), p95=percentile(duration,95)
+| summarize p95=percentile(duration, 95)
 " --query "tables[0].rows[0]" -o tsv
 ```
 
-**Look for**: `failed` near zero, P95 under 500ms, consistent volume.
+**Look for**: P95 under 500ms.
 
 ---
 
-## Step 2b: Per-Endpoint Latency (24h)
-
-```bash
-az monitor app-insights query --app $APPI_NAME -g $RG --offset P1D --analytics-query "
-requests
-| where timestamp > ago(24h)
-| summarize P95=percentile(duration, 95), Count=count() by name
-| where Count > 10
-| order by P95 desc
-| take 10
-" --query "tables[0].rows" -o tsv
-```
-
-**Look for**: Any endpoint with P95 > 500ms deserves investigation. Exclude `/health` (always fast, skews aggregate).
-
----
-
-## Step 3: HTTP Errors (24h)
+## Step 4: HTTP Errors (24h)
 
 ```bash
 az monitor app-insights query --app $APPI_NAME -g $RG --offset P1D --analytics-query "
@@ -122,7 +118,7 @@ requests
 
 ---
 
-## Step 3b: Error Rate Trend (7d)
+## Step 5: Error Rate Trend (7d)
 
 ```bash
 az monitor app-insights query --app $APPI_NAME -g $RG --offset P7D --analytics-query "
@@ -138,7 +134,7 @@ requests
 
 ---
 
-## Step 4: Exceptions (7d)
+## Step 6: Unhandled Exceptions (7d)
 
 **Important**: `az monitor app-insights query` has a default server-side time range of ~1 hour. You **must** pass `--offset P7D` to access 7 days of data — the `where timestamp > ago(7d)` in KQL alone is not sufficient.
 
@@ -156,43 +152,7 @@ exceptions
 
 ---
 
-## Step 5: Container System Events (24h)
-
-```bash
-az monitor log-analytics query --workspace "$WORKSPACE_ID" --analytics-query "
-ContainerAppSystemLogs_CL
-| where TimeGenerated > ago(24h)
-| summarize count() by Reason_s, Type_s
-| order by count_ desc
-" -o tsv
-
-# Filter to current revision only
-CURRENT_REVISION=$(az containerapp show -n $CA_NAME -g $RG --query properties.latestRevisionName -o tsv)
-az monitor log-analytics query --workspace "$WORKSPACE_ID" --analytics-query "
-ContainerAppSystemLogs_CL
-| where TimeGenerated > ago(24h) and RevisionName_s == '$CURRENT_REVISION'
-| summarize Count=count() by Reason_s, Type_s
-| order by Count desc
-" -o tsv
-```
-
-**Look for**: `ContainerCrashing` or `ReplicaUnhealthy` on the current revision is concerning. On old revisions during iterative deploys, it's expected.
-
----
-
-## Step 5b: Recent Deployments
-
-```bash
-az containerapp revision list -n $CA_NAME -g $RG \
-  --query "reverse(sort_by([].{name:name, active:properties.active, created:properties.createdTime, state:properties.runningState}, &created)) | [:5]" \
-  -o table
-```
-
-**Look for**: Revisions in `Failed` state, revisions created in the last few hours (recent deploys), inactive revisions with `Stopped` state (normal cleanup).
-
----
-
-## Step 6: Database Metrics (24h)
+## Step 7: Database Metrics (24h)
 
 ```bash
 # Current averages
@@ -226,7 +186,7 @@ az monitor metrics list --resource "$PSQL_RESOURCE_ID" \
 
 ---
 
-## Step 7: Dependency Health (24h)
+## Step 8: Dependency Health (24h)
 
 ```bash
 az monitor app-insights query --app $APPI_NAME -g $RG --offset P1D --analytics-query "
@@ -242,17 +202,23 @@ dependencies
 
 ---
 
-## Step 8: Console Logs
+## Step 9: Container Stability (24h)
 
 ```bash
-az containerapp logs show -n $CA_NAME -g $RG --type console --tail 20
+CURRENT_REVISION=$(az containerapp show -n $CA_NAME -g $RG --query properties.latestRevisionName -o tsv)
+az monitor log-analytics query --workspace "$WORKSPACE_ID" --analytics-query "
+ContainerAppSystemLogs_CL
+| where TimeGenerated > ago(24h) and RevisionName_s == '$CURRENT_REVISION'
+| summarize Count=count() by Reason_s, Type_s
+| order by Count desc
+" -o tsv
 ```
 
-**Look for**: Only `info` level structured logs. Healthy patterns: `analytics.refreshed`, `step.completed`, `dashboard.built`. Unhealthy: Python tracebacks, `ERROR` logs, connection errors.
+**Look for**: `ContainerCrashing` or `ReplicaUnhealthy` on the current revision is concerning. Events on old revisions during iterative deploys are expected — this query filters to the current revision only.
 
 ---
 
-## Step 9: Fired Alerts (24h)
+## Step 10: Fired Alerts (24h)
 
 ```bash
 az monitor activity-log list --resource-group $RG \
@@ -261,6 +227,8 @@ az monitor activity-log list --resource-group $RG \
   --query "[?contains(operationName.value, 'microsoft.insights/metricalerts') || contains(operationName.value, 'microsoft.insights/scheduledqueryrules')].{time:eventTimestamp, operation:operationName.localizedValue}" \
   -o tsv
 ```
+
+**Look for**: Any activated alerts. Cross-reference with the verdict logic — Sev0/Sev1 alerts trigger 🔴 Critical.
 
 ---
 
@@ -273,89 +241,32 @@ Present findings in this format:
 
 ### Overall: ✅ Healthy / ⚠️ Warning / 🔴 Critical
 
-| Category | Status | Details |
-|----------|--------|---------|
-| App Status | ✅/🔴 | Running/Down, {N} replicas, revision {rev} |
-| Readiness Probe | ✅/🔴 | {status_code}, {response_time}s |
-| Availability Test | ✅/⚠️ | {N} tests, {N} failed in 24h |
-| Request Volume | ✅ | {N} requests/24h, P95 {X}ms |
-| Slowest Endpoints | ✅/⚠️ | {endpoint}: P95 {X}ms |
-| HTTP Errors | ✅/⚠️ | {N} 4xx, {N} 5xx |
-| Error Rate Trend | ✅/⚠️ | {stable/rising/falling} over 7d |
-| Exceptions | ✅/⚠️ | {N} in 7d |
-| Container Events | ✅/⚠️ | {details} |
-| Recent Deploys | ✅/⚠️ | {N} revisions in 24h, {N} failed |
-| DB CPU | ✅/⚠️ | Avg {X}%, Peak {X}% |
-| DB Memory | ✅/⚠️ | Avg {X}%, Peak {X}% |
-| DB Storage | ✅ | {X}% used |
-| DB Connections | ✅/⚠️ | Avg {X}, Peak {X} (limit: ~120) |
-| Dependencies | ✅/⚠️ | {type}: {N} calls, {N} failures |
-| Console Logs | ✅/⚠️ | {healthy/errors seen} |
-| Fired Alerts | ✅/⚠️ | {N} in 24h |
+**Verdict reasoning**: {1-2 sentence explanation of why this verdict was chosen, citing the specific check(s) that triggered it}
+
+| # | Check | Status | Details |
+|---|-------|--------|---------|
+| 1 | App Status & Readiness | ✅/🔴 | Running, {N} replicas, ready in {X}s |
+| 2 | Availability Tests | ✅/⚠️ | {N} tests, {N} failed in 24h |
+| 3 | Request Latency (P95) | ✅/⚠️ | {X}ms (threshold: 500ms) |
+| 4 | HTTP Errors | ✅/🔴 | {N} 4xx, {N} 5xx in 24h |
+| 5 | Error Rate Trend | ✅/⚠️ | {stable/rising/falling} over 7d |
+| 6 | Exceptions | ✅/⚠️ | {N} unique in 7d, top: {type} |
+| 7 | Database | ✅/⚠️/🔴 | CPU {X}%, Mem {X}%, Storage {X}%, Conn {X} |
+| 8 | Dependencies | ✅/⚠️ | {type}: {N} calls, {N} failures |
+| 9 | Container Stability | ✅/⚠️ | Current rev: {rev}, {N} crashes |
+| 10 | Fired Alerts | ✅/🔴 | {N} in 24h |
 
 ### ⚠️ Items to Watch
-- {any warnings}
+- {any warnings — omit section if none}
 
 ### 🔴 Action Required
-- {any critical issues}
+- {any critical issues — omit section if none}
 ```
-
----
-
-## Deep Investigation (only when explicitly requested)
-
-### Container Event Drill-Down
-
-If `ReplicaUnhealthy` appears on the current revision, pull console logs around the event:
-
-```bash
-LAST_UNHEALTHY=$(az monitor log-analytics query --workspace "$WORKSPACE_ID" --analytics-query "
-ContainerAppSystemLogs_CL
-| extend reason=trim(' ', tostring(Reason_s))
-| where TimeGenerated > ago(24h) and RevisionName_s == '$CURRENT_REVISION' and reason == 'ReplicaUnhealthy'
-| top 1 by TimeGenerated desc
-| project TimeGenerated
-" --query "[0].TimeGenerated" -o tsv 2>/dev/null || true)
-
-if [ -n "$LAST_UNHEALTHY" ]; then
-  echo "ReplicaUnhealthy last seen: $LAST_UNHEALTHY"
-  az monitor log-analytics query --workspace "$WORKSPACE_ID" --analytics-query "
-  ContainerAppConsoleLogs_CL
-  | where TimeGenerated between (datetime_add('minute', -30, todatetime('$LAST_UNHEALTHY')) .. datetime_add('minute', 30, todatetime('$LAST_UNHEALTHY')))
-  | project TimeGenerated, Log_s
-  | order by TimeGenerated desc
-  | take 50
-  " -o table
-fi
-```
-
-### User & Engagement Stats (Database Query)
-
-Only run when user asks for user counts or engagement metrics. Requires firewall rule.
-
-```bash
-MY_IP=$(curl -s ifconfig.me)
-az postgres flexible-server firewall-rule create \
-  --resource-group $RG --name $PSQL_NAME \
-  --rule-name AllowMyIP --start-ip-address $MY_IP --end-ip-address $MY_IP 2>/dev/null || true
-
-TOKEN=$(az account get-access-token --resource-type oss-rdbms --query accessToken -o tsv)
-ADMIN_USER=$(az ad signed-in-user show --query displayName -o tsv)
-
-az postgres flexible-server execute \
-  --name $PSQL_NAME \
-  --admin-user "$ADMIN_USER" --admin-password "$TOKEN" \
-  --database-name learntocloud \
-  --querytext "SELECT 'total_users' as metric, COUNT(*)::text as value FROM users UNION ALL SELECT 'users_with_github', COUNT(*)::text FROM users WHERE github_username IS NOT NULL UNION ALL SELECT 'users_with_submissions', COUNT(DISTINCT user_id)::text FROM submissions UNION ALL SELECT 'total_submissions', COUNT(*)::text FROM submissions;" \
-  -o json
-```
-
-**Note**: Requires `rdbms-connect` extension: `az extension add --name rdbms-connect --yes`.
 
 ---
 
 ## Notes
 
 - **`--offset` is required for App Insights queries**: `az monitor app-insights query` defaults to a ~1 hour server-side time range. Always pass `--offset P1D` (or `P7D`) to access the full time window. The `where timestamp > ago(...)` KQL clause filters within the window but doesn't expand it.
-- **Date commands**: Step 6 uses `date -u -v-24H` (macOS). On Linux: `date -u --date='24 hours ago'`.
-- **Old revision events**: High `ContainerCrashing`/`ReplicaUnhealthy` on old revisions during iterative deploys is normal. Only current revision warnings matter.
+- **Date commands**: Step 7 uses `date -u -v-24H` (macOS). On Linux: `date -u --date='24 hours ago'`.
+- **Old revision events**: Step 9 filters to the current revision only. `ContainerCrashing`/`ReplicaUnhealthy` on old revisions during iterative deploys is normal and excluded.
