@@ -58,15 +58,19 @@ class TestPreValidateSubmission:
         mock_existing = MagicMock()
         mock_existing.is_validated = True
 
-        with patch(
-            "services.submissions_service.get_requirement_by_id",
-            return_value=mock_req,
-        ), patch(
-            "services.submissions_service.get_phase_id_for_requirement",
-            return_value=3,
-        ), patch(
-            "services.submissions_service.SubmissionRepository",
-        ) as MockRepo:
+        with (
+            patch(
+                "services.submissions_service.get_requirement_by_id",
+                return_value=mock_req,
+            ),
+            patch(
+                "services.submissions_service.get_phase_id_for_requirement",
+                return_value=3,
+            ),
+            patch(
+                "services.submissions_service.SubmissionRepository",
+            ) as MockRepo,
+        ):
             repo = MockRepo.return_value
             repo.get_by_user_and_requirement = AsyncMock(return_value=mock_existing)
 
@@ -85,18 +89,23 @@ class TestPreValidateSubmission:
         mock_req = MagicMock()
         mock_req.submission_type = "code_analysis"
 
-        with patch(
-            "services.submissions_service.get_requirement_by_id",
-            return_value=mock_req,
-        ), patch(
-            "services.submissions_service.get_phase_id_for_requirement",
-            return_value=3,
-        ), patch(
-            "services.submissions_service.get_prerequisite_phase",
-            return_value=None,
-        ), patch(
-            "services.submissions_service.SubmissionRepository",
-        ) as MockRepo:
+        with (
+            patch(
+                "services.submissions_service.get_requirement_by_id",
+                return_value=mock_req,
+            ),
+            patch(
+                "services.submissions_service.get_phase_id_for_requirement",
+                return_value=3,
+            ),
+            patch(
+                "services.submissions_service.get_prerequisite_phase",
+                return_value=None,
+            ),
+            patch(
+                "services.submissions_service.SubmissionRepository",
+            ) as MockRepo,
+        ):
             repo = MockRepo.return_value
             repo.get_by_user_and_requirement = AsyncMock(return_value=None)
             repo.count_submissions_today = AsyncMock(return_value=0)

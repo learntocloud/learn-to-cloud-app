@@ -13,5 +13,6 @@ Rules:
 - **Keep code clean**: Do not add unnecessary comments or docstrings. Follow existing code style and patterns identified during research.
 - **Strict typing**: Do not use `Any` or untyped escape hatches unless absolutely necessary.
 - **Tests must be real**: Write clean, correct tests. If a test can't be written properly because the underlying code is wrong, document the issue in a separate `implementation-notes.md` and continue. Do not write tests that bandaid or cover up bad code.
+- **Verify library APIs**: If you're unsure whether a library method or parameter exists, use context7 to check before writing the code. Don't guess.
 
 By the time we're here, every decision has already been made in the plan. Implementation should be mechanical, not creative. Execute the plan.

@@ -39,11 +39,15 @@ class TestLoginRoute:
         request = _mock_request()
         mock_github = MagicMock()
         mock_github.authorize_redirect = AsyncMock(
-            return_value=RedirectResponse(url="https://github.com/login/oauth/authorize")
+            return_value=RedirectResponse(
+                url="https://github.com/login/oauth/authorize"
+            )
         )
 
-        with patch("routes.auth_routes.oauth") as mock_oauth, \
-             patch("routes.auth_routes.get_settings") as mock_settings:
+        with (
+            patch("routes.auth_routes.oauth") as mock_oauth,
+            patch("routes.auth_routes.get_settings") as mock_settings,
+        ):
             mock_settings.return_value.require_https = False
             mock_oauth.create_client.return_value = mock_github
 
@@ -60,11 +64,15 @@ class TestLoginRoute:
         request = _mock_request()
         mock_github = MagicMock()
         mock_github.authorize_redirect = AsyncMock(
-            return_value=RedirectResponse(url="https://github.com/login/oauth/authorize")
+            return_value=RedirectResponse(
+                url="https://github.com/login/oauth/authorize"
+            )
         )
 
-        with patch("routes.auth_routes.oauth") as mock_oauth, \
-             patch("routes.auth_routes.get_settings") as mock_settings:
+        with (
+            patch("routes.auth_routes.oauth") as mock_oauth,
+            patch("routes.auth_routes.get_settings") as mock_settings,
+        ):
             mock_settings.return_value.require_https = True
             mock_oauth.create_client.return_value = mock_github
 
@@ -79,8 +87,10 @@ class TestLoginRoute:
         """When GitHub OAuth is not configured, redirects to /."""
         request = _mock_request()
 
-        with patch("routes.auth_routes.oauth") as mock_oauth, \
-             patch("routes.auth_routes.get_settings") as mock_settings:
+        with (
+            patch("routes.auth_routes.oauth") as mock_oauth,
+            patch("routes.auth_routes.get_settings") as mock_settings,
+        ):
             mock_settings.return_value.require_https = False
             mock_oauth.create_client.return_value = None
 
@@ -118,12 +128,14 @@ class TestCallbackRoute:
         mock_user.id = 42
         mock_user.github_username = "testuser"
 
-        with patch("routes.auth_routes.oauth") as mock_oauth, \
-             patch(
-                 "routes.auth_routes.get_or_create_user_from_github",
-                 autospec=True,
-                 return_value=mock_user,
-             ) as mock_get_or_create:
+        with (
+            patch("routes.auth_routes.oauth") as mock_oauth,
+            patch(
+                "routes.auth_routes.get_or_create_user_from_github",
+                autospec=True,
+                return_value=mock_user,
+            ) as mock_get_or_create,
+        ):
             mock_oauth.create_client.return_value = mock_github
 
             result = await callback(request, mock_db)
@@ -232,12 +244,14 @@ class TestCallbackRoute:
         mock_user.id = 1
         mock_user.github_username = "mixedcase"
 
-        with patch("routes.auth_routes.oauth") as mock_oauth, \
-             patch(
-                 "routes.auth_routes.get_or_create_user_from_github",
-                 autospec=True,
-                 return_value=mock_user,
-             ) as mock_get_or_create:
+        with (
+            patch("routes.auth_routes.oauth") as mock_oauth,
+            patch(
+                "routes.auth_routes.get_or_create_user_from_github",
+                autospec=True,
+                return_value=mock_user,
+            ) as mock_get_or_create,
+        ):
             mock_oauth.create_client.return_value = mock_github
 
             await callback(request, mock_db)

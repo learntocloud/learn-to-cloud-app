@@ -17,6 +17,7 @@ The plan must include:
 - **Code snippets**: Show the actual changes — not pseudocode, real code based on our existing patterns
 - **Trade-offs**: What alternatives were considered and why they were rejected
 - **Risks & edge cases**: What could go wrong and how we handle it
+- **API verification**: When the plan includes code snippets that use external libraries, use context7 to verify the APIs exist in the current version. Do not propose code that uses deprecated or non-existent methods.
 - **Todo list**: A granular, checkable task breakdown with all phases and individual tasks needed to complete the plan
 
 I will review this plan in my editor and add inline notes to correct assumptions, reject approaches, or add constraints. When I send you back to the document, address all my notes and update the plan accordingly.

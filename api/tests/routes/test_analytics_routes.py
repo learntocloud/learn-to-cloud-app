@@ -66,14 +66,17 @@ class TestStatusPage:
         mock_db = AsyncMock()
         analytics = _make_analytics()
 
-        with patch(
-            "routes.analytics_routes.comprehensive_health_check",
-            autospec=True,
-            return_value={"database": True, "azure_auth": None, "pool": None},
-        ), patch(
-            "routes.analytics_routes.get_community_analytics",
-            autospec=True,
-            return_value=analytics,
+        with (
+            patch(
+                "routes.analytics_routes.comprehensive_health_check",
+                autospec=True,
+                return_value={"database": True, "azure_auth": None, "pool": None},
+            ),
+            patch(
+                "routes.analytics_routes.get_community_analytics",
+                autospec=True,
+                return_value=analytics,
+            ),
         ):
             await status_page(request, mock_db, user_id=None)
 
@@ -97,18 +100,22 @@ class TestStatusPage:
         mock_user = MagicMock()
         mock_user.id = 42
 
-        with patch(
-            "routes.analytics_routes.comprehensive_health_check",
-            autospec=True,
-            return_value={"database": True, "azure_auth": None, "pool": None},
-        ), patch(
-            "routes.analytics_routes.get_community_analytics",
-            autospec=True,
-            return_value=analytics,
-        ), patch(
-            "routes.analytics_routes.get_user_by_id",
-            autospec=True,
-            return_value=mock_user,
+        with (
+            patch(
+                "routes.analytics_routes.comprehensive_health_check",
+                autospec=True,
+                return_value={"database": True, "azure_auth": None, "pool": None},
+            ),
+            patch(
+                "routes.analytics_routes.get_community_analytics",
+                autospec=True,
+                return_value=analytics,
+            ),
+            patch(
+                "routes.analytics_routes.get_user_by_id",
+                autospec=True,
+                return_value=mock_user,
+            ),
         ):
             await status_page(request, mock_db, user_id=42)
 
@@ -122,14 +129,17 @@ class TestStatusPage:
         mock_db = AsyncMock()
         analytics = _make_analytics()
 
-        with patch(
-            "routes.analytics_routes.comprehensive_health_check",
-            autospec=True,
-            return_value={"database": False, "azure_auth": None, "pool": None},
-        ), patch(
-            "routes.analytics_routes.get_community_analytics",
-            autospec=True,
-            return_value=analytics,
+        with (
+            patch(
+                "routes.analytics_routes.comprehensive_health_check",
+                autospec=True,
+                return_value={"database": False, "azure_auth": None, "pool": None},
+            ),
+            patch(
+                "routes.analytics_routes.get_community_analytics",
+                autospec=True,
+                return_value=analytics,
+            ),
         ):
             await status_page(request, mock_db, user_id=None)
 
@@ -143,14 +153,17 @@ class TestStatusPage:
         mock_db = AsyncMock()
         analytics = _make_analytics()
 
-        with patch(
-            "routes.analytics_routes.comprehensive_health_check",
-            autospec=True,
-            return_value={"database": True, "azure_auth": False, "pool": None},
-        ), patch(
-            "routes.analytics_routes.get_community_analytics",
-            autospec=True,
-            return_value=analytics,
+        with (
+            patch(
+                "routes.analytics_routes.comprehensive_health_check",
+                autospec=True,
+                return_value={"database": True, "azure_auth": False, "pool": None},
+            ),
+            patch(
+                "routes.analytics_routes.get_community_analytics",
+                autospec=True,
+                return_value=analytics,
+            ),
         ):
             await status_page(request, mock_db, user_id=None)
 
@@ -164,14 +177,17 @@ class TestStatusPage:
         mock_db = AsyncMock()
         analytics = _make_analytics()
 
-        with patch(
-            "routes.analytics_routes.comprehensive_health_check",
-            autospec=True,
-            return_value={"database": True, "azure_auth": None, "pool": None},
-        ), patch(
-            "routes.analytics_routes.get_community_analytics",
-            autospec=True,
-            return_value=analytics,
+        with (
+            patch(
+                "routes.analytics_routes.comprehensive_health_check",
+                autospec=True,
+                return_value={"database": True, "azure_auth": None, "pool": None},
+            ),
+            patch(
+                "routes.analytics_routes.get_community_analytics",
+                autospec=True,
+                return_value=analytics,
+            ),
         ):
             await status_page(request, mock_db, user_id=None)
 
@@ -184,14 +200,17 @@ class TestStatusPage:
         request.app.state.engine = MagicMock()
         mock_db = AsyncMock()
 
-        with patch(
-            "routes.analytics_routes.comprehensive_health_check",
-            autospec=True,
-            return_value={"database": True, "azure_auth": None, "pool": None},
-        ), patch(
-            "routes.analytics_routes.get_community_analytics",
-            autospec=True,
-            side_effect=RuntimeError("DB exploded"),
+        with (
+            patch(
+                "routes.analytics_routes.comprehensive_health_check",
+                autospec=True,
+                return_value={"database": True, "azure_auth": None, "pool": None},
+            ),
+            patch(
+                "routes.analytics_routes.get_community_analytics",
+                autospec=True,
+                side_effect=RuntimeError("DB exploded"),
+            ),
         ):
             await status_page(request, mock_db, user_id=None)
 

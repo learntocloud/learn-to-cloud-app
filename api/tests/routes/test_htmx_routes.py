@@ -26,7 +26,6 @@ from routes.htmx_routes import (
 from services.steps_service import StepValidationError
 from services.submissions_service import (
     AlreadyValidatedError,
-    CooldownActiveError,
     DailyLimitExceededError,
     GitHubUsernameRequiredError,
     RequirementNotFoundError,
@@ -68,15 +67,29 @@ class TestHtmxCompleteStep:
         mock_step.id = "step-1"
         mock_topic.learning_steps = [mock_step]
 
-        with patch("routes.htmx_routes.complete_step", autospec=True) as mock_complete, \
-             patch("routes.htmx_routes.get_topic_by_id", return_value=mock_topic), \
-             patch("routes.htmx_routes.get_user_by_id", autospec=True, return_value=MagicMock()), \
-             patch("routes.htmx_routes.get_valid_completed_steps", autospec=True, return_value=["step-1"]), \
-             patch("routes.htmx_routes.build_step_data", return_value=MagicMock()), \
-             patch("routes.htmx_routes.build_progress_dict", return_value={}):
+        with (
+            patch("routes.htmx_routes.complete_step", autospec=True) as mock_complete,
+            patch("routes.htmx_routes.get_topic_by_id", return_value=mock_topic),
+            patch(
+                "routes.htmx_routes.get_user_by_id",
+                autospec=True,
+                return_value=MagicMock(),
+            ),
+            patch(
+                "routes.htmx_routes.get_valid_completed_steps",
+                autospec=True,
+                return_value=["step-1"],
+            ),
+            patch("routes.htmx_routes.build_step_data", return_value=MagicMock()),
+            patch("routes.htmx_routes.build_progress_dict", return_value={}),
+        ):
             result = await htmx_complete_step(
-                request, mock_db, user_id=1,
-                topic_id="topic-1", step_id="step-1", phase_id=1,
+                request,
+                mock_db,
+                user_id=1,
+                topic_id="topic-1",
+                step_id="step-1",
+                phase_id=1,
             )
 
         mock_complete.assert_awaited_once_with(mock_db, 1, "topic-1", "step-1")
@@ -93,8 +106,12 @@ class TestHtmxCompleteStep:
             side_effect=StepValidationError("step not found"),
         ):
             result = await htmx_complete_step(
-                request, mock_db, user_id=1,
-                topic_id="topic-1", step_id="bad-step", phase_id=1,
+                request,
+                mock_db,
+                user_id=1,
+                topic_id="topic-1",
+                step_id="bad-step",
+                phase_id=1,
             )
 
         assert result.headers.get("HX-Refresh") == "true"
@@ -113,15 +130,31 @@ class TestHtmxUncompleteStep:
         mock_step.id = "step-1"
         mock_topic.learning_steps = [mock_step]
 
-        with patch("routes.htmx_routes.uncomplete_step", autospec=True) as mock_uncomplete, \
-             patch("routes.htmx_routes.parse_phase_id_from_topic_id", return_value=1), \
-             patch("routes.htmx_routes.get_topic_by_id", return_value=mock_topic), \
-             patch("routes.htmx_routes.get_user_by_id", autospec=True, return_value=MagicMock()), \
-             patch("routes.htmx_routes.get_valid_completed_steps", autospec=True, return_value=[]), \
-             patch("routes.htmx_routes.build_step_data", return_value=MagicMock()), \
-             patch("routes.htmx_routes.build_progress_dict", return_value={}):
+        with (
+            patch(
+                "routes.htmx_routes.uncomplete_step", autospec=True
+            ) as mock_uncomplete,
+            patch("routes.htmx_routes.parse_phase_id_from_topic_id", return_value=1),
+            patch("routes.htmx_routes.get_topic_by_id", return_value=mock_topic),
+            patch(
+                "routes.htmx_routes.get_user_by_id",
+                autospec=True,
+                return_value=MagicMock(),
+            ),
+            patch(
+                "routes.htmx_routes.get_valid_completed_steps",
+                autospec=True,
+                return_value=[],
+            ),
+            patch("routes.htmx_routes.build_step_data", return_value=MagicMock()),
+            patch("routes.htmx_routes.build_progress_dict", return_value={}),
+        ):
             result = await htmx_uncomplete_step(
-                request, "topic-1", "step-1", mock_db, user_id=1,
+                request,
+                "topic-1",
+                "step-1",
+                mock_db,
+                user_id=1,
             )
 
         mock_uncomplete.assert_awaited_once_with(mock_db, 1, "topic-1", "step-1")
@@ -138,7 +171,11 @@ class TestHtmxUncompleteStep:
             side_effect=StepValidationError("step not found"),
         ):
             result = await htmx_uncomplete_step(
-                request, "topic-1", "bad-step", mock_db, user_id=1,
+                request,
+                "topic-1",
+                "bad-step",
+                mock_db,
+                user_id=1,
             )
 
         assert result.headers.get("HX-Refresh") == "true"
@@ -153,16 +190,25 @@ class TestHtmxSubmitVerification:
         request = _mock_request()
         mock_db = AsyncMock()
 
-        with patch("routes.htmx_routes.get_user_by_id", autospec=True, return_value=MagicMock(github_username="user")), \
-             patch("routes.htmx_routes.get_requirement_by_id", return_value=MagicMock()), \
-             patch(
-                 "routes.htmx_routes.submit_validation",
-                 autospec=True,
-                 side_effect=RequirementNotFoundError("bad-req"),
-             ):
+        with (
+            patch(
+                "routes.htmx_routes.get_user_by_id",
+                autospec=True,
+                return_value=MagicMock(github_username="user"),
+            ),
+            patch("routes.htmx_routes.get_requirement_by_id", return_value=MagicMock()),
+            patch(
+                "routes.htmx_routes.submit_validation",
+                autospec=True,
+                side_effect=RequirementNotFoundError("bad-req"),
+            ),
+        ):
             result = await htmx_submit_verification(
-                request, mock_db, user_id=1,
-                requirement_id="bad-req", submitted_value="test",
+                request,
+                mock_db,
+                user_id=1,
+                requirement_id="bad-req",
+                submitted_value="test",
             )
 
         assert result.status_code == 404
@@ -172,16 +218,25 @@ class TestHtmxSubmitVerification:
         request = _mock_request()
         mock_db = AsyncMock()
 
-        with patch("routes.htmx_routes.get_user_by_id", autospec=True, return_value=MagicMock(github_username="user")), \
-             patch("routes.htmx_routes.get_requirement_by_id", return_value=MagicMock()), \
-             patch(
-                 "routes.htmx_routes.submit_validation",
-                 autospec=True,
-                 side_effect=AlreadyValidatedError(),
-             ):
+        with (
+            patch(
+                "routes.htmx_routes.get_user_by_id",
+                autospec=True,
+                return_value=MagicMock(github_username="user"),
+            ),
+            patch("routes.htmx_routes.get_requirement_by_id", return_value=MagicMock()),
+            patch(
+                "routes.htmx_routes.submit_validation",
+                autospec=True,
+                side_effect=AlreadyValidatedError(),
+            ),
+        ):
             result = await htmx_submit_verification(
-                request, mock_db, user_id=1,
-                requirement_id="req-1", submitted_value="test",
+                request,
+                mock_db,
+                user_id=1,
+                requirement_id="req-1",
+                submitted_value="test",
             )
 
         assert result.status_code == 200
@@ -197,16 +252,25 @@ class TestHtmxSubmitVerification:
             existing_submission=MagicMock(),
         )
 
-        with patch("routes.htmx_routes.get_user_by_id", autospec=True, return_value=MagicMock(github_username="user")), \
-             patch("routes.htmx_routes.get_requirement_by_id", return_value=MagicMock()), \
-             patch(
-                 "routes.htmx_routes.submit_validation",
-                 autospec=True,
-                 side_effect=exc,
-             ):
+        with (
+            patch(
+                "routes.htmx_routes.get_user_by_id",
+                autospec=True,
+                return_value=MagicMock(github_username="user"),
+            ),
+            patch("routes.htmx_routes.get_requirement_by_id", return_value=MagicMock()),
+            patch(
+                "routes.htmx_routes.submit_validation",
+                autospec=True,
+                side_effect=exc,
+            ),
+        ):
             result = await htmx_submit_verification(
-                request, mock_db, user_id=1,
-                requirement_id="req-1", submitted_value="test",
+                request,
+                mock_db,
+                user_id=1,
+                requirement_id="req-1",
+                submitted_value="test",
             )
 
         # Should render a card (TemplateResponse), not crash
@@ -217,16 +281,25 @@ class TestHtmxSubmitVerification:
         request = _mock_request()
         mock_db = AsyncMock()
 
-        with patch("routes.htmx_routes.get_user_by_id", autospec=True, return_value=MagicMock(github_username=None)), \
-             patch("routes.htmx_routes.get_requirement_by_id", return_value=MagicMock()), \
-             patch(
-                 "routes.htmx_routes.submit_validation",
-                 autospec=True,
-                 side_effect=GitHubUsernameRequiredError(),
-             ):
+        with (
+            patch(
+                "routes.htmx_routes.get_user_by_id",
+                autospec=True,
+                return_value=MagicMock(github_username=None),
+            ),
+            patch("routes.htmx_routes.get_requirement_by_id", return_value=MagicMock()),
+            patch(
+                "routes.htmx_routes.submit_validation",
+                autospec=True,
+                side_effect=GitHubUsernameRequiredError(),
+            ),
+        ):
             result = await htmx_submit_verification(
-                request, mock_db, user_id=1,
-                requirement_id="req-1", submitted_value="test",
+                request,
+                mock_db,
+                user_id=1,
+                requirement_id="req-1",
+                submitted_value="test",
             )
 
         # Should render without crashing
@@ -244,13 +317,29 @@ class TestHtmxSubmitVerification:
         mock_result.task_results = []
         mock_result.message = "Passed"
 
-        with patch("routes.htmx_routes.get_user_by_id", autospec=True, return_value=MagicMock(github_username="user")), \
-             patch("routes.htmx_routes.get_requirement_by_id", return_value=MagicMock()), \
-             patch("routes.htmx_routes.submit_validation", autospec=True, return_value=mock_result), \
-             patch("routes.htmx_routes.build_feedback_tasks_from_results", return_value=([], 0)):
+        with (
+            patch(
+                "routes.htmx_routes.get_user_by_id",
+                autospec=True,
+                return_value=MagicMock(github_username="user"),
+            ),
+            patch("routes.htmx_routes.get_requirement_by_id", return_value=MagicMock()),
+            patch(
+                "routes.htmx_routes.submit_validation",
+                autospec=True,
+                return_value=mock_result,
+            ),
+            patch(
+                "routes.htmx_routes.build_feedback_tasks_from_results",
+                return_value=([], 0),
+            ),
+        ):
             result = await htmx_submit_verification(
-                request, mock_db, user_id=1,
-                requirement_id="req-1", submitted_value="test",
+                request,
+                mock_db,
+                user_id=1,
+                requirement_id="req-1",
+                submitted_value="test",
             )
 
         assert result.headers.get("HX-Refresh") == "true"
@@ -260,16 +349,25 @@ class TestHtmxSubmitVerification:
         request = _mock_request()
         mock_db = AsyncMock()
 
-        with patch("routes.htmx_routes.get_user_by_id", autospec=True, return_value=MagicMock(github_username="user")), \
-             patch("routes.htmx_routes.get_requirement_by_id", return_value=MagicMock()), \
-             patch(
-                 "routes.htmx_routes.submit_validation",
-                 autospec=True,
-                 side_effect=RuntimeError("boom"),
-             ):
+        with (
+            patch(
+                "routes.htmx_routes.get_user_by_id",
+                autospec=True,
+                return_value=MagicMock(github_username="user"),
+            ),
+            patch("routes.htmx_routes.get_requirement_by_id", return_value=MagicMock()),
+            patch(
+                "routes.htmx_routes.submit_validation",
+                autospec=True,
+                side_effect=RuntimeError("boom"),
+            ),
+        ):
             result = await htmx_submit_verification(
-                request, mock_db, user_id=1,
-                requirement_id="req-1", submitted_value="test",
+                request,
+                mock_db,
+                user_id=1,
+                requirement_id="req-1",
+                submitted_value="test",
             )
 
         # Should render a server error card, not crash

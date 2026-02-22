@@ -36,7 +36,6 @@ from schemas import (
     PhaseSummaryData,
 )
 
-
 # =============================================================================
 # Fixtures
 # =============================================================================
@@ -211,12 +210,15 @@ class TestPublicPageSmoke:
 
     async def test_status_page_renders(self, anon_client: AsyncClient):
         """GET /status renders with mocked health + analytics."""
-        with patch(
-            "routes.analytics_routes.comprehensive_health_check",
-            return_value={"database": True, "azure_auth": None, "pool": None},
-        ), patch(
-            "routes.analytics_routes.get_community_analytics",
-            return_value=_fake_analytics(),
+        with (
+            patch(
+                "routes.analytics_routes.comprehensive_health_check",
+                return_value={"database": True, "azure_auth": None, "pool": None},
+            ),
+            patch(
+                "routes.analytics_routes.get_community_analytics",
+                return_value=_fake_analytics(),
+            ),
         ):
             response = await anon_client.get("/status")
         assert response.status_code == 200
@@ -238,12 +240,15 @@ class TestAuthPageSmoke:
 
     async def test_dashboard_renders(self, auth_client: AsyncClient):
         """GET /dashboard renders the dashboard template."""
-        with patch(
-            "routes.pages_routes.get_user_by_id",
-            return_value=_fake_user(),
-        ), patch(
-            "routes.pages_routes.get_dashboard_data",
-            return_value=_fake_dashboard(),
+        with (
+            patch(
+                "routes.pages_routes.get_user_by_id",
+                return_value=_fake_user(),
+            ),
+            patch(
+                "routes.pages_routes.get_dashboard_data",
+                return_value=_fake_dashboard(),
+            ),
         ):
             response = await auth_client.get("/dashboard")
         assert response.status_code == 200
@@ -277,18 +282,23 @@ class TestAuthPageSmoke:
         mock_sub_context.submissions_by_req = {}
         mock_sub_context.feedback_by_req = {}
 
-        with patch(
-            "routes.pages_routes.get_user_by_id",
-            return_value=_fake_user(),
-        ), patch(
-            "routes.pages_routes.get_phase_detail_progress",
-            return_value=detail,
-        ), patch(
-            "routes.pages_routes.get_phase_submission_context",
-            return_value=mock_sub_context,
-        ), patch(
-            "routes.pages_routes.is_phase_verification_locked",
-            return_value=(False, None),
+        with (
+            patch(
+                "routes.pages_routes.get_user_by_id",
+                return_value=_fake_user(),
+            ),
+            patch(
+                "routes.pages_routes.get_phase_detail_progress",
+                return_value=detail,
+            ),
+            patch(
+                "routes.pages_routes.get_phase_submission_context",
+                return_value=mock_sub_context,
+            ),
+            patch(
+                "routes.pages_routes.is_phase_verification_locked",
+                return_value=(False, None),
+            ),
         ):
             response = await auth_client.get("/phase/1")
         assert response.status_code == 200
@@ -303,12 +313,15 @@ class TestAuthPageSmoke:
 
         topic_slug = phase.topics[0].slug
 
-        with patch(
-            "routes.pages_routes.get_user_by_id",
-            return_value=_fake_user(),
-        ), patch(
-            "routes.pages_routes.get_valid_completed_steps",
-            return_value=[],
+        with (
+            patch(
+                "routes.pages_routes.get_user_by_id",
+                return_value=_fake_user(),
+            ),
+            patch(
+                "routes.pages_routes.get_valid_completed_steps",
+                return_value=[],
+            ),
         ):
             response = await auth_client.get(f"/phase/1/{topic_slug}")
         assert response.status_code == 200
@@ -325,9 +338,7 @@ class TestRedirectSmoke:
 
     async def test_legacy_phase_redirect(self, anon_client: AsyncClient):
         """GET /phase0/old-topic redirects to /."""
-        response = await anon_client.get(
-            "/phase0/old-topic", follow_redirects=False
-        )
+        response = await anon_client.get("/phase0/old-topic", follow_redirects=False)
         assert response.status_code == 301
         assert response.headers["location"] == "/"
 

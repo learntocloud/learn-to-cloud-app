@@ -247,7 +247,7 @@ Use MCP tool: applens_resource_diagnose
   question: "Why are there ReplicaUnhealthy events in the last 24 hours?"
 ```
 
-### 4. `postgres_database_query` 
+### 4. `postgres_database_query`
 Direct DB query without firewall rule creation or manual token acquisition. This is genuinely better than the current approach for Step 11 — eliminates the `curl ifconfig.me` → firewall rule → token acquisition dance.
 
 ---

@@ -22,4 +22,8 @@ The research document must include:
 - Code snippets showing current behavior and proposed approaches
 - Potential gotchas — things that could break if we're not careful (e.g., duplicating logic that already exists, ignoring existing abstractions)
 
+## Library Documentation
+
+When researching external libraries or frameworks (FastAPI, SQLAlchemy, Alembic, Pydantic, HTMX, etc.), use context7 to pull up-to-date documentation instead of relying on training data. Cite the Context7 library ID used (e.g., `/tiangolo/fastapi`) so the research doc is reproducible.
+
 This document is my review surface. I will read it to verify you actually understood the system before any planning happens. If the research is wrong, the plan will be wrong. Do not plan or implement anything yet.

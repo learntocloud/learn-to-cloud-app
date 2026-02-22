@@ -29,7 +29,7 @@ from rendering.context import (
     build_progress_dict,
 )
 from rendering.steps import build_step_data
-from schemas import SubmissionData
+from schemas import SubmissionData, SubmissionResult
 from services.content_service import get_topic_by_id
 from services.hands_on_verification_service import get_requirement_by_id
 from services.steps_service import (
@@ -441,7 +441,11 @@ async def htmx_verification_stream(
         if pending is None:
             # No pending verification — might have already completed.
             # Send an HX-Refresh to reload the page with DB state.
-            yield "event: verification-result\ndata: <div hx-trigger='load' hx-get='/' hx-swap='none'></div>\n\n"
+            yield (
+                "event: verification-result\n"
+                "data: <div hx-trigger='load' hx-get='/'"
+                " hx-swap='none'></div>\n\n"
+            )
             return
 
         try:
@@ -472,7 +476,12 @@ async def htmx_verification_stream(
             if pending.result.is_valid:
                 # On success, trigger full page refresh so the stepper
                 # advances to the next requirement.
-                yield "event: verification-result\ndata: <div hx-trigger='load' hx-on::load='setTimeout(()=>location.reload(),100)'></div>\n\n"
+                yield (
+                    "event: verification-result\n"
+                    "data: <div hx-trigger='load'"
+                    " hx-on::load='setTimeout(()=>location.reload(),100)'"
+                    "></div>\n\n"
+                )
             else:
                 # Render the result card HTML inline
                 result = pending.result

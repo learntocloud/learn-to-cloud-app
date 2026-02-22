@@ -27,10 +27,10 @@ from routes.pages_routes import (
     dashboard_page,
     faq_page,
     home_page,
+    phase_page,
     privacy_page,
     terms_page,
     topic_page,
-    phase_page,
 )
 
 
@@ -79,12 +79,13 @@ class TestHomePage:
         mock_db = AsyncMock()
         phases = [_fake_phase(order=i) for i in range(1, 6)]
 
-        with patch(
-            "routes.pages_routes.get_all_phases", return_value=phases
-        ), patch(
-            "routes.pages_routes.get_user_by_id",
-            autospec=True,
-            return_value=None,
+        with (
+            patch("routes.pages_routes.get_all_phases", return_value=phases),
+            patch(
+                "routes.pages_routes.get_user_by_id",
+                autospec=True,
+                return_value=None,
+            ),
         ):
             await home_page(request, mock_db, user_id=None)
 
@@ -102,12 +103,13 @@ class TestHomePage:
         mock_user = MagicMock()
         phases = [_fake_phase()]
 
-        with patch(
-            "routes.pages_routes.get_all_phases", return_value=phases
-        ), patch(
-            "routes.pages_routes.get_user_by_id",
-            autospec=True,
-            return_value=mock_user,
+        with (
+            patch("routes.pages_routes.get_all_phases", return_value=phases),
+            patch(
+                "routes.pages_routes.get_user_by_id",
+                autospec=True,
+                return_value=mock_user,
+            ),
         ):
             await home_page(request, mock_db, user_id=42)
 
@@ -125,12 +127,13 @@ class TestCurriculumPage:
         mock_db = AsyncMock()
         phases = [_fake_phase(order=i) for i in range(1, 6)]
 
-        with patch(
-            "routes.pages_routes.get_all_phases", return_value=phases
-        ), patch(
-            "routes.pages_routes.get_user_by_id",
-            autospec=True,
-            return_value=None,
+        with (
+            patch("routes.pages_routes.get_all_phases", return_value=phases),
+            patch(
+                "routes.pages_routes.get_user_by_id",
+                autospec=True,
+                return_value=None,
+            ),
         ):
             await curriculum_page(request, mock_db, user_id=None)
 
@@ -148,12 +151,13 @@ class TestPhasePage:
         request, template = _mock_request(_patch_templates)
         mock_db = AsyncMock()
 
-        with patch(
-            "routes.pages_routes.get_phase_by_slug", return_value=None
-        ), patch(
-            "routes.pages_routes.get_user_by_id",
-            autospec=True,
-            return_value=None,
+        with (
+            patch("routes.pages_routes.get_phase_by_slug", return_value=None),
+            patch(
+                "routes.pages_routes.get_user_by_id",
+                autospec=True,
+                return_value=None,
+            ),
         ):
             await phase_page(request, phase_id=999, db=mock_db, user_id=1)
 
@@ -173,12 +177,30 @@ class TestPhasePage:
         mock_sub_context.submissions_by_req = {}
         mock_sub_context.feedback_by_req = {}
 
-        with patch("routes.pages_routes.get_phase_by_slug", return_value=phase), \
-             patch("routes.pages_routes.get_user_by_id", autospec=True, return_value=mock_user), \
-             patch("routes.pages_routes.get_phase_detail_progress", autospec=True, return_value={}), \
-             patch("routes.pages_routes.build_phase_topics", return_value=([], {})), \
-             patch("routes.pages_routes.get_phase_submission_context", autospec=True, return_value=mock_sub_context), \
-             patch("routes.pages_routes.is_phase_verification_locked", autospec=True, return_value=(False, None)):
+        with (
+            patch("routes.pages_routes.get_phase_by_slug", return_value=phase),
+            patch(
+                "routes.pages_routes.get_user_by_id",
+                autospec=True,
+                return_value=mock_user,
+            ),
+            patch(
+                "routes.pages_routes.get_phase_detail_progress",
+                autospec=True,
+                return_value={},
+            ),
+            patch("routes.pages_routes.build_phase_topics", return_value=([], {})),
+            patch(
+                "routes.pages_routes.get_phase_submission_context",
+                autospec=True,
+                return_value=mock_sub_context,
+            ),
+            patch(
+                "routes.pages_routes.is_phase_verification_locked",
+                autospec=True,
+                return_value=(False, None),
+            ),
+        ):
             await phase_page(request, phase_id=1, db=mock_db, user_id=42)
 
         assert template.call_args[0][0] == "pages/phase.html"
@@ -197,10 +219,16 @@ class TestTopicPage:
         request, template = _mock_request(_patch_templates)
         mock_db = AsyncMock()
 
-        with patch("routes.pages_routes.get_phase_by_slug", return_value=None), \
-             patch("routes.pages_routes.get_topic_by_slugs", return_value=None), \
-             patch("routes.pages_routes.get_user_by_id", autospec=True, return_value=None):
-            await topic_page(request, phase_id=1, topic_slug="bad-topic", db=mock_db, user_id=1)
+        with (
+            patch("routes.pages_routes.get_phase_by_slug", return_value=None),
+            patch("routes.pages_routes.get_topic_by_slugs", return_value=None),
+            patch(
+                "routes.pages_routes.get_user_by_id", autospec=True, return_value=None
+            ),
+        ):
+            await topic_page(
+                request, phase_id=1, topic_slug="bad-topic", db=mock_db, user_id=1
+            )
 
         assert template.call_args[0][0] == "pages/404.html"
 
@@ -210,10 +238,16 @@ class TestTopicPage:
         mock_db = AsyncMock()
         phase = _fake_phase()
 
-        with patch("routes.pages_routes.get_phase_by_slug", return_value=phase), \
-             patch("routes.pages_routes.get_topic_by_slugs", return_value=None), \
-             patch("routes.pages_routes.get_user_by_id", autospec=True, return_value=None):
-            await topic_page(request, phase_id=1, topic_slug="bad-topic", db=mock_db, user_id=1)
+        with (
+            patch("routes.pages_routes.get_phase_by_slug", return_value=phase),
+            patch("routes.pages_routes.get_topic_by_slugs", return_value=None),
+            patch(
+                "routes.pages_routes.get_user_by_id", autospec=True, return_value=None
+            ),
+        ):
+            await topic_page(
+                request, phase_id=1, topic_slug="bad-topic", db=mock_db, user_id=1
+            )
 
         assert template.call_args[0][0] == "pages/404.html"
 
@@ -225,12 +259,24 @@ class TestTopicPage:
         topic = _fake_topic()
         phase.topics = [topic]
 
-        with patch("routes.pages_routes.get_phase_by_slug", return_value=phase), \
-             patch("routes.pages_routes.get_topic_by_slugs", return_value=topic), \
-             patch("routes.pages_routes.get_user_by_id", autospec=True, return_value=MagicMock()), \
-             patch("routes.pages_routes.get_valid_completed_steps", autospec=True, return_value=[]), \
-             patch("routes.pages_routes.build_topic_nav", return_value=(None, None)):
-            await topic_page(request, phase_id=1, topic_slug="linux-basics", db=mock_db, user_id=1)
+        with (
+            patch("routes.pages_routes.get_phase_by_slug", return_value=phase),
+            patch("routes.pages_routes.get_topic_by_slugs", return_value=topic),
+            patch(
+                "routes.pages_routes.get_user_by_id",
+                autospec=True,
+                return_value=MagicMock(),
+            ),
+            patch(
+                "routes.pages_routes.get_valid_completed_steps",
+                autospec=True,
+                return_value=[],
+            ),
+            patch("routes.pages_routes.build_topic_nav", return_value=(None, None)),
+        ):
+            await topic_page(
+                request, phase_id=1, topic_slug="linux-basics", db=mock_db, user_id=1
+            )
 
         assert template.call_args[0][0] == "pages/topic.html"
         ctx = template.call_args[0][1]
@@ -248,8 +294,18 @@ class TestDashboardPage:
         mock_user = MagicMock()
         mock_dashboard = MagicMock()
 
-        with patch("routes.pages_routes.get_user_by_id", autospec=True, return_value=mock_user), \
-             patch("routes.pages_routes.get_dashboard_data", autospec=True, return_value=mock_dashboard):
+        with (
+            patch(
+                "routes.pages_routes.get_user_by_id",
+                autospec=True,
+                return_value=mock_user,
+            ),
+            patch(
+                "routes.pages_routes.get_dashboard_data",
+                autospec=True,
+                return_value=mock_dashboard,
+            ),
+        ):
             await dashboard_page(request, mock_db, user_id=42)
 
         assert template.call_args[0][0] == "pages/dashboard.html"
@@ -262,7 +318,9 @@ class TestDashboardPage:
         request, template = _mock_request(_patch_templates)
         mock_db = AsyncMock()
 
-        with patch("routes.pages_routes.get_user_by_id", autospec=True, return_value=None):
+        with patch(
+            "routes.pages_routes.get_user_by_id", autospec=True, return_value=None
+        ):
             await dashboard_page(request, mock_db, user_id=999)
 
         assert template.call_args[0][0] == "pages/404.html"
@@ -280,7 +338,9 @@ class TestAccountPage:
         mock_db = AsyncMock()
         mock_user = MagicMock()
 
-        with patch("routes.pages_routes.get_user_by_id", autospec=True, return_value=mock_user):
+        with patch(
+            "routes.pages_routes.get_user_by_id", autospec=True, return_value=mock_user
+        ):
             await account_page(request, mock_db, user_id=42)
 
         assert template.call_args[0][0] == "pages/account.html"
@@ -292,7 +352,9 @@ class TestAccountPage:
         request, template = _mock_request(_patch_templates)
         mock_db = AsyncMock()
 
-        with patch("routes.pages_routes.get_user_by_id", autospec=True, return_value=None):
+        with patch(
+            "routes.pages_routes.get_user_by_id", autospec=True, return_value=None
+        ):
             await account_page(request, mock_db, user_id=999)
 
         assert template.call_args[0][0] == "pages/404.html"
@@ -307,7 +369,9 @@ class TestPublicPages:
         request, template = _mock_request(_patch_templates)
         mock_db = AsyncMock()
 
-        with patch("routes.pages_routes.get_user_by_id", autospec=True, return_value=None):
+        with patch(
+            "routes.pages_routes.get_user_by_id", autospec=True, return_value=None
+        ):
             await faq_page(request, mock_db, user_id=None)
 
         assert template.call_args[0][0] == "pages/faq.html"
@@ -319,7 +383,9 @@ class TestPublicPages:
         request, template = _mock_request(_patch_templates)
         mock_db = AsyncMock()
 
-        with patch("routes.pages_routes.get_user_by_id", autospec=True, return_value=None):
+        with patch(
+            "routes.pages_routes.get_user_by_id", autospec=True, return_value=None
+        ):
             await privacy_page(request, mock_db, user_id=None)
 
         assert template.call_args[0][0] == "pages/privacy.html"
@@ -329,7 +395,9 @@ class TestPublicPages:
         request, template = _mock_request(_patch_templates)
         mock_db = AsyncMock()
 
-        with patch("routes.pages_routes.get_user_by_id", autospec=True, return_value=None):
+        with patch(
+            "routes.pages_routes.get_user_by_id", autospec=True, return_value=None
+        ):
             await terms_page(request, mock_db, user_id=None)
 
         assert template.call_args[0][0] == "pages/terms.html"
