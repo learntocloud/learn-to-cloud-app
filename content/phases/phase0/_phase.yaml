@@ -14,6 +14,7 @@ hands_on_verification:
     description: Create a public GitHub profile that you will use to submit verification work in every phase.
     placeholder: https://github.com/your-username
 topics:
+- prepare-to-learn
 - linux
 - networking
 - programming

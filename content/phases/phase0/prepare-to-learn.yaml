@@ -1,0 +1,58 @@
+id: phase0-topic0
+slug: prepare-to-learn
+name: Prepare to Learn
+description: Before you learn anything technical, you need to set yourself up for success. That means committing to one path,
+  eliminating distractions, and learning how to actually learn. Most people restart their journey every time they watch a new
+  roadmap video — this topic exists so you don't become one of them.
+order: 0
+learning_objectives:
+- id: commit-to-path
+  text: Commit to a single learning path and stop consuming surface-level roadmap content.
+  order: 1
+- id: eliminate-distractions
+  text: Remove digital distractions from your phone and browser that fragment your focus.
+  order: 2
+- id: learn-how-to-learn
+  text: Understand how learning actually works and build a structured study routine.
+  order: 3
+learning_steps:
+- order: 1
+  action: 'Watch:'
+  title: Why You Should Stop Watching YouTube (HealthyGamerGG)
+  url: https://www.youtube.com/watch?v=XEb89CQJPO4
+  description: Dr. K explains why self-help content crosses from helpful to harmful — why watching another roadmap or
+    motivational video feels productive but actually replaces doing the work. Commit to this learning resource until you
+    finish it and stop. Every time you watch a roadmap video, you are restarting your journey. Stop doing that.
+  id: phase0-topic0-watch-why-you-should-stop
+- order: 2
+  action: 'Read:'
+  title: My Weekly Screen Time Average is 41 Minutes
+  url: https://substack.com/@madebygps/p-181593856
+  description: Your phone is a massive distraction machine. Read this post and follow the advice outlined there to remove
+    all distractions from your phone — which apps to delete, how to configure notifications so only calls and calendar
+    alerts make sound, disabling tap-to-wake and raise-to-wake, and keeping your home screen distraction-free.
+  id: phase0-topic0-read-my-weekly-screen-time
+- order: 3
+  action: 'Practice:'
+  title: Install a Feed Blocker on Your Browser
+  url: https://chromewebstore.google.com/detail/socialfocus-%E2%80%94-hide-feeds/abocjojdmemdpiffeadpdnicnlhcndcg
+  description: Now that you've eliminated distractions from your phone, do the same on your laptop. Install the SocialFocus
+    browser extension (or similar) to hide social media feeds. This removes the temptation to scroll YouTube, Twitter, or
+    LinkedIn when you sit down to study. You can toggle it off when you need to, but the default should be distraction-free.
+  id: phase0-topic0-practice-install-a-feed-blocker
+- order: 4
+  action: 'Watch:'
+  title: Learning How to Learn (Barbara Oakley, TEDx)
+  url: https://www.youtube.com/watch?v=O96fE1E-rf8
+  description: Engineering professor Barbara Oakley shares techniques from her online course — one of the largest in the
+    world — on how your brain actually acquires new skills. Learn how to use focused and diffuse modes of thinking, and
+    why short daily practice beats long cramming sessions.
+  id: phase0-topic0-watch-learning-how-to-learn
+- order: 5
+  action: 'Watch:'
+  title: 6 Months Following This Study Routine TRANSFORMED My Cloud Career
+  url: https://www.youtube.com/watch?v=88hnhRmpPZs
+  description: See the exact study routine that was followed for 6 months while learning cloud engineering — how to
+    structure sessions, stay consistent, and avoid burnout. Use this as a template to build your own study schedule before
+    moving on to the next topic.
+  id: phase0-topic0-watch-6-months-following-this
