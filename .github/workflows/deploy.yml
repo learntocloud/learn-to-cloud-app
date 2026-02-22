@@ -58,6 +58,7 @@ jobs:
           filters: |
             deploy:
               - 'api/**'
+              - 'content/**'
               - 'infra/**'
               - '.github/workflows/deploy.yml'
 
