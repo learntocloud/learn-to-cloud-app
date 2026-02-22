@@ -20,7 +20,22 @@
     <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">{{ requirement.description }}</p>
     {% endif %}
 
-    {% if not submission or not submission.is_validated %}
+    {% if processing %}
+    {# LLM verification in progress — connect to SSE stream for result #}
+    <div
+        hx-ext="sse"
+        sse-connect="/htmx/verification/{{ requirement.id }}/stream"
+        sse-swap="verification-result"
+        hx-target="#requirement-{{ requirement.id }}"
+        hx-swap="outerHTML"
+        class="flex items-center gap-3 py-3"
+    >
+        <div class="animate-spin h-5 w-5 border-2 border-blue-500 border-t-transparent rounded-full"></div>
+        <span class="text-sm text-gray-600 dark:text-gray-400">
+            Analyzing your code... this usually takes 30–60 seconds.
+        </span>
+    </div>
+    {% elif not submission or not submission.is_validated %}
     <form
         hx-post="/htmx/github/submit"
         hx-target="#requirement-{{ requirement.id }}"

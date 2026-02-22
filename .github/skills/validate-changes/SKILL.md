@@ -27,7 +27,7 @@ Skipping API startup means import errors, circular imports, and route registrati
 **Always start fresh.**
 
 ```bash
-pkill -f "uvicorn main:app" || true
+lsof -ti:8000 | xargs kill -9 2>/dev/null || true
 ```
 
 ---
@@ -70,7 +70,7 @@ cd <workspace>/api && uv run ty check <relative_file_path>
 
 ```bash
 cd <workspace>/api
-uv run python -m uvicorn main:app --host 0.0.0.0 --port 8000 &
+uv run python -m uvicorn main:app --host 127.0.0.1 --port 8000 &
 echo $! > .api-pid
 sleep 3
 ```
@@ -116,7 +116,7 @@ if [ -f <workspace>/api/.api-pid ]; then
     kill $(cat <workspace>/api/.api-pid) 2>/dev/null
     rm <workspace>/api/.api-pid
 fi
-pkill -f "uvicorn main:app" || true
+lsof -ti:8000 | xargs kill -9 2>/dev/null || true
 ```
 
 ---
@@ -126,12 +126,11 @@ pkill -f "uvicorn main:app" || true
 If the changes affect logic (not just formatting/docs), run the test suite:
 
 ```bash
-cd <workspace>/api && uv run pytest tests/ -x --timeout=30
+cd <workspace>/api && uv run pytest tests/ -x
 ```
 
 **Flags:**
 - `-x` — stop on first failure for fast feedback
-- `--timeout=30` — prevent tests from hanging
 
 **When to skip**: Pure formatting, comment, or doc-only changes.
 
@@ -143,7 +142,7 @@ cd <workspace>/api && uv run pytest tests/ -x --timeout=30
 
 | Task | Command |
 |------|---------|
-| Kill API | `pkill -f "uvicorn main:app"` |
+| Kill API | `lsof -ti:8000 \| xargs kill -9 2>/dev/null \|\| true` |
 | Lint | `uv run ruff check <file>` |
 | Lint + fix | `uv run ruff check --fix <file>` |
 | Format check | `uv run ruff format --check <file>` |

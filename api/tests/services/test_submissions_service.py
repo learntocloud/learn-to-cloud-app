@@ -27,6 +27,7 @@ from services.submissions_service import (
     PriorPhaseNotCompleteError,
     RequirementNotFoundError,
     _get_submission_lock,
+    get_phase_submission_context,
     submit_validation,
 )
 
@@ -1080,3 +1081,92 @@ class TestSequentialPhaseGating:
 
             assert result.is_valid is True
             mock_validate.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# get_phase_submission_context
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+class TestGetPhaseSubmissionContext:
+    @pytest.mark.asyncio
+    async def test_empty_submissions(self):
+        with patch(
+            "services.submissions_service.SubmissionRepository", autospec=True
+        ) as MockRepo:
+            MockRepo.return_value.get_by_user_and_phase = AsyncMock(return_value=[])
+            result = await get_phase_submission_context(
+                AsyncMock(), user_id=1, phase_id=3
+            )
+        assert result.submissions_by_req == {}
+        assert result.feedback_by_req == {}
+
+    @pytest.mark.asyncio
+    async def test_submission_without_feedback(self):
+        mock_sub = _make_mock_submission(is_validated=True)
+        mock_sub.feedback_json = None
+        with patch(
+            "services.submissions_service.SubmissionRepository", autospec=True
+        ) as MockRepo:
+            MockRepo.return_value.get_by_user_and_phase = AsyncMock(
+                return_value=[mock_sub]
+            )
+            result = await get_phase_submission_context(
+                AsyncMock(), user_id=1, phase_id=3
+            )
+        assert "test-requirement" in result.submissions_by_req
+        assert result.feedback_by_req == {}
+
+    @pytest.mark.asyncio
+    async def test_submission_with_feedback_json(self):
+        mock_sub = _make_mock_submission(
+            is_validated=False, verification_completed=True
+        )
+        mock_sub.feedback_json = '[{"task_name":"A","passed":true,"feedback":"ok"}]'
+        mock_sub.updated_at = datetime.now(UTC) - timedelta(hours=2)
+        with (
+            patch(
+                "services.submissions_service.SubmissionRepository", autospec=True
+            ) as MockRepo,
+            patch(
+                "services.submissions_service.get_settings", autospec=True
+            ) as mock_settings,
+        ):
+            mock_settings.return_value.code_analysis_cooldown_seconds = 3600
+            MockRepo.return_value.get_by_user_and_phase = AsyncMock(
+                return_value=[mock_sub]
+            )
+            result = await get_phase_submission_context(
+                AsyncMock(), user_id=1, phase_id=3
+            )
+        assert "test-requirement" in result.feedback_by_req
+        feedback = result.feedback_by_req["test-requirement"]
+        assert feedback["passed"] == 1
+        assert feedback["cooldown_seconds"] is None  # 2 hours > 1 hour cooldown
+
+    @pytest.mark.asyncio
+    async def test_cooldown_remaining_when_within_window(self):
+        mock_sub = _make_mock_submission(
+            is_validated=False, verification_completed=True
+        )
+        mock_sub.feedback_json = '[{"task_name":"A","passed":false,"feedback":"nope"}]'
+        mock_sub.updated_at = datetime.now(UTC) - timedelta(minutes=5)
+        with (
+            patch(
+                "services.submissions_service.SubmissionRepository", autospec=True
+            ) as MockRepo,
+            patch(
+                "services.submissions_service.get_settings", autospec=True
+            ) as mock_settings,
+        ):
+            mock_settings.return_value.code_analysis_cooldown_seconds = 3600
+            MockRepo.return_value.get_by_user_and_phase = AsyncMock(
+                return_value=[mock_sub]
+            )
+            result = await get_phase_submission_context(
+                AsyncMock(), user_id=1, phase_id=3
+            )
+        feedback = result.feedback_by_req["test-requirement"]
+        assert feedback["cooldown_seconds"] is not None
+        assert feedback["cooldown_seconds"] > 3000

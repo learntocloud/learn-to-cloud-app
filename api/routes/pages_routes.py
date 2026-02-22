@@ -12,6 +12,7 @@ from fastapi.responses import HTMLResponse
 
 from core.auth import OptionalUserId, UserId
 from core.database import DbSession
+from core.templates import templates
 from models import User
 from rendering.context import (
     FAQS,
@@ -69,7 +70,7 @@ async def home_page(
     user = await _get_user_or_none(db, user_id)
     phases = get_all_phases()
 
-    return request.app.state.templates.TemplateResponse(
+    return templates.TemplateResponse(
         "pages/home.html",
         _template_context(request, user=user, phases=phases),
     )
@@ -85,7 +86,7 @@ async def curriculum_page(
     user = await _get_user_or_none(db, user_id)
     phases = get_all_phases()
 
-    return request.app.state.templates.TemplateResponse(
+    return templates.TemplateResponse(
         "pages/curriculum.html",
         _template_context(request, user=user, phases=phases),
     )
@@ -106,7 +107,7 @@ async def phase_page(
     user = await _get_user_or_none(db, user_id)
     phase = get_phase_by_slug(f"phase{phase_id}")
     if phase is None:
-        return request.app.state.templates.TemplateResponse(
+        return templates.TemplateResponse(
             "pages/404.html",
             _template_context(request, user=user),
             status_code=404,
@@ -129,7 +130,7 @@ async def phase_page(
         db, user_id, phase_id
     )
 
-    return request.app.state.templates.TemplateResponse(
+    return templates.TemplateResponse(
         "pages/phase.html",
         _template_context(
             request,
@@ -165,7 +166,7 @@ async def topic_page(
     topic = get_topic_by_slugs(phase_slug, topic_slug)
 
     if phase is None or topic is None:
-        return request.app.state.templates.TemplateResponse(
+        return templates.TemplateResponse(
             "pages/404.html",
             _template_context(request, user=user),
             status_code=404,
@@ -187,7 +188,7 @@ async def topic_page(
         else None
     )
 
-    return request.app.state.templates.TemplateResponse(
+    return templates.TemplateResponse(
         "pages/topic.html",
         _template_context(
             request,
@@ -214,7 +215,7 @@ async def dashboard_page(
     """Authenticated dashboard with progress."""
     user = await _get_user_or_none(db, user_id)
     if user is None:
-        return request.app.state.templates.TemplateResponse(
+        return templates.TemplateResponse(
             "pages/404.html",
             _template_context(request),
             status_code=404,
@@ -222,7 +223,7 @@ async def dashboard_page(
 
     dashboard = await get_dashboard_data(db, user_id)
 
-    return request.app.state.templates.TemplateResponse(
+    return templates.TemplateResponse(
         "pages/dashboard.html",
         _template_context(
             request,
@@ -242,13 +243,13 @@ async def account_page(
     """Account settings page."""
     user = await _get_user_or_none(db, user_id)
     if user is None:
-        return request.app.state.templates.TemplateResponse(
+        return templates.TemplateResponse(
             "pages/404.html",
             _template_context(request),
             status_code=404,
         )
 
-    return request.app.state.templates.TemplateResponse(
+    return templates.TemplateResponse(
         "pages/account.html",
         _template_context(request, user=user),
     )
@@ -263,7 +264,7 @@ async def faq_page(
     """FAQ page."""
     user = await _get_user_or_none(db, user_id)
 
-    return request.app.state.templates.TemplateResponse(
+    return templates.TemplateResponse(
         "pages/faq.html",
         _template_context(request, user=user, faqs=FAQS),
     )
@@ -278,7 +279,7 @@ async def privacy_page(
     """Privacy policy page."""
     user = await _get_user_or_none(db, user_id)
 
-    return request.app.state.templates.TemplateResponse(
+    return templates.TemplateResponse(
         "pages/privacy.html",
         _template_context(request, user=user),
     )
@@ -293,7 +294,7 @@ async def terms_page(
     """Terms of service page."""
     user = await _get_user_or_none(db, user_id)
 
-    return request.app.state.templates.TemplateResponse(
+    return templates.TemplateResponse(
         "pages/terms.html",
         _template_context(request, user=user),
     )

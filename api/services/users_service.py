@@ -4,6 +4,7 @@ import logging
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from core.cache import get_cached_user, invalidate_user_cache, set_cached_user
 from models import User
 from repositories.user_repository import UserRepository
 from schemas import UserResponse
@@ -44,9 +45,19 @@ def _to_user_response(user: User) -> UserResponse:
 
 
 async def get_user_by_id(db: AsyncSession, user_id: int) -> User | None:
-    """Get a user by ID, or None if not found."""
+    """Get a user by ID, or None if not found.
+
+    Results are cached for 5 minutes since user profile data only
+    changes on login (OAuth callback) or account deletion.
+    """
+    cached = get_cached_user(user_id)
+    if cached is not None:
+        return cached
     user_repo = UserRepository(db)
-    return await user_repo.get_by_id(user_id)
+    user = await user_repo.get_by_id(user_id)
+    if user is not None:
+        set_cached_user(user_id, user)
+    return user
 
 
 async def ensure_user_exists(db: AsyncSession, user_id: int) -> None:
@@ -95,6 +106,7 @@ async def get_or_create_user_from_github(
         existing_owner = await user_repo.get_by_github_username(normalized_username)
         if existing_owner and existing_owner.id != github_id:
             await user_repo.clear_github_username(existing_owner.id)
+            invalidate_user_cache(existing_owner.id)
 
     user = await user_repo.upsert(
         github_id,
@@ -103,6 +115,7 @@ async def get_or_create_user_from_github(
         avatar_url=avatar_url,
         github_username=normalized_username,
     )
+    invalidate_user_cache(github_id)
 
     logger.info(
         "user.upserted",
@@ -135,6 +148,7 @@ async def delete_user_account(db: AsyncSession, user_id: int) -> None:
 
     github_username = user.github_username
     await user_repo.delete(user_id)
+    invalidate_user_cache(user_id)
 
     logger.info(
         "user.account_deleted",

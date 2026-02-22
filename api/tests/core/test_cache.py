@@ -1,21 +1,28 @@
 """Unit tests for core.cache module.
 
 Tests in-memory TTL caching utilities:
+- User cache: get/set/invalidate
 - Progress cache: get/set/invalidate
 - Phase detail cache: get/set/update
 - Invalidation clears all related caches for a user
 """
+
+from unittest.mock import MagicMock
 
 import pytest
 
 from core.cache import (
     _phase_detail_cache,
     _progress_cache,
+    _user_cache,
     get_cached_phase_detail,
     get_cached_progress,
+    get_cached_user,
     invalidate_progress_cache,
+    invalidate_user_cache,
     set_cached_phase_detail,
     set_cached_progress,
+    set_cached_user,
     update_cached_phase_detail_step,
 )
 
@@ -25,9 +32,11 @@ def _clear_caches():
     """Clear all caches before and after each test."""
     _progress_cache.clear()
     _phase_detail_cache.clear()
+    _user_cache.clear()
     yield
     _progress_cache.clear()
     _phase_detail_cache.clear()
+    _user_cache.clear()
 
 
 @pytest.mark.unit
@@ -122,3 +131,25 @@ class TestInvalidateProgressCache:
     def test_noop_when_nothing_cached(self):
         # Should not raise
         invalidate_progress_cache(999)
+
+
+@pytest.mark.unit
+class TestUserCache:
+    """Test user cache get/set/invalidate."""
+
+    def test_set_and_get(self):
+        mock_user = MagicMock()
+        set_cached_user(1, mock_user)
+        assert get_cached_user(1) is mock_user
+
+    def test_get_returns_none_when_not_cached(self):
+        assert get_cached_user(999) is None
+
+    def test_invalidate_clears_user(self):
+        mock_user = MagicMock()
+        set_cached_user(1, mock_user)
+        invalidate_user_cache(1)
+        assert get_cached_user(1) is None
+
+    def test_invalidate_noop_when_not_cached(self):
+        invalidate_user_cache(999)

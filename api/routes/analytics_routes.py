@@ -12,6 +12,7 @@ from fastapi.responses import HTMLResponse
 
 from core.auth import OptionalUserId
 from core.database import DbSessionReadOnly, comprehensive_health_check
+from core.templates import templates
 from schemas import CommunityAnalytics
 from services.analytics_service import get_community_analytics
 from services.users_service import get_user_by_id
@@ -52,7 +53,7 @@ async def status_page(
             generated_at=datetime.now(UTC),
         )
 
-    return request.app.state.templates.TemplateResponse(
+    return templates.TemplateResponse(
         "pages/status.html",
         {
             "request": request,

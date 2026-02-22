@@ -96,3 +96,8 @@ tfplan
 # Dogfood / QA artifacts
 dogfood-*
 screenshot-*
+.playwright-mcp/
+
+# Deep-implement working documents
+research.md
+plan.md

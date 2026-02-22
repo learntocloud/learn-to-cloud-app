@@ -220,6 +220,111 @@ def _is_llm_submission(submission_type: SubmissionType) -> bool:
     )
 
 
+async def pre_validate_submission(
+    session_maker: async_sessionmaker[AsyncSession],
+    user_id: int,
+    requirement_id: str,
+    submitted_value: str,
+    github_username: str | None,
+) -> None:
+    """Run pre-validation checks without starting the actual verification.
+
+    This is the fast path (<100ms) that checks:
+    - Requirement exists
+    - Not already validated
+    - Phase gating
+    - Daily submission cap
+    - Cooldown enforcement
+    - GitHub username required
+
+    Used by the async LLM submission path to validate before kicking off
+    a background task.  Raises the same exceptions as submit_validation.
+    """
+    requirement = get_requirement_by_id(requirement_id)
+    if not requirement:
+        raise RequirementNotFoundError(f"Requirement not found: {requirement_id}")
+
+    phase_id = get_phase_id_for_requirement(requirement_id)
+    if phase_id is None:
+        raise RequirementNotFoundError(
+            f"Requirement not mapped to a phase: {requirement_id}"
+        )
+
+    async with session_maker() as read_session:
+        submission_repo = SubmissionRepository(read_session)
+
+        existing = await submission_repo.get_by_user_and_requirement(
+            user_id, requirement_id
+        )
+        if existing is not None and existing.is_validated:
+            raise AlreadyValidatedError("You have already completed this requirement.")
+
+        prereq_phase = get_prerequisite_phase(phase_id)
+        if prereq_phase is not None:
+            prereq_req_ids = get_requirement_ids_for_phase(prereq_phase)
+            if prereq_req_ids:
+                all_done = await submission_repo.are_all_requirements_validated(
+                    user_id, prereq_req_ids
+                )
+                if not all_done:
+                    raise PriorPhaseNotCompleteError(
+                        f"You must complete all Phase {prereq_phase} "
+                        f"verifications before submitting for Phase {phase_id}.",
+                        prerequisite_phase=prereq_phase,
+                    )
+
+        settings = get_settings()
+        today_count = await submission_repo.count_submissions_today(user_id)
+        if today_count >= settings.daily_submission_limit:
+            raise DailyLimitExceededError(
+                f"You have reached the daily limit of "
+                f"{settings.daily_submission_limit} "
+                f"submissions. Please try again tomorrow.",
+                limit=settings.daily_submission_limit,
+                existing_submission=_to_submission_data(existing) if existing else None,
+            )
+
+        if requirement.submission_type in (
+            SubmissionType.CODE_ANALYSIS,
+            SubmissionType.DEVOPS_ANALYSIS,
+        ):
+            last_submission_time = await submission_repo.get_last_submission_time(
+                user_id, requirement_id
+            )
+        else:
+            last_submission_time = None
+
+    if last_submission_time is not None:
+        cooldown_seconds = settings.code_analysis_cooldown_seconds
+        now = datetime.now(UTC)
+        elapsed = (now - last_submission_time).total_seconds()
+        remaining = int(cooldown_seconds - elapsed)
+        if remaining > 0:
+            minutes = remaining // 60
+            seconds = remaining % 60
+            wait_str = f"{minutes}m {seconds}s" if minutes else f"{seconds}s"
+            raise CooldownActiveError(
+                f"Please wait {wait_str} before resubmitting.",
+                retry_after_seconds=remaining,
+                existing_submission=None,
+            )
+
+    if requirement.submission_type in (
+        SubmissionType.PROFILE_README,
+        SubmissionType.REPO_FORK,
+        SubmissionType.CTF_TOKEN,
+        SubmissionType.NETWORKING_TOKEN,
+        SubmissionType.CODE_ANALYSIS,
+        SubmissionType.DEVOPS_ANALYSIS,
+        SubmissionType.PR_REVIEW,
+    ):
+        if not github_username:
+            raise GitHubUsernameRequiredError(
+                "You need to link your GitHub account to submit. "
+                "Please sign out and sign in with GitHub."
+            )
+
+
 async def submit_validation(
     session_maker: async_sessionmaker[AsyncSession],
     user_id: int,

@@ -15,10 +15,21 @@ from typing import TYPE_CHECKING
 from cachetools import TTLCache
 
 if TYPE_CHECKING:
+    from models import User
     from services.progress_service import UserProgress
 
 DEFAULT_TTL_SECONDS = 60
 DEFAULT_MAX_SIZE = 1000
+
+# User profile data changes only on login (OAuth callback) or account
+# deletion, so a longer TTL is safe. Templates only read scalar attrs
+# (first_name, avatar_url, github_username) — no relationships accessed.
+_USER_CACHE_TTL_SECONDS = 300
+
+_user_cache: TTLCache[int, "User"] = TTLCache(
+    maxsize=DEFAULT_MAX_SIZE,
+    ttl=_USER_CACHE_TTL_SECONDS,
+)
 
 _progress_cache: TTLCache[int, "UserProgress"] = TTLCache(
     maxsize=DEFAULT_MAX_SIZE,
@@ -30,6 +41,19 @@ _phase_detail_cache: TTLCache[tuple[int, int], dict[str, set[str]]] = TTLCache(
     maxsize=DEFAULT_MAX_SIZE,
     ttl=DEFAULT_TTL_SECONDS,
 )
+
+
+def get_cached_user(user_id: int) -> "User | None":
+    return _user_cache.get(user_id)
+
+
+def set_cached_user(user_id: int, user: "User") -> None:
+    _user_cache[user_id] = user
+
+
+def invalidate_user_cache(user_id: int) -> None:
+    """Invalidate cached user profile after login or deletion."""
+    _user_cache.pop(user_id, None)
 
 
 def get_cached_progress(user_id: int) -> "UserProgress | None":

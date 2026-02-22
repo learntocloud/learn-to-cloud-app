@@ -14,7 +14,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from core.logger import _JSONFormatter, configure_logging
+from core.logger import _JSONFormatter, _RequestContextFilter, configure_logging
 
 
 @pytest.fixture(autouse=True)
@@ -172,3 +172,39 @@ class TestConfigureLogging:
             configure_logging()
             root = logging.getLogger()
             assert root.level == logging.DEBUG
+
+
+@pytest.mark.unit
+class TestRequestContextFilter:
+    """Test _RequestContextFilter injects github_username from context var."""
+
+    def test_injects_username_from_context_var(self):
+        from core.middleware import request_github_username
+
+        token = request_github_username.set("testuser")
+        try:
+            f = _RequestContextFilter()
+            record = logging.LogRecord("test", logging.INFO, "", 0, "msg", (), None)
+            f.filter(record)
+            assert record.github_username == "testuser"
+        finally:
+            request_github_username.reset(token)
+
+    def test_does_not_overwrite_explicit_username(self):
+        from core.middleware import request_github_username
+
+        token = request_github_username.set("ctx-user")
+        try:
+            f = _RequestContextFilter()
+            record = logging.LogRecord("test", logging.INFO, "", 0, "msg", (), None)
+            record.github_username = "explicit-user"
+            f.filter(record)
+            assert record.github_username == "explicit-user"
+        finally:
+            request_github_username.reset(token)
+
+    def test_no_username_when_context_var_empty(self):
+        f = _RequestContextFilter()
+        record = logging.LogRecord("test", logging.INFO, "", 0, "msg", (), None)
+        f.filter(record)
+        assert not getattr(record, "github_username", None)

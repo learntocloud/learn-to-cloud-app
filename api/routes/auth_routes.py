@@ -74,7 +74,14 @@ async def callback(request: Request, db: DbSession) -> RedirectResponse:
     resp = await github.get("user", token=token)
     github_user = resp.json()
 
-    github_id = github_user["id"]
+    github_id = github_user.get("id")
+    if github_id is None:
+        logger.error(
+            "auth.callback.missing_github_id",
+            extra={"status_code": getattr(resp, "status_code", None)},
+        )
+        return RedirectResponse(url="/", status_code=302)
+
     github_username = github_user.get("login", "")
     avatar_url = github_user.get("avatar_url")
     first_name, last_name = parse_display_name(github_user.get("name", ""))

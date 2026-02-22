@@ -15,7 +15,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
 from slowapi.errors import RateLimitExceeded
 from starlette.middleware.sessions import SessionMiddleware
 
@@ -37,6 +36,7 @@ from core.middleware import (
 )
 from core.observability import configure_observability, instrument_app
 from core.ratelimit import limiter, rate_limit_exceeded_handler
+from core.templates import templates
 from routes import (
     analytics_router,
     auth_router,
@@ -58,9 +58,6 @@ from services.deployed_api_verification_service import (
 configure_observability()
 configure_logging()
 logger = logging.getLogger(__name__)
-
-_templates_dir = Path(__file__).parent / "templates"
-templates = Jinja2Templates(directory=str(_templates_dir))
 
 
 def _build_static_file_hashes(static_dir: Path) -> dict[str, str]:
@@ -276,7 +273,6 @@ app = fastapi.FastAPI(
 
 instrument_app(app)
 
-app.state.templates = templates
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
 app.add_exception_handler(RequestValidationError, validation_exception_handler)
