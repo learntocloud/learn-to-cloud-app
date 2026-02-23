@@ -210,7 +210,7 @@ class AnalyticsRepository:
                     per_user_hands_on.c.phase_id == phase_id,
                     per_user_hands_on.c.validated_count >= req_hands_on,
                 )
-                combined = steps_q.intersect(hands_on_q)
+                combined = select(steps_q.intersect(hands_on_q).subquery().c.user_id)
             else:
                 combined = steps_q
 

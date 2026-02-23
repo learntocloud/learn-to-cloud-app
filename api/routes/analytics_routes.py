@@ -102,7 +102,12 @@ async def status_page(
         )
 
     insights = _derive_insights(analytics)
-    new_this_month = analytics.signup_trends[-1].count if analytics.signup_trends else 0
+
+    # Only show "new this month" if the latest trend entry is the current month.
+    current_month = datetime.now(UTC).strftime("%Y-%m")
+    new_this_month = 0
+    if analytics.signup_trends and analytics.signup_trends[-1].month == current_month:
+        new_this_month = analytics.signup_trends[-1].count
 
     return templates.TemplateResponse(
         "pages/status.html",

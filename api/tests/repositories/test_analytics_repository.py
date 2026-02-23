@@ -454,3 +454,183 @@ class TestSnapshot:
 
         data = await repo.get_snapshot_data()
         assert data == '{"total_users": 20}'
+
+
+# =========================================================================
+# get_program_completers
+# =========================================================================
+
+
+class TestGetProgramCompleters:
+    async def test_returns_zero_when_empty_requirements(
+        self, db_session: AsyncSession, users
+    ):
+        repo = AnalyticsRepository(db_session)
+        assert await repo.get_program_completers({}) == 0
+
+    async def test_returns_zero_when_no_progress(self, db_session: AsyncSession, users):
+        repo = AnalyticsRepository(db_session)
+        assert await repo.get_program_completers({0: (2, 1)}) == 0
+
+    async def test_counts_user_completing_single_phase_steps_only(
+        self, db_session: AsyncSession, users
+    ):
+        """User completed enough steps in a phase with no hands-on."""
+        progress_repo = StepProgressRepository(db_session)
+        await progress_repo.create_if_not_exists(USER_A, "topic-1", "step-1", 1, 0)
+        await progress_repo.create_if_not_exists(USER_A, "topic-1", "step-2", 2, 0)
+        await db_session.flush()
+
+        repo = AnalyticsRepository(db_session)
+        assert await repo.get_program_completers({0: (2, 0)}) == 1
+
+    async def test_excludes_user_with_insufficient_steps(
+        self, db_session: AsyncSession, users
+    ):
+        progress_repo = StepProgressRepository(db_session)
+        await progress_repo.create_if_not_exists(USER_A, "topic-1", "step-1", 1, 0)
+        await db_session.flush()
+
+        repo = AnalyticsRepository(db_session)
+        assert await repo.get_program_completers({0: (3, 0)}) == 0
+
+    async def test_counts_user_completing_steps_and_hands_on(
+        self, db_session: AsyncSession, users
+    ):
+        """User completed both steps AND hands-on for a single phase."""
+        progress_repo = StepProgressRepository(db_session)
+        sub_repo = SubmissionRepository(db_session)
+
+        await progress_repo.create_if_not_exists(USER_A, "topic-1", "step-1", 1, 0)
+        await sub_repo.create(
+            user_id=USER_A,
+            requirement_id="github-profile",
+            submission_type=SubmissionType.GITHUB_PROFILE,
+            phase_id=0,
+            submitted_value="https://github.com/a",
+            extracted_username="a",
+            is_validated=True,
+        )
+        await db_session.flush()
+
+        repo = AnalyticsRepository(db_session)
+        assert await repo.get_program_completers({0: (1, 1)}) == 1
+
+    async def test_excludes_user_missing_hands_on(
+        self, db_session: AsyncSession, users
+    ):
+        """User completed steps but NOT hands-on."""
+        progress_repo = StepProgressRepository(db_session)
+        await progress_repo.create_if_not_exists(USER_A, "topic-1", "step-1", 1, 0)
+        await db_session.flush()
+
+        repo = AnalyticsRepository(db_session)
+        assert await repo.get_program_completers({0: (1, 1)}) == 0
+
+    async def test_excludes_user_with_unvalidated_hands_on(
+        self, db_session: AsyncSession, users
+    ):
+        """Unvalidated submissions don't count toward hands-on."""
+        progress_repo = StepProgressRepository(db_session)
+        sub_repo = SubmissionRepository(db_session)
+
+        await progress_repo.create_if_not_exists(USER_A, "topic-1", "step-1", 1, 0)
+        await sub_repo.create(
+            user_id=USER_A,
+            requirement_id="github-profile",
+            submission_type=SubmissionType.GITHUB_PROFILE,
+            phase_id=0,
+            submitted_value="https://github.com/a",
+            extracted_username="a",
+            is_validated=False,
+        )
+        await db_session.flush()
+
+        repo = AnalyticsRepository(db_session)
+        assert await repo.get_program_completers({0: (1, 1)}) == 0
+
+    async def test_requires_all_phases_completed(self, db_session: AsyncSession, users):
+        """User must complete ALL phases, not just one."""
+        progress_repo = StepProgressRepository(db_session)
+        sub_repo = SubmissionRepository(db_session)
+
+        # User A completes phase 0 fully
+        await progress_repo.create_if_not_exists(USER_A, "topic-1", "step-1", 1, 0)
+        await sub_repo.create(
+            user_id=USER_A,
+            requirement_id="github-profile",
+            submission_type=SubmissionType.GITHUB_PROFILE,
+            phase_id=0,
+            submitted_value="https://github.com/a",
+            extracted_username="a",
+            is_validated=True,
+        )
+        # User A has NO progress in phase 1
+        await db_session.flush()
+
+        repo = AnalyticsRepository(db_session)
+        result = await repo.get_program_completers({0: (1, 1), 1: (1, 0)})
+        assert result == 0
+
+    async def test_counts_user_completing_multiple_phases(
+        self, db_session: AsyncSession, users
+    ):
+        """User completed both phases — should be counted."""
+        progress_repo = StepProgressRepository(db_session)
+        sub_repo = SubmissionRepository(db_session)
+
+        # Phase 0: steps + hands-on
+        await progress_repo.create_if_not_exists(USER_A, "topic-1", "step-1", 1, 0)
+        await sub_repo.create(
+            user_id=USER_A,
+            requirement_id="github-profile",
+            submission_type=SubmissionType.GITHUB_PROFILE,
+            phase_id=0,
+            submitted_value="https://github.com/a",
+            extracted_username="a",
+            is_validated=True,
+        )
+        # Phase 1: steps only
+        await progress_repo.create_if_not_exists(USER_A, "topic-2", "step-1", 1, 1)
+        await db_session.flush()
+
+        repo = AnalyticsRepository(db_session)
+        result = await repo.get_program_completers({0: (1, 1), 1: (1, 0)})
+        assert result == 1
+
+    async def test_multiple_users_mixed_completion(
+        self, db_session: AsyncSession, users
+    ):
+        """Two users: one completes everything, one doesn't."""
+        progress_repo = StepProgressRepository(db_session)
+        sub_repo = SubmissionRepository(db_session)
+
+        # User A: completes both phases
+        await progress_repo.create_if_not_exists(USER_A, "topic-1", "step-1", 1, 0)
+        await sub_repo.create(
+            user_id=USER_A,
+            requirement_id="github-profile",
+            submission_type=SubmissionType.GITHUB_PROFILE,
+            phase_id=0,
+            submitted_value="https://github.com/a",
+            extracted_username="a",
+            is_validated=True,
+        )
+        await progress_repo.create_if_not_exists(USER_A, "topic-2", "step-1", 1, 1)
+
+        # User B: completes phase 0 only
+        await progress_repo.create_if_not_exists(USER_B, "topic-1", "step-1", 1, 0)
+        await sub_repo.create(
+            user_id=USER_B,
+            requirement_id="github-profile",
+            submission_type=SubmissionType.GITHUB_PROFILE,
+            phase_id=0,
+            submitted_value="https://github.com/b",
+            extracted_username="b",
+            is_validated=True,
+        )
+        await db_session.flush()
+
+        repo = AnalyticsRepository(db_session)
+        result = await repo.get_program_completers({0: (1, 1), 1: (1, 0)})
+        assert result == 1  # Only User A
