@@ -125,7 +125,8 @@ URLs can appear in many YAML fields (the schema evolves). Historically common lo
 - `security_overviews[].url` (often in `_phase.yaml`)
 
 Ignore template/placeholder URLs and non-external/local URLs, including (but not limited to):
-- `https://github.com/your-username`, `https://github.com/username`, `https://github.com/yourname`, etc.
+- `https://github.com/your-username*`, `https://github.com/username/*`, `https://github.com/yourname*` — these are placeholder patterns for student repos (e.g., `github.com/username/journal-starter`, `github.com/username/linux-ctfs`). Match by prefix, not exact string.
+- `https://httpbin.org/*` — these are intentional exercise URLs (e.g., `httpbin.org/status/404`, `httpbin.org/headers`) used to teach HTTP concepts, not broken links.
 - `http://localhost`, `http://127.0.0.1`, `http://host.docker.internal`, `http://0.0.0.0`
 - Any URL under an explicit `placeholder:` key (these are user prompts, not curriculum resources)
 
@@ -138,8 +139,9 @@ For each unique URL, use the `web-fetch` tool to check if the page loads success
 Classify results as:
 
 - **Working** (200): Record as healthy.
-- **Redirect** (301/302): If `web-fetch` returns content from a different URL than requested, record it as a redirect. Flag permanent redirects — the YAML should be updated to the new URL.
+- **Redirect** (301/302): If `web-fetch` returns content from a different URL than requested, record it as a redirect. Flag permanent redirects — the YAML should be updated to the **final** URL after following all redirect hops (some URLs redirect through multiple steps, e.g., `cloud.google.com/iam/docs/quickstart` → `docs.cloud.google.com/iam/docs/quickstart` → `docs.cloud.google.com/iam/docs/grant-role-console`). Always verify the final destination returns 200.
 - **Broken** (404, 410, connection error, timeout): If `web-fetch` fails or returns an error, record as broken with the error.
+- **Bot-blocked** (403, 429): Some sites (Cloudflare, HashiCorp, etc.) block automated requests with 403 or 429 responses. Report these separately as "Connection Issues" — they are almost always working for real users and should NOT be listed as broken links. Note the domain's bot-protection in the report.
 - **Soft 404**: If the page loads but the content is clearly a "page not found" or "content removed" message, flag it.
 
 For YouTube URLs (`youtu.be`, `youtube.com`), a 200 response is sufficient — don't try to parse the page content.
@@ -181,4 +183,5 @@ All {N} other links are healthy.
 - Do NOT create an issue if everything is healthy — use the noop output instead with a message like "All {N} links healthy, no issues found."
 - Group related broken links by phase for easier fixing.
 - Be conservative: only flag a link as broken if you're confident it's not a transient error. If a URL times out once, note it as "possibly broken" rather than definitely broken.
+- Never classify 403 (Cloudflare bot-protection) or 429 (rate limiting) responses as broken — report them in a separate "Connection Issues" section with a note that manual verification is recommended.
 - For YouTube videos, only flag if the response is clearly a 404 or removed video — don't flag age-restricted or region-locked content.

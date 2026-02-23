@@ -34,7 +34,7 @@ learning_steps:
     description: Official AWS guide to IAM users, groups, policies, and roles
   - provider: gcp
     title: GCP IAM Overview
-    url: https://cloud.google.com/iam/docs/overview
+    url: https://docs.cloud.google.com/iam/docs/overview
     description: Understanding Identity and Access Management in Google Cloud
   title: Learn IAM concepts across cloud providers
   id: phase4-topic2-read-learn-iam-concepts-across
@@ -52,7 +52,7 @@ learning_steps:
     description: Apply IAM best practices, including least privilege and short-term credentials
   - provider: gcp
     title: Secure IAM in Google Cloud
-    url: https://cloud.google.com/iam/docs/using-iam-securely
+    url: https://docs.cloud.google.com/iam/docs/using-iam-securely
     description: Review IAM security best practices and least-privilege guidance in GCP
   title: Learn least-privilege IAM practices by provider
   id: phase4-topic2-read-learn-least-privilege-iam-practices
@@ -70,7 +70,7 @@ learning_steps:
     description: Understand how EC2 instances and Lambda functions assume IAM roles
   - provider: gcp
     title: GCP Service Accounts
-    url: https://cloud.google.com/iam/docs/service-account-overview
+    url: https://docs.cloud.google.com/iam/docs/service-account-overview
     description: Learn how GCP workloads use service accounts for authentication
   title: Understand managed identities and service accounts
   id: phase4-topic2-read-understand-managed-identities
@@ -88,7 +88,7 @@ learning_steps:
     description: Configure MFA for IAM users and understand credential best practices
   - provider: gcp
     title: GCP 2-Step Verification
-    url: https://cloud.google.com/identity/docs/concepts/overview
+    url: https://docs.cloud.google.com/identity/docs/overview
     description: Enforce MFA across Google Cloud user accounts
   title: Learn MFA and credential hygiene by provider
   id: phase4-topic2-read-learn-mfa-credential-hygiene

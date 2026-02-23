@@ -31,7 +31,7 @@ learning_steps:
     description: Learn CloudWatch fundamentals for metrics, logs, alarms, and dashboards.
   - provider: gcp
     title: Cloud Monitoring Overview
-    url: https://cloud.google.com/monitoring/docs/monitoring-overview
+    url: https://docs.cloud.google.com/monitoring/docs/monitoring-overview
     description: Learn Google Cloud Monitoring fundamentals for infrastructure and services.
   title: Learn your provider's monitoring fundamentals
   id: phase4-topic6-read-learn-your-providers-monitoring
@@ -49,7 +49,7 @@ learning_steps:
     description: Understand log groups, streams, and search workflows.
   - provider: gcp
     title: Cloud Logging Overview
-    url: https://cloud.google.com/logging/docs/overview
+    url: https://docs.cloud.google.com/logging/docs/overview
     description: Understand structured logs and query workflows in Cloud Logging.
   title: Understand logs
   id: phase4-topic6-read-understand-logs
@@ -59,7 +59,7 @@ learning_steps:
   options:
   - provider: azure
     title: Azure Monitor Metrics Overview
-    url: https://learn.microsoft.com/en-us/azure/azure-monitor/essentials/data-platform-metrics
+    url: https://learn.microsoft.com/en-us/azure/azure-monitor/metrics/data-platform-metrics
     description: Understand platform and custom metrics collection and analysis.
   - provider: aws
     title: Using Amazon CloudWatch Metrics
@@ -67,7 +67,7 @@ learning_steps:
     description: Understand metric namespaces, dimensions, and alarm workflows.
   - provider: gcp
     title: Cloud Monitoring Metrics Overview
-    url: https://cloud.google.com/monitoring/docs/metrics
+    url: https://docs.cloud.google.com/monitoring/docs/monitoring-overview
     description: Understand built-in and custom metrics in Google Cloud Monitoring.
   title: Understand metrics
   id: phase4-topic6-read-understand-metrics
@@ -85,7 +85,7 @@ learning_steps:
     description: Install and configure the CloudWatch Agent to send system metrics and logs from your EC2 instance to CloudWatch.
   - provider: gcp
     title: Install the Ops Agent on a Compute Engine VM
-    url: https://cloud.google.com/stackdriver/docs/solutions/agents/ops-agent/installation
+    url: https://docs.cloud.google.com/stackdriver/docs/solutions/agents/ops-agent/installation
     description: Install the Ops Agent to collect logs and metrics from your Compute Engine VM and send them to Cloud Monitoring and Cloud Logging.
   title: Configure a VM to emit logs and metrics
   id: phase4-topic6-practice-configure-vm-monitoring
@@ -103,7 +103,7 @@ learning_steps:
     description: Open Logs Insights, select your VM's log group, and write a query to find SSH login events from the last hour.
   - provider: gcp
     title: 'Logs Explorer: Query Your Logs'
-    url: https://cloud.google.com/logging/docs/view/logs-explorer-interface
+    url: https://docs.cloud.google.com/logging/docs/view/logs-explorer-interface
     description: Open Logs Explorer and write a query to find SSH login events on your VM from the last hour.
   title: Query your VM's logs for SSH login events
   id: phase4-topic6-practice-query-vm-logs

@@ -28,7 +28,7 @@ learning_steps:
     description: Understand billing concepts, pricing dimensions, and account charges in AWS.
   - provider: gcp
     title: Cloud Billing Concepts
-    url: https://cloud.google.com/billing/docs/concepts
+    url: https://docs.cloud.google.com/billing/docs/concepts
     description: Review how billing accounts, projects, and charges work in Google Cloud.
   title: Learn cloud pricing and billing fundamentals by provider
   id: phase4-topic7-read-learn-cloud-pricing-and
@@ -46,7 +46,7 @@ learning_steps:
     description: Understanding your AWS bills and managing costs
   - provider: gcp
     title: GCP Cloud Billing
-    url: https://cloud.google.com/billing/docs/how-to
+    url: https://docs.cloud.google.com/billing/docs/how-to
     description: How to manage billing in Google Cloud
   title: Cost Management Overview
   id: phase4-topic7-practice-cost-management-overview
@@ -64,7 +64,7 @@ learning_steps:
     description: Setting up AWS Budget alerts
   - provider: gcp
     title: Create GCP Budget Alerts
-    url: https://cloud.google.com/billing/docs/how-to/budgets
+    url: https://docs.cloud.google.com/billing/docs/how-to/budgets
     description: Configuring budget alerts in Google Cloud
   title: Set Up Budget Alerts
   id: phase4-topic7-practice-set-up-budget-alerts
@@ -100,7 +100,7 @@ learning_steps:
     description: Apply AWS cost-optimization design principles and workload review practices.
   - provider: gcp
     title: 'Google Cloud Architecture Framework: Cost Optimization'
-    url: https://cloud.google.com/architecture/framework/cost-optimization
+    url: https://docs.cloud.google.com/architecture/framework/cost-optimization
     description: Follow GCP cost-optimization recommendations for architecture and operations.
   title: Review cost-optimization frameworks by provider
   id: phase4-topic7-read-review-cost-optimization-frameworks-by

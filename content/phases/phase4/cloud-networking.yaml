@@ -31,7 +31,7 @@ learning_steps:
     description: Amazon Virtual Private Cloud documentation
   - provider: gcp
     title: GCP Virtual Private Cloud
-    url: https://cloud.google.com/vpc/docs/overview
+    url: https://docs.cloud.google.com/vpc/docs/overview
     description: Google Cloud VPC documentation
   title: Understand Virtual Private Cloud (VPC/VNet)
   id: phase4-topic3-read-understand-virtual-private-cloud
@@ -49,7 +49,7 @@ learning_steps:
     description: Official documentation for controlling inbound and outbound traffic
   - provider: gcp
     title: GCP Firewall Rules
-    url: https://cloud.google.com/firewall/docs/firewalls
+    url: https://docs.cloud.google.com/firewall/docs/firewalls
     description: Understanding firewall rules in Google Cloud
   title: Understand Security Groups & Firewall Rules
   id: phase4-topic3-read-understand-security-groups-firewall
@@ -67,7 +67,7 @@ learning_steps:
     description: Learn how CIDR ranges and subnetting are designed in AWS VPC.
   - provider: gcp
     title: GCP VPC Networks and Subnets
-    url: https://cloud.google.com/vpc/docs/vpc
+    url: https://docs.cloud.google.com/vpc/docs/vpc
     description: Understand subnet ranges and IP design in Google Cloud VPC.
   title: Learn CIDR and subnet design by provider
   id: phase4-topic3-read-learn-cidr-and-subnet
@@ -85,7 +85,7 @@ learning_steps:
     description: Learn how Internet Gateways provide VPC internet connectivity.
   - provider: gcp
     title: GCP External IP Addresses
-    url: https://cloud.google.com/compute/docs/ip-addresses
+    url: https://docs.cloud.google.com/compute/docs/ip-addresses
     description: Understand how public IP addresses provide external access in GCP.
   title: Understand internet connectivity components by provider
   id: phase4-topic3-read-understand-internet-connectivity-components
@@ -103,7 +103,7 @@ learning_steps:
     description: Learn how AWS NAT Gateways provide outbound access from private subnets.
   - provider: gcp
     title: Cloud NAT Overview
-    url: https://cloud.google.com/nat/docs/overview
+    url: https://docs.cloud.google.com/nat/docs/overview
     description: Configure private Google Cloud workloads to reach the internet via NAT.
   title: Compare NAT patterns across cloud providers
   id: phase4-topic3-read-compare-nat-patterns-across
@@ -121,7 +121,7 @@ learning_steps:
     description: Analyze network path reachability across route tables, gateways, and security controls.
   - provider: gcp
     title: GCP Connectivity Tests Overview
-    url: https://cloud.google.com/network-intelligence-center/docs/connectivity-tests/concepts/overview
+    url: https://docs.cloud.google.com/network-intelligence-center/docs/connectivity-tests/concepts/overview
     description: Run path analysis to verify routing and firewall behavior for target endpoints.
   title: Validate routing and security decisions by provider
   id: phase4-topic3-read-validate-routing-and-security
@@ -140,7 +140,7 @@ learning_steps:
     description: Eliminate public network access to your Azure database with Private Endpoint
   - provider: gcp
     title: Cloud SQL Private IP
-    url: https://cloud.google.com/sql/docs/postgres/private-ip
+    url: https://docs.cloud.google.com/sql/docs/postgres/private-ip
     description: Connect to Cloud SQL over private IP with no public internet exposure
   id: phase4-topic3-read-restrict-database-access
 - order: 8

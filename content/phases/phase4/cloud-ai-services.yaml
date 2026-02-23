@@ -28,7 +28,7 @@ learning_steps:
     description: Amazon's fully managed service for building generative AI applications
   - provider: gcp
     title: GCP Vertex AI
-    url: https://cloud.google.com/vertex-ai/docs/start/introduction-unified-platform
+    url: https://docs.cloud.google.com/vertex-ai/docs/start/introduction-unified-platform
     description: Google's unified AI platform for building and deploying ML models
   title: Platform Overview
   id: phase4-topic8-read-platform-overview
@@ -46,7 +46,7 @@ learning_steps:
     description: Explore foundation models available in Amazon Bedrock
   - provider: gcp
     title: GCP Model Garden
-    url: https://cloud.google.com/vertex-ai/generative-ai/docs/learn/models
+    url: https://docs.cloud.google.com/vertex-ai/generative-ai/docs/models
     description: Discover models available in Google's Vertex AI Model Garden
   title: Explore Available Models
   id: phase4-topic8-explore-explore-available-models
@@ -64,7 +64,7 @@ learning_steps:
     description: Deploy and manage models with Amazon Bedrock
   - provider: gcp
     title: GCP Deployment
-    url: https://cloud.google.com/vertex-ai/docs/general/deployment
+    url: https://docs.cloud.google.com/vertex-ai/docs/general/deployment
     description: Deploy models to endpoints in Vertex AI
   title: Understand Deployment Options
   id: phase4-topic8-read-understand-deployment-options
@@ -82,7 +82,7 @@ learning_steps:
     description: Set up guardrails for responsible AI use in Amazon Bedrock
   - provider: gcp
     title: GCP Safety Overview
-    url: https://cloud.google.com/vertex-ai/generative-ai/docs/learn/safety-overview
+    url: https://docs.cloud.google.com/vertex-ai/generative-ai/docs/learn/safety-overview
     description: Understand safety features and content filtering in Vertex AI
   title: Safety & Guardrails
   id: phase4-topic8-practice-safety-guardrails

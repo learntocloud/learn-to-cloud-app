@@ -28,7 +28,7 @@ learning_steps:
     description: Follow the official guide to install the AWS CLI on your system.
   - provider: gcp
     title: Install the Google Cloud CLI
-    url: https://cloud.google.com/sdk/docs/install
+    url: https://docs.cloud.google.com/sdk/docs/install-sdk
     description: Follow the official guide to install the gcloud CLI on your system.
   title: Install your cloud provider's CLI
   id: phase1-topic2-practice-install-your-cloud-providers
@@ -68,13 +68,13 @@ learning_steps:
       ```bash az login ```'
   - provider: aws
     title: Authenticate AWS CLI
-    url: https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-quickstart.html
+    url: https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-configure.html
     description: 'Run this command in your terminal:
 
       ```bash aws configure ```'
   - provider: gcp
     title: Authenticate Google Cloud CLI
-    url: https://cloud.google.com/sdk/docs/authorizing
+    url: https://docs.cloud.google.com/sdk/docs/authorizing
     description: 'Run this command in your terminal:
 
       ```bash gcloud auth login ```'

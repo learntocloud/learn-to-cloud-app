@@ -24,11 +24,11 @@ learning_steps:
     description: Review PostgreSQL offerings on Azure and decide between managed and VM-hosted patterns.
   - provider: aws
     title: AWS PostgreSQL Deployment Options Overview
-    url: https://aws.amazon.com/postgresql/
+    url: https://aws.amazon.com/rds/postgresql/
     description: Compare PostgreSQL options on AWS including managed and self-managed approaches.
   - provider: gcp
     title: Google Cloud PostgreSQL Deployment Options Overview
-    url: https://cloud.google.com/postgresql
+    url: https://docs.cloud.google.com/sql/docs/postgres/introduction
     description: Understand PostgreSQL options on Google Cloud and choose the right deployment path.
   title: Compare PostgreSQL deployment options by provider
   id: phase4-topic5-read-compare-postgresql-deployment-options
@@ -38,7 +38,7 @@ learning_steps:
   options:
   - provider: azure
     title: Install PostgreSQL on an Azure Linux VM
-    url: https://learn.microsoft.com/en-us/azure/virtual-machines/linux/postgresql-install
+    url: https://learn.microsoft.com/en-us/previous-versions/azure/virtual-machines/linux/postgresql-install
     description: Step-by-step guide to installing and configuring PostgreSQL on a Linux VM in Azure.
   - provider: aws
     title: PostgreSQL Linux Downloads (Official)
@@ -64,7 +64,7 @@ learning_steps:
     description: Follow the AWS reference architecture for private-subnet workloads before installing PostgreSQL.
   - provider: gcp
     title: Create an Instance in a Specific Subnet
-    url: https://cloud.google.com/compute/docs/instances/create-vm-specific-subnet
+    url: https://docs.cloud.google.com/compute/docs/instances/create-vm-specific-subnet
     description: Launch a VM in your chosen subnet and use no external IP for private-only database hosting.
   title: Deploy a VM in a private subnet and install PostgreSQL
   id: phase4-topic5-practice-deploy-a-vm-in
@@ -88,7 +88,7 @@ learning_steps:
     description: Agent-based access through the AWS control plane — requires the SSM agent on the instance. No bastion host, no open inbound ports. Also supports port forwarding and session logging.
   - provider: gcp
     title: Connect to a Private VM via IAP TCP Forwarding
-    url: https://cloud.google.com/iap/docs/using-tcp-forwarding
+    url: https://docs.cloud.google.com/iap/docs/using-tcp-forwarding
     description: An identity-aware tunnel proxy — creates an encrypted tunnel from your machine authenticated via IAM, then you use your own SSH client through it. No agent required.
   title: Verify database connectivity and security
   id: phase4-topic5-practice-verify-database-connectivity-and

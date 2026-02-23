@@ -90,7 +90,7 @@ learning_steps:
     description: Amazon Elastic Kubernetes Service — managed Kubernetes on AWS
   - provider: gcp
     title: Google GKE
-    url: https://cloud.google.com/kubernetes-engine/docs/concepts/kubernetes-engine-overview
+    url: https://docs.cloud.google.com/kubernetes-engine/docs/concepts/kubernetes-engine-overview
     description: Google Kubernetes Engine — managed Kubernetes on GCP
   title: Managed Kubernetes Services
   id: phase5-topic4-read-managed-kubernetes-services
@@ -108,7 +108,7 @@ learning_steps:
     description: Launch your first Amazon EKS cluster and verify node health.
   - provider: gcp
     title: Deploy a GKE cluster
-    url: https://cloud.google.com/kubernetes-engine/docs/quickstarts/deploy-an-application
+    url: https://docs.cloud.google.com/kubernetes-engine/docs/learn/cymbal-books/lp1/containerize
     description: Create and validate a Google Kubernetes Engine cluster quickly.
   title: Deploy to a managed Kubernetes cluster
   id: phase5-topic4-practice-deploy-to-managed-k8s

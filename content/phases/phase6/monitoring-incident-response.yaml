@@ -21,7 +21,7 @@ learning_steps:
   options:
   - provider: azure
     title: Azure Monitor Overview
-    url: https://learn.microsoft.com/en-us/azure/azure-monitor/overview
+    url: https://learn.microsoft.com/en-us/azure/azure-monitor/fundamentals/overview
     description: Metrics, logs, and alerts in Azure
   - provider: aws
     title: AWS CloudWatch
@@ -29,7 +29,7 @@ learning_steps:
     description: Monitoring and observability in AWS
   - provider: gcp
     title: GCP Cloud Monitoring
-    url: https://cloud.google.com/monitoring/docs/monitoring-overview
+    url: https://docs.cloud.google.com/monitoring/docs/monitoring-overview
     description: Monitoring in Google Cloud
   id: phase6-topic4-read-cloud-monitoring-overview
 - order: 2
@@ -43,7 +43,7 @@ learning_steps:
     description: Tutorial for creating and managing CloudTrail trails
   - provider: azure
     title: Azure Activity Log
-    url: https://learn.microsoft.com/en-us/azure/azure-monitor/essentials/activity-log
+    url: https://learn.microsoft.com/en-us/azure/azure-monitor/platform/activity-log
     description: Platform log for control-plane events on Azure resources
   - provider: gcp
     title: Cloud Audit Logs Overview
@@ -82,7 +82,7 @@ learning_steps:
     description: Intelligent threat detection in AWS
   - provider: gcp
     title: Security Command Center
-    url: https://cloud.google.com/security-command-center/docs/concepts-security-command-center-overview
+    url: https://docs.cloud.google.com/security-command-center/docs/security-command-center-overview
     description: Threat detection in Google Cloud
   title: Enable your cloud provider's threat detection service
   id: phase6-topic4-practice-enable-your-cloud-providers

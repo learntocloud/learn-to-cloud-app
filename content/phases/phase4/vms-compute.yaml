@@ -40,7 +40,7 @@ learning_steps:
     description: Compare EC2 instance families and choose the right type for your workload.
   - provider: gcp
     title: Machine Families Resource and Comparison Guide
-    url: https://cloud.google.com/compute/docs/machine-resource
+    url: https://docs.cloud.google.com/compute/docs/machine-resource
     description: Learn how Google Cloud machine families map to common workload requirements.
   title: Compare VM sizing guidance by cloud provider
   id: phase4-topic1-read-compare-vm-sizing-guidance

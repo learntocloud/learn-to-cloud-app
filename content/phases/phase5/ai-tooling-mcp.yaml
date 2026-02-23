@@ -52,7 +52,7 @@ learning_steps:
     description: AWS Labs MCP servers for CloudWatch logs, CDK infrastructure, and AWS documentation — enabling GitHub Copilot to query and manage AWS resources.
   - provider: gcp
     title: Google Cloud MCP Servers
-    url: https://github.com/GoogleCloudPlatform/google-cloud-mcp
+    url: https://cloud.google.com/products/gemini/mcp
     description: Google Cloud MCP servers for querying Cloud Monitoring, managing GCP resources, and interacting with Google Cloud services through GitHub Copilot.
   id: phase5-topic7-read-cloud-provider-mcp-servers
 - order: 6
@@ -70,7 +70,7 @@ learning_steps:
     description: Install the AWS MCP servers, authenticate with your AWS credentials, and ask Copilot to query CloudWatch for recent log events, errors, or metrics from your deployed application.
   - provider: gcp
     title: GCP MCP — Query Cloud Monitoring
-    url: https://github.com/GoogleCloudPlatform/google-cloud-mcp
+    url: https://cloud.google.com/products/gemini/mcp
     description: Install the Google Cloud MCP servers, authenticate with your GCP account, and ask Copilot to query Cloud Monitoring for metrics, logs, or errors from your deployed application.
   id: phase5-topic7-practice-query-cloud-telemetry
 - order: 7

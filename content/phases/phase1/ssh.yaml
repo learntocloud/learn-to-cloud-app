@@ -34,7 +34,7 @@ learning_steps:
     description: AWS guide to connecting to EC2 instances via SSH.
   - provider: gcp
     title: SSH into a VM
-    url: https://cloud.google.com/compute/docs/connect/standard-ssh
+    url: https://docs.cloud.google.com/compute/docs/connect/standard-ssh
     description: GCP documentation for SSH access to Compute Engine instances.
   title: Practice connecting to a VM
   id: phase1-topic4-practice-practice-connecting-to-a

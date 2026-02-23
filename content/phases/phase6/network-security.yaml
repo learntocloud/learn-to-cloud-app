@@ -26,7 +26,7 @@ learning_steps:
     description: Protect your applications from common exploits with Azure WAF
   - provider: gcp
     title: Cloud Armor WAF Overview
-    url: https://cloud.google.com/armor/docs/cloud-armor-overview
+    url: https://docs.cloud.google.com/armor/docs/cloud-armor-overview
     description: Protect your GCP services with Cloud Armor WAF rules and preconfigured policies
   id: phase6-topic3-read-web-application-firewall
 - order: 2
@@ -44,7 +44,7 @@ learning_steps:
     description: Azure DDoS Protection tiers and what is included by default
   - provider: gcp
     title: Cloud Armor DDoS Mitigation
-    url: https://cloud.google.com/armor/docs/adaptive-protection-overview
+    url: https://docs.cloud.google.com/armor/docs/adaptive-protection-overview
     description: Adaptive Protection and DDoS mitigations in Cloud Armor
   id: phase6-topic3-read-ddos-protection-by-provider
 - order: 3
@@ -62,7 +62,7 @@ learning_steps:
     description: Network security best practices for Azure deployments
   - provider: gcp
     title: GCP Networking Security Best Practices
-    url: https://cloud.google.com/docs/security/infrastructure/design#network-security
+    url: https://docs.cloud.google.com/docs/security/infrastructure/design#network-security
     description: Network security design principles in Google Cloud
   id: phase6-topic3-read-network-security-best-practices
 - order: 4
@@ -76,11 +76,11 @@ learning_steps:
     description: Capture IP traffic flow information for your VPC interfaces
   - provider: azure
     title: NSG Flow Logs
-    url: https://learn.microsoft.com/en-us/azure/network-watcher/network-watcher-nsg-flow-logging-overview
+    url: https://learn.microsoft.com/en-us/azure/network-watcher/vnet-flow-logs-overview?tabs=Americas
     description: Log network traffic to and from Azure network security groups
   - provider: gcp
     title: VPC Flow Logs
-    url: https://cloud.google.com/vpc/docs/flow-logs
+    url: https://docs.cloud.google.com/vpc/docs/flow-logs
     description: Record network flows to and from VMs and GKE nodes in GCP
   id: phase6-topic3-read-enable-network-flow-logs
 - order: 5

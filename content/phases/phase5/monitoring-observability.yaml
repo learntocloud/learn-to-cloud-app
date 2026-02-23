@@ -28,7 +28,7 @@ learning_steps:
     description: Review AWS monitoring fundamentals for metrics, logs, alarms, and dashboards.
   - provider: gcp
     title: Google Cloud Monitoring Overview
-    url: https://cloud.google.com/monitoring/docs/monitoring-overview
+    url: https://docs.cloud.google.com/monitoring/docs/monitoring-overview
     description: Understand how Cloud Monitoring collects and visualizes service telemetry.
   title: 'Prerequisite refresher: provider monitoring basics (optional)'
   id: phase5-topic5-read-prerequisite-refresher-provider-monitoring

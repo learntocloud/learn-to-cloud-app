@@ -28,7 +28,7 @@ learning_steps:
     description: Connect to your instances without SSH keys or open ports
   - provider: gcp
     title: GCP Identity-Aware Proxy
-    url: https://cloud.google.com/iap/docs/concepts-overview
+    url: https://docs.cloud.google.com/iap/docs/concepts-overview
     description: Official guide to using IAP for secure access to GCP resources
   title: Understand Session-Based Access Management
   id: phase4-topic4-read-understand-session-based-access-management
@@ -46,7 +46,7 @@ learning_steps:
     description: Connect to EC2 without open inbound ports using AWS Systems Manager.
   - provider: gcp
     title: Connect to Linux VMs using IAP
-    url: https://cloud.google.com/compute/docs/connect/ssh-using-iap
+    url: https://docs.cloud.google.com/compute/docs/connect/ssh-using-iap
     description: Access VMs securely through Identity-Aware Proxy instead of direct external SSH exposure.
   title: Compare secure VM access workflows by provider
   id: phase4-topic4-read-compare-secure-vm-access
