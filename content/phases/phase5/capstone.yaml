@@ -48,7 +48,7 @@ learning_steps:
 - order: 7
   action: 'Build:'
   description: Your repository must include these directories and files for auto-verification. Steps 1–4 are verified automatically when you submit your repo URL.
-  code: "your-journal-starter/\n  ├── Dockerfile              # Step 1: Container definition\n  ├── .github/\n  │   └── workflows/          # Step 3: CI/CD pipeline configs\n  │       └── *.yml\n  ├── infra/                   # Step 2: Terraform IaC configs\n  │   ├── main.tf\n  │   └── variables.tf\n  ├── k8s/                     # Step 4: Kubernetes manifests\n  │   ├── deployment.yaml\n  │   └── service.yaml\n  ├── app/                     # Your FastAPI app code\n  └── README.md                # Step 6: Documentation"
+  code: "your-journal-starter/\n  ├── Dockerfile              # Step 1: Container definition\n  ├── .github/\n  │   └── workflows/          # Step 3: CI/CD pipeline configs\n  │       └── *.yml\n  ├── infra/                   # Step 2: Terraform IaC configs\n  │   ├── main.tf\n  │   └── variables.tf\n  ├── k8s/                     # Step 4: Kubernetes manifests\n  │   ├── deployment.yaml\n  │   └── service.yaml\n  ├── api/                     # Your FastAPI app code\n  └── README.md                # Step 6: Documentation"
   title: Required Project Structure
   id: phase5-topic6-build-required-project-structure
 - order: 8
