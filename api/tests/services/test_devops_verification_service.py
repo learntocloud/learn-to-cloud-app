@@ -19,6 +19,7 @@ import pytest
 
 from schemas import TaskResult, ValidationResult
 from services.devops_verification_service import (
+    MISSING_FILES_FEEDBACK,
     PHASE5_TASKS,
     DevOpsAnalysisError,
     DevOpsAnalysisLLMResponse,
@@ -253,7 +254,7 @@ class TestBuildVerificationPrompt:
 
     def test_includes_file_contents(self):
         dockerfile = (
-            '<file_content path="Dockerfile">' "\nFROM python:3.12\n</file_content>"
+            '<file_content path="Dockerfile">\nFROM python:3.12\n</file_content>'
         )
         file_contents = {
             "dockerfile": [dockerfile],
@@ -342,7 +343,7 @@ class TestAnalyzeDevopsRepository:
 
         mock_file_contents = {
             "dockerfile": [
-                '<file_content path="Dockerfile">' "\nFROM python\n</file_content>"
+                '<file_content path="Dockerfile">\nFROM python\n</file_content>'
             ],
             "cicd-pipeline": [
                 '<file_content path=".github/workflows/ci.yml">'
@@ -452,3 +453,252 @@ class TestAnalyzeDevopsRepository:
 
         assert result.is_valid is False
         assert result.server_error is True
+
+
+@pytest.mark.unit
+class TestDeterministicPreFilter:
+    """Tests for skipping LLM when no DevOps files found."""
+
+    @pytest.mark.asyncio
+    async def test_no_devops_files_skips_llm(self):
+        """When repo has zero DevOps files, skip LLM entirely."""
+        with patch(
+            "services.devops_verification_service.fetch_repo_tree",
+            autospec=True,
+            return_value=["README.md", "api/main.py"],
+        ):
+            result = await analyze_devops_repository(
+                "https://github.com/testuser/journal-starter",
+                "testuser",
+            )
+
+        assert result.is_valid is False
+        assert result.task_results is not None
+        assert len(result.task_results) == 4
+        assert all(not r.passed for r in result.task_results)
+        assert "0/4" in result.message
+        assert result.score == 0.0
+
+    @pytest.mark.asyncio
+    async def test_deterministic_feedback_content(self):
+        """Deterministic feedback should match MISSING_FILES_FEEDBACK strings."""
+        with patch(
+            "services.devops_verification_service.fetch_repo_tree",
+            autospec=True,
+            return_value=["README.md"],
+        ):
+            result = await analyze_devops_repository(
+                "https://github.com/testuser/journal-starter",
+                "testuser",
+            )
+
+        assert result.task_results is not None
+        for task_result in result.task_results:
+            assert task_result.feedback in MISSING_FILES_FEEDBACK.values()
+
+        dockerfile_result = next(
+            r
+            for r in result.task_results
+            if r.task_name == "Containerization (Dockerfile)"
+        )
+        assert "No Dockerfile found" in dockerfile_result.feedback
+
+    @pytest.mark.asyncio
+    async def test_partial_files_still_calls_llm(self):
+        """When some tasks have files, LLM is called for full analysis."""
+        mock_files = ["Dockerfile", "README.md"]
+        mock_validation = ValidationResult(
+            is_valid=False,
+            message="Completed 1/4 tasks.",
+            task_results=[
+                TaskResult(
+                    task_name=t["name"],
+                    passed=(t["id"] == "dockerfile"),
+                    feedback="OK" if t["id"] == "dockerfile" else "Missing",
+                )
+                for t in PHASE5_TASKS
+            ],
+            score=25.0,
+        )
+        with (
+            patch(
+                "services.devops_verification_service.fetch_repo_tree",
+                autospec=True,
+                return_value=mock_files,
+            ),
+            patch(
+                "services.devops_verification_service._fetch_all_devops_files",
+                autospec=True,
+                return_value={
+                    "dockerfile": [
+                        '<file_content path="Dockerfile">\nFROM python\n</file_content>'
+                    ],
+                    "cicd-pipeline": [],
+                    "terraform-iac": [],
+                    "kubernetes-manifests": [],
+                },
+            ),
+            patch(
+                "services.devops_verification_service._analyze_with_llm",
+                autospec=True,
+                return_value=mock_validation,
+            ),
+        ):
+            result = await analyze_devops_repository(
+                "https://github.com/testuser/journal-starter",
+                "testuser",
+            )
+
+        assert result.is_valid is False
+        assert result.task_results is not None
+        assert len(result.task_results) == 4
+
+    @pytest.mark.asyncio
+    async def test_empty_file_tree_triggers_pre_filter(self):
+        """Empty file tree from GitHub API triggers all-missing pre-filter."""
+        with patch(
+            "services.devops_verification_service.fetch_repo_tree",
+            autospec=True,
+            return_value=[],
+        ):
+            result = await analyze_devops_repository(
+                "https://github.com/testuser/journal-starter",
+                "testuser",
+            )
+
+        assert result.is_valid is False
+        assert result.task_results is not None
+        assert len(result.task_results) == 4
+        assert result.score == 0.0
+
+
+@pytest.mark.unit
+class TestPartialCreditScoring:
+    """Tests for the score field on ValidationResult."""
+
+    @pytest.mark.asyncio
+    async def test_score_zero_when_no_files(self):
+        """Score is 0.0 when no DevOps files found."""
+        with patch(
+            "services.devops_verification_service.fetch_repo_tree",
+            autospec=True,
+            return_value=["README.md"],
+        ):
+            result = await analyze_devops_repository(
+                "https://github.com/testuser/journal-starter",
+                "testuser",
+            )
+
+        assert result.score == 0.0
+
+    @pytest.mark.asyncio
+    async def test_score_100_when_all_pass(self):
+        """Score is 100.0 when all tasks pass."""
+        mock_files = [
+            "Dockerfile",
+            ".github/workflows/ci.yml",
+            "infra/main.tf",
+            "k8s/deployment.yaml",
+        ]
+        mock_validation = ValidationResult(
+            is_valid=True,
+            message="All 4 DevOps tasks verified!",
+            task_results=[
+                TaskResult(task_name=t["name"], passed=True, feedback="Well done!")
+                for t in PHASE5_TASKS
+            ],
+            score=100.0,
+        )
+
+        with (
+            patch(
+                "services.devops_verification_service.fetch_repo_tree",
+                autospec=True,
+                return_value=mock_files,
+            ),
+            patch(
+                "services.devops_verification_service._fetch_all_devops_files",
+                autospec=True,
+                return_value={t["id"]: ["content"] for t in PHASE5_TASKS},
+            ),
+            patch(
+                "services.devops_verification_service._analyze_with_llm",
+                autospec=True,
+                return_value=mock_validation,
+            ),
+        ):
+            result = await analyze_devops_repository(
+                "https://github.com/testuser/journal-starter",
+                "testuser",
+            )
+
+        assert result.score == 100.0
+        assert result.is_valid is True
+
+    @pytest.mark.asyncio
+    async def test_score_partial_completion(self):
+        """Score should reflect partial task completion."""
+        mock_files = [
+            "Dockerfile",
+            ".github/workflows/ci.yml",
+            "infra/main.tf",
+            "k8s/deployment.yaml",
+        ]
+        mock_validation = ValidationResult(
+            is_valid=False,
+            message="Completed 3/4 tasks.",
+            task_results=[
+                TaskResult(
+                    task_name=t["name"],
+                    passed=(i < 3),
+                    feedback="fb",
+                )
+                for i, t in enumerate(PHASE5_TASKS)
+            ],
+            score=75.0,
+        )
+
+        with (
+            patch(
+                "services.devops_verification_service.fetch_repo_tree",
+                autospec=True,
+                return_value=mock_files,
+            ),
+            patch(
+                "services.devops_verification_service._fetch_all_devops_files",
+                autospec=True,
+                return_value={t["id"]: ["content"] for t in PHASE5_TASKS},
+            ),
+            patch(
+                "services.devops_verification_service._analyze_with_llm",
+                autospec=True,
+                return_value=mock_validation,
+            ),
+        ):
+            result = await analyze_devops_repository(
+                "https://github.com/testuser/journal-starter",
+                "testuser",
+            )
+
+        assert result.score == 75.0
+        assert result.is_valid is False
+
+    def test_score_none_by_default(self):
+        """ValidationResult.score defaults to None for other validation types."""
+        result = ValidationResult(is_valid=True, message="OK")
+        assert result.score is None
+
+    @pytest.mark.asyncio
+    async def test_score_none_on_url_error(self):
+        """Score is not set on URL validation errors."""
+        result = await analyze_devops_repository("not-a-github-url", "testuser")
+        assert result.score is None
+
+    @pytest.mark.asyncio
+    async def test_score_none_on_username_mismatch(self):
+        """Score is not set on username mismatch errors."""
+        result = await analyze_devops_repository(
+            "https://github.com/otheruser/journal-starter",
+            "testuser",
+        )
+        assert result.score is None

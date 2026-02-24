@@ -433,6 +433,8 @@ class ValidationResult(FrozenModel):
             should not be applied since the user isn't at fault.
         cloud_provider: Cloud provider for multi-cloud labs ("aws",
             "azure", "gcp"). None for non-multi-cloud validations.
+        score: Percentage of tasks passed (0.0-100.0). None for
+            validation types that don't have task-level grading.
     """
 
     is_valid: bool
@@ -442,6 +444,7 @@ class ValidationResult(FrozenModel):
     task_results: list[TaskResult] | None = None
     server_error: bool = False
     cloud_provider: str | None = None
+    score: float | None = None
 
 
 class CTFVerificationResult(FrozenModel):

@@ -36,7 +36,7 @@ from tenacity import (
 
 from core.config import get_settings
 from core.llm_client import LLMClientError, get_llm_chat_client
-from schemas import ValidationResult
+from schemas import TaskResult, ValidationResult
 from services.llm_verification_base import (
     RETRIABLE_EXCEPTIONS,
     SUSPICIOUS_PATTERNS,
@@ -129,8 +129,8 @@ PHASE5_TASKS: list[TaskDefinition] = [
         "criteria": [
             "MUST have at least one workflow YAML in .github/workflows/",
             "MUST trigger on push to main (or pull_request)",
-            ("MUST have at least 3 jobs: test," " build-and-push, and deploy"),
-            ("MUST have a test job that runs" " linting and/or tests (e.g., pytest)"),
+            ("MUST have at least 3 jobs: test, build-and-push, and deploy"),
+            ("MUST have a test job that runs linting and/or tests (e.g., pytest)"),
             (
                 "MUST have a build-and-push job that builds"
                 " a Docker image and pushes to a registry"
@@ -168,11 +168,8 @@ PHASE5_TASKS: list[TaskDefinition] = [
         "criteria": [
             "MUST have .tf files in the infra/ directory",
             "MUST have a provider block (e.g., azurerm, aws)",
-            ("MUST define a container registry resource" " (e.g., ACR, ECR, GCR)"),
-            (
-                "MUST define a managed Kubernetes cluster"
-                " resource (e.g., AKS, EKS, GKE)"
-            ),
+            ("MUST define a container registry resource (e.g., ACR, ECR, GCR)"),
+            ("MUST define a managed Kubernetes cluster resource (e.g., AKS, EKS, GKE)"),
             (
                 "MUST define a managed PostgreSQL database"
                 " resource (e.g., Azure Flexible Server, RDS)"
@@ -186,10 +183,7 @@ PHASE5_TASKS: list[TaskDefinition] = [
                 "SHOULD have an outputs.tf exporting"
                 " registry URL, DB connection, or kubeconfig"
             ),
-            (
-                "SHOULD have a providers.tf with provider"
-                " and Terraform version config"
-            ),
+            ("SHOULD have a providers.tf with provider and Terraform version config"),
         ],
         "pass_indicators": [
             "provider ",
@@ -212,10 +206,7 @@ PHASE5_TASKS: list[TaskDefinition] = [
         "path_patterns": ["k8s/"],
         "criteria": [
             "MUST have YAML files in the k8s/ directory",
-            (
-                "MUST have a Deployment manifest"
-                " (kind: Deployment) in deployment.yaml"
-            ),
+            ("MUST have a Deployment manifest (kind: Deployment) in deployment.yaml"),
             (
                 "MUST use IMAGE_PLACEHOLDER as the image"
                 " reference (CI/CD substitutes the real tag)"
@@ -228,7 +219,7 @@ PHASE5_TASKS: list[TaskDefinition] = [
                 "MUST configure health probes (liveness"
                 " and/or readiness) on /health port 8000"
             ),
-            ("MUST have a Service manifest in" " service.yaml routing port 80 to 8000"),
+            ("MUST have a Service manifest in service.yaml routing port 80 to 8000"),
             (
                 "SHOULD have a secrets.yaml.example"
                 " showing required keys (no real values)"
@@ -254,6 +245,31 @@ PHASE5_TASKS: list[TaskDefinition] = [
         ],
     },
 ]
+
+
+# Deterministic feedback when a task has no files at all.
+# Avoids sending obvious failures to the LLM.
+MISSING_FILES_FEEDBACK: dict[str, str] = {
+    "dockerfile": (
+        "No Dockerfile found. Add a Dockerfile at the repository root "
+        "with a FROM instruction, COPY your application code, and set a "
+        "CMD or ENTRYPOINT to run uvicorn."
+    ),
+    "cicd-pipeline": (
+        "No workflow files found in .github/workflows/. Create at least one "
+        "YAML workflow that triggers on push, runs tests, builds a Docker "
+        "image, and deploys to your cluster."
+    ),
+    "terraform-iac": (
+        "No Terraform files found in infra/. Add .tf files that define your "
+        "cloud provider, container registry, Kubernetes cluster, and database."
+    ),
+    "kubernetes-manifests": (
+        "No Kubernetes manifests found in k8s/. Add YAML files with at least "
+        "a Deployment (using IMAGE_PLACEHOLDER) and a Service routing port 80 "
+        "to 8000."
+    ),
+}
 
 
 # Valid task IDs as a Literal type for structured output validation
@@ -565,6 +581,8 @@ async def _analyze_with_llm(
         },
     )
 
+    score = round((passed_count / total_count) * 100, 1) if total_count else 0.0
+
     if all_passed:
         message = (
             f"All {total_count} DevOps tasks verified! "
@@ -581,6 +599,7 @@ async def _analyze_with_llm(
         is_valid=all_passed,
         message=message,
         task_results=task_results,
+        score=score,
     )
 
 
@@ -641,6 +660,33 @@ async def analyze_devops_repository(
             raise
 
         devops_files = _filter_devops_files(all_files)
+
+        # Deterministic pre-filter: if ALL tasks have zero files,
+        # skip the LLM entirely and return canned feedback.
+        tasks_with_files = [
+            task["id"] for task in PHASE5_TASKS if devops_files.get(task["id"])
+        ]
+        if not tasks_with_files:
+            pre_failed = [
+                TaskResult(
+                    task_name=task["name"],
+                    passed=False,
+                    feedback=MISSING_FILES_FEEDBACK[task["id"]],
+                )
+                for task in PHASE5_TASKS
+            ]
+            return ValidationResult(
+                is_valid=False,
+                message=(
+                    f"Completed 0/{len(PHASE5_TASKS)} tasks. "
+                    "No DevOps artifacts found in the expected locations. "
+                    "Review the feedback below for what to add."
+                ),
+                task_results=pre_failed,
+                score=0.0,
+            )
+
+        # At least one task has files — run full LLM analysis
         file_contents = await _fetch_all_devops_files(owner, repo, devops_files)
         return await _analyze_with_llm(owner, repo, file_contents)
 
