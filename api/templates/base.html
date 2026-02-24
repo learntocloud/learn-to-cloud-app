@@ -17,6 +17,18 @@
             'dark',
             localStorage.getItem('theme') === 'dark'
         );
+        // Theme toggle — vanilla JS with event delegation so it survives
+        // HTMX body swaps and works even if Alpine fails to load.
+        document.addEventListener('click', function(e) {
+            var btn = e.target.closest('#theme-toggle');
+            if (!btn) return;
+            var isDark = document.documentElement.classList.toggle('dark');
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+            // Sync Alpine reactive state if available
+            if (document.documentElement._x_dataStack) {
+                document.documentElement._x_dataStack[0].darkMode = isDark;
+            }
+        });
     </script>
 
     <!-- Hide Alpine.js elements until initialized -->
@@ -40,6 +52,24 @@
             var token = document.querySelector('meta[name="csrf-token"]');
             if (token) {
                 event.detail.headers['X-CSRFToken'] = token.content;
+            }
+        });
+    </script>
+
+    <script>
+        // Fix Alpine.js + HTMX boost interaction.
+        // HTMX's settle phase (20ms after swap) copies old attributes onto
+        // new DOM, which conflicts with Alpine's MutationObserver processing.
+        // Deferring mutations prevents Alpine from seeing the intermediate
+        // attribute state. See: https://github.com/alpinejs/alpine/discussions/4485
+        document.addEventListener('htmx:beforeSwap', function(event) {
+            if (event.detail.boosted && typeof Alpine !== 'undefined') {
+                Alpine.deferMutations();
+            }
+        });
+        document.addEventListener('htmx:afterSettle', function(event) {
+            if (event.detail.boosted && typeof Alpine !== 'undefined') {
+                Alpine.flushAndStopDeferringMutations();
             }
         });
     </script>
