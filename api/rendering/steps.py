@@ -129,6 +129,11 @@ def build_step_data(
         "description_html": md_renderer(step.description),
         "code": step.code or "",
         "options": [],
+        "checklist": [{"html": md_renderer(item)} for item in step.checklist],
+        "tips": [
+            {"type": tip.type, "html": md_renderer(tip.text)} for tip in step.tips
+        ],
+        "done_when": md_renderer(step.done_when) if step.done_when else "",
     }
     sorted_options = sorted(
         step.options,

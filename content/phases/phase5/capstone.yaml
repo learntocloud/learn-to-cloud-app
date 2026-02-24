@@ -17,47 +17,122 @@ learning_objectives:
 learning_steps:
 - order: 1
   action: 'Build:'
-  description: Write a Dockerfile at the root of your repository that packages your Journal API into a container image. Build and test it locally before pushing to a registry.
   title: Containerize the Application
+  description: Write a `Dockerfile` at the root of your repository that packages your Journal API into a container image. Also create a `.dockerignore` to exclude non-production files.
+  checklist:
+    - Use `python:3.12-slim` as the base image (matches the dev container's Python version)
+    - Install `uv` (not pip) and run `uv sync` to install dependencies
+    - Commit `uv.lock` to your repo for reproducible builds
+    - Set `PYTHONPATH` to your app directory so imports resolve correctly
+    - Expose port 8000
+    - "Use `uvicorn api.main:app --host 0.0.0.0 --port 8000` as the entry point"
+    - "Create `.dockerignore` to exclude `.git/`, `tests/`, `.devcontainer/`"
+  tips:
+    - type: note
+      text: Docker is not available inside the dev container by default. To build locally, run `docker build` on your host machine. Alternatively, use `az acr build --registry <name> --image journal-api:latest .` to build remotely in Azure Container Registry without needing local Docker.
+  done_when: "`docker build` succeeds and `docker run` starts the API listening on port 8000."
   id: phase5-topic6-build-containerize-the-application
+
 - order: 2
   action: 'Build:'
-  description: Create Terraform configuration files in an `infra/` directory to define and provision your cloud infrastructure.
   title: Infrastructure as Code
+  description: Create Terraform configuration files in an `infra/` directory to provision your cloud infrastructure.
+  checklist:
+    - "**Container registry** — e.g., Azure Container Registry"
+    - "**Managed Kubernetes cluster** — e.g., AKS"
+    - "**Managed PostgreSQL 15 database** — e.g., Azure Database for PostgreSQL Flexible Server"
+    - "**IAM/role bindings** — so your K8s cluster can pull images from the registry"
+    - "**`main.tf`** — core resource definitions"
+    - "**`variables.tf`** — input variable declarations"
+    - "**`providers.tf`** — cloud provider and Terraform version config"
+    - "**`outputs.tf`** — export registry URL, DB connection string, kubeconfig"
+    - "**`terraform.tfvars`** — your variable values (add to `.gitignore`)"
+    - "**Run `database_setup.sql`** against your PostgreSQL instance after provisioning"
+  tips:
+    - type: note
+      text: Azure PostgreSQL requires `?sslmode=require` appended to your `DATABASE_URL`. The local dev format without SSL will not work in the cloud.
+    - type: tip
+      text: If Terraform fails with `LocationIsOfferRestricted` for PostgreSQL, try a different Azure region (e.g., `centralus`, `westus2`).
+  done_when: "`terraform apply` completes, all resources exist, and you can connect to the database."
   id: phase5-topic6-build-infrastructure-as-code
+
 - order: 3
   action: 'Build:'
-  description: Apply the GitHub Actions workflow you built in the CI/CD Pipelines topic to your Journal API repository. Ensure it automatically builds, tests, and deploys your application on every push to main.
   title: CI/CD Pipeline
+  description: Apply the GitHub Actions workflow you built in the CI/CD Pipelines topic. It should trigger on every push to `main` with at least three jobs.
+  checklist:
+    - "**Test job** — Run linting and tests with a PostgreSQL 15 service container, run `database_setup.sql` before pytest, install `uv` using `astral-sh/setup-uv`"
+    - "**Build & Push job** — Build the Docker image and push to your container registry, tagged with commit SHA and `latest`"
+    - "**Deploy job** — Connect to your K8s cluster, `sed`-substitute the image placeholder, apply manifests from `k8s/`"
+    - "**`AZURE_CREDENTIALS` secret** — output of `az ad sp create-for-rbac --sdk-auth`"
+    - "**`ACR_LOGIN_SERVER` secret** — your ACR login server URL"
+    - "**`ACR_USERNAME` secret** — ACR username"
+    - "**`ACR_PASSWORD` secret** — ACR password"
+    - "**`AZURE_RESOURCE_GROUP` secret** — your resource group name"
+    - "**`AKS_CLUSTER_NAME` secret** — your AKS cluster name"
+  done_when: Pushing to `main` triggers the workflow, all three jobs pass, and your image is pushed to the registry.
   id: phase5-topic6-build-cicd-pipeline
+
 - order: 4
   action: 'Build:'
-  description: Write Kubernetes manifests in a `k8s/` directory to deploy and expose your containerized application.
   title: Container Orchestration
+  description: >-
+    Write Kubernetes manifests in a `k8s/` directory to deploy and expose your
+    containerized application. First, add a `GET /health` endpoint to `api/main.py`
+    that returns `{"status": "healthy"}`.
+  checklist:
+    - "**`deployment.yaml`** — use `IMAGE_PLACEHOLDER` as the image reference (CI/CD substitutes with real tag)"
+    - "**Environment from Secret** — reference `journal-api-secrets` via `envFrom` for `DATABASE_URL`, `OPENAI_API_KEY`, etc."
+    - "**Health probes** — configure liveness and readiness probes pointing to `/health` on port 8000"
+    - "**`secrets.yaml.example`** — show required keys (never commit real values)"
+    - "**`service.yaml`** — create a `LoadBalancer` or `NodePort` service routing port 80 → container port 8000"
+  tips:
+    - type: note
+      text: When creating your `DATABASE_URL` secret for the cloud database, remember to append `?sslmode=require` to the connection string.
+  done_when: "`kubectl get pods` shows your app running, and `curl http://<EXTERNAL-IP>/health` returns `{\"status\": \"healthy\"}`."
   id: phase5-topic6-build-container-orchestration
+
 - order: 5
   action: 'Build:'
-  description: Set up monitoring to track your application's health and performance. This step is not auto-verified but is essential for production readiness.
   title: Monitoring & Observability
+  description: Set up monitoring to track your application's health and performance. This step is not auto-verified but is essential for production readiness.
+  checklist:
+    - Add `prometheus-fastapi-instrumentator` to your project dependencies (exposes `/metrics` endpoint automatically)
+    - Deploy Prometheus and Grafana in your K8s cluster (via manifests in `k8s/monitoring/` or `kube-prometheus-stack` Helm chart)
+    - Configure Prometheus to scrape your Journal API's `/metrics` endpoint
+    - Set up a Grafana dashboard to visualize request latency, error rates, and pod health
+  done_when: Grafana dashboard shows live request metrics from your Journal API.
   id: phase5-topic6-build-monitoring-observability
+
 - order: 6
   action: 'Build:'
-  description: Document your setup and deployment process so others can understand and reproduce your work. This step is not auto-verified but strengthens your portfolio.
   title: Documentation
+  description: Document your setup and deployment process so others can understand and reproduce your work. This step is not auto-verified but strengthens your portfolio.
   id: phase5-topic6-build-documentation
+
 - order: 7
   action: 'Build:'
-  description: Your repository must include these directories and files for auto-verification. Steps 1–4 are verified automatically when you submit your repo URL.
-  code: "your-journal-starter/\n  ├── Dockerfile              # Step 1: Container definition\n  ├── .github/\n  │   └── workflows/          # Step 3: CI/CD pipeline configs\n  │       └── *.yml\n  ├── infra/                   # Step 2: Terraform IaC configs\n  │   ├── main.tf\n  │   └── variables.tf\n  ├── k8s/                     # Step 4: Kubernetes manifests\n  │   ├── deployment.yaml\n  │   └── service.yaml\n  ├── api/                     # Your FastAPI app code\n  └── README.md                # Step 6: Documentation"
   title: Required Project Structure
+  description: Your repository must include these directories and files for auto-verification. Steps 1–4 are verified automatically when you submit your repo URL.
+  code: "your-journal-starter/\n  ├── Dockerfile              # Step 1: Container definition\n  ├── .dockerignore            # Step 1: Exclude non-production files from build\n  ├── .github/\n  │   └── workflows/          # Step 3: CI/CD pipeline configs\n  │       └── *.yml\n  ├── infra/                   # Step 2: Terraform IaC configs\n  │   ├── main.tf\n  │   ├── variables.tf\n  │   ├── outputs.tf\n  │   └── providers.tf\n  ├── k8s/                     # Step 4: Kubernetes manifests\n  │   ├── deployment.yaml\n  │   ├── service.yaml\n  │   └── secrets.yaml.example # Example secrets (never commit real values)\n  ├── api/                     # Your FastAPI app code\n  └── README.md                # Step 6: Documentation"
   id: phase5-topic6-build-required-project-structure
+
 - order: 8
   action: 'Reflect:'
   title: Share Your Progress
   description: When you've completed the capstone, push your work to GitHub! This becomes part of your portfolio. Consider sharing it on LinkedIn or with the Learn to Cloud community to get feedback and celebrate your progress.
   id: phase5-topic6-reflect-share-your-progress
+
 - order: 9
   action: 'Practice:'
   title: Clean up your cloud resources
-  description: After you have submitted your repo for hands-on verification and received a passing result, delete all cloud resources — Kubernetes clusters, container registries, Terraform-provisioned infrastructure, and any other resources. Run `terraform destroy` for IaC-managed resources. Check your cloud console to confirm nothing is still running.
+  description: After you have submitted your repo for hands-on verification and received a passing result, delete all cloud resources.
+  checklist:
+    - Kubernetes clusters
+    - Container registries
+    - Terraform-provisioned infrastructure (`terraform destroy`)
+    - Any other billable resources
+  tips:
+    - type: tip
+      text: Check your cloud console to confirm nothing is still running.
   id: phase5-topic6-practice-clean-up-your-cloud

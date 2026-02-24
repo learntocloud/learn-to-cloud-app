@@ -101,6 +101,13 @@ class ProviderOption(FrozenModel):
     description: str | None = None
 
 
+class TipItem(FrozenModel):
+    """A tip, note, or warning callout for a learning step."""
+
+    type: str = "tip"  # tip, note, warning, important
+    text: str
+
+
 class LearningStep(FrozenModel):
     """A learning step within a topic."""
 
@@ -112,6 +119,9 @@ class LearningStep(FrozenModel):
     description: str | None = None
     code: str | None = None
     options: list[ProviderOption] = Field(default_factory=list)
+    checklist: list[str] = Field(default_factory=list)
+    tips: list[TipItem] = Field(default_factory=list)
+    done_when: str | None = None
 
 
 class LearningObjective(FrozenModel):

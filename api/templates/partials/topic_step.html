@@ -62,9 +62,11 @@
     </div>
 
     <!-- Collapsible body -->
-    {% if step.description or step.code or step.options %}
+    {% if step.description or step.code or step.options or step.checklist or step.tips or step.done_when %}
     <div x-show="expanded" x-collapse>
         <div class="px-4 pb-4 pl-[4.5rem]">
+
+            {# ── Intro text (short context paragraph) ── #}
             {% if step.description %}
             <div class="text-sm text-gray-600 dark:text-gray-400 prose prose-sm dark:prose-invert max-w-none"
                 x-data
@@ -93,6 +95,21 @@
             </div>
             {% endif %}
 
+            {# ── Checklist (the actual tasks) ── #}
+            {% if step.checklist %}
+            <div class="{% if step.description %}mt-4{% endif %}">
+                <ul class="space-y-2">
+                    {% for item in step.checklist %}
+                    <li class="flex items-start gap-3 text-sm">
+                        <span class="flex-shrink-0 mt-0.5 h-5 w-5 rounded border-2 border-gray-300 dark:border-gray-600 flex items-center justify-center text-xs text-gray-400 dark:text-gray-500">{{ loop.index }}</span>
+                        <span class="text-gray-700 dark:text-gray-300 prose prose-sm dark:prose-invert max-w-none [&>p]:m-0">{{ item.html | safe }}</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+            {# ── Code block ── #}
             {% if step.code %}
             <div class="mt-3 relative" x-data="{ copied: false }">
                 <pre class="bg-gray-100 dark:bg-gray-800 rounded-md p-3 text-sm overflow-x-auto"><code x-ref="code{{ step.order }}">{{ step.code }}</code></pre>
@@ -118,6 +135,7 @@
             </div>
             {% endif %}
 
+            {# ── Provider tabs ── #}
             {% if step.options %}
             <div class="mt-3" x-data="{ tab: '{{ step.options[0].provider | default('option-0') }}' }">
                 <div class="flex gap-1 border-b border-gray-200 dark:border-gray-700">
@@ -141,6 +159,43 @@
                 {% endfor %}
             </div>
             {% endif %}
+
+            {# ── Tips / Notes / Warnings ── #}
+            {% if step.tips %}
+            <div class="mt-4 space-y-2">
+                {% for tip in step.tips %}
+                {% set tip_type = tip.type | default('tip') %}
+                <div class="flex items-start gap-2.5 rounded-lg px-3 py-2.5 text-sm
+                    {% if tip_type == 'warning' %}bg-amber-50 border border-amber-200 dark:bg-amber-900/20 dark:border-amber-800/50
+                    {% elif tip_type == 'note' %}bg-blue-50 border border-blue-200 dark:bg-blue-900/20 dark:border-blue-800/50
+                    {% elif tip_type == 'important' %}bg-red-50 border border-red-200 dark:bg-red-900/20 dark:border-red-800/50
+                    {% else %}bg-emerald-50 border border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-800/50{% endif %}
+                ">
+                    <span class="flex-shrink-0 mt-0.5 text-base">
+                        {% if tip_type == 'warning' %}⚠️{% elif tip_type == 'note' %}ℹ️{% elif tip_type == 'important' %}❗{% else %}💡{% endif %}
+                    </span>
+                    <div class="prose prose-sm dark:prose-invert max-w-none [&>p]:m-0
+                        {% if tip_type == 'warning' %}text-amber-800 dark:text-amber-200
+                        {% elif tip_type == 'note' %}text-blue-800 dark:text-blue-200
+                        {% elif tip_type == 'important' %}text-red-800 dark:text-red-200
+                        {% else %}text-emerald-800 dark:text-emerald-200{% endif %}
+                    ">{{ tip.html | safe }}</div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {# ── Done when ── #}
+            {% if step.done_when %}
+            <div class="mt-4 flex items-start gap-2.5 rounded-lg px-3 py-2.5 bg-green-50 border border-green-200 dark:bg-green-900/20 dark:border-green-800/50">
+                <span class="flex-shrink-0 mt-0.5 text-base">✅</span>
+                <div class="text-sm">
+                    <span class="font-semibold text-green-800 dark:text-green-200">Done when:</span>
+                    <span class="text-green-700 dark:text-green-300 prose prose-sm dark:prose-invert max-w-none inline [&>p]:inline [&>p]:m-0">{{ step.done_when | safe }}</span>
+                </div>
+            </div>
+            {% endif %}
+
         </div>
     </div>
     {% endif %}
