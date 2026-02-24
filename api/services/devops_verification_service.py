@@ -57,7 +57,7 @@ DEVOPS_PATH_PATTERNS: dict[str, list[str]] = {
 }
 
 # Maximum number of files to fetch per category (prevent abuse)
-MAX_FILES_PER_CATEGORY: int = 5
+MAX_FILES_PER_CATEGORY: int = 10
 
 # Maximum file size to prevent token exhaustion (50 KB)
 MAX_FILE_SIZE_BYTES: int = 50 * 1024

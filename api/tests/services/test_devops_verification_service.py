@@ -79,7 +79,7 @@ class TestFilterDevopsFiles:
         """Should cap files per category to MAX_FILES_PER_CATEGORY."""
         files = [f"infra/file{i}.tf" for i in range(20)]
         result = _filter_devops_files(files)
-        assert len(result["terraform-iac"]) == 5  # MAX_FILES_PER_CATEGORY
+        assert len(result["terraform-iac"]) == 10  # MAX_FILES_PER_CATEGORY
 
 
 @pytest.mark.unit
