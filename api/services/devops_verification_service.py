@@ -50,7 +50,7 @@ logger = logging.getLogger(__name__)
 
 # Directories / path prefixes where DevOps artifacts are expected
 DEVOPS_PATH_PATTERNS: dict[str, list[str]] = {
-    "dockerfile": ["Dockerfile", "dockerfile"],
+    "dockerfile": ["Dockerfile", "dockerfile", ".dockerignore"],
     "cicd": [".github/workflows/"],
     "terraform": ["infra/"],
     "kubernetes": ["k8s/"],
@@ -85,13 +85,25 @@ PHASE5_TASKS: list[TaskDefinition] = [
     {
         "id": "dockerfile",
         "name": "Containerization (Dockerfile)",
-        "path_patterns": ["Dockerfile", "dockerfile"],
+        "path_patterns": ["Dockerfile", "dockerfile", ".dockerignore"],
         "criteria": [
             "MUST have a Dockerfile at the repository root",
-            "MUST have a FROM instruction specifying a base image",
-            "MUST have a CMD or ENTRYPOINT instruction to start the application",
-            "SHOULD copy application code into the image (COPY or ADD)",
-            "SHOULD expose a port (EXPOSE instruction)",
+            (
+                "MUST have a FROM instruction specifying"
+                " a Python base image (e.g., python:3.12-slim)"
+            ),
+            "MUST install uv (not pip) and use 'uv sync'",
+            (
+                "MUST have a CMD or ENTRYPOINT that runs"
+                " uvicorn to start the application"
+            ),
+            "MUST set PYTHONPATH so imports resolve correctly",
+            "MUST expose port 8000",
+            "MUST copy application code into the image (COPY or ADD)",
+            (
+                "SHOULD have a .dockerignore to exclude"
+                " non-production files (.git/, tests/)"
+            ),
         ],
         "pass_indicators": [
             "FROM ",
@@ -99,10 +111,15 @@ PHASE5_TASKS: list[TaskDefinition] = [
             "ENTRYPOINT ",
             "COPY ",
             "EXPOSE ",
+            "uv sync",
+            "uv ",
+            "PYTHONPATH",
+            "uvicorn",
         ],
         "fail_indicators": [
             "# TODO",
             "placeholder",
+            "pip install",
         ],
     },
     {
@@ -111,10 +128,22 @@ PHASE5_TASKS: list[TaskDefinition] = [
         "path_patterns": [".github/workflows/"],
         "criteria": [
             "MUST have at least one workflow YAML in .github/workflows/",
-            "MUST trigger on push or pull_request events",
-            "MUST have at least one job with meaningful steps",
-            "SHOULD include a build or test step",
-            "SHOULD include a deploy or publish step (e.g., Docker build/push)",
+            "MUST trigger on push to main (or pull_request)",
+            ("MUST have at least 3 jobs: test," " build-and-push, and deploy"),
+            ("MUST have a test job that runs" " linting and/or tests (e.g., pytest)"),
+            (
+                "MUST have a build-and-push job that builds"
+                " a Docker image and pushes to a registry"
+            ),
+            (
+                "MUST have a deploy job that connects to"
+                " a K8s cluster and applies manifests"
+            ),
+            "SHOULD tag images with commit SHA and/or 'latest'",
+            (
+                "SHOULD use sed or envsubst to substitute"
+                " an image placeholder in K8s manifests"
+            ),
         ],
         "pass_indicators": [
             "on:",
@@ -122,6 +151,10 @@ PHASE5_TASKS: list[TaskDefinition] = [
             "steps:",
             "runs-on:",
             "uses:",
+            "docker",
+            "kubectl",
+            "pytest",
+            "deploy",
         ],
         "fail_indicators": [
             "# TODO",
@@ -134,16 +167,39 @@ PHASE5_TASKS: list[TaskDefinition] = [
         "path_patterns": ["infra/"],
         "criteria": [
             "MUST have .tf files in the infra/ directory",
-            "MUST have a provider block (e.g., azurerm, aws, google)",
-            "MUST have at least one resource block defining infrastructure",
-            "SHOULD have a variables.tf or use input variables",
-            "SHOULD have an outputs.tf or define outputs",
+            "MUST have a provider block (e.g., azurerm, aws)",
+            ("MUST define a container registry resource" " (e.g., ACR, ECR, GCR)"),
+            (
+                "MUST define a managed Kubernetes cluster"
+                " resource (e.g., AKS, EKS, GKE)"
+            ),
+            (
+                "MUST define a managed PostgreSQL database"
+                " resource (e.g., Azure Flexible Server, RDS)"
+            ),
+            (
+                "SHOULD define IAM or role bindings so the"
+                " K8s cluster can pull from the registry"
+            ),
+            "SHOULD have a variables.tf with input variables",
+            (
+                "SHOULD have an outputs.tf exporting"
+                " registry URL, DB connection, or kubeconfig"
+            ),
+            (
+                "SHOULD have a providers.tf with provider"
+                " and Terraform version config"
+            ),
         ],
         "pass_indicators": [
             "provider ",
             "resource ",
             "terraform {",
             "variable ",
+            "output ",
+            "kubernetes",
+            "container_registry",
+            "postgresql",
         ],
         "fail_indicators": [
             "# TODO",
@@ -156,21 +212,45 @@ PHASE5_TASKS: list[TaskDefinition] = [
         "path_patterns": ["k8s/"],
         "criteria": [
             "MUST have YAML files in the k8s/ directory",
-            "MUST have a Deployment or Pod manifest (kind: Deployment or kind: Pod)",
-            "MUST have a Service manifest (kind: Service)",
-            "MUST reference a container image in the Deployment spec",
+            (
+                "MUST have a Deployment manifest"
+                " (kind: Deployment) in deployment.yaml"
+            ),
+            (
+                "MUST use IMAGE_PLACEHOLDER as the image"
+                " reference (CI/CD substitutes the real tag)"
+            ),
+            (
+                "MUST reference env vars from a K8s Secret"
+                " via envFrom (e.g., journal-api-secrets)"
+            ),
+            (
+                "MUST configure health probes (liveness"
+                " and/or readiness) on /health port 8000"
+            ),
+            ("MUST have a Service manifest in" " service.yaml routing port 80 to 8000"),
+            (
+                "SHOULD have a secrets.yaml.example"
+                " showing required keys (no real values)"
+            ),
+            "SHOULD use LoadBalancer or NodePort type",
             "SHOULD define resource limits or requests",
         ],
         "pass_indicators": [
             "kind: Deployment",
             "kind: Service",
-            "kind: Pod",
             "containers:",
             "image:",
+            "IMAGE_PLACEHOLDER",
+            "envFrom",
+            "secretRef",
+            "livenessProbe",
+            "readinessProbe",
+            "/health",
+            "containerPort",
         ],
         "fail_indicators": [
             "# TODO",
-            "placeholder",
         ],
     },
 ]
