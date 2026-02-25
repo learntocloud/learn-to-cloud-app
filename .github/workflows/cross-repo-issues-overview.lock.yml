@@ -22,9 +22,9 @@
 # For more information: https://github.github.com/gh-aw/introduction/overview/
 #
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"39a231d211e123da8c0461208977e65883bdc587c17f81eac7187f03b2c3ff2d","compiler_version":"v0.50.1"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"11a8c5093f3f7e98a5b92564e0c6b969a9a8f013a81e13eeab9f7d001f144f74","compiler_version":"v0.50.1"}
 
-name: "Cross-Repo Issues Overview"
+name: "Cross-Repo Issues & PRs Overview"
 "on":
   schedule:
   - cron: "55 5 * * *"
@@ -36,7 +36,7 @@ permissions: {}
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
 
-run-name: "Cross-Repo Issues Overview"
+run-name: "Cross-Repo Issues & PRs Overview"
 
 jobs:
   activation:
@@ -204,6 +204,7 @@ jobs:
     permissions:
       contents: read
       issues: read
+      pull-requests: read
     concurrency:
       group: "gh-aw-copilot-${{ github.workflow }}"
     env:
@@ -276,7 +277,7 @@ jobs:
               version: "",
               agent_version: "0.0.415",
               cli_version: "v0.50.1",
-              workflow_name: "Cross-Repo Issues Overview",
+              workflow_name: "Cross-Repo Issues & PRs Overview",
               experimental: false,
               supports_tools_allowlist: true,
               run_id: context.runId,
@@ -617,7 +618,7 @@ jobs:
                   "GITHUB_LOCKDOWN_MODE": "$GITHUB_MCP_LOCKDOWN",
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}",
                   "GITHUB_READ_ONLY": "1",
-                  "GITHUB_TOOLSETS": "issues,repos"
+                  "GITHUB_TOOLSETS": "issues,pull_requests,repos"
                 }
               },
               "safeoutputs": {
@@ -846,7 +847,7 @@ jobs:
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          WORKFLOW_NAME: "Cross-Repo Issues Overview"
+          WORKFLOW_NAME: "Cross-Repo Issues & PRs Overview"
           WORKFLOW_DESCRIPTION: "No description provided"
           HAS_PATCH: ${{ steps.collect_output.outputs.has_patch }}
         with:
@@ -960,7 +961,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_NOOP_MAX: "1"
-          GH_AW_WORKFLOW_NAME: "Cross-Repo Issues Overview"
+          GH_AW_WORKFLOW_NAME: "Cross-Repo Issues & PRs Overview"
         with:
           github-token: ${{ secrets.GH_AW_CROSS_REPO_PAT }}
           script: |
@@ -973,7 +974,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Cross-Repo Issues Overview"
+          GH_AW_WORKFLOW_NAME: "Cross-Repo Issues & PRs Overview"
         with:
           github-token: ${{ secrets.GH_AW_CROSS_REPO_PAT }}
           script: |
@@ -986,7 +987,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Cross-Repo Issues Overview"
+          GH_AW_WORKFLOW_NAME: "Cross-Repo Issues & PRs Overview"
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_WORKFLOW_ID: "cross-repo-issues-overview"
@@ -1005,7 +1006,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Cross-Repo Issues Overview"
+          GH_AW_WORKFLOW_NAME: "Cross-Repo Issues & PRs Overview"
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_NOOP_MESSAGE: ${{ steps.noop.outputs.noop_message }}
@@ -1029,7 +1030,7 @@ jobs:
     env:
       GH_AW_ENGINE_ID: "copilot"
       GH_AW_WORKFLOW_ID: "cross-repo-issues-overview"
-      GH_AW_WORKFLOW_NAME: "Cross-Repo Issues Overview"
+      GH_AW_WORKFLOW_NAME: "Cross-Repo Issues & PRs Overview"
     outputs:
       code_push_failure_count: ${{ steps.process_safe_outputs.outputs.code_push_failure_count }}
       code_push_failure_errors: ${{ steps.process_safe_outputs.outputs.code_push_failure_errors }}
