@@ -55,7 +55,7 @@ class TestLoginRoute:
 
         mock_oauth.create_client.assert_called_once_with("github")
         mock_github.authorize_redirect.assert_awaited_once_with(
-            request, "http://testserver/auth/callback", login=""
+            request, "http://testserver/auth/callback", prompt="select_account"
         )
         assert isinstance(result, RedirectResponse)
 
