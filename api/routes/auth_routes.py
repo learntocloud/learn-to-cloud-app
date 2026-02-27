@@ -44,7 +44,9 @@ async def login(request: Request) -> RedirectResponse:
     # the redirect URI uses https so it matches the GitHub OAuth config.
     if get_settings().require_https and redirect_uri.startswith("http://"):
         redirect_uri = redirect_uri.replace("http://", "https://", 1)
-    return await github.authorize_redirect(request, redirect_uri)
+    # Pass login="" so GitHub always shows the account picker instead of
+    # auto-selecting the currently signed-in account (see issue #94).
+    return await github.authorize_redirect(request, redirect_uri, login="")
 
 
 @router.get(
