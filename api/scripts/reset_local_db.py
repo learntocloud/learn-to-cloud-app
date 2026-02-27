@@ -13,7 +13,7 @@ from sqlalchemy.pool import NullPool
 
 async def reset() -> None:
     admin = create_async_engine(
-        "postgresql+asyncpg://postgres:postgres@localhost:5432/postgres",
+        "postgresql+asyncpg://postgres:postgres@db:5432/postgres",
         poolclass=NullPool,
         isolation_level="AUTOCOMMIT",
     )
@@ -35,7 +35,7 @@ async def reset() -> None:
     from core.database import Base
 
     engine = create_async_engine(
-        "postgresql+asyncpg://postgres:postgres@localhost:5432/learn_to_cloud",
+        "postgresql+asyncpg://postgres:postgres@db:5432/learn_to_cloud",
         poolclass=NullPool,
     )
     async with engine.begin() as c:

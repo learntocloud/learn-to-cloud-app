@@ -26,8 +26,9 @@ repos:
         files: ^api/.*\.py$
         pass_filenames: false
 
-  # General file hygiene (prek builtin — no clone, no Python env, instant)
-  - repo: builtin
+  # General file hygiene + check-yaml
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
     hooks:
       - id: trailing-whitespace
         exclude: ^api/htmlcov/
@@ -38,10 +39,5 @@ repos:
       - id: check-added-large-files
         args: [--maxkb=500]
       - id: check-merge-conflict
-
-  # check-yaml with --unsafe (not supported by builtin, keep on remote)
-  - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
-    hooks:
       - id: check-yaml
         args: [--unsafe]

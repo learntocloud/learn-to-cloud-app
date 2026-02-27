@@ -217,7 +217,7 @@
                     data: {
                         labels: data.activity.labels,
                         datasets: [{
-                            label: 'Completions',
+                            label: 'Steps Completed',
                             data: data.activity.completions,
                             backgroundColor: isDark ? 'rgba(59, 130, 246, 0.6)' : 'rgba(59, 130, 246, 0.7)',
                             borderRadius: 4,

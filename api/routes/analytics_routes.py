@@ -34,9 +34,8 @@ def _derive_insights(
         if busiest.completions > 0:
             insights.append(
                 {
-                    "icon": "\U0001f525",
                     "text": f"Most active day: {busiest.day_name}",
-                    "detail": f"{busiest.completions:,} completions",
+                    "detail": f"{busiest.completions:,} steps completed",
                 }
             )
     if analytics.verification_stats:
@@ -48,7 +47,6 @@ def _derive_insights(
         if hardest:
             insights.append(
                 {
-                    "icon": "\U0001f4aa",
                     "text": f"Hardest phase: {hardest.phase_name}",
                     "detail": f"{hardest.pass_rate}% pass rate",
                 }
@@ -62,7 +60,6 @@ def _derive_insights(
         pct = round(top.count / total * 100) if total > 0 else 0
         insights.append(
             {
-                "icon": "\u2601\ufe0f",
                 "text": f"Top provider: {top.provider.upper()}",
                 "detail": f"{pct}% of submissions",
             }

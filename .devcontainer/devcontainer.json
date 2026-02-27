@@ -1,6 +1,8 @@
 {
   "name": "Learn to Cloud",
-  "image": "mcr.microsoft.com/devcontainers/base:debian",
+  "dockerComposeFile": "docker-compose.yml",
+  "service": "app",
+  "workspaceFolder": "/workspaces/learn-to-cloud-app",
   "features": {
     "ghcr.io/devcontainers/features/python:1": {
       "version": "3.13",
@@ -12,9 +14,6 @@
     },
     "ghcr.io/devcontainers/features/azure-cli:1": {
       "installBicep": true
-    },
-    "ghcr.io/devcontainers/features/docker-in-docker:2": {
-      "moby": false
     },
     "ghcr.io/devcontainers/features/github-cli:1": {},
     "ghcr.io/va-h/devcontainers-features/uv:1": {}
@@ -45,7 +44,6 @@
     }
   },
   "postCreateCommand": "bash .devcontainer/post-create.sh",
-  "postStartCommand": "docker-compose up -d db",
   "remoteEnv": {
     "UV_LINK_MODE": "copy"
   },

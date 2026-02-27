@@ -16,7 +16,7 @@ import asyncpg
 import yaml
 
 DATABASE_URL = os.environ.get(
-    "DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/learn_to_cloud"
+    "DATABASE_URL", "postgresql://postgres:postgres@db:5432/learn_to_cloud"
 )
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
