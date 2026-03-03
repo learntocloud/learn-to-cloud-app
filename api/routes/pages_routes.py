@@ -60,7 +60,9 @@ def _template_context(
     }
 
 
-@router.get("/", response_class=HTMLResponse, summary="Home page")
+@router.api_route(
+    "/", methods=["GET", "HEAD"], response_class=HTMLResponse, summary="Home page"
+)
 async def home_page(
     request: Request,
     db: DbSession,

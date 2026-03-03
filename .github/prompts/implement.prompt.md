@@ -7,6 +7,8 @@ Implement it all. Follow the approved plan exactly — do not cherry-pick tasks 
 Find the plan document for the current topic (it will be named `{topic}-plan.md` in the repo root, e.g., `core-testing-plan.md`). If multiple plan files exist, ask which one to execute.
 
 Rules:
+
+- **New branch**: Create a new branch for this implementation based on the topic name (e.g., `core-testing-implementation`). Don't work directly on main.
 - **Track progress**: When you finish a task or phase, mark it as completed in the plan document's todo list. The plan is the source of truth for progress.
 - **Don't stop**: Do not pause for confirmation mid-flow. Do not stop until all tasks and phases are completed.
 - **Validate continuously**: Run `ruff check`, `ruff format --check`, and `ty check` regularly as you go. Catch problems early, not at the end.

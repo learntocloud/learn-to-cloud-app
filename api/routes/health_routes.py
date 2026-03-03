@@ -3,6 +3,7 @@
 import logging
 
 from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import PlainTextResponse
 from starlette import status
 
 from core.database import check_db_connection
@@ -65,3 +66,9 @@ async def ready(request: Request) -> HealthResponse:
         ) from e
 
     return HealthResponse(status="ready", service="learn-to-cloud-api")
+
+
+@router.get("/robots.txt", response_class=PlainTextResponse, include_in_schema=False)
+async def robots_txt() -> str:
+    """Serve robots.txt to stop crawlers generating 404s."""
+    return "User-agent: *\nAllow: /\n"
