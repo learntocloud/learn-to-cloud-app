@@ -90,7 +90,7 @@ async def get_dashboard_data(
                 order=current.order,
             )
 
-    logger.info(
+    logger.debug(
         "dashboard.built",
         extra={
             "user_id": user_id,
