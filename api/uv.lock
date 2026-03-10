@@ -172,7 +172,7 @@ wheels = [
 
 [[package]]
 name = "azure-identity"
-version = "1.19.0"
+version = "1.25.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "azure-core" },
@@ -181,9 +181,9 @@ dependencies = [
     { name = "msal-extensions" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/aa/91/cbaeff9eb0b838f0d35b4607ac1c6195c735c8eb17db235f8f60e622934c/azure_identity-1.19.0.tar.gz", hash = "sha256:500144dc18197d7019b81501165d4fa92225f03778f17d7ca8a2a180129a9c83", size = 263058, upload-time = "2024-10-08T15:41:33.554Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/c2/3a/439a32a5e23e45f6a91f0405949dc66cfe6834aba15a430aebfc063a81e7/azure_identity-1.25.2.tar.gz", hash = "sha256:030dbaa720266c796221c6cdbd1999b408c079032c919fef725fcc348a540fe9", size = 284709, upload-time = "2026-02-11T01:55:42.323Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/f0/d5/3995ed12f941f4a41a273d9b1709282e825ef87ed8eab3833038fee54d59/azure_identity-1.19.0-py3-none-any.whl", hash = "sha256:e3f6558c181692d7509f09de10cca527c7dce426776454fb97df512a46527e81", size = 187587, upload-time = "2024-10-08T15:41:36.423Z" },
+    { url = "https://files.pythonhosted.org/packages/9b/77/f658c76f9e9a52c784bd836aaca6fd5b9aae176f1f53273e758a2bcda695/azure_identity-1.25.2-py3-none-any.whl", hash = "sha256:1b40060553d01a72ba0d708b9a46d0f61f56312e215d8896d836653ffdc6753d", size = 191423, upload-time = "2026-02-11T01:55:44.245Z" },
 ]
 
 [[package]]
@@ -852,7 +852,7 @@ requires-dist = [
     { name = "alembic", specifier = "==1.14.0" },
     { name = "asyncpg", specifier = "==0.31.0" },
     { name = "authlib", specifier = ">=1.3.0" },
-    { name = "azure-identity", specifier = "==1.19.0" },
+    { name = "azure-identity", specifier = "==1.25.2" },
     { name = "azure-monitor-opentelemetry", specifier = "==1.8.6" },
     { name = "cachetools", specifier = ">=5.3.0" },
     { name = "circuitbreaker", specifier = ">=2.0.0" },
