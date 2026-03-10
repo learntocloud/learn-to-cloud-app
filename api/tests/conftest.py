@@ -15,7 +15,7 @@ import os
 
 os.environ.setdefault(
     "DATABASE_URL",
-    "postgresql+asyncpg://postgres:postgres@localhost:5432/test_learn_to_cloud",
+    "postgresql+asyncpg://postgres:postgres@localhost:54320/test_learn_to_cloud",
 )
 os.environ.setdefault("GITHUB_TOKEN", "test_github_token")
 os.environ.setdefault("LABS_VERIFICATION_SECRET", "test_ctf_secret_must_be_32_chars!")
@@ -43,7 +43,7 @@ from core.database import Base
 # =============================================================================
 
 TEST_DATABASE_URL = (
-    "postgresql+asyncpg://postgres:postgres@localhost:5432/test_learn_to_cloud"
+    "postgresql+asyncpg://postgres:postgres@localhost:54320/test_learn_to_cloud"
 )
 
 
@@ -84,7 +84,7 @@ def _check_db_available() -> bool:
     try:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.settimeout(1)
-        result = sock.connect_ex(("localhost", 5432))
+        result = sock.connect_ex(("localhost", 54320))
         sock.close()
         _DB_AVAILABLE = result == 0
     except Exception:
@@ -104,7 +104,7 @@ async def test_engine() -> AsyncGenerator[AsyncEngine]:
         pytest.skip("PostgreSQL not available - skipping database test")
 
     admin_engine = create_async_engine(
-        "postgresql+asyncpg://postgres:postgres@localhost:5432/postgres",
+        "postgresql+asyncpg://postgres:postgres@localhost:54320/postgres",
         poolclass=NullPool,
         isolation_level="AUTOCOMMIT",
     )

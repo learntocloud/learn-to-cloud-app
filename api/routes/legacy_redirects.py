@@ -24,7 +24,7 @@ router = APIRouter(include_in_schema=False)
 @router.get("/phase{phase_num:int}/{rest:path}")
 async def legacy_phase_redirect(phase_num: int, rest: str = "") -> RedirectResponse:
     """Redirect old Docusaurus phase URLs to the homepage."""
-    logger.info(
+    logger.debug(
         "legacy.redirect",
         extra={"phase_num": phase_num, "rest": rest},
     )

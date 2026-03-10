@@ -8,6 +8,7 @@ Handles:
 
 import logging
 
+import httpx
 from authlib.integrations.starlette_client import OAuthError
 from fastapi import APIRouter, Request
 from fastapi.responses import RedirectResponse
@@ -67,7 +68,7 @@ async def callback(request: Request, db: DbSession) -> RedirectResponse:
 
     try:
         token = await github.authorize_access_token(request)
-    except OAuthError:
+    except (OAuthError, httpx.HTTPStatusError, httpx.ReadTimeout):
         logger.exception("auth.callback.token_exchange_failed")
         return RedirectResponse(url="/", status_code=302)
 
