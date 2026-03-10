@@ -1,7 +1,6 @@
 """FastAPI application for Learn to Cloud API."""
 
 import asyncio
-import hashlib
 import logging
 import re
 from contextlib import asynccontextmanager
@@ -58,32 +57,6 @@ from services.deployed_api_verification_service import (
 configure_observability()
 configure_logging()
 logger = logging.getLogger(__name__)
-
-
-def _build_static_file_hashes(static_dir: Path) -> dict[str, str]:
-    """Compute short content hashes for static files (cache-busting)."""
-    hashes: dict[str, str] = {}
-    if not static_dir.exists():
-        return hashes
-    for file_path in static_dir.rglob("*"):
-        if file_path.is_file():
-            rel = file_path.relative_to(static_dir).as_posix()
-            digest = hashlib.md5(
-                file_path.read_bytes(), usedforsecurity=False
-            ).hexdigest()[:8]
-            hashes[rel] = digest
-    return hashes
-
-
-_static_hashes: dict[str, str] = {}
-
-
-def _static_url(path: str) -> str:
-    """Return a cache-busted static URL, e.g. /static/css/styles.css?v=a1b2c3d4."""
-    version = _static_hashes.get(path, "")
-    if version:
-        return f"/static/{path}?v={version}"
-    return f"/static/{path}"
 
 
 async def not_found_handler(
@@ -322,10 +295,7 @@ if SessionMiddleware in _middleware_classes and CSRFMiddleware in _middleware_cl
 
 _static_dir = Path(__file__).parent / "static"
 if _static_dir.exists():
-    _static_hashes.update(_build_static_file_hashes(_static_dir))
     app.mount("/static", StaticFiles(directory=str(_static_dir)), name="static")
-
-templates.env.globals["static_url"] = _static_url  # ty: ignore[invalid-assignment]  # Jinja2 globals is a loosely-typed dict
 
 
 _favicon_ico = _static_dir / "favicon.ico"
