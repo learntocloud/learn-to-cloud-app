@@ -93,7 +93,7 @@ class CSRFMiddleware:
         if not submitted or not secrets.compare_digest(
             submitted, session[_SESSION_KEY]
         ):
-            logger.debug(
+            logger.warning(
                 "csrf.validation_failed",
                 extra={
                     "path": request.url.path,
