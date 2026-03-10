@@ -325,7 +325,7 @@ if _static_dir.exists():
     _static_hashes.update(_build_static_file_hashes(_static_dir))
     app.mount("/static", StaticFiles(directory=str(_static_dir)), name="static")
 
-templates.env.globals["static_url"] = _static_url
+templates.env.globals["static_url"] = _static_url  # type: ignore[invalid-assignment]
 
 
 _favicon_ico = _static_dir / "favicon.ico"
