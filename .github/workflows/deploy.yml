@@ -34,9 +34,6 @@ env:
   TF_VAR_environment: ${{ vars.AZURE_ENV_NAME }}
   TF_VAR_location: ${{ vars.AZURE_LOCATION }}
   ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
-  ARM_TENANT_ID: ${{ fromJson(secrets.AZURE_CREDENTIALS).tenantId }}
-  ARM_CLIENT_ID: ${{ fromJson(secrets.AZURE_CREDENTIALS).clientId }}
-  ARM_CLIENT_SECRET: ${{ fromJson(secrets.AZURE_CREDENTIALS).clientSecret }}
 
 jobs:
   # -----------------------------------------------------------------------
@@ -143,6 +140,10 @@ jobs:
     needs: [ci, changes]
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      ARM_TENANT_ID: ${{ fromJson(secrets.AZURE_CREDENTIALS).tenantId }}
+      ARM_CLIENT_ID: ${{ fromJson(secrets.AZURE_CREDENTIALS).clientId }}
+      ARM_CLIENT_SECRET: ${{ fromJson(secrets.AZURE_CREDENTIALS).clientSecret }}
     defaults:
       run:
         working-directory: infra
