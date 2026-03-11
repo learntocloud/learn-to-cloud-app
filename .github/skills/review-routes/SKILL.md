@@ -1,5 +1,5 @@
 ---
-name: review-api-routes
+name: review-routes
 description: Deep dive review of FastAPI routes file - analyzes route ordering, HTTP semantics, OpenAPI documentation, dependencies, rate limiting, and response handling. Use when user says "review api", "review routes", "review endpoints" on a routes/*.py file.
 ---
 

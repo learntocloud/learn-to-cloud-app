@@ -1,5 +1,5 @@
 ---
-name: python-library-review
+name: review-python-file
 description: Deep dive review of Python file - fetches official docs, searches best practices, audits all usages in codebase. Use when user says "review file", "review this file", or "analyze this code" on a .py file. This is NOT a surface-level review.
 ---
 

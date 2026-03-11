@@ -1,5 +1,5 @@
 ---
-name: validate-changes
+name: validate
 description: Run ruff lint, ruff format, ty type-check, start the API, smoke test endpoints, then kill the API. Use after editing Python files to catch errors before commit.
 ---
 

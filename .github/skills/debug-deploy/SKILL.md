@@ -1,5 +1,5 @@
 ---
-name: cicd-debug
+name: debug-deploy
 description: Debug GitHub Actions workflow failures and Terraform errors. Use when deployment failed, Terraform state lock, CI/CD pipeline errors, or troubleshooting deploy.yml.
 ---
 
@@ -31,7 +31,7 @@ gh run view <run-id> --log-failed
 
 Or use the debug script in this skill's folder:
 ```bash
-.github/skills/cicd-debug/debug-deploy.sh logs
+.github/skills/debug-deploy/debug-deploy.sh logs
 ```
 
 ### Step 3: Identify the Issue
@@ -99,12 +99,12 @@ gh run watch <run-id>
 
 | Command | Description |
 |---------|-------------|
-| `./.github/skills/cicd-debug/debug-deploy.sh status` | Show recent workflow runs |
-| `./.github/skills/cicd-debug/debug-deploy.sh logs` | View and analyze failed logs |
-| `./.github/skills/cicd-debug/debug-deploy.sh logs <id>` | View specific run's failed logs |
-| `./.github/skills/cicd-debug/debug-deploy.sh unlock` | Fix Terraform state lock |
-| `./.github/skills/cicd-debug/debug-deploy.sh rerun` | Re-run most recent failed workflow |
-| `./.github/skills/cicd-debug/debug-deploy.sh watch` | Watch running workflow |
+| `./.github/skills/debug-deploy/debug-deploy.sh status` | Show recent workflow runs |
+| `./.github/skills/debug-deploy/debug-deploy.sh logs` | View and analyze failed logs |
+| `./.github/skills/debug-deploy/debug-deploy.sh logs <id>` | View specific run's failed logs |
+| `./.github/skills/debug-deploy/debug-deploy.sh unlock` | Fix Terraform state lock |
+| `./.github/skills/debug-deploy/debug-deploy.sh rerun` | Re-run most recent failed workflow |
+| `./.github/skills/debug-deploy/debug-deploy.sh watch` | Watch running workflow |
 
 ## Debug Script
 

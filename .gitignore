@@ -96,6 +96,9 @@ tfplan
 # Dogfood / QA artifacts
 dogfood-*
 screenshot-*
+test-*.png
+test-*.js
+dashboard-response*.html
 .playwright-mcp/
 
 # Deep-implement working documents

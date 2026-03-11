@@ -1,5 +1,5 @@
 ---
-name: query-db
+name: query-prod-db
 description: Query production PostgreSQL with Entra ID auth. Use for investigating users, debugging duplicates, or ad-hoc queries.
 ---
 

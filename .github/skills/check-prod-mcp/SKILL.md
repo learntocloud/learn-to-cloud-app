@@ -1,5 +1,5 @@
 ---
-name: prod-health-check-mcp
+name: check-prod-mcp
 description: Check Azure production health using Azure MCP tools. Use when user says "check prod with mcp", "mcp health check", or "health check mcp".
 ---
 

@@ -1,5 +1,5 @@
 ---
-name: prod-health-check
+name: check-prod
 description: Check Azure production health — app status, errors, latency, database, dependencies. Use when user says "check prod", "how's prod", "hows prod doing", "is prod up", "prod status", "health check", "any errors?", "how's the app doing?", or "check Azure".
 ---
 
