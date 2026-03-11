@@ -1,39 +1,7 @@
 #!/bin/bash
 set -e
 
-echo "🚀 Setting up Learn to Cloud development environment..."
-
-# Install uv (skip if already installed)
-if ! command -v uv &> /dev/null; then
-    echo "📦 Installing uv..."
-    curl -LsSf https://astral.sh/uv/install.sh | sh
-fi
 export PATH="$HOME/.local/bin:$PATH"
-
-# Setup API (Python/FastAPI)
-echo "🐍 Setting up API..."
-cd api
-# Remove existing venv to avoid interactive prompt
-rm -rf .venv
-uv venv
-uv sync
-cd ..
-
-# Install prek (pre-commit hook runner)
-if ! command -v prek &> /dev/null; then
-    echo "🪝 Installing prek..."
-    ARCH=$(uname -m)
-    case "$ARCH" in
-        x86_64)  TARGET="x86_64-unknown-linux-gnu" ;;
-        aarch64) TARGET="aarch64-unknown-linux-gnu" ;;
-        *)       echo "⚠️  Unsupported architecture: $ARCH, skipping prek install"; TARGET="" ;;
-    esac
-    if [ -n "$TARGET" ]; then
-        curl -sSL "https://github.com/j178/prek/releases/latest/download/prek-${TARGET}.tar.gz" | tar xz --strip-components=1 -C /tmp
-        install /tmp/prek /usr/local/bin/prek
-        rm -f /tmp/prek
-    fi
-fi
 
 # Install pre-commit hooks (--overwrite removes any legacy pre-commit hook)
 echo "🪝 Installing pre-commit hooks..."
@@ -45,9 +13,20 @@ if [ ! -f api/.env ] && [ -f api/.env.example ]; then
     cp api/.env.example api/.env
 fi
 
+# Ensure DEBUG=true is in .env for local development
+if [ -f api/.env ] && ! grep -q "^DEBUG=true" api/.env; then
+    echo "📝 Adding DEBUG=true to api/.env..."
+    # printf ensures a leading newline in case the file doesn't end with one
+    printf '\nDEBUG=true\n' >> api/.env
+fi
+
+# Run database migrations
+echo "🗄️  Running database migrations..."
+cd api && uv run alembic upgrade head && cd ..
+
 echo "✅ Setup complete!"
 echo ""
 echo "To start developing:"
 echo "  API: cd api && uv run uvicorn main:app --reload"
 echo ""
-echo "Note: Database migrations (alembic upgrade head) run after 'docker-compose up -d db' starts in postStartCommand."
+echo "Note: Database is provisioned by docker-compose (PostgreSQL on port 54320)."

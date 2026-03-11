@@ -21,7 +21,6 @@
   "customizations": {
     "vscode": {
       "settings": {
-        "python.defaultInterpreterPath": "${workspaceFolder}/api/.venv/bin/python",
         "python.terminal.activateEnvironment": true,
         "[python]": {
           "editor.defaultFormatter": "charliermarsh.ruff",
@@ -35,6 +34,7 @@
       "extensions": [
         "ms-python.python",
         "charliermarsh.ruff",
+        "astral-sh.ty",
         "ms-azuretools.vscode-bicep",
         "ms-azuretools.vscode-docker",
         "dbaeumer.vscode-eslint",
@@ -43,6 +43,7 @@
       ]
     }
   },
+  "onCreateCommand": "bash .devcontainer/on-create.sh",
   "postCreateCommand": "bash .devcontainer/post-create.sh",
   "remoteEnv": {
     "UV_LINK_MODE": "copy"

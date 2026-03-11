@@ -110,7 +110,7 @@ jobs:
           enable-cache: true
 
       - name: Install dependencies
-        run: uv sync --extra dev --group dev
+        run: uv sync --locked
 
       - name: Ruff lint
         uses: astral-sh/ruff-action@v3

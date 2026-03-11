@@ -278,7 +278,7 @@
         uses: astral-sh/setup-uv@v7
 
       - name: Install dependencies
-        run: uv sync --extra dev --group dev
+        run: uv sync --locked
 
       - name: Ruff lint
         uses: astral-sh/ruff-action@v3
@@ -638,7 +638,7 @@ Routes (HTTP) → Services (Business Logic) → Repositories (DB)
 - Async/await everywhere
 
 ## Build and Test
-cd api && uv sync --all-extras
+cd api && uv sync
 ruff check . && ruff format --check . && ty check
 pytest                    # all tests
 pytest -m unit            # unit only

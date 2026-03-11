@@ -5,7 +5,7 @@ Revises:
 Create Date: 2026-02-06
 
 Fresh schema with GitHub numeric user IDs as primary key.
-Replaces all previous Clerk-based migrations.
+Replaces all previous pre-baseline migrations.
 """
 
 import sqlalchemy as sa

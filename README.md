@@ -24,13 +24,44 @@ A web application for tracking your progress through the [Learn to Cloud](https:
 
 ## Quick Start
 
-### Prerequisites
+### Dev Container (Recommended — all platforms)
+
+The fastest way to get started on **Windows (WSL), macOS, or Linux** is with VS Code Dev Containers. Everything — Python, Node, PostgreSQL, uv, pre-commit hooks — is configured automatically.
+
+**Prerequisites:** [Docker Desktop](https://www.docker.com/products/docker-desktop/) and [VS Code](https://code.visualstudio.com/) with the [Dev Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers).
+
+> **Windows users:** Install and run Docker Desktop via [WSL 2](https://learn.microsoft.com/en-us/windows/wsl/install). Clone the repo inside your WSL filesystem for best performance.
+
+1. Clone the repo and open it in VS Code
+2. When prompted **"Reopen in Container"**, click it (or run `Dev Containers: Reopen in Container` from the command palette)
+3. Wait for the container to build — this runs automatically:
+   - Installs Python 3.13, Node 20, uv, Azure CLI, GitHub CLI
+   - Creates a Python virtual environment and installs all dependencies
+   - Starts PostgreSQL 16 (port 54320) and runs database migrations
+   - Installs `prek` pre-commit hooks
+   - Copies `.env.example` → `.env` if needed
+4. Start the API:
+   ```bash
+   cd api && uv run uvicorn main:app --reload --port 8000
+   ```
+
+| Service | URL |
+|---------|-----|
+| App | http://localhost:8000 |
+| API Docs | http://localhost:8000/docs (requires `DEBUG=true` in `.env`) |
+| PostgreSQL | `localhost:54320` (user: `postgres`, password: `postgres`) |
+
+### Manual Setup (without Dev Container)
+
+If you prefer not to use Dev Containers, you can set things up manually.
+
+#### Prerequisites
 
 - Python 3.13+ with [uv](https://docs.astral.sh/uv/)
 - Node.js 20+ (for Tailwind CSS build)
 - Docker (for PostgreSQL)
 
-### Local Development
+#### Local Development
 
 **1. Start the database (Docker)**
 

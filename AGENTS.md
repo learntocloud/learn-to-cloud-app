@@ -28,9 +28,11 @@ Routes (HTTP) → Services (Business Logic) → Repositories (Database)
 
 ## Build and Test
 
+- **Virtual environment** lives in `api/.venv` (next to `pyproject.toml`, not in repo root)
+
 ```bash
 # Install
-cd api && uv sync --all-extras
+cd api && uv sync
 
 # Lint, format, type-check
 ruff check . && ruff format --check . && ty check

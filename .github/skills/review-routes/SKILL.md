@@ -55,7 +55,7 @@ Routes MUST be ordered:
 3. **Parameterized routes** (`/items/{id}`)
 4. **Nested parameterized** (`/items/{id}/subitems`)
 
-If reordering is needed, check frontend templates for `hx-get`/`hx-post` references to ensure no breaking changes.
+If reordering is needed, check HTMX templates in `api/templates/` for `hx-get`/`hx-post` references to ensure no breaking changes.
 
 ---
 
