@@ -600,6 +600,9 @@ async def _analyze_with_llm(
     agent = Agent(
         client=chat_client,
         instructions=prompt,
+        # Note: temperature=0 is ideal for deterministic grading but some
+        # models (o1, o3-mini) reject it. Omitted for compatibility —
+        # the deterministic guardrails enforce correctness regardless.
         default_options=ChatOptions(
             response_format=CodeAnalysisResponse,
             # Security: disable tool calling — this agent only grades code,
@@ -607,9 +610,6 @@ async def _analyze_with_llm(
             # the model into requesting tool calls.
             tool_choice="none",
         ),
-        # Note: temperature=0 is ideal for deterministic grading but some
-        # models (o1, o3-mini) reject it. Omitted for compatibility —
-        # the deterministic guardrails enforce correctness regardless.
     )
 
     timeout_seconds = get_settings().llm_cli_timeout
