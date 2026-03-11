@@ -158,7 +158,105 @@ On a topic page:
 
 ---
 
-## Step 5 — Cleanup
+## Step 5 — Test Hands-on Verification
+
+After testing authenticated pages, test the hands-on verification flow.
+
+### Clear prior submissions
+
+The dogfood user may already have verified submissions in the local database.
+If a requirement is already validated, the form won't render — only a
+"✓ Verified" badge appears. To test the full submit flow, clear those
+submissions first:
+
+```bash
+cd /workspaces/learn-to-cloud-app/api
+uv run python -c "
+import asyncio
+from sqlalchemy import text
+from core.database import async_session_maker
+
+async def clear():
+    async with async_session_maker() as db:
+        result = await db.execute(
+            text(\"DELETE FROM submissions WHERE requirement_id IN ('github-profile', 'profile-readme')\")
+        )
+        await db.commit()
+        print(f'Cleared {result.rowcount} prior submissions')
+
+asyncio.run(clear())
+"
+```
+
+If this fails (e.g. no submissions exist), that's fine — continue testing.
+
+After clearing, navigate to Phase 0 and find the **"Create a Public GitHub
+Profile"** verification card.
+
+### Which verifications to test
+
+Only test verification types that don't require external services or real lab
+completion. Safe types for dogfooding:
+
+| Type | Phase | Safe Input | Why Safe |
+|------|-------|-----------|----------|
+| `github_profile` | 0 | `https://github.com/madebygps` | Only checks public GitHub profile exists |
+| `profile_readme` | 1 | `https://github.com/madebygps/madebygps` | Only checks profile README repo exists |
+
+**Skip** these types (report as "skipped" in the report):
+- `ctf_token` / `networking_token` — require real lab completion tokens
+- `code_analysis` / `devops_analysis` — require LLM API keys + take 30-120s
+- `deployed_api` — requires a real deployed endpoint
+- `security_scanning` — requires LLM API keys
+- `repo_fork` — may not exist for the test user
+
+### Test procedure: github_profile verification
+
+1. Navigate to `/phase/0`
+2. `browser_snapshot` — find the verification card for "Create a Public GitHub
+   Profile"
+3. **Check if already verified**: If the card shows "✓ Verified" with no input
+   field, the submission clear didn't work or was already re-verified. Report as
+   "⏭️ Already verified (form not shown)" and move on.
+4. Find the text input field (look for `textbox` in the snapshot) and type
+   `https://github.com/madebygps` using `browser_type`
+5. Find the "Verify" button and click it via `browser_click`
+6. Wait 3 seconds (`browser_wait_for`) for the HTMX response
+7. `browser_snapshot` — check the result:
+   - **Success**: Look for "✓ Verified" badge or green text in the card
+   - **Failure**: Look for "✗ Failed" badge or red text — record the message
+   - **Error**: Look for "⚠ Service Error" or error banner text
+8. `browser_take_screenshot` (save to `.dogfood/verification-github-profile.png`)
+9. `browser_console_messages` — check for JS errors during submission
+
+### Test procedure: profile_readme verification
+
+1. Navigate to `/phase/1`
+2. `browser_snapshot` — find the "Create a Developer Profile README" card
+3. **Check if already verified**: If "✓ Verified" with no input, report as
+   "⏭️ Already verified" and move on.
+4. Type `https://github.com/madebygps/madebygps` into the input
+5. Click "Verify"
+6. Wait 3 seconds, snapshot, check result same as above
+7. `browser_take_screenshot` (save to `.dogfood/verification-profile-readme.png`)
+
+### What to verify
+
+- The form submits without JS errors
+- The HTMX swap replaces the card correctly (no broken HTML)
+- The response shows a clear pass/fail status (not a raw JSON dump or error page)
+- No "Internal Server Error", "500", or "Traceback" in the response
+- Rate limiting works: if you get "Please wait..." that's expected, not an error
+
+### Edge case: submit with empty/invalid input
+
+On Phase 0, try clicking "Verify" without entering a URL:
+1. The `required` attribute on the input should prevent submission (browser-level)
+2. If it submits anyway, the server should return a validation error, not crash
+
+---
+
+## Step 6 — Cleanup
 
 After all tests, kill the API:
 
@@ -168,7 +266,7 @@ lsof -ti:8000 | xargs -r kill -9 2>/dev/null || true
 
 ---
 
-## Step 6 — Report
+## Step 7 — Report
 
 Present results as a structured summary:
 
@@ -198,6 +296,15 @@ Present results as a structured summary:
 | Step toggle | ✅/❌ |
 | Step undo   | ✅/❌ |
 | Dark mode   | ✅/❌/N/A |
+
+### Hands-on Verification
+| Type | Input | Result | Details |
+|------|-------|--------|---------|
+| github_profile | `https://github.com/madebygps` | ✅ Verified / ❌ Failed / ⚠️ Error | message |
+| profile_readme | `https://github.com/madebygps/madebygps` | ✅/❌/⚠️ | message |
+| ctf_token | — | ⏭️ Skipped | Requires real lab token |
+| code_analysis | — | ⏭️ Skipped | Requires LLM API keys |
+| devops_analysis | — | ⏭️ Skipped | Requires LLM API keys |
 
 ### Issues Found
 1. ...

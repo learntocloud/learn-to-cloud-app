@@ -39,7 +39,8 @@
         "ms-azuretools.vscode-docker",
         "dbaeumer.vscode-eslint",
         "bradlc.vscode-tailwindcss",
-        "GitHub.copilot"
+        "GitHub.copilot",
+        "ms-azuretools.vscode-azure-mcp-server"
       ]
     }
   },

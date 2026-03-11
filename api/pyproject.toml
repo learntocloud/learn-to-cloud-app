@@ -37,7 +37,8 @@ dependencies = [
     "uvicorn[standard]>=0.41.0",
     "starlette>=0.41.3",
     "pyyaml>=6.0",
-    "agent-framework[azure]>=1.0.0b251120",
+    "agent-framework>=1.0.0rc3",
+    "opentelemetry-exporter-otlp-proto-grpc>=1.20.0",
 ]
 
 [tool.coverage.run]

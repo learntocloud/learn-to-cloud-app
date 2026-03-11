@@ -519,15 +519,17 @@ async def _analyze_with_llm(
     No tools needed — all file content is embedded in the prompt.
     Use analyze_devops_repository() instead.
     """
-    from agent_framework import ChatAgent
+    from agent_framework import Agent, ChatOptions
 
     chat_client = get_llm_chat_client()
     prompt = _build_verification_prompt(owner, repo, file_contents)
 
-    agent = ChatAgent(
-        chat_client=chat_client,
+    agent = Agent(
+        client=chat_client,
         instructions=prompt,
-        response_format=DevOpsAnalysisLLMResponse,
+        default_options=ChatOptions(
+            response_format=DevOpsAnalysisLLMResponse,
+        ),
     )
 
     timeout_seconds = get_settings().llm_cli_timeout

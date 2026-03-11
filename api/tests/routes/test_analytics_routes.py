@@ -30,20 +30,18 @@ def _mock_request() -> tuple[MagicMock, MagicMock]:
     return request, template_response
 
 
-def _make_analytics(**overrides) -> CommunityAnalytics:
+def _make_analytics() -> CommunityAnalytics:
     """Build a CommunityAnalytics with sensible defaults."""
-    defaults = {
-        "total_users": 100,
-        "active_learners_30d": 42,
-        "completion_rate": 0.15,
-        "phase_distribution": [],
-        "signup_trends": [],
-        "verification_stats": [],
-        "activity_by_day": [],
-        "generated_at": datetime(2024, 6, 1, tzinfo=UTC),
-    }
-    defaults.update(overrides)
-    return CommunityAnalytics(**defaults)
+    return CommunityAnalytics(
+        total_users=100,
+        active_learners_30d=42,
+        completion_rate=0.15,
+        phase_distribution=[],
+        signup_trends=[],
+        verification_stats=[],
+        activity_by_day=[],
+        generated_at=datetime(2024, 6, 1, tzinfo=UTC),
+    )
 
 
 @pytest.mark.unit

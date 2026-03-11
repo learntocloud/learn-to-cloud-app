@@ -589,7 +589,7 @@ async def _analyze_with_llm(
 
     Use analyze_repository_code() as the public entry point.
     """
-    from agent_framework import ChatAgent, FinishReason
+    from agent_framework import Agent, ChatOptions
 
     chat_client = get_llm_chat_client()
 
@@ -597,14 +597,16 @@ async def _analyze_with_llm(
 
     prompt = _build_verification_prompt(owner, repo, file_contents)
 
-    agent = ChatAgent(
-        chat_client=chat_client,
+    agent = Agent(
+        client=chat_client,
         instructions=prompt,
-        response_format=CodeAnalysisResponse,
-        # Security: disable tool calling — this agent only grades code,
-        # never needs to invoke tools. Prevents injection from tricking
-        # the model into requesting tool calls.
-        tool_choice="none",
+        default_options=ChatOptions(
+            response_format=CodeAnalysisResponse,
+            # Security: disable tool calling — this agent only grades code,
+            # never needs to invoke tools. Prevents injection from tricking
+            # the model into requesting tool calls.
+            tool_choice="none",
+        ),
         # Note: temperature=0 is ideal for deterministic grading but some
         # models (o1, o3-mini) reject it. Omitted for compatibility —
         # the deterministic guardrails enforce correctness regardless.
@@ -632,7 +634,7 @@ async def _analyze_with_llm(
     # the submission.
     chat_response = getattr(result, "raw_representation", None)
     finish_reason = getattr(chat_response, "finish_reason", None)
-    if finish_reason == FinishReason.CONTENT_FILTER:
+    if finish_reason == "content_filter":
         logger.warning(
             "code_analysis.content_filter_triggered",
             extra={"owner": owner, "repo": repo},

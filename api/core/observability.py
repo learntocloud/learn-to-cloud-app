@@ -184,10 +184,19 @@ def _configure_otlp(endpoint: str) -> None:
 
 
 def _enable_agent_framework_instrumentation() -> None:
-    """Flip ``enable_otel`` so the framework's decorators use our providers."""
-    try:
-        from agent_framework.observability import OBSERVABILITY_SETTINGS
+    """Activate the framework's gen_ai span and metric instrumentation.
 
-        OBSERVABILITY_SETTINGS.enable_otel = True
+    Calls the public ``enable_instrumentation()`` API which flips the
+    framework's internal flag so its built-in ``_trace_get_response``
+    and ``_trace_agent_run`` wrappers emit spans and metrics through
+    whatever OTel providers are already configured globally.
+
+    This does **not** create providers or exporters — our
+    ``_configure_azure_monitor`` / ``_configure_otlp`` does that.
+    """
+    try:
+        from agent_framework.observability import enable_instrumentation
+
+        enable_instrumentation()
     except ImportError:
         pass

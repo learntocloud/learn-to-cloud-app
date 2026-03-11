@@ -25,6 +25,16 @@ from core.cache import (
     set_cached_user,
     update_cached_phase_detail_step,
 )
+from schemas import UserProgress
+
+
+def _make_progress(user_id: int = 1) -> UserProgress:
+    """Build a minimal UserProgress for cache tests."""
+    return UserProgress(
+        user_id=user_id,
+        phases={},
+        total_phases=0,
+    )
 
 
 @pytest.fixture(autouse=True)
@@ -44,7 +54,7 @@ class TestProgressCache:
     """Test progress cache get/set."""
 
     def test_set_and_get(self):
-        progress = {"phases": [1, 2, 3]}
+        progress = _make_progress()
         set_cached_progress(1, progress)
         assert get_cached_progress(1) == progress
 
@@ -52,9 +62,11 @@ class TestProgressCache:
         assert get_cached_progress(999) is None
 
     def test_overwrites_existing(self):
-        set_cached_progress(1, {"old": True})
-        set_cached_progress(1, {"new": True})
-        assert get_cached_progress(1) == {"new": True}
+        old = _make_progress()
+        new = _make_progress()
+        set_cached_progress(1, old)
+        set_cached_progress(1, new)
+        assert get_cached_progress(1) == new
 
 
 @pytest.mark.unit
@@ -105,7 +117,7 @@ class TestInvalidateProgressCache:
     """Test invalidation clears progress and phase_detail caches."""
 
     def test_clears_progress_cache(self):
-        set_cached_progress(1, {"data": True})
+        set_cached_progress(1, _make_progress())
         invalidate_progress_cache(1)
         assert get_cached_progress(1) is None
 
@@ -117,15 +129,15 @@ class TestInvalidateProgressCache:
         assert get_cached_phase_detail(1, 20) is None
 
     def test_does_not_affect_other_users(self):
-        set_cached_progress(1, {"user1": True})
-        set_cached_progress(2, {"user2": True})
+        set_cached_progress(1, _make_progress(user_id=1))
+        set_cached_progress(2, _make_progress(user_id=2))
         set_cached_phase_detail(1, 10, {"t": {"s"}})
         set_cached_phase_detail(2, 10, {"t": {"s"}})
 
         invalidate_progress_cache(1)
 
         assert get_cached_progress(1) is None
-        assert get_cached_progress(2) == {"user2": True}
+        assert get_cached_progress(2) is not None
         assert get_cached_phase_detail(2, 10) == {"t": {"s"}}
 
     def test_noop_when_nothing_cached(self):

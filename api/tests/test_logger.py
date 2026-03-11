@@ -186,7 +186,7 @@ class TestRequestContextFilter:
             f = _RequestContextFilter()
             record = logging.LogRecord("test", logging.INFO, "", 0, "msg", (), None)
             f.filter(record)
-            assert record.github_username == "testuser"
+            assert getattr(record, "github_username") == "testuser"
         finally:
             request_github_username.reset(token)
 
@@ -199,7 +199,7 @@ class TestRequestContextFilter:
             record = logging.LogRecord("test", logging.INFO, "", 0, "msg", (), None)
             record.github_username = "explicit-user"
             f.filter(record)
-            assert record.github_username == "explicit-user"
+            assert getattr(record, "github_username") == "explicit-user"
         finally:
             request_github_username.reset(token)
 
