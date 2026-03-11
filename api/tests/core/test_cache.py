@@ -25,7 +25,7 @@ from core.cache import (
     set_cached_user,
     update_cached_phase_detail_step,
 )
-from schemas import UserProgress
+from schemas import PhaseProgress, UserProgress
 
 
 def _make_progress(user_id: int = 1) -> UserProgress:
@@ -63,7 +63,21 @@ class TestProgressCache:
 
     def test_overwrites_existing(self):
         old = _make_progress()
-        new = _make_progress()
+        new = UserProgress(
+            user_id=1,
+            phases={
+                10: PhaseProgress(
+                    phase_id=10,
+                    steps_completed=3,
+                    steps_required=5,
+                    hands_on_validated_count=1,
+                    hands_on_required_count=1,
+                    hands_on_validated=True,
+                    hands_on_required=True,
+                )
+            },
+            total_phases=1,
+        )
         set_cached_progress(1, old)
         set_cached_progress(1, new)
         assert get_cached_progress(1) == new

@@ -629,9 +629,9 @@ async def _analyze_with_llm(
         ) from None
 
     # Security: check if Azure's built-in content filter was triggered.
-    # FinishReason.CONTENT_FILTER means the model's response was blocked
-    # by Azure AI Content Safety — likely due to adversarial content in
-    # the submission.
+    # Azure sets finish_reason to "content_filter" when the model's
+    # response is blocked by Azure AI Content Safety — likely due to
+    # adversarial or unsafe content in the submission.
     chat_response = getattr(result, "raw_representation", None)
     finish_reason = getattr(chat_response, "finish_reason", None)
     if finish_reason == "content_filter":

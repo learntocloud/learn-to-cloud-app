@@ -50,7 +50,6 @@
     .feature-card p { color: #8b949e; margin: 0; font-size: 0.7em; line-height: 1.4; }
     .big-number { font-size: 2.5em; font-weight: 700; color: #58a6ff; line-height: 1; }
     .big-number-label { color: #8b949e; font-size: 0.6em; }
-    .reveal .auto-updated { position: fixed; bottom: 8px; right: 16px; font-size: 10px; color: #484f58; z-index: 100; }
   </style>
 </head>
 <body>
@@ -64,7 +63,7 @@
   <p class="gh-logo">🚀</p>
   <h1>How We Ship</h1>
   <p class="subtitle">The tools and workflows behind <strong>learntocloud.guide</strong></p>
-  <p class="dim" style="font-size:0.55em; margin-top: 2em;">A living deck — auto-updated on every push</p>
+  <p class="dim" style="font-size:0.55em; margin-top: 2em;">A living deck — auto-updated when repo config changes</p>
 </section>
 
 <!-- ============================================================ -->
@@ -649,11 +648,6 @@ description: >
           <td>Scans content YAML for broken external URLs</td>
         </tr>
         <tr>
-          <td class="blue">LLM Grading Monitor</td>
-          <td>Weekly (Wed)</td>
-          <td>Regression tests AI grading against known-good repos</td>
-        </tr>
-        <tr>
           <td class="blue">Cross-Repo Overview</td>
           <td>Daily (5am)</td>
           <td>Issue/PR dashboard across 4 repos</td>
@@ -699,7 +693,6 @@ description: >
     ├── content-link-auditor.md      # Weekly broken link scan
     ├── cross-repo-issues-overview.md # Daily issue dashboard
     ├── discussion-answer-thanks.md  # Community recognition
-    ├── llm-grading-monitor.md       # AI grading regression
     └── update-deck.md               # Keep this deck current</code></pre>
 </section>
 
@@ -732,7 +725,7 @@ description: >
 <section class="center-slide" data-background-gradient="radial-gradient(circle at 80% 50%, #0d2137 0%, #0d1117 70%)">
   <h2>This Deck Updates Itself</h2>
   <div class="highlight-box" style="text-align: left; display: inline-block;">
-    <p style="font-size: 0.8em;">Every push to <code>main</code> triggers a Copilot Workflow that:</p>
+    <p style="font-size: 0.8em;">Pushes to <code>main</code> that change repo config trigger a Copilot Workflow that:</p>
     <ol style="list-style: decimal; padding-left: 1.5em; font-size: 0.75em; margin-top: 12px;">
       <li style="margin: 0.4em 0;">Scans the repo for skills, agents, prompts, and workflows</li>
       <li style="margin: 0.4em 0;">Compares what exists against what's in the deck</li>
