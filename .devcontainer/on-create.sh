@@ -16,6 +16,11 @@ cd api
 uv sync
 cd ..
 
+# Install Playwright MCP server + Chrome for dogfooding
+echo "🎭 Installing Playwright MCP + Chrome..."
+npm install -g @playwright/mcp@latest
+npx -y playwright install chrome
+
 # Install prek (pre-commit hook runner)
 if ! command -v prek &> /dev/null; then
     echo "🪝 Installing prek..."

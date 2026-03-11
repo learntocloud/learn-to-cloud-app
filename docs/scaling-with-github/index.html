@@ -903,25 +903,32 @@ tools:
   <h2>The .github/ Directory: Your Operations Team</h2>
   <pre><code class="language-text">.github/
 ├── agents/
-│   └── dog-food.agent.md          # QA automation agent
-├── dependabot.yml                 # Auto-update 4 ecosystems
+│   └── dog-food.agent.md            # QA automation agent
+├── agents.md                        # Shared agent instructions
+├── aw/                              # Copilot Workflows runtime
+│   └── actions-lock.json
+├── dependabot.yml                   # Auto-update 4 ecosystems
 ├── prompts/
-│   ├── research.prompt.md         # Deep research workflow
-│   ├── plan.prompt.md             # Implementation planning
-│   └── implement.prompt.md        # Structured execution
+│   ├── implement.prompt.md          # Structured execution
+│   ├── plan.prompt.md               # Implementation planning
+│   └── research.prompt.md           # Deep research workflow
 ├── skills/
-│   ├── ship-it/SKILL.md           # "ship it" → full deploy
-│   ├── prod-health-check/SKILL.md # "check prod" → 10 checks
-│   ├── validate-changes/SKILL.md  # "validate" → lint+test+smoke
-│   ├── cicd-debug/SKILL.md        # "debug deploy" → diagnose
-│   └── ...5 more skills
+│   ├── check-prod/SKILL.md          # "check prod" → 10 checks
+│   ├── check-prod-mcp/SKILL.md      # "check prod" via MCP
+│   ├── check-tokens/SKILL.md        # Token usage reporting
+│   ├── debug-deploy/SKILL.md        # "debug deploy" → diagnose
+│   ├── query-prod-db/SKILL.md       # Production DB queries
+│   ├── review-python-file/SKILL.md  # Deep file review
+│   ├── review-routes/SKILL.md       # FastAPI routes audit
+│   ├── ship-it/SKILL.md             # "ship it" → full deploy
+│   └── validate/SKILL.md            # Lint+type-check+smoke
 └── workflows/
-    ├── deploy.yml                 # CI/CD + dependency review
-    ├── codeql.yml                 # Static security analysis
-    ├── content-link-auditor.md    # Weekly broken link scan
+    ├── codeql.yml                   # Static security analysis
+    ├── content-link-auditor.md      # Weekly broken link scan
     ├── cross-repo-issues-overview.md # Daily issue dashboard
-    ├── llm-grading-monitor.md     # AI grading regression tests
-    └── discussion-answer-thanks.md   # Community recognition</code></pre>
+    ├── deploy.yml                   # CI/CD + dependency review
+    ├── discussion-answer-thanks.md  # Community recognition
+    └── llm-grading-monitor.md       # AI grading regression tests</code></pre>
 </section>
 
 <section class="center-slide">

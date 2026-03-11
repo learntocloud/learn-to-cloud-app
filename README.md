@@ -132,6 +132,10 @@ Or use VS Code's debugger with the **"API: FastAPI (uvicorn)"** launch configura
     └── skills/           # Copilot agent skills
 ```
 
+## Contributing
+
+See the [Contributing Guide](docs/contributing.md) for linting, testing, the dog-food QA agent, Copilot skills, and architecture conventions.
+
 ## Deployment
 
 Push to `main` triggers automated deployment via GitHub Actions → Terraform → Azure Container Apps.

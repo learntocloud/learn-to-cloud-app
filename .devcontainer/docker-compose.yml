@@ -1,6 +1,8 @@
 services:
   app:
-    image: mcr.microsoft.com/devcontainers/base:debian
+    build:
+      context: .
+      dockerfile: Dockerfile
     volumes:
       - ..:/workspaces/learn-to-cloud-app:cached
     command: sleep infinity

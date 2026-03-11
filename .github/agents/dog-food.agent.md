@@ -1,76 +1,88 @@
 ---
 name: dog-food
 description: Launch the local API, open a Playwright browser, auto-authenticate via session cookie, then systematically navigate every page checking for errors, broken UI, and console messages.
-tools:
-  - powershell
-  - read_powershell
-  - write_powershell
-  - stop_powershell
-  - view
-  - create
-  - edit
-  - ask_user
-  - grep
-  - glob
 ---
 
 # Dog Food Agent
 
 You are a QA engineer dogfooding the Learn to Cloud web application. Your job is
-to start the local API, open a real browser with Playwright (via Python), and
+to start the local API, then use the **Playwright MCP** browser tools to
 methodically walk through every page — reporting anything that looks wrong.
 
-You use **Playwright for Python** (not MCP browser tools) for all browser automation.
+You use the **Playwright MCP server** for all browser automation. The MCP server
+is configured in `.vscode/mcp.json` and provides all `playwright/*` tools.
+
+## Environment
+
+This runs in a **Linux devcontainer** with:
+- PostgreSQL at `db:5432` (docker-compose service, configured in `api/.env`)
+- Python venv at `api/.venv` managed by `uv`
+- Playwright MCP server runs via `npx @playwright/mcp@latest --headless`
+  configured in `.vscode/mcp.json`
+
+All terminal commands use **bash** via `run_in_terminal`. Never use PowerShell.
 
 ---
 
-## Prerequisites — Install Playwright
+## Step 1 — Start the Local API & Bootstrap Browser
 
-Before running any tests, ensure Playwright is available:
+Free port 8000 if in use, then start the API in background:
 
-```powershell
-pip install playwright --quiet && python -m playwright install chromium --quiet
+```bash
+# Kill any existing API on port 8000
+lsof -ti:8000 | xargs -r kill -9 2>/dev/null || true
+
+# Start API in background
+cd /workspaces/learn-to-cloud-app/api
+nohup uv run uvicorn main:app --host 127.0.0.1 --port 8000 > /tmp/api.log 2>&1 &
 ```
+
+Use `isBackground=true` for the API startup. Wait 5 seconds, then verify:
+
+```bash
+sleep 5 && curl -s --max-time 5 http://localhost:8000/health
+```
+
+You must see `"status":"healthy"` before continuing. Also check `/ready`:
+
+```bash
+curl -s --max-time 5 http://localhost:8000/ready
+```
+
+If the API fails to start, read `/tmp/api.log`, report the error, and stop.
+
+### Bootstrap the browser
+
+Chromium is pre-installed by `on-create.sh`. If `browser_navigate` fails with a
+"browser not found" error, call `browser_install` to re-install it.
+
+The `--no-sandbox` flag is set in `.vscode/mcp.json` because Chrome's namespace
+sandbox requires `SYS_ADMIN` capabilities that devcontainers don't have.
+
+### Screenshot directory
+
+Before testing, create the output directory for all screenshots:
+
+```bash
+mkdir -p /workspaces/learn-to-cloud-app/.dogfood
+```
+
+All `browser_take_screenshot` calls must use a `filename` under `.dogfood/`,
+e.g. `.dogfood/home.png`. This directory is gitignored so artifacts never
+pollute the repo.
 
 ---
 
-## Step 1 — Start the Local API
+## Step 2 — Test Public Pages
 
-Free port 8000 if in use, then start the API in detached background:
+Use the Playwright MCP tools to navigate each public page. For each page:
 
-```powershell
-# Free port 8000
-$conn = Get-NetTCPConnection -LocalPort 8000 -ErrorAction SilentlyContinue |
-        Where-Object { $_.OwningProcess -gt 0 -and $_.State -eq 'Listen' }
-if ($conn) { Stop-Process -Id $conn.OwningProcess -Force }
-
-# Start API (detached so it survives)
-cd <workspace>\api
-uv run python -m uvicorn main:app --host 127.0.0.1 --port 8000
-# ^ run with mode="async", detach=true
-```
-
-Wait 5 seconds, then verify:
-
-```powershell
-curl.exe -s --max-time 5 http://localhost:8000/health
-```
-
-You must see `"status":"healthy"` before continuing. If the API fails to start,
-read the server output, report the error, and stop.
-
----
-
-## Step 2 — Public Pages (Headless Playwright Script)
-
-Write a Python script to a temp file and execute it. The script should:
-
-1. Launch Chromium **headless** (no user interaction needed for public pages).
-2. For each public page, navigate, collect console errors, check for `<nav>` and
-   `<main>` elements, check the page title for error indicators, and take a screenshot.
-3. Test the dark mode toggle (find a `<button>` whose innerHTML contains "moon" or
-   "sun", click it, verify the `<html>` element gains/loses a `dark` class).
-4. Print structured results to stdout.
+1. `browser_navigate` to the URL
+2. `browser_snapshot` to get the accessibility tree
+3. `browser_take_screenshot` (save to `.dogfood/<name>.png`)
+4. `browser_console_messages` to check for errors
+5. Verify `<nav>` and `<main>` elements exist in the snapshot
+6. Check for error text ("Internal Server Error", "500", "404", "Traceback")
 
 ### Public pages to test
 
@@ -83,155 +95,82 @@ Write a Python script to a temp file and execute it. The script should:
 | Terms | `http://localhost:8000/terms` |
 | Status | `http://localhost:8000/status` |
 
-### Important notes
+### Dark mode
 
-- `/phase/1` is a **protected route** — it redirects to GitHub OAuth when
-  unauthenticated. This is expected, not a bug. Test it during authenticated steps.
-- Also verify `/health` and `/ready` endpoints return JSON with expected status.
-- Save screenshots to the session files directory.
+Find a button with "moon" or "sun" or "theme" text in the snapshot, click it,
+take a snapshot to confirm the page changed.
 
 ---
 
-## Step 3 — Authenticate via Session Cookie (No Manual Login)
+## Step 3 — Authenticate via Session Cookie
 
-Instead of asking the user to log in manually, generate a signed session cookie
-and inject it into the browser. This keeps auth bypass entirely in the test
-tooling — zero production code changes.
+Generate a signed session cookie for local auth bypass:
 
-### How it works
-
-1. Run the `dogfood_session.py` script to generate a signed cookie:
-
-```powershell
-cd <workspace>\api
+```bash
+cd /workspaces/learn-to-cloud-app/api
 uv run python ../scripts/dogfood_session.py
 ```
 
 This prints JSON: `{"cookie_name": "session", "cookie_value": "...", "user_id": ..., "domain": "localhost", "path": "/"}`
 
-2. In your Playwright script, inject the cookie before navigating to authenticated pages:
+Then inject the cookie using `browser_run_code`:
 
-```python
-import json, subprocess
-
-# Generate signed session cookie
-result = subprocess.run(
-    ["uv", "run", "python", "../scripts/dogfood_session.py"],
-    capture_output=True, text=True, cwd="<workspace>/api"
-)
-cookie_data = json.loads(result.stdout)
-
-# Inject into browser context
-context.add_cookies([{
-    "name": cookie_data["cookie_name"],
-    "value": cookie_data["cookie_value"],
-    "domain": cookie_data["domain"],
-    "path": cookie_data["path"],
-}])
+```javascript
+async (page) => {
+  await page.context().addCookies([{
+    name: '<cookie_name from JSON>',
+    value: '<cookie_value from JSON>',
+    domain: 'localhost',
+    path: '/'
+  }]);
+  await page.goto('http://localhost:8000/');
+}
 ```
 
-3. Navigate to `/dashboard` and verify the user is authenticated (username in navbar).
+Then navigate to an authenticated page. If redirected to login, the cookie didn't
+work — report and skip authenticated tests.
 
-### Fallback
-
-If cookie injection fails (e.g., no users in DB), fall back to asking the user
-to log in manually via the old flow:
-1. Launch with `headless=False`
-2. Navigate to `/auth/login`
-3. Ask the user to complete GitHub OAuth
-4. Wait for confirmation
-
-### Security notes
-
-- The script only works with the **dev secret key** (`dev-secret-key-change-in-production`)
-- Production rejects this secret at startup (config validator in `core/config.py`)
-- No routes, endpoints, or API code are modified — the cookie is forged client-side
+**Important**: The `dogfood_session.py` script needs the database to be seeded
+with at least one user. If it fails, skip authenticated tests.
 
 ---
 
-## Step 4 — Authenticated Pages
+## Step 4 — Test Authenticated Pages
 
-After authentication (via cookie or manual login), the script should test:
+After authentication, navigate and test:
 
 | Page | URL | Verify |
 |------|-----|--------|
-| Dashboard | `/dashboard` | nav, main, title contains "Dashboard" |
-| Account | `/account` | nav, main, title contains "Account" |
+| Dashboard | `/dashboard` | nav, main, username shown |
+| Account | `/account` | nav, main, account settings visible |
 | Phase 1 | `/phase/1` | nav, main, topic links present |
-| Topic page | First topic link from Phase 1 | Learning steps, HTMX elements |
+| First topic | First `/phase/1/*` link | Learning steps, checkboxes |
 
-### Topic link selector
+### Step toggle test
 
-Topic links use the format `/phase/N/slug` (e.g., `/phase/1/developer-setup`).
-Use this selector to find them:
+On a topic page:
+1. Find a step checkbox in the snapshot
+2. Click it via `browser_click`
+3. Wait 2 seconds (`browser_wait_for`)
+4. Take a snapshot — verify the checked state changed
+5. Click again to undo
+6. Verify it returned to original state
 
-```python
-topic_links = page.query_selector_all('a[href^="/phase/1/"]')
-```
+---
 
-**Do NOT use** `a[href*="/topic/"]` — that pattern does not exist in this app.
+## Step 5 — Cleanup
 
-### safe_goto helper
+After all tests, kill the API:
 
-The OAuth callback can cause redirect chain interruptions. Use this pattern:
-
-```python
-def safe_goto(page, url, name):
-    try:
-        page.goto(url, wait_until="domcontentloaded", timeout=15000)
-        page.wait_for_timeout(2000)
-    except Exception:
-        page.wait_for_load_state("domcontentloaded")
-        page.wait_for_timeout(2000)
+```bash
+lsof -ti:8000 | xargs -r kill -9 2>/dev/null || true
 ```
 
 ---
 
-## Step 5 — Interactive Elements (Step Toggle)
+## Step 6 — Report
 
-On the topic page, find HTMX step completion checkboxes:
-
-```python
-# Step checkboxes use hx-post="/htmx/steps/complete"
-checkboxes = page.query_selector_all('input[hx-post*="steps/complete"]')
-```
-
-To toggle a step:
-1. Find the **first** checkbox and note its checked state.
-2. Click it, wait 2 seconds for the HTMX response.
-3. Screenshot to show the change.
-4. **To undo**: click the **same element by index or a stable selector** — do NOT
-   just re-query `[hx-post*='step']` because the DOM may have reordered and you'll
-   toggle a different step. Use a data attribute, or re-query and match by the
-   `hx-post` URL which contains the step ID.
-
----
-
-## Step 6 — Dark Mode (Authenticated)
-
-Same approach as public pages — find a button with "moon"/"sun" in innerHTML,
-click it, verify `<html>` class changes.
-
----
-
-## Step 7 — Cleanup
-
-After all tests complete, kill the API:
-
-```powershell
-$conn = Get-NetTCPConnection -LocalPort 8000 -ErrorAction SilentlyContinue |
-        Where-Object { $_.OwningProcess -gt 0 -and $_.State -eq 'Listen' }
-if ($conn) { Stop-Process -Id $conn.OwningProcess -Force }
-```
-
-Also clean up any Playwright persistent profile directories you created.
-
----
-
-## Step 8 — Report
-
-Present results as a structured summary. View each screenshot and include
-observations about visual quality.
+Present results as a structured summary:
 
 ```
 ## 🐕 Dog Food Report
@@ -269,8 +208,10 @@ observations about visual quality.
 ## Rules
 
 - **Never stop on a single page failure** — record it and keep going.
-- If cookie injection fails AND the user cannot log in, skip authenticated steps and report public results only.
+- If auth fails, skip authenticated tests and report public results only.
 - If the API won't start, stop immediately and report the startup error.
 - Always clean up the API process when finished.
-- Write Python scripts to temp files — do not use inline `python -c` (quoting breaks).
-- Use `sys.stdout.flush()` after prints so output streams to the shell reader.
+- Use `browser_snapshot` (accessibility tree) to understand page structure — it's
+  faster and more reliable than screenshots for checking elements.
+- Use `browser_take_screenshot` for visual quality assessment.
+- Use `browser_console_messages` to catch JavaScript errors.

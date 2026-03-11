@@ -97,12 +97,7 @@ tfplan
 .api-pid
 
 # Dogfood / QA artifacts
-dogfood-*
-screenshot-*
-test-*.png
-test-*.js
-dashboard-response*.html
-.playwright-mcp/
+.dogfood/
 
 # Deep-implement working documents
 research.md
