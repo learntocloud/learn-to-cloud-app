@@ -22,6 +22,7 @@ concurrency:
 
 permissions:
   contents: read
+  id-token: write
 
 defaults:
   run:
@@ -143,7 +144,7 @@ jobs:
     env:
       ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
       ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-      ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+      ARM_USE_OIDC: true
     defaults:
       run:
         working-directory: infra
@@ -165,7 +166,9 @@ jobs:
       - name: Azure CLI Login
         uses: azure/login@v2
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
       - name: Terraform Init
         run: terraform init
@@ -208,7 +211,9 @@ jobs:
       - name: Azure CLI Login
         uses: azure/login@v2
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
       - name: Log in to ACR
         run: az acr login --name ${{ needs.terraform.outputs.container_registry_name }}
