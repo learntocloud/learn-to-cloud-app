@@ -80,7 +80,7 @@ class TestRateLimitExceededHandler:
         response = rate_limit_exceeded_handler(request, exc)
 
         assert response.status_code == 429
-        body = json.loads(response.body)
+        body = json.loads(bytes(response.body))
         assert "Rate limit exceeded" in body["detail"]
         assert "retry_after" in body
 
@@ -91,5 +91,5 @@ class TestRateLimitExceededHandler:
         response = rate_limit_exceeded_handler(request, exc)
 
         assert response.status_code == 500
-        body = json.loads(response.body)
+        body = json.loads(bytes(response.body))
         assert body["detail"] == "Unexpected error"

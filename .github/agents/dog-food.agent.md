@@ -10,21 +10,22 @@ to start the local API, then use the **Playwright MCP** browser tools to
 methodically walk through every page — reporting anything that looks wrong.
 
 You use the **Playwright MCP server** for all browser automation. The MCP server
-is configured in `.vscode/mcp.json` and provides all `playwright/*` tools.
+is configured in `.vscode/mcp.json` and provides tools prefixed with
+`mcp_playwright_browser_*`.
 
 ## Environment
 
 This runs in a **Linux devcontainer** with:
 - PostgreSQL at `db:5432` (docker-compose service, configured in `api/.env`)
 - Python venv at `api/.venv` managed by `uv`
-- Playwright MCP server runs via `npx @playwright/mcp@latest --headless`
-  configured in `.vscode/mcp.json`
+- Playwright MCP server runs via Docker image (`mcr.microsoft.com/playwright/mcp`)
+  configured in `.vscode/mcp.json` — no npm/Playwright install needed in the container
 
 All terminal commands use **bash** via `run_in_terminal`. Never use PowerShell.
 
 ---
 
-## Step 1 — Start the Local API & Bootstrap Browser
+## Step 1 — Start the Local API
 
 Free port 8000 if in use, then start the API in background:
 
@@ -43,33 +44,8 @@ Use `isBackground=true` for the API startup. Wait 5 seconds, then verify:
 sleep 5 && curl -s --max-time 5 http://localhost:8000/health
 ```
 
-You must see `"status":"healthy"` before continuing. Also check `/ready`:
-
-```bash
-curl -s --max-time 5 http://localhost:8000/ready
-```
-
-If the API fails to start, read `/tmp/api.log`, report the error, and stop.
-
-### Bootstrap the browser
-
-Chromium is pre-installed by `on-create.sh`. If `browser_navigate` fails with a
-"browser not found" error, call `browser_install` to re-install it.
-
-The `--no-sandbox` flag is set in `.vscode/mcp.json` because Chrome's namespace
-sandbox requires `SYS_ADMIN` capabilities that devcontainers don't have.
-
-### Screenshot directory
-
-Before testing, create the output directory for all screenshots:
-
-```bash
-mkdir -p /workspaces/learn-to-cloud-app/.dogfood
-```
-
-All `browser_take_screenshot` calls must use a `filename` under `.dogfood/`,
-e.g. `.dogfood/home.png`. This directory is gitignored so artifacts never
-pollute the repo.
+You must see `"status":"healthy"` before continuing. If the API fails to start,
+read `/tmp/api.log`, report the error, and stop.
 
 ---
 
@@ -79,7 +55,7 @@ Use the Playwright MCP tools to navigate each public page. For each page:
 
 1. `browser_navigate` to the URL
 2. `browser_snapshot` to get the accessibility tree
-3. `browser_take_screenshot` (save to `.dogfood/<name>.png`)
+3. `browser_take_screenshot` to capture visual state
 4. `browser_console_messages` to check for errors
 5. Verify `<nav>` and `<main>` elements exist in the snapshot
 6. Check for error text ("Internal Server Error", "500", "404", "Traceback")
@@ -113,18 +89,10 @@ uv run python ../scripts/dogfood_session.py
 
 This prints JSON: `{"cookie_name": "session", "cookie_value": "...", "user_id": ..., "domain": "localhost", "path": "/"}`
 
-Then inject the cookie using `browser_run_code`:
+Then use `browser_navigate` to a page and inject the cookie via JavaScript:
 
-```javascript
-async (page) => {
-  await page.context().addCookies([{
-    name: '<cookie_name from JSON>',
-    value: '<cookie_value from JSON>',
-    domain: 'localhost',
-    path: '/'
-  }]);
-  await page.goto('http://localhost:8000/');
-}
+```
+browser_navigate → http://localhost:8000/
 ```
 
 Then navigate to an authenticated page. If redirected to login, the cookie didn't
@@ -151,7 +119,7 @@ After authentication, navigate and test:
 On a topic page:
 1. Find a step checkbox in the snapshot
 2. Click it via `browser_click`
-3. Wait 2 seconds (`browser_wait_for`)
+3. Wait 2 seconds (`browser_wait`)
 4. Take a snapshot — verify the checked state changed
 5. Click again to undo
 6. Verify it returned to original state

@@ -37,7 +37,8 @@ dependencies = [
     "uvicorn[standard]>=0.41.0",
     "starlette>=0.41.3",
     "pyyaml>=6.0",
-    "agent-framework[azure]>=1.0.0b251120",
+    "agent-framework>=1.0.0rc3",
+    "opentelemetry-exporter-otlp-proto-grpc>=1.20.0",
 ]
 
 [tool.coverage.run]
@@ -76,6 +77,7 @@ python-platform = "linux"
 # TODO: Revert to "error" once astral-sh/ty#1714 (generic protocols in typevar
 # solving) is resolved. ty cannot yet match classes against Protocol[ParamSpec],
 # causing false positives on Starlette's add_middleware() and add_exception_handler().
+# Also affects agent_framework's ChatOptions generic TypedDict (response_format).
 # Tracked in: https://github.com/astral-sh/ty/issues/1635
 invalid-argument-type = "warn"
 

@@ -47,7 +47,7 @@ def _http_scope(
     session: dict | None = None,
 ) -> dict:
     """Build a minimal HTTP ASGI scope."""
-    scope = {
+    scope: dict[str, object] = {
         "type": "http",
         "method": method,
         "path": path,

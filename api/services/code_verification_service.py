@@ -589,7 +589,7 @@ async def _analyze_with_llm(
 
     Use analyze_repository_code() as the public entry point.
     """
-    from agent_framework import ChatAgent, FinishReason
+    from agent_framework import Agent, ChatOptions
 
     chat_client = get_llm_chat_client()
 
@@ -597,17 +597,19 @@ async def _analyze_with_llm(
 
     prompt = _build_verification_prompt(owner, repo, file_contents)
 
-    agent = ChatAgent(
-        chat_client=chat_client,
+    agent = Agent(
+        client=chat_client,
         instructions=prompt,
-        response_format=CodeAnalysisResponse,
-        # Security: disable tool calling — this agent only grades code,
-        # never needs to invoke tools. Prevents injection from tricking
-        # the model into requesting tool calls.
-        tool_choice="none",
         # Note: temperature=0 is ideal for deterministic grading but some
         # models (o1, o3-mini) reject it. Omitted for compatibility —
         # the deterministic guardrails enforce correctness regardless.
+        default_options=ChatOptions(
+            response_format=CodeAnalysisResponse,
+            # Security: disable tool calling — this agent only grades code,
+            # never needs to invoke tools. Prevents injection from tricking
+            # the model into requesting tool calls.
+            tool_choice="none",
+        ),
     )
 
     timeout_seconds = get_settings().llm_cli_timeout
@@ -627,12 +629,12 @@ async def _analyze_with_llm(
         ) from None
 
     # Security: check if Azure's built-in content filter was triggered.
-    # FinishReason.CONTENT_FILTER means the model's response was blocked
-    # by Azure AI Content Safety — likely due to adversarial content in
-    # the submission.
+    # Azure sets finish_reason to "content_filter" when the model's
+    # response is blocked by Azure AI Content Safety — likely due to
+    # adversarial or unsafe content in the submission.
     chat_response = getattr(result, "raw_representation", None)
     finish_reason = getattr(chat_response, "finish_reason", None)
-    if finish_reason == FinishReason.CONTENT_FILTER:
+    if finish_reason == "content_filter":
         logger.warning(
             "code_analysis.content_filter_triggered",
             extra={"owner": owner, "repo": repo},

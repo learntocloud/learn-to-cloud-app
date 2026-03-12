@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Scale Your Project with GitHub | Imagine Cup 2026</title>
+  <title>How We Ship | Learn to Cloud</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/theme/black.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/plugin/highlight/monokai.css">
@@ -60,37 +60,20 @@
 <!-- TITLE SLIDE -->
 <!-- ============================================================ -->
 <section class="center-slide" data-background-gradient="radial-gradient(circle at 20% 50%, #0d2137 0%, #0d1117 70%)">
-  <p class="gh-logo">📈</p>
-  <h1>Scale Your Project<br>with GitHub</h1>
-  <p class="subtitle">How to ship faster as a small team using <strong>learntocloud.guide</strong> as a case study</p>
-  <p class="dim" style="font-size:0.55em; margin-top: 2em;">Imagine Cup 2026</p>
+  <p class="gh-logo">🚀</p>
+  <h1>How We Ship</h1>
+  <p class="subtitle">The tools and workflows behind <strong>learntocloud.guide</strong></p>
+  <p class="dim" style="font-size:0.55em; margin-top: 2em;">A living deck — auto-updated when repo config changes</p>
 </section>
 
 <!-- ============================================================ -->
-<!-- WHAT WE'LL COVER -->
+<!-- THE PROJECT -->
 <!-- ============================================================ -->
 <section>
-  <h2>What We'll Cover</h2>
-  <div style="font-size: 0.85em;">
-    <ul>
-      <li><span class="blue">Dev Containers</span>: onboard in minutes, not days</li>
-      <li><span class="blue">GitHub Actions</span>: push to main, deploy to production</li>
-      <li><span class="blue">GitHub Advanced Security</span>: ship fast without shipping vulns</li>
-      <li><span class="blue">Copilot Customization</span>: make AI know your project</li>
-      <li><span class="blue">Copilot Workflows</span>: automate the tedious</li>
-    </ul>
-  </div>
-  <p class="dim" style="font-size: 0.6em; margin-top: 1.5em;">Everything shown is from a real, production app, not a demo repo.</p>
-</section>
-
-<!-- ============================================================ -->
-<!-- THE REPO -->
-<!-- ============================================================ -->
-<section>
-  <h2>The Project &amp; the Numbers</h2>
+  <h2>The Project</h2>
   <div class="highlight-box">
-    <p><strong class="blue">Learn to Cloud</strong>: a free cloud learning platform</p>
-    <p class="dim" style="font-size: 0.7em;">Curriculum progress tracking · Hands-on verification · LLM grading</p>
+    <p><strong class="blue">Learn to Cloud</strong>: a free, open-source cloud learning platform</p>
+    <p class="dim" style="font-size: 0.7em;">Curriculum progress tracking · Hands-on verification · LLM-powered grading</p>
   </div>
   <div class="feature-grid" style="margin-top: 16px; text-align: center; grid-template-columns: 1fr 1fr 1fr;">
     <div class="feature-card" style="text-align: center;">
@@ -106,481 +89,47 @@
       <p class="big-number-label">5xx errors (24h)</p>
     </div>
   </div>
-  <p style="margin-top: 20px; font-size: 0.75em; text-align: center;">We ship fixes the same day issues come in, experiment with frameworks like agent-framework and GitHub Copilot SDK, and keep production stable.</p>
-</section>
-
-<!-- ============================================================ -->
-<!-- SECTION 1: DEV CONTAINERS -->
-<!-- ============================================================ -->
-<section>
-  <h3 class="section-title">Section 1</h3>
-  <h2>Dev Containers &amp; Codespaces</h2>
-  <p>Onboard in minutes, not days</p>
+  <p style="margin-top: 20px; font-size: 0.75em; text-align: center;">Small team, production app, same-day fixes. Here's how we do it.</p>
 </section>
 
 <section>
-  <h2>What Are Dev Containers?</h2>
-  <div class="highlight-box">
-    <p><span class="blue">Dev Container</span>: a Docker-based dev environment defined by a JSON config in your repo. Language runtimes, tools, extensions, and services so every contributor gets an identical setup.</p>
-    <p style="margin-top: 12px;"><span class="blue">GitHub Codespaces</span>: hosts Dev Containers in the cloud. Click a button, get a full VS Code environment in your browser in under 2 minutes.</p>
-  </div>
-  <div style="margin-top: 16px; font-size: 0.7em;">
-    <p>📖 <a href="https://containers.dev/" style="color: #58a6ff;">containers.dev</a> · <a href="https://docs.github.com/en/codespaces" style="color: #58a6ff;">docs.github.com/en/codespaces</a></p>
-  </div>
-</section>
-
-<section>
-  <h2>The Problem</h2>
-  <div class="highlight-box">
-    <p>New contributor joins your Imagine Cup team.</p>
-    <p style="margin-top: 12px;">They spend <span class="accent">a full day</span> installing Python, Node, PostgreSQL, CLI tools, VS Code extensions, environment variables…</p>
-    <p style="margin-top: 12px;" class="dim">Then it still doesn't work on their machine.</p>
-  </div>
-</section>
-
-<section>
-  <h2>The Fix: One JSON File</h2>
-  <p class="file-path">.devcontainer/devcontainer.json</p>
-  <pre><code class="language-json">{
-  "name": "Learn to Cloud",
-  "dockerComposeFile": "docker-compose.yml",
-  "service": "app",
-  "workspaceFolder": "/workspaces/learn-to-cloud-app",
-  "features": {
-    "ghcr.io/devcontainers/features/python:1": {
-      "version": "3.13",
-      "installTools": false
-    },
-    "ghcr.io/devcontainers/features/node:1": {
-      "version": "20"
-    },
-    "ghcr.io/devcontainers/features/azure-cli:1": {
-      "installBicep": true
-    },
-    "ghcr.io/devcontainers/features/github-cli:1": {},
-    "ghcr.io/va-h/devcontainers-features/uv:1": {}
-  },
-  "customizations": {
-    "vscode": {
-      "extensions": [
-        "ms-python.python",
-        "charliermarsh.ruff",
-        "ms-azuretools.vscode-docker",
-        "bradlc.vscode-tailwindcss",
-        "GitHub.copilot"
-      ]
-    }
-  },
-  "postCreateCommand": "bash .devcontainer/post-create.sh",
-  "forwardPorts": [3000, 54320, 8000]
-}</code></pre>
-</section>
-
-<section>
-  <h2>What You Get</h2>
-  <div class="feature-grid">
-    <div class="feature-card">
-      <h4>🐍 Python 3.13 + uv</h4>
-      <p>Fast package manager, venv auto-created</p>
-    </div>
-    <div class="feature-card">
-      <h4>🟢 Node.js 20</h4>
-      <p>For Tailwind CSS build pipeline</p>
-    </div>
-    <div class="feature-card">
-      <h4>☁️ Azure CLI + GitHub CLI</h4>
-      <p>Deploy and manage from the terminal</p>
-    </div>
-    <div class="feature-card">
-      <h4>🐘 PostgreSQL 16</h4>
-      <p>Local database via Docker Compose, port-forwarded</p>
-    </div>
-  </div>
-  <div class="highlight-box" style="margin-top: 20px; text-align: center;">
-    <p><span class="green">✓</span> Works in <strong>Codespaces</strong> (cloud) and <strong>VS Code</strong> (local)</p>
-    <p class="dim" style="font-size: 0.65em;">Same config, zero difference. New teammate clicks "Open in Codespaces" → coding in 2 minutes.</p>
+  <h2>The Story</h2>
+  <div style="font-size: 0.85em;">
+    <p>This deck follows the lifecycle of a change — from idea to production:</p>
+    <ol style="list-style: decimal; padding-left: 1.5em; margin-top: 16px;">
+      <li style="margin: 0.5em 0;"><span class="blue">Teach Copilot your project</span> — AGENTS.md</li>
+      <li style="margin: 0.5em 0;"><span class="blue">Research → Plan → Implement</span> — prompt files</li>
+      <li style="margin: 0.5em 0;"><span class="blue">Validate changes</span> — lint, type-check, smoke test</li>
+      <li style="margin: 0.5em 0;"><span class="blue">Dog food the app</span> — autonomous QA agent</li>
+      <li style="margin: 0.5em 0;"><span class="blue">Ship it</span> — commit, push, monitor deploy</li>
+      <li style="margin: 0.5em 0;"><span class="blue">Check prod</span> — 10-point health check</li>
+      <li style="margin: 0.5em 0;"><span class="blue">The platform</span> — Actions, Security, Workflows</li>
+    </ol>
   </div>
 </section>
 
 <!-- ============================================================ -->
-<!-- SECTION 2: GITHUB ACTIONS CI/CD -->
+<!-- SECTION 1: COPILOT CUSTOMIZATION -->
 <!-- ============================================================ -->
 <section>
-  <h3 class="section-title">Section 2</h3>
-  <h2>GitHub Actions CI/CD</h2>
-  <p>Push to main, deploy to production</p>
-</section>
-
-<section>
-  <h2>What Is GitHub Actions?</h2>
-  <div class="highlight-box">
-    <p><span class="blue">GitHub Actions</span> is a CI/CD platform built into GitHub. Define workflows in YAML that run on every push, pull request, schedule, or manual trigger. Each workflow runs on GitHub-hosted runners (Ubuntu, Windows, macOS) with full Docker support.</p>
-  </div>
-  <div style="font-size: 0.8em; margin-top: 20px;">
-    <ul>
-      <li><span class="green">Free</span> for public repos, generous free tier for private</li>
-      <li><span class="green">Marketplace</span>: 20,000+ pre-built actions to compose</li>
-      <li><span class="green">Matrix builds</span>: test across multiple versions/OSes in parallel</li>
-      <li><span class="green">Secrets management</span>: encrypted env vars, OIDC for cloud auth</li>
-    </ul>
-  </div>
-  <div style="margin-top: 20px; font-size: 0.7em;">
-    <p>📖 <a href="https://docs.github.com/en/actions" style="color: #58a6ff;">docs.github.com/en/actions</a></p>
-  </div>
-</section>
-
-<section>
-  <h2>Pipeline at a Glance</h2>
-  <div style="font-size: 0.8em;">
-    <table>
-      <thead>
-        <tr><th>Job</th><th>Trigger</th><th>What It Does</th></tr>
-      </thead>
-      <tbody>
-        <tr><td class="blue">changes</td><td>Every push</td><td>Detect which folders changed (skip unnecessary deploys)</td></tr>
-        <tr><td class="blue">dependency-review</td><td>PRs only</td><td>Block PRs with vulnerable dependencies</td></tr>
-        <tr><td class="blue">ci</td><td>Every push + PR</td><td>Lint → format → type-check → test with coverage</td></tr>
-        <tr><td class="blue">terraform</td><td>Main only</td><td>Plan + apply infrastructure changes</td></tr>
-        <tr><td class="blue">deploy</td><td>Main only</td><td>Build Docker → push to ACR → update Container App</td></tr>
-      </tbody>
-    </table>
-  </div>
-</section>
-
-<section class="small-code">
-  <h2>CI Job: Lint, Type-Check, Test</h2>
-  <p class="file-path">.github/workflows/deploy.yml</p>
-  <pre><code class="language-yaml">  ci:
-    runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: learntocloud
-        ports:
-          - 5432:5432
-    env:
-      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/learntocloud
-    defaults:
-      run:
-        working-directory: api
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version-file: "api/pyproject.toml"
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v7
-
-      - name: Install dependencies
-        run: uv sync --locked
-
-      - name: Ruff lint
-        uses: astral-sh/ruff-action@v3
-        with:
-          src: "./api"
-          args: "check"
-
-      - name: Ruff format check
-        uses: astral-sh/ruff-action@v3
-        with:
-          src: "./api"
-          args: "format --check"
-
-      - name: Type check (ty)
-        run: uv run ty check --python .venv/bin/python
-
-      - name: Run tests with coverage
-        run: uv run pytest tests/ -v --tb=short --cov=. --cov-report=xml</code></pre>
-</section>
-
-<section>
-  <h2>Smart Deploys</h2>
-  <div class="feature-grid">
-    <div>
-      <p><strong class="blue">Path filtering</strong>: only deploy when relevant files change</p>
-      <pre><code class="language-yaml">  changes:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: dorny/paths-filter@v3
-        id: filter
-        with:
-          filters: |
-            deploy:
-              - 'api/**'
-              - 'content/**'
-              - 'infra/**'</code></pre>
-    </div>
-    <div>
-      <p><strong class="blue">Concurrency control</strong>: new push cancels in-progress deploys</p>
-      <pre><code class="language-yaml">concurrency:
-  group: deploy-${{ github.ref }}
-  cancel-in-progress: true</code></pre>
-    </div>
-  </div>
-</section>
-
-<!-- ============================================================ -->
-<!-- SECTION 3: GHAS -->
-<!-- ============================================================ -->
-<section>
-  <h3 class="section-title">Section 3</h3>
-  <h2>GitHub Advanced Security</h2>
-  <p>Ship fast without shipping vulnerabilities</p>
-</section>
-
-<section>
-  <h2>What Is GitHub Advanced Security?</h2>
-  <div class="highlight-box">
-    <p><span class="blue">GHAS</span> is a suite of security features integrated directly into your GitHub workflow. No external tools, no context switching.</p>
-  </div>
-  <div style="font-size: 0.75em; margin-top: 16px;">
-    <table style="width: 100%;">
-      <thead>
-        <tr><th>Feature</th><th>What It Does</th><th>Docs</th></tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td class="blue">CodeQL</td>
-          <td>Semantic static analysis that treats code as data and queries it for vulnerability patterns (SQL injection, XSS, auth bypass, etc.)</td>
-          <td><a href="https://docs.github.com/en/code-security/code-scanning/introduction-to-code-scanning/about-code-scanning-with-codeql" style="color: #58a6ff;">Code scanning</a></td>
-        </tr>
-        <tr>
-          <td class="blue">Dependency Review</td>
-          <td>Diff-aware check on PRs that flags new dependencies with known CVEs before they merge</td>
-          <td><a href="https://docs.github.com/en/code-security/supply-chain-security/understanding-your-software-supply-chain/about-dependency-review" style="color: #58a6ff;">Dependency review</a></td>
-        </tr>
-        <tr>
-          <td class="blue">Dependabot</td>
-          <td>Automatically opens PRs to update vulnerable or outdated dependencies</td>
-          <td><a href="https://docs.github.com/en/code-security/dependabot" style="color: #58a6ff;">Dependabot</a></td>
-        </tr>
-        <tr>
-          <td class="blue">Security Advisories</td>
-          <td>Private vulnerability reporting through GitHub, not public issues</td>
-          <td><a href="https://docs.github.com/en/code-security/security-advisories" style="color: #58a6ff;">Security advisories</a></td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-  <p class="dim" style="font-size: 0.6em; margin-top: 12px;">Free for public repos. Included with GitHub Enterprise Cloud for private repos.</p>
-</section>
-
-<section>
-  <h2>Four Layers of Automated Security</h2>
-  <div class="feature-grid">
-    <div class="feature-card">
-      <h4>🔍 CodeQL</h4>
-      <p>Static analysis on every push + PR + weekly schedule. Catches OWASP Top 10 patterns.</p>
-    </div>
-    <div class="feature-card">
-      <h4>📦 Dependency Review</h4>
-      <p>Blocks PRs introducing dependencies with moderate+ vulnerabilities.</p>
-    </div>
-    <div class="feature-card">
-      <h4>🤖 Dependabot</h4>
-      <p>Weekly automated PRs across 4 ecosystems: Python, npm, Actions, Terraform.</p>
-    </div>
-    <div class="feature-card">
-      <h4>🔐 Security Policy</h4>
-      <p>SECURITY.md → private vulnerability disclosure via GitHub Security Advisories.</p>
-    </div>
-  </div>
-  <p class="dim" style="font-size: 0.6em; margin-top: 20px; text-align: center;">
-    None of this required building anything. 3 YAML files + 1 markdown doc.
-  </p>
-</section>
-
-<section>
-  <h2>CodeQL: Static Analysis</h2>
-  <p class="file-path">.github/workflows/codeql.yml</p>
-  <pre><code class="language-yaml">name: CodeQL
-
-on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
-  schedule:
-    # Weekly scan - catches newly disclosed CVE patterns
-    - cron: "0 6 * * 1"
-
-permissions:
-  security-events: write
-  contents: read
-
-jobs:
-  analyze:
-    name: Analyze (${{ matrix.language }})
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        language: [python, javascript]
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v4
-        with:
-          languages: ${{ matrix.language }}
-          queries: security-extended
-
-      - name: Autobuild
-        uses: github/codeql-action/autobuild@v4
-
-      - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v4
-        with:
-          category: "/language:${{ matrix.language }}"</code></pre>
-</section>
-
-<section>
-  <h2>Dependabot: Auto-Update Everything</h2>
-  <p class="file-path">.github/dependabot.yml</p>
-  <pre><code class="language-yaml">version: 2
-updates:
-  # Python dependencies (uv ecosystem)
-  - package-ecosystem: "uv"
-    directory: "/api"
-    schedule:
-      interval: "weekly"
-    commit-message:
-      prefix: "chore(deps):"
-    labels:
-      - "dependencies"
-      - "python"
-
-  # npm dependencies (Tailwind CSS)
-  - package-ecosystem: "npm"
-    directory: "/api"
-    schedule:
-      interval: "weekly"
-
-  # GitHub Actions - keep actions pinned to latest
-  - package-ecosystem: "github-actions"
-    directory: "/"
-    schedule:
-      interval: "weekly"
-
-  # Terraform providers
-  - package-ecosystem: "terraform"
-    directory: "/infra"
-    schedule:
-      interval: "weekly"</code></pre>
-</section>
-
-<section>
-  <h2>Dependency Review: Gate on PRs</h2>
-  <p class="file-path">.github/workflows/deploy.yml (dependency-review job)</p>
-  <pre><code class="language-yaml">  dependency-review:
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/dependency-review-action@v4
-        with:
-          fail-on-severity: moderate</code></pre>
-  <div class="highlight-box" style="margin-top: 24px;">
-    <p><span class="green">✓</span> Runs on every PR, catches vulns <em>before</em> they merge</p>
-    <p><span class="green">✓</span> <code>fail-on-severity: moderate</code> blocks moderate, high, and critical</p>
-    <p class="dim" style="font-size: 0.65em; margin-top: 8px;">7 lines of YAML. That's it.</p>
-  </div>
-</section>
-
-<section>
-  <h2>Security Policy</h2>
-  <p class="file-path">SECURITY.md</p>
-  <pre><code class="language-markdown"># Security Policy
-
-## Reporting a Vulnerability
-
-If you discover a security vulnerability, please report it responsibly:
-
-1. **Do NOT open a public GitHub issue.**
-2. Use GitHub Security Advisories to privately report
-   the vulnerability.
-3. Include steps to reproduce, affected components,
-   and potential impact.
-
-## Response Timeline
-
-- **Acknowledgment**: Within 3 business days.
-- **Assessment**: Severity and impact within 7 business days.
-- **Fix**: Critical/high severity prioritized for next release.</code></pre>
-  <div class="highlight-box" style="margin-top: 16px;">
-    <p class="dim" style="font-size: 0.7em;">GitHub automatically shows the "Security" tab and links to this file. Professional signal to judges and users.</p>
-  </div>
-</section>
-
-<!-- ============================================================ -->
-<!-- SECTION 4: COPILOT CUSTOMIZATION -->
-<!-- ============================================================ -->
-<section>
-  <h3 class="section-title">Section 4</h3>
-  <h2>Copilot Customization</h2>
-  <p>Make AI know <em>your</em> project</p>
-</section>
-
-<section>
-  <h2>What Is Copilot Customization?</h2>
-  <div class="highlight-box">
-    <p><span class="blue">GitHub Copilot</span> can be customized with project-specific knowledge via markdown files checked into your repo. These files teach Copilot your conventions, workflows, and domain expertise.</p>
-  </div>
-  <div style="font-size: 0.75em; margin-top: 16px;">
-    <table style="width: 100%;">
-      <thead>
-        <tr><th>Concept</th><th>What It Is</th><th>Docs</th></tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td class="blue">AGENTS.md</td>
-          <td>Project guidelines: tech stack, architecture, code style, build commands, conventions</td>
-          <td><a href="https://code.visualstudio.com/docs/copilot/copilot-customization" style="color: #58a6ff;">Customization</a></td>
-        </tr>
-        <tr>
-          <td class="blue">Custom Instructions</td>
-          <td>Persistent context about your stack, coding style, and conventions</td>
-          <td><a href="https://docs.github.com/en/copilot/customizing-copilot/adding-repository-custom-instructions-for-github-copilot" style="color: #58a6ff;">Custom instructions</a></td>
-        </tr>
-        <tr>
-          <td class="blue">Skills (SKILL.md)</td>
-          <td>Reusable multi-step procedures triggered by natural language phrases</td>
-          <td><a href="https://code.visualstudio.com/docs/copilot/copilot-customization" style="color: #58a6ff;">VS Code customization</a></td>
-        </tr>
-        <tr>
-          <td class="blue">Prompt Files (.prompt.md)</td>
-          <td>Structured reusable prompts, like saved expert workflows</td>
-          <td><a href="https://code.visualstudio.com/docs/copilot/copilot-customization#_reusable-prompt-files" style="color: #58a6ff;">Prompt files</a></td>
-        </tr>
-        <tr>
-          <td class="blue">Agents (.agent.md)</td>
-          <td>Autonomous task runners with restricted tool access</td>
-          <td><a href="https://code.visualstudio.com/docs/copilot/copilot-customization#_agent-mode" style="color: #58a6ff;">Agent mode</a></td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
+  <h3 class="section-title">Step 1</h3>
+  <h2>Teach Copilot Your Project</h2>
+  <p>Before Copilot can help, it needs to <em>know</em> you</p>
 </section>
 
 <section>
   <h2>The Problem with Generic AI</h2>
   <div class="highlight-box">
-    <p>Copilot is powerful, but out of the box it doesn't know:</p>
+    <p>Out of the box, Copilot doesn't know:</p>
     <ul style="margin-top: 12px;">
-      <li>Your deploy process</li>
-      <li>Your database schema</li>
+      <li>Your tech stack and architecture</li>
       <li>Your team's conventions</li>
-      <li>How to check if prod is healthy</li>
-      <li>How to ship a change end-to-end</li>
+      <li>How to run your tests</li>
+      <li>How to deploy your app</li>
+      <li>How to check if production is healthy</li>
     </ul>
   </div>
-  <p style="margin-top: 20px;">You can <span class="accent">teach it all of this</span> with files in your repo.</p>
+  <p style="margin-top: 20px;">You can <span class="accent">teach it all of this</span> with markdown files in your repo.</p>
 </section>
 
 <section>
@@ -594,31 +143,31 @@ If you discover a security vulnerability, please report it responsibly:
         <tr>
           <td class="blue">AGENTS.md</td>
           <td><code>AGENTS.md</code></td>
-          <td>Project guidelines Copilot reads on every interaction</td>
+          <td>Project context Copilot reads on every interaction</td>
         </tr>
         <tr>
           <td class="blue">Skills</td>
           <td><code>.github/skills/</code></td>
-          <td>Reusable procedures triggered by natural language</td>
+          <td>Multi-step procedures triggered by natural language</td>
         </tr>
         <tr>
           <td class="blue">Prompt Files</td>
           <td><code>.github/prompts/</code></td>
-          <td>Structured multi-step workflows</td>
+          <td>Structured workflows: research, plan, implement</td>
         </tr>
         <tr>
           <td class="blue">Agents</td>
           <td><code>.github/agents/</code></td>
-          <td>Autonomous multi-step task runners</td>
+          <td>Autonomous task runners with tool restrictions</td>
         </tr>
       </tbody>
     </table>
   </div>
-  <p class="dim" style="font-size: 0.6em; margin-top: 16px;">All stored as markdown files in your repo. Version controlled. Shared with the team.</p>
+  <p class="dim" style="font-size: 0.6em; margin-top: 16px;">All markdown. All version controlled. All shared with the team.</p>
 </section>
 
 <section>
-  <h2>AGENTS.md: Teach Copilot Your Project</h2>
+  <h2>AGENTS.md</h2>
   <p class="file-path">AGENTS.md</p>
   <pre><code class="language-markdown"># Project Guidelines
 
@@ -643,71 +192,142 @@ ruff check . && ruff format --check . && ty check
 pytest                    # all tests
 pytest -m unit            # unit only
 pytest -m integration     # integration only</code></pre>
-  <p class="dim" style="font-size: 0.65em; margin-top: 8px;">Copilot reads this on every interaction. It knows your stack, your architecture, how to run tests, and your conventions before you say anything.</p>
+  <p class="dim" style="font-size: 0.65em; margin-top: 8px;">Copilot reads this on every interaction. It knows your stack, architecture, and conventions before you say a word.</p>
+</section>
+
+<!-- ============================================================ -->
+<!-- SECTION 2: RESEARCH → PLAN → IMPLEMENT -->
+<!-- ============================================================ -->
+<section>
+  <h3 class="section-title">Step 2</h3>
+  <h2>Research → Plan → Implement</h2>
+  <p>Structured AI workflows that mirror how senior engineers think</p>
 </section>
 
 <section>
-  <h2>Skill: "Ship It"</h2>
-  <p class="file-path">.github/skills/ship-it/SKILL.md</p>
-  <pre><code class="language-yaml">---
-name: ship-it
-description: >
-  Run prek, resolve issues, commit, push, then monitor the
-  deploy workflow and resolve any deploy failures.
-  Use when user says "ship it", "commit and deploy",
-  "push and deploy", or "land this".
----</code></pre>
-  <pre><code class="language-markdown"># Ship It - Prek, Commit, Push & Monitor Deploy
+  <h2>Three Prompt Files, One Workflow</h2>
+  <div class="feature-grid" style="grid-template-columns: 1fr 1fr 1fr;">
+    <div class="feature-card">
+      <h4>📖 research.prompt.md</h4>
+      <p>"Read the codebase deeply — not just function signatures. Use web research and official docs."</p>
+      <p style="margin-top: 8px; color: #58a6ff; font-size: 0.65em;">→ outputs {topic}-research.md</p>
+    </div>
+    <div class="feature-card">
+      <h4>📋 plan.prompt.md</h4>
+      <p>"Write a detailed plan with code snippets and trade-offs. No code until the plan is approved."</p>
+      <p style="margin-top: 8px; color: #58a6ff; font-size: 0.65em;">→ outputs {topic}-plan.md</p>
+    </div>
+    <div class="feature-card">
+      <h4>🔨 implement.prompt.md</h4>
+      <p>"Follow the approved plan exactly. New branch. Track progress. Validate continuously."</p>
+      <p style="margin-top: 8px; color: #58a6ff; font-size: 0.65em;">→ marks tasks done in plan</p>
+    </div>
+  </div>
+  <div class="highlight-box" style="margin-top: 20px; text-align: center;">
+    <p><span class="blue">Understand</span> → <span class="blue">Plan</span> → <span class="blue">Execute</span></p>
+    <p class="dim" style="font-size: 0.65em; margin-top: 6px;">The same process a senior engineer uses, encoded as reusable prompts.</p>
+  </div>
+</section>
 
-End-to-end workflow: run prek checks, fix failures, commit,
-push, and monitor the GitHub Actions deploy pipeline through
-to a healthy production readiness check.
+<section class="small-code">
+  <h2>research.prompt.md</h2>
+  <p class="file-path">.github/prompts/research.prompt.md</p>
+  <pre><code class="language-markdown">---
+name: research
+description: Deep-read the codebase and external sources
+             before any planning or implementation.
+---
+Read the relevant parts of the codebase **deeply** — not just
+function signatures, but the actual logic, existing patterns,
+caching layers, ORM conventions, and how data flows end-to-end.
 
-## Step 0: Match User's Energy
-Reply with "LFG 🚀 I'll ship it"
+Also use web research, official docs, and library source code
+where needed.
 
-## Step 1: Run Prek
-## Step 2: Fix Any Failures
-## Step 3: Commit and Push
-## Step 4: Monitor Deploy Workflow
-## Step 5: Verify Production Health</code></pre>
-  <p class="dim" style="font-size: 0.65em; margin-top: 8px;">User types "ship it" → Copilot runs lint, commits, pushes, watches the deploy, and reports back.</p>
+## Output File
+Use the pattern `{topic}-research.md` in the repo root.
+
+## Required Sections
+- How the relevant system currently works (with file paths)
+- Existing patterns and conventions we must follow
+- Links to external resources, docs, or reference implementations
+- Potential gotchas — things that could break
+
+This document is my review surface. If the research is wrong,
+the plan will be wrong.
+**Do not plan or implement anything yet.**</code></pre>
+</section>
+
+<section class="small-code">
+  <h2>plan.prompt.md</h2>
+  <p class="file-path">.github/prompts/plan.prompt.md</p>
+  <pre><code class="language-markdown">---
+name: plan
+description: Create a detailed implementation plan based on
+             completed research. No code until approved.
+---
+Using the research, write a detailed plan outlining how to
+implement this. Read the actual source files before suggesting
+changes — base the plan on the real codebase, not assumptions.
+
+The plan must include:
+- **Approach**: Strategy and why this approach was chosen
+- **File paths**: Every file to create, modify, or delete
+- **Code snippets**: Real code based on existing patterns
+- **Trade-offs**: What alternatives were considered
+- **Risks & edge cases**: What could go wrong
+- **Todo list**: Granular, checkable task breakdown
+
+I will review this plan and add inline notes. Address all my
+notes and update the plan accordingly.
+
+**Do not implement yet.** Not until I explicitly approve.</code></pre>
+</section>
+
+<section class="small-code">
+  <h2>implement.prompt.md</h2>
+  <p class="file-path">.github/prompts/implement.prompt.md</p>
+  <pre><code class="language-markdown">---
+name: implement
+description: Execute the approved plan fully — track progress,
+             validate continuously, don't stop until done.
+---
+Implement it all. Follow the approved plan exactly — do not
+cherry-pick tasks or skip steps.
+
+Rules:
+- **New branch**: Create a branch for this implementation
+- **Track progress**: Mark tasks completed in the plan doc
+- **Don't stop**: Do not pause for confirmation mid-flow
+- **Validate continuously**: Run ruff check, ruff format
+  --check, and ty check regularly as you go
+- **Keep code clean**: Follow existing code style
+- **Strict typing**: No `Any` unless absolutely necessary
+- **Tests must be real**: No bandaid tests
+
+By the time we're here, every decision has already been made
+in the plan. Implementation should be mechanical, not creative.
+Execute the plan.</code></pre>
+</section>
+
+<!-- ============================================================ -->
+<!-- SECTION 3: VALIDATE SKILL -->
+<!-- ============================================================ -->
+<section>
+  <h3 class="section-title">Step 3</h3>
+  <h2>Validate Changes</h2>
+  <p>Catch bugs before they leave your machine</p>
 </section>
 
 <section>
-  <h2>Skill: "Check Prod"</h2>
-  <p class="file-path">.github/skills/prod-health-check/SKILL.md</p>
+  <h2>Skill: "validate changes"</h2>
+  <p class="file-path">.github/skills/validate/SKILL.md</p>
   <pre><code class="language-yaml">---
-name: prod-health-check
+name: validate
 description: >
-  Check Azure production health - app status, errors, latency,
-  database, dependencies. Use when user says "check prod",
-  "how's prod", "is prod up", "health check", "any errors?"
----</code></pre>
-  <pre><code class="language-markdown"># Production Health Check
-
-10 checks. One verdict. All read-only. Uses Azure CLI.
-
-## Overall Verdict Logic (first match wins)
-
-🔴 Critical - Readiness probe non-200, any 5xx errors,
-              DB CPU > 80%, fired Sev0/Sev1 alerts
-
-⚠️  Warning  - P95 latency > 500ms, DB CPU 50-80%,
-              failed availability tests
-
-✅ Healthy  - none of the above</code></pre>
-</section>
-
-<section>
-  <h2>Skill: "Validate Changes"</h2>
-  <p class="file-path">.github/skills/validate-changes/SKILL.md</p>
-  <pre><code class="language-yaml">---
-name: validate-changes
-description: >
-  Run ruff lint, ruff format, ty type-check, start the API, smoke
-  test endpoints, then kill the API. Use after editing Python files
-  to catch errors before commit.
+  Run ruff lint, ruff format, ty type-check, start the API,
+  smoke test endpoints, then kill the API.
+  Use after editing Python files to catch errors before commit.
 ---</code></pre>
   <pre><code class="language-markdown"># Validate Python Changes
 
@@ -719,33 +339,22 @@ All steps are mandatory. Do not skip API startup and smoke tests.
 ## Step 3: Run ty Type Check
 ## Step 4: Start the API
 ## Step 5: Smoke Test Endpoints
+  curl -s http://localhost:8000/health
+  curl -s http://localhost:8000/ready
+  curl -s http://localhost:8000/openapi.json | head -c 200
 ## Step 6: Kill the API</code></pre>
-  <p class="dim" style="font-size: 0.65em; margin-top: 8px;">Catches import errors, circular imports, and route bugs that unit tests miss.</p>
+  <div class="highlight-box" style="margin-top: 12px;">
+    <p class="dim" style="font-size: 0.7em;">Static analysis catches lint errors. But only starting the API catches import errors, circular imports, and route registration bugs.</p>
+  </div>
 </section>
 
+<!-- ============================================================ -->
+<!-- SECTION 4: DOG FOOD AGENT -->
+<!-- ============================================================ -->
 <section>
-  <h2>Prompt Files: Research → Plan → Implement</h2>
-  <div class="feature-grid" style="grid-template-columns: 1fr 1fr 1fr;">
-    <div class="feature-card">
-      <h4>📖 research.prompt.md</h4>
-      <p>"Read the codebase deeply - not just function signatures. Also use web research and official docs."</p>
-      <p style="margin-top: 8px; color: #58a6ff; font-size: 0.65em;">→ outputs {topic}-research.md</p>
-    </div>
-    <div class="feature-card">
-      <h4>📋 plan.prompt.md</h4>
-      <p>"Write a detailed plan. No code gets written until the plan is approved."</p>
-      <p style="margin-top: 8px; color: #58a6ff; font-size: 0.65em;">→ outputs {topic}-plan.md</p>
-    </div>
-    <div class="feature-card">
-      <h4>🔨 implement.prompt.md</h4>
-      <p>"Follow the approved plan exactly. New branch. Track progress. Validate continuously."</p>
-      <p style="margin-top: 8px; color: #58a6ff; font-size: 0.65em;">→ marks tasks done in plan</p>
-    </div>
-  </div>
-  <div class="highlight-box" style="margin-top: 20px; text-align: center;">
-    <p>A structured AI workflow that mirrors how senior engineers work:<br>
-    <span class="blue">Understand</span> → <span class="blue">Plan</span> → <span class="blue">Execute</span></p>
-  </div>
+  <h3 class="section-title">Step 4</h3>
+  <h2>Dog Food the App</h2>
+  <p>An autonomous QA agent that tests every page</p>
 </section>
 
 <section>
@@ -762,31 +371,119 @@ description: >
   cookie, then navigate every page
   checking for errors, broken UI,
   and console messages.
-tools:
-  - execute/runInTerminal
-  - edit/editFiles
-  - playwright/*
 ---</code></pre>
     </div>
     <div>
       <pre><code class="language-markdown"># Dog Food Agent
 
 You are a QA engineer dogfooding
-the Learn to Cloud app. Start the
-local API, then use Playwright MCP
-browser tools to walk through
-every page.
+the Learn to Cloud app.
 
-## Pages to Test
+## What It Does
+1. Start the local API
+2. Open a Playwright browser
+3. Navigate every page
+4. Check for errors, broken UI,
+   console messages
+5. Test dark mode toggle
+6. Screenshot everything
+
+## Pages Tested
 Home, Curriculum, FAQ, Privacy,
 Terms, Dashboard, Status</code></pre>
     </div>
   </div>
-  <p class="dim" style="font-size: 0.65em; margin-top: 8px;">An autonomous agent that starts your app, opens a browser, and tests every page. No scripts to maintain.</p>
+  <p class="dim" style="font-size: 0.65em; margin-top: 8px;">Type <code>@dog-food</code> in Copilot Chat → it starts your app, opens a browser, and tests every page. No test scripts to maintain.</p>
+</section>
+
+<!-- ============================================================ -->
+<!-- SECTION 5: SHIP IT -->
+<!-- ============================================================ -->
+<section>
+  <h3 class="section-title">Step 5</h3>
+  <h2>Ship It</h2>
+  <p>From code to production in one phrase</p>
 </section>
 
 <section>
-  <h2>Skills We've Built</h2>
+  <h2>Skill: "ship it"</h2>
+  <p class="file-path">.github/skills/ship-it/SKILL.md</p>
+  <pre><code class="language-yaml">---
+name: ship-it
+description: >
+  Run prek, resolve issues, commit, push, then monitor the
+  deploy workflow and resolve any deploy failures.
+  Use when user says "ship it", "commit and deploy",
+  "push and deploy", or "land this".
+---</code></pre>
+  <pre><code class="language-markdown"># Ship It — Prek, Commit, Push & Monitor Deploy
+
+End-to-end workflow: run prek checks, fix failures, commit,
+push, and monitor the GitHub Actions deploy pipeline through
+to a healthy production readiness check.
+
+## Step 0: Match User's Energy
+Reply with "LFG 🚀 I'll ship it"
+
+## Step 1: Run Prek (all pre-commit hooks)
+## Step 2: Fix Any Failures (auto-fix + re-run)
+## Step 3: Stage All Changes + Commit
+## Step 4: Push + Monitor Deploy Workflow
+## Step 5: Verify Production Health</code></pre>
+  <p class="dim" style="font-size: 0.65em; margin-top: 8px;">User types "ship it" → Copilot runs lint, commits, pushes, watches the deploy, and verifies prod is healthy.</p>
+</section>
+
+<!-- ============================================================ -->
+<!-- SECTION 6: CHECK PROD -->
+<!-- ============================================================ -->
+<section>
+  <h3 class="section-title">Step 6</h3>
+  <h2>Check Prod</h2>
+  <p>Know if production is healthy in 30 seconds</p>
+</section>
+
+<section>
+  <h2>Skill: "check prod"</h2>
+  <p class="file-path">.github/skills/check-prod/SKILL.md</p>
+  <pre><code class="language-yaml">---
+name: check-prod
+description: >
+  Check Azure production health — app status, errors, latency,
+  database, dependencies. Use when user says "check prod",
+  "how's prod", "is prod up", "health check", "any errors?"
+---</code></pre>
+  <pre><code class="language-markdown"># Production Health Check
+
+10 checks. One verdict. All read-only. Uses Azure CLI.
+
+## Overall Verdict Logic (first match wins)
+
+🔴 Critical - Readiness probe non-200, any 5xx errors,
+              DB CPU > 80%, fired Sev0/Sev1 alerts
+
+⚠️  Warning  - P95 latency > 500ms, DB CPU 50-80%,
+              failed availability tests
+
+✅ Healthy  - none of the above
+
+## The 10 Checks
+1. Container App status + readiness probe
+2. Availability tests (24h)
+3. Request latency P95 (24h)
+4. Error rates: 4xx and 5xx (24h)
+5. Unhandled exceptions (7d)
+6. Database CPU, memory, storage
+7. Active DB connections
+8. Fired alerts (24h)
+9. Container restarts on current revision
+10. Dependency health (external calls)</code></pre>
+</section>
+
+<!-- ============================================================ -->
+<!-- SECTION 7: ALL SKILLS -->
+<!-- ============================================================ -->
+<section>
+  <h2>All Our Skills</h2>
   <div style="font-size: 0.75em;">
     <table style="width: 100%;">
       <thead>
@@ -796,72 +493,150 @@ Terms, Dashboard, Status</code></pre>
         <tr><td class="green">"ship it"</td><td>Lint → commit → push → monitor deploy → verify prod</td></tr>
         <tr><td class="green">"check prod"</td><td>10-point health check: errors, latency, DB, alerts</td></tr>
         <tr><td class="green">"validate changes"</td><td>Lint → format → type-check → start API → smoke test</td></tr>
-        <tr><td class="green">"review this file"</td><td>Fetch docs, audit usages, deep code review</td></tr>
-        <tr><td class="green">"review api"</td><td>Route ordering, HTTP semantics, rate limiting audit</td></tr>
         <tr><td class="green">"debug deploy"</td><td>Diagnose CI/CD failures: state locks, auth, quotas</td></tr>
         <tr><td class="green">"query db"</td><td>Production PostgreSQL queries with Entra ID auth</td></tr>
       </tbody>
     </table>
   </div>
   <p class="dim" style="font-size: 0.6em; margin-top: 16px; text-align: center;">
-    A new team member types a phrase in plain English → the AI handles the rest.
+    Type a phrase in plain English → the AI handles the rest. New team members are productive immediately.
   </p>
 </section>
 
 <!-- ============================================================ -->
-<!-- SECTION 5: COPILOT WORKFLOWS -->
+<!-- SECTION 8: THE PLATFORM -->
 <!-- ============================================================ -->
 <section>
-  <h3 class="section-title">Section 5</h3>
-  <h2>Copilot Workflows</h2>
-  <p>AI agents running on a schedule in GitHub Actions</p>
+  <h3 class="section-title">The Platform</h3>
+  <h2>GitHub as Your Operations Team</h2>
+  <p>Everything beyond Copilot that makes the machine work</p>
 </section>
 
+<!-- DEV CONTAINERS -->
 <section>
-  <h2>What Are Copilot Workflows?</h2>
+  <h2>Dev Containers: Onboard in 2 Minutes</h2>
+  <p class="file-path">.devcontainer/devcontainer.json</p>
+  <pre><code class="language-json">{
+  "name": "Learn to Cloud",
+  "dockerComposeFile": "docker-compose.yml",
+  "service": "app",
+  "workspaceFolder": "/workspaces/learn-to-cloud-app",
+  "features": {
+    "ghcr.io/devcontainers/features/python:1": { "version": "3.13" },
+    "ghcr.io/devcontainers/features/node:1": { "version": "20" },
+    "ghcr.io/devcontainers/features/azure-cli:1": {},
+    "ghcr.io/devcontainers/features/github-cli:1": {},
+    "ghcr.io/va-h/devcontainers-features/uv:1": {}
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python", "charliermarsh.ruff",
+        "ms-azuretools.vscode-docker", "GitHub.copilot"
+      ]
+    }
+  },
+  "postCreateCommand": "bash .devcontainer/post-create.sh",
+  "forwardPorts": [3000, 54320, 8000]
+}</code></pre>
+  <p class="dim" style="font-size: 0.65em; margin-top: 8px;">Python 3.13, Node 20, PostgreSQL 16, Azure CLI, GitHub CLI — all pre-configured. Click "Open in Codespaces" → coding in 2 minutes.</p>
+</section>
+
+<!-- GITHUB ACTIONS -->
+<section>
+  <h2>GitHub Actions: Push to Main, Deploy</h2>
+  <div style="font-size: 0.8em;">
+    <table>
+      <thead>
+        <tr><th>Job</th><th>Trigger</th><th>What It Does</th></tr>
+      </thead>
+      <tbody>
+        <tr><td class="blue">changes</td><td>Every push</td><td>Detect which folders changed (skip unnecessary deploys)</td></tr>
+        <tr><td class="blue">dependency-review</td><td>PRs only</td><td>Block PRs with vulnerable dependencies</td></tr>
+        <tr><td class="blue">ci</td><td>Every push + PR</td><td>Lint → format → type-check → test with coverage</td></tr>
+        <tr><td class="blue">terraform</td><td>Main only</td><td>Plan + apply infrastructure changes</td></tr>
+        <tr><td class="blue">deploy</td><td>Main only</td><td>Build Docker → push to ACR → update Container App</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="feature-grid" style="margin-top: 16px;">
+    <div class="feature-card">
+      <h4>Path Filtering</h4>
+      <p>Only deploy when api/, content/, or infra/ files change</p>
+    </div>
+    <div class="feature-card">
+      <h4>Concurrency Control</h4>
+      <p>New push cancels in-progress deploys — no wasted builds</p>
+    </div>
+  </div>
+</section>
+
+<section class="small-code">
+  <h2>CI Job</h2>
+  <p class="file-path">.github/workflows/deploy.yml</p>
+  <pre><code class="language-yaml">  ci:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: learntocloud
+        ports: ["5432:5432"]
+    env:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/learntocloud
+    defaults:
+      run:
+        working-directory: api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version-file: "api/pyproject.toml"
+      - uses: astral-sh/setup-uv@v7
+      - run: uv sync --locked
+      - uses: astral-sh/ruff-action@v3
+        with: { src: "./api", args: "check" }
+      - uses: astral-sh/ruff-action@v3
+        with: { src: "./api", args: "format --check" }
+      - run: uv run ty check --python .venv/bin/python
+      - run: uv run pytest tests/ -v --tb=short --cov=. --cov-report=xml</code></pre>
+</section>
+
+<!-- GHAS -->
+<section>
+  <h2>GitHub Advanced Security</h2>
+  <div class="feature-grid">
+    <div class="feature-card">
+      <h4>🔍 CodeQL</h4>
+      <p>Static analysis on every push + PR + weekly. Scans Python and JavaScript for OWASP Top 10 patterns.</p>
+    </div>
+    <div class="feature-card">
+      <h4>📦 Dependency Review</h4>
+      <p>Blocks PRs introducing dependencies with moderate+ vulnerabilities. 7 lines of YAML.</p>
+    </div>
+    <div class="feature-card">
+      <h4>🤖 Dependabot</h4>
+      <p>Weekly automated PRs across 4 ecosystems: Python (uv), npm, GitHub Actions, Terraform.</p>
+    </div>
+    <div class="feature-card">
+      <h4>🔐 SECURITY.md</h4>
+      <p>Private vulnerability disclosure via GitHub Security Advisories. Professional signal.</p>
+    </div>
+  </div>
+  <p class="dim" style="font-size: 0.6em; margin-top: 20px; text-align: center;">
+    4 security layers. Zero custom code. 3 YAML files + 1 markdown doc.
+  </p>
+</section>
+
+<!-- COPILOT WORKFLOWS -->
+<section>
+  <h2>Copilot Workflows</h2>
   <div class="highlight-box">
-    <p><span class="blue">Copilot Workflows</span> (powered by <code>gh-aw</code>) let you write GitHub Actions workflows in <strong>natural language markdown</strong> instead of YAML. A Copilot agent executes the workflow using tools you grant it: GitHub API, bash commands, web fetch, MCP servers.</p>
+    <p><span class="blue">Copilot Workflows</span> let you write GitHub Actions in <strong>natural language markdown</strong> instead of YAML. A Copilot agent executes the workflow using tools you whitelist.</p>
   </div>
   <div style="font-size: 0.8em; margin-top: 20px;">
-    <ul>
-      <li><span class="green">Markdown in, YAML out</span>: compiles to deterministic .lock.yml files</li>
-      <li><span class="green">Scheduled or manual</span>: cron triggers, workflow_dispatch, or event-driven</li>
-      <li><span class="green">Safe outputs</span>: auto-closes old issues, applies labels, title prefixes</li>
-      <li><span class="green">Tool restrictions</span>: whitelist exactly which bash commands or APIs the agent can use</li>
-    </ul>
-  </div>
-  <div style="margin-top: 20px; font-size: 0.7em;">
-    <p>📖 <a href="https://githubnext.com/projects/copilot-workflows" style="color: #58a6ff;">githubnext.com/projects/copilot-workflows</a></p>
-  </div>
-</section>
-
-<section>
-  <h2>Workflows in Markdown, Not YAML</h2>
-  <p class="file-path">.github/workflows/content-link-auditor.md</p>
-  <pre><code class="language-yaml">---
-on:
-  schedule: weekly on monday
-  workflow_dispatch:
-
-description: >
-  Weekly audit of all external URLs in Learn to Cloud
-  content YAML files. Checks for broken links and redirects.
-
-engine: copilot
-
-tools:
-  bash: ["cat", "find", "grep", "head", "tail",
-         "wc", "sort", "curl", "python3"]
----</code></pre>
-  <div class="highlight-box" style="margin-top: 16px;">
-    <p>Write the <em>goal</em> in natural language. The AI figures out the <em>how</em>.</p>
-    <p class="dim" style="font-size: 0.65em; margin-top: 6px;">Compiled to .lock.yml by <code>gh aw compile</code> for deterministic execution.</p>
-  </div>
-</section>
-
-<section>
-  <h2>Our 4 Copilot Workflows</h2>
-  <div style="font-size: 0.8em;">
     <table style="width: 100%;">
       <thead>
         <tr><th>Workflow</th><th>Schedule</th><th>What It Does</th></tr>
@@ -870,28 +645,25 @@ tools:
         <tr>
           <td class="blue">Content Link Auditor</td>
           <td>Weekly (Mon)</td>
-          <td>Scans all content YAML for broken external URLs</td>
-        </tr>
-        <tr>
-          <td class="blue">LLM Grading Monitor</td>
-          <td>Weekly (Wed)</td>
-          <td>Regression tests AI grading against known-good repos</td>
+          <td>Scans content YAML for broken external URLs</td>
         </tr>
         <tr>
           <td class="blue">Cross-Repo Overview</td>
           <td>Daily (5am)</td>
-          <td>Consolidated issue/PR dashboard across 4 repos</td>
+          <td>Issue/PR dashboard across 4 repos</td>
         </tr>
         <tr>
           <td class="blue">Community Thanks</td>
           <td>Weekly (Sun)</td>
-          <td>Aggregates issue reporters for social media shoutouts</td>
+          <td>Aggregates issue reporters for shoutouts</td>
+        </tr>
+        <tr>
+          <td class="blue">Deck Updater</td>
+          <td>Every push</td>
+          <td>Keeps this presentation in sync with the repo</td>
         </tr>
       </tbody>
     </table>
-  </div>
-  <div class="highlight-box" style="margin-top: 12px;">
-    <p style="font-size: 0.7em;">We manage multiple repos: <span class="blue">learn-to-cloud-app</span>, <span class="blue">linux-ctfs</span>, <span class="blue">networking-lab</span>, and <span class="blue">journal-starter</span>. The Cross-Repo Overview workflow scans all of them daily so nothing falls through the cracks.</p>
   </div>
 </section>
 
@@ -900,35 +672,28 @@ tools:
 <!-- ============================================================ -->
 <section>
   <h3 class="section-title">Recap</h3>
-  <h2>The .github/ Directory: Your Operations Team</h2>
+  <h2>The .github/ Directory</h2>
   <pre><code class="language-text">.github/
 ├── agents/
 │   └── dog-food.agent.md            # QA automation agent
-├── agents.md                        # Shared agent instructions
-├── aw/                              # Copilot Workflows runtime
-│   └── actions-lock.json
 ├── dependabot.yml                   # Auto-update 4 ecosystems
 ├── prompts/
-│   ├── implement.prompt.md          # Structured execution
+│   ├── research.prompt.md           # Deep research workflow
 │   ├── plan.prompt.md               # Implementation planning
-│   └── research.prompt.md           # Deep research workflow
+│   └── implement.prompt.md          # Structured execution
 ├── skills/
-│   ├── check-prod/SKILL.md          # "check prod" → 10 checks
-│   ├── check-prod-mcp/SKILL.md      # "check prod" via MCP
-│   ├── check-tokens/SKILL.md        # Token usage reporting
-│   ├── debug-deploy/SKILL.md        # "debug deploy" → diagnose
-│   ├── query-prod-db/SKILL.md       # Production DB queries
-│   ├── review-python-file/SKILL.md  # Deep file review
-│   ├── review-routes/SKILL.md       # FastAPI routes audit
-│   ├── ship-it/SKILL.md             # "ship it" → full deploy
-│   └── validate/SKILL.md            # Lint+type-check+smoke
+│   ├── validate/SKILL.md            # Lint + type-check + smoke test
+│   ├── ship-it/SKILL.md             # Full deploy cycle
+│   ├── check-prod/SKILL.md          # 10-point health check
+│   ├── debug-deploy/SKILL.md        # Diagnose CI/CD failures
+│   └── query-prod-db/SKILL.md       # Production DB queries
 └── workflows/
+    ├── deploy.yml                   # CI/CD pipeline
     ├── codeql.yml                   # Static security analysis
     ├── content-link-auditor.md      # Weekly broken link scan
     ├── cross-repo-issues-overview.md # Daily issue dashboard
-    ├── deploy.yml                   # CI/CD + dependency review
     ├── discussion-answer-thanks.md  # Community recognition
-    └── llm-grading-monitor.md       # AI grading regression tests</code></pre>
+    └── update-deck.md               # Keep this deck current</code></pre>
 </section>
 
 <section class="center-slide">
@@ -936,7 +701,7 @@ tools:
   <div class="feature-grid" style="text-align: center; margin-top: 24px;">
     <div class="feature-card" style="text-align: center;">
       <p class="big-number">2 min</p>
-      <p class="big-number-label">Onboarding with Dev Containers</p>
+      <p class="big-number-label">Onboarding (Dev Containers)</p>
     </div>
     <div class="feature-card" style="text-align: center;">
       <p class="big-number">0</p>
@@ -947,31 +712,29 @@ tools:
       <p class="big-number-label">Security layers (zero code)</p>
     </div>
     <div class="feature-card" style="text-align: center;">
-      <p class="big-number">9</p>
-      <p class="big-number-label">Copilot skills encoding team knowledge</p>
+      <p class="big-number">5</p>
+      <p class="big-number-label">Copilot skills + 1 agent + 3 prompts</p>
     </div>
   </div>
   <p style="margin-top: 32px; font-size: 0.9em;">
-    Each feature saves hours.<br>
+    Each piece saves hours.<br>
     Together, they let a <span class="accent">small team operate like a large one</span>.
   </p>
 </section>
 
 <section class="center-slide" data-background-gradient="radial-gradient(circle at 80% 50%, #0d2137 0%, #0d1117 70%)">
-  <h2>Get Started Today</h2>
-  <div style="font-size: 0.85em; margin-top: 24px;">
-    <ol style="list-style: decimal; padding-left: 1.5em; text-align: left; display: inline-block;">
-      <li style="margin: 0.6em 0;">Add a <code>.devcontainer/devcontainer.json</code></li>
-      <li style="margin: 0.6em 0;">Set up one GitHub Actions workflow</li>
-      <li style="margin: 0.6em 0;">Enable CodeQL + Dependabot</li>
-      <li style="margin: 0.6em 0;">Write your first Copilot skill</li>
-      <li style="margin: 0.6em 0;">Add skills as you discover repetitive patterns</li>
+  <h2>This Deck Updates Itself</h2>
+  <div class="highlight-box" style="text-align: left; display: inline-block;">
+    <p style="font-size: 0.8em;">Pushes to <code>main</code> that change repo config trigger a Copilot Workflow that:</p>
+    <ol style="list-style: decimal; padding-left: 1.5em; font-size: 0.75em; margin-top: 12px;">
+      <li style="margin: 0.4em 0;">Scans the repo for skills, agents, prompts, and workflows</li>
+      <li style="margin: 0.4em 0;">Compares what exists against what's in the deck</li>
+      <li style="margin: 0.4em 0;">Opens a PR if anything is out of date</li>
     </ol>
   </div>
   <p style="margin-top: 32px;" class="dim">
     <span class="blue">github.com/learntocloud/learn-to-cloud-app</span>
   </p>
-  <p class="dim" style="font-size: 0.6em; margin-top: 2em;">Thank you! 🎉</p>
 </section>
 
 </div>

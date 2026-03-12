@@ -1168,5 +1168,6 @@ class TestGetPhaseSubmissionContext:
                 AsyncMock(), user_id=1, phase_id=3
             )
         feedback = result.feedback_by_req["test-requirement"]
-        assert feedback["cooldown_seconds"] is not None
-        assert feedback["cooldown_seconds"] > 3000
+        cooldown = feedback["cooldown_seconds"]
+        assert isinstance(cooldown, int)
+        assert cooldown > 3000

@@ -17,6 +17,7 @@ import logging
 
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from starlette.responses import StreamingResponse
 
 from core.auth import UserId
@@ -396,7 +397,7 @@ def _render_result_card(
 
 
 async def _run_verification_background(
-    session_maker: object,
+    session_maker: async_sessionmaker[AsyncSession],
     user_id: int,
     requirement_id: str,
     submitted_value: str,

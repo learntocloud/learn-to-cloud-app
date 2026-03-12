@@ -14,6 +14,7 @@ from unittest.mock import MagicMock
 import pytest
 from pydantic import BaseModel, Field
 
+from schemas import ValidationResult
 from services.llm_verification_base import (
     SUSPICIOUS_PATTERNS,
     VerificationError,
@@ -148,13 +149,13 @@ class TestValidateRepoUrl:
         result = validate_repo_url(
             "https://github.com/otheruser/journal-starter", "testuser"
         )
-        assert hasattr(result, "is_valid")
+        assert isinstance(result, ValidationResult)
         assert result.is_valid is False
         assert "does not match" in result.message
 
     def test_invalid_url_returns_validation_result(self):
         result = validate_repo_url("not-a-url", "testuser")
-        assert hasattr(result, "is_valid")
+        assert isinstance(result, ValidationResult)
         assert result.is_valid is False
         assert "Invalid GitHub repository URL" in result.message
 
