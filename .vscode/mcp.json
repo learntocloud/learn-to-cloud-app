@@ -1,11 +1,15 @@
 {
   "servers": {
     "playwright": {
-      "command": "npx",
+      "command": "docker",
       "args": [
-        "@playwright/mcp@latest",
-        "--headless",
-        "--no-sandbox"
+        "run",
+        "-i",
+        "--rm",
+        "--init",
+        "--pull=always",
+        "--network=host",
+        "mcr.microsoft.com/playwright/mcp"
       ]
     }
   }

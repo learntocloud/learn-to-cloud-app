@@ -10,21 +10,22 @@ to start the local API, then use the **Playwright MCP** browser tools to
 methodically walk through every page — reporting anything that looks wrong.
 
 You use the **Playwright MCP server** for all browser automation. The MCP server
-is configured in `.vscode/mcp.json` and provides all `playwright/*` tools.
+is configured in `.vscode/mcp.json` and provides tools prefixed with
+`mcp_playwright_browser_*`.
 
 ## Environment
 
 This runs in a **Linux devcontainer** with:
 - PostgreSQL at `db:5432` (docker-compose service, configured in `api/.env`)
 - Python venv at `api/.venv` managed by `uv`
-- Playwright MCP server runs via `npx @playwright/mcp@latest --headless`
-  configured in `.vscode/mcp.json`
+- Playwright MCP server runs via Docker image (`mcr.microsoft.com/playwright/mcp`)
+  configured in `.vscode/mcp.json` — no npm/Playwright install needed in the container
 
 All terminal commands use **bash** via `run_in_terminal`. Never use PowerShell.
 
 ---
 
-## Step 1 — Start the Local API & Bootstrap Browser
+## Step 1 — Start the Local API
 
 Free port 8000 if in use, then start the API in background:
 
@@ -43,33 +44,8 @@ Use `isBackground=true` for the API startup. Wait 5 seconds, then verify:
 sleep 5 && curl -s --max-time 5 http://localhost:8000/health
 ```
 
-You must see `"status":"healthy"` before continuing. Also check `/ready`:
-
-```bash
-curl -s --max-time 5 http://localhost:8000/ready
-```
-
-If the API fails to start, read `/tmp/api.log`, report the error, and stop.
-
-### Bootstrap the browser
-
-Chromium is pre-installed by `on-create.sh`. If `browser_navigate` fails with a
-"browser not found" error, call `browser_install` to re-install it.
-
-The `--no-sandbox` flag is set in `.vscode/mcp.json` because Chrome's namespace
-sandbox requires `SYS_ADMIN` capabilities that devcontainers don't have.
-
-### Screenshot directory
-
-Before testing, create the output directory for all screenshots:
-
-```bash
-mkdir -p /workspaces/learn-to-cloud-app/.dogfood
-```
-
-All `browser_take_screenshot` calls must use a `filename` under `.dogfood/`,
-e.g. `.dogfood/home.png`. This directory is gitignored so artifacts never
-pollute the repo.
+You must see `"status":"healthy"` before continuing. If the API fails to start,
+read `/tmp/api.log`, report the error, and stop.
 
 ---
 
@@ -79,7 +55,7 @@ Use the Playwright MCP tools to navigate each public page. For each page:
 
 1. `browser_navigate` to the URL
 2. `browser_snapshot` to get the accessibility tree
-3. `browser_take_screenshot` (save to `.dogfood/<name>.png`)
+3. `browser_take_screenshot` to capture visual state
 4. `browser_console_messages` to check for errors
 5. Verify `<nav>` and `<main>` elements exist in the snapshot
 6. Check for error text ("Internal Server Error", "500", "404", "Traceback")
@@ -113,18 +89,10 @@ uv run python ../scripts/dogfood_session.py
 
 This prints JSON: `{"cookie_name": "session", "cookie_value": "...", "user_id": ..., "domain": "localhost", "path": "/"}`
 
-Then inject the cookie using `browser_run_code`:
+Then use `browser_navigate` to a page and inject the cookie via JavaScript:
 
-```javascript
-async (page) => {
-  await page.context().addCookies([{
-    name: '<cookie_name from JSON>',
-    value: '<cookie_value from JSON>',
-    domain: 'localhost',
-    path: '/'
-  }]);
-  await page.goto('http://localhost:8000/');
-}
+```
+browser_navigate → http://localhost:8000/
 ```
 
 Then navigate to an authenticated page. If redirected to login, the cookie didn't
@@ -151,112 +119,14 @@ After authentication, navigate and test:
 On a topic page:
 1. Find a step checkbox in the snapshot
 2. Click it via `browser_click`
-3. Wait 2 seconds (`browser_wait_for`)
+3. Wait 2 seconds (`browser_wait`)
 4. Take a snapshot — verify the checked state changed
 5. Click again to undo
 6. Verify it returned to original state
 
 ---
 
-## Step 5 — Test Hands-on Verification
-
-After testing authenticated pages, test the hands-on verification flow.
-
-### Clear prior submissions
-
-The dogfood user may already have verified submissions in the local database.
-If a requirement is already validated, the form won't render — only a
-"✓ Verified" badge appears. To test the full submit flow, clear those
-submissions first:
-
-```bash
-cd /workspaces/learn-to-cloud-app/api
-uv run python -c "
-import asyncio
-from sqlalchemy import text
-from core.database import async_session_maker
-
-async def clear():
-    async with async_session_maker() as db:
-        result = await db.execute(
-            text(\"DELETE FROM submissions WHERE requirement_id IN ('github-profile', 'profile-readme')\")
-        )
-        await db.commit()
-        print(f'Cleared {result.rowcount} prior submissions')
-
-asyncio.run(clear())
-"
-```
-
-If this fails (e.g. no submissions exist), that's fine — continue testing.
-
-After clearing, navigate to Phase 0 and find the **"Create a Public GitHub
-Profile"** verification card.
-
-### Which verifications to test
-
-Only test verification types that don't require external services or real lab
-completion. Safe types for dogfooding:
-
-| Type | Phase | Safe Input | Why Safe |
-|------|-------|-----------|----------|
-| `github_profile` | 0 | `https://github.com/madebygps` | Only checks public GitHub profile exists |
-| `profile_readme` | 1 | `https://github.com/madebygps/madebygps` | Only checks profile README repo exists |
-
-**Skip** these types (report as "skipped" in the report):
-- `ctf_token` / `networking_token` — require real lab completion tokens
-- `code_analysis` / `devops_analysis` — require LLM API keys + take 30-120s
-- `deployed_api` — requires a real deployed endpoint
-- `security_scanning` — requires LLM API keys
-- `repo_fork` — may not exist for the test user
-
-### Test procedure: github_profile verification
-
-1. Navigate to `/phase/0`
-2. `browser_snapshot` — find the verification card for "Create a Public GitHub
-   Profile"
-3. **Check if already verified**: If the card shows "✓ Verified" with no input
-   field, the submission clear didn't work or was already re-verified. Report as
-   "⏭️ Already verified (form not shown)" and move on.
-4. Find the text input field (look for `textbox` in the snapshot) and type
-   `https://github.com/madebygps` using `browser_type`
-5. Find the "Verify" button and click it via `browser_click`
-6. Wait 3 seconds (`browser_wait_for`) for the HTMX response
-7. `browser_snapshot` — check the result:
-   - **Success**: Look for "✓ Verified" badge or green text in the card
-   - **Failure**: Look for "✗ Failed" badge or red text — record the message
-   - **Error**: Look for "⚠ Service Error" or error banner text
-8. `browser_take_screenshot` (save to `.dogfood/verification-github-profile.png`)
-9. `browser_console_messages` — check for JS errors during submission
-
-### Test procedure: profile_readme verification
-
-1. Navigate to `/phase/1`
-2. `browser_snapshot` — find the "Create a Developer Profile README" card
-3. **Check if already verified**: If "✓ Verified" with no input, report as
-   "⏭️ Already verified" and move on.
-4. Type `https://github.com/madebygps/madebygps` into the input
-5. Click "Verify"
-6. Wait 3 seconds, snapshot, check result same as above
-7. `browser_take_screenshot` (save to `.dogfood/verification-profile-readme.png`)
-
-### What to verify
-
-- The form submits without JS errors
-- The HTMX swap replaces the card correctly (no broken HTML)
-- The response shows a clear pass/fail status (not a raw JSON dump or error page)
-- No "Internal Server Error", "500", or "Traceback" in the response
-- Rate limiting works: if you get "Please wait..." that's expected, not an error
-
-### Edge case: submit with empty/invalid input
-
-On Phase 0, try clicking "Verify" without entering a URL:
-1. The `required` attribute on the input should prevent submission (browser-level)
-2. If it submits anyway, the server should return a validation error, not crash
-
----
-
-## Step 6 — Cleanup
+## Step 5 — Cleanup
 
 After all tests, kill the API:
 
@@ -266,7 +136,7 @@ lsof -ti:8000 | xargs -r kill -9 2>/dev/null || true
 
 ---
 
-## Step 7 — Report
+## Step 6 — Report
 
 Present results as a structured summary:
 
@@ -296,15 +166,6 @@ Present results as a structured summary:
 | Step toggle | ✅/❌ |
 | Step undo   | ✅/❌ |
 | Dark mode   | ✅/❌/N/A |
-
-### Hands-on Verification
-| Type | Input | Result | Details |
-|------|-------|--------|---------|
-| github_profile | `https://github.com/madebygps` | ✅ Verified / ❌ Failed / ⚠️ Error | message |
-| profile_readme | `https://github.com/madebygps/madebygps` | ✅/❌/⚠️ | message |
-| ctf_token | — | ⏭️ Skipped | Requires real lab token |
-| code_analysis | — | ⏭️ Skipped | Requires LLM API keys |
-| devops_analysis | — | ⏭️ Skipped | Requires LLM API keys |
 
 ### Issues Found
 1. ...
