@@ -214,9 +214,16 @@ async def _compute_analytics(db: AsyncSession) -> CommunityAnalytics:
                 required_steps,
                 required_hands_on,
             )
+    completers_this_month: list[str] = []
     if phase_requirements_map and total_users > 0:
         completers = await repo.get_program_completers(phase_requirements_map)
         completion_rate = round(completers / total_users * 100, 1)
+        first_of_month = datetime.now(UTC).replace(
+            day=1, hour=0, minute=0, second=0, microsecond=0
+        )
+        completers_this_month = await repo.get_completers_since(
+            phase_requirements_map, first_of_month
+        )
     else:
         completion_rate = 0.0
 
@@ -229,6 +236,7 @@ async def _compute_analytics(db: AsyncSession) -> CommunityAnalytics:
         verification_stats=verification_stats,
         activity_by_day=activity_by_day,
         provider_distribution=provider_distribution,
+        completers_this_month=completers_this_month,
         generated_at=datetime.now(UTC),
     )
 

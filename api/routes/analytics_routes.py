@@ -26,31 +26,6 @@ def _derive_insights(
     analytics: CommunityAnalytics,
 ) -> list[dict[str, str]]:
     insights: list[dict[str, str]] = []
-    if analytics.activity_by_day:
-        busiest = max(
-            analytics.activity_by_day,
-            key=lambda d: d.completions,
-        )
-        if busiest.completions > 0:
-            insights.append(
-                {
-                    "text": f"Most active day: {busiest.day_name}",
-                    "detail": f"{busiest.completions:,} steps completed",
-                }
-            )
-    if analytics.verification_stats:
-        hardest = min(
-            (v for v in analytics.verification_stats if v.total_attempts > 0),
-            key=lambda v: v.pass_rate,
-            default=None,
-        )
-        if hardest:
-            insights.append(
-                {
-                    "text": f"Hardest phase: {hardest.phase_name}",
-                    "detail": f"{hardest.pass_rate}% pass rate",
-                }
-            )
     if analytics.provider_distribution:
         top = max(
             analytics.provider_distribution,

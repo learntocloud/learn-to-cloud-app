@@ -35,19 +35,37 @@
         <div class="p-5 rounded-xl bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-800/50 border border-gray-200 dark:border-gray-700 text-center">
             <p class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Total Learners</p>
             <p class="mt-1 text-3xl font-bold text-gray-900 dark:text-white" data-count-target="{{ analytics.total_users }}">{{ "{:,}".format(analytics.total_users) }}</p>
+            {% if new_this_month > 0 %}
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">↑ {{ "{:,}".format(new_this_month) }} new this month</p>
+            {% endif %}
         </div>
         <div class="p-5 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-900/10 border border-blue-200 dark:border-blue-800 text-center">
             <p class="text-xs font-medium text-blue-600 dark:text-blue-400 uppercase tracking-wide">Active (30d)</p>
             <p class="mt-1 text-3xl font-bold text-blue-600 dark:text-blue-400" data-count-target="{{ analytics.active_learners_30d }}">{{ "{:,}".format(analytics.active_learners_30d) }}</p>
-            {% if new_this_month > 0 %}
-            <p class="mt-1 text-xs text-blue-500 dark:text-blue-400/70">↑ {{ "{:,}".format(new_this_month) }} new this month</p>
-            {% endif %}
         </div>
         <div class="p-5 rounded-xl bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-900/10 border border-purple-200 dark:border-purple-800 text-center">
             <p class="text-xs font-medium text-purple-600 dark:text-purple-400 uppercase tracking-wide">Completion Rate</p>
             <p class="mt-1 text-3xl font-bold text-purple-600 dark:text-purple-400">{{ analytics.completion_rate }}%</p>
+            {% if analytics.completers_this_month %}
+            <p class="mt-1 text-xs text-purple-500 dark:text-purple-400/70">🎉 {{ analytics.completers_this_month | length }} this month</p>
+            {% endif %}
         </div>
     </div>
+
+    {# ── Completers This Month ── #}
+    {% if analytics.completers_this_month %}
+    <div class="mb-6 p-4 rounded-lg border border-green-200 dark:border-green-800 bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-900/10">
+        <h3 class="text-base font-semibold text-green-800 dark:text-green-300 mb-2">🎉 Completed This Month</h3>
+        <div class="flex flex-wrap gap-2">
+            {% for username in analytics.completers_this_month %}
+            <a href="https://github.com/{{ username }}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-white dark:bg-gray-800 border border-green-300 dark:border-green-700 text-green-800 dark:text-green-300 hover:bg-green-50 dark:hover:bg-green-900/30 transition-colors">
+                <img src="https://avatars.githubusercontent.com/{{ username }}?size=20" alt="" class="h-4 w-4 rounded-full">
+                {{ username }}
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
 
     {# ── Insights Strip ── #}
     {% if insights %}
@@ -95,37 +113,9 @@
         {% endif %}
     </div>
 
-    {# ── Phase Difficulty + Cloud Providers (side-by-side) ── #}
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+    {# ── Cloud Providers ── #}
+    <div class="mb-8">
 
-        {# ── Phase Difficulty (pass rates) ── #}
-        {% if analytics.verification_stats %}
-        <div class="p-4 rounded-lg border border-gray-200 dark:border-gray-700">
-            <h3 class="text-base font-semibold text-gray-900 dark:text-white mb-1">Phase Difficulty</h3>
-            <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">Pass rates for hands-on verification challenges.</p>
-            <div id="verificationFallback" class="space-y-3">
-                {% for v in analytics.verification_stats %}
-                {% if v.total_attempts > 0 %}
-                <div>
-                    <div class="flex items-center justify-between mb-1">
-                        <span class="text-xs font-medium text-gray-700 dark:text-gray-300 truncate">{{ v.phase_name }}</span>
-                        <span class="text-xs font-semibold {% if v.pass_rate >= 70 %}text-green-600 dark:text-green-400{% elif v.pass_rate >= 40 %}text-yellow-600 dark:text-yellow-400{% else %}text-red-600 dark:text-red-400{% endif %}">{{ v.pass_rate }}%</span>
-                    </div>
-                    <div class="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                        <div class="h-full rounded-full {% if v.pass_rate >= 70 %}bg-green-500{% elif v.pass_rate >= 40 %}bg-yellow-500{% else %}bg-red-500{% endif %}" style="width: {{ v.pass_rate }}%"></div>
-                    </div>
-                    <p class="mt-0.5 text-xs text-gray-400 dark:text-gray-500">{{ "{:,}".format(v.total_attempts) }} attempts</p>
-                </div>
-                {% endif %}
-                {% endfor %}
-            </div>
-            <div id="verificationChartWrap" class="h-48 hidden">
-                <canvas id="verificationChart"></canvas>
-            </div>
-        </div>
-        {% endif %}
-
-        {# ── Cloud Providers (doughnut) ── #}
         {% if analytics.provider_distribution %}
         <div class="p-4 rounded-lg border border-gray-200 dark:border-gray-700">
             <h3 class="text-base font-semibold text-gray-900 dark:text-white mb-1">Cloud Providers</h3>
@@ -185,26 +175,6 @@
         {% endif %}
     </div>
 
-    {# ── Weekly Activity ── #}
-    {% if analytics.activity_by_day %}
-    {% set max_completions = analytics.activity_by_day | map(attribute='completions') | max or 1 %}
-    <div class="mb-8 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
-        <h3 class="text-base font-semibold text-gray-900 dark:text-white mb-1">Weekly Rhythm</h3>
-        <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">When the community learns — steps completed by day of week.</p>
-        <div id="activityFallback" class="flex items-end justify-between gap-1 h-32">
-            {% for d in analytics.activity_by_day %}
-            <div class="flex-1 flex flex-col items-center gap-1">
-                <div class="w-full bg-blue-500/80 dark:bg-blue-400/70 rounded-t-sm" style="height: {{ (d.completions / max_completions * 100) | round }}%" title="{{ d.completions }} steps completed"></div>
-                <span class="text-xs text-gray-500 dark:text-gray-400">{{ d.day_name[:3] }}</span>
-            </div>
-            {% endfor %}
-        </div>
-        <div id="activityChartWrap" class="h-48 hidden">
-            <canvas id="activityChart"></canvas>
-        </div>
-    </div>
-    {% endif %}
-
 </div>
 
 <div class="text-center pb-4">
@@ -214,7 +184,7 @@
 </div>
 
 {# ── Chart data + initialization ── #}
-{% set has_chart_data = analytics.phase_distribution or analytics.signup_trends or analytics.verification_stats or analytics.provider_distribution or analytics.activity_by_day %}
+{% set has_chart_data = analytics.phase_distribution or analytics.signup_trends or analytics.provider_distribution %}
 {% if has_chart_data %}
 <script id="chart-data" type="application/json">
 {
@@ -231,22 +201,10 @@
         "cumulative": [{% for t in analytics.signup_trends %}{{ t.cumulative }}{% if not loop.last %}, {% endif %}{% endfor %}]
     },
     {% endif %}
-    {% if analytics.verification_stats %}
-    "verification": {
-        "labels": [{% for v in analytics.verification_stats %}{% if v.total_attempts > 0 %}"{{ v.phase_name }}"{% if not loop.last %}, {% endif %}{% endif %}{% endfor %}],
-        "passRates": [{% for v in analytics.verification_stats %}{% if v.total_attempts > 0 %}{{ v.pass_rate }}{% if not loop.last %}, {% endif %}{% endif %}{% endfor %}]
-    },
-    {% endif %}
     {% if analytics.provider_distribution %}
     "providers": {
         "labels": [{% for p in analytics.provider_distribution %}"{{ p.provider | upper }}"{% if not loop.last %}, {% endif %}{% endfor %}],
         "counts": [{% for p in analytics.provider_distribution %}{{ p.count }}{% if not loop.last %}, {% endif %}{% endfor %}]
-    },
-    {% endif %}
-    {% if analytics.activity_by_day %}
-    "activity": {
-        "labels": [{% for d in analytics.activity_by_day %}"{{ d.day_name[:3] }}"{% if not loop.last %}, {% endif %}{% endfor %}],
-        "completions": [{% for d in analytics.activity_by_day %}{{ d.completions }}{% if not loop.last %}, {% endif %}{% endfor %}]
     },
     {% endif %}
     "_": 0

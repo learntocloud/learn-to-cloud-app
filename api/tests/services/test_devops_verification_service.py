@@ -19,15 +19,17 @@ import pytest
 
 from schemas import TaskResult, ValidationResult
 from services.devops_verification_service import (
-    PHASE5_TASKS,
     DevOpsAnalysisError,
-    DevOpsAnalysisLLMResponse,
-    DevOpsTaskGrade,
     _build_verification_prompt,
     _filter_devops_files,
     analyze_devops_repository,
 )
 from services.llm_verification_base import build_task_results, parse_structured_response
+from services.tasks.phase5_tasks import (
+    PHASE5_TASKS,
+    DevOpsAnalysisLLMResponse,
+    DevOpsTaskGrade,
+)
 
 
 @pytest.mark.unit

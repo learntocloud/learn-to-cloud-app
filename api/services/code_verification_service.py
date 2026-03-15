@@ -17,15 +17,10 @@ Approach:
   3. Send all content to the LLM with structured output (Pydantic response_format)
   4. Parse response directly from result.value — no regex JSON extraction
 
-This eliminates the agent planning LLM call and sequential tool-call round-trips
-that previously added ~3s of latency.
-
 SECURITY CONSIDERATIONS:
 - File fetching is restricted to an allowlist of expected paths
 - File content is size-limited and wrapped with delimiters
-- Spotlighting via datamarking applied to untrusted content (Microsoft defense)
 - LLM output is validated against expected schema via structured outputs
-- Per-submission canary tokens detect jailbreak / system prompt leakage
 - Deterministic guardrails override LLM grades when file evidence contradicts them
 - Feedback is sanitized before display to users
 
@@ -36,246 +31,46 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any, Literal, TypedDict
+from typing import Any, Never
 
 import httpx
-from circuitbreaker import CircuitBreakerError, circuit
-from pydantic import BaseModel, ConfigDict, Field
-from tenacity import (
-    retry,
-    retry_base,
-    stop_after_attempt,
-    wait_exponential_jitter,
+from agent_framework import (
+    AgentExecutorResponse,
+    Executor,
+    WorkflowContext,
+    handler,
 )
+from circuitbreaker import CircuitBreakerError
 
 from core.config import get_settings
-from core.llm_client import LLMClientError, get_llm_chat_client
 from schemas import ValidationResult
 from services.llm_verification_base import (
-    RETRIABLE_EXCEPTIONS,
+    SUSPICIOUS_PATTERNS,
     VerificationError,
     build_task_results,
+    enforce_deterministic_guardrails,
     extract_repo_info,
     parse_structured_response,
+    run_llm_grading_workflow,
 )
-from services.llm_verification_base import (
-    SUSPICIOUS_PATTERNS as _BASE_SUSPICIOUS_PATTERNS,
+from services.tasks.phase3_tasks import (
+    ALLOWED_FILE_PATHS,
+    MAX_FILE_SIZE_BYTES,
+    PHASE3_TASKS,
+    CodeAnalysisResponse,
+    TaskGrade,
 )
 
 logger = logging.getLogger(__name__)
 
-# Allowlist of files that can be fetched - prevents path traversal attacks
-# and limits exposure of learner's repository
-ALLOWED_FILE_PATHS: frozenset[str] = frozenset(
-    [
-        "api/main.py",
-        "api/routers/journal_router.py",
-        "api/services/llm_service.py",
-        ".devcontainer/devcontainer.json",
-    ]
-)
-
-# Maximum file size to prevent token exhaustion (50KB)
-MAX_FILE_SIZE_BYTES: int = 50 * 1024
-
-SUSPICIOUS_PATTERNS = _BASE_SUSPICIOUS_PATTERNS
-
-
-class TaskDefinition(TypedDict, total=False):
-    """Type definition for a verification task."""
-
-    id: str
-    name: str
-    file: str
-    files: list[str]
-    criteria: list[str]
-    starter_code_hint: str  # What the unmodified code looks like
-    pass_indicators: list[str]  # Patterns indicating task completion
-    fail_indicators: list[str]  # Patterns indicating task NOT completed
-
-
-# =============================================================================
-# Task Definitions with Detailed Grading Rubrics
-# =============================================================================
-
-PHASE3_TASKS: list[TaskDefinition] = [
-    {
-        "id": "logging-setup",
-        "name": "Logging Setup",
-        "file": "api/main.py",
-        "criteria": [
-            "MUST have `import logging` or `import structlog` statement",
-            "MUST call logging.basicConfig() or configure structlog",
-            "MUST set log level (INFO, DEBUG, or WARNING)",
-            "SHOULD have at least one logger.info() or logger.debug() call",
-        ],
-        "starter_code_hint": (
-            "Starter code has only: `from dotenv import load_dotenv` and "
-            "`from fastapi import FastAPI`. Look for added logging imports."
-        ),
-        "pass_indicators": [
-            "import logging",
-            "import structlog",
-            "logging.basicConfig",
-            "logging.getLogger",
-            "structlog.configure",
-        ],
-        "fail_indicators": [
-            "# TODO: Setup basic console logging",
-            "# Hint: Use logging.basicConfig()",
-        ],
-    },
-    {
-        "id": "get-single-entry",
-        "name": "GET Single Entry Endpoint",
-        "file": "api/routers/journal_router.py",
-        "criteria": [
-            "MUST NOT raise HTTPException(status_code=501) - that's the starter stub",
-            "MUST call entry_service.get_entry(entry_id)",
-            "MUST raise HTTPException(status_code=404) when entry is None",
-            "MUST return the entry object (not wrapped in a dict)",
-        ],
-        "starter_code_hint": (
-            "Starter code raises `HTTPException(status_code=501, "
-            'detail="Not implemented - complete this endpoint!")`. '
-            "If this line is still present, the task is NOT complete."
-        ),
-        "pass_indicators": [
-            "entry_service.get_entry",
-            "status_code=404",
-            "HTTPException",
-        ],
-        "fail_indicators": [
-            "status_code=501",
-            "Not implemented - complete this endpoint",
-        ],
-    },
-    {
-        "id": "delete-entry",
-        "name": "DELETE Entry Endpoint",
-        "file": "api/routers/journal_router.py",
-        "criteria": [
-            "MUST NOT raise HTTPException(status_code=501) - that's the starter stub",
-            "MUST check if entry exists before deleting",
-            "MUST raise HTTPException(status_code=404) when entry not found",
-            "MUST call entry_service.delete_entry(entry_id)",
-            "SHOULD return status 200 or 204 on success",
-        ],
-        "starter_code_hint": (
-            "Starter code raises `HTTPException(status_code=501)`. "
-            "A complete implementation will have get_entry() check, "
-            "delete_entry() call, and 404 handling."
-        ),
-        "pass_indicators": [
-            "entry_service.delete_entry",
-            "entry_service.get_entry",
-            "status_code=404",
-        ],
-        "fail_indicators": [
-            "status_code=501",
-            "Not implemented - complete this endpoint",
-        ],
-    },
-    {
-        "id": "ai-analysis",
-        "name": "AI-Powered Entry Analysis",
-        "files": ["api/services/llm_service.py", "api/routers/journal_router.py"],
-        "criteria": [
-            "llm_service.py: MUST NOT raise NotImplementedError - that's the stub",
-            "llm_service.py: MUST import an LLM SDK (openai, anthropic, boto3, etc.)",
-            "llm_service.py: MUST make an API call to an LLM provider",
-            "llm_service.py: MUST return dict with sentiment, summary, topics keys",
-            "journal_router.py: analyze_entry() MUST NOT raise HTTPException(501)",
-            "journal_router.py: MUST call llm_service.analyze_journal_entry()",
-        ],
-        "starter_code_hint": (
-            "llm_service.py starter raises `NotImplementedError(...)`. "
-            "journal_router.py analyze_entry() raises HTTPException(501). "
-            "Both must be replaced with working implementations."
-        ),
-        "pass_indicators": [
-            "from openai",
-            "import openai",
-            "import anthropic",
-            "import boto3",
-            "from google",
-            "analyze_journal_entry",
-            "sentiment",
-            "summary",
-            "topics",
-        ],
-        "fail_indicators": [
-            "raise NotImplementedError",
-            "Implement this function using your chosen LLM API",
-            "status_code=501",
-            "Implement this endpoint - see Learn to Cloud",
-        ],
-    },
-    {
-        "id": "cloud-cli-setup",
-        "name": "Cloud CLI Setup",
-        "file": ".devcontainer/devcontainer.json",
-        "criteria": [
-            "At least ONE of these lines MUST be uncommented:",
-            '  - "ghcr.io/devcontainers/features/azure-cli:1": {}',
-            '  - "ghcr.io/devcontainers/features/aws-cli:1": {}',
-            '  - "ghcr.io/devcontainers/features/gcloud:1": {}',
-        ],
-        "starter_code_hint": (
-            "Starter has all three CLI features commented out with `//`. "
-            "Look for lines WITHOUT the leading `//` comment."
-        ),
-        "pass_indicators": [
-            '"ghcr.io/devcontainers/features/azure-cli:1"',
-            '"ghcr.io/devcontainers/features/aws-cli:1"',
-            '"ghcr.io/devcontainers/features/gcloud:1"',
-        ],
-        "fail_indicators": [
-            '// "ghcr.io/devcontainers/features/azure-cli:1"',
-            '// "ghcr.io/devcontainers/features/aws-cli:1"',
-            '// "ghcr.io/devcontainers/features/gcloud:1"',
-        ],
-    },
-]
-
-
-# Valid task IDs as a Literal type for structured output validation
-_VALID_TASK_IDS = Literal[
-    "logging-setup",
-    "get-single-entry",
-    "delete-entry",
-    "ai-analysis",
-    "cloud-cli-setup",
-]
-
-
-class TaskGrade(BaseModel):
-    """Structured output model for a single task grade from the LLM."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    task_id: _VALID_TASK_IDS = Field(description="The task identifier")
-    passed: bool = Field(description="Whether the task implementation is complete")
-    feedback: str = Field(
-        description="1-3 sentences of specific, educational feedback",
-        max_length=500,
-    )
-
-
-class CodeAnalysisResponse(BaseModel):
-    """Structured output model for the full code analysis LLM response."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    tasks: list[TaskGrade] = Field(
-        description="Grading results for all 5 tasks",
-        min_length=5,
-        max_length=5,
-    )
-
 
 class CodeAnalysisError(VerificationError):
     """Raised when code analysis fails."""
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# File fetching
+# ─────────────────────────────────────────────────────────────────────────────
 
 
 async def _fetch_github_file_content(
@@ -310,7 +105,6 @@ async def _fetch_github_file_content(
     if settings.github_token:
         headers["Authorization"] = f"Bearer {settings.github_token}"
 
-    # Reuse shared GitHub HTTP client (connection pooling)
     from core.github_client import get_github_client
 
     client = await get_github_client()
@@ -320,7 +114,7 @@ async def _fetch_github_file_content(
     content = response.text
 
     if len(content.encode("utf-8")) > MAX_FILE_SIZE_BYTES:
-        content = content[: MAX_FILE_SIZE_BYTES // 2]  # Rough char limit
+        content = content[: MAX_FILE_SIZE_BYTES // 2]
         content += "\n\n[FILE TRUNCATED - exceeded size limit]"
 
     content_lower = content.lower()
@@ -338,8 +132,35 @@ async def _fetch_github_file_content(
             },
         )
 
-    # Wrap in delimiters to separate code from LLM instructions
     return f'<file_content path="{normalized_path}">\n{content}\n</file_content>'
+
+
+async def _prefetch_all_files(
+    owner: str, repo: str, branch: str = "main"
+) -> dict[str, str]:
+    """Pre-fetch all allowed files from the repository in parallel.
+
+    Returns:
+        Mapping of file path -> wrapped content string.
+        Missing/errored files get a ``<file_not_found>`` sentinel.
+    """
+
+    async def _fetch_one(path: str) -> tuple[str, str]:
+        try:
+            content = await _fetch_github_file_content(owner, repo, path, branch)
+            return (path, content)
+        except httpx.HTTPStatusError:
+            return (path, f'<file_not_found path="{path}" />')
+        except (ValueError, httpx.RequestError, httpx.TimeoutException):
+            return (path, f'<file_not_found path="{path}" />')
+
+    results = await asyncio.gather(*[_fetch_one(p) for p in sorted(ALLOWED_FILE_PATHS)])
+    return dict(results)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Prompt construction
+# ─────────────────────────────────────────────────────────────────────────────
 
 
 def _build_verification_prompt(
@@ -349,15 +170,6 @@ def _build_verification_prompt(
 
     All file contents are pre-fetched and embedded directly in the prompt.
     No tool calls are needed.
-
-    Args:
-        owner: Repository owner (learner's GitHub username)
-        repo: Repository name (should be journal-starter fork)
-        file_contents: Mapping of file path -> wrapped content string.
-            Missing files have a ``<file_not_found>`` sentinel.
-
-    Returns:
-        The prompt string.
     """
     tasks_section = []
     for task in PHASE3_TASKS:
@@ -429,269 +241,190 @@ For each task:
     return prompt
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Guardrails helper
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def _get_phase3_file_content(
+    task_def: dict[str, Any], file_contents: dict[str, str]
+) -> str:
+    """Concatenate raw file contents for a Phase 3 task definition."""
+    task_file_keys: list[str] = []
+    if "file" in task_def:
+        task_file_keys.append(task_def["file"])
+    task_file_keys.extend(task_def.get("files", []))
+
+    return "".join(file_contents.get(fk, "") for fk in task_file_keys)
+
+
 def _enforce_deterministic_guardrails(
     analysis: CodeAnalysisResponse,
     file_contents: dict[str, str],
 ) -> CodeAnalysisResponse:
     """Override LLM grades when deterministic evidence contradicts them.
 
-    This is the primary anti-jailbreak defense. Even if a learner tricks
-    the LLM into returning ``passed=True``, this function will flip it
-    back to ``passed=False`` if the raw file content still contains
-    fail_indicators (starter stubs) for that task.
-
-    It also detects prompt injection attempts and forces failures when
-    suspicious patterns are detected in the file(s) for a task.
-
-    Args:
-        analysis: The LLM's grading response.
-        file_contents: Raw fetched file contents (wrapped in delimiters).
-
-    Returns:
-        A new CodeAnalysisResponse with overridden grades where needed.
+    Delegates to the shared ``enforce_deterministic_guardrails`` and
+    reconstructs a ``CodeAnalysisResponse`` from the corrected grades.
     """
-    task_lookup: dict[str, TaskDefinition] = {t["id"]: t for t in PHASE3_TASKS}
-    corrected_tasks: list[TaskGrade] = []
+    corrected = enforce_deterministic_guardrails(
+        grades=analysis.tasks,
+        task_definitions=PHASE3_TASKS,
+        get_file_content=lambda td: _get_phase3_file_content(td, file_contents),
+        suspicious_patterns=SUSPICIOUS_PATTERNS,
+        grade_factory=TaskGrade,
+        service_name="code_analysis",
+    )
+    return CodeAnalysisResponse(tasks=corrected)
 
-    for grade in analysis.tasks:
-        task_def = task_lookup.get(grade.task_id)
-        if task_def is None:
-            corrected_tasks.append(grade)
-            continue
 
-        task_file_keys: list[str] = []
-        if "file" in task_def:
-            task_file_keys.append(task_def["file"])
-        task_file_keys.extend(task_def.get("files", []))
+# ─────────────────────────────────────────────────────────────────────────────
+# Workflow executor (top-level, idiomatic pattern)
+# ─────────────────────────────────────────────────────────────────────────────
 
-        raw_contents = ""
-        for fk in task_file_keys:
-            raw_contents += file_contents.get(fk, "")
-        raw_lower = raw_contents.lower()
 
-        override_reason: str | None = None
+class Phase3GuardrailsExecutor(Executor):
+    """Post-processes the LLM grading response for Phase 3.
 
-        # ── Check 1: fail_indicators still present → force fail ──
-        if grade.passed:
-            for indicator in task_def.get("fail_indicators", []):
-                if indicator.lower() in raw_lower:
-                    override_reason = (
-                        f"Starter stub still present: '{indicator}'. "
-                        "Remove the placeholder code and implement the task."
-                    )
-                    break
+    Checks Azure content filters, parses the structured response,
+    applies deterministic guardrails, and yields a ``ValidationResult``.
+    """
 
-        # ── Check 2: file missing → force fail ──
-        if grade.passed and "<file_not_found" in raw_contents:
-            override_reason = (
-                "Required file was not found in the repository. "
-                "Ensure the file exists at the expected path."
+    def __init__(
+        self,
+        *,
+        owner: str,
+        repo: str,
+        file_contents: dict[str, str],
+    ) -> None:
+        super().__init__(id="phase3-guardrails")
+        self._owner = owner
+        self._repo = repo
+        self._file_contents = file_contents
+
+    @handler
+    async def process(
+        self,
+        msg: AgentExecutorResponse,
+        ctx: WorkflowContext[Never, ValidationResult],
+    ) -> None:
+        result = msg.agent_response
+
+        # Content filter check
+        chat_response = getattr(result, "raw_representation", None)
+        finish_reason = getattr(chat_response, "finish_reason", None)
+        if finish_reason == "content_filter":
+            logger.warning(
+                "code_analysis.content_filter_triggered",
+                extra={"owner": self._owner, "repo": self._repo},
             )
-
-        # ── Check 3: prompt injection detected → force fail ──
-        if grade.passed:
-            for pattern in SUSPICIOUS_PATTERNS:
-                if pattern in raw_lower:
-                    override_reason = (
-                        "Submission contains suspicious content. "
-                        "Please submit genuine code implementations."
-                    )
-                    logger.warning(
-                        "code_analysis.guardrail_injection_override",
-                        extra={
-                            "task_id": grade.task_id,
-                            "pattern": pattern,
-                        },
-                    )
-                    break
-
-        if override_reason:
-            logger.info(
-                "code_analysis.guardrail_override",
-                extra={
-                    "task_id": grade.task_id,
-                    "llm_said_passed": grade.passed,
-                    "reason": override_reason,
-                },
-            )
-            corrected_tasks.append(
-                TaskGrade(
-                    task_id=grade.task_id,
-                    passed=False,
-                    feedback=override_reason,
+            await ctx.yield_output(
+                ValidationResult(
+                    is_valid=False,
+                    message=(
+                        "Code analysis was blocked by content safety "
+                        "filters. Please ensure your submission "
+                        "contains only legitimate code."
+                    ),
+                    server_error=False,
                 )
             )
+            return
+
+        analysis = parse_structured_response(
+            result,
+            CodeAnalysisResponse,
+            CodeAnalysisError,
+            "code_analysis",
+        )
+
+        analysis = _enforce_deterministic_guardrails(analysis, self._file_contents)
+
+        task_results, all_passed = build_task_results(analysis.tasks, PHASE3_TASKS)
+
+        passed_count = sum(1 for t in task_results if t.passed)
+        total_count = len(task_results)
+
+        logger.info(
+            "code_analysis.completed",
+            extra={
+                "owner": self._owner,
+                "repo": self._repo,
+                "passed": passed_count,
+                "total": total_count,
+                "all_passed": all_passed,
+            },
+        )
+
+        if all_passed:
+            message = (
+                f"Congratulations! All {total_count} tasks have been "
+                "completed successfully. Your Journal API "
+                "implementation meets all requirements."
+            )
         else:
-            corrected_tasks.append(grade)
+            message = (
+                f"Completed {passed_count}/{total_count} tasks. "
+                "Review the feedback below and try again "
+                "after making improvements."
+            )
 
-    return CodeAnalysisResponse(tasks=corrected_tasks)
-
-
-class _retry_if_retriable(retry_base):
-    """Only retry LLMClientError when its retriable flag is True.
-
-    Config errors have retriable=False and
-    should fail immediately instead of wasting time on doomed retries.
-    """
-
-    def __call__(self, retry_state: Any) -> bool:
-        exc = retry_state.outcome.exception()
-        if exc is None:
-            return False
-        if isinstance(exc, LLMClientError) and not exc.retriable:
-            return False
-        return isinstance(exc, RETRIABLE_EXCEPTIONS)
+        await ctx.yield_output(
+            ValidationResult(
+                is_valid=all_passed,
+                message=message,
+                task_results=task_results,
+            )
+        )
 
 
-@circuit(
-    failure_threshold=3,
-    recovery_timeout=120,
-    expected_exception=RETRIABLE_EXCEPTIONS,
-    name="code_analysis_circuit",
-)
-@retry(
-    stop=stop_after_attempt(2),
-    wait=wait_exponential_jitter(initial=1, max=30),
-    retry=_retry_if_retriable(),
-    reraise=True,
-)
-async def _prefetch_all_files(
-    owner: str, repo: str, branch: str = "main"
-) -> dict[str, str]:
-    """Pre-fetch all allowed files from the repository in parallel.
-
-    Returns:
-        Mapping of file path -> wrapped content string.
-        Missing/errored files get a ``<file_not_found>`` sentinel.
-    """
-
-    async def _fetch_one(path: str) -> tuple[str, str]:
-        try:
-            content = await _fetch_github_file_content(owner, repo, path, branch)
-            return (path, content)
-        except httpx.HTTPStatusError:
-            return (path, f'<file_not_found path="{path}" />')
-        except (ValueError, httpx.RequestError, httpx.TimeoutException):
-            return (path, f'<file_not_found path="{path}" />')
-
-    results = await asyncio.gather(*[_fetch_one(p) for p in sorted(ALLOWED_FILE_PATHS)])
-    return dict(results)
+# ─────────────────────────────────────────────────────────────────────────────
+# LLM analysis orchestration
+# ─────────────────────────────────────────────────────────────────────────────
 
 
 async def _analyze_with_llm(
-    owner: str, repo: str, github_username: str
+    owner: str,
+    repo: str,
+    github_username: str,
 ) -> ValidationResult:
-    """Run code analysis via Microsoft Agent Framework with structured output.
+    """Run code analysis via a Microsoft Agent Framework workflow.
 
-    Pre-fetches all allowed files in parallel, then sends a single LLM call
-    with ``response_format=CodeAnalysisResponse`` for guaranteed schema
-    compliance. No agent tool-calling loop needed.
-
-    Use analyze_repository_code() as the public entry point.
+    The workflow has two stages:
+      1. **Agent** — sends pre-fetched file contents to the LLM and gets
+         a structured ``CodeAnalysisResponse``.
+      2. **Guardrails executor** — checks Azure content filters, parses
+         the structured response, applies deterministic guardrails, and
+         builds the final ``ValidationResult``.
     """
-    from agent_framework import Agent, ChatOptions
-
-    chat_client = get_llm_chat_client()
-
     file_contents = await _prefetch_all_files(owner, repo)
-
     prompt = _build_verification_prompt(owner, repo, file_contents)
 
-    agent = Agent(
-        client=chat_client,
-        instructions=prompt,
-        # Note: temperature=0 is ideal for deterministic grading but some
-        # models (o1, o3-mini) reject it. Omitted for compatibility —
-        # the deterministic guardrails enforce correctness regardless.
-        default_options=ChatOptions(
-            response_format=CodeAnalysisResponse,
-            # Security: disable tool calling — this agent only grades code,
-            # never needs to invoke tools. Prevents injection from tricking
-            # the model into requesting tool calls.
-            tool_choice="none",
-        ),
+    executor = Phase3GuardrailsExecutor(
+        owner=owner,
+        repo=repo,
+        file_contents=file_contents,
     )
 
-    timeout_seconds = get_settings().llm_cli_timeout
-    try:
-        async with asyncio.timeout(timeout_seconds):
-            result = await agent.run(
-                "Analyze the repository files and grade all 5 tasks."
-            )
-    except TimeoutError:
-        logger.error(
-            "code_analysis.timeout",
-            extra={"owner": owner, "repo": repo, "timeout": timeout_seconds},
-        )
-        raise CodeAnalysisError(
-            f"Code analysis timed out after {timeout_seconds}s",
-            retriable=True,
-        ) from None
-
-    # Security: check if Azure's built-in content filter was triggered.
-    # Azure sets finish_reason to "content_filter" when the model's
-    # response is blocked by Azure AI Content Safety — likely due to
-    # adversarial or unsafe content in the submission.
-    chat_response = getattr(result, "raw_representation", None)
-    finish_reason = getattr(chat_response, "finish_reason", None)
-    if finish_reason == "content_filter":
-        logger.warning(
-            "code_analysis.content_filter_triggered",
-            extra={"owner": owner, "repo": repo},
-        )
-        return ValidationResult(
-            is_valid=False,
-            message=(
-                "Code analysis was blocked by content safety filters. "
-                "Please ensure your submission contains only legitimate code."
-            ),
-            server_error=False,
-        )
-
-    analysis = parse_structured_response(
-        result, CodeAnalysisResponse, CodeAnalysisError, "code_analysis"
+    return await run_llm_grading_workflow(
+        name="phase3-code-analysis",
+        prompt=prompt,
+        response_format=CodeAnalysisResponse,
+        result_executor=executor,
+        run_message="Analyze the repository files and grade all 5 tasks.",
+        error_class=CodeAnalysisError,
+        tool_choice="none",
     )
 
-    # Deterministic guardrails override LLM grades when file contents
-    # contradict the LLM's assessment or contain prompt injection attempts.
-    analysis = _enforce_deterministic_guardrails(analysis, file_contents)
 
-    task_results, all_passed = build_task_results(analysis.tasks, PHASE3_TASKS)
-
-    passed_count = sum(1 for t in task_results if t.passed)
-    total_count = len(task_results)
-
-    logger.info(
-        "code_analysis.completed",
-        extra={
-            "owner": owner,
-            "repo": repo,
-            "passed": passed_count,
-            "total": total_count,
-            "all_passed": all_passed,
-        },
-    )
-
-    if all_passed:
-        message = (
-            f"Congratulations! All {total_count} tasks have been completed "
-            "successfully. Your Journal API implementation meets all requirements."
-        )
-    else:
-        message = (
-            f"Completed {passed_count}/{total_count} tasks. "
-            "Review the feedback below and try again after making improvements."
-        )
-
-    return ValidationResult(
-        is_valid=all_passed,
-        message=message,
-        task_results=task_results,
-    )
+# ─────────────────────────────────────────────────────────────────────────────
+# Public entry point
+# ─────────────────────────────────────────────────────────────────────────────
 
 
 async def analyze_repository_code(
-    repo_url: str, github_username: str
+    repo_url: str,
+    github_username: str,
 ) -> ValidationResult:
     """Analyze a learner's repository for Phase 3 task completion.
 
@@ -760,7 +493,7 @@ async def analyze_repository_code(
         return ValidationResult(
             is_valid=False,
             message=f"Code analysis failed: {e}",
-            server_error=True,  # Always server error — not the user's fault
+            server_error=True,
         )
     except Exception:
         logger.exception(

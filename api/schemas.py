@@ -546,4 +546,5 @@ class CommunityAnalytics(FrozenModel):
     verification_stats: list[VerificationStat]
     activity_by_day: list[DayActivity]
     provider_distribution: list["ProviderDistribution"] = Field(default_factory=list)
+    completers_this_month: list[str] = Field(default_factory=list)
     generated_at: datetime

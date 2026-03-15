@@ -225,7 +225,8 @@ class TestSubmissionRouting:
             )
 
             mock.assert_called_once_with(
-                "https://github.com/testuser/journal-starter", "testuser"
+                "https://github.com/testuser/journal-starter",
+                "testuser",
             )
             assert result.is_valid is True
 

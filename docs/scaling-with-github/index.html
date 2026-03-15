@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Shipping with AI &amp; GitHub | Learn to Cloud</title>
+  <title>GitHub Powering Your AI SDLC | Learn to Cloud</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/theme/black.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/plugin/highlight/monokai.css">
@@ -16,7 +16,7 @@
       --r-selection-background-color: #264f78;
     }
     .reveal { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
-    .reveal h1, .reveal h2, .reveal h3 { color: var(--r-heading-color); text-transform: none; font-weight: 600; }
+    .reveal h1, .reveal h2, .reveal h3, .reveal h4 { color: var(--r-heading-color); text-transform: none; font-weight: 600; }
     .reveal h1 { font-size: 2.2em; }
     .reveal h2 { font-size: 1.6em; }
     .reveal h3 { font-size: 1.2em; }
@@ -61,8 +61,8 @@
 <!-- ============================================================ -->
 <section class="center-slide" data-background-gradient="radial-gradient(circle at 20% 50%, #0d2137 0%, #0d1117 70%)">
   <p class="gh-logo">🚀</p>
-  <h1>Shipping with AI &amp; GitHub</h1>
-  <p class="subtitle">How AI transforms every phase of the SDLC — a real-world walkthrough</p>
+  <h1>GitHub Powering Your AI SDLC</h1>
+  <p class="subtitle">A real-world walkthrough across every phase of development</p>
   <p class="dim" style="font-size:0.55em; margin-top: 2em;">learntocloud.guide</p>
 </section>
 
@@ -75,7 +75,11 @@
     <p><strong class="blue">Learn to Cloud</strong>: a free, open-source cloud learning platform</p>
     <p class="dim" style="font-size: 0.7em;">Curriculum progress tracking · Hands-on verification · LLM-powered grading</p>
   </div>
-  <div class="feature-grid" style="margin-top: 16px; text-align: center; grid-template-columns: 1fr 1fr 1fr;">
+  <div class="feature-grid" style="margin-top: 16px; text-align: center; grid-template-columns: 1fr 1fr 1fr 1fr;">
+    <div class="feature-card" style="text-align: center;">
+      <p class="big-number">1</p>
+      <p class="big-number-label">Engineer (sometimes 2)</p>
+    </div>
     <div class="feature-card" style="text-align: center;">
       <p class="big-number">~3,000</p>
       <p class="big-number-label">Active users</p>
@@ -89,64 +93,97 @@
       <p class="big-number-label">5xx errors (24h)</p>
     </div>
   </div>
-  <p style="margin-top: 20px; font-size: 0.75em; text-align: center;">Small team, production app. Here's how AI powers every phase of the lifecycle.</p>
+  <p style="margin-top: 20px; font-size: 0.75em; text-align: center;">Team of 1. This is how it gets done.</p>
 </section>
 
 <!-- ============================================================ -->
 <!-- THE AI SDLC OVERVIEW -->
 <!-- ============================================================ -->
 <section class="center-slide">
-  <h2>The AI-Powered SDLC</h2>
-  <div style="display: flex; justify-content: center; gap: 6px; margin-top: 32px; flex-wrap: wrap;">
-    <div style="background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 14px 16px; text-align: center; min-width: 120px;">
-      <p style="font-size: 1.4em; margin: 0;">📋</p>
-      <p class="blue" style="font-size: 0.75em; margin: 6px 0 2px;">Plan</p>
-      <p class="dim" style="font-size: 0.5em; margin: 0;">Copilot + Prompts</p>
+  <h2>The SDLC</h2>
+  <div style="display: flex; justify-content: center; gap: 4px; margin-top: 32px; flex-wrap: wrap;">
+    <div style="background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 10px 12px; text-align: center; min-width: 100px;">
+      <p style="font-size: 1.2em; margin: 0;">📋</p>
+      <p class="blue" style="font-size: 0.65em; margin: 4px 0 2px;">Plan</p>
+      <p class="dim" style="font-size: 0.45em; margin: 0;">Copilot + Prompts</p>
     </div>
-    <div style="color: #484f58; font-size: 1.5em; align-self: center;">›</div>
-    <div style="background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 14px 16px; text-align: center; min-width: 120px;">
-      <p style="font-size: 1.4em; margin: 0;">⌨️</p>
-      <p class="blue" style="font-size: 0.75em; margin: 6px 0 2px;">Code</p>
-      <p class="dim" style="font-size: 0.5em; margin: 0;">Copilot + Codespaces</p>
+    <div style="color: #484f58; font-size: 1.2em; align-self: center;">›</div>
+    <div style="background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 10px 12px; text-align: center; min-width: 100px;">
+      <p style="font-size: 1.2em; margin: 0;">⌨️</p>
+      <p class="blue" style="font-size: 0.65em; margin: 4px 0 2px;">Code</p>
+      <p class="dim" style="font-size: 0.45em; margin: 0;">Copilot + IDE</p>
     </div>
-    <div style="color: #484f58; font-size: 1.5em; align-self: center;">›</div>
-    <div style="background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 14px 16px; text-align: center; min-width: 120px;">
-      <p style="font-size: 1.4em; margin: 0;">🔨</p>
-      <p class="blue" style="font-size: 0.75em; margin: 6px 0 2px;">Build</p>
-      <p class="dim" style="font-size: 0.5em; margin: 0;">Actions CI</p>
+    <div style="color: #484f58; font-size: 1.2em; align-self: center;">›</div>
+    <div style="background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 10px 12px; text-align: center; min-width: 100px;">
+      <p style="font-size: 1.2em; margin: 0;">🔨</p>
+      <p class="blue" style="font-size: 0.65em; margin: 4px 0 2px;">Build</p>
+      <p class="dim" style="font-size: 0.45em; margin: 0;">Actions</p>
     </div>
-    <div style="color: #484f58; font-size: 1.5em; align-self: center;">›</div>
-    <div style="background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 14px 16px; text-align: center; min-width: 120px;">
-      <p style="font-size: 1.4em; margin: 0;">🧪</p>
-      <p class="blue" style="font-size: 0.75em; margin: 6px 0 2px;">Test</p>
-      <p class="dim" style="font-size: 0.5em; margin: 0;">Skills + Agents</p>
+    <div style="color: #484f58; font-size: 1.2em; align-self: center;">›</div>
+    <div style="background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 10px 12px; text-align: center; min-width: 100px;">
+      <p style="font-size: 1.2em; margin: 0;">🧪</p>
+      <p class="blue" style="font-size: 0.65em; margin: 4px 0 2px;">Test</p>
+      <p class="dim" style="font-size: 0.45em; margin: 0;">Copilot Agents</p>
     </div>
-    <div style="color: #484f58; font-size: 1.5em; align-self: center;">›</div>
-    <div style="background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 14px 16px; text-align: center; min-width: 120px;">
-      <p style="font-size: 1.4em; margin: 0;">🚀</p>
-      <p class="blue" style="font-size: 0.75em; margin: 6px 0 2px;">Deploy</p>
-      <p class="dim" style="font-size: 0.5em; margin: 0;">Ship It + Actions</p>
+    <div style="color: #484f58; font-size: 1.2em; align-self: center;">›</div>
+    <div style="background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 10px 12px; text-align: center; min-width: 100px;">
+      <p style="font-size: 1.2em; margin: 0;">🚀</p>
+      <p class="blue" style="font-size: 0.65em; margin: 4px 0 2px;">Deploy</p>
+      <p class="dim" style="font-size: 0.45em; margin: 0;">Actions + Skills</p>
     </div>
-    <div style="color: #484f58; font-size: 1.5em; align-self: center;">›</div>
-    <div style="background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 14px 16px; text-align: center; min-width: 120px;">
-      <p style="font-size: 1.4em; margin: 0;">🔒</p>
-      <p class="blue" style="font-size: 0.75em; margin: 6px 0 2px;">Secure</p>
-      <p class="dim" style="font-size: 0.5em; margin: 0;">GHAS + Dependabot</p>
+    <div style="color: #484f58; font-size: 1.2em; align-self: center;">›</div>
+    <div style="background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 10px 12px; text-align: center; min-width: 100px;">
+      <p style="font-size: 1.2em; margin: 0;">🔒</p>
+      <p class="blue" style="font-size: 0.65em; margin: 4px 0 2px;">Secure</p>
+      <p class="dim" style="font-size: 0.45em; margin: 0;">GHAS</p>
     </div>
-    <div style="color: #484f58; font-size: 1.5em; align-self: center;">›</div>
-    <div style="background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 14px 16px; text-align: center; min-width: 120px;">
-      <p style="font-size: 1.4em; margin: 0;">⚙️</p>
-      <p class="blue" style="font-size: 0.75em; margin: 6px 0 2px;">Operate</p>
-      <p class="dim" style="font-size: 0.5em; margin: 0;">Copilot Skills</p>
+    <div style="color: #484f58; font-size: 1.2em; align-self: center;">›</div>
+    <div style="background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 10px 12px; text-align: center; min-width: 100px;">
+      <p style="font-size: 1.2em; margin: 0;">⚙️</p>
+      <p class="blue" style="font-size: 0.65em; margin: 4px 0 2px;">Operate</p>
+      <p class="dim" style="font-size: 0.45em; margin: 0;">Copilot Skills</p>
     </div>
-    <div style="color: #484f58; font-size: 1.5em; align-self: center;">›</div>
-    <div style="background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 14px 16px; text-align: center; min-width: 120px;">
-      <p style="font-size: 1.4em; margin: 0;">📡</p>
-      <p class="blue" style="font-size: 0.75em; margin: 6px 0 2px;">Monitor</p>
-      <p class="dim" style="font-size: 0.5em; margin: 0;">Copilot Workflows</p>
+    <div style="color: #484f58; font-size: 1.2em; align-self: center;">›</div>
+    <div style="background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 10px 12px; text-align: center; min-width: 100px;">
+      <p style="font-size: 1.2em; margin: 0;">📡</p>
+      <p class="blue" style="font-size: 0.65em; margin: 4px 0 2px;">Monitor</p>
+      <p class="dim" style="font-size: 0.45em; margin: 0;">Copilot Workflows</p>
     </div>
   </div>
-  <p style="margin-top: 32px; font-size: 0.8em;">AI isn't just in the editor — it's in <span class="accent">every phase</span>. Let's walk through each one.</p>
+  <p style="margin-top: 32px; font-size: 0.8em;">Each phase covered below.</p>
+</section>
+
+<!-- ============================================================ -->
+<!-- WHERE COPILOT LIVES -->
+<!-- ============================================================ -->
+<section>
+  <h2>Where Copilot Lives on GitHub</h2>
+  <div class="feature-grid" style="grid-template-columns: 1fr 1fr 1fr;">
+    <div class="feature-card">
+      <h4>github.com/copilot</h4>
+      <p>Standalone chat. Model picker, web search, file generation. No IDE needed.</p>
+    </div>
+    <div class="feature-card">
+      <h4>Every page (nav bar)</h4>
+      <p>Copilot icon in the top-right opens chat from any GitHub page.</p>
+    </div>
+    <div class="feature-card">
+      <h4>Repo search bar</h4>
+      <p>Press <code>/</code> in any repo, select "Ask Copilot" for repo-scoped answers.</p>
+    </div>
+    <div class="feature-card">
+      <h4>Pull requests</h4>
+      <p>PR summaries, inline review, and fix suggestions from CI failures.</p>
+    </div>
+    <div class="feature-card">
+      <h4>Issues</h4>
+      <p>Suggest a fix from an issue, open a branch, start implementation.</p>
+    </div>
+    <div class="feature-card">
+      <h4>IDE (VS Code, JetBrains)</h4>
+      <p>Completions, chat, agentic coding, custom context via AGENTS.md.</p>
+    </div>
+  </div>
 </section>
 
 <!-- ============================================================ -->
@@ -155,14 +192,14 @@
 <section>
   <h3 class="section-title">Phase 1</h3>
   <h2>📋 Plan</h2>
-  <p>From idea to architecture — before writing a single line of code</p>
+  <p>Ideation to architecture</p>
+  <p class="dim" style="font-size: 0.6em; margin-top: 24px; letter-spacing: 2px;">↓ DEMO</p>
 </section>
 
 <section>
-  <h2>Give AI Context: AGENTS.md</h2>
+  <h2>AGENTS.md</h2>
   <div class="highlight-box">
-    <p>Before AI can plan, it needs to <em>know your project</em>. Generic AI gives generic answers.</p>
-    <p style="margin-top: 12px;"><span class="accent">AGENTS.md</span> is the file Copilot reads on every interaction — your tech stack, architecture, conventions, and build commands.</p>
+    <p><span class="accent">AGENTS.md</span> is loaded as context on every Copilot interaction: tech stack, architecture, conventions, build commands.</p>
   </div>
   <pre><code class="language-markdown"># Project Guidelines
 
@@ -183,85 +220,40 @@ Routes (HTTP) → Services (Business Logic) → Repositories (DB)
 </section>
 
 <section>
-  <h2>Research → Plan → Implement</h2>
-  <div class="feature-grid" style="grid-template-columns: 1fr 1fr 1fr;">
-    <div class="feature-card">
-      <h4>📖 research.prompt.md</h4>
-      <p>"Read the codebase deeply — not just function signatures. Use web research and official docs."</p>
-      <p style="margin-top: 8px; color: #58a6ff; font-size: 0.65em;">→ outputs {topic}-research.md</p>
-    </div>
-    <div class="feature-card">
-      <h4>📋 plan.prompt.md</h4>
-      <p>"Write a detailed plan with code snippets and trade-offs. No code until the plan is approved."</p>
-      <p style="margin-top: 8px; color: #58a6ff; font-size: 0.65em;">→ outputs {topic}-plan.md</p>
-    </div>
-    <div class="feature-card">
-      <h4>🔨 implement.prompt.md</h4>
-      <p>"Follow the approved plan exactly. New branch. Track progress. Validate continuously."</p>
-      <p style="margin-top: 8px; color: #58a6ff; font-size: 0.65em;">→ marks tasks done in plan</p>
-    </div>
+  <h2>Prompt Files: Research, Plan, Implement</h2>
+  <div style="font-size: 0.8em;">
+    <table style="width: 100%;">
+      <thead>
+        <tr><th>File</th><th>What it does</th><th>Output</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="blue">research.prompt.md</td>
+          <td>Deep-read the codebase and external docs before planning</td>
+          <td><code>{topic}-research.md</code></td>
+        </tr>
+        <tr>
+          <td class="blue">plan.prompt.md</td>
+          <td>Write a detailed plan with code snippets and trade-offs</td>
+          <td><code>{topic}-plan.md</code></td>
+        </tr>
+        <tr>
+          <td class="blue">implement.prompt.md</td>
+          <td>Execute the approved plan. New branch, track progress, validate</td>
+          <td>Marks tasks done in plan</td>
+        </tr>
+      </tbody>
+    </table>
   </div>
   <div class="highlight-box" style="margin-top: 20px; text-align: center;">
     <p><span class="blue">Understand</span> → <span class="blue">Plan</span> → <span class="blue">Execute</span></p>
-    <p class="dim" style="font-size: 0.65em; margin-top: 6px;">The same process a senior engineer uses, encoded as reusable prompt files.</p>
+    <p class="dim" style="font-size: 0.6em; margin-top: 6px;">Reusable .prompt.md files in <code>.github/prompts/</code></p>
   </div>
 </section>
 
-<section class="small-code">
-  <h2>research.prompt.md</h2>
-  <p class="file-path">.github/prompts/research.prompt.md</p>
-  <pre><code class="language-markdown">---
-name: research
-description: Deep-read the codebase and external sources
-             before any planning or implementation.
----
-Read the relevant parts of the codebase **deeply** — not just
-function signatures, but the actual logic, existing patterns,
-caching layers, ORM conventions, and how data flows end-to-end.
 
-Also use web research, official docs, and library source code
-where needed.
 
-## Output File
-Use the pattern `{topic}-research.md` in the repo root.
 
-## Required Sections
-- How the relevant system currently works (with file paths)
-- Existing patterns and conventions we must follow
-- Links to external resources, docs, or reference implementations
-- Potential gotchas — things that could break
-
-This document is my review surface. If the research is wrong,
-the plan will be wrong.
-**Do not plan or implement anything yet.**</code></pre>
-</section>
-
-<section class="small-code">
-  <h2>plan.prompt.md</h2>
-  <p class="file-path">.github/prompts/plan.prompt.md</p>
-  <pre><code class="language-markdown">---
-name: plan
-description: Create a detailed implementation plan based on
-             completed research. No code until approved.
----
-Using the research, write a detailed plan outlining how to
-implement this. Read the actual source files before suggesting
-changes — base the plan on the real codebase, not assumptions.
-
-The plan must include:
-- **Approach**: Strategy and why this approach was chosen
-- **File paths**: Every file to create, modify, or delete
-- **Code snippets**: Real code based on existing patterns
-- **Trade-offs**: What alternatives were considered
-- **Risks & edge cases**: What could go wrong
-- **Todo list**: Granular, checkable task breakdown
-
-I will review this plan and add inline notes. Address all my
-notes and update the plan accordingly.
-
-**Do not implement yet.** Not until I explicitly approve.</code></pre>
-  <p class="dim" style="font-size: 0.65em; margin-top: 8px;">AI doesn't just autocomplete — it researches, architects, and proposes plans with trade-offs.</p>
-</section>
 
 <!-- ============================================================ -->
 <!-- CODE PHASE -->
@@ -269,97 +261,57 @@ notes and update the plan accordingly.
 <section>
   <h3 class="section-title">Phase 2</h3>
   <h2>⌨️ Code</h2>
-  <p>AI-assisted implementation with full project context</p>
+  <p>Implementation</p>
+  <p class="dim" style="font-size: 0.6em; margin-top: 24px; letter-spacing: 2px;">↓ DEMO</p>
 </section>
 
 <section>
-  <h2>Four Layers of Copilot Customization</h2>
+  <h2>GitHub Features Used</h2>
   <div style="font-size: 0.8em;">
     <table style="width: 100%;">
       <thead>
-        <tr><th>Layer</th><th>Location</th><th>Purpose</th></tr>
+        <tr><th>Feature</th><th>Where</th><th>Purpose</th></tr>
       </thead>
       <tbody>
         <tr>
           <td class="blue">AGENTS.md</td>
           <td><code>AGENTS.md</code></td>
-          <td>Project context Copilot reads on every interaction</td>
+          <td>Project context loaded on every Copilot interaction</td>
         </tr>
         <tr>
-          <td class="blue">Skills</td>
+          <td class="blue">Copilot Skills</td>
           <td><code>.github/skills/</code></td>
           <td>Multi-step procedures triggered by natural language</td>
         </tr>
         <tr>
-          <td class="blue">Prompt Files</td>
+          <td class="blue">Copilot Prompt Files</td>
           <td><code>.github/prompts/</code></td>
-          <td>Structured workflows: research, plan, implement</td>
+          <td>Reusable instruction sets: research, plan, implement</td>
         </tr>
         <tr>
-          <td class="blue">Agents</td>
+          <td class="blue">Copilot Agents</td>
           <td><code>.github/agents/</code></td>
-          <td>Autonomous task runners with tool restrictions</td>
+          <td>Autonomous task runners with defined tool access</td>
+        </tr>
+        <tr>
+          <td class="blue">Actions</td>
+          <td><code>.github/workflows/</code></td>
+          <td>CI, CD, security scans, and scheduled workflows</td>
+        </tr>
+        <tr>
+          <td class="blue">GHAS + Dependabot</td>
+          <td>Repo settings</td>
+          <td>CodeQL, secret scanning, dependency review</td>
         </tr>
       </tbody>
     </table>
   </div>
-  <p class="dim" style="font-size: 0.6em; margin-top: 16px;">All markdown. All version controlled. All shared with the team.</p>
+  <p class="dim" style="font-size: 0.6em; margin-top: 16px;">All markdown. All version controlled.</p>
 </section>
 
-<section class="small-code">
-  <h2>implement.prompt.md</h2>
-  <p class="file-path">.github/prompts/implement.prompt.md</p>
-  <pre><code class="language-markdown">---
-name: implement
-description: Execute the approved plan fully — track progress,
-             validate continuously, don't stop until done.
----
-Implement it all. Follow the approved plan exactly — do not
-cherry-pick tasks or skip steps.
 
-Rules:
-- **New branch**: Create a branch for this implementation
-- **Track progress**: Mark tasks completed in the plan doc
-- **Don't stop**: Do not pause for confirmation mid-flow
-- **Validate continuously**: Run ruff check, ruff format
-  --check, and ty check regularly as you go
-- **Keep code clean**: Follow existing code style
-- **Strict typing**: No `Any` unless absolutely necessary
-- **Tests must be real**: No bandaid tests
 
-By the time we're here, every decision has already been made
-in the plan. Implementation should be mechanical, not creative.
-Execute the plan.</code></pre>
-</section>
 
-<section>
-  <h2>Dev Containers: Onboard in 2 Minutes</h2>
-  <p class="file-path">.devcontainer/devcontainer.json</p>
-  <pre><code class="language-json">{
-  "name": "Learn to Cloud",
-  "dockerComposeFile": "docker-compose.yml",
-  "service": "app",
-  "workspaceFolder": "/workspaces/learn-to-cloud-app",
-  "features": {
-    "ghcr.io/devcontainers/features/python:1": { "version": "3.13" },
-    "ghcr.io/devcontainers/features/node:1": { "version": "20" },
-    "ghcr.io/devcontainers/features/azure-cli:1": {},
-    "ghcr.io/devcontainers/features/github-cli:1": {},
-    "ghcr.io/va-h/devcontainers-features/uv:1": {}
-  },
-  "customizations": {
-    "vscode": {
-      "extensions": [
-        "ms-python.python", "charliermarsh.ruff",
-        "ms-azuretools.vscode-docker", "GitHub.copilot"
-      ]
-    }
-  },
-  "postCreateCommand": "bash .devcontainer/post-create.sh",
-  "forwardPorts": [3000, 54320, 8000]
-}</code></pre>
-  <p class="dim" style="font-size: 0.65em; margin-top: 8px;">Click "Open in Codespaces" → Python, Node, PostgreSQL, Copilot — all pre-configured. Coding in 2 minutes.</p>
-</section>
 
 <!-- ============================================================ -->
 <!-- BUILD PHASE -->
@@ -367,7 +319,8 @@ Execute the plan.</code></pre>
 <section>
   <h3 class="section-title">Phase 3</h3>
   <h2>🔨 Build</h2>
-  <p>Continuous integration — every push is validated automatically</p>
+  <p>Continuous integration: every push is validated automatically</p>
+  <p class="dim" style="font-size: 0.6em; margin-top: 24px; letter-spacing: 2px;">↓ DEMO</p>
 </section>
 
 <section>
@@ -393,7 +346,7 @@ Execute the plan.</code></pre>
     </div>
     <div class="feature-card">
       <h4>Concurrency Control</h4>
-      <p>New push cancels in-progress deploys — no wasted builds</p>
+      <p>New push cancels in-progress deploys, no wasted builds</p>
     </div>
   </div>
 </section>
@@ -429,7 +382,7 @@ Execute the plan.</code></pre>
         with: { src: "./api", args: "format --check" }
       - run: uv run ty check --python .venv/bin/python
       - run: uv run pytest tests/ -v --tb=short --cov=. --cov-report=xml</code></pre>
-  <p class="dim" style="font-size: 0.65em; margin-top: 8px;">AI writes the code, CI verifies it. Every push triggers lint, format, type-check, and tests against a real PostgreSQL instance.</p>
+  <p class="dim" style="font-size: 0.65em; margin-top: 8px;">Every push triggers lint, format, type-check, and tests against a real PostgreSQL instance.</p>
 </section>
 
 <!-- ============================================================ -->
@@ -438,22 +391,14 @@ Execute the plan.</code></pre>
 <section>
   <h3 class="section-title">Phase 4</h3>
   <h2>🧪 Test</h2>
-  <p>AI-powered quality assurance — beyond traditional test suites</p>
+  <p>Quality checks</p>
+  <p class="dim" style="font-size: 0.6em; margin-top: 24px; letter-spacing: 2px;">↓ DEMO</p>
 </section>
 
-<section>
+<section class="small-code">
   <h2>Skill: "validate changes"</h2>
   <p class="file-path">.github/skills/validate/SKILL.md</p>
-  <pre><code class="language-yaml">---
-name: validate
-description: >
-  Run ruff lint, ruff format, ty type-check, start the API,
-  smoke test endpoints, then kill the API.
-  Use after editing Python files to catch errors before commit.
----</code></pre>
   <pre><code class="language-markdown"># Validate Python Changes
-
-All steps are mandatory. Do not skip API startup and smoke tests.
 
 ## Step 0: Kill any existing API processes
 ## Step 1: Run Ruff Lint
@@ -463,11 +408,8 @@ All steps are mandatory. Do not skip API startup and smoke tests.
 ## Step 5: Smoke Test Endpoints
   curl -s http://localhost:8000/health
   curl -s http://localhost:8000/ready
-  curl -s http://localhost:8000/openapi.json | head -c 200
 ## Step 6: Kill the API</code></pre>
-  <div class="highlight-box" style="margin-top: 12px;">
-    <p class="dim" style="font-size: 0.7em;">Static analysis catches lint errors. But only starting the API catches import errors, circular imports, and route registration bugs.</p>
-  </div>
+  <p class="dim" style="font-size: 0.65em; margin-top: 12px;">Static analysis catches lint errors. Starting the API catches import errors, circular imports, and route registration bugs.</p>
 </section>
 
 <section>
@@ -506,7 +448,7 @@ Home, Curriculum, FAQ, Privacy,
 Terms, Dashboard, Status</code></pre>
     </div>
   </div>
-  <p class="dim" style="font-size: 0.65em; margin-top: 8px;">Type <code>@dog-food</code> in Copilot Chat → it starts your app, opens a browser, and tests every page. No test scripts to maintain.</p>
+  <p class="dim" style="font-size: 0.65em; margin-top: 8px;">Type <code>@dog-food</code> in Copilot Chat: it starts the app, opens a browser, and navigates every page.</p>
 </section>
 
 <!-- ============================================================ -->
@@ -515,7 +457,8 @@ Terms, Dashboard, Status</code></pre>
 <section>
   <h3 class="section-title">Phase 5</h3>
   <h2>🚀 Deploy</h2>
-  <p>From code to production in one phrase</p>
+  <p>Deploying</p>
+  <p class="dim" style="font-size: 0.6em; margin-top: 24px; letter-spacing: 2px;">↓ DEMO</p>
 </section>
 
 <section>
@@ -529,7 +472,7 @@ description: >
   Use when user says "ship it", "commit and deploy",
   "push and deploy", or "land this".
 ---</code></pre>
-  <pre><code class="language-markdown"># Ship It — Prek, Commit, Push & Monitor Deploy
+  <pre><code class="language-markdown"># Ship It: Prek, Commit, Push &amp; Monitor Deploy
 
 End-to-end workflow: run prek checks, fix failures, commit,
 push, and monitor the GitHub Actions deploy pipeline through
@@ -543,7 +486,7 @@ Reply with "LFG 🚀 I'll ship it"
 ## Step 3: Stage All Changes + Commit
 ## Step 4: Push + Monitor Deploy Workflow
 ## Step 5: Verify Production Health</code></pre>
-  <p class="dim" style="font-size: 0.65em; margin-top: 8px;">Say "ship it" → Copilot runs lint, commits, pushes, monitors the deploy, and verifies prod is healthy. Zero manual steps.</p>
+  <p class="dim" style="font-size: 0.65em; margin-top: 8px;">Say "ship it": Copilot runs lint, commits, pushes, monitors the deploy, and checks prod health.</p>
 </section>
 
 <!-- ============================================================ -->
@@ -552,32 +495,52 @@ Reply with "LFG 🚀 I'll ship it"
 <section>
   <h3 class="section-title">Phase 6</h3>
   <h2>🔒 Secure</h2>
-  <p>Shift left, automate everything — security woven into every phase</p>
+  <p>Automated security checks</p>
+  <p class="dim" style="font-size: 0.6em; margin-top: 24px; letter-spacing: 2px;">↓ DEMO</p>
 </section>
 
 <section>
-  <h2>GitHub Advanced Security</h2>
+  <h2>GHAS: Code Security</h2>
   <div class="feature-grid">
     <div class="feature-card">
       <h4>🔍 CodeQL</h4>
-      <p>Static analysis on every push + PR + weekly. Scans Python and JavaScript for OWASP Top 10 patterns.</p>
+      <p>Semantic static analysis on every push, PR, and weekly schedule. Covers OWASP Top 10.</p>
     </div>
     <div class="feature-card">
+      <h4>🔐 Secret Scanning</h4>
+      <p>Detects leaked credentials and API keys. 200+ token patterns from major providers.</p>
+    </div>
+    <div class="feature-card">
+      <h4>🤖 Copilot Autofix</h4>
+      <p>CodeQL findings include AI-generated fix suggestions. One-click patch.</p>
+    </div>
+    <div class="feature-card">
+      <h4>🛡️ Security Advisories</h4>
+      <p>Private coordinated disclosure. Report, triage, and patch without public exposure.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>GHAS: Supply Chain</h2>
+  <div class="feature-grid">
+    <div class="feature-card">
       <h4>📦 Dependency Review</h4>
-      <p>Blocks PRs introducing dependencies with moderate+ vulnerabilities. 7 lines of YAML.</p>
+      <p>Blocks PRs introducing packages with known CVEs. Enforced in CI.</p>
     </div>
     <div class="feature-card">
       <h4>🤖 Dependabot</h4>
-      <p>Weekly automated PRs across 4 ecosystems: Python (uv), npm, GitHub Actions, Terraform.</p>
+      <p>Automated update PRs across Python, npm, GitHub Actions, and Terraform. No manual tracking.</p>
     </div>
     <div class="feature-card">
-      <h4>🔐 SECURITY.md</h4>
-      <p>Private vulnerability disclosure via GitHub Security Advisories. Professional signal.</p>
+      <h4>📋 SBOM</h4>
+      <p>Auto-generated Software Bill of Materials. Exportable for compliance and audit.</p>
+    </div>
+    <div class="feature-card">
+      <h4>📊 Security Overview</h4>
+      <p>Org-level dashboard. Open alerts, unresolved CVEs, compliance posture across all repos.</p>
     </div>
   </div>
-  <p class="dim" style="font-size: 0.6em; margin-top: 20px; text-align: center;">
-    4 security layers. Zero custom code. 3 YAML files + 1 markdown doc.
-  </p>
 </section>
 
 <!-- ============================================================ -->
@@ -586,44 +549,28 @@ Reply with "LFG 🚀 I'll ship it"
 <section>
   <h3 class="section-title">Phase 7</h3>
   <h2>⚙️ Operate</h2>
-  <p>AI-assisted operations — production management in natural language</p>
+  <p>Operations</p>
+  <p class="dim" style="font-size: 0.6em; margin-top: 24px; letter-spacing: 2px;">↓ DEMO</p>
 </section>
 
-<section>
+<section class="small-code">
   <h2>Skill: "check prod"</h2>
   <p class="file-path">.github/skills/check-prod/SKILL.md</p>
-  <pre><code class="language-yaml">---
-name: check-prod
-description: >
-  Check Azure production health — app status, errors, latency,
-  database, dependencies. Use when user says "check prod",
-  "how's prod", "is prod up", "health check", "any errors?"
----</code></pre>
   <pre><code class="language-markdown"># Production Health Check
 
 10 checks. One verdict. All read-only. Uses Azure CLI.
 
-## Overall Verdict Logic (first match wins)
-
-🔴 Critical - Readiness probe non-200, any 5xx errors,
-              DB CPU > 80%, fired Sev0/Sev1 alerts
-
-⚠️  Warning  - P95 latency > 500ms, DB CPU 50-80%,
-              failed availability tests
-
-✅ Healthy  - none of the above
+## Verdict Logic
+🔴 Critical - Non-200 readiness, 5xx errors, DB CPU > 80%
+⚠️  Warning  - P95 > 500ms, DB CPU 50-80%, failed availability
+✅ Healthy  - None of the above
 
 ## The 10 Checks
-1. Container App status + readiness probe
-2. Availability tests (24h)
-3. Request latency P95 (24h)
-4. Error rates: 4xx and 5xx (24h)
-5. Unhandled exceptions (7d)
-6. Database CPU, memory, storage
-7. Active DB connections
-8. Fired alerts (24h)
-9. Container restarts on current revision
-10. Dependency health (external calls)</code></pre>
+ 1. Container App status       6. DB CPU, memory, storage
+ 2. Availability tests (24h)   7. Active DB connections
+ 3. Request latency P95        8. Fired alerts (24h)
+ 4. Error rates 4xx/5xx        9. Container restarts
+ 5. Unhandled exceptions      10. Dependency health</code></pre>
 </section>
 
 <section>
@@ -642,9 +589,7 @@ description: >
       </tbody>
     </table>
   </div>
-  <p class="dim" style="font-size: 0.6em; margin-top: 16px; text-align: center;">
-    Plain English triggers complex workflows. New team members are productive immediately.
-  </p>
+
 </section>
 
 <!-- ============================================================ -->
@@ -653,7 +598,8 @@ description: >
 <section>
   <h3 class="section-title">Phase 8</h3>
   <h2>📡 Monitor</h2>
-  <p>Automated oversight — maintenance that runs itself</p>
+  <p>Scheduled maintenance</p>
+  <p class="dim" style="font-size: 0.6em; margin-top: 24px; letter-spacing: 2px;">↓ DEMO</p>
 </section>
 
 <section>
@@ -690,40 +636,40 @@ description: >
       </tbody>
     </table>
   </div>
-  <p class="dim" style="font-size: 0.6em; margin-top: 16px; text-align: center;">Monitoring and maintenance, written in markdown. The repo watches itself.</p>
+  <p class="dim" style="font-size: 0.6em; margin-top: 16px; text-align: center;">Scheduled workflows, written in markdown.</p>
 </section>
 
 <!-- ============================================================ -->
 <!-- RECAP -->
 <!-- ============================================================ -->
 <section>
-  <h3 class="section-title">Recap</h3>
-  <h2>The .github/ Directory</h2>
+  <h3 class="section-title">The Stack</h3>
+  <h2>Your AI Operations Team</h2>
   <pre><code class="language-text">.github/
 ├── agents/
-│   └── dog-food.agent.md            # 🧪 Test — QA automation
-├── dependabot.yml                   # 🔒 Secure — auto-update 4 ecosystems
+│   └── dog-food.agent.md            # 🧪 Test: QA automation
+├── dependabot.yml                   # 🔒 Secure: auto-update 4 ecosystems
 ├── prompts/
-│   ├── research.prompt.md           # 📋 Plan — deep research
-│   ├── plan.prompt.md               # 📋 Plan — implementation planning
-│   └── implement.prompt.md          # ⌨️ Code — structured execution
+│   ├── research.prompt.md           # 📋 Plan: deep research
+│   ├── plan.prompt.md               # 📋 Plan: implementation planning
+│   └── implement.prompt.md          # ⌨️ Code: structured execution
 ├── skills/
-│   ├── validate/SKILL.md            # 🧪 Test — lint + smoke test
-│   ├── ship-it/SKILL.md             # 🚀 Deploy — full deploy cycle
-│   ├── check-prod/SKILL.md          # ⚙️ Operate — health check
-│   ├── debug-deploy/SKILL.md        # ⚙️ Operate — diagnose failures
-│   └── query-prod-db/SKILL.md       # ⚙️ Operate — production queries
+│   ├── validate/SKILL.md            # 🧪 Test: lint + smoke test
+│   ├── ship-it/SKILL.md             # 🚀 Deploy: full deploy cycle
+│   ├── check-prod/SKILL.md          # ⚙️ Operate: health check
+│   ├── debug-deploy/SKILL.md        # ⚙️ Operate: diagnose failures
+│   └── query-prod-db/SKILL.md       # ⚙️ Operate: production queries
 └── workflows/
-    ├── deploy.yml                   # 🔨 Build + 🚀 Deploy — CI/CD
-    ├── codeql.yml                   # 🔒 Secure — static analysis
-    ├── content-link-auditor.md      # 📡 Monitor — broken link scan
-    ├── cross-repo-issues-overview.md # 📡 Monitor — issue dashboard
-    ├── discussion-answer-thanks.md  # 📡 Monitor — community recognition
-    └── update-deck.md               # 📡 Monitor — keep deck current</code></pre>
+    ├── deploy.yml                   # 🔨 Build + 🚀 Deploy: CI/CD
+    ├── codeql.yml                   # 🔒 Secure: static analysis
+    ├── content-link-auditor.md      # 📡 Monitor: broken link scan
+    ├── cross-repo-issues-overview.md # 📡 Monitor: issue dashboard
+    ├── discussion-answer-thanks.md  # 📡 Monitor: community recognition
+    └── update-deck.md               # 📡 Monitor: keep deck current</code></pre>
 </section>
 
 <section class="center-slide">
-  <h2>AI in Every Phase</h2>
+  <h2>By the Numbers</h2>
   <div class="feature-grid" style="text-align: center; margin-top: 24px;">
     <div class="feature-card" style="text-align: center;">
       <p class="big-number">8</p>
@@ -743,8 +689,7 @@ description: >
     </div>
   </div>
   <p style="margin-top: 32px; font-size: 0.9em;">
-    AI in the editor is table stakes.<br>
-    AI across the <span class="accent">entire SDLC</span> is how a small team ships like a large one.
+    Copilot in the editor is a start. This is the rest of it.
   </p>
 </section>
 

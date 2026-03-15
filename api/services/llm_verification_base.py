@@ -18,14 +18,19 @@ Phase-specific concerns stay in their respective modules:
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import re
+from collections.abc import Callable
 from typing import Any, TypeVar
 from urllib.parse import urlparse
 
 import httpx
+from agent_framework import Agent, ChatOptions, WorkflowBuilder
+from pydantic import BaseModel
 
-from core.llm_client import LLMClientError
+from core.config import get_settings
+from core.llm_client import LLMClientError, get_llm_chat_client
 from schemas import TaskResult, ValidationResult
 
 logger = logging.getLogger(__name__)
@@ -180,8 +185,6 @@ def sanitize_feedback(feedback: str | None) -> str:
 # Generic structured-response parsing
 # ---------------------------------------------------------------------------
 
-from pydantic import BaseModel  # noqa: E402 (grouped for readability)
-
 ResponseT = TypeVar("ResponseT", bound=BaseModel)
 
 
@@ -287,3 +290,192 @@ def build_task_results(
             )
 
     return results, all_passed
+
+
+# ---------------------------------------------------------------------------
+# Deterministic guardrails (anti-jailbreak defense)
+# ---------------------------------------------------------------------------
+
+
+def enforce_deterministic_guardrails(
+    grades: list[Any],
+    task_definitions: list[Any],
+    get_file_content: Callable[[Any], str],
+    suspicious_patterns: tuple[str, ...],
+    grade_factory: Callable[..., Any],
+    service_name: str = "verification",
+) -> list[Any]:
+    """Override LLM grades when deterministic evidence contradicts them.
+
+    This is the primary anti-jailbreak defense.  Even if a learner tricks
+    the LLM into returning ``passed=True``, this function flips it back
+    to ``passed=False`` when the raw file content still contains
+    fail_indicators (starter stubs).
+
+    Args:
+        grades: Grade objects with ``task_id``, ``passed``, ``feedback``.
+        task_definitions: Dicts with ``"id"``, ``"fail_indicators"`` keys.
+        get_file_content: Callable that receives a task definition dict
+            and returns the concatenated raw file content for that task.
+        suspicious_patterns: Tuple of prompt-injection patterns to detect.
+        grade_factory: Callable ``(task_id, passed, feedback)`` that creates
+            a new grade object (same type as items in *grades*).
+        service_name: For log messages.
+
+    Returns:
+        List of corrected grade objects (same type as input).
+    """
+    task_lookup: dict[str, Any] = {t["id"]: t for t in task_definitions}
+    corrected: list[Any] = []
+
+    for grade in grades:
+        task_def = task_lookup.get(grade.task_id)
+        if task_def is None:
+            corrected.append(grade)
+            continue
+
+        raw_contents = get_file_content(task_def)
+        raw_lower = raw_contents.lower()
+
+        override_reason: str | None = None
+
+        # ── Check 1: fail_indicators still present → force fail ──
+        if grade.passed:
+            for indicator in task_def.get("fail_indicators", []):
+                if indicator.lower() in raw_lower:
+                    override_reason = (
+                        f"Starter stub still present: '{indicator}'. "
+                        "Remove the placeholder code and implement the task."
+                    )
+                    break
+
+        # ── Check 2: file missing → force fail ──
+        if grade.passed and not override_reason:
+            if "<file_not_found" in raw_contents or "<no_files_found" in raw_contents:
+                override_reason = (
+                    "Required file was not found in the repository. "
+                    "Ensure the file exists at the expected path."
+                )
+
+        # ── Check 3: prompt injection detected → force fail ──
+        if grade.passed and not override_reason:
+            for pattern in suspicious_patterns:
+                if pattern in raw_lower:
+                    override_reason = (
+                        "Submission contains suspicious content. "
+                        "Please submit genuine code implementations."
+                    )
+                    logger.warning(
+                        f"{service_name}.guardrail_injection_override",
+                        extra={
+                            "task_id": grade.task_id,
+                            "pattern": pattern,
+                        },
+                    )
+                    break
+
+        if override_reason:
+            logger.info(
+                f"{service_name}.guardrail_override",
+                extra={
+                    "task_id": grade.task_id,
+                    "llm_said_passed": grade.passed,
+                    "reason": override_reason,
+                },
+            )
+            corrected.append(
+                grade_factory(
+                    task_id=grade.task_id,
+                    passed=False,
+                    feedback=override_reason,
+                )
+            )
+        else:
+            corrected.append(grade)
+
+    return corrected
+
+
+# ---------------------------------------------------------------------------
+# Shared LLM grading workflow
+# ---------------------------------------------------------------------------
+
+
+async def run_llm_grading_workflow(
+    *,
+    name: str,
+    prompt: str,
+    response_format: type[BaseModel],
+    result_executor: Any,
+    run_message: str,
+    error_class: type[VerificationError],
+    tool_choice: str | None = None,
+) -> ValidationResult:
+    """Run an Agent Framework workflow for LLM-based grading.
+
+    Encapsulates the common pattern shared by Phase 3 and Phase 5:
+      1. Create an ``Agent`` with structured output
+      2. Wire ``Agent`` → *result_executor* via ``WorkflowBuilder``
+      3. Run with timeout from settings
+      4. Extract and return the first output
+
+    Args:
+        name: Workflow name (for logging / DevUI).
+        prompt: System instructions for the LLM agent.
+        response_format: Pydantic model for structured output.
+        result_executor: The ``Executor`` instance that post-processes
+            the agent response.
+        run_message: User message sent to the agent.
+        error_class: ``VerificationError`` subclass for failure cases.
+        tool_choice: Optional tool_choice override (e.g. ``"none"``).
+
+    Returns:
+        The ``ValidationResult`` yielded by the result executor.
+
+    Raises:
+        VerificationError (subclass): On timeout or empty output.
+    """
+    chat_client = get_llm_chat_client()
+
+    chat_options_kwargs: dict[str, Any] = {"response_format": response_format}
+    if tool_choice is not None:
+        chat_options_kwargs["tool_choice"] = tool_choice
+
+    agent = Agent(
+        client=chat_client,
+        instructions=prompt,
+        name=f"{name}-grader",
+        default_options=ChatOptions(**chat_options_kwargs),
+    )
+
+    workflow = (
+        WorkflowBuilder(
+            name=name,
+            start_executor=agent,
+            output_executors=[result_executor],
+        )
+        .add_edge(agent, result_executor)
+        .build()
+    )
+
+    timeout_seconds = get_settings().llm_cli_timeout
+    try:
+        async with asyncio.timeout(timeout_seconds):
+            run_result = await workflow.run(run_message)
+
+            outputs = run_result.get_outputs()
+            if not outputs:
+                raise error_class(
+                    f"No response from {name} workflow",
+                    retriable=True,
+                )
+            return outputs[0]
+    except TimeoutError:
+        logger.error(
+            f"{name}.timeout",
+            extra={"timeout": timeout_seconds},
+        )
+        raise error_class(
+            f"{name} timed out after {timeout_seconds}s",
+            retriable=True,
+        ) from None

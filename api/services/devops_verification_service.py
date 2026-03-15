@@ -8,12 +8,8 @@ Approach:
   2. Fetch repo file tree via GitHub API
   3. Fetch relevant DevOps files in parallel
   4. Send all content to the LLM for structured analysis
-  5. Parse response into per-task pass/fail results
-
-Unlike Phase 3 (code_verification_service.py), this module does NOT give
-the LLM a file-fetching tool. Instead, files are pre-fetched and passed
-directly in the prompt — this is faster, simpler, and more secure for
-DevOps artifacts that may live at variable paths.
+  5. Apply deterministic guardrails to prevent jailbreaks
+  6. Parse response into per-task pass/fail results
 
 For LLM client infrastructure, see core/llm_client.py
 """
@@ -22,272 +18,48 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Literal, TypedDict
+from typing import Any, Never
 
 import httpx
-from circuitbreaker import CircuitBreakerError, circuit
-from pydantic import BaseModel, Field
-from tenacity import (
-    retry,
-    retry_if_exception_type,
-    stop_after_attempt,
-    wait_exponential_jitter,
+from agent_framework import (
+    AgentExecutorResponse,
+    Executor,
+    WorkflowContext,
+    handler,
 )
+from circuitbreaker import CircuitBreakerError
 
 from core.config import get_settings
-from core.llm_client import LLMClientError, get_llm_chat_client
+from core.llm_client import LLMClientError
 from schemas import ValidationResult
 from services.llm_verification_base import (
-    RETRIABLE_EXCEPTIONS,
     SUSPICIOUS_PATTERNS,
     VerificationError,
     build_task_results,
+    enforce_deterministic_guardrails,
     extract_repo_info,
     parse_structured_response,
+    run_llm_grading_workflow,
+)
+from services.tasks.phase5_tasks import (
+    MAX_FILE_SIZE_BYTES,
+    MAX_FILES_PER_CATEGORY,
+    MAX_TOTAL_CONTENT_BYTES,
+    PHASE5_TASKS,
+    DevOpsAnalysisLLMResponse,
+    DevOpsTaskGrade,
 )
 
 logger = logging.getLogger(__name__)
 
-# Directories / path prefixes where DevOps artifacts are expected
-DEVOPS_PATH_PATTERNS: dict[str, list[str]] = {
-    "dockerfile": ["Dockerfile", "dockerfile", ".dockerignore"],
-    "cicd": [".github/workflows/"],
-    "terraform": ["infra/"],
-    "kubernetes": ["k8s/"],
-}
-
-# Maximum number of files to fetch per category (prevent abuse)
-MAX_FILES_PER_CATEGORY: int = 10
-
-# Maximum file size to prevent token exhaustion (50 KB)
-MAX_FILE_SIZE_BYTES: int = 50 * 1024
-
-# Maximum total content size sent to the LLM (200 KB)
-MAX_TOTAL_CONTENT_BYTES: int = 200 * 1024
-
-
-class TaskDefinition(TypedDict):
-    """Type definition for a verification task."""
-
-    id: str
-    name: str
-    path_patterns: list[str]
-    criteria: list[str]
-    pass_indicators: list[str]
-    fail_indicators: list[str]
-
-
-# =============================================================================
-# Phase 5 Task Definitions
-# =============================================================================
-
-PHASE5_TASKS: list[TaskDefinition] = [
-    {
-        "id": "dockerfile",
-        "name": "Containerization (Dockerfile)",
-        "path_patterns": ["Dockerfile", "dockerfile", ".dockerignore"],
-        "criteria": [
-            "MUST have a Dockerfile at the repository root",
-            (
-                "MUST have a FROM instruction specifying"
-                " a Python base image (e.g., python:3.12-slim)"
-            ),
-            "MUST install uv (not pip) and use 'uv sync'",
-            (
-                "MUST have a CMD or ENTRYPOINT that runs"
-                " uvicorn to start the application"
-            ),
-            "MUST set PYTHONPATH so imports resolve correctly",
-            "MUST expose port 8000",
-            "MUST copy application code into the image (COPY or ADD)",
-            (
-                "SHOULD have a .dockerignore to exclude"
-                " non-production files (.git/, tests/)"
-            ),
-        ],
-        "pass_indicators": [
-            "FROM ",
-            "CMD ",
-            "ENTRYPOINT ",
-            "COPY ",
-            "EXPOSE ",
-            "uv sync",
-            "uv ",
-            "PYTHONPATH",
-            "uvicorn",
-        ],
-        "fail_indicators": [
-            "# TODO",
-            "placeholder",
-            "pip install",
-        ],
-    },
-    {
-        "id": "cicd-pipeline",
-        "name": "CI/CD Pipeline (GitHub Actions)",
-        "path_patterns": [".github/workflows/"],
-        "criteria": [
-            "MUST have at least one workflow YAML in .github/workflows/",
-            "MUST trigger on push to main (or pull_request)",
-            ("MUST have at least 3 jobs: test," " build-and-push, and deploy"),
-            ("MUST have a test job that runs" " linting and/or tests (e.g., pytest)"),
-            (
-                "MUST have a build-and-push job that builds"
-                " a Docker image and pushes to a registry"
-            ),
-            (
-                "MUST have a deploy job that connects to"
-                " a K8s cluster and applies manifests"
-            ),
-            "SHOULD tag images with commit SHA and/or 'latest'",
-            (
-                "SHOULD use sed or envsubst to substitute"
-                " an image placeholder in K8s manifests"
-            ),
-        ],
-        "pass_indicators": [
-            "on:",
-            "jobs:",
-            "steps:",
-            "runs-on:",
-            "uses:",
-            "docker",
-            "kubectl",
-            "pytest",
-            "deploy",
-        ],
-        "fail_indicators": [
-            "# TODO",
-            "placeholder",
-        ],
-    },
-    {
-        "id": "terraform-iac",
-        "name": "Infrastructure as Code (Terraform)",
-        "path_patterns": ["infra/"],
-        "criteria": [
-            "MUST have .tf files in the infra/ directory",
-            "MUST have a provider block (e.g., azurerm, aws)",
-            ("MUST define a container registry resource" " (e.g., ACR, ECR, GCR)"),
-            (
-                "MUST define a managed Kubernetes cluster"
-                " resource (e.g., AKS, EKS, GKE)"
-            ),
-            (
-                "MUST define a managed PostgreSQL database"
-                " resource (e.g., Azure Flexible Server, RDS)"
-            ),
-            (
-                "SHOULD define IAM or role bindings so the"
-                " K8s cluster can pull from the registry"
-            ),
-            "SHOULD have a variables.tf with input variables",
-            (
-                "SHOULD have an outputs.tf exporting"
-                " registry URL, DB connection, or kubeconfig"
-            ),
-            (
-                "SHOULD have a providers.tf with provider"
-                " and Terraform version config"
-            ),
-        ],
-        "pass_indicators": [
-            "provider ",
-            "resource ",
-            "terraform {",
-            "variable ",
-            "output ",
-            "kubernetes",
-            "container_registry",
-            "postgresql",
-        ],
-        "fail_indicators": [
-            "# TODO",
-            "placeholder",
-        ],
-    },
-    {
-        "id": "kubernetes-manifests",
-        "name": "Container Orchestration (Kubernetes)",
-        "path_patterns": ["k8s/"],
-        "criteria": [
-            "MUST have YAML files in the k8s/ directory",
-            (
-                "MUST have a Deployment manifest"
-                " (kind: Deployment) in deployment.yaml"
-            ),
-            (
-                "MUST use IMAGE_PLACEHOLDER as the image"
-                " reference (CI/CD substitutes the real tag)"
-            ),
-            (
-                "MUST reference env vars from a K8s Secret"
-                " via envFrom (e.g., journal-api-secrets)"
-            ),
-            (
-                "MUST configure health probes (liveness"
-                " and/or readiness) on /health port 8000"
-            ),
-            ("MUST have a Service manifest in" " service.yaml routing port 80 to 8000"),
-            (
-                "SHOULD have a secrets.yaml.example"
-                " showing required keys (no real values)"
-            ),
-            "SHOULD use LoadBalancer or NodePort type",
-            "SHOULD define resource limits or requests",
-        ],
-        "pass_indicators": [
-            "kind: Deployment",
-            "kind: Service",
-            "containers:",
-            "image:",
-            "IMAGE_PLACEHOLDER",
-            "envFrom",
-            "secretRef",
-            "livenessProbe",
-            "readinessProbe",
-            "/health",
-            "containerPort",
-        ],
-        "fail_indicators": [
-            "# TODO",
-        ],
-    },
-]
-
-
-# Valid task IDs as a Literal type for structured output validation
-_VALID_TASK_IDS = Literal[
-    "dockerfile",
-    "cicd-pipeline",
-    "terraform-iac",
-    "kubernetes-manifests",
-]
-
-
-class DevOpsTaskGrade(BaseModel):
-    """Structured output model for a single DevOps task grade."""
-
-    task_id: _VALID_TASK_IDS = Field(description="The task identifier")
-    passed: bool = Field(description="Whether the task implementation is complete")
-    feedback: str = Field(
-        description="1-3 sentences of specific, educational feedback",
-        max_length=500,
-    )
-
-
-class DevOpsAnalysisLLMResponse(BaseModel):
-    """Structured output model for the full DevOps analysis LLM response."""
-
-    tasks: list[DevOpsTaskGrade] = Field(
-        description="Grading results for all 4 tasks",
-        min_length=4,
-        max_length=4,
-    )
-
 
 class DevOpsAnalysisError(VerificationError):
     """Raised when DevOps analysis fails."""
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Repository tree and file fetching
+# ─────────────────────────────────────────────────────────────────────────────
 
 
 async def fetch_repo_tree(owner: str, repo: str, branch: str = "main") -> list[str]:
@@ -366,12 +138,10 @@ async def _fetch_file_content(
 
     content = response.text
 
-    # Enforce size limit
     if len(content.encode("utf-8")) > MAX_FILE_SIZE_BYTES:
         content = content[: MAX_FILE_SIZE_BYTES // 2]
         content += "\n\n[FILE TRUNCATED - exceeded size limit]"
 
-    # Log suspicious patterns (don't block)
     content_lower = content.lower()
     for pattern in SUSPICIOUS_PATTERNS:
         if pattern in content_lower:
@@ -403,7 +173,6 @@ async def _fetch_all_devops_files(
     if not fetch_tasks:
         return {task["id"]: [] for task in PHASE5_TASKS}
 
-    # Fetch all files in parallel
     async def _fetch_one(task_id: str, path: str) -> tuple[str, str | None]:
         try:
             content = await _fetch_file_content(owner, repo, path, branch)
@@ -433,6 +202,11 @@ async def _fetch_all_devops_files(
         grouped[task_id].append(content)
 
     return grouped
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Prompt construction
+# ─────────────────────────────────────────────────────────────────────────────
 
 
 def _build_verification_prompt(
@@ -497,97 +271,163 @@ For each task:
 """
 
 
-@circuit(
-    failure_threshold=3,
-    recovery_timeout=120,
-    expected_exception=RETRIABLE_EXCEPTIONS,
-    name="devops_analysis_circuit",
-)
-@retry(
-    stop=stop_after_attempt(2),
-    wait=wait_exponential_jitter(initial=1, max=30),
-    retry=retry_if_exception_type(RETRIABLE_EXCEPTIONS),
-    reraise=True,
-)
+# ─────────────────────────────────────────────────────────────────────────────
+# Guardrails helper
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def _get_phase5_file_content(
+    task_def: dict[str, Any], file_contents: dict[str, list[str]]
+) -> str:
+    """Concatenate raw file contents for a Phase 5 task definition."""
+    task_files = file_contents.get(task_def["id"], [])
+    return "".join(task_files) if task_files else "<no_files_found />"
+
+
+def _enforce_deterministic_guardrails(
+    analysis: DevOpsAnalysisLLMResponse,
+    file_contents: dict[str, list[str]],
+) -> DevOpsAnalysisLLMResponse:
+    """Override LLM grades when deterministic evidence contradicts them.
+
+    Delegates to the shared ``enforce_deterministic_guardrails`` and
+    reconstructs a ``DevOpsAnalysisLLMResponse`` from the corrected grades.
+    """
+    corrected = enforce_deterministic_guardrails(
+        grades=analysis.tasks,
+        task_definitions=PHASE5_TASKS,
+        get_file_content=lambda td: _get_phase5_file_content(td, file_contents),
+        suspicious_patterns=SUSPICIOUS_PATTERNS,
+        grade_factory=DevOpsTaskGrade,
+        service_name="devops_analysis",
+    )
+    return DevOpsAnalysisLLMResponse(tasks=corrected)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Workflow executor (top-level, idiomatic pattern)
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class Phase5ResultExecutor(Executor):
+    """Post-processes the LLM grading response for Phase 5.
+
+    Parses the structured response, applies deterministic guardrails,
+    and yields a ``ValidationResult``.
+    """
+
+    def __init__(
+        self,
+        *,
+        owner: str,
+        repo: str,
+        file_contents: dict[str, list[str]],
+    ) -> None:
+        super().__init__(id="phase5-result-builder")
+        self._owner = owner
+        self._repo = repo
+        self._file_contents = file_contents
+
+    @handler
+    async def process(
+        self,
+        msg: AgentExecutorResponse,
+        ctx: WorkflowContext[Never, ValidationResult],
+    ) -> None:
+        result = msg.agent_response
+
+        analysis = parse_structured_response(
+            result,
+            DevOpsAnalysisLLMResponse,
+            DevOpsAnalysisError,
+            "devops_analysis",
+        )
+
+        analysis = _enforce_deterministic_guardrails(analysis, self._file_contents)
+
+        task_results, all_passed = build_task_results(analysis.tasks, PHASE5_TASKS)
+
+        passed_count = sum(1 for t in task_results if t.passed)
+        total_count = len(task_results)
+
+        logger.info(
+            "devops_analysis.completed",
+            extra={
+                "owner": self._owner,
+                "repo": self._repo,
+                "passed": passed_count,
+                "total": total_count,
+                "all_passed": all_passed,
+            },
+        )
+
+        if all_passed:
+            message = (
+                f"All {total_count} DevOps tasks verified! "
+                "Your journal-starter fork has proper "
+                "containerization, CI/CD, Terraform, and "
+                "Kubernetes artifacts."
+            )
+        else:
+            message = (
+                f"Completed {passed_count}/{total_count} tasks. "
+                "Review the feedback below and try again "
+                "after making improvements."
+            )
+
+        await ctx.yield_output(
+            ValidationResult(
+                is_valid=all_passed,
+                message=message,
+                task_results=task_results,
+            )
+        )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# LLM analysis orchestration
+# ─────────────────────────────────────────────────────────────────────────────
+
+
 async def _analyze_with_llm(
     owner: str,
     repo: str,
     file_contents: dict[str, list[str]],
 ) -> ValidationResult:
-    """Run DevOps analysis via Microsoft Agent Framework.
+    """Run DevOps analysis via a Microsoft Agent Framework workflow.
 
-    No tools needed — all file content is embedded in the prompt.
-    Use analyze_devops_repository() instead.
+    The workflow has two stages:
+      1. **Agent** — sends pre-fetched DevOps file contents to the LLM and
+         gets a structured ``DevOpsAnalysisLLMResponse``.
+      2. **Result executor** — parses the structured response, applies
+         deterministic guardrails, and yields the final ``ValidationResult``.
     """
-    from agent_framework import Agent, ChatOptions
-
-    chat_client = get_llm_chat_client()
     prompt = _build_verification_prompt(owner, repo, file_contents)
 
-    agent = Agent(
-        client=chat_client,
-        instructions=prompt,
-        default_options=ChatOptions(
-            response_format=DevOpsAnalysisLLMResponse,
-        ),
+    executor = Phase5ResultExecutor(
+        owner=owner,
+        repo=repo,
+        file_contents=file_contents,
     )
 
-    timeout_seconds = get_settings().llm_cli_timeout
-    try:
-        async with asyncio.timeout(timeout_seconds):
-            result = await agent.run(
-                "Analyze the repository artifacts and grade all 4 tasks."
-            )
-    except TimeoutError:
-        logger.error(
-            "devops_analysis.timeout",
-            extra={"owner": owner, "repo": repo, "timeout": timeout_seconds},
-        )
-        raise DevOpsAnalysisError(
-            f"DevOps analysis timed out after {timeout_seconds}s",
-            retriable=True,
-        ) from None
-
-    analysis = parse_structured_response(
-        result, DevOpsAnalysisLLMResponse, DevOpsAnalysisError, "devops_analysis"
-    )
-    task_results, all_passed = build_task_results(analysis.tasks, PHASE5_TASKS)
-
-    passed_count = sum(1 for t in task_results if t.passed)
-    total_count = len(task_results)
-
-    logger.info(
-        "devops_analysis.completed",
-        extra={
-            "owner": owner,
-            "repo": repo,
-            "passed": passed_count,
-            "total": total_count,
-            "all_passed": all_passed,
-        },
+    return await run_llm_grading_workflow(
+        name="phase5-devops-analysis",
+        prompt=prompt,
+        response_format=DevOpsAnalysisLLMResponse,
+        result_executor=executor,
+        run_message="Analyze the repository artifacts and grade all 4 tasks.",
+        error_class=DevOpsAnalysisError,
     )
 
-    if all_passed:
-        message = (
-            f"All {total_count} DevOps tasks verified! "
-            "Your journal-starter fork has proper containerization, "
-            "CI/CD, Terraform, and Kubernetes artifacts."
-        )
-    else:
-        message = (
-            f"Completed {passed_count}/{total_count} tasks. "
-            "Review the feedback below and try again after making improvements."
-        )
 
-    return ValidationResult(
-        is_valid=all_passed,
-        message=message,
-        task_results=task_results,
-    )
+# ─────────────────────────────────────────────────────────────────────────────
+# Public entry point
+# ─────────────────────────────────────────────────────────────────────────────
 
 
 async def analyze_devops_repository(
-    repo_url: str, github_username: str
+    repo_url: str,
+    github_username: str,
 ) -> ValidationResult:
     """Analyze a learner's repository for Phase 5 DevOps artifact completion.
 
@@ -599,7 +439,8 @@ async def analyze_devops_repository(
       3. Filter to DevOps-relevant files (Dockerfile, workflows, infra/, k8s/)
       4. Fetch file contents in parallel
       5. Send to the LLM for structured analysis
-      6. Return per-task pass/fail results with educational feedback
+      6. Apply deterministic guardrails
+      7. Return per-task pass/fail results with educational feedback
 
     Args:
         repo_url: URL of the learner's journal-starter fork.
@@ -617,7 +458,6 @@ async def analyze_devops_repository(
             message=str(e),
         )
 
-    # Verify the repo belongs to the expected user
     if owner.lower() != github_username.lower():
         return ValidationResult(
             is_valid=False,
