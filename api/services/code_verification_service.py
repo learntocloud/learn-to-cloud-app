@@ -232,6 +232,9 @@ For each task:
 6. Provide SPECIFIC, EDUCATIONAL feedback:
    - If passed: Briefly acknowledge what they did right
    - If failed: Explain exactly what's missing and how to fix it
+7. Provide a NEXT STEP: one actionable sentence telling the learner
+   what to try next (e.g. "Add a logging.basicConfig() call at the top of main.py").
+   Keep it under 200 characters.
 
 ## Tasks to Grade
 

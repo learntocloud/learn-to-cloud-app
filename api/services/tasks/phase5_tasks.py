@@ -222,6 +222,11 @@ class DevOpsTaskGrade(BaseModel):
         description="1-3 sentences of specific, educational feedback",
         max_length=500,
     )
+    next_steps: str = Field(
+        default="",
+        description="One actionable sentence: what the learner should try next",
+        max_length=200,
+    )
 
 
 class DevOpsAnalysisLLMResponse(BaseModel):

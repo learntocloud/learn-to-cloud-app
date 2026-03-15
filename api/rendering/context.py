@@ -213,6 +213,7 @@ def build_feedback_tasks(
                 "name": task_data.get("task_name", ""),
                 "passed": task_data.get("passed", False),
                 "message": task_data.get("feedback", ""),
+                "next_steps": task_data.get("next_steps", ""),
             }
         )
         if task_data.get("passed"):
@@ -244,6 +245,7 @@ def build_feedback_tasks_from_results(
                 "name": task.task_name,
                 "passed": task.passed,
                 "message": task.feedback,
+                "next_steps": task.next_steps,
             }
         )
         if task.passed:

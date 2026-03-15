@@ -264,6 +264,7 @@ def build_task_results(
             continue
 
         feedback = sanitize_feedback(grade.feedback)
+        next_steps = sanitize_feedback(getattr(grade, "next_steps", "") or "")
 
         if not grade.passed:
             all_passed = False
@@ -273,6 +274,7 @@ def build_task_results(
                 task_name=task_names.get(grade.task_id, grade.task_id),
                 passed=grade.passed,
                 feedback=feedback,
+                next_steps=next_steps,
             )
         )
 
@@ -388,6 +390,7 @@ def enforce_deterministic_guardrails(
                     task_id=grade.task_id,
                     passed=False,
                     feedback=override_reason,
+                    next_steps=getattr(grade, "next_steps", "") or "",
                 )
             )
         else:

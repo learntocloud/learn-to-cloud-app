@@ -405,6 +405,7 @@ class TaskResult(FrozenModel):
     task_name: str
     passed: bool
     feedback: str
+    next_steps: str = ""
 
 
 class PhaseSubmissionContext(FrozenModel):

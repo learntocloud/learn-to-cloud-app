@@ -264,6 +264,9 @@ For each task:
 6. Provide SPECIFIC, EDUCATIONAL feedback:
    - If passed: Briefly acknowledge what they did well
    - If failed: Explain exactly what's missing and how to add it
+7. Provide a NEXT STEP: one actionable sentence telling the learner
+   what to try next (e.g. "Add a FROM instruction to your Dockerfile").
+   Keep it under 200 characters.
 
 ## Tasks to Grade
 

@@ -54,6 +54,9 @@
                         {% if task.message %}
                         <p class="text-red-600 dark:text-red-400 mt-0.5 break-words">{{ task.message }}</p>
                         {% endif %}
+                        {% if task.next_steps %}
+                        <p class="text-amber-600 dark:text-amber-400 mt-1 text-xs italic break-words">➔ {{ task.next_steps }}</p>
+                        {% endif %}
                     </div>
                 </div>
                 {% endfor %}
