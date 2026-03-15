@@ -98,6 +98,7 @@ tfplan
 
 # Dogfood / QA artifacts
 .dogfood/
+.playwright-mcp/
 
 # Deep-implement working documents
 research.md

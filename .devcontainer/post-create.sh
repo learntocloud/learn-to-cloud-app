@@ -13,6 +13,13 @@ if [ ! -f api/.env ] && [ -f api/.env.example ]; then
     cp api/.env.example api/.env
 fi
 
+# Ensure DATABASE_URL uses the devcontainer Docker network hostname (db:5432).
+# This fixes stale .env files that point to localhost instead of the db service.
+if [ -f api/.env ] && ! grep -q "^DATABASE_URL=.*@db:5432/" api/.env; then
+    echo "📝 Updating DATABASE_URL to devcontainer DB host (db:5432)..."
+    sed -i 's|^DATABASE_URL=.*|DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/learn_to_cloud|' api/.env
+fi
+
 # Ensure DEBUG=true is in .env for local development
 if [ -f api/.env ] && ! grep -q "^DEBUG=true" api/.env; then
     echo "📝 Adding DEBUG=true to api/.env..."

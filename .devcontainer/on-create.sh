@@ -16,10 +16,15 @@ cd api
 uv sync
 cd ..
 
-# Install Playwright MCP server + Chrome for dogfooding
-echo "🎭 Installing Playwright MCP + Chrome..."
+# Install Playwright MCP server + browser for dogfooding
+echo "🎭 Installing Playwright MCP + browser..."
 npm install -g @playwright/mcp@latest
-npx -y playwright install chrome
+if [ "$(uname -m)" = "aarch64" ]; then
+    # Google Chrome has no ARM64 Linux build; use Playwright's bundled Chromium instead
+    npx -y playwright install chromium
+else
+    npx -y playwright install chrome
+fi
 
 # Install prek (pre-commit hook runner)
 if ! command -v prek &> /dev/null; then
