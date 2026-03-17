@@ -5,27 +5,27 @@ description: Check Azure production health — app status, errors, latency, data
 
 # Production Health Check
 
-10 checks. One verdict. All read-only. Uses Azure CLI.
+9 checks. One verdict. All read-only. Uses Azure MCP tools.
 
 ---
 
-## Overall Verdict Logic
+## Prerequisites
+
+Azure MCP tools require `az login` credentials. Before starting, verify:
+1. User is authenticated (`az account show` succeeds or Azure MCP can list resources)
+2. Subscription from `infra/terraform.tfvars` is accessible
+
+If Azure MCP tools are unavailable, prompt the user to install the Azure MCP extension or start the Azure MCP Server.
+
+---
+
+## Verdict Logic
 
 Evaluated top-down, first match wins:
 
-**🔴 Critical** — ANY of:
-- Readiness probe non-200
-- Any 5xx errors in 24h
-- DB CPU > 80% (peak)
-- Fired Sev0 or Sev1 alerts in 24h
-- Container crashes on current revision
+**🔴 Critical** — ANY of: readiness probe non-200, any 5xx in 24h, DB CPU > 80% peak, fired Sev0/Sev1 alerts in 24h, `ContainerCrashing` on current revision
 
-**⚠️ Warning** — ANY of:
-- P95 latency > 500ms
-- DB CPU 50–80% (peak) or Memory 70–85% or Storage 70–85%
-- Any failed availability tests in 24h
-- Non-zero unhandled exceptions in 7d
-- Active connections > 80
+**⚠️ Warning** — ANY of: P95 latency > 500ms, DB CPU 50–80% peak or Memory 70–85% or Storage 70–85%, any failed availability tests in 24h, non-zero unhandled exceptions in 7d, active connections > 80, `ReplicaUnhealthy` without matching scale events, error rate spike (single day > 2× weekly average) or rising trend (3+ consecutive days increasing)
 
 **✅ Healthy** — none of the above
 
@@ -33,240 +33,171 @@ Evaluated top-down, first match wins:
 
 ## Step 0: Resource Discovery
 
-```bash
-SUBSCRIPTION_ID=$(grep 'subscription_id' infra/terraform.tfvars 2>/dev/null | cut -d'"' -f2)
-if [ -z "$SUBSCRIPTION_ID" ]; then
-  SUBSCRIPTION_ID=$(az account show --query id -o tsv)
-fi
-az account set --subscription "$SUBSCRIPTION_ID"
+Read the subscription ID from `infra/terraform.tfvars` (`subscription_id` field). Use resource group `rg-ltc-dev`.
 
-RG="rg-ltc-dev"
+List resources in the resource group using `az resource list --resource-group rg-ltc-dev --subscription $SUBSCRIPTION_ID` to identify:
+- **Container App** — name containing "api" (type `Microsoft.App/containerApps`)
+- **Log Analytics workspace** (type `Microsoft.OperationalInsights/workspaces`)
+- **PostgreSQL server** (type `Microsoft.DBforPostgreSQL/flexibleServers`)
 
-CA_NAME=$(az resource list -g "$RG" --resource-type "Microsoft.App/containerApps" --query "[?contains(name,'api')].name | [0]" -o tsv)
-APPI_NAME=$(az resource list -g "$RG" --resource-type "microsoft.insights/components" --query "[0].name" -o tsv)
-PSQL_NAME=$(az resource list -g "$RG" --resource-type "Microsoft.DBforPostgreSQL/flexibleServers" --query "[0].name" -o tsv)
-LOG_NAME=$(az resource list -g "$RG" --resource-type "microsoft.operationalinsights/workspaces" --query "[0].name" -o tsv)
+Then get the container app details using `az containerapp show`: provisioning state, running status, latest revision name, FQDN, min/max replicas.
 
-if [ -z "$CA_NAME" ] || [ -z "$APPI_NAME" ] || [ -z "$PSQL_NAME" ] || [ -z "$LOG_NAME" ]; then
-  echo "ERROR: Could not discover all required resources in RG=$RG" >&2
-  echo "CA_NAME=$CA_NAME APPI_NAME=$APPI_NAME PSQL_NAME=$PSQL_NAME LOG_NAME=$LOG_NAME" >&2
-  exit 1
-fi
-
-PSQL_RESOURCE_ID="/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RG/providers/Microsoft.DBforPostgreSQL/flexibleServers/$PSQL_NAME"
-WORKSPACE_ID=$(az monitor log-analytics workspace show -g "$RG" -n "$LOG_NAME" --query customerId -o tsv)
-```
+Save these discovered values — all subsequent steps reference them as `SUBSCRIPTION`, `RG`, `LOG_NAME`, `PSQL_NAME`, `FQDN`, and `LATEST_REVISION`.
 
 ---
 
-## Step 1: Container App Status + Live Readiness Probe
+## Step 1: Live Readiness Probe
 
+Run in terminal:
 ```bash
-az containerapp show -n $CA_NAME -g $RG \
-  --query "{provisioningState:properties.provisioningState, runningStatus:properties.runningStatus, latestRevision:properties.latestRevisionName, fqdn:properties.configuration.ingress.fqdn, minReplicas:properties.template.scale.minReplicas, maxReplicas:properties.template.scale.maxReplicas}" \
-  -o json
-
-FQDN=$(az containerapp show -n $CA_NAME -g $RG --query properties.configuration.ingress.fqdn -o tsv)
 curl -s --max-time 5 -o /dev/null -w "ready_status=%{http_code} response_time=%{time_total}s\n" "https://$FQDN/ready"
 ```
 
-**Look for**: `provisioningState: Succeeded`, `runningStatus: Running`, replica count ≥ 1. `ready_status=200`. If 503, the app reports itself as not ready (check DB connectivity or init errors). Response time > 2s is a warning.
+Substitute `$FQDN` with the value from Step 0.
+
+**Verdict**: 🔴 if non-200. ⚠️ if response_time > 2s.
 
 ---
 
-## Step 2: Availability Tests (24h)
+## Steps 2–8: Log Analytics & Metrics Queries
 
-```bash
-az monitor app-insights query --app $APPI_NAME -g $RG --offset P1D --analytics-query "
-availabilityResults
-| where timestamp > ago(24h)
-| summarize Total=count(), Failed=countif(success == false), AvgDuration=avg(duration)
-" --query "tables[0].rows[0]" -o tsv
-```
+Steps 2–7 are independent reads — **run them in parallel** where possible.
 
-**Look for**: `Failed` = 0. Availability tests run every 5 minutes from multiple regions — ~288 tests/day. Any failures indicate real downtime visible to users.
+All Log Analytics queries need:
+- resource-group: `RG` from Step 0
+- workspace: `LOG_NAME` from Step 0
+- subscription: `SUBSCRIPTION` from Step 0
+- table: specified per step below
+- query: specified per step below
+- hours: specified per step below
 
----
+Use the Azure MCP monitor tool to query Log Analytics.
 
-## Step 3: Request Latency P95 (24h)
+### Step 2: Availability Tests (24h)
 
-```bash
-az monitor app-insights query --app $APPI_NAME -g $RG --offset P1D --analytics-query "
-requests
-| where timestamp > ago(24h)
-| summarize p95=percentile(duration, 95)
-" --query "tables[0].rows[0]" -o tsv
-```
+- table: `AppAvailabilityResults`
+- query: `AppAvailabilityResults | where TimeGenerated > ago(24h) | summarize Total=count(), Failed=countif(Success == false), AvgDuration=avg(DurationMs)`
+- hours: 24
 
-**Look for**: P95 under 500ms.
+**Verdict**: ⚠️ if any Failed > 0. ~288 tests/day expected.
 
----
+### Step 3: Request Health (24h)
 
-## Step 4: HTTP Errors (24h)
+Single query for both latency and error breakdown:
 
-```bash
-az monitor app-insights query --app $APPI_NAME -g $RG --offset P1D --analytics-query "
-requests
-| where timestamp > ago(24h) and toint(resultCode) >= 400
-| summarize Count=count() by resultCode
-| order by Count desc
-| take 10
-" --query "tables[0].rows" -o tsv
-```
+- table: `AppRequests`
+- query: `AppRequests | where TimeGenerated > ago(24h) | summarize P95=percentile(DurationMs, 95), Total=count(), Err4xx=countif(toint(ResultCode) >= 400 and toint(ResultCode) < 500), Err5xx=countif(toint(ResultCode) >= 500)`
+- hours: 24
 
-**Look for**: Zero 5xx errors. 4xx should be expected (401, 404).
+**Verdict**: 🔴 if Err5xx > 0. ⚠️ if P95 > 500ms. 4xx are expected (401, 404).
 
----
+### Step 4: Error Rate Trend (7d)
 
-## Step 5: Error Rate Trend (7d)
+- table: `AppRequests`
+- query: `AppRequests | where TimeGenerated > ago(7d) | summarize Total=count(), Failed=countif(Success == false) by bin(TimeGenerated, 1d) | extend ErrorRate=round(todouble(Failed)/todouble(Total)*100, 2) | order by TimeGenerated desc`
+- hours: 168
 
-```bash
-az monitor app-insights query --app $APPI_NAME -g $RG --offset P7D --analytics-query "
-requests
-| where timestamp > ago(7d)
-| summarize Total=count(), Failed=countif(success == false) by bin(timestamp, 1d)
-| extend ErrorRate=round(todouble(Failed)/todouble(Total)*100, 2)
-| order by timestamp desc
-" --query "tables[0].rows" -o tsv
-```
+**Verdict**: ⚠️ if rising trend (3+ consecutive days increasing) or single-day spike > 2× the 7-day average. Stable or falling = healthy.
 
-**Look for**: Rising `ErrorRate` trend even if each day is below the alert threshold. Stable or decreasing = healthy.
+### Step 5: Unhandled Exceptions (7d)
 
----
+- table: `AppExceptions`
+- query: `AppExceptions | where TimeGenerated > ago(7d) | summarize Count=count() by ExceptionType, OuterMessage | order by Count desc | take 10`
+- hours: 168
 
-## Step 6: Unhandled Exceptions (7d)
+**Verdict**: ⚠️ if any recurring exceptions.
 
-**Important**: `az monitor app-insights query` has a default server-side time range of ~1 hour. You **must** pass `--offset P7D` to access 7 days of data — the `where timestamp > ago(7d)` in KQL alone is not sufficient.
+### Step 6: Dependency Health (24h)
 
-```bash
-az monitor app-insights query --app $APPI_NAME -g $RG --offset P7D --analytics-query "
-exceptions
-| where timestamp > ago(7d)
-| summarize Count=count() by type, outerMessage
-| order by Count desc
-| take 10
-" --query "tables[0].rows" -o tsv
-```
+- table: `AppDependencies`
+- query: `AppDependencies | where TimeGenerated > ago(24h) | summarize Count=count(), FailureCount=countif(Success == false) by DependencyType, Target | order by Count desc | take 10`
+- hours: 24
 
-**Look for**: No recurring exceptions.
+**Verdict**: ⚠️ if any FailureCount > 0, especially on PostgreSQL.
 
----
+### Step 7: Database Metrics (24h)
 
-## Step 7: Database Metrics (24h)
+**Note**: This step queries Azure Monitor **metrics** (not Log Analytics logs). Use the Azure MCP monitor tool's metrics query capability.
 
-```bash
-# Current averages
-az monitor metrics list --resource "$PSQL_RESOURCE_ID" \
-  --metric "cpu_percent" "memory_percent" "storage_percent" "active_connections" \
-  --interval PT1H \
-  --start-time "$(date -u -v-24H '+%Y-%m-%dT%H:%M:%SZ')" \
-  --end-time "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" \
-  --query "value[].{metric: name.value, avg: timeseries[0].data[-1].average}" \
-  -o table
+Query metrics for the PostgreSQL server. Run two queries — average and peak:
 
-# Peak values
-az monitor metrics list --resource "$PSQL_RESOURCE_ID" \
-  --metric "cpu_percent" "memory_percent" "storage_percent" "active_connections" \
-  --interval PT1H \
-  --start-time "$(date -u -v-24H '+%Y-%m-%dT%H:%M:%SZ')" \
-  --end-time "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" \
-  --aggregation Maximum \
-  --query "value[].{metric: name.value, max: timeseries[0].data[*].maximum | max(@)}" \
-  -o table
-```
+- resource: `PSQL_NAME` from Step 0
+- resource-group: `RG` from Step 0
+- subscription: `SUBSCRIPTION` from Step 0
+- resource-type: `Microsoft.DBforPostgreSQL/flexibleServers`
+- metric-namespace: `Microsoft.DBforPostgreSQL/flexibleServers`
+- metric names: `cpu_percent,memory_percent,storage_percent,active_connections`
+- interval: `PT1H`
+- aggregation: `Average` (first query), `Maximum` (second query)
 
-**Thresholds** (B_Standard_B2s — 2 vCores, 4 GB RAM):
+**Verdict thresholds** (B_Standard_B2s — 2 vCores, 4 GB):
 
-| Metric | Healthy | Warning | Critical |
-|--------|---------|---------|----------|
-| CPU | < 50% | 50–80% | > 80% |
-| Memory | < 70% | 70–85% | > 85% |
-| Storage | < 70% | 70–85% | > 85% |
-| Active connections | < 80 | 80–100 | > 100 (limit ~120) |
+| Metric | ✅ Healthy | ⚠️ Warning | 🔴 Critical |
+|--------|-----------|-----------|------------|
+| CPU (peak) | < 50% | 50–80% | > 80% |
+| Memory (peak) | < 70% | 70–85% | > 85% |
+| Storage (peak) | < 70% | 70–85% | > 85% |
+| Connections | < 80 | 80–100 | > 100 |
 
 ---
 
-## Step 8: Dependency Health (24h)
+## Step 8: Container Stability (24h)
 
-```bash
-az monitor app-insights query --app $APPI_NAME -g $RG --offset P1D --analytics-query "
-dependencies
-| where timestamp > ago(24h)
-| summarize Count=count(), FailureCount=countif(success == false) by type, target
-| order by Count desc
-| take 10
-" --query "tables[0].rows" -o tsv
-```
+Substitute the `LATEST_REVISION` value from Step 0 into the KQL query below.
 
-**Look for**: Zero `FailureCount` on PostgreSQL. Any HTTP dependency failures (GitHub API, OpenAI).
+- table: `ContainerAppSystemLogs_CL`
+- query: `ContainerAppSystemLogs_CL | where TimeGenerated > ago(24h) and RevisionName_s == 'LATEST_REVISION_VALUE' | summarize Count=count() by Reason_s, Type_s | order by Count desc`
+- hours: 24
+
+Replace `LATEST_REVISION_VALUE` with the actual revision name from Step 0.
+
+**Verdict**: 🔴 if `ContainerCrashing`. ⚠️ if `ReplicaUnhealthy` — check context: a few events alongside `SuccessfulRescale` is normal scale-in/out; sustained events without scaling activity suggest health probe failures.
 
 ---
 
-## Step 9: Container Stability (24h)
+## Step 9: Fired Alerts (24h)
 
-```bash
-CURRENT_REVISION=$(az containerapp show -n $CA_NAME -g $RG --query properties.latestRevisionName -o tsv)
-az monitor log-analytics query --workspace "$WORKSPACE_ID" --analytics-query "
-ContainerAppSystemLogs_CL
-| where TimeGenerated > ago(24h) and RevisionName_s == '$CURRENT_REVISION'
-| summarize Count=count() by Reason_s, Type_s
-| order by Count desc
-" -o tsv
-```
+- table: `AzureActivity`
+- query: `AzureActivity | where TimeGenerated > ago(24h) | where OperationNameValue has "microsoft.insights/metricalerts" or OperationNameValue has "microsoft.insights/scheduledqueryrules" | where ActivityStatusValue == "Activated" | project TimeGenerated, OperationName, ResourceId | order by TimeGenerated desc`
+- hours: 24
 
-**Look for**: `ContainerCrashing` or `ReplicaUnhealthy` on the current revision is concerning. Events on old revisions during iterative deploys are expected — this query filters to the current revision only.
-
----
-
-## Step 10: Fired Alerts (24h)
-
-```bash
-az monitor activity-log list --resource-group $RG \
-  --start-time "$(date -u -v-24H '+%Y-%m-%dT%H:%M:%SZ')" \
-  --status Activated \
-  --query "[?contains(operationName.value, 'microsoft.insights/metricalerts') || contains(operationName.value, 'microsoft.insights/scheduledqueryrules')].{time:eventTimestamp, operation:operationName.localizedValue}" \
-  -o tsv
-```
-
-**Look for**: Any activated alerts. Cross-reference with the verdict logic — Sev0/Sev1 alerts trigger 🔴 Critical.
+**Verdict**: 🔴 if any Sev0/Sev1 alerts fired.
 
 ---
 
 ## Summary Report
-
-Present findings in this format:
 
 ```
 ## Production Health Report — {date}
 
 ### Overall: ✅ Healthy / ⚠️ Warning / 🔴 Critical
 
-**Verdict reasoning**: {1-2 sentence explanation of why this verdict was chosen, citing the specific check(s) that triggered it}
+**Verdict reasoning**: {1-2 sentence explanation citing specific check(s)}
 
 | # | Check | Status | Details |
 |---|-------|--------|---------|
-| 1 | App Status & Readiness | ✅/🔴 | Running, {N} replicas, ready in {X}s |
-| 2 | Availability Tests | ✅/⚠️ | {N} tests, {N} failed in 24h |
-| 3 | Request Latency (P95) | ✅/⚠️ | {X}ms (threshold: 500ms) |
-| 4 | HTTP Errors | ✅/🔴 | {N} 4xx, {N} 5xx in 24h |
-| 5 | Error Rate Trend | ✅/⚠️ | {stable/rising/falling} over 7d |
-| 6 | Exceptions | ✅/⚠️ | {N} unique in 7d, top: {type} |
+| 1 | Readiness Probe | ✅/🔴 | {status_code}, {X}s response |
+| 2 | Availability Tests | ✅/⚠️ | {N} total, {N} failed in 24h |
+| 3 | Request Health | ✅/🔴 | P95 {X}ms, {N} 4xx, {N} 5xx |
+| 4 | Error Rate Trend | ✅/⚠️ | {stable/rising/falling} over 7d |
+| 5 | Exceptions | ✅/⚠️ | {N} unique in 7d, top: {type} |
+| 6 | Dependencies | ✅/⚠️ | {type}: {N} calls, {N} failures |
 | 7 | Database | ✅/⚠️/🔴 | CPU {X}%, Mem {X}%, Storage {X}%, Conn {X} |
-| 8 | Dependencies | ✅/⚠️ | {type}: {N} calls, {N} failures |
-| 9 | Container Stability | ✅/⚠️ | Current rev: {rev}, {N} crashes |
-| 10 | Fired Alerts | ✅/🔴 | {N} in 24h |
+| 8 | Container Stability | ✅/⚠️ | Rev: {rev}, {events} |
+| 9 | Fired Alerts | ✅/🔴 | {N} in 24h |
 
 ### ⚠️ Items to Watch
-- {any warnings — omit section if none}
+- {any warnings — omit if none}
 
 ### 🔴 Action Required
-- {any critical issues — omit section if none}
+- {any critical issues — omit if none}
 ```
 
 ---
 
 ## Notes
 
-- **`--offset` is required for App Insights queries**: `az monitor app-insights query` defaults to a ~1 hour server-side time range. Always pass `--offset P1D` (or `P7D`) to access the full time window. The `where timestamp > ago(...)` KQL clause filters within the window but doesn't expand it.
-- **Date commands**: Step 7 uses `date -u -v-24H` (macOS). On Linux: `date -u --date='24 hours ago'`.
-- **Old revision events**: Step 9 filters to the current revision only. `ContainerCrashing`/`ReplicaUnhealthy` on old revisions during iterative deploys is normal and excluded.
+- **Tool discovery**: Use the Azure MCP monitor tool for all queries. Parameter names may vary across MCP versions — check the tool interface before your first call.
+- **Log Analytics table names**: Use `AppRequests`, `AppExceptions`, `AppDependencies` (not the App Insights names `requests`, `exceptions`, `dependencies`).
+- **Metrics vs logs**: Step 7 queries Azure Monitor metrics (different from Log Analytics log queries in Steps 2–6, 8–9). These are separate commands in the MCP tool.
+- **Parallelization**: Steps 2–7 have no dependencies on each other — run them concurrently to reduce total check time.
