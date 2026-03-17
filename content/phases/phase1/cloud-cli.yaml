@@ -20,7 +20,7 @@ learning_steps:
   options:
   - provider: azure
     title: Install the Azure CLI
-    url: https://learn.microsoft.com/cli/azure/install-azure-cli
+    url: https://learn.microsoft.com/en-us/cli/azure/install-azure-cli?view=azure-cli-latest
     description: Follow the official guide to install the Azure CLI on your system.
   - provider: aws
     title: Install the AWS CLI
@@ -62,7 +62,7 @@ learning_steps:
   options:
   - provider: azure
     title: Authenticate Azure CLI
-    url: https://learn.microsoft.com/cli/azure/authenticate-azure-cli
+    url: https://learn.microsoft.com/en-us/cli/azure/authenticate-azure-cli?view=azure-cli-latest
     description: 'Run this command in your terminal:
 
       ```bash az login ```'

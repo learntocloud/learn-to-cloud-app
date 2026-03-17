@@ -50,7 +50,7 @@ learning_steps:
   options:
   - provider: azure
     title: Azure Virtual Machines Documentation
-    url: https://learn.microsoft.com/azure/virtual-machines/linux/quick-create-cli
+    url: https://learn.microsoft.com/en-us/azure/virtual-machines/linux/quick-create-cli
     description: Create and manage virtual machines in Azure
   - provider: aws
     title: Get Started with Amazon EC2

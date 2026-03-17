@@ -26,7 +26,7 @@ learning_steps:
   options:
   - provider: azure
     title: Develop on a remote machine
-    url: https://learn.microsoft.com/training/modules/develop-on-remote-machine/
+    url: https://learn.microsoft.com/en-us/training/modules/develop-on-remote-machine/
     description: Learn to connect and develop on Azure VMs remotely.
   - provider: aws
     title: Connect to your Linux instance

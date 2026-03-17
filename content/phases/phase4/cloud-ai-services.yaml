@@ -20,7 +20,7 @@ learning_steps:
   options:
   - provider: azure
     title: Microsoft Foundry
-    url: https://learn.microsoft.com/en-us/azure/ai-foundry/what-is-foundry
+    url: https://learn.microsoft.com/en-us/azure/foundry/what-is-foundry
     description: Microsoft's unified platform for building, deploying, and managing AI models
   - provider: aws
     title: AWS Bedrock
@@ -38,7 +38,7 @@ learning_steps:
   options:
   - provider: azure
     title: Microsoft Foundry Models
-    url: https://learn.microsoft.com/en-us/azure/ai-foundry/concepts/foundry-models-overview
+    url: https://learn.microsoft.com/en-us/azure/foundry-classic/concepts/foundry-models-overview
     description: Browse models available in Microsoft Foundry including OpenAI, Meta, and Mistral models
   - provider: aws
     title: AWS Bedrock Models
@@ -56,7 +56,7 @@ learning_steps:
   options:
   - provider: azure
     title: Microsoft Foundry Deployments
-    url: https://learn.microsoft.com/azure/ai-foundry/concepts/deployments-overview
+    url: https://learn.microsoft.com/en-us/azure/foundry-classic/concepts/deployments-overview
     description: Understand model deployment options in Microsoft Foundry
   - provider: aws
     title: AWS Bedrock Deployment
@@ -74,7 +74,7 @@ learning_steps:
   options:
   - provider: azure
     title: Microsoft Foundry Guardrails
-    url: https://learn.microsoft.com/azure/ai-foundry/guardrails/guardrails-overview
+    url: https://learn.microsoft.com/en-us/azure/foundry/guardrails/guardrails-overview
     description: Configure content filtering and safety guardrails in Microsoft Foundry
   - provider: aws
     title: AWS Bedrock Guardrails
@@ -92,7 +92,7 @@ learning_steps:
   options:
   - provider: azure
     title: Microsoft Foundry Playgrounds
-    url: https://learn.microsoft.com/azure/ai-foundry/concepts/concept-playgrounds
+    url: https://learn.microsoft.com/en-us/azure/foundry/concepts/concept-playgrounds
     description: Experiment with models in the Microsoft Foundry playground
   - provider: aws
     title: AWS Bedrock Playgrounds
