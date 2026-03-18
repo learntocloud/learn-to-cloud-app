@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Learn to Cloud – Published Docs</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #0d1117;
+      color: #e6edf3;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 48px 16px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 48px;
+    }
+
+    header .logo {
+      font-size: 2.5rem;
+      margin-bottom: 12px;
+    }
+
+    header h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      color: #58a6ff;
+    }
+
+    header p {
+      margin-top: 8px;
+      color: #8b949e;
+      font-size: 1rem;
+    }
+
+    main {
+      width: 100%;
+      max-width: 720px;
+    }
+
+    h2 {
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #8b949e;
+      margin-bottom: 16px;
+    }
+
+    .card-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .card-list a {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      padding: 18px 24px;
+      text-decoration: none;
+      color: inherit;
+      transition: border-color 0.15s ease, background 0.15s ease;
+    }
+
+    .card-list a:hover {
+      border-color: #58a6ff;
+      background: #1c2128;
+    }
+
+    .card-list .icon {
+      font-size: 1.5rem;
+      flex-shrink: 0;
+    }
+
+    .card-list .text h3 {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #58a6ff;
+      margin-bottom: 4px;
+    }
+
+    .card-list .text p {
+      font-size: 0.875rem;
+      color: #8b949e;
+      line-height: 1.4;
+    }
+
+    .card-list .arrow {
+      margin-left: auto;
+      color: #484f58;
+      font-size: 1rem;
+      flex-shrink: 0;
+    }
+
+    footer {
+      margin-top: 64px;
+      text-align: center;
+      font-size: 0.8rem;
+      color: #484f58;
+    }
+
+    footer a {
+      color: #58a6ff;
+      text-decoration: none;
+    }
+
+    footer a:hover {
+      text-decoration: underline;
+    }
+
+    @media (max-width: 480px) {
+      header h1 { font-size: 1.5rem; }
+      .card-list a { padding: 14px 16px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="logo">☁️</div>
+    <h1>Learn to Cloud</h1>
+    <p>Published docs and learning resources</p>
+  </header>
+
+  <main>
+    <h2>Sections</h2>
+    <ul class="card-list">
+      <li>
+        <a href="scaling-with-github/">
+          <span class="icon">🐙</span>
+          <span class="text">
+            <h3>Scaling with GitHub</h3>
+            <p>GitHub Powering Your AI SDLC — a deep dive into GitHub features for modern cloud development.</p>
+          </span>
+          <span class="arrow">›</span>
+        </a>
+      </li>
+    </ul>
+  </main>
+
+  <footer>
+    <p>
+      <a href="https://github.com/learntocloud/learn-to-cloud-app" target="_blank" rel="noopener noreferrer">learntocloud/learn-to-cloud-app</a>
+      &nbsp;·&nbsp;
+      <a href="https://learntocloud.guide" target="_blank" rel="noopener noreferrer">learntocloud.guide</a>
+    </p>
+  </footer>
+</body>
+</html>
