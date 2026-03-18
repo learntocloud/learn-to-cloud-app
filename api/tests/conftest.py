@@ -49,21 +49,17 @@ def _build_test_database_url() -> tuple[str, str, int]:
     Returns (test_url, host, port). The test database is always
     'test_learn_to_cloud' regardless of what DATABASE_URL specifies.
     """
-    from urllib.parse import urlparse
+    from sqlalchemy.engine import make_url
 
     raw = os.environ.get(
         "DATABASE_URL",
         "postgresql+asyncpg://postgres:postgres@localhost:54320/test_learn_to_cloud",
     )
-    parsed = urlparse(raw)
-    host = parsed.hostname or "localhost"
-    port = parsed.port or 5432
-    # Rebuild URL with the test database name
-    user_info = (
-        f"{parsed.username}:{parsed.password}" if parsed.password else parsed.username
-    )
-    test_url = f"{parsed.scheme}://{user_info}@{host}:{port}/test_learn_to_cloud"
-    return test_url, host, port
+    url = make_url(raw)
+    host = url.host or "localhost"
+    port = url.port or 5432
+    test_url = url.set(database="test_learn_to_cloud", host=host, port=port)
+    return test_url.render_as_string(hide_password=False), host, port
 
 
 TEST_DATABASE_URL, _DB_HOST, _DB_PORT = _build_test_database_url()

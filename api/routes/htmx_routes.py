@@ -57,13 +57,13 @@ from services.users_service import (
     delete_user_account,
     get_user_by_id,
 )
-from services.verification.dispatcher import get_requirement_by_id
 from services.verification.events import (
     complete_pending,
     create_pending,
     get_pending,
     remove_pending,
 )
+from services.verification.requirements import get_requirement_by_id
 
 logger = logging.getLogger(__name__)
 
