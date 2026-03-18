@@ -36,18 +36,20 @@ class TestPreValidateSubmission:
     @pytest.mark.asyncio
     async def test_raises_requirement_not_found(self):
         """Unknown requirement raises RequirementNotFoundError."""
-        with patch(
-            "services.submissions_service.get_requirement_by_id",
-            return_value=None,
+        with (
+            patch(
+                "services.submissions_service.get_requirement_by_id",
+                return_value=None,
+            ),
+            pytest.raises(RequirementNotFoundError),
         ):
-            with pytest.raises(RequirementNotFoundError):
-                await pre_validate_submission(
-                    session_maker=_mock_session_maker(),
-                    user_id=1,
-                    requirement_id="nonexistent",
-                    submitted_value="https://github.com/user/repo",
-                    github_username="user",
-                )
+            await pre_validate_submission(
+                session_maker=_mock_session_maker(),
+                user_id=1,
+                requirement_id="nonexistent",
+                submitted_value="https://github.com/user/repo",
+                github_username="user",
+            )
 
     @pytest.mark.asyncio
     async def test_raises_already_validated(self):

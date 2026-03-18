@@ -625,19 +625,21 @@ class TestSubmissionValidationErrors:
         """Unknown requirement ID should raise RequirementNotFoundError."""
         mock_session_maker = _mock_session_maker()
 
-        with patch(
-            "services.submissions_service.get_requirement_by_id",
-            autospec=True,
-            return_value=None,
+        with (
+            patch(
+                "services.submissions_service.get_requirement_by_id",
+                autospec=True,
+                return_value=None,
+            ),
+            pytest.raises(RequirementNotFoundError),
         ):
-            with pytest.raises(RequirementNotFoundError):
-                await submit_validation(
-                    session_maker=mock_session_maker,
-                    user_id=123,
-                    requirement_id="nonexistent",
-                    submitted_value="https://github.com/user/repo",
-                    github_username="user",
-                )
+            await submit_validation(
+                session_maker=mock_session_maker,
+                user_id=123,
+                requirement_id="nonexistent",
+                submitted_value="https://github.com/user/repo",
+                github_username="user",
+            )
 
     @pytest.mark.asyncio
     async def test_github_username_required_for_code_analysis(self):

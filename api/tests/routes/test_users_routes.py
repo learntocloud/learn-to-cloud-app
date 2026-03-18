@@ -73,12 +73,14 @@ class TestDeleteCurrentUser:
         mock_db = AsyncMock()
         mock_request = MagicMock()
 
-        with patch(
-            "routes.users_routes.delete_user_account",
-            autospec=True,
-            side_effect=UserNotFoundError(42),
+        with (
+            patch(
+                "routes.users_routes.delete_user_account",
+                autospec=True,
+                side_effect=UserNotFoundError(42),
+            ),
+            pytest.raises(HTTPException) as exc_info,
         ):
-            with pytest.raises(HTTPException) as exc_info:
-                await delete_current_user(mock_request, user_id=42, db=mock_db)
+            await delete_current_user(mock_request, user_id=42, db=mock_db)
 
         assert exc_info.value.status_code == 404

@@ -14,6 +14,7 @@ background task + SSE pattern:
 
 import asyncio
 import logging
+from typing import Annotated
 
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse
@@ -127,9 +128,9 @@ async def htmx_complete_step(
     request: Request,
     db: DbSession,
     user_id: UserId,
-    topic_id: str = Form(...),
-    step_id: str = Form(...),
-    phase_id: int = Form(...),
+    topic_id: Annotated[str, Form()],
+    step_id: Annotated[str, Form()],
+    phase_id: Annotated[int, Form()],
 ) -> HTMLResponse:
     """Complete a step and return the updated step partial."""
     try:
@@ -189,8 +190,8 @@ async def htmx_submit_verification(
     request: Request,
     db: DbSessionReadOnly,
     user_id: UserId,
-    requirement_id: str = Form(..., max_length=100),
-    submitted_value: str = Form(..., max_length=2048),
+    requirement_id: Annotated[str, Form(max_length=100)],
+    submitted_value: Annotated[str, Form(max_length=2048)],
 ) -> HTMLResponse:
     """Submit a hands-on verification.
 
@@ -272,7 +273,7 @@ async def htmx_submit_verification(
             # Register pending event + fire background task
             create_pending(user_id, requirement_id)
 
-            asyncio.create_task(
+            task = asyncio.create_task(
                 _run_verification_background(
                     session_maker=session_maker,
                     user_id=user_id,
@@ -280,6 +281,11 @@ async def htmx_submit_verification(
                     submitted_value=submitted_value,
                     github_username=github_username,
                 )
+            )
+            task.add_done_callback(
+                lambda t: t.result()
+                if not t.cancelled() and not t.exception()
+                else None
             )
 
             # Return the processing card with SSE connection

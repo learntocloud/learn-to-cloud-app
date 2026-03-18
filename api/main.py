@@ -195,7 +195,7 @@ async def lifespan(app: fastapi.FastAPI):
                 "hint": "Startup hung — check DB connectivity and migration state",
             },
         )
-        raise RuntimeError("Application startup timed out")
+        raise RuntimeError("Application startup timed out") from None
     except Exception as e:
         app.state.init_error = str(e)
         logger.error(
@@ -281,17 +281,16 @@ if _settings.debug:
     )
 
 _middleware_classes = [m.cls for m in app.user_middleware]
-if SessionMiddleware in _middleware_classes and CSRFMiddleware in _middleware_classes:
-    # Starlette prepends middleware via insert(0, ...), then evaluates the resulting
-    # list top-to-bottom. If CSRF ends up outside Session, it becomes a silent no-op
-    # (scope["session"] is missing) and unsafe requests can slip through.
-    if _middleware_classes.index(SessionMiddleware) > _middleware_classes.index(
-        CSRFMiddleware
-    ):
-        raise RuntimeError(
-            "Invalid middleware ordering: SessionMiddleware must run before "
-            "CSRFMiddleware (add CSRFMiddleware BEFORE SessionMiddleware in code)."
-        )
+if (
+    SessionMiddleware in _middleware_classes
+    and CSRFMiddleware in _middleware_classes
+    and _middleware_classes.index(SessionMiddleware)
+    > _middleware_classes.index(CSRFMiddleware)
+):
+    raise RuntimeError(
+        "Invalid middleware ordering: SessionMiddleware must run before "
+        "CSRFMiddleware (add CSRFMiddleware BEFORE SessionMiddleware in code)."
+    )
 
 _static_dir = Path(__file__).parent / "static"
 if _static_dir.exists():

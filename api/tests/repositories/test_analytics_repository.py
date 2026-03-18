@@ -380,7 +380,7 @@ class TestGetProviderDistribution:
         repo = AnalyticsRepository(db_session)
         result = await repo.get_provider_distribution()
 
-        provider_map = {provider: count for provider, count in result}
+        provider_map = dict(result)
         assert provider_map["azure"] == 2
         assert provider_map["aws"] == 1
 

@@ -97,6 +97,6 @@ def invalidate_progress_cache(user_id: int) -> None:
     (step completion, submissions).
     """
     _progress_cache.pop(user_id, None)
-    phase_detail_keys = [k for k in _phase_detail_cache.keys() if k[0] == user_id]
+    phase_detail_keys = [k for k in _phase_detail_cache if k[0] == user_id]
     for key in phase_detail_keys:
         _phase_detail_cache.pop(key, None)

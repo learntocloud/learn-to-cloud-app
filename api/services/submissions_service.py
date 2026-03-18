@@ -131,17 +131,19 @@ async def get_phase_submission_context(
                 passed = sum(1 for t in tasks if t["passed"])
 
                 cooldown_remaining = None
-                if sub.updated_at and sub.verification_completed:
-                    if sub.submission_type in (
+                if (
+                    sub.updated_at
+                    and sub.verification_completed
+                    and sub.submission_type
+                    in (
                         SubmissionType.CODE_ANALYSIS,
                         SubmissionType.DEVOPS_ANALYSIS,
-                    ):
-                        elapsed = (now - sub.updated_at).total_seconds()
-                        remaining = int(
-                            settings.code_analysis_cooldown_seconds - elapsed
-                        )
-                        if remaining > 0:
-                            cooldown_remaining = remaining
+                    )
+                ):
+                    elapsed = (now - sub.updated_at).total_seconds()
+                    remaining = int(settings.code_analysis_cooldown_seconds - elapsed)
+                    if remaining > 0:
+                        cooldown_remaining = remaining
 
                 feedback_by_req[sub.requirement_id] = {
                     "tasks": tasks,
@@ -323,20 +325,23 @@ async def _check_submission_preconditions(
                 existing_submission=existing_data,
             )
 
-    if requirement.submission_type in (
-        SubmissionType.PROFILE_README,
-        SubmissionType.REPO_FORK,
-        SubmissionType.CTF_TOKEN,
-        SubmissionType.NETWORKING_TOKEN,
-        SubmissionType.CODE_ANALYSIS,
-        SubmissionType.DEVOPS_ANALYSIS,
-        SubmissionType.PR_REVIEW,
+    if (
+        requirement.submission_type
+        in (
+            SubmissionType.PROFILE_README,
+            SubmissionType.REPO_FORK,
+            SubmissionType.CTF_TOKEN,
+            SubmissionType.NETWORKING_TOKEN,
+            SubmissionType.CODE_ANALYSIS,
+            SubmissionType.DEVOPS_ANALYSIS,
+            SubmissionType.PR_REVIEW,
+        )
+        and not github_username
     ):
-        if not github_username:
-            raise GitHubUsernameRequiredError(
-                "You need to link your GitHub account to submit. "
-                "Please sign out and sign in with GitHub."
-            )
+        raise GitHubUsernameRequiredError(
+            "You need to link your GitHub account to submit. "
+            "Please sign out and sign in with GitHub."
+        )
 
     return _PreValidationContext(
         requirement=requirement,
@@ -433,7 +438,7 @@ async def submit_validation(
                     "requirement_id": requirement_id,
                     "waiting": max(
                         0,
-                        _LLM_MAX_CONCURRENT - _llm_semaphore._value,  # noqa: SLF001
+                        _LLM_MAX_CONCURRENT - _llm_semaphore._value,
                     ),
                 },
             )

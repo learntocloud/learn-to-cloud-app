@@ -133,9 +133,8 @@ def parse_github_url(url: str) -> ParsedGitHubUrl:
     repo_name = parts[1] if len(parts) > 1 else None
 
     file_path = None
-    if len(parts) > 3 and parts[2] in ("blob", "tree"):
-        if len(parts) > 4:
-            file_path = "/".join(parts[4:])
+    if len(parts) > 3 and parts[2] in ("blob", "tree") and len(parts) > 4:
+        file_path = "/".join(parts[4:])
 
     return ParsedGitHubUrl(
         username=username, repo_name=repo_name, file_path=file_path, is_valid=True
@@ -201,13 +200,13 @@ async def check_github_url_exists(url: str) -> tuple[bool, str, bool]:
             "github.url_check.failed",
             extra={"url": url, "error": str(e)},
         )
-        return False, f"Request error: {str(e)}", True
+        return False, f"Request error: {e!s}", True
     except Exception as e:
         logger.exception(
             "github.url_check.unexpected_error",
             extra={"url": url},
         )
-        return False, f"Unexpected error: {str(e)}", True
+        return False, f"Unexpected error: {e!s}", True
 
 
 @circuit(
@@ -295,13 +294,13 @@ async def check_repo_is_fork_of(
             "github.fork_check.failed",
             extra={"username": username, "repo": repo_name, "error": str(e)},
         )
-        return False, f"Request error: {str(e)}", True
+        return False, f"Request error: {e!s}", True
     except Exception as e:
         logger.exception(
             "github.fork_check.unexpected_error",
             extra={"username": username, "repo": repo_name},
         )
-        return False, f"Unexpected error: {str(e)}", True
+        return False, f"Unexpected error: {e!s}", True
 
 
 async def validate_github_profile(

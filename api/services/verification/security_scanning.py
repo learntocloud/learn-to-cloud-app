@@ -118,7 +118,7 @@ def _find_codeql_workflow_candidates(file_paths: list[str]) -> list[str]:
     for path in file_paths:
         if not path.startswith(".github/workflows/"):
             continue
-        if not (path.endswith(".yml") or path.endswith(".yaml")):
+        if not (path.endswith((".yml", ".yaml"))):
             continue
 
         filename = path.rsplit("/", 1)[-1].lower()
@@ -186,7 +186,7 @@ async def _check_codeql(owner: str, repo: str, file_paths: list[str]) -> TaskRes
     fetch_tasks = [_fetch_workflow_content(owner, repo, path) for path in to_check]
     results = await asyncio.gather(*fetch_tasks, return_exceptions=True)
 
-    for path, result in zip(to_check, results):
+    for path, result in zip(to_check, results, strict=False):
         if isinstance(result, BaseException) or result is None:
             continue
         if CODEQL_ACTION_PATTERN in result:

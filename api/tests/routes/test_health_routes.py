@@ -69,13 +69,15 @@ class TestReadyEndpoint:
         request.app.state.init_error = None
         request.app.state.init_done = True
 
-        with patch(
-            "routes.health_routes.check_db_connection",
-            autospec=True,
-            side_effect=ConnectionError("connection refused"),
+        with (
+            patch(
+                "routes.health_routes.check_db_connection",
+                autospec=True,
+                side_effect=ConnectionError("connection refused"),
+            ),
+            pytest.raises(HTTPException) as exc_info,
         ):
-            with pytest.raises(HTTPException) as exc_info:
-                await ready(request)
+            await ready(request)
 
         assert exc_info.value.status_code == 503
         assert exc_info.value.detail == "Database unavailable"

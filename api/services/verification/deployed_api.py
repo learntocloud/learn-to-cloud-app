@@ -165,7 +165,7 @@ async def _validate_url_target(url: str) -> str | None:
     if not addrinfo:
         return f"Could not resolve hostname: {hostname}"
 
-    for family, _type, _proto, _canonname, sockaddr in addrinfo:
+    for _family, _type, _proto, _canonname, sockaddr in addrinfo:
         addr = sockaddr[0]
         if _is_private_ip(addr):
             logger.warning(
@@ -270,9 +270,10 @@ def _validate_entry(entry: dict, index: int) -> tuple[bool, str | None]:
 
     # updated_at is optional but if present, must be valid datetime
     updated_at = entry.get("updated_at")
-    if updated_at is not None:
-        if not isinstance(updated_at, str) or not _validate_datetime(updated_at):
-            return False, f"Entry {index + 1} has invalid updated_at"
+    if updated_at is not None and (
+        not isinstance(updated_at, str) or not _validate_datetime(updated_at)
+    ):
+        return False, f"Entry {index + 1} has invalid updated_at"
 
     return True, None
 

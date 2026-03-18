@@ -24,7 +24,6 @@ from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.pool import QueuePool
 
 from core.azure_auth import get_token as _get_azure_token
-from core.azure_auth import reset_credential as _reset_azure_credential
 from core.config import get_settings
 
 logger = logging.getLogger(__name__)
@@ -325,8 +324,3 @@ async def comprehensive_health_check(engine: AsyncEngine) -> HealthCheckResult:
     result["pool"] = get_pool_status(engine)
 
     return result
-
-
-async def reset_azure_credential() -> None:
-    """For testing — resets cached credential (lock-protected)."""
-    await _reset_azure_credential()

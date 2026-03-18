@@ -13,6 +13,7 @@ test_llm_verification_base.py.
 """
 
 import pytest
+from pydantic import ValidationError
 
 from services.verification.code_analysis import (
     _build_verification_prompt,
@@ -39,7 +40,7 @@ class TestAllowedFilePaths:
             "api/services/llm_service.py",
             ".devcontainer/devcontainer.json",
         }
-        assert ALLOWED_FILE_PATHS == expected
+        assert expected == ALLOWED_FILE_PATHS
 
     def test_allowlist_is_frozen(self):
         """Allowlist should be immutable to prevent runtime modification."""
@@ -450,7 +451,7 @@ class TestPydanticHardening:
 
     def test_task_grade_rejects_extra_fields(self):
         """TaskGrade should reject unexpected fields."""
-        with pytest.raises(Exception):  # ValidationError
+        with pytest.raises(ValidationError):
             TaskGrade(
                 task_id="logging-setup",
                 passed=True,
@@ -460,7 +461,7 @@ class TestPydanticHardening:
 
     def test_code_analysis_response_rejects_extra_fields(self):
         """CodeAnalysisResponse should reject unexpected fields."""
-        with pytest.raises(Exception):  # ValidationError
+        with pytest.raises(ValidationError):
             CodeAnalysisResponse(
                 tasks=[
                     TaskGrade(task_id="logging-setup", passed=True, feedback="OK"),

@@ -14,6 +14,7 @@ ARCHITECTURE:
 """
 
 import asyncio
+import calendar
 import logging
 from datetime import UTC, datetime
 
@@ -44,16 +45,6 @@ _local_cache: TTLCache[str, CommunityAnalytics] = TTLCache(
 )
 _local_cache_lock = asyncio.Lock()
 
-_DAY_NAMES = {
-    1: "Monday",
-    2: "Tuesday",
-    3: "Wednesday",
-    4: "Thursday",
-    5: "Friday",
-    6: "Saturday",
-    7: "Sunday",
-}
-
 # Default refresh interval for the background task (1 hour).
 REFRESH_INTERVAL_SECONDS = 3600
 
@@ -75,16 +66,12 @@ def _compute_users_completed_steps(
     phase_id: int,
     required_steps: int,
 ) -> int:
-    """Count users who completed all reading steps in a phase.
-
-    Uses the step completion histogram to sum users whose step_count
-    meets or exceeds the required threshold.
-    """
-    total = 0
-    for h_phase_id, step_count, num_users in histogram:
-        if h_phase_id == phase_id and step_count >= required_steps:
-            total += num_users
-    return total
+    """Count users who completed all required reading steps in a phase."""
+    return sum(
+        num_users
+        for h_phase_id, step_count, num_users in histogram
+        if h_phase_id == phase_id and step_count >= required_steps
+    )
 
 
 async def get_community_analytics(
@@ -156,8 +143,10 @@ async def _compute_analytics(db: AsyncSession) -> CommunityAnalytics:
         users_reached[phase_id] = users_reached.get(phase_id, 0) + num_users
 
     phases = get_all_phases()
+    sorted_phases = sorted(phases, key=lambda p: p.order)
     phase_distribution: list[PhaseDistributionItem] = []
-    for phase in sorted(phases, key=lambda p: p.order):
+    phase_requirements_map: dict[int, tuple[int, int]] = {}
+    for phase in sorted_phases:
         requirements = get_phase_requirements(phase.id)
         required_steps = requirements.steps if requirements else 0
         completed_steps = _compute_users_completed_steps(
@@ -171,6 +160,10 @@ async def _compute_analytics(db: AsyncSession) -> CommunityAnalytics:
                 users_completed_steps=completed_steps,
             )
         )
+        hands_on_reqs = get_requirements_for_phase(phase.id)
+        required_hands_on = len(hands_on_reqs)
+        if required_steps > 0 or required_hands_on > 0:
+            phase_requirements_map[phase.id] = (required_steps, required_hands_on)
 
     signup_trends = _build_cumulative_trends(signup_raw)
 
@@ -193,7 +186,7 @@ async def _compute_analytics(db: AsyncSession) -> CommunityAnalytics:
     for iso_day in range(1, 8):
         activity_by_day.append(
             DayActivity(
-                day_name=_DAY_NAMES[iso_day],
+                day_name=calendar.day_name[iso_day - 1],
                 completions=activity_dow.get(iso_day, 0),
             )
         )
@@ -203,17 +196,6 @@ async def _compute_analytics(db: AsyncSession) -> CommunityAnalytics:
         for provider, count in provider_raw
     ]
 
-    phase_requirements_map: dict[int, tuple[int, int]] = {}
-    for phase in phases:
-        reqs = get_phase_requirements(phase.id)
-        required_steps = reqs.steps if reqs else 0
-        hands_on_reqs = get_requirements_for_phase(phase.id)
-        required_hands_on = len(hands_on_reqs)
-        if required_steps > 0 or required_hands_on > 0:
-            phase_requirements_map[phase.id] = (
-                required_steps,
-                required_hands_on,
-            )
     completers_this_month: list[str] = []
     if phase_requirements_map and total_users > 0:
         completers = await repo.get_program_completers(phase_requirements_map)

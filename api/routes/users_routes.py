@@ -23,7 +23,6 @@ router = APIRouter(prefix="/api/user", tags=["users"])
 
 @router.get(
     "/me",
-    response_model=UserResponse,
     summary="Get current user",
     responses={401: {"description": "Not authenticated"}},
 )
@@ -51,8 +50,8 @@ async def delete_current_user(request: Request, user_id: UserId, db: DbSession) 
     """Permanently delete the authenticated user's account and all associated data."""
     try:
         await delete_user_account(db, user_id)
-    except UserNotFoundError:
-        raise HTTPException(status_code=404, detail="User not found")
+    except UserNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="User not found") from exc
 
     logger.info("user.account_deleted_via_api", extra={"user_id": user_id})
     request.session.clear()
