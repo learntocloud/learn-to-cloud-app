@@ -22,9 +22,11 @@ def _clean_root_logger():
     """Save and restore root logger state around each test."""
     root = logging.getLogger()
     original_handlers = root.handlers[:]
+    original_filters = root.filters[:]
     original_level = root.level
     yield
     root.handlers = original_handlers
+    root.filters = original_filters
     root.setLevel(original_level)
 
 
@@ -138,8 +140,7 @@ class TestConfigureLogging:
             assert any(isinstance(h.formatter, _JSONFormatter) for h in stream_handlers)
 
     def test_console_format_when_explicit(self):
-        with patch.dict(os.environ, {"LOG_FORMAT": "console"}, clear=False):
-            os.environ.pop("APPLICATIONINSIGHTS_CONNECTION_STRING", None)
+        with patch.dict(os.environ, {"LOG_FORMAT": "console"}, clear=True):
             configure_logging()
             root = logging.getLogger()
             stream_handlers = [
