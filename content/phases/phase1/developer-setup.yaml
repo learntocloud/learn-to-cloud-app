@@ -59,7 +59,7 @@ learning_steps:
 - order: 6
   action: 'Practice:'
   title: Adding a profile README
-  url: https://docs.github.com/en/account-and-profile/setting-up-and-managing-your-github-profile/customizing-your-profile/managing-your-profile-readme#adding-a-profile-readme
+  url: https://docs.github.com/en/account-and-profile/how-tos/profile-customization/managing-your-profile-readme
   description: Follow this guide to create the special repository that powers your GitHub profile README.
   id: phase1-topic1-practice-adding-a-profile-readme
 - order: 7

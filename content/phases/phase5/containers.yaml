@@ -17,7 +17,7 @@ learning_steps:
 - order: 1
   action: 'Read:'
   title: What is Containerization?
-  url: https://github.com/resources/articles/devops/containerization
+  url: https://github.com/resources/articles/containerization
   description: Learn how containers package applications with their dependencies for consistent deployment.
   id: phase5-topic1-read-what-is-containerization
 - order: 2
