@@ -14,12 +14,12 @@ test_llm_verification_base.py.
 
 import pytest
 
-from services.code_verification_service import (
+from services.verification.code_analysis import (
     _build_verification_prompt,
     _enforce_deterministic_guardrails,
 )
-from services.llm_verification_base import build_task_results
-from services.tasks.phase3_tasks import (
+from services.verification.llm_base import build_task_results
+from services.verification.tasks.phase3 import (
     ALLOWED_FILE_PATHS,
     PHASE3_TASKS,
     CodeAnalysisResponse,

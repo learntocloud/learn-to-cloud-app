@@ -12,7 +12,7 @@ lives in ``services.token_verification_base``.
 """
 
 from schemas import CTFVerificationResult
-from services.token_verification_base import LabConfig, verify_lab_token
+from services.verification.token_base import LabConfig, verify_lab_token
 
 _CTF_CONFIG = LabConfig(
     required_challenges=18,

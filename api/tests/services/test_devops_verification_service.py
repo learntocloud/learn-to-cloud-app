@@ -18,14 +18,14 @@ import httpx
 import pytest
 
 from schemas import TaskResult, ValidationResult
-from services.devops_verification_service import (
+from services.verification.devops_analysis import (
     DevOpsAnalysisError,
     _build_verification_prompt,
     _filter_devops_files,
     analyze_devops_repository,
 )
-from services.llm_verification_base import build_task_results, parse_structured_response
-from services.tasks.phase5_tasks import (
+from services.verification.llm_base import build_task_results, parse_structured_response
+from services.verification.tasks.phase5 import (
     PHASE5_TASKS,
     DevOpsAnalysisLLMResponse,
     DevOpsTaskGrade,
@@ -318,7 +318,7 @@ class TestAnalyzeDevopsRepository:
         mock_response.status_code = 404
 
         with patch(
-            "services.devops_verification_service.fetch_repo_tree",
+            "services.verification.devops_analysis.fetch_repo_tree",
             autospec=True,
             side_effect=httpx.HTTPStatusError(
                 "Not Found", request=MagicMock(), response=mock_response
@@ -375,17 +375,17 @@ class TestAnalyzeDevopsRepository:
 
         with (
             patch(
-                "services.devops_verification_service.fetch_repo_tree",
+                "services.verification.devops_analysis.fetch_repo_tree",
                 autospec=True,
                 return_value=mock_files,
             ),
             patch(
-                "services.devops_verification_service._fetch_all_devops_files",
+                "services.verification.devops_analysis._fetch_all_devops_files",
                 autospec=True,
                 return_value=mock_file_contents,
             ),
             patch(
-                "services.devops_verification_service._analyze_with_llm",
+                "services.verification.devops_analysis._analyze_with_llm",
                 autospec=True,
                 return_value=mock_validation,
             ),
@@ -404,17 +404,17 @@ class TestAnalyzeDevopsRepository:
 
         with (
             patch(
-                "services.devops_verification_service.fetch_repo_tree",
+                "services.verification.devops_analysis.fetch_repo_tree",
                 autospec=True,
                 return_value=["Dockerfile"],
             ),
             patch(
-                "services.devops_verification_service._fetch_all_devops_files",
+                "services.verification.devops_analysis._fetch_all_devops_files",
                 autospec=True,
                 return_value={t["id"]: [] for t in PHASE5_TASKS},
             ),
             patch(
-                "services.devops_verification_service._analyze_with_llm",
+                "services.verification.devops_analysis._analyze_with_llm",
                 autospec=True,
                 side_effect=LLMClientError("Connection failed", retriable=True),
             ),
@@ -432,17 +432,17 @@ class TestAnalyzeDevopsRepository:
         """Retriable DevOpsAnalysisError should return server_error=True."""
         with (
             patch(
-                "services.devops_verification_service.fetch_repo_tree",
+                "services.verification.devops_analysis.fetch_repo_tree",
                 autospec=True,
                 return_value=["Dockerfile"],
             ),
             patch(
-                "services.devops_verification_service._fetch_all_devops_files",
+                "services.verification.devops_analysis._fetch_all_devops_files",
                 autospec=True,
                 return_value={t["id"]: [] for t in PHASE5_TASKS},
             ),
             patch(
-                "services.devops_verification_service._analyze_with_llm",
+                "services.verification.devops_analysis._analyze_with_llm",
                 autospec=True,
                 side_effect=DevOpsAnalysisError("Timeout", retriable=True),
             ),

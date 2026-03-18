@@ -30,12 +30,12 @@ from tenacity import (
 
 from core.github_client import get_github_client as _get_github_client
 from schemas import TaskResult, ValidationResult
-from services.devops_verification_service import fetch_repo_tree
-from services.github_hands_on_verification_service import (
+from services.verification.devops_analysis import fetch_repo_tree
+from services.verification.github_profile import (
     RETRIABLE_EXCEPTIONS,
     get_github_headers,
 )
-from services.llm_verification_base import VerificationError, validate_repo_url
+from services.verification.llm_base import VerificationError, validate_repo_url
 
 logger = logging.getLogger(__name__)
 

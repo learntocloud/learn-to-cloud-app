@@ -30,7 +30,7 @@ from tenacity import (
 
 from core.github_client import get_github_client as _get_github_client
 from schemas import HandsOnRequirement, ValidationResult
-from services.github_hands_on_verification_service import (
+from services.verification.github_profile import (
     RETRIABLE_EXCEPTIONS,
     GitHubServerError,
     get_github_headers,

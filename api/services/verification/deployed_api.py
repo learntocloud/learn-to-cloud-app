@@ -54,8 +54,6 @@ _client_lock = asyncio.Lock()
 class DeployedApiServerError(Exception):
     """Raised when deployed API returns a 5xx error (retriable)."""
 
-    pass
-
 
 # Exceptions that should trigger retry and circuit breaker
 RETRIABLE_EXCEPTIONS: tuple[type[Exception], ...] = (

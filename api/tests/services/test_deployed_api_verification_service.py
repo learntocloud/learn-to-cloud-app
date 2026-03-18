@@ -16,7 +16,7 @@ import httpx
 import pytest
 from circuitbreaker import CircuitBreakerError
 
-from services.deployed_api_verification_service import (
+from services.verification.deployed_api import (
     DeployedApiServerError,
     _check_response_ip,
     _extract_entries_list,
@@ -282,7 +282,7 @@ def _mock_fetch_side_effect(
 
 @pytest.mark.unit
 @patch(
-    "services.deployed_api_verification_service._validate_url_target",
+    "services.verification.deployed_api._validate_url_target",
     new_callable=AsyncMock,
     return_value=None,
 )
@@ -368,12 +368,12 @@ class TestValidateDeployedApi:
 
         with (
             patch(
-                "services.deployed_api_verification_service._fetch_with_retry",
+                "services.verification.deployed_api._fetch_with_retry",
                 autospec=True,
                 side_effect=capturing_mock_fetch,
             ),
             patch(
-                "services.deployed_api_verification_service._cleanup_challenge_entry",
+                "services.verification.deployed_api._cleanup_challenge_entry",
                 autospec=True,
             ) as mock_cleanup,
         ):
@@ -390,7 +390,7 @@ class TestValidateDeployedApi:
     async def test_post_timeout_error(self, _mock_ssrf):
         """Timeout on POST should return appropriate error."""
         with patch(
-            "services.deployed_api_verification_service._fetch_with_retry",
+            "services.verification.deployed_api._fetch_with_retry",
             autospec=True,
         ) as mock_fetch:
             mock_fetch.side_effect = httpx.TimeoutException("Request timed out")
@@ -404,7 +404,7 @@ class TestValidateDeployedApi:
     async def test_post_connection_error(self, _mock_ssrf):
         """Connection error on POST should return appropriate message."""
         with patch(
-            "services.deployed_api_verification_service._fetch_with_retry",
+            "services.verification.deployed_api._fetch_with_retry",
             autospec=True,
         ) as mock_fetch:
             mock_fetch.side_effect = httpx.ConnectError("Connection refused")
@@ -418,7 +418,7 @@ class TestValidateDeployedApi:
     async def test_post_server_error(self, _mock_ssrf):
         """5xx errors on POST should return appropriate message."""
         with patch(
-            "services.deployed_api_verification_service._fetch_with_retry",
+            "services.verification.deployed_api._fetch_with_retry",
             autospec=True,
         ) as mock_fetch:
             mock_fetch.side_effect = DeployedApiServerError("Server returned 500")
@@ -432,7 +432,7 @@ class TestValidateDeployedApi:
     async def test_circuit_breaker_open(self, _mock_ssrf):
         """Circuit breaker open should return retry message."""
         with patch(
-            "services.deployed_api_verification_service._fetch_with_retry",
+            "services.verification.deployed_api._fetch_with_retry",
             autospec=True,
         ) as mock_fetch:
             mock_fetch.side_effect = CircuitBreakerError(MagicMock())
@@ -449,7 +449,7 @@ class TestValidateDeployedApi:
         mock_response.status_code = 404
 
         with patch(
-            "services.deployed_api_verification_service._fetch_with_retry",
+            "services.verification.deployed_api._fetch_with_retry",
             autospec=True,
         ) as mock_fetch:
             mock_fetch.return_value = mock_response
@@ -466,7 +466,7 @@ class TestValidateDeployedApi:
         mock_response.status_code = 422
 
         with patch(
-            "services.deployed_api_verification_service._fetch_with_retry",
+            "services.verification.deployed_api._fetch_with_retry",
             autospec=True,
         ) as mock_fetch:
             mock_fetch.return_value = mock_response
@@ -507,12 +507,12 @@ class TestValidateDeployedApi:
 
         with (
             patch(
-                "services.deployed_api_verification_service._fetch_with_retry",
+                "services.verification.deployed_api._fetch_with_retry",
                 autospec=True,
                 side_effect=mock_fetch,
             ),
             patch(
-                "services.deployed_api_verification_service._cleanup_challenge_entry",
+                "services.verification.deployed_api._cleanup_challenge_entry",
                 autospec=True,
             ),
         ):
@@ -543,12 +543,12 @@ class TestValidateDeployedApi:
 
         with (
             patch(
-                "services.deployed_api_verification_service._fetch_with_retry",
+                "services.verification.deployed_api._fetch_with_retry",
                 autospec=True,
                 side_effect=mock_fetch,
             ),
             patch(
-                "services.deployed_api_verification_service._cleanup_challenge_entry",
+                "services.verification.deployed_api._cleanup_challenge_entry",
                 autospec=True,
             ),
         ):
@@ -603,12 +603,12 @@ class TestValidateDeployedApi:
 
         with (
             patch(
-                "services.deployed_api_verification_service._fetch_with_retry",
+                "services.verification.deployed_api._fetch_with_retry",
                 autospec=True,
                 side_effect=mock_fetch,
             ),
             patch(
-                "services.deployed_api_verification_service._cleanup_challenge_entry",
+                "services.verification.deployed_api._cleanup_challenge_entry",
                 autospec=True,
             ),
         ):
@@ -663,12 +663,12 @@ class TestValidateDeployedApi:
 
         with (
             patch(
-                "services.deployed_api_verification_service._fetch_with_retry",
+                "services.verification.deployed_api._fetch_with_retry",
                 autospec=True,
                 side_effect=mock_fetch,
             ) as mock,
             patch(
-                "services.deployed_api_verification_service._cleanup_challenge_entry",
+                "services.verification.deployed_api._cleanup_challenge_entry",
                 autospec=True,
             ),
         ):
@@ -689,7 +689,7 @@ class TestValidateSubmissionIntegration:
         """DEPLOYED_API should route to validate_deployed_api."""
         from models import SubmissionType
         from schemas import HandsOnRequirement, ValidationResult
-        from services.hands_on_verification_service import validate_submission
+        from services.verification.dispatcher import validate_submission
 
         requirement = HandsOnRequirement(
             id="deployed-journal-api",
@@ -699,7 +699,7 @@ class TestValidateSubmissionIntegration:
         )
 
         with patch(
-            "services.deployed_api_verification_service.validate_deployed_api",
+            "services.verification.deployed_api.validate_deployed_api",
             autospec=True,
         ) as mock:
             mock.return_value = ValidationResult(is_valid=True, message="API verified!")
@@ -791,7 +791,7 @@ class TestValidateUrlTarget:
     async def test_blocks_dns_resolving_to_private(self):
         """Hostnames resolving to private IPs should be blocked."""
         with patch(
-            "services.deployed_api_verification_service.asyncio.get_running_loop"
+            "services.verification.deployed_api.asyncio.get_running_loop"
         ) as mock_loop:
             mock_loop.return_value.getaddrinfo = AsyncMock(
                 return_value=[(2, 1, 6, "", ("127.0.0.1", 443))]
@@ -804,7 +804,7 @@ class TestValidateUrlTarget:
     async def test_allows_dns_resolving_to_public(self):
         """Hostnames resolving to public IPs should be allowed."""
         with patch(
-            "services.deployed_api_verification_service.asyncio.get_running_loop"
+            "services.verification.deployed_api.asyncio.get_running_loop"
         ) as mock_loop:
             mock_loop.return_value.getaddrinfo = AsyncMock(
                 return_value=[(2, 1, 6, "", ("20.50.2.100", 443))]
@@ -818,7 +818,7 @@ class TestValidateUrlTarget:
         import socket as _socket
 
         with patch(
-            "services.deployed_api_verification_service.asyncio.get_running_loop"
+            "services.verification.deployed_api.asyncio.get_running_loop"
         ) as mock_loop:
             mock_loop.return_value.getaddrinfo = AsyncMock(
                 side_effect=_socket.gaierror("Name resolution failed")

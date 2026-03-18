@@ -2,7 +2,7 @@
 
 This module handles:
 - Submission creation/update with validation
-- Data transformation helpers used by other services (e.g. progress/badges)
+- Data transformation helpers used by other services (e.g. progress)
 - Cooldown enforcement for rate-limited submission types (e.g., CODE_ANALYSIS)
 - Daily submission cap across all requirements (default 20/day)
 - Already-validated short-circuit (skip re-verification for passed requirements)
@@ -12,10 +12,13 @@ This module handles:
 Routes should delegate submission business logic to this module.
 """
 
+from __future__ import annotations
+
 import asyncio
 import contextlib
 import json
 import logging
+from dataclasses import dataclass
 from datetime import UTC, datetime
 
 from cachetools import TTLCache
@@ -26,10 +29,15 @@ from core.config import get_settings
 from models import Submission, SubmissionType
 from repositories.progress_denormalized_repository import UserPhaseProgressRepository
 from repositories.submission_repository import SubmissionRepository
-from schemas import PhaseSubmissionContext, SubmissionData, SubmissionResult
-from services.github_hands_on_verification_service import parse_github_url
-from services.hands_on_verification_service import validate_submission
-from services.phase_requirements_service import (
+from schemas import (
+    HandsOnRequirement,
+    PhaseSubmissionContext,
+    SubmissionData,
+    SubmissionResult,
+)
+from services.verification.dispatcher import validate_submission
+from services.verification.github_profile import parse_github_url
+from services.verification.requirements import (
     get_phase_id_for_requirement,
     get_prerequisite_phase,
     get_requirement_by_id,
@@ -60,8 +68,6 @@ async def _get_submission_lock(user_id: int, requirement_id: str) -> asyncio.Loc
 
 class ConcurrentSubmissionError(Exception):
     """Raised when a submission is already in progress for this user+requirement."""
-
-    pass
 
 
 def _to_submission_data(submission: Submission) -> SubmissionData:
@@ -193,8 +199,6 @@ class DailyLimitExceededError(Exception):
 class AlreadyValidatedError(Exception):
     """Raised when re-submitting a requirement that is already validated."""
 
-    pass
-
 
 class PriorPhaseNotCompleteError(Exception):
     """Raised when submitting for a phase whose prerequisite isn't fully verified."""
@@ -220,25 +224,32 @@ def _is_llm_submission(submission_type: SubmissionType) -> bool:
     )
 
 
-async def pre_validate_submission(
+@dataclass(frozen=True, slots=True)
+class _PreValidationContext:
+    """Data collected during pre-validation checks.
+
+    Returned by ``_check_submission_preconditions`` so callers don't
+    repeat the same DB queries.
+    """
+
+    requirement: HandsOnRequirement
+    phase_id: int
+    existing_data: SubmissionData | None
+
+
+async def _check_submission_preconditions(
     session_maker: async_sessionmaker[AsyncSession],
     user_id: int,
     requirement_id: str,
-    submitted_value: str,
     github_username: str | None,
-) -> None:
-    """Run pre-validation checks without starting the actual verification.
+) -> _PreValidationContext:
+    """Shared pre-validation checks for submission paths.
 
-    This is the fast path (<100ms) that checks:
-    - Requirement exists
-    - Not already validated
-    - Phase gating
-    - Daily submission cap
-    - Cooldown enforcement
-    - GitHub username required
+    Validates requirement existence, already-validated status, phase gating,
+    daily cap, cooldown enforcement, and GitHub username requirement.
 
-    Used by the async LLM submission path to validate before kicking off
-    a background task.  Raises the same exceptions as submit_validation.
+    Opens a short-lived DB session for reads, then releases it before
+    returning.  Raises the same exceptions as ``submit_validation``.
     """
     requirement = get_requirement_by_id(requirement_id)
     if not requirement:
@@ -259,6 +270,7 @@ async def pre_validate_submission(
         if existing is not None and existing.is_validated:
             raise AlreadyValidatedError("You have already completed this requirement.")
 
+        # Sequential phase gating
         prereq_phase = get_prerequisite_phase(phase_id)
         if prereq_phase is not None:
             prereq_req_ids = get_requirement_ids_for_phase(prereq_phase)
@@ -273,6 +285,7 @@ async def pre_validate_submission(
                         prerequisite_phase=prereq_phase,
                     )
 
+        # Global daily submission cap
         settings = get_settings()
         today_count = await submission_repo.count_submissions_today(user_id)
         if today_count >= settings.daily_submission_limit:
@@ -284,15 +297,16 @@ async def pre_validate_submission(
                 existing_submission=_to_submission_data(existing) if existing else None,
             )
 
-        if requirement.submission_type in (
-            SubmissionType.CODE_ANALYSIS,
-            SubmissionType.DEVOPS_ANALYSIS,
-        ):
+        # Cooldown enforcement (LLM submissions only)
+        if _is_llm_submission(requirement.submission_type):
             last_submission_time = await submission_repo.get_last_submission_time(
                 user_id, requirement_id
             )
         else:
             last_submission_time = None
+
+        existing_data = _to_submission_data(existing) if existing else None
+    # read_session is now closed — connection returned to pool
 
     if last_submission_time is not None:
         cooldown_seconds = settings.code_analysis_cooldown_seconds
@@ -306,7 +320,7 @@ async def pre_validate_submission(
             raise CooldownActiveError(
                 f"Please wait {wait_str} before resubmitting.",
                 retry_after_seconds=remaining,
-                existing_submission=None,
+                existing_submission=existing_data,
             )
 
     if requirement.submission_type in (
@@ -323,6 +337,37 @@ async def pre_validate_submission(
                 "You need to link your GitHub account to submit. "
                 "Please sign out and sign in with GitHub."
             )
+
+    return _PreValidationContext(
+        requirement=requirement,
+        phase_id=phase_id,
+        existing_data=existing_data,
+    )
+
+
+async def pre_validate_submission(
+    session_maker: async_sessionmaker[AsyncSession],
+    user_id: int,
+    requirement_id: str,
+    submitted_value: str,
+    github_username: str | None,
+) -> None:
+    """Run pre-validation checks without starting the actual verification.
+
+    This is the fast path (<100ms) that checks:
+    - Requirement exists
+    - Not already validated
+    - Phase gating
+    - Daily submission cap
+    - Cooldown enforcement
+    - GitHub username required
+
+    Used by the async LLM submission path to validate before kicking off
+    a background task.  Raises the same exceptions as submit_validation.
+    """
+    await _check_submission_preconditions(
+        session_maker, user_id, requirement_id, github_username
+    )
 
 
 async def submit_validation(
@@ -358,104 +403,12 @@ async def submit_validation(
         ConcurrentSubmissionError: If validation is already in progress for this
             user+requirement (prevents race conditions).
     """
-    requirement = get_requirement_by_id(requirement_id)
-    if not requirement:
-        raise RequirementNotFoundError(f"Requirement not found: {requirement_id}")
-
-    phase_id = get_phase_id_for_requirement(requirement_id)
-    if phase_id is None:
-        raise RequirementNotFoundError(
-            f"Requirement not mapped to a phase: {requirement_id}"
-        )
-
-    # ── Phase 1: Pre-validation DB reads (short-lived session) ──────────
-    # Connection is held for only a few quick queries, then released before
-    # the potentially long-running LLM call.
-    async with session_maker() as read_session:
-        submission_repo = SubmissionRepository(read_session)
-
-        existing = await submission_repo.get_by_user_and_requirement(
-            user_id, requirement_id
-        )
-        if existing is not None and existing.is_validated:
-            raise AlreadyValidatedError("You have already completed this requirement.")
-
-        # --- Sequential phase gating ---
-        prereq_phase = get_prerequisite_phase(phase_id)
-        if prereq_phase is not None:
-            prereq_req_ids = get_requirement_ids_for_phase(prereq_phase)
-            if prereq_req_ids:
-                all_done = await submission_repo.are_all_requirements_validated(
-                    user_id, prereq_req_ids
-                )
-                if not all_done:
-                    raise PriorPhaseNotCompleteError(
-                        f"You must complete all Phase {prereq_phase} "
-                        f"verifications before submitting for Phase {phase_id}.",
-                        prerequisite_phase=prereq_phase,
-                    )
-
-        # --- Global daily submission cap ---
-        settings = get_settings()
-        today_count = await submission_repo.count_submissions_today(user_id)
-        if today_count >= settings.daily_submission_limit:
-            raise DailyLimitExceededError(
-                f"You have reached the daily limit of "
-                f"{settings.daily_submission_limit} "
-                f"submissions. Please try again tomorrow.",
-                limit=settings.daily_submission_limit,
-                existing_submission=_to_submission_data(existing) if existing else None,
-            )
-
-        # --- Cooldown enforcement (LLM submissions only) ---
-        # Lightweight verifications (CTF, profile, fork, etc.) are instant
-        # and free — the daily cap is sufficient protection.  LLM-based
-        # verifications cost money and hold a semaphore slot, so they get
-        # an additional per-requirement cooldown.
-        if requirement.submission_type in (
-            SubmissionType.CODE_ANALYSIS,
-            SubmissionType.DEVOPS_ANALYSIS,
-        ):
-            last_submission_time = await submission_repo.get_last_submission_time(
-                user_id, requirement_id
-            )
-        else:
-            last_submission_time = None
-
-        existing_data = _to_submission_data(existing) if existing else None
-    # read_session is now closed — connection returned to pool
-
-    if last_submission_time is not None:
-        cooldown_seconds = settings.code_analysis_cooldown_seconds
-
-        now = datetime.now(UTC)
-        elapsed = (now - last_submission_time).total_seconds()
-        remaining = int(cooldown_seconds - elapsed)
-
-        if remaining > 0:
-            minutes = remaining // 60
-            seconds = remaining % 60
-            wait_str = f"{minutes}m {seconds}s" if minutes else f"{seconds}s"
-            raise CooldownActiveError(
-                f"Please wait {wait_str} before resubmitting.",
-                retry_after_seconds=remaining,
-                existing_submission=existing_data,
-            )
-
-    if requirement.submission_type in (
-        SubmissionType.PROFILE_README,
-        SubmissionType.REPO_FORK,
-        SubmissionType.CTF_TOKEN,
-        SubmissionType.NETWORKING_TOKEN,
-        SubmissionType.CODE_ANALYSIS,
-        SubmissionType.DEVOPS_ANALYSIS,
-        SubmissionType.PR_REVIEW,
-    ):
-        if not github_username:
-            raise GitHubUsernameRequiredError(
-                "You need to link your GitHub account to submit. "
-                "Please sign out and sign in with GitHub."
-            )
+    ctx = await _check_submission_preconditions(
+        session_maker, user_id, requirement_id, github_username
+    )
+    requirement = ctx.requirement
+    phase_id = ctx.phase_id
+    existing_data = ctx.existing_data
 
     # Prevent concurrent submissions for the same user+requirement.
     submission_lock = await _get_submission_lock(user_id, requirement_id)

@@ -42,9 +42,31 @@ from core.database import Base
 # Test Settings
 # =============================================================================
 
-TEST_DATABASE_URL = (
-    "postgresql+asyncpg://postgres:postgres@localhost:54320/test_learn_to_cloud"
-)
+
+def _build_test_database_url() -> tuple[str, str, int]:
+    """Derive test DB URL from DATABASE_URL env var.
+
+    Returns (test_url, host, port). The test database is always
+    'test_learn_to_cloud' regardless of what DATABASE_URL specifies.
+    """
+    from urllib.parse import urlparse
+
+    raw = os.environ.get(
+        "DATABASE_URL",
+        "postgresql+asyncpg://postgres:postgres@localhost:54320/test_learn_to_cloud",
+    )
+    parsed = urlparse(raw)
+    host = parsed.hostname or "localhost"
+    port = parsed.port or 5432
+    # Rebuild URL with the test database name
+    user_info = (
+        f"{parsed.username}:{parsed.password}" if parsed.password else parsed.username
+    )
+    test_url = f"{parsed.scheme}://{user_info}@{host}:{port}/test_learn_to_cloud"
+    return test_url, host, port
+
+
+TEST_DATABASE_URL, _DB_HOST, _DB_PORT = _build_test_database_url()
 
 
 @pytest.fixture(scope="session")
@@ -84,7 +106,7 @@ def _check_db_available() -> bool:
     try:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.settimeout(1)
-        result = sock.connect_ex(("localhost", 54320))
+        result = sock.connect_ex((_DB_HOST, _DB_PORT))
         sock.close()
         _DB_AVAILABLE = result == 0
     except Exception:
@@ -103,8 +125,9 @@ async def test_engine() -> AsyncGenerator[AsyncEngine]:
     if not _check_db_available():
         pytest.skip("PostgreSQL not available - skipping database test")
 
+    admin_url = TEST_DATABASE_URL.rsplit("/", 1)[0] + "/postgres"
     admin_engine = create_async_engine(
-        "postgresql+asyncpg://postgres:postgres@localhost:54320/postgres",
+        admin_url,
         poolclass=NullPool,
         isolation_level="AUTOCOMMIT",
     )

@@ -16,10 +16,10 @@ To add a new verification type:
    - async def validate_<type>(url: str, ...) -> ValidationResult
 4. Add routing case in validate_submission() below
 
-For GitHub-specific validations, see github_hands_on_verification.py
-For CTF token validation, see ctf_service.py
-For AI-powered code analysis, see code_verification_service.py
-For phase requirements, see phase_requirements.py
+For GitHub-specific validations, see github_profile.py
+For CTF token validation, see ctf.py
+For AI-powered code analysis, see code_analysis.py
+For phase requirements, see requirements.py
 """
 
 import logging
@@ -27,7 +27,7 @@ import time
 
 from models import SubmissionType
 from schemas import HandsOnRequirement, ValidationResult
-from services.phase_requirements_service import (
+from services.verification.requirements import (
     get_requirement_by_id,
     get_requirements_for_phase,
 )
@@ -54,7 +54,7 @@ def validate_ctf_token_submission(
     Returns:
         ValidationResult with verification status
     """
-    from services.ctf_service import verify_ctf_token
+    from services.verification.ctf import verify_ctf_token
 
     ctf_result = verify_ctf_token(token, expected_username)
 
@@ -78,7 +78,7 @@ def validate_networking_token_submission(
     Returns:
         ValidationResult with verification status and cloud_provider
     """
-    from services.networking_lab_service import verify_networking_token
+    from services.verification.networking_lab import verify_networking_token
 
     result = verify_networking_token(token, expected_username)
 
@@ -133,48 +133,43 @@ async def validate_submission(
         VERIFICATION_DURATION.record(elapsed, attrs)
 
 
+_USERNAME_NOT_REQUIRED: frozenset[SubmissionType] = frozenset(
+    {SubmissionType.DEPLOYED_API}
+)
+
+
 async def _dispatch_validation(
     requirement: HandsOnRequirement,
     submitted_value: str,
     expected_username: str | None = None,
 ) -> ValidationResult:
     """Route to the appropriate validator based on submission type."""
-    if requirement.submission_type == SubmissionType.GITHUB_PROFILE:
-        if not expected_username:
-            return ValidationResult(
-                is_valid=False,
-                message="GitHub username is required for profile validation",
-                username_match=False,
-                repo_exists=False,
-            )
-        from services.github_hands_on_verification_service import (
-            validate_github_profile,
+    # Most submission types require a GitHub username — check once up front.
+    if (
+        requirement.submission_type not in _USERNAME_NOT_REQUIRED
+        and not expected_username
+    ):
+        return ValidationResult(
+            is_valid=False,
+            message="GitHub username is required for this verification",
+            username_match=False,
         )
 
-        return await validate_github_profile(submitted_value, expected_username)
+    # Narrow type: after the guard above, username is str for all branches
+    # that require it. DEPLOYED_API never reads it.
+    username: str = expected_username or ""
+
+    if requirement.submission_type == SubmissionType.GITHUB_PROFILE:
+        from services.verification.github_profile import validate_github_profile
+
+        return await validate_github_profile(submitted_value, username)
 
     elif requirement.submission_type == SubmissionType.PROFILE_README:
-        if not expected_username:
-            return ValidationResult(
-                is_valid=False,
-                message="GitHub username is required for profile README validation",
-                username_match=False,
-                repo_exists=False,
-            )
-        from services.github_hands_on_verification_service import (
-            validate_profile_readme,
-        )
+        from services.verification.github_profile import validate_profile_readme
 
-        return await validate_profile_readme(submitted_value, expected_username)
+        return await validate_profile_readme(submitted_value, username)
 
     elif requirement.submission_type == SubmissionType.REPO_FORK:
-        if not expected_username:
-            return ValidationResult(
-                is_valid=False,
-                message="GitHub username is required for repository fork validation",
-                username_match=False,
-                repo_exists=False,
-            )
         if not requirement.required_repo:
             return ValidationResult(
                 is_valid=False,
@@ -182,84 +177,42 @@ async def _dispatch_validation(
                 username_match=False,
                 repo_exists=False,
             )
-        from services.github_hands_on_verification_service import (
-            validate_repo_fork,
-        )
+        from services.verification.github_profile import validate_repo_fork
 
         return await validate_repo_fork(
-            submitted_value, expected_username, requirement.required_repo
+            submitted_value, username, requirement.required_repo
         )
 
     elif requirement.submission_type == SubmissionType.CTF_TOKEN:
-        if not expected_username:
-            return ValidationResult(
-                is_valid=False,
-                message="GitHub username is required for CTF token validation",
-                username_match=False,
-                repo_exists=False,
-            )
-        return validate_ctf_token_submission(submitted_value, expected_username)
+        return validate_ctf_token_submission(submitted_value, username)
 
     elif requirement.submission_type == SubmissionType.NETWORKING_TOKEN:
-        if not expected_username:
-            return ValidationResult(
-                is_valid=False,
-                message="GitHub username is required for networking token validation",
-                username_match=False,
-                repo_exists=False,
-            )
-        return validate_networking_token_submission(submitted_value, expected_username)
+        return validate_networking_token_submission(submitted_value, username)
 
     elif requirement.submission_type == SubmissionType.PR_REVIEW:
-        if not expected_username:
-            return ValidationResult(
-                is_valid=False,
-                message="GitHub username is required for PR verification",
-                username_match=False,
-            )
-        from services.pr_verification_service import validate_pr
+        from services.verification.pull_request import validate_pr
 
-        return await validate_pr(submitted_value, expected_username, requirement)
+        return await validate_pr(submitted_value, username, requirement)
 
     elif requirement.submission_type == SubmissionType.CODE_ANALYSIS:
-        if not expected_username:
-            return ValidationResult(
-                is_valid=False,
-                message="GitHub username is required for code analysis",
-                username_match=False,
-            )
-        from services.code_verification_service import analyze_repository_code
+        from services.verification.code_analysis import analyze_repository_code
 
-        return await analyze_repository_code(submitted_value, expected_username)
+        return await analyze_repository_code(submitted_value, username)
 
     elif requirement.submission_type == SubmissionType.DEVOPS_ANALYSIS:
-        if not expected_username:
-            return ValidationResult(
-                is_valid=False,
-                message="GitHub username is required for DevOps analysis",
-                username_match=False,
-            )
-        from services.devops_verification_service import analyze_devops_repository
+        from services.verification.devops_analysis import analyze_devops_repository
 
-        return await analyze_devops_repository(submitted_value, expected_username)
+        return await analyze_devops_repository(submitted_value, username)
 
     elif requirement.submission_type == SubmissionType.DEPLOYED_API:
-        from services.deployed_api_verification_service import validate_deployed_api
+        from services.verification.deployed_api import validate_deployed_api
 
         return await validate_deployed_api(submitted_value)
 
     elif requirement.submission_type == SubmissionType.SECURITY_SCANNING:
-        if not expected_username:
-            return ValidationResult(
-                is_valid=False,
-                message=(
-                    "GitHub username is required for " "security scanning verification"
-                ),
-                username_match=False,
-            )
-        from services.security_verification_service import validate_security_scanning
+        from services.verification.security_scanning import validate_security_scanning
 
-        return await validate_security_scanning(submitted_value, expected_username)
+        return await validate_security_scanning(submitted_value, username)
 
     else:
         return ValidationResult(

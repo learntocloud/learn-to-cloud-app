@@ -13,7 +13,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from services.github_hands_on_verification_service import (
+from services.verification.github_profile import (
     _parse_retry_after,
     get_github_headers,
     parse_github_url,
@@ -56,7 +56,7 @@ class TestGetGitHubHeaders:
         mock_settings = MagicMock()
         mock_settings.github_token = "ghp_test123"
         with patch(
-            "services.github_hands_on_verification_service.get_settings",
+            "services.verification.github_profile.get_settings",
             autospec=True,
             return_value=mock_settings,
         ):
@@ -68,7 +68,7 @@ class TestGetGitHubHeaders:
         mock_settings = MagicMock()
         mock_settings.github_token = ""
         with patch(
-            "services.github_hands_on_verification_service.get_settings",
+            "services.verification.github_profile.get_settings",
             autospec=True,
             return_value=mock_settings,
         ):
@@ -199,7 +199,7 @@ class TestValidateGitHubProfile:
     @pytest.mark.asyncio
     async def test_profile_exists_succeeds(self):
         with patch(
-            "services.github_hands_on_verification_service.check_github_url_exists",
+            "services.verification.github_profile.check_github_url_exists",
             autospec=True,
             return_value=(True, "URL exists", False),
         ):
@@ -212,7 +212,7 @@ class TestValidateGitHubProfile:
     @pytest.mark.asyncio
     async def test_profile_not_found_fails(self):
         with patch(
-            "services.github_hands_on_verification_service.check_github_url_exists",
+            "services.verification.github_profile.check_github_url_exists",
             autospec=True,
             return_value=(False, "URL not found (404)", False),
         ):
@@ -225,7 +225,7 @@ class TestValidateGitHubProfile:
     @pytest.mark.asyncio
     async def test_server_error_propagated(self):
         with patch(
-            "services.github_hands_on_verification_service.check_github_url_exists",
+            "services.verification.github_profile.check_github_url_exists",
             autospec=True,
             return_value=(False, "GitHub service temporarily unavailable", True),
         ):
@@ -272,7 +272,7 @@ class TestValidateProfileReadme:
     @pytest.mark.asyncio
     async def test_readme_exists_succeeds(self):
         with patch(
-            "services.github_hands_on_verification_service.check_github_url_exists",
+            "services.verification.github_profile.check_github_url_exists",
             autospec=True,
             return_value=(True, "URL exists", False),
         ):
@@ -285,7 +285,7 @@ class TestValidateProfileReadme:
     @pytest.mark.asyncio
     async def test_readme_not_found_fails(self):
         with patch(
-            "services.github_hands_on_verification_service.check_github_url_exists",
+            "services.verification.github_profile.check_github_url_exists",
             autospec=True,
             return_value=(False, "URL not found (404)", False),
         ):
@@ -331,7 +331,7 @@ class TestValidateRepoFork:
     @pytest.mark.asyncio
     async def test_valid_fork_succeeds(self):
         with patch(
-            "services.github_hands_on_verification_service.check_repo_is_fork_of",
+            "services.verification.github_profile.check_repo_is_fork_of",
             autospec=True,
             return_value=(True, "Verified fork of learntocloud/repo", False),
         ):
@@ -345,7 +345,7 @@ class TestValidateRepoFork:
     @pytest.mark.asyncio
     async def test_not_a_fork_fails(self):
         with patch(
-            "services.github_hands_on_verification_service.check_repo_is_fork_of",
+            "services.verification.github_profile.check_repo_is_fork_of",
             autospec=True,
             return_value=(False, "Repository is not a fork", False),
         ):
@@ -359,7 +359,7 @@ class TestValidateRepoFork:
     @pytest.mark.asyncio
     async def test_server_error_propagated(self):
         with patch(
-            "services.github_hands_on_verification_service.check_repo_is_fork_of",
+            "services.verification.github_profile.check_repo_is_fork_of",
             autospec=True,
             return_value=(False, "GitHub unavailable", True),
         ):

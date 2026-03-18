@@ -28,13 +28,13 @@ from services.content_service import (
     get_topic_by_slugs,
 )
 from services.dashboard_service import get_dashboard_data
-from services.phase_requirements_service import (
-    is_phase_verification_locked,
-)
 from services.progress_service import get_phase_detail_progress
 from services.steps_service import get_valid_completed_steps
 from services.submissions_service import get_phase_submission_context
 from services.users_service import get_user_by_id
+from services.verification.requirements import (
+    is_phase_verification_locked,
+)
 
 logger = logging.getLogger(__name__)
 

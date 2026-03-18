@@ -32,7 +32,6 @@ from rendering.context import (
 from rendering.steps import build_step_data
 from schemas import SubmissionData, SubmissionResult
 from services.content_service import get_topic_by_id
-from services.hands_on_verification_service import get_requirement_by_id
 from services.steps_service import (
     StepValidationError,
     complete_step,
@@ -58,7 +57,8 @@ from services.users_service import (
     delete_user_account,
     get_user_by_id,
 )
-from services.verification_events import (
+from services.verification.dispatcher import get_requirement_by_id
+from services.verification.events import (
     complete_pending,
     create_pending,
     get_pending,

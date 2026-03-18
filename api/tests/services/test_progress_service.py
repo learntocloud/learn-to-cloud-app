@@ -3,7 +3,6 @@
 Tests cover:
 - compute_topic_progress status derivation and stale-step filtering
 - phase_progress_to_data status mapping
-- get_phase_completion_counts format conversion
 - fetch_user_progress cache hit/miss and DB assembly
 - get_phase_detail_progress cache hit/miss and per-topic breakdown
 """
@@ -23,7 +22,6 @@ from services.progress_service import (
     _build_phase_requirements,
     compute_topic_progress,
     fetch_user_progress,
-    get_phase_completion_counts,
     get_phase_detail_progress,
     phase_progress_to_data,
 )
@@ -177,33 +175,6 @@ class TestPhaseProgressToData:
         )
         data = phase_progress_to_data(progress)
         assert data.status == "not_started"
-
-
-# ---------------------------------------------------------------------------
-# get_phase_completion_counts
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.unit
-class TestGetPhaseCompletionCounts:
-    def test_format_conversion(self):
-        progress = UserProgress(
-            user_id=1,
-            phases={
-                0: PhaseProgress(
-                    phase_id=0,
-                    steps_completed=3,
-                    steps_required=5,
-                    hands_on_validated_count=1,
-                    hands_on_required_count=1,
-                    hands_on_validated=True,
-                    hands_on_required=True,
-                ),
-            },
-            total_phases=1,
-        )
-        result = get_phase_completion_counts(progress)
-        assert result[0] == (3, True)
 
 
 # ---------------------------------------------------------------------------

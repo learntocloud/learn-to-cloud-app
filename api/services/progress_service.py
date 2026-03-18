@@ -5,7 +5,7 @@ This module provides a single source of truth for:
 - User progress calculation
 - Phase completion status
 
-All progress-related logic (dashboard, badges) should use this module
+All progress-related logic (dashboard) should use this module
 to ensure consistency across the application.
 
 CACHING:
@@ -38,7 +38,7 @@ from schemas import (
     UserProgress,
 )
 from services.content_service import get_all_phases
-from services.phase_requirements_service import get_requirements_for_phase
+from services.verification.requirements import get_requirements_for_phase
 
 logger = logging.getLogger(__name__)
 
@@ -171,20 +171,6 @@ async def fetch_user_progress(
     set_cached_progress(user_id, result)
 
     return result
-
-
-def get_phase_completion_counts(
-    progress: UserProgress,
-) -> dict[int, tuple[int, bool]]:
-    """Convert UserProgress to the format expected by badge computation.
-
-    Returns:
-        Dict mapping phase_id -> (completed_steps, hands_on_validated)
-    """
-    return {
-        phase_id: (phase.steps_completed, phase.hands_on_validated)
-        for phase_id, phase in progress.phases.items()
-    }
 
 
 def compute_topic_progress(
