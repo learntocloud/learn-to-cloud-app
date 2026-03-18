@@ -30,8 +30,8 @@ from schemas import (
     VerificationStat,
 )
 from services.content_service import get_all_phases
-from services.phase_requirements_service import get_requirements_for_phase
 from services.progress_service import get_phase_requirements
+from services.verification.requirements import get_requirements_for_phase
 
 logger = logging.getLogger(__name__)
 

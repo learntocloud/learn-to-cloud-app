@@ -12,7 +12,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from services.verification_events import (
+from services.verification.events import (
     PendingVerification,
     complete_pending,
     create_pending,

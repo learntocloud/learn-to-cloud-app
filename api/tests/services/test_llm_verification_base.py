@@ -15,7 +15,7 @@ import pytest
 from pydantic import BaseModel, Field
 
 from schemas import ValidationResult
-from services.llm_verification_base import (
+from services.verification.llm_base import (
     SUSPICIOUS_PATTERNS,
     VerificationError,
     build_task_results,

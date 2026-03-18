@@ -28,12 +28,7 @@ from tenacity import (
 )
 
 from core.config import get_settings
-from core.github_client import (  # noqa: F401  # re-exported for backward compat
-    close_github_client,
-)
-from core.github_client import (
-    get_github_client as _get_github_client,
-)
+from core.github_client import get_github_client as _get_github_client
 from schemas import ParsedGitHubUrl, ValidationResult
 
 logger = logging.getLogger(__name__)

@@ -2,8 +2,6 @@
 
 Provides phase listing with user progress and summary stats
 for the dashboard page.
-
-Source of truth: .github/skills/progression-system/progression-system.md
 """
 
 import logging
@@ -52,7 +50,7 @@ async def get_dashboard_data(
 ) -> DashboardData:
     """Build the full dashboard payload.
 
-    Returns phase list, overall stats, continue-phase pointer, and badges.
+    Returns phase list, overall stats, and continue-phase pointer.
     For unauthenticated users, returns phases only with zeroed stats.
     """
     phases = get_all_phases()

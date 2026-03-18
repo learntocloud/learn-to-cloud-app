@@ -19,7 +19,7 @@ from datetime import UTC, datetime
 
 import pytest
 
-from services.networking_lab_service import (
+from services.verification.networking_lab import (
     ACCEPTED_CHALLENGE_TYPES,
     REQUIRED_CHALLENGES,
     verify_networking_token,

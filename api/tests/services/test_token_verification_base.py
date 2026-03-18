@@ -18,7 +18,7 @@ from datetime import UTC, datetime
 
 import pytest
 
-from services.token_verification_base import (
+from services.verification.token_base import (
     decode_token,
     derive_secret,
     verify_challenge_count,

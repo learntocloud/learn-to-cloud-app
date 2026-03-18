@@ -18,16 +18,12 @@ All phases, topics, and steps are **fully unlocked** - users can access any cont
 
 **Phase:** `(Steps + Hands-on) / Total`
 
-## Badge Tiers
-
-(Badges have been removed from the platform.)
-
 ## Key Files
 
 | Purpose | File |
 |---------|------|
 | Progress | `services/progress_service.py` |
-| Hands-on | `services/phase_requirements_service.py` |
+| Hands-on | `services/verification/requirements.py` |
 
 ## Important
 

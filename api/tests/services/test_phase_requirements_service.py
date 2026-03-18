@@ -17,7 +17,7 @@ from schemas import (
     Phase,
     PhaseHandsOnVerificationOverview,
 )
-from services.phase_requirements_service import (
+from services.verification.requirements import (
     _get_requirement_id_map,
     _get_requirement_phase_id_map,
     _get_requirements_map,

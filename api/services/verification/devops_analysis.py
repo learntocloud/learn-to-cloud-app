@@ -32,7 +32,7 @@ from circuitbreaker import CircuitBreakerError
 from core.config import get_settings
 from core.llm_client import LLMClientError
 from schemas import ValidationResult
-from services.llm_verification_base import (
+from services.verification.llm_base import (
     SUSPICIOUS_PATTERNS,
     VerificationError,
     build_task_results,
@@ -41,7 +41,7 @@ from services.llm_verification_base import (
     parse_structured_response,
     run_llm_grading_workflow,
 )
-from services.tasks.phase5_tasks import (
+from services.verification.tasks.phase5 import (
     MAX_FILE_SIZE_BYTES,
     MAX_FILES_PER_CATEGORY,
     MAX_TOTAL_CONTENT_BYTES,

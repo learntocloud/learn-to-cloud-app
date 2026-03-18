@@ -14,7 +14,7 @@ from datetime import UTC, datetime
 
 import pytest
 
-from services.ctf_service import verify_ctf_token
+from services.verification.ctf import verify_ctf_token
 
 TEST_SECRET = "test_ctf_secret_must_be_32_chars!"
 

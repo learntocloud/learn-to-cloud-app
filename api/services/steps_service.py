@@ -20,8 +20,6 @@ logger = logging.getLogger(__name__)
 class StepValidationError(Exception):
     """Raised when step validation fails."""
 
-    pass
-
 
 class StepUnknownTopicError(StepValidationError):
     """Raised when a topic_id doesn't exist in content."""

@@ -14,7 +14,7 @@ import pytest
 
 from models import SubmissionType
 from schemas import HandsOnRequirement, ValidationResult
-from services.hands_on_verification_service import (
+from services.verification.dispatcher import (
     validate_submission,
 )
 
@@ -44,7 +44,7 @@ class TestValidateSubmissionRouting:
         requirement = _make_requirement(SubmissionType.NETWORKING_TOKEN)
 
         with patch(
-            "services.hands_on_verification_service.validate_networking_token_submission",
+            "services.verification.dispatcher.validate_networking_token_submission",
             autospec=True,
         ) as mock:
             mock.return_value = ValidationResult(
@@ -83,7 +83,7 @@ class TestValidateSubmissionRouting:
         )
 
         with patch(
-            "services.github_hands_on_verification_service.validate_repo_fork",
+            "services.verification.github_profile.validate_repo_fork",
             autospec=True,
         ) as mock:
             mock.return_value = ValidationResult(
@@ -153,7 +153,7 @@ class TestSubmissionRouting:
         )
 
         with patch(
-            "services.deployed_api_verification_service.validate_deployed_api",
+            "services.verification.deployed_api.validate_deployed_api",
             autospec=True,
         ) as mock:
             mock.return_value = ValidationResult(
@@ -181,7 +181,7 @@ class TestSubmissionRouting:
         )
 
         with patch(
-            "services.pr_verification_service.validate_pr",
+            "services.verification.pull_request.validate_pr",
             autospec=True,
         ) as mock:
             mock.return_value = ValidationResult(
@@ -211,7 +211,7 @@ class TestSubmissionRouting:
         )
 
         with patch(
-            "services.devops_verification_service.analyze_devops_repository",
+            "services.verification.devops_analysis.analyze_devops_repository",
             autospec=True,
         ) as mock:
             mock.return_value = ValidationResult(
@@ -274,7 +274,7 @@ class TestValidateSubmissionUsernameRequirements:
         requirement = _make_requirement(SubmissionType.DEPLOYED_API)
 
         with patch(
-            "services.deployed_api_verification_service.validate_deployed_api",
+            "services.verification.deployed_api.validate_deployed_api",
             autospec=True,
         ) as mock:
             mock.return_value = ValidationResult(is_valid=True, message="API verified!")
@@ -299,7 +299,7 @@ class TestValidateCtfTokenSubmission:
     def test_delegates_to_ctf_service(self):
         from unittest.mock import MagicMock
 
-        from services.hands_on_verification_service import (
+        from services.verification.dispatcher import (
             validate_ctf_token_submission,
         )
 
@@ -308,7 +308,7 @@ class TestValidateCtfTokenSubmission:
         mock_result.message = "OK"
         mock_result.server_error = False
         with patch(
-            "services.ctf_service.verify_ctf_token",
+            "services.verification.ctf.verify_ctf_token",
             autospec=True,
             return_value=mock_result,
         ) as mock:
@@ -322,7 +322,7 @@ class TestValidateNetworkingTokenSubmission:
     def test_extracts_cloud_provider(self):
         from unittest.mock import MagicMock
 
-        from services.hands_on_verification_service import (
+        from services.verification.dispatcher import (
             validate_networking_token_submission,
         )
 
@@ -332,7 +332,7 @@ class TestValidateNetworkingTokenSubmission:
         mock_result.server_error = False
         mock_result.challenge_type = "networking-lab-azure"
         with patch(
-            "services.networking_lab_service.verify_networking_token",
+            "services.verification.networking_lab.verify_networking_token",
             autospec=True,
             return_value=mock_result,
         ):
@@ -342,7 +342,7 @@ class TestValidateNetworkingTokenSubmission:
     def test_no_cloud_provider_when_invalid(self):
         from unittest.mock import MagicMock
 
-        from services.hands_on_verification_service import (
+        from services.verification.dispatcher import (
             validate_networking_token_submission,
         )
 
@@ -352,7 +352,7 @@ class TestValidateNetworkingTokenSubmission:
         mock_result.server_error = False
         mock_result.challenge_type = None
         with patch(
-            "services.networking_lab_service.verify_networking_token",
+            "services.verification.networking_lab.verify_networking_token",
             autospec=True,
             return_value=mock_result,
         ):
@@ -371,7 +371,7 @@ class TestDispatchGitHubProfile:
     async def test_github_profile_routes_correctly(self):
         requirement = _make_requirement(SubmissionType.GITHUB_PROFILE)
         with patch(
-            "services.github_hands_on_verification_service.validate_github_profile",
+            "services.verification.github_profile.validate_github_profile",
             autospec=True,
         ) as mock:
             mock.return_value = ValidationResult(is_valid=True, message="Verified!")
@@ -390,7 +390,7 @@ class TestDispatchSecurityScanning:
     async def test_security_scanning_routes_correctly(self):
         requirement = _make_requirement(SubmissionType.SECURITY_SCANNING)
         with patch(
-            "services.security_verification_service.validate_security_scanning",
+            "services.verification.security_scanning.validate_security_scanning",
             autospec=True,
         ) as mock:
             mock.return_value = ValidationResult(is_valid=True, message="Scanned!")

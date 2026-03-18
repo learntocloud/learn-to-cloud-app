@@ -45,7 +45,7 @@ from routes import (
     pages_router,
     users_router,
 )
-from services.deployed_api_verification_service import (
+from services.verification.deployed_api import (
     close_deployed_api_client,
 )
 

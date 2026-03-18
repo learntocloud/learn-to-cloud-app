@@ -14,7 +14,7 @@ lives in ``services.token_verification_base``.
 """
 
 from schemas import NetworkingLabVerificationResult
-from services.token_verification_base import LabConfig, verify_lab_token
+from services.verification.token_base import LabConfig, verify_lab_token
 
 _NETWORKING_CONFIG = LabConfig(
     required_challenges=4,
@@ -36,8 +36,8 @@ _NETWORKING_CONFIG = LabConfig(
 
 # Public constants derived from config (used by tests)
 REQUIRED_CHALLENGES = _NETWORKING_CONFIG.required_challenges
-assert _NETWORKING_CONFIG.accepted_challenge_types is not None
-ACCEPTED_CHALLENGE_TYPES: frozenset[str] = _NETWORKING_CONFIG.accepted_challenge_types
+# accepted_challenge_types is always set in _NETWORKING_CONFIG above
+ACCEPTED_CHALLENGE_TYPES: frozenset[str] = _NETWORKING_CONFIG.accepted_challenge_types  # type: ignore[assignment]
 
 
 def verify_networking_token(
