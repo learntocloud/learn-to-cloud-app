@@ -33,7 +33,7 @@ learning_steps:
   options:
   - provider: windows
     title: Windows terminal (WSL)
-    url: https://learn.microsoft.com/en-us/windows/wsl/install
+    url: https://learn.microsoft.com/windows/wsl/install
     description: Install WSL if needed, open your Linux shell, and practice basic terminal commands there.
   - provider: linux
     title: Linux terminal
