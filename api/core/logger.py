@@ -22,6 +22,7 @@ import logging
 import os
 import sys
 from datetime import UTC, datetime
+from typing import ClassVar
 
 
 class _RequestContextFilter(logging.Filter):
@@ -49,7 +50,9 @@ class _RequestContextFilter(logging.Filter):
 class _JSONFormatter(logging.Formatter):
     """Format log records as single-line JSON for production log aggregation."""
 
-    _SKIP_KEYS = set(logging.LogRecord("", 0, "", 0, "", (), None).__dict__)
+    _SKIP_KEYS: ClassVar[set[str]] = set(
+        logging.LogRecord("", 0, "", 0, "", (), None).__dict__
+    )
 
     def format(self, record: logging.LogRecord) -> str:
         log_entry: dict[str, object] = {

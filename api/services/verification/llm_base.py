@@ -352,12 +352,15 @@ def enforce_deterministic_guardrails(
                     break
 
         # ── Check 2: file missing → force fail ──
-        if grade.passed and not override_reason:
-            if "<file_not_found" in raw_contents or "<no_files_found" in raw_contents:
-                override_reason = (
-                    "Required file was not found in the repository. "
-                    "Ensure the file exists at the expected path."
-                )
+        if (
+            grade.passed
+            and not override_reason
+            and ("<file_not_found" in raw_contents or "<no_files_found" in raw_contents)
+        ):
+            override_reason = (
+                "Required file was not found in the repository. "
+                "Ensure the file exists at the expected path."
+            )
 
         # ── Check 3: prompt injection detected → force fail ──
         if grade.passed and not override_reason:

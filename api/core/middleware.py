@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from contextvars import ContextVar
+from typing import ClassVar
 
 from opentelemetry import trace
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
@@ -17,7 +18,7 @@ request_github_username: ContextVar[str | None] = ContextVar(
 class SecurityHeadersMiddleware:
     """Adds security headers (CSP, HSTS, X-Frame-Options, etc.)."""
 
-    SECURITY_HEADERS: list[tuple[bytes, bytes]] = [
+    SECURITY_HEADERS: ClassVar[list[tuple[bytes, bytes]]] = [
         (b"x-content-type-options", b"nosniff"),
         (b"x-frame-options", b"DENY"),
         (b"x-xss-protection", b"0"),

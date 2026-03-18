@@ -265,7 +265,7 @@ def _mock_fetch_side_effect(
                 "created_at": "2026-01-01T00:00:00Z",
             }
             # We need to capture the nonce from the POST call
-            all_entries = real_entries + [challenge_entry]
+            all_entries = [*real_entries, challenge_entry]
             if get_response_format == "wrapped":
                 resp.json.return_value = {
                     "entries": all_entries,

@@ -27,19 +27,8 @@ import time
 
 from models import SubmissionType
 from schemas import HandsOnRequirement, ValidationResult
-from services.verification.requirements import (
-    get_requirement_by_id,
-    get_requirements_for_phase,
-)
 
 logger = logging.getLogger(__name__)
-
-__all__ = [
-    "get_requirement_by_id",
-    "get_requirements_for_phase",
-    "validate_submission",
-    "ValidationResult",
-]
 
 
 def validate_ctf_token_submission(

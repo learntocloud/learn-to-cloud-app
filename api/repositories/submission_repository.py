@@ -1,22 +1,11 @@
 """Submission repository for hands-on validation database operations."""
 
 from datetime import UTC, datetime, timedelta
-from typing import NamedTuple
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models import Submission, SubmissionType
-
-
-class ValidatedSubmissionSummary(NamedTuple):
-    """Lightweight projection for validated submission display."""
-
-    requirement_id: str
-    submission_type: SubmissionType
-    phase_id: int
-    submitted_value: str
-    validated_at: datetime | None
 
 
 class SubmissionRepository:
@@ -54,43 +43,6 @@ class SubmissionRepository:
             )
         )
         return list(result.scalars().all())
-
-    async def get_validated_by_user(
-        self, user_id: int
-    ) -> list[ValidatedSubmissionSummary]:
-        """Get validated submission summaries for a user (one per requirement)."""
-        earliest_sq = (
-            select(
-                Submission.requirement_id,
-                func.min(Submission.validated_at).label("min_validated"),
-            )
-            .where(
-                Submission.user_id == user_id,
-                Submission.is_validated.is_(True),
-            )
-            .group_by(Submission.requirement_id)
-            .subquery()
-        )
-        result = await self.db.execute(
-            select(
-                Submission.requirement_id,
-                Submission.submission_type,
-                Submission.phase_id,
-                Submission.submitted_value,
-                Submission.validated_at,
-            )
-            .join(
-                earliest_sq,
-                (Submission.requirement_id == earliest_sq.c.requirement_id)
-                & (Submission.validated_at == earliest_sq.c.min_validated),
-            )
-            .where(
-                Submission.user_id == user_id,
-                Submission.is_validated.is_(True),
-            )
-            .order_by(Submission.phase_id, Submission.validated_at)
-        )
-        return [ValidatedSubmissionSummary(*row) for row in result.all()]
 
     async def get_by_user_and_requirement(
         self, user_id: int, requirement_id: str

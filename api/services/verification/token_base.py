@@ -89,7 +89,7 @@ class TokenPayload:
         error: If set, the token is invalid and this describes why.
     """
 
-    __slots__ = ("payload", "signature", "error")
+    __slots__ = ("error", "payload", "signature")
 
     def __init__(
         self,

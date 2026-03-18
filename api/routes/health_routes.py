@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["health"])
 
 
-@router.get("/health", response_model=HealthResponse, summary="Health check")
+@router.get("/health", summary="Health check")
 async def health() -> HealthResponse:
     """Health check endpoint."""
     return HealthResponse(status="healthy", service="learn-to-cloud-api")
@@ -23,7 +23,6 @@ async def health() -> HealthResponse:
 
 @router.get(
     "/ready",
-    response_model=HealthResponse,
     summary="Readiness check",
     responses={
         503: {

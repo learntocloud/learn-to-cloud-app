@@ -1,23 +1,7 @@
 ---
 name: dog-food
 description: Launch the local API, open a Playwright browser, auto-authenticate via session cookie, then systematically navigate every page checking for errors, broken UI, and console messages.
-tools:
-  - run_in_terminal
-  - get_terminal_output
-  - read_file
-  - create_file
-  - grep_search
-  - file_search
-  - open_browser_page
-  - mcp_playwright_browser_install
-  - mcp_playwright_browser_run_code
-  - mcp_playwright_browser_evaluate
-  - mcp_playwright_browser_type
-  - mcp_playwright_browser_fill_form
-  - mcp_playwright_browser_wait_for
-  - mcp_playwright_browser_navigate_back
-  - mcp_playwright_browser_close
-  - mcp_playwright_browser_console_messages
+tools: [vscode, execute, read, agent, browser, edit, search, web, 'playwright/*', todo]
 ---
 
 # Dog Food Agent

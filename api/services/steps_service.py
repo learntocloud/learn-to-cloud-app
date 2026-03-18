@@ -66,20 +66,6 @@ def parse_phase_id_from_topic_id(topic_id: str) -> int | None:
         return None
 
 
-async def get_completed_steps(
-    db: AsyncSession,
-    user_id: int,
-    topic_id: str,
-) -> set[str]:
-    """Get the set of completed step orders for a user in a topic.
-
-    Thin service wrapper around the repository — keeps routes from
-    importing repositories directly.
-    """
-    step_repo = StepProgressRepository(db)
-    return await step_repo.get_completed_step_ids(user_id, topic_id)
-
-
 async def get_valid_completed_steps(
     db: AsyncSession,
     user_id: int,
@@ -90,7 +76,8 @@ async def get_valid_completed_steps(
     Prevents stale step IDs (from removed/renamed content) from inflating
     progress counts.
     """
-    completed = await get_completed_steps(db, user_id, topic.id)
+    step_repo = StepProgressRepository(db)
+    completed = await step_repo.get_completed_step_ids(user_id, topic.id)
     valid_ids = {step.id for step in topic.learning_steps}
     return completed & valid_ids
 

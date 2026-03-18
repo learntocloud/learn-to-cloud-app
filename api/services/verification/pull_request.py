@@ -48,7 +48,7 @@ _PR_URL_PATTERN = re.compile(
 class ParsedPrUrl:
     """Parsed components of a GitHub PR URL."""
 
-    __slots__ = ("owner", "repo", "number", "error")
+    __slots__ = ("error", "number", "owner", "repo")
 
     def __init__(
         self,

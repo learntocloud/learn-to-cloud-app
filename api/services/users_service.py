@@ -60,15 +60,6 @@ async def get_user_by_id(db: AsyncSession, user_id: int) -> User | None:
     return user
 
 
-async def ensure_user_exists(db: AsyncSession, user_id: int) -> None:
-    """Ensure user row exists in DB (for FK constraints). Fast path.
-
-    Use this for endpoints that only need the user to exist but don't need profile data.
-    """
-    user_repo = UserRepository(db)
-    await user_repo.get_or_create(user_id)
-
-
 async def get_or_create_user(db: AsyncSession, user_id: int) -> UserResponse:
     """Get user from DB. User must already exist (created during OAuth callback)."""
     user_repo = UserRepository(db)

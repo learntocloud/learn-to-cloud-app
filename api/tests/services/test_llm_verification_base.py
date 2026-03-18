@@ -9,6 +9,7 @@ Tests cover:
 """
 
 import json
+from typing import ClassVar
 from unittest.mock import MagicMock
 
 import pytest
@@ -297,7 +298,7 @@ class TestParseStructuredResponse:
 class TestBuildTaskResults:
     """Tests for generic task result building."""
 
-    _TASKS = [
+    _TASKS: ClassVar[list[dict[str, str]]] = [
         {"id": "task-a", "name": "Task A"},
         {"id": "task-b", "name": "Task B"},
     ]

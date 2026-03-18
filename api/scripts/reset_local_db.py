@@ -54,7 +54,7 @@ async def reset() -> None:
         await c.execute(
             text(
                 "INSERT INTO alembic_version (version_num) "
-                "VALUES ('0004_analytics_snapshot_and_indexes')"
+                "VALUES ('0014_drop_certificates_table')"
             )
         )
         print("Schema created from models")

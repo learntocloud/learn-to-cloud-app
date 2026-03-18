@@ -105,7 +105,7 @@ class TestAzureTokenRetryTimeout:
             patch("asyncio.to_thread", autospec=True, side_effect=hang_forever),
         ):
             # We call the inner logic directly via __wrapped__ to bypass tenacity
-            unwrapped = getattr(auth_mod.get_token, "__wrapped__")
+            unwrapped = auth_mod.get_token.__wrapped__
             with pytest.raises(TimeoutError):
                 await unwrapped()
 
@@ -126,7 +126,7 @@ class TestAzureTokenRetryTimeout:
             autospec=True,
             return_value=fake_credential,
         ):
-            unwrapped = getattr(auth_mod.get_token, "__wrapped__")
+            unwrapped = auth_mod.get_token.__wrapped__
             token = await unwrapped()
 
         assert token == "test-token-123"
