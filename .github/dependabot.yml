@@ -10,6 +10,10 @@ updates:
     labels:
       - "dependencies"
       - "python"
+    groups:
+      python-all:
+        patterns:
+          - "*"
 
   # npm dependencies (Tailwind CSS)
   - package-ecosystem: "npm"
@@ -21,6 +25,10 @@ updates:
     labels:
       - "dependencies"
       - "javascript"
+    groups:
+      npm-all:
+        patterns:
+          - "*"
 
   # GitHub Actions
   - package-ecosystem: "github-actions"
@@ -32,6 +40,10 @@ updates:
     labels:
       - "dependencies"
       - "github-actions"
+    groups:
+      actions-all:
+        patterns:
+          - "*"
 
   # Terraform providers
   - package-ecosystem: "terraform"
@@ -43,3 +55,7 @@ updates:
     labels:
       - "dependencies"
       - "terraform"
+    groups:
+      terraform-all:
+        patterns:
+          - "*"
