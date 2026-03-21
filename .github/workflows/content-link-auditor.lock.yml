@@ -47,7 +47,7 @@ jobs:
       comment_repo: ""
     steps:
       - name: Setup Scripts
-        uses: github/gh-aw/actions/setup@ab43451fcdaecb07e55df4cdf45ceb9490c69242 # v0.43.5
+        uses: github/gh-aw/actions/setup@9758a19d946df81723a0938eb0b4e41236bab981 # v0.61.0
         with:
           destination: /opt/gh-aw/actions
       - name: Check workflow file timestamps
@@ -86,13 +86,13 @@ jobs:
       secret_verification_result: ${{ steps.validate-secret.outputs.verification_result }}
     steps:
       - name: Setup Scripts
-        uses: github/gh-aw/actions/setup@ab43451fcdaecb07e55df4cdf45ceb9490c69242 # v0.43.5
+        uses: github/gh-aw/actions/setup@9758a19d946df81723a0938eb0b4e41236bab981 # v0.61.0
         with:
           destination: /opt/gh-aw/actions
       - name: Create gh-aw temp directory
         run: bash /opt/gh-aw/actions/create_gh_aw_tmp_dir.sh
       - name: Checkout content files
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           sparse-checkout: |
             content/phases
@@ -696,7 +696,7 @@ jobs:
           SECRET_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Upload Safe Outputs
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: safe-output
           path: ${{ env.GH_AW_SAFE_OUTPUTS }}
@@ -717,13 +717,13 @@ jobs:
             await main();
       - name: Upload sanitized agent output
         if: always() && env.GH_AW_AGENT_OUTPUT
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: agent-output
           path: ${{ env.GH_AW_AGENT_OUTPUT }}
           if-no-files-found: warn
       - name: Upload engine output files
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: agent_outputs
           path: |
@@ -763,7 +763,7 @@ jobs:
       - name: Upload agent artifacts
         if: always()
         continue-on-error: true
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: agent-artifacts
           path: |
@@ -794,7 +794,7 @@ jobs:
       total_count: ${{ steps.missing_tool.outputs.total_count }}
     steps:
       - name: Setup Scripts
-        uses: github/gh-aw/actions/setup@ab43451fcdaecb07e55df4cdf45ceb9490c69242 # v0.43.5
+        uses: github/gh-aw/actions/setup@9758a19d946df81723a0938eb0b4e41236bab981 # v0.61.0
         with:
           destination: /opt/gh-aw/actions
       - name: Debug job inputs
@@ -912,7 +912,7 @@ jobs:
       success: ${{ steps.parse_results.outputs.success }}
     steps:
       - name: Setup Scripts
-        uses: github/gh-aw/actions/setup@ab43451fcdaecb07e55df4cdf45ceb9490c69242 # v0.43.5
+        uses: github/gh-aw/actions/setup@9758a19d946df81723a0938eb0b4e41236bab981 # v0.61.0
         with:
           destination: /opt/gh-aw/actions
       - name: Download agent artifacts
@@ -995,7 +995,7 @@ jobs:
             await main();
       - name: Upload threat detection log
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: threat-detection.log
           path: /tmp/gh-aw/threat-detection/detection.log
@@ -1022,7 +1022,7 @@ jobs:
       process_safe_outputs_temporary_id_map: ${{ steps.process_safe_outputs.outputs.temporary_id_map }}
     steps:
       - name: Setup Scripts
-        uses: github/gh-aw/actions/setup@ab43451fcdaecb07e55df4cdf45ceb9490c69242 # v0.43.5
+        uses: github/gh-aw/actions/setup@9758a19d946df81723a0938eb0b4e41236bab981 # v0.61.0
         with:
           destination: /opt/gh-aw/actions
       - name: Download agent output artifact
