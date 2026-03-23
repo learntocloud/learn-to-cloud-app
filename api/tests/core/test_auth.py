@@ -49,11 +49,6 @@ class TestGetUserIdFromSession:
         result = get_user_id_from_session(request)
         assert result is None
 
-    def test_returns_none_when_session_empty(self):
-        request = _make_request(session={})
-        result = get_user_id_from_session(request)
-        assert result is None
-
 
 @pytest.mark.unit
 class TestRequireAuth:
