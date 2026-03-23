@@ -74,8 +74,7 @@ def _get_token_sync(credential: DefaultAzureCredential) -> str:
     return token.token
 
 
-# tenacity's before_sleep_log requires a stdlib Logger
-_stdlib_logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 @retry(
@@ -87,7 +86,7 @@ _stdlib_logger = logging.getLogger(__name__)
     # TimeoutError: token acquisition timeout
     # OSError: network issues (includes ConnectionError, socket errors)
     retry=retry_if_exception_type((TimeoutError, OSError)),
-    before_sleep=before_sleep_log(_stdlib_logger, logging.WARNING),
+    before_sleep=before_sleep_log(logger, logging.WARNING),
     reraise=True,
 )
 async def get_token() -> str:

@@ -49,11 +49,6 @@ output "action_group_id" {
   value       = azurerm_monitor_action_group.critical.id
 }
 
-output "warning_action_group_id" {
-  description = "Action group ID for warning alerts (Sev2)"
-  value       = azurerm_monitor_action_group.warning.id
-}
-
 output "AZURE_RESOURCE_GROUP" {
   description = "Resource group name (for CI/CD)"
   value       = azurerm_resource_group.main.name

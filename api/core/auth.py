@@ -68,7 +68,7 @@ def require_auth(request: Request) -> int:
     can redirect client-side. For regular browser page requests,
     redirects to /auth/login directly.
     """
-    user_id = get_user_id_from_session(request)
+    user_id = optional_auth(request)
     if user_id is None:
         is_htmx = request.headers.get("hx-request") == "true"
         if is_htmx:
@@ -77,8 +77,6 @@ def require_auth(request: Request) -> int:
             status_code=307,
             headers={"Location": "/auth/login"},
         )
-
-    request.state.user_id = user_id
     return user_id
 
 

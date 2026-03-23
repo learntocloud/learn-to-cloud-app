@@ -44,13 +44,6 @@ variable "alert_emails" {
   default     = ["learntocloudguide@gmail.com"]
 }
 
-variable "slack_webhook_url" {
-  description = "Optional Slack webhook URL for warning alerts (Sev2). Leave empty to disable."
-  type        = string
-  default     = ""
-  sensitive   = true
-}
-
 # LLM — Azure OpenAI model deployment for code analysis
 variable "llm_model" {
   description = "Azure OpenAI model to deploy (e.g. gpt-5-mini)"
