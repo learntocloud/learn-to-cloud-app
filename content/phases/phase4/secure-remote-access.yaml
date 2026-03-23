@@ -42,7 +42,7 @@ learning_steps:
     description: Use Azure Bastion to securely connect to VMs from the Azure portal.
   - provider: aws
     title: Connect to EC2 Using Session Manager
-    url: https://docs.aws.amazon.com/prescriptive-guidance/latest/patterns/connect-to-an-amazon-ec2-instance-by-using-session-manager.html
+    url: https://docs.aws.amazon.com/prescriptive-guidance/latest/patterns/
     description: Connect to EC2 without open inbound ports using AWS Systems Manager.
   - provider: gcp
     title: Connect to Linux VMs using IAP

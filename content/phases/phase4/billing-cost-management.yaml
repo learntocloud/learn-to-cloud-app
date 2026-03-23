@@ -24,7 +24,7 @@ learning_steps:
     description: Learn foundational Azure pricing and cost management concepts.
   - provider: aws
     title: AWS Cloud Financial Management Basics
-    url: https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/concepts.html
+    url: https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/
     description: Understand billing concepts, pricing dimensions, and account charges in AWS.
   - provider: gcp
     title: Cloud Billing Concepts
@@ -42,7 +42,7 @@ learning_steps:
     description: Complete overview of Azure billing and cost management
   - provider: aws
     title: AWS Billing and Cost Management
-    url: https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/what-is-billing.html
+    url: https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/
     description: Understanding your AWS bills and managing costs
   - provider: gcp
     title: GCP Cloud Billing
