@@ -226,8 +226,8 @@ class LabConfig:
             (e.g. ``"ctf"`` or ``"networking"``).
         service_display_name: Human-readable name for user-facing messages.
         success_message: User-facing congratulations message on success.
-        accepted_challenge_types: If set, ``payload["challenge"]``
-            must be in this set.
+        accepted_challenge_types: If non-empty, ``payload["challenge"]``
+            must be in this set. Empty means no challenge-type validation.
     """
 
     required_challenges: int
@@ -235,7 +235,7 @@ class LabConfig:
     log_prefix: str
     service_display_name: str
     success_message: str
-    accepted_challenge_types: frozenset[str] | None = None
+    accepted_challenge_types: frozenset[str] = frozenset()
 
 
 def verify_lab_token(
@@ -268,7 +268,7 @@ def verify_lab_token(
             return {
                 "is_valid": False,
                 "message": (
-                    f"Invalid {config.service_display_name} " "token: missing payload."
+                    f"Invalid {config.service_display_name} token: missing payload."
                 ),
                 "server_error": False,
             }
@@ -278,15 +278,14 @@ def verify_lab_token(
             return {
                 "is_valid": False,
                 "message": (
-                    f"Invalid {config.service_display_name} "
-                    "token: missing signature."
+                    f"Invalid {config.service_display_name} token: missing signature."
                 ),
                 "server_error": False,
             }
 
         # Challenge type check (only for labs that require it)
         challenge_type: str | None = None
-        if config.accepted_challenge_types is not None:
+        if config.accepted_challenge_types:
             challenge_type = payload.get("challenge") or ""
             if challenge_type not in config.accepted_challenge_types:
                 return {
@@ -365,7 +364,7 @@ def verify_lab_token(
         return {
             "is_valid": False,
             "message": (
-                "Token verification failed. " "Please try again or contact support."
+                "Token verification failed. Please try again or contact support."
             ),
             "server_error": True,
         }

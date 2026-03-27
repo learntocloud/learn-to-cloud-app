@@ -36,8 +36,7 @@ _NETWORKING_CONFIG = LabConfig(
 
 # Public constants derived from config (used by tests)
 REQUIRED_CHALLENGES = _NETWORKING_CONFIG.required_challenges
-# accepted_challenge_types is always set in _NETWORKING_CONFIG above
-ACCEPTED_CHALLENGE_TYPES: frozenset[str] = _NETWORKING_CONFIG.accepted_challenge_types  # type: ignore[assignment]
+ACCEPTED_CHALLENGE_TYPES = _NETWORKING_CONFIG.accepted_challenge_types
 
 
 def verify_networking_token(
