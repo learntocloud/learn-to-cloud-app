@@ -22,9 +22,7 @@ depends_on = None
 
 def upgrade() -> None:
     # Widen column BEFORE Alembic stamps — this revision ID exceeds varchar(32)
-    op.execute(
-        "ALTER TABLE alembic_version " "ALTER COLUMN version_num TYPE varchar(128)"
-    )
+    op.execute("ALTER TABLE alembic_version ALTER COLUMN version_num TYPE varchar(128)")
 
     op.create_table(
         "analytics_snapshot",
