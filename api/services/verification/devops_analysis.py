@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import Callable
 from typing import Never
 
 import httpx
@@ -435,7 +436,19 @@ class PreflightExecutor(Executor):
                     "failed_tasks": [f.task_name for f in existence_failures],
                 },
             )
-            await ctx.yield_output(_build_validation_result(existence_failures))
+            failed_count = len(existence_failures)
+            total = len(PHASE5_TASKS)
+            message = (
+                f"{failed_count} of {total} tasks are missing required files. "
+                "Add the missing files listed below, then re-submit."
+            )
+            await ctx.yield_output(
+                ValidationResult(
+                    is_valid=False,
+                    message=message,
+                    task_results=existence_failures,
+                )
+            )
             return
 
         # ── Fetch file contents ──────────────────────────────
@@ -497,16 +510,26 @@ class _BaseTaskVerifier(Executor):
 
     _task_def: TaskDefinition  # set by each subclass
 
-    def __init__(self, *, chat_client: AzureOpenAIChatClient) -> None:
+    def __init__(
+        self,
+        *,
+        chat_client_factory: Callable[[], AzureOpenAIChatClient],
+    ) -> None:
         super().__init__(id=f"verifier-{self._task_def['id']}")
-        self._agent = Agent(
-            client=chat_client,
-            instructions=_build_task_instructions(self._task_def),
-            name=f"grader-{self._task_def['id']}",
-            default_options=ChatOptions(
-                response_format=DevOpsTaskGrade,
-            ),
-        )
+        self._chat_client_factory = chat_client_factory
+        self._agent: Agent | None = None
+
+    def _get_agent(self) -> Agent:
+        if self._agent is None:
+            self._agent = Agent(
+                client=self._chat_client_factory(),
+                instructions=_build_task_instructions(self._task_def),
+                name=f"grader-{self._task_def['id']}",
+                default_options=ChatOptions(
+                    response_format=DevOpsTaskGrade,
+                ),
+            )
+        return self._agent
 
     @handler
     async def process(
@@ -530,7 +553,7 @@ class _BaseTaskVerifier(Executor):
 
         prompt = _build_task_prompt(self._task_def, task_files)
 
-        response = await self._agent.run(
+        response = await self._get_agent().run(
             [Message(role="user", text=prompt)],
         )
 
@@ -678,15 +701,13 @@ async def _run_devops_workflow(owner: str, repo: str) -> ValidationResult:
     and the fan-in edge aggregates their ``TaskResult`` outputs into a
     list for the ``AggregatorExecutor``.
     """
-    chat_client = get_llm_chat_client()
-
     preflight = PreflightExecutor(owner=owner, repo=repo)
 
     verifiers: list[_BaseTaskVerifier] = [
-        DockerfileVerifier(chat_client=chat_client),
-        CICDPipelineVerifier(chat_client=chat_client),
-        TerraformVerifier(chat_client=chat_client),
-        KubernetesVerifier(chat_client=chat_client),
+        DockerfileVerifier(chat_client_factory=get_llm_chat_client),
+        CICDPipelineVerifier(chat_client_factory=get_llm_chat_client),
+        TerraformVerifier(chat_client_factory=get_llm_chat_client),
+        KubernetesVerifier(chat_client_factory=get_llm_chat_client),
     ]
 
     aggregator = AggregatorExecutor(owner=owner, repo=repo)
