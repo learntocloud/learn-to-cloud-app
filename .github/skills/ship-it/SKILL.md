@@ -1,11 +1,11 @@
 ---
 name: ship-it
-description: Run prek, resolve issues, commit, push, then monitor the deploy workflow and resolve any deploy failures. Use when user says "ship it", "commit and deploy", "push and deploy", or "land this".
+description: Run prek, run tests, resolve issues, commit, push, then monitor the deploy workflow and resolve any deploy failures. Use when user says "ship it", "commit and deploy", "push and deploy", or "land this".
 ---
 
 # Ship It — Prek, Commit, Push & Monitor Deploy
 
-End-to-end workflow: run prek checks, fix failures, commit, push, and monitor the GitHub Actions deploy pipeline through to a healthy production readiness check.
+End-to-end workflow: run prek checks, run tests, fix failures, commit, push, and monitor the GitHub Actions deploy pipeline through to a healthy production readiness check.
 
 **This skill orchestrates the full ship cycle. Do NOT skip steps.**
 
@@ -62,11 +62,31 @@ Prek hooks may auto-fix issues (ruff lint `--fix`, ruff format, trailing whitesp
 
 4. **Keep re-running prek** until all hooks pass.
 
-**Do NOT proceed to commit until prek passes cleanly.**
+**Do NOT proceed to Step 2 until prek passes cleanly.**
 
 ---
 
-## Step 2: Stage Changed Files
+## Step 2: Run Tests
+
+Run the full test suite locally. This catches runtime errors (template rendering, import issues, dependency upgrades) that static checks cannot detect.
+
+```bash
+cd <workspace>/api && uv run pytest tests/ -x --tb=short
+```
+
+### Handling Failures
+
+**If tests fail:**
+
+1. Read the failure output — fix the code
+2. Re-run prek (Step 1) if you changed Python files
+3. Re-run tests until all pass
+
+**Do NOT proceed to commit until all tests pass. No exceptions.**
+
+---
+
+## Step 3: Stage Changed Files
 
 ```bash
 git status
@@ -82,7 +102,7 @@ git diff --cached --stat
 
 ---
 
-## Step 3: Commit
+## Step 4: Commit
 
 **If the user provided a commit message**, use it directly.
 
@@ -98,7 +118,7 @@ Ask the user for a commit message if the intent is ambiguous.
 
 ---
 
-## Step 4: Push
+## Step 5: Push
 
 ```bash
 git push
@@ -113,7 +133,7 @@ git pull --rebase && git push
 
 ---
 
-## Step 5: Monitor the Deploy Workflow
+## Step 6: Monitor the Deploy Workflow
 
 After pushing to `main`, the `deploy.yml` workflow triggers automatically.
 
@@ -136,7 +156,7 @@ This blocks until the workflow completes. Exit code 0 = success, non-zero = fail
 
 ---
 
-## Step 6: Diagnose Deploy Failures
+## Step 7: Diagnose Deploy Failures
 
 If the workflow fails:
 
@@ -188,7 +208,7 @@ gh run watch --exit-status
 
 ---
 
-## Step 7: Verify Production
+## Step 8: Verify Production
 
 After a successful deploy:
 
