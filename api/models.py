@@ -1,7 +1,7 @@
 """SQLAlchemy models for Learn to Cloud progress tracking."""
 
 from datetime import UTC, datetime
-from enum import Enum as PyEnum
+from enum import StrEnum
 
 from sqlalchemy import (
     BigInteger,
@@ -74,7 +74,7 @@ class User(TimestampMixin, Base):
     )
 
 
-class SubmissionType(str, PyEnum):
+class SubmissionType(StrEnum):
     """Type of submission for hands-on verification.
 
     Currently supports Phase 0, Phase 1, and Phase 2 verification types.

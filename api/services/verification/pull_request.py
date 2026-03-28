@@ -296,7 +296,7 @@ async def validate_pr(
             return ValidationResult(
                 is_valid=False,
                 message=(
-                    "GitHub service temporarily unavailable. " "Please try again later."
+                    "GitHub service temporarily unavailable. Please try again later."
                 ),
                 server_error=True,
             )
@@ -348,8 +348,6 @@ async def validate_pr(
 
     return ValidationResult(
         is_valid=True,
-        message=(
-            f"PR #{parsed.number} verified! " f"Merged from branch '{branch_name}'."
-        ),
+        message=(f"PR #{parsed.number} verified! Merged from branch '{branch_name}'."),
         username_match=True,
     )

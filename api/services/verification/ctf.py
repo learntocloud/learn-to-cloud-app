@@ -20,7 +20,7 @@ _CTF_CONFIG = LabConfig(
     log_prefix="ctf",
     service_display_name="CTF",
     success_message=(
-        "🎉 Congratulations! You have completed all 18 " "Linux CTF challenges!"
+        "🎉 Congratulations! You have completed all 18 Linux CTF challenges!"
     ),
 )
 

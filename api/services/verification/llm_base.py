@@ -21,7 +21,7 @@ from __future__ import annotations
 import logging
 import re
 from collections.abc import Callable
-from typing import Any, TypeVar
+from typing import Any
 from urllib.parse import urlparse
 
 import httpx
@@ -182,10 +182,8 @@ def sanitize_feedback(feedback: str | None) -> str:
 # Generic structured-response parsing
 # ---------------------------------------------------------------------------
 
-ResponseT = TypeVar("ResponseT", bound=BaseModel)
 
-
-def parse_structured_response(
+def parse_structured_response[ResponseT: BaseModel](
     result: Any,
     response_type: type[ResponseT],
     error_class: type[VerificationError],
