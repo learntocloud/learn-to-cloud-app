@@ -18,7 +18,6 @@ Phase-specific concerns stay in their respective modules:
 
 from __future__ import annotations
 
-import asyncio
 import logging
 import re
 from collections.abc import Callable
@@ -26,11 +25,9 @@ from typing import Any, TypeVar
 from urllib.parse import urlparse
 
 import httpx
-from agent_framework import Agent, ChatOptions, WorkflowBuilder
 from pydantic import BaseModel
 
-from core.config import get_settings
-from core.llm_client import LLMClientError, get_llm_chat_client
+from core.llm_client import LLMClientError
 from schemas import TaskResult, ValidationResult
 
 logger = logging.getLogger(__name__)
@@ -400,88 +397,3 @@ def enforce_deterministic_guardrails(
             corrected.append(grade)
 
     return corrected
-
-
-# ---------------------------------------------------------------------------
-# Shared LLM grading workflow
-# ---------------------------------------------------------------------------
-
-
-async def run_llm_grading_workflow(
-    *,
-    name: str,
-    prompt: str,
-    response_format: type[BaseModel],
-    result_executor: Any,
-    run_message: str,
-    error_class: type[VerificationError],
-    tool_choice: str | None = None,
-) -> ValidationResult:
-    """Run an Agent Framework workflow for LLM-based grading.
-
-    Encapsulates the common pattern shared by Phase 3 and Phase 5:
-      1. Create an ``Agent`` with structured output
-      2. Wire ``Agent`` → *result_executor* via ``WorkflowBuilder``
-      3. Run with timeout from settings
-      4. Extract and return the first output
-
-    Args:
-        name: Workflow name (for logging / DevUI).
-        prompt: System instructions for the LLM agent.
-        response_format: Pydantic model for structured output.
-        result_executor: The ``Executor`` instance that post-processes
-            the agent response.
-        run_message: User message sent to the agent.
-        error_class: ``VerificationError`` subclass for failure cases.
-        tool_choice: Optional tool_choice override (e.g. ``"none"``).
-
-    Returns:
-        The ``ValidationResult`` yielded by the result executor.
-
-    Raises:
-        VerificationError (subclass): On timeout or empty output.
-    """
-    chat_client = get_llm_chat_client()
-
-    chat_options_kwargs: dict[str, Any] = {"response_format": response_format}
-    if tool_choice is not None:
-        chat_options_kwargs["tool_choice"] = tool_choice
-
-    agent = Agent(
-        client=chat_client,
-        instructions=prompt,
-        name=f"{name}-grader",
-        default_options=ChatOptions(**chat_options_kwargs),
-    )
-
-    workflow = (
-        WorkflowBuilder(
-            name=name,
-            start_executor=agent,
-            output_executors=[result_executor],
-        )
-        .add_edge(agent, result_executor)
-        .build()
-    )
-
-    timeout_seconds = get_settings().llm_cli_timeout
-    try:
-        async with asyncio.timeout(timeout_seconds):
-            run_result = await workflow.run(run_message)
-
-            outputs = run_result.get_outputs()
-            if not outputs:
-                raise error_class(
-                    f"No response from {name} workflow",
-                    retriable=True,
-                )
-            return outputs[0]
-    except TimeoutError:
-        logger.error(
-            f"{name}.timeout",
-            extra={"timeout": timeout_seconds},
-        )
-        raise error_class(
-            f"{name} timed out after {timeout_seconds}s",
-            retriable=True,
-        ) from None

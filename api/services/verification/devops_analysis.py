@@ -383,6 +383,13 @@ class PreflightExecutor(Executor):
         ctx: WorkflowContext[str, ValidationResult],
     ) -> None:
         # ── Fetch repo tree ──────────────────────────────────
+        logger.info(
+            "devops_analysis.repo_tree_fetching",
+            extra={
+                "owner": self._owner,
+                "repo": self._repo,
+            },
+        )
         try:
             all_files = await fetch_repo_tree(self._owner, self._repo)
         except httpx.HTTPStatusError as e:
@@ -398,6 +405,15 @@ class PreflightExecutor(Executor):
                 )
                 return
             raise
+
+        logger.info(
+            "devops_analysis.repo_tree_fetched",
+            extra={
+                "owner": self._owner,
+                "repo": self._repo,
+                "total_files": len(all_files),
+            },
+        )
 
         # ── Static existence check ───────────────────────────
         existence_failures = _check_required_files(all_files)
@@ -417,12 +433,46 @@ class PreflightExecutor(Executor):
 
         # ── Fetch file contents ──────────────────────────────
         devops_files = _filter_devops_files(all_files)
+        total_fetch = sum(len(v) for v in devops_files.values())
+        logger.info(
+            "devops_analysis.file_fetch_started",
+            extra={
+                "owner": self._owner,
+                "repo": self._repo,
+                "files_to_fetch": total_fetch,
+                "files_per_task": {
+                    tid: len(paths) for tid, paths in devops_files.items()
+                },
+            },
+        )
+
         file_contents = await _fetch_all_devops_files(
             self._owner, self._repo, devops_files
         )
+
+        fetched_per_task = {
+            tid: len(contents) for tid, contents in file_contents.items()
+        }
+        logger.info(
+            "devops_analysis.file_fetch_completed",
+            extra={
+                "owner": self._owner,
+                "repo": self._repo,
+                "fetched_per_task": fetched_per_task,
+            },
+        )
+
         ctx.set_state("file_contents", file_contents)
 
         # ── Dispatch to fan-out branches ─────────────────────
+        logger.info(
+            "devops_analysis.fan_out_dispatching",
+            extra={
+                "owner": self._owner,
+                "repo": self._repo,
+                "verifier_count": 4,
+            },
+        )
         await ctx.send_message("grade")
 
 
@@ -457,8 +507,19 @@ class _BaseTaskVerifier(Executor):
         msg: str,
         ctx: WorkflowContext[TaskResult],
     ) -> None:
+        task_id = self._task_def["id"]
+        task_name = self._task_def["name"]
         file_contents: dict[str, list[str]] = ctx.get_state("file_contents", {})
-        task_files = file_contents.get(self._task_def["id"], [])
+        task_files = file_contents.get(task_id, [])
+
+        logger.info(
+            "devops_analysis.task_grading_started",
+            extra={
+                "task_id": task_id,
+                "task_name": task_name,
+                "file_count": len(task_files),
+            },
+        )
 
         prompt = _build_task_prompt(self._task_def, task_files)
 
@@ -470,8 +531,10 @@ class _BaseTaskVerifier(Executor):
             response,
             DevOpsTaskGrade,
             DevOpsAnalysisError,
-            f"devops_analysis.{self._task_def['id']}",
+            f"devops_analysis.{task_id}",
         )
+
+        llm_passed = grade.passed
 
         # Per-task deterministic guardrails
         raw_content = "".join(task_files) if task_files else "<no_files_found />"
@@ -485,8 +548,28 @@ class _BaseTaskVerifier(Executor):
         )
         grade = corrected[0]
 
+        if llm_passed != grade.passed:
+            logger.info(
+                "devops_analysis.task_guardrail_override",
+                extra={
+                    "task_id": task_id,
+                    "task_name": task_name,
+                    "llm_passed": llm_passed,
+                    "final_passed": grade.passed,
+                },
+            )
+
         feedback = sanitize_feedback(grade.feedback)
         next_steps = sanitize_feedback(getattr(grade, "next_steps", "") or "")
+
+        logger.info(
+            "devops_analysis.task_grading_completed",
+            extra={
+                "task_id": task_id,
+                "task_name": task_name,
+                "passed": grade.passed,
+            },
+        )
 
         await ctx.send_message(
             TaskResult(
@@ -554,6 +637,7 @@ class AggregatorExecutor(Executor):
                 "passed": sum(1 for t in sorted_results if t.passed),
                 "total": len(sorted_results),
                 "all_passed": validation.is_valid,
+                "task_grades": {t.task_name: t.passed for t in sorted_results},
             },
         )
 
@@ -612,6 +696,14 @@ async def _run_devops_workflow(owner: str, repo: str) -> ValidationResult:
     )
 
     timeout_seconds = get_settings().llm_cli_timeout
+    logger.info(
+        "devops_analysis.workflow_started",
+        extra={
+            "owner": owner,
+            "repo": repo,
+            "timeout": timeout_seconds,
+        },
+    )
     try:
         async with asyncio.timeout(timeout_seconds):
             run_result = await workflow.run(
@@ -652,6 +744,14 @@ async def analyze_devops_repository(
     :func:`_run_devops_workflow` which orchestrates the full
     Agent Framework pipeline.
     """
+    logger.info(
+        "devops_analysis.started",
+        extra={
+            "repo_url": repo_url,
+            "github_username": github_username,
+        },
+    )
+
     try:
         owner, repo = extract_repo_info(repo_url)
     except ValueError as e:
