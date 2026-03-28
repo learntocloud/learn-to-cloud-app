@@ -90,11 +90,11 @@ class TestHomePage:
             await home_page(request, mock_db, user_id=None)
 
         template.assert_called_once()
-        ctx = template.call_args[0][1]
-        assert ctx["request"] is request
+        ctx = template.call_args[0][2]
         assert ctx["user"] is None
         assert ctx["phases"] == phases
-        assert template.call_args[0][0] == "pages/home.html"
+        assert template.call_args[0][0] is request
+        assert template.call_args[0][1] == "pages/home.html"
 
     async def test_home_renders_for_authenticated_user(self, _patch_templates):
         """Authenticated users see their user object in context."""
@@ -113,7 +113,7 @@ class TestHomePage:
         ):
             await home_page(request, mock_db, user_id=42)
 
-        ctx = template.call_args[0][1]
+        ctx = template.call_args[0][2]
         assert ctx["user"] is mock_user
 
 
@@ -137,8 +137,8 @@ class TestCurriculumPage:
         ):
             await curriculum_page(request, mock_db, user_id=None)
 
-        assert template.call_args[0][0] == "pages/curriculum.html"
-        ctx = template.call_args[0][1]
+        assert template.call_args[0][1] == "pages/curriculum.html"
+        ctx = template.call_args[0][2]
         assert ctx["phases"] == phases
 
 
@@ -161,7 +161,7 @@ class TestPhasePage:
         ):
             await phase_page(request, phase_id=999, db=mock_db, user_id=1)
 
-        assert template.call_args[0][0] == "pages/404.html"
+        assert template.call_args[0][1] == "pages/404.html"
         # Verify 404 status code is set
         call_kwargs = template.call_args[1] if template.call_args[1] else {}
         assert call_kwargs.get("status_code") == 404
@@ -203,8 +203,8 @@ class TestPhasePage:
         ):
             await phase_page(request, phase_id=1, db=mock_db, user_id=42)
 
-        assert template.call_args[0][0] == "pages/phase.html"
-        ctx = template.call_args[0][1]
+        assert template.call_args[0][1] == "pages/phase.html"
+        ctx = template.call_args[0][2]
         assert ctx["phase"] is phase
         assert ctx["user"] is mock_user
         assert ctx["verification_locked"] is False
@@ -230,7 +230,7 @@ class TestTopicPage:
                 request, phase_id=1, topic_slug="bad-topic", db=mock_db, user_id=1
             )
 
-        assert template.call_args[0][0] == "pages/404.html"
+        assert template.call_args[0][1] == "pages/404.html"
 
     async def test_topic_returns_404_when_topic_missing(self, _patch_templates):
         """Existing phase but missing topic renders 404."""
@@ -249,7 +249,7 @@ class TestTopicPage:
                 request, phase_id=1, topic_slug="bad-topic", db=mock_db, user_id=1
             )
 
-        assert template.call_args[0][0] == "pages/404.html"
+        assert template.call_args[0][1] == "pages/404.html"
 
     async def test_topic_renders_with_step_data(self, _patch_templates):
         """Valid topic renders with steps and progress."""
@@ -278,8 +278,8 @@ class TestTopicPage:
                 request, phase_id=1, topic_slug="linux-basics", db=mock_db, user_id=1
             )
 
-        assert template.call_args[0][0] == "pages/topic.html"
-        ctx = template.call_args[0][1]
+        assert template.call_args[0][1] == "pages/topic.html"
+        ctx = template.call_args[0][2]
         assert ctx["topic"] is topic
 
 
@@ -308,8 +308,8 @@ class TestDashboardPage:
         ):
             await dashboard_page(request, mock_db, user_id=42)
 
-        assert template.call_args[0][0] == "pages/dashboard.html"
-        ctx = template.call_args[0][1]
+        assert template.call_args[0][1] == "pages/dashboard.html"
+        ctx = template.call_args[0][2]
         assert ctx["user"] is mock_user
         assert ctx["dashboard"] is mock_dashboard
 
@@ -323,7 +323,7 @@ class TestDashboardPage:
         ):
             await dashboard_page(request, mock_db, user_id=999)
 
-        assert template.call_args[0][0] == "pages/404.html"
+        assert template.call_args[0][1] == "pages/404.html"
         call_kwargs = template.call_args[1] if template.call_args[1] else {}
         assert call_kwargs.get("status_code") == 404
 
@@ -343,8 +343,8 @@ class TestAccountPage:
         ):
             await account_page(request, mock_db, user_id=42)
 
-        assert template.call_args[0][0] == "pages/account.html"
-        ctx = template.call_args[0][1]
+        assert template.call_args[0][1] == "pages/account.html"
+        ctx = template.call_args[0][2]
         assert ctx["user"] is mock_user
 
     async def test_account_returns_404_when_user_not_found(self, _patch_templates):
@@ -357,7 +357,7 @@ class TestAccountPage:
         ):
             await account_page(request, mock_db, user_id=999)
 
-        assert template.call_args[0][0] == "pages/404.html"
+        assert template.call_args[0][1] == "pages/404.html"
 
 
 @pytest.mark.unit
@@ -374,8 +374,8 @@ class TestPublicPages:
         ):
             await faq_page(request, mock_db, user_id=None)
 
-        assert template.call_args[0][0] == "pages/faq.html"
-        ctx = template.call_args[0][1]
+        assert template.call_args[0][1] == "pages/faq.html"
+        ctx = template.call_args[0][2]
         assert "faqs" in ctx
 
     async def test_privacy_page_renders(self, _patch_templates):
@@ -388,7 +388,7 @@ class TestPublicPages:
         ):
             await privacy_page(request, mock_db, user_id=None)
 
-        assert template.call_args[0][0] == "pages/privacy.html"
+        assert template.call_args[0][1] == "pages/privacy.html"
 
     async def test_terms_page_renders(self, _patch_templates):
         """Terms page renders successfully."""
@@ -400,4 +400,4 @@ class TestPublicPages:
         ):
             await terms_page(request, mock_db, user_id=None)
 
-        assert template.call_args[0][0] == "pages/terms.html"
+        assert template.call_args[0][1] == "pages/terms.html"

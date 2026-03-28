@@ -14,8 +14,11 @@ Required Tasks (from learntocloud/journal-starter):
 Approach:
   1. Extract repo info from submitted URL
   2. Pre-fetch all allowed files in parallel (no agent tool-calling)
-  3. Send all content to the LLM with structured output (Pydantic response_format)
-  4. Parse response directly from result.value — no regex JSON extraction
+  3. Send all content to the LLM via a direct chat call with structured output
+  4. Parse response, apply deterministic guardrails, return ValidationResult
+
+Unlike Phase 5 (devops_analysis), this module does NOT use Agent Framework
+workflows — it makes a single direct LLM call.
 
 SECURITY CONSIDERATIONS:
 - File fetching is restricted to an allowlist of expected paths
@@ -31,18 +34,14 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any, Never
+from typing import Any
 
 import httpx
-from agent_framework import (
-    AgentExecutorResponse,
-    Executor,
-    WorkflowContext,
-    handler,
-)
+from agent_framework import ChatOptions, Message
 from circuitbreaker import CircuitBreakerError
 
 from core.config import get_settings
+from core.llm_client import get_llm_chat_client
 from schemas import ValidationResult
 from services.verification.llm_base import (
     SUSPICIOUS_PATTERNS,
@@ -51,7 +50,6 @@ from services.verification.llm_base import (
     enforce_deterministic_guardrails,
     extract_repo_info,
     parse_structured_response,
-    run_llm_grading_workflow,
 )
 from services.verification.tasks.phase3 import (
     ALLOWED_FILE_PATHS,
@@ -154,8 +152,30 @@ async def _prefetch_all_files(
         except (ValueError, httpx.RequestError, httpx.TimeoutException):
             return (path, f'<file_not_found path="{path}" />')
 
+    logger.info(
+        "code_analysis.prefetch_started",
+        extra={"owner": owner, "repo": repo, "file_count": len(ALLOWED_FILE_PATHS)},
+    )
+
     results = await asyncio.gather(*[_fetch_one(p) for p in sorted(ALLOWED_FILE_PATHS)])
-    return dict(results)
+    contents = dict(results)
+
+    found = sum(1 for v in contents.values() if "<file_content" in v)
+    missing = len(contents) - found
+    logger.info(
+        "code_analysis.prefetch_completed",
+        extra={
+            "owner": owner,
+            "repo": repo,
+            "files_found": found,
+            "files_missing": missing,
+            "missing_paths": sorted(
+                k for k, v in contents.items() if "<file_not_found" in v
+            ),
+        },
+    )
+
+    return contents
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -282,106 +302,6 @@ def _enforce_deterministic_guardrails(
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Workflow executor (top-level, idiomatic pattern)
-# ─────────────────────────────────────────────────────────────────────────────
-
-
-class Phase3GuardrailsExecutor(Executor):
-    """Post-processes the LLM grading response for Phase 3.
-
-    Checks Azure content filters, parses the structured response,
-    applies deterministic guardrails, and yields a ``ValidationResult``.
-    """
-
-    def __init__(
-        self,
-        *,
-        owner: str,
-        repo: str,
-        file_contents: dict[str, str],
-    ) -> None:
-        super().__init__(id="phase3-guardrails")
-        self._owner = owner
-        self._repo = repo
-        self._file_contents = file_contents
-
-    @handler
-    async def process(
-        self,
-        msg: AgentExecutorResponse,
-        ctx: WorkflowContext[Never, ValidationResult],
-    ) -> None:
-        result = msg.agent_response
-
-        # Content filter check
-        chat_response = getattr(result, "raw_representation", None)
-        finish_reason = getattr(chat_response, "finish_reason", None)
-        if finish_reason == "content_filter":
-            logger.warning(
-                "code_analysis.content_filter_triggered",
-                extra={"owner": self._owner, "repo": self._repo},
-            )
-            await ctx.yield_output(
-                ValidationResult(
-                    is_valid=False,
-                    message=(
-                        "Code analysis was blocked by content safety "
-                        "filters. Please ensure your submission "
-                        "contains only legitimate code."
-                    ),
-                    server_error=False,
-                )
-            )
-            return
-
-        analysis = parse_structured_response(
-            result,
-            CodeAnalysisResponse,
-            CodeAnalysisError,
-            "code_analysis",
-        )
-
-        analysis = _enforce_deterministic_guardrails(analysis, self._file_contents)
-
-        task_results, all_passed = build_task_results(analysis.tasks, PHASE3_TASKS)
-
-        passed_count = sum(1 for t in task_results if t.passed)
-        total_count = len(task_results)
-
-        logger.info(
-            "code_analysis.completed",
-            extra={
-                "owner": self._owner,
-                "repo": self._repo,
-                "passed": passed_count,
-                "total": total_count,
-                "all_passed": all_passed,
-            },
-        )
-
-        if all_passed:
-            message = (
-                f"Congratulations! All {total_count} tasks have been "
-                "completed successfully. Your Journal API "
-                "implementation meets all requirements."
-            )
-        else:
-            message = (
-                f"Completed {passed_count}/{total_count} tasks. "
-                "Review the feedback below and try again "
-                "after making improvements."
-            )
-
-        await ctx.yield_output(
-            ValidationResult(
-                is_valid=all_passed,
-                message=message,
-                task_results=task_results,
-            )
-        )
-
-
-# ─────────────────────────────────────────────────────────────────────────────
 # LLM analysis orchestration
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -391,32 +311,131 @@ async def _analyze_with_llm(
     repo: str,
     github_username: str,
 ) -> ValidationResult:
-    """Run code analysis via a Microsoft Agent Framework workflow.
+    """Run code analysis via a direct LLM call (no workflow).
 
-    The workflow has two stages:
-      1. **Agent** — sends pre-fetched file contents to the LLM and gets
-         a structured ``CodeAnalysisResponse``.
-      2. **Guardrails executor** — checks Azure content filters, parses
-         the structured response, applies deterministic guardrails, and
-         builds the final ``ValidationResult``.
+    Steps:
+      1. Pre-fetch all allowed files from the learner's repo.
+      2. Build a grading prompt with embedded file contents.
+      3. Call the LLM directly with structured output.
+      4. Check for content filters, parse response, apply guardrails.
+      5. Return a ``ValidationResult``.
     """
     file_contents = await _prefetch_all_files(owner, repo)
     prompt = _build_verification_prompt(owner, repo, file_contents)
 
-    executor = Phase3GuardrailsExecutor(
-        owner=owner,
-        repo=repo,
-        file_contents=file_contents,
+    prompt_len = len(prompt)
+    logger.info(
+        "code_analysis.prompt_built",
+        extra={"owner": owner, "repo": repo, "prompt_chars": prompt_len},
     )
 
-    return await run_llm_grading_workflow(
-        name="phase3-code-analysis",
-        prompt=prompt,
-        response_format=CodeAnalysisResponse,
-        result_executor=executor,
-        run_message="Analyze the repository files and grade all 5 tasks.",
-        error_class=CodeAnalysisError,
-        tool_choice="none",
+    chat_client = get_llm_chat_client()
+    settings = get_settings()
+
+    messages = [
+        Message(role="system", text=prompt),
+        Message(
+            role="user",
+            text="Analyze the repository files and grade all 5 tasks.",
+        ),
+    ]
+
+    logger.info(
+        "code_analysis.llm_call_started",
+        extra={
+            "owner": owner,
+            "repo": repo,
+            "timeout": settings.llm_cli_timeout,
+        },
+    )
+
+    async with asyncio.timeout(settings.llm_cli_timeout):
+        options: dict[str, Any] = {
+            "response_format": CodeAnalysisResponse,
+            "tool_choice": "none",
+        }
+        result = await chat_client.get_response(
+            messages,
+            options=ChatOptions(**options),
+        )
+
+    logger.info(
+        "code_analysis.llm_call_completed",
+        extra={"owner": owner, "repo": repo},
+    )
+
+    # Content filter check
+    if getattr(result, "finish_reason", None) == "content_filter":
+        logger.warning(
+            "code_analysis.content_filter_triggered",
+            extra={"owner": owner, "repo": repo},
+        )
+        return ValidationResult(
+            is_valid=False,
+            message=(
+                "Code analysis was blocked by content safety "
+                "filters. Please ensure your submission "
+                "contains only legitimate code."
+            ),
+            server_error=False,
+        )
+
+    analysis = parse_structured_response(
+        result,
+        CodeAnalysisResponse,
+        CodeAnalysisError,
+        "code_analysis",
+    )
+
+    pre_guardrail = {t.task_id: t.passed for t in analysis.tasks}
+    analysis = _enforce_deterministic_guardrails(analysis, file_contents)
+    post_guardrail = {t.task_id: t.passed for t in analysis.tasks}
+
+    overrides = {
+        tid: {"before": pre_guardrail[tid], "after": post_guardrail[tid]}
+        for tid in pre_guardrail
+        if pre_guardrail[tid] != post_guardrail[tid]
+    }
+    if overrides:
+        logger.info(
+            "code_analysis.guardrails_applied",
+            extra={"owner": owner, "repo": repo, "overrides": overrides},
+        )
+
+    task_results, all_passed = build_task_results(analysis.tasks, PHASE3_TASKS)
+
+    passed_count = sum(1 for t in task_results if t.passed)
+    total_count = len(task_results)
+
+    logger.info(
+        "code_analysis.completed",
+        extra={
+            "owner": owner,
+            "repo": repo,
+            "passed": passed_count,
+            "total": total_count,
+            "all_passed": all_passed,
+            "task_grades": {t.task_name: t.passed for t in task_results},
+        },
+    )
+
+    if all_passed:
+        message = (
+            f"Congratulations! All {total_count} tasks have been "
+            "completed successfully. Your Journal API "
+            "implementation meets all requirements."
+        )
+    else:
+        message = (
+            f"Completed {passed_count}/{total_count} tasks. "
+            "Review the feedback below and try again "
+            "after making improvements."
+        )
+
+    return ValidationResult(
+        is_valid=all_passed,
+        message=message,
+        task_results=task_results,
     )
 
 
@@ -450,6 +469,14 @@ async def analyze_repository_code(
         ValidationResult with is_valid=True if all tasks pass,
         and detailed task_results for feedback.
     """
+    logger.info(
+        "code_analysis.started",
+        extra={
+            "repo_url": repo_url,
+            "github_username": github_username,
+        },
+    )
+
     try:
         owner, repo = extract_repo_info(repo_url)
     except ValueError as e:
@@ -483,6 +510,16 @@ async def analyze_repository_code(
             ),
             server_error=True,
         )
+    except TimeoutError:
+        logger.error(
+            "code_analysis.timeout",
+            extra={"owner": owner, "repo": repo, "github_username": github_username},
+        )
+        return ValidationResult(
+            is_valid=False,
+            message="Code analysis timed out. Please try again.",
+            server_error=True,
+        )
     except CodeAnalysisError as e:
         logger.exception(
             "code_analysis.failed",
@@ -506,7 +543,7 @@ async def analyze_repository_code(
         return ValidationResult(
             is_valid=False,
             message=(
-                "Unable to connect to code analysis service. " "Please try again later."
+                "Unable to connect to code analysis service. Please try again later."
             ),
             server_error=True,
         )

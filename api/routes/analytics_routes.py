@@ -82,9 +82,9 @@ async def status_page(
         new_this_month = analytics.signup_trends[-1].count
 
     return templates.TemplateResponse(
+        request,
         "pages/status.html",
         {
-            "request": request,
             "user": user,
             "overall_status": overall_status,
             "analytics": analytics,

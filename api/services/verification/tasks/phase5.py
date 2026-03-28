@@ -21,15 +21,8 @@ class TaskDefinition(TypedDict):
     criteria: list[str]
     pass_indicators: list[str]
     fail_indicators: list[str]
+    required_files: list[str]
 
-
-# Directories / path prefixes where DevOps artifacts are expected
-DEVOPS_PATH_PATTERNS: dict[str, list[str]] = {
-    "dockerfile": ["Dockerfile", "dockerfile", ".dockerignore"],
-    "cicd": [".github/workflows/"],
-    "terraform": ["infra/"],
-    "kubernetes": ["k8s/"],
-}
 
 # Maximum number of files to fetch per category (prevent abuse)
 MAX_FILES_PER_CATEGORY: int = 10
@@ -46,6 +39,7 @@ PHASE5_TASKS: list[TaskDefinition] = [
         "id": "dockerfile",
         "name": "Containerization (Dockerfile)",
         "path_patterns": ["Dockerfile", "dockerfile", ".dockerignore"],
+        "required_files": ["Dockerfile"],
         "criteria": [
             "MUST have a Dockerfile at the repository root",
             (
@@ -82,11 +76,12 @@ PHASE5_TASKS: list[TaskDefinition] = [
         "id": "cicd-pipeline",
         "name": "CI/CD Pipeline (GitHub Actions)",
         "path_patterns": [".github/workflows/"],
+        "required_files": [".github/workflows/"],
         "criteria": [
             "MUST have at least one workflow YAML in .github/workflows/",
             "MUST trigger on push to main (or pull_request)",
-            ("MUST have at least 3 jobs: test," " build-and-push, and deploy"),
-            ("MUST have a test job that runs" " linting and/or tests (e.g., pytest)"),
+            ("MUST have at least 3 jobs: test, build-and-push, and deploy"),
+            ("MUST have a test job that runs linting and/or tests (e.g., pytest)"),
             (
                 "MUST have a build-and-push job that builds"
                 " a Docker image and pushes to a registry"
@@ -118,14 +113,12 @@ PHASE5_TASKS: list[TaskDefinition] = [
         "id": "terraform-iac",
         "name": "Infrastructure as Code (Terraform)",
         "path_patterns": ["infra/"],
+        "required_files": ["infra/"],
         "criteria": [
             "MUST have .tf files in the infra/ directory",
             "MUST have a provider block (e.g., azurerm, aws)",
-            ("MUST define a container registry resource" " (e.g., ACR, ECR, GCR)"),
-            (
-                "MUST define a managed Kubernetes cluster"
-                " resource (e.g., AKS, EKS, GKE)"
-            ),
+            ("MUST define a container registry resource (e.g., ACR, ECR, GCR)"),
+            ("MUST define a managed Kubernetes cluster resource (e.g., AKS, EKS, GKE)"),
             (
                 "MUST define a managed PostgreSQL database"
                 " resource (e.g., Azure Flexible Server, RDS)"
@@ -139,10 +132,7 @@ PHASE5_TASKS: list[TaskDefinition] = [
                 "SHOULD have an outputs.tf exporting"
                 " registry URL, DB connection, or kubeconfig"
             ),
-            (
-                "SHOULD have a providers.tf with provider"
-                " and Terraform version config"
-            ),
+            ("SHOULD have a providers.tf with provider and Terraform version config"),
         ],
         "pass_indicators": [
             "provider ",
@@ -159,13 +149,19 @@ PHASE5_TASKS: list[TaskDefinition] = [
     {
         "id": "kubernetes-manifests",
         "name": "Container Orchestration (Kubernetes)",
-        "path_patterns": ["k8s/"],
+        "path_patterns": [
+            # Exact files first — guaranteed inclusion even when
+            # k8s/ has many subdirectory files
+            "k8s/deployment.yaml",
+            "k8s/service.yaml",
+            "k8s/secrets.yaml.example",
+            # Fallback: any other YAML under k8s/ fills remaining capacity
+            "k8s/",
+        ],
+        "required_files": ["k8s/deployment.yaml", "k8s/service.yaml"],
         "criteria": [
             "MUST have YAML files in the k8s/ directory",
-            (
-                "MUST have a Deployment manifest"
-                " (kind: Deployment) in deployment.yaml"
-            ),
+            ("MUST have a Deployment manifest (kind: Deployment) in deployment.yaml"),
             (
                 "MUST use IMAGE_PLACEHOLDER as the image"
                 " reference (CI/CD substitutes the real tag)"
@@ -178,7 +174,7 @@ PHASE5_TASKS: list[TaskDefinition] = [
                 "MUST configure health probes (liveness"
                 " and/or readiness) on /health port 8000"
             ),
-            ("MUST have a Service manifest in" " service.yaml routing port 80 to 8000"),
+            ("MUST have a Service manifest in service.yaml routing port 80 to 8000"),
             (
                 "SHOULD have a secrets.yaml.example"
                 " showing required keys (no real values)"
@@ -226,14 +222,4 @@ class DevOpsTaskGrade(BaseModel):
         default="",
         description="One actionable sentence: what the learner should try next",
         max_length=200,
-    )
-
-
-class DevOpsAnalysisLLMResponse(BaseModel):
-    """Structured output model for the full DevOps analysis LLM response."""
-
-    tasks: list[DevOpsTaskGrade] = Field(
-        description="Grading results for all 4 tasks",
-        min_length=4,
-        max_length=4,
     )

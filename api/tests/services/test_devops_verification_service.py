@@ -20,14 +20,16 @@ import pytest
 from schemas import TaskResult, ValidationResult
 from services.verification.devops_analysis import (
     DevOpsAnalysisError,
-    _build_verification_prompt,
+    _build_task_instructions,
+    _build_task_prompt,
+    _check_required_files,
     _filter_devops_files,
     analyze_devops_repository,
 )
 from services.verification.llm_base import build_task_results, parse_structured_response
 from services.verification.tasks.phase5 import (
+    MAX_FILES_PER_CATEGORY,
     PHASE5_TASKS,
-    DevOpsAnalysisLLMResponse,
     DevOpsTaskGrade,
 )
 
@@ -83,54 +85,136 @@ class TestFilterDevopsFiles:
         result = _filter_devops_files(files)
         assert len(result["terraform-iac"]) == 10  # MAX_FILES_PER_CATEGORY
 
+    def test_exact_match_files_prioritized_over_directory_matches(self):
+        """Exact-match patterns (e.g. k8s/service.yaml) must be included
+        even when subdirectory files (e.g. k8s/monitoring/*) would fill
+        the per-category cap first."""
+        monitoring_files = [f"k8s/monitoring/file{i}.yaml" for i in range(15)]
+        files = monitoring_files + [
+            "k8s/deployment.yaml",
+            "k8s/service.yaml",
+            "k8s/secrets.yaml.example",
+        ]
+        result = _filter_devops_files(files)
+        k8s = result["kubernetes-manifests"]
+        assert len(k8s) == MAX_FILES_PER_CATEGORY
+        # Critical files always present regardless of alphabetical order
+        assert "k8s/deployment.yaml" in k8s
+        assert "k8s/service.yaml" in k8s
+        assert "k8s/secrets.yaml.example" in k8s
+
+
+@pytest.mark.unit
+class TestCheckFileExistence:
+    """Tests for the static existence pre-check."""
+
+    def test_all_files_present(self):
+        """All tasks pass when required files and directory prefixes exist."""
+        all_files = [
+            "Dockerfile",
+            ".dockerignore",
+            ".github/workflows/ci.yml",
+            "infra/main.tf",
+            "k8s/deployment.yaml",
+            "k8s/service.yaml",
+        ]
+        failures = _check_required_files(all_files)
+        assert len(failures) == 0
+
+    def test_missing_required_file_fails_task(self):
+        """Task fails when a required_file is missing from the full tree."""
+        all_files = [
+            "Dockerfile",
+            ".github/workflows/ci.yml",
+            "infra/main.tf",
+            "k8s/deployment.yaml",
+            # k8s/service.yaml is missing
+        ]
+        failures = _check_required_files(all_files)
+        k8s_failure = next(f for f in failures if "Kubernetes" in f.task_name)
+        assert not k8s_failure.passed
+        assert "k8s/service.yaml" in k8s_failure.feedback
+
+    def test_missing_dockerfile_fails_task(self):
+        """Dockerfile task fails when Dockerfile is not in the tree."""
+        all_files = [
+            ".github/workflows/ci.yml",
+            "infra/main.tf",
+            "k8s/deployment.yaml",
+            "k8s/service.yaml",
+        ]
+        failures = _check_required_files(all_files)
+        docker_failure = next(f for f in failures if "Dockerfile" in f.task_name)
+        assert "Dockerfile" in docker_failure.feedback
+
+    def test_no_files_at_all_fails_everything(self):
+        """All tasks fail for a completely empty repository."""
+        failures = _check_required_files([])
+        assert len(failures) == 4
+
+    def test_missing_directory_prefix_fails_task(self):
+        """Tasks with directory prefix requirements fail when no
+        files exist under that directory."""
+        all_files = [
+            "Dockerfile",
+            "k8s/deployment.yaml",
+            "k8s/service.yaml",
+            # No .github/workflows/ or infra/ files
+        ]
+        failures = _check_required_files(all_files)
+        assert len(failures) == 2
+        cicd_failure = next(f for f in failures if "CI/CD" in f.task_name)
+        assert ".github/workflows/" in cicd_failure.feedback
+
+    def test_required_files_checked_against_full_tree(self):
+        """required_files are checked against the full tree, not the
+        filtered subset -- defense-in-depth against filter bugs."""
+        all_files = [
+            "Dockerfile",
+            ".github/workflows/ci.yml",
+            "infra/main.tf",
+            "k8s/deployment.yaml",
+            "k8s/service.yaml",
+        ] + [f"k8s/monitoring/file{i}.yaml" for i in range(20)]
+        failures = _check_required_files(all_files)
+        assert len(failures) == 0
+
 
 @pytest.mark.unit
 class TestParseStructuredResponse:
-    """Tests for structured response parsing."""
+    """Tests for structured response parsing (single DevOpsTaskGrade per agent)."""
 
     def test_valid_response_from_value(self):
         """Should extract response from result.value."""
-        expected = DevOpsAnalysisLLMResponse(
-            tasks=[
-                DevOpsTaskGrade(task_id="dockerfile", passed=True, feedback="Good"),
-                DevOpsTaskGrade(task_id="cicd-pipeline", passed=True, feedback="Good"),
-                DevOpsTaskGrade(task_id="terraform-iac", passed=True, feedback="Good"),
-                DevOpsTaskGrade(
-                    task_id="kubernetes-manifests", passed=True, feedback="Good"
-                ),
-            ]
-        )
+        expected = DevOpsTaskGrade(task_id="dockerfile", passed=True, feedback="Good")
         mock_result = MagicMock()
         mock_result.value = expected
         mock_result.text = ""
 
         result = parse_structured_response(
             mock_result,
-            DevOpsAnalysisLLMResponse,
+            DevOpsTaskGrade,
             DevOpsAnalysisError,
-            "devops_analysis",
+            "devops_analysis.dockerfile",
         )
-        assert len(result.tasks) == 4
-        assert result.tasks[0].task_id == "dockerfile"
-        assert result.tasks[0].passed is True
+        assert result.task_id == "dockerfile"
+        assert result.passed is True
 
     def test_fallback_to_text_parsing(self):
         """Should fall back to parsing result.text when value is None."""
-        tasks = [
-            {"task_id": t["id"], "passed": True, "feedback": "Good"}
-            for t in PHASE5_TASKS
-        ]
         mock_result = MagicMock()
         mock_result.value = None
-        mock_result.text = json.dumps({"tasks": tasks})
+        mock_result.text = json.dumps(
+            {"task_id": "dockerfile", "passed": True, "feedback": "Good"}
+        )
 
         result = parse_structured_response(
             mock_result,
-            DevOpsAnalysisLLMResponse,
+            DevOpsTaskGrade,
             DevOpsAnalysisError,
-            "devops_analysis",
+            "devops_analysis.dockerfile",
         )
-        assert len(result.tasks) == 4
+        assert result.task_id == "dockerfile"
 
     def test_empty_text_raises(self):
         """Should raise when both value and text are empty."""
@@ -141,9 +225,9 @@ class TestParseStructuredResponse:
         with pytest.raises(DevOpsAnalysisError, match="No response received"):
             parse_structured_response(
                 mock_result,
-                DevOpsAnalysisLLMResponse,
+                DevOpsTaskGrade,
                 DevOpsAnalysisError,
-                "devops_analysis",
+                "devops_analysis.dockerfile",
             )
 
     def test_invalid_text_raises(self):
@@ -155,9 +239,9 @@ class TestParseStructuredResponse:
         with pytest.raises(DevOpsAnalysisError, match="Could not parse"):
             parse_structured_response(
                 mock_result,
-                DevOpsAnalysisLLMResponse,
+                DevOpsTaskGrade,
                 DevOpsAnalysisError,
-                "devops_analysis",
+                "devops_analysis.dockerfile",
             )
 
 
@@ -166,52 +250,42 @@ class TestBuildTaskResults:
     """Tests for converting parsed tasks to TaskResult objects."""
 
     def test_all_passed(self):
-        analysis = DevOpsAnalysisLLMResponse(
-            tasks=[
-                DevOpsTaskGrade(task_id="dockerfile", passed=True, feedback="Done"),
-                DevOpsTaskGrade(task_id="cicd-pipeline", passed=True, feedback="Done"),
-                DevOpsTaskGrade(task_id="terraform-iac", passed=True, feedback="Done"),
-                DevOpsTaskGrade(
-                    task_id="kubernetes-manifests", passed=True, feedback="Done"
-                ),
-            ]
-        )
-        results, all_passed = build_task_results(analysis.tasks, PHASE5_TASKS)
+        grades = [
+            DevOpsTaskGrade(task_id="dockerfile", passed=True, feedback="Done"),
+            DevOpsTaskGrade(task_id="cicd-pipeline", passed=True, feedback="Done"),
+            DevOpsTaskGrade(task_id="terraform-iac", passed=True, feedback="Done"),
+            DevOpsTaskGrade(
+                task_id="kubernetes-manifests", passed=True, feedback="Done"
+            ),
+        ]
+        results, all_passed = build_task_results(grades, PHASE5_TASKS)
         assert all_passed is True
         assert len(results) == 4
 
     def test_some_failed(self):
-        analysis = DevOpsAnalysisLLMResponse(
-            tasks=[
-                DevOpsTaskGrade(task_id="dockerfile", passed=True, feedback="Done"),
-                DevOpsTaskGrade(
-                    task_id="cicd-pipeline", passed=False, feedback="Missing"
-                ),
-                DevOpsTaskGrade(task_id="terraform-iac", passed=True, feedback="Done"),
-                DevOpsTaskGrade(
-                    task_id="kubernetes-manifests",
-                    passed=False,
-                    feedback="Missing",
-                ),
-            ]
-        )
-        results, all_passed = build_task_results(analysis.tasks, PHASE5_TASKS)
+        grades = [
+            DevOpsTaskGrade(task_id="dockerfile", passed=True, feedback="Done"),
+            DevOpsTaskGrade(task_id="cicd-pipeline", passed=False, feedback="Missing"),
+            DevOpsTaskGrade(task_id="terraform-iac", passed=True, feedback="Done"),
+            DevOpsTaskGrade(
+                task_id="kubernetes-manifests",
+                passed=False,
+                feedback="Missing",
+            ),
+        ]
+        results, all_passed = build_task_results(grades, PHASE5_TASKS)
         assert all_passed is False
         assert sum(1 for r in results if r.passed) == 2
 
     def test_missing_tasks_are_failed(self):
         """Tasks not in the response should be marked as failed."""
-        # With structured output enforcing min/max length=4, we test
-        # the fallback by providing duplicate task_ids.
-        analysis = DevOpsAnalysisLLMResponse(
-            tasks=[
-                DevOpsTaskGrade(task_id="dockerfile", passed=True, feedback="Done"),
-                DevOpsTaskGrade(task_id="dockerfile", passed=True, feedback="Done"),
-                DevOpsTaskGrade(task_id="dockerfile", passed=True, feedback="Done"),
-                DevOpsTaskGrade(task_id="dockerfile", passed=True, feedback="Done"),
-            ]
-        )
-        results, all_passed = build_task_results(analysis.tasks, PHASE5_TASKS)
+        grades = [
+            DevOpsTaskGrade(task_id="dockerfile", passed=True, feedback="Done"),
+            DevOpsTaskGrade(task_id="dockerfile", passed=True, feedback="Done"),
+            DevOpsTaskGrade(task_id="dockerfile", passed=True, feedback="Done"),
+            DevOpsTaskGrade(task_id="dockerfile", passed=True, feedback="Done"),
+        ]
+        results, all_passed = build_task_results(grades, PHASE5_TASKS)
         assert all_passed is False
         # dockerfile (4x) + 3 missing tasks filled in
         assert len(results) == 7
@@ -219,21 +293,19 @@ class TestBuildTaskResults:
         assert len(failed) == 3
 
     def test_feedback_sanitized(self):
-        analysis = DevOpsAnalysisLLMResponse(
-            tasks=[
-                DevOpsTaskGrade(
-                    task_id="dockerfile",
-                    passed=True,
-                    feedback="Visit <script>evil</script>",
-                ),
-                DevOpsTaskGrade(task_id="cicd-pipeline", passed=True, feedback="Done"),
-                DevOpsTaskGrade(task_id="terraform-iac", passed=True, feedback="Done"),
-                DevOpsTaskGrade(
-                    task_id="kubernetes-manifests", passed=True, feedback="Done"
-                ),
-            ]
-        )
-        results, _ = build_task_results(analysis.tasks, PHASE5_TASKS)
+        grades = [
+            DevOpsTaskGrade(
+                task_id="dockerfile",
+                passed=True,
+                feedback="Visit <script>evil</script>",
+            ),
+            DevOpsTaskGrade(task_id="cicd-pipeline", passed=True, feedback="Done"),
+            DevOpsTaskGrade(task_id="terraform-iac", passed=True, feedback="Done"),
+            DevOpsTaskGrade(
+                task_id="kubernetes-manifests", passed=True, feedback="Done"
+            ),
+        ]
+        results, _ = build_task_results(grades, PHASE5_TASKS)
         dockerfile_result = next(
             r for r in results if r.task_name == "Containerization (Dockerfile)"
         )
@@ -241,54 +313,48 @@ class TestBuildTaskResults:
 
 
 @pytest.mark.unit
-class TestBuildVerificationPrompt:
-    """Tests for prompt construction."""
+class TestBuildTaskPrompt:
+    """Tests for per-task prompt and instructions construction."""
 
-    def test_includes_all_task_ids(self):
-        file_contents = {t["id"]: [] for t in PHASE5_TASKS}
-        prompt = _build_verification_prompt(
-            "testuser", "journal-starter", file_contents
-        )
+    def test_instructions_include_task_criteria(self):
+        task_def = PHASE5_TASKS[0]  # dockerfile
+        instructions = _build_task_instructions(task_def)
+        for criterion in task_def["criteria"]:
+            assert criterion in instructions
 
-        for task in PHASE5_TASKS:
-            assert task["id"] in prompt
+    def test_instructions_include_security_notice(self):
+        task_def = PHASE5_TASKS[0]
+        instructions = _build_task_instructions(task_def)
+        assert "SECURITY NOTICE" in instructions
 
-    def test_includes_file_contents(self):
+    def test_instructions_include_pass_indicators(self):
+        task_def = PHASE5_TASKS[0]
+        instructions = _build_task_instructions(task_def)
+        assert "FROM " in instructions
+
+    def test_prompt_includes_task_id(self):
+        task_def = PHASE5_TASKS[0]
+        prompt = _build_task_prompt(task_def, [])
+        assert task_def["id"] in prompt
+
+    def test_prompt_includes_file_contents(self):
+        task_def = PHASE5_TASKS[0]
         dockerfile = (
-            '<file_content path="Dockerfile">' "\nFROM python:3.12\n</file_content>"
+            '<file_content path="Dockerfile">\nFROM python:3.12\n</file_content>'
         )
-        file_contents = {
-            "dockerfile": [dockerfile],
-            "cicd-pipeline": [],
-            "terraform-iac": [],
-            "kubernetes-manifests": [],
-        }
-        prompt = _build_verification_prompt(
-            "testuser", "journal-starter", file_contents
-        )
+        prompt = _build_task_prompt(task_def, [dockerfile])
         assert "FROM python:3.12" in prompt
 
-    def test_marks_missing_files(self):
-        file_contents = {t["id"]: [] for t in PHASE5_TASKS}
-        prompt = _build_verification_prompt(
-            "testuser", "journal-starter", file_contents
-        )
+    def test_prompt_marks_missing_files(self):
+        task_def = PHASE5_TASKS[0]
+        prompt = _build_task_prompt(task_def, [])
         assert "<no_files_found />" in prompt
 
-    def test_includes_security_notice(self):
-        file_contents = {t["id"]: [] for t in PHASE5_TASKS}
-        prompt = _build_verification_prompt(
-            "testuser", "journal-starter", file_contents
-        )
-        assert "SECURITY NOTICE" in prompt
-
-    def test_includes_repo_info(self):
-        file_contents = {t["id"]: [] for t in PHASE5_TASKS}
-        prompt = _build_verification_prompt(
-            "testuser", "journal-starter", file_contents
-        )
-        assert "testuser" in prompt
-        assert "journal-starter" in prompt
+    def test_each_task_gets_unique_instructions(self):
+        """Each task's instructions should mention its own name."""
+        for task_def in PHASE5_TASKS:
+            instructions = _build_task_instructions(task_def)
+            assert task_def["name"] in instructions
 
 
 @pytest.mark.unit
@@ -317,11 +383,17 @@ class TestAnalyzeDevopsRepository:
         mock_response = MagicMock()
         mock_response.status_code = 404
 
-        with patch(
-            "services.verification.devops_analysis.fetch_repo_tree",
-            autospec=True,
-            side_effect=httpx.HTTPStatusError(
-                "Not Found", request=MagicMock(), response=mock_response
+        with (
+            patch(
+                "services.verification.devops_analysis.get_llm_chat_client",
+                autospec=True,
+            ),
+            patch(
+                "services.verification.devops_analysis.fetch_repo_tree",
+                autospec=True,
+                side_effect=httpx.HTTPStatusError(
+                    "Not Found", request=MagicMock(), response=mock_response
+                ),
             ),
         ):
             result = await analyze_devops_repository(
@@ -335,31 +407,6 @@ class TestAnalyzeDevopsRepository:
     @pytest.mark.asyncio
     async def test_successful_analysis_all_pass(self):
         """Full flow with all tasks passing."""
-        mock_files = [
-            "Dockerfile",
-            ".github/workflows/ci.yml",
-            "infra/main.tf",
-            "k8s/deployment.yaml",
-        ]
-
-        mock_file_contents = {
-            "dockerfile": [
-                '<file_content path="Dockerfile">' "\nFROM python\n</file_content>"
-            ],
-            "cicd-pipeline": [
-                '<file_content path=".github/workflows/ci.yml">'
-                "\non: push\n</file_content>"
-            ],
-            "terraform-iac": [
-                '<file_content path="infra/main.tf">'
-                '\nresource "azurerm"\n</file_content>'
-            ],
-            "kubernetes-manifests": [
-                '<file_content path="k8s/deployment.yaml">'
-                "\nkind: Deployment\n</file_content>"
-            ],
-        }
-
         mock_validation = ValidationResult(
             is_valid=True,
             message="All 4 DevOps tasks verified!",
@@ -373,22 +420,10 @@ class TestAnalyzeDevopsRepository:
             ],
         )
 
-        with (
-            patch(
-                "services.verification.devops_analysis.fetch_repo_tree",
-                autospec=True,
-                return_value=mock_files,
-            ),
-            patch(
-                "services.verification.devops_analysis._fetch_all_devops_files",
-                autospec=True,
-                return_value=mock_file_contents,
-            ),
-            patch(
-                "services.verification.devops_analysis._analyze_with_llm",
-                autospec=True,
-                return_value=mock_validation,
-            ),
+        with patch(
+            "services.verification.devops_analysis._run_devops_workflow",
+            autospec=True,
+            return_value=mock_validation,
         ):
             result = await analyze_devops_repository(
                 "https://github.com/testuser/journal-starter",
@@ -398,26 +433,71 @@ class TestAnalyzeDevopsRepository:
         assert result.is_valid is True
 
     @pytest.mark.asyncio
+    async def test_all_missing_skips_llm(self):
+        """When no tasks pass existence check, skip LLM and return fast."""
+        with (
+            patch(
+                "services.verification.devops_analysis.get_llm_chat_client",
+                autospec=True,
+            ),
+            patch(
+                "services.verification.devops_analysis.fetch_repo_tree",
+                autospec=True,
+                return_value=["README.md"],
+            ),
+        ):
+            result = await analyze_devops_repository(
+                "https://github.com/testuser/journal-starter",
+                "testuser",
+            )
+
+        assert result.is_valid is False
+        assert len(result.task_results) == 4
+        assert all(not t.passed for t in result.task_results)
+
+    @pytest.mark.asyncio
+    async def test_partial_missing_fails_immediately(self):
+        """If any task is missing required files, fail immediately
+        without calling the LLM."""
+        mock_files = [
+            "Dockerfile",
+            ".github/workflows/ci.yml",
+            "infra/main.tf",
+            "k8s/deployment.yaml",
+            # k8s/service.yaml intentionally absent
+        ]
+
+        with (
+            patch(
+                "services.verification.devops_analysis.get_llm_chat_client",
+                autospec=True,
+            ),
+            patch(
+                "services.verification.devops_analysis.fetch_repo_tree",
+                autospec=True,
+                return_value=mock_files,
+            ),
+        ):
+            result = await analyze_devops_repository(
+                "https://github.com/testuser/journal-starter",
+                "testuser",
+            )
+
+        assert result.is_valid is False
+        assert len(result.task_results) == 1
+        k8s_result = result.task_results[0]
+        assert "Kubernetes" in k8s_result.task_name
+        assert "k8s/service.yaml" in k8s_result.feedback
+
+    @pytest.mark.asyncio
     async def test_llm_client_error_returns_server_error(self):
         """LLMClientError should return server_error=True."""
         from core.llm_client import LLMClientError
 
-        with (
-            patch(
-                "services.verification.devops_analysis.fetch_repo_tree",
-                autospec=True,
-                return_value=["Dockerfile"],
-            ),
-            patch(
-                "services.verification.devops_analysis._fetch_all_devops_files",
-                autospec=True,
-                return_value={t["id"]: [] for t in PHASE5_TASKS},
-            ),
-            patch(
-                "services.verification.devops_analysis._analyze_with_llm",
-                autospec=True,
-                side_effect=LLMClientError("Connection failed", retriable=True),
-            ),
+        with patch(
+            "services.verification.devops_analysis._run_devops_workflow",
+            autospec=True,
+            side_effect=LLMClientError("Connection failed", retriable=True),
         ):
             result = await analyze_devops_repository(
                 "https://github.com/testuser/journal-starter",
@@ -430,22 +510,10 @@ class TestAnalyzeDevopsRepository:
     @pytest.mark.asyncio
     async def test_devops_analysis_error_returns_server_error_when_retriable(self):
         """Retriable DevOpsAnalysisError should return server_error=True."""
-        with (
-            patch(
-                "services.verification.devops_analysis.fetch_repo_tree",
-                autospec=True,
-                return_value=["Dockerfile"],
-            ),
-            patch(
-                "services.verification.devops_analysis._fetch_all_devops_files",
-                autospec=True,
-                return_value={t["id"]: [] for t in PHASE5_TASKS},
-            ),
-            patch(
-                "services.verification.devops_analysis._analyze_with_llm",
-                autospec=True,
-                side_effect=DevOpsAnalysisError("Timeout", retriable=True),
-            ),
+        with patch(
+            "services.verification.devops_analysis._run_devops_workflow",
+            autospec=True,
+            side_effect=DevOpsAnalysisError("Timeout", retriable=True),
         ):
             result = await analyze_devops_repository(
                 "https://github.com/testuser/journal-starter",
