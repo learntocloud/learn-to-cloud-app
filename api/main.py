@@ -69,8 +69,9 @@ async def not_found_handler(
             content={"detail": "Not found"},
         )
     return templates.TemplateResponse(
+        request,
         "pages/404.html",
-        {"request": request, "user": None, "now": datetime.now(UTC)},
+        {"user": None, "now": datetime.now(UTC)},
         status_code=404,
     )
 

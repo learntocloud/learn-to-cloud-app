@@ -81,10 +81,10 @@ class TestStatusPage:
         # Verify template was called with correct template name
         self.template_response.assert_called_once()
         call_args = self.template_response.call_args
-        assert call_args[0][0] == "pages/status.html"
+        assert call_args[0][1] == "pages/status.html"
 
         # Verify context
-        ctx = call_args[0][1]
+        ctx = call_args[0][2]
         assert ctx["user"] is None
         assert ctx["overall_status"] == "operational"
         assert ctx["analytics"] == analytics
@@ -117,7 +117,7 @@ class TestStatusPage:
         ):
             await status_page(request, mock_db, user_id=42)
 
-        ctx = self.template_response.call_args[0][1]
+        ctx = self.template_response.call_args[0][2]
         assert ctx["user"] is mock_user
 
     async def test_status_page_shows_down_when_db_unhealthy(self):
@@ -141,7 +141,7 @@ class TestStatusPage:
         ):
             await status_page(request, mock_db, user_id=None)
 
-        ctx = self.template_response.call_args[0][1]
+        ctx = self.template_response.call_args[0][2]
         assert ctx["overall_status"] == "down"
 
     async def test_status_page_shows_down_when_azure_auth_fails(self):
@@ -165,7 +165,7 @@ class TestStatusPage:
         ):
             await status_page(request, mock_db, user_id=None)
 
-        ctx = self.template_response.call_args[0][1]
+        ctx = self.template_response.call_args[0][2]
         assert ctx["overall_status"] == "down"
 
     async def test_status_page_operational_when_azure_auth_is_none(self):
@@ -189,7 +189,7 @@ class TestStatusPage:
         ):
             await status_page(request, mock_db, user_id=None)
 
-        ctx = self.template_response.call_args[0][1]
+        ctx = self.template_response.call_args[0][2]
         assert ctx["overall_status"] == "operational"
 
     async def test_status_page_falls_back_on_analytics_error(self):
@@ -212,7 +212,7 @@ class TestStatusPage:
         ):
             await status_page(request, mock_db, user_id=None)
 
-        ctx = self.template_response.call_args[0][1]
+        ctx = self.template_response.call_args[0][2]
         # Should get a fallback CommunityAnalytics with zeros
         assert ctx["analytics"].total_users == 0
         assert ctx["analytics"].active_learners_30d == 0

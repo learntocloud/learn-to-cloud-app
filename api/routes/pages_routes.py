@@ -53,7 +53,6 @@ def _template_context(
 ) -> dict:
     """Build common template context."""
     return {
-        "request": request,
         "user": user,
         "now": datetime.now(UTC),
         **kwargs,
@@ -73,6 +72,7 @@ async def home_page(
     phases = get_all_phases()
 
     return templates.TemplateResponse(
+        request,
         "pages/home.html",
         _template_context(request, user=user, phases=phases),
     )
@@ -89,6 +89,7 @@ async def curriculum_page(
     phases = get_all_phases()
 
     return templates.TemplateResponse(
+        request,
         "pages/curriculum.html",
         _template_context(request, user=user, phases=phases),
     )
@@ -110,6 +111,7 @@ async def phase_page(
     phase = get_phase_by_slug(f"phase{phase_id}")
     if phase is None:
         return templates.TemplateResponse(
+            request,
             "pages/404.html",
             _template_context(request, user=user),
             status_code=404,
@@ -133,6 +135,7 @@ async def phase_page(
     )
 
     return templates.TemplateResponse(
+        request,
         "pages/phase.html",
         _template_context(
             request,
@@ -169,6 +172,7 @@ async def topic_page(
 
     if phase is None or topic is None:
         return templates.TemplateResponse(
+            request,
             "pages/404.html",
             _template_context(request, user=user),
             status_code=404,
@@ -191,6 +195,7 @@ async def topic_page(
     )
 
     return templates.TemplateResponse(
+        request,
         "pages/topic.html",
         _template_context(
             request,
@@ -218,6 +223,7 @@ async def dashboard_page(
     user = await _get_user_or_none(db, user_id)
     if user is None:
         return templates.TemplateResponse(
+            request,
             "pages/404.html",
             _template_context(request),
             status_code=404,
@@ -226,6 +232,7 @@ async def dashboard_page(
     dashboard = await get_dashboard_data(db, user_id)
 
     return templates.TemplateResponse(
+        request,
         "pages/dashboard.html",
         _template_context(
             request,
@@ -246,12 +253,14 @@ async def account_page(
     user = await _get_user_or_none(db, user_id)
     if user is None:
         return templates.TemplateResponse(
+            request,
             "pages/404.html",
             _template_context(request),
             status_code=404,
         )
 
     return templates.TemplateResponse(
+        request,
         "pages/account.html",
         _template_context(request, user=user),
     )
@@ -267,6 +276,7 @@ async def faq_page(
     user = await _get_user_or_none(db, user_id)
 
     return templates.TemplateResponse(
+        request,
         "pages/faq.html",
         _template_context(request, user=user, faqs=FAQS),
     )
@@ -282,6 +292,7 @@ async def privacy_page(
     user = await _get_user_or_none(db, user_id)
 
     return templates.TemplateResponse(
+        request,
         "pages/privacy.html",
         _template_context(request, user=user),
     )
@@ -297,6 +308,7 @@ async def terms_page(
     user = await _get_user_or_none(db, user_id)
 
     return templates.TemplateResponse(
+        request,
         "pages/terms.html",
         _template_context(request, user=user),
     )

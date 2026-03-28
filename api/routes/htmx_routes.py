@@ -224,9 +224,9 @@ async def htmx_submit_verification(
     ) -> HTMLResponse:
         """Render the requirement card partial with consistent context."""
         return templates.TemplateResponse(
+            request,
             "partials/requirement_card.html",
             {
-                "request": request,
                 "requirement": requirement,
                 "submission": submission,
                 "feedback_tasks": feedback_tasks or [],
@@ -283,9 +283,9 @@ async def htmx_submit_verification(
                 )
             )
             task.add_done_callback(
-                lambda t: t.result()
-                if not t.cancelled() and not t.exception()
-                else None
+                lambda t: (
+                    t.result() if not t.cancelled() and not t.exception() else None
+                )
             )
 
             # Return the processing card with SSE connection
@@ -380,9 +380,9 @@ def _render_result_card(
         error_banner = result.message
 
     response = templates.TemplateResponse(
+        request,
         "partials/requirement_card.html",
         {
-            "request": request,
             "requirement": requirement,
             "submission": submission,
             "feedback_tasks": feedback_tasks or [],

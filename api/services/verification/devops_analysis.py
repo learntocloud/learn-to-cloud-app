@@ -99,6 +99,11 @@ def _check_required_files(all_files: list[str]) -> list[TaskResult]:
                     missing.append(req)
 
         if missing:
+            first = missing[0]
+            if first.endswith("/"):
+                next_step = f"Add at least one file under {first} in your repository."
+            else:
+                next_step = f"Add {first} to your repository."
             failures.append(
                 TaskResult(
                     task_name=task["name"],
@@ -107,7 +112,7 @@ def _check_required_files(all_files: list[str]) -> list[TaskResult]:
                         "Required file(s) not found in repository: "
                         f"{', '.join(missing)}."
                     ),
-                    next_steps=f"Add {missing[0]} to your repository.",
+                    next_steps=next_step,
                 )
             )
 
@@ -119,7 +124,9 @@ def _build_validation_result(
 ) -> ValidationResult:
     """Build a ``ValidationResult`` with a standard message."""
     passed_count = sum(1 for t in task_results if t.passed)
-    total_count = len(task_results)
+    # Use the full Phase 5 task list for the denominator so progress
+    # messaging remains accurate even when only failing tasks are provided.
+    total_count = len(PHASE5_TASKS)
     all_passed = passed_count == total_count
 
     if all_passed:
