@@ -39,7 +39,7 @@ learning_steps:
   id: phase0-topic6-practice-follow-made-by-gps
 - order: 4
   action: 'Practice:'
-  title: Subscribe to youtube.com/made-by-gps
-  url: https://youtube.com/made-by-gps
+  title: Subscribe to youtube.com/@madebygps
+  url: https://www.youtube.com/@madebygps
   description: Keep up to date with video tutorials and updates on the guide.
   id: phase0-topic6-practice-subscribe-youtube

@@ -37,15 +37,20 @@ network:
     - "*.youtu.be"
     # Cloud providers
     - "*.microsoft.com"
+    - "*.azure.com"
     - "*.amazon.com"
     - "*.aws"
     - "*.google.com"
+    - "*.chrome.com"
     # Learning platforms
     - "*.freecodecamp.org"
     - "*.khanacademy.org"
     - "*.kodekloud.com"
     - "*.geeksforgeeks.org"
     - "*.dev.to"
+    - "*.7daysofpython.com"
+    - "*.substack.com"
+    - "*.redhat.com"
     # Docs & tools
     - "*.linux.com"
     - "*.opensource.com"
@@ -65,12 +70,17 @@ network:
     - "*.caddyserver.com"
     - "*.modelcontextprotocol.io"
     - "*.n8n.io"
+    - "*.mozilla.org"
+    - "*.readthedocs.io"
+    - "*.ubuntu.com"
+    - "*.rootly.com"
     # Developer tools
     - "*.visualstudio.com"
     - "*.github.io"
     - "*.atlassian.com"
     - "*.jetbrains.com"
     - "*.ibm.com"
+    - "*.apple.com"
     # Other
     - "*.aka.ms"
     - "*.httpbin.org"
