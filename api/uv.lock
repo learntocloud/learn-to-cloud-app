@@ -1781,7 +1781,7 @@ requires-dist = [
     { name = "pyyaml", specifier = ">=6.0" },
     { name = "slowapi", specifier = ">=0.1.9" },
     { name = "sqlalchemy", specifier = ">=2.0.37,<3" },
-    { name = "starlette", specifier = ">=0.41.3" },
+    { name = "starlette", specifier = ">=1.0.0" },
     { name = "tenacity", specifier = ">=8.2.0,<9.1.5" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.41.0" },
 ]
