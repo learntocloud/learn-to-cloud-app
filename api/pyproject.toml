@@ -37,6 +37,7 @@ dependencies = [
     "starlette>=1.0.0",
     "pyyaml>=6.0",
     "agent-framework>=1.0.0rc3",
+    "agent-framework-azure-ai>=1.0.0rc3",
     "opentelemetry-exporter-otlp-proto-grpc>=1.20.0",
 ]
 
@@ -83,6 +84,12 @@ python-platform = "linux"
 # Also affects agent_framework's ChatOptions generic TypedDict (response_format).
 # Tracked in: https://github.com/astral-sh/ty/issues/1635
 invalid-argument-type = "warn"
+
+[tool.uv]
+# The agent-framework metapackage pulls 20+ sub-packages via [all].
+# Constrain the key sub-package to the same release series as core
+# so the resolver never mixes e.g. core rc6 with azure-ai rc3.
+constraint-dependencies = ["agent-framework-core>=1.0.0rc3"]
 
 [dependency-groups]
 dev = [
