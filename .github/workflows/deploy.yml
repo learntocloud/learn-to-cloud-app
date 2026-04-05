@@ -3,8 +3,22 @@ name: Deploy
 on:
   push:
     branches: [main]
+    paths:
+      - 'api/**'
+      - 'content/**'
+      - 'infra/**'
+      - 'scripts/**'
+      - 'docker-compose.yml'
+      - '.github/workflows/deploy.yml'
   pull_request:
     branches: [main]
+    paths:
+      - 'api/**'
+      - 'content/**'
+      - 'infra/**'
+      - 'scripts/**'
+      - 'docker-compose.yml'
+      - '.github/workflows/deploy.yml'
   workflow_dispatch:
     inputs:
       force_rebuild:
