@@ -20,7 +20,7 @@ learning_steps:
   options:
   - provider: azure
     title: Plan and Manage Costs for Azure
-    url: https://learn.microsoft.com/en-us/azure/cost-management-billing/understand/plan-manage-costs
+    url: https://learn.microsoft.com/azure/cost-management-billing/understand/plan-manage-costs
     description: Learn foundational Azure pricing and cost management concepts.
   - provider: aws
     title: AWS Cloud Financial Management Basics
@@ -38,7 +38,7 @@ learning_steps:
   options:
   - provider: azure
     title: Azure Cost Management + Billing
-    url: https://learn.microsoft.com/en-us/azure/cost-management-billing/cost-management-billing-overview
+    url: https://learn.microsoft.com/azure/cost-management-billing/cost-management-billing-overview
     description: Complete overview of Azure billing and cost management
   - provider: aws
     title: AWS Billing and Cost Management
@@ -56,7 +56,7 @@ learning_steps:
   options:
   - provider: azure
     title: Create Azure Budgets
-    url: https://learn.microsoft.com/en-us/azure/cost-management-billing/costs/tutorial-acm-create-budgets
+    url: https://learn.microsoft.com/azure/cost-management-billing/costs/tutorial-acm-create-budgets
     description: Tutorial for creating budgets and alerts in Azure
   - provider: aws
     title: Create AWS Budgets
@@ -74,7 +74,7 @@ learning_steps:
   options:
   - provider: azure
     title: Azure Pricing Calculator
-    url: https://azure.microsoft.com/en-us/pricing/calculator/
+    url: https://azure.microsoft.com/pricing/calculator/
     description: Estimate costs for Azure services before deploying
   - provider: aws
     title: AWS Pricing Calculator
@@ -92,7 +92,7 @@ learning_steps:
   options:
   - provider: azure
     title: Azure Well-Architected Cost Optimization Checklist
-    url: https://learn.microsoft.com/en-us/azure/well-architected/cost-optimization/checklist
+    url: https://learn.microsoft.com/azure/well-architected/cost-optimization/checklist
     description: Use Azure's cost-optimization checklist to improve cloud spend efficiency.
   - provider: aws
     title: AWS Well-Architected Cost Optimization Pillar

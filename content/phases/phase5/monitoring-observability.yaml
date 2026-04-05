@@ -20,7 +20,7 @@ learning_steps:
   options:
   - provider: azure
     title: Azure Monitor Overview
-    url: https://learn.microsoft.com/en-us/azure/azure-monitor/fundamentals/overview
+    url: https://learn.microsoft.com/azure/azure-monitor/fundamentals/overview
     description: Learn Azure's monitoring architecture, signals, and core capabilities.
   - provider: aws
     title: Amazon CloudWatch Overview
@@ -41,7 +41,7 @@ learning_steps:
 - order: 3
   action: 'Read:'
   title: Observability Patterns (Microsoft Learn)
-  url: https://learn.microsoft.com/en-us/dotnet/architecture/cloud-native/observability-patterns
+  url: https://learn.microsoft.com/dotnet/architecture/cloud-native/observability-patterns
   description: Learn the three pillars of observability — metrics, logs, and traces — and how dashboards and alerts are built from these telemetry signals.
   id: phase5-topic5-read-observability-patterns-microsoft-learn
 - order: 4

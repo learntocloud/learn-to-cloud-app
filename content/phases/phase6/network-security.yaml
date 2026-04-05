@@ -22,7 +22,7 @@ learning_steps:
     description: Filter web traffic and protect against common web exploits with AWS WAF
   - provider: azure
     title: Azure Web Application Firewall
-    url: https://learn.microsoft.com/en-us/azure/web-application-firewall/overview
+    url: https://learn.microsoft.com/azure/web-application-firewall/overview
     description: Protect your applications from common exploits with Azure WAF
   - provider: gcp
     title: Cloud Armor WAF Overview
@@ -40,7 +40,7 @@ learning_steps:
     description: AWS Shield Standard is automatic and free — Shield Advanced adds detection and response support
   - provider: azure
     title: Azure DDoS Protection
-    url: https://learn.microsoft.com/en-us/azure/ddos-protection/ddos-protection-overview
+    url: https://learn.microsoft.com/azure/ddos-protection/ddos-protection-overview
     description: Azure DDoS Protection tiers and what is included by default
   - provider: gcp
     title: Cloud Armor DDoS Mitigation
@@ -58,7 +58,7 @@ learning_steps:
     description: Security best practices for Amazon VPC
   - provider: azure
     title: Azure Network Security Best Practices
-    url: https://learn.microsoft.com/en-us/azure/security/fundamentals/network-best-practices
+    url: https://learn.microsoft.com/azure/security/fundamentals/network-best-practices
     description: Network security best practices for Azure deployments
   - provider: gcp
     title: GCP Networking Security Best Practices
@@ -76,7 +76,7 @@ learning_steps:
     description: Capture IP traffic flow information for your VPC interfaces
   - provider: azure
     title: NSG Flow Logs
-    url: https://learn.microsoft.com/en-us/azure/network-watcher/vnet-flow-logs-overview?tabs=Americas
+    url: https://learn.microsoft.com/azure/network-watcher/vnet-flow-logs-overview?tabs=Americas
     description: Log network traffic to and from Azure network security groups
   - provider: gcp
     title: VPC Flow Logs

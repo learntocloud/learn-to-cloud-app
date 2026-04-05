@@ -26,7 +26,7 @@ learning_steps:
   options:
   - provider: azure
     title: Azure RBAC Overview
-    url: https://learn.microsoft.com/en-us/azure/role-based-access-control/overview
+    url: https://learn.microsoft.com/azure/role-based-access-control/overview
     description: Understand role-based access control concepts in Azure
   - provider: aws
     title: Getting Started with AWS IAM
@@ -44,7 +44,7 @@ learning_steps:
   options:
   - provider: azure
     title: Secure access to resources with Azure identity and access management best practices
-    url: https://learn.microsoft.com/en-us/azure/security/fundamentals/identity-management-best-practices
+    url: https://learn.microsoft.com/azure/security/fundamentals/identity-management-best-practices
     description: Apply least-privilege and identity security best practices in Azure
   - provider: aws
     title: AWS IAM Best Practices
@@ -62,7 +62,7 @@ learning_steps:
   options:
   - provider: azure
     title: Azure Managed Identities
-    url: https://learn.microsoft.com/en-us/entra/identity/managed-identities-azure-resources/overview
+    url: https://learn.microsoft.com/entra/identity/managed-identities-azure-resources/overview
     description: Learn how Azure resources authenticate to services without credentials in code
   - provider: aws
     title: IAM Roles for AWS Services
@@ -80,7 +80,7 @@ learning_steps:
   options:
   - provider: azure
     title: Azure MFA Setup and Enforcement
-    url: https://learn.microsoft.com/en-us/entra/identity/authentication/concept-mfa-howitworks
+    url: https://learn.microsoft.com/entra/identity/authentication/concept-mfa-howitworks
     description: Learn how Azure enforces multi-factor authentication for user accounts
   - provider: aws
     title: Enable MFA in AWS

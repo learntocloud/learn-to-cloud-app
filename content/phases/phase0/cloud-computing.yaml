@@ -23,7 +23,7 @@ learning_steps:
 - order: 2
   action: 'Read:'
   title: IaaS vs PaaS vs SaaS
-  url: https://azure.microsoft.com/en-us/resources/cloud-computing-dictionary/types-of-cloud-computing
+  url: https://azure.microsoft.com/resources/cloud-computing-dictionary/types-of-cloud-computing
   description: Dive deeper into the three main cloud service models and when to use each.
   id: phase0-topic4-read-iaas-vs-paas-vs
 - order: 3

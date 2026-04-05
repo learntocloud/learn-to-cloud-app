@@ -39,6 +39,12 @@ learning_steps:
   description: Understand how firewalls filter traffic based on IP, port, and protocol. Learn about stateful vs stateless firewalls.
   id: phase2-topic2-watch-how-firewalls-work
 - order: 5
+  action: 'Watch:'
+  title: How Load Balancers Work
+  url: https://www.youtube.com/watch?v=sCR3SAVdyCc
+  description: 'Understand how load balancers distribute traffic across multiple servers: health checks, round-robin vs least-connections, and Layer 4 vs Layer 7 balancing. Load balancers are essential for high availability and scaling.'
+  id: phase2-topic2-watch-how-load-balancers-work
+- order: 6
   action: 'Read:'
   title: Cloud Security Groups
   description: Preview how cloud providers implement firewalls as security groups. Understand inbound vs outbound rules and the concept of least privilege.
@@ -49,14 +55,14 @@ learning_steps:
     description: Virtual firewall rules for EC2 instances in a VPC
   - provider: azure
     title: Azure Network Security Groups
-    url: https://learn.microsoft.com/en-us/azure/virtual-network/network-security-groups-overview
+    url: https://learn.microsoft.com/azure/virtual-network/network-security-groups-overview
     description: Filter network traffic with inbound and outbound security rules
   - provider: gcp
     title: GCP VPC Firewall Rules
     url: https://docs.cloud.google.com/firewall/docs/firewalls
     description: Ingress and egress firewall rules for VPC networks
   id: phase2-topic2-read-cloud-security-groups
-- order: 6
+- order: 7
   action: 'Practice:'
   title: View Active Connections
   description: Use ss -lntup as your primary command to see listening ports and owning processes. If you're on Windows, run these commands inside WSL. Use netstat only as a fallback on older systems. You may need sudo to see process names/PIDs for services owned by other users.

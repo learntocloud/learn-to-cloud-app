@@ -23,7 +23,7 @@ learning_steps:
 - order: 2
   action: 'Read:'
   title: Learn about GitHub Actions
-  url: https://docs.github.com/en/actions/get-started/understand-github-actions
+  url: https://docs.github.com/actions/get-started/understand-github-actions
   description: Understand how GitHub Actions works — workflows, triggers, jobs, and steps — so you can automate your build and deploy pipeline.
   id: phase5-topic2-read-learn-about-github-actions
 - order: 3

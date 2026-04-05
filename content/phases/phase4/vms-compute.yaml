@@ -32,7 +32,7 @@ learning_steps:
   options:
   - provider: azure
     title: Sizes for Virtual Machines in Azure
-    url: https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/overview
+    url: https://learn.microsoft.com/azure/virtual-machines/sizes/overview
     description: Review Azure VM size families and guidance for selecting the right SKU.
   - provider: aws
     title: Amazon EC2 Instance Types

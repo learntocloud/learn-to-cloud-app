@@ -1,7 +1,7 @@
 id: phase4-topic9
 slug: capstone
 name: 'Capstone: Cloud Deployment'
-description: Deploy the Journal API you built in Phase 3 to a secure 2-tier cloud architecture. This capstone challenges you to research, design, and implement a production-ready environment with proper networking and security, using the database and deployment preparation work you completed in earlier Phase 4 topics. You must have all Phase 3 endpoints implemented (GET single entry, DELETE single entry, and AI analysis) before starting.
+description: Deploy the Journal API you built in Phase 3 to a secure 2-tier cloud architecture. This capstone challenges you to research, design, and implement a production-ready environment with proper networking and security, using the database and deployment preparation work you completed in earlier Phase 4 topics. You must have all Phase 3 endpoints implemented (GET single entry, DELETE single entry, and AI analysis) before starting. The curriculum may not have covered everything you need — that's intentional. Researching what you don't know is part of the job.
 short_description: Deploy your completed Journal API to a secure 2-tier cloud architecture with VMs, networking, and HTTPS.
 order: 9
 learning_objectives:

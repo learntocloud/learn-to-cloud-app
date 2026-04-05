@@ -23,7 +23,7 @@ learning_steps:
   options:
   - provider: azure
     title: What is Azure Monitor?
-    url: https://learn.microsoft.com/en-us/azure/azure-monitor/fundamentals/overview
+    url: https://learn.microsoft.com/azure/azure-monitor/fundamentals/overview
     description: Learn Azure Monitor fundamentals for application and VM observability.
   - provider: aws
     title: What is Amazon CloudWatch?
@@ -41,7 +41,7 @@ learning_steps:
   options:
   - provider: azure
     title: Azure Monitor Logs Overview
-    url: https://learn.microsoft.com/en-us/azure/azure-monitor/logs/data-platform-logs
+    url: https://learn.microsoft.com/azure/azure-monitor/logs/data-platform-logs
     description: Understand log ingestion and querying with Log Analytics.
   - provider: aws
     title: CloudWatch Logs User Guide
@@ -59,7 +59,7 @@ learning_steps:
   options:
   - provider: azure
     title: Azure Monitor Metrics Overview
-    url: https://learn.microsoft.com/en-us/azure/azure-monitor/metrics/data-platform-metrics
+    url: https://learn.microsoft.com/azure/azure-monitor/metrics/data-platform-metrics
     description: Understand platform and custom metrics collection and analysis.
   - provider: aws
     title: Using Amazon CloudWatch Metrics
@@ -77,7 +77,7 @@ learning_steps:
   options:
   - provider: azure
     title: Install the Azure Monitor Agent on a VM
-    url: https://learn.microsoft.com/en-us/azure/azure-monitor/agents/azure-monitor-agent-manage
+    url: https://learn.microsoft.com/azure/azure-monitor/agents/azure-monitor-agent-manage
     description: Install the Azure Monitor Agent and configure a data collection rule to send VM logs and metrics to a Log Analytics workspace.
   - provider: aws
     title: Install the CloudWatch Agent on an EC2 Instance
@@ -95,7 +95,7 @@ learning_steps:
   options:
   - provider: azure
     title: 'Log Analytics Tutorial: Run a KQL Query'
-    url: https://learn.microsoft.com/en-us/azure/azure-monitor/logs/log-analytics-tutorial
+    url: https://learn.microsoft.com/azure/azure-monitor/logs/log-analytics-tutorial
     description: Open your Log Analytics workspace and write a query to find SSH login events from the last hour.
   - provider: aws
     title: 'CloudWatch Logs Insights: Run a Sample Query'
