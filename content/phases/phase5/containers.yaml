@@ -72,7 +72,7 @@ learning_steps:
   options:
   - provider: azure
     title: Azure Container Registry
-    url: https://learn.microsoft.com/en-us/training/modules/deploy-use-azure-container-registry/
+    url: https://learn.microsoft.com/training/modules/deploy-use-azure-container-registry/
     description: Push images to Azure Container Registry
   - provider: aws
     title: AWS ECR

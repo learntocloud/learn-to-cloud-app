@@ -23,13 +23,13 @@ learning_steps:
 - order: 2
   action: 'Read:'
   title: Status Code Categories
-  url: https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Status
+  url: https://developer.mozilla.org/docs/Web/HTTP/Reference/Status
   description: 'Understand the status code categories: 2xx (success), 3xx (redirect), 4xx (client error), and 5xx (server error). Focus on recognizing patterns and meanings, not memorizing long code lists.'
   id: phase2-topic3-read-status-code-categories
 - order: 3
   action: 'Read:'
   title: Common HTTP Headers
-  url: https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers
+  url: https://developer.mozilla.org/docs/Web/HTTP/Reference/Headers
   description: 'Understand common headers: Content-Type, Authorization, Accept, Cache-Control, User-Agent. Know how headers control request/response behavior.'
   id: phase2-topic3-read-common-http-headers
 - order: 4

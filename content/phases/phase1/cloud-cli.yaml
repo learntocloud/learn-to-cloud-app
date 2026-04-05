@@ -38,7 +38,7 @@ learning_steps:
   options:
   - provider: azure
     title: Verify Azure CLI
-    url: https://learn.microsoft.com/en-us/cli/azure/reference-index?view=azure-cli-latest#az-version
+    url: https://learn.microsoft.com/cli/azure/reference-index?view=azure-cli-latest#az-version
     description: 'Run this command in your terminal:
 
       ```bash az --version ```'

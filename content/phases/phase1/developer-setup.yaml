@@ -53,13 +53,13 @@ learning_steps:
 - order: 5
   action: 'Practice:'
   title: Communicate using markdown
-  url: https://learn.microsoft.com/en-us/training/modules/communicate-using-markdown/
+  url: https://learn.microsoft.com/training/modules/communicate-using-markdown/
   description: Learn Markdown basics so you can write clean documentation in READMEs, issues, and project notes.
   id: phase1-topic1-practice-communicate-using-markdown
 - order: 6
   action: 'Practice:'
   title: Adding a profile README
-  url: https://docs.github.com/en/account-and-profile/how-tos/profile-customization/managing-your-profile-readme
+  url: https://docs.github.com/account-and-profile/how-tos/profile-customization/managing-your-profile-readme
   description: Follow this guide to create the special repository that powers your GitHub profile README.
   id: phase1-topic1-practice-adding-a-profile-readme
 - order: 7

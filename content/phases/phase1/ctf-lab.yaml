@@ -1,7 +1,7 @@
 id: phase1-topic6
 slug: ctf-lab
 name: 'Capstone: Linux CTF Lab'
-description: Time to put your Linux skills to the test! Complete 18 progressive Capture The Flag challenges covering file navigation, permissions, networking, and more.
+description: Time to put your Linux skills to the test! Complete 18 progressive Capture The Flag challenges covering file navigation, permissions, networking, and more. The curriculum may not have covered everything you need — that's intentional. Researching what you don't know is part of the job.
 short_description: Complete 18 hands-on Linux CTF challenges in a real cloud environment to prove your command line skills.
 order: 6
 learning_objectives:

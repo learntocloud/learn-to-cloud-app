@@ -20,7 +20,7 @@ learning_steps:
   options:
   - provider: azure
     title: Azure Bastion
-    url: https://learn.microsoft.com/en-us/azure/bastion/
+    url: https://learn.microsoft.com/azure/bastion/
     description: Secure RDP/SSH connectivity to your VMs directly in the Azure portal
   - provider: aws
     title: AWS Systems Manager Session Manager
@@ -38,7 +38,7 @@ learning_steps:
   options:
   - provider: azure
     title: Connect to a VM using Azure Bastion
-    url: https://learn.microsoft.com/en-us/azure/bastion/quickstart-host-portal
+    url: https://learn.microsoft.com/azure/bastion/quickstart-host-portal
     description: Use Azure Bastion to securely connect to VMs from the Azure portal.
   - provider: aws
     title: Connect to EC2 Using Session Manager

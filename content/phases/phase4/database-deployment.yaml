@@ -20,7 +20,7 @@ learning_steps:
   options:
   - provider: azure
     title: Azure PostgreSQL Deployment Options Overview
-    url: https://learn.microsoft.com/en-us/azure/postgresql/configure-maintain/overview-postgres-choose-server-options
+    url: https://learn.microsoft.com/azure/postgresql/configure-maintain/overview-postgres-choose-server-options
     description: Review PostgreSQL offerings on Azure and decide between managed and VM-hosted patterns.
   - provider: aws
     title: AWS PostgreSQL Deployment Options Overview
@@ -38,7 +38,7 @@ learning_steps:
   options:
   - provider: azure
     title: Install PostgreSQL on an Azure Linux VM
-    url: https://learn.microsoft.com/en-us/previous-versions/azure/virtual-machines/linux/postgresql-install
+    url: https://learn.microsoft.com/previous-versions/azure/virtual-machines/linux/postgresql-install
     description: Step-by-step guide to installing and configuring PostgreSQL on a Linux VM in Azure.
   - provider: aws
     title: PostgreSQL Linux Downloads (Official)
@@ -56,7 +56,7 @@ learning_steps:
   options:
   - provider: azure
     title: Azure Network Security Tutorial (subnet + NSG)
-    url: https://learn.microsoft.com/en-us/azure/virtual-network/tutorial-filter-network-traffic
+    url: https://learn.microsoft.com/azure/virtual-network/tutorial-filter-network-traffic
     description: Build a VNet/subnet-secured VM pattern you can adapt for a private PostgreSQL host.
   - provider: aws
     title: Amazon VPC with Public and Private Subnets
@@ -80,7 +80,7 @@ learning_steps:
   options:
   - provider: azure
     title: Connect to a Private VM via Azure Bastion
-    url: https://learn.microsoft.com/en-us/azure/bastion/bastion-connect-vm-ssh-linux
+    url: https://learn.microsoft.com/azure/bastion/bastion-connect-vm-ssh-linux
     description: A managed PaaS bastion host — provides browser-based SSH/RDP through the Azure portal. No agent needed on the VM.
   - provider: aws
     title: Connect to a Private Instance via Session Manager

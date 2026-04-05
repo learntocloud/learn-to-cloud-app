@@ -35,7 +35,7 @@ learning_steps:
 - order: 4
   action: 'Read:'
   title: What is CI/CD?
-  url: https://www.redhat.com/en/topics/devops/what-is-ci-cd
+  url: https://www.redhat.com/topics/devops/what-is-ci-cd
   description: Learn how continuous integration and continuous delivery automate build, test, and release workflows.
   id: phase0-topic5-read-what-is-cicd
 - order: 5

@@ -23,7 +23,7 @@ learning_steps:
   options:
   - provider: azure
     title: Azure Virtual Network Overview
-    url: https://learn.microsoft.com/en-us/azure/virtual-network/virtual-networks-overview
+    url: https://learn.microsoft.com/azure/virtual-network/virtual-networks-overview
     description: Azure Virtual Network fundamentals
   - provider: aws
     title: What is Amazon VPC?
@@ -41,7 +41,7 @@ learning_steps:
   options:
   - provider: azure
     title: Azure Network Security Groups
-    url: https://learn.microsoft.com/en-us/azure/virtual-network/network-security-groups-overview
+    url: https://learn.microsoft.com/azure/virtual-network/network-security-groups-overview
     description: Overview of Network Security Groups in Azure
   - provider: aws
     title: AWS Security Groups
@@ -59,7 +59,7 @@ learning_steps:
   options:
   - provider: azure
     title: Azure VNet Planning and Design
-    url: https://learn.microsoft.com/en-us/azure/virtual-network/virtual-network-vnet-plan-design-arm
+    url: https://learn.microsoft.com/azure/virtual-network/virtual-network-vnet-plan-design-arm
     description: Plan address spaces and subnet segmentation for Azure virtual networks.
   - provider: aws
     title: AWS VPC CIDR Blocks and Subnetting
@@ -77,7 +77,7 @@ learning_steps:
   options:
   - provider: azure
     title: Azure Public IP Addresses
-    url: https://learn.microsoft.com/en-us/azure/virtual-network/ip-services/public-ip-addresses
+    url: https://learn.microsoft.com/azure/virtual-network/ip-services/public-ip-addresses
     description: Learn how internet-routable connectivity is provided to Azure resources.
   - provider: aws
     title: Internet Gateways
@@ -95,7 +95,7 @@ learning_steps:
   options:
   - provider: azure
     title: Azure NAT Gateway Overview
-    url: https://learn.microsoft.com/en-us/azure/nat-gateway/nat-overview
+    url: https://learn.microsoft.com/azure/nat-gateway/nat-overview
     description: Learn outbound internet connectivity for private Azure subnets.
   - provider: aws
     title: NAT Gateway Basics (AWS)
@@ -113,7 +113,7 @@ learning_steps:
   options:
   - provider: azure
     title: Azure Network Watcher - IP Flow Verify
-    url: https://learn.microsoft.com/en-us/azure/network-watcher/ip-flow-verify-overview
+    url: https://learn.microsoft.com/azure/network-watcher/ip-flow-verify-overview
     description: Validate NSG decisions for allowed and denied VM traffic flows.
   - provider: aws
     title: AWS Reachability Analyzer
@@ -136,7 +136,7 @@ learning_steps:
     description: Deploy RDS in a private subnet and restrict access with security group rules allowing port 5432 only from your API server
   - provider: azure
     title: Azure Private Endpoint Overview
-    url: https://learn.microsoft.com/en-us/azure/private-link/private-endpoint-overview
+    url: https://learn.microsoft.com/azure/private-link/private-endpoint-overview
     description: Eliminate public network access to your Azure database with Private Endpoint
   - provider: gcp
     title: Cloud SQL Private IP
@@ -144,26 +144,62 @@ learning_steps:
     description: Connect to Cloud SQL over private IP with no public internet exposure
   id: phase4-topic3-read-restrict-database-access
 - order: 8
+  action: 'Read:'
+  title: Cloud Load Balancers
+  description: 'Load balancers distribute traffic across multiple targets and enable high availability. Understand the difference between Layer 4 (network) and Layer 7 (application) load balancers, health checks, and target groups in your cloud provider.'
+  options:
+  - provider: aws
+    title: Application Load Balancer (ALB)
+    url: https://docs.aws.amazon.com/elasticloadbalancing/latest/application/introduction.html
+    description: Layer 7 load balancing with path-based routing, health checks, and target groups.
+  - provider: azure
+    title: Azure Load Balancer Overview
+    url: https://learn.microsoft.com/azure/load-balancer/load-balancer-overview
+    description: Layer 4 load balancing with health probes, backend pools, and load balancing rules.
+  - provider: gcp
+    title: Cloud Load Balancing Overview
+    url: https://docs.cloud.google.com/load-balancing/docs/load-balancing-overview
+    description: Global and regional load balancing with HTTP(S), TCP/UDP, and internal options.
+  id: phase4-topic3-read-cloud-load-balancers
+- order: 9
+  action: 'Practice:'
+  title: Explore Cloud Networking via CLI
+  description: 'Use your cloud CLI to inspect networking resources. Practice listing VPCs, subnets, security groups, and route tables. Learn to filter output and parse JSON — these skills are essential for the Phase 2 networking lab and real-world troubleshooting.'
+  options:
+  - provider: aws
+    title: AWS CLI Networking Commands
+    url: https://docs.aws.amazon.com/cli/latest/reference/ec2/describe-vpcs.html
+    description: Inspect VPCs, subnets, and security groups from the command line. Use --query and --output table to filter results, or pipe to jq for JSON parsing.
+  - provider: azure
+    title: Azure CLI Networking Commands
+    url: https://learn.microsoft.com/cli/azure/network/vnet
+    description: Inspect VNets, subnets, and NSGs from the command line. Use --query with JMESPath and --output table to shape output.
+  - provider: gcp
+    title: GCP CLI Networking Commands
+    url: https://cloud.google.com/sdk/gcloud/reference/compute/networks
+    description: Inspect VPCs, subnets, and firewall rules from the command line. Use --format and --filter flags to shape output, or pipe to jq.
+  id: phase4-topic3-practice-explore-cloud-networking-cli
+- order: 10
   action: 'Practice:'
   description: Create a VPC or VNet on your cloud provider with a custom CIDR block.
   title: Set up a cloud network (VPC/VNet)
   id: phase4-topic3-practice-set-up-a-cloud
-- order: 9
+- order: 11
   action: 'Practice:'
   description: Create two subnets inside your VPC — one public (with a route to the internet gateway) and one private (no direct internet access).
   title: Create a public and a private subnet
   id: phase4-topic3-practice-create-a-public-and
-- order: 10
+- order: 12
   action: 'Practice:'
   description: Associate subnets with appropriate route tables and set up security groups for each subnet.
   title: Configure routing and security groups
   id: phase4-topic3-practice-configure-routing-and-security
-- order: 11
+- order: 13
   action: 'Practice:'
   description: Deploy a VM in the public subnet and another in the private subnet. Verify the public VM is accessible from the internet and the private VM is not.
   title: Deploy VMs in each subnet and verify access
   id: phase4-topic3-practice-deploy-vms-in-each
-- order: 12
+- order: 14
   action: 'Practice:'
   title: Clean up your cloud resources
   description: Delete all resources you created in this topic — VMs, VPC/VNet, subnets, route tables, internet gateways, NAT gateways, and security groups. Check your cloud console to confirm nothing is still running. Leaving resources active will incur charges.

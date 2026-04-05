@@ -21,7 +21,7 @@ learning_steps:
   options:
   - provider: azure
     title: Azure Monitor Overview
-    url: https://learn.microsoft.com/en-us/azure/azure-monitor/fundamentals/overview
+    url: https://learn.microsoft.com/azure/azure-monitor/fundamentals/overview
     description: Metrics, logs, and alerts in Azure
   - provider: aws
     title: AWS CloudWatch
@@ -43,7 +43,7 @@ learning_steps:
     description: Tutorial for creating and managing CloudTrail trails
   - provider: azure
     title: Azure Activity Log
-    url: https://learn.microsoft.com/en-us/azure/azure-monitor/platform/activity-log
+    url: https://learn.microsoft.com/azure/azure-monitor/platform/activity-log
     description: Platform log for control-plane events on Azure resources
   - provider: gcp
     title: Cloud Audit Logs Overview
@@ -61,7 +61,7 @@ learning_steps:
     description: Create, describe, and manage CloudWatch alarms
   - provider: azure
     title: Azure Monitor Alerts Overview
-    url: https://learn.microsoft.com/en-us/azure/azure-monitor/alerts/alerts-overview
+    url: https://learn.microsoft.com/azure/azure-monitor/alerts/alerts-overview
     description: Configure alert rules and action groups in Azure Monitor
   - provider: gcp
     title: Cloud Monitoring Alerting Overview
@@ -74,7 +74,7 @@ learning_steps:
   options:
   - provider: azure
     title: Microsoft Sentinel
-    url: https://learn.microsoft.com/en-us/azure/sentinel/overview
+    url: https://learn.microsoft.com/azure/sentinel/overview
     description: Cloud-native SIEM and threat detection
   - provider: aws
     title: AWS GuardDuty
@@ -89,7 +89,7 @@ learning_steps:
 - order: 5
   action: 'Practice:'
   title: GitHub Security Scanning
-  url: https://docs.github.com/en/code-security/tutorials
+  url: https://docs.github.com/code-security/tutorials
   description: Enable at least one scanning tool on your journal-starter repository. Dependabot monitors your dependencies for known vulnerabilities — enable it by adding a .github/dependabot.yml file. CodeQL analyzes your code for security issues — enable it via the Security tab or by adding a workflow to .github/workflows/. This is what the phase verification checks.
   id: phase6-topic4-practice-github-security-scanning
 - order: 6

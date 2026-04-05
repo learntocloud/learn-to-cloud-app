@@ -76,3 +76,21 @@ learning_steps:
   url: https://www.youtube.com/watch?v=IPvYjXCsTg8
   description: Comprehensive recap of networking concepts (including extra topics) to consolidate your understanding after completing steps 1-8.
   id: phase2-topic1-watch-networking-fundamentals-recap-optional
+- order: 10
+  action: 'Watch:'
+  title: Cloud VPC Walkthrough
+  description: See how the networking concepts you just learned (subnets, route tables, gateways, NAT) map to a real cloud environment. This prepares you for the capstone lab where you'll troubleshoot a broken cloud network.
+  options:
+  - provider: aws
+    title: AWS Networking Basics For Programmers
+    url: https://www.youtube.com/watch?v=2doSoMN2xvI
+    description: End-to-end walkthrough of setting up a VPC with public and private subnets, route tables, and gateways in AWS.
+  - provider: azure
+    title: Azure Virtual Network Tutorial
+    url: https://www.youtube.com/watch?v=9DuTWSvsLXM
+    description: Build a VNet with subnets, NSGs, and route tables in Azure.
+  - provider: gcp
+    title: GCP VPC Networking Fundamentals
+    url: https://www.youtube.com/watch?v=XLaFU1t9pM8
+    description: Set up a VPC with subnets, firewall rules, and routing in Google Cloud.
+  id: phase2-topic1-watch-cloud-vpc-walkthrough

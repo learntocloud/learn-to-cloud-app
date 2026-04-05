@@ -82,7 +82,7 @@ learning_steps:
   options:
   - provider: azure
     title: Azure AKS
-    url: https://learn.microsoft.com/en-us/azure/aks/
+    url: https://learn.microsoft.com/azure/aks/
     description: Azure Kubernetes Service — managed Kubernetes on Azure
   - provider: aws
     title: AWS EKS
@@ -100,7 +100,7 @@ learning_steps:
   options:
   - provider: azure
     title: Quickstart - Deploy an AKS cluster
-    url: https://learn.microsoft.com/en-us/azure/aks/learn/quick-kubernetes-deploy-cli
+    url: https://learn.microsoft.com/azure/aks/learn/quick-kubernetes-deploy-cli
     description: Provision and validate an AKS cluster from the command line.
   - provider: aws
     title: Create an EKS cluster - getting started
