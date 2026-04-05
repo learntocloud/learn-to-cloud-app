@@ -181,7 +181,7 @@
     </div>
     <div class="feature-card">
       <h4>IDE (VS Code, JetBrains)</h4>
-      <p>Completions, chat, agentic coding, custom context via AGENTS.md.</p>
+      <p>Completions, chat, agentic coding, custom context via <code>.github/copilot-instructions.md</code>.</p>
     </div>
   </div>
 </section>
@@ -197,11 +197,11 @@
 </section>
 
 <section>
-  <h2>AGENTS.md</h2>
+  <h2>Copilot Instructions</h2>
   <div class="highlight-box">
-    <p><span class="accent">AGENTS.md</span> is loaded as context on every Copilot interaction: tech stack, architecture, conventions, build commands.</p>
+    <p><span class="accent">.github/copilot-instructions.md</span> is loaded as context on every Copilot interaction: tech stack, architecture, conventions, build commands.</p>
   </div>
-  <pre><code class="language-markdown"># Project Guidelines
+  <pre><code class="language-markdown"># Project Instructions
 
 ## Tech Stack
 - Backend: FastAPI 0.115 + Python 3.13, async throughout
@@ -284,8 +284,8 @@ Routes (HTTP) → Services (Business Logic) → Repositories (DB)
       </thead>
       <tbody>
         <tr>
-          <td class="blue">AGENTS.md</td>
-          <td><code>AGENTS.md</code></td>
+          <td class="blue">Copilot Instructions</td>
+          <td><code>.github/copilot-instructions.md</code></td>
           <td>Project context loaded on every Copilot interaction</td>
         </tr>
         <tr>
@@ -680,6 +680,7 @@ Reply with "LFG 🚀 I'll ship it"
 │   └── reset-local-submissions/SKILL.md  # 🧪 Test: reset verification state
 └── workflows/
     ├── deploy.yml                   # 🔨 Build + 🚀 Deploy: CI/CD
+    ├── codeql.yml                   # 🔒 Secure: static analysis
     ├── content-link-auditor.md      # 📡 Monitor: broken link scan
     ├── cross-repo-issues-overview.md # 📡 Monitor: issue dashboard
     ├── discussion-answer-thanks.md  # 📡 Monitor: community recognition
