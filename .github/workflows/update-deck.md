@@ -23,10 +23,12 @@ engine: copilot
 steps:
   - name: Checkout repository
     uses: actions/checkout@v4
+    with:
+      persist-credentials: false
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
+  pull-requests: read
 
 tools:
   github:
@@ -37,7 +39,6 @@ safe-outputs:
   create-pull-request:
     title-prefix: "[deck-sync] "
     labels: [documentation, automation]
-    close-older-pull-requests: true
 ---
 
 # Update Living Deck

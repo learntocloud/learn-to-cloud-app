@@ -13,6 +13,7 @@ steps:
   - name: Checkout content files
     uses: actions/checkout@v4
     with:
+      persist-credentials: false
       sparse-checkout: |
         content/phases
         .github/workflows
