@@ -242,6 +242,16 @@ Routes (HTTP) → Services (Business Logic) → Repositories (DB)
           <td>Execute the approved plan. New branch, track progress, validate</td>
           <td>Marks tasks done in plan</td>
         </tr>
+        <tr>
+          <td class="blue">new-route.prompt.md</td>
+          <td>Scaffold a new FastAPI route with templates and tests</td>
+          <td>New route files</td>
+        </tr>
+        <tr>
+          <td class="blue">new-migration.prompt.md</td>
+          <td>Generate an Alembic migration for schema changes</td>
+          <td>Migration file</td>
+        </tr>
       </tbody>
     </table>
   </div>
@@ -586,6 +596,7 @@ Reply with "LFG 🚀 I'll ship it"
         <tr><td class="green">"query db"</td><td>Production PostgreSQL queries with Entra ID auth</td></tr>
         <tr><td class="green">"validate changes"</td><td>Lint → format → type-check → start API → smoke test</td></tr>
         <tr><td class="green">"ship it"</td><td>Lint → commit → push → monitor deploy → verify prod</td></tr>
+        <tr><td class="green">"reset local submissions"</td><td>Undo local submissions to re-test verification flows</td></tr>
       </tbody>
     </table>
   </div>
@@ -647,21 +658,28 @@ Reply with "LFG 🚀 I'll ship it"
   <h2>Your AI Operations Team</h2>
   <pre><code class="language-text">.github/
 ├── agents/
-│   └── dog-food.agent.md            # 🧪 Test: QA automation
+│   ├── dog-food.agent.md            # 🧪 Test: QA automation
+│   ├── janitor.agent.md             # 🧹 Code: cleanup and tech debt
+│   ├── se-gitops-ci-specialist.agent.md  # 🚀 Deploy: CI/CD specialist
+│   ├── se-security-reviewer.agent.md     # 🔒 Secure: security review
+│   ├── se-system-architecture-reviewer.agent.md  # 📋 Plan: architecture review
+│   └── terraform-iac-reviewer.agent.md   # 🚀 Deploy: IaC review
 ├── dependabot.yml                   # 🔒 Secure: auto-update 4 ecosystems
 ├── prompts/
 │   ├── research.prompt.md           # 📋 Plan: deep research
 │   ├── plan.prompt.md               # 📋 Plan: implementation planning
-│   └── implement.prompt.md          # ⌨️ Code: structured execution
+│   ├── implement.prompt.md          # ⌨️ Code: structured execution
+│   ├── new-route.prompt.md          # ⌨️ Code: scaffold new route
+│   └── new-migration.prompt.md      # ⌨️ Code: generate DB migration
 ├── skills/
 │   ├── validate/SKILL.md            # 🧪 Test: lint + smoke test
 │   ├── ship-it/SKILL.md             # 🚀 Deploy: full deploy cycle
 │   ├── check-prod/SKILL.md          # ⚙️ Operate: health check
 │   ├── debug-deploy/SKILL.md        # ⚙️ Operate: diagnose failures
-│   └── query-prod-db/SKILL.md       # ⚙️ Operate: production queries
+│   ├── query-prod-db/SKILL.md       # ⚙️ Operate: production queries
+│   └── reset-local-submissions/SKILL.md  # 🧪 Test: reset verification state
 └── workflows/
     ├── deploy.yml                   # 🔨 Build + 🚀 Deploy: CI/CD
-    ├── codeql.yml                   # 🔒 Secure: static analysis
     ├── content-link-auditor.md      # 📡 Monitor: broken link scan
     ├── cross-repo-issues-overview.md # 📡 Monitor: issue dashboard
     ├── discussion-answer-thanks.md  # 📡 Monitor: community recognition
@@ -680,7 +698,7 @@ Reply with "LFG 🚀 I'll ship it"
       <p class="big-number-label">Manual deploys</p>
     </div>
     <div class="feature-card" style="text-align: center;">
-      <p class="big-number">5</p>
+      <p class="big-number">6</p>
       <p class="big-number-label">Copilot skills</p>
     </div>
     <div class="feature-card" style="text-align: center;">
