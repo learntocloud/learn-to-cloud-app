@@ -33,8 +33,11 @@ cd <workspace>/api && uv run python scripts/reset_local_submissions.py --dry-run
 
 ## Restrict to Specific User
 
+`--user-id` is the **GitHub user ID** (e.g. `6733686` for madebygps), not a sequential DB ID.
+Run `--dry-run` first (without `--user-id`) to discover the IDs in your local database.
+
 ```bash
-cd <workspace>/api && uv run python scripts/reset_local_submissions.py --user-id <user_id>
+cd <workspace>/api && uv run python scripts/reset_local_submissions.py --user-id <github_user_id>
 ```
 
 ## Custom Requirement IDs

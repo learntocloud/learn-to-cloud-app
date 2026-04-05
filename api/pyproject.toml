@@ -89,7 +89,10 @@ invalid-argument-type = "warn"
 # The agent-framework metapackage pulls 20+ sub-packages via [all].
 # Constrain the key sub-package to the same release series as core
 # so the resolver never mixes e.g. core rc6 with azure-ai rc3.
-constraint-dependencies = ["agent-framework-core>=1.0.0rc3"]
+constraint-dependencies = [
+    "agent-framework-core>=1.0.0rc3",
+    "aiohttp>=3.13.4",
+]
 
 [dependency-groups]
 dev = [
