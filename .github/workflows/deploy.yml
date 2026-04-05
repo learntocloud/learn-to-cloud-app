@@ -3,8 +3,22 @@ name: Deploy
 on:
   push:
     branches: [main]
+    paths:
+      - 'api/**'
+      - 'content/**'
+      - 'infra/**'
+      - 'scripts/**'
+      - 'docker-compose.yml'
+      - '.github/workflows/deploy.yml'
   pull_request:
     branches: [main]
+    paths:
+      - 'api/**'
+      - 'content/**'
+      - 'infra/**'
+      - 'scripts/**'
+      - 'docker-compose.yml'
+      - '.github/workflows/deploy.yml'
   workflow_dispatch:
     inputs:
       force_rebuild:
@@ -44,6 +58,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       deploy: ${{ steps.filter.outputs.deploy }}
+      code: ${{ steps.filter.outputs.code }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -59,6 +74,9 @@ jobs:
               - 'content/**'
               - 'infra/**'
               - '.github/workflows/deploy.yml'
+            code:
+              - 'api/**'
+              - 'content/**'
 
   # -----------------------------------------------------------------------
   # Dependency Review — block PRs that introduce vulnerable dependencies
@@ -76,6 +94,8 @@ jobs:
   # CI — lint, type-check, test (runs on push AND PR)
   # -----------------------------------------------------------------------
   ci:
+    needs: [changes]
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -137,7 +157,7 @@ jobs:
   # Terraform — plan + apply (push to main only)
   # -----------------------------------------------------------------------
   terraform:
-    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && (github.event_name == 'workflow_dispatch' || needs.changes.outputs.deploy == 'true')
+    if: always() && github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && (github.event_name == 'workflow_dispatch' || needs.changes.outputs.deploy == 'true') && !contains(needs.*.result, 'failure')
     needs: [ci, changes]
     runs-on: ubuntu-latest
     timeout-minutes: 20
