@@ -14,7 +14,12 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from core.logger import _JSONFormatter, _RequestContextFilter, configure_logging
+from core.logger import (
+    _JSONFormatter,
+    _LogSanitizationFilter,
+    _RequestContextFilter,
+    configure_logging,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -173,6 +178,17 @@ class TestConfigureLogging:
             root = logging.getLogger()
             assert root.level == logging.DEBUG
 
+    def test_registers_filters_in_correct_order(self):
+        """Context filter runs before sanitization so injected fields get cleaned."""
+        configure_logging()
+        root = logging.getLogger()
+        filter_types = [type(f) for f in root.filters]
+        assert _RequestContextFilter in filter_types
+        assert _LogSanitizationFilter in filter_types
+        ctx_idx = filter_types.index(_RequestContextFilter)
+        san_idx = filter_types.index(_LogSanitizationFilter)
+        assert ctx_idx < san_idx, "Sanitization filter must run after context filter"
+
 
 @pytest.mark.unit
 class TestRequestContextFilter:
@@ -208,3 +224,63 @@ class TestRequestContextFilter:
         record = logging.LogRecord("test", logging.INFO, "", 0, "msg", (), None)
         f.filter(record)
         assert not getattr(record, "github_username", None)
+
+
+@pytest.mark.unit
+class TestLogSanitizationFilter:
+    """Test _LogSanitizationFilter strips control chars from extra fields (CWE-117)."""
+
+    def _make_record(self, **extras: object) -> logging.LogRecord:
+        record = logging.LogRecord("test", logging.INFO, "", 0, "msg", (), None)
+        for key, value in extras.items():
+            setattr(record, key, value)
+        return record
+
+    def test_strips_newlines_from_extra(self):
+        f = _LogSanitizationFilter()
+        record = self._make_record(topic_id="linux\nFAKE LOG LINE")
+        f.filter(record)
+        assert record.topic_id == "linuxFAKE LOG LINE"
+
+    def test_strips_carriage_return(self):
+        f = _LogSanitizationFilter()
+        record = self._make_record(user_input="hello\r\nworld")
+        f.filter(record)
+        assert record.user_input == "helloworld"
+
+    def test_strips_null_bytes(self):
+        f = _LogSanitizationFilter()
+        record = self._make_record(step_id="step\x00injected")
+        f.filter(record)
+        assert record.step_id == "stepinjected"
+
+    def test_preserves_tabs(self):
+        f = _LogSanitizationFilter()
+        record = self._make_record(data="col1\tcol2")
+        f.filter(record)
+        assert record.data == "col1\tcol2"
+
+    def test_leaves_non_string_extras_unchanged(self):
+        f = _LogSanitizationFilter()
+        record = self._make_record(user_id=42, active=True, ratio=3.14)
+        f.filter(record)
+        assert record.user_id == 42
+        assert record.active is True
+        assert record.ratio == 3.14
+
+    def test_does_not_modify_builtin_attributes(self):
+        f = _LogSanitizationFilter()
+        record = logging.LogRecord(
+            "test", logging.INFO, "/path/to\nfile.py", 0, "msg", (), None
+        )
+        original_pathname = record.pathname
+        f.filter(record)
+        assert record.pathname == original_pathname
+
+    def test_full_injection_attack_neutralised(self):
+        f = _LogSanitizationFilter()
+        malicious = "linux-basics\nCRITICAL [core.auth] admin granted=true"
+        record = self._make_record(topic_id=malicious)
+        f.filter(record)
+        assert "\n" not in record.topic_id
+        assert "CRITICAL [core.auth] admin granted=true" in record.topic_id

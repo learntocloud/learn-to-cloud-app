@@ -20,9 +20,14 @@ Usage::
 import json
 import logging
 import os
+import re
 import sys
 from datetime import UTC, datetime
 from typing import ClassVar
+
+# Matches control characters except tab (0x09). Covers newlines, carriage
+# returns, null bytes, and other C0/DEL controls used in log injection.
+_CONTROL_CHAR_RE = re.compile(r"[\x00-\x08\x0a-\x1f\x7f]")
 
 
 class _RequestContextFilter(logging.Filter):
@@ -47,12 +52,36 @@ class _RequestContextFilter(logging.Filter):
         return True
 
 
+# Built-in LogRecord attribute names — never sanitize these.
+_BUILTIN_RECORD_KEYS: set[str] = set(
+    logging.LogRecord("", 0, "", 0, "", (), None).__dict__
+)
+
+
+class _LogSanitizationFilter(logging.Filter):
+    """Strip control characters from user-supplied extra fields (CWE-117).
+
+    Prevents log injection by removing ``\\n``, ``\\r``, ``\\0`` and other
+    C0 control characters from any string-valued attribute that was added
+    via ``extra={}``.  Tabs (``\\t``) are preserved.
+
+    Runs on the root logger so every handler (console, JSON, OTel) receives
+    already-sanitised records.
+    """
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        for key in record.__dict__:
+            if key not in _BUILTIN_RECORD_KEYS:
+                value = record.__dict__[key]
+                if isinstance(value, str):
+                    record.__dict__[key] = _CONTROL_CHAR_RE.sub("", value)
+        return True
+
+
 class _JSONFormatter(logging.Formatter):
     """Format log records as single-line JSON for production log aggregation."""
 
-    _SKIP_KEYS: ClassVar[set[str]] = set(
-        logging.LogRecord("", 0, "", 0, "", (), None).__dict__
-    )
+    _SKIP_KEYS: ClassVar[set[str]] = _BUILTIN_RECORD_KEYS
 
     def format(self, record: logging.LogRecord) -> str:
         log_entry: dict[str, object] = {
@@ -105,6 +134,7 @@ def configure_logging() -> None:
     root.setLevel(level)
 
     root.addFilter(_RequestContextFilter())
+    root.addFilter(_LogSanitizationFilter())
 
     for name in (
         "httpx",
