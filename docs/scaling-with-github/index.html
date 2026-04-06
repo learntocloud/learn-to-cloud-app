@@ -197,9 +197,9 @@
 </section>
 
 <section>
-  <h2>AGENTS.md</h2>
+  <h2>copilot-instructions.md</h2>
   <div class="highlight-box">
-    <p><span class="accent">AGENTS.md</span> is loaded as context on every Copilot interaction: tech stack, architecture, conventions, build commands.</p>
+    <p><span class="accent">.github/copilot-instructions.md</span> is loaded as context on every Copilot interaction: tech stack, architecture, conventions, build commands.</p>
   </div>
   <pre><code class="language-markdown"># Project Guidelines
 
@@ -284,8 +284,8 @@ Routes (HTTP) → Services (Business Logic) → Repositories (DB)
       </thead>
       <tbody>
         <tr>
-          <td class="blue">AGENTS.md</td>
-          <td><code>AGENTS.md</code></td>
+          <td class="blue">copilot-instructions.md</td>
+          <td><code>.github/copilot-instructions.md</code></td>
           <td>Project context loaded on every Copilot interaction</td>
         </tr>
         <tr>
@@ -665,6 +665,8 @@ Reply with "LFG 🚀 I'll ship it"
 │   ├── se-system-architecture-reviewer.agent.md  # 📋 Plan: architecture review
 │   └── terraform-iac-reviewer.agent.md   # 🚀 Deploy: IaC review
 ├── dependabot.yml                   # 🔒 Secure: auto-update 4 ecosystems
+├── instructions/
+│   └── python.instructions.md       # ⌨️ Code: Python-specific conventions
 ├── prompts/
 │   ├── research.prompt.md           # 📋 Plan: deep research
 │   ├── plan.prompt.md               # 📋 Plan: implementation planning
@@ -680,6 +682,7 @@ Reply with "LFG 🚀 I'll ship it"
 │   └── reset-local-submissions/SKILL.md  # 🧪 Test: reset verification state
 └── workflows/
     ├── deploy.yml                   # 🔨 Build + 🚀 Deploy: CI/CD
+    ├── codeql.yml                   # 🔒 Secure: static analysis on every push
     ├── content-link-auditor.md      # 📡 Monitor: broken link scan
     ├── cross-repo-issues-overview.md # 📡 Monitor: issue dashboard
     ├── discussion-answer-thanks.md  # 📡 Monitor: community recognition
