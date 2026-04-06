@@ -178,6 +178,17 @@ class TestConfigureLogging:
             root = logging.getLogger()
             assert root.level == logging.DEBUG
 
+    def test_registers_filters_in_correct_order(self):
+        """Context filter runs before sanitization so injected fields get cleaned."""
+        configure_logging()
+        root = logging.getLogger()
+        filter_types = [type(f) for f in root.filters]
+        assert _RequestContextFilter in filter_types
+        assert _LogSanitizationFilter in filter_types
+        ctx_idx = filter_types.index(_RequestContextFilter)
+        san_idx = filter_types.index(_LogSanitizationFilter)
+        assert ctx_idx < san_idx, "Sanitization filter must run after context filter"
+
 
 @pytest.mark.unit
 class TestRequestContextFilter:

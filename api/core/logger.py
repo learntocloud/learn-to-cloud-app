@@ -133,8 +133,8 @@ def configure_logging() -> None:
     root.addHandler(console)
     root.setLevel(level)
 
-    root.addFilter(_LogSanitizationFilter())
     root.addFilter(_RequestContextFilter())
+    root.addFilter(_LogSanitizationFilter())
 
     for name in (
         "httpx",
