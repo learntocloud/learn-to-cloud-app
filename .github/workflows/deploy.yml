@@ -12,13 +12,6 @@ on:
       - '.github/workflows/deploy.yml'
   pull_request:
     branches: [main]
-    paths:
-      - 'api/**'
-      - 'content/**'
-      - 'infra/**'
-      - 'scripts/**'
-      - 'docker-compose.yml'
-      - '.github/workflows/deploy.yml'
   workflow_dispatch:
     inputs:
       force_rebuild:
@@ -152,6 +145,39 @@ jobs:
 
       - name: Run tests with coverage
         run: uv run pytest tests/ -v --tb=short --cov=. --cov-report=xml --cov-report=term-missing
+
+  # -----------------------------------------------------------------------
+  # Status gates — always run so required checks are reported on every PR,
+  # even when path filters cause the real jobs to be skipped.
+  # Point branch-protection at these instead of the underlying jobs.
+  # -----------------------------------------------------------------------
+  ci-status:
+    if: always()
+    needs: [ci]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check CI result
+        run: |
+          if [[ "${{ needs.ci.result }}" =~ ^(success|skipped)$ ]]; then
+            echo "CI passed or was skipped (no code changes)"
+          else
+            echo "CI failed: ${{ needs.ci.result }}"
+            exit 1
+          fi
+
+  dependency-review-status:
+    if: always()
+    needs: [dependency-review]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check dependency review result
+        run: |
+          if [[ "${{ needs.dependency-review.result }}" =~ ^(success|skipped)$ ]]; then
+            echo "Dependency review passed or was skipped (push event)"
+          else
+            echo "Dependency review failed: ${{ needs.dependency-review.result }}"
+            exit 1
+          fi
 
   # -----------------------------------------------------------------------
   # Terraform — plan + apply (push to main only)
