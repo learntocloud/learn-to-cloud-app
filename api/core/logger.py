@@ -30,6 +30,17 @@ from typing import ClassVar
 _CONTROL_CHAR_RE = re.compile(r"[\x00-\x08\x0a-\x1f\x7f]")
 
 
+def sanitize_log_value(value: str) -> str:
+    """Strip control characters from a value before logging (CWE-117).
+
+    Use this at log call sites for user-provided or exception-derived
+    strings so that static analysis (CodeQL) can trace the sanitization.
+    The ``_LogSanitizationFilter`` provides defence-in-depth on the root
+    logger, but CodeQL cannot see runtime filters.
+    """
+    return _CONTROL_CHAR_RE.sub("", value)
+
+
 class _RequestContextFilter(logging.Filter):
     """Inject request-scoped context vars into every log record.
 

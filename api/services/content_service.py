@@ -16,6 +16,7 @@ from pathlib import Path
 import yaml
 
 from core.config import get_settings
+from core.logger import sanitize_log_value
 from schemas import Phase, Topic
 
 logger = logging.getLogger(__name__)
@@ -81,7 +82,7 @@ def _load_topic(phase_dir: Path, topic_slug: str) -> Topic | None:
                 "topic_slug": topic_slug,
                 "path": str(topic_file),
                 "exc_type": type(exc).__name__,
-                "exc_message": str(exc),
+                "exc_message": sanitize_log_value(str(exc)),
             },
         )
         return None
@@ -115,7 +116,7 @@ def _load_phase(phase_slug: str) -> Phase | None:
                 "phase_slug": phase_slug,
                 "path": str(meta_file),
                 "exc_type": type(exc).__name__,
-                "exc_message": str(exc),
+                "exc_message": sanitize_log_value(str(exc)),
             },
         )
         return None
