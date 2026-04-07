@@ -12,7 +12,6 @@ from fastapi.responses import HTMLResponse
 
 from core.auth import OptionalUserId
 from core.database import DbSessionReadOnly, comprehensive_health_check
-from core.logger import sanitize_log_value
 from core.templates import templates
 from schemas import CommunityAnalytics
 from services.analytics_service import get_community_analytics
@@ -66,7 +65,7 @@ async def status_page(
             "status_page.analytics_failed",
             extra={
                 "exc_type": type(exc).__name__,
-                "exc_message": sanitize_log_value(str(exc)),
+                "exc_message": str(exc),
             },
         )
         analytics = CommunityAnalytics(

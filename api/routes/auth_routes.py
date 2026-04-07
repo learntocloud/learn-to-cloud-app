@@ -16,7 +16,6 @@ from fastapi.responses import RedirectResponse
 from core.auth import oauth
 from core.config import get_settings
 from core.database import DbSession
-from core.logger import sanitize_log_value
 from core.metrics import AUTH_LOGIN_COUNTER
 from core.ratelimit import limiter
 from services.users_service import get_or_create_user_from_github, parse_display_name
@@ -76,7 +75,7 @@ async def callback(request: Request, db: DbSession) -> RedirectResponse:
             "auth.callback.token_exchange_failed",
             extra={
                 "exc_type": type(exc).__name__,
-                "exc_message": sanitize_log_value(str(exc)),
+                "exc_message": str(exc),
             },
         )
         return RedirectResponse(url="/", status_code=302)

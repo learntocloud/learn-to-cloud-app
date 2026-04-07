@@ -30,19 +30,6 @@ from typing import ClassVar
 _CONTROL_CHAR_RE = re.compile(r"[\x00-\x08\x0a-\x1f\x7f]")
 
 
-def sanitize_log_value(value: str) -> str:
-    """Strip control characters from a value before logging (CWE-117).
-
-    Use this at log call sites for user-provided or exception-derived
-    strings.  CodeQL recognises this function as a taint barrier via the
-    data extension in ``.github/codeql/extensions/``.
-
-    The ``_LogSanitizationFilter`` on the root logger provides runtime
-    defence-in-depth for any call sites that omit this wrapper.
-    """
-    return _CONTROL_CHAR_RE.sub("", value)
-
-
 class _RequestContextFilter(logging.Filter):
     """Inject request-scoped context vars into every log record.
 

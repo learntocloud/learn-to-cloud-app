@@ -29,7 +29,6 @@ from tenacity import (
 
 from core.config import get_settings
 from core.github_client import get_github_client as _get_github_client
-from core.logger import sanitize_log_value
 from schemas import ParsedGitHubUrl, ValidationResult
 
 logger = logging.getLogger(__name__)
@@ -206,9 +205,9 @@ async def check_github_url_exists(url: str) -> tuple[bool, str, bool]:
         logger.error(
             "github.url_check.unexpected_error",
             extra={
-                "url": sanitize_log_value(url),
+                "url": url,
                 "exc_type": type(e).__name__,
-                "exc_message": sanitize_log_value(str(e)),
+                "exc_message": str(e),
             },
         )
         return False, f"Unexpected error: {e!s}", True
@@ -307,7 +306,7 @@ async def check_repo_is_fork_of(
                 "username": username,
                 "repo": repo_name,
                 "exc_type": type(e).__name__,
-                "exc_message": sanitize_log_value(str(e)),
+                "exc_message": str(e),
             },
         )
         return False, f"Unexpected error: {e!s}", True

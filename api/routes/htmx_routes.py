@@ -23,7 +23,6 @@ from starlette.responses import StreamingResponse
 
 from core.auth import UserId
 from core.database import DbSession, DbSessionReadOnly
-from core.logger import sanitize_log_value
 from core.ratelimit import limiter
 from core.templates import templates
 from rendering.context import (
@@ -303,7 +302,10 @@ async def htmx_submit_verification(
     except RequirementNotFoundError:
         logger.warning(
             "htmx.submit.requirement_not_found",
-            extra={"user_id": user_id, "requirement_id": requirement_id},
+            extra={
+                "user_id": user_id,
+                "requirement_id": requirement_id,
+            },
         )
         return HTMLResponse(
             '<div class="text-red-600 text-sm p-2">Requirement not found.</div>',
@@ -352,9 +354,9 @@ async def htmx_submit_verification(
             "htmx.submit.unexpected_error",
             extra={
                 "user_id": user_id,
-                "requirement_id": sanitize_log_value(requirement_id),
+                "requirement_id": requirement_id,
                 "exc_type": type(exc).__name__,
-                "exc_message": sanitize_log_value(str(exc)),
+                "exc_message": str(exc),
             },
         )
         return _render_card(

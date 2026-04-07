@@ -43,7 +43,6 @@ from datetime import UTC, datetime
 from typing import Any
 
 from core.config import get_settings
-from core.logger import sanitize_log_value
 
 logger = logging.getLogger(__name__)
 
@@ -317,7 +316,7 @@ def verify_lab_token(
                 extra={
                     "expected_username": oauth_github_username,
                     "exc_type": type(exc).__name__,
-                    "exc_message": sanitize_log_value(str(exc)),
+                    "exc_message": str(exc),
                 },
             )
             return {
@@ -365,10 +364,10 @@ def verify_lab_token(
         logger.error(
             f"{config.log_prefix}.token.verification.failed",
             extra={
-                "error": sanitize_log_value(str(e)),
+                "error": str(e),
                 "expected_username": oauth_github_username,
                 "exc_type": type(e).__name__,
-                "exc_message": sanitize_log_value(str(e)),
+                "exc_message": str(e),
             },
         )
         return {

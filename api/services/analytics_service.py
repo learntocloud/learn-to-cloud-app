@@ -21,7 +21,6 @@ from datetime import UTC, datetime
 from cachetools import TTLCache
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from core.logger import sanitize_log_value
 from repositories.analytics_repository import AnalyticsRepository
 from schemas import (
     CommunityAnalytics,
@@ -271,7 +270,7 @@ async def analytics_refresh_loop(
                 "analytics.background_refresh.failed",
                 extra={
                     "exc_type": type(exc).__name__,
-                    "exc_message": sanitize_log_value(str(exc)),
+                    "exc_message": str(exc),
                 },
             )
         await asyncio.sleep(REFRESH_INTERVAL_SECONDS)

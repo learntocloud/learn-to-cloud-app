@@ -29,7 +29,6 @@ from tenacity import (
 )
 
 from core.github_client import get_github_client as _get_github_client
-from core.logger import sanitize_log_value
 from schemas import TaskResult, ValidationResult
 from services.verification.devops_analysis import fetch_repo_tree
 from services.verification.github_profile import (
@@ -343,7 +342,7 @@ async def validate_security_scanning(
                 "retriable": e.retriable,
                 "github_username": github_username,
                 "exc_type": type(e).__name__,
-                "exc_message": sanitize_log_value(str(e)),
+                "exc_message": str(e),
             },
         )
         return ValidationResult(
@@ -359,7 +358,7 @@ async def validate_security_scanning(
                 "repo": repo,
                 "github_username": github_username,
                 "exc_type": type(exc).__name__,
-                "exc_message": sanitize_log_value(str(exc)),
+                "exc_message": str(exc),
             },
         )
         return ValidationResult(

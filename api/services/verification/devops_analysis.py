@@ -46,7 +46,6 @@ from circuitbreaker import CircuitBreakerError
 from core.config import get_settings
 from core.github_client import get_github_client
 from core.llm_client import LLMClientError, get_llm_chat_client
-from core.logger import sanitize_log_value
 from schemas import TaskResult, ValidationResult
 from services.verification.llm_base import (
     SUSPICIOUS_PATTERNS,
@@ -823,7 +822,7 @@ async def analyze_devops_repository(
                 "retriable": e.retriable,
                 "github_username": github_username,
                 "exc_type": type(e).__name__,
-                "exc_message": sanitize_log_value(str(e)),
+                "exc_message": str(e),
             },
         )
         return ValidationResult(
@@ -835,11 +834,11 @@ async def analyze_devops_repository(
         logger.error(
             "devops_analysis.client_error",
             extra={
-                "owner": sanitize_log_value(owner),
-                "repo": sanitize_log_value(repo),
-                "github_username": sanitize_log_value(github_username),
+                "owner": owner,
+                "repo": repo,
+                "github_username": github_username,
                 "exc_type": type(e).__name__,
-                "exc_message": sanitize_log_value(str(e)),
+                "exc_message": str(e),
             },
         )
         return ValidationResult(
