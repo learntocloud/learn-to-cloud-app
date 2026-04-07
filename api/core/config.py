@@ -44,9 +44,7 @@ class Settings(BaseSettings):
     daily_submission_limit: int = 20
 
     llm_base_url: str = ""
-    llm_api_key: str = ""
     llm_model: str = ""
-    llm_api_version: str = "2024-10-21"
 
     # memory:// only works for single-instance deployments
     ratelimit_storage_uri: str = "memory://"

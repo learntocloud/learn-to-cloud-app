@@ -27,7 +27,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from typing import Never
 
 import httpx
@@ -40,7 +40,7 @@ from agent_framework import (
     WorkflowContext,
     handler,
 )
-from agent_framework.azure import AzureOpenAIChatClient
+from agent_framework.openai import OpenAIChatClient
 from circuitbreaker import CircuitBreakerError
 
 from core.config import get_settings
@@ -513,16 +513,16 @@ class _BaseTaskVerifier(Executor):
     def __init__(
         self,
         *,
-        chat_client_factory: Callable[[], AzureOpenAIChatClient],
+        chat_client_factory: Callable[[], Awaitable[OpenAIChatClient]],
     ) -> None:
         super().__init__(id=f"verifier-{self._task_def['id']}")
         self._chat_client_factory = chat_client_factory
         self._agent: Agent | None = None
 
-    def _get_agent(self) -> Agent:
+    async def _get_agent(self) -> Agent:
         if self._agent is None:
             self._agent = Agent(
-                client=self._chat_client_factory(),
+                client=await self._chat_client_factory(),
                 instructions=_build_task_instructions(self._task_def),
                 name=f"grader-{self._task_def['id']}",
                 default_options=ChatOptions(
@@ -553,8 +553,9 @@ class _BaseTaskVerifier(Executor):
 
         prompt = _build_task_prompt(self._task_def, task_files)
 
-        response = await self._get_agent().run(
-            [Message(role="user", text=prompt)],
+        agent = await self._get_agent()
+        response = await agent.run(
+            [Message("user", [prompt])],
         )
 
         grade = parse_structured_response(
