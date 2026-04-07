@@ -25,6 +25,8 @@ import sys
 from datetime import UTC, datetime
 from typing import ClassVar
 
+from core.middleware import request_github_username
+
 # Matches control characters except tab (0x09). Covers newlines, carriage
 # returns, null bytes, and other C0/DEL controls used in log injection.
 _CONTROL_CHAR_RE = re.compile(r"[\x00-\x08\x0a-\x1f\x7f]")
@@ -43,8 +45,6 @@ class _RequestContextFilter(logging.Filter):
     """
 
     def filter(self, record: logging.LogRecord) -> bool:
-        from core.middleware import request_github_username
-
         if not getattr(record, "github_username", None):
             username = request_github_username.get()
             if username:

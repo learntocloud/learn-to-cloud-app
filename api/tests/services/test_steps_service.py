@@ -8,6 +8,7 @@ Tests cover:
 - get_valid_completed_steps filters stale step IDs
 """
 
+from typing import Any, cast
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -111,7 +112,7 @@ class TestParsePhaseIdFromTopicId:
         assert parse_phase_id_from_topic_id("") is None
 
     def test_non_string(self):
-        assert parse_phase_id_from_topic_id(123) is None  # type: ignore[arg-type]
+        assert parse_phase_id_from_topic_id(cast(Any, 123)) is None
 
 
 # ---------------------------------------------------------------------------

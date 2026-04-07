@@ -3,6 +3,8 @@
 import asyncio
 import logging
 import re
+import subprocess
+import sys
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from pathlib import Path
@@ -45,6 +47,9 @@ from routes import (
     pages_router,
     users_router,
 )
+from services.analytics_service import analytics_refresh_loop
+from services.content_service import get_all_phases
+from services.progress_service import get_all_phase_ids
 from services.verification.deployed_api import (
     close_deployed_api_client,
 )
@@ -115,8 +120,6 @@ async def validation_exception_handler(
 
 async def _background_warmup(app: fastapi.FastAPI) -> None:
     """Warm caches in the background after the app starts serving."""
-    from services.content_service import get_all_phases
-    from services.progress_service import get_all_phase_ids
 
     async def _warm_content() -> None:
         try:
@@ -140,9 +143,6 @@ async def _run_alembic_migrations() -> None:
     asyncio.to_thread when uvloop is the event loop.  Running
     migrations as a subprocess avoids the issue entirely.
     """
-    import subprocess
-    import sys
-
     cmd = [
         sys.executable,
         "-c",
@@ -210,8 +210,6 @@ async def lifespan(app: fastapi.FastAPI):
 
     # Pre-compute analytics immediately, then refresh hourly.
     # Runs in background so startup isn't blocked.
-    from services.analytics_service import analytics_refresh_loop
-
     analytics_task = asyncio.create_task(
         analytics_refresh_loop(app.state.session_maker)
     )

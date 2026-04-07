@@ -202,7 +202,7 @@ class TestRequestContextFilter:
             f = _RequestContextFilter()
             record = logging.LogRecord("test", logging.INFO, "", 0, "msg", (), None)
             f.filter(record)
-            assert record.github_username == "testuser"
+            assert getattr(record, "github_username") == "testuser"
         finally:
             request_github_username.reset(token)
 
@@ -215,7 +215,7 @@ class TestRequestContextFilter:
             record = logging.LogRecord("test", logging.INFO, "", 0, "msg", (), None)
             record.github_username = "explicit-user"
             f.filter(record)
-            assert record.github_username == "explicit-user"
+            assert getattr(record, "github_username") == "explicit-user"
         finally:
             request_github_username.reset(token)
 
@@ -240,33 +240,33 @@ class TestLogSanitizationFilter:
         f = _LogSanitizationFilter()
         record = self._make_record(topic_id="linux\nFAKE LOG LINE")
         f.filter(record)
-        assert record.topic_id == "linuxFAKE LOG LINE"
+        assert getattr(record, "topic_id") == "linuxFAKE LOG LINE"
 
     def test_strips_carriage_return(self):
         f = _LogSanitizationFilter()
         record = self._make_record(user_input="hello\r\nworld")
         f.filter(record)
-        assert record.user_input == "helloworld"
+        assert getattr(record, "user_input") == "helloworld"
 
     def test_strips_null_bytes(self):
         f = _LogSanitizationFilter()
         record = self._make_record(step_id="step\x00injected")
         f.filter(record)
-        assert record.step_id == "stepinjected"
+        assert getattr(record, "step_id") == "stepinjected"
 
     def test_preserves_tabs(self):
         f = _LogSanitizationFilter()
         record = self._make_record(data="col1\tcol2")
         f.filter(record)
-        assert record.data == "col1\tcol2"
+        assert getattr(record, "data") == "col1\tcol2"
 
     def test_leaves_non_string_extras_unchanged(self):
         f = _LogSanitizationFilter()
         record = self._make_record(user_id=42, active=True, ratio=3.14)
         f.filter(record)
-        assert record.user_id == 42
-        assert record.active is True
-        assert record.ratio == 3.14
+        assert getattr(record, "user_id") == 42
+        assert getattr(record, "active") is True
+        assert getattr(record, "ratio") == 3.14
 
     def test_does_not_modify_builtin_attributes(self):
         f = _LogSanitizationFilter()
@@ -282,5 +282,5 @@ class TestLogSanitizationFilter:
         malicious = "linux-basics\nCRITICAL [core.auth] admin granted=true"
         record = self._make_record(topic_id=malicious)
         f.filter(record)
-        assert "\n" not in record.topic_id
-        assert "CRITICAL [core.auth] admin granted=true" in record.topic_id
+        assert "\n" not in getattr(record, "topic_id")
+        assert "CRITICAL [core.auth] admin granted=true" in getattr(record, "topic_id")

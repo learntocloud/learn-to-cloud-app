@@ -9,6 +9,7 @@ Covers the module-specific logic that isn't exercised by integration tests:
 """
 
 import asyncio
+from typing import Any, cast
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -38,7 +39,7 @@ async def _reset_credential():
 class TestAzureCredentialLocking:
     """Verify get_credential uses asyncio.Lock correctly."""
 
-    @patch("azure.identity.DefaultAzureCredential", autospec=True)
+    @patch("core.azure_auth.DefaultAzureCredential", autospec=True)
     async def test_single_credential_created_on_concurrent_calls(
         self, mock_cred_cls: MagicMock
     ):
@@ -63,7 +64,7 @@ class TestAzureCredentialLocking:
         from core.azure_auth import get_credential, reset_credential
 
         with patch(
-            "azure.identity.DefaultAzureCredential",
+            "core.azure_auth.DefaultAzureCredential",
             autospec=True,
             return_value=MagicMock(),
         ):
@@ -96,7 +97,7 @@ class TestAzureTokenRetryTimeout:
 
         with (
             patch(
-                "azure.identity.DefaultAzureCredential",
+                "core.azure_auth.DefaultAzureCredential",
                 autospec=True,
                 return_value=fake_credential,
             ),
@@ -105,7 +106,7 @@ class TestAzureTokenRetryTimeout:
             patch("asyncio.to_thread", autospec=True, side_effect=hang_forever),
         ):
             # We call the inner logic directly via __wrapped__ to bypass tenacity
-            unwrapped = auth_mod.get_token.__wrapped__
+            unwrapped = cast(Any, auth_mod.get_token).__wrapped__
             with pytest.raises(TimeoutError):
                 await unwrapped()
 
@@ -122,11 +123,11 @@ class TestAzureTokenRetryTimeout:
         fake_credential.get_token.return_value = fake_token
 
         with patch(
-            "azure.identity.DefaultAzureCredential",
+            "core.azure_auth.DefaultAzureCredential",
             autospec=True,
             return_value=fake_credential,
         ):
-            unwrapped = auth_mod.get_token.__wrapped__
+            unwrapped = cast(Any, auth_mod.get_token).__wrapped__
             token = await unwrapped()
 
         assert token == "test-token-123"

@@ -8,8 +8,9 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import TYPE_CHECKING
+import os
 
+from azure.identity import DefaultAzureCredential
 from tenacity import (
     before_sleep_log,
     retry,
@@ -17,9 +18,6 @@ from tenacity import (
     stop_after_attempt,
     wait_exponential,
 )
-
-if TYPE_CHECKING:
-    from azure.identity import DefaultAzureCredential
 
 AZURE_TOKEN_TIMEOUT = 30
 
@@ -42,10 +40,6 @@ async def get_credential() -> DefaultAzureCredential:
     global _azure_credential
     async with _credential_lock:
         if _azure_credential is None:
-            import os
-
-            from azure.identity import DefaultAzureCredential
-
             client_id = os.environ.get("AZURE_CLIENT_ID")
             kwargs = {}
             if client_id:

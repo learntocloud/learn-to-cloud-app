@@ -13,7 +13,11 @@ from sqlalchemy import text
 
 
 async def audit():
-    from core.database import create_engine, create_session_maker, init_db
+    from core.database import (  # noqa: PLC0415  # after sys.path setup
+        create_engine,
+        create_session_maker,
+        init_db,
+    )
 
     engine = create_engine()
     await init_db(engine)
@@ -75,7 +79,9 @@ async def audit():
         print("[RAW] users_reached:", [(row[0], row[1]) for row in r.all()])
 
         print("\n=== REPO LAYER ===")
-        from repositories.analytics_repository import AnalyticsRepository
+        from repositories.analytics_repository import (  # noqa: PLC0415
+            AnalyticsRepository,
+        )
 
         repo = AnalyticsRepository(db)
         print(f"total_users: {await repo.get_total_users()}")
@@ -86,7 +92,7 @@ async def audit():
         print(f"activity_dow: {await repo.get_activity_by_day_of_week()}")
 
         print("\n=== SERVICE LAYER ===")
-        from services.analytics_service import get_community_analytics
+        from services.analytics_service import get_community_analytics  # noqa: PLC0415
 
         a = await get_community_analytics(db)
         print(f"total_users: {a.total_users}")

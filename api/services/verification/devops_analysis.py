@@ -33,7 +33,6 @@ from typing import Never
 import httpx
 from agent_framework import (
     Agent,
-    ChatOptions,
     Executor,
     Message,
     WorkflowBuilder,
@@ -525,9 +524,6 @@ class _BaseTaskVerifier(Executor):
                 client=await self._chat_client_factory(),
                 instructions=_build_task_instructions(self._task_def),
                 name=f"grader-{self._task_def['id']}",
-                default_options=ChatOptions(
-                    response_format=DevOpsTaskGrade,
-                ),
             )
         return self._agent
 
@@ -556,6 +552,7 @@ class _BaseTaskVerifier(Executor):
         agent = await self._get_agent()
         response = await agent.run(
             [Message("user", [prompt])],
+            options={"response_format": DevOpsTaskGrade},
         )
 
         grade = parse_structured_response(

@@ -699,7 +699,7 @@ class TestValidateSubmissionIntegration:
         )
 
         with patch(
-            "services.verification.deployed_api.validate_deployed_api",
+            "services.verification.dispatcher.validate_deployed_api",
             autospec=True,
         ) as mock:
             mock.return_value = ValidationResult(is_valid=True, message="API verified!")

@@ -25,8 +25,21 @@ For phase requirements, see requirements.py
 import logging
 import time
 
+from core.metrics import VERIFICATION_COUNTER, VERIFICATION_DURATION
 from models import SubmissionType
 from schemas import HandsOnRequirement, ValidationResult
+from services.verification.code_analysis import analyze_repository_code
+from services.verification.ctf import verify_ctf_token
+from services.verification.deployed_api import validate_deployed_api
+from services.verification.devops_analysis import analyze_devops_repository
+from services.verification.github_profile import (
+    validate_github_profile,
+    validate_profile_readme,
+    validate_repo_fork,
+)
+from services.verification.networking_lab import verify_networking_token
+from services.verification.pull_request import validate_pr
+from services.verification.security_scanning import validate_security_scanning
 
 logger = logging.getLogger(__name__)
 
@@ -43,8 +56,6 @@ def validate_ctf_token_submission(
     Returns:
         ValidationResult with verification status
     """
-    from services.verification.ctf import verify_ctf_token
-
     ctf_result = verify_ctf_token(token, expected_username)
 
     return ValidationResult(
@@ -67,8 +78,6 @@ def validate_networking_token_submission(
     Returns:
         ValidationResult with verification status and cloud_provider
     """
-    from services.verification.networking_lab import verify_networking_token
-
     result = verify_networking_token(token, expected_username)
 
     # Extract provider from challenge_type (e.g. "networking-lab-azure" -> "azure")
@@ -102,8 +111,6 @@ async def validate_submission(
         expected_username: The expected GitHub username
             (required for GitHub-based validations)
     """
-    from core.metrics import VERIFICATION_COUNTER, VERIFICATION_DURATION
-
     start = time.monotonic()
     sub_type = requirement.submission_type
     submission_type = sub_type.value if sub_type else "unknown"
@@ -149,13 +156,9 @@ async def _dispatch_validation(
     username: str = expected_username or ""
 
     if requirement.submission_type == SubmissionType.GITHUB_PROFILE:
-        from services.verification.github_profile import validate_github_profile
-
         return await validate_github_profile(submitted_value, username)
 
     elif requirement.submission_type == SubmissionType.PROFILE_README:
-        from services.verification.github_profile import validate_profile_readme
-
         return await validate_profile_readme(submitted_value, username)
 
     elif requirement.submission_type == SubmissionType.REPO_FORK:
@@ -166,8 +169,6 @@ async def _dispatch_validation(
                 username_match=False,
                 repo_exists=False,
             )
-        from services.verification.github_profile import validate_repo_fork
-
         return await validate_repo_fork(
             submitted_value, username, requirement.required_repo
         )
@@ -179,28 +180,18 @@ async def _dispatch_validation(
         return validate_networking_token_submission(submitted_value, username)
 
     elif requirement.submission_type == SubmissionType.PR_REVIEW:
-        from services.verification.pull_request import validate_pr
-
         return await validate_pr(submitted_value, username, requirement)
 
     elif requirement.submission_type == SubmissionType.CODE_ANALYSIS:
-        from services.verification.code_analysis import analyze_repository_code
-
         return await analyze_repository_code(submitted_value, username)
 
     elif requirement.submission_type == SubmissionType.DEVOPS_ANALYSIS:
-        from services.verification.devops_analysis import analyze_devops_repository
-
         return await analyze_devops_repository(submitted_value, username)
 
     elif requirement.submission_type == SubmissionType.DEPLOYED_API:
-        from services.verification.deployed_api import validate_deployed_api
-
         return await validate_deployed_api(submitted_value)
 
     elif requirement.submission_type == SubmissionType.SECURITY_SCANNING:
-        from services.verification.security_scanning import validate_security_scanning
-
         return await validate_security_scanning(submitted_value, username)
 
     else:

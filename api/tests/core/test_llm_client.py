@@ -90,7 +90,7 @@ class TestGetLLMChatClient:
                 return_value=mock_settings,
             ),
             patch(
-                "core.azure_auth.get_credential",
+                "core.llm_client.get_credential",
                 new_callable=AsyncMock,
                 return_value=mock_credential,
             ),
@@ -129,7 +129,7 @@ class TestGetLLMChatClient:
                 return_value=mock_settings,
             ),
             patch(
-                "core.azure_auth.get_credential",
+                "core.llm_client.get_credential",
                 new_callable=AsyncMock,
                 return_value=mock_credential,
             ),
