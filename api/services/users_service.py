@@ -5,6 +5,7 @@ import logging
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.cache import get_cached_user, invalidate_user_cache, set_cached_user
+from core.metrics import USER_DELETION_COUNTER
 from models import User
 from repositories.user_repository import UserRepository
 from schemas import UserResponse
@@ -145,3 +146,4 @@ async def delete_user_account(db: AsyncSession, user_id: int) -> None:
         "user.account_deleted",
         extra={"user_id": user_id, "github_username": github_username},
     )
+    USER_DELETION_COUNTER.add(1)

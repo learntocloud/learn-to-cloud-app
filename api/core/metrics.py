@@ -49,3 +49,33 @@ VERIFICATION_DURATION = _meter.create_histogram(
     description="Time taken to complete a verification attempt",
     unit="s",
 )
+
+# ── Auth metrics ──────────────────────────────────────────────────────
+
+AUTH_LOGIN_COUNTER = _meter.create_counter(
+    name="auth.login",
+    description="OAuth login attempts",
+    unit="{attempt}",
+)
+
+# ── Submission constraint metrics ─────────────────────────────────────
+
+SUBMISSION_DAILY_LIMIT_COUNTER = _meter.create_counter(
+    name="submission.daily_limit_exceeded",
+    description="Submissions rejected by daily cap",
+    unit="{rejection}",
+)
+
+SUBMISSION_COOLDOWN_COUNTER = _meter.create_counter(
+    name="submission.cooldown_active",
+    description="Submissions rejected by cooldown",
+    unit="{rejection}",
+)
+
+# ── User lifecycle metrics ────────────────────────────────────────────
+
+USER_DELETION_COUNTER = _meter.create_counter(
+    name="user.deletion",
+    description="User account deletions",
+    unit="{deletion}",
+)

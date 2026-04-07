@@ -60,8 +60,11 @@ async def status_page(
 
     try:
         analytics = await get_community_analytics(db)
-    except Exception:
-        logger.exception("status_page.analytics_failed")
+    except Exception as exc:
+        logger.error(
+            "status_page.analytics_failed",
+            extra={"exc_type": type(exc).__name__, "exc_message": str(exc)},
+        )
         analytics = CommunityAnalytics(
             total_users=0,
             active_learners_30d=0,

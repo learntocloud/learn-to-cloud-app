@@ -26,6 +26,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from core.cache import invalidate_progress_cache
 from core.config import get_settings
+from core.metrics import SUBMISSION_COOLDOWN_COUNTER, SUBMISSION_DAILY_LIMIT_COUNTER
 from models import Submission, SubmissionType
 from repositories.progress_denormalized_repository import UserPhaseProgressRepository
 from repositories.submission_repository import SubmissionRepository
@@ -291,6 +292,10 @@ async def _check_submission_preconditions(
         settings = get_settings()
         today_count = await submission_repo.count_submissions_today(user_id)
         if today_count >= settings.daily_submission_limit:
+            SUBMISSION_DAILY_LIMIT_COUNTER.add(
+                1,
+                {"user_id": str(user_id)},
+            )
             raise DailyLimitExceededError(
                 f"You have reached the daily limit of "
                 f"{settings.daily_submission_limit} "
@@ -316,6 +321,10 @@ async def _check_submission_preconditions(
         elapsed = (now - last_submission_time).total_seconds()
         remaining = int(cooldown_seconds - elapsed)
         if remaining > 0:
+            SUBMISSION_COOLDOWN_COUNTER.add(
+                1,
+                {"user_id": str(user_id), "requirement_id": requirement_id},
+            )
             minutes = remaining // 60
             seconds = remaining % 60
             wait_str = f"{minutes}m {seconds}s" if minutes else f"{seconds}s"

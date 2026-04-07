@@ -521,13 +521,15 @@ async def analyze_repository_code(
             server_error=True,
         )
     except CodeAnalysisError as e:
-        logger.exception(
+        logger.error(
             "code_analysis.failed",
             extra={
                 "owner": owner,
                 "repo": repo,
                 "retriable": e.retriable,
                 "github_username": github_username,
+                "exc_type": type(e).__name__,
+                "exc_message": str(e),
             },
         )
         return ValidationResult(
@@ -535,10 +537,16 @@ async def analyze_repository_code(
             message=f"Code analysis failed: {e}",
             server_error=True,
         )
-    except Exception:
-        logger.exception(
+    except Exception as exc:
+        logger.error(
             "code_analysis.client_error",
-            extra={"owner": owner, "repo": repo, "github_username": github_username},
+            extra={
+                "owner": owner,
+                "repo": repo,
+                "github_username": github_username,
+                "exc_type": type(exc).__name__,
+                "exc_message": str(exc),
+            },
         )
         return ValidationResult(
             is_valid=False,

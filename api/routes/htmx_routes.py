@@ -346,10 +346,15 @@ async def htmx_submit_verification(
         return _render_card(
             error_banner=str(e),
         )
-    except Exception:
-        logger.exception(
+    except Exception as exc:
+        logger.error(
             "htmx.submit.unexpected_error",
-            extra={"user_id": user_id, "requirement_id": requirement_id},
+            extra={
+                "user_id": user_id,
+                "requirement_id": requirement_id,
+                "exc_type": type(exc).__name__,
+                "exc_message": str(exc),
+            },
         )
         return _render_card(
             server_error=True,

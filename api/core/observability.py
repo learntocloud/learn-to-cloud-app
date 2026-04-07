@@ -10,6 +10,12 @@ import logging
 import os
 from typing import Any
 
+from agent_framework.observability import (
+    create_resource,
+    enable_instrumentation,
+)
+from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
+
 logger = logging.getLogger(__name__)
 
 _telemetry_enabled: bool = False
@@ -98,7 +104,11 @@ def _configure_azure_monitor(conn_str: str) -> None:
     try:
         from azure.monitor.opentelemetry import configure_azure_monitor
 
+        resource = create_resource(
+            service_name=os.getenv("OTEL_SERVICE_NAME", "learn-to-cloud-api"),
+        )
         configure_azure_monitor(
+            resource=resource,
             enable_live_metrics=True,
             instrumentation_options={
                 "azure_sdk": {"enabled": True},
@@ -114,6 +124,8 @@ def _configure_azure_monitor(conn_str: str) -> None:
         logger.info("telemetry.azure_monitor.configured")
     except Exception as exc:
         logger.warning("telemetry.azure_monitor.failed", extra={"error": str(exc)})
+
+    _instrument_httpx()
 
 
 def _configure_otlp(endpoint: str) -> None:
@@ -169,18 +181,23 @@ def _configure_otlp(endpoint: str) -> None:
     )
     logging.getLogger().addHandler(otel_handler)
 
-    try:
-        import importlib
-
-        httpx_mod = importlib.import_module("opentelemetry.instrumentation.httpx")
-        httpx_mod.HTTPXClientInstrumentor().instrument()
-    except ImportError:
-        pass
+    _instrument_httpx()
 
     logger.info(
         "telemetry.otlp.configured",
         extra={"endpoint": endpoint, "service": service_name},
     )
+
+
+def _instrument_httpx() -> None:
+    """Instrument httpx for outbound HTTP dependency tracking.
+
+    The Azure Monitor distro does not auto-instrument httpx (it only
+    covers requests, urllib, urllib3).  The OpenAI SDK uses httpx
+    exclusively, so without this, LLM HTTP calls are invisible.
+    """
+    HTTPXClientInstrumentor().instrument()
+    logger.info("telemetry.httpx.instrumented")
 
 
 def _enable_agent_framework_instrumentation() -> None:
@@ -191,12 +208,11 @@ def _enable_agent_framework_instrumentation() -> None:
     and ``_trace_agent_run`` wrappers emit spans and metrics through
     whatever OTel providers are already configured globally.
 
+    Sensitive data (prompt/completion content) is enabled so that
+    gen_ai span events include the actual messages for debugging
+    slow or failed LLM calls.
+
     This does **not** create providers or exporters — our
     ``_configure_azure_monitor`` / ``_configure_otlp`` does that.
     """
-    try:
-        from agent_framework.observability import enable_instrumentation
-
-        enable_instrumentation()
-    except ImportError:
-        pass
+    enable_instrumentation(enable_sensitive_data=True)

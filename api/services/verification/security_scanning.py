@@ -334,13 +334,15 @@ async def validate_security_scanning(
             server_error=True,
         )
     except SecurityVerificationError as e:
-        logger.exception(
+        logger.error(
             "security_scanning.failed",
             extra={
                 "owner": owner,
                 "repo": repo,
                 "retriable": e.retriable,
                 "github_username": github_username,
+                "exc_type": type(e).__name__,
+                "exc_message": str(e),
             },
         )
         return ValidationResult(
@@ -348,13 +350,15 @@ async def validate_security_scanning(
             message=f"Security scanning verification failed: {e}",
             server_error=e.retriable,
         )
-    except RETRIABLE_EXCEPTIONS:
-        logger.exception(
+    except RETRIABLE_EXCEPTIONS as exc:
+        logger.error(
             "security_scanning.request_error",
             extra={
                 "owner": owner,
                 "repo": repo,
                 "github_username": github_username,
+                "exc_type": type(exc).__name__,
+                "exc_message": str(exc),
             },
         )
         return ValidationResult(

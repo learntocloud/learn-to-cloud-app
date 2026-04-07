@@ -5,7 +5,7 @@ description: Check Azure production health — app status, errors, latency, data
 
 # Production Health Check
 
-11 checks. One verdict. All read-only. Uses Azure MCP tools.
+13 checks. One verdict. All read-only. Uses Azure MCP tools.
 
 ---
 
@@ -21,9 +21,9 @@ Azure MCP tools require `az login` credentials. Before starting, verify:
 
 Evaluated top-down, first match wins:
 
-**🔴 Critical** — ANY of: readiness probe non-200, any 5xx in 24h, DB CPU > 80% peak, fired Sev0/Sev1 alerts in 24h, `ContainerCrashing` on current revision, LLM dependency failures > 5 in 24h, any `init.failed` logs in 24h
+**🔴 Critical** — ANY of: readiness probe non-200, any 5xx in 24h, DB CPU > 80% peak, fired Sev0/Sev1 alerts in 24h, `ContainerCrashing` on current revision, LLM dependency failures > 5 in 24h, any `init.failed` logs in 24h, GitHub API failures > 20 in 24h
 
-**⚠️ Warning** — ANY of: P95 latency > 500ms, DB CPU 50–80% peak or Memory 70–85% or Storage 70–85%, any failed availability tests in 24h, non-zero unhandled exceptions in 7d, active connections > 80, `ReplicaUnhealthy` without matching scale events, error rate spike (single day > 2× weekly average) or rising trend (3+ consecutive days increasing), Container App CPU > 80% or Memory > 80%
+**⚠️ Warning** — ANY of: P95 latency > 500ms, DB CPU 50–80% peak or Memory 70–85% or Storage 70–85%, any failed availability tests in 24h, non-zero unhandled exceptions in 7d, active connections > 80, `ReplicaUnhealthy` without matching scale events, error rate spike (single day > 2× weekly average) or rising trend (3+ consecutive days increasing), Container App CPU > 80% or Memory > 80%, ERROR-level AppTraces > 10 in 24h, auth failure rate > 50% in 24h
 
 **✅ Healthy** — none of the above
 
@@ -125,25 +125,41 @@ Quick check for Azure-side platform issues affecting any resource.
 
 **Verdict**: ⚠️ if rising trend (3+ consecutive days increasing) or single-day spike > 2× the 7-day average. Stable or falling = healthy.
 
-### Step 6: Unhandled Exceptions (7d)
+### Step 6: Errors — Exceptions + AppTraces (7d)
+
+Two queries — run in parallel:
+
+**Query A — Unhandled exceptions** (AppExceptions):
 
 - command: `monitor_workspace_log_query`
 - table: `AppExceptions`
 - query: `AppExceptions | where TimeGenerated > ago(7d) | summarize Count=count() by ExceptionType, OuterMessage | order by Count desc | take 10`
 - hours: 168
 
-**Verdict**: ⚠️ if any recurring exceptions.
+**Query B — Caught errors** (AppTraces at ERROR level):
+
+- command: `monitor_workspace_log_query`
+- table: `AppTraces`
+- query: `AppTraces | where TimeGenerated > ago(24h) and SeverityLevel >= 3 | summarize Count=count() by Message | order by Count desc | take 10`
+- hours: 24
+
+**Verdict**: ⚠️ if any recurring exceptions (Query A) or ERROR-level traces > 10 in 24h (Query B).
 
 ### Step 7: Dependency Health (24h)
 
-Covers PostgreSQL, Azure OpenAI, and any other outbound calls.
+Covers PostgreSQL, Azure OpenAI (via httpx), GitHub API (via httpx), and any other outbound calls.
 
 - command: `monitor_workspace_log_query`
 - table: `AppDependencies`
-- query: `AppDependencies | where TimeGenerated > ago(24h) | summarize Count=count(), FailureCount=countif(Success == false) by DependencyType, Target | order by Count desc | take 15`
+- query: `AppDependencies | where TimeGenerated > ago(24h) | summarize Count=count(), FailureCount=countif(Success == false), AvgDuration=round(avg(DurationMs), 1), P95Duration=round(percentile(DurationMs, 95), 1) by Type, Target | order by Count desc | take 15`
 - hours: 24
 
-**Verdict**: ⚠️ if any FailureCount > 0. 🔴 if Azure OpenAI failures > 5 (LLM is critical for code verification) or PostgreSQL failures > 0.
+Expected dependency targets after httpx instrumentation:
+- `psql-ltc-dev-*.postgres.database.azure.com|learntocloud` — PostgreSQL (Type: SQL)
+- `oai-ltc-dev-*.openai.azure.com` — Azure OpenAI (Type: HTTP or GenAI)
+- `api.github.com` — GitHub API for verification checks (Type: HTTP)
+
+**Verdict**: 🔴 if Azure OpenAI failures > 5 or PostgreSQL failures > 0 or GitHub API failures > 20. ⚠️ if any other FailureCount > 0 or LLM P95 > 30s.
 
 ### Step 8: Database Metrics (24h)
 
@@ -227,6 +243,35 @@ Known alert names from Terraform (match against `AlertName`):
 
 **Verdict**: 🔴 if any Sev0/Sev1 alert names appear. ⚠️ if Sev2 alerts fired.
 
+### Step 12: Business Metrics (24h)
+
+Custom OTel counters for key domain events.
+
+- command: `monitor_workspace_log_query`
+- table: `AppMetrics`
+- query: `AppMetrics | where TimeGenerated > ago(24h) and Name in ('auth.login', 'submission.daily_limit_exceeded', 'submission.cooldown_active', 'user.deletion', 'step.completed', 'verification.attempt') | summarize Total=sum(Sum) by Name | order by Name asc`
+- hours: 24
+
+Also check auth success/failure ratio:
+
+- command: `monitor_workspace_log_query`
+- table: `AppMetrics`
+- query: `AppMetrics | where TimeGenerated > ago(24h) and Name == 'auth.login' | extend result = tostring(Properties['result']) | summarize Total=sum(Sum) by result`
+- hours: 24
+
+**Verdict**: ⚠️ if auth failure rate > 50% (possible GitHub OAuth outage) or daily_limit_exceeded > 50 (capacity pressure). Include totals in report for situational awareness.
+
+### Step 13: LLM Performance (24h)
+
+GenAI-specific metrics from the agent framework.
+
+- command: `monitor_workspace_log_query`
+- table: `AppMetrics`
+- query: `AppMetrics | where TimeGenerated > ago(24h) and Name in ('gen_ai.client.token.usage', 'gen_ai.client.operation.duration') | summarize Total=sum(Sum), AvgValue=round(avg(Sum), 2) by Name`
+- hours: 24
+
+**Verdict**: Informational — include token usage and operation duration in the report. ⚠️ if avg operation duration > 60s.
+
 ---
 
 ## Summary Report
@@ -245,12 +290,14 @@ Known alert names from Terraform (match against `AlertName`):
 | 3 | Availability Tests | ✅/⚠️ | {N} total, {N} failed in 24h |
 | 4 | Request Health | ✅/🔴 | P95 {X}ms, {N} 4xx, {N} 5xx |
 | 5 | Error Rate Trend | ✅/⚠️ | {stable/rising/falling} over 7d |
-| 6 | Exceptions | ✅/⚠️ | {N} unique in 7d, top: {type} |
-| 7 | Dependencies | ✅/⚠️/🔴 | {type}: {N} calls, {N} failures |
+| 6 | Errors | ✅/⚠️ | {N} exceptions in 7d, {N} error traces in 24h |
+| 7 | Dependencies | ✅/⚠️/🔴 | PostgreSQL: {N}/{N}fail, OpenAI: {N}/{N}fail P95 {X}ms, GitHub: {N}/{N}fail |
 | 8 | Database | ✅/⚠️/🔴 | CPU {X}%, Mem {X}%, Storage {X}%, Conn {X} |
 | 9 | Container App | ✅/⚠️/🔴 | CPU {X}nc, Mem {X}B, Restarts {N} |
 | 10 | Container Stability | ✅/⚠️ | Rev: {rev}, {events} |
 | 11 | Fired Alerts | ✅/🔴 | {N} in 24h, names: {list} |
+| 12 | Business Metrics | ✅/⚠️ | Logins: {N}✓/{N}✗, Steps: {N}, Verifications: {N}, Deletions: {N} |
+| 13 | LLM Performance | ✅/⚠️ | Tokens: {N}, Avg duration: {X}s |
 
 ### ⚠️ Items to Watch
 - {any warnings — omit if none}
@@ -267,5 +314,5 @@ Known alert names from Terraform (match against `AlertName`):
 - **Log Analytics table names**: Use `AppRequests`, `AppExceptions`, `AppDependencies`, `AppAvailabilityResults` (Application Insights workspace-mode tables, not legacy `requests`/`exceptions`/`dependencies`).
 - **Metrics vs logs**: Steps 8–9 query Azure Monitor **metrics** (command `monitor_metrics_query`). Steps 3–7, 10–11 query Log Analytics **logs** (command `monitor_workspace_log_query`). These are different MCP commands.
 - **Container App system logs**: Table may be `ContainerAppSystemLogs_CL` (custom log, `_s` suffix columns) or `ContainerAppSystemLogs` (standard, no suffix). Step 10 includes a fallback query for both schemas.
-- **Parallelization**: Steps 2–10 have no dependencies on each other — run them all concurrently in parallel MCP calls. Step 11 can also run in parallel.
+- **Parallelization**: Steps 2–13 have no dependencies on each other — run them all concurrently in parallel MCP calls.
 - **Alert severity mapping**: Step 11 maps `AlertName` → severity using the known Terraform-defined alert names rather than parsing severity from the activity log (which doesn't expose it directly).
