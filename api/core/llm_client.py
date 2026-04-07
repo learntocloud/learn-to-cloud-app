@@ -13,6 +13,7 @@ For business logic using this client, see:
   - services/devops_verification_service.py (Phase 5)
 """
 
+import asyncio
 import logging
 
 from agent_framework.openai import OpenAIChatClient
@@ -22,6 +23,7 @@ from core.config import get_settings
 logger = logging.getLogger(__name__)
 
 _llm_client: OpenAIChatClient | None = None
+_llm_client_lock = asyncio.Lock()
 
 
 class LLMClientError(Exception):
@@ -49,28 +51,32 @@ async def get_llm_chat_client() -> OpenAIChatClient:
     if _llm_client is not None:
         return _llm_client
 
-    settings = get_settings()
+    async with _llm_client_lock:
+        if _llm_client is not None:
+            return _llm_client
 
-    if not settings.llm_base_url:
-        raise LLMClientError(
-            "LLM not configured. Set LLM_BASE_URL.",
-            retriable=False,
+        settings = get_settings()
+
+        if not settings.llm_base_url:
+            raise LLMClientError(
+                "LLM not configured. Set LLM_BASE_URL.",
+                retriable=False,
+            )
+
+        from core.azure_auth import get_credential
+
+        model = settings.llm_model or "gpt-5-mini"
+        credential = await get_credential()
+
+        _llm_client = OpenAIChatClient(
+            azure_endpoint=settings.llm_base_url,
+            model=model,
+            credential=credential,
         )
 
-    from core.azure_auth import get_credential
+        logger.info(
+            "llm.client.created",
+            extra={"model": model, "endpoint": settings.llm_base_url},
+        )
 
-    model = settings.llm_model or "gpt-5-mini"
-    credential = await get_credential()
-
-    _llm_client = OpenAIChatClient(
-        azure_endpoint=settings.llm_base_url,
-        model=model,
-        credential=credential,
-    )
-
-    logger.info(
-        "llm.client.created",
-        extra={"model": model, "endpoint": settings.llm_base_url},
-    )
-
-    return _llm_client
+        return _llm_client
