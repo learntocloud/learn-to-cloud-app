@@ -12,8 +12,13 @@ description: Query production PostgreSQL with Entra ID auth. Use for investigati
 ```bash
 # Get token and connect (token expires in ~1hr)
 export PGPASSWORD=$(az account get-access-token --resource-type oss-rdbms --query accessToken -o tsv)
-psql "host=psql-ltc-dev-8v4tyz.postgres.database.azure.com dbname=learntocloud user=$(az ad signed-in-user show --query displayName -o tsv) sslmode=require"
+export PG_USER=$(az ad signed-in-user show --query displayName -o tsv)
+psql -h psql-ltc-dev-8v4tyz.postgres.database.azure.com -d learntocloud -U "$PG_USER" --set=sslmode=require
 ```
+
+> **Agent usage**: Always disable the pager to avoid blocking on output.
+> Pass `--pset pager=off` or set `export PAGER=cat` before running psql.
+> For single queries use `psql ... -P pager=off -c "SELECT ..."` piped through `| cat`.
 
 ## First-Time Setup
 

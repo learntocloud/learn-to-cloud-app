@@ -298,7 +298,7 @@ class AnalyticsRepository:
             )
             .order_by(User.github_username)
         )
-        return list(result.scalars().all())
+        return [str(u) for u in result.scalars().all()]
 
     async def get_provider_distribution(self) -> list[tuple[str, int]]:
         """Count validated submissions per cloud provider.
