@@ -15,7 +15,7 @@ import os
 
 os.environ.setdefault(
     "DATABASE_URL",
-    "postgresql+asyncpg://postgres:postgres@localhost:54320/test_learn_to_cloud",
+    "postgresql+asyncpg://postgres:postgres@db:5432/test_learn_to_cloud",
 )
 os.environ.setdefault("GITHUB_TOKEN", "test_github_token")
 os.environ.setdefault("LABS_VERIFICATION_SECRET", "test_ctf_secret_must_be_32_chars!")
@@ -53,7 +53,7 @@ def _build_test_database_url() -> tuple[str, str, int]:
 
     raw = os.environ.get(
         "DATABASE_URL",
-        "postgresql+asyncpg://postgres:postgres@localhost:54320/test_learn_to_cloud",
+        "postgresql+asyncpg://postgres:postgres@db:5432/test_learn_to_cloud",
     )
     url = make_url(raw)
     host = url.host or "localhost"
@@ -119,7 +119,7 @@ async def test_engine() -> AsyncGenerator[AsyncEngine]:
     per test session for faster runs.
     """
     if not _check_db_available():
-        pytest.skip("PostgreSQL not available - skipping database test")
+        pytest.fail("PostgreSQL not available - is the database running?")
 
     admin_url = TEST_DATABASE_URL.rsplit("/", 1)[0] + "/postgres"
     admin_engine = create_async_engine(
@@ -202,7 +202,7 @@ async def cleanup_database(
         return
 
     if not _check_db_available():
-        return
+        pytest.fail("PostgreSQL not available - is the database running?")
 
     engine: AsyncEngine = request.getfixturevalue("test_engine")
 

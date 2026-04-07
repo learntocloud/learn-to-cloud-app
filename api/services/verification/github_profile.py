@@ -94,13 +94,13 @@ def parse_github_url(url: str) -> ParsedGitHubUrl:
 
     # Normalize common URL variations (always upgrade to https)
     if url.startswith("http://github.com/"):
-        url = url.replace("http://", "https://")
+        url = "https://" + url[len("http://") :]
     elif url.startswith("http://www.github.com/"):
-        url = url.replace("http://www.", "https://")
+        url = "https://" + url[len("http://www.") :]
     elif url.startswith("https://www.github.com/"):
-        url = url.replace("https://www.", "https://")
+        url = "https://" + url[len("https://www.") :]
     elif url.startswith("www.github.com/"):
-        url = "https://" + url[4:]  # Remove 'www.' and add https://
+        url = "https://" + url[len("www.") :]
     elif url.startswith("github.com/"):
         url = "https://" + url
 

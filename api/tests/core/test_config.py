@@ -165,7 +165,8 @@ class TestAllowedOrigins:
             database_url="postgresql+asyncpg://localhost/db",
             frontend_url="https://app.example.com",
         )
-        assert "https://app.example.com" in s.allowed_origins
+        origins = s.allowed_origins
+        assert any(o == "https://app.example.com" for o in origins)
 
     def test_cors_allowed_origins_csv_parsed(self):
         s = Settings(
@@ -173,8 +174,9 @@ class TestAllowedOrigins:
             database_url="postgresql+asyncpg://localhost/db",
             cors_allowed_origins="https://a.com, https://b.com",
         )
-        assert "https://a.com" in s.allowed_origins
-        assert "https://b.com" in s.allowed_origins
+        origins = s.allowed_origins
+        assert any(o == "https://a.com" for o in origins)
+        assert any(o == "https://b.com" for o in origins)
 
     def test_deduplication(self):
         s = Settings(
