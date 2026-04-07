@@ -3,11 +3,11 @@
 Tests cover:
 - LLMClientError has retriable attribute
 - get_llm_chat_client raises when not configured
-- get_llm_chat_client creates client when configured
+- get_llm_chat_client creates client with credential
 - get_llm_chat_client returns cached instance
 """
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -51,10 +51,9 @@ class TestLLMClientError:
 
 @pytest.mark.unit
 class TestGetLLMChatClient:
-    def test_raises_when_base_url_missing(self):
+    async def test_raises_when_base_url_missing(self):
         mock_settings = MagicMock()
         mock_settings.llm_base_url = ""
-        mock_settings.llm_api_key = "key"
         with (
             patch(
                 "core.llm_client.get_settings",
@@ -63,42 +62,26 @@ class TestGetLLMChatClient:
             ),
             pytest.raises(LLMClientError, match="not configured"),
         ):
-            get_llm_chat_client()
+            await get_llm_chat_client()
 
-    def test_raises_when_api_key_missing(self):
-        mock_settings = MagicMock()
-        mock_settings.llm_base_url = "https://example.openai.azure.com"
-        mock_settings.llm_api_key = ""
-        with (
-            patch(
-                "core.llm_client.get_settings",
-                autospec=True,
-                return_value=mock_settings,
-            ),
-            pytest.raises(LLMClientError, match="not configured"),
-        ):
-            get_llm_chat_client()
-
-    def test_error_is_not_retriable(self):
+    async def test_error_is_not_retriable(self):
         mock_settings = MagicMock()
         mock_settings.llm_base_url = ""
-        mock_settings.llm_api_key = ""
         with patch(
             "core.llm_client.get_settings",
             autospec=True,
             return_value=mock_settings,
         ):
             with pytest.raises(LLMClientError) as exc_info:
-                get_llm_chat_client()
+                await get_llm_chat_client()
             assert exc_info.value.retriable is False
 
-    def test_creates_client_when_configured(self):
+    async def test_creates_client_with_credential(self):
         mock_settings = MagicMock()
         mock_settings.llm_base_url = "https://example.openai.azure.com"
-        mock_settings.llm_api_key = "test-key"
         mock_settings.llm_model = "gpt-5-mini"
-        mock_settings.llm_api_version = "2024-10-21"
         mock_client_instance = MagicMock()
+        mock_credential = MagicMock()
 
         with (
             patch(
@@ -107,34 +90,37 @@ class TestGetLLMChatClient:
                 return_value=mock_settings,
             ),
             patch(
-                "agent_framework.azure.AzureOpenAIChatClient",
+                "core.azure_auth.get_credential",
+                new_callable=AsyncMock,
+                return_value=mock_credential,
+            ),
+            patch(
+                "core.llm_client.OpenAIChatClient",
                 autospec=True,
                 return_value=mock_client_instance,
             ) as MockClient,
         ):
-            result = get_llm_chat_client()
+            result = await get_llm_chat_client()
 
         MockClient.assert_called_once_with(
-            endpoint="https://example.openai.azure.com",
-            deployment_name="gpt-5-mini",
-            api_key="test-key",
-            api_version="2024-10-21",
+            azure_endpoint="https://example.openai.azure.com",
+            model="gpt-5-mini",
+            credential=mock_credential,
         )
         assert result is mock_client_instance
 
-    def test_returns_cached_instance(self):
+    async def test_returns_cached_instance(self):
         import core.llm_client as mod
 
         sentinel = MagicMock()
         mod._llm_client = sentinel
-        assert get_llm_chat_client() is sentinel
+        assert await get_llm_chat_client() is sentinel
 
-    def test_default_model_when_not_set(self):
+    async def test_default_model_when_not_set(self):
         mock_settings = MagicMock()
         mock_settings.llm_base_url = "https://example.openai.azure.com"
-        mock_settings.llm_api_key = "test-key"
         mock_settings.llm_model = ""
-        mock_settings.llm_api_version = ""
+        mock_credential = MagicMock()
 
         with (
             patch(
@@ -143,12 +129,16 @@ class TestGetLLMChatClient:
                 return_value=mock_settings,
             ),
             patch(
-                "agent_framework.azure.AzureOpenAIChatClient",
+                "core.azure_auth.get_credential",
+                new_callable=AsyncMock,
+                return_value=mock_credential,
+            ),
+            patch(
+                "core.llm_client.OpenAIChatClient",
                 autospec=True,
             ) as MockClient,
         ):
-            get_llm_chat_client()
+            await get_llm_chat_client()
 
         call_kwargs = MockClient.call_args[1]
-        assert call_kwargs["deployment_name"] == "gpt-5-mini"
-        assert call_kwargs["api_version"] == "2024-10-21"
+        assert call_kwargs["model"] == "gpt-5-mini"

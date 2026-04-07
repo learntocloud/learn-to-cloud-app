@@ -53,11 +53,6 @@ resource "azurerm_container_app" "api" {
     value = var.labs_verification_secret
   }
 
-  secret {
-    name  = "llm-api-key"
-    value = azurerm_cognitive_account.openai.primary_access_key
-  }
-
   ingress {
     external_enabled = true
     target_port      = 8000
@@ -140,11 +135,6 @@ resource "azurerm_container_app" "api" {
       env {
         name  = "LLM_BASE_URL"
         value = azurerm_cognitive_account.openai.endpoint
-      }
-
-      env {
-        name        = "LLM_API_KEY"
-        secret_name = "llm-api-key"
       }
 
       env {

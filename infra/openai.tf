@@ -1,6 +1,6 @@
 # -----------------------------------------------------------------------------
 # Azure OpenAI — model deployment for AI-powered code analysis
-# The Agent Framework calls this endpoint directly via AzureOpenAIChatClient.
+# The Agent Framework calls this endpoint via OpenAIChatClient + managed identity.
 # -----------------------------------------------------------------------------
 
 resource "azurerm_cognitive_account" "openai" {
@@ -27,4 +27,10 @@ resource "azurerm_cognitive_deployment" "llm" {
     name     = "GlobalStandard"
     capacity = var.llm_capacity
   }
+}
+
+resource "azurerm_role_assignment" "api_openai_user" {
+  scope                = azurerm_cognitive_account.openai.id
+  role_definition_name = "Cognitive Services OpenAI User"
+  principal_id         = azurerm_user_assigned_identity.api.principal_id
 }

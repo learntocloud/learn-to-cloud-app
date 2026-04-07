@@ -329,15 +329,12 @@ async def _analyze_with_llm(
         extra={"owner": owner, "repo": repo, "prompt_chars": prompt_len},
     )
 
-    chat_client = get_llm_chat_client()
+    chat_client = await get_llm_chat_client()
     settings = get_settings()
 
     messages = [
-        Message(role="system", text=prompt),
-        Message(
-            role="user",
-            text="Analyze the repository files and grade all 5 tasks.",
-        ),
+        Message("system", [prompt]),
+        Message("user", ["Analyze the repository files and grade all 5 tasks."]),
     ]
 
     logger.info(
