@@ -23,6 +23,10 @@ async def _noop_receive():
     return {"type": "http.request", "body": b""}
 
 
+async def _noop_send(msg: object) -> None:
+    pass
+
+
 async def _make_app_that_sends_response(scope, receive, send):
     """Simulate an ASGI app that sends a response."""
     await send({"type": "http.response.start", "status": 200, "headers": []})
@@ -64,7 +68,7 @@ class TestSecurityHeadersMiddleware:
         middleware = SecurityHeadersMiddleware(inner_app)
         scope = {"type": "websocket"}
 
-        await middleware(scope, _noop_receive, lambda msg: None)
+        await middleware(scope, _noop_receive, _noop_send)
         assert called
 
     async def test_adds_cache_control_for_static_paths(self):
@@ -140,7 +144,7 @@ class TestUserTrackingMiddleware:
             "session": {"user_id": 42, "github_username": "testuser"},
         }
 
-        await middleware(scope, _noop_receive, lambda msg: None)
+        await middleware(scope, _noop_receive, _noop_send)
 
         mock_span.set_attribute.assert_any_call("enduser.id", "42")
         mock_span.set_attribute.assert_any_call("enduser.name", "testuser")
@@ -157,7 +161,7 @@ class TestUserTrackingMiddleware:
         middleware = UserTrackingMiddleware(inner_app)
         scope = {"type": "http", "session": {"user_id": 42}}
 
-        await middleware(scope, _noop_receive, lambda msg: None)
+        await middleware(scope, _noop_receive, _noop_send)
 
         mock_span.set_attribute.assert_called_once_with("enduser.id", "42")
 
@@ -179,7 +183,7 @@ class TestUserTrackingMiddleware:
             "session": {"github_username": "testuser"},
         }
 
-        await middleware(scope, _noop_receive, lambda msg: None)
+        await middleware(scope, _noop_receive, _noop_send)
         assert captured_username == "testuser"
 
     @patch("core.middleware.trace", autospec=True)
@@ -198,7 +202,7 @@ class TestUserTrackingMiddleware:
         }
 
         with pytest.raises(RuntimeError, match="app error"):
-            await middleware(scope, _noop_receive, lambda msg: None)
+            await middleware(scope, _noop_receive, _noop_send)
 
         # Context var should be reset to default after finally block
         assert request_github_username.get() is None
@@ -214,7 +218,7 @@ class TestUserTrackingMiddleware:
         middleware = UserTrackingMiddleware(inner_app)
         scope = {"type": "websocket"}
 
-        await middleware(scope, _noop_receive, lambda msg: None)
+        await middleware(scope, _noop_receive, _noop_send)
 
         assert called
         mock_trace.get_current_span.assert_not_called()
@@ -231,6 +235,6 @@ class TestUserTrackingMiddleware:
         middleware = UserTrackingMiddleware(inner_app)
         scope = {"type": "http", "session": {}}
 
-        await middleware(scope, _noop_receive, lambda msg: None)
+        await middleware(scope, _noop_receive, _noop_send)
 
         mock_span.set_attribute.assert_not_called()

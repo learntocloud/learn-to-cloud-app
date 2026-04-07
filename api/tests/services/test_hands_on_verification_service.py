@@ -83,7 +83,7 @@ class TestValidateSubmissionRouting:
         )
 
         with patch(
-            "services.verification.github_profile.validate_repo_fork",
+            "services.verification.dispatcher.validate_repo_fork",
             autospec=True,
         ) as mock:
             mock.return_value = ValidationResult(
@@ -153,7 +153,7 @@ class TestSubmissionRouting:
         )
 
         with patch(
-            "services.verification.deployed_api.validate_deployed_api",
+            "services.verification.dispatcher.validate_deployed_api",
             autospec=True,
         ) as mock:
             mock.return_value = ValidationResult(
@@ -181,7 +181,7 @@ class TestSubmissionRouting:
         )
 
         with patch(
-            "services.verification.pull_request.validate_pr",
+            "services.verification.dispatcher.validate_pr",
             autospec=True,
         ) as mock:
             mock.return_value = ValidationResult(
@@ -211,7 +211,7 @@ class TestSubmissionRouting:
         )
 
         with patch(
-            "services.verification.devops_analysis.analyze_devops_repository",
+            "services.verification.dispatcher.analyze_devops_repository",
             autospec=True,
         ) as mock:
             mock.return_value = ValidationResult(
@@ -274,7 +274,7 @@ class TestValidateSubmissionUsernameRequirements:
         requirement = _make_requirement(SubmissionType.DEPLOYED_API)
 
         with patch(
-            "services.verification.deployed_api.validate_deployed_api",
+            "services.verification.dispatcher.validate_deployed_api",
             autospec=True,
         ) as mock:
             mock.return_value = ValidationResult(is_valid=True, message="API verified!")
@@ -308,7 +308,7 @@ class TestValidateCtfTokenSubmission:
         mock_result.message = "OK"
         mock_result.server_error = False
         with patch(
-            "services.verification.ctf.verify_ctf_token",
+            "services.verification.dispatcher.verify_ctf_token",
             autospec=True,
             return_value=mock_result,
         ) as mock:
@@ -332,7 +332,7 @@ class TestValidateNetworkingTokenSubmission:
         mock_result.server_error = False
         mock_result.challenge_type = "networking-lab-azure"
         with patch(
-            "services.verification.networking_lab.verify_networking_token",
+            "services.verification.dispatcher.verify_networking_token",
             autospec=True,
             return_value=mock_result,
         ):
@@ -352,7 +352,7 @@ class TestValidateNetworkingTokenSubmission:
         mock_result.server_error = False
         mock_result.challenge_type = None
         with patch(
-            "services.verification.networking_lab.verify_networking_token",
+            "services.verification.dispatcher.verify_networking_token",
             autospec=True,
             return_value=mock_result,
         ):
@@ -371,7 +371,7 @@ class TestDispatchGitHubProfile:
     async def test_github_profile_routes_correctly(self):
         requirement = _make_requirement(SubmissionType.GITHUB_PROFILE)
         with patch(
-            "services.verification.github_profile.validate_github_profile",
+            "services.verification.dispatcher.validate_github_profile",
             autospec=True,
         ) as mock:
             mock.return_value = ValidationResult(is_valid=True, message="Verified!")
@@ -390,7 +390,7 @@ class TestDispatchSecurityScanning:
     async def test_security_scanning_routes_correctly(self):
         requirement = _make_requirement(SubmissionType.SECURITY_SCANNING)
         with patch(
-            "services.verification.security_scanning.validate_security_scanning",
+            "services.verification.dispatcher.validate_security_scanning",
             autospec=True,
         ) as mock:
             mock.return_value = ValidationResult(is_valid=True, message="Scanned!")

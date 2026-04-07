@@ -12,6 +12,7 @@ import logging
 from collections.abc import AsyncGenerator
 from typing import Annotated, NamedTuple, TypedDict
 
+import asyncpg
 from fastapi import Depends, Request
 from sqlalchemy import event, text
 from sqlalchemy.ext.asyncio import (
@@ -25,6 +26,7 @@ from sqlalchemy.pool import QueuePool
 
 from core.azure_auth import get_token as _get_azure_token
 from core.config import get_settings
+from core.observability import instrument_sqlalchemy_engine
 
 logger = logging.getLogger(__name__)
 
@@ -67,8 +69,6 @@ async def _azure_asyncpg_creator():
     """
     settings = get_settings()
     token = await _get_azure_token()
-
-    import asyncpg
 
     try:
         return await asyncpg.connect(
@@ -161,8 +161,6 @@ def create_engine() -> AsyncEngine:
     _setup_pool_event_listeners(engine)
 
     try:
-        from .observability import instrument_sqlalchemy_engine
-
         instrument_sqlalchemy_engine(engine)
     except Exception:
         logger.warning("database.observability_setup.failed", exc_info=True)

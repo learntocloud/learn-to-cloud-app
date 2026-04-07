@@ -70,21 +70,17 @@ line-length = 88
 target-version = "py313"
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "UP"]
+select = ["E", "F", "I", "UP", "PLC0415"]
 
 [tool.ruff.lint.per-file-ignores]
+"tests/**" = ["PLC0415"]
+"alembic/**" = ["PLC0415"]
 
 [tool.ty.environment]
 # Use the current Python interpreter to resolve third-party imports
 python-platform = "linux"
 
 [tool.ty.rules]
-# TODO: Revert to "error" once astral-sh/ty#1714 (generic protocols in typevar
-# solving) is resolved. ty cannot yet match classes against Protocol[ParamSpec],
-# causing false positives on Starlette's add_middleware() and add_exception_handler().
-# Also affects agent_framework's ChatOptions generic TypedDict (response_format).
-# Tracked in: https://github.com/astral-sh/ty/issues/1635
-invalid-argument-type = "warn"
 
 [tool.uv]
 

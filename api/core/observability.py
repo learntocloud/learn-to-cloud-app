@@ -14,7 +14,25 @@ from agent_framework.observability import (
     create_resource,
     enable_instrumentation,
 )
+from azure.monitor.opentelemetry import (
+    configure_azure_monitor as _configure_azure_monitor_sdk,
+)
+from dotenv import load_dotenv
+from opentelemetry import metrics, trace
+from opentelemetry._logs import set_logger_provider
+from opentelemetry.exporter.otlp.proto.grpc._log_exporter import OTLPLogExporter
+from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import OTLPMetricExporter
+from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
+from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
+from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
+from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
+from opentelemetry.sdk.metrics import MeterProvider
+from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
+from opentelemetry.sdk.resources import SERVICE_NAME, Resource
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
 logger = logging.getLogger(__name__)
 
@@ -33,8 +51,6 @@ def configure_observability() -> None:
     """
     global _telemetry_enabled
 
-    from dotenv import load_dotenv
-
     load_dotenv()
 
     conn_str = os.getenv("APPLICATIONINSIGHTS_CONNECTION_STRING")
@@ -47,8 +63,8 @@ def configure_observability() -> None:
 
     if conn_str:
         _configure_azure_monitor(conn_str)
-    else:
-        _configure_otlp(otlp_endpoint)  # type: ignore[arg-type] — checked above
+    elif otlp_endpoint:
+        _configure_otlp(otlp_endpoint)
 
     _enable_agent_framework_instrumentation()
 
@@ -64,8 +80,6 @@ def instrument_app(app: Any) -> None:
         return
 
     try:
-        from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
-
         FastAPIInstrumentor.instrument_app(
             app,
             exclude_spans=["send", "receive"],
@@ -84,10 +98,6 @@ def instrument_sqlalchemy_engine(engine: Any) -> None:
         return
 
     try:
-        from opentelemetry.instrumentation.sqlalchemy import (
-            SQLAlchemyInstrumentor,
-        )
-
         SQLAlchemyInstrumentor().instrument(
             engine=engine.sync_engine,
             enable_commenter=True,
@@ -102,12 +112,10 @@ def instrument_sqlalchemy_engine(engine: Any) -> None:
 
 def _configure_azure_monitor(conn_str: str) -> None:
     try:
-        from azure.monitor.opentelemetry import configure_azure_monitor
-
         resource = create_resource(
             service_name=os.getenv("OTEL_SERVICE_NAME", "learn-to-cloud-api"),
         )
-        configure_azure_monitor(
+        _configure_azure_monitor_sdk(
             resource=resource,
             enable_live_metrics=True,
             instrumentation_options={
@@ -129,25 +137,6 @@ def _configure_azure_monitor(conn_str: str) -> None:
 
 
 def _configure_otlp(endpoint: str) -> None:
-    from opentelemetry import metrics, trace
-    from opentelemetry._logs import set_logger_provider
-    from opentelemetry.exporter.otlp.proto.grpc._log_exporter import (
-        OTLPLogExporter,
-    )
-    from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import (
-        OTLPMetricExporter,
-    )
-    from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import (
-        OTLPSpanExporter,
-    )
-    from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
-    from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
-    from opentelemetry.sdk.metrics import MeterProvider
-    from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
-    from opentelemetry.sdk.resources import SERVICE_NAME, Resource
-    from opentelemetry.sdk.trace import TracerProvider
-    from opentelemetry.sdk.trace.export import BatchSpanProcessor
-
     insecure = endpoint.startswith("http://")
     service_name = os.getenv("OTEL_SERVICE_NAME", "learn-to-cloud-api")
     resource = Resource.create({SERVICE_NAME: service_name})

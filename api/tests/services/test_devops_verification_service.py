@@ -452,6 +452,7 @@ class TestAnalyzeDevopsRepository:
             )
 
         assert result.is_valid is False
+        assert result.task_results is not None
         assert len(result.task_results) == 4
         assert all(not t.passed for t in result.task_results)
 
@@ -484,6 +485,7 @@ class TestAnalyzeDevopsRepository:
             )
 
         assert result.is_valid is False
+        assert result.task_results is not None
         assert len(result.task_results) == 1
         k8s_result = result.task_results[0]
         assert "Kubernetes" in k8s_result.task_name

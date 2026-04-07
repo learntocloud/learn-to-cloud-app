@@ -41,6 +41,7 @@ from agent_framework import ChatOptions, Message
 from circuitbreaker import CircuitBreakerError
 
 from core.config import get_settings
+from core.github_client import get_github_client
 from core.llm_client import get_llm_chat_client
 from schemas import ValidationResult
 from services.verification.llm_base import (
@@ -102,8 +103,6 @@ async def _fetch_github_file_content(
     headers = {"Accept": "application/vnd.github.v3+json"}
     if settings.github_token:
         headers["Authorization"] = f"Bearer {settings.github_token}"
-
-    from core.github_client import get_github_client
 
     client = await get_github_client()
     response = await client.get(url, headers=headers)

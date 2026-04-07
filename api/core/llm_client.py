@@ -18,6 +18,7 @@ import logging
 
 from agent_framework.openai import OpenAIChatClient
 
+from core.azure_auth import get_credential
 from core.config import get_settings
 
 logger = logging.getLogger(__name__)
@@ -62,8 +63,6 @@ async def get_llm_chat_client() -> OpenAIChatClient:
                 "LLM not configured. Set LLM_BASE_URL.",
                 retriable=False,
             )
-
-        from core.azure_auth import get_credential
 
         model = settings.llm_model or "gpt-5-mini"
         credential = await get_credential()

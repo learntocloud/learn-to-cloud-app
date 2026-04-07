@@ -31,8 +31,8 @@ async def reset() -> None:
     await admin.dispose()
 
     # Import models so they register with Base.metadata
-    import models as models
-    from core.database import Base
+    import models as models  # noqa: PLC0415  # after sys.path setup
+    from core.database import Base  # noqa: PLC0415
 
     engine = create_async_engine(
         "postgresql+asyncpg://postgres:postgres@db:5432/learn_to_cloud",

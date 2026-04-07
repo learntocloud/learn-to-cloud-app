@@ -9,7 +9,9 @@ from __future__ import annotations
 from functools import lru_cache
 from typing import TYPE_CHECKING
 
+from repositories.submission_repository import SubmissionRepository
 from schemas import HandsOnRequirement
+from services.content_service import get_all_phases
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,8 +19,6 @@ if TYPE_CHECKING:
 
 @lru_cache(maxsize=1)
 def _get_requirements_map() -> dict[int, list[HandsOnRequirement]]:
-    from services.content_service import get_all_phases
-
     requirements_map: dict[int, list[HandsOnRequirement]] = {}
     for phase in get_all_phases():
         requirements = []
@@ -90,8 +90,6 @@ async def is_phase_verification_locked(
         (is_locked, prerequisite_phase_id) — if locked, the phase that
         must be completed first; otherwise (False, None).
     """
-    from repositories.submission_repository import SubmissionRepository
-
     prereq = get_prerequisite_phase(phase_id)
     if prereq is None:
         return False, None

@@ -456,7 +456,7 @@ class TestPydanticHardening:
                 task_id="logging-setup",
                 passed=True,
                 feedback="OK",
-                injected_field="malicious",  # ty: ignore[unknown-argument]
+                **{"injected_field": "malicious"},
             )
 
     def test_code_analysis_response_rejects_extra_fields(self):
@@ -470,5 +470,5 @@ class TestPydanticHardening:
                     TaskGrade(task_id="ai-analysis", passed=True, feedback="OK"),
                     TaskGrade(task_id="cloud-cli-setup", passed=True, feedback="OK"),
                 ],
-                extra_evil="should fail",  # ty: ignore[unknown-argument]
+                **{"extra_evil": "should fail"},
             )

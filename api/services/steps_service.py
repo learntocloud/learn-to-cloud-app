@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.cache import invalidate_progress_cache, update_cached_phase_detail_step
+from core.metrics import STEP_COMPLETED_COUNTER, STEP_UNCOMPLETED_COUNTER
 from models import utcnow
 from repositories import StepProgressRepository
 from schemas import StepCompletionResult
@@ -140,8 +141,6 @@ async def complete_step(
     # Invalidate cache so dashboard/progress refreshes immediately
     invalidate_progress_cache(user_id)
 
-    from core.metrics import STEP_COMPLETED_COUNTER
-
     STEP_COMPLETED_COUNTER.add(1, {"phase_id": str(phase_id)})
 
     logger.info(
@@ -196,8 +195,6 @@ async def uncomplete_step(
     phase_id = parse_phase_id_from_topic_id(topic_id)
 
     if deleted > 0:
-        from core.metrics import STEP_UNCOMPLETED_COUNTER
-
         STEP_UNCOMPLETED_COUNTER.add(
             deleted,
             {"phase_id": str(phase_id)},
