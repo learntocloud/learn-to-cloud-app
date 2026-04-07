@@ -1,0 +1,9 @@
+extensions:
+  - addsTo:
+      pack: codeql/python-all
+      extensible: barrierModel
+    data:
+      # core.logger.sanitize_log_value() strips control characters (CWE-117).
+      # Runtime defence-in-depth is provided by _LogSanitizationFilter on the
+      # root logger, but CodeQL cannot trace through runtime logging filters.
+      - ["core", "Member[logger].Member[sanitize_log_value].ReturnValue", "log-injection"]

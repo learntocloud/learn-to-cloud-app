@@ -34,9 +34,11 @@ def sanitize_log_value(value: str) -> str:
     """Strip control characters from a value before logging (CWE-117).
 
     Use this at log call sites for user-provided or exception-derived
-    strings so that static analysis (CodeQL) can trace the sanitization.
-    The ``_LogSanitizationFilter`` provides defence-in-depth on the root
-    logger, but CodeQL cannot see runtime filters.
+    strings.  CodeQL recognises this function as a taint barrier via the
+    data extension in ``.github/codeql/extensions/``.
+
+    The ``_LogSanitizationFilter`` on the root logger provides runtime
+    defence-in-depth for any call sites that omit this wrapper.
     """
     return _CONTROL_CHAR_RE.sub("", value)
 

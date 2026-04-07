@@ -206,7 +206,7 @@ async def check_github_url_exists(url: str) -> tuple[bool, str, bool]:
         logger.error(
             "github.url_check.unexpected_error",
             extra={
-                "url": url,
+                "url": sanitize_log_value(url),
                 "exc_type": type(e).__name__,
                 "exc_message": sanitize_log_value(str(e)),
             },

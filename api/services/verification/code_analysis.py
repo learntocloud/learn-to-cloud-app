@@ -542,9 +542,9 @@ async def analyze_repository_code(
         logger.error(
             "code_analysis.client_error",
             extra={
-                "owner": owner,
-                "repo": repo,
-                "github_username": github_username,
+                "owner": sanitize_log_value(owner),
+                "repo": sanitize_log_value(repo),
+                "github_username": sanitize_log_value(github_username),
                 "exc_type": type(exc).__name__,
                 "exc_message": sanitize_log_value(str(exc)),
             },

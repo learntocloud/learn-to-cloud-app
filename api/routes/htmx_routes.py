@@ -352,7 +352,7 @@ async def htmx_submit_verification(
             "htmx.submit.unexpected_error",
             extra={
                 "user_id": user_id,
-                "requirement_id": requirement_id,
+                "requirement_id": sanitize_log_value(requirement_id),
                 "exc_type": type(exc).__name__,
                 "exc_message": sanitize_log_value(str(exc)),
             },
