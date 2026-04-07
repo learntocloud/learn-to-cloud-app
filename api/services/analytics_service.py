@@ -265,6 +265,12 @@ async def analytics_refresh_loop(
     while True:
         try:
             await refresh_analytics(session_maker)
-        except Exception:
-            logger.exception("analytics.background_refresh.failed")
+        except Exception as exc:
+            logger.error(
+                "analytics.background_refresh.failed",
+                extra={
+                    "exc_type": type(exc).__name__,
+                    "exc_message": str(exc),
+                },
+            )
         await asyncio.sleep(REFRESH_INTERVAL_SECONDS)

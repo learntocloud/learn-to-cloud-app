@@ -39,6 +39,7 @@ dependencies = [
     "agent-framework>=1.0.0rc3",
     "agent-framework-azure-ai>=1.0.0rc3",
     "opentelemetry-exporter-otlp-proto-grpc>=1.20.0",
+    "opentelemetry-instrumentation-httpx>=0.61b0",
 ]
 
 [tool.coverage.run]

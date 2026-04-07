@@ -45,7 +45,11 @@ class TestAgentFrameworkInstrumentation:
             OBSERVABILITY_SETTINGS.enable_instrumentation = original
 
     def test_graceful_when_framework_missing(self) -> None:
-        """No-op when agent-framework is not installed."""
+        """Module import fails when agent-framework is not installed.
+
+        agent_framework is a required dependency, so this verifies
+        the expected ImportError rather than silent degradation.
+        """
         with patch.dict(
             "sys.modules",
             {
@@ -57,5 +61,5 @@ class TestAgentFrameworkInstrumentation:
 
             import core.observability as obs_mod
 
-            reload(obs_mod)
-            obs_mod._enable_agent_framework_instrumentation()
+            with pytest.raises(ImportError):
+                reload(obs_mod)

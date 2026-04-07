@@ -310,10 +310,14 @@ def verify_lab_token(
         try:
             if err := verify_signature(payload, signature, payload["instance_id"]):
                 return {"is_valid": False, "message": err, "server_error": False}
-        except RuntimeError:
-            logger.exception(
+        except RuntimeError as exc:
+            logger.error(
                 f"{config.log_prefix}.verification.misconfigured",
-                extra={"expected_username": oauth_github_username},
+                extra={
+                    "expected_username": oauth_github_username,
+                    "exc_type": type(exc).__name__,
+                    "exc_message": str(exc),
+                },
             )
             return {
                 "is_valid": False,
@@ -357,9 +361,14 @@ def verify_lab_token(
         return result
 
     except Exception as e:
-        logger.exception(
+        logger.error(
             f"{config.log_prefix}.token.verification.failed",
-            extra={"error": str(e), "expected_username": oauth_github_username},
+            extra={
+                "error": str(e),
+                "expected_username": oauth_github_username,
+                "exc_type": type(e).__name__,
+                "exc_message": str(e),
+            },
         )
         return {
             "is_valid": False,

@@ -16,6 +16,7 @@ from fastapi.responses import RedirectResponse
 from core.auth import oauth
 from core.config import get_settings
 from core.database import DbSession
+from core.metrics import AUTH_LOGIN_COUNTER
 from core.ratelimit import limiter
 from services.users_service import get_or_create_user_from_github, parse_display_name
 
@@ -68,8 +69,15 @@ async def callback(request: Request, db: DbSession) -> RedirectResponse:
 
     try:
         token = await github.authorize_access_token(request)
-    except (OAuthError, httpx.HTTPStatusError, httpx.ReadTimeout):
-        logger.exception("auth.callback.token_exchange_failed")
+    except (OAuthError, httpx.HTTPStatusError, httpx.ReadTimeout) as exc:
+        AUTH_LOGIN_COUNTER.add(1, {"result": "failure", "exc_type": type(exc).__name__})
+        logger.error(
+            "auth.callback.token_exchange_failed",
+            extra={
+                "exc_type": type(exc).__name__,
+                "exc_message": str(exc),
+            },
+        )
         return RedirectResponse(url="/", status_code=302)
 
     resp = await github.get("user", token=token)
@@ -103,6 +111,7 @@ async def callback(request: Request, db: DbSession) -> RedirectResponse:
         "auth.login.success",
         extra={"user_id": user.id, "github_username": github_username},
     )
+    AUTH_LOGIN_COUNTER.add(1, {"result": "success"})
 
     return RedirectResponse(url="/dashboard", status_code=302)
 

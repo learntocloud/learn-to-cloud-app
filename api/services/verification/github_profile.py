@@ -202,9 +202,13 @@ async def check_github_url_exists(url: str) -> tuple[bool, str, bool]:
         )
         return False, f"Request error: {e!s}", True
     except Exception as e:
-        logger.exception(
+        logger.error(
             "github.url_check.unexpected_error",
-            extra={"url": url},
+            extra={
+                "url": url,
+                "exc_type": type(e).__name__,
+                "exc_message": str(e),
+            },
         )
         return False, f"Unexpected error: {e!s}", True
 
@@ -296,9 +300,14 @@ async def check_repo_is_fork_of(
         )
         return False, f"Request error: {e!s}", True
     except Exception as e:
-        logger.exception(
+        logger.error(
             "github.fork_check.unexpected_error",
-            extra={"username": username, "repo": repo_name},
+            extra={
+                "username": username,
+                "repo": repo_name,
+                "exc_type": type(e).__name__,
+                "exc_message": str(e),
+            },
         )
         return False, f"Unexpected error: {e!s}", True
 
