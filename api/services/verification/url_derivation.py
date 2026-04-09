@@ -1,10 +1,13 @@
 """Server-side derivation of canonical submission values.
 
-Hands-on verification URLs for GitHub-backed requirements are derived from
-the authenticated user's ``github_username`` plus the requirement's
-``required_repo``.  Keeping this logic on the server closes an injection
-vector (learners can no longer craft arbitrary URLs) and removes a fragile
-copy/paste step from the UI.
+For repo-backed requirements (fork, code analysis, DevOps analysis,
+security scanning, PR review) the canonical URL is derived from the
+authenticated user's ``github_username`` plus the requirement's
+``required_repo``.  Profile-based types (``github_profile``,
+``profile_readme``) derive from ``github_username`` alone.  Keeping
+this logic on the server closes an injection vector (learners can no
+longer craft arbitrary URLs) and removes a fragile copy/paste step
+from the UI.
 
 The resulting string is what gets persisted in ``Submission.submitted_value``
 and passed to the validators.  Token-based types, the Phase 4 deployed API

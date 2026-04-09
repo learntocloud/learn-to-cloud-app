@@ -84,7 +84,7 @@
                 inputmode="numeric"
                 name="pr_number"
                 placeholder="PR #"
-                class="w-24 bg-transparent px-3 py-2 text-sm placeholder-gray-400 focus:outline-none"
+                class="w-24 bg-transparent px-3 py-2 text-sm placeholder-gray-400 focus:outline-hidden"
                 required
             >
         </div>
@@ -100,7 +100,7 @@
             value="{{ derived_url }}"
             readonly
             aria-readonly="true"
-            class="flex-1 rounded-md border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 cursor-default select-all focus:outline-none"
+            class="flex-1 rounded-md border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 cursor-default select-all focus:outline-hidden"
         >
         {% else %}
         {# Fallback: requirement is misconfigured or the learner has no

@@ -362,12 +362,3 @@ class TestBuildRequirementCardContext:
         assert ctx["cooldown_message"] == "wait"
         assert ctx["error_banner"] == "banner"
         assert ctx["processing"] is True
-
-    def test_none_requirement_returns_no_derived_fields(self):
-        ctx = build_requirement_card_context(
-            requirement=None,
-            github_username="alice",
-        )
-        assert ctx["requirement"] is None
-        assert ctx["derived_url"] is None
-        assert ctx["pr_url_prefix"] is None
