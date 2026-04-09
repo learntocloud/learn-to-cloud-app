@@ -128,9 +128,20 @@ def extract_repo_info(repo_url: str) -> tuple[str, str]:
 
 
 def validate_repo_url(
-    repo_url: str, github_username: str
+    repo_url: str,
+    github_username: str,
+    expected_repo_name: str | None = None,
 ) -> tuple[str, str] | ValidationResult:
     """Parse a GitHub URL and verify the repo belongs to *github_username*.
+
+    Args:
+        repo_url: The URL to validate.
+        github_username: The authenticated learner's GitHub username.
+        expected_repo_name: Optional expected repository name (without the
+            owner prefix).  When provided, the submitted repo name must
+            match case-insensitively.  This pins verifications to the
+            learner's fork of the upstream project and rejects arbitrary
+            personal repositories.
 
     Returns:
         ``(owner, repo)`` on success, or a :class:`ValidationResult` error.
@@ -148,6 +159,17 @@ def validate_repo_url(
                 f"'{github_username}'. Please submit your own repository."
             ),
             username_match=False,
+        )
+
+    if expected_repo_name is not None and repo.lower() != expected_repo_name.lower():
+        return ValidationResult(
+            is_valid=False,
+            message=(
+                f"Repository '{repo}' does not match the expected fork name "
+                f"'{expected_repo_name}'. Submit the fork from the phase's "
+                "upstream project."
+            ),
+            username_match=True,
         )
 
     return owner, repo

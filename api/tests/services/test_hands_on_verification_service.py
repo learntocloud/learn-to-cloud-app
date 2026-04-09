@@ -208,6 +208,7 @@ class TestSubmissionRouting:
         """DEVOPS_ANALYSIS type should route to devops_verification_service."""
         requirement = _make_requirement(
             SubmissionType.DEVOPS_ANALYSIS,
+            required_repo="learntocloud/journal-starter",
         )
 
         with patch(
@@ -227,6 +228,7 @@ class TestSubmissionRouting:
             mock.assert_called_once_with(
                 "https://github.com/testuser/journal-starter",
                 "testuser",
+                "journal-starter",
             )
             assert result.is_valid is True
 
@@ -388,7 +390,10 @@ class TestDispatchGitHubProfile:
 class TestDispatchSecurityScanning:
     @pytest.mark.asyncio
     async def test_security_scanning_routes_correctly(self):
-        requirement = _make_requirement(SubmissionType.SECURITY_SCANNING)
+        requirement = _make_requirement(
+            SubmissionType.SECURITY_SCANNING,
+            required_repo="learntocloud/journal-starter",
+        )
         with patch(
             "services.verification.dispatcher.validate_security_scanning",
             autospec=True,
@@ -396,8 +401,12 @@ class TestDispatchSecurityScanning:
             mock.return_value = ValidationResult(is_valid=True, message="Scanned!")
             result = await validate_submission(
                 requirement=requirement,
-                submitted_value="https://github.com/testuser/repo",
+                submitted_value="https://github.com/testuser/journal-starter",
                 expected_username="testuser",
             )
-        mock.assert_called_once_with("https://github.com/testuser/repo", "testuser")
+        mock.assert_called_once_with(
+            "https://github.com/testuser/journal-starter",
+            "testuser",
+            "journal-starter",
+        )
         assert result.is_valid is True

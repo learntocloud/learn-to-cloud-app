@@ -160,6 +160,33 @@ class TestValidateRepoUrl:
         assert result.is_valid is False
         assert "Invalid GitHub repository URL" in result.message
 
+    def test_expected_repo_name_match(self):
+        result = validate_repo_url(
+            "https://github.com/testuser/journal-starter",
+            "testuser",
+            expected_repo_name="journal-starter",
+        )
+        assert result == ("testuser", "journal-starter")
+
+    def test_expected_repo_name_case_insensitive_match(self):
+        result = validate_repo_url(
+            "https://github.com/testuser/Journal-Starter",
+            "testuser",
+            expected_repo_name="journal-starter",
+        )
+        assert result == ("testuser", "Journal-Starter")
+
+    def test_expected_repo_name_mismatch_returns_validation_result(self):
+        result = validate_repo_url(
+            "https://github.com/testuser/wrong-repo",
+            "testuser",
+            expected_repo_name="journal-starter",
+        )
+        assert isinstance(result, ValidationResult)
+        assert result.is_valid is False
+        assert "does not match the expected fork name" in result.message
+        assert result.username_match is True
+
 
 # ---------------------------------------------------------------------------
 # sanitize_feedback

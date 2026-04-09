@@ -13,7 +13,6 @@ hands_on_verification:
     submission_type: repo_fork
     name: Fork the Networking Lab Repository
     description: Fork learntocloud/networking-lab so you can complete and track the lab in your own account.
-    placeholder: https://github.com/username/networking-lab
     required_repo: learntocloud/networking-lab
   - id: networking-lab-token
     submission_type: networking_token

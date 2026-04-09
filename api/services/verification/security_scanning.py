@@ -273,7 +273,9 @@ async def _verify_security_scanning(
 
 
 async def validate_security_scanning(
-    repo_url: str, github_username: str
+    repo_url: str,
+    github_username: str,
+    expected_repo_name: str | None = None,
 ) -> ValidationResult:
     """Verify a learner's GitHub repo has security scanning enabled.
 
@@ -289,12 +291,15 @@ async def validate_security_scanning(
     Args:
         repo_url: URL of the learner's repository.
         github_username: The learner's GitHub username (for ownership validation).
+        expected_repo_name: Optional name of the upstream project's repo
+            (without owner).  When set, the submitted repo name is asserted
+            to match, pinning verification to the learner's fork.
 
     Returns:
         ValidationResult with is_valid=True if at least one security feature
         is found, and detailed task_results for feedback.
     """
-    result = validate_repo_url(repo_url, github_username)
+    result = validate_repo_url(repo_url, github_username, expected_repo_name)
     if isinstance(result, ValidationResult):
         return result
     owner, repo = result

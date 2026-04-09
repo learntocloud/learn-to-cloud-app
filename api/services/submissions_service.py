@@ -337,12 +337,14 @@ async def _check_submission_preconditions(
     if (
         requirement.submission_type
         in (
+            SubmissionType.GITHUB_PROFILE,
             SubmissionType.PROFILE_README,
             SubmissionType.REPO_FORK,
             SubmissionType.CTF_TOKEN,
             SubmissionType.NETWORKING_TOKEN,
             SubmissionType.CODE_ANALYSIS,
             SubmissionType.DEVOPS_ANALYSIS,
+            SubmissionType.SECURITY_SCANNING,
             SubmissionType.PR_REVIEW,
         )
         and not github_username

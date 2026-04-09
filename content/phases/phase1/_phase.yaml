@@ -13,12 +13,10 @@ hands_on_verification:
     submission_type: profile_readme
     name: Create a Developer Profile README
     description: Create your profile README repository and add a clear introduction, goals, and cloud-learning focus.
-    placeholder: https://github.com/username/username
   - id: linux-ctfs-fork
     submission_type: repo_fork
     name: Fork the Linux CTFs Repository
     description: Fork learntocloud/linux-ctfs to your account so your challenge work is tied to your profile.
-    placeholder: https://github.com/username/linux-ctfs
     required_repo: learntocloud/linux-ctfs
   - id: linux-ctfs-token
     submission_type: ctf_token

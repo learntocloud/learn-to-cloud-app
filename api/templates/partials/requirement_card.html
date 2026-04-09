@@ -41,32 +41,81 @@
         hx-target="#requirement-{{ requirement.id }}"
         hx-swap="outerHTML"
         hx-indicator="#spinner-{{ requirement.id }}"
+        hx-disabled-elt="find button[type='submit']"
         class="flex gap-2"
     >
         <input type="hidden" name="requirement_id" value="{{ requirement.id }}">
-        <input type="hidden" name="submission_type" value="{{ requirement.submission_type }}">
 
         {% if requirement.submission_type in ['ctf_token', 'networking_token'] %}
+        {# Token input — learner pastes the completion token. #}
         <label for="input-{{ requirement.id }}" class="sr-only">{{ requirement.name }}</label>
         <input
             id="input-{{ requirement.id }}"
             type="text"
             name="submitted_value"
             placeholder="{{ requirement.placeholder | default('Paste your completion token here') }}"
-            value="{% if submission %}{{ submission.submitted_value }}{% endif %}"
+            value=""
             class="flex-1 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
             required
         >
-        {% else %}
+        {% elif requirement.submission_type == 'deployed_api' %}
+        {# Free-form deployed API URL — the learner owns the hostname. #}
         <label for="input-{{ requirement.id }}" class="sr-only">{{ requirement.name }}</label>
         <input
             id="input-{{ requirement.id }}"
             type="url"
             name="submitted_value"
-            placeholder="{{ requirement.placeholder | default('https://github.com/username/repo') }}"
+            placeholder="{{ requirement.placeholder | default('https://your-api.example.com') }}"
             value="{% if submission %}{{ submission.submitted_value }}{% endif %}"
             class="flex-1 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
             required
+        >
+        {% elif requirement.submission_type == 'pr_review' and pr_url_prefix %}
+        {# PR review — read-only URL prefix + numeric PR number. The server
+           splices ``pr_number`` into the derived fork URL before verifying. #}
+        <label for="input-{{ requirement.id }}" class="sr-only">PR number for {{ requirement.name }}</label>
+        <div class="flex flex-1 items-stretch rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 overflow-hidden focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500">
+            <span class="inline-flex items-center px-3 text-sm text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-900 border-r border-gray-300 dark:border-gray-600 select-all">{{ pr_url_prefix }}</span>
+            <input
+                id="input-{{ requirement.id }}"
+                type="number"
+                min="1"
+                max="999999"
+                step="1"
+                inputmode="numeric"
+                name="pr_number"
+                placeholder="PR #"
+                class="w-24 bg-transparent px-3 py-2 text-sm placeholder-gray-400 focus:outline-hidden"
+                required
+            >
+        </div>
+        {% elif derived_url %}
+        {# Derivable URL types — the server builds the URL from the learner's
+           GitHub username + the requirement's ``required_repo``.  The field is
+           read-only so the learner cannot tamper with it; the form posts no
+           user-editable value. #}
+        <label for="input-{{ requirement.id }}" class="sr-only">{{ requirement.name }}</label>
+        <input
+            id="input-{{ requirement.id }}"
+            type="url"
+            value="{{ derived_url }}"
+            readonly
+            aria-readonly="true"
+            class="flex-1 rounded-md border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 cursor-default select-all focus:outline-hidden"
+        >
+        {% else %}
+        {# Fallback: requirement is misconfigured or the learner has no
+           linked GitHub username.  Show a disabled input and let the server
+           return an error banner on submit. #}
+        <label for="input-{{ requirement.id }}" class="sr-only">{{ requirement.name }}</label>
+        <input
+            id="input-{{ requirement.id }}"
+            type="url"
+            value=""
+            disabled
+            aria-disabled="true"
+            placeholder="Unable to auto-derive submission URL"
+            class="flex-1 rounded-md border border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-900 px-3 py-2 text-sm text-gray-500 cursor-not-allowed"
         >
         {% endif %}
 

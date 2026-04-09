@@ -19,6 +19,7 @@ from rendering.context import (
     HELP_LINKS,
     build_phase_topics,
     build_progress_dict,
+    build_requirement_card_context,
     build_topic_nav,
 )
 from rendering.steps import build_step_data
@@ -129,6 +130,20 @@ async def phase_page(
     submissions_by_req = sub_context.submissions_by_req
     feedback_by_req = sub_context.feedback_by_req
 
+    # Pre-compute per-requirement derived URLs and PR-review prefixes so the
+    # Jinja template never builds GitHub URLs.  Uses the same helper as the
+    # HTMX submit route to guarantee a single source of truth.
+    github_username = user.github_username if user else None
+    derived_urls_by_req: dict[str, str | None] = {}
+    pr_url_prefixes_by_req: dict[str, str | None] = {}
+    for req in requirements:
+        card_ctx = build_requirement_card_context(
+            requirement=req,
+            github_username=github_username,
+        )
+        derived_urls_by_req[req.id] = card_ctx["derived_url"]
+        pr_url_prefixes_by_req[req.id] = card_ctx["pr_url_prefix"]
+
     # Sequential phase gating — check if prerequisite phase is complete
     verification_locked, prerequisite_phase_id = await is_phase_verification_locked(
         db, user_id, phase_id
@@ -145,6 +160,8 @@ async def phase_page(
             requirements=requirements,
             submissions_by_req=submissions_by_req,
             feedback_by_req=feedback_by_req,
+            derived_urls_by_req=derived_urls_by_req,
+            pr_url_prefixes_by_req=pr_url_prefixes_by_req,
             progress=progress,
             verification_locked=verification_locked,
             prerequisite_phase_id=prerequisite_phase_id,

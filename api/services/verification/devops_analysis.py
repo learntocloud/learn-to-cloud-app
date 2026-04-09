@@ -50,9 +50,9 @@ from services.verification.llm_base import (
     SUSPICIOUS_PATTERNS,
     VerificationError,
     enforce_deterministic_guardrails,
-    extract_repo_info,
     parse_structured_response,
     sanitize_feedback,
+    validate_repo_url,
 )
 from services.verification.tasks.phase5 import (
     MAX_FILE_SIZE_BYTES,
@@ -762,6 +762,7 @@ async def _run_devops_workflow(owner: str, repo: str) -> ValidationResult:
 async def analyze_devops_repository(
     repo_url: str,
     github_username: str,
+    expected_repo_name: str | None = None,
 ) -> ValidationResult:
     """Analyze a learner's repository for Phase 5 DevOps artifact completion.
 
@@ -778,23 +779,10 @@ async def analyze_devops_repository(
         },
     )
 
-    try:
-        owner, repo = extract_repo_info(repo_url)
-    except ValueError as e:
-        return ValidationResult(
-            is_valid=False,
-            message=str(e),
-        )
-
-    if owner.lower() != github_username.lower():
-        return ValidationResult(
-            is_valid=False,
-            message=(
-                f"Repository owner '{owner}' does not match your GitHub username "
-                f"'{github_username}'. Please submit your own fork."
-            ),
-            username_match=False,
-        )
+    result = validate_repo_url(repo_url, github_username, expected_repo_name)
+    if isinstance(result, ValidationResult):
+        return result
+    owner, repo = result
 
     try:
         return await _run_devops_workflow(owner, repo)

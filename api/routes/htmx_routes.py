@@ -25,10 +25,12 @@ from core.auth import UserId
 from core.database import DbSession, DbSessionReadOnly
 from core.ratelimit import limiter
 from core.templates import templates
+from models import SubmissionType
 from rendering.context import (
     build_feedback_tasks,
     build_feedback_tasks_from_results,
     build_progress_dict,
+    build_requirement_card_context,
 )
 from rendering.steps import build_step_data
 from schemas import SubmissionData, SubmissionResult
@@ -65,6 +67,7 @@ from services.verification.events import (
     remove_pending,
 )
 from services.verification.requirements import get_requirement_by_id
+from services.verification.url_derivation import derive_submission_value, is_derivable
 
 logger = logging.getLogger(__name__)
 
@@ -191,7 +194,8 @@ async def htmx_submit_verification(
     db: DbSessionReadOnly,
     user_id: UserId,
     requirement_id: Annotated[str, Form(max_length=100)],
-    submitted_value: Annotated[str, Form(max_length=2048)],
+    submitted_value: Annotated[str, Form(max_length=2048)] = "",
+    pr_number: Annotated[str, Form(max_length=16)] = "",
 ) -> HTMLResponse:
     """Submit a hands-on verification.
 
@@ -226,19 +230,57 @@ async def htmx_submit_verification(
         return templates.TemplateResponse(
             request,
             "partials/requirement_card.html",
-            {
-                "requirement": requirement,
-                "submission": submission,
-                "feedback_tasks": feedback_tasks or [],
-                "feedback_passed": feedback_passed,
-                "server_error": server_error,
-                "server_error_message": server_error_message,
-                "cooldown_seconds": cooldown_seconds,
-                "cooldown_message": cooldown_message,
-                "error_banner": error_banner,
-                "processing": processing,
-            },
+            build_requirement_card_context(
+                requirement=requirement,
+                github_username=github_username,
+                submission=submission,
+                feedback_tasks=feedback_tasks or [],
+                feedback_passed=feedback_passed,
+                server_error=server_error,
+                server_error_message=server_error_message,
+                cooldown_seconds=cooldown_seconds,
+                cooldown_message=cooldown_message,
+                error_banner=error_banner,
+                processing=processing,
+            ),
         )
+
+    # ── Derive the canonical submission value ──────────────────────────
+    # For GitHub-backed URL types the browser does not send an editable
+    # URL: the server builds it from ``github_username`` plus the
+    # requirement's ``required_repo``.  For token types and deployed_api
+    # we pass the raw form value through unchanged.  For PR reviews the
+    # form sends a numeric ``pr_number`` that we splice into the derived
+    # URL.
+    if requirement is not None:
+        try:
+            if requirement.submission_type == SubmissionType.PR_REVIEW:
+                user_input: str | None = pr_number
+            elif is_derivable(requirement.submission_type):
+                user_input = None
+            else:
+                user_input = submitted_value
+                if not user_input or not user_input.strip():
+                    return _render_card(
+                        error_banner="Please enter a value before submitting."
+                    )
+            if github_username is None and not is_derivable(
+                requirement.submission_type
+            ):
+                # Pass-through types don't strictly need the username to
+                # derive, but downstream validators will reject them if
+                # required.  We still derive so we have a canonical value.
+                derived_value = user_input or ""
+            else:
+                derived_value = derive_submission_value(
+                    requirement=requirement,
+                    github_username=github_username or "",
+                    user_input=user_input,
+                )
+        except ValueError as ve:
+            return _render_card(error_banner=str(ve))
+    else:
+        derived_value = submitted_value
 
     # ── Pre-validation (same for sync and async paths) ──────────────────
     # These checks are fast (<100ms) and raise on failure.  If any raise,
@@ -258,7 +300,7 @@ async def htmx_submit_verification(
                 session_maker=session_maker,
                 user_id=user_id,
                 requirement_id=requirement_id,
-                submitted_value=submitted_value,
+                submitted_value=derived_value,
                 github_username=github_username,
             )
 
@@ -278,7 +320,7 @@ async def htmx_submit_verification(
                     session_maker=session_maker,
                     user_id=user_id,
                     requirement_id=requirement_id,
-                    submitted_value=submitted_value,
+                    submitted_value=derived_value,
                     github_username=github_username,
                 )
             )
@@ -296,7 +338,7 @@ async def htmx_submit_verification(
             session_maker=session_maker,
             user_id=user_id,
             requirement_id=requirement_id,
-            submitted_value=submitted_value,
+            submitted_value=derived_value,
             github_username=github_username,
         )
     except RequirementNotFoundError:
@@ -368,13 +410,14 @@ async def htmx_submit_verification(
         )
 
     # ── Synchronous result (non-LLM submissions) ───────────────────────
-    return _render_result_card(request, requirement, result)
+    return _render_result_card(request, requirement, result, github_username)
 
 
 def _render_result_card(
     request: Request,
     requirement: object,
     result: "SubmissionResult",
+    github_username: str | None,
 ) -> HTMLResponse:
     """Render a completed verification result card."""
     submission = result.submission
@@ -390,18 +433,19 @@ def _render_result_card(
     response = templates.TemplateResponse(
         request,
         "partials/requirement_card.html",
-        {
-            "requirement": requirement,
-            "submission": submission,
-            "feedback_tasks": feedback_tasks or [],
-            "feedback_passed": feedback_passed,
-            "server_error": result.is_server_error,
-            "server_error_message": result.message if result.is_server_error else None,
-            "cooldown_seconds": None,
-            "cooldown_message": None,
-            "error_banner": error_banner,
-            "processing": False,
-        },
+        build_requirement_card_context(
+            requirement=requirement,
+            github_username=github_username,
+            submission=submission,
+            feedback_tasks=feedback_tasks or [],
+            feedback_passed=feedback_passed,
+            server_error=result.is_server_error,
+            server_error_message=result.message if result.is_server_error else None,
+            cooldown_seconds=None,
+            cooldown_message=None,
+            error_banner=error_banner,
+            processing=False,
+        ),
     )
 
     if result.is_valid:
@@ -451,6 +495,13 @@ async def htmx_verification_stream(
     the result is still persisted in the DB and will show on next page load.
     """
     pending = get_pending(user_id, requirement_id)
+
+    # Fetch github_username with a short-lived session so we don't hold a
+    # DB connection open for the entire SSE stream (up to 180s).
+    session_maker: async_sessionmaker[AsyncSession] = request.app.state.session_maker
+    async with session_maker() as db:
+        stream_user = await get_user_by_id(db, user_id)
+        stream_github_username = stream_user.github_username if stream_user else None
 
     async def event_generator():
         if pending is None:
@@ -515,18 +566,21 @@ async def htmx_verification_stream(
 
                 html = templates.get_template("partials/requirement_card.html").render(
                     request=request,
-                    requirement=requirement,
-                    submission=submission,
-                    feedback_tasks=feedback_tasks or [],
-                    feedback_passed=feedback_passed,
-                    server_error=result.is_server_error,
-                    server_error_message=(
-                        result.message if result.is_server_error else None
+                    **build_requirement_card_context(
+                        requirement=requirement,
+                        github_username=stream_github_username,
+                        submission=submission,
+                        feedback_tasks=feedback_tasks or [],
+                        feedback_passed=feedback_passed,
+                        server_error=result.is_server_error,
+                        server_error_message=(
+                            result.message if result.is_server_error else None
+                        ),
+                        cooldown_seconds=None,
+                        cooldown_message=None,
+                        error_banner=error_banner,
+                        processing=False,
                     ),
-                    cooldown_seconds=None,
-                    cooldown_message=None,
-                    error_banner=error_banner,
-                    processing=False,
                 )
                 # SSE data lines: replace newlines with \ndata: for multi-line HTML
                 data_lines = html.replace("\n", "\ndata: ")

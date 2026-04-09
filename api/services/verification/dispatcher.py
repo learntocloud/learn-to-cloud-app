@@ -40,6 +40,7 @@ from services.verification.github_profile import (
 from services.verification.networking_lab import verify_networking_token
 from services.verification.pull_request import validate_pr
 from services.verification.security_scanning import validate_security_scanning
+from services.verification.url_derivation import fork_name_from_required_repo
 
 logger = logging.getLogger(__name__)
 
@@ -183,16 +184,21 @@ async def _dispatch_validation(
         return await validate_pr(submitted_value, username, requirement)
 
     elif requirement.submission_type == SubmissionType.CODE_ANALYSIS:
-        return await analyze_repository_code(submitted_value, username)
+        expected_name = _expected_fork_name(requirement)
+        return await analyze_repository_code(submitted_value, username, expected_name)
 
     elif requirement.submission_type == SubmissionType.DEVOPS_ANALYSIS:
-        return await analyze_devops_repository(submitted_value, username)
+        expected_name = _expected_fork_name(requirement)
+        return await analyze_devops_repository(submitted_value, username, expected_name)
 
     elif requirement.submission_type == SubmissionType.DEPLOYED_API:
         return await validate_deployed_api(submitted_value)
 
     elif requirement.submission_type == SubmissionType.SECURITY_SCANNING:
-        return await validate_security_scanning(submitted_value, username)
+        expected_name = _expected_fork_name(requirement)
+        return await validate_security_scanning(
+            submitted_value, username, expected_name
+        )
 
     else:
         return ValidationResult(
@@ -201,3 +207,13 @@ async def _dispatch_validation(
             username_match=False,
             repo_exists=False,
         )
+
+
+def _expected_fork_name(requirement: HandsOnRequirement) -> str | None:
+    """Return the expected fork repo name from ``required_repo``, if set."""
+    if not requirement.required_repo:
+        return None
+    try:
+        return fork_name_from_required_repo(requirement.required_repo)
+    except ValueError:
+        return None

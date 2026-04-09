@@ -10,14 +10,17 @@ Tests cover:
 
 import pytest
 
+from models import SubmissionType
 from rendering.context import (
     build_feedback_tasks,
     build_feedback_tasks_from_results,
     build_phase_topics,
     build_progress_dict,
+    build_requirement_card_context,
     build_topic_nav,
 )
 from schemas import (
+    HandsOnRequirement,
     LearningStep,
     Phase,
     PhaseDetailProgress,
@@ -240,3 +243,122 @@ class TestBuildTopicNav:
         assert prev_t["url"] == "/phase/0"
         assert next_t is not None
         assert next_t["url"] == "/phase/0"
+
+
+# ---------------------------------------------------------------------------
+# build_requirement_card_context
+# ---------------------------------------------------------------------------
+
+
+def _make_requirement(
+    submission_type: SubmissionType,
+    required_repo: str | None = None,
+) -> HandsOnRequirement:
+    return HandsOnRequirement(
+        id="req-1",
+        submission_type=submission_type,
+        name="Test",
+        description="Test",
+        required_repo=required_repo,
+    )
+
+
+@pytest.mark.unit
+class TestBuildRequirementCardContext:
+    def test_derivable_github_profile_populates_derived_url(self):
+        req = _make_requirement(SubmissionType.GITHUB_PROFILE)
+        ctx = build_requirement_card_context(
+            requirement=req,
+            github_username="alice",
+        )
+        assert ctx["derived_url"] == "https://github.com/alice"
+        assert ctx["pr_url_prefix"] is None
+
+    def test_derivable_code_analysis_uses_required_repo(self):
+        req = _make_requirement(
+            SubmissionType.CODE_ANALYSIS,
+            required_repo="learntocloud/journal-starter",
+        )
+        ctx = build_requirement_card_context(
+            requirement=req,
+            github_username="bob",
+        )
+        assert ctx["derived_url"] == "https://github.com/bob/journal-starter"
+
+    def test_pr_review_populates_pr_url_prefix(self):
+        req = _make_requirement(
+            SubmissionType.PR_REVIEW,
+            required_repo="learntocloud/journal-starter",
+        )
+        ctx = build_requirement_card_context(
+            requirement=req,
+            github_username="carol",
+        )
+        assert ctx["derived_url"] is None
+        assert ctx["pr_url_prefix"] == (
+            "https://github.com/carol/journal-starter/pull/"
+        )
+
+    def test_token_type_has_no_derived_url_or_prefix(self):
+        req = _make_requirement(SubmissionType.CTF_TOKEN)
+        ctx = build_requirement_card_context(
+            requirement=req,
+            github_username="alice",
+        )
+        assert ctx["derived_url"] is None
+        assert ctx["pr_url_prefix"] is None
+
+    def test_deployed_api_has_no_derived_url(self):
+        req = _make_requirement(SubmissionType.DEPLOYED_API)
+        ctx = build_requirement_card_context(
+            requirement=req,
+            github_username="alice",
+        )
+        assert ctx["derived_url"] is None
+        assert ctx["pr_url_prefix"] is None
+
+    def test_missing_username_skips_derivation(self):
+        req = _make_requirement(SubmissionType.GITHUB_PROFILE)
+        ctx = build_requirement_card_context(
+            requirement=req,
+            github_username=None,
+        )
+        assert ctx["derived_url"] is None
+        assert ctx["pr_url_prefix"] is None
+
+    def test_misconfigured_required_repo_falls_back_to_none(self):
+        # CODE_ANALYSIS without required_repo would raise inside derive,
+        # but the builder should swallow that and return None so the
+        # template can show its error state.
+        req = _make_requirement(SubmissionType.CODE_ANALYSIS)
+        ctx = build_requirement_card_context(
+            requirement=req,
+            github_username="alice",
+        )
+        assert ctx["derived_url"] is None
+
+    def test_passes_through_all_kwargs(self):
+        req = _make_requirement(SubmissionType.GITHUB_PROFILE)
+        ctx = build_requirement_card_context(
+            requirement=req,
+            github_username="alice",
+            submission="submission-sentinel",
+            feedback_tasks=[{"name": "T"}],
+            feedback_passed=1,
+            server_error=True,
+            server_error_message="oops",
+            cooldown_seconds=42,
+            cooldown_message="wait",
+            error_banner="banner",
+            processing=True,
+        )
+        assert ctx["requirement"] is req
+        assert ctx["submission"] == "submission-sentinel"
+        assert ctx["feedback_tasks"] == [{"name": "T"}]
+        assert ctx["feedback_passed"] == 1
+        assert ctx["server_error"] is True
+        assert ctx["server_error_message"] == "oops"
+        assert ctx["cooldown_seconds"] == 42
+        assert ctx["cooldown_message"] == "wait"
+        assert ctx["error_banner"] == "banner"
+        assert ctx["processing"] is True
