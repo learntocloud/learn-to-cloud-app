@@ -478,7 +478,6 @@ async def _run_verification_background(
 @router.get("/verification/{requirement_id}/stream")
 async def htmx_verification_stream(
     request: Request,
-    db: DbSessionReadOnly,
     requirement_id: str,
     user_id: UserId,
 ) -> StreamingResponse:
@@ -492,8 +491,13 @@ async def htmx_verification_stream(
     the result is still persisted in the DB and will show on next page load.
     """
     pending = get_pending(user_id, requirement_id)
-    stream_user = await get_user_by_id(db, user_id)
-    stream_github_username = stream_user.github_username if stream_user else None
+
+    # Fetch github_username with a short-lived session so we don't hold a
+    # DB connection open for the entire SSE stream (up to 180s).
+    session_maker: async_sessionmaker[AsyncSession] = request.app.state.session_maker
+    async with session_maker() as db:
+        stream_user = await get_user_by_id(db, user_id)
+        stream_github_username = stream_user.github_username if stream_user else None
 
     async def event_generator():
         if pending is None:

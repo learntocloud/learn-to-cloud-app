@@ -7,8 +7,9 @@ vector (learners can no longer craft arbitrary URLs) and removes a fragile
 copy/paste step from the UI.
 
 The resulting string is what gets persisted in ``Submission.submitted_value``
-and passed to the validators.  Token-based types and the Phase 4 deployed
-API type keep their existing free-form input and pass through unchanged.
+and passed to the validators.  Token-based types, the Phase 4 deployed API
+type, and the journal API response type keep their existing free-form input
+and pass through unchanged.
 """
 
 from __future__ import annotations
