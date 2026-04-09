@@ -41,6 +41,7 @@
         hx-target="#requirement-{{ requirement.id }}"
         hx-swap="outerHTML"
         hx-indicator="#spinner-{{ requirement.id }}"
+        hx-disabled-elt="find button[type='submit']"
         class="flex gap-2"
     >
         <input type="hidden" name="requirement_id" value="{{ requirement.id }}">
