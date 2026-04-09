@@ -260,6 +260,10 @@ async def htmx_submit_verification(
                 user_input = None
             else:
                 user_input = submitted_value
+                if not user_input or not user_input.strip():
+                    return _render_card(
+                        error_banner="Please enter a value before submitting."
+                    )
             if github_username is None and not is_derivable(
                 requirement.submission_type
             ):

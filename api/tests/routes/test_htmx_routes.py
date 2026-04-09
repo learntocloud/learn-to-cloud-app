@@ -199,6 +199,7 @@ class TestHtmxSubmitVerification:
             patch("routes.htmx_routes.get_requirement_by_id", return_value=MagicMock()),
             patch(
                 "routes.htmx_routes.derive_submission_value",
+                autospec=True,
                 return_value="test",
             ),
             patch(
@@ -231,6 +232,7 @@ class TestHtmxSubmitVerification:
             patch("routes.htmx_routes.get_requirement_by_id", return_value=MagicMock()),
             patch(
                 "routes.htmx_routes.derive_submission_value",
+                autospec=True,
                 return_value="test",
             ),
             patch(
@@ -269,6 +271,7 @@ class TestHtmxSubmitVerification:
             patch("routes.htmx_routes.get_requirement_by_id", return_value=MagicMock()),
             patch(
                 "routes.htmx_routes.derive_submission_value",
+                autospec=True,
                 return_value="test",
             ),
             patch(
@@ -302,6 +305,7 @@ class TestHtmxSubmitVerification:
             patch("routes.htmx_routes.get_requirement_by_id", return_value=MagicMock()),
             patch(
                 "routes.htmx_routes.derive_submission_value",
+                autospec=True,
                 return_value="test",
             ),
             patch(
@@ -342,6 +346,7 @@ class TestHtmxSubmitVerification:
             patch("routes.htmx_routes.get_requirement_by_id", return_value=MagicMock()),
             patch(
                 "routes.htmx_routes.derive_submission_value",
+                autospec=True,
                 return_value="test",
             ),
             patch(
@@ -378,6 +383,7 @@ class TestHtmxSubmitVerification:
             patch("routes.htmx_routes.get_requirement_by_id", return_value=MagicMock()),
             patch(
                 "routes.htmx_routes.derive_submission_value",
+                autospec=True,
                 return_value="test",
             ),
             patch(
