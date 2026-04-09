@@ -762,6 +762,7 @@ async def _run_devops_workflow(owner: str, repo: str) -> ValidationResult:
 async def analyze_devops_repository(
     repo_url: str,
     github_username: str,
+    expected_repo_name: str | None = None,
 ) -> ValidationResult:
     """Analyze a learner's repository for Phase 5 DevOps artifact completion.
 
@@ -794,6 +795,17 @@ async def analyze_devops_repository(
                 f"'{github_username}'. Please submit your own fork."
             ),
             username_match=False,
+        )
+
+    if expected_repo_name is not None and repo.lower() != expected_repo_name.lower():
+        return ValidationResult(
+            is_valid=False,
+            message=(
+                f"Repository '{repo}' does not match the expected fork name "
+                f"'{expected_repo_name}'. Submit the fork from the phase's "
+                "upstream project."
+            ),
+            username_match=True,
         )
 
     try:

@@ -19,4 +19,4 @@ hands_on_verification:
     submission_type: security_scanning
     name: Enable Security Scanning
     description: Submit your repository URL so automated checks can verify Dependabot or CodeQL scanning is configured.
-    placeholder: https://github.com/username/journal-starter
+    required_repo: learntocloud/journal-starter

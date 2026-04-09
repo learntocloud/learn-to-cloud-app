@@ -10,6 +10,12 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING, Any
 
+from services.verification.url_derivation import (
+    derive_submission_value,
+    fork_name_from_required_repo,
+    is_derivable,
+)
+
 if TYPE_CHECKING:
     from schemas import Phase, PhaseDetailProgress, TaskResult, Topic
 
@@ -252,6 +258,86 @@ def build_feedback_tasks_from_results(
             passed += 1
 
     return tasks, passed
+
+
+def build_requirement_card_context(
+    *,
+    requirement: Any,
+    github_username: str | None,
+    submission: Any = None,
+    feedback_tasks: list[dict[str, Any]] | None = None,
+    feedback_passed: int = 0,
+    server_error: bool = False,
+    server_error_message: str | None = None,
+    cooldown_seconds: int | None = None,
+    cooldown_message: str | None = None,
+    error_banner: str | None = None,
+    processing: bool = False,
+) -> dict[str, Any]:
+    """Build the template context for ``partials/requirement_card.html``.
+
+    Centralises context-building so the phase page and the HTMX submit
+    route (including the SSE stream) all produce identically-shaped dicts.
+    Pre-computes ``derived_url`` for read-only display and ``pr_url_prefix``
+    for PR-review inputs so the Jinja template never builds URLs.
+
+    Args:
+        requirement: The :class:`HandsOnRequirement` being rendered.
+            May be ``None`` when the route failed before a requirement
+            lookup (rare — template still renders an empty card).
+        github_username: The authenticated learner's GitHub username, used
+            to derive canonical URLs.  ``None`` when the user is not
+            linked to GitHub.
+        submission: The latest :class:`SubmissionData` for this requirement
+            (or ``None``).
+        feedback_tasks: Pre-built task-feedback entries.
+        feedback_passed: Count of passing tasks (for the summary line).
+        server_error: Whether to render the server-error banner.
+        server_error_message: Optional server-error text.
+        cooldown_seconds: Optional remaining cooldown seconds.
+        cooldown_message: Optional cooldown banner text.
+        error_banner: Optional inline error banner text.
+        processing: Whether the card is in the LLM "analysing..." state.
+    """
+    derived_url: str | None = None
+    pr_url_prefix: str | None = None
+
+    if requirement is not None and github_username:
+        sub_type = requirement.submission_type
+        try:
+            if is_derivable(sub_type):
+                derived_url = derive_submission_value(
+                    requirement=requirement,
+                    github_username=github_username,
+                    user_input=None,
+                )
+            elif (
+                sub_type.value == "pr_review"
+                and requirement.required_repo
+                and "/" in requirement.required_repo
+            ):
+                fork = fork_name_from_required_repo(requirement.required_repo)
+                pr_url_prefix = f"https://github.com/{github_username}/{fork}/pull/"
+        except ValueError:
+            # Misconfigured requirement (e.g. missing required_repo).  The
+            # template will fall back to its read-only placeholder branch.
+            derived_url = None
+            pr_url_prefix = None
+
+    return {
+        "requirement": requirement,
+        "submission": submission,
+        "feedback_tasks": feedback_tasks or [],
+        "feedback_passed": feedback_passed,
+        "server_error": server_error,
+        "server_error_message": server_error_message,
+        "cooldown_seconds": cooldown_seconds,
+        "cooldown_message": cooldown_message,
+        "error_banner": error_banner,
+        "processing": processing,
+        "derived_url": derived_url,
+        "pr_url_prefix": pr_url_prefix,
+    }
 
 
 def build_topic_nav(

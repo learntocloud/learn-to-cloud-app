@@ -57,9 +57,16 @@ class HandsOnRequirement(FrozenModel):
     submission_type: SubmissionType
     name: str
     description: str
+    # Free-form input hint — only used by token and deployed_api types, since
+    # all GitHub-backed URL types are now auto-derived server-side and
+    # rendered read-only.
     placeholder: str | None = None
 
-    # For REPO_FORK: the original repo to verify fork from
+    # Upstream repo (``owner/name``) for all GitHub-backed verification types.
+    # Used both by ``repo_fork`` to assert the submitted repo is a fork of
+    # this one, and by ``pr_review`` / ``code_analysis`` / ``devops_analysis``
+    # / ``security_scanning`` to derive the canonical learner fork URL
+    # (``https://github.com/{learner}/{name}``).
     required_repo: str | None = None
 
     # For PR_REVIEW: files the merged PR must have touched

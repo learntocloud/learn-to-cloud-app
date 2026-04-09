@@ -443,6 +443,7 @@ async def _analyze_with_llm(
 async def analyze_repository_code(
     repo_url: str,
     github_username: str,
+    expected_repo_name: str | None = None,
 ) -> ValidationResult:
     """Analyze a learner's repository for Phase 3 task completion.
 
@@ -460,6 +461,9 @@ async def analyze_repository_code(
     Args:
         repo_url: URL of the learner's forked repository
         github_username: The learner's GitHub username (for validation)
+        expected_repo_name: Optional name of the upstream project's repo
+            (without owner).  When set, the submitted repo name is asserted
+            to match, pinning analysis to the learner's fork.
 
     Returns:
         ValidationResult with is_valid=True if all tasks pass,
@@ -489,6 +493,17 @@ async def analyze_repository_code(
                 f"'{github_username}'. Please submit your own fork."
             ),
             username_match=False,
+        )
+
+    if expected_repo_name is not None and repo.lower() != expected_repo_name.lower():
+        return ValidationResult(
+            is_valid=False,
+            message=(
+                f"Repository '{repo}' does not match the expected fork name "
+                f"'{expected_repo_name}'. Submit the fork from the phase's "
+                "upstream project."
+            ),
+            username_match=True,
         )
 
     try:
