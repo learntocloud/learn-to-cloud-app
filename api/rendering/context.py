@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING, Any
 
+from models import SubmissionType
 from services.verification.url_derivation import (
     derive_submission_value,
     fork_name_from_required_repo,
@@ -312,7 +313,7 @@ def build_requirement_card_context(
                     user_input=None,
                 )
             elif (
-                sub_type.value == "pr_review"
+                sub_type == SubmissionType.PR_REVIEW
                 and requirement.required_repo
                 and "/" in requirement.required_repo
             ):
