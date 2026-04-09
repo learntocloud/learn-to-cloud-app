@@ -62,10 +62,10 @@ class HandsOnRequirement(FrozenModel):
     # rendered read-only.
     placeholder: str | None = None
 
-    # Upstream repo (``owner/name``) for all GitHub-backed verification types.
-    # Used both by ``repo_fork`` to assert the submitted repo is a fork of
-    # this one, and by ``pr_review`` / ``code_analysis`` / ``devops_analysis``
-    # / ``security_scanning`` to derive the canonical learner fork URL
+    # Upstream repo (``owner/name``) for GitHub repo-backed verification
+    # types: ``repo_fork``, ``pr_review``, ``code_analysis``,
+    # ``devops_analysis``, and ``security_scanning``.  Used to derive the
+    # canonical learner fork URL
     # (``https://github.com/{learner}/{name}``).
     required_repo: str | None = None
 

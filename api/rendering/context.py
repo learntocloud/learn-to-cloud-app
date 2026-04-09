@@ -284,8 +284,8 @@ def build_requirement_card_context(
 
     Args:
         requirement: The :class:`HandsOnRequirement` being rendered.
-            May be ``None`` when the route failed before a requirement
-            lookup (rare — template still renders an empty card).
+            Must not be ``None`` — callers should handle missing
+            requirements before calling this function.
         github_username: The authenticated learner's GitHub username, used
             to derive canonical URLs.  ``None`` when the user is not
             linked to GitHub.
