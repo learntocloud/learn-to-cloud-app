@@ -40,6 +40,7 @@ from services.verification.github_profile import (
 from services.verification.networking_lab import verify_networking_token
 from services.verification.pull_request import validate_pr
 from services.verification.security_scanning import validate_security_scanning
+from services.verification.url_derivation import fork_name_from_required_repo
 
 logger = logging.getLogger(__name__)
 
@@ -210,6 +211,9 @@ async def _dispatch_validation(
 
 def _expected_fork_name(requirement: HandsOnRequirement) -> str | None:
     """Return the expected fork repo name from ``required_repo``, if set."""
-    if not requirement.required_repo or "/" not in requirement.required_repo:
+    if not requirement.required_repo:
         return None
-    return requirement.required_repo.rsplit("/", 1)[-1]
+    try:
+        return fork_name_from_required_repo(requirement.required_repo)
+    except ValueError:
+        return None
