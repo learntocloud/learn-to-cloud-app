@@ -50,9 +50,9 @@ from services.verification.llm_base import (
     SUSPICIOUS_PATTERNS,
     VerificationError,
     enforce_deterministic_guardrails,
-    extract_repo_info,
     parse_structured_response,
     sanitize_feedback,
+    validate_repo_url,
 )
 from services.verification.tasks.phase5 import (
     MAX_FILE_SIZE_BYTES,
@@ -779,34 +779,10 @@ async def analyze_devops_repository(
         },
     )
 
-    try:
-        owner, repo = extract_repo_info(repo_url)
-    except ValueError as e:
-        return ValidationResult(
-            is_valid=False,
-            message=str(e),
-        )
-
-    if owner.lower() != github_username.lower():
-        return ValidationResult(
-            is_valid=False,
-            message=(
-                f"Repository owner '{owner}' does not match your GitHub username "
-                f"'{github_username}'. Please submit your own fork."
-            ),
-            username_match=False,
-        )
-
-    if expected_repo_name is not None and repo.lower() != expected_repo_name.lower():
-        return ValidationResult(
-            is_valid=False,
-            message=(
-                f"Repository '{repo}' does not match the expected fork name "
-                f"'{expected_repo_name}'. Submit the fork from the phase's "
-                "upstream project."
-            ),
-            username_match=True,
-        )
+    result = validate_repo_url(repo_url, github_username, expected_repo_name)
+    if isinstance(result, ValidationResult):
+        return result
+    owner, repo = result
 
     try:
         return await _run_devops_workflow(owner, repo)

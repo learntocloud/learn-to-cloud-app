@@ -119,8 +119,10 @@ def derive_submission_value(
     if sub_type in _PASS_THROUGH_TYPES:
         return user_input or ""
 
-    # Unknown future type: be conservative and pass through.
-    return user_input or ""
+    raise ValueError(
+        f"Unhandled submission type {sub_type!r}. Add it to "
+        "_DERIVABLE_TYPES or _PASS_THROUGH_TYPES in url_derivation.py."
+    )
 
 
 def _parse_pr_number(raw: str | None) -> int:

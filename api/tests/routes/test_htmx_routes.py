@@ -198,6 +198,10 @@ class TestHtmxSubmitVerification:
             ),
             patch("routes.htmx_routes.get_requirement_by_id", return_value=MagicMock()),
             patch(
+                "routes.htmx_routes.derive_submission_value",
+                return_value="test",
+            ),
+            patch(
                 "routes.htmx_routes.submit_validation",
                 autospec=True,
                 side_effect=RequirementNotFoundError("bad-req"),
@@ -225,6 +229,10 @@ class TestHtmxSubmitVerification:
                 return_value=MagicMock(github_username="user"),
             ),
             patch("routes.htmx_routes.get_requirement_by_id", return_value=MagicMock()),
+            patch(
+                "routes.htmx_routes.derive_submission_value",
+                return_value="test",
+            ),
             patch(
                 "routes.htmx_routes.submit_validation",
                 autospec=True,
@@ -260,6 +268,10 @@ class TestHtmxSubmitVerification:
             ),
             patch("routes.htmx_routes.get_requirement_by_id", return_value=MagicMock()),
             patch(
+                "routes.htmx_routes.derive_submission_value",
+                return_value="test",
+            ),
+            patch(
                 "routes.htmx_routes.submit_validation",
                 autospec=True,
                 side_effect=exc,
@@ -288,6 +300,10 @@ class TestHtmxSubmitVerification:
                 return_value=MagicMock(github_username=None),
             ),
             patch("routes.htmx_routes.get_requirement_by_id", return_value=MagicMock()),
+            patch(
+                "routes.htmx_routes.derive_submission_value",
+                return_value="test",
+            ),
             patch(
                 "routes.htmx_routes.submit_validation",
                 autospec=True,
@@ -325,6 +341,10 @@ class TestHtmxSubmitVerification:
             ),
             patch("routes.htmx_routes.get_requirement_by_id", return_value=MagicMock()),
             patch(
+                "routes.htmx_routes.derive_submission_value",
+                return_value="test",
+            ),
+            patch(
                 "routes.htmx_routes.submit_validation",
                 autospec=True,
                 return_value=mock_result,
@@ -356,6 +376,10 @@ class TestHtmxSubmitVerification:
                 return_value=MagicMock(github_username="user"),
             ),
             patch("routes.htmx_routes.get_requirement_by_id", return_value=MagicMock()),
+            patch(
+                "routes.htmx_routes.derive_submission_value",
+                return_value="test",
+            ),
             patch(
                 "routes.htmx_routes.submit_validation",
                 autospec=True,
