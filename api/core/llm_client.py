@@ -15,7 +15,9 @@ For business logic using this client, see:
 
 import asyncio
 import logging
+from typing import Any
 
+from agent_framework import SupportsChatGetResponse
 from agent_framework.openai import OpenAIChatClient
 
 from core.azure_auth import get_credential
@@ -23,7 +25,7 @@ from core.config import get_settings
 
 logger = logging.getLogger(__name__)
 
-_llm_client: OpenAIChatClient | None = None
+_llm_client: SupportsChatGetResponse[Any] | None = None
 _llm_client_lock = asyncio.Lock()
 
 
@@ -35,7 +37,7 @@ class LLMClientError(Exception):
         self.retriable = retriable
 
 
-async def get_llm_chat_client() -> OpenAIChatClient:
+async def get_llm_chat_client() -> SupportsChatGetResponse[Any]:
     """Get or create a shared Azure OpenAI chat client (Responses API).
 
     Uses ``DefaultAzureCredential`` — managed identity in prod,

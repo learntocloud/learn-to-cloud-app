@@ -510,7 +510,7 @@ async def analyze_repository_code(
 
     chat_client = await get_llm_chat_client()
     grader = Agent(
-        client=chat_client,  # ty: ignore[invalid-argument-type]
+        client=chat_client,
         instructions=_build_grader_instructions(),
         name="phase3-code-grader",
         default_options={

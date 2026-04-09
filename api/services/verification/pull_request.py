@@ -347,7 +347,7 @@ async def validate_pr(
 
     chat_client = await get_llm_chat_client()
     grader = Agent(
-        client=chat_client,  # ty: ignore[invalid-argument-type]
+        client=chat_client,
         instructions=build_grader_instructions(
             role="code reviewer",
             task_name=requirement.name,

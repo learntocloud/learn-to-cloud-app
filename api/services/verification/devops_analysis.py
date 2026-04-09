@@ -27,18 +27,18 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Never
+from typing import Any, Never
 
 import httpx
 from agent_framework import (
     Agent,
     Executor,
     Message,
+    SupportsChatGetResponse,
     WorkflowBuilder,
     WorkflowContext,
     handler,
 )
-from agent_framework.openai import OpenAIChatClient
 from circuitbreaker import CircuitBreakerError
 
 from core.config import get_settings
@@ -464,7 +464,7 @@ class TaskVerifier(Executor):
         self,
         *,
         task_def: TaskDefinition,
-        chat_client: OpenAIChatClient,
+        chat_client: SupportsChatGetResponse[Any],
     ) -> None:
         super().__init__(id=f"verifier-{task_def['id']}")
         self._task_def = task_def
