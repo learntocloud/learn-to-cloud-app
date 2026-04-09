@@ -111,7 +111,6 @@ class TestPreValidateSubmission:
             repo = MockRepo.return_value
             repo.get_by_user_and_requirement = AsyncMock(return_value=None)
             repo.count_submissions_today = AsyncMock(return_value=0)
-            repo.get_last_submission_time = AsyncMock(return_value=None)
 
             with pytest.raises(GitHubUsernameRequiredError):
                 await pre_validate_submission(

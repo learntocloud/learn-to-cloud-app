@@ -198,7 +198,6 @@ class TestSubmissionRouting:
 
             mock.assert_called_once_with(
                 "https://github.com/testuser/journal-starter/pull/1",
-                "testuser",
                 requirement,
             )
             assert result.is_valid is True

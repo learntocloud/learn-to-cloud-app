@@ -27,7 +27,6 @@ from core.ratelimit import limiter
 from core.templates import templates
 from models import SubmissionType
 from rendering.context import (
-    build_feedback_tasks,
     build_feedback_tasks_from_results,
     build_progress_dict,
     build_requirement_card_context,
@@ -45,13 +44,12 @@ from services.steps_service import (
 from services.submissions_service import (
     AlreadyValidatedError,
     ConcurrentSubmissionError,
-    CooldownActiveError,
     DailyLimitExceededError,
+    DuplicatePrError,
     GitHubUsernameRequiredError,
     PriorPhaseNotCompleteError,
     RequirementNotFoundError,
     _get_submission_lock,
-    _is_llm_submission,
     pre_validate_submission,
     submit_validation,
 )
@@ -221,8 +219,6 @@ async def htmx_submit_verification(
         feedback_passed: int = 0,
         server_error: bool = False,
         server_error_message: str | None = None,
-        cooldown_seconds: int | None = None,
-        cooldown_message: str | None = None,
         error_banner: str | None = None,
         processing: bool = False,
     ) -> HTMLResponse:
@@ -238,8 +234,6 @@ async def htmx_submit_verification(
                 feedback_passed=feedback_passed,
                 server_error=server_error,
                 server_error_message=server_error_message,
-                cooldown_seconds=cooldown_seconds,
-                cooldown_message=cooldown_message,
                 error_banner=error_banner,
                 processing=processing,
             ),
@@ -282,65 +276,44 @@ async def htmx_submit_verification(
     else:
         derived_value = submitted_value
 
-    # ── Pre-validation (same for sync and async paths) ──────────────────
+    # ── Pre-validation ─────────────────────────────────────────────────
     # These checks are fast (<100ms) and raise on failure.  If any raise,
     # the user gets immediate feedback before any background task starts.
     try:
-        # Dry-run the pre-validation checks from submit_validation by
-        # attempting a synchronous call.  For non-LLM submissions this
-        # runs the full verification.  For LLM submissions we'll catch
-        # the result below and decide whether to go async.
-        is_llm = requirement is not None and _is_llm_submission(
-            requirement.submission_type
-        )
-
-        if is_llm:
-            # For LLM submissions: run ONLY pre-validation, then go async.
-            await pre_validate_submission(
-                session_maker=session_maker,
-                user_id=user_id,
-                requirement_id=requirement_id,
-                submitted_value=derived_value,
-                github_username=github_username,
-            )
-
-            # Check concurrent lock
-            submission_lock = await _get_submission_lock(user_id, requirement_id)
-            if submission_lock.locked():
-                raise ConcurrentSubmissionError(
-                    "A verification is already in progress. "
-                    "Please wait for it to complete."
-                )
-
-            # Register pending event + fire background task
-            create_pending(user_id, requirement_id)
-
-            task = asyncio.create_task(
-                _run_verification_background(
-                    session_maker=session_maker,
-                    user_id=user_id,
-                    requirement_id=requirement_id,
-                    submitted_value=derived_value,
-                    github_username=github_username,
-                )
-            )
-            task.add_done_callback(
-                lambda t: (
-                    t.result() if not t.cancelled() and not t.exception() else None
-                )
-            )
-
-            # Return the processing card with SSE connection
-            return _render_card(processing=True)
-
-        # Non-LLM: run synchronously (instant verifications <1s)
-        result = await submit_validation(
+        await pre_validate_submission(
             session_maker=session_maker,
             user_id=user_id,
             requirement_id=requirement_id,
             submitted_value=derived_value,
             github_username=github_username,
         )
+
+        # Check concurrent lock
+        submission_lock = await _get_submission_lock(user_id, requirement_id)
+        if submission_lock.locked():
+            raise ConcurrentSubmissionError(
+                "A verification is already in progress. Please wait for it to complete."
+            )
+
+        # Register pending event + fire background task
+        create_pending(user_id, requirement_id)
+
+        task = asyncio.create_task(
+            _run_verification_background(
+                session_maker=session_maker,
+                user_id=user_id,
+                requirement_id=requirement_id,
+                submitted_value=derived_value,
+                github_username=github_username,
+            )
+        )
+        task.add_done_callback(
+            lambda t: t.result() if not t.cancelled() and not t.exception() else None
+        )
+
+        # Return the processing card with SSE connection
+        return _render_card(processing=True)
+
     except RequirementNotFoundError:
         logger.warning(
             "htmx.submit.requirement_not_found",
@@ -359,24 +332,12 @@ async def htmx_submit_verification(
             "You have already completed this requirement.</div>",
             status_code=200,
         )
+    except DuplicatePrError as e:
+        return _render_card(error_banner=str(e))
     except DailyLimitExceededError as e:
         return _render_card(
             submission=e.existing_submission,
             error_banner=str(e),
-        )
-    except CooldownActiveError as e:
-        existing = e.existing_submission
-
-        feedback_tasks, feedback_passed = build_feedback_tasks(
-            existing.feedback_json if existing else None
-        )
-
-        return _render_card(
-            submission=existing,
-            feedback_tasks=feedback_tasks,
-            feedback_passed=feedback_passed,
-            cooldown_seconds=e.retry_after_seconds,
-            cooldown_message=str(e),
         )
     except GitHubUsernameRequiredError:
         return _render_card(
@@ -392,7 +353,7 @@ async def htmx_submit_verification(
             error_banner=str(e),
         )
     except Exception as exc:
-        logger.error(
+        logger.exception(
             "htmx.submit.unexpected_error",
             extra={
                 "user_id": user_id,
@@ -408,9 +369,6 @@ async def htmx_submit_verification(
                 "This attempt was not counted — please try again."
             ),
         )
-
-    # ── Synchronous result (non-LLM submissions) ───────────────────────
-    return _render_result_card(request, requirement, result, github_username)
 
 
 def _render_result_card(
@@ -441,8 +399,6 @@ def _render_result_card(
             feedback_passed=feedback_passed,
             server_error=result.is_server_error,
             server_error_message=result.message if result.is_server_error else None,
-            cooldown_seconds=None,
-            cooldown_message=None,
             error_banner=error_banner,
             processing=False,
         ),
@@ -576,8 +532,6 @@ async def htmx_verification_stream(
                         server_error_message=(
                             result.message if result.is_server_error else None
                         ),
-                        cooldown_seconds=None,
-                        cooldown_message=None,
                         error_banner=error_banner,
                         processing=False,
                     ),

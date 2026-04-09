@@ -151,10 +151,4 @@
     {% include "partials/verification_feedback.html" %}
     {% endwith %}
     {% endif %}
-
-    {% if cooldown_seconds %}
-    {% with retry_after_seconds=cooldown_seconds, cooldown_message=cooldown_message %}
-    {% include "partials/cooldown_timer.html" %}
-    {% endwith %}
-    {% endif %}
 </div>

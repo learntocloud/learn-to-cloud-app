@@ -214,3 +214,20 @@ class CodeAnalysisResponse(BaseModel):
         min_length=5,
         max_length=5,
     )
+
+
+class PrDiffGrade(BaseModel):
+    """Structured output for single-task PR diff grading."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    passed: bool = Field(description="Whether the PR diff implements the required task")
+    feedback: str = Field(
+        description="1-3 sentences of specific, educational feedback",
+        max_length=500,
+    )
+    next_steps: str = Field(
+        default="",
+        description="One actionable sentence: what the learner should try next",
+        max_length=200,
+    )

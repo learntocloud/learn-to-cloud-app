@@ -25,6 +25,9 @@ For phase requirements, see requirements.py
 import logging
 import time
 
+from circuitbreaker import CircuitBreakerError
+
+from core.llm_client import LLMClientError
 from core.metrics import VERIFICATION_COUNTER, VERIFICATION_DURATION
 from models import SubmissionType
 from schemas import HandsOnRequirement, ValidationResult
@@ -37,6 +40,7 @@ from services.verification.github_profile import (
     validate_profile_readme,
     validate_repo_fork,
 )
+from services.verification.llm_base import VerificationError
 from services.verification.networking_lab import verify_networking_token
 from services.verification.pull_request import validate_pr
 from services.verification.security_scanning import validate_security_scanning
@@ -123,6 +127,38 @@ async def validate_submission(
         )
         result_attr = "pass" if validation_result.is_valid else "fail"
         return validation_result
+    except (
+        CircuitBreakerError,
+        TimeoutError,
+        VerificationError,
+        LLMClientError,
+    ) as e:
+        logger.error(
+            "verification.failed",
+            extra={
+                "submission_type": submission_type,
+                "error_type": type(e).__name__,
+                "error": str(e),
+            },
+        )
+        return ValidationResult(
+            is_valid=False,
+            message="Verification failed. Please try again later.",
+            server_error=True,
+        )
+    except Exception as e:
+        logger.exception(
+            "verification.unexpected_error",
+            extra={
+                "submission_type": submission_type,
+                "error_type": type(e).__name__,
+            },
+        )
+        return ValidationResult(
+            is_valid=False,
+            message="Verification failed. Please try again later.",
+            server_error=True,
+        )
     finally:
         elapsed = time.monotonic() - start
         attrs = {"submission_type": submission_type, "result": result_attr}
@@ -181,7 +217,7 @@ async def _dispatch_validation(
         return validate_networking_token_submission(submitted_value, username)
 
     elif requirement.submission_type == SubmissionType.PR_REVIEW:
-        return await validate_pr(submitted_value, username, requirement)
+        return await validate_pr(submitted_value, requirement)
 
     elif requirement.submission_type == SubmissionType.CODE_ANALYSIS:
         expected_name = _expected_fork_name(requirement)

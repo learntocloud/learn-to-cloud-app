@@ -347,8 +347,6 @@ class TestBuildRequirementCardContext:
             feedback_passed=1,
             server_error=True,
             server_error_message="oops",
-            cooldown_seconds=42,
-            cooldown_message="wait",
             error_banner="banner",
             processing=True,
         )
@@ -358,7 +356,5 @@ class TestBuildRequirementCardContext:
         assert ctx["feedback_passed"] == 1
         assert ctx["server_error"] is True
         assert ctx["server_error_message"] == "oops"
-        assert ctx["cooldown_seconds"] == 42
-        assert ctx["cooldown_message"] == "wait"
         assert ctx["error_banner"] == "banner"
         assert ctx["processing"] is True

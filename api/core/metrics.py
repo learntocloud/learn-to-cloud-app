@@ -66,12 +66,6 @@ SUBMISSION_DAILY_LIMIT_COUNTER = _meter.create_counter(
     unit="{rejection}",
 )
 
-SUBMISSION_COOLDOWN_COUNTER = _meter.create_counter(
-    name="submission.cooldown_active",
-    description="Submissions rejected by cooldown",
-    unit="{rejection}",
-)
-
 # ── User lifecycle metrics ────────────────────────────────────────────
 
 USER_DELETION_COUNTER = _meter.create_counter(

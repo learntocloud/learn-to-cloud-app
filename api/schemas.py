@@ -72,6 +72,13 @@ class HandsOnRequirement(FrozenModel):
     # For PR_REVIEW: files the merged PR must have touched
     expected_files: list[str] | None = None
 
+    # For PR_REVIEW: AI diff grading criteria (from content YAML).
+    # When present, the PR diff is analyzed by an LLM after deterministic
+    # checks pass.  When absent, only deterministic checks run.
+    grading_criteria: list[str] | None = None
+    pass_indicators: list[str] | None = None
+    fail_indicators: list[str] | None = None
+
 
 class HealthResponse(BaseModel):
     """Health check response."""
@@ -398,7 +405,7 @@ class SubmissionResult(FrozenModel):
 
         True when validation failed but verification never completed
         (e.g. LLM timeout, external service down). These attempts are
-        not counted against the user's cooldown or daily quota.
+        not counted against the user's daily quota.
         """
         return not self.is_valid and not self.submission.verification_completed
 
@@ -437,8 +444,8 @@ class ValidationResult(FrozenModel):
         task_results: For CODE_ANALYSIS validations, detailed per-task feedback.
             None for non-code-analysis validations.
         server_error: True if validation failed due to a server-side issue
-            (e.g., service unavailable, config error). When True, cooldowns
-            should not be applied since the user isn't at fault.
+            (e.g., service unavailable, config error). When True, the
+            attempt is not counted since the user isn't at fault.
         cloud_provider: Cloud provider for multi-cloud labs ("aws",
             "azure", "gcp"). None for non-multi-cloud validations.
     """

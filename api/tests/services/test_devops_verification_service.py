@@ -492,35 +492,35 @@ class TestAnalyzeDevopsRepository:
         assert "k8s/service.yaml" in k8s_result.feedback
 
     @pytest.mark.asyncio
-    async def test_llm_client_error_returns_server_error(self):
-        """LLMClientError should return server_error=True."""
+    async def test_llm_client_error_propagates(self):
+        """LLMClientError should propagate to the dispatcher."""
         from core.llm_client import LLMClientError
 
-        with patch(
-            "services.verification.devops_analysis._run_devops_workflow",
-            autospec=True,
-            side_effect=LLMClientError("Connection failed", retriable=True),
+        with (
+            patch(
+                "services.verification.devops_analysis._run_devops_workflow",
+                autospec=True,
+                side_effect=LLMClientError("Connection failed", retriable=True),
+            ),
+            pytest.raises(LLMClientError, match="Connection failed"),
         ):
-            result = await analyze_devops_repository(
+            await analyze_devops_repository(
                 "https://github.com/testuser/journal-starter",
                 "testuser",
             )
-
-        assert result.is_valid is False
-        assert result.server_error is True
 
     @pytest.mark.asyncio
-    async def test_devops_analysis_error_returns_server_error_when_retriable(self):
-        """Retriable DevOpsAnalysisError should return server_error=True."""
-        with patch(
-            "services.verification.devops_analysis._run_devops_workflow",
-            autospec=True,
-            side_effect=DevOpsAnalysisError("Timeout", retriable=True),
+    async def test_devops_analysis_error_propagates(self):
+        """DevOpsAnalysisError should propagate to the dispatcher."""
+        with (
+            patch(
+                "services.verification.devops_analysis._run_devops_workflow",
+                autospec=True,
+                side_effect=DevOpsAnalysisError("Timeout", retriable=True),
+            ),
+            pytest.raises(DevOpsAnalysisError, match="Timeout"),
         ):
-            result = await analyze_devops_repository(
+            await analyze_devops_repository(
                 "https://github.com/testuser/journal-starter",
                 "testuser",
             )
-
-        assert result.is_valid is False
-        assert result.server_error is True

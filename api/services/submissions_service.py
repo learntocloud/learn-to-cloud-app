@@ -3,7 +3,6 @@
 This module handles:
 - Submission creation/update with validation
 - Data transformation helpers used by other services (e.g. progress)
-- Cooldown enforcement for rate-limited submission types (e.g., CODE_ANALYSIS)
 - Daily submission cap across all requirements (default 20/day)
 - Already-validated short-circuit (skip re-verification for passed requirements)
 - Concurrent request protection via per-user+requirement locks
@@ -15,18 +14,16 @@ Routes should delegate submission business logic to this module.
 from __future__ import annotations
 
 import asyncio
-import contextlib
 import json
 import logging
 from dataclasses import dataclass
-from datetime import UTC, datetime
 
 from cachetools import TTLCache
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from core.cache import invalidate_progress_cache
 from core.config import get_settings
-from core.metrics import SUBMISSION_COOLDOWN_COUNTER, SUBMISSION_DAILY_LIMIT_COUNTER
+from core.metrics import SUBMISSION_DAILY_LIMIT_COUNTER
 from models import Submission, SubmissionType
 from repositories.progress_denormalized_repository import UserPhaseProgressRepository
 from repositories.submission_repository import SubmissionRepository
@@ -47,7 +44,7 @@ from services.verification.requirements import (
 
 logger = logging.getLogger(__name__)
 
-_LOCK_TTL = 7200  # 2 hours — comfortably above the max cooldown (1 hour)
+_LOCK_TTL = 7200  # 2 hours
 _submission_locks: TTLCache[tuple[int, str], asyncio.Lock] = TTLCache(
     maxsize=2000, ttl=_LOCK_TTL
 )
@@ -99,7 +96,7 @@ async def get_phase_submission_context(
 
     Fetches all submissions for the user in a phase, converts them to
     DTOs, and parses stored feedback JSON into template-ready summaries.
-    Calculates remaining cooldown for LLM-based submission types.
+    Calculates remaining time for LLM-based submission types.
 
     Returns:
         PhaseSubmissionContext with submissions and feedback keyed by
@@ -110,9 +107,6 @@ async def get_phase_submission_context(
 
     submissions_by_req: dict[str, SubmissionData] = {}
     feedback_by_req: dict[str, dict[str, object]] = {}
-
-    settings = get_settings()
-    now = datetime.now(UTC)
 
     for sub in raw_submissions:
         sub_data = _to_submission_data(sub)
@@ -131,25 +125,9 @@ async def get_phase_submission_context(
                 ]
                 passed = sum(1 for t in tasks if t["passed"])
 
-                cooldown_remaining = None
-                if (
-                    sub.updated_at
-                    and sub.verification_completed
-                    and sub.submission_type
-                    in (
-                        SubmissionType.CODE_ANALYSIS,
-                        SubmissionType.DEVOPS_ANALYSIS,
-                    )
-                ):
-                    elapsed = (now - sub.updated_at).total_seconds()
-                    remaining = int(settings.code_analysis_cooldown_seconds - elapsed)
-                    if remaining > 0:
-                        cooldown_remaining = remaining
-
                 feedback_by_req[sub.requirement_id] = {
                     "tasks": tasks,
                     "passed": passed,
-                    "cooldown_seconds": cooldown_remaining,
                 }
             except (json.JSONDecodeError, TypeError):
                 logger.debug(
@@ -171,20 +149,6 @@ class GitHubUsernameRequiredError(Exception):
     pass
 
 
-class CooldownActiveError(Exception):
-    """Raised when a submission is attempted during cooldown period."""
-
-    def __init__(
-        self,
-        message: str,
-        retry_after_seconds: int,
-        existing_submission: SubmissionData | None = None,
-    ):
-        super().__init__(message)
-        self.retry_after_seconds = retry_after_seconds
-        self.existing_submission = existing_submission
-
-
 class DailyLimitExceededError(Exception):
     """Raised when a user exceeds the daily submission cap."""
 
@@ -203,6 +167,14 @@ class AlreadyValidatedError(Exception):
     """Raised when re-submitting a requirement that is already validated."""
 
 
+class DuplicatePrError(Exception):
+    """Raised when the same PR URL is used for a different requirement."""
+
+    def __init__(self, message: str, conflicting_requirement_id: str):
+        super().__init__(message)
+        self.conflicting_requirement_id = conflicting_requirement_id
+
+
 class PriorPhaseNotCompleteError(Exception):
     """Raised when submitting for a phase whose prerequisite isn't fully verified."""
 
@@ -217,14 +189,6 @@ class PriorPhaseNotCompleteError(Exception):
 # routes.  The semaphore is checked *before* acquiring the DB write session.
 _LLM_MAX_CONCURRENT = 3
 _llm_semaphore = asyncio.Semaphore(_LLM_MAX_CONCURRENT)
-
-
-def _is_llm_submission(submission_type: SubmissionType) -> bool:
-    """Return True for submission types that involve long-running LLM calls."""
-    return submission_type in (
-        SubmissionType.CODE_ANALYSIS,
-        SubmissionType.DEVOPS_ANALYSIS,
-    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -245,11 +209,12 @@ async def _check_submission_preconditions(
     user_id: int,
     requirement_id: str,
     github_username: str | None,
+    submitted_value: str | None = None,
 ) -> _PreValidationContext:
     """Shared pre-validation checks for submission paths.
 
     Validates requirement existence, already-validated status, phase gating,
-    daily cap, cooldown enforcement, and GitHub username requirement.
+    daily cap, PR uniqueness, and GitHub username requirement.
 
     Opens a short-lived DB session for reads, then releases it before
     returning.  Raises the same exceptions as ``submit_validation``.
@@ -304,35 +269,22 @@ async def _check_submission_preconditions(
                 existing_submission=_to_submission_data(existing) if existing else None,
             )
 
-        # Cooldown enforcement (LLM submissions only)
-        if _is_llm_submission(requirement.submission_type):
-            last_submission_time = await submission_repo.get_last_submission_time(
-                user_id, requirement_id
+        # PR uniqueness: same PR URL cannot be reused for a different
+        # requirement within the same phase.
+        if submitted_value and requirement.submission_type == SubmissionType.PR_REVIEW:
+            conflicting = await submission_repo.find_validated_by_value_in_phase(
+                user_id, phase_id, submitted_value, requirement_id
             )
-        else:
-            last_submission_time = None
+            if conflicting:
+                raise DuplicatePrError(
+                    "This PR was already used for a different requirement. "
+                    "Each task must have its own PR — follow the branching "
+                    "workflow in the journal-starter README.",
+                    conflicting_requirement_id=conflicting,
+                )
 
         existing_data = _to_submission_data(existing) if existing else None
     # read_session is now closed — connection returned to pool
-
-    if last_submission_time is not None:
-        cooldown_seconds = settings.code_analysis_cooldown_seconds
-        now = datetime.now(UTC)
-        elapsed = (now - last_submission_time).total_seconds()
-        remaining = int(cooldown_seconds - elapsed)
-        if remaining > 0:
-            SUBMISSION_COOLDOWN_COUNTER.add(
-                1,
-                {"user_id": str(user_id), "requirement_id": requirement_id},
-            )
-            minutes = remaining // 60
-            seconds = remaining % 60
-            wait_str = f"{minutes}m {seconds}s" if minutes else f"{seconds}s"
-            raise CooldownActiveError(
-                f"Please wait {wait_str} before resubmitting.",
-                retry_after_seconds=remaining,
-                existing_submission=existing_data,
-            )
 
     if (
         requirement.submission_type
@@ -375,14 +327,14 @@ async def pre_validate_submission(
     - Not already validated
     - Phase gating
     - Daily submission cap
-    - Cooldown enforcement
+    - PR uniqueness
     - GitHub username required
 
     Used by the async LLM submission path to validate before kicking off
     a background task.  Raises the same exceptions as submit_validation.
     """
     await _check_submission_preconditions(
-        session_maker, user_id, requirement_id, github_username
+        session_maker, user_id, requirement_id, github_username, submitted_value
     )
 
 
@@ -415,12 +367,11 @@ async def submit_validation(
         AlreadyValidatedError: If requirement is already validated.
         DailyLimitExceededError: If user exceeded daily submission cap.
         GitHubUsernameRequiredError: If GitHub username required but not provided.
-        CooldownActiveError: If submission is within cooldown period.
         ConcurrentSubmissionError: If validation is already in progress for this
             user+requirement (prevents race conditions).
     """
     ctx = await _check_submission_preconditions(
-        session_maker, user_id, requirement_id, github_username
+        session_maker, user_id, requirement_id, github_username, submitted_value
     )
     requirement = ctx.requirement
     phase_id = ctx.phase_id
@@ -434,27 +385,24 @@ async def submit_validation(
         )
 
     async with submission_lock:
-        # ── Phase 2: Run validation (NO DB session held) ────────────────
-        # LLM-based validations (CODE_ANALYSIS, DEVOPS_ANALYSIS) can take
-        # 30-120s.  We run them outside any DB session so they don't pin a
-        # connection pool slot.  A global semaphore caps concurrency to
-        # prevent overwhelming the LLM endpoint.
-        use_semaphore = _is_llm_submission(requirement.submission_type)
+        # ── Run validation (NO DB session held) ─────────────────────────
+        # Verification can take 10-120s for LLM-backed types.  We run it
+        # outside any DB session so it doesn't pin a connection pool slot.
+        # A global semaphore caps LLM concurrency to prevent overwhelming
+        # the endpoint.
+        logger.info(
+            "llm.semaphore.acquiring",
+            extra={
+                "user_id": user_id,
+                "requirement_id": requirement_id,
+                "waiting": max(
+                    0,
+                    _LLM_MAX_CONCURRENT - _llm_semaphore._value,
+                ),
+            },
+        )
 
-        if use_semaphore:
-            logger.info(
-                "llm.semaphore.acquiring",
-                extra={
-                    "user_id": user_id,
-                    "requirement_id": requirement_id,
-                    "waiting": max(
-                        0,
-                        _LLM_MAX_CONCURRENT - _llm_semaphore._value,
-                    ),
-                },
-            )
-
-        async with _llm_semaphore if use_semaphore else contextlib.nullcontext():
+        async with _llm_semaphore:
             validation_result = await validate_submission(
                 requirement=requirement,
                 submitted_value=submitted_value,

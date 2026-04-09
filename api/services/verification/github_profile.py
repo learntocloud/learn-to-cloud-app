@@ -77,6 +77,89 @@ def get_github_headers() -> dict[str, str]:
     return headers
 
 
+@circuit(
+    failure_threshold=5,
+    recovery_timeout=60,
+    expected_exception=RETRIABLE_EXCEPTIONS,
+    name="github_api_get_circuit",
+)
+@retry(
+    stop=stop_after_attempt(3),
+    wait=_wait_with_retry_after,
+    retry=retry_if_exception_type(RETRIABLE_EXCEPTIONS),
+    reraise=True,
+)
+async def github_api_get(
+    url: str,
+    *,
+    extra_headers: dict[str, str] | None = None,
+    params: dict[str, int] | None = None,
+) -> httpx.Response:
+    """Resilient GitHub API GET with retry, circuit breaker, and 5xx/429 mapping.
+
+    Raises:
+        GitHubServerError: On 5xx or 429 (triggers retry).
+        httpx.HTTPStatusError: On non-retriable HTTP errors (4xx).
+        CircuitBreakerError: When circuit is open.
+    """
+    client = await _get_github_client()
+    headers = get_github_headers()
+    if extra_headers:
+        headers.update(extra_headers)
+    response = await client.get(url, headers=headers, params=params)
+    if response.status_code >= 500:
+        raise GitHubServerError(f"GitHub API returned {response.status_code}")
+    if response.status_code == 429:
+        retry_after = _parse_retry_after(response.headers.get("Retry-After"))
+        raise GitHubServerError("GitHub rate limited (429)", retry_after=retry_after)
+    response.raise_for_status()
+    return response
+
+
+def github_error_to_validation_result(
+    e: Exception,
+    *,
+    event: str,
+    context: dict[str, object],
+) -> ValidationResult:
+    """Map GitHub API exceptions to a user-facing ValidationResult.
+
+    Args:
+        e: The caught exception.
+        event: Structured log event name (e.g. ``"pr_verification.api_error"``).
+        context: Extra fields for structured logging (owner, repo, pr, etc.).
+    """
+    if isinstance(e, CircuitBreakerError):
+        logger.error(event, extra=context)
+        return ValidationResult(
+            is_valid=False,
+            message=("GitHub service temporarily unavailable. Please try again later."),
+            server_error=True,
+        )
+
+    if isinstance(e, httpx.HTTPStatusError):
+        if e.response.status_code == 404:
+            return ValidationResult(
+                is_valid=False,
+                message="Resource not found on GitHub. Check the URL and try again.",
+                server_error=False,
+            )
+        logger.warning(event, extra={**context, "status": e.response.status_code})
+        return ValidationResult(
+            is_valid=False,
+            message=f"GitHub API error ({e.response.status_code}). Try again later.",
+            server_error=True,
+        )
+
+    # RETRIABLE_EXCEPTIONS (RequestError, TimeoutException, etc.)
+    logger.warning(event, extra={**context, "error": str(e)})
+    return ValidationResult(
+        is_valid=False,
+        message="Could not reach GitHub. Please try again later.",
+        server_error=True,
+    )
+
+
 def parse_github_url(url: str) -> ParsedGitHubUrl:
     """Parse a GitHub URL and extract components.
 
