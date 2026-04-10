@@ -102,8 +102,11 @@ class SubmissionType(StrEnum):
     # Phase 3: Journal API implementation
     # JOURNAL_API_RESPONSE kept for backward compatibility with existing DB records
     JOURNAL_API_RESPONSE = "journal_api_response"
+    # CODE_ANALYSIS kept so SQLAlchemy can deserialize old rows during
+    # rolling deploys before the 0015 migration converts them to ci_status.
     CODE_ANALYSIS = "code_analysis"
     PR_REVIEW = "pr_review"
+    CI_STATUS = "ci_status"
 
     # Phase 4: Cloud deployment validation
     DEPLOYED_API = "deployed_api"
@@ -201,7 +204,7 @@ class Submission(TimestampMixin, Base):
     # True when verification logic actually ran (not blocked by server error).
     # Only count completed verification attempts.
     verification_completed: Mapped[bool] = mapped_column(Boolean, default=False)
-    # JSON-serialized task feedback for CODE_ANALYSIS submissions
+    # JSON-serialized task feedback for multi-task verification submissions
     # Stores list of TaskResult dicts so feedback persists across page reloads
     feedback_json: Mapped[str | None] = mapped_column(Text, nullable=True)
     # User-facing validation error message (persists across page reloads)

@@ -63,7 +63,7 @@ class HandsOnRequirement(FrozenModel):
     placeholder: str | None = None
 
     # Upstream repo (``owner/name``) for GitHub repo-backed verification
-    # types: ``repo_fork``, ``pr_review``, ``code_analysis``,
+    # types: ``repo_fork``, ``pr_review``, ``ci_status``,
     # ``devops_analysis``, and ``security_scanning``.  Used to derive the
     # canonical learner fork URL
     # (``https://github.com/{learner}/{name}``).
@@ -411,9 +411,10 @@ class SubmissionResult(FrozenModel):
 
 
 class TaskResult(FrozenModel):
-    """Result of verifying a single task in code analysis.
+    """Result of verifying a single task in a multi-task verification.
 
-    Used by CODE_ANALYSIS validation to provide detailed per-task feedback.
+    Used by PR_REVIEW, DEVOPS_ANALYSIS, and SECURITY_SCANNING validations
+    to provide detailed per-task feedback.
     """
 
     task_name: str
@@ -441,8 +442,8 @@ class ValidationResult(FrozenModel):
             URL matches the authenticated user. None for non-GitHub validations.
         repo_exists: For GitHub-based validations, whether the repository
             exists. None for non-GitHub validations.
-        task_results: For CODE_ANALYSIS validations, detailed per-task feedback.
-            None for non-code-analysis validations.
+        task_results: For multi-task validations, detailed per-task feedback.
+            None for single-check validations.
         server_error: True if validation failed due to a server-side issue
             (e.g., service unavailable, config error). When True, the
             attempt is not counted since the user isn't at fault.

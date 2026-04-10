@@ -42,7 +42,7 @@ def _clear_lru_caches():
 def _make_requirement(req_id: str = "req-1") -> HandsOnRequirement:
     return HandsOnRequirement(
         id=req_id,
-        submission_type=SubmissionType.CODE_ANALYSIS,
+        submission_type=SubmissionType.CI_STATUS,
         name="Test Requirement",
         description="Test",
     )

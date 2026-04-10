@@ -274,9 +274,9 @@ class TestBuildRequirementCardContext:
         assert ctx["derived_url"] == "https://github.com/alice"
         assert ctx["pr_url_prefix"] is None
 
-    def test_derivable_code_analysis_uses_required_repo(self):
+    def test_derivable_ci_status_uses_required_repo(self):
         req = _make_requirement(
-            SubmissionType.CODE_ANALYSIS,
+            SubmissionType.CI_STATUS,
             required_repo="learntocloud/journal-starter",
         )
         ctx = build_requirement_card_context(
@@ -327,10 +327,10 @@ class TestBuildRequirementCardContext:
         assert ctx["pr_url_prefix"] is None
 
     def test_misconfigured_required_repo_falls_back_to_none(self):
-        # CODE_ANALYSIS without required_repo would raise inside derive,
+        # CI_STATUS without required_repo would raise inside derive,
         # but the builder should swallow that and return None so the
         # template can show its error state.
-        req = _make_requirement(SubmissionType.CODE_ANALYSIS)
+        req = _make_requirement(SubmissionType.CI_STATUS)
         ctx = build_requirement_card_context(
             requirement=req,
             github_username="alice",

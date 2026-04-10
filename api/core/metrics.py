@@ -13,7 +13,7 @@ Usage in services::
 
     from core.metrics import VERIFICATION_COUNTER, VERIFICATION_DURATION
 
-    VERIFICATION_COUNTER.add(1, {"submission_type": "CODE_ANALYSIS", "result": "pass"})
+    VERIFICATION_COUNTER.add(1, {"submission_type": "CI_STATUS", "result": "pass"})
 """
 
 from __future__ import annotations

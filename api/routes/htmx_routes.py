@@ -3,8 +3,8 @@
 These routes handle interactive HTMX requests (step toggles, form
 submissions, etc.) and return HTML partials instead of JSON.
 
-LLM-based verifications (CODE_ANALYSIS, DEVOPS_ANALYSIS) use a
-background task + SSE pattern:
+LLM-based verifications (DEVOPS_ANALYSIS, PR_REVIEW with grading_criteria)
+use a background task + SSE pattern:
 1. POST /htmx/github/submit — pre-validates and returns a spinner card
    immediately (~100ms)
 2. Background task runs the LLM call (30-120s) and publishes the result
@@ -200,7 +200,7 @@ async def htmx_submit_verification(
     For instant verifications (CTF tokens, profile checks, etc.): runs
     synchronously and returns the result card immediately.
 
-    For LLM verifications (CODE_ANALYSIS, DEVOPS_ANALYSIS): kicks off a
+    For LLM verifications (DEVOPS_ANALYSIS, PR_REVIEW): kicks off a
     background task and returns a spinner card that connects to an SSE
     stream for the result.  The user sees "Analyzing..." immediately
     instead of waiting 30-120s.

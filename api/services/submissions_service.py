@@ -294,7 +294,7 @@ async def _check_submission_preconditions(
             SubmissionType.REPO_FORK,
             SubmissionType.CTF_TOKEN,
             SubmissionType.NETWORKING_TOKEN,
-            SubmissionType.CODE_ANALYSIS,
+            SubmissionType.CI_STATUS,
             SubmissionType.DEVOPS_ANALYSIS,
             SubmissionType.SECURITY_SCANNING,
             SubmissionType.PR_REVIEW,

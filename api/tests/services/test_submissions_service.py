@@ -52,7 +52,7 @@ def _mock_phase_id_mapping():
 
 
 def _make_mock_requirement(
-    submission_type: SubmissionType = SubmissionType.CODE_ANALYSIS,
+    submission_type: SubmissionType = SubmissionType.CI_STATUS,
 ) -> HandsOnRequirement:
     """Create a mock requirement for testing."""
     return HandsOnRequirement(
@@ -67,7 +67,7 @@ def _make_mock_submission(
     *,
     is_validated: bool = False,
     verification_completed: bool = True,
-    submission_type: SubmissionType = SubmissionType.CODE_ANALYSIS,
+    submission_type: SubmissionType = SubmissionType.CI_STATUS,
 ) -> MagicMock:
     """Create a mock Submission DB model with all fields for _to_submission_data."""
     return MagicMock(
@@ -130,11 +130,11 @@ class TestSubmissionValidationErrors:
             )
 
     @pytest.mark.asyncio
-    async def test_github_username_required_for_code_analysis(self):
-        """CODE_ANALYSIS without github_username should raise error."""
+    async def test_github_username_required_for_ci_status(self):
+        """CI_STATUS without github_username should raise error."""
         mock_session_maker = _mock_session_maker()
         mock_requirement = _make_mock_requirement(
-            submission_type=SubmissionType.CODE_ANALYSIS
+            submission_type=SubmissionType.CI_STATUS
         )
 
         with (
@@ -298,7 +298,7 @@ class TestAlreadyValidatedShortCircuit:
                 return_value=MagicMock(
                     id=1,
                     requirement_id="test-requirement",
-                    submission_type=SubmissionType.CODE_ANALYSIS,
+                    submission_type=SubmissionType.CI_STATUS,
                     phase_id=3,
                     submitted_value="https://github.com/user/repo",
                     extracted_username="user",
@@ -404,7 +404,7 @@ class TestDailySubmissionCap:
                 return_value=MagicMock(
                     id=1,
                     requirement_id="test-requirement",
-                    submission_type=SubmissionType.CODE_ANALYSIS,
+                    submission_type=SubmissionType.CI_STATUS,
                     phase_id=3,
                     submitted_value="https://github.com/user/repo",
                     extracted_username="user",

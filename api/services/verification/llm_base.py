@@ -1,7 +1,7 @@
 """Shared utilities for LLM-powered verification services.
 
 Provides common patterns used across verification services
-(Phase 3 code_verification, Phase 5 devops_verification,
+(Phase 3 PR review, Phase 5 devops_verification,
 Phase 6 security_verification):
 
 - GitHub URL parsing and ownership validation
@@ -12,7 +12,7 @@ Phase 6 security_verification):
 - Retriable exception types for circuit breakers / retries
 
 Phase-specific concerns stay in their respective modules:
-- Phase 3: deterministic guardrails, content filter checks, allowlisted file fetching
+- Phase 3: PR diff grading, CI status check (no LLM)
 - Phase 5: tree-based file discovery, parallel DevOps file fetching
 """
 

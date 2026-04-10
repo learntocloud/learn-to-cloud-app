@@ -55,7 +55,7 @@ class TestPreValidateSubmission:
     async def test_raises_already_validated(self):
         """Already-validated requirement raises AlreadyValidatedError."""
         mock_req = MagicMock()
-        mock_req.submission_type = "code_analysis"
+        mock_req.submission_type = "ci_status"
 
         mock_existing = MagicMock()
         mock_existing.is_validated = True
@@ -87,9 +87,9 @@ class TestPreValidateSubmission:
 
     @pytest.mark.asyncio
     async def test_raises_github_username_required(self):
-        """Missing GitHub username for code_analysis raises error."""
+        """Missing GitHub username for ci_status raises error."""
         mock_req = MagicMock()
-        mock_req.submission_type = "code_analysis"
+        mock_req.submission_type = "ci_status"
 
         with (
             patch(

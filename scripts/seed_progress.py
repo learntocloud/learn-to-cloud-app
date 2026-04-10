@@ -23,12 +23,10 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 CONTENT_DIR = REPO_ROOT / "content" / "phases"
 
 
-def load_content() -> (
-    tuple[
-        dict[int, list[tuple[str, list[str]]]],
-        dict[int, list[tuple[str, str, str]]],
-    ]
-):
+def load_content() -> tuple[
+    dict[int, list[tuple[str, list[str]]]],
+    dict[int, list[tuple[str, str, str]]],
+]:
     """Load topic IDs, step IDs, and requirements from content YAML files."""
     phase_topics: dict[int, list[tuple[str, list[str]]]] = {}
     phase_requirements: dict[int, list[tuple[str, str, str]]] = {}
@@ -45,11 +43,13 @@ def load_content() -> (
             reqs = []
             hov = meta.get("hands_on_verification", {})
             for req in hov.get("requirements", []):
-                reqs.append({
-                    "id": req["id"],
-                    "submission_type": req["submission_type"],
-                    "required_repo": req.get("required_repo"),
-                })
+                reqs.append(
+                    {
+                        "id": req["id"],
+                        "submission_type": req["submission_type"],
+                        "required_repo": req.get("required_repo"),
+                    }
+                )
             phase_requirements[phase_id] = reqs
 
         topics = []
@@ -108,7 +108,12 @@ async def main(github_username: str) -> None:
                         VALUES ($1, $2, $3, $4, $5, $6)
                         ON CONFLICT (user_id, topic_id, step_id) DO NOTHING
                         """,
-                        user_id, topic_id, step_id, phase_id, step_order, now,
+                        user_id,
+                        topic_id,
+                        step_id,
+                        phase_id,
+                        step_order,
+                        now,
                     )
                     step_count += 1
         print(f"Inserted {step_count} step_progress records")
@@ -130,20 +135,20 @@ async def main(github_username: str) -> None:
                     submitted_value = (
                         f"https://github.com/{github_username}/{repo_name}"
                     )
-                elif sub_type in ("code_analysis", "devops_analysis", "security_scanning"):
+                elif sub_type in (
+                    "devops_analysis",
+                    "security_scanning",
+                    "ci_status",
+                ):
                     submitted_value = (
                         f"https://github.com/{github_username}/journal-starter"
                     )
                 elif sub_type == "pr_review":
-                    submitted_value = (
-                        f"https://seed-data.example.com/{req_id}"
-                    )
+                    submitted_value = f"https://seed-data.example.com/{req_id}"
                 elif sub_type == "deployed_api":
                     submitted_value = "https://journal-api.example.com"
                 else:
-                    submitted_value = (
-                        f"https://seed-data.example.com/{req_id}"
-                    )
+                    submitted_value = f"https://seed-data.example.com/{req_id}"
                 await conn.execute(
                     """
                     INSERT INTO submissions (
@@ -159,7 +164,12 @@ async def main(github_username: str) -> None:
                         verification_completed = true,
                         updated_at = $6
                     """,
-                    user_id, req_id, sub_type, phase_id, submitted_value, now,
+                    user_id,
+                    req_id,
+                    sub_type,
+                    phase_id,
+                    submitted_value,
+                    now,
                 )
                 sub_count += 1
         print(f"Inserted {sub_count} submission records")
@@ -182,13 +192,15 @@ async def main(github_username: str) -> None:
                     validated_submissions = $4,
                     updated_at = $5
                 """,
-                user_id, phase_id, total_steps, validated_subs, now,
+                user_id,
+                phase_id,
+                total_steps,
+                validated_subs,
+                now,
             )
         print(f"Updated user_phase_progress for {len(phase_topics)} phases")
 
-        print(
-            "\nDone! All progress seeded. You should now show as fully complete."
-        )
+        print("\nDone! All progress seeded. You should now show as fully complete.")
 
     finally:
         await conn.close()

@@ -82,7 +82,7 @@ class SubmissionRepository:
             verification_completed: Whether the verification logic actually ran.
                 Set to False when blocked by server errors (e.g., LLM CLI down).
                 Only completed verifications count toward the daily cap.
-            feedback_json: JSON-serialized task feedback for CODE_ANALYSIS submissions.
+            feedback_json: JSON-serialized task feedback for multi-task submissions.
             cloud_provider: Cloud provider slug ("aws", "azure", "gcp") for
                 multi-cloud labs. None for non-multi-cloud submissions.
         """

@@ -18,7 +18,7 @@ To add a new verification type:
 
 For GitHub-specific validations, see github_profile.py
 For CTF token validation, see ctf.py
-For AI-powered code analysis, see code_analysis.py
+For CI-based code verification, see ci_status.py
 For phase requirements, see requirements.py
 """
 
@@ -31,7 +31,7 @@ from core.llm_client import LLMClientError
 from core.metrics import VERIFICATION_COUNTER, VERIFICATION_DURATION
 from models import SubmissionType
 from schemas import HandsOnRequirement, ValidationResult
-from services.verification.code_analysis import analyze_repository_code
+from services.verification.ci_status import verify_ci_status
 from services.verification.ctf import verify_ctf_token
 from services.verification.deployed_api import validate_deployed_api
 from services.verification.devops_analysis import analyze_devops_repository
@@ -219,9 +219,9 @@ async def _dispatch_validation(
     elif requirement.submission_type == SubmissionType.PR_REVIEW:
         return await validate_pr(submitted_value, requirement)
 
-    elif requirement.submission_type == SubmissionType.CODE_ANALYSIS:
+    elif requirement.submission_type == SubmissionType.CI_STATUS:
         expected_name = _expected_fork_name(requirement)
-        return await analyze_repository_code(submitted_value, username, expected_name)
+        return await verify_ci_status(submitted_value, username, expected_name)
 
     elif requirement.submission_type == SubmissionType.DEVOPS_ANALYSIS:
         expected_name = _expected_fork_name(requirement)
