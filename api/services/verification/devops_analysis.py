@@ -329,7 +329,7 @@ class PreflightExecutor(Executor):
     @handler
     async def process(
         self,
-        msg: str,
+        _msg: str,
         ctx: WorkflowContext[str, ValidationResult],
     ) -> None:
         # ── Fetch repo tree ──────────────────────────────────
@@ -469,7 +469,7 @@ class TaskVerifier(Executor):
     @handler
     async def process(
         self,
-        msg: str,
+        _msg: str,
         ctx: WorkflowContext[TaskResult],
     ) -> None:
         task_id = self._task_def["id"]
