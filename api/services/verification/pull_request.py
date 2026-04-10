@@ -21,8 +21,8 @@ from typing import Any
 import httpx
 from agent_framework import (
     Agent,
-    AgentExecutorResponse,
     Executor,
+    Message,
     WorkflowBuilder,
     WorkflowContext,
     handler,
@@ -208,12 +208,57 @@ def _is_invalid_pr(message: Any) -> bool:
     return isinstance(message, ValidationResult)
 
 
+class GraderExecutor(Executor):
+    """Grades a PR diff via LLM with structured output.
+
+    Lazily initializes the LLM client inside the handler so the
+    workflow can be built without requiring LLM configuration.
+    The client is only created when the workflow actually routes
+    a message here.
+    """
+
+    def __init__(self, *, requirement: HandsOnRequirement) -> None:
+        super().__init__(id=f"pr-grader-{requirement.id}")
+        self._requirement = requirement
+
+    @handler
+    async def process(
+        self,
+        diff: str,
+        ctx: WorkflowContext[PrDiffGrade, None],
+    ) -> None:
+        chat_client = await get_llm_chat_client()
+        agent = Agent(
+            client=chat_client,
+            instructions=build_grader_instructions(
+                role="code reviewer",
+                task_name=self._requirement.name,
+                phase_label="Phase 3 capstone",
+                content_tag="pr_diff",
+                criteria=self._requirement.grading_criteria or [],
+                pass_indicators=self._requirement.pass_indicators or [],
+                fail_indicators=self._requirement.fail_indicators or [],
+            ),
+            name=f"pr-grader-{self._requirement.id}",
+            default_options={"response_format": PrDiffGrade},
+        )
+        response = await agent.run([Message("user", [diff])])
+        if response.value is None:
+            raise PrAnalysisError("No structured output from PR grader", retriable=True)
+        grade = (
+            response.value
+            if isinstance(response.value, PrDiffGrade)
+            else PrDiffGrade.model_validate(response.value)
+        )
+        await ctx.send_message(grade)
+
+
 class FeedbackExecutor(Executor):
     """Final executor in both valid and invalid PR paths.
 
     Handles two message types:
     - ``ValidationResult``: pass-through (invalid PR or deterministic result)
-    - ``AgentExecutorResponse``: parse grade, apply guardrails, build result
+    - ``PrDiffGrade``: apply guardrails, build result
     """
 
     def __init__(self, *, requirement: HandsOnRequirement) -> None:
@@ -229,19 +274,11 @@ class FeedbackExecutor(Executor):
         await ctx.yield_output(result)
 
     @handler
-    async def handle_grader_response(
+    async def handle_grade(
         self,
-        response: AgentExecutorResponse,
+        grade: PrDiffGrade,
         ctx: WorkflowContext[None, ValidationResult],
     ) -> None:
-        value = response.agent_response.value
-        if isinstance(value, PrDiffGrade):
-            grade = value
-        elif value is not None:
-            grade = PrDiffGrade.model_validate(value)
-        else:
-            raise PrAnalysisError("No structured output from PR grader", retriable=True)
-
         pr_number = ctx.get_state("pr_number", 0)
         branch_name = ctx.get_state("branch_name", "unknown")
 
@@ -344,23 +381,7 @@ async def validate_pr(
         pr_url=pr_url,
         requirement=requirement,
     )
-
-    chat_client = await get_llm_chat_client()
-    grader = Agent(
-        client=chat_client,
-        instructions=build_grader_instructions(
-            role="code reviewer",
-            task_name=requirement.name,
-            phase_label="Phase 3 capstone",
-            content_tag="pr_diff",
-            criteria=requirement.grading_criteria or [],
-            pass_indicators=requirement.pass_indicators or [],
-            fail_indicators=requirement.fail_indicators or [],
-        ),
-        name=f"pr-grader-{requirement.id}",
-        default_options={"response_format": PrDiffGrade},
-    )
-
+    grader = GraderExecutor(requirement=requirement)
     feedback = FeedbackExecutor(requirement=requirement)
 
     workflow = (

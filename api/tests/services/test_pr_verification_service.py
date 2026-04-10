@@ -6,7 +6,8 @@ Tests cover:
 - Workflow routing (deterministic vs LLM grading)
 """
 
-from unittest.mock import MagicMock, patch
+import contextlib
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
@@ -122,17 +123,24 @@ class TestValidatePrRouting:
         assert "verified" in result.message.lower()
 
     @pytest.mark.asyncio
-    @patch("services.verification.pull_request.get_llm_chat_client", autospec=True)
+    @patch(
+        "services.verification.pull_request.get_llm_chat_client", new_callable=AsyncMock
+    )
+    @patch("services.verification.pull_request._fetch_pr_diff", autospec=True)
     @patch("services.verification.pull_request._fetch_pr_data", autospec=True)
-    async def test_grading_criteria_triggers_workflow(self, mock_data, mock_llm_client):
-        """With grading_criteria, validate_pr initializes the LLM grader."""
+    async def test_grading_criteria_triggers_llm(
+        self, mock_data, mock_diff, mock_llm_client
+    ):
+        """With grading_criteria, the GraderExecutor lazily creates the LLM client."""
         mock_data.return_value = {
             "merged": True,
             "state": "closed",
             "head": {"ref": "feature/test"},
             "title": "Test",
         }
-        # LLM client will be called to build the grader Agent
+        mock_diff.return_value = "<pr_diff>\n+import logging\n</pr_diff>"
+        # Return a mock client — the agent will fail to run, but we
+        # only need to verify the LLM client was lazily created.
         mock_llm_client.return_value = MagicMock()
         requirement = HandsOnRequirement(
             id="journal-pr-logging",
@@ -144,7 +152,9 @@ class TestValidatePrRouting:
             pass_indicators=["import logging"],
             fail_indicators=["# TODO"],
         )
-        # The workflow will fail because the mock LLM client can't
-        # actually run, but we just need to verify it was invoked
-        await validate_pr(_TEST_PR_URL, requirement)
+        # The workflow will fail because the mock client can't run an
+        # actual agent, but we just need to verify the LLM client was
+        # created inside the GraderExecutor handler.
+        with contextlib.suppress(Exception):
+            await validate_pr(_TEST_PR_URL, requirement)
         mock_llm_client.assert_called_once()
