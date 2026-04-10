@@ -115,7 +115,7 @@ class ValidationExecutor(Executor):
     @handler
     async def process(
         self,
-        _msg: str,
+        msg: str,
         ctx: WorkflowContext[str | ValidationResult, ValidationResult],
     ) -> None:
         try:
