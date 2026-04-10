@@ -330,7 +330,7 @@ class PreflightExecutor(Executor):
     async def process(
         self,
         msg: str,
-        ctx: WorkflowContext[str, ValidationResult],
+        ctx: WorkflowContext[str | dict[str, list[str]], ValidationResult],
     ) -> None:
         # ── Fetch repo tree ──────────────────────────────────
         logger.info(
@@ -434,8 +434,6 @@ class PreflightExecutor(Executor):
             },
         )
 
-        ctx.set_state("file_contents", file_contents)
-
         # ── Dispatch to fan-out branches ─────────────────────
         logger.info(
             "devops_analysis.fan_out_dispatching",
@@ -445,7 +443,7 @@ class PreflightExecutor(Executor):
                 "verifier_count": 4,
             },
         )
-        await ctx.send_message("grade")
+        await ctx.send_message(file_contents)
 
 
 class TaskVerifier(Executor):
@@ -469,12 +467,11 @@ class TaskVerifier(Executor):
     @handler
     async def process(
         self,
-        msg: str,
+        file_contents: dict[str, list[str]],
         ctx: WorkflowContext[TaskResult],
     ) -> None:
         task_id = self._task_def["id"]
         task_name = self._task_def["name"]
-        file_contents: dict[str, list[str]] = ctx.get_state("file_contents", {})
         task_files = file_contents.get(task_id, [])
 
         logger.info(
