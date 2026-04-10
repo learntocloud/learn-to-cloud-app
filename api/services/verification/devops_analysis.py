@@ -27,14 +27,13 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any, Never
+from typing import Never
 
 import httpx
 from agent_framework import (
     Agent,
     Executor,
     Message,
-    SupportsChatGetResponse,
     WorkflowBuilder,
     WorkflowContext,
     handler,
@@ -452,27 +451,20 @@ class PreflightExecutor(Executor):
 class TaskVerifier(Executor):
     """Fan-out branch: grades one DevOps task via a dedicated Agent.
 
+    Lazily creates the LLM client and Agent inside the handler so the
+    workflow can be constructed without requiring LLM configuration.
+
     On receiving the dispatch signal the handler:
       1. Reads its task's file contents from workflow state.
       2. Builds a per-task prompt with only the relevant files.
-      3. Calls its ``Agent.run()`` for structured grading.
+      3. Calls a dedicated ``Agent.run()`` for structured grading.
       4. Applies deterministic guardrails on the single grade.
       5. Sends the resulting ``TaskResult`` downstream.
     """
 
-    def __init__(
-        self,
-        *,
-        task_def: TaskDefinition,
-        chat_client: SupportsChatGetResponse[Any],
-    ) -> None:
+    def __init__(self, *, task_def: TaskDefinition) -> None:
         super().__init__(id=f"verifier-{task_def['id']}")
         self._task_def = task_def
-        self._agent = Agent(
-            client=chat_client,
-            instructions=_build_task_instructions(task_def),
-            name=f"grader-{task_def['id']}",
-        )
 
     @handler
     async def process(
@@ -496,7 +488,13 @@ class TaskVerifier(Executor):
 
         prompt = _build_task_prompt(self._task_def, task_files)
 
-        response = await self._agent.run(
+        chat_client = await get_llm_chat_client()
+        agent = Agent(
+            client=chat_client,
+            instructions=_build_task_instructions(self._task_def),
+            name=f"grader-{self._task_def['id']}",
+        )
+        response = await agent.run(
             [Message("user", [prompt])],
             options={"response_format": DevOpsTaskGrade},
         )
@@ -635,10 +633,7 @@ async def _run_devops_workflow(owner: str, repo: str) -> ValidationResult:
     """
     preflight = PreflightExecutor(owner=owner, repo=repo)
 
-    chat_client = await get_llm_chat_client()
-    verifiers = [
-        TaskVerifier(task_def=task, chat_client=chat_client) for task in PHASE5_TASKS
-    ]
+    verifiers = [TaskVerifier(task_def=task) for task in PHASE5_TASKS]
 
     aggregator = AggregatorExecutor(owner=owner, repo=repo)
 
