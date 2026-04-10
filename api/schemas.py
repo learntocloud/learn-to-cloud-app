@@ -63,7 +63,7 @@ class HandsOnRequirement(FrozenModel):
     placeholder: str | None = None
 
     # Upstream repo (``owner/name``) for GitHub repo-backed verification
-    # types: ``repo_fork``, ``pr_review``, ``code_analysis``,
+    # types: ``repo_fork``, ``pr_review``, ``ci_status``,
     # ``devops_analysis``, and ``security_scanning``.  Used to derive the
     # canonical learner fork URL
     # (``https://github.com/{learner}/{name}``).
@@ -71,6 +71,11 @@ class HandsOnRequirement(FrozenModel):
 
     # For PR_REVIEW: files the merged PR must have touched
     expected_files: list[str] | None = None
+
+    # For PR_REVIEW: AI diff grading criteria (from content YAML).
+    grading_criteria: list[str] | None = None
+    pass_indicators: list[str] | None = None
+    fail_indicators: list[str] | None = None
 
 
 class HealthResponse(BaseModel):
@@ -398,15 +403,16 @@ class SubmissionResult(FrozenModel):
 
         True when validation failed but verification never completed
         (e.g. LLM timeout, external service down). These attempts are
-        not counted against the user's cooldown or daily quota.
+        not counted against the user's daily quota.
         """
         return not self.is_valid and not self.submission.verification_completed
 
 
 class TaskResult(FrozenModel):
-    """Result of verifying a single task in code analysis.
+    """Result of verifying a single task in a multi-task verification.
 
-    Used by CODE_ANALYSIS validation to provide detailed per-task feedback.
+    Used by PR_REVIEW, DEVOPS_ANALYSIS, and SECURITY_SCANNING validations
+    to provide detailed per-task feedback.
     """
 
     task_name: str
@@ -434,11 +440,11 @@ class ValidationResult(FrozenModel):
             URL matches the authenticated user. None for non-GitHub validations.
         repo_exists: For GitHub-based validations, whether the repository
             exists. None for non-GitHub validations.
-        task_results: For CODE_ANALYSIS validations, detailed per-task feedback.
-            None for non-code-analysis validations.
+        task_results: For multi-task validations, detailed per-task feedback.
+            None for single-check validations.
         server_error: True if validation failed due to a server-side issue
-            (e.g., service unavailable, config error). When True, cooldowns
-            should not be applied since the user isn't at fault.
+            (e.g., service unavailable, config error). When True, the
+            attempt is not counted since the user isn't at fault.
         cloud_provider: Cloud provider for multi-cloud labs ("aws",
             "azure", "gcp"). None for non-multi-cloud validations.
     """

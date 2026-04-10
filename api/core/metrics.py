@@ -13,7 +13,7 @@ Usage in services::
 
     from core.metrics import VERIFICATION_COUNTER, VERIFICATION_DURATION
 
-    VERIFICATION_COUNTER.add(1, {"submission_type": "CODE_ANALYSIS", "result": "pass"})
+    VERIFICATION_COUNTER.add(1, {"submission_type": "CI_STATUS", "result": "pass"})
 """
 
 from __future__ import annotations
@@ -63,12 +63,6 @@ AUTH_LOGIN_COUNTER = _meter.create_counter(
 SUBMISSION_DAILY_LIMIT_COUNTER = _meter.create_counter(
     name="submission.daily_limit_exceeded",
     description="Submissions rejected by daily cap",
-    unit="{rejection}",
-)
-
-SUBMISSION_COOLDOWN_COUNTER = _meter.create_counter(
-    name="submission.cooldown_active",
-    description="Submissions rejected by cooldown",
     unit="{rejection}",
 )
 

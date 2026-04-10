@@ -198,7 +198,6 @@ class TestSubmissionRouting:
 
             mock.assert_called_once_with(
                 "https://github.com/testuser/journal-starter/pull/1",
-                "testuser",
                 requirement,
             )
             assert result.is_valid is True
@@ -247,7 +246,7 @@ class TestValidateSubmissionUsernameRequirements:
             SubmissionType.CTF_TOKEN,
             SubmissionType.NETWORKING_TOKEN,
             SubmissionType.PR_REVIEW,
-            SubmissionType.CODE_ANALYSIS,
+            SubmissionType.CI_STATUS,
             SubmissionType.DEVOPS_ANALYSIS,
             SubmissionType.SECURITY_SCANNING,
         ],

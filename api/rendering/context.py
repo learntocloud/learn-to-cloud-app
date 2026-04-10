@@ -270,8 +270,6 @@ def build_requirement_card_context(
     feedback_passed: int = 0,
     server_error: bool = False,
     server_error_message: str | None = None,
-    cooldown_seconds: int | None = None,
-    cooldown_message: str | None = None,
     error_banner: str | None = None,
     processing: bool = False,
 ) -> dict[str, Any]:
@@ -295,8 +293,6 @@ def build_requirement_card_context(
         feedback_passed: Count of passing tasks (for the summary line).
         server_error: Whether to render the server-error banner.
         server_error_message: Optional server-error text.
-        cooldown_seconds: Optional remaining cooldown seconds.
-        cooldown_message: Optional cooldown banner text.
         error_banner: Optional inline error banner text.
         processing: Whether the card is in the LLM "analysing..." state.
     """
@@ -332,8 +328,6 @@ def build_requirement_card_context(
         "feedback_passed": feedback_passed,
         "server_error": server_error,
         "server_error_message": server_error_message,
-        "cooldown_seconds": cooldown_seconds,
-        "cooldown_message": cooldown_message,
         "error_banner": error_banner,
         "processing": processing,
         "derived_url": derived_url,

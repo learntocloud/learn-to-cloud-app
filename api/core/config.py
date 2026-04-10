@@ -40,7 +40,6 @@ class Settings(BaseSettings):
     http_timeout: float = 10.0
 
     llm_cli_timeout: int = 120
-    code_analysis_cooldown_seconds: int = 3600
     daily_submission_limit: int = 20
 
     llm_base_url: str = ""

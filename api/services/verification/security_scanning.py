@@ -20,7 +20,7 @@ import asyncio
 import logging
 
 import httpx
-from circuitbreaker import CircuitBreakerError, circuit
+from circuitbreaker import circuit
 from tenacity import (
     retry,
     retry_if_exception_type,
@@ -305,69 +305,17 @@ async def validate_security_scanning(
     owner, repo = result
 
     try:
-        try:
-            all_files = await fetch_repo_tree(owner, repo)
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == 404:
-                return ValidationResult(
-                    is_valid=False,
-                    message=(
-                        f"Repository '{owner}/{repo}' not found. "
-                        "Make sure the repository is public."
-                    ),
-                    username_match=True,
-                )
-            raise
+        all_files = await fetch_repo_tree(owner, repo)
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code == 404:
+            return ValidationResult(
+                is_valid=False,
+                message=(
+                    f"Repository '{owner}/{repo}' not found. "
+                    "Make sure the repository is public."
+                ),
+                username_match=True,
+            )
+        raise
 
-        return await _verify_security_scanning(owner, repo, all_files)
-
-    except CircuitBreakerError:
-        logger.error(
-            "security_scanning.circuit_open",
-            extra={
-                "owner": owner,
-                "repo": repo,
-                "github_username": github_username,
-            },
-        )
-        return ValidationResult(
-            is_valid=False,
-            message=(
-                "Security scanning verification is temporarily unavailable. "
-                "Please try again in a few minutes."
-            ),
-            server_error=True,
-        )
-    except SecurityVerificationError as e:
-        logger.error(
-            "security_scanning.failed",
-            extra={
-                "owner": owner,
-                "repo": repo,
-                "retriable": e.retriable,
-                "github_username": github_username,
-                "exc_type": type(e).__name__,
-                "exc_message": str(e),
-            },
-        )
-        return ValidationResult(
-            is_valid=False,
-            message=f"Security scanning verification failed: {e}",
-            server_error=e.retriable,
-        )
-    except RETRIABLE_EXCEPTIONS as exc:
-        logger.error(
-            "security_scanning.request_error",
-            extra={
-                "owner": owner,
-                "repo": repo,
-                "github_username": github_username,
-                "exc_type": type(exc).__name__,
-                "exc_message": str(exc),
-            },
-        )
-        return ValidationResult(
-            is_valid=False,
-            message="Unable to reach GitHub. Please try again later.",
-            server_error=True,
-        )
+    return await _verify_security_scanning(owner, repo, all_files)

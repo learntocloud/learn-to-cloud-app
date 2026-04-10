@@ -81,8 +81,8 @@ class SubmissionRepository:
         Args:
             verification_completed: Whether the verification logic actually ran.
                 Set to False when blocked by server errors (e.g., LLM CLI down).
-                Only completed verifications count toward cooldowns.
-            feedback_json: JSON-serialized task feedback for CODE_ANALYSIS submissions.
+                Only completed verifications count toward the daily cap.
+            feedback_json: JSON-serialized task feedback for multi-task submissions.
             cloud_provider: Cloud provider slug ("aws", "azure", "gcp") for
                 multi-cloud labs. None for non-multi-cloud submissions.
         """
@@ -114,34 +114,6 @@ class SubmissionRepository:
         self.db.add(submission)
         await self.db.flush()
         return submission
-
-    async def get_last_submission_time(
-        self,
-        user_id: int,
-        requirement_id: str,
-    ) -> datetime | None:
-        """Get the timestamp of the user's most recent completed verification.
-
-        Used to enforce cooldown periods between verification attempts.
-        Only considers submissions where verification actually ran (not blocked
-        by server errors), so users aren't penalized for infrastructure issues.
-
-        Returns:
-            The updated_at timestamp of the last completed verification,
-            or None if no completed verification exists.
-        """
-        result = await self.db.execute(
-            select(Submission.updated_at)
-            .where(
-                Submission.user_id == user_id,
-                Submission.requirement_id == requirement_id,
-                Submission.verification_completed.is_(True),
-            )
-            .order_by(Submission.updated_at.desc())
-            .limit(1)
-        )
-        row = result.scalar_one_or_none()
-        return row
 
     async def are_all_requirements_validated(
         self, user_id: int, requirement_ids: list[str]
@@ -181,3 +153,31 @@ class SubmissionRepository:
             )
         )
         return result.scalar_one() or 0
+
+    async def find_validated_by_value_in_phase(
+        self,
+        user_id: int,
+        phase_id: int,
+        submitted_value: str,
+        exclude_requirement_id: str,
+    ) -> str | None:
+        """Find a validated submission with the same value in the same phase.
+
+        Used to enforce PR uniqueness: the same PR URL cannot be used for
+        multiple requirements within a phase.
+
+        Returns:
+            The requirement_id of the conflicting submission, or None.
+        """
+        result = await self.db.execute(
+            select(Submission.requirement_id)
+            .where(
+                Submission.user_id == user_id,
+                Submission.phase_id == phase_id,
+                Submission.submitted_value == submitted_value,
+                Submission.requirement_id != exclude_requirement_id,
+                Submission.is_validated.is_(True),
+            )
+            .limit(1)
+        )
+        return result.scalar_one_or_none()

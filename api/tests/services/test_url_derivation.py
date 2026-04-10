@@ -37,7 +37,7 @@ class TestIsDerivable:
             SubmissionType.GITHUB_PROFILE,
             SubmissionType.PROFILE_README,
             SubmissionType.REPO_FORK,
-            SubmissionType.CODE_ANALYSIS,
+            SubmissionType.CI_STATUS,
             SubmissionType.DEVOPS_ANALYSIS,
             SubmissionType.SECURITY_SCANNING,
         ],
@@ -94,9 +94,9 @@ class TestDeriveSubmissionValue:
             == "https://github.com/alice/linux-ctfs"
         )
 
-    def test_code_analysis(self):
+    def test_ci_status(self):
         req = _req(
-            SubmissionType.CODE_ANALYSIS,
+            SubmissionType.CI_STATUS,
             required_repo="learntocloud/journal-starter",
         )
         assert (
@@ -126,11 +126,6 @@ class TestDeriveSubmissionValue:
 
     def test_repo_fork_missing_required_repo_raises(self):
         req = _req(SubmissionType.REPO_FORK)
-        with pytest.raises(ValueError, match="required_repo"):
-            derive_submission_value(req, "alice")
-
-    def test_code_analysis_missing_required_repo_raises(self):
-        req = _req(SubmissionType.CODE_ANALYSIS)
         with pytest.raises(ValueError, match="required_repo"):
             derive_submission_value(req, "alice")
 

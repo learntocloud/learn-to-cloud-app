@@ -18,17 +18,20 @@ To add a new verification type:
 
 For GitHub-specific validations, see github_profile.py
 For CTF token validation, see ctf.py
-For AI-powered code analysis, see code_analysis.py
+For CI-based code verification, see ci_status.py
 For phase requirements, see requirements.py
 """
 
 import logging
 import time
 
+from circuitbreaker import CircuitBreakerError
+
+from core.llm_client import LLMClientError
 from core.metrics import VERIFICATION_COUNTER, VERIFICATION_DURATION
 from models import SubmissionType
 from schemas import HandsOnRequirement, ValidationResult
-from services.verification.code_analysis import analyze_repository_code
+from services.verification.ci_status import verify_ci_status
 from services.verification.ctf import verify_ctf_token
 from services.verification.deployed_api import validate_deployed_api
 from services.verification.devops_analysis import analyze_devops_repository
@@ -37,6 +40,7 @@ from services.verification.github_profile import (
     validate_profile_readme,
     validate_repo_fork,
 )
+from services.verification.llm_base import VerificationError
 from services.verification.networking_lab import verify_networking_token
 from services.verification.pull_request import validate_pr
 from services.verification.security_scanning import validate_security_scanning
@@ -123,6 +127,38 @@ async def validate_submission(
         )
         result_attr = "pass" if validation_result.is_valid else "fail"
         return validation_result
+    except (
+        CircuitBreakerError,
+        TimeoutError,
+        VerificationError,
+        LLMClientError,
+    ) as e:
+        logger.error(
+            "verification.failed",
+            extra={
+                "submission_type": submission_type,
+                "error_type": type(e).__name__,
+                "error": str(e),
+            },
+        )
+        return ValidationResult(
+            is_valid=False,
+            message="Verification failed. Please try again later.",
+            server_error=True,
+        )
+    except Exception as e:
+        logger.exception(
+            "verification.unexpected_error",
+            extra={
+                "submission_type": submission_type,
+                "error_type": type(e).__name__,
+            },
+        )
+        return ValidationResult(
+            is_valid=False,
+            message="Verification failed. Please try again later.",
+            server_error=True,
+        )
     finally:
         elapsed = time.monotonic() - start
         attrs = {"submission_type": submission_type, "result": result_attr}
@@ -181,11 +217,11 @@ async def _dispatch_validation(
         return validate_networking_token_submission(submitted_value, username)
 
     elif requirement.submission_type == SubmissionType.PR_REVIEW:
-        return await validate_pr(submitted_value, username, requirement)
+        return await validate_pr(submitted_value, requirement)
 
-    elif requirement.submission_type == SubmissionType.CODE_ANALYSIS:
+    elif requirement.submission_type == SubmissionType.CI_STATUS:
         expected_name = _expected_fork_name(requirement)
-        return await analyze_repository_code(submitted_value, username, expected_name)
+        return await verify_ci_status(submitted_value, username, expected_name)
 
     elif requirement.submission_type == SubmissionType.DEVOPS_ANALYSIS:
         expected_name = _expected_fork_name(requirement)

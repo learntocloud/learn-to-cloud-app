@@ -1,6 +1,6 @@
 """Server-side derivation of canonical submission values.
 
-For repo-backed requirements (fork, code analysis, DevOps analysis,
+For repo-backed requirements (fork, CI status, DevOps analysis,
 security scanning, PR review) the canonical URL is derived from the
 authenticated user's ``github_username`` plus the requirement's
 ``required_repo``.  Profile-based types (``github_profile``,
@@ -28,7 +28,7 @@ _DERIVABLE_TYPES: frozenset[SubmissionType] = frozenset(
         SubmissionType.GITHUB_PROFILE,
         SubmissionType.PROFILE_README,
         SubmissionType.REPO_FORK,
-        SubmissionType.CODE_ANALYSIS,
+        SubmissionType.CI_STATUS,
         SubmissionType.DEVOPS_ANALYSIS,
         SubmissionType.SECURITY_SCANNING,
     }
@@ -104,7 +104,7 @@ def derive_submission_value(
 
     if sub_type in (
         SubmissionType.REPO_FORK,
-        SubmissionType.CODE_ANALYSIS,
+        SubmissionType.CI_STATUS,
         SubmissionType.DEVOPS_ANALYSIS,
         SubmissionType.SECURITY_SCANNING,
     ):

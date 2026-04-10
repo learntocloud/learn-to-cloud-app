@@ -236,7 +236,7 @@ class TestHtmxSubmitVerification:
                 return_value="test",
             ),
             patch(
-                "routes.htmx_routes.submit_validation",
+                "routes.htmx_routes.pre_validate_submission",
                 autospec=True,
                 side_effect=AlreadyValidatedError(),
             ),
@@ -275,7 +275,7 @@ class TestHtmxSubmitVerification:
                 return_value="test",
             ),
             patch(
-                "routes.htmx_routes.submit_validation",
+                "routes.htmx_routes.pre_validate_submission",
                 autospec=True,
                 side_effect=exc,
             ),
@@ -309,7 +309,7 @@ class TestHtmxSubmitVerification:
                 return_value="test",
             ),
             patch(
-                "routes.htmx_routes.submit_validation",
+                "routes.htmx_routes.pre_validate_submission",
                 autospec=True,
                 side_effect=GitHubUsernameRequiredError(),
             ),
@@ -325,17 +325,10 @@ class TestHtmxSubmitVerification:
         # Should render without crashing
         assert result is not None
 
-    async def test_submit_success_sets_hx_refresh(self):
-        """Successful validation sets HX-Refresh header."""
+    async def test_submit_success_returns_processing_card(self):
+        """Successful pre-validation returns a processing card."""
         request = _mock_request()
         mock_db = AsyncMock()
-
-        mock_result = MagicMock()
-        mock_result.is_valid = True
-        mock_result.is_server_error = False
-        mock_result.submission = MagicMock()
-        mock_result.task_results = []
-        mock_result.message = "Passed"
 
         with (
             patch(
@@ -350,15 +343,20 @@ class TestHtmxSubmitVerification:
                 return_value="test",
             ),
             patch(
-                "routes.htmx_routes.submit_validation",
+                "routes.htmx_routes.pre_validate_submission",
                 autospec=True,
-                return_value=mock_result,
             ),
             patch(
-                "routes.htmx_routes.build_feedback_tasks_from_results",
-                return_value=([], 0),
+                "routes.htmx_routes._get_submission_lock",
+                autospec=True,
+                return_value=MagicMock(locked=MagicMock(return_value=False)),
             ),
+            patch("routes.htmx_routes.create_pending"),
+            patch("routes.htmx_routes.asyncio") as mock_asyncio,
         ):
+            mock_asyncio.create_task.return_value = MagicMock(
+                add_done_callback=MagicMock()
+            )
             result = await htmx_submit_verification(
                 request,
                 mock_db,
@@ -367,7 +365,8 @@ class TestHtmxSubmitVerification:
                 submitted_value="test",
             )
 
-        assert result.headers.get("HX-Refresh") == "true"
+        # Should return a processing card, not a final result
+        assert result is not None
 
     async def test_submit_unexpected_error_renders_server_error(self):
         """Unexpected exceptions render a server error card."""
@@ -387,7 +386,7 @@ class TestHtmxSubmitVerification:
                 return_value="test",
             ),
             patch(
-                "routes.htmx_routes.submit_validation",
+                "routes.htmx_routes.pre_validate_submission",
                 autospec=True,
                 side_effect=RuntimeError("boom"),
             ),
