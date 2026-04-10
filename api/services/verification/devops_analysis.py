@@ -329,9 +329,12 @@ class PreflightExecutor(Executor):
     @handler
     async def process(
         self,
-        msg: str,
+        _msg: str,
         ctx: WorkflowContext[str | dict[str, list[str]], ValidationResult],
     ) -> None:
+        # _msg is the initial workflow.run() trigger string — start
+        # executors receive config via __init__, not the trigger message.
+
         # ── Fetch repo tree ──────────────────────────────────
         logger.info(
             "devops_analysis.repo_tree_fetching",

@@ -115,9 +115,11 @@ class ValidationExecutor(Executor):
     @handler
     async def process(
         self,
-        msg: str,
+        _msg: str,
         ctx: WorkflowContext[str | ValidationResult, ValidationResult],
     ) -> None:
+        # _msg is the initial workflow.run() trigger string — start
+        # executors receive config via __init__, not the trigger message.
         try:
             pr_data = await _fetch_pr_data(self._owner, self._repo, self._pr_number)
         except (
