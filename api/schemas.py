@@ -73,8 +73,6 @@ class HandsOnRequirement(FrozenModel):
     expected_files: list[str] | None = None
 
     # For PR_REVIEW: AI diff grading criteria (from content YAML).
-    # When present, the PR diff is analyzed by an LLM after deterministic
-    # checks pass.  When absent, only deterministic checks run.
     grading_criteria: list[str] | None = None
     pass_indicators: list[str] | None = None
     fail_indicators: list[str] | None = None

@@ -7,14 +7,21 @@ Workflow (Agent Framework — fan-out / fan-in):
   **PreflightExecutor** (start + output executor)
     → Fetches repo tree, runs static file check, fetches file contents
     → If static check fails → ``yield_output`` (short-circuit, no LLM call)
-    → If static check passes → ``send_message`` (dispatch signal) to fan-out
+    → If static check passes → ``send_message`` (file contents dict) to fan-out
 
-  **DockerfileVerifier / CICDPipelineVerifier /
-  TerraformVerifier / KubernetesVerifier** (fan-out branches)
-    → Each receives dispatch signal, reads own files from workflow state
-    → Calls own dedicated ``Agent`` with task-specific instructions
-    → Applies per-task deterministic guardrails
-    → ``send_message(TaskResult)`` downstream
+  **PromptBuilderExecutor** × 4 (per-task, fan-out branch entry)
+    → Extracts task-specific files from the shared dict
+    → Stores raw content in workflow state for downstream guardrails
+    → Sends prompt string to the grading Agent
+
+  **Agent** × 4 (per-task, auto-wrapped in AgentExecutor by WorkflowBuilder)
+    → Grades task via LLM with structured output (DevOpsTaskGrade)
+    → Sends AgentExecutorResponse downstream
+
+  **GuardrailExecutor** × 4 (per-task, fan-out branch exit)
+    → Parses DevOpsTaskGrade from AgentExecutorResponse
+    → Applies deterministic anti-jailbreak guardrails
+    → Sends TaskResult downstream
 
   **AggregatorExecutor** (fan-in output executor)
     → Receives ``list[TaskResult]`` from all 4 branches
@@ -27,13 +34,14 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from dataclasses import dataclass
 from typing import Never
 
 import httpx
 from agent_framework import (
     Agent,
+    AgentExecutorResponse,
     Executor,
-    Message,
     WorkflowBuilder,
     WorkflowContext,
     handler,
@@ -69,6 +77,14 @@ from services.verification.tasks.phase5 import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class RepoInput:
+    """Input data for the DevOps verification workflow."""
+
+    owner: str
+    repo: str
 
 
 class DevOpsAnalysisError(VerificationError):
@@ -314,6 +330,7 @@ def _build_task_prompt(
 class PreflightExecutor(Executor):
     """Fetch repo tree, run static file check, prepare LLM content.
 
+    Receives ``RepoInput`` via ``workflow.run(RepoInput(...))``.
     Two possible outcomes:
       - **Static check fails** → ``yield_output(ValidationResult)`` directly.
         No downstream message is sent, so the fan-out Agents never run.
@@ -321,30 +338,32 @@ class PreflightExecutor(Executor):
         workflow state, and ``send_message`` (dispatch signal) to fan-out.
     """
 
-    def __init__(self, *, owner: str, repo: str) -> None:
+    def __init__(self) -> None:
         super().__init__(id="phase5-preflight")
-        self._owner = owner
-        self._repo = repo
 
     @handler
     async def process(
         self,
-        _msg: str,
-        ctx: WorkflowContext[str | dict[str, list[str]], ValidationResult],
+        repo: RepoInput,
+        ctx: WorkflowContext[dict[str, list[str]], ValidationResult],
     ) -> None:
-        # _msg is the initial workflow.run() trigger string — start
-        # executors receive config via __init__, not the trigger message.
+        owner = repo.owner
+        repo_name = repo.repo
+
+        # Store for downstream executors (AggregatorExecutor logging)
+        ctx.set_state("owner", owner)
+        ctx.set_state("repo", repo_name)
 
         # ── Fetch repo tree ──────────────────────────────────
         logger.info(
             "devops_analysis.repo_tree_fetching",
             extra={
-                "owner": self._owner,
-                "repo": self._repo,
+                "owner": owner,
+                "repo": repo_name,
             },
         )
         try:
-            all_files = await fetch_repo_tree(self._owner, self._repo)
+            all_files = await fetch_repo_tree(owner, repo_name)
         except (
             CircuitBreakerError,
             httpx.HTTPStatusError,
@@ -354,15 +373,15 @@ class PreflightExecutor(Executor):
                 e,
                 event="devops_analysis.repo_tree_error",
                 context={
-                    "owner": self._owner,
-                    "repo": self._repo,
+                    "owner": owner,
+                    "repo": repo_name,
                 },
             )
             if isinstance(e, httpx.HTTPStatusError) and e.response.status_code == 404:
                 result = ValidationResult(
                     is_valid=False,
                     message=(
-                        f"Repository '{self._owner}/{self._repo}' not found. "
+                        f"Repository '{owner}/{repo_name}' not found. "
                         "Make sure the repository is public."
                     ),
                 )
@@ -372,8 +391,8 @@ class PreflightExecutor(Executor):
         logger.info(
             "devops_analysis.repo_tree_fetched",
             extra={
-                "owner": self._owner,
-                "repo": self._repo,
+                "owner": owner,
+                "repo": repo_name,
                 "total_files": len(all_files),
             },
         )
@@ -385,8 +404,8 @@ class PreflightExecutor(Executor):
             logger.info(
                 "devops_analysis.skipped_llm",
                 extra={
-                    "owner": self._owner,
-                    "repo": self._repo,
+                    "owner": owner,
+                    "repo": repo_name,
                     "reason": "required_files_missing",
                     "failed_tasks": [f.task_name for f in existence_failures],
                 },
@@ -412,8 +431,8 @@ class PreflightExecutor(Executor):
         logger.info(
             "devops_analysis.file_fetch_started",
             extra={
-                "owner": self._owner,
-                "repo": self._repo,
+                "owner": owner,
+                "repo": repo_name,
                 "files_to_fetch": total_fetch,
                 "files_per_task": {
                     tid: len(paths) for tid, paths in devops_files.items()
@@ -421,9 +440,7 @@ class PreflightExecutor(Executor):
             },
         )
 
-        file_contents = await _fetch_all_devops_files(
-            self._owner, self._repo, devops_files
-        )
+        file_contents = await _fetch_all_devops_files(owner, repo_name, devops_files)
 
         fetched_per_task = {
             tid: len(contents) for tid, contents in file_contents.items()
@@ -431,8 +448,8 @@ class PreflightExecutor(Executor):
         logger.info(
             "devops_analysis.file_fetch_completed",
             extra={
-                "owner": self._owner,
-                "repo": self._repo,
+                "owner": owner,
+                "repo": repo_name,
                 "fetched_per_task": fetched_per_task,
             },
         )
@@ -441,66 +458,77 @@ class PreflightExecutor(Executor):
         logger.info(
             "devops_analysis.fan_out_dispatching",
             extra={
-                "owner": self._owner,
-                "repo": self._repo,
+                "owner": owner,
+                "repo": repo_name,
                 "verifier_count": 4,
             },
         )
         await ctx.send_message(file_contents)
 
 
-class TaskVerifier(Executor):
-    """Fan-out branch: grades one DevOps task via a dedicated Agent.
+class PromptBuilderExecutor(Executor):
+    """Fan-out branch entry: extracts per-task files and builds a prompt.
 
-    Lazily creates the LLM client and Agent inside the handler so the
-    workflow can be constructed without requiring LLM configuration.
-
-    On receiving the dispatch signal the handler:
-      1. Reads its task's file contents from workflow state.
-      2. Builds a per-task prompt with only the relevant files.
-      3. Calls a dedicated ``Agent.run()`` for structured grading.
-      4. Applies deterministic guardrails on the single grade.
-      5. Sends the resulting ``TaskResult`` downstream.
+    Receives the full ``dict[str, list[str]]`` of file contents from
+    the PreflightExecutor, extracts this task's slice, stores the raw
+    content in workflow state (for downstream guardrails), and sends
+    the prompt string to the grading Agent.
     """
 
     def __init__(self, *, task_def: TaskDefinition) -> None:
-        super().__init__(id=f"verifier-{task_def['id']}")
+        super().__init__(id=f"prompt-{task_def['id']}")
         self._task_def = task_def
 
     @handler
     async def process(
         self,
         file_contents: dict[str, list[str]],
-        ctx: WorkflowContext[TaskResult],
+        ctx: WorkflowContext[str],
     ) -> None:
         task_id = self._task_def["id"]
-        task_name = self._task_def["name"]
         task_files = file_contents.get(task_id, [])
 
         logger.info(
             "devops_analysis.task_grading_started",
             extra={
                 "task_id": task_id,
-                "task_name": task_name,
+                "task_name": self._task_def["name"],
                 "file_count": len(task_files),
             },
         )
 
-        prompt = _build_task_prompt(self._task_def, task_files)
+        # Store raw content for GuardrailExecutor to read via get_state
+        raw_content = "".join(task_files) if task_files else "<no_files_found />"
+        ctx.set_state(f"raw-{task_id}", raw_content)
 
-        chat_client = await get_llm_chat_client()
-        agent = Agent(
-            client=chat_client,
-            instructions=_build_task_instructions(self._task_def),
-            name=f"grader-{self._task_def['id']}",
-        )
-        response = await agent.run(
-            [Message("user", [prompt])],
-            options={"response_format": DevOpsTaskGrade},
-        )
+        prompt = _build_task_prompt(self._task_def, task_files)
+        await ctx.send_message(prompt)
+
+
+class GuardrailExecutor(Executor):
+    """Fan-out branch exit: parses LLM grade, applies deterministic guardrails.
+
+    Receives an ``AgentExecutorResponse`` from the auto-wrapped grading Agent,
+    extracts the ``DevOpsTaskGrade`` structured output, applies anti-jailbreak
+    guardrails using the raw file content stored in workflow state, and sends
+    the resulting ``TaskResult`` downstream.
+    """
+
+    def __init__(self, *, task_def: TaskDefinition) -> None:
+        super().__init__(id=f"guardrail-{task_def['id']}")
+        self._task_def = task_def
+
+    @handler
+    async def process(
+        self,
+        response: AgentExecutorResponse,
+        ctx: WorkflowContext[TaskResult],
+    ) -> None:
+        task_id = self._task_def["id"]
+        task_name = self._task_def["name"]
 
         grade = parse_structured_response(
-            response,
+            response.agent_response,
             DevOpsTaskGrade,
             DevOpsAnalysisError,
             f"devops_analysis.{task_id}",
@@ -508,8 +536,9 @@ class TaskVerifier(Executor):
 
         llm_passed = grade.passed
 
-        # Per-task deterministic guardrails
-        raw_content = "".join(task_files) if task_files else "<no_files_found />"
+        # Read raw file content stored by PromptBuilderExecutor
+        raw_content: str = ctx.get_state(f"raw-{task_id}", "<no_files_found />")
+
         corrected = enforce_deterministic_guardrails(
             grades=[grade],
             task_definitions=[self._task_def],
@@ -557,13 +586,12 @@ class AggregatorExecutor(Executor):
     """Fan-in: collects ``TaskResult`` from all branches, builds final output.
 
     Receives a ``list[TaskResult]`` (aggregated by the fan-in edge group)
-    and yields a single ``ValidationResult``.
+    and yields a single ``ValidationResult``.  Reads ``owner``/``repo``
+    from workflow state (set by PreflightExecutor).
     """
 
-    def __init__(self, *, owner: str, repo: str) -> None:
+    def __init__(self) -> None:
         super().__init__(id="phase5-aggregator")
-        self._owner = owner
-        self._repo = repo
 
     @handler
     async def process(
@@ -571,6 +599,8 @@ class AggregatorExecutor(Executor):
         results: list[TaskResult],
         ctx: WorkflowContext[Never, ValidationResult],
     ) -> None:
+        owner: str = ctx.get_state("owner", "unknown")
+        repo: str = ctx.get_state("repo", "unknown")
         # Preserve task definition order
         task_order = {t["name"]: i for i, t in enumerate(PHASE5_TASKS)}
         sorted_results = sorted(results, key=lambda r: task_order.get(r.task_name, 999))
@@ -596,8 +626,8 @@ class AggregatorExecutor(Executor):
         logger.info(
             "devops_analysis.completed",
             extra={
-                "owner": self._owner,
-                "repo": self._repo,
+                "owner": owner,
+                "repo": repo,
                 "passed": passed_count,
                 "total": len(sorted_results),
                 "all_passed": all_passed,
@@ -624,29 +654,48 @@ async def _run_devops_workflow(owner: str, repo: str) -> ValidationResult:
 
     Builds a fan-out / fan-in Agent Framework workflow::
 
-        PreflightExecutor ──fan-out──→ TaskVerifier(dockerfile)       ─┐
-              │                       → TaskVerifier(cicd-pipeline)    ─┤ fan-in
-              │                       → TaskVerifier(terraform-iac)    ─┤ ──→ Aggregator
-              │                       → TaskVerifier(k8s-manifests)    ─┘
+        PreflightExecutor ──fan-out──→ PromptBuilder  → Agent → Guardrail ─┐
+              │                       → PromptBuilder  → Agent → Guardrail ─┤
+              │                       → PromptBuilder  → Agent → Guardrail ─┤
+              │                       → PromptBuilder  → Agent → Guardrail ─┘
+              │                                                    fan-in → Aggregator
               │
               └── yield_output (short-circuit on static check failure)
+
+    Agents are first-class workflow participants: passed directly to
+    ``WorkflowBuilder.add_edge()`` and auto-wrapped in ``AgentExecutor``
+    by the framework.
     """
-    preflight = PreflightExecutor(owner=owner, repo=repo)
+    chat_client = await get_llm_chat_client()
 
-    verifiers = [TaskVerifier(task_def=task) for task in PHASE5_TASKS]
+    preflight = PreflightExecutor()
 
-    aggregator = AggregatorExecutor(owner=owner, repo=repo)
+    prompt_builders = [PromptBuilderExecutor(task_def=task) for task in PHASE5_TASKS]
 
-    workflow = (
-        WorkflowBuilder(
-            name="phase5-devops-analysis",
-            start_executor=preflight,
-            output_executors=[preflight, aggregator],
+    grader_agents = [
+        Agent(
+            client=chat_client,
+            instructions=_build_task_instructions(task),
+            name=f"grader-{task['id']}",
+            default_options={"response_format": DevOpsTaskGrade},
         )
-        .add_fan_out_edges(preflight, verifiers)
-        .add_fan_in_edges(verifiers, aggregator)
-        .build()
-    )
+        for task in PHASE5_TASKS
+    ]
+
+    guardrails = [GuardrailExecutor(task_def=task) for task in PHASE5_TASKS]
+
+    aggregator = AggregatorExecutor()
+
+    builder = WorkflowBuilder(
+        name="phase5-devops-analysis",
+        start_executor=preflight,
+        output_executors=[preflight, aggregator],
+    ).add_fan_out_edges(preflight, prompt_builders)
+
+    for pb, agent, gr in zip(prompt_builders, grader_agents, guardrails):
+        builder = builder.add_edge(pb, agent).add_edge(agent, gr)
+
+    workflow = builder.add_fan_in_edges(guardrails, aggregator).build()
 
     timeout_seconds = get_settings().llm_cli_timeout
     logger.info(
@@ -659,9 +708,7 @@ async def _run_devops_workflow(owner: str, repo: str) -> ValidationResult:
     )
 
     async with asyncio.timeout(timeout_seconds):
-        run_result = await workflow.run(
-            "Analyze the repository artifacts and grade all 4 tasks."
-        )
+        run_result = await workflow.run(RepoInput(owner=owner, repo=repo))
 
         outputs = run_result.get_outputs()
         if not outputs:
