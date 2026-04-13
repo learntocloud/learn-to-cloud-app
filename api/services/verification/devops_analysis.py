@@ -565,7 +565,6 @@ class GuardrailExecutor(Executor):
         next_steps = sanitize_feedback(getattr(grade, "next_steps", "") or "")
 
         # Store per-task usage for aggregation
-        # Store per-task usage for aggregation
         usage: UsageDetails | None = response.agent_response.usage_details
         if usage:
             ctx.set_state(f"usage-{task_id}", usage)
