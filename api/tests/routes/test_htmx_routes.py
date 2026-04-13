@@ -24,12 +24,6 @@ from routes.htmx_routes import (
     htmx_uncomplete_step,
 )
 from services.steps_service import StepValidationError
-from services.submissions_service import (
-    AlreadyValidatedError,
-    DailyLimitExceededError,
-    GitHubUsernameRequiredError,
-    RequirementNotFoundError,
-)
 from services.users_service import UserNotFoundError
 
 
@@ -183,150 +177,14 @@ class TestHtmxUncompleteStep:
 
 @pytest.mark.unit
 class TestHtmxSubmitVerification:
-    """Tests for POST /htmx/github/submit."""
+    """Tests for POST /htmx/github/submit.
 
-    async def test_submit_requirement_not_found_returns_404(self):
-        """RequirementNotFoundError returns 404 HTML."""
-        request = _mock_request()
-        mock_db = AsyncMock()
-
-        with (
-            patch(
-                "routes.htmx_routes.get_user_by_id",
-                autospec=True,
-                return_value=MagicMock(github_username="user"),
-            ),
-            patch("routes.htmx_routes.get_requirement_by_id", return_value=MagicMock()),
-            patch(
-                "routes.htmx_routes.derive_submission_value",
-                autospec=True,
-                return_value="test",
-            ),
-            patch(
-                "routes.htmx_routes.submit_validation",
-                autospec=True,
-                side_effect=RequirementNotFoundError("bad-req"),
-            ),
-        ):
-            result = await htmx_submit_verification(
-                request,
-                mock_db,
-                user_id=1,
-                requirement_id="bad-req",
-                submitted_value="test",
-            )
-
-        assert result.status_code == 404
-
-    async def test_submit_already_validated_returns_200(self):
-        """AlreadyValidatedError returns 200 with success message."""
-        request = _mock_request()
-        mock_db = AsyncMock()
-
-        with (
-            patch(
-                "routes.htmx_routes.get_user_by_id",
-                autospec=True,
-                return_value=MagicMock(github_username="user"),
-            ),
-            patch("routes.htmx_routes.get_requirement_by_id", return_value=MagicMock()),
-            patch(
-                "routes.htmx_routes.derive_submission_value",
-                autospec=True,
-                return_value="test",
-            ),
-            patch(
-                "routes.htmx_routes.pre_validate_submission",
-                autospec=True,
-                side_effect=AlreadyValidatedError(),
-            ),
-        ):
-            result = await htmx_submit_verification(
-                request,
-                mock_db,
-                user_id=1,
-                requirement_id="req-1",
-                submitted_value="test",
-            )
-
-        assert result.status_code == 200
-
-    async def test_submit_daily_limit_renders_error_banner(self):
-        """DailyLimitExceededError renders card with error banner."""
-        request = _mock_request()
-        mock_db = AsyncMock()
-
-        exc = DailyLimitExceededError(
-            message="Daily limit exceeded",
-            limit=5,
-            existing_submission=MagicMock(),
-        )
-
-        with (
-            patch(
-                "routes.htmx_routes.get_user_by_id",
-                autospec=True,
-                return_value=MagicMock(github_username="user"),
-            ),
-            patch("routes.htmx_routes.get_requirement_by_id", return_value=MagicMock()),
-            patch(
-                "routes.htmx_routes.derive_submission_value",
-                autospec=True,
-                return_value="test",
-            ),
-            patch(
-                "routes.htmx_routes.pre_validate_submission",
-                autospec=True,
-                side_effect=exc,
-            ),
-        ):
-            result = await htmx_submit_verification(
-                request,
-                mock_db,
-                user_id=1,
-                requirement_id="req-1",
-                submitted_value="test",
-            )
-
-        # Should render a card (TemplateResponse), not crash
-        assert result is not None
-
-    async def test_submit_github_username_required_renders_error(self):
-        """GitHubUsernameRequiredError renders card with error banner."""
-        request = _mock_request()
-        mock_db = AsyncMock()
-
-        with (
-            patch(
-                "routes.htmx_routes.get_user_by_id",
-                autospec=True,
-                return_value=MagicMock(github_username=None),
-            ),
-            patch("routes.htmx_routes.get_requirement_by_id", return_value=MagicMock()),
-            patch(
-                "routes.htmx_routes.derive_submission_value",
-                autospec=True,
-                return_value="test",
-            ),
-            patch(
-                "routes.htmx_routes.pre_validate_submission",
-                autospec=True,
-                side_effect=GitHubUsernameRequiredError(),
-            ),
-        ):
-            result = await htmx_submit_verification(
-                request,
-                mock_db,
-                user_id=1,
-                requirement_id="req-1",
-                submitted_value="test",
-            )
-
-        # Should render without crashing
-        assert result is not None
+    The route is thin: derive URL, fire background task, return spinner.
+    All validation errors surface via SSE, not the route itself.
+    """
 
     async def test_submit_success_returns_processing_card(self):
-        """Successful pre-validation returns a processing card."""
+        """Successful submission fires task and returns processing card."""
         request = _mock_request()
         mock_db = AsyncMock()
 
@@ -342,21 +200,11 @@ class TestHtmxSubmitVerification:
                 autospec=True,
                 return_value="test",
             ),
-            patch(
-                "routes.htmx_routes.pre_validate_submission",
-                autospec=True,
-            ),
-            patch(
-                "routes.htmx_routes._get_submission_lock",
-                autospec=True,
-                return_value=MagicMock(locked=MagicMock(return_value=False)),
-            ),
-            patch("routes.htmx_routes.create_pending"),
+            patch("routes.htmx_routes.store_task"),
+            patch("routes.htmx_routes.submit_validation", new_callable=AsyncMock),
             patch("routes.htmx_routes.asyncio") as mock_asyncio,
         ):
-            mock_asyncio.create_task.return_value = MagicMock(
-                add_done_callback=MagicMock()
-            )
+            mock_asyncio.create_task.return_value = MagicMock()
             result = await htmx_submit_verification(
                 request,
                 mock_db,
@@ -386,9 +234,8 @@ class TestHtmxSubmitVerification:
                 return_value="test",
             ),
             patch(
-                "routes.htmx_routes.pre_validate_submission",
-                autospec=True,
-                side_effect=RuntimeError("boom"),
+                "routes.htmx_routes.asyncio",
+                **{"create_task.side_effect": RuntimeError("boom")},
             ),
         ):
             result = await htmx_submit_verification(

@@ -42,15 +42,6 @@ from services.steps_service import (
     uncomplete_step,
 )
 from services.submissions_service import (
-    AlreadyValidatedError,
-    ConcurrentSubmissionError,
-    DailyLimitExceededError,
-    DuplicatePrError,
-    GitHubUsernameRequiredError,
-    PriorPhaseNotCompleteError,
-    RequirementNotFoundError,
-    _get_submission_lock,
-    pre_validate_submission,
     submit_validation,
 )
 from services.users_service import (
@@ -59,10 +50,9 @@ from services.users_service import (
     get_user_by_id,
 )
 from services.verification.events import (
-    complete_pending,
-    create_pending,
-    get_pending,
-    remove_pending,
+    get_task,
+    remove_task,
+    store_task,
 )
 from services.verification.requirements import get_requirement_by_id
 from services.verification.url_derivation import derive_submission_value, is_derivable
@@ -197,13 +187,10 @@ async def htmx_submit_verification(
 ) -> HTMLResponse:
     """Submit a hands-on verification.
 
-    For instant verifications (CTF tokens, profile checks, etc.): runs
-    synchronously and returns the result card immediately.
-
-    For LLM verifications (DEVOPS_ANALYSIS, PR_REVIEW): kicks off a
-    background task and returns a spinner card that connects to an SSE
-    stream for the result.  The user sees "Analyzing..." immediately
-    instead of waiting 30-120s.
+    Derives the canonical URL, fires a background task, and returns a
+    spinner card that connects to an SSE stream for the result.
+    All validation (preconditions, LLM grading, persistence) happens
+    in the background task — errors surface via SSE.
     """
     user = await get_user_by_id(db, user_id)
     github_username = user.github_username if user else None
@@ -240,12 +227,6 @@ async def htmx_submit_verification(
         )
 
     # ── Derive the canonical submission value ──────────────────────────
-    # For GitHub-backed URL types the browser does not send an editable
-    # URL: the server builds it from ``github_username`` plus the
-    # requirement's ``required_repo``.  For token types and deployed_api
-    # we pass the raw form value through unchanged.  For PR reviews the
-    # form sends a numeric ``pr_number`` that we splice into the derived
-    # URL.
     if requirement is not None:
         try:
             if requirement.submission_type == SubmissionType.PR_REVIEW:
@@ -261,9 +242,6 @@ async def htmx_submit_verification(
             if github_username is None and not is_derivable(
                 requirement.submission_type
             ):
-                # Pass-through types don't strictly need the username to
-                # derive, but downstream validators will reject them if
-                # required.  We still derive so we have a canonical value.
                 derived_value = user_input or ""
             else:
                 derived_value = derive_submission_value(
@@ -276,30 +254,10 @@ async def htmx_submit_verification(
     else:
         derived_value = submitted_value
 
-    # ── Pre-validation ─────────────────────────────────────────────────
-    # These checks are fast (<100ms) and raise on failure.  If any raise,
-    # the user gets immediate feedback before any background task starts.
+    # ── Fire background task ───────────────────────────────────────────
     try:
-        await pre_validate_submission(
-            session_maker=session_maker,
-            user_id=user_id,
-            requirement_id=requirement_id,
-            submitted_value=derived_value,
-            github_username=github_username,
-        )
-
-        # Check concurrent lock
-        submission_lock = await _get_submission_lock(user_id, requirement_id)
-        if submission_lock.locked():
-            raise ConcurrentSubmissionError(
-                "A verification is already in progress. Please wait for it to complete."
-            )
-
-        # Register pending event + fire background task
-        create_pending(user_id, requirement_id)
-
         task = asyncio.create_task(
-            _run_verification_background(
+            submit_validation(
                 session_maker=session_maker,
                 user_id=user_id,
                 requirement_id=requirement_id,
@@ -307,51 +265,10 @@ async def htmx_submit_verification(
                 github_username=github_username,
             )
         )
-        task.add_done_callback(
-            lambda t: t.result() if not t.cancelled() and not t.exception() else None
-        )
+        store_task(user_id, requirement_id, task)
 
-        # Return the processing card with SSE connection
         return _render_card(processing=True)
 
-    except RequirementNotFoundError:
-        logger.warning(
-            "htmx.submit.requirement_not_found",
-            extra={
-                "user_id": user_id,
-                "requirement_id": requirement_id,
-            },
-        )
-        return HTMLResponse(
-            '<div class="text-red-600 text-sm p-2">Requirement not found.</div>',
-            status_code=404,
-        )
-    except AlreadyValidatedError:
-        return HTMLResponse(
-            '<div class="text-green-600 text-sm p-2">'
-            "You have already completed this requirement.</div>",
-            status_code=200,
-        )
-    except DuplicatePrError as e:
-        return _render_card(error_banner=str(e))
-    except DailyLimitExceededError as e:
-        return _render_card(
-            submission=e.existing_submission,
-            error_banner=str(e),
-        )
-    except GitHubUsernameRequiredError:
-        return _render_card(
-            error_banner="You need to link your GitHub account to submit. "
-            "Please sign out and sign in with GitHub.",
-        )
-    except PriorPhaseNotCompleteError as e:
-        return _render_card(
-            error_banner=str(e),
-        )
-    except ConcurrentSubmissionError as e:
-        return _render_card(
-            error_banner=str(e),
-        )
     except Exception as exc:
         logger.exception(
             "htmx.submit.unexpected_error",
@@ -410,31 +327,6 @@ def _render_result_card(
     return response
 
 
-async def _run_verification_background(
-    session_maker: async_sessionmaker[AsyncSession],
-    user_id: int,
-    requirement_id: str,
-    submitted_value: str,
-    github_username: str | None,
-) -> None:
-    """Background task: run LLM verification and publish result via event bus."""
-    try:
-        result = await submit_validation(
-            session_maker=session_maker,
-            user_id=user_id,
-            requirement_id=requirement_id,
-            submitted_value=submitted_value,
-            github_username=github_username,
-        )
-        complete_pending(user_id, requirement_id, result=result)
-    except Exception as exc:
-        logger.exception(
-            "verification.background.failed",
-            extra={"user_id": user_id, "requirement_id": requirement_id},
-        )
-        complete_pending(user_id, requirement_id, error=exc)
-
-
 @router.get("/verification/{requirement_id}/stream")
 async def htmx_verification_stream(
     request: Request,
@@ -450,7 +342,7 @@ async def htmx_verification_stream(
     If the client disconnects before the result arrives (tab close, nav),
     the result is still persisted in the DB and will show on next page load.
     """
-    pending = get_pending(user_id, requirement_id)
+    task = get_task(user_id, requirement_id)
 
     # Fetch github_username with a short-lived session so we don't hold a
     # DB connection open for the entire SSE stream (up to 180s).
@@ -460,7 +352,7 @@ async def htmx_verification_stream(
         stream_github_username = stream_user.github_username if stream_user else None
 
     async def event_generator():
-        if pending is None:
+        if task is None:
             # No pending verification — might have already completed.
             # Send an HX-Refresh to reload the page with DB state.
             yield (
@@ -472,7 +364,7 @@ async def htmx_verification_stream(
 
         try:
             # Wait up to 3 minutes for the result
-            await asyncio.wait_for(pending.event.wait(), timeout=180)
+            result = await asyncio.wait_for(asyncio.shield(task), timeout=180)
         except TimeoutError:
             yield (
                 "event: verification-result\n"
@@ -481,64 +373,67 @@ async def htmx_verification_stream(
                 "Refresh the page to check for results.</div>\n\n"
             )
             return
-        finally:
-            # Always clean up, even on timeout or client disconnect
-            remove_pending(user_id, requirement_id)
-
-        if pending.error is not None:
+        except Exception:
+            logger.exception(
+                "verification.stream.task_failed",
+                extra={"user_id": user_id, "requirement_id": requirement_id},
+            )
             yield (
                 "event: verification-result\n"
                 "data: <div class='text-red-600 text-sm p-2'>"
                 "An unexpected error occurred during verification. "
                 "This attempt was not counted — please try again.</div>\n\n"
             )
-        elif pending.result is not None:
-            requirement = get_requirement_by_id(requirement_id)
+            return
+        finally:
+            # Always clean up, even on timeout or client disconnect
+            remove_task(user_id, requirement_id)
 
-            if pending.result.is_valid:
-                # On success, trigger full page refresh so the stepper
-                # advances to the next requirement.
-                yield (
-                    "event: verification-result\n"
-                    "data: <div hx-trigger='load'"
-                    " hx-on::load='setTimeout(()=>location.reload(),100)'"
-                    "></div>\n\n"
-                )
-            else:
-                # Render the result card HTML inline
-                result = pending.result
-                submission = result.submission
+        requirement = get_requirement_by_id(requirement_id)
 
-                feedback_tasks, feedback_passed = build_feedback_tasks_from_results(
-                    result.task_results
-                )
-                error_banner = None
-                if (
-                    not result.is_valid
-                    and not result.is_server_error
-                    and not feedback_tasks
-                ):
-                    error_banner = result.message
+        if result.is_valid:
+            # On success, trigger full page refresh so the stepper
+            # advances to the next requirement.
+            yield (
+                "event: verification-result\n"
+                "data: <div hx-trigger='load'"
+                " hx-on::load='setTimeout(()=>location.reload(),100)'"
+                "></div>\n\n"
+            )
+        else:
+            # Render the result card HTML inline
+            submission = result.submission
 
-                html = templates.get_template("partials/requirement_card.html").render(
-                    request=request,
-                    **build_requirement_card_context(
-                        requirement=requirement,
-                        github_username=stream_github_username,
-                        submission=submission,
-                        feedback_tasks=feedback_tasks or [],
-                        feedback_passed=feedback_passed,
-                        server_error=result.is_server_error,
-                        server_error_message=(
-                            result.message if result.is_server_error else None
-                        ),
-                        error_banner=error_banner,
-                        processing=False,
+            feedback_tasks, feedback_passed = build_feedback_tasks_from_results(
+                result.task_results
+            )
+            error_banner = None
+            if (
+                not result.is_valid
+                and not result.is_server_error
+                and not feedback_tasks
+            ):
+                error_banner = result.message
+
+            html = templates.get_template("partials/requirement_card.html").render(
+                request=request,
+                **build_requirement_card_context(
+                    requirement=requirement,
+                    github_username=stream_github_username,
+                    submission=submission,
+                    feedback_tasks=feedback_tasks or [],
+                    feedback_passed=feedback_passed,
+                    server_error=result.is_server_error,
+                    server_error_message=(
+                        result.message if result.is_server_error else None
                     ),
-                )
-                # SSE data lines: replace newlines with \ndata: for multi-line HTML
-                data_lines = html.replace("\n", "\ndata: ")
-                yield f"event: verification-result\ndata: {data_lines}\n\n"
+                    error_banner=error_banner,
+                    processing=False,
+                ),
+            )
+            # SSE data lines: replace newlines with \ndata: for multi-line HTML
+            data_lines = html.replace("\n", "\ndata: ")
+            yield f"event: verification-result\ndata: {data_lines}\n\n"
 
     return StreamingResponse(
         event_generator(),

@@ -5,10 +5,12 @@ username, the requirement's repo, and the submitted PR number.
 No URL parsing or ownership checks are needed.
 
 Workflow (Agent Framework — edge conditions):
-  **ValidationExecutor** → merged check + diff fetch + prompt building
+  **ValidationExecutor** → merged check + diff fetch +
+                           deterministic fail_indicators check +
+                           prompt building (only if indicators pass)
   **pr-grader Agent** (auto-wrapped) → grades diff via structured output
   **GuardrailExecutor** → parses grade from AgentExecutorResponse,
-                          applies deterministic guardrails, yields result
+                          yields final result
 
 For LLM client infrastructure, see core/llm_client.py
 """
@@ -24,6 +26,7 @@ from agent_framework import (
     Agent,
     AgentExecutorResponse,
     Executor,
+    UsageDetails,
     WorkflowBuilder,
     WorkflowContext,
     handler,
@@ -32,6 +35,7 @@ from circuitbreaker import CircuitBreakerError
 
 from core.config import get_settings
 from core.llm_client import get_llm_chat_client
+from core.metrics import LLM_TOKEN_COUNTER
 from schemas import HandsOnRequirement, TaskResult, ValidationResult
 from services.verification.github_profile import (
     RETRIABLE_EXCEPTIONS,
@@ -212,6 +216,50 @@ class ValidationExecutor(Executor):
             return
 
         ctx.set_state("diff", diff)
+        ctx.set_state("requirement_id", self._requirement.id)
+        ctx.set_state("requirement_name", self._requirement.name)
+
+        # ── Deterministic fail-indicator check (before LLM) ──────────
+        # If the diff still contains placeholder/starter code, fail fast
+        # without wasting an LLM call.
+        fail_indicators = self._requirement.fail_indicators or []
+        if fail_indicators:
+            added_or_context = "\n".join(
+                line for line in diff.splitlines() if not line.startswith("-")
+            ).lower()
+            for indicator in fail_indicators:
+                if indicator.lower() in added_or_context:
+                    logger.info(
+                        "pr_verification.fail_indicator_found",
+                        extra={
+                            "pr": pr_number,
+                            "indicator": indicator,
+                            "requirement": self._requirement.id,
+                        },
+                    )
+                    task_result = TaskResult(
+                        task_name=self._requirement.name,
+                        passed=False,
+                        feedback=(
+                            "The PR diff still contains starter/placeholder "
+                            "code. Replace the stub implementation with your "
+                            "own code."
+                        ),
+                        next_steps=f"Remove or replace: {indicator}",
+                    )
+                    await ctx.send_message(
+                        ValidationResult(
+                            is_valid=False,
+                            message=(
+                                f"PR #{pr_number} was merged but doesn't "
+                                f"fully implement the required task. "
+                                f"Review the feedback below."
+                            ),
+                            username_match=True,
+                            task_results=[task_result],
+                        )
+                    )
+                    return
 
         criteria = "\n".join(
             f"  - {c}" for c in (self._requirement.grading_criteria or [])
@@ -239,16 +287,16 @@ def _is_invalid_pr(message: Any) -> bool:
 
 
 class GuardrailExecutor(Executor):
-    """Applies deterministic guardrails after LLM grading, yields final result.
+    """Parses LLM grade and builds the final ValidationResult.
 
-    Handles two message types:
-    - ``ValidationResult``: pass-through (invalid PR or deterministic result)
-    - ``AgentExecutorResponse``: parse grade, apply guardrails, build result
+    Reads requirement metadata from workflow state (set by
+    ``ValidationExecutor``).  Handles two message types:
+    - ``ValidationResult``: pass-through (invalid PR or deterministic fail)
+    - ``AgentExecutorResponse``: parse grade, build result
     """
 
-    def __init__(self, *, requirement: HandsOnRequirement) -> None:
+    def __init__(self) -> None:
         super().__init__(id="pr-guardrail")
-        self._requirement = requirement
 
     @handler
     async def handle_validation_result(
@@ -276,41 +324,17 @@ class GuardrailExecutor(Executor):
         feedback = sanitize_feedback(grade.feedback)
         next_steps = sanitize_feedback(grade.next_steps)
 
-        # Apply deterministic guardrails on the diff content.
-        # Only check added/context lines — removed lines (starting with "-")
-        # legitimately contain the old placeholder code the user deleted.
-        diff: str = ctx.get_state("diff", "")
-        added_or_context = "\n".join(
-            line for line in diff.splitlines() if not line.startswith("-")
-        ).lower()
-        corrected_passed = grade.passed
-        if grade.passed and self._requirement.fail_indicators:
-            for indicator in self._requirement.fail_indicators:
-                if indicator.lower() in added_or_context:
-                    corrected_passed = False
-                    feedback = (
-                        "The PR diff still contains starter/placeholder code. "
-                        "Replace the stub implementation with your own code."
-                    )
-                    next_steps = f"Remove or replace: {indicator}"
-                    logger.info(
-                        "pr_verification.guardrail_override",
-                        extra={
-                            "pr": pr_number,
-                            "indicator": indicator,
-                            "requirement": self._requirement.id,
-                        },
-                    )
-                    break
+        requirement_id: str = ctx.get_state("requirement_id", "")
+        requirement_name: str = ctx.get_state("requirement_name", "")
 
         task_result = TaskResult(
-            task_name=self._requirement.name,
-            passed=corrected_passed,
+            task_name=requirement_name,
+            passed=grade.passed,
             feedback=feedback,
             next_steps=next_steps,
         )
 
-        if corrected_passed:
+        if grade.passed:
             message = (
                 f"PR #{pr_number} verified! Merged from branch "
                 f"'{branch_name}'. {feedback}"
@@ -321,18 +345,43 @@ class GuardrailExecutor(Executor):
                 f"the required task. Review the feedback below."
             )
 
+        usage: UsageDetails | None = response.agent_response.usage_details
+        usage_extra: dict[str, object] = {}
+        if usage:
+            input_tokens = usage["input_token_count"] or 0
+            output_tokens = usage["output_token_count"] or 0
+            total_tokens = usage["total_token_count"] or 0
+            usage_extra = {
+                "input_tokens": input_tokens,
+                "output_tokens": output_tokens,
+                "total_tokens": total_tokens,
+            }
+            LLM_TOKEN_COUNTER.add(
+                total_tokens,
+                {"workflow": "pr-diff-analysis", "token_type": "total"},
+            )
+            LLM_TOKEN_COUNTER.add(
+                input_tokens,
+                {"workflow": "pr-diff-analysis", "token_type": "input"},
+            )
+            LLM_TOKEN_COUNTER.add(
+                output_tokens,
+                {"workflow": "pr-diff-analysis", "token_type": "output"},
+            )
+
         logger.info(
             "pr_verification.workflow_completed",
             extra={
                 "pr": pr_number,
-                "requirement": self._requirement.id,
-                "passed": corrected_passed,
+                "requirement": requirement_id,
+                "passed": grade.passed,
+                **usage_extra,
             },
         )
 
         await ctx.yield_output(
             ValidationResult(
-                is_valid=corrected_passed,
+                is_valid=grade.passed,
                 message=message,
                 username_match=True,
                 task_results=[task_result],
@@ -369,7 +418,7 @@ async def validate_pr(
         ValidationResult with pass/fail and a user-facing message.
     """
     validation = ValidationExecutor(requirement=requirement)
-    guardrail = GuardrailExecutor(requirement=requirement)
+    guardrail = GuardrailExecutor()
 
     chat_client = await get_llm_chat_client()
     grader_agent = Agent(

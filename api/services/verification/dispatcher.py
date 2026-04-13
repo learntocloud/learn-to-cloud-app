@@ -34,13 +34,13 @@ from schemas import HandsOnRequirement, ValidationResult
 from services.verification.ci_status import verify_ci_status
 from services.verification.ctf import verify_ctf_token
 from services.verification.deployed_api import validate_deployed_api
-from services.verification.devops_analysis import analyze_devops_repository
+from services.verification.devops_analysis import run_devops_workflow
 from services.verification.github_profile import (
     validate_github_profile,
     validate_profile_readme,
     validate_repo_fork,
 )
-from services.verification.llm_base import VerificationError
+from services.verification.llm_base import VerificationError, validate_repo_url
 from services.verification.networking_lab import verify_networking_token
 from services.verification.pull_request import validate_pr
 from services.verification.security_scanning import validate_security_scanning
@@ -221,20 +221,30 @@ async def _dispatch_validation(
 
     elif requirement.submission_type == SubmissionType.CI_STATUS:
         expected_name = _expected_fork_name(requirement)
-        return await verify_ci_status(submitted_value, username, expected_name)
+        result = validate_repo_url(submitted_value, username, expected_name)
+        if isinstance(result, ValidationResult):
+            return result
+        owner, repo = result
+        return await verify_ci_status(owner, repo)
 
     elif requirement.submission_type == SubmissionType.DEVOPS_ANALYSIS:
         expected_name = _expected_fork_name(requirement)
-        return await analyze_devops_repository(submitted_value, username, expected_name)
+        result = validate_repo_url(submitted_value, username, expected_name)
+        if isinstance(result, ValidationResult):
+            return result
+        owner, repo = result
+        return await run_devops_workflow(owner, repo)
 
     elif requirement.submission_type == SubmissionType.DEPLOYED_API:
         return await validate_deployed_api(submitted_value)
 
     elif requirement.submission_type == SubmissionType.SECURITY_SCANNING:
         expected_name = _expected_fork_name(requirement)
-        return await validate_security_scanning(
-            submitted_value, username, expected_name
-        )
+        result = validate_repo_url(submitted_value, username, expected_name)
+        if isinstance(result, ValidationResult):
+            return result
+        owner, repo = result
+        return await validate_security_scanning(owner, repo)
 
     else:
         return ValidationResult(

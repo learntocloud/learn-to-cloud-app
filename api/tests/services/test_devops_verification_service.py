@@ -17,14 +17,13 @@ from unittest.mock import MagicMock, patch
 import httpx
 import pytest
 
-from schemas import TaskResult, ValidationResult
 from services.verification.devops_analysis import (
     DevOpsAnalysisError,
     _build_task_instructions,
     _build_task_prompt,
     _check_required_files,
     _filter_devops_files,
-    analyze_devops_repository,
+    run_devops_workflow,
 )
 from services.verification.llm_base import build_task_results, parse_structured_response
 from services.verification.tasks.phase5 import (
@@ -358,24 +357,11 @@ class TestBuildTaskPrompt:
 
 
 @pytest.mark.unit
-class TestAnalyzeDevopsRepository:
-    """Tests for the main entry point."""
+class TestRunDevopsWorkflow:
+    """Tests for the DevOps workflow execution.
 
-    @pytest.mark.asyncio
-    async def test_invalid_url(self):
-        result = await analyze_devops_repository("not-a-github-url", "testuser")
-        assert result.is_valid is False
-        assert "Invalid GitHub repository URL" in result.message
-
-    @pytest.mark.asyncio
-    async def test_username_mismatch(self):
-        result = await analyze_devops_repository(
-            "https://github.com/otheruser/journal-starter",
-            "testuser",
-        )
-        assert result.is_valid is False
-        assert "does not match" in result.message
-        assert result.username_match is False
+    URL validation and ownership checks are tested in the dispatcher tests.
+    """
 
     @pytest.mark.asyncio
     async def test_repo_not_found(self):
@@ -396,41 +382,10 @@ class TestAnalyzeDevopsRepository:
                 ),
             ),
         ):
-            result = await analyze_devops_repository(
-                "https://github.com/testuser/journal-starter",
-                "testuser",
-            )
+            result = await run_devops_workflow("testuser", "journal-starter")
 
         assert result.is_valid is False
         assert "not found" in result.message.lower()
-
-    @pytest.mark.asyncio
-    async def test_successful_analysis_all_pass(self):
-        """Full flow with all tasks passing."""
-        mock_validation = ValidationResult(
-            is_valid=True,
-            message="All 4 DevOps tasks verified!",
-            task_results=[
-                TaskResult(
-                    task_name=t["name"],
-                    passed=True,
-                    feedback="Well done!",
-                )
-                for t in PHASE5_TASKS
-            ],
-        )
-
-        with patch(
-            "services.verification.devops_analysis._run_devops_workflow",
-            autospec=True,
-            return_value=mock_validation,
-        ):
-            result = await analyze_devops_repository(
-                "https://github.com/testuser/journal-starter",
-                "testuser",
-            )
-
-        assert result.is_valid is True
 
     @pytest.mark.asyncio
     async def test_all_missing_skips_llm(self):
@@ -446,10 +401,7 @@ class TestAnalyzeDevopsRepository:
                 return_value=["README.md"],
             ),
         ):
-            result = await analyze_devops_repository(
-                "https://github.com/testuser/journal-starter",
-                "testuser",
-            )
+            result = await run_devops_workflow("testuser", "journal-starter")
 
         assert result.is_valid is False
         assert result.task_results is not None
@@ -479,10 +431,7 @@ class TestAnalyzeDevopsRepository:
                 return_value=mock_files,
             ),
         ):
-            result = await analyze_devops_repository(
-                "https://github.com/testuser/journal-starter",
-                "testuser",
-            )
+            result = await run_devops_workflow("testuser", "journal-starter")
 
         assert result.is_valid is False
         assert result.task_results is not None
@@ -490,37 +439,3 @@ class TestAnalyzeDevopsRepository:
         k8s_result = result.task_results[0]
         assert "Kubernetes" in k8s_result.task_name
         assert "k8s/service.yaml" in k8s_result.feedback
-
-    @pytest.mark.asyncio
-    async def test_llm_client_error_propagates(self):
-        """LLMClientError should propagate to the dispatcher."""
-        from core.llm_client import LLMClientError
-
-        with (
-            patch(
-                "services.verification.devops_analysis._run_devops_workflow",
-                autospec=True,
-                side_effect=LLMClientError("Connection failed", retriable=True),
-            ),
-            pytest.raises(LLMClientError, match="Connection failed"),
-        ):
-            await analyze_devops_repository(
-                "https://github.com/testuser/journal-starter",
-                "testuser",
-            )
-
-    @pytest.mark.asyncio
-    async def test_devops_analysis_error_propagates(self):
-        """DevOpsAnalysisError should propagate to the dispatcher."""
-        with (
-            patch(
-                "services.verification.devops_analysis._run_devops_workflow",
-                autospec=True,
-                side_effect=DevOpsAnalysisError("Timeout", retriable=True),
-            ),
-            pytest.raises(DevOpsAnalysisError, match="Timeout"),
-        ):
-            await analyze_devops_repository(
-                "https://github.com/testuser/journal-starter",
-                "testuser",
-            )

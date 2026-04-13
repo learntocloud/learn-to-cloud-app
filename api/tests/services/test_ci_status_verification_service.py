@@ -1,13 +1,14 @@
 """Tests for CI status verification service.
 
 Tests cover:
-- Repo URL validation and ownership checks
 - CI workflow not found (404)
 - No runs on main
 - Run still in progress
 - Run succeeded
 - Run failed
 - GitHub API errors
+
+URL validation and ownership checks are tested in the dispatcher tests.
 """
 
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -18,8 +19,8 @@ from circuitbreaker import CircuitBreakerError
 
 from services.verification.ci_status import verify_ci_status
 
-_TEST_REPO_URL = "https://github.com/testuser/journal-starter"
-_TEST_USERNAME = "testuser"
+_TEST_OWNER = "testuser"
+_TEST_REPO = "journal-starter"
 
 
 def _make_response(json_data: dict, status_code: int = 200) -> httpx.Response:
@@ -28,34 +29,6 @@ def _make_response(json_data: dict, status_code: int = 200) -> httpx.Response:
     response.status_code = status_code
     response.json.return_value = json_data
     return response
-
-
-# =============================================================================
-# URL Validation
-# =============================================================================
-
-
-@pytest.mark.unit
-class TestUrlValidation:
-    """Tests for repo URL parsing and ownership checks."""
-
-    async def test_invalid_url_fails(self):
-        result = await verify_ci_status("not-a-url", _TEST_USERNAME)
-        assert not result.is_valid
-
-    async def test_wrong_owner_fails(self):
-        result = await verify_ci_status(
-            "https://github.com/otheruser/journal-starter", _TEST_USERNAME
-        )
-        assert not result.is_valid
-        assert "does not match" in result.message
-
-    async def test_wrong_repo_name_fails(self):
-        result = await verify_ci_status(
-            _TEST_REPO_URL, _TEST_USERNAME, expected_repo_name="other-repo"
-        )
-        assert not result.is_valid
-        assert "does not match" in result.message
 
 
 # =============================================================================
@@ -73,7 +46,7 @@ class TestCiStatusCheck:
         mock_get.side_effect = httpx.HTTPStatusError(
             "Not Found", request=response.request, response=response
         )
-        result = await verify_ci_status(_TEST_REPO_URL, _TEST_USERNAME)
+        result = await verify_ci_status(_TEST_OWNER, _TEST_REPO)
         assert not result.is_valid
         assert "CI workflow not found" in result.message
         assert "ci.yml" in result.message
@@ -81,7 +54,7 @@ class TestCiStatusCheck:
     @patch("services.verification.ci_status.github_api_get", autospec=True)
     async def test_no_runs_on_main(self, mock_get):
         mock_get.return_value = _make_response({"workflow_runs": []})
-        result = await verify_ci_status(_TEST_REPO_URL, _TEST_USERNAME)
+        result = await verify_ci_status(_TEST_OWNER, _TEST_REPO)
         assert not result.is_valid
         assert "No CI runs found" in result.message
 
@@ -99,7 +72,7 @@ class TestCiStatusCheck:
                 ]
             }
         )
-        result = await verify_ci_status(_TEST_REPO_URL, _TEST_USERNAME)
+        result = await verify_ci_status(_TEST_OWNER, _TEST_REPO)
         assert not result.is_valid
         assert "still" in result.message
         assert "#5" in result.message
@@ -118,7 +91,7 @@ class TestCiStatusCheck:
                 ]
             }
         )
-        result = await verify_ci_status(_TEST_REPO_URL, _TEST_USERNAME)
+        result = await verify_ci_status(_TEST_OWNER, _TEST_REPO)
         assert not result.is_valid
         assert "#3" in result.message
 
@@ -136,7 +109,7 @@ class TestCiStatusCheck:
                 ]
             }
         )
-        result = await verify_ci_status(_TEST_REPO_URL, _TEST_USERNAME)
+        result = await verify_ci_status(_TEST_OWNER, _TEST_REPO)
         assert result.is_valid
         assert "#10" in result.message
         assert "passing" in result.message.lower()
@@ -156,7 +129,7 @@ class TestCiStatusCheck:
                 ]
             }
         )
-        result = await verify_ci_status(_TEST_REPO_URL, _TEST_USERNAME)
+        result = await verify_ci_status(_TEST_OWNER, _TEST_REPO)
         assert not result.is_valid
         assert "failure" in result.message
         assert run_url in result.message
@@ -175,7 +148,7 @@ class TestCiStatusCheck:
                 ]
             }
         )
-        result = await verify_ci_status(_TEST_REPO_URL, _TEST_USERNAME)
+        result = await verify_ci_status(_TEST_OWNER, _TEST_REPO)
         assert not result.is_valid
         assert "cancelled" in result.message
 
@@ -195,48 +168,20 @@ class TestCiStatusErrorHandling:
         mock_get.side_effect = httpx.HTTPStatusError(
             "Server Error", request=response.request, response=response
         )
-        result = await verify_ci_status(_TEST_REPO_URL, _TEST_USERNAME)
+        result = await verify_ci_status(_TEST_OWNER, _TEST_REPO)
         assert not result.is_valid
         assert result.server_error is True
 
     @patch("services.verification.ci_status.github_api_get", autospec=True)
     async def test_circuit_breaker_open(self, mock_get):
         mock_get.side_effect = CircuitBreakerError(AsyncMock())
-        result = await verify_ci_status(_TEST_REPO_URL, _TEST_USERNAME)
+        result = await verify_ci_status(_TEST_OWNER, _TEST_REPO)
         assert not result.is_valid
         assert result.server_error is True
 
     @patch("services.verification.ci_status.github_api_get", autospec=True)
     async def test_request_timeout(self, mock_get):
         mock_get.side_effect = httpx.TimeoutException("timed out")
-        result = await verify_ci_status(_TEST_REPO_URL, _TEST_USERNAME)
+        result = await verify_ci_status(_TEST_OWNER, _TEST_REPO)
         assert not result.is_valid
         assert result.server_error is True
-
-    @patch("services.verification.ci_status.github_api_get", autospec=True)
-    async def test_expected_repo_name_enforced(self, mock_get):
-        mock_get.return_value = _make_response(
-            {
-                "workflow_runs": [
-                    {
-                        "status": "completed",
-                        "conclusion": "success",
-                        "run_number": 1,
-                        "html_url": "https://github.com/testuser/journal-starter/actions/runs/1",
-                    }
-                ]
-            }
-        )
-        result = await verify_ci_status(
-            _TEST_REPO_URL,
-            _TEST_USERNAME,
-            expected_repo_name="journal-starter",
-        )
-        assert result.is_valid
-
-        result = await verify_ci_status(
-            _TEST_REPO_URL,
-            _TEST_USERNAME,
-            expected_repo_name="wrong-name",
-        )
-        assert not result.is_valid

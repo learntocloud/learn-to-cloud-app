@@ -1,10 +1,9 @@
-"""Unit tests for the verification event bus.
+"""Unit tests for the verification task registry.
 
 Tests cover:
-- Creating and retrieving pending verifications
-- Completing with result or error
-- Event signaling for SSE waiters
-- Cleanup via remove_pending
+- Storing and retrieving tasks
+- Awaiting task results
+- Cleanup via remove_task
 """
 
 import asyncio
@@ -13,106 +12,66 @@ from unittest.mock import MagicMock
 import pytest
 
 from services.verification.events import (
-    PendingVerification,
-    complete_pending,
-    create_pending,
-    get_pending,
-    remove_pending,
+    get_task,
+    remove_task,
+    store_task,
 )
 
 
 @pytest.mark.unit
 class TestVerificationEvents:
-    """Tests for the in-process event bus."""
+    """Tests for the in-process task registry."""
 
-    def test_create_and_get_pending(self):
-        """Creating a pending verification makes it retrievable."""
-        pending = create_pending(user_id=1, requirement_id="req-1")
-        assert isinstance(pending, PendingVerification)
-        assert not pending.event.is_set()
-        assert pending.result is None
-        assert pending.error is None
+    def test_store_and_get_task(self):
+        """Storing a task makes it retrievable."""
+        mock_task = MagicMock(spec=asyncio.Task)
+        store_task(user_id=1, requirement_id="req-1", task=mock_task)
 
-        retrieved = get_pending(user_id=1, requirement_id="req-1")
-        assert retrieved is pending
+        retrieved = get_task(user_id=1, requirement_id="req-1")
+        assert retrieved is mock_task
 
         # Cleanup
-        remove_pending(1, "req-1")
+        remove_task(1, "req-1")
 
-    def test_get_pending_returns_none_for_unknown(self):
+    def test_get_task_returns_none_for_unknown(self):
         """Unknown user+requirement returns None."""
-        assert get_pending(user_id=999, requirement_id="nonexistent") is None
+        assert get_task(user_id=999, requirement_id="nonexistent") is None
 
-    def test_complete_pending_with_result(self):
-        """Completing with a result sets the event and stores the result."""
-        pending = create_pending(user_id=2, requirement_id="req-2")
-        mock_result = MagicMock()
+    def test_remove_task(self):
+        """Removing a task clears it."""
+        mock_task = MagicMock(spec=asyncio.Task)
+        store_task(user_id=4, requirement_id="req-4", task=mock_task)
+        remove_task(user_id=4, requirement_id="req-4")
+        assert get_task(user_id=4, requirement_id="req-4") is None
 
-        complete_pending(user_id=2, requirement_id="req-2", result=mock_result)
-
-        assert pending.event.is_set()
-        assert pending.result is mock_result
-        assert pending.error is None
-
-        remove_pending(2, "req-2")
-
-    def test_complete_pending_with_error(self):
-        """Completing with an error sets the event and stores the error."""
-        pending = create_pending(user_id=3, requirement_id="req-3")
-        error = RuntimeError("LLM exploded")
-
-        complete_pending(user_id=3, requirement_id="req-3", error=error)
-
-        assert pending.event.is_set()
-        assert pending.result is None
-        assert pending.error is error
-
-        remove_pending(3, "req-3")
-
-    def test_complete_pending_for_unknown_is_noop(self):
-        """Completing a non-existent pending is a no-op (no crash)."""
-        complete_pending(user_id=999, requirement_id="ghost", result=MagicMock())
-
-    def test_remove_pending(self):
-        """Removing a pending verification clears it."""
-        create_pending(user_id=4, requirement_id="req-4")
-        remove_pending(user_id=4, requirement_id="req-4")
-        assert get_pending(user_id=4, requirement_id="req-4") is None
-
-    def test_remove_pending_for_unknown_is_noop(self):
-        """Removing a non-existent pending is a no-op."""
-        remove_pending(user_id=999, requirement_id="ghost")
+    def test_remove_task_for_unknown_is_noop(self):
+        """Removing a non-existent task is a no-op."""
+        remove_task(user_id=999, requirement_id="ghost")
 
     @pytest.mark.asyncio
-    async def test_event_wakes_waiter(self):
-        """An asyncio waiter on the event is woken when completed."""
-        pending = create_pending(user_id=5, requirement_id="req-5")
+    async def test_awaiting_task_gets_result(self):
+        """Awaiting a stored task returns its result."""
         mock_result = MagicMock()
 
-        async def waiter():
-            await asyncio.wait_for(pending.event.wait(), timeout=2)
-            return pending.result
-
-        # Complete after a short delay
-        async def completer():
+        async def do_work():
             await asyncio.sleep(0.05)
-            complete_pending(user_id=5, requirement_id="req-5", result=mock_result)
+            return mock_result
 
-        waiter_task = asyncio.create_task(waiter())
-        completer_task = asyncio.create_task(completer())
+        task = asyncio.create_task(do_work())
+        store_task(user_id=5, requirement_id="req-5", task=task)
 
-        result = await waiter_task
-        await completer_task
-
+        result = await task
         assert result is mock_result
-        remove_pending(5, "req-5")
+        remove_task(5, "req-5")
 
-    def test_create_overwrites_existing(self):
-        """Creating a new pending for the same key overwrites the old one."""
-        old = create_pending(user_id=6, requirement_id="req-6")
-        new = create_pending(user_id=6, requirement_id="req-6")
+    def test_store_overwrites_existing(self):
+        """Storing a new task for the same key overwrites the old one."""
+        old = MagicMock(spec=asyncio.Task)
+        new = MagicMock(spec=asyncio.Task)
+        store_task(user_id=6, requirement_id="req-6", task=old)
+        store_task(user_id=6, requirement_id="req-6", task=new)
 
-        assert get_pending(6, "req-6") is new
-        assert new is not old
+        assert get_task(6, "req-6") is new
+        assert get_task(6, "req-6") is not old
 
-        remove_pending(6, "req-6")
+        remove_task(6, "req-6")

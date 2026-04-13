@@ -211,7 +211,7 @@ class TestSubmissionRouting:
         )
 
         with patch(
-            "services.verification.dispatcher.analyze_devops_repository",
+            "services.verification.dispatcher.run_devops_workflow",
             autospec=True,
         ) as mock:
             mock.return_value = ValidationResult(
@@ -224,11 +224,7 @@ class TestSubmissionRouting:
                 expected_username="testuser",
             )
 
-            mock.assert_called_once_with(
-                "https://github.com/testuser/journal-starter",
-                "testuser",
-                "journal-starter",
-            )
+            mock.assert_called_once_with("testuser", "journal-starter")
             assert result.is_valid is True
 
 
@@ -403,9 +399,5 @@ class TestDispatchSecurityScanning:
                 submitted_value="https://github.com/testuser/journal-starter",
                 expected_username="testuser",
             )
-        mock.assert_called_once_with(
-            "https://github.com/testuser/journal-starter",
-            "testuser",
-            "journal-starter",
-        )
+        mock.assert_called_once_with("testuser", "journal-starter")
         assert result.is_valid is True
