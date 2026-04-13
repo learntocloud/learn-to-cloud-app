@@ -10,10 +10,12 @@ The ``journal-starter`` repo includes a GitHub Actions workflow
 fork, they inherit the workflow.  A green CI on ``main`` proves all
 tests pass — which is the honest acceptance gate.
 
+URL validation and ownership checks are handled by the dispatcher
+before this module is called.
+
 Workflow::
 
-    validate repo URL + ownership
-        → fetch latest workflow runs on main
+    fetch latest workflow runs on main
         → check conclusion
         → ValidationResult
 
@@ -33,7 +35,6 @@ from services.verification.github_profile import (
     github_api_get,
     github_error_to_validation_result,
 )
-from services.verification.llm_base import validate_repo_url
 
 logger = logging.getLogger(__name__)
 
@@ -42,16 +43,17 @@ _CI_WORKFLOW_FILE = "ci.yml"
 
 
 async def verify_ci_status(
-    repo_url: str,
-    github_username: str,
-    expected_repo_name: str | None = None,
+    owner: str,
+    repo: str,
 ) -> ValidationResult:
     """Verify that CI tests pass on the learner's fork's main branch.
 
+    URL validation and ownership checks are handled by the dispatcher
+    before this function is called.
+
     Args:
-        repo_url: The learner's fork URL (server-derived).
-        github_username: The authenticated learner's GitHub username.
-        expected_repo_name: Optional expected fork name.
+        owner: Repository owner (GitHub username).
+        repo: Repository name.
 
     Returns:
         ``ValidationResult`` — valid when the most recent CI run on
@@ -59,13 +61,8 @@ async def verify_ci_status(
     """
     logger.info(
         "ci_status.started",
-        extra={"repo_url": repo_url, "github_username": github_username},
+        extra={"owner": owner, "repo": repo},
     )
-
-    validation = validate_repo_url(repo_url, github_username, expected_repo_name)
-    if isinstance(validation, ValidationResult):
-        return validation
-    owner, repo = validation
 
     # ── Fetch latest CI workflow runs on main ─────────────────────────
     url = (

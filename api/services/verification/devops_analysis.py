@@ -42,6 +42,7 @@ from agent_framework import (
     Agent,
     AgentExecutorResponse,
     Executor,
+    UsageDetails,
     WorkflowBuilder,
     WorkflowContext,
     handler,
@@ -51,6 +52,7 @@ from circuitbreaker import CircuitBreakerError
 from core.config import get_settings
 from core.github_client import get_github_client
 from core.llm_client import get_llm_chat_client
+from core.metrics import LLM_TOKEN_COUNTER
 from schemas import TaskResult, ValidationResult
 from services.verification.github_profile import (
     RETRIABLE_EXCEPTIONS,
@@ -65,7 +67,6 @@ from services.verification.llm_base import (
     enforce_deterministic_guardrails,
     parse_structured_response,
     sanitize_feedback,
-    validate_repo_url,
 )
 from services.verification.tasks.phase5 import (
     MAX_FILE_SIZE_BYTES,
@@ -563,6 +564,11 @@ class GuardrailExecutor(Executor):
         feedback = sanitize_feedback(grade.feedback)
         next_steps = sanitize_feedback(getattr(grade, "next_steps", "") or "")
 
+        # Store per-task usage for aggregation
+        usage: UsageDetails | None = response.agent_response.usage_details
+        if usage:
+            ctx.set_state(f"usage-{task_id}", usage)
+
         logger.info(
             "devops_analysis.task_grading_completed",
             extra={
@@ -623,6 +629,39 @@ class AggregatorExecutor(Executor):
                 "after making improvements."
             )
 
+        # Combine per-task token usage
+        combined_input = 0
+        combined_output = 0
+        combined_total = 0
+        has_usage = False
+        for task in PHASE5_TASKS:
+            task_usage: UsageDetails | None = ctx.get_state(f"usage-{task['id']}", None)
+            if task_usage:
+                has_usage = True
+                combined_input += task_usage["input_token_count"] or 0
+                combined_output += task_usage["output_token_count"] or 0
+                combined_total += task_usage["total_token_count"] or 0
+
+        usage_extra: dict[str, object] = {}
+        if has_usage:
+            usage_extra = {
+                "input_tokens": combined_input,
+                "output_tokens": combined_output,
+                "total_tokens": combined_total,
+            }
+            LLM_TOKEN_COUNTER.add(
+                combined_total,
+                {"workflow": "phase5-devops-analysis", "token_type": "total"},
+            )
+            LLM_TOKEN_COUNTER.add(
+                combined_input,
+                {"workflow": "phase5-devops-analysis", "token_type": "input"},
+            )
+            LLM_TOKEN_COUNTER.add(
+                combined_output,
+                {"workflow": "phase5-devops-analysis", "token_type": "output"},
+            )
+
         logger.info(
             "devops_analysis.completed",
             extra={
@@ -632,6 +671,7 @@ class AggregatorExecutor(Executor):
                 "total": len(sorted_results),
                 "all_passed": all_passed,
                 "task_grades": {t.task_name: t.passed for t in sorted_results},
+                **usage_extra,
             },
         )
 
@@ -649,7 +689,7 @@ class AggregatorExecutor(Executor):
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-async def _run_devops_workflow(owner: str, repo: str) -> ValidationResult:
+async def run_devops_workflow(owner: str, repo: str) -> ValidationResult:
     """Run the full Phase 5 DevOps verification workflow.
 
     Builds a fan-out / fan-in Agent Framework workflow::
@@ -717,36 +757,3 @@ async def _run_devops_workflow(owner: str, repo: str) -> ValidationResult:
                 retriable=True,
             )
         return outputs[0]
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Public entry point
-# ─────────────────────────────────────────────────────────────────────────────
-
-
-async def analyze_devops_repository(
-    repo_url: str,
-    github_username: str,
-    expected_repo_name: str | None = None,
-) -> ValidationResult:
-    """Analyze a learner's repository for Phase 5 DevOps artifact completion.
-
-    This is the main entry point for DevOps verification.
-    Validates the repo URL / ownership, then delegates to
-    :func:`_run_devops_workflow` which orchestrates the full
-    Agent Framework pipeline.
-    """
-    logger.info(
-        "devops_analysis.started",
-        extra={
-            "repo_url": repo_url,
-            "github_username": github_username,
-        },
-    )
-
-    result = validate_repo_url(repo_url, github_username, expected_repo_name)
-    if isinstance(result, ValidationResult):
-        return result
-    owner, repo = result
-
-    return await _run_devops_workflow(owner, repo)

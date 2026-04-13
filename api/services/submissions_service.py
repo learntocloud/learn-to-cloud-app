@@ -183,14 +183,6 @@ class PriorPhaseNotCompleteError(Exception):
         self.prerequisite_phase = prerequisite_phase
 
 
-# Caps the number of concurrent LLM verification calls across all users.
-# Prevents connection pool exhaustion: without this, N simultaneous users could
-# each hold a DB connection for 30-120s waiting on the LLM, starving all other
-# routes.  The semaphore is checked *before* acquiring the DB write session.
-_LLM_MAX_CONCURRENT = 3
-_llm_semaphore = asyncio.Semaphore(_LLM_MAX_CONCURRENT)
-
-
 @dataclass(frozen=True, slots=True)
 class _PreValidationContext:
     """Data collected during pre-validation checks.
@@ -313,31 +305,6 @@ async def _check_submission_preconditions(
     )
 
 
-async def pre_validate_submission(
-    session_maker: async_sessionmaker[AsyncSession],
-    user_id: int,
-    requirement_id: str,
-    submitted_value: str,
-    github_username: str | None,
-) -> None:
-    """Run pre-validation checks without starting the actual verification.
-
-    This is the fast path (<100ms) that checks:
-    - Requirement exists
-    - Not already validated
-    - Phase gating
-    - Daily submission cap
-    - PR uniqueness
-    - GitHub username required
-
-    Used by the async LLM submission path to validate before kicking off
-    a background task.  Raises the same exceptions as submit_validation.
-    """
-    await _check_submission_preconditions(
-        session_maker, user_id, requirement_id, github_username, submitted_value
-    )
-
-
 async def submit_validation(
     session_maker: async_sessionmaker[AsyncSession],
     user_id: int,
@@ -388,26 +355,11 @@ async def submit_validation(
         # ── Run validation (NO DB session held) ─────────────────────────
         # Verification can take 10-120s for LLM-backed types.  We run it
         # outside any DB session so it doesn't pin a connection pool slot.
-        # A global semaphore caps LLM concurrency to prevent overwhelming
-        # the endpoint.
-        logger.info(
-            "llm.semaphore.acquiring",
-            extra={
-                "user_id": user_id,
-                "requirement_id": requirement_id,
-                "waiting": max(
-                    0,
-                    _LLM_MAX_CONCURRENT - _llm_semaphore._value,
-                ),
-            },
+        validation_result = await validate_submission(
+            requirement=requirement,
+            submitted_value=submitted_value,
+            expected_username=github_username,
         )
-
-        async with _llm_semaphore:
-            validation_result = await validate_submission(
-                requirement=requirement,
-                submitted_value=submitted_value,
-                expected_username=github_username,
-            )
 
         extracted_username = None
         if requirement.submission_type in (

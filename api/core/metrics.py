@@ -66,6 +66,14 @@ SUBMISSION_DAILY_LIMIT_COUNTER = _meter.create_counter(
     unit="{rejection}",
 )
 
+# ── LLM token usage metrics ───────────────────────────────────────────
+
+LLM_TOKEN_COUNTER = _meter.create_counter(
+    name="llm.token.usage",
+    description="LLM tokens consumed by verification workflows",
+    unit="{token}",
+)
+
 # ── User lifecycle metrics ────────────────────────────────────────────
 
 USER_DELETION_COUNTER = _meter.create_counter(

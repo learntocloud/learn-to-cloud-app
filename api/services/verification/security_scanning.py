@@ -35,7 +35,7 @@ from services.verification.github_profile import (
     RETRIABLE_EXCEPTIONS,
     get_github_headers,
 )
-from services.verification.llm_base import VerificationError, validate_repo_url
+from services.verification.llm_base import VerificationError
 
 logger = logging.getLogger(__name__)
 
@@ -273,37 +273,27 @@ async def _verify_security_scanning(
 
 
 async def validate_security_scanning(
-    repo_url: str,
-    github_username: str,
-    expected_repo_name: str | None = None,
+    owner: str,
+    repo: str,
 ) -> ValidationResult:
     """Verify a learner's GitHub repo has security scanning enabled.
 
-    This is the main entry point for Phase 6 security scanning verification.
+    URL validation and ownership checks are handled by the dispatcher
+    before this function is called.
 
     Flow:
-      1. Parse and validate the GitHub URL
-      2. Verify repo owner matches the learner's GitHub username
-      3. Fetch the repo file tree
-      4. Check for Dependabot config and/or CodeQL workflows
-      5. Return per-check results (pass if at least one is found)
+      1. Fetch the repo file tree
+      2. Check for Dependabot config and/or CodeQL workflows
+      3. Return per-check results (pass if at least one is found)
 
     Args:
-        repo_url: URL of the learner's repository.
-        github_username: The learner's GitHub username (for ownership validation).
-        expected_repo_name: Optional name of the upstream project's repo
-            (without owner).  When set, the submitted repo name is asserted
-            to match, pinning verification to the learner's fork.
+        owner: Repository owner (GitHub username).
+        repo: Repository name.
 
     Returns:
         ValidationResult with is_valid=True if at least one security feature
         is found, and detailed task_results for feedback.
     """
-    result = validate_repo_url(repo_url, github_username, expected_repo_name)
-    if isinstance(result, ValidationResult):
-        return result
-    owner, repo = result
-
     try:
         all_files = await fetch_repo_tree(owner, repo)
     except httpx.HTTPStatusError as e:
