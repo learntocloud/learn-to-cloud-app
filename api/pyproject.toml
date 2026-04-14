@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = ["setuptools>=82.0.1"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
@@ -14,7 +14,7 @@ requires-python = ">=3.13"
 dependencies = [
     "alembic>=1.18.4",
     "asyncpg>=0.31.0",
-    "authlib>=1.3.0",
+    "authlib>=1.6.10",
     "azure-identity>=1.25.2",
     "azure-monitor-opentelemetry>=1.8.6",
     "fastapi>=0.135.3,<1",
@@ -24,10 +24,10 @@ dependencies = [
     "markdown>=3.5.0",
     "opentelemetry-instrumentation-sqlalchemy==0.61b0",
     "psycopg2-binary>=2.9.9",
-    "pydantic>=2.11.2,<3",
+    "pydantic>=2.13.0,<3",
     "pydantic-settings>=2.7.1",
     "python-dotenv>=1.0.1",
-    "python-multipart>=0.0.24",
+    "python-multipart>=0.0.26",
     "slowapi>=0.1.9",
     "circuitbreaker>=2.0.0",
     "cachetools>=5.3.0",
@@ -36,8 +36,8 @@ dependencies = [
     "uvicorn[standard]>=0.44.0",
     "starlette>=1.0.0",
     "pyyaml>=6.0",
-    "agent-framework-core>=1.0.0,<2",
-    "agent-framework-openai>=1.0.0,<2",
+    "agent-framework-core>=1.0.1,<2",
+    "agent-framework-openai>=1.0.1,<2",
     "opentelemetry-exporter-otlp-proto-grpc>=1.20.0",
     "opentelemetry-instrumentation-httpx>=0.61b0",
 ]
@@ -89,10 +89,10 @@ dev = [
     "faker>=40.13.0",
     "factory-boy>=3.3.0",
     "httpx>=0.28.0",
-    "pytest>=8.0.0",
+    "pytest>=9.0.3",
     "pytest-asyncio>=0.24.0",
     "pytest-cov>=4.1.0",
     "pytest-mock>=3.12.0",
-    "ruff==0.15.9",
+    "ruff==0.15.10",
     "ty==0.0.29",
 ]
