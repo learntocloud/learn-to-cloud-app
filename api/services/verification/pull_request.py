@@ -27,7 +27,9 @@ from services.verification.github_profile import (
     github_error_to_validation_result,
 )
 from services.verification.indicator_engine import check_indicators
-from services.verification.tasks.phase3 import MAX_FILE_SIZE_BYTES
+
+# Maximum diff size to prevent memory exhaustion (50 KB)
+MAX_FILE_SIZE_BYTES: int = 50 * 1024
 
 logger = logging.getLogger(__name__)
 
@@ -133,8 +135,7 @@ async def validate_pr(
     if not pr_data.get("merged"):
         state = pr_data.get("state", "unknown")
         fail_msg = (
-            f"PR #{pr_number} is still open. "
-            "Merge it into main first, then resubmit."
+            f"PR #{pr_number} is still open. Merge it into main first, then resubmit."
             if state == "open"
             else f"PR #{pr_number} was closed without "
             "merging. Create a new PR, merge it, "
