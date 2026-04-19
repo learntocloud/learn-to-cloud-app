@@ -33,59 +33,6 @@ resource "azurerm_monitor_action_group" "critical" {
 }
 
 # ---------------------------------------------------------------------------
-# Availability Test — /ready endpoint
-# ---------------------------------------------------------------------------
-
-resource "azurerm_application_insights_standard_web_test" "readiness" {
-  name                    = "webtest-ltc-ready-${var.environment}"
-  resource_group_name     = azurerm_resource_group.main.name
-  location                = azurerm_resource_group.main.location
-  application_insights_id = azurerm_application_insights.main.id
-  description             = "Synthetic readiness probe — checks /ready (init + DB connectivity)"
-  enabled                 = true
-  frequency               = 300
-  timeout                 = 30
-  retry_enabled           = true
-  tags                    = local.tags
-
-  geo_locations = [
-    "us-va-ash-azr",   # East US
-    "emea-nl-ams-azr", # West Europe
-    "apac-sg-sin-azr"  # Southeast Asia
-  ]
-
-  request {
-    url = "https://${azurerm_container_app.api.ingress[0].fqdn}/ready"
-  }
-
-  validation_rules {
-    expected_status_code = 200
-  }
-}
-
-resource "azurerm_monitor_metric_alert" "availability" {
-  name                = "alert-ltc-availability-${var.environment}"
-  resource_group_name = azurerm_resource_group.main.name
-  description         = "Availability test failures — app unreachable from 2+ geo locations"
-  severity            = 0
-  enabled             = true
-  scopes              = [azurerm_application_insights.main.id]
-  frequency           = "PT5M"
-  window_size         = "PT5M"
-  tags                = local.tags
-
-  application_insights_web_test_location_availability_criteria {
-    web_test_id           = azurerm_application_insights_standard_web_test.readiness.id
-    component_id          = azurerm_application_insights.main.id
-    failed_location_count = 2
-  }
-
-  action {
-    action_group_id = azurerm_monitor_action_group.critical.id
-  }
-}
-
-# ---------------------------------------------------------------------------
 # Log Alerts (scheduled query rules v2)
 # ---------------------------------------------------------------------------
 
