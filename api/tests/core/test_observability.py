@@ -20,4 +20,4 @@ class TestConfigureObservability:
 
             reload(obs_mod)
             obs_mod.configure_observability()
-            assert obs_mod.is_telemetry_enabled() is False
+            assert not obs_mod._telemetry_enabled

@@ -23,11 +23,6 @@ logger = logging.getLogger(__name__)
 _telemetry_enabled: bool = False
 
 
-def is_telemetry_enabled() -> bool:
-    """Return whether OTel providers are active."""
-    return _telemetry_enabled
-
-
 def configure_observability() -> None:
     """Set up Azure Monitor telemetry if configured."""
     global _telemetry_enabled
