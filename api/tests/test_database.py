@@ -101,7 +101,10 @@ class TestAzureTokenRetryTimeout:
                 autospec=True,
                 return_value=fake_credential,
             ),
-            patch.object(auth_mod, "AZURE_TOKEN_TIMEOUT", 0.05),
+            patch(
+                "core.azure_auth.get_settings",
+                return_value=MagicMock(azure_token_timeout=0.05),
+            ),
             patch.object(auth_mod, "_AZURE_RETRY_ATTEMPTS", 1),
             patch("asyncio.to_thread", autospec=True, side_effect=hang_forever),
         ):

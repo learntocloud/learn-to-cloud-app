@@ -156,7 +156,11 @@ async def _run_alembic_migrations() -> None:
 
     result = await asyncio.to_thread(
         lambda: subprocess.run(
-            cmd, cwd=cwd, capture_output=True, text=True, timeout=120
+            cmd,
+            cwd=cwd,
+            capture_output=True,
+            text=True,
+            timeout=get_settings().migration_timeout,
         )
     )
 
@@ -178,12 +182,13 @@ async def lifespan(app: fastapi.FastAPI):
     app.state.init_error = None
 
     try:
-        async with asyncio.timeout(60):
+        settings = get_settings()
+        async with asyncio.timeout(settings.startup_init_timeout):
             oauth_task = asyncio.to_thread(init_oauth)
             db_task = init_db(app.state.engine)
             await asyncio.gather(oauth_task, db_task)
 
-        async with asyncio.timeout(120):
+        async with asyncio.timeout(settings.migration_timeout):
             await _run_alembic_migrations()
 
         app.state.init_done = True

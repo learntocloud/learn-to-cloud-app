@@ -24,11 +24,11 @@ from collections.abc import Callable
 from typing import Any
 from urllib.parse import urlparse
 
-import httpx
 from pydantic import BaseModel
 
 from core.llm_client import LLMClientError
 from schemas import TaskResult, ValidationResult
+from services.verification.errors import make_retriable
 
 logger = logging.getLogger(__name__)
 
@@ -36,11 +36,7 @@ logger = logging.getLogger(__name__)
 # Retriable exception types shared by circuit breakers and retry decorators
 # ---------------------------------------------------------------------------
 
-RETRIABLE_EXCEPTIONS: tuple[type[Exception], ...] = (
-    LLMClientError,
-    httpx.RequestError,
-    httpx.TimeoutException,
-)
+RETRIABLE_EXCEPTIONS: tuple[type[Exception], ...] = make_retriable(LLMClientError)
 
 # ---------------------------------------------------------------------------
 # Prompt-injection detection patterns

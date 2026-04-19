@@ -371,7 +371,7 @@ async def submit_validation(
             parsed = parse_github_url(submitted_value)
             extracted_username = parsed.username if parsed.is_valid else None
 
-        verification_completed = not validation_result.server_error
+        verification_completed = validation_result.verification_completed
 
         feedback_json = None
         if validation_result.task_results:

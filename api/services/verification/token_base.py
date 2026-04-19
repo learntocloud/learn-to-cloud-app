@@ -249,7 +249,7 @@ def verify_lab_token(
     into the appropriate Pydantic result type (``CTFVerificationResult``
     or ``NetworkingLabVerificationResult``).
 
-    Keys always present: ``is_valid``, ``message``, ``server_error``.
+    Keys always present: ``is_valid``, ``message``, ``verification_completed``.
     On success, also includes: ``github_username``, ``completion_date``,
     ``completion_time``, ``challenges_completed``.
     If ``config.accepted_challenge_types`` is set, ``challenge_type`` is also included.
@@ -260,7 +260,7 @@ def verify_lab_token(
             return {
                 "is_valid": False,
                 "message": decoded.error or "",
-                "server_error": False,
+                "verification_completed": True,
             }
 
         payload = decoded.payload
@@ -270,7 +270,7 @@ def verify_lab_token(
                 "message": (
                     f"Invalid {config.service_display_name} token: missing payload."
                 ),
-                "server_error": False,
+                "verification_completed": True,
             }
 
         signature = decoded.signature
@@ -280,7 +280,7 @@ def verify_lab_token(
                 "message": (
                     f"Invalid {config.service_display_name} token: missing signature."
                 ),
-                "server_error": False,
+                "verification_completed": True,
             }
 
         # Challenge type check (only for labs that require it)
@@ -295,21 +295,25 @@ def verify_lab_token(
                         f"Make sure you're submitting a token "
                         f"from the {config.service_display_name}."
                     ),
-                    "server_error": False,
+                    "verification_completed": True,
                 }
 
         # Username check
         if err := verify_username(payload, oauth_github_username):
-            return {"is_valid": False, "message": err, "server_error": False}
+            return {"is_valid": False, "message": err, "verification_completed": True}
 
         # Instance ID check
         if err := verify_instance_id(payload):
-            return {"is_valid": False, "message": err, "server_error": False}
+            return {"is_valid": False, "message": err, "verification_completed": True}
 
         # HMAC signature check
         try:
             if err := verify_signature(payload, signature, payload["instance_id"]):
-                return {"is_valid": False, "message": err, "server_error": False}
+                return {
+                    "is_valid": False,
+                    "message": err,
+                    "verification_completed": True,
+                }
         except RuntimeError as exc:
             logger.error(
                 f"{config.log_prefix}.verification.misconfigured",
@@ -325,18 +329,18 @@ def verify_lab_token(
                     f"{config.service_display_name} verification "
                     "is not available right now."
                 ),
-                "server_error": True,
+                "verification_completed": False,
             }
 
         # Challenge count check
         if err := verify_challenge_count(
             payload, config.required_challenges, label=config.challenge_label
         ):
-            return {"is_valid": False, "message": err, "server_error": False}
+            return {"is_valid": False, "message": err, "verification_completed": True}
 
         # Timestamp check
         if err := verify_timestamp(payload):
-            return {"is_valid": False, "message": err, "server_error": False}
+            return {"is_valid": False, "message": err, "verification_completed": True}
 
         logger.info(
             f"{config.log_prefix}.verification.passed",
@@ -350,7 +354,7 @@ def verify_lab_token(
         result: dict[str, Any] = {
             "is_valid": True,
             "message": config.success_message,
-            "server_error": False,
+            "verification_completed": True,
             "github_username": payload.get("github_username"),
             "completion_date": payload.get("date"),
             "completion_time": payload.get("time"),
@@ -375,5 +379,5 @@ def verify_lab_token(
             "message": (
                 "Token verification failed. Please try again or contact support."
             ),
-            "server_error": True,
+            "verification_completed": False,
         }

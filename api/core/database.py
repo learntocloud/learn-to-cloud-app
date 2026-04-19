@@ -78,7 +78,7 @@ async def _azure_asyncpg_creator():
             port=settings.postgres_port,
             database=settings.postgres_database,
             ssl="require",
-            timeout=30,
+            timeout=settings.db_connection_timeout,
             server_settings={
                 "statement_timeout": str(settings.db_statement_timeout_ms),
             },
@@ -225,7 +225,7 @@ async def init_db(engine: AsyncEngine) -> None:
     """Verify database is reachable. Schema managed via migrations."""
     logger.info("db.connectivity.verifying")
 
-    async with asyncio.timeout(30):
+    async with asyncio.timeout(get_settings().db_operation_timeout):
         async with engine.connect() as conn:
             await conn.execute(text("SELECT 1"))
             await conn.rollback()
@@ -241,7 +241,7 @@ async def warm_pool(engine: AsyncEngine) -> None:
 
     logger.info("db.pool.warming", extra={"extra_connections": warm_count})
     try:
-        async with asyncio.timeout(30):
+        async with asyncio.timeout(settings.db_operation_timeout):
 
             async def _warm_one() -> None:
                 async with engine.connect() as conn:
@@ -264,8 +264,8 @@ async def dispose_engine(engine: AsyncEngine) -> None:
 
 
 async def check_db_connection(engine: AsyncEngine) -> None:
-    """Verify database is reachable (30s timeout)."""
-    async with asyncio.timeout(30):
+    """Verify database is reachable."""
+    async with asyncio.timeout(get_settings().db_operation_timeout):
         async with engine.connect() as conn:
             await conn.execute(text("SELECT 1"))
             await conn.rollback()

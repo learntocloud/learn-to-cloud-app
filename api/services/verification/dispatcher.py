@@ -67,7 +67,7 @@ def validate_ctf_token_submission(
         is_valid=ctf_result.is_valid,
         message=ctf_result.message,
         username_match=ctf_result.is_valid,
-        server_error=ctf_result.server_error,
+        verification_completed=ctf_result.verification_completed,
     )
 
 
@@ -94,7 +94,7 @@ def validate_networking_token_submission(
         is_valid=result.is_valid,
         message=result.message,
         username_match=result.is_valid,
-        server_error=result.server_error,
+        verification_completed=result.verification_completed,
         cloud_provider=cloud_provider,
     )
 
@@ -144,7 +144,7 @@ async def validate_submission(
         return ValidationResult(
             is_valid=False,
             message="Verification failed. Please try again later.",
-            server_error=True,
+            verification_completed=False,
         )
     except Exception as e:
         logger.exception(
@@ -157,7 +157,7 @@ async def validate_submission(
         return ValidationResult(
             is_valid=False,
             message="Verification failed. Please try again later.",
-            server_error=True,
+            verification_completed=False,
         )
     finally:
         elapsed = time.monotonic() - start

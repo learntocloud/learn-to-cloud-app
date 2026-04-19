@@ -30,16 +30,15 @@ from tenacity import (
 from core.config import get_settings
 from core.github_client import get_github_client as _get_github_client
 from schemas import ParsedGitHubUrl, ValidationResult
+from services.verification.errors import (
+    CB_FAILURE_THRESHOLD,
+    CB_RECOVERY_TIMEOUT,
+    GitHubServerError,
+    github_error_to_result,
+    make_retriable,
+)
 
 logger = logging.getLogger(__name__)
-
-
-class GitHubServerError(Exception):
-    """Raised when GitHub API returns a 5xx error or 429 (retriable)."""
-
-    def __init__(self, message: str, retry_after: float | None = None):
-        super().__init__(message)
-        self.retry_after = retry_after
 
 
 def _parse_retry_after(header_value: str | None) -> float | None:
@@ -61,11 +60,10 @@ def _wait_with_retry_after(retry_state: RetryCallState) -> float:
 
 
 # Exceptions that should trigger retry and circuit breaker
-RETRIABLE_EXCEPTIONS: tuple[type[Exception], ...] = (
-    httpx.RequestError,
-    httpx.TimeoutException,
-    GitHubServerError,
-)
+RETRIABLE_EXCEPTIONS: tuple[type[Exception], ...] = make_retriable(GitHubServerError)
+
+# Re-export for backward compatibility
+github_error_to_validation_result = github_error_to_result
 
 
 def get_github_headers() -> dict[str, str]:
@@ -78,8 +76,8 @@ def get_github_headers() -> dict[str, str]:
 
 
 @circuit(
-    failure_threshold=5,
-    recovery_timeout=60,
+    failure_threshold=CB_FAILURE_THRESHOLD,
+    recovery_timeout=CB_RECOVERY_TIMEOUT,
     expected_exception=RETRIABLE_EXCEPTIONS,
     name="github_api_get_circuit",
 )
@@ -114,50 +112,6 @@ async def github_api_get(
         raise GitHubServerError("GitHub rate limited (429)", retry_after=retry_after)
     response.raise_for_status()
     return response
-
-
-def github_error_to_validation_result(
-    e: Exception,
-    *,
-    event: str,
-    context: dict[str, object],
-) -> ValidationResult:
-    """Map GitHub API exceptions to a user-facing ValidationResult.
-
-    Args:
-        e: The caught exception.
-        event: Structured log event name (e.g. ``"pr_verification.api_error"``).
-        context: Extra fields for structured logging (owner, repo, pr, etc.).
-    """
-    if isinstance(e, CircuitBreakerError):
-        logger.error(event, extra=context)
-        return ValidationResult(
-            is_valid=False,
-            message=("GitHub service temporarily unavailable. Please try again later."),
-            server_error=True,
-        )
-
-    if isinstance(e, httpx.HTTPStatusError):
-        if e.response.status_code == 404:
-            return ValidationResult(
-                is_valid=False,
-                message="Resource not found on GitHub. Check the URL and try again.",
-                server_error=False,
-            )
-        logger.warning(event, extra={**context, "status": e.response.status_code})
-        return ValidationResult(
-            is_valid=False,
-            message=f"GitHub API error ({e.response.status_code}). Try again later.",
-            server_error=True,
-        )
-
-    # RETRIABLE_EXCEPTIONS (RequestError, TimeoutException, etc.)
-    logger.warning(event, extra={**context, "error": str(e)})
-    return ValidationResult(
-        is_valid=False,
-        message="Could not reach GitHub. Please try again later.",
-        server_error=True,
-    )
 
 
 def parse_github_url(url: str) -> ParsedGitHubUrl:
@@ -225,8 +179,8 @@ def parse_github_url(url: str) -> ParsedGitHubUrl:
 
 
 @circuit(
-    failure_threshold=5,
-    recovery_timeout=60,
+    failure_threshold=CB_FAILURE_THRESHOLD,
+    recovery_timeout=CB_RECOVERY_TIMEOUT,
     expected_exception=RETRIABLE_EXCEPTIONS,
     name="github_url_circuit",
 )
@@ -256,12 +210,12 @@ async def _check_github_url_exists_with_retry(url: str) -> tuple[bool, str]:
         return False, f"Unexpected status code: {response.status_code}"
 
 
-async def check_github_url_exists(url: str) -> tuple[bool, str, bool]:
+async def check_github_url_exists(url: str) -> ValidationResult:
     """Check if a GitHub URL exists by making a HEAD request.
 
     Returns:
-        Tuple of (exists: bool, message: str, is_server_error: bool).
-        is_server_error is True when the failure is infrastructure-related
+        ValidationResult with is_valid=True if URL exists.
+        verification_completed=False when the failure is infrastructure-related
         (network error, GitHub outage, circuit breaker open) so callers can
         avoid penalising the user.
 
@@ -270,20 +224,27 @@ async def check_github_url_exists(url: str) -> tuple[bool, str, bool]:
     """
     try:
         exists, msg = await _check_github_url_exists_with_retry(url)
-        return exists, msg, False
+        return ValidationResult(is_valid=exists, message=msg)
     except CircuitBreakerError:
         logger.error(
             "github.url_check.circuit_open",
             extra={"url": url},
         )
-        msg = "GitHub service temporarily unavailable. Please try again later."
-        return False, msg, True
+        return ValidationResult(
+            is_valid=False,
+            message="GitHub service temporarily unavailable. Please try again later.",
+            verification_completed=False,
+        )
     except RETRIABLE_EXCEPTIONS as e:
         logger.warning(
             "github.url_check.failed",
             extra={"url": url, "error": str(e)},
         )
-        return False, f"Request error: {e!s}", True
+        return ValidationResult(
+            is_valid=False,
+            message=f"Request error: {e!s}",
+            verification_completed=False,
+        )
     except Exception as e:
         logger.error(
             "github.url_check.unexpected_error",
@@ -293,12 +254,16 @@ async def check_github_url_exists(url: str) -> tuple[bool, str, bool]:
                 "exc_message": str(e),
             },
         )
-        return False, f"Unexpected error: {e!s}", True
+        return ValidationResult(
+            is_valid=False,
+            message=f"Unexpected error: {e!s}",
+            verification_completed=False,
+        )
 
 
 @circuit(
-    failure_threshold=5,
-    recovery_timeout=60,
+    failure_threshold=CB_FAILURE_THRESHOLD,
+    recovery_timeout=CB_RECOVERY_TIMEOUT,
     expected_exception=RETRIABLE_EXCEPTIONS,
     name="github_api_circuit",
 )
@@ -349,7 +314,7 @@ async def _check_repo_is_fork_of_with_retry(
 
 async def check_repo_is_fork_of(
     username: str, repo_name: str, original_repo: str
-) -> tuple[bool, str, bool]:
+) -> ValidationResult:
     """Check if a repository is a fork of the specified original repository.
 
     Args:
@@ -358,8 +323,8 @@ async def check_repo_is_fork_of(
         original_repo: The original repo in format "owner/repo"
 
     Returns:
-        Tuple of (is_fork: bool, message: str, is_server_error: bool).
-        is_server_error is True when the failure is infrastructure-related.
+        ValidationResult with is_valid=True if repo is a fork of original_repo.
+        verification_completed=False when the failure is infrastructure-related.
 
     RETRY: 3 attempts with exponential backoff + jitter for transient failures.
     CIRCUIT BREAKER: Opens after 5 consecutive failures, recovers after 60 seconds.
@@ -368,20 +333,27 @@ async def check_repo_is_fork_of(
         is_fork, msg = await _check_repo_is_fork_of_with_retry(
             username, repo_name, original_repo
         )
-        return is_fork, msg, False
+        return ValidationResult(is_valid=is_fork, message=msg)
     except CircuitBreakerError:
         logger.error(
             "github.fork_check.circuit_open",
             extra={"username": username, "repo": repo_name},
         )
-        msg = "GitHub service temporarily unavailable. Please try again later."
-        return False, msg, True
+        return ValidationResult(
+            is_valid=False,
+            message="GitHub service temporarily unavailable. Please try again later.",
+            verification_completed=False,
+        )
     except RETRIABLE_EXCEPTIONS as e:
         logger.warning(
             "github.fork_check.failed",
             extra={"username": username, "repo": repo_name, "error": str(e)},
         )
-        return False, f"Request error: {e!s}", True
+        return ValidationResult(
+            is_valid=False,
+            message=f"Request error: {e!s}",
+            verification_completed=False,
+        )
     except Exception as e:
         logger.error(
             "github.fork_check.unexpected_error",
@@ -392,7 +364,11 @@ async def check_repo_is_fork_of(
                 "exc_message": str(e),
             },
         )
-        return False, f"Unexpected error: {e!s}", True
+        return ValidationResult(
+            is_valid=False,
+            message=f"Unexpected error: {e!s}",
+            verification_completed=False,
+        )
 
 
 async def validate_github_profile(
@@ -439,15 +415,15 @@ async def validate_github_profile(
         )
 
     profile_url = f"https://github.com/{username}"
-    exists, exists_msg, is_server_error = await check_github_url_exists(profile_url)
+    result = await check_github_url_exists(profile_url)
 
-    if not exists:
-        return ValidationResult(
-            is_valid=False,
-            message=f"Could not find GitHub profile. {exists_msg}",
-            username_match=True,
-            repo_exists=False,
-            server_error=is_server_error,
+    if not result.is_valid:
+        return result.model_copy(
+            update={
+                "message": f"Could not find GitHub profile. {result.message}",
+                "username_match": True,
+                "repo_exists": False,
+            }
         )
 
     return ValidationResult(
@@ -500,15 +476,15 @@ async def validate_profile_readme(
             repo_exists=False,
         )
 
-    exists, exists_msg, is_server_error = await check_github_url_exists(github_url)
+    result = await check_github_url_exists(github_url)
 
-    if not exists:
-        return ValidationResult(
-            is_valid=False,
-            message=f"Could not find your profile README. {exists_msg}",
-            username_match=True,
-            repo_exists=False,
-            server_error=is_server_error,
+    if not result.is_valid:
+        return result.model_copy(
+            update={
+                "message": f"Could not find your profile README. {result.message}",
+                "username_match": True,
+                "repo_exists": False,
+            }
         )
 
     return ValidationResult(
@@ -558,22 +534,21 @@ async def validate_repo_fork(
             repo_exists=False,
         )
 
-    is_fork, fork_msg, is_server_error = await check_repo_is_fork_of(
+    fork_result = await check_repo_is_fork_of(
         parsed.username, parsed.repo_name, required_repo
     )
 
-    if not is_fork:
-        return ValidationResult(
-            is_valid=False,
-            message=fork_msg,
-            username_match=True,
-            repo_exists=False,
-            server_error=is_server_error,
+    if not fork_result.is_valid:
+        return fork_result.model_copy(
+            update={
+                "username_match": True,
+                "repo_exists": False,
+            }
         )
 
     return ValidationResult(
         is_valid=True,
-        message=f"Repository fork validated successfully! {fork_msg}",
+        message=f"Repository fork validated successfully! {fork_result.message}",
         username_match=True,
         repo_exists=True,
     )

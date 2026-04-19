@@ -442,8 +442,8 @@ class ValidationResult(FrozenModel):
             exists. None for non-GitHub validations.
         task_results: For multi-task validations, detailed per-task feedback.
             None for single-check validations.
-        server_error: True if validation failed due to a server-side issue
-            (e.g., service unavailable, config error). When True, the
+        verification_completed: False if validation failed due to a server-side
+            issue (e.g., service unavailable, config error). When False, the
             attempt is not counted since the user isn't at fault.
         cloud_provider: Cloud provider for multi-cloud labs ("aws",
             "azure", "gcp"). None for non-multi-cloud validations.
@@ -454,7 +454,7 @@ class ValidationResult(FrozenModel):
     username_match: bool | None = None
     repo_exists: bool | None = None
     task_results: list[TaskResult] | None = None
-    server_error: bool = False
+    verification_completed: bool = True
     cloud_provider: str | None = None
 
 
@@ -463,7 +463,7 @@ class CTFVerificationResult(FrozenModel):
 
     is_valid: bool
     message: str
-    server_error: bool = False
+    verification_completed: bool = True
     github_username: str | None = None
     completion_date: str | None = None
     completion_time: str | None = None
@@ -475,7 +475,7 @@ class NetworkingLabVerificationResult(FrozenModel):
 
     is_valid: bool
     message: str
-    server_error: bool = False
+    verification_completed: bool = True
     github_username: str | None = None
     completion_date: str | None = None
     completion_time: str | None = None

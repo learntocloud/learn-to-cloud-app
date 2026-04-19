@@ -31,6 +31,7 @@ from tenacity import (
 from core.github_client import get_github_client as _get_github_client
 from schemas import TaskResult, ValidationResult
 from services.verification.devops_analysis import fetch_repo_tree
+from services.verification.errors import CB_FAILURE_THRESHOLD, CB_RECOVERY_TIMEOUT
 from services.verification.github_profile import (
     RETRIABLE_EXCEPTIONS,
     get_github_headers,
@@ -207,8 +208,8 @@ async def _check_codeql(owner: str, repo: str, file_paths: list[str]) -> TaskRes
 
 
 @circuit(
-    failure_threshold=5,
-    recovery_timeout=60,
+    failure_threshold=CB_FAILURE_THRESHOLD,
+    recovery_timeout=CB_RECOVERY_TIMEOUT,
     expected_exception=RETRIABLE_EXCEPTIONS,
     name="security_scanning_circuit",
 )

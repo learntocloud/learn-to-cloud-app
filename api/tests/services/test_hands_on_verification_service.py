@@ -303,7 +303,7 @@ class TestValidateCtfTokenSubmission:
         mock_result = MagicMock()
         mock_result.is_valid = True
         mock_result.message = "OK"
-        mock_result.server_error = False
+        mock_result.verification_completed = True
         with patch(
             "services.verification.dispatcher.verify_ctf_token",
             autospec=True,
@@ -326,7 +326,7 @@ class TestValidateNetworkingTokenSubmission:
         mock_result = MagicMock()
         mock_result.is_valid = True
         mock_result.message = "OK"
-        mock_result.server_error = False
+        mock_result.verification_completed = True
         mock_result.challenge_type = "networking-lab-azure"
         with patch(
             "services.verification.dispatcher.verify_networking_token",
@@ -346,7 +346,7 @@ class TestValidateNetworkingTokenSubmission:
         mock_result = MagicMock()
         mock_result.is_valid = False
         mock_result.message = "bad"
-        mock_result.server_error = False
+        mock_result.verification_completed = True
         mock_result.challenge_type = None
         with patch(
             "services.verification.dispatcher.verify_networking_token",

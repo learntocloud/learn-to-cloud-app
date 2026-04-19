@@ -22,6 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from starlette.responses import StreamingResponse
 
 from core.auth import UserId
+from core.config import get_settings
 from core.database import DbSession, DbSessionReadOnly
 from core.ratelimit import limiter
 from core.templates import templates
@@ -364,7 +365,10 @@ async def htmx_verification_stream(
 
         try:
             # Wait up to 3 minutes for the result
-            result = await asyncio.wait_for(asyncio.shield(task), timeout=180)
+            result = await asyncio.wait_for(
+                asyncio.shield(task),
+                timeout=get_settings().verification_result_timeout,
+            )
         except TimeoutError:
             yield (
                 "event: verification-result\n"
