@@ -420,7 +420,7 @@ async def submit_validation(
             invalidate_progress_cache(user_id)
 
         logger.info(
-            "submission.validated",
+            "submission.processed",
             extra={
                 "user_id": user_id,
                 "requirement_id": requirement_id,
