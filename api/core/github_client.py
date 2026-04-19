@@ -34,7 +34,7 @@ async def get_github_client() -> httpx.AsyncClient:
 
         settings = get_settings()
         _github_http_client = httpx.AsyncClient(
-            timeout=settings.http_timeout,
+            timeout=settings.external_api_timeout,
             follow_redirects=True,
             limits=httpx.Limits(max_connections=20, max_keepalive_connections=10),
         )

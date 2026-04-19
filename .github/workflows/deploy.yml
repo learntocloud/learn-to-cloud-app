@@ -241,7 +241,7 @@ jobs:
           echo "resource_group_name=$(terraform output -raw AZURE_RESOURCE_GROUP)" >> "$GITHUB_OUTPUT"
           echo "container_registry_name=$(terraform output -raw AZURE_CONTAINER_REGISTRY_NAME)" >> "$GITHUB_OUTPUT"
           echo "container_registry_endpoint=$(terraform output -raw AZURE_CONTAINER_REGISTRY_ENDPOINT)" >> "$GITHUB_OUTPUT"
-          echo "api_url=$(terraform output -raw apiUrl)" >> "$GITHUB_OUTPUT"
+          echo "api_url=$(terraform output -raw api_url)" >> "$GITHUB_OUTPUT"
 
   # -----------------------------------------------------------------------
   # Deploy — build image, push, update container app (push to main only)

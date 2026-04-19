@@ -1,4 +1,4 @@
-"""Unit tests for networking_lab_service.
+"""Unit tests for networking lab token verification.
 
 Tests the Networking Lab token verification logic:
 - Valid token with correct HMAC signature
@@ -19,8 +19,7 @@ from datetime import UTC, datetime
 
 import pytest
 
-from services.verification.networking_lab import (
-    ACCEPTED_CHALLENGE_TYPES,
+from services.verification.token_base import (
     REQUIRED_CHALLENGES,
     verify_networking_token,
 )
@@ -80,9 +79,7 @@ class TestVerifyNetworkingToken:
 
         assert result.is_valid is True
         assert "Congratulations" in result.message
-        assert result.github_username == "validuser"
-        assert result.challenges_completed == REQUIRED_CHALLENGES
-        assert result.challenge_type in ACCEPTED_CHALLENGE_TYPES
+        assert result.cloud_provider == "azure"
 
     def test_valid_token_case_insensitive_username(self):
         """Username comparison should be case-insensitive."""
@@ -139,10 +136,16 @@ class TestVerifyNetworkingToken:
         assert "Invalid challenge type" in result.message
 
     @pytest.mark.parametrize(
-        "challenge_type",
-        ["networking-lab-azure", "networking-lab-aws", "networking-lab-gcp"],
+        "challenge_type,expected_provider",
+        [
+            ("networking-lab-azure", "azure"),
+            ("networking-lab-aws", "aws"),
+            ("networking-lab-gcp", "gcp"),
+        ],
     )
-    def test_all_provider_challenge_types_succeed(self, challenge_type: str):
+    def test_all_provider_challenge_types_succeed(
+        self, challenge_type, expected_provider
+    ):
         """Tokens from any provider variant should verify."""
         token = _create_valid_token(
             github_username="testuser",
@@ -153,7 +156,7 @@ class TestVerifyNetworkingToken:
 
         assert result.is_valid is True
         assert "Congratulations" in result.message
-        assert result.challenge_type == challenge_type
+        assert result.cloud_provider == expected_provider
 
     def test_username_mismatch_fails(self):
         """Token username must match OAuth username."""
@@ -170,7 +173,7 @@ class TestVerifyNetworkingToken:
         """Token with fewer than required challenges should fail."""
         token = _create_valid_token(
             github_username="testuser",
-            challenges=2,  # Less than REQUIRED_CHALLENGES (4)
+            challenges=2,
         )
 
         result = verify_networking_token(token, "testuser")
@@ -181,10 +184,8 @@ class TestVerifyNetworkingToken:
 
     def test_invalid_signature_fails(self):
         """Tampered signature should fail verification."""
-        # Create a valid token
         token_str = _create_valid_token(github_username="testuser")
 
-        # Decode, tamper with signature, re-encode
         token_data = json.loads(base64.b64decode(token_str))
         token_data["signature"] = "tampered" + token_data["signature"][8:]
         tampered_token = base64.b64encode(json.dumps(token_data).encode()).decode()
@@ -196,12 +197,10 @@ class TestVerifyNetworkingToken:
 
     def test_tampered_payload_fails(self):
         """Modifying payload after signing should fail."""
-        # Create a valid token
         token_str = _create_valid_token(github_username="testuser", challenges=4)
 
-        # Decode, tamper with payload (change challenges), re-encode
         token_data = json.loads(base64.b64decode(token_str))
-        token_data["payload"]["challenges"] = 99  # Tamper
+        token_data["payload"]["challenges"] = 99
         tampered_token = base64.b64encode(json.dumps(token_data).encode()).decode()
 
         result = verify_networking_token(tampered_token, "testuser")
@@ -211,7 +210,6 @@ class TestVerifyNetworkingToken:
 
     def test_future_timestamp_fails(self):
         """Token from far in the future should be rejected."""
-        # Set timestamp 2 hours in the future (beyond 1-hour tolerance)
         future_timestamp = datetime.now(UTC).timestamp() + 7200
 
         token = _create_valid_token(
@@ -228,7 +226,6 @@ class TestVerifyNetworkingToken:
         """Token without instance_id should fail."""
         payload = {
             "github_username": "testuser",
-            # Missing instance_id
             "challenges": 4,
             "challenge": "networking-lab-azure",
             "timestamp": datetime.now(UTC).timestamp(),
@@ -268,8 +265,8 @@ class TestNetworkingTokenEdgeCases:
         assert result.is_valid is False
         assert "mismatch" in result.message.lower()
 
-    def test_verification_result_fields(self):
-        """Successful verification should populate all result fields."""
+    def test_valid_token_has_cloud_provider(self):
+        """Successful verification should populate cloud_provider."""
         token = _create_valid_token(
             github_username="fulltest",
             challenges=4,
@@ -278,8 +275,4 @@ class TestNetworkingTokenEdgeCases:
         result = verify_networking_token(token, "fulltest")
 
         assert result.is_valid is True
-        assert result.github_username == "fulltest"
-        assert result.challenges_completed == 4
-        assert result.challenge_type in ACCEPTED_CHALLENGE_TYPES
-        assert result.completion_date is not None
-        assert result.completion_time is not None
+        assert result.cloud_provider == "azure"

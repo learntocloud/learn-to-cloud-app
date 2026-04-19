@@ -37,20 +37,14 @@ class Settings(BaseSettings):
 
     labs_verification_secret: str = ""
 
-    http_timeout: float = 10.0
-
     llm_cli_timeout: int = 120
     daily_submission_limit: int = 20
 
-    # Timeout settings (seconds) — centralised from previously hardcoded values
-    azure_token_timeout: int = 30
-    db_connection_timeout: int = 30
-    db_operation_timeout: int = 30
-    deployed_api_timeout: float = 15.0
-    deployed_api_connect_timeout: float = 5.0
-    verification_result_timeout: int = 180
-    startup_init_timeout: int = 60
-    migration_timeout: int = 120
+    # Timeout settings (seconds)
+    db_timeout: int = 30
+    external_api_timeout: float = 15.0
+    startup_timeout: int = 60
+    verification_wait_timeout: int = 180
 
     llm_base_url: str = ""
     llm_model: str = ""

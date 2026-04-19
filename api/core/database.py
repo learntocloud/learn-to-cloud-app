@@ -26,7 +26,6 @@ from sqlalchemy.pool import QueuePool
 
 from core.azure_auth import get_token as _get_azure_token
 from core.config import get_settings
-from core.observability import instrument_sqlalchemy_engine
 
 logger = logging.getLogger(__name__)
 
@@ -78,7 +77,7 @@ async def _azure_asyncpg_creator():
             port=settings.postgres_port,
             database=settings.postgres_database,
             ssl="require",
-            timeout=settings.db_connection_timeout,
+            timeout=settings.db_timeout,
             server_settings={
                 "statement_timeout": str(settings.db_statement_timeout_ms),
             },
@@ -160,11 +159,6 @@ def create_engine() -> AsyncEngine:
 
     _setup_pool_event_listeners(engine)
 
-    try:
-        instrument_sqlalchemy_engine(engine)
-    except Exception:
-        logger.warning("database.observability_setup.failed", exc_info=True)
-
     return engine
 
 
@@ -225,7 +219,7 @@ async def init_db(engine: AsyncEngine) -> None:
     """Verify database is reachable. Schema managed via migrations."""
     logger.info("db.connectivity.verifying")
 
-    async with asyncio.timeout(get_settings().db_operation_timeout):
+    async with asyncio.timeout(get_settings().db_timeout):
         async with engine.connect() as conn:
             await conn.execute(text("SELECT 1"))
             await conn.rollback()
@@ -241,7 +235,7 @@ async def warm_pool(engine: AsyncEngine) -> None:
 
     logger.info("db.pool.warming", extra={"extra_connections": warm_count})
     try:
-        async with asyncio.timeout(settings.db_operation_timeout):
+        async with asyncio.timeout(settings.db_timeout):
 
             async def _warm_one() -> None:
                 async with engine.connect() as conn:
@@ -265,7 +259,7 @@ async def dispose_engine(engine: AsyncEngine) -> None:
 
 async def check_db_connection(engine: AsyncEngine) -> None:
     """Verify database is reachable."""
-    async with asyncio.timeout(get_settings().db_operation_timeout):
+    async with asyncio.timeout(get_settings().db_timeout):
         async with engine.connect() as conn:
             await conn.execute(text("SELECT 1"))
             await conn.rollback()

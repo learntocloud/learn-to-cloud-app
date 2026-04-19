@@ -185,7 +185,7 @@ class TestPhasePage:
                 return_value=mock_user,
             ),
             patch(
-                "routes.pages_routes.get_phase_detail_progress",
+                "routes.pages_routes.fetch_phase_progress",
                 autospec=True,
                 return_value={},
             ),

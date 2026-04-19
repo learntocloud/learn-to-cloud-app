@@ -95,8 +95,8 @@ async def _get_client() -> httpx.AsyncClient:
 
         _deployed_api_client = httpx.AsyncClient(
             timeout=httpx.Timeout(
-                get_settings().deployed_api_timeout,
-                connect=get_settings().deployed_api_connect_timeout,
+                get_settings().external_api_timeout,
+                connect=5.0,
             ),
             follow_redirects=False,
             limits=httpx.Limits(max_connections=20, max_keepalive_connections=10),

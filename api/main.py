@@ -47,7 +47,6 @@ from routes import (
     pages_router,
     users_router,
 )
-from services.analytics_service import analytics_refresh_loop
 from services.content_service import get_all_phases
 from services.progress_service import get_all_phase_ids
 from services.verification.deployed_api import (
@@ -160,7 +159,7 @@ async def _run_alembic_migrations() -> None:
             cwd=cwd,
             capture_output=True,
             text=True,
-            timeout=get_settings().migration_timeout,
+            timeout=get_settings().startup_timeout,
         )
     )
 
@@ -183,12 +182,12 @@ async def lifespan(app: fastapi.FastAPI):
 
     try:
         settings = get_settings()
-        async with asyncio.timeout(settings.startup_init_timeout):
+        async with asyncio.timeout(settings.startup_timeout):
             oauth_task = asyncio.to_thread(init_oauth)
             db_task = init_db(app.state.engine)
             await asyncio.gather(oauth_task, db_task)
 
-        async with asyncio.timeout(settings.migration_timeout):
+        async with asyncio.timeout(settings.startup_timeout):
             await _run_alembic_migrations()
 
         app.state.init_done = True
@@ -213,24 +212,17 @@ async def lifespan(app: fastapi.FastAPI):
 
     warmup_task = asyncio.create_task(_background_warmup(app))
 
-    # Pre-compute analytics immediately, then refresh hourly.
-    # Runs in background so startup isn't blocked.
-    analytics_task = asyncio.create_task(
-        analytics_refresh_loop(app.state.session_maker)
-    )
-
     try:
         yield
     finally:
-        for task in (warmup_task, analytics_task):
-            if not task.done():
-                task.cancel()
-            try:
-                await task
-            except asyncio.CancelledError:
-                pass
-            except Exception:
-                logger.exception("background.task.failed")
+        if not warmup_task.done():
+            warmup_task.cancel()
+        try:
+            await warmup_task
+        except asyncio.CancelledError:
+            pass
+        except Exception:
+            logger.exception("background.task.failed")
 
         await close_github_client()
         await close_deployed_api_client()

@@ -12,12 +12,10 @@ Submodules:
     github_profile  — GitHub profile/README/fork verification (Phases 0-1)
     pull_request    — PR merge verification (Phase 3)
     ci_status       — CI test-pass verification (Phase 3)
-    ctf             — CTF token verification (Phase 2)
-    networking_lab  — Networking lab token verification (Phase 4)
+    token_base      — HMAC token verification for CTF + Networking Lab
     devops_analysis — LLM-powered DevOps artifact analysis (Phase 5)
     security_scanning — Dependabot + CodeQL verification (Phase 6)
     deployed_api    — Live API challenge-response testing (Phase 4)
     llm_base        — Shared LLM orchestration utilities
-    token_base      — Shared HMAC token verification utilities
     tasks/          — Task definitions and grading schemas per phase
 """

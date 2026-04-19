@@ -32,7 +32,7 @@ class TestGetGitHubClient:
     @pytest.mark.asyncio
     async def test_creates_client_on_first_call(self):
         mock_settings = MagicMock()
-        mock_settings.http_timeout = 10.0
+        mock_settings.external_api_timeout = 10.0
         with patch(
             "core.github_client.get_settings",
             autospec=True,
@@ -45,7 +45,7 @@ class TestGetGitHubClient:
     @pytest.mark.asyncio
     async def test_returns_same_instance(self):
         mock_settings = MagicMock()
-        mock_settings.http_timeout = 10.0
+        mock_settings.external_api_timeout = 10.0
         with patch(
             "core.github_client.get_settings",
             autospec=True,
@@ -58,7 +58,7 @@ class TestGetGitHubClient:
     @pytest.mark.asyncio
     async def test_recreates_after_close(self):
         mock_settings = MagicMock()
-        mock_settings.http_timeout = 10.0
+        mock_settings.external_api_timeout = 10.0
         with patch(
             "core.github_client.get_settings",
             autospec=True,
@@ -76,7 +76,7 @@ class TestCloseGitHubClient:
     @pytest.mark.asyncio
     async def test_closes_client(self):
         mock_settings = MagicMock()
-        mock_settings.http_timeout = 10.0
+        mock_settings.external_api_timeout = 10.0
         with patch(
             "core.github_client.get_settings",
             autospec=True,
@@ -95,7 +95,7 @@ class TestCloseGitHubClient:
         import core.github_client as mod
 
         mock_settings = MagicMock()
-        mock_settings.http_timeout = 10.0
+        mock_settings.external_api_timeout = 10.0
         with patch(
             "core.github_client.get_settings",
             autospec=True,

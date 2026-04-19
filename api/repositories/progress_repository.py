@@ -81,11 +81,7 @@ class StepProgressRepository:
         user_id: int,
         topic_ids: list[str],
     ) -> dict[str, set[str]]:
-        """Get completed steps for a user, filtered to specific topics.
-
-        More targeted than get_all_completed_by_user when only one phase
-        is needed (avoids fetching unrelated phases).
-        """
+        """Get completed steps for a user, filtered to specific topics."""
         if not topic_ids:
             return {}
 

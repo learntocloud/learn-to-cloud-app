@@ -17,12 +17,12 @@
                 <div class="h-full rounded-full transition-all {{ 'bg-green-400' if dashboard.is_program_complete else 'bg-white' }}" style="width: {{ dashboard.overall_percentage }}%"></div>
             </div>
             <div class="flex items-center justify-between mt-2">
-                <p class="text-xs text-blue-200">{{ dashboard.overall_percentage }}% complete</p>
+                <p class="text-xs text-blue-200">{{ dashboard.overall_percentage | round(0) | int }}% complete</p>
             </div>
         </div>
         {# Right: percentage number #}
         <div class="shrink-0 text-right hidden sm:block">
-            <span class="text-3xl font-bold text-white">{{ dashboard.overall_percentage }}%</span>
+            <span class="text-3xl font-bold text-white">{{ dashboard.overall_percentage | round(0) | int }}%</span>
         </div>
     </div>
 </div>

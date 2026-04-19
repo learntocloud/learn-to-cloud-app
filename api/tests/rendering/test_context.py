@@ -2,7 +2,6 @@
 
 Tests cover:
 - build_progress_dict percentage calculation
-- build_feedback_tasks JSON parsing and counting
 - build_feedback_tasks_from_results object conversion
 - build_phase_topics merges topics with progress
 - build_topic_nav prev/next navigation
@@ -12,7 +11,6 @@ import pytest
 
 from models import SubmissionType
 from rendering.context import (
-    build_feedback_tasks,
     build_feedback_tasks_from_results,
     build_phase_topics,
     build_progress_dict,
@@ -23,7 +21,7 @@ from schemas import (
     HandsOnRequirement,
     LearningStep,
     Phase,
-    PhaseDetailProgress,
+    PhaseProgress,
     TaskResult,
     Topic,
     TopicProgressData,
@@ -63,57 +61,6 @@ class TestBuildProgressDict:
     def test_full(self):
         result = build_progress_dict(5, 5)
         assert result["percentage"] == 100
-
-
-# ---------------------------------------------------------------------------
-# build_feedback_tasks
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.unit
-class TestBuildFeedbackTasks:
-    def test_valid_json(self):
-        json_str = (
-            '[{"task_name":"A","passed":true,"feedback":"ok"},'
-            '{"task_name":"B","passed":false,"feedback":"nope"}]'
-        )
-        tasks, passed = build_feedback_tasks(json_str)
-        assert len(tasks) == 2
-        assert passed == 1
-        assert tasks[0]["name"] == "A"
-        assert tasks[0]["passed"] is True
-        assert tasks[1]["message"] == "nope"
-
-    def test_none_input(self):
-        tasks, passed = build_feedback_tasks(None)
-        assert tasks == []
-        assert passed == 0
-
-    def test_empty_string(self):
-        tasks, passed = build_feedback_tasks("")
-        assert tasks == []
-        assert passed == 0
-
-    def test_invalid_json(self):
-        tasks, passed = build_feedback_tasks("not json")
-        assert tasks == []
-        assert passed == 0
-
-    def test_all_passed(self):
-        json_str = (
-            '[{"task_name":"A","passed":true,"feedback":""},'
-            '{"task_name":"B","passed":true,"feedback":""}]'
-        )
-        _, passed = build_feedback_tasks(json_str)
-        assert passed == 2
-
-    def test_missing_fields_use_defaults(self):
-        json_str = "[{}]"
-        tasks, passed = build_feedback_tasks(json_str)
-        assert tasks[0]["name"] == ""
-        assert tasks[0]["passed"] is False
-        assert tasks[0]["message"] == ""
-        assert passed == 0
 
 
 # ---------------------------------------------------------------------------
@@ -161,7 +108,12 @@ class TestBuildPhaseTopics:
             order=0,
             topics=[topic],
         )
-        detail = PhaseDetailProgress(
+        detail = PhaseProgress(
+            phase_id=0,
+            steps_completed=1,
+            steps_required=3,
+            hands_on_validated=0,
+            hands_on_required=0,
             topic_progress={
                 "phase0-t1": TopicProgressData(
                     steps_completed=1,
@@ -170,28 +122,56 @@ class TestBuildPhaseTopics:
                     status="in_progress",
                 ),
             },
-            steps_completed=1,
-            steps_total=3,
-            percentage=33,
         )
         topics, progress = build_phase_topics(phase, detail)
         assert len(topics) == 1
         assert topics[0]["name"] == "Basics"
         assert topics[0]["slug"] == "basics"
         assert topics[0]["progress"]["completed"] == 1
-        assert progress["percentage"] == 33
+        assert progress["percentage"] == pytest.approx(33.3, abs=0.1)
+        assert progress["is_complete"] is False
 
     def test_topic_without_progress(self):
         topic = _make_topic("phase0-t1", "basics")
         phase = Phase(id=0, name="P0", slug="phase0", order=0, topics=[topic])
-        detail = PhaseDetailProgress(
-            topic_progress={},
+        detail = PhaseProgress(
+            phase_id=0,
             steps_completed=0,
-            steps_total=3,
-            percentage=0,
+            steps_required=3,
+            hands_on_validated=0,
+            hands_on_required=0,
+            topic_progress={},
         )
         topics, _ = build_phase_topics(phase, detail)
         assert topics[0]["progress"] is None
+
+    def test_progress_is_complete_when_all_done(self):
+        topic = _make_topic("phase0-t1", "basics", "Basics")
+        phase = Phase(
+            id=0,
+            name="P0",
+            slug="phase0",
+            order=0,
+            topics=[topic],
+        )
+        detail = PhaseProgress(
+            phase_id=0,
+            steps_completed=3,
+            steps_required=3,
+            hands_on_validated=1,
+            hands_on_required=1,
+            topic_progress={
+                "phase0-t1": TopicProgressData(
+                    steps_completed=3,
+                    steps_total=3,
+                    percentage=100.0,
+                    status="completed",
+                ),
+            },
+        )
+        _, progress = build_phase_topics(phase, detail)
+        assert progress["percentage"] == 100
+        assert progress["is_complete"] is True
 
 
 # ---------------------------------------------------------------------------

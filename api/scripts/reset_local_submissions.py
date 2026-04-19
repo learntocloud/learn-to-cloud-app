@@ -1,7 +1,7 @@
 """Reset local submission records for testing.
 
-Deletes submission rows by requirement ID and recomputes denormalized
-`user_phase_progress.validated_submissions` for affected users/phases.
+Deletes submission rows by requirement ID. Progress is automatically
+correct on next page load because it's computed from the submissions table.
 
 Examples:
     uv run python scripts/reset_local_submissions.py
@@ -16,7 +16,6 @@ from __future__ import annotations
 import argparse
 import asyncio
 import logging
-from collections import defaultdict
 
 from sqlalchemy import text
 
@@ -35,7 +34,7 @@ async def reset_submissions(
     user_ids: list[int] | None,
     dry_run: bool,
 ) -> int:
-    """Delete matching submissions and fix denormalized phase counts.
+    """Delete matching submissions.
 
     Returns number of deleted rows.
     """
@@ -67,9 +66,6 @@ async def reset_submissions(
                 return 0
 
             affected_user_ids = sorted({row.user_id for row in rows})
-            phase_ids_by_user: dict[int, set[int]] = defaultdict(set)
-            for row in rows:
-                phase_ids_by_user[row.user_id].add(row.phase_id)
 
             print(
                 "Matches found: "
@@ -90,47 +86,6 @@ async def reset_submissions(
             delete_result = await conn.execute(delete_query, params)
             deleted_rows = delete_result.fetchall()
             print(f"Deleted {len(deleted_rows)} submission row(s).")
-
-            for user_id in affected_user_ids:
-                for phase_id in sorted(phase_ids_by_user[user_id]):
-                    count_result = await conn.execute(
-                        text(
-                            """
-                            SELECT COUNT(*)::int
-                            FROM submissions
-                            WHERE user_id = :user_id
-                              AND phase_id = :phase_id
-                              AND is_validated = true
-                            """
-                        ),
-                        {"user_id": user_id, "phase_id": phase_id},
-                    )
-                    validated_count = count_result.scalar_one()
-
-                    await conn.execute(
-                        text(
-                            """
-                            INSERT INTO user_phase_progress (
-                                user_id, phase_id, validated_submissions, updated_at
-                            )
-                            VALUES (:user_id, :phase_id, :validated_submissions, NOW())
-                            ON CONFLICT (user_id, phase_id)
-                            DO UPDATE SET
-                                validated_submissions = EXCLUDED.validated_submissions,
-                                updated_at = NOW()
-                            """
-                        ),
-                        {
-                            "user_id": user_id,
-                            "phase_id": phase_id,
-                            "validated_submissions": validated_count,
-                        },
-                    )
-                    print(
-                        "Recomputed user_phase_progress: "
-                        f"user_id={user_id}, phase_id={phase_id}, "
-                        f"validated_submissions={validated_count}"
-                    )
 
             return len(deleted_rows)
     finally:

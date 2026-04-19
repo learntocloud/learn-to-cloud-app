@@ -15,7 +15,6 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
-    text,
 )
 from sqlalchemy.orm import Mapped, declared_attr, mapped_column, relationship
 
@@ -134,22 +133,8 @@ class Submission(TimestampMixin, Base):
         ),
         Index("ix_submissions_user_phase", "user_id", "phase_id"),
         Index(
-            "ix_submissions_user_phase_validated",
-            "user_id",
-            "phase_id",
-            postgresql_where=text("is_validated"),
-        ),
-        Index("ix_submissions_user_updated_at", "user_id", "updated_at"),
-        Index(
             "ix_submissions_user_verified_updated",
             "user_id",
-            "verification_completed",
-            "updated_at",
-        ),
-        Index(
-            "ix_submissions_user_req_verified_updated",
-            "user_id",
-            "requirement_id",
             "verification_completed",
             "updated_at",
         ),

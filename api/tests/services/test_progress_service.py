@@ -3,8 +3,8 @@
 Tests cover:
 - compute_topic_progress status derivation and stale-step filtering
 - phase_progress_to_data status mapping
-- fetch_user_progress cache hit/miss and DB assembly
-- get_phase_detail_progress cache hit/miss and per-topic breakdown
+- fetch_user_progress DB assembly
+- fetch_phase_progress per-topic breakdown
 """
 
 from unittest.mock import AsyncMock, patch
@@ -16,13 +16,12 @@ from schemas import (
     Phase,
     PhaseProgress,
     Topic,
-    UserProgress,
 )
 from services.progress_service import (
     _build_phase_requirements,
     compute_topic_progress,
+    fetch_phase_progress,
     fetch_user_progress,
-    get_phase_detail_progress,
     phase_progress_to_data,
 )
 
@@ -129,10 +128,8 @@ class TestPhaseProgressToData:
             phase_id=0,
             steps_completed=5,
             steps_required=5,
-            hands_on_validated_count=1,
-            hands_on_required_count=1,
-            hands_on_validated=True,
-            hands_on_required=True,
+            hands_on_validated=1,
+            hands_on_required=1,
         )
         data = phase_progress_to_data(progress)
         assert data.status == "completed"
@@ -142,10 +139,8 @@ class TestPhaseProgressToData:
             phase_id=0,
             steps_completed=2,
             steps_required=5,
-            hands_on_validated_count=0,
-            hands_on_required_count=1,
-            hands_on_validated=False,
-            hands_on_required=True,
+            hands_on_validated=0,
+            hands_on_required=1,
         )
         data = phase_progress_to_data(progress)
         assert data.status == "in_progress"
@@ -155,10 +150,8 @@ class TestPhaseProgressToData:
             phase_id=0,
             steps_completed=0,
             steps_required=5,
-            hands_on_validated_count=1,
-            hands_on_required_count=2,
-            hands_on_validated=False,
-            hands_on_required=True,
+            hands_on_validated=1,
+            hands_on_required=2,
         )
         data = phase_progress_to_data(progress)
         assert data.status == "in_progress"
@@ -168,10 +161,8 @@ class TestPhaseProgressToData:
             phase_id=0,
             steps_completed=0,
             steps_required=5,
-            hands_on_validated_count=0,
-            hands_on_required_count=1,
-            hands_on_validated=False,
-            hands_on_required=True,
+            hands_on_validated=0,
+            hands_on_required=1,
         )
         data = phase_progress_to_data(progress)
         assert data.status == "not_started"
@@ -185,36 +176,20 @@ class TestPhaseProgressToData:
 @pytest.mark.unit
 class TestFetchUserProgress:
     @pytest.mark.asyncio
-    async def test_returns_cached_value(self):
-        cached = UserProgress(user_id=1, phases={}, total_phases=0)
-        with patch(
-            "services.progress_service.get_cached_progress",
-            autospec=True,
-            return_value=cached,
-        ):
-            result = await fetch_user_progress(AsyncMock(), user_id=1)
-        assert result is cached
-
-    @pytest.mark.asyncio
-    async def test_skip_cache_bypasses_cache(self):
+    async def test_queries_db_and_returns_progress(self):
         topic = _make_topic(steps=["s1"])
         phase = _make_phase(0, topics=[topic])
 
         with (
-            patch(
-                "services.progress_service.get_cached_progress",
-                autospec=True,
-                return_value=UserProgress(user_id=1, phases={}, total_phases=0),
-            ) as mock_cache,
             patch(
                 "services.progress_service.get_all_phases",
                 autospec=True,
                 return_value=(phase,),
             ),
             patch(
-                "services.progress_service.UserPhaseProgressRepository",
+                "services.progress_service.SubmissionRepository",
                 autospec=True,
-            ) as MockDenorm,
+            ) as MockSubRepo,
             patch(
                 "services.progress_service.StepProgressRepository",
                 autospec=True,
@@ -224,125 +199,134 @@ class TestFetchUserProgress:
                 autospec=True,
                 return_value=[],
             ),
-            patch(
-                "services.progress_service.set_cached_progress",
-                autospec=True,
-            ),
         ):
-            MockDenorm.return_value.get_by_user = AsyncMock(return_value={})
+            MockSubRepo.return_value.get_validated_requirement_ids = AsyncMock(
+                return_value=set()
+            )
             MockStepRepo.return_value.get_completed_for_topics = AsyncMock(
                 return_value={}
             )
-            result = await fetch_user_progress(AsyncMock(), user_id=1, skip_cache=True)
-            mock_cache.assert_not_called()
+            result = await fetch_user_progress(AsyncMock(), user_id=1)
             assert result.user_id == 1
 
 
 # ---------------------------------------------------------------------------
-# get_phase_detail_progress
+# fetch_phase_progress
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.unit
-class TestGetPhaseDetailProgress:
+class TestFetchPhaseProgress:
     @pytest.mark.asyncio
-    async def test_cache_hit(self):
-        topic = _make_topic(steps=["s1", "s2"])
-        phase = _make_phase(0, topics=[topic])
-        cached_data = {"phase0-topic1": {"s1"}}
-
-        with (
-            patch(
-                "services.progress_service.get_cached_phase_detail",
-                autospec=True,
-                return_value=cached_data,
-            ),
-            patch(
-                "services.progress_service.get_requirements_for_phase",
-                autospec=True,
-                return_value=[],
-            ),
-        ):
-            result = await get_phase_detail_progress(
-                AsyncMock(), user_id=1, phase=phase
-            )
-
-        assert result.steps_completed == 1
-        assert result.steps_total == 2
-        assert result.percentage == 50
-
-    @pytest.mark.asyncio
-    async def test_cache_miss_queries_db(self):
+    async def test_queries_db(self):
         topic = _make_topic(steps=["s1", "s2"])
         phase = _make_phase(0, topics=[topic])
 
         with (
-            patch(
-                "services.progress_service.get_cached_phase_detail",
-                autospec=True,
-                return_value=None,
-            ),
             patch(
                 "services.progress_service.StepProgressRepository",
                 autospec=True,
             ) as MockStepRepo,
             patch(
-                "services.progress_service.set_cached_phase_detail",
-                autospec=True,
-            ) as mock_set_cache,
-            patch(
                 "services.progress_service.get_requirements_for_phase",
                 autospec=True,
                 return_value=[],
+            ),
+            patch(
+                "services.progress_service.get_phase_requirements",
+                autospec=True,
+                return_value=None,
             ),
         ):
             MockStepRepo.return_value.get_completed_for_topics = AsyncMock(
                 return_value={"phase0-topic1": {"s1", "s2"}}
             )
-            result = await get_phase_detail_progress(
-                AsyncMock(), user_id=1, phase=phase
-            )
+            result = await fetch_phase_progress(AsyncMock(), user_id=1, phase=phase)
 
         assert result.steps_completed == 2
-        assert result.percentage == 100
-        mock_set_cache.assert_called_once()
+        assert result.percentage == 100.0
 
     @pytest.mark.asyncio
     async def test_percentage_includes_hands_on(self):
         """All steps done but hands-on incomplete → not 100%."""
         topic = _make_topic(topic_id="phase3-topic1", steps=["s1", "s2"])
         phase = _make_phase(3, topics=[topic])
-        cached_data = {"phase3-topic1": {"s1", "s2"}}
 
         mock_req = type("Req", (), {"id": "req1"})()
 
-        mock_row = type("Row", (), {"validated_submissions": 0})()
-
         with (
             patch(
-                "services.progress_service.get_cached_phase_detail",
+                "services.progress_service.StepProgressRepository",
                 autospec=True,
-                return_value=cached_data,
-            ),
+            ) as MockStepRepo,
             patch(
                 "services.progress_service.get_requirements_for_phase",
                 autospec=True,
                 return_value=[mock_req],
             ),
             patch(
-                "services.progress_service.UserPhaseProgressRepository",
+                "services.progress_service.SubmissionRepository",
                 autospec=True,
-            ) as MockProgressRepo,
+            ) as MockSubRepo,
+            patch(
+                "services.progress_service.get_phase_requirements",
+                autospec=True,
+                return_value=None,
+            ),
         ):
-            MockProgressRepo.return_value.get_by_user_and_phase = AsyncMock(
-                return_value=mock_row
+            MockStepRepo.return_value.get_completed_for_topics = AsyncMock(
+                return_value={"phase3-topic1": {"s1", "s2"}}
             )
-            result = await get_phase_detail_progress(
-                AsyncMock(), user_id=1, phase=phase
+            MockSubRepo.return_value.count_validated_for_requirements = AsyncMock(
+                return_value=0
             )
+            result = await fetch_phase_progress(AsyncMock(), user_id=1, phase=phase)
 
         # 2 steps done + 0 hands-on out of 2 steps + 1 hands-on = 2/3 ≈ 67%
         assert result.steps_completed == 2
         assert result.hands_on_validated == 0
         assert result.hands_on_required == 1
-        assert result.percentage == 67
+        assert result.percentage == pytest.approx(66.7, abs=0.1)
+        assert result.is_complete is False
+
+    @pytest.mark.asyncio
+    async def test_is_complete_when_all_done(self):
+        """All steps and hands-on done → 100% and is_complete."""
+        topic = _make_topic(topic_id="phase3-topic1", steps=["s1", "s2"])
+        phase = _make_phase(3, topics=[topic])
+
+        mock_req = type("Req", (), {"id": "req1"})()
+
+        with (
+            patch(
+                "services.progress_service.StepProgressRepository",
+                autospec=True,
+            ) as MockStepRepo,
+            patch(
+                "services.progress_service.get_requirements_for_phase",
+                autospec=True,
+                return_value=[mock_req],
+            ),
+            patch(
+                "services.progress_service.SubmissionRepository",
+                autospec=True,
+            ) as MockSubRepo,
+            patch(
+                "services.progress_service.get_phase_requirements",
+                autospec=True,
+                return_value=None,
+            ),
+        ):
+            MockStepRepo.return_value.get_completed_for_topics = AsyncMock(
+                return_value={"phase3-topic1": {"s1", "s2"}}
+            )
+            MockSubRepo.return_value.count_validated_for_requirements = AsyncMock(
+                return_value=1
+            )
+            result = await fetch_phase_progress(AsyncMock(), user_id=1, phase=phase)
+
+        assert result.steps_completed == 2
+        assert result.hands_on_validated == 1
+        assert result.hands_on_required == 1
+        assert result.percentage == 100.0
+        assert result.is_complete is True

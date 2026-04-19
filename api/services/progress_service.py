@@ -1,17 +1,13 @@
 """Centralized progress tracking module.
 
-This module provides a single source of truth for:
-- Phase requirements (steps, topics) - derived from content JSON
-- User progress calculation
-- Phase completion status
+Progress is a derived value, not stored state:
 
-All progress-related logic (dashboard) should use this module
-to ensure consistency across the application.
+    progress = what the user has done ÷ what the content requires
 
-CACHING:
-- User progress is cached for 60 seconds per user_id
-- Cache is per-worker, not distributed (acceptable for read-heavy data)
-- Call invalidate_progress_cache(user_id) after progress modifications
+Data sources:
+- Step completions: ``step_progress`` table (canonical)
+- Hands-on validations: ``submissions`` table (canonical)
+- Requirements: Content YAML (cached at startup)
 """
 
 import logging
@@ -19,17 +15,10 @@ from functools import lru_cache
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core.cache import (
-    get_cached_phase_detail,
-    get_cached_progress,
-    set_cached_phase_detail,
-    set_cached_progress,
-)
-from repositories.progress_denormalized_repository import UserPhaseProgressRepository
 from repositories.progress_repository import StepProgressRepository
+from repositories.submission_repository import SubmissionRepository
 from schemas import (
     Phase,
-    PhaseDetailProgress,
     PhaseProgress,
     PhaseProgressData,
     PhaseRequirements,
@@ -85,39 +74,59 @@ def get_all_phase_ids() -> list[int]:
     return sorted(_build_phase_requirements().keys())
 
 
+def _get_requirement_ids_by_phase() -> dict[int, set[str]]:
+    """Get current content requirement IDs grouped by phase."""
+    result: dict[int, set[str]] = {}
+    for phase_id in get_all_phase_ids():
+        requirements = get_requirements_for_phase(phase_id)
+        result[phase_id] = {r.id for r in requirements}
+    return result
+
+
+def _compute_phase_progress(
+    phase_id: int,
+    steps_completed: int,
+    steps_required: int,
+    hands_on_validated: int,
+    hands_on_required: int,
+    topic_progress: dict[str, TopicProgressData] | None = None,
+) -> PhaseProgress:
+    """Core progress computation shared by dashboard and detail views."""
+    return PhaseProgress(
+        phase_id=phase_id,
+        steps_completed=steps_completed,
+        steps_required=steps_required,
+        hands_on_validated=hands_on_validated,
+        hands_on_required=hands_on_required,
+        topic_progress=topic_progress,
+    )
+
+
 async def fetch_user_progress(
     db: AsyncSession,
     user_id: int,
-    skip_cache: bool = False,
 ) -> UserProgress:
     """Fetch complete progress data for a user.
 
     This is the main entry point for getting user progress. It queries:
     - Completed steps per phase (from step_progress table)
-    - Validated submissions per phase (from submissions table)
+    - Validated submissions (from submissions table, filtered to current content)
 
     Args:
         db: Database session
         user_id: User identifier
-        skip_cache: If True, bypass cache and fetch fresh data
 
     Returns a UserProgress object with all phase completion data.
-
-    CACHING: Results are cached for 60 seconds per user_id.
     """
-    if not skip_cache:
-        cached = get_cached_progress(user_id)
-        if cached is not None:
-            return cached
 
     phases = get_all_phases()
 
-    progress_repo = UserPhaseProgressRepository(db)
-    denormalized = await progress_repo.get_by_user(user_id)
+    # Query validated requirement IDs from submissions (source of truth)
+    sub_repo = SubmissionRepository(db)
+    validated_req_ids = await sub_repo.get_validated_requirement_ids(user_id)
 
-    validated_counts = {
-        pid: row.validated_submissions for pid, row in denormalized.items()
-    }
+    # Get current content requirement IDs per phase
+    req_ids_by_phase = _get_requirement_ids_by_phase()
 
     # Canonical step completion: filter persisted completions by currently-defined
     # step ids so content edits (add/remove/reorder) cannot inflate progress.
@@ -141,34 +150,23 @@ async def fetch_user_progress(
         requirements = get_phase_requirements(phase_id)
         if not requirements:
             continue
-        hands_on_requirements = get_requirements_for_phase(phase_id)
-        steps_completed = phase_steps.get(phase_id, 0)
-        hands_on_validated_count = validated_counts.get(phase_id, 0)
 
-        required_ids = {r.id for r in hands_on_requirements}
-        hands_on_required_count = len(required_ids)
-        has_hands_on_requirements = hands_on_required_count > 0
-        hands_on_validated = (
-            (hands_on_validated_count >= hands_on_required_count)
-            if has_hands_on_requirements
-            else True
-        )
+        current_req_ids = req_ids_by_phase.get(phase_id, set())
+        hands_on_validated = len(validated_req_ids & current_req_ids)
+        hands_on_required = len(current_req_ids)
 
-        phase_progress_map[phase_id] = PhaseProgress(
+        phase_progress_map[phase_id] = _compute_phase_progress(
             phase_id=phase_id,
-            steps_completed=steps_completed,
+            steps_completed=phase_steps.get(phase_id, 0),
             steps_required=requirements.steps,
-            hands_on_validated_count=hands_on_validated_count,
-            hands_on_required_count=hands_on_required_count,
             hands_on_validated=hands_on_validated,
-            hands_on_required=has_hands_on_requirements,
+            hands_on_required=hands_on_required,
         )
 
     all_phase_ids = get_all_phase_ids()
     result = UserProgress(
         user_id=user_id, phases=phase_progress_map, total_phases=len(all_phase_ids)
     )
-    set_cached_progress(user_id, result)
 
     return result
 
@@ -211,24 +209,19 @@ def compute_topic_progress(
     )
 
 
-async def get_phase_detail_progress(
+async def fetch_phase_progress(
     db: AsyncSession,
     user_id: int,
     phase: Phase,
-) -> PhaseDetailProgress:
-    """Compute per-topic and overall progress for the phase detail page.
+) -> PhaseProgress:
+    """Compute progress for a single phase with per-topic breakdown.
 
-    Uses write-through cache: updated on step complete/uncomplete,
-    falls back to DB on cache miss.
+    Used by the phase detail page. Same computation as fetch_user_progress
+    but scoped to one phase and includes topic-level detail.
     """
-    completed_by_topic = get_cached_phase_detail(user_id, phase.id)
-    if completed_by_topic is None:
-        step_repo = StepProgressRepository(db)
-        topic_ids = [t.id for t in phase.topics]
-        completed_by_topic = await step_repo.get_completed_for_topics(
-            user_id, topic_ids
-        )
-        set_cached_phase_detail(user_id, phase.id, completed_by_topic)
+    step_repo = StepProgressRepository(db)
+    topic_ids = [t.id for t in phase.topics]
+    completed_by_topic = await step_repo.get_completed_for_topics(user_id, topic_ids)
 
     topic_progress: dict[str, TopicProgressData] = {}
     total_completed = 0
@@ -241,30 +234,35 @@ async def get_phase_detail_progress(
         total_completed += tp.steps_completed
         total_steps += tp.steps_total
 
-    # Include hands-on requirements in overall percentage
+    # Count validated submissions from source of truth, filtered to current content
     hands_on_requirements = get_requirements_for_phase(phase.id)
-    hands_on_required = len({r.id for r in hands_on_requirements})
+    current_req_ids = {r.id for r in hands_on_requirements}
+    hands_on_required = len(current_req_ids)
 
     hands_on_validated = 0
     if hands_on_required > 0:
-        progress_repo = UserPhaseProgressRepository(db)
-        row = await progress_repo.get_by_user_and_phase(user_id, phase.id)
-        if row:
-            hands_on_validated = row.validated_submissions
+        sub_repo = SubmissionRepository(db)
+        hands_on_validated = await sub_repo.count_validated_for_requirements(
+            user_id, current_req_ids
+        )
 
-    return PhaseDetailProgress(
-        topic_progress=topic_progress,
+    requirements = get_phase_requirements(phase.id)
+    steps_required = requirements.steps if requirements else total_steps
+
+    result = _compute_phase_progress(
+        phase_id=phase.id,
         steps_completed=total_completed,
-        steps_total=total_steps,
+        steps_required=steps_required,
         hands_on_validated=hands_on_validated,
         hands_on_required=hands_on_required,
+        topic_progress=topic_progress,
     )
+
+    return result
 
 
 def phase_progress_to_data(progress: PhaseProgress) -> PhaseProgressData:
     """Convert PhaseProgress to PhaseProgressData response model.
-
-    Determines the status string based on completion state.
 
     Args:
         progress: The phase progress data
@@ -272,18 +270,11 @@ def phase_progress_to_data(progress: PhaseProgress) -> PhaseProgressData:
     Returns:
         PhaseProgressData suitable for API responses
     """
-    if progress.is_complete:
-        status = "completed"
-    elif progress.steps_completed > 0 or progress.hands_on_validated_count > 0:
-        status = "in_progress"
-    else:
-        status = "not_started"
-
     return PhaseProgressData(
         steps_completed=progress.steps_completed,
         steps_required=progress.steps_required,
-        hands_on_validated=progress.hands_on_validated_count,
-        hands_on_required=progress.hands_on_required_count,
-        percentage=round(progress.overall_percentage, 1),
-        status=status,
+        hands_on_validated=progress.hands_on_validated,
+        hands_on_required=progress.hands_on_required,
+        percentage=round(progress.percentage, 1),
+        status=progress.status,
     )

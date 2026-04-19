@@ -35,11 +35,6 @@ def _make_analytics() -> CommunityAnalytics:
     return CommunityAnalytics(
         total_users=100,
         active_learners_30d=42,
-        completion_rate=0.15,
-        phase_distribution=[],
-        signup_trends=[],
-        verification_stats=[],
-        activity_by_day=[],
         generated_at=datetime(2024, 6, 1, tzinfo=UTC),
     )
 
@@ -216,6 +211,5 @@ class TestStatusPage:
         # Should get a fallback CommunityAnalytics with zeros
         assert ctx["analytics"].total_users == 0
         assert ctx["analytics"].active_learners_30d == 0
-        assert ctx["analytics"].completion_rate == 0.0
         # Status should still reflect health check, not analytics
         assert ctx["overall_status"] == "operational"

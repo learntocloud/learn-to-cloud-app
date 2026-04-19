@@ -91,7 +91,7 @@ async def get_token() -> str:
     """
     credential = await get_credential()
     try:
-        async with asyncio.timeout(get_settings().azure_token_timeout):
+        async with asyncio.timeout(get_settings().db_timeout):
             return await asyncio.to_thread(_get_token_sync, credential)
     except TimeoutError:
         # Reset credential on timeout in case it's in a bad state

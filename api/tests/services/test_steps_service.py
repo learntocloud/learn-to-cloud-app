@@ -141,15 +141,6 @@ class TestCompleteStep:
                 "services.steps_service.StepProgressRepository",
                 autospec=True,
             ) as MockRepo,
-            patch(
-                "services.steps_service.invalidate_progress_cache",
-                autospec=True,
-            ),
-            patch(
-                "services.steps_service.update_cached_phase_detail_step",
-                autospec=True,
-            ),
-            patch("core.metrics.STEP_COMPLETED_COUNTER", autospec=True),
         ):
             repo = MockRepo.return_value
             repo.create_if_not_exists = AsyncMock(return_value=mock_step_progress)
@@ -211,15 +202,6 @@ class TestUncompleteStep:
                 "services.steps_service.StepProgressRepository",
                 autospec=True,
             ) as MockRepo,
-            patch(
-                "services.steps_service.invalidate_progress_cache",
-                autospec=True,
-            ) as mock_invalidate,
-            patch(
-                "services.steps_service.update_cached_phase_detail_step",
-                autospec=True,
-            ),
-            patch("core.metrics.STEP_UNCOMPLETED_COUNTER", autospec=True),
         ):
             repo = MockRepo.return_value
             repo.delete_step = AsyncMock(return_value=1)
@@ -231,11 +213,10 @@ class TestUncompleteStep:
 
         assert deleted == 1
         assert completed == set()
-        mock_invalidate.assert_called_once_with(1)
 
     @pytest.mark.asyncio
     async def test_nonexistent_step_noop(self):
-        """Deleting a step that doesn't exist returns 0, no cache invalidation."""
+        """Deleting a step that doesn't exist returns 0."""
         topic = _make_topic(steps=["step-intro"])
 
         with (
@@ -248,14 +229,6 @@ class TestUncompleteStep:
                 "services.steps_service.StepProgressRepository",
                 autospec=True,
             ) as MockRepo,
-            patch(
-                "services.steps_service.invalidate_progress_cache",
-                autospec=True,
-            ) as mock_invalidate,
-            patch(
-                "services.steps_service.update_cached_phase_detail_step",
-                autospec=True,
-            ),
         ):
             repo = MockRepo.return_value
             repo.delete_step = AsyncMock(return_value=0)
@@ -266,7 +239,6 @@ class TestUncompleteStep:
             )
 
         assert deleted == 0
-        mock_invalidate.assert_not_called()
 
 
 # ---------------------------------------------------------------------------

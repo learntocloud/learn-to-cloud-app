@@ -6,25 +6,25 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from fastapi import HTTPException
 
+from models import User
 from routes.users_routes import (
     delete_current_user,
     get_current_user,
 )
-from schemas import UserResponse
 from services.users_service import UserNotFoundError
 
 
-def _fake_user_response() -> UserResponse:
-    """Build a minimal UserResponse for testing."""
-    return UserResponse(
-        id=1,
-        first_name="Test",
-        last_name="User",
-        avatar_url="https://example.com/avatar.png",
-        github_username="testuser",
-        is_admin=False,
-        created_at=datetime(2024, 1, 1, tzinfo=UTC),
-    )
+def _fake_user() -> User:
+    """Build a minimal User model for testing."""
+    user = User()
+    user.id = 1
+    user.first_name = "Test"
+    user.last_name = "User"
+    user.avatar_url = "https://example.com/avatar.png"
+    user.github_username = "testuser"
+    user.is_admin = False
+    user.created_at = datetime(2024, 1, 1, tzinfo=UTC)
+    return user
 
 
 @pytest.mark.unit
@@ -32,13 +32,13 @@ class TestGetCurrentUser:
     """Tests for GET /api/user/me."""
 
     async def test_returns_user_response(self):
-        """Returns UserResponse from get_or_create_user."""
+        """Returns UserResponse from get_user_by_id."""
         mock_db = AsyncMock()
         mock_request = MagicMock()
-        user = _fake_user_response()
+        user = _fake_user()
 
         with patch(
-            "routes.users_routes.get_or_create_user",
+            "routes.users_routes.get_user_by_id",
             autospec=True,
             return_value=user,
         ) as mock_service:
@@ -47,6 +47,23 @@ class TestGetCurrentUser:
         mock_service.assert_awaited_once_with(mock_db, 1)
         assert result.id == 1
         assert result.github_username == "testuser"
+
+    async def test_user_not_found_raises_404(self):
+        """Returns 404 when user not found."""
+        mock_db = AsyncMock()
+        mock_request = MagicMock()
+
+        with (
+            patch(
+                "routes.users_routes.get_user_by_id",
+                autospec=True,
+                return_value=None,
+            ),
+            pytest.raises(HTTPException) as exc_info,
+        ):
+            await get_current_user(mock_request, user_id=999, db=mock_db)
+
+        assert exc_info.value.status_code == 404
 
 
 @pytest.mark.unit
