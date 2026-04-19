@@ -140,11 +140,8 @@ def configure_logging() -> None:
         "httpx",
         "httpcore",
         "uvicorn.access",
-        "openai",
-        "openai._base_client",
         "azure.core.pipeline.policies.http_logging_policy",
         "azure.identity",
         "azure.monitor.opentelemetry",
-        "agent_framework",
     ):
         logging.getLogger(name).setLevel(logging.WARNING)

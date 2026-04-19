@@ -3,11 +3,11 @@
 These routes handle interactive HTMX requests (step toggles, form
 submissions, etc.) and return HTML partials instead of JSON.
 
-LLM-based verifications (DEVOPS_ANALYSIS, PR_REVIEW with grading_criteria)
+Async verifications (DEVOPS_ANALYSIS, PR_REVIEW)
 use a background task + SSE pattern:
 1. POST /htmx/github/submit — pre-validates and returns a spinner card
    immediately (~100ms)
-2. Background task runs the LLM call (30-120s) and publishes the result
+2. Background task runs verification and publishes the result
 3. GET /htmx/verification/{requirement_id}/stream — SSE endpoint that
    pushes the result HTML when the background task finishes
 """
@@ -188,7 +188,7 @@ async def htmx_submit_verification(
 
     Derives the canonical URL, fires a background task, and returns a
     spinner card that connects to an SSE stream for the result.
-    All validation (preconditions, LLM grading, persistence) happens
+    All validation (preconditions, grading, persistence) happens
     in the background task — errors surface via SSE.
     """
     user = await get_user_by_id(db, user_id)

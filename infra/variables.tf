@@ -43,22 +43,3 @@ variable "alert_emails" {
   type        = list(string)
   default     = ["learntocloudguide@gmail.com"]
 }
-
-# LLM — Azure OpenAI model deployment for code analysis
-variable "llm_model" {
-  description = "Azure OpenAI model to deploy (e.g. gpt-5-mini)"
-  type        = string
-  default     = "gpt-5-mini"
-}
-
-variable "llm_model_version" {
-  description = "Model version to deploy"
-  type        = string
-  default     = "2025-08-07"
-}
-
-variable "llm_capacity" {
-  description = "Tokens-per-minute capacity in thousands (e.g. 100 = 100K TPM)"
-  type        = number
-  default     = 100
-}

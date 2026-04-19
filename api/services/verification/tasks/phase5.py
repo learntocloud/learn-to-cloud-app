@@ -1,15 +1,12 @@
 """Phase 5 task definitions: DevOps artifact verification.
 
 Defines the 4 tasks learners must add to their journal-starter fork
-(Dockerfile, CI/CD, Terraform, Kubernetes), plus the Pydantic models
-used for structured LLM output.
+(Dockerfile, CI/CD, Terraform, Kubernetes).
 """
 
 from __future__ import annotations
 
-from typing import Literal, TypedDict
-
-from pydantic import BaseModel, Field
+from typing import TypedDict
 
 
 class TaskDefinition(TypedDict):
@@ -22,6 +19,7 @@ class TaskDefinition(TypedDict):
     pass_indicators: list[str]
     fail_indicators: list[str]
     required_files: list[str]
+    min_pass_count: int
 
 
 # Maximum number of files to fetch per category (prevent abuse)
@@ -30,7 +28,7 @@ MAX_FILES_PER_CATEGORY: int = 10
 # Maximum file size to prevent token exhaustion (50 KB)
 MAX_FILE_SIZE_BYTES: int = 50 * 1024
 
-# Maximum total content size sent to the LLM (200 KB)
+# Maximum total content size (200 KB)
 MAX_TOTAL_CONTENT_BYTES: int = 200 * 1024
 
 
@@ -71,6 +69,7 @@ PHASE5_TASKS: list[TaskDefinition] = [
             "uvicorn",
         ],
         "fail_indicators": [],
+        "min_pass_count": 5,
     },
     {
         "id": "cicd-pipeline",
@@ -108,6 +107,7 @@ PHASE5_TASKS: list[TaskDefinition] = [
             "deploy",
         ],
         "fail_indicators": [],
+        "min_pass_count": 6,
     },
     {
         "id": "terraform-iac",
@@ -145,6 +145,7 @@ PHASE5_TASKS: list[TaskDefinition] = [
             "postgresql",
         ],
         "fail_indicators": [],
+        "min_pass_count": 4,
     },
     {
         "id": "kubernetes-manifests",
@@ -196,30 +197,6 @@ PHASE5_TASKS: list[TaskDefinition] = [
             "containerPort",
         ],
         "fail_indicators": [],
+        "min_pass_count": 6,
     },
 ]
-
-
-# Valid task IDs as a Literal type for structured output validation
-_VALID_TASK_IDS = Literal[
-    "dockerfile",
-    "cicd-pipeline",
-    "terraform-iac",
-    "kubernetes-manifests",
-]
-
-
-class DevOpsTaskGrade(BaseModel):
-    """Structured output model for a single DevOps task grade."""
-
-    task_id: _VALID_TASK_IDS = Field(description="The task identifier")
-    passed: bool = Field(description="Whether the task implementation is complete")
-    feedback: str = Field(
-        description="1-3 sentences of specific, educational feedback",
-        max_length=500,
-    )
-    next_steps: str = Field(
-        default="",
-        description="One actionable sentence: what the learner should try next",
-        max_length=200,
-    )

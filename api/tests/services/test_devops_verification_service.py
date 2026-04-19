@@ -2,34 +2,25 @@
 
 Tests cover:
 - Repository file tree filtering
-- Prompt construction
-- LLM response parsing (service-specific wrapper)
-- Task result building (service-specific wrapper)
-- End-to-end analyze_devops_repository flow
-
-Shared utility tests (URL parsing, feedback sanitization, generic parsing)
-live in test_llm_verification_base.py.
+- Required file existence checks
+- Deterministic indicator checking per task
+- End-to-end run_devops_workflow flow
 """
 
-import json
 from unittest.mock import MagicMock, patch
 
 import httpx
 import pytest
 
 from services.verification.devops_analysis import (
-    DevOpsAnalysisError,
-    _build_task_instructions,
-    _build_task_prompt,
     _check_required_files,
+    _check_task_indicators,
     _filter_devops_files,
     run_devops_workflow,
 )
-from services.verification.llm_base import build_task_results, parse_structured_response
 from services.verification.tasks.phase5 import (
     MAX_FILES_PER_CATEGORY,
     PHASE5_TASKS,
-    DevOpsTaskGrade,
 )
 
 
@@ -180,188 +171,107 @@ class TestCheckFileExistence:
 
 
 @pytest.mark.unit
-class TestParseStructuredResponse:
-    """Tests for structured response parsing (single DevOpsTaskGrade per agent)."""
+class TestCheckTaskIndicators:
+    """Tests for deterministic indicator checking."""
 
-    def test_valid_response_from_value(self):
-        """Should extract response from result.value."""
-        expected = DevOpsTaskGrade(task_id="dockerfile", passed=True, feedback="Good")
-        mock_result = MagicMock()
-        mock_result.value = expected
-        mock_result.text = ""
-
-        result = parse_structured_response(
-            mock_result,
-            DevOpsTaskGrade,
-            DevOpsAnalysisError,
-            "devops_analysis.dockerfile",
-        )
-        assert result.task_id == "dockerfile"
+    def test_all_indicators_matched_passes(self):
+        """Task passes when enough indicators are found."""
+        task_def = PHASE5_TASKS[0]  # Dockerfile
+        contents = [
+            "FROM python:3.12-slim\n"
+            "WORKDIR /app\n"
+            "COPY requirements.txt .\n"
+            "RUN pip install -r requirements.txt\n"
+            "COPY . .\n"
+            "EXPOSE 8000\n"
+            'CMD ["uvicorn", "main:app"]\n'
+        ]
+        result = _check_task_indicators(task_def, contents)
         assert result.passed is True
 
-    def test_fallback_to_text_parsing(self):
-        """Should fall back to parsing result.text when value is None."""
-        mock_result = MagicMock()
-        mock_result.value = None
-        mock_result.text = json.dumps(
-            {"task_id": "dockerfile", "passed": True, "feedback": "Good"}
-        )
+    def test_too_few_indicators_fails(self):
+        """Task fails when matched count < min_pass_count."""
+        task_def = PHASE5_TASKS[0]  # Dockerfile, min_pass_count=5
+        contents = ["FROM python:3.12\nWORKDIR /app\n"]  # only 2 indicators
+        result = _check_task_indicators(task_def, contents)
+        assert result.passed is False
+        assert "Missing:" in result.feedback
 
-        result = parse_structured_response(
-            mock_result,
-            DevOpsTaskGrade,
-            DevOpsAnalysisError,
-            "devops_analysis.dockerfile",
-        )
-        assert result.task_id == "dockerfile"
+    def test_fail_indicator_causes_failure(self):
+        """Any fail_indicator match → immediate failure."""
+        # Use a synthetic task_def since real Phase 5 tasks may not have fail_indicators
+        task_def = {
+            "id": "test-task",
+            "name": "Test Task",
+            "pass_indicators": ["FROM "],
+            "fail_indicators": ["TODO"],
+            "min_pass_count": 1,
+        }
+        contents = ["FROM python:3.12\nTODO: fix this\n"]
+        result = _check_task_indicators(task_def, contents)
+        assert result.passed is False
+        assert "disallowed" in result.feedback.lower()
 
-    def test_empty_text_raises(self):
-        """Should raise when both value and text are empty."""
-        mock_result = MagicMock()
-        mock_result.value = None
-        mock_result.text = ""
+    def test_empty_files_fails(self):
+        """No file content → fails (insufficient indicators)."""
+        task_def = PHASE5_TASKS[0]
+        result = _check_task_indicators(task_def, [])
+        assert result.passed is False
 
-        with pytest.raises(DevOpsAnalysisError, match="No response received"):
-            parse_structured_response(
-                mock_result,
-                DevOpsTaskGrade,
-                DevOpsAnalysisError,
-                "devops_analysis.dockerfile",
-            )
-
-    def test_invalid_text_raises(self):
-        """Should raise when text is not valid JSON."""
-        mock_result = MagicMock()
-        mock_result.value = None
-        mock_result.text = "This is just plain text with no JSON"
-
-        with pytest.raises(DevOpsAnalysisError, match="Could not parse"):
-            parse_structured_response(
-                mock_result,
-                DevOpsTaskGrade,
-                DevOpsAnalysisError,
-                "devops_analysis.dockerfile",
-            )
-
-
-@pytest.mark.unit
-class TestBuildTaskResults:
-    """Tests for converting parsed tasks to TaskResult objects."""
-
-    def test_all_passed(self):
-        grades = [
-            DevOpsTaskGrade(task_id="dockerfile", passed=True, feedback="Done"),
-            DevOpsTaskGrade(task_id="cicd-pipeline", passed=True, feedback="Done"),
-            DevOpsTaskGrade(task_id="terraform-iac", passed=True, feedback="Done"),
-            DevOpsTaskGrade(
-                task_id="kubernetes-manifests", passed=True, feedback="Done"
-            ),
+    def test_case_insensitive_matching(self):
+        """Indicator matching is case-insensitive."""
+        task_def = PHASE5_TASKS[0]  # Dockerfile
+        contents = [
+            "from python:3.12\n"
+            "workdir /app\n"
+            "copy . .\n"
+            "run pip install\n"
+            "expose 8000\n"
+            "cmd uvicorn\n"
         ]
-        results, all_passed = build_task_results(grades, PHASE5_TASKS)
-        assert all_passed is True
-        assert len(results) == 4
+        result = _check_task_indicators(task_def, contents)
+        assert result.passed is True
 
-    def test_some_failed(self):
-        grades = [
-            DevOpsTaskGrade(task_id="dockerfile", passed=True, feedback="Done"),
-            DevOpsTaskGrade(task_id="cicd-pipeline", passed=False, feedback="Missing"),
-            DevOpsTaskGrade(task_id="terraform-iac", passed=True, feedback="Done"),
-            DevOpsTaskGrade(
-                task_id="kubernetes-manifests",
-                passed=False,
-                feedback="Missing",
-            ),
+    def test_cicd_task_indicators(self):
+        """CI/CD pipeline task passes with enough workflow indicators."""
+        task_def = next(t for t in PHASE5_TASKS if t["id"] == "cicd-pipeline")
+        contents = [
+            "name: CI\n"
+            "on:\n  push:\n    branches: [main]\n"
+            "jobs:\n  build:\n"
+            "    runs-on: ubuntu-latest\n"
+            "    steps:\n"
+            "      - uses: actions/checkout@v4\n"
+            "      - run: pytest\n"
         ]
-        results, all_passed = build_task_results(grades, PHASE5_TASKS)
-        assert all_passed is False
-        assert sum(1 for r in results if r.passed) == 2
+        result = _check_task_indicators(task_def, contents)
+        assert result.passed is True
 
-    def test_missing_tasks_are_failed(self):
-        """Tasks not in the response should be marked as failed."""
-        grades = [
-            DevOpsTaskGrade(task_id="dockerfile", passed=True, feedback="Done"),
-            DevOpsTaskGrade(task_id="dockerfile", passed=True, feedback="Done"),
-            DevOpsTaskGrade(task_id="dockerfile", passed=True, feedback="Done"),
-            DevOpsTaskGrade(task_id="dockerfile", passed=True, feedback="Done"),
+    def test_terraform_task_indicators(self):
+        """Terraform task passes with enough IaC indicators."""
+        task_def = next(t for t in PHASE5_TASKS if t["id"] == "terraform-iac")
+        contents = [
+            'resource "azurerm_resource_group" "rg" {\n'
+            '  name     = "myapp"\n'
+            '  location = "eastus"\n'
+            "}\n\n"
+            'variable "location" {\n'
+            '  default = "eastus"\n'
+            "}\n\n"
+            'output "rg_id" {\n'
+            "  value = azurerm_resource_group.rg.id\n"
+            "}\n\n"
+            'provider "azurerm" {\n'
+            "  features {}\n"
+            "}\n"
         ]
-        results, all_passed = build_task_results(grades, PHASE5_TASKS)
-        assert all_passed is False
-        # dockerfile (4x) + 3 missing tasks filled in
-        assert len(results) == 7
-        failed = [r for r in results if not r.passed]
-        assert len(failed) == 3
-
-    def test_feedback_sanitized(self):
-        grades = [
-            DevOpsTaskGrade(
-                task_id="dockerfile",
-                passed=True,
-                feedback="Visit <script>evil</script>",
-            ),
-            DevOpsTaskGrade(task_id="cicd-pipeline", passed=True, feedback="Done"),
-            DevOpsTaskGrade(task_id="terraform-iac", passed=True, feedback="Done"),
-            DevOpsTaskGrade(
-                task_id="kubernetes-manifests", passed=True, feedback="Done"
-            ),
-        ]
-        results, _ = build_task_results(grades, PHASE5_TASKS)
-        dockerfile_result = next(
-            r for r in results if r.task_name == "Containerization (Dockerfile)"
-        )
-        assert "<script>" not in dockerfile_result.feedback
-
-
-@pytest.mark.unit
-class TestBuildTaskPrompt:
-    """Tests for per-task prompt and instructions construction."""
-
-    def test_instructions_include_task_criteria(self):
-        task_def = PHASE5_TASKS[0]  # dockerfile
-        instructions = _build_task_instructions(task_def)
-        for criterion in task_def["criteria"]:
-            assert criterion in instructions
-
-    def test_instructions_include_security_notice(self):
-        task_def = PHASE5_TASKS[0]
-        instructions = _build_task_instructions(task_def)
-        assert "SECURITY NOTICE" in instructions
-
-    def test_instructions_include_pass_indicators(self):
-        task_def = PHASE5_TASKS[0]
-        instructions = _build_task_instructions(task_def)
-        assert "FROM " in instructions
-
-    def test_prompt_includes_task_id(self):
-        task_def = PHASE5_TASKS[0]
-        prompt = _build_task_prompt(task_def, [])
-        assert task_def["id"] in prompt
-
-    def test_prompt_includes_file_contents(self):
-        task_def = PHASE5_TASKS[0]
-        dockerfile = (
-            '<file_content path="Dockerfile">\nFROM python:3.12\n</file_content>'
-        )
-        prompt = _build_task_prompt(task_def, [dockerfile])
-        assert "FROM python:3.12" in prompt
-
-    def test_prompt_marks_missing_files(self):
-        task_def = PHASE5_TASKS[0]
-        prompt = _build_task_prompt(task_def, [])
-        assert "<no_files_found />" in prompt
-
-    def test_each_task_gets_unique_instructions(self):
-        """Each task's instructions should mention its own name."""
-        for task_def in PHASE5_TASKS:
-            instructions = _build_task_instructions(task_def)
-            assert task_def["name"] in instructions
+        result = _check_task_indicators(task_def, contents)
+        assert result.passed is True
 
 
 @pytest.mark.unit
 class TestRunDevopsWorkflow:
-    """Tests for the DevOps workflow execution.
-
-    URL validation and ownership checks are tested in the dispatcher tests.
-    """
+    """Tests for the DevOps workflow execution."""
 
     @pytest.mark.asyncio
     async def test_repo_not_found(self):
@@ -369,17 +279,11 @@ class TestRunDevopsWorkflow:
         mock_response = MagicMock()
         mock_response.status_code = 404
 
-        with (
-            patch(
-                "services.verification.devops_analysis.get_llm_chat_client",
-                autospec=True,
-            ),
-            patch(
-                "services.verification.devops_analysis.fetch_repo_tree",
-                autospec=True,
-                side_effect=httpx.HTTPStatusError(
-                    "Not Found", request=MagicMock(), response=mock_response
-                ),
+        with patch(
+            "services.verification.devops_analysis.fetch_repo_tree",
+            autospec=True,
+            side_effect=httpx.HTTPStatusError(
+                "Not Found", request=MagicMock(), response=mock_response
             ),
         ):
             result = await run_devops_workflow("testuser", "journal-starter")
@@ -388,18 +292,12 @@ class TestRunDevopsWorkflow:
         assert "not found" in result.message.lower()
 
     @pytest.mark.asyncio
-    async def test_all_missing_skips_llm(self):
-        """When no tasks pass existence check, skip LLM and return fast."""
-        with (
-            patch(
-                "services.verification.devops_analysis.get_llm_chat_client",
-                autospec=True,
-            ),
-            patch(
-                "services.verification.devops_analysis.fetch_repo_tree",
-                autospec=True,
-                return_value=["README.md"],
-            ),
+    async def test_all_missing_returns_fast(self):
+        """When no tasks pass existence check, return immediately."""
+        with patch(
+            "services.verification.devops_analysis.fetch_repo_tree",
+            autospec=True,
+            return_value=["README.md"],
         ):
             result = await run_devops_workflow("testuser", "journal-starter")
 
@@ -410,8 +308,7 @@ class TestRunDevopsWorkflow:
 
     @pytest.mark.asyncio
     async def test_partial_missing_fails_immediately(self):
-        """If any task is missing required files, fail immediately
-        without calling the LLM."""
+        """If any task is missing required files, fail immediately."""
         mock_files = [
             "Dockerfile",
             ".github/workflows/ci.yml",
@@ -420,16 +317,10 @@ class TestRunDevopsWorkflow:
             # k8s/service.yaml intentionally absent
         ]
 
-        with (
-            patch(
-                "services.verification.devops_analysis.get_llm_chat_client",
-                autospec=True,
-            ),
-            patch(
-                "services.verification.devops_analysis.fetch_repo_tree",
-                autospec=True,
-                return_value=mock_files,
-            ),
+        with patch(
+            "services.verification.devops_analysis.fetch_repo_tree",
+            autospec=True,
+            return_value=mock_files,
         ):
             result = await run_devops_workflow("testuser", "journal-starter")
 
@@ -439,3 +330,84 @@ class TestRunDevopsWorkflow:
         k8s_result = result.task_results[0]
         assert "Kubernetes" in k8s_result.task_name
         assert "k8s/service.yaml" in k8s_result.feedback
+
+    @pytest.mark.asyncio
+    async def test_all_tasks_pass_with_good_content(self):
+        """Happy path: all required files exist with proper content."""
+        mock_files = [
+            "Dockerfile",
+            ".dockerignore",
+            ".github/workflows/ci.yml",
+            "infra/main.tf",
+            "infra/variables.tf",
+            "k8s/deployment.yaml",
+            "k8s/service.yaml",
+        ]
+
+        dockerfile_content = (
+            "FROM python:3.12-slim\nWORKDIR /app\n"
+            "COPY requirements.txt .\nRUN pip install -r requirements.txt\n"
+            'COPY . .\nEXPOSE 8000\nCMD ["uvicorn", "main:app"]\n'
+        )
+        cicd_content = (
+            "name: CI\non:\n  push:\n    branches: [main]\n"
+            "jobs:\n  build:\n    runs-on: ubuntu-latest\n"
+            "    steps:\n      - uses: actions/checkout@v4\n"
+            "      - run: pytest\n"
+        )
+        terraform_content = (
+            'resource "azurerm_resource_group" "rg" {\n'
+            '  name = "myapp"\n  location = "eastus"\n}\n'
+            'variable "location" {\n  default = "eastus"\n}\n'
+            'output "rg_id" {\n  value = azurerm_resource_group.rg.id\n}\n'
+            'provider "azurerm" {\n  features {}\n}\n'
+        )
+        k8s_deploy_content = (
+            "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n"
+            "  name: journal\nspec:\n  replicas: 1\n"
+            "  selector:\n    matchLabels:\n      app: journal\n"
+            "  template:\n    spec:\n      containers:\n"
+            "        - name: journal\n          image: IMAGE_PLACEHOLDER\n"
+            "          ports:\n            - containerPort: 8000\n"
+            "          envFrom:\n            - secretRef:\n"
+            "                name: journal-secrets\n"
+            "          livenessProbe:\n            httpGet:\n"
+            "              path: /health\n              port: 8000\n"
+            "          readinessProbe:\n            httpGet:\n"
+            "              path: /health\n              port: 8000\n"
+        )
+
+        file_map = {
+            "Dockerfile": dockerfile_content,
+            ".dockerignore": "*.pyc\n__pycache__\n",
+            ".github/workflows/ci.yml": cicd_content,
+            "infra/main.tf": terraform_content,
+            "infra/variables.tf": 'variable "x" {}\n',
+            "k8s/deployment.yaml": k8s_deploy_content,
+            "k8s/service.yaml": (
+                "apiVersion: v1\nkind: Service\nmetadata:\n"
+                "  name: journal\nspec:\n  ports:\n"
+                "    - port: 80\n      targetPort: 8000\n"
+            ),
+        }
+
+        async def mock_fetch(owner, repo, path, branch="main"):
+            return file_map.get(path, "")
+
+        with (
+            patch(
+                "services.verification.devops_analysis.fetch_repo_tree",
+                autospec=True,
+                return_value=mock_files,
+            ),
+            patch(
+                "services.verification.devops_analysis._fetch_file_content",
+                side_effect=mock_fetch,
+            ),
+        ):
+            result = await run_devops_workflow("testuser", "journal-starter")
+
+        assert result.is_valid is True
+        assert result.task_results is not None
+        assert len(result.task_results) == 4
+        assert all(t.passed for t in result.task_results)

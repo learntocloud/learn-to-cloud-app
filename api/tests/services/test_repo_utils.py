@@ -1,49 +1,19 @@
-"""Tests for llm_verification_base shared utilities.
+"""Tests for repo_utils shared utilities.
 
 Tests cover:
 - GitHub URL parsing and validation (extract_repo_info)
 - Repository ownership validation (validate_repo_url)
 - Feedback sanitization (sanitize_feedback)
-- Generic structured response parsing (parse_structured_response)
-- Generic task result building (build_task_results)
 """
 
-import json
-from typing import ClassVar
-from unittest.mock import MagicMock
-
 import pytest
-from pydantic import BaseModel, Field
 
 from schemas import ValidationResult
-from services.verification.llm_base import (
-    SUSPICIOUS_PATTERNS,
-    VerificationError,
-    build_task_results,
+from services.verification.repo_utils import (
     extract_repo_info,
-    parse_structured_response,
     sanitize_feedback,
     validate_repo_url,
 )
-
-# ---------------------------------------------------------------------------
-# Test helpers — minimal Pydantic models for parse_structured_response
-# ---------------------------------------------------------------------------
-
-
-class _FakeGrade(BaseModel):
-    task_id: str
-    passed: bool
-    feedback: str = ""
-
-
-class _FakeAnalysisResponse(BaseModel):
-    tasks: list[_FakeGrade] = Field(min_length=1)
-
-
-class _FakeError(VerificationError):
-    """Test-only error subclass."""
-
 
 # ---------------------------------------------------------------------------
 # extract_repo_info
@@ -232,152 +202,3 @@ class TestSanitizeFeedback:
 
     def test_whitespace_only_returns_default(self):
         assert sanitize_feedback("   ") == "No feedback provided"
-
-
-# ---------------------------------------------------------------------------
-# SUSPICIOUS_PATTERNS
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.unit
-class TestSuspiciousPatterns:
-    """Tests for prompt injection detection patterns."""
-
-    def test_suspicious_patterns_defined(self):
-        assert len(SUSPICIOUS_PATTERNS) > 0
-        assert "ignore all previous" in SUSPICIOUS_PATTERNS
-        assert "system prompt" in SUSPICIOUS_PATTERNS
-
-
-# ---------------------------------------------------------------------------
-# parse_structured_response
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.unit
-class TestParseStructuredResponse:
-    """Tests for generic structured response parsing."""
-
-    def test_parses_from_value_direct_instance(self):
-        expected = _FakeAnalysisResponse(
-            tasks=[_FakeGrade(task_id="t1", passed=True, feedback="OK")]
-        )
-        mock_result = MagicMock()
-        mock_result.value = expected
-        mock_result.text = ""
-
-        result = parse_structured_response(
-            mock_result, _FakeAnalysisResponse, _FakeError, "test"
-        )
-        assert result is expected
-
-    def test_parses_from_value_dict(self):
-        mock_result = MagicMock()
-        mock_result.value = {
-            "tasks": [{"task_id": "t1", "passed": True, "feedback": "OK"}]
-        }
-        mock_result.text = ""
-
-        result = parse_structured_response(
-            mock_result, _FakeAnalysisResponse, _FakeError, "test"
-        )
-        assert len(result.tasks) == 1
-
-    def test_fallback_to_text_parsing(self):
-        mock_result = MagicMock()
-        mock_result.value = None
-        mock_result.text = json.dumps(
-            {"tasks": [{"task_id": "t1", "passed": True, "feedback": "OK"}]}
-        )
-
-        result = parse_structured_response(
-            mock_result, _FakeAnalysisResponse, _FakeError, "test"
-        )
-        assert len(result.tasks) == 1
-
-    def test_empty_text_raises(self):
-        mock_result = MagicMock()
-        mock_result.value = None
-        mock_result.text = ""
-
-        with pytest.raises(_FakeError, match="No response received"):
-            parse_structured_response(
-                mock_result, _FakeAnalysisResponse, _FakeError, "test"
-            )
-
-    def test_invalid_text_raises(self):
-        mock_result = MagicMock()
-        mock_result.value = None
-        mock_result.text = "not json at all"
-
-        with pytest.raises(_FakeError, match="Could not parse"):
-            parse_structured_response(
-                mock_result, _FakeAnalysisResponse, _FakeError, "test"
-            )
-
-
-# ---------------------------------------------------------------------------
-# build_task_results
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.unit
-class TestBuildTaskResults:
-    """Tests for generic task result building."""
-
-    _TASKS: ClassVar[list[dict[str, str]]] = [
-        {"id": "task-a", "name": "Task A"},
-        {"id": "task-b", "name": "Task B"},
-    ]
-
-    def test_all_passed(self):
-        grades = [
-            _FakeGrade(task_id="task-a", passed=True, feedback="Done"),
-            _FakeGrade(task_id="task-b", passed=True, feedback="Done"),
-        ]
-        results, all_passed = build_task_results(grades, self._TASKS)
-        assert all_passed is True
-        assert len(results) == 2
-
-    def test_some_failed(self):
-        grades = [
-            _FakeGrade(task_id="task-a", passed=True, feedback="Done"),
-            _FakeGrade(task_id="task-b", passed=False, feedback="Missing"),
-        ]
-        results, all_passed = build_task_results(grades, self._TASKS)
-        assert all_passed is False
-
-    def test_missing_tasks_filled(self):
-        grades = [
-            _FakeGrade(task_id="task-a", passed=True, feedback="Done"),
-        ]
-        results, all_passed = build_task_results(grades, self._TASKS)
-        assert all_passed is False
-        assert len(results) == 2
-        missing = next(r for r in results if r.task_name == "Task B")
-        assert missing.passed is False
-        assert "not evaluated" in missing.feedback.lower()
-
-    def test_feedback_sanitized(self):
-        grades = [
-            _FakeGrade(
-                task_id="task-a",
-                passed=True,
-                feedback="Visit <script>evil</script> https://bad.com",
-            ),
-            _FakeGrade(task_id="task-b", passed=True, feedback="OK"),
-        ]
-        results, _ = build_task_results(grades, self._TASKS)
-        task_a = next(r for r in results if r.task_name == "Task A")
-        assert "<script>" not in task_a.feedback
-        assert "https://bad.com" not in task_a.feedback
-
-    def test_unknown_task_ids_ignored(self):
-        grades = [
-            _FakeGrade(task_id="task-a", passed=True, feedback="Done"),
-            _FakeGrade(task_id="unknown", passed=True, feedback="Huh"),
-            _FakeGrade(task_id="task-b", passed=True, feedback="Done"),
-        ]
-        results, all_passed = build_task_results(grades, self._TASKS)
-        assert all_passed is True
-        assert len(results) == 2

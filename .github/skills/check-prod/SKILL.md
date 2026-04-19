@@ -21,7 +21,7 @@ Before starting, verify Azure CLI authentication:
 
 Evaluated top-down, first match wins:
 
-**🔴 Critical** — ANY of: readiness probe non-200, any 5xx in 24h, DB CPU > 80% sustained, DB CPU credits < 10, fired Sev0/Sev1 alerts in 24h, `ContainerCrashing` on current revision, LLM dependency failures > 5 in 24h, any `init.failed` logs in 24h, GitHub API failures > 20 in 24h
+**🔴 Critical** — ANY of: readiness probe non-200, any 5xx in 24h, DB CPU > 80% sustained, DB CPU credits < 10, fired Sev0/Sev1 alerts in 24h, `ContainerCrashing` on current revision, any `init.failed` logs in 24h, GitHub API failures > 20 in 24h
 
 **⚠️ Warning** — ANY of: P95 latency > 500ms, DB CPU 50–80% peak or Memory 70–85% or Storage 70–85% or CPU credits 10–30, any failed availability tests in 24h, non-zero unhandled exceptions in 7d, active connections > 30 (B1ms max 50), `ReplicaUnhealthy` without matching scale events, error rate spike (single day > 2× weekly average) or rising trend (3+ consecutive days increasing), Container App CPU > 80% or Memory > 80%, ERROR-level AppTraces > 10 in 24h, auth failure rate > 50% in 24h
 
@@ -132,7 +132,7 @@ az monitor log-analytics query -w $LOG_NAME --analytics-query "AppTraces | where
 
 ### Step 7: Dependency Health (24h)
 
-Covers PostgreSQL, Azure OpenAI (via httpx), GitHub API (via httpx), and any other outbound calls.
+Covers PostgreSQL, GitHub API (via httpx), and any other outbound calls.
 
 ```bash
 az monitor log-analytics query -w $LOG_NAME --analytics-query "AppDependencies | where TimeGenerated > ago(24h) | summarize Count=count(), FailureCount=countif(Success == false), AvgDuration=round(avg(DurationMs), 1), P95Duration=round(percentile(DurationMs, 95), 1) by Type, Target | order by Count desc | take 15" -o json
@@ -140,10 +140,9 @@ az monitor log-analytics query -w $LOG_NAME --analytics-query "AppDependencies |
 
 Expected dependency targets:
 - `psql-ltc-dev-*.postgres.database.azure.com|learntocloud` — PostgreSQL (Type: SQL)
-- `oai-ltc-dev-*.openai.azure.com` — Azure OpenAI (Type: HTTP or GenAI)
 - `api.github.com` — GitHub API for verification checks (Type: HTTP)
 
-**Verdict**: 🔴 if Azure OpenAI failures > 5 or PostgreSQL failures > 0 or GitHub API failures > 20. ⚠️ if any other FailureCount > 0 or LLM P95 > 30s.
+**Verdict**: 🔴 if PostgreSQL failures > 0 or GitHub API failures > 20. ⚠️ if any other FailureCount > 0.
 
 ### Step 8: Database Metrics (24h)
 
@@ -212,7 +211,7 @@ az monitor log-analytics query -w $LOG_NAME --analytics-query "AzureActivity | w
 
 Known alert names from Terraform (match against `AlertName`):
 - **Sev0**: `alert-ltc-availability-*` (app unreachable)
-- **Sev1**: `alert-ltc-api-5xx-*`, `alert-ltc-api-restarts-*`, `alert-ltc-db-connections-*`, `alert-ltc-db-credits-*`, `alert-ltc-llm-failures-*`, `alert-ltc-init-failed-*`
+- **Sev1**: `alert-ltc-api-5xx-*`, `alert-ltc-api-restarts-*`, `alert-ltc-db-connections-*`, `alert-ltc-db-credits-*`, `alert-ltc-init-failed-*`
 - **Sev2**: `alert-ltc-api-cpu-*`, `alert-ltc-api-memory-*`, `alert-ltc-api-latency-*`, `alert-ltc-api-4xx-*`, `alert-ltc-db-storage-*`, `alert-ltc-db-cpu-*`
 
 **Verdict**: 🔴 if any Sev0/Sev1 alert names appear. ⚠️ if Sev2 alerts fired.
@@ -233,17 +232,7 @@ az monitor log-analytics query -w $LOG_NAME --analytics-query "AppMetrics | wher
 
 **Verdict**: ⚠️ if auth failure rate > 50% (possible GitHub OAuth outage) or daily_limit_exceeded > 50 (capacity pressure). Include totals in report for situational awareness.
 
-### Step 13: LLM Performance (24h)
-
-GenAI-specific metrics from the agent framework.
-
-```bash
-az monitor log-analytics query -w $LOG_NAME --analytics-query "AppMetrics | where TimeGenerated > ago(24h) and Name in ('gen_ai.client.token.usage', 'gen_ai.client.operation.duration') | summarize Total=sum(Sum), AvgValue=round(avg(Sum), 2) by Name" -o json
-```
-
-**Verdict**: Informational — include token usage and operation duration in the report. ⚠️ if avg operation duration > 60s.
-
-### Step 14: Console Log Errors (24h)
+### Step 13: Console Log Errors (24h)
 
 Check container stdout/stderr for crash indicators.
 
@@ -277,14 +266,13 @@ az monitor log-analytics query -w $LOG_NAME --analytics-query "ContainerAppConso
 | 4 | Request Health | ✅/🔴 | P95 {X}ms, {N} 4xx, {N} 5xx |
 | 5 | Error Rate Trend | ✅/⚠️ | {stable/rising/falling} over 7d |
 | 6 | Errors | ✅/⚠️ | {N} exceptions in 7d, {N} error traces in 24h |
-| 7 | Dependencies | ✅/⚠️/🔴 | PostgreSQL: {N}/{N}fail, OpenAI: {N}/{N}fail P95 {X}ms, GitHub: {N}/{N}fail |
+| 7 | Dependencies | ✅/⚠️/🔴 | PostgreSQL: {N}/{N}fail, GitHub: {N}/{N}fail |
 | 8 | Database | ✅/⚠️/🔴 | CPU {X}%, Mem {X}%, Storage {X}%, Conn {X}, Credits {X} |
 | 9 | Container App | ✅/⚠️/🔴 | CPU {X}nc, Mem {X}B |
 | 10 | Container Stability | ✅/⚠️ | Rev: {rev}, {events} |
 | 11 | Fired Alerts | ✅/🔴 | {N} in 24h, names: {list} |
 | 12 | Business Metrics | ✅/⚠️ | Logins: {N}✓/{N}✗, Steps: {N}, Verifications: {N}, Deletions: {N} |
-| 13 | LLM Performance | ✅/⚠️ | Tokens: {N}, Avg duration: {X}s |
-| 14 | Console Errors | ✅/⚠️/🔴 | {N} crashes, {N} tracebacks in 24h |
+| 13 | Console Errors | ✅/⚠️/🔴 | {N} crashes, {N} tracebacks in 24h |
 
 ### ⚠️ Items to Watch
 - {any warnings — omit if none}

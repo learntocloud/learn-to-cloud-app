@@ -70,39 +70,3 @@ resource "azurerm_monitor_scheduled_query_rules_alert_v2" "api_5xx_errors" {
     action_groups = [azurerm_monitor_action_group.critical.id]
   }
 }
-
-resource "azurerm_monitor_scheduled_query_rules_alert_v2" "llm_failures" {
-  name                = "alert-ltc-llm-failures-${var.environment}"
-  resource_group_name = azurerm_resource_group.main.name
-  location            = azurerm_resource_group.main.location
-  description         = "Alert when Azure OpenAI dependency failures exceed 5 in a 5-minute window"
-  severity            = 1
-  enabled             = true
-  tags                = local.tags
-
-  scopes                = [azurerm_application_insights.main.id]
-  evaluation_frequency  = "PT5M"
-  window_duration       = "PT5M"
-  target_resource_types = ["microsoft.insights/components"]
-
-  criteria {
-    query                   = <<-QUERY
-      dependencies
-      | where type == "HTTP" and target has "openai" and success == false
-      | summarize FailCount = count()
-    QUERY
-    time_aggregation_method = "Maximum"
-    operator                = "GreaterThanOrEqual"
-    threshold               = 5
-    metric_measure_column   = "FailCount"
-
-    failing_periods {
-      minimum_failing_periods_to_trigger_alert = 1
-      number_of_evaluation_periods             = 1
-    }
-  }
-
-  action {
-    action_groups = [azurerm_monitor_action_group.critical.id]
-  }
-}

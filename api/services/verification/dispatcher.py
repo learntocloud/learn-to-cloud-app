@@ -25,7 +25,6 @@ For phase requirements, see requirements.py
 import logging
 import time
 
-from core.llm_client import LLMClientError
 from core.metrics import VERIFICATION_COUNTER, VERIFICATION_DURATION
 from models import SubmissionType
 from schemas import HandsOnRequirement, ValidationResult
@@ -37,8 +36,8 @@ from services.verification.github_profile import (
     validate_profile_readme,
     validate_repo_fork,
 )
-from services.verification.llm_base import VerificationError, validate_repo_url
 from services.verification.pull_request import validate_pr
+from services.verification.repo_utils import VerificationError, validate_repo_url
 from services.verification.security_scanning import validate_security_scanning
 from services.verification.token_base import verify_ctf_token, verify_networking_token
 from services.verification.url_derivation import fork_name_from_required_repo
@@ -77,7 +76,6 @@ async def validate_submission(
     except (
         TimeoutError,
         VerificationError,
-        LLMClientError,
     ) as e:
         logger.error(
             "verification.failed",

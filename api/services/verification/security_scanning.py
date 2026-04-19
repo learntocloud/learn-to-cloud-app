@@ -11,7 +11,7 @@ Approach:
   5. If workflow files exist, fetch them to confirm CodeQL action usage
   6. Return per-check pass/fail results
 
-No LLM is needed — verification is purely file-based.
+Verification is purely file-based.
 """
 
 from __future__ import annotations
@@ -34,7 +34,7 @@ from services.verification.github_profile import (
     RETRIABLE_EXCEPTIONS,
     get_github_headers,
 )
-from services.verification.llm_base import VerificationError
+from services.verification.repo_utils import VerificationError
 
 logger = logging.getLogger(__name__)
 

@@ -1,9 +1,8 @@
 """CI status verification service.
 
 Checks whether the learner's fork has a passing CI workflow on the
-``main`` branch.  This replaces the previous LLM-based code analysis
-service: instead of re-grading code with a language model, we trust
-the test suite that ships with the upstream starter repository.
+``main`` branch.  Instead of re-grading code, we trust the test suite
+that ships with the upstream starter repository.
 
 The ``journal-starter`` repo includes a GitHub Actions workflow
 (``.github/workflows/ci.yml``) with lint and test jobs.  When learners
