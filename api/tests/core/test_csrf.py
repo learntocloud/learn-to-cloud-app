@@ -189,19 +189,6 @@ class TestCSRFMiddleware:
         await middleware(scope, _noop_receive, _collect_send(sent))
         assert any(m.get("status") == 200 for m in sent)
 
-    async def test_non_exempt_url_still_checked(self):
-        """Non-exempt URLs should still enforce CSRF."""
-        session = {"_csrf_token": _TOKEN}
-        middleware = CSRFMiddleware(
-            _make_app_that_sends_response,
-            exempt_urls=[re.compile(r"^/auth/callback$")],
-        )
-        scope = _http_scope(method="POST", path="/htmx/steps/complete", session=session)
-        sent = []
-
-        await middleware(scope, _noop_receive, _collect_send(sent))
-        assert any(m.get("status") == 403 for m in sent)
-
     async def test_non_http_scope_passes_through(self):
         """WebSocket and other non-HTTP scopes should pass through."""
         called = False

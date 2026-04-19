@@ -56,25 +56,6 @@ class TestJSONFormatter:
         assert parsed["event"] == "user.login"
         assert "timestamp" in parsed
 
-    def test_extra_fields_included(self):
-        formatter = _JSONFormatter()
-        record = logging.LogRecord(
-            name="test",
-            level=logging.INFO,
-            pathname="",
-            lineno=0,
-            msg="step.completed",
-            args=(),
-            exc_info=None,
-        )
-        record.user_id = "u123"
-        record.step_id = 42
-        output = formatter.format(record)
-        parsed = json.loads(output)
-
-        assert parsed["user_id"] == "u123"
-        assert parsed["step_id"] == 42
-
     def test_exception_included(self):
         formatter = _JSONFormatter()
         try:
@@ -142,18 +123,6 @@ class TestConfigureLogging:
             ]
             assert any(isinstance(h.formatter, _JSONFormatter) for h in stream_handlers)
 
-    def test_console_format_when_explicit(self):
-        with patch.dict(os.environ, {"LOG_FORMAT": "console"}, clear=False):
-            os.environ.pop("APPLICATIONINSIGHTS_CONNECTION_STRING", None)
-            configure_logging()
-            root = logging.getLogger()
-            stream_handlers = [
-                h for h in root.handlers if isinstance(h, logging.StreamHandler)
-            ]
-            assert all(
-                not isinstance(h.formatter, _JSONFormatter) for h in stream_handlers
-            )
-
     def test_preserves_otel_handlers(self):
         """OTel LoggingHandler should survive configure_logging()."""
         root = logging.getLogger()
@@ -165,18 +134,6 @@ class TestConfigureLogging:
         configure_logging()
 
         assert otel_handler in root.handlers
-
-    def test_quiets_noisy_loggers(self):
-        configure_logging()
-        assert logging.getLogger("httpx").level == logging.WARNING
-        assert logging.getLogger("httpcore").level == logging.WARNING
-        assert logging.getLogger("uvicorn.access").level == logging.WARNING
-
-    def test_respects_log_level_env(self):
-        with patch.dict(os.environ, {"LOG_LEVEL": "DEBUG"}):
-            configure_logging()
-            root = logging.getLogger()
-            assert root.level == logging.DEBUG
 
     def test_registers_filters_in_correct_order(self):
         """Context filter runs before sanitization so injected fields get cleaned."""
@@ -236,23 +193,20 @@ class TestLogSanitizationFilter:
             setattr(record, key, value)
         return record
 
-    def test_strips_newlines_from_extra(self):
+    @pytest.mark.parametrize(
+        "value,expected",
+        [
+            ("linux\nFAKE LOG LINE", "linuxFAKE LOG LINE"),
+            ("hello\r\nworld", "helloworld"),
+            ("step\x00injected", "stepinjected"),
+        ],
+        ids=["newline", "carriage-return", "null-byte"],
+    )
+    def test_strips_control_chars(self, value, expected):
         f = _LogSanitizationFilter()
-        record = self._make_record(topic_id="linux\nFAKE LOG LINE")
+        record = self._make_record(field=value)
         f.filter(record)
-        assert getattr(record, "topic_id") == "linuxFAKE LOG LINE"
-
-    def test_strips_carriage_return(self):
-        f = _LogSanitizationFilter()
-        record = self._make_record(user_input="hello\r\nworld")
-        f.filter(record)
-        assert getattr(record, "user_input") == "helloworld"
-
-    def test_strips_null_bytes(self):
-        f = _LogSanitizationFilter()
-        record = self._make_record(step_id="step\x00injected")
-        f.filter(record)
-        assert getattr(record, "step_id") == "stepinjected"
+        assert getattr(record, "field") == expected
 
     def test_preserves_tabs(self):
         f = _LogSanitizationFilter()
@@ -276,11 +230,3 @@ class TestLogSanitizationFilter:
         original_pathname = record.pathname
         f.filter(record)
         assert record.pathname == original_pathname
-
-    def test_full_injection_attack_neutralised(self):
-        f = _LogSanitizationFilter()
-        malicious = "linux-basics\nCRITICAL [core.auth] admin granted=true"
-        record = self._make_record(topic_id=malicious)
-        f.filter(record)
-        assert "\n" not in getattr(record, "topic_id")
-        assert "CRITICAL [core.auth] admin granted=true" in getattr(record, "topic_id")

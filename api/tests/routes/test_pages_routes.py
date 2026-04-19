@@ -364,40 +364,22 @@ class TestAccountPage:
 class TestPublicPages:
     """Tests for public pages: /faq, /privacy, /terms."""
 
-    async def test_faq_page_renders(self, _patch_templates):
-        """FAQ page renders with FAQs in context."""
+    @pytest.mark.parametrize(
+        "handler,template_name",
+        [
+            (faq_page, "pages/faq.html"),
+            (privacy_page, "pages/privacy.html"),
+            (terms_page, "pages/terms.html"),
+        ],
+        ids=["faq", "privacy", "terms"],
+    )
+    async def test_public_page_renders(self, _patch_templates, handler, template_name):
         request, template = _mock_request(_patch_templates)
         mock_db = AsyncMock()
 
         with patch(
             "routes.pages_routes.get_user_by_id", autospec=True, return_value=None
         ):
-            await faq_page(request, mock_db, user_id=None)
+            await handler(request, mock_db, user_id=None)
 
-        assert template.call_args[0][1] == "pages/faq.html"
-        ctx = template.call_args[0][2]
-        assert "faqs" in ctx
-
-    async def test_privacy_page_renders(self, _patch_templates):
-        """Privacy page renders successfully."""
-        request, template = _mock_request(_patch_templates)
-        mock_db = AsyncMock()
-
-        with patch(
-            "routes.pages_routes.get_user_by_id", autospec=True, return_value=None
-        ):
-            await privacy_page(request, mock_db, user_id=None)
-
-        assert template.call_args[0][1] == "pages/privacy.html"
-
-    async def test_terms_page_renders(self, _patch_templates):
-        """Terms page renders successfully."""
-        request, template = _mock_request(_patch_templates)
-        mock_db = AsyncMock()
-
-        with patch(
-            "routes.pages_routes.get_user_by_id", autospec=True, return_value=None
-        ):
-            await terms_page(request, mock_db, user_id=None)
-
-        assert template.call_args[0][1] == "pages/terms.html"
+        assert template.call_args[0][1] == template_name

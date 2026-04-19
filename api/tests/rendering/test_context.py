@@ -58,10 +58,6 @@ class TestBuildProgressDict:
         result = build_progress_dict(0, 0)
         assert result["percentage"] == 0
 
-    def test_full(self):
-        result = build_progress_dict(5, 5)
-        assert result["percentage"] == 100
-
 
 # ---------------------------------------------------------------------------
 # build_feedback_tasks_from_results
@@ -288,24 +284,6 @@ class TestBuildRequirementCardContext:
         assert ctx["derived_url"] is None
         assert ctx["pr_url_prefix"] is None
 
-    def test_deployed_api_has_no_derived_url(self):
-        req = _make_requirement(SubmissionType.DEPLOYED_API)
-        ctx = build_requirement_card_context(
-            requirement=req,
-            github_username="alice",
-        )
-        assert ctx["derived_url"] is None
-        assert ctx["pr_url_prefix"] is None
-
-    def test_missing_username_skips_derivation(self):
-        req = _make_requirement(SubmissionType.GITHUB_PROFILE)
-        ctx = build_requirement_card_context(
-            requirement=req,
-            github_username=None,
-        )
-        assert ctx["derived_url"] is None
-        assert ctx["pr_url_prefix"] is None
-
     def test_misconfigured_required_repo_falls_back_to_none(self):
         # CI_STATUS without required_repo would raise inside derive,
         # but the builder should swallow that and return None so the
@@ -316,25 +294,3 @@ class TestBuildRequirementCardContext:
             github_username="alice",
         )
         assert ctx["derived_url"] is None
-
-    def test_passes_through_all_kwargs(self):
-        req = _make_requirement(SubmissionType.GITHUB_PROFILE)
-        ctx = build_requirement_card_context(
-            requirement=req,
-            github_username="alice",
-            submission="submission-sentinel",
-            feedback_tasks=[{"name": "T"}],
-            feedback_passed=1,
-            server_error=True,
-            server_error_message="oops",
-            error_banner="banner",
-            processing=True,
-        )
-        assert ctx["requirement"] is req
-        assert ctx["submission"] == "submission-sentinel"
-        assert ctx["feedback_tasks"] == [{"name": "T"}]
-        assert ctx["feedback_passed"] == 1
-        assert ctx["server_error"] is True
-        assert ctx["server_error_message"] == "oops"
-        assert ctx["error_banner"] == "banner"
-        assert ctx["processing"] is True

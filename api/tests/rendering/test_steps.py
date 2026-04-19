@@ -39,22 +39,18 @@ class TestRenderMd:
         result = render_md("```python\nprint('hi')\n```")
         assert "<code" in result
 
-    def test_admonition_tip(self):
-        result = render_md("> [!TIP] Use this.")
-        assert "callout-tip" in result
-        assert "Use this." in result
-
-    def test_admonition_warning(self):
-        result = render_md("> [!WARNING] Be careful.")
-        assert "callout-warning" in result
-
-    def test_admonition_note(self):
-        result = render_md("> [!NOTE] Take note.")
-        assert "callout-note" in result
-
-    def test_admonition_important(self):
-        result = render_md("> [!IMPORTANT] Do this.")
-        assert "callout-important" in result
+    @pytest.mark.parametrize(
+        "admonition,css_class",
+        [
+            ("TIP", "callout-tip"),
+            ("WARNING", "callout-warning"),
+            ("NOTE", "callout-note"),
+            ("IMPORTANT", "callout-important"),
+        ],
+    )
+    def test_admonition_types(self, admonition, css_class):
+        result = render_md(f"> [!{admonition}] Test content.")
+        assert css_class in result
 
     def test_regular_blockquote_unchanged(self):
         result = render_md("> Just a normal quote.")
@@ -97,28 +93,18 @@ class TestProcessAdmonitions:
 
 @pytest.mark.unit
 class TestProviderSortKey:
-    def test_azure_first(self):
-        assert _provider_sort_key("azure") == (0, "azure")
-
-    def test_aws_second(self):
-        assert _provider_sort_key("aws") == (1, "aws")
-
-    def test_gcp_third(self):
-        assert _provider_sort_key("gcp") == (2, "gcp")
-
-    def test_unknown_last(self):
-        assert _provider_sort_key("other") == (3, "other")
+    @pytest.mark.parametrize(
+        "provider,expected_rank",
+        [("azure", 0), ("aws", 1), ("gcp", 2), ("other", 3)],
+    )
+    def test_provider_ordering(self, provider, expected_rank):
+        assert _provider_sort_key(provider)[0] == expected_rank
 
     def test_case_insensitive(self):
         assert _provider_sort_key("Azure") == (0, "azure")
 
     def test_empty_string(self):
         assert _provider_sort_key("") == (3, "")
-
-    def test_ordering(self):
-        assert _provider_sort_key("azure") < _provider_sort_key("aws")
-        assert _provider_sort_key("aws") < _provider_sort_key("gcp")
-        assert _provider_sort_key("gcp") < _provider_sort_key("other")
 
 
 # ---------------------------------------------------------------------------

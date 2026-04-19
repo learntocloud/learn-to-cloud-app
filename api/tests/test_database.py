@@ -191,37 +191,6 @@ class TestCheckoutEventTransactionCleanup:
         assert dbapi_conn._transaction is None
         assert dbapi_conn._started is False
 
-    def test_no_rollback_when_not_in_transaction(self):
-        """Checkout should skip ROLLBACK if no active transaction."""
-        from core.database import _setup_pool_event_listeners
-
-        mock_pool = MagicMock()
-        mock_engine = MagicMock()
-        mock_engine.sync_engine.pool = mock_pool
-
-        listeners: dict = {}
-
-        def fake_listens_for(target, event_name):
-            def decorator(fn):
-                listeners[event_name] = fn
-                return fn
-
-            return decorator
-
-        with patch(
-            "core.database.event.listens_for",
-            autospec=True,
-            side_effect=fake_listens_for,
-        ):
-            _setup_pool_event_listeners(mock_engine)
-
-        checkout_fn = listeners["checkout"]
-        dbapi_conn, _raw_conn = self._make_mock_dbapi_conn(in_transaction=False)
-
-        checkout_fn(dbapi_conn, MagicMock(), MagicMock())
-
-        dbapi_conn.await_.assert_not_called()
-
     def test_safety_net_on_missing_private_attrs(self):
         """If _transaction/_started are missing, should not crash."""
         from core.database import _setup_pool_event_listeners

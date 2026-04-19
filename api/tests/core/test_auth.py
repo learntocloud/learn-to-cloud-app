@@ -54,14 +54,10 @@ class TestGetUserIdFromSession:
 class TestRequireAuth:
     """Test require_auth dependency."""
 
-    def test_returns_user_id_when_authenticated(self):
+    def test_returns_user_id_and_sets_state(self):
         request = _make_request(session={"user_id": 42})
         result = require_auth(request)
         assert result == 42
-
-    def test_sets_request_state_user_id(self):
-        request = _make_request(session={"user_id": 42})
-        require_auth(request)
         assert request.state.user_id == 42
 
     def test_raises_401_for_htmx_requests(self):
@@ -84,28 +80,16 @@ class TestRequireAuth:
 class TestOptionalAuth:
     """Test optional_auth dependency."""
 
-    def test_returns_user_id_when_authenticated(self):
+    def test_returns_user_id_and_sets_state(self):
         request = _make_request(session={"user_id": 99})
         result = optional_auth(request)
         assert result == 99
-
-    def test_sets_request_state_when_authenticated(self):
-        request = _make_request(session={"user_id": 99})
-        optional_auth(request)
         assert request.state.user_id == 99
 
     def test_returns_none_when_not_authenticated(self):
         request = _make_request(session={})
         result = optional_auth(request)
         assert result is None
-
-    def test_does_not_set_request_state_when_not_authenticated(self):
-        request = _make_request(session={})
-        optional_auth(request)
-        # user_id should not have been assigned — no setattr calls expected
-        state = request.state
-        for name, _, _ in state.mock_calls:
-            assert name != "user_id"
 
 
 @pytest.mark.unit

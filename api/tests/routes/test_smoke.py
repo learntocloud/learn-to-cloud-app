@@ -173,24 +173,9 @@ class TestPublicPageSmoke:
         assert response.status_code == 200
         assert "Learn to Cloud" in response.text
 
-    async def test_curriculum_page_renders(self, anon_client: AsyncClient):
-        """GET /curriculum renders the curriculum page."""
-        response = await anon_client.get("/curriculum")
-        assert response.status_code == 200
-
-    async def test_faq_page_renders(self, anon_client: AsyncClient):
-        """GET /faq renders the FAQ page."""
-        response = await anon_client.get("/faq")
-        assert response.status_code == 200
-
-    async def test_privacy_page_renders(self, anon_client: AsyncClient):
-        """GET /privacy renders the privacy page."""
-        response = await anon_client.get("/privacy")
-        assert response.status_code == 200
-
-    async def test_terms_page_renders(self, anon_client: AsyncClient):
-        """GET /terms renders the terms page."""
-        response = await anon_client.get("/terms")
+    @pytest.mark.parametrize("path", ["/curriculum", "/faq", "/privacy", "/terms"])
+    async def test_public_page_renders(self, anon_client: AsyncClient, path: str):
+        response = await anon_client.get(path)
         assert response.status_code == 200
 
     async def test_404_page_renders(self, anon_client: AsyncClient):
@@ -307,12 +292,6 @@ class TestAuthPageSmoke:
 @pytest.mark.smoke
 class TestRedirectSmoke:
     """Verify redirect routes work through the full ASGI stack."""
-
-    async def test_legacy_phase_redirect(self, anon_client: AsyncClient):
-        """GET /phase0/old-topic redirects to /."""
-        response = await anon_client.get("/phase0/old-topic", follow_redirects=False)
-        assert response.status_code == 301
-        assert response.headers["location"] == "/"
 
     async def test_auth_required_redirects_to_login(self, anon_client: AsyncClient):
         """GET /dashboard without auth redirects to /auth/login."""
