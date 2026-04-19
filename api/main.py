@@ -220,7 +220,7 @@ async def lifespan(app: fastapi.FastAPI):
         try:
             await warmup_task
         except asyncio.CancelledError:
-            pass
+            pass  # Expected when shutdown cancels an in-progress warmup
         except Exception:
             logger.exception("background.task.failed")
 
