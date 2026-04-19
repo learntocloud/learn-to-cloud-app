@@ -319,15 +319,6 @@ wheels = [
 ]
 
 [[package]]
-name = "circuitbreaker"
-version = "2.1.3"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/df/ac/de7a92c4ed39cba31fe5ad9203b76a25ca67c530797f6bb420fff5f65ccb/circuitbreaker-2.1.3.tar.gz", hash = "sha256:1a4baee510f7bea3c91b194dcce7c07805fe96c4423ed5594b75af438531d084", size = 10787, upload-time = "2025-03-31T08:12:08.963Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/ae/34/15f08edd4628f65217de1fc3c1a27c82e46fe357d60c217fc9881e12ebcc/circuitbreaker-2.1.3-py3-none-any.whl", hash = "sha256:87ba6a3ed03fdc7032bc175561c2b04d52ade9d5faf94ca2b035fbdc5e6b1dd1", size = 7737, upload-time = "2025-03-31T08:12:07.802Z" },
-]
-
-[[package]]
 name = "click"
 version = "8.3.1"
 source = { registry = "https://pypi.org/simple" }
@@ -788,7 +779,6 @@ dependencies = [
     { name = "azure-identity" },
     { name = "azure-monitor-opentelemetry" },
     { name = "cachetools" },
-    { name = "circuitbreaker" },
     { name = "fastapi" },
     { name = "httpx" },
     { name = "itsdangerous" },
@@ -832,7 +822,6 @@ requires-dist = [
     { name = "azure-identity", specifier = ">=1.25.2" },
     { name = "azure-monitor-opentelemetry", specifier = ">=1.8.6" },
     { name = "cachetools", specifier = ">=5.3.0" },
-    { name = "circuitbreaker", specifier = ">=2.0.0" },
     { name = "fastapi", specifier = ">=0.135.3,<1" },
     { name = "httpx", specifier = ">=0.28.1,<1" },
     { name = "itsdangerous", specifier = ">=2.1.0" },

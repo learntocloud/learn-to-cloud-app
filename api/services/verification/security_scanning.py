@@ -20,7 +20,6 @@ import asyncio
 import logging
 
 import httpx
-from circuitbreaker import circuit
 from tenacity import (
     retry,
     retry_if_exception_type,
@@ -31,7 +30,6 @@ from tenacity import (
 from core.github_client import get_github_client as _get_github_client
 from schemas import TaskResult, ValidationResult
 from services.verification.devops_analysis import fetch_repo_tree
-from services.verification.errors import CB_FAILURE_THRESHOLD, CB_RECOVERY_TIMEOUT
 from services.verification.github_profile import (
     RETRIABLE_EXCEPTIONS,
     get_github_headers,
@@ -207,12 +205,6 @@ async def _check_codeql(owner: str, repo: str, file_paths: list[str]) -> TaskRes
     )
 
 
-@circuit(
-    failure_threshold=CB_FAILURE_THRESHOLD,
-    recovery_timeout=CB_RECOVERY_TIMEOUT,
-    expected_exception=RETRIABLE_EXCEPTIONS,
-    name="security_scanning_circuit",
-)
 @retry(
     stop=stop_after_attempt(3),
     wait=wait_exponential_jitter(initial=0.5, max=10),
@@ -222,7 +214,7 @@ async def _check_codeql(owner: str, repo: str, file_paths: list[str]) -> TaskRes
 async def _verify_security_scanning(
     owner: str, repo: str, file_paths: list[str]
 ) -> ValidationResult:
-    """Internal: run security scanning checks with circuit breaker + retry."""
+    """Internal: run security scanning checks with retry."""
     dependabot_result = await _check_dependabot(owner, repo, file_paths)
     codeql_result = await _check_codeql(owner, repo, file_paths)
 

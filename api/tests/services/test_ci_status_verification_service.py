@@ -11,11 +11,10 @@ Tests cover:
 URL validation and ownership checks are tested in the dispatcher tests.
 """
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import httpx
 import pytest
-from circuitbreaker import CircuitBreakerError
 
 from services.verification.ci_status import verify_ci_status
 
@@ -173,8 +172,8 @@ class TestCiStatusErrorHandling:
         assert result.verification_completed is False
 
     @patch("services.verification.ci_status.github_api_get", autospec=True)
-    async def test_circuit_breaker_open(self, mock_get):
-        mock_get.side_effect = CircuitBreakerError(AsyncMock())
+    async def test_transient_failure(self, mock_get):
+        mock_get.side_effect = httpx.ConnectError("connection refused")
         result = await verify_ci_status(_TEST_OWNER, _TEST_REPO)
         assert not result.is_valid
         assert result.verification_completed is False

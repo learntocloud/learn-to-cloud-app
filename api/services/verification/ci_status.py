@@ -27,7 +27,6 @@ from __future__ import annotations
 import logging
 
 import httpx
-from circuitbreaker import CircuitBreakerError
 
 from schemas import ValidationResult
 from services.verification.github_profile import (
@@ -74,7 +73,6 @@ async def verify_ci_status(
     try:
         response = await github_api_get(url, params=params)
     except (
-        CircuitBreakerError,
         httpx.HTTPStatusError,
         *RETRIABLE_EXCEPTIONS,
     ) as e:

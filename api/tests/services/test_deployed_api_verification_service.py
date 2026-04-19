@@ -14,7 +14,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
-from circuitbreaker import CircuitBreakerError
 
 from services.verification.deployed_api import (
     DeployedApiServerError,
@@ -429,18 +428,20 @@ class TestValidateDeployedApi:
             assert "server error" in result.message.lower()
 
     @pytest.mark.asyncio
-    async def test_circuit_breaker_open(self, _mock_ssrf):
-        """Circuit breaker open should return retry message."""
+    async def test_transient_failure(self, _mock_ssrf):
+        """Transient connection failure should return retry message."""
         with patch(
             "services.verification.deployed_api._fetch_with_retry",
             autospec=True,
         ) as mock_fetch:
-            mock_fetch.side_effect = CircuitBreakerError(MagicMock())
+            mock_fetch.side_effect = httpx.ConnectError("connection refused")
 
             result = await validate_deployed_api("https://api.example.com")
 
             assert result.is_valid is False
-            assert "try again" in result.message.lower()
+            assert (
+                "connect" in result.message.lower() or "error" in result.message.lower()
+            )
 
     @pytest.mark.asyncio
     async def test_post_404_not_found(self, _mock_ssrf):

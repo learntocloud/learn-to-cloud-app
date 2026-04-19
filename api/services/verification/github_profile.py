@@ -9,7 +9,6 @@ This module handles all GitHub-specific validations including:
 For the main hands-on verification orchestration, see hands_on_verification.py
 
 SCALABILITY:
-- Circuit breaker fails fast when GitHub API is unavailable (5 failures -> 60s)
 - Retry with exponential backoff + jitter for transient failures (3 attempts)
 - Connection pooling via shared httpx.AsyncClient
 """
@@ -18,7 +17,6 @@ import logging
 import re
 
 import httpx
-from circuitbreaker import CircuitBreakerError, circuit
 from tenacity import (
     RetryCallState,
     retry,
@@ -31,8 +29,6 @@ from core.config import get_settings
 from core.github_client import get_github_client as _get_github_client
 from schemas import ParsedGitHubUrl, ValidationResult
 from services.verification.errors import (
-    CB_FAILURE_THRESHOLD,
-    CB_RECOVERY_TIMEOUT,
     GitHubServerError,
     github_error_to_result,
     make_retriable,
@@ -59,7 +55,7 @@ def _wait_with_retry_after(retry_state: RetryCallState) -> float:
     return wait_exponential_jitter(initial=0.5, max=10)(retry_state)
 
 
-# Exceptions that should trigger retry and circuit breaker
+# Exceptions that should trigger retry
 RETRIABLE_EXCEPTIONS: tuple[type[Exception], ...] = make_retriable(GitHubServerError)
 
 # Re-export for backward compatibility
@@ -75,12 +71,6 @@ def get_github_headers() -> dict[str, str]:
     return headers
 
 
-@circuit(
-    failure_threshold=CB_FAILURE_THRESHOLD,
-    recovery_timeout=CB_RECOVERY_TIMEOUT,
-    expected_exception=RETRIABLE_EXCEPTIONS,
-    name="github_api_get_circuit",
-)
 @retry(
     stop=stop_after_attempt(3),
     wait=_wait_with_retry_after,
@@ -91,14 +81,13 @@ async def github_api_get(
     url: str,
     *,
     extra_headers: dict[str, str] | None = None,
-    params: dict[str, int] | None = None,
+    params: dict[str, str | int] | None = None,
 ) -> httpx.Response:
-    """Resilient GitHub API GET with retry, circuit breaker, and 5xx/429 mapping.
+    """Resilient GitHub API GET with retry and 5xx/429 mapping.
 
     Raises:
         GitHubServerError: On 5xx or 429 (triggers retry).
         httpx.HTTPStatusError: On non-retriable HTTP errors (4xx).
-        CircuitBreakerError: When circuit is open.
     """
     client = await _get_github_client()
     headers = get_github_headers()
@@ -178,12 +167,6 @@ def parse_github_url(url: str) -> ParsedGitHubUrl:
     )
 
 
-@circuit(
-    failure_threshold=CB_FAILURE_THRESHOLD,
-    recovery_timeout=CB_RECOVERY_TIMEOUT,
-    expected_exception=RETRIABLE_EXCEPTIONS,
-    name="github_url_circuit",
-)
 @retry(
     stop=stop_after_attempt(3),
     wait=_wait_with_retry_after,
@@ -216,25 +199,14 @@ async def check_github_url_exists(url: str) -> ValidationResult:
     Returns:
         ValidationResult with is_valid=True if URL exists.
         verification_completed=False when the failure is infrastructure-related
-        (network error, GitHub outage, circuit breaker open) so callers can
+        (network error, GitHub outage) so callers can
         avoid penalising the user.
 
     RETRY: 3 attempts with exponential backoff + jitter for transient failures.
-    CIRCUIT BREAKER: Opens after 5 consecutive failures, recovers after 60 seconds.
     """
     try:
         exists, msg = await _check_github_url_exists_with_retry(url)
         return ValidationResult(is_valid=exists, message=msg)
-    except CircuitBreakerError:
-        logger.error(
-            "github.url_check.circuit_open",
-            extra={"url": url},
-        )
-        return ValidationResult(
-            is_valid=False,
-            message="GitHub service temporarily unavailable. Please try again later.",
-            verification_completed=False,
-        )
     except RETRIABLE_EXCEPTIONS as e:
         logger.warning(
             "github.url_check.failed",
@@ -261,12 +233,6 @@ async def check_github_url_exists(url: str) -> ValidationResult:
         )
 
 
-@circuit(
-    failure_threshold=CB_FAILURE_THRESHOLD,
-    recovery_timeout=CB_RECOVERY_TIMEOUT,
-    expected_exception=RETRIABLE_EXCEPTIONS,
-    name="github_api_circuit",
-)
 @retry(
     stop=stop_after_attempt(3),
     wait=_wait_with_retry_after,
@@ -327,23 +293,12 @@ async def check_repo_is_fork_of(
         verification_completed=False when the failure is infrastructure-related.
 
     RETRY: 3 attempts with exponential backoff + jitter for transient failures.
-    CIRCUIT BREAKER: Opens after 5 consecutive failures, recovers after 60 seconds.
     """
     try:
         is_fork, msg = await _check_repo_is_fork_of_with_retry(
             username, repo_name, original_repo
         )
         return ValidationResult(is_valid=is_fork, message=msg)
-    except CircuitBreakerError:
-        logger.error(
-            "github.fork_check.circuit_open",
-            extra={"username": username, "repo": repo_name},
-        )
-        return ValidationResult(
-            is_valid=False,
-            message="GitHub service temporarily unavailable. Please try again later.",
-            verification_completed=False,
-        )
     except RETRIABLE_EXCEPTIONS as e:
         logger.warning(
             "github.fork_check.failed",

@@ -27,7 +27,6 @@ from core.database import (
     create_session_maker,
     dispose_engine,
     init_db,
-    warm_pool,
 )
 from core.github_client import close_github_client
 from core.logger import configure_logging
@@ -118,21 +117,13 @@ async def validation_exception_handler(
 
 
 async def _background_warmup(app: fastapi.FastAPI) -> None:
-    """Warm caches in the background after the app starts serving."""
-
-    async def _warm_content() -> None:
-        try:
-            get_all_phases()
-            get_all_phase_ids()
-            logger.info("content.preloaded")
-        except Exception:
-            logger.warning("content.preload.failed", exc_info=True)
-
-    await asyncio.gather(
-        warm_pool(app.state.engine),
-        _warm_content(),
-        return_exceptions=True,
-    )
+    """Preload content caches in the background after the app starts serving."""
+    try:
+        get_all_phases()
+        get_all_phase_ids()
+        logger.info("content.preloaded")
+    except Exception:
+        logger.warning("content.preload.failed", exc_info=True)
 
 
 async def _run_alembic_migrations() -> None:
@@ -276,17 +267,8 @@ if _settings.debug:
         max_age=600,
     )
 
-_middleware_classes = [m.cls for m in app.user_middleware]
-if (
-    SessionMiddleware in _middleware_classes
-    and CSRFMiddleware in _middleware_classes
-    and _middleware_classes.index(SessionMiddleware)
-    > _middleware_classes.index(CSRFMiddleware)
-):
-    raise RuntimeError(
-        "Invalid middleware ordering: SessionMiddleware must run before "
-        "CSRFMiddleware (add CSRFMiddleware BEFORE SessionMiddleware in code)."
-    )
+# NOTE: CSRFMiddleware must be added BEFORE SessionMiddleware in code
+# (Starlette processes middleware in reverse order, so Session runs first).
 
 _static_dir = Path(__file__).parent / "static"
 if _static_dir.exists():

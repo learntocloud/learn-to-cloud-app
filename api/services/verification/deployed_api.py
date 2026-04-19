@@ -14,7 +14,6 @@ The deployed API must:
 - Return valid JSON with journal entry structure
 
 SCALABILITY:
-- Circuit breaker fails fast when deployed API is unavailable (5 failures -> 60s)
 - Retry with exponential backoff for transient failures (3 attempts)
 - Connection pooling via shared httpx.AsyncClient
 """
@@ -33,7 +32,6 @@ from typing import Any
 from urllib.parse import urlparse
 
 import httpx
-from circuitbreaker import CircuitBreakerError, circuit
 from tenacity import (
     RetryCallState,
     retry,
@@ -45,8 +43,6 @@ from tenacity import (
 from core.config import get_settings
 from schemas import ValidationResult
 from services.verification.errors import (
-    CB_FAILURE_THRESHOLD,
-    CB_RECOVERY_TIMEOUT,
     DeployedApiServerError,
     deployed_api_error_to_result,
     make_retriable,
@@ -59,7 +55,7 @@ _deployed_api_client: httpx.AsyncClient | None = None
 _client_lock = asyncio.Lock()
 
 
-# Exceptions that should trigger retry and circuit breaker
+# Exceptions that should trigger retry
 RETRIABLE_EXCEPTIONS: tuple[type[Exception], ...] = make_retriable(
     DeployedApiServerError
 )
@@ -348,12 +344,6 @@ def _wait_exponential(retry_state: RetryCallState) -> float:
     return wait_exponential_jitter(initial=0.5, max=10)(retry_state)
 
 
-@circuit(
-    failure_threshold=CB_FAILURE_THRESHOLD,
-    recovery_timeout=CB_RECOVERY_TIMEOUT,
-    expected_exception=RETRIABLE_EXCEPTIONS,
-    name="deployed_api_circuit",
-)
 @retry(
     stop=stop_after_attempt(3),
     wait=_wait_exponential,
@@ -447,7 +437,6 @@ async def _post_challenge(
             message="URL must point to a publicly accessible server.",
         )
     except (
-        CircuitBreakerError,
         httpx.TimeoutException,
         httpx.RequestError,
         DeployedApiServerError,
@@ -512,7 +501,6 @@ async def _verify_challenge(
             None,
         )
     except (
-        CircuitBreakerError,
         httpx.TimeoutException,
         httpx.RequestError,
         DeployedApiServerError,

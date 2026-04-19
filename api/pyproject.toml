@@ -28,7 +28,7 @@ dependencies = [
     "python-dotenv>=1.0.1",
     "python-multipart>=0.0.24",
     "slowapi>=0.1.9",
-    "circuitbreaker>=2.0.0",
+
     "cachetools>=5.3.0",
     "sqlalchemy>=2.0.49,<3",
     "tenacity>=8.2.0,<9.1.5",

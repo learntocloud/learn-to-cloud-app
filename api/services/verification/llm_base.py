@@ -9,7 +9,7 @@ Phase 6 security_verification):
 - Task result builder from LLM grades
 - Feedback sanitization for safe display
 - Prompt-injection detection patterns
-- Retriable exception types for circuit breakers / retries
+- Retriable exception types for retries
 
 Phase-specific concerns stay in their respective modules:
 - Phase 3: PR diff grading, CI status check (no LLM)
@@ -33,7 +33,7 @@ from services.verification.errors import make_retriable
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Retriable exception types shared by circuit breakers and retry decorators
+# Retriable exception types shared by retry decorators
 # ---------------------------------------------------------------------------
 
 RETRIABLE_EXCEPTIONS: tuple[type[Exception], ...] = make_retriable(LLMClientError)

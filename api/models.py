@@ -6,7 +6,6 @@ from enum import StrEnum
 from sqlalchemy import (
     BigInteger,
     Boolean,
-    CheckConstraint,
     DateTime,
     Enum,
     ForeignKey,
@@ -268,24 +267,3 @@ class UserPhaseProgress(Base):
     )
 
     user: Mapped["User"] = relationship(back_populates="phase_progress")
-
-
-class AnalyticsSnapshot(Base):
-    """Pre-computed analytics snapshot.
-
-    Single-row table holding the serialized CommunityAnalytics payload.
-    Updated by a background task; read by request handlers.
-    Survives container restarts and is consistent across replicas.
-    """
-
-    __tablename__ = "analytics_snapshot"
-    __table_args__ = (
-        CheckConstraint("id = 1", name="ck_analytics_snapshot_single_row"),
-    )
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
-    data: Mapped[str] = mapped_column(Text, nullable=False)
-    computed_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        default=utcnow,
-    )
