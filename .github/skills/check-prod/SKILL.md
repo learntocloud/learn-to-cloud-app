@@ -74,9 +74,8 @@ Steps 2–14 are independent reads — **run them all in parallel** using separa
 
 Set these once for all subsequent commands:
 ```bash
-RG="rg-ltc-dev"
 # Use values from Step 0:
-# LOG_NAME, PSQL_NAME, CA_NAME, APPI_NAME, SUBSCRIPTION
+# RG, LOG_NAME, PSQL_NAME, CA_NAME, APPI_NAME, SUBSCRIPTION
 ```
 
 ### Step 2: Resource Health (all resources)
