@@ -42,7 +42,15 @@ from tenacity import (
     wait_exponential_jitter,
 )
 
+from core.config import get_settings
 from schemas import ValidationResult
+from services.verification.errors import (
+    CB_FAILURE_THRESHOLD,
+    CB_RECOVERY_TIMEOUT,
+    DeployedApiServerError,
+    deployed_api_error_to_result,
+    make_retriable,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -51,15 +59,9 @@ _deployed_api_client: httpx.AsyncClient | None = None
 _client_lock = asyncio.Lock()
 
 
-class DeployedApiServerError(Exception):
-    """Raised when deployed API returns a 5xx error (retriable)."""
-
-
 # Exceptions that should trigger retry and circuit breaker
-RETRIABLE_EXCEPTIONS: tuple[type[Exception], ...] = (
-    httpx.RequestError,
-    httpx.TimeoutException,
-    DeployedApiServerError,
+RETRIABLE_EXCEPTIONS: tuple[type[Exception], ...] = make_retriable(
+    DeployedApiServerError
 )
 
 # UUID v4 pattern (standard format from Python's uuid module)
@@ -92,7 +94,10 @@ async def _get_client() -> httpx.AsyncClient:
             return _deployed_api_client
 
         _deployed_api_client = httpx.AsyncClient(
-            timeout=httpx.Timeout(15.0, connect=5.0),
+            timeout=httpx.Timeout(
+                get_settings().external_api_timeout,
+                connect=5.0,
+            ),
             follow_redirects=False,
             limits=httpx.Limits(max_connections=20, max_keepalive_connections=10),
         )
@@ -344,8 +349,8 @@ def _wait_exponential(retry_state: RetryCallState) -> float:
 
 
 @circuit(
-    failure_threshold=5,
-    recovery_timeout=60,
+    failure_threshold=CB_FAILURE_THRESHOLD,
+    recovery_timeout=CB_RECOVERY_TIMEOUT,
     expected_exception=RETRIABLE_EXCEPTIONS,
     name="deployed_api_circuit",
 )
@@ -416,74 +421,202 @@ async def _cleanup_challenge_entry(
         )
 
 
-def _handle_request_exception(
-    exc: Exception,
-    entries_url: str,
-    *,
-    step: str = "",
-) -> ValidationResult:
-    """Convert a request exception into a ValidationResult.
+async def _post_challenge(
+    entries_url: str, nonce: str
+) -> ValidationResult | str | None:
+    """POST a challenge entry to prove API ownership.
 
-    Centralises error handling for circuit breaker, timeout, connection,
-    and server errors that can occur during any HTTP call in the flow.
+    Returns:
+        ValidationResult if the POST failed (error for user).
+        str if the entry_id was extracted from the response.
+        None if POST succeeded but entry_id couldn't be parsed.
     """
-    step_prefix = f"{step}: " if step else ""
+    challenge_body = {
+        "work": nonce,
+        "struggle": "LTC verification challenge",
+        "intention": "Proving API ownership",
+    }
 
-    if isinstance(exc, CircuitBreakerError):
-        logger.warning(
-            "deployed_api.circuit_open",
-            extra={"url": entries_url},
+    try:
+        response = await _fetch_with_retry(
+            entries_url, method="POST", json_body=challenge_body
         )
+    except _SsrfError:
+        return ValidationResult(
+            is_valid=False,
+            message="URL must point to a publicly accessible server.",
+        )
+    except (
+        CircuitBreakerError,
+        httpx.TimeoutException,
+        httpx.RequestError,
+        DeployedApiServerError,
+    ) as exc:
+        return deployed_api_error_to_result(exc, entries_url, step="POST /entries")
+
+    if response.status_code == 404:
+        return ValidationResult(
+            is_valid=False,
+            message="POST /entries returned 404. Ensure the endpoint exists.",
+        )
+
+    if response.status_code == 422:
         return ValidationResult(
             is_valid=False,
             message=(
-                "Too many recent failures checking deployed APIs. "
-                "Please try again in a minute."
+                "POST /entries returned 422 (validation error). "
+                "Ensure POST /entries accepts {work, struggle, intention}."
             ),
-            server_error=True,
         )
 
-    if isinstance(exc, httpx.TimeoutException):
-        logger.warning(
-            "deployed_api.timeout",
-            extra={"url": entries_url, "step": step},
-        )
+    if response.status_code not in (200, 201):
         return ValidationResult(
             is_valid=False,
             message=(
-                f"{step_prefix}Request timed out. Ensure your API is accessible "
-                "and responding quickly."
+                f"POST /entries returned unexpected status "
+                f"{response.status_code}. Expected 200 or 201."
             ),
         )
 
-    if isinstance(exc, DeployedApiServerError):
+    # Best-effort extraction of entry ID for cleanup
+    try:
+        post_data = response.json()
+        if isinstance(post_data, dict):
+            entry_obj = post_data.get("entry", post_data)
+            if isinstance(entry_obj, dict):
+                return entry_obj.get("id")
+    except (json.JSONDecodeError, AttributeError):
+        pass
+
+    return None
+
+
+async def _verify_challenge(
+    entries_url: str, nonce: str, base_url: str
+) -> tuple[ValidationResult, str | None]:
+    """GET /entries and verify the challenge nonce appears.
+
+    Returns:
+        (result, discovered_entry_id) — the discovered_entry_id is the ID
+        of the challenge entry found during GET response scanning (used for
+        cleanup when the POST response didn't include one).
+    """
+    try:
+        response = await _fetch_with_retry(entries_url)
+    except _SsrfError:
+        return (
+            ValidationResult(
+                is_valid=False,
+                message="URL must point to a publicly accessible server.",
+            ),
+            None,
+        )
+    except (
+        CircuitBreakerError,
+        httpx.TimeoutException,
+        httpx.RequestError,
+        DeployedApiServerError,
+    ) as exc:
+        return deployed_api_error_to_result(exc, entries_url, step="GET /entries"), None
+
+    if response.status_code != 200:
+        return (
+            ValidationResult(
+                is_valid=False,
+                message=(
+                    f"GET /entries returned status {response.status_code}. "
+                    "Expected 200."
+                ),
+            ),
+            None,
+        )
+
+    try:
+        get_data = response.json()
+    except json.JSONDecodeError:
+        return (
+            ValidationResult(
+                is_valid=False,
+                message="GET /entries did not return valid JSON.",
+            ),
+            None,
+        )
+
+    entries = _extract_entries_list(get_data)
+    if entries is None:
+        return (
+            ValidationResult(
+                is_valid=False,
+                message=(
+                    'GET /entries must return {"entries": [...], "count": N}. '
+                    "See the journal-starter for the expected format."
+                ),
+            ),
+            None,
+        )
+
+    # Find the challenge entry
+    nonce_found = False
+    discovered_id: str | None = None
+    for entry in entries:
+        if isinstance(entry, dict) and entry.get("work") == nonce:
+            nonce_found = True
+            discovered_id = entry.get("id")
+            break
+
+    if not nonce_found:
         logger.warning(
-            "deployed_api.server_error",
-            extra={"url": entries_url, "error": str(exc), "step": step},
+            "deployed_api.challenge_failed",
+            extra={"url": base_url, "nonce": nonce},
         )
-        return ValidationResult(
-            is_valid=False,
-            message=(
-                f"{step_prefix}Your API returned a server error (5xx). "
-                "Please check your deployment."
+        return (
+            ValidationResult(
+                is_valid=False,
+                message=(
+                    "Ownership verification failed. "
+                    "We posted a challenge entry to your API but could not "
+                    "find it in GET /entries. Make sure your POST /entries "
+                    "persists data and GET /entries returns all entries."
+                ),
             ),
+            discovered_id,
         )
 
-    if isinstance(exc, httpx.RequestError):
-        logger.warning(
-            "deployed_api.request_error",
-            extra={"url": entries_url, "error": str(exc), "step": step},
-        )
-        return ValidationResult(
-            is_valid=False,
-            message=(
-                f"{step_prefix}Could not connect to your API. "
-                f"Error: {type(exc).__name__}"
-            ),
-        )
+    # Validate real entries (excluding challenge entries)
+    real_entries = [
+        e
+        for e in entries
+        if isinstance(e, dict)
+        and isinstance(e.get("work"), str)
+        and not e["work"].startswith(_CHALLENGE_PREFIX)
+    ]
 
-    # Unexpected exception — re-raise so it's not silently swallowed
-    raise exc  # pragma: no cover
+    if real_entries:
+        validation = _validate_entries_json(real_entries)
+        if not validation.is_valid:
+            return validation, discovered_id
+
+    logger.info(
+        "deployed_api.verified",
+        extra={
+            "url": base_url,
+            "entries_count": len(real_entries),
+            "challenge": "passed",
+        },
+    )
+
+    count = len(real_entries)
+    entry_word = "entry" if count == 1 else "entries"
+    return (
+        ValidationResult(
+            is_valid=True,
+            message=(
+                f"Deployed API verified! Ownership confirmed via challenge-response. "
+                f"Found {count} valid {entry_word}."
+            ),
+        ),
+        discovered_id,
+    )
 
 
 async def validate_deployed_api(base_url: str) -> ValidationResult:
@@ -526,173 +659,18 @@ async def validate_deployed_api(base_url: str) -> ValidationResult:
     nonce = _generate_challenge_nonce()
     challenge_entry_id: str | None = None
 
-    # --- Step 1: POST challenge entry ---
-    challenge_body = {
-        "work": nonce,
-        "struggle": "LTC verification challenge",
-        "intention": "Proving API ownership",
-    }
-
     try:
-        post_response = await _fetch_with_retry(
-            entries_url, method="POST", json_body=challenge_body
-        )
-    except _SsrfError:
-        return ValidationResult(
-            is_valid=False,
-            message="URL must point to a publicly accessible server.",
-        )
-    except (
-        CircuitBreakerError,
-        httpx.TimeoutException,
-        httpx.RequestError,
-        DeployedApiServerError,
-    ) as exc:
-        return _handle_request_exception(exc, entries_url, step="POST /entries")
+        post_result = await _post_challenge(entries_url, nonce)
+        if isinstance(post_result, ValidationResult):
+            return post_result
+        challenge_entry_id = post_result
 
-    if post_response.status_code == 404:
-        return ValidationResult(
-            is_valid=False,
-            message="POST /entries returned 404. Ensure the endpoint exists.",
+        verify_result, discovered_id = await _verify_challenge(
+            entries_url, nonce, base_url
         )
-
-    if post_response.status_code == 422:
-        return ValidationResult(
-            is_valid=False,
-            message=(
-                "POST /entries returned 422 (validation error). "
-                "Ensure POST /entries accepts {work, struggle, intention}."
-            ),
-        )
-
-    if post_response.status_code not in (200, 201):
-        return ValidationResult(
-            is_valid=False,
-            message=(
-                f"POST /entries returned unexpected status "
-                f"{post_response.status_code}. Expected 200 or 201."
-            ),
-        )
-
-    try:
-        post_data = post_response.json()
-        if isinstance(post_data, dict):
-            entry_obj = post_data.get("entry", post_data)
-            if isinstance(entry_obj, dict):
-                challenge_entry_id = entry_obj.get("id")
-    except (json.JSONDecodeError, AttributeError):
-        pass  # We'll still try GET — ID is only needed for cleanup
-
-    # --- Step 2: GET /entries and find the nonce ---
-    try:
-        get_response = await _fetch_with_retry(entries_url)
-    except _SsrfError:
+        if challenge_entry_id is None:
+            challenge_entry_id = discovered_id
+        return verify_result
+    finally:
         if challenge_entry_id:
             await _cleanup_challenge_entry(entries_url, challenge_entry_id)
-        return ValidationResult(
-            is_valid=False,
-            message="URL must point to a publicly accessible server.",
-        )
-    except (
-        CircuitBreakerError,
-        httpx.TimeoutException,
-        httpx.RequestError,
-        DeployedApiServerError,
-    ) as exc:
-        # Best-effort cleanup before returning error
-        if challenge_entry_id:
-            await _cleanup_challenge_entry(entries_url, challenge_entry_id)
-        return _handle_request_exception(exc, entries_url, step="GET /entries")
-
-    if get_response.status_code != 200:
-        if challenge_entry_id:
-            await _cleanup_challenge_entry(entries_url, challenge_entry_id)
-        return ValidationResult(
-            is_valid=False,
-            message=(
-                f"GET /entries returned status {get_response.status_code}. "
-                "Expected 200."
-            ),
-        )
-
-    try:
-        get_data = get_response.json()
-    except json.JSONDecodeError:
-        if challenge_entry_id:
-            await _cleanup_challenge_entry(entries_url, challenge_entry_id)
-        return ValidationResult(
-            is_valid=False,
-            message="GET /entries did not return valid JSON.",
-        )
-
-    entries = _extract_entries_list(get_data)
-    if entries is None:
-        if challenge_entry_id:
-            await _cleanup_challenge_entry(entries_url, challenge_entry_id)
-        return ValidationResult(
-            is_valid=False,
-            message=(
-                'GET /entries must return {"entries": [...], "count": N}. '
-                "See the journal-starter for the expected format."
-            ),
-        )
-
-    nonce_found = False
-    for entry in entries:
-        if isinstance(entry, dict) and entry.get("work") == nonce:
-            nonce_found = True
-            if not challenge_entry_id:
-                challenge_entry_id = entry.get("id")
-            break
-
-    # --- Step 3: Cleanup ---
-    if challenge_entry_id:
-        await _cleanup_challenge_entry(entries_url, challenge_entry_id)
-
-    if not nonce_found:
-        logger.warning(
-            "deployed_api.challenge_failed",
-            extra={"url": base_url, "nonce": nonce},
-        )
-        return ValidationResult(
-            is_valid=False,
-            message=(
-                "Ownership verification failed. "
-                "We posted a challenge entry to your API but could not "
-                "find it in GET /entries. Make sure your POST /entries "
-                "persists data and GET /entries returns all entries."
-            ),
-        )
-
-    # Also validate that the real entries have correct structure
-    real_entries = [
-        e
-        for e in entries
-        if isinstance(e, dict)
-        and isinstance(e.get("work"), str)
-        and not e["work"].startswith(_CHALLENGE_PREFIX)
-    ]
-
-    if real_entries:
-        validation = _validate_entries_json(real_entries)
-        if not validation.is_valid:
-            return validation
-
-    logger.info(
-        "deployed_api.verified",
-        extra={
-            "url": base_url,
-            "entries_count": len(real_entries),
-            "challenge": "passed",
-        },
-    )
-
-    count = len(real_entries)
-    entry_word = "entry" if count == 1 else "entries"
-    return ValidationResult(
-        is_valid=True,
-        message=(
-            f"Deployed API verified! Ownership confirmed via challenge-response. "
-            f"Found {count} valid {entry_word}."
-        ),
-    )

@@ -21,11 +21,8 @@ from dataclasses import dataclass
 from cachetools import TTLCache
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from core.cache import invalidate_progress_cache
 from core.config import get_settings
-from core.metrics import SUBMISSION_DAILY_LIMIT_COUNTER
 from models import Submission, SubmissionType
-from repositories.progress_denormalized_repository import UserPhaseProgressRepository
 from repositories.submission_repository import SubmissionRepository
 from schemas import (
     HandsOnRequirement,
@@ -249,10 +246,6 @@ async def _check_submission_preconditions(
         settings = get_settings()
         today_count = await submission_repo.count_submissions_today(user_id)
         if today_count >= settings.daily_submission_limit:
-            SUBMISSION_DAILY_LIMIT_COUNTER.add(
-                1,
-                {"user_id": str(user_id)},
-            )
             raise DailyLimitExceededError(
                 f"You have reached the daily limit of "
                 f"{settings.daily_submission_limit} "
@@ -342,7 +335,6 @@ async def submit_validation(
     )
     requirement = ctx.requirement
     phase_id = ctx.phase_id
-    existing_data = ctx.existing_data
 
     # Prevent concurrent submissions for the same user+requirement.
     submission_lock = await _get_submission_lock(user_id, requirement_id)
@@ -371,7 +363,7 @@ async def submit_validation(
             parsed = parse_github_url(submitted_value)
             extracted_username = parsed.username if parsed.is_valid else None
 
-        verification_completed = not validation_result.server_error
+        verification_completed = validation_result.verification_completed
 
         feedback_json = None
         if validation_result.task_results:
@@ -407,20 +399,10 @@ async def submit_validation(
                 cloud_provider=cloud_provider,
             )
 
-            # Update denormalized counts for newly validated submissions
-            if validation_result.is_valid and not (
-                existing_data and existing_data.is_validated
-            ):
-                denorm_repo = UserPhaseProgressRepository(write_session)
-                await denorm_repo.increment_submissions(user_id, phase_id, delta=1)
-
             await write_session.commit()
 
-        if validation_result.is_valid:
-            invalidate_progress_cache(user_id)
-
         logger.info(
-            "submission.validated",
+            "submission.processed",
             extra={
                 "user_id": user_id,
                 "requirement_id": requirement_id,

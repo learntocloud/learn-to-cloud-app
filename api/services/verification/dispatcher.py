@@ -32,7 +32,6 @@ from core.metrics import VERIFICATION_COUNTER, VERIFICATION_DURATION
 from models import SubmissionType
 from schemas import HandsOnRequirement, ValidationResult
 from services.verification.ci_status import verify_ci_status
-from services.verification.ctf import verify_ctf_token
 from services.verification.deployed_api import validate_deployed_api
 from services.verification.devops_analysis import run_devops_workflow
 from services.verification.github_profile import (
@@ -41,62 +40,12 @@ from services.verification.github_profile import (
     validate_repo_fork,
 )
 from services.verification.llm_base import VerificationError, validate_repo_url
-from services.verification.networking_lab import verify_networking_token
 from services.verification.pull_request import validate_pr
 from services.verification.security_scanning import validate_security_scanning
+from services.verification.token_base import verify_ctf_token, verify_networking_token
 from services.verification.url_derivation import fork_name_from_required_repo
 
 logger = logging.getLogger(__name__)
-
-
-def validate_ctf_token_submission(
-    token: str, expected_username: str
-) -> ValidationResult:
-    """Validate a CTF token submission.
-
-    Args:
-        token: The base64-encoded CTF completion token
-        expected_username: The expected GitHub username from OAuth
-
-    Returns:
-        ValidationResult with verification status
-    """
-    ctf_result = verify_ctf_token(token, expected_username)
-
-    return ValidationResult(
-        is_valid=ctf_result.is_valid,
-        message=ctf_result.message,
-        username_match=ctf_result.is_valid,
-        server_error=ctf_result.server_error,
-    )
-
-
-def validate_networking_token_submission(
-    token: str, expected_username: str
-) -> ValidationResult:
-    """Validate a Networking Lab token submission.
-
-    Args:
-        token: The base64-encoded Networking Lab completion token
-        expected_username: The expected GitHub username from OAuth
-
-    Returns:
-        ValidationResult with verification status and cloud_provider
-    """
-    result = verify_networking_token(token, expected_username)
-
-    # Extract provider from challenge_type (e.g. "networking-lab-azure" -> "azure")
-    cloud_provider = None
-    if result.is_valid and result.challenge_type:
-        cloud_provider = result.challenge_type.removeprefix("networking-lab-")
-
-    return ValidationResult(
-        is_valid=result.is_valid,
-        message=result.message,
-        username_match=result.is_valid,
-        server_error=result.server_error,
-        cloud_provider=cloud_provider,
-    )
 
 
 async def validate_submission(
@@ -144,7 +93,7 @@ async def validate_submission(
         return ValidationResult(
             is_valid=False,
             message="Verification failed. Please try again later.",
-            server_error=True,
+            verification_completed=False,
         )
     except Exception as e:
         logger.exception(
@@ -157,7 +106,7 @@ async def validate_submission(
         return ValidationResult(
             is_valid=False,
             message="Verification failed. Please try again later.",
-            server_error=True,
+            verification_completed=False,
         )
     finally:
         elapsed = time.monotonic() - start
@@ -211,10 +160,10 @@ async def _dispatch_validation(
         )
 
     elif requirement.submission_type == SubmissionType.CTF_TOKEN:
-        return validate_ctf_token_submission(submitted_value, username)
+        return verify_ctf_token(submitted_value, username)
 
     elif requirement.submission_type == SubmissionType.NETWORKING_TOKEN:
-        return validate_networking_token_submission(submitted_value, username)
+        return verify_networking_token(submitted_value, username)
 
     elif requirement.submission_type == SubmissionType.PR_REVIEW:
         return await validate_pr(submitted_value, requirement)

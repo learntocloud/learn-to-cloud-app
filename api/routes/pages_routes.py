@@ -29,7 +29,7 @@ from services.content_service import (
     get_topic_by_slugs,
 )
 from services.dashboard_service import get_dashboard_data
-from services.progress_service import get_phase_detail_progress
+from services.progress_service import fetch_phase_progress
 from services.steps_service import get_valid_completed_steps
 from services.submissions_service import get_phase_submission_context
 from services.users_service import get_user_by_id
@@ -60,9 +60,7 @@ def _template_context(
     }
 
 
-@router.api_route(
-    "/", methods=["GET", "HEAD"], response_class=HTMLResponse, summary="Home page"
-)
+@router.get("/", response_class=HTMLResponse, summary="Home page")
 async def home_page(
     request: Request,
     db: DbSession,
@@ -118,7 +116,7 @@ async def phase_page(
             status_code=404,
         )
 
-    detail = await get_phase_detail_progress(db, user_id, phase)
+    detail = await fetch_phase_progress(db, user_id, phase)
     topics, progress = build_phase_topics(phase, detail)
 
     requirements = []

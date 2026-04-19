@@ -1,9 +1,9 @@
-"""Unit tests for ctf_service.
+"""Unit tests for CTF token verification.
 
 Tests cover:
 - Valid CTF token verifies with 18 challenges
 - Invalid token returns is_valid=False
-- Config wiring: correct challenge count, label, and result type
+- Config wiring: correct challenge count, label
 """
 
 import base64
@@ -14,7 +14,7 @@ from datetime import UTC, datetime
 
 import pytest
 
-from services.verification.ctf import verify_ctf_token
+from services.verification.token_base import verify_ctf_token
 
 TEST_SECRET = "test_ctf_secret_must_be_32_chars!"
 
@@ -58,7 +58,6 @@ class TestVerifyCTFToken:
         token = _create_valid_ctf_token(github_username="ctfuser")
         result = verify_ctf_token(token, "ctfuser")
         assert result.is_valid is True
-        assert result.challenges_completed == 18
         assert "Congratulations" in result.message
 
     def test_username_mismatch_fails(self):
@@ -77,12 +76,12 @@ class TestVerifyCTFToken:
         result = verify_ctf_token("not-valid", "testuser")
         assert result.is_valid is False
 
-    def test_returns_ctf_verification_result_type(self):
-        from schemas import CTFVerificationResult
+    def test_returns_validation_result_type(self):
+        from schemas import ValidationResult
 
         token = _create_valid_ctf_token()
         result = verify_ctf_token(token, "testuser")
-        assert isinstance(result, CTFVerificationResult)
+        assert isinstance(result, ValidationResult)
 
     def test_case_insensitive_username(self):
         token = _create_valid_ctf_token(github_username="TestUser")

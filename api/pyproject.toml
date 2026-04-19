@@ -23,7 +23,6 @@ dependencies = [
     "jinja2>=3.1.0",
     "markdown>=3.5.0",
     "opentelemetry-instrumentation-sqlalchemy==0.61b0",
-    "psycopg2-binary>=2.9.9",
     "pydantic>=2.11.2,<3",
     "pydantic-settings>=2.7.1",
     "python-dotenv>=1.0.1",

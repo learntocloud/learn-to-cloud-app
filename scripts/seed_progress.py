@@ -174,32 +174,6 @@ async def main(github_username: str) -> None:
                 sub_count += 1
         print(f"Inserted {sub_count} submission records")
 
-        for phase_id, topics in phase_topics.items():
-            total_steps = sum(len(step_ids) for _, step_ids in topics)
-            validated_subs = len(phase_requirements.get(phase_id, []))
-            await conn.execute(
-                """
-                INSERT INTO user_phase_progress (
-                    user_id,
-                    phase_id,
-                    completed_steps,
-                    validated_submissions,
-                    updated_at
-                )
-                VALUES ($1, $2, $3, $4, $5)
-                ON CONFLICT (user_id, phase_id) DO UPDATE SET
-                    completed_steps = $3,
-                    validated_submissions = $4,
-                    updated_at = $5
-                """,
-                user_id,
-                phase_id,
-                total_steps,
-                validated_subs,
-                now,
-            )
-        print(f"Updated user_phase_progress for {len(phase_topics)} phases")
-
         print("\nDone! All progress seeded. You should now show as fully complete.")
 
     finally:

@@ -425,7 +425,7 @@ async def validate_pr(
         client=chat_client,
         instructions=_GRADER_INSTRUCTIONS,
         name="pr-grader",
-        default_options={"response_format": PrDiffGrade},
+        default_options={"response_format": PrDiffGrade, "temperature": 0},
     )
 
     workflow = (

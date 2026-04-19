@@ -170,18 +170,18 @@ class TestCiStatusErrorHandling:
         )
         result = await verify_ci_status(_TEST_OWNER, _TEST_REPO)
         assert not result.is_valid
-        assert result.server_error is True
+        assert result.verification_completed is False
 
     @patch("services.verification.ci_status.github_api_get", autospec=True)
     async def test_circuit_breaker_open(self, mock_get):
         mock_get.side_effect = CircuitBreakerError(AsyncMock())
         result = await verify_ci_status(_TEST_OWNER, _TEST_REPO)
         assert not result.is_valid
-        assert result.server_error is True
+        assert result.verification_completed is False
 
     @patch("services.verification.ci_status.github_api_get", autospec=True)
     async def test_request_timeout(self, mock_get):
         mock_get.side_effect = httpx.TimeoutException("timed out")
         result = await verify_ci_status(_TEST_OWNER, _TEST_REPO)
         assert not result.is_valid
-        assert result.server_error is True
+        assert result.verification_completed is False

@@ -13,6 +13,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from schemas import ValidationResult
 from services.verification.github_profile import (
     _parse_retry_after,
     get_github_headers,
@@ -201,7 +202,7 @@ class TestValidateGitHubProfile:
         with patch(
             "services.verification.github_profile.check_github_url_exists",
             autospec=True,
-            return_value=(True, "URL exists", False),
+            return_value=ValidationResult(is_valid=True, message="URL exists"),
         ):
             result = await validate_github_profile(
                 "https://github.com/testuser", "testuser"
@@ -214,7 +215,9 @@ class TestValidateGitHubProfile:
         with patch(
             "services.verification.github_profile.check_github_url_exists",
             autospec=True,
-            return_value=(False, "URL not found (404)", False),
+            return_value=ValidationResult(
+                is_valid=False, message="URL not found (404)"
+            ),
         ):
             result = await validate_github_profile(
                 "https://github.com/testuser", "testuser"
@@ -227,13 +230,17 @@ class TestValidateGitHubProfile:
         with patch(
             "services.verification.github_profile.check_github_url_exists",
             autospec=True,
-            return_value=(False, "GitHub service temporarily unavailable", True),
+            return_value=ValidationResult(
+                is_valid=False,
+                message="GitHub service temporarily unavailable",
+                verification_completed=False,
+            ),
         ):
             result = await validate_github_profile(
                 "https://github.com/testuser", "testuser"
             )
         assert result.is_valid is False
-        assert result.server_error is True
+        assert result.verification_completed is False
 
     @pytest.mark.asyncio
     async def test_empty_username_in_url_fails(self):
@@ -274,7 +281,7 @@ class TestValidateProfileReadme:
         with patch(
             "services.verification.github_profile.check_github_url_exists",
             autospec=True,
-            return_value=(True, "URL exists", False),
+            return_value=ValidationResult(is_valid=True, message="URL exists"),
         ):
             result = await validate_profile_readme(
                 "https://github.com/testuser/testuser/blob/main/README.md",
@@ -287,7 +294,9 @@ class TestValidateProfileReadme:
         with patch(
             "services.verification.github_profile.check_github_url_exists",
             autospec=True,
-            return_value=(False, "URL not found (404)", False),
+            return_value=ValidationResult(
+                is_valid=False, message="URL not found (404)"
+            ),
         ):
             result = await validate_profile_readme(
                 "https://github.com/testuser/testuser/blob/main/README.md",
@@ -333,7 +342,9 @@ class TestValidateRepoFork:
         with patch(
             "services.verification.github_profile.check_repo_is_fork_of",
             autospec=True,
-            return_value=(True, "Verified fork of learntocloud/repo", False),
+            return_value=ValidationResult(
+                is_valid=True, message="Verified fork of learntocloud/repo"
+            ),
         ):
             result = await validate_repo_fork(
                 "https://github.com/testuser/repo",
@@ -347,7 +358,9 @@ class TestValidateRepoFork:
         with patch(
             "services.verification.github_profile.check_repo_is_fork_of",
             autospec=True,
-            return_value=(False, "Repository is not a fork", False),
+            return_value=ValidationResult(
+                is_valid=False, message="Repository is not a fork"
+            ),
         ):
             result = await validate_repo_fork(
                 "https://github.com/testuser/repo",
@@ -361,7 +374,11 @@ class TestValidateRepoFork:
         with patch(
             "services.verification.github_profile.check_repo_is_fork_of",
             autospec=True,
-            return_value=(False, "GitHub unavailable", True),
+            return_value=ValidationResult(
+                is_valid=False,
+                message="GitHub unavailable",
+                verification_completed=False,
+            ),
         ):
             result = await validate_repo_fork(
                 "https://github.com/testuser/repo",
@@ -369,4 +386,4 @@ class TestValidateRepoFork:
                 "learntocloud/repo",
             )
         assert result.is_valid is False
-        assert result.server_error is True
+        assert result.verification_completed is False

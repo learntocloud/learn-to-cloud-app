@@ -108,7 +108,7 @@ class TestValidatePrErrorHandling:
         result = await validate_pr(_TEST_PR_URL, _make_pr_requirement())
         assert not result.is_valid
         assert "not found" in result.message.lower()
-        assert result.server_error is not True
+        assert result.verification_completed is True
 
     @pytest.mark.asyncio
     @patch(
@@ -125,7 +125,7 @@ class TestValidatePrErrorHandling:
         mock_llm_client.return_value = MagicMock()
         result = await validate_pr(_TEST_PR_URL, _make_pr_requirement())
         assert not result.is_valid
-        assert result.server_error is True
+        assert result.verification_completed is False
 
 
 # =============================================================================

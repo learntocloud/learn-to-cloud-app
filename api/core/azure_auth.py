@@ -19,7 +19,7 @@ from tenacity import (
     wait_exponential,
 )
 
-AZURE_TOKEN_TIMEOUT = 30
+from core.config import get_settings
 
 _AZURE_RETRY_ATTEMPTS = 3
 _AZURE_RETRY_MIN_WAIT = 1  # seconds
@@ -91,7 +91,7 @@ async def get_token() -> str:
     """
     credential = await get_credential()
     try:
-        async with asyncio.timeout(AZURE_TOKEN_TIMEOUT):
+        async with asyncio.timeout(get_settings().db_timeout):
             return await asyncio.to_thread(_get_token_sync, credential)
     except TimeoutError:
         # Reset credential on timeout in case it's in a bad state

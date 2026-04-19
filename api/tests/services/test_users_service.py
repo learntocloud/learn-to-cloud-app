@@ -22,15 +22,6 @@ from services.users_service import (
 )
 
 
-@pytest.fixture(autouse=True)
-def _clear_user_cache():
-    from core.cache import _user_cache
-
-    _user_cache.clear()
-    yield
-    _user_cache.clear()
-
-
 @pytest.mark.unit
 class TestDeleteUserAccount:
     """Tests for delete_user_account service function."""
@@ -153,16 +144,7 @@ class TestParseDisplayName:
 @pytest.mark.unit
 class TestGetUserById:
     @pytest.mark.asyncio
-    async def test_returns_cached_user(self):
-        from core.cache import set_cached_user
-
-        mock_user = MagicMock()
-        set_cached_user(1, mock_user)
-        result = await get_user_by_id(AsyncMock(), user_id=1)
-        assert result is mock_user
-
-    @pytest.mark.asyncio
-    async def test_cache_miss_queries_db(self):
+    async def test_returns_user_from_db(self):
         mock_user = MagicMock()
         with patch("services.users_service.UserRepository", autospec=True) as MockRepo:
             MockRepo.return_value.get_by_id = AsyncMock(return_value=mock_user)

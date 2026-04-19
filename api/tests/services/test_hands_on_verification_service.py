@@ -44,7 +44,7 @@ class TestValidateSubmissionRouting:
         requirement = _make_requirement(SubmissionType.NETWORKING_TOKEN)
 
         with patch(
-            "services.verification.dispatcher.validate_networking_token_submission",
+            "services.verification.dispatcher.verify_networking_token",
             autospec=True,
         ) as mock:
             mock.return_value = ValidationResult(
@@ -284,77 +284,6 @@ class TestValidateSubmissionUsernameRequirements:
 
             # Should succeed - DEPLOYED_API doesn't require GitHub auth
             assert result.is_valid is True
-
-
-# ---------------------------------------------------------------------------
-# Token submission wrappers
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.unit
-class TestValidateCtfTokenSubmission:
-    def test_delegates_to_ctf_service(self):
-        from unittest.mock import MagicMock
-
-        from services.verification.dispatcher import (
-            validate_ctf_token_submission,
-        )
-
-        mock_result = MagicMock()
-        mock_result.is_valid = True
-        mock_result.message = "OK"
-        mock_result.server_error = False
-        with patch(
-            "services.verification.dispatcher.verify_ctf_token",
-            autospec=True,
-            return_value=mock_result,
-        ) as mock:
-            result = validate_ctf_token_submission("token", "testuser")
-        mock.assert_called_once_with("token", "testuser")
-        assert result.is_valid is True
-
-
-@pytest.mark.unit
-class TestValidateNetworkingTokenSubmission:
-    def test_extracts_cloud_provider(self):
-        from unittest.mock import MagicMock
-
-        from services.verification.dispatcher import (
-            validate_networking_token_submission,
-        )
-
-        mock_result = MagicMock()
-        mock_result.is_valid = True
-        mock_result.message = "OK"
-        mock_result.server_error = False
-        mock_result.challenge_type = "networking-lab-azure"
-        with patch(
-            "services.verification.dispatcher.verify_networking_token",
-            autospec=True,
-            return_value=mock_result,
-        ):
-            result = validate_networking_token_submission("token", "testuser")
-        assert result.cloud_provider == "azure"
-
-    def test_no_cloud_provider_when_invalid(self):
-        from unittest.mock import MagicMock
-
-        from services.verification.dispatcher import (
-            validate_networking_token_submission,
-        )
-
-        mock_result = MagicMock()
-        mock_result.is_valid = False
-        mock_result.message = "bad"
-        mock_result.server_error = False
-        mock_result.challenge_type = None
-        with patch(
-            "services.verification.dispatcher.verify_networking_token",
-            autospec=True,
-            return_value=mock_result,
-        ):
-            result = validate_networking_token_submission("token", "testuser")
-        assert result.cloud_provider is None
 
 
 # ---------------------------------------------------------------------------

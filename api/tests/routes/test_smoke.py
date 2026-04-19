@@ -31,7 +31,7 @@ from core.database import get_db, get_db_readonly
 from schemas import (
     CommunityAnalytics,
     DashboardData,
-    PhaseDetailProgress,
+    PhaseProgress,
     PhaseProgressData,
     PhaseSummaryData,
 )
@@ -89,11 +89,6 @@ def _fake_analytics() -> CommunityAnalytics:
     return CommunityAnalytics(
         total_users=42,
         active_learners_30d=10,
-        completion_rate=0.05,
-        phase_distribution=[],
-        signup_trends=[],
-        verification_stats=[],
-        activity_by_day=[],
         generated_at=datetime.now(UTC),
     )
 
@@ -270,12 +265,14 @@ class TestAuthPageSmoke:
         if not phases:
             pytest.skip("No content phases loaded")
 
-        # Build a PhaseDetailProgress with empty topic progress
-        detail = PhaseDetailProgress(
-            topic_progress={},
+        # Build a PhaseProgress with empty topic progress
+        detail = PhaseProgress(
+            phase_id=1,
             steps_completed=0,
-            steps_total=0,
-            percentage=0,
+            steps_required=0,
+            hands_on_validated=0,
+            hands_on_required=0,
+            topic_progress={},
         )
 
         mock_sub_context = MagicMock()
@@ -288,7 +285,7 @@ class TestAuthPageSmoke:
                 return_value=_fake_user(),
             ),
             patch(
-                "routes.pages_routes.get_phase_detail_progress",
+                "routes.pages_routes.fetch_phase_progress",
                 return_value=detail,
             ),
             patch(

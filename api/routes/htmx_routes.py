@@ -22,6 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from starlette.responses import StreamingResponse
 
 from core.auth import UserId
+from core.config import get_settings
 from core.database import DbSession, DbSessionReadOnly
 from core.ratelimit import limiter
 from core.templates import templates
@@ -32,7 +33,7 @@ from rendering.context import (
     build_requirement_card_context,
 )
 from rendering.steps import build_step_data
-from schemas import SubmissionData, SubmissionResult
+from schemas import SubmissionData
 from services.content_service import get_topic_by_id
 from services.steps_service import (
     StepValidationError,
@@ -288,45 +289,6 @@ async def htmx_submit_verification(
         )
 
 
-def _render_result_card(
-    request: Request,
-    requirement: object,
-    result: "SubmissionResult",
-    github_username: str | None,
-) -> HTMLResponse:
-    """Render a completed verification result card."""
-    submission = result.submission
-
-    feedback_tasks, feedback_passed = build_feedback_tasks_from_results(
-        result.task_results
-    )
-
-    error_banner = None
-    if not result.is_valid and not result.is_server_error and not feedback_tasks:
-        error_banner = result.message
-
-    response = templates.TemplateResponse(
-        request,
-        "partials/requirement_card.html",
-        build_requirement_card_context(
-            requirement=requirement,
-            github_username=github_username,
-            submission=submission,
-            feedback_tasks=feedback_tasks or [],
-            feedback_passed=feedback_passed,
-            server_error=result.is_server_error,
-            server_error_message=result.message if result.is_server_error else None,
-            error_banner=error_banner,
-            processing=False,
-        ),
-    )
-
-    if result.is_valid:
-        response.headers["HX-Refresh"] = "true"
-
-    return response
-
-
 @router.get("/verification/{requirement_id}/stream")
 async def htmx_verification_stream(
     request: Request,
@@ -364,7 +326,10 @@ async def htmx_verification_stream(
 
         try:
             # Wait up to 3 minutes for the result
-            result = await asyncio.wait_for(asyncio.shield(task), timeout=180)
+            result = await asyncio.wait_for(
+                asyncio.shield(task),
+                timeout=get_settings().verification_wait_timeout,
+            )
         except TimeoutError:
             yield (
                 "event: verification-result\n"

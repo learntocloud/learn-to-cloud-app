@@ -1,26 +1,11 @@
-output "resource_group_name" {
-  description = "Name of the resource group"
-  value       = azurerm_resource_group.main.name
-}
-
 output "azure_portal_url" {
   description = "Link to the resource group in Azure Portal"
   value       = "https://portal.azure.com/#@/resource/subscriptions/${var.subscription_id}/resourceGroups/${azurerm_resource_group.main.name}/overview"
 }
 
-output "api_url" {
-  description = "URL of the API container app"
-  value       = "https://${azurerm_container_app.api.ingress[0].fqdn}"
-}
-
 output "api_identity_principal_id" {
   description = "API managed identity principal ID (for Entra admin setup)"
   value       = azurerm_user_assigned_identity.api.principal_id
-}
-
-output "container_registry" {
-  description = "Container registry login server"
-  value       = azurerm_container_registry.main.login_server
 }
 
 output "database_host" {
@@ -37,11 +22,6 @@ output "application_insights_connection_string" {
   description = "Application Insights connection string"
   value       = azurerm_application_insights.main.connection_string
   sensitive   = true
-}
-
-output "dashboard_url" {
-  description = "URL to the monitoring dashboard in Azure Portal"
-  value       = "https://portal.azure.com/#@/dashboard/arm${azurerm_portal_dashboard.main.id}"
 }
 
 output "action_group_id" {
@@ -64,8 +44,8 @@ output "AZURE_CONTAINER_REGISTRY_ENDPOINT" {
   value       = azurerm_container_registry.main.login_server
 }
 
-output "apiUrl" {
-  description = "API URL (for CI/CD) — prefer api_url instead"
+output "api_url" {
+  description = "API URL (for CI/CD)"
   value       = "https://${azurerm_container_app.api.ingress[0].fqdn}"
 }
 

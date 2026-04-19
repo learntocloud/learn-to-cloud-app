@@ -11,7 +11,7 @@ from schemas import UserResponse
 from services.users_service import (
     UserNotFoundError,
     delete_user_account,
-    get_or_create_user,
+    get_user_by_id,
 )
 
 logger = logging.getLogger(__name__)
@@ -31,7 +31,9 @@ async def get_current_user(
     request: Request, user_id: UserId, db: DbSession
 ) -> UserResponse:
     """Get current user info."""
-    user = await get_or_create_user(db, user_id)
+    user = await get_user_by_id(db, user_id)
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
     return UserResponse.model_validate(user)
 
 

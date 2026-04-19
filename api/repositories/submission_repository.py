@@ -21,7 +21,7 @@ class SubmissionRepository:
         latest_sq = (
             select(
                 Submission.requirement_id,
-                func.max(Submission.created_at).label("max_created"),
+                func.max(Submission.id).label("max_id"),
             )
             .where(
                 Submission.user_id == user_id,
@@ -31,15 +31,9 @@ class SubmissionRepository:
             .subquery()
         )
         result = await self.db.execute(
-            select(Submission)
-            .join(
+            select(Submission).join(
                 latest_sq,
-                (Submission.requirement_id == latest_sq.c.requirement_id)
-                & (Submission.created_at == latest_sq.c.max_created),
-            )
-            .where(
-                Submission.user_id == user_id,
-                Submission.phase_id == phase_id,
+                (Submission.id == latest_sq.c.max_id),
             )
         )
         return list(result.scalars().all())
@@ -54,7 +48,7 @@ class SubmissionRepository:
                 Submission.user_id == user_id,
                 Submission.requirement_id == requirement_id,
             )
-            .order_by(Submission.created_at.desc())
+            .order_by(Submission.id.desc())
             .limit(1)
         )
         return result.scalar_one_or_none()
@@ -135,6 +129,39 @@ class SubmissionRepository:
         )
         validated_count = result.scalar_one() or 0
         return validated_count >= len(requirement_ids)
+
+    async def get_validated_requirement_ids(self, user_id: int) -> set[str]:
+        """Get all distinct requirement IDs with at least one validated submission.
+
+        Used by progress computation to count hands-on completions
+        directly from the source of truth (submissions table).
+        """
+        result = await self.db.execute(
+            select(func.distinct(Submission.requirement_id)).where(
+                Submission.user_id == user_id,
+                Submission.is_validated.is_(True),
+            )
+        )
+        return set(result.scalars().all())
+
+    async def count_validated_for_requirements(
+        self, user_id: int, requirement_ids: set[str]
+    ) -> int:
+        """Count how many of the given requirement IDs have been validated.
+
+        Filters against a specific set of requirement IDs (from current content)
+        to prevent stale/removed requirements from inflating counts.
+        """
+        if not requirement_ids:
+            return 0
+        result = await self.db.execute(
+            select(func.count(func.distinct(Submission.requirement_id))).where(
+                Submission.user_id == user_id,
+                Submission.requirement_id.in_(requirement_ids),
+                Submission.is_validated.is_(True),
+            )
+        )
+        return result.scalar_one() or 0
 
     async def count_submissions_today(self, user_id: int) -> int:
         """Count completed verification attempts by this user in the last 24 hours.

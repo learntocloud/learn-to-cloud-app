@@ -1,13 +1,6 @@
-"""Tests for token_verification_base shared utilities.
+"""Tests for token_base shared verification.
 
-Tests cover:
-- Token decoding (base64 + JSON parsing)
-- Username verification (case-insensitive)
-- Instance ID validation
-- HMAC signature verification
-- Challenge count validation
-- Timestamp validation
-- Secret derivation
+Tests cover the core verify_lab_token function and secret derivation.
 """
 
 import base64
@@ -18,15 +11,7 @@ from datetime import UTC, datetime
 
 import pytest
 
-from services.verification.token_base import (
-    decode_token,
-    derive_secret,
-    verify_challenge_count,
-    verify_instance_id,
-    verify_signature,
-    verify_timestamp,
-    verify_username,
-)
+from services.verification.token_base import verify_lab_token
 
 # Same test secret used in conftest.py
 TEST_SECRET = "test_ctf_secret_must_be_32_chars!"
@@ -37,187 +22,123 @@ def _derive_test_secret(instance_id: str) -> str:
     return hashlib.sha256(data.encode()).hexdigest()
 
 
-def _make_token(payload: dict, signature: str) -> str:
-    """Encode a token dict to base64."""
-    return base64.b64encode(
-        json.dumps({"payload": payload, "signature": signature}).encode()
-    ).decode()
-
-
-def _sign_payload(payload: dict, instance_id: str) -> str:
-    """Compute HMAC-SHA256 for a payload."""
-    secret = _derive_test_secret(instance_id)
+def _make_signed_token(
+    payload: dict,
+    instance_id: str | None = None,
+) -> str:
+    """Create a signed token. If instance_id is None, uses payload's instance_id."""
+    iid = instance_id or payload.get("instance_id", "test-inst")
+    secret = _derive_test_secret(iid)
     payload_str = json.dumps(payload, separators=(",", ":"))
-    return hmac.new(secret.encode(), payload_str.encode(), hashlib.sha256).hexdigest()
+    sig = hmac.new(secret.encode(), payload_str.encode(), hashlib.sha256).hexdigest()
+    token_data = {"payload": payload, "signature": sig}
+    return base64.b64encode(json.dumps(token_data).encode()).decode()
 
 
-# ---------------------------------------------------------------------------
-# decode_token
-# ---------------------------------------------------------------------------
+def _valid_payload(**overrides) -> dict:
+    defaults = {
+        "github_username": "testuser",
+        "instance_id": "test-inst",
+        "challenges": 5,
+        "timestamp": datetime.now(UTC).timestamp(),
+    }
+    defaults.update(overrides)
+    return defaults
 
 
 @pytest.mark.unit
-class TestDecodeToken:
+class TestVerifyLabToken:
     def test_valid_token(self):
-        payload = {"github_username": "user", "instance_id": "abc"}
-        sig = "deadbeef"
-        token = _make_token(payload, sig)
-
-        result = decode_token(token)
-        assert result.is_valid
-        assert result.payload == payload
-        assert result.signature == sig
+        payload = _valid_payload()
+        token = _make_signed_token(payload)
+        result = verify_lab_token(
+            token, "testuser", required_challenges=5, display_name="Test"
+        )
+        assert result.is_valid is True
 
     def test_invalid_base64(self):
-        result = decode_token("not-base64!!!")
-        assert not result.is_valid
-        assert "Could not decode" in (result.error or "")
+        result = verify_lab_token("not-base64!!!", "testuser", required_challenges=5)
+        assert result.is_valid is False
+        assert "Could not decode" in result.message
 
     def test_invalid_json(self):
         token = base64.b64encode(b"not json").decode()
-        result = decode_token(token)
-        assert not result.is_valid
-        assert "Could not decode" in (result.error or "")
+        result = verify_lab_token(token, "testuser", required_challenges=5)
+        assert result.is_valid is False
 
     def test_missing_payload(self):
-        token = base64.b64encode(json.dumps({"signature": "sig"}).encode()).decode()
-        result = decode_token(token)
-        assert not result.is_valid
-        assert "Missing or malformed" in (result.error or "")
+        token = base64.b64encode(json.dumps({"signature": "x"}).encode()).decode()
+        result = verify_lab_token(token, "testuser", required_challenges=5)
+        assert result.is_valid is False
+        assert "Missing or malformed" in result.message
 
-    def test_missing_signature(self):
-        token = base64.b64encode(json.dumps({"payload": {"k": "v"}}).encode()).decode()
-        result = decode_token(token)
-        assert not result.is_valid
-        assert "Missing or malformed" in (result.error or "")
+    def test_username_mismatch(self):
+        payload = _valid_payload(github_username="alice")
+        token = _make_signed_token(payload)
+        result = verify_lab_token(token, "bob", required_challenges=5)
+        assert result.is_valid is False
+        assert "mismatch" in result.message.lower()
 
+    def test_case_insensitive_username(self):
+        payload = _valid_payload(github_username="TestUser")
+        token = _make_signed_token(payload)
+        result = verify_lab_token(token, "testuser", required_challenges=5)
+        assert result.is_valid is True
 
-# ---------------------------------------------------------------------------
-# verify_username
-# ---------------------------------------------------------------------------
+    def test_missing_instance_id(self):
+        payload = _valid_payload()
+        del payload["instance_id"]
+        token = base64.b64encode(
+            json.dumps({"payload": payload, "signature": "x"}).encode()
+        ).decode()
+        result = verify_lab_token(token, "testuser", required_challenges=5)
+        assert result.is_valid is False
+        assert "instance ID" in result.message
 
+    def test_bad_signature(self):
+        payload = _valid_payload()
+        token_data = {"payload": payload, "signature": "badsig"}
+        token = base64.b64encode(json.dumps(token_data).encode()).decode()
+        result = verify_lab_token(token, "testuser", required_challenges=5)
+        assert result.is_valid is False
+        assert "tampered" in result.message.lower()
 
-@pytest.mark.unit
-class TestVerifyUsername:
-    def test_matching_username(self):
-        assert verify_username({"github_username": "TestUser"}, "testuser") is None
-
-    def test_mismatched_username(self):
-        err = verify_username({"github_username": "alice"}, "bob")
-        assert err is not None
-        assert "mismatch" in err.lower()
-
-    def test_missing_username_in_payload(self):
-        err = verify_username({}, "testuser")
-        assert err is not None
-
-
-# ---------------------------------------------------------------------------
-# verify_instance_id
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.unit
-class TestVerifyInstanceId:
-    def test_present(self):
-        assert verify_instance_id({"instance_id": "abc-123"}) is None
-
-    def test_missing(self):
-        err = verify_instance_id({})
-        assert err is not None
-        assert "instance ID" in err
-
-
-# ---------------------------------------------------------------------------
-# verify_signature
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.unit
-class TestVerifySignature:
-    def test_valid_signature(self):
-        payload = {"github_username": "user", "instance_id": "inst1"}
-        sig = _sign_payload(payload, "inst1")
-
-        err = verify_signature(payload, sig, "inst1")
-        assert err is None
-
-    def test_invalid_signature(self):
-        payload = {"github_username": "user", "instance_id": "inst1"}
-
-        err = verify_signature(payload, "badsig", "inst1")
-        assert err is not None
-        assert "tampered" in err.lower()
-
-    def test_tampered_payload(self):
-        payload = {"github_username": "user", "instance_id": "inst1", "challenges": 5}
-        sig = _sign_payload(payload, "inst1")
-
-        payload["challenges"] = 99
-        err = verify_signature(payload, sig, "inst1")
-        assert err is not None
-
-
-# ---------------------------------------------------------------------------
-# verify_challenge_count
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.unit
-class TestVerifyChallengeCount:
-    def test_exact_match(self):
-        assert verify_challenge_count({"challenges": 18}, 18) is None
-
-    def test_too_few(self):
-        err = verify_challenge_count({"challenges": 10}, 18, label="challenges")
-        assert err is not None
-        assert "10/18" in err
-
-    def test_missing_defaults_to_zero(self):
-        err = verify_challenge_count({}, 4, label="incidents")
-        assert err is not None
-        assert "0/4" in err
-
-
-# ---------------------------------------------------------------------------
-# verify_timestamp
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.unit
-class TestVerifyTimestamp:
-    def test_valid_timestamp(self):
-        ts = datetime.now(UTC).timestamp()
-        assert verify_timestamp({"timestamp": ts}) is None
+    def test_wrong_challenge_count(self):
+        payload = _valid_payload(challenges=3)
+        token = _make_signed_token(payload)
+        result = verify_lab_token(
+            token, "testuser", required_challenges=5, challenge_label="tasks"
+        )
+        assert result.is_valid is False
+        assert "3/5" in result.message
 
     def test_future_timestamp(self):
-        ts = datetime.now(UTC).timestamp() + 7200  # 2 hours ahead
-        err = verify_timestamp({"timestamp": ts})
-        assert err is not None
-        assert "future" in err.lower()
+        payload = _valid_payload(timestamp=datetime.now(UTC).timestamp() + 7200)
+        token = _make_signed_token(payload)
+        result = verify_lab_token(token, "testuser", required_challenges=5)
+        assert result.is_valid is False
+        assert "future" in result.message.lower()
 
-    def test_missing_defaults_to_zero(self):
-        # timestamp=0 is far in the past — should be fine
-        assert verify_timestamp({}) is None
+    def test_challenge_type_filtering(self):
+        payload = _valid_payload(challenge="networking-lab-azure")
+        token = _make_signed_token(payload)
+        result = verify_lab_token(
+            token,
+            "testuser",
+            required_challenges=5,
+            accepted_challenge_types=frozenset({"networking-lab-azure"}),
+        )
+        assert result.is_valid is True
+        assert result.cloud_provider == "azure"
 
-
-# ---------------------------------------------------------------------------
-# derive_secret
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.unit
-class TestDeriveSecret:
-    def test_deterministic(self):
-        s1 = derive_secret("instance-a")
-        s2 = derive_secret("instance-a")
-        assert s1 == s2
-
-    def test_different_instances(self):
-        s1 = derive_secret("instance-a")
-        s2 = derive_secret("instance-b")
-        assert s1 != s2
-
-    def test_matches_manual_derivation(self):
-        expected = _derive_test_secret("test-id")
-        assert derive_secret("test-id") == expected
+    def test_wrong_challenge_type(self):
+        payload = _valid_payload(challenge="wrong-type")
+        token = _make_signed_token(payload)
+        result = verify_lab_token(
+            token,
+            "testuser",
+            required_challenges=5,
+            accepted_challenge_types=frozenset({"networking-lab-azure"}),
+        )
+        assert result.is_valid is False
+        assert "Invalid challenge type" in result.message

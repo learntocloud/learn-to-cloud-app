@@ -9,7 +9,7 @@ All schemas use frozen=True for immutability where appropriate.
 
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, computed_field
 
 from models import SubmissionType
 
@@ -85,23 +85,12 @@ class HealthResponse(BaseModel):
     service: str
 
 
-class StepProgressData(FrozenModel):
-    """Step progress data for a topic (service-layer response model)."""
-
-    topic_id: str
-    completed_steps: list[str]
-    total_steps: int
-
-
 class StepCompletionResult(FrozenModel):
     """Result of completing a step (service-layer response model)."""
 
     topic_id: str
     step_id: str
     completed_at: datetime
-
-
-_VALID_CLOUD_PROVIDERS = {"aws", "azure", "gcp"}
 
 
 class ProviderOption(FrozenModel):
@@ -198,18 +187,6 @@ class TopicProgressData(FrozenModel):
     status: str  # "not_started", "in_progress", "completed"
 
 
-class PhaseDetailProgress(FrozenModel):
-    """Combined per-topic and overall progress for the phase detail page.
-
-    Computed from a single DB query — avoids redundant round-trips.
-    """
-
-    topic_progress: dict[str, TopicProgressData]
-    steps_completed: int
-    steps_total: int
-    percentage: int
-
-
 class PhaseProgressData(FrozenModel):
     """Progress status for a phase (service-layer response model)."""
 
@@ -267,44 +244,49 @@ class PhaseRequirements(FrozenModel):
 
 
 class PhaseProgress(FrozenModel):
-    """User's progress for a single phase."""
+    """User's progress for a single phase.
+
+    Unified model used by both dashboard and phase detail views.
+    When topic_progress is populated, provides per-topic breakdown.
+    """
 
     phase_id: int
     steps_completed: int
     steps_required: int
-    hands_on_validated_count: int
-    hands_on_required_count: int
-    hands_on_validated: bool
-    hands_on_required: bool
+    hands_on_validated: int  # count of validated requirements
+    hands_on_required: int  # count of required requirements
+    topic_progress: dict[str, TopicProgressData] | None = None
 
     @computed_field
     @property
     def is_complete(self) -> bool:
         """Phase is complete when all requirements are met."""
-        return self.steps_completed >= self.steps_required and self.hands_on_validated
-
-    @computed_field
-    @property
-    def hands_on_percentage(self) -> float:
-        """Percentage of hands-on requirements validated for this phase."""
-        if self.hands_on_required_count == 0:
-            return 100.0
-        return min(
-            100.0, (self.hands_on_validated_count / self.hands_on_required_count) * 100
+        return (
+            self.steps_completed >= self.steps_required
+            and self.hands_on_validated >= self.hands_on_required
         )
 
     @computed_field
     @property
-    def overall_percentage(self) -> float:
+    def status(self) -> str:
+        """Phase status string."""
+        if self.is_complete:
+            return "completed"
+        if self.steps_completed > 0 or self.hands_on_validated > 0:
+            return "in_progress"
+        return "not_started"
+
+    @computed_field
+    @property
+    def percentage(self) -> float:
         """Phase completion percentage (steps + hands-on)."""
-        total = self.steps_required + self.hands_on_required_count
+        total = self.steps_required + self.hands_on_required
         if total == 0:
             return 0.0
-
         completed = min(self.steps_completed, self.steps_required) + min(
-            self.hands_on_validated_count, self.hands_on_required_count
+            self.hands_on_validated, self.hands_on_required
         )
-        return (completed / total) * 100
+        return round((completed / total) * 100, 1)
 
     @computed_field
     @property
@@ -312,7 +294,7 @@ class PhaseProgress(FrozenModel):
         """Percentage of steps completed."""
         if self.steps_required == 0:
             return 100.0
-        return min(100.0, (self.steps_completed / self.steps_required) * 100)
+        return round(min(100.0, (self.steps_completed / self.steps_required) * 100), 1)
 
 
 class UserProgress(FrozenModel):
@@ -351,11 +333,9 @@ class UserProgress(FrozenModel):
             return 0.0
 
         total_steps = sum(p.steps_required for p in self.phases.values())
-        total_hands_on = sum(p.hands_on_required_count for p in self.phases.values())
+        total_hands_on = sum(p.hands_on_required for p in self.phases.values())
         completed_steps = sum(p.steps_completed for p in self.phases.values())
-        completed_hands_on = sum(
-            p.hands_on_validated_count for p in self.phases.values()
-        )
+        completed_hands_on = sum(p.hands_on_validated for p in self.phases.values())
 
         if total_steps + total_hands_on == 0:
             return 0.0
@@ -364,7 +344,7 @@ class UserProgress(FrozenModel):
         completed = min(completed_steps, total_steps) + min(
             completed_hands_on, total_hands_on
         )
-        return (completed / total) * 100
+        return round((completed / total) * 100, 1)
 
 
 class SubmissionData(FrozenModel):
@@ -442,8 +422,8 @@ class ValidationResult(FrozenModel):
             exists. None for non-GitHub validations.
         task_results: For multi-task validations, detailed per-task feedback.
             None for single-check validations.
-        server_error: True if validation failed due to a server-side issue
-            (e.g., service unavailable, config error). When True, the
+        verification_completed: False if validation failed due to a server-side
+            issue (e.g., service unavailable, config error). When False, the
             attempt is not counted since the user isn't at fault.
         cloud_provider: Cloud provider for multi-cloud labs ("aws",
             "azure", "gcp"). None for non-multi-cloud validations.
@@ -454,33 +434,8 @@ class ValidationResult(FrozenModel):
     username_match: bool | None = None
     repo_exists: bool | None = None
     task_results: list[TaskResult] | None = None
-    server_error: bool = False
+    verification_completed: bool = True
     cloud_provider: str | None = None
-
-
-class CTFVerificationResult(FrozenModel):
-    """Result of verifying a CTF token."""
-
-    is_valid: bool
-    message: str
-    server_error: bool = False
-    github_username: str | None = None
-    completion_date: str | None = None
-    completion_time: str | None = None
-    challenges_completed: int | None = None
-
-
-class NetworkingLabVerificationResult(FrozenModel):
-    """Result of verifying a Networking Lab completion token."""
-
-    is_valid: bool
-    message: str
-    server_error: bool = False
-    github_username: str | None = None
-    completion_date: str | None = None
-    completion_time: str | None = None
-    challenges_completed: int | None = None
-    challenge_type: str | None = None
 
 
 class ParsedGitHubUrl(FrozenModel):
@@ -493,72 +448,9 @@ class ParsedGitHubUrl(FrozenModel):
     error: str | None = None
 
 
-class PhaseDistributionItem(FrozenModel):
-    """Per-phase user counts for the engagement funnel."""
-
-    phase_id: int
-    phase_name: str
-    users_reached: int
-    users_completed_steps: int
-
-
-class MonthlyTrend(FrozenModel):
-    """A single month in a time-series trend."""
-
-    month: str  # "YYYY-MM"
-    count: int
-    cumulative: int
-
-
-class VerificationStat(FrozenModel):
-    """Verification attempt statistics per phase."""
-
-    phase_id: int
-    phase_name: str
-    total_attempts: int
-    successful: int
-    pass_rate: float
-
-
-class DayActivity(FrozenModel):
-    """Step completions aggregated by day of the week."""
-
-    day_name: str  # "Monday", "Tuesday", etc.
-    completions: int
-
-
-class ProviderDistribution(FrozenModel):
-    """Submission counts per cloud provider."""
-
-    provider: str  # "aws", "azure", "gcp"
-    count: int
-
-    @field_validator("provider")
-    @classmethod
-    def validate_provider(cls, v: str) -> str:
-        if v not in _VALID_CLOUD_PROVIDERS:
-            msg = (
-                f"Invalid provider '{v}',"
-                f" must be one of {sorted(_VALID_CLOUD_PROVIDERS)}"
-            )
-            raise ValueError(msg)
-        return v
-
-
 class CommunityAnalytics(FrozenModel):
-    """Aggregate, anonymous community analytics.
-
-    All data is privacy-safe — no individual user information is exposed.
-    Designed for public dashboards, conference talks, and storytelling.
-    """
+    """Aggregate, anonymous community analytics for the public status page."""
 
     total_users: int
     active_learners_30d: int
-    completion_rate: float
-    phase_distribution: list[PhaseDistributionItem]
-    signup_trends: list[MonthlyTrend]
-    verification_stats: list[VerificationStat]
-    activity_by_day: list[DayActivity]
-    provider_distribution: list["ProviderDistribution"] = Field(default_factory=list)
-    completers_this_month: list[str] = Field(default_factory=list)
     generated_at: datetime

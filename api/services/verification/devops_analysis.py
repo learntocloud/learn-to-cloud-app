@@ -717,7 +717,7 @@ async def run_devops_workflow(owner: str, repo: str) -> ValidationResult:
             client=chat_client,
             instructions=_build_task_instructions(task),
             name=f"grader-{task['id']}",
-            default_options={"response_format": DevOpsTaskGrade},
+            default_options={"response_format": DevOpsTaskGrade, "temperature": 0},
         )
         for task in PHASE5_TASKS
     ]

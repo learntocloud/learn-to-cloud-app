@@ -7,7 +7,6 @@ avoids duplicated dict-building logic.
 
 from __future__ import annotations
 
-import json
 from typing import TYPE_CHECKING, Any
 
 from models import SubmissionType
@@ -18,7 +17,7 @@ from services.verification.url_derivation import (
 )
 
 if TYPE_CHECKING:
-    from schemas import Phase, PhaseDetailProgress, TaskResult, Topic
+    from schemas import Phase, PhaseProgress, TaskResult, Topic
 
 # ── FAQ content ──────────────────────────────────────────────
 # Stored here (rendering layer) rather than in templates or routes.
@@ -158,8 +157,8 @@ def build_progress_dict(completed: int, total: int) -> dict[str, int]:
 
 
 def build_phase_topics(
-    phase: Phase, detail: PhaseDetailProgress
-) -> tuple[list[dict[str, Any]], dict[str, int]]:
+    phase: Phase, detail: PhaseProgress
+) -> tuple[list[dict[str, Any]], dict[str, int | float | bool]]:
     """Build template-ready topic list and overall progress for a phase page.
 
     Merges topic metadata from content with per-topic progress data.
@@ -171,7 +170,7 @@ def build_phase_topics(
     """
     topics: list[dict[str, Any]] = []
     for t in phase.topics:
-        tp = detail.topic_progress.get(t.id)
+        tp = detail.topic_progress.get(t.id) if detail.topic_progress else None
         topics.append(
             {
                 "name": t.name,
@@ -187,46 +186,11 @@ def build_phase_topics(
     progress = {
         "percentage": detail.percentage,
         "steps_completed": detail.steps_completed,
-        "steps_required": detail.steps_total,
+        "steps_required": detail.steps_required,
+        "is_complete": detail.is_complete,
     }
 
     return topics, progress
-
-
-def build_feedback_tasks(
-    feedback_json: str | None,
-) -> tuple[list[dict[str, Any]], int]:
-    """Parse feedback JSON into a template-ready task list.
-
-    Args:
-        feedback_json: JSON string of task results from a submission.
-
-    Returns:
-        ``(feedback_tasks, passed_count)`` tuple.
-    """
-    tasks: list[dict[str, Any]] = []
-    passed = 0
-    if not feedback_json:
-        return tasks, passed
-
-    try:
-        parsed = json.loads(feedback_json)
-    except (json.JSONDecodeError, TypeError):
-        return tasks, passed
-
-    for task_data in parsed:
-        tasks.append(
-            {
-                "name": task_data.get("task_name", ""),
-                "passed": task_data.get("passed", False),
-                "message": task_data.get("feedback", ""),
-                "next_steps": task_data.get("next_steps", ""),
-            }
-        )
-        if task_data.get("passed"):
-            passed += 1
-
-    return tasks, passed
 
 
 def build_feedback_tasks_from_results(

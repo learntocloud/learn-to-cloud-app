@@ -9,7 +9,7 @@
     <p class="text-gray-600 dark:text-gray-400 mt-2">{{ phase.description }}</p>
 
     {% if progress %}
-    {% with progress=progress, progress_label=progress.percentage ~ '% complete' %}
+    {% with progress=progress, progress_label='Complete ✓' if progress.is_complete else progress.percentage | round(0) | int ~ '% complete' %}
     {% include "partials/progress_bar.html" %}
     {% endwith %}
     {% endif %}

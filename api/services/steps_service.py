@@ -5,8 +5,6 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core.cache import invalidate_progress_cache, update_cached_phase_detail_step
-from core.metrics import STEP_COMPLETED_COUNTER, STEP_UNCOMPLETED_COUNTER
 from models import utcnow
 from repositories import StepProgressRepository
 from schemas import StepCompletionResult
@@ -120,9 +118,8 @@ async def complete_step(
         step_order=step_order,
         phase_id=phase_id,
     )
+    # Step already completed — idempotent no-op
     if step_progress is None:
-        # Idempotent: already completed is a no-op, not an error.
-        # This handles double-clicks, multiple tabs, back-button replays, etc.
         completed_steps = await step_repo.get_completed_step_ids(user_id, topic_id)
         logger.info(
             "step.already_completed",
@@ -138,11 +135,6 @@ async def complete_step(
             completed_at=utcnow(),
         ), completed_steps
 
-    # Invalidate cache so dashboard/progress refreshes immediately
-    invalidate_progress_cache(user_id)
-
-    STEP_COMPLETED_COUNTER.add(1, {"phase_id": str(phase_id)})
-
     logger.info(
         "step.completed",
         extra={
@@ -154,8 +146,6 @@ async def complete_step(
     )
 
     completed_steps = await step_repo.get_completed_step_ids(user_id, topic_id)
-
-    update_cached_phase_detail_step(user_id, phase_id, topic_id, completed_steps)
 
     return StepCompletionResult(
         topic_id=step_progress.topic_id,
@@ -192,15 +182,7 @@ async def uncomplete_step(
     step_repo = StepProgressRepository(db)
     deleted = await step_repo.delete_step(user_id, topic_id, resolved_step_id)
 
-    phase_id = parse_phase_id_from_topic_id(topic_id)
-
     if deleted > 0:
-        STEP_UNCOMPLETED_COUNTER.add(
-            deleted,
-            {"phase_id": str(phase_id)},
-        )
-
-        invalidate_progress_cache(user_id)
         logger.info(
             "step.uncompleted",
             extra={
@@ -212,8 +194,5 @@ async def uncomplete_step(
         )
 
     completed_steps = await step_repo.get_completed_step_ids(user_id, topic_id)
-
-    if phase_id is not None:
-        update_cached_phase_detail_step(user_id, phase_id, topic_id, completed_steps)
 
     return deleted, completed_steps

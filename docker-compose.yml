@@ -29,8 +29,7 @@ services:
     environment:
       - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/learn_to_cloud
       - GITHUB_TOKEN=test_token
-      - LLM_API_KEY=test_key
-      - AZURE_APP_INSIGHTS_CONNECTION_STRING=
+      - APPLICATIONINSIGHTS_CONNECTION_STRING=
     depends_on:
       db:
         condition: service_healthy
