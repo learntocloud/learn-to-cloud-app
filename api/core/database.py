@@ -10,7 +10,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections.abc import AsyncGenerator
-from typing import Annotated, NamedTuple, TypedDict
+from typing import Annotated
 
 import asyncpg
 from fastapi import Depends, Request
@@ -22,7 +22,6 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 from sqlalchemy.orm import DeclarativeBase
-from sqlalchemy.pool import QueuePool
 
 from core.azure_auth import get_token as _get_azure_token
 from core.config import get_settings
@@ -32,23 +31,6 @@ logger = logging.getLogger(__name__)
 
 class Base(DeclarativeBase):
     pass
-
-
-class PoolStatus(NamedTuple):
-    """Connection pool status for health checks."""
-
-    pool_size: int
-    checked_out: int
-    overflow: int
-    checked_in: int
-
-
-class HealthCheckResult(TypedDict):
-    """Return type for comprehensive_health_check."""
-
-    database: bool
-    azure_auth: bool | None
-    pool: PoolStatus | None
 
 
 def _build_azure_database_url() -> str:
@@ -223,56 +205,3 @@ async def check_db_connection(engine: AsyncEngine) -> None:
         async with engine.connect() as conn:
             await conn.execute(text("SELECT 1"))
             await conn.rollback()
-
-
-def get_pool_status(engine: AsyncEngine) -> PoolStatus | None:
-    """Returns pool status, or None if pool is not a QueuePool."""
-    pool = engine.sync_engine.pool
-
-    if isinstance(pool, QueuePool):
-        return PoolStatus(
-            pool_size=pool.size(),
-            checked_out=pool.checkedout(),
-            overflow=pool.overflow(),
-            checked_in=pool.checkedin(),
-        )
-    return None
-
-
-async def check_azure_token_acquisition() -> bool:
-    """Verify managed identity can acquire tokens (separate from DB connectivity)."""
-    settings = get_settings()
-    if not settings.use_azure_postgres:
-        return True
-
-    await _get_azure_token()
-    return True
-
-
-async def comprehensive_health_check(engine: AsyncEngine) -> HealthCheckResult:
-    """Run database connectivity, Azure auth, and pool status checks."""
-    settings = get_settings()
-    result: HealthCheckResult = {
-        "database": False,
-        "azure_auth": None,
-        "pool": None,
-    }
-
-    if settings.use_azure_postgres:
-        try:
-            await check_azure_token_acquisition()
-            result["azure_auth"] = True
-        except Exception:
-            result["azure_auth"] = False
-            # Don't proceed to DB check if auth is broken
-            return result
-
-    try:
-        await check_db_connection(engine)
-        result["database"] = True
-    except Exception:
-        result["database"] = False
-
-    result["pool"] = get_pool_status(engine)
-
-    return result

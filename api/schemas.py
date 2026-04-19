@@ -446,11 +446,3 @@ class ParsedGitHubUrl(FrozenModel):
     file_path: str | None = None
     is_valid: bool = True
     error: str | None = None
-
-
-class CommunityAnalytics(FrozenModel):
-    """Aggregate, anonymous community analytics for the public status page."""
-
-    total_users: int
-    active_learners_30d: int
-    generated_at: datetime

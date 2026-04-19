@@ -38,7 +38,6 @@ from core.observability import configure_observability, instrument_app
 from core.ratelimit import limiter, rate_limit_exceeded_handler
 from core.templates import templates
 from routes import (
-    analytics_router,
     auth_router,
     health_router,
     htmx_router,
@@ -304,7 +303,6 @@ async def apple_touch_icon() -> FileResponse:
 app.include_router(health_router)
 app.include_router(auth_router)
 app.include_router(users_router)
-app.include_router(analytics_router)
 app.include_router(htmx_router)
 app.include_router(legacy_redirects_router)
 # Must be last to avoid catching API routes

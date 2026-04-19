@@ -25,7 +25,8 @@ For phase requirements, see requirements.py
 import logging
 import time
 
-from core.metrics import VERIFICATION_COUNTER, VERIFICATION_DURATION
+from opentelemetry import metrics
+
 from models import SubmissionType
 from schemas import HandsOnRequirement, ValidationResult
 from services.verification.ci_status import verify_ci_status
@@ -43,6 +44,18 @@ from services.verification.token_base import verify_ctf_token, verify_networking
 from services.verification.url_derivation import fork_name_from_required_repo
 
 logger = logging.getLogger(__name__)
+
+_meter = metrics.get_meter("learn_to_cloud")
+_VERIFICATION_COUNTER = _meter.create_counter(
+    name="verification.attempt",
+    description="Number of hands-on verification attempts",
+    unit="{attempt}",
+)
+_VERIFICATION_DURATION = _meter.create_histogram(
+    name="verification.duration",
+    description="Time taken to complete a verification attempt",
+    unit="s",
+)
 
 
 async def validate_submission(
@@ -106,8 +119,8 @@ async def validate_submission(
     finally:
         elapsed = time.monotonic() - start
         attrs = {"submission_type": submission_type, "result": result_attr}
-        VERIFICATION_COUNTER.add(1, attrs)
-        VERIFICATION_DURATION.record(elapsed, attrs)
+        _VERIFICATION_COUNTER.add(1, attrs)
+        _VERIFICATION_DURATION.record(elapsed, attrs)
 
 
 _USERNAME_NOT_REQUIRED: frozenset[SubmissionType] = frozenset(

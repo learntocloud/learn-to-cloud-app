@@ -29,7 +29,6 @@ from httpx import ASGITransport, AsyncClient
 from core.auth import optional_auth, require_auth
 from core.database import get_db, get_db_readonly
 from schemas import (
-    CommunityAnalytics,
     DashboardData,
     PhaseProgress,
     PhaseProgressData,
@@ -81,15 +80,6 @@ def _fake_dashboard() -> DashboardData:
         total_phases=7,
         is_program_complete=False,
         continue_phase=None,
-    )
-
-
-def _fake_analytics() -> CommunityAnalytics:
-    """Minimal analytics for status page."""
-    return CommunityAnalytics(
-        total_users=42,
-        active_learners_30d=10,
-        generated_at=datetime.now(UTC),
     )
 
 
@@ -201,21 +191,6 @@ class TestPublicPageSmoke:
     async def test_terms_page_renders(self, anon_client: AsyncClient):
         """GET /terms renders the terms page."""
         response = await anon_client.get("/terms")
-        assert response.status_code == 200
-
-    async def test_status_page_renders(self, anon_client: AsyncClient):
-        """GET /status renders with mocked health + analytics."""
-        with (
-            patch(
-                "routes.analytics_routes.comprehensive_health_check",
-                return_value={"database": True, "azure_auth": None, "pool": None},
-            ),
-            patch(
-                "routes.analytics_routes.get_community_analytics",
-                return_value=_fake_analytics(),
-            ),
-        ):
-            response = await anon_client.get("/status")
         assert response.status_code == 200
 
     async def test_404_page_renders(self, anon_client: AsyncClient):
