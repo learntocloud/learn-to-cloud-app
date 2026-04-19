@@ -241,13 +241,24 @@ async def get_phase_detail_progress(
         total_completed += tp.steps_completed
         total_steps += tp.steps_total
 
-    percentage = round((total_completed / total_steps) * 100) if total_steps > 0 else 0
+    # Include hands-on requirements in overall percentage
+    hands_on_requirements = get_requirements_for_phase(phase.id)
+    hands_on_required = len(hands_on_requirements)
+
+    hands_on_validated = 0
+    if hands_on_required > 0:
+        progress_repo = UserPhaseProgressRepository(db)
+        denormalized = await progress_repo.get_by_user(user_id)
+        row = denormalized.get(phase.id)
+        if row:
+            hands_on_validated = row.validated_submissions
 
     return PhaseDetailProgress(
         topic_progress=topic_progress,
         steps_completed=total_completed,
         steps_total=total_steps,
-        percentage=percentage,
+        hands_on_validated=hands_on_validated,
+        hands_on_required=hands_on_required,
     )
 
 

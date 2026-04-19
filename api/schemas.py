@@ -207,7 +207,20 @@ class PhaseDetailProgress(FrozenModel):
     topic_progress: dict[str, TopicProgressData]
     steps_completed: int
     steps_total: int
-    percentage: int
+    hands_on_validated: int = 0
+    hands_on_required: int = 0
+
+    @computed_field
+    @property
+    def percentage(self) -> int:
+        """Overall phase completion including steps and hands-on."""
+        total = self.steps_total + self.hands_on_required
+        if total == 0:
+            return 0
+        completed = min(self.steps_completed, self.steps_total) + min(
+            self.hands_on_validated, self.hands_on_required
+        )
+        return round(completed / total * 100)
 
 
 class PhaseProgressData(FrozenModel):
