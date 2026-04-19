@@ -328,7 +328,7 @@ resource "azurerm_monitor_scheduled_query_rules_alert_v2" "api_latency" {
   criteria {
     query                   = <<-QUERY
       requests
-      | summarize P95Ms = percentile(duration, 95) / 1ms by bin(timestamp, 5m)
+      | summarize P95Ms = percentile(duration, 95) by bin(timestamp, 5m)
     QUERY
     time_aggregation_method = "Maximum"
     operator                = "GreaterThan"
