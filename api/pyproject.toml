@@ -14,6 +14,7 @@ requires-python = ">=3.13"
 dependencies = [
     "alembic>=1.18.4",
     "asyncpg>=0.31.0",
+    "psycopg2-binary>=2.9.9",
     "authlib>=1.7.0",
     "azure-identity>=1.25.2",
     "azure-monitor-opentelemetry>=1.8.6",
