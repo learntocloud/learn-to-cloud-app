@@ -64,13 +64,11 @@ def configure_observability() -> None:
                 "urllib3": {"enabled": True},
             },
         )
-        logger.info("telemetry.azure_monitor.configured")
     except Exception as exc:
         logger.warning("telemetry.azure_monitor.failed", extra={"error": str(exc)})
 
     # Instrument httpx so OpenAI SDK calls appear as dependencies
     HTTPXClientInstrumentor().instrument()
-    logger.info("telemetry.httpx.instrumented")
 
 
 def instrument_app(app: Any) -> None:
