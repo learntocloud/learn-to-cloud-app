@@ -1,6 +1,6 @@
 """Business metrics for Learn to Cloud.
 
-Tracks LLM token usage and verification outcomes via OpenTelemetry counters.
+Tracks verification outcomes via OpenTelemetry counters.
 When telemetry is disabled, the OTel API returns no-op instruments (zero overhead).
 
 Usage::
@@ -28,12 +28,4 @@ VERIFICATION_DURATION = _meter.create_histogram(
     name="verification.duration",
     description="Time taken to complete a verification attempt",
     unit="s",
-)
-
-# ── LLM token usage metrics ───────────────────────────────────────────
-
-LLM_TOKEN_COUNTER = _meter.create_counter(
-    name="llm.token.usage",
-    description="LLM tokens consumed by verification workflows",
-    unit="{token}",
 )

@@ -74,7 +74,7 @@ class SubmissionRepository:
 
         Args:
             verification_completed: Whether the verification logic actually ran.
-                Set to False when blocked by server errors (e.g., LLM CLI down).
+                Set to False when blocked by server errors (e.g., GitHub API down).
                 Only completed verifications count toward the daily cap.
             feedback_json: JSON-serialized task feedback for multi-task submissions.
             cloud_provider: Cloud provider slug ("aws", "azure", "gcp") for

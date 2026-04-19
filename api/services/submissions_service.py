@@ -6,7 +6,7 @@ This module handles:
 - Daily submission cap across all requirements (default 20/day)
 - Already-validated short-circuit (skip re-verification for passed requirements)
 - Concurrent request protection via per-user+requirement locks
-- DB connection release during long-running LLM calls
+- DB connection release during long-running verification calls
 
 Routes should delegate submission business logic to this module.
 """
@@ -93,7 +93,7 @@ async def get_phase_submission_context(
 
     Fetches all submissions for the user in a phase, converts them to
     DTOs, and parses stored feedback JSON into template-ready summaries.
-    Calculates remaining time for LLM-based submission types.
+    Calculates remaining time for async submission types.
 
     Returns:
         PhaseSubmissionContext with submissions and feedback keyed by
@@ -310,9 +310,9 @@ async def submit_validation(
     DB connection lifecycle:
         This function uses short-lived sessions instead of holding a single
         session for the entire request.  The pre-validation checks use one
-        session (released in ~50ms), then the LLM call runs with NO session
-        held (30-120s), and finally a fresh session is opened for the upsert
-        (~50ms).  This prevents long-running LLM calls from pinning a
+        session (released in ~50ms), then the verification call runs with NO session
+        held (may take seconds), and finally a fresh session is opened for the upsert
+        (~50ms).  This prevents long-running verifications from pinning a
         connection pool slot.
 
     Args:
@@ -345,7 +345,7 @@ async def submit_validation(
 
     async with submission_lock:
         # ── Run validation (NO DB session held) ─────────────────────────
-        # Verification can take 10-120s for LLM-backed types.  We run it
+        # Verification can take seconds for external API calls.  We run it
         # outside any DB session so it doesn't pin a connection pool slot.
         validation_result = await validate_submission(
             requirement=requirement,

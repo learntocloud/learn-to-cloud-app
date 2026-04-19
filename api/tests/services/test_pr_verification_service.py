@@ -3,11 +3,10 @@
 Tests cover:
 - PR merge state verification
 - Error handling for GitHub API failures
-- Workflow routing (deterministic vs LLM grading)
+- Deterministic indicator-based grading
 """
 
-import contextlib
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import patch
 
 import httpx
 import pytest
@@ -19,6 +18,9 @@ from services.verification.pull_request import validate_pr
 
 def _make_pr_requirement(
     requirement_id: str = "journal-pr-logging",
+    pass_indicators: list[str] | None = None,
+    fail_indicators: list[str] | None = None,
+    expected_files: list[str] | None = None,
 ) -> HandsOnRequirement:
     """Helper to create a PR_REVIEW requirement."""
     return HandsOnRequirement(
@@ -28,6 +30,9 @@ def _make_pr_requirement(
         description="Test",
         placeholder="https://github.com/user/repo/pull/1",
         grading_criteria=["MUST have meaningful changes"],
+        pass_indicators=pass_indicators or ["import logging"],
+        fail_indicators=fail_indicators,
+        expected_files=expected_files,
     )
 
 
@@ -44,50 +49,81 @@ class TestValidatePr:
     """Tests for the full PR validation flow."""
 
     @pytest.mark.asyncio
-    @patch(
-        "services.verification.pull_request.get_llm_chat_client", new_callable=AsyncMock
-    )
     @patch("services.verification.pull_request._fetch_pr_data", autospec=True)
-    async def test_open_pr_fails(self, mock_fetch, mock_llm_client):
+    async def test_open_pr_fails(self, mock_fetch):
         mock_fetch.return_value = {"merged": False, "state": "open"}
-        mock_llm_client.return_value = MagicMock()
         result = await validate_pr(_TEST_PR_URL, _make_pr_requirement())
         assert not result.is_valid
         assert "still open" in result.message
 
     @pytest.mark.asyncio
-    @patch(
-        "services.verification.pull_request.get_llm_chat_client", new_callable=AsyncMock
-    )
     @patch("services.verification.pull_request._fetch_pr_data", autospec=True)
-    async def test_closed_unmerged_pr_fails(self, mock_fetch, mock_llm_client):
+    async def test_closed_unmerged_pr_fails(self, mock_fetch):
         mock_fetch.return_value = {"merged": False, "state": "closed"}
-        mock_llm_client.return_value = MagicMock()
         result = await validate_pr(_TEST_PR_URL, _make_pr_requirement())
         assert not result.is_valid
         assert "without merging" in result.message
 
     @pytest.mark.asyncio
-    @patch(
-        "services.verification.pull_request.get_llm_chat_client", new_callable=AsyncMock
-    )
     @patch("services.verification.pull_request._fetch_pr_diff", autospec=True)
     @patch("services.verification.pull_request._fetch_pr_data", autospec=True)
-    async def test_merged_pr_reaches_grader(
-        self, mock_data, mock_diff, mock_llm_client
-    ):
+    async def test_merged_pr_with_missing_indicators_fails(self, mock_data, mock_diff):
+        """Merged PR missing pass indicators fails deterministically."""
         mock_data.return_value = {
             "merged": True,
             "state": "closed",
             "head": {"ref": "feature/logging-setup"},
         }
-        mock_diff.return_value = "<pr_diff>\n+import logging\n</pr_diff>"
-        mock_llm_client.return_value = MagicMock()
-        # The workflow will fail because the mock client can't run an
-        # actual agent, but we verify the diff was fetched.
-        with contextlib.suppress(Exception):
-            await validate_pr(_TEST_PR_URL, _make_pr_requirement())
-        mock_diff.assert_called_once()
+        mock_diff.return_value = "+some unrelated code"
+        result = await validate_pr(
+            _TEST_PR_URL,
+            _make_pr_requirement(pass_indicators=["import logging"]),
+        )
+        assert not result.is_valid
+        assert result.task_results
+        assert not result.task_results[0].passed
+
+    @pytest.mark.asyncio
+    @patch("services.verification.pull_request._fetch_pr_diff", autospec=True)
+    @patch("services.verification.pull_request._fetch_pr_data", autospec=True)
+    async def test_merged_pr_with_fail_indicator_fails(self, mock_data, mock_diff):
+        """Merged PR with fail indicator present fails deterministically."""
+        mock_data.return_value = {
+            "merged": True,
+            "state": "closed",
+            "head": {"ref": "feature/logging-setup"},
+        }
+        mock_diff.return_value = "+# TODO (Task 1): Configure logging here."
+        result = await validate_pr(
+            _TEST_PR_URL,
+            _make_pr_requirement(
+                pass_indicators=["import logging"],
+                fail_indicators=["# TODO (Task 1): Configure logging here."],
+            ),
+        )
+        assert not result.is_valid
+        assert "starter/placeholder" in result.task_results[0].feedback
+
+    @pytest.mark.asyncio
+    @patch("services.verification.pull_request._fetch_pr_diff", autospec=True)
+    @patch("services.verification.pull_request._fetch_pr_data", autospec=True)
+    async def test_merged_pr_with_indicators_passes(self, mock_data, mock_diff):
+        """Merged PR with matching pass indicators passes instantly."""
+        mock_data.return_value = {
+            "merged": True,
+            "state": "closed",
+            "head": {"ref": "feature/logging-setup"},
+        }
+        mock_diff.return_value = (
+            "+import logging\n+logging.basicConfig(level=logging.INFO)"
+        )
+        result = await validate_pr(
+            _TEST_PR_URL,
+            _make_pr_requirement(pass_indicators=["import logging"]),
+        )
+        assert result.is_valid
+        assert result.task_results
+        assert result.task_results[0].passed
 
 
 @pytest.mark.unit
@@ -95,68 +131,24 @@ class TestValidatePrErrorHandling:
     """Tests for GitHub API error handling."""
 
     @pytest.mark.asyncio
-    @patch(
-        "services.verification.pull_request.get_llm_chat_client", new_callable=AsyncMock
-    )
     @patch("services.verification.pull_request._fetch_pr_data", autospec=True)
-    async def test_pr_not_found_404(self, mock_fetch, mock_llm_client):
+    async def test_pr_not_found_404(self, mock_fetch):
         response = httpx.Response(404, request=httpx.Request("GET", "https://test"))
         mock_fetch.side_effect = httpx.HTTPStatusError(
             "Not Found", request=response.request, response=response
         )
-        mock_llm_client.return_value = MagicMock()
         result = await validate_pr(_TEST_PR_URL, _make_pr_requirement())
         assert not result.is_valid
         assert "not found" in result.message.lower()
         assert result.verification_completed is True
 
     @pytest.mark.asyncio
-    @patch(
-        "services.verification.pull_request.get_llm_chat_client", new_callable=AsyncMock
-    )
     @patch("services.verification.pull_request._fetch_pr_data", autospec=True)
-    async def test_github_server_error_marks_server_error(
-        self, mock_fetch, mock_llm_client
-    ):
+    async def test_github_server_error_marks_server_error(self, mock_fetch):
         response = httpx.Response(500, request=httpx.Request("GET", "https://test"))
         mock_fetch.side_effect = httpx.HTTPStatusError(
             "Server Error", request=response.request, response=response
         )
-        mock_llm_client.return_value = MagicMock()
         result = await validate_pr(_TEST_PR_URL, _make_pr_requirement())
         assert not result.is_valid
         assert result.verification_completed is False
-
-
-# =============================================================================
-# Deterministic-only vs. workflow routing
-# =============================================================================
-
-
-@pytest.mark.unit
-class TestValidatePrRouting:
-    """Tests for LLM client creation."""
-
-    @pytest.mark.asyncio
-    @patch(
-        "services.verification.pull_request.get_llm_chat_client", new_callable=AsyncMock
-    )
-    @patch("services.verification.pull_request._fetch_pr_diff", autospec=True)
-    @patch("services.verification.pull_request._fetch_pr_data", autospec=True)
-    async def test_llm_client_always_created(
-        self, mock_data, mock_diff, mock_llm_client
-    ):
-        """The Agent is always created as a workflow participant."""
-        mock_data.return_value = {
-            "merged": True,
-            "state": "closed",
-            "head": {"ref": "feature/test"},
-            "title": "Test",
-        }
-        mock_diff.return_value = "<pr_diff>\n+import logging\n</pr_diff>"
-        mock_llm_client.return_value = MagicMock()
-        # The workflow will fail because the mock client can't run an
-        # actual agent, but we verify the LLM client was created.
-        with contextlib.suppress(Exception):
-            await validate_pr(_TEST_PR_URL, _make_pr_requirement())
-        mock_llm_client.assert_called_once()

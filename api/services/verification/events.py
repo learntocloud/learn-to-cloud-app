@@ -6,7 +6,7 @@ task result delivery.
 
 This is intentionally in-process (no Redis, no task queue).  The tradeoff:
 if the process restarts mid-verification, the result is lost and the user
-resubmits.  For 30-120s LLM calls on a learning platform, this is fine.
+resubmits.  For a learning platform with short verification calls, this is fine.
 """
 
 from __future__ import annotations

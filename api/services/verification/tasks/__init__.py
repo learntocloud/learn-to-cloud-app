@@ -1,7 +1,6 @@
-"""Task definitions for LLM-powered verification services.
+"""Task definitions for verification services.
 
 Each phase has its own module with:
-- Task definitions (TypedDicts with grading rubrics)
-- Pydantic models for structured LLM output
+- Task definitions (TypedDicts with indicator patterns)
 - Constants (file paths, patterns, limits)
 """

@@ -133,16 +133,6 @@ resource "azurerm_container_app" "api" {
       }
 
       env {
-        name  = "LLM_BASE_URL"
-        value = azurerm_cognitive_account.openai.endpoint
-      }
-
-      env {
-        name  = "LLM_MODEL"
-        value = var.llm_model
-      }
-
-      env {
         name  = "FRONTEND_URL"
         value = "https://learntocloud.guide"
       }
@@ -179,6 +169,5 @@ resource "azurerm_container_app" "api" {
 
   depends_on = [
     azurerm_postgresql_flexible_server_database.main,
-    azurerm_cognitive_deployment.llm,
   ]
 }

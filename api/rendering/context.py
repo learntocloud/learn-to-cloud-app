@@ -258,7 +258,7 @@ def build_requirement_card_context(
         server_error: Whether to render the server-error banner.
         server_error_message: Optional server-error text.
         error_banner: Optional inline error banner text.
-        processing: Whether the card is in the LLM "analysing..." state.
+        processing: Whether the card is in the "analysing..." state.
     """
     derived_url: str | None = None
     pr_url_prefix: str | None = None

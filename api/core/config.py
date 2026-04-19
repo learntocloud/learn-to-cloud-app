@@ -37,7 +37,6 @@ class Settings(BaseSettings):
 
     labs_verification_secret: str = ""
 
-    llm_cli_timeout: int = 120
     daily_submission_limit: int = 20
 
     # Timeout settings (seconds)
@@ -45,9 +44,6 @@ class Settings(BaseSettings):
     external_api_timeout: float = 15.0
     startup_timeout: int = 60
     verification_wait_timeout: int = 180
-
-    llm_base_url: str = ""
-    llm_model: str = ""
 
     # memory:// only works for single-instance deployments
     ratelimit_storage_uri: str = "memory://"
