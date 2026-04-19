@@ -47,7 +47,6 @@ from agent_framework import (
     WorkflowContext,
     handler,
 )
-from circuitbreaker import CircuitBreakerError
 
 from core.config import get_settings
 from core.github_client import get_github_client
@@ -366,7 +365,6 @@ class PreflightExecutor(Executor):
         try:
             all_files = await fetch_repo_tree(owner, repo_name)
         except (
-            CircuitBreakerError,
             httpx.HTTPStatusError,
             *RETRIABLE_EXCEPTIONS,
         ) as e:

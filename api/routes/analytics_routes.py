@@ -12,7 +12,6 @@ from fastapi.responses import HTMLResponse
 
 from core.auth import OptionalUserId
 from core.database import DbSessionReadOnly, comprehensive_health_check
-from core.ratelimit import limiter
 from core.templates import templates
 from schemas import CommunityAnalytics
 from services.analytics_service import get_community_analytics
@@ -24,7 +23,6 @@ router = APIRouter(tags=["analytics"])
 
 
 @router.get("/status", response_class=HTMLResponse, include_in_schema=False)
-@limiter.limit("30/minute")
 async def status_page(
     request: Request,
     db: DbSessionReadOnly,

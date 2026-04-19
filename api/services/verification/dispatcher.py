@@ -25,8 +25,6 @@ For phase requirements, see requirements.py
 import logging
 import time
 
-from circuitbreaker import CircuitBreakerError
-
 from core.llm_client import LLMClientError
 from core.metrics import VERIFICATION_COUNTER, VERIFICATION_DURATION
 from models import SubmissionType
@@ -77,7 +75,6 @@ async def validate_submission(
         result_attr = "pass" if validation_result.is_valid else "fail"
         return validation_result
     except (
-        CircuitBreakerError,
         TimeoutError,
         VerificationError,
         LLMClientError,

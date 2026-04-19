@@ -1,8 +1,8 @@
 """Shared resilience primitives for verification services.
 
-Centralises circuit breaker constants, retriable exception types,
-exception classes, and error-to-result mappers so every verification
-module draws from a single source of truth.
+Centralises retriable exception types, exception classes, and
+error-to-result mappers so every verification module draws from
+a single source of truth.
 """
 
 from __future__ import annotations
@@ -10,17 +10,10 @@ from __future__ import annotations
 import logging
 
 import httpx
-from circuitbreaker import CircuitBreakerError
 
 from schemas import ValidationResult
 
 logger = logging.getLogger(__name__)
-
-# ---------------------------------------------------------------------------
-# Circuit breaker constants (architectural, not deployment config)
-# ---------------------------------------------------------------------------
-CB_FAILURE_THRESHOLD: int = 5
-CB_RECOVERY_TIMEOUT: int = 60
 
 # ---------------------------------------------------------------------------
 # Base retriable exceptions (httpx network / timeout errors)
@@ -44,7 +37,7 @@ def make_retriable(
 class ServerError(Exception):
     """Base for retriable server-side errors across all services.
 
-    Subclass per service so circuit breakers and retry logic can
+    Subclass per service so retry logic can
     distinguish which upstream failed.
     """
 
@@ -77,14 +70,6 @@ def github_error_to_result(
         event: Structured log event name (e.g. ``"pr_verification.api_error"``).
         context: Extra fields for structured logging (owner, repo, pr, etc.).
     """
-    if isinstance(e, CircuitBreakerError):
-        logger.error(event, extra=context)
-        return ValidationResult(
-            is_valid=False,
-            message="GitHub service temporarily unavailable. Please try again later.",
-            verification_completed=False,
-        )
-
     if isinstance(e, httpx.HTTPStatusError):
         if e.response.status_code == 404:
             return ValidationResult(
@@ -115,24 +100,10 @@ def deployed_api_error_to_result(
 ) -> ValidationResult:
     """Convert a deployed-API request exception into a ValidationResult.
 
-    Centralises error handling for circuit breaker, timeout, connection,
+    Centralises error handling for timeout, connection,
     and server errors that can occur during any HTTP call in the flow.
     """
     step_prefix = f"{step}: " if step else ""
-
-    if isinstance(exc, CircuitBreakerError):
-        logger.warning(
-            "deployed_api.circuit_open",
-            extra={"url": entries_url},
-        )
-        return ValidationResult(
-            is_valid=False,
-            message=(
-                "Too many recent failures checking deployed APIs. "
-                "Please try again in a minute."
-            ),
-            verification_completed=False,
-        )
 
     if isinstance(exc, httpx.TimeoutException):
         logger.warning(

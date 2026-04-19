@@ -26,7 +26,6 @@ def _get_storage_uri() -> str:
 
 limiter = Limiter(
     key_func=_get_request_identifier,
-    default_limits=["100/minute"],
     storage_uri=_get_storage_uri(),
 )
 

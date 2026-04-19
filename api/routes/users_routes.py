@@ -26,7 +26,6 @@ router = APIRouter(prefix="/api/user", tags=["users"])
     summary="Get current user",
     responses={401: {"description": "Not authenticated"}},
 )
-@limiter.limit("30/minute")
 async def get_current_user(
     request: Request, user_id: UserId, db: DbSession
 ) -> UserResponse:

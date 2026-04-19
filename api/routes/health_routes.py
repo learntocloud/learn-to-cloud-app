@@ -7,7 +7,6 @@ from fastapi.responses import PlainTextResponse
 from starlette import status
 
 from core.database import check_db_connection
-from core.ratelimit import limiter
 from schemas import HealthResponse
 
 logger = logging.getLogger(__name__)
@@ -33,7 +32,6 @@ async def health() -> HealthResponse:
         }
     },
 )
-@limiter.limit("30/minute")
 async def ready(request: Request) -> HealthResponse:
     """Readiness endpoint.
 

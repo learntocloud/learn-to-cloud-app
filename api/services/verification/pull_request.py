@@ -31,7 +31,6 @@ from agent_framework import (
     WorkflowContext,
     handler,
 )
-from circuitbreaker import CircuitBreakerError
 
 from core.config import get_settings
 from core.llm_client import get_llm_chat_client
@@ -154,7 +153,6 @@ class ValidationExecutor(Executor):
         try:
             pr_data = await _fetch_pr_data(owner, repo, pr_number)
         except (
-            CircuitBreakerError,
             httpx.HTTPStatusError,
             *RETRIABLE_EXCEPTIONS,
         ) as e:
@@ -199,7 +197,6 @@ class ValidationExecutor(Executor):
         try:
             diff = await _fetch_pr_diff(owner, repo, pr_number)
         except (
-            CircuitBreakerError,
             httpx.HTTPStatusError,
             *RETRIABLE_EXCEPTIONS,
         ) as e:

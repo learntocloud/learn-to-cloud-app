@@ -115,7 +115,6 @@ async def _render_step_toggle(
 
 
 @router.post("/steps/complete", response_class=HTMLResponse)
-@limiter.limit("30/minute")
 async def htmx_complete_step(
     request: Request,
     db: DbSession,
@@ -146,7 +145,6 @@ async def htmx_complete_step(
 
 
 @router.delete("/steps/{topic_id}/{step_id}", response_class=HTMLResponse)
-@limiter.limit("30/minute")
 async def htmx_uncomplete_step(
     request: Request,
     topic_id: str,

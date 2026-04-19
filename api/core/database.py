@@ -108,20 +108,6 @@ def _setup_pool_event_listeners(engine: AsyncEngine) -> None:
             except AttributeError:
                 pass
 
-        if isinstance(pool, QueuePool):
-            checked_out = pool.checkedout()
-            overflow = pool.overflow()
-            pool_size = pool.size()
-            if overflow > 0:
-                logger.warning(
-                    "db.pool.overflow",
-                    extra={
-                        "db_pool_checked_out": checked_out,
-                        "db_pool_size": pool_size,
-                        "db_pool_overflow_count": overflow,
-                    },
-                )
-
 
 def create_engine() -> AsyncEngine:
     settings = get_settings()
@@ -224,32 +210,6 @@ async def init_db(engine: AsyncEngine) -> None:
             await conn.execute(text("SELECT 1"))
             await conn.rollback()
     logger.info("db.connectivity.verified")
-
-
-async def warm_pool(engine: AsyncEngine) -> None:
-    """Pre-fill the connection pool so early requests don't pay connection cost."""
-    settings = get_settings()
-    warm_count = min(settings.db_pool_size - 1, 3)  # already have 1 from init_db
-    if warm_count <= 0:
-        return
-
-    logger.info("db.pool.warming", extra={"extra_connections": warm_count})
-    try:
-        async with asyncio.timeout(settings.db_timeout):
-
-            async def _warm_one() -> None:
-                async with engine.connect() as conn:
-                    await conn.execute(text("SELECT 1"))
-                    await conn.rollback()
-
-            await asyncio.gather(
-                *[_warm_one() for _ in range(warm_count)],
-                return_exceptions=True,
-            )
-        logger.info("db.pool.warmed")
-    except Exception as e:
-        # Non-fatal — the pool will create connections on demand
-        logger.warning("db.pool.warming.failed", extra={"error": str(e)})
 
 
 async def dispose_engine(engine: AsyncEngine) -> None:
