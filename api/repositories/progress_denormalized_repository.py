@@ -25,6 +25,18 @@ class UserPhaseProgressRepository:
         )
         return {row.phase_id: row for row in result.scalars().all()}
 
+    async def get_by_user_and_phase(
+        self, user_id: int, phase_id: int
+    ) -> UserPhaseProgress | None:
+        """Get a single phase progress record for a user and phase."""
+        result = await self.db.execute(
+            select(UserPhaseProgress).where(
+                UserPhaseProgress.user_id == user_id,
+                UserPhaseProgress.phase_id == phase_id,
+            )
+        )
+        return result.scalar_one_or_none()
+
     async def increment_submissions(
         self, user_id: int, phase_id: int, delta: int = 1
     ) -> None:

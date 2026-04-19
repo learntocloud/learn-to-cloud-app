@@ -334,8 +334,8 @@ class TestGetPhaseDetailProgress:
                 autospec=True,
             ) as MockProgressRepo,
         ):
-            MockProgressRepo.return_value.get_by_user = AsyncMock(
-                return_value={3: mock_row}
+            MockProgressRepo.return_value.get_by_user_and_phase = AsyncMock(
+                return_value=mock_row
             )
             result = await get_phase_detail_progress(
                 AsyncMock(), user_id=1, phase=phase

@@ -243,13 +243,12 @@ async def get_phase_detail_progress(
 
     # Include hands-on requirements in overall percentage
     hands_on_requirements = get_requirements_for_phase(phase.id)
-    hands_on_required = len(hands_on_requirements)
+    hands_on_required = len({r.id for r in hands_on_requirements})
 
     hands_on_validated = 0
     if hands_on_required > 0:
         progress_repo = UserPhaseProgressRepository(db)
-        denormalized = await progress_repo.get_by_user(user_id)
-        row = denormalized.get(phase.id)
+        row = await progress_repo.get_by_user_and_phase(user_id, phase.id)
         if row:
             hands_on_validated = row.validated_submissions
 
