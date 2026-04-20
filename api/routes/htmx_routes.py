@@ -18,6 +18,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse
+from opentelemetry import trace
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from starlette.responses import StreamingResponse
 
@@ -85,9 +86,10 @@ async def _render_step_toggle(
                 break
 
     if step is None:
-        logger.warning(
-            "htmx.step_toggle.step_not_found",
-            extra={"user_id": user_id, "topic_id": topic_id, "step_id": step_id},
+        span = trace.get_current_span()
+        span.add_event(
+            "step_not_found",
+            {"user_id": user_id, "topic_id": topic_id, "step_id": step_id},
         )
         return HTMLResponse("")
 
@@ -127,9 +129,10 @@ async def htmx_complete_step(
     try:
         await complete_step(db, user_id, topic_id, step_id)
     except StepValidationError as e:
-        logger.warning(
-            "htmx.step_complete.invalid",
-            extra={
+        span = trace.get_current_span()
+        span.add_event(
+            "step_complete_invalid",
+            {
                 "user_id": user_id,
                 "topic_id": topic_id,
                 "step_id": step_id,
@@ -156,9 +159,10 @@ async def htmx_uncomplete_step(
     try:
         await uncomplete_step(db, user_id, topic_id, step_id)
     except StepValidationError as e:
-        logger.warning(
-            "htmx.step_uncomplete.invalid",
-            extra={
+        span = trace.get_current_span()
+        span.add_event(
+            "step_uncomplete_invalid",
+            {
                 "user_id": user_id,
                 "topic_id": topic_id,
                 "step_id": step_id,
@@ -269,13 +273,13 @@ async def htmx_submit_verification(
         return _render_card(processing=True)
 
     except Exception as exc:
+        span = trace.get_current_span()
+        span.record_exception(exc)
         logger.exception(
             "htmx.submit.unexpected_error",
             extra={
                 "user_id": user_id,
                 "requirement_id": requirement_id,
-                "exc_type": type(exc).__name__,
-                "exc_message": str(exc),
             },
         )
         return _render_card(
@@ -337,6 +341,8 @@ async def htmx_verification_stream(
             )
             return
         except Exception:
+            span = trace.get_current_span()
+            span.record_exception(Exception("verification.stream.task_failed"))
             logger.exception(
                 "verification.stream.task_failed",
                 extra={"user_id": user_id, "requirement_id": requirement_id},
@@ -420,10 +426,8 @@ async def htmx_delete_account(
     try:
         await delete_user_account(db, user_id)
     except UserNotFoundError:
-        logger.warning(
-            "htmx.account_delete.not_found",
-            extra={"user_id": user_id},
-        )
+        span = trace.get_current_span()
+        span.add_event("account_delete_not_found", {"user_id": user_id})
         return HTMLResponse(
             '<p class="text-sm text-red-600">Account not found.</p>',
             status_code=404,

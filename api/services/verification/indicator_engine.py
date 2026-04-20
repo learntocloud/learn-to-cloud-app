@@ -16,13 +16,12 @@ Indicator matching rules:
 
 from __future__ import annotations
 
-import logging
 import re
 from dataclasses import dataclass, field
 
-from schemas import HandsOnRequirement
+from opentelemetry import trace
 
-logger = logging.getLogger(__name__)
+from schemas import HandsOnRequirement
 
 
 @dataclass(frozen=True)
@@ -109,13 +108,9 @@ def check_indicators(
             matched_fail.append(indicator)
 
     if matched_fail:
-        logger.info(
-            "indicator_engine.fail_indicators_found",
-            extra={
-                "requirement": requirement.id,
-                "matched": matched_fail,
-            },
-        )
+        span = trace.get_current_span()
+        span.set_attribute("indicator.result", "fail_indicators_found")
+        span.set_attribute("indicator.matched_fail", ",".join(matched_fail))
         return IndicatorResult(
             passed=False,
             matched_fail=matched_fail,
@@ -137,24 +132,17 @@ def check_indicators(
             missing_pass.append(indicator)
 
     if not pass_indicators:
-        # No indicators defined — cannot determine pass deterministically
-        logger.warning(
-            "indicator_engine.no_pass_indicators",
-            extra={"requirement": requirement.id},
-        )
+        span = trace.get_current_span()
+        span.add_event("no_pass_indicators_defined", {"requirement": requirement.id})
         return IndicatorResult(
             passed=False,
             reason="No pass indicators defined for this requirement.",
         )
 
     if not matched_pass:
-        logger.info(
-            "indicator_engine.no_pass_indicators_matched",
-            extra={
-                "requirement": requirement.id,
-                "missing": missing_pass,
-            },
-        )
+        span = trace.get_current_span()
+        span.set_attribute("indicator.result", "no_pass_matched")
+        span.set_attribute("indicator.missing", ",".join(missing_pass))
         return IndicatorResult(
             passed=False,
             matched_pass=matched_pass,
@@ -166,13 +154,9 @@ def check_indicators(
         )
 
     # At least one pass indicator found, no fail indicators
-    logger.info(
-        "indicator_engine.all_indicators_passed",
-        extra={
-            "requirement": requirement.id,
-            "matched": matched_pass,
-        },
-    )
+    span = trace.get_current_span()
+    span.set_attribute("indicator.result", "passed")
+    span.set_attribute("indicator.matched", ",".join(matched_pass))
     return IndicatorResult(
         passed=True,
         matched_pass=matched_pass,

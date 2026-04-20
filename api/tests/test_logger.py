@@ -2,7 +2,7 @@
 
 Tests the stdlib-based logging configuration:
 - configure_logging() sets up root logger handlers
-- _JSONFormatter produces valid JSON output
+- _JSONFormatter produces valid JSON output with CWE-117 sanitization
 - OTel handlers are preserved when present
 - Noisy third-party loggers are quieted
 """
@@ -16,8 +16,6 @@ import pytest
 
 from core.logger import (
     _JSONFormatter,
-    _LogSanitizationFilter,
-    _RequestContextFilter,
     configure_logging,
 )
 
@@ -96,6 +94,49 @@ class TestJSONFormatter:
         output = formatter.format(record)
         json.loads(output)  # Should not raise
 
+    @pytest.mark.parametrize(
+        "value,expected",
+        [
+            ("linux\nFAKE LOG LINE", "linuxFAKE LOG LINE"),
+            ("hello\r\nworld", "helloworld"),
+            ("step\x00injected", "stepinjected"),
+        ],
+        ids=["newline", "carriage-return", "null-byte"],
+    )
+    def test_sanitizes_control_chars_in_extras(self, value, expected):
+        """CWE-117: control characters stripped from user-supplied extra fields."""
+        formatter = _JSONFormatter()
+        record = logging.LogRecord(
+            name="test",
+            level=logging.INFO,
+            pathname="",
+            lineno=0,
+            msg="msg",
+            args=(),
+            exc_info=None,
+        )
+        record.field = value
+        output = formatter.format(record)
+        parsed = json.loads(output)
+        assert parsed["field"] == expected
+
+    def test_preserves_tabs_in_extras(self):
+        """Tabs are intentionally preserved (only dangerous control chars removed)."""
+        formatter = _JSONFormatter()
+        record = logging.LogRecord(
+            name="test",
+            level=logging.INFO,
+            pathname="",
+            lineno=0,
+            msg="msg",
+            args=(),
+            exc_info=None,
+        )
+        record.data = "col1\tcol2"
+        output = formatter.format(record)
+        parsed = json.loads(output)
+        assert parsed["data"] == "col1\tcol2"
+
 
 @pytest.mark.unit
 class TestConfigureLogging:
@@ -135,98 +176,8 @@ class TestConfigureLogging:
 
         assert otel_handler in root.handlers
 
-    def test_registers_filters_in_correct_order(self):
-        """Context filter runs before sanitization so injected fields get cleaned."""
+    def test_no_filters_on_root_logger(self):
+        """Root logger filters were removed (dead code due to propagation bug)."""
         configure_logging()
         root = logging.getLogger()
-        filter_types = [type(f) for f in root.filters]
-        assert _RequestContextFilter in filter_types
-        assert _LogSanitizationFilter in filter_types
-        ctx_idx = filter_types.index(_RequestContextFilter)
-        san_idx = filter_types.index(_LogSanitizationFilter)
-        assert ctx_idx < san_idx, "Sanitization filter must run after context filter"
-
-
-@pytest.mark.unit
-class TestRequestContextFilter:
-    """Test _RequestContextFilter injects github_username from context var."""
-
-    def test_injects_username_from_context_var(self):
-        from core.middleware import request_github_username
-
-        token = request_github_username.set("testuser")
-        try:
-            f = _RequestContextFilter()
-            record = logging.LogRecord("test", logging.INFO, "", 0, "msg", (), None)
-            f.filter(record)
-            assert getattr(record, "github_username") == "testuser"
-        finally:
-            request_github_username.reset(token)
-
-    def test_does_not_overwrite_explicit_username(self):
-        from core.middleware import request_github_username
-
-        token = request_github_username.set("ctx-user")
-        try:
-            f = _RequestContextFilter()
-            record = logging.LogRecord("test", logging.INFO, "", 0, "msg", (), None)
-            record.github_username = "explicit-user"
-            f.filter(record)
-            assert getattr(record, "github_username") == "explicit-user"
-        finally:
-            request_github_username.reset(token)
-
-    def test_no_username_when_context_var_empty(self):
-        f = _RequestContextFilter()
-        record = logging.LogRecord("test", logging.INFO, "", 0, "msg", (), None)
-        f.filter(record)
-        assert not getattr(record, "github_username", None)
-
-
-@pytest.mark.unit
-class TestLogSanitizationFilter:
-    """Test _LogSanitizationFilter strips control chars from extra fields (CWE-117)."""
-
-    def _make_record(self, **extras: object) -> logging.LogRecord:
-        record = logging.LogRecord("test", logging.INFO, "", 0, "msg", (), None)
-        for key, value in extras.items():
-            setattr(record, key, value)
-        return record
-
-    @pytest.mark.parametrize(
-        "value,expected",
-        [
-            ("linux\nFAKE LOG LINE", "linuxFAKE LOG LINE"),
-            ("hello\r\nworld", "helloworld"),
-            ("step\x00injected", "stepinjected"),
-        ],
-        ids=["newline", "carriage-return", "null-byte"],
-    )
-    def test_strips_control_chars(self, value, expected):
-        f = _LogSanitizationFilter()
-        record = self._make_record(field=value)
-        f.filter(record)
-        assert getattr(record, "field") == expected
-
-    def test_preserves_tabs(self):
-        f = _LogSanitizationFilter()
-        record = self._make_record(data="col1\tcol2")
-        f.filter(record)
-        assert getattr(record, "data") == "col1\tcol2"
-
-    def test_leaves_non_string_extras_unchanged(self):
-        f = _LogSanitizationFilter()
-        record = self._make_record(user_id=42, active=True, ratio=3.14)
-        f.filter(record)
-        assert getattr(record, "user_id") == 42
-        assert getattr(record, "active") is True
-        assert getattr(record, "ratio") == 3.14
-
-    def test_does_not_modify_builtin_attributes(self):
-        f = _LogSanitizationFilter()
-        record = logging.LogRecord(
-            "test", logging.INFO, "/path/to\nfile.py", 0, "msg", (), None
-        )
-        original_pathname = record.pathname
-        f.filter(record)
-        assert record.pathname == original_pathname
+        assert len(root.filters) == 0

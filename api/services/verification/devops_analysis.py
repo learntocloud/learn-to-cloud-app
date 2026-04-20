@@ -5,9 +5,9 @@ Dockerfile, CI/CD, Terraform, and K8s artifacts to their journal-starter fork.
 from __future__ import annotations
 
 import asyncio
-import logging
 
 import httpx
+from opentelemetry import trace
 
 from core.github_client import get_github_client
 from schemas import TaskResult, ValidationResult
@@ -25,7 +25,7 @@ from services.verification.tasks.phase5 import (
     TaskDefinition,
 )
 
-logger = logging.getLogger(__name__)
+tracer = trace.get_tracer(__name__)
 
 # Patterns that suggest prompt injection attempts.
 # Logged as warnings for monitoring.
@@ -240,9 +240,10 @@ async def _fetch_file_content(
     content_lower = content.lower()
     for pattern in _SUSPICIOUS_PATTERNS:
         if pattern in content_lower:
-            logger.warning(
-                "devops_analysis.suspicious_pattern",
-                extra={"pattern": pattern, "file": path},
+            span = trace.get_current_span()
+            span.add_event(
+                "suspicious_pattern",
+                {"pattern": pattern, "file": path},
             )
             break
 
@@ -306,115 +307,101 @@ async def _fetch_all_devops_files(
 
 async def run_devops_workflow(owner: str, repo: str) -> ValidationResult:
     """Run the full Phase 5 DevOps verification."""
-    logger.info(
-        "devops_analysis.started",
-        extra={"owner": owner, "repo": repo},
-    )
+    with tracer.start_as_current_span(
+        "devops_verification",
+        attributes={
+            "github.owner": owner,
+            "github.repo": repo,
+        },
+    ) as span:
+        # ── Step 1: Fetch repo tree ──────────────────────────────
+        try:
+            all_files = await fetch_repo_tree(owner, repo)
+        except (
+            httpx.HTTPStatusError,
+            *RETRIABLE_EXCEPTIONS,
+        ) as e:
+            if isinstance(e, httpx.HTTPStatusError) and e.response.status_code == 404:
+                span.set_attribute("verification.passed", False)
+                span.set_attribute("verification.reason", "repo_not_found")
+                return ValidationResult(
+                    is_valid=False,
+                    message=(
+                        f"Repository '{owner}/{repo}' not found. "
+                        "Make sure the repository is public."
+                    ),
+                )
+            span.record_exception(e)
+            return github_error_to_validation_result(
+                e,
+                event="devops_analysis.repo_tree_error",
+                context={"owner": owner, "repo": repo},
+            )
 
-    # ── Step 1: Fetch repo tree ──────────────────────────────
-    try:
-        all_files = await fetch_repo_tree(owner, repo)
-    except (
-        httpx.HTTPStatusError,
-        *RETRIABLE_EXCEPTIONS,
-    ) as e:
-        if isinstance(e, httpx.HTTPStatusError) and e.response.status_code == 404:
+        span.set_attribute("repo.total_files", len(all_files))
+
+        # ── Step 2: Check required files exist ───────────────────
+        existence_failures = _check_required_files(all_files)
+
+        if existence_failures:
+            span.set_attribute("verification.passed", False)
+            span.set_attribute("verification.reason", "missing_files")
+            span.set_attribute(
+                "verification.failed_tasks",
+                ",".join(f.task_name for f in existence_failures),
+            )
+            failed_count = len(existence_failures)
+            total = len(PHASE5_TASKS)
             return ValidationResult(
                 is_valid=False,
                 message=(
-                    f"Repository '{owner}/{repo}' not found. "
-                    "Make sure the repository is public."
+                    f"{failed_count} of {total} tasks are missing required files. "
+                    "Add the missing files listed below, then re-submit."
                 ),
+                task_results=existence_failures,
             )
-        return github_error_to_validation_result(
-            e,
-            event="devops_analysis.repo_tree_error",
-            context={"owner": owner, "repo": repo},
+
+        # ── Step 3: Fetch file contents ──────────────────────────
+        devops_files = _filter_devops_files(all_files)
+        file_contents = await _fetch_all_devops_files(owner, repo, devops_files)
+
+        span.set_attribute(
+            "repo.fetched_files",
+            sum(len(v) for v in file_contents.values()),
         )
 
-    logger.info(
-        "devops_analysis.repo_tree_fetched",
-        extra={"owner": owner, "repo": repo, "total_files": len(all_files)},
-    )
+        # ── Step 4: Run indicator checks per task ────────────────
+        task_results: list[TaskResult] = []
+        for task_def in PHASE5_TASKS:
+            task_files = file_contents.get(task_def["id"], [])
+            result = _check_task_indicators(task_def, task_files)
+            task_results.append(result)
 
-    # ── Step 2: Check required files exist ───────────────────
-    existence_failures = _check_required_files(all_files)
+        # ── Step 5: Aggregate results ────────────────────────────
+        passed_count = sum(1 for t in task_results if t.passed)
+        total_count = len(PHASE5_TASKS)
+        all_passed = passed_count == total_count
 
-    if existence_failures:
-        logger.info(
-            "devops_analysis.required_files_missing",
-            extra={
-                "owner": owner,
-                "repo": repo,
-                "failed_tasks": [f.task_name for f in existence_failures],
-            },
-        )
-        failed_count = len(existence_failures)
-        total = len(PHASE5_TASKS)
+        if all_passed:
+            message = (
+                f"All {total_count} DevOps tasks verified! "
+                "Your journal-starter fork has proper "
+                "containerization, CI/CD, Terraform, and "
+                "Kubernetes artifacts."
+            )
+        else:
+            message = (
+                f"Completed {passed_count}/{total_count} tasks. "
+                "Review the feedback below and try again "
+                "after making improvements."
+            )
+
+        span.set_attribute("verification.passed", all_passed)
+        span.set_attribute("verification.passed_count", passed_count)
+        span.set_attribute("verification.total_count", total_count)
+
         return ValidationResult(
-            is_valid=False,
-            message=(
-                f"{failed_count} of {total} tasks are missing required files. "
-                "Add the missing files listed below, then re-submit."
-            ),
-            task_results=existence_failures,
+            is_valid=all_passed,
+            message=message,
+            task_results=task_results,
         )
-
-    # ── Step 3: Fetch file contents ──────────────────────────
-    devops_files = _filter_devops_files(all_files)
-    file_contents = await _fetch_all_devops_files(owner, repo, devops_files)
-
-    logger.info(
-        "devops_analysis.files_fetched",
-        extra={
-            "owner": owner,
-            "repo": repo,
-            "fetched_per_task": {
-                tid: len(contents) for tid, contents in file_contents.items()
-            },
-        },
-    )
-
-    # ── Step 4: Run indicator checks per task ────────────────
-    task_results: list[TaskResult] = []
-    for task_def in PHASE5_TASKS:
-        task_files = file_contents.get(task_def["id"], [])
-        result = _check_task_indicators(task_def, task_files)
-        task_results.append(result)
-
-    # ── Step 5: Aggregate results ────────────────────────────
-    passed_count = sum(1 for t in task_results if t.passed)
-    total_count = len(PHASE5_TASKS)
-    all_passed = passed_count == total_count
-
-    if all_passed:
-        message = (
-            f"All {total_count} DevOps tasks verified! "
-            "Your journal-starter fork has proper "
-            "containerization, CI/CD, Terraform, and "
-            "Kubernetes artifacts."
-        )
-    else:
-        message = (
-            f"Completed {passed_count}/{total_count} tasks. "
-            "Review the feedback below and try again "
-            "after making improvements."
-        )
-
-    logger.info(
-        "devops_analysis.completed",
-        extra={
-            "owner": owner,
-            "repo": repo,
-            "passed": passed_count,
-            "total": total_count,
-            "all_passed": all_passed,
-            "task_grades": {t.task_name: t.passed for t in task_results},
-        },
-    )
-
-    return ValidationResult(
-        is_valid=all_passed,
-        message=message,
-        task_results=task_results,
-    )

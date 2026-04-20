@@ -1,8 +1,8 @@
 """Step progress service for learning step management."""
 
-import logging
 from typing import TYPE_CHECKING
 
+from opentelemetry import trace
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models import utcnow
@@ -12,8 +12,6 @@ from services.content_service import get_topic_by_id
 
 if TYPE_CHECKING:
     from schemas import Topic
-
-logger = logging.getLogger(__name__)
 
 
 class StepValidationError(Exception):
@@ -118,32 +116,23 @@ async def complete_step(
         step_order=step_order,
         phase_id=phase_id,
     )
+
+    span = trace.get_current_span()
+    span.set_attribute("step.topic_id", topic_id)
+    span.set_attribute("step.step_id", resolved_step_id)
+    span.set_attribute("step.order", step_order)
+
     # Step already completed — idempotent no-op
     if step_progress is None:
         completed_steps = await step_repo.get_completed_step_ids(user_id, topic_id)
-        logger.info(
-            "step.already_completed",
-            extra={
-                "user_id": user_id,
-                "topic_id": topic_id,
-                "step_id": resolved_step_id,
-            },
-        )
+        span.set_attribute("step.action", "already_completed")
         return StepCompletionResult(
             topic_id=topic_id,
             step_id=resolved_step_id,
             completed_at=utcnow(),
         ), completed_steps
 
-    logger.info(
-        "step.completed",
-        extra={
-            "user_id": user_id,
-            "topic_id": topic_id,
-            "step_id": resolved_step_id,
-            "step_order": step_order,
-        },
-    )
+    span.set_attribute("step.action", "completed")
 
     completed_steps = await step_repo.get_completed_step_ids(user_id, topic_id)
 
@@ -182,16 +171,11 @@ async def uncomplete_step(
     step_repo = StepProgressRepository(db)
     deleted = await step_repo.delete_step(user_id, topic_id, resolved_step_id)
 
-    if deleted > 0:
-        logger.info(
-            "step.uncompleted",
-            extra={
-                "user_id": user_id,
-                "topic_id": topic_id,
-                "step_id": resolved_step_id,
-                "step_order": step_order,
-            },
-        )
+    span = trace.get_current_span()
+    span.set_attribute("step.topic_id", topic_id)
+    span.set_attribute("step.step_id", resolved_step_id)
+    span.set_attribute("step.order", step_order)
+    span.set_attribute("step.action", "uncompleted")
 
     completed_steps = await step_repo.get_completed_step_ids(user_id, topic_id)
 

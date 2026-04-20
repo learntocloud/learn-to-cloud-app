@@ -7,13 +7,11 @@ a single source of truth.
 
 from __future__ import annotations
 
-import logging
-
 import httpx
+from opentelemetry import trace
+from opentelemetry.util.types import AttributeValue
 
 from schemas import ValidationResult
-
-logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Base retriable exceptions (httpx network / timeout errors)
@@ -61,7 +59,7 @@ def github_error_to_result(
     e: Exception,
     *,
     event: str,
-    context: dict[str, object],
+    context: dict[str, AttributeValue],
 ) -> ValidationResult:
     """Map GitHub API exceptions to a user-facing ValidationResult.
 
@@ -76,7 +74,8 @@ def github_error_to_result(
                 is_valid=False,
                 message="Resource not found on GitHub. Check the URL and try again.",
             )
-        logger.warning(event, extra={**context, "status": e.response.status_code})
+        span = trace.get_current_span()
+        span.add_event(event, {**context, "status": e.response.status_code})
         return ValidationResult(
             is_valid=False,
             message=f"GitHub API error ({e.response.status_code}). Try again later.",
@@ -84,7 +83,8 @@ def github_error_to_result(
         )
 
     # RETRIABLE_EXCEPTIONS (RequestError, TimeoutException, etc.)
-    logger.warning(event, extra={**context, "error": str(e)})
+    span = trace.get_current_span()
+    span.add_event(event, {**context, "error": str(e)})
     return ValidationResult(
         is_valid=False,
         message="Could not reach GitHub. Please try again later.",
@@ -106,10 +106,8 @@ def deployed_api_error_to_result(
     step_prefix = f"{step}: " if step else ""
 
     if isinstance(exc, httpx.TimeoutException):
-        logger.warning(
-            "deployed_api.timeout",
-            extra={"url": entries_url, "step": step},
-        )
+        span = trace.get_current_span()
+        span.add_event("deployed_api_timeout", {"url": entries_url, "step": step})
         return ValidationResult(
             is_valid=False,
             message=(
@@ -119,9 +117,10 @@ def deployed_api_error_to_result(
         )
 
     if isinstance(exc, DeployedApiServerError):
-        logger.warning(
-            "deployed_api.server_error",
-            extra={"url": entries_url, "error": str(exc), "step": step},
+        span = trace.get_current_span()
+        span.add_event(
+            "deployed_api_server_error",
+            {"url": entries_url, "error": str(exc), "step": step},
         )
         return ValidationResult(
             is_valid=False,
@@ -132,9 +131,10 @@ def deployed_api_error_to_result(
         )
 
     if isinstance(exc, httpx.RequestError):
-        logger.warning(
-            "deployed_api.request_error",
-            extra={"url": entries_url, "error": str(exc), "step": step},
+        span = trace.get_current_span()
+        span.add_event(
+            "deployed_api_request_error",
+            {"url": entries_url, "error": str(exc), "step": step},
         )
         return ValidationResult(
             is_valid=False,

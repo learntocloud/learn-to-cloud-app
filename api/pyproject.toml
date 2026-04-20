@@ -73,6 +73,7 @@ select = ["E", "F", "I", "UP", "PLC0415"]
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["PLC0415"]
 "alembic/**" = ["PLC0415"]
+"core/observability.py" = ["PLC0415"]
 
 [tool.ty.environment]
 # Use the current Python interpreter to resolve third-party imports

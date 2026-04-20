@@ -23,7 +23,6 @@ from __future__ import annotations
 import asyncio
 import ipaddress
 import json
-import logging
 import re
 import secrets
 import socket
@@ -32,6 +31,7 @@ from typing import Any
 from urllib.parse import urlparse
 
 import httpx
+from opentelemetry import trace
 from tenacity import (
     RetryCallState,
     retry,
@@ -47,8 +47,6 @@ from services.verification.errors import (
     deployed_api_error_to_result,
     make_retriable,
 )
-
-logger = logging.getLogger(__name__)
 
 # Shared HTTP client for deployed API requests (connection pooling)
 _deployed_api_client: httpx.AsyncClient | None = None
@@ -145,9 +143,10 @@ async def _validate_url_target(url: str) -> str | None:
     try:
         ip = ipaddress.ip_address(hostname)
         if _is_private_ip(str(ip)):
-            logger.warning(
-                "deployed_api.ssrf_blocked",
-                extra={"url": url, "reason": "private_ip_literal"},
+            span = trace.get_current_span()
+            span.add_event(
+                "ssrf_blocked",
+                {"url": url, "reason": "private_ip_literal"},
             )
             return "URL must point to a publicly accessible server."
         return None
@@ -169,13 +168,10 @@ async def _validate_url_target(url: str) -> str | None:
     for _family, _type, _proto, _canonname, sockaddr in addrinfo:
         addr = sockaddr[0]
         if _is_private_ip(addr):
-            logger.warning(
-                "deployed_api.ssrf_blocked",
-                extra={
-                    "url": url,
-                    "resolved_ip": addr,
-                    "reason": "private_ip_resolved",
-                },
+            span = trace.get_current_span()
+            span.add_event(
+                "ssrf_blocked",
+                {"url": url, "resolved_ip": addr, "reason": "private_ip_resolved"},
             )
             return "URL must point to a publicly accessible server."
 
@@ -200,9 +196,10 @@ def _check_response_ip(response: httpx.Response) -> None:
         return
     addr = server_addr[0]
     if _is_private_ip(addr):
-        logger.warning(
-            "deployed_api.ssrf_blocked",
-            extra={"resolved_ip": addr, "reason": "dns_rebinding"},
+        span = trace.get_current_span()
+        span.add_event(
+            "ssrf_blocked",
+            {"resolved_ip": addr, "reason": "dns_rebinding"},
         )
         raise _SsrfError(addr)
 
@@ -400,15 +397,13 @@ async def _cleanup_challenge_entry(
         delete_url = f"{entries_url}/{entry_id}"
         await _fetch_with_retry(delete_url, method="DELETE")
     except _SsrfError:
-        logger.warning(
-            "deployed_api.ssrf_blocked",
-            extra={"entry_id": entry_id, "reason": "cleanup_dns_rebinding"},
+        span = trace.get_current_span()
+        span.add_event(
+            "ssrf_blocked",
+            {"entry_id": entry_id, "reason": "cleanup_dns_rebinding"},
         )
     except Exception:
-        logger.debug(
-            "deployed_api.challenge_cleanup_failed",
-            extra={"entry_id": entry_id},
-        )
+        pass  # best-effort cleanup
 
 
 async def _post_challenge(
@@ -553,10 +548,8 @@ async def _verify_challenge(
             break
 
     if not nonce_found:
-        logger.warning(
-            "deployed_api.challenge_failed",
-            extra={"url": base_url, "nonce": nonce},
-        )
+        span = trace.get_current_span()
+        span.add_event("challenge_failed", {"url": base_url})
         return (
             ValidationResult(
                 is_valid=False,
@@ -584,14 +577,9 @@ async def _verify_challenge(
         if not validation.is_valid:
             return validation, discovered_id
 
-    logger.info(
-        "deployed_api.verified",
-        extra={
-            "url": base_url,
-            "entries_count": len(real_entries),
-            "challenge": "passed",
-        },
-    )
+    span = trace.get_current_span()
+    span.set_attribute("deployed_api.verified", True)
+    span.set_attribute("deployed_api.entries_count", len(real_entries))
 
     count = len(real_entries)
     entry_word = "entry" if count == 1 else "entries"
