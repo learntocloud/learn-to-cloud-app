@@ -25,32 +25,9 @@ import sys
 from datetime import UTC, datetime
 from typing import ClassVar
 
-from core.middleware import request_github_username
-
 # Matches control characters except tab (0x09). Covers newlines, carriage
 # returns, null bytes, and other C0/DEL controls used in log injection.
 _CONTROL_CHAR_RE = re.compile(r"[\x00-\x08\x0a-\x1f\x7f]")
-
-
-class _RequestContextFilter(logging.Filter):
-    """Inject request-scoped context vars into every log record.
-
-    Reads ``request_github_username`` from the context var set by
-    ``UserTrackingMiddleware`` and attaches it to the record so
-    formatters (JSON and console) include it automatically.
-
-    Only sets the attribute when a value is present *and* the log
-    record doesn't already have an explicit ``github_username``
-    (so manual ``extra={"github_username": ...}`` wins).
-    """
-
-    def filter(self, record: logging.LogRecord) -> bool:
-        if not getattr(record, "github_username", None):
-            username = request_github_username.get()
-            if username:
-                record.github_username = username
-        return True
-
 
 # Built-in LogRecord attribute names — never sanitize these.
 _BUILTIN_RECORD_KEYS: set[str] = set(
@@ -58,28 +35,12 @@ _BUILTIN_RECORD_KEYS: set[str] = set(
 )
 
 
-class _LogSanitizationFilter(logging.Filter):
-    """Strip control characters from user-supplied extra fields (CWE-117).
-
-    Prevents log injection by removing ``\\n``, ``\\r``, ``\\0`` and other
-    C0 control characters from any string-valued attribute that was added
-    via ``extra={}``.  Tabs (``\\t``) are preserved.
-
-    Runs on the root logger so every handler (console, JSON, OTel) receives
-    already-sanitised records.
-    """
-
-    def filter(self, record: logging.LogRecord) -> bool:
-        for key in record.__dict__:
-            if key not in _BUILTIN_RECORD_KEYS:
-                value = record.__dict__[key]
-                if isinstance(value, str):
-                    record.__dict__[key] = _CONTROL_CHAR_RE.sub("", value)
-        return True
-
-
 class _JSONFormatter(logging.Formatter):
-    """Format log records as single-line JSON for production log aggregation."""
+    """Format log records as single-line JSON for production log aggregation.
+
+    CWE-117 sanitization is applied inline: control characters (except tab)
+    are stripped from user-supplied extra fields to prevent log injection.
+    """
 
     _SKIP_KEYS: ClassVar[set[str]] = _BUILTIN_RECORD_KEYS
 
@@ -94,6 +55,9 @@ class _JSONFormatter(logging.Formatter):
             if key not in self._SKIP_KEYS and isinstance(
                 value, str | int | float | bool | None
             ):
+                # CWE-117: strip control chars from user-supplied strings
+                if isinstance(value, str):
+                    value = _CONTROL_CHAR_RE.sub("", value)
                 log_entry[key] = value
         if record.exc_info and record.exc_info[0] is not None:
             log_entry["exception"] = self.formatException(record.exc_info)
@@ -132,9 +96,6 @@ def configure_logging() -> None:
     )
     root.addHandler(console)
     root.setLevel(level)
-
-    root.addFilter(_RequestContextFilter())
-    root.addFilter(_LogSanitizationFilter())
 
     for name in (
         "httpx",

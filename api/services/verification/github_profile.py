@@ -13,10 +13,10 @@ SCALABILITY:
 - Connection pooling via shared httpx.AsyncClient
 """
 
-import logging
 import re
 
 import httpx
+from opentelemetry import trace
 from tenacity import (
     RetryCallState,
     retry,
@@ -33,8 +33,6 @@ from services.verification.errors import (
     github_error_to_result,
     make_retriable,
 )
-
-logger = logging.getLogger(__name__)
 
 
 def _parse_retry_after(header_value: str | None) -> float | None:
@@ -208,24 +206,18 @@ async def check_github_url_exists(url: str) -> ValidationResult:
         exists, msg = await _check_github_url_exists_with_retry(url)
         return ValidationResult(is_valid=exists, message=msg)
     except RETRIABLE_EXCEPTIONS as e:
-        logger.warning(
-            "github.url_check.failed",
-            extra={"url": url, "error": str(e)},
-        )
+        span = trace.get_current_span()
+        span.record_exception(e)
+        span.add_event("url_check_failed", {"url": url})
         return ValidationResult(
             is_valid=False,
             message=f"Request error: {e!s}",
             verification_completed=False,
         )
     except Exception as e:
-        logger.error(
-            "github.url_check.unexpected_error",
-            extra={
-                "url": url,
-                "exc_type": type(e).__name__,
-                "exc_message": str(e),
-            },
-        )
+        span = trace.get_current_span()
+        span.record_exception(e)
+        span.add_event("url_check_unexpected_error", {"url": url})
         return ValidationResult(
             is_valid=False,
             message=f"Unexpected error: {e!s}",
@@ -300,24 +292,20 @@ async def check_repo_is_fork_of(
         )
         return ValidationResult(is_valid=is_fork, message=msg)
     except RETRIABLE_EXCEPTIONS as e:
-        logger.warning(
-            "github.fork_check.failed",
-            extra={"username": username, "repo": repo_name, "error": str(e)},
-        )
+        span = trace.get_current_span()
+        span.record_exception(e)
+        span.add_event("fork_check_failed", {"username": username, "repo": repo_name})
         return ValidationResult(
             is_valid=False,
             message=f"Request error: {e!s}",
             verification_completed=False,
         )
     except Exception as e:
-        logger.error(
-            "github.fork_check.unexpected_error",
-            extra={
-                "username": username,
-                "repo": repo_name,
-                "exc_type": type(e).__name__,
-                "exc_message": str(e),
-            },
+        span = trace.get_current_span()
+        span.record_exception(e)
+        span.add_event(
+            "fork_check_unexpected_error",
+            {"username": username, "repo": repo_name},
         )
         return ValidationResult(
             is_valid=False,

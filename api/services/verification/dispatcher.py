@@ -22,10 +22,9 @@ For CI-based code verification, see ci_status.py
 For phase requirements, see requirements.py
 """
 
-import logging
 import time
 
-from opentelemetry import metrics
+from opentelemetry import metrics, trace
 
 from models import SubmissionType
 from schemas import HandsOnRequirement, ValidationResult
@@ -42,8 +41,6 @@ from services.verification.repo_utils import VerificationError, validate_repo_ur
 from services.verification.security_scanning import validate_security_scanning
 from services.verification.token_base import verify_ctf_token, verify_networking_token
 from services.verification.url_derivation import fork_name_from_required_repo
-
-logger = logging.getLogger(__name__)
 
 _meter = metrics.get_meter("learn_to_cloud")
 _VERIFICATION_COUNTER = _meter.create_counter(
@@ -90,13 +87,11 @@ async def validate_submission(
         TimeoutError,
         VerificationError,
     ) as e:
-        logger.error(
-            "verification.failed",
-            extra={
-                "submission_type": submission_type,
-                "error_type": type(e).__name__,
-                "error": str(e),
-            },
+        span = trace.get_current_span()
+        span.record_exception(e)
+        span.add_event(
+            "verification_failed",
+            {"submission_type": submission_type, "error_type": type(e).__name__},
         )
         return ValidationResult(
             is_valid=False,
@@ -104,12 +99,11 @@ async def validate_submission(
             verification_completed=False,
         )
     except Exception as e:
-        logger.exception(
-            "verification.unexpected_error",
-            extra={
-                "submission_type": submission_type,
-                "error_type": type(e).__name__,
-            },
+        span = trace.get_current_span()
+        span.record_exception(e)
+        span.add_event(
+            "verification_unexpected_error",
+            {"submission_type": submission_type, "error_type": type(e).__name__},
         )
         return ValidationResult(
             is_valid=False,

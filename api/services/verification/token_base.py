@@ -11,14 +11,13 @@ import binascii
 import hashlib
 import hmac
 import json
-import logging
 from datetime import UTC, datetime
 from typing import Any
 
+from opentelemetry import trace
+
 from core.config import get_settings
 from schemas import ValidationResult
-
-logger = logging.getLogger(__name__)
 
 
 def _derive_secret(instance_id: str) -> str:
@@ -107,7 +106,8 @@ def verify_lab_token(
                     "Invalid token signature. The token may have been tampered with."
                 )
         except RuntimeError:
-            logger.exception("token.verification.misconfigured")
+            span = trace.get_current_span()
+            span.add_event("token_verification_misconfigured")
             return _fail(
                 f"{display_name} verification is not available right now.",
                 completed=False,
@@ -128,14 +128,10 @@ def verify_lab_token(
         if timestamp > datetime.now(UTC).timestamp() + 3600:
             return _fail("Invalid timestamp. The token appears to be from the future.")
 
-        logger.info(
-            "token.verification.passed",
-            extra={
-                "display_name": display_name,
-                "github_username": payload.get("github_username"),
-                "challenges": challenges,
-            },
-        )
+        span = trace.get_current_span()
+        span.set_attribute("token.verified", True)
+        span.set_attribute("token.display_name", display_name)
+        span.set_attribute("token.challenges", challenges)
 
         return ValidationResult(
             is_valid=True,
@@ -146,8 +142,9 @@ def verify_lab_token(
             cloud_provider=cloud_provider,
         )
 
-    except Exception:
-        logger.exception("token.verification.failed")
+    except Exception as e:
+        span = trace.get_current_span()
+        span.record_exception(e)
         return _fail(
             "Token verification failed. Please try again or contact support.",
             completed=False,

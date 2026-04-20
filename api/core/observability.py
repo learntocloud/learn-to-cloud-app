@@ -1,7 +1,11 @@
-"""Observability configuration — Azure Monitor telemetry.
+"""Observability configuration — OTel telemetry pipeline.
 
 Called once from ``main.py`` **before** FastAPI is imported so
 auto-instrumentation hooks work.
+
+Production: exports to Azure Monitor via APPLICATIONINSIGHTS_CONNECTION_STRING.
+Local dev:  exports to any OTLP backend (Aspire, Jaeger) via
+            OTEL_EXPORTER_OTLP_ENDPOINT.
 """
 
 from __future__ import annotations
@@ -10,9 +14,6 @@ import logging
 import os
 from typing import Any
 
-from azure.monitor.opentelemetry import (
-    configure_azure_monitor as _configure_azure_monitor_sdk,
-)
 from dotenv import load_dotenv
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
@@ -23,41 +24,88 @@ logger = logging.getLogger(__name__)
 _telemetry_enabled: bool = False
 
 
+def _configure_azure_monitor(resource: Resource) -> None:
+    """Set up the Azure Monitor exporter for production."""
+    from azure.monitor.opentelemetry import (
+        configure_azure_monitor as _configure_azure_monitor_sdk,
+    )
+
+    _configure_azure_monitor_sdk(
+        resource=resource,
+        enable_live_metrics=True,
+        instrumentation_options={
+            "azure_sdk": {"enabled": True},
+            "flask": {"enabled": False},
+            "django": {"enabled": False},
+            "fastapi": {"enabled": False},  # manual via instrument_app()
+            "psycopg2": {"enabled": False},
+            "requests": {"enabled": True},
+            "urllib": {"enabled": True},
+            "urllib3": {"enabled": True},
+        },
+    )
+
+
+def _configure_otlp(resource: Resource, endpoint: str) -> None:
+    """Set up OTLP gRPC exporter for local dev (Aspire, Jaeger, etc.)."""
+    from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import (
+        OTLPSpanExporter,
+    )
+    from opentelemetry.sdk.trace import TracerProvider
+    from opentelemetry.sdk.trace.export import BatchSpanProcessor
+
+    provider = TracerProvider(resource=resource)
+    provider.add_span_processor(
+        BatchSpanProcessor(OTLPSpanExporter(endpoint=endpoint, insecure=True))
+    )
+
+    from opentelemetry import trace
+
+    trace.set_tracer_provider(provider)
+
+    # Bridge stdlib logs → OTel so they appear in the dashboard too.
+    from opentelemetry._logs import set_logger_provider
+    from opentelemetry.exporter.otlp.proto.grpc._log_exporter import (
+        OTLPLogExporter,
+    )
+    from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
+    from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
+
+    log_provider = LoggerProvider(resource=resource)
+    log_provider.add_log_record_processor(
+        BatchLogRecordProcessor(OTLPLogExporter(endpoint=endpoint, insecure=True))
+    )
+    set_logger_provider(log_provider)
+    logging.getLogger().addHandler(LoggingHandler(logger_provider=log_provider))
+
+
 def configure_observability() -> None:
-    """Set up Azure Monitor telemetry if configured."""
+    """Set up the OTel telemetry pipeline."""
     global _telemetry_enabled
 
     load_dotenv()
 
+    resource = Resource.create(
+        {"service.name": os.getenv("OTEL_SERVICE_NAME", "learn-to-cloud-api")}
+    )
+
     conn_str = os.getenv("APPLICATIONINSIGHTS_CONNECTION_STRING")
-    if not conn_str:
+    otlp_endpoint = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
+
+    if conn_str:
+        try:
+            _configure_azure_monitor(resource)
+        except Exception as exc:
+            logger.warning("telemetry.azure_monitor.failed", extra={"error": str(exc)})
+    elif otlp_endpoint:
+        try:
+            _configure_otlp(resource, otlp_endpoint)
+        except Exception as exc:
+            logger.warning("telemetry.otlp.failed", extra={"error": str(exc)})
+    else:
         return
 
     _telemetry_enabled = True
-
-    try:
-        resource = Resource.create(
-            {
-                "service.name": os.getenv("OTEL_SERVICE_NAME", "learn-to-cloud-api"),
-            }
-        )
-        _configure_azure_monitor_sdk(
-            resource=resource,
-            enable_live_metrics=True,
-            instrumentation_options={
-                "azure_sdk": {"enabled": True},
-                "flask": {"enabled": False},
-                "django": {"enabled": False},
-                "fastapi": {"enabled": False},  # manual via instrument_app()
-                "psycopg2": {"enabled": False},
-                "requests": {"enabled": True},
-                "urllib": {"enabled": True},
-                "urllib3": {"enabled": True},
-            },
-        )
-    except Exception as exc:
-        logger.warning("telemetry.azure_monitor.failed", extra={"error": str(exc)})
-
     HTTPXClientInstrumentor().instrument()
 
 

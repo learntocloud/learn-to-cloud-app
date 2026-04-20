@@ -15,10 +15,10 @@ from __future__ import annotations
 
 import asyncio
 import json
-import logging
 from dataclasses import dataclass
 
 from cachetools import TTLCache
+from opentelemetry import trace
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from core.config import get_settings
@@ -39,7 +39,7 @@ from services.verification.requirements import (
     get_requirement_ids_for_phase,
 )
 
-logger = logging.getLogger(__name__)
+tracer = trace.get_tracer(__name__)
 
 _LOCK_TTL = 7200  # 2 hours
 _submission_locks: TTLCache[tuple[int, str], asyncio.Lock] = TTLCache(
@@ -127,9 +127,10 @@ async def get_phase_submission_context(
                     "passed": passed,
                 }
             except (json.JSONDecodeError, TypeError):
-                logger.debug(
-                    "submission.feedback_parse_failed",
-                    extra={"requirement_id": sub.requirement_id},
+                span = trace.get_current_span()
+                span.add_event(
+                    "feedback_parse_failed",
+                    {"requirement_id": sub.requirement_id},
                 )
 
     return PhaseSubmissionContext(
@@ -347,75 +348,78 @@ async def submit_validation(
         # ── Run validation (NO DB session held) ─────────────────────────
         # Verification can take seconds for external API calls.  We run it
         # outside any DB session so it doesn't pin a connection pool slot.
-        validation_result = await validate_submission(
-            requirement=requirement,
-            submitted_value=submitted_value,
-            expected_username=github_username,
-        )
-
-        extracted_username = None
-        if requirement.submission_type in (
-            SubmissionType.CTF_TOKEN,
-            SubmissionType.NETWORKING_TOKEN,
-        ):
-            extracted_username = github_username
-        else:
-            parsed = parse_github_url(submitted_value)
-            extracted_username = parsed.username if parsed.is_valid else None
-
-        verification_completed = validation_result.verification_completed
-
-        feedback_json = None
-        if validation_result.task_results:
-            feedback_json = json.dumps(
-                [t.model_dump() for t in validation_result.task_results]
-            )
-
-        # Persist the user-facing message so it survives page reloads.
-        validation_message = (
-            validation_result.message if not validation_result.is_valid else None
-        )
-
-        # Cloud provider (populated for multi-cloud labs like networking).
-        cloud_provider = validation_result.cloud_provider
-
-        # ── Phase 3: Persist result (short-lived session) ───────────────
-        # A fresh session is opened just for the upsert, keeping connection
-        # hold time to ~50ms.
-        async with session_maker() as write_session:
-            write_repo = SubmissionRepository(write_session)
-
-            db_submission = await write_repo.create(
-                user_id=user_id,
-                requirement_id=requirement_id,
-                submission_type=requirement.submission_type,
-                phase_id=phase_id,
-                submitted_value=submitted_value,
-                extracted_username=extracted_username,
-                is_validated=validation_result.is_valid,
-                verification_completed=verification_completed,
-                feedback_json=feedback_json,
-                validation_message=validation_message,
-                cloud_provider=cloud_provider,
-            )
-
-            await write_session.commit()
-
-        logger.info(
-            "submission.processed",
-            extra={
-                "user_id": user_id,
-                "requirement_id": requirement_id,
-                "is_valid": validation_result.is_valid,
-                "verification_completed": verification_completed,
+        with tracer.start_as_current_span(
+            "submit_validation",
+            attributes={
+                "user.id": user_id,
+                "requirement.id": requirement_id,
+                "submission.type": requirement.submission_type,
             },
-        )
+        ) as span:
+            validation_result = await validate_submission(
+                requirement=requirement,
+                submitted_value=submitted_value,
+                expected_username=github_username,
+            )
 
-        return SubmissionResult(
-            submission=_to_submission_data(db_submission),
-            is_valid=validation_result.is_valid,
-            message=validation_result.message,
-            username_match=validation_result.username_match,
-            repo_exists=validation_result.repo_exists,
-            task_results=validation_result.task_results,
-        )
+            extracted_username = None
+            if requirement.submission_type in (
+                SubmissionType.CTF_TOKEN,
+                SubmissionType.NETWORKING_TOKEN,
+            ):
+                extracted_username = github_username
+            else:
+                parsed = parse_github_url(submitted_value)
+                extracted_username = parsed.username if parsed.is_valid else None
+
+            verification_completed = validation_result.verification_completed
+
+            feedback_json = None
+            if validation_result.task_results:
+                feedback_json = json.dumps(
+                    [t.model_dump() for t in validation_result.task_results]
+                )
+
+            # Persist the user-facing message so it survives page reloads.
+            validation_message = (
+                validation_result.message if not validation_result.is_valid else None
+            )
+
+            # Cloud provider (populated for multi-cloud labs like networking).
+            cloud_provider = validation_result.cloud_provider
+
+            # ── Phase 3: Persist result (short-lived session) ───────────────
+            # A fresh session is opened just for the upsert, keeping connection
+            # hold time to ~50ms.
+            async with session_maker() as write_session:
+                write_repo = SubmissionRepository(write_session)
+
+                db_submission = await write_repo.create(
+                    user_id=user_id,
+                    requirement_id=requirement_id,
+                    submission_type=requirement.submission_type,
+                    phase_id=phase_id,
+                    submitted_value=submitted_value,
+                    extracted_username=extracted_username,
+                    is_validated=validation_result.is_valid,
+                    verification_completed=verification_completed,
+                    feedback_json=feedback_json,
+                    validation_message=validation_message,
+                    cloud_provider=cloud_provider,
+                )
+
+                await write_session.commit()
+
+            span.set_attribute("submission.is_valid", validation_result.is_valid)
+            span.set_attribute(
+                "submission.verification_completed", verification_completed
+            )
+
+            return SubmissionResult(
+                submission=_to_submission_data(db_submission),
+                is_valid=validation_result.is_valid,
+                message=validation_result.message,
+                username_match=validation_result.username_match,
+                repo_exists=validation_result.repo_exists,
+                task_results=validation_result.task_results,
+            )

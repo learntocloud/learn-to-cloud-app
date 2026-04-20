@@ -17,9 +17,9 @@ Verification is purely file-based.
 from __future__ import annotations
 
 import asyncio
-import logging
 
 import httpx
+from opentelemetry import trace
 from tenacity import (
     retry,
     retry_if_exception_type,
@@ -35,8 +35,6 @@ from services.verification.github_profile import (
     get_github_headers,
 )
 from services.verification.repo_utils import VerificationError
-
-logger = logging.getLogger(__name__)
 
 # CodeQL action identifier in workflow file content
 CODEQL_ACTION_PATTERN = "github/codeql-action"
@@ -141,9 +139,10 @@ async def _fetch_workflow_content(owner: str, repo: str, path: str) -> str | Non
         response.raise_for_status()
         return response.text
     except httpx.HTTPStatusError:
-        logger.warning(
-            "security_scanning.workflow_fetch_failed",
-            extra={"owner": owner, "repo": repo, "path": path},
+        span = trace.get_current_span()
+        span.add_event(
+            "workflow_fetch_failed",
+            {"owner": owner, "repo": repo, "path": path},
         )
         return None
 
@@ -224,17 +223,10 @@ async def _verify_security_scanning(
 
     passed_count = sum(1 for t in task_results if t.passed)
 
-    logger.info(
-        "security_scanning.checks_completed",
-        extra={
-            "owner": owner,
-            "repo": repo,
-            "dependabot": dependabot_result.passed,
-            "codeql": codeql_result.passed,
-            "passed": passed_count,
-            "total": len(task_results),
-        },
-    )
+    span = trace.get_current_span()
+    span.set_attribute("security.dependabot", dependabot_result.passed)
+    span.set_attribute("security.codeql", codeql_result.passed)
+    span.set_attribute("security.passed_count", passed_count)
 
     if all_passed:
         message = (
