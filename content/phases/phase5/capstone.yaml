@@ -2,7 +2,7 @@ id: phase5-topic6
 slug: capstone
 name: 'Capstone: DevOps Project'
 description: Now that you've learned the fundamentals of DevOps, it's time to apply these practices to the Journal API app you built in Phase 3 and deployed in Phase 4. In this capstone, you'll containerize the app, automate its deployment, manage infrastructure as code, set up monitoring, and orchestrate containers with Kubernetes—demonstrating your end-to-end DevOps skills. The curriculum may not have covered everything you need — that's intentional. Researching what you don't know is part of the job.
-short_description: Containerize your app with Docker, deploy to Kubernetes, automate with CI/CD, and monitor with Prometheus/Grafana.
+short_description: Containerize your app with Docker, deploy to Kubernetes, automate with CI/CD, and instrument with OpenTelemetry for cloud-native observability.
 order: 7
 learning_objectives:
 - id: devops-capstone-integration
@@ -95,13 +95,17 @@ learning_steps:
 - order: 5
   action: 'Build:'
   title: Monitoring & Observability
-  description: Set up monitoring to track your application's health and performance. This step is not auto-verified but is essential for production readiness.
+  description: Instrument your Journal API with OpenTelemetry so that logs, traces, and metrics are exported to your cloud provider's monitoring platform. This builds on the basic logging you added in Phase 3 by connecting all three telemetry signals into a unified, cloud-native observability pipeline. This step is not auto-verified but is essential for production readiness.
   checklist:
-    - Add `prometheus-fastapi-instrumentator` to your project dependencies (exposes `/metrics` endpoint automatically)
-    - Deploy Prometheus and Grafana in your K8s cluster (via manifests in `k8s/monitoring/` or `kube-prometheus-stack` Helm chart)
-    - Configure Prometheus to scrape your Journal API's `/metrics` endpoint
-    - Set up a Grafana dashboard to visualize request latency, error rates, and pod health
-  done_when: Grafana dashboard shows live request metrics from your Journal API.
+    - 'Install OpenTelemetry packages: `opentelemetry-api`, `opentelemetry-sdk`, `opentelemetry-instrumentation-fastapi`'
+    - Configure a `TracerProvider` and `MeterProvider` with a `Resource` identifying your service
+    - Call `FastAPIInstrumentor.instrument_app(app)` to auto-instrument HTTP requests
+    - 'Add at least one custom span (e.g., around a database or LLM call) and one custom metric (e.g., entries created counter)'
+    - 'Install your provider''s OTel exporter (`azure-monitor-opentelemetry-exporter`, `opentelemetry-exporter-otlp` for AWS/ADOT, or `opentelemetry-exporter-gcp-trace`/`opentelemetry-exporter-gcp-monitoring`)'
+    - Configure the exporter so traces, metrics, and logs are sent to your cloud console (Azure Application Insights, AWS X-Ray + CloudWatch, or GCP Cloud Trace + Cloud Monitoring)
+    - Verify telemetry appears in your cloud console — find a trace for an API request and confirm logs are correlated with trace IDs
+    - '(Optional) Deploy Prometheus and Grafana in your K8s cluster for additional metric visualization'
+  done_when: Traces, metrics, and logs from your Journal API are visible in your cloud provider's monitoring console.
   id: phase5-topic6-build-monitoring-observability
 
 - order: 6

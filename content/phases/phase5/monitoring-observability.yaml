@@ -1,18 +1,24 @@
 id: phase5-topic5
 slug: monitoring-observability
 name: Monitoring & Observability
-description: Monitoring and observability are essential DevOps practices that help you understand the health, performance, and reliability of your applications and infrastructure. In this topic, you'll learn how to set up monitoring using Prometheus and visualize metrics with Grafana. You'll then explore AI agents with n8n to automate incident response.
+description: Monitoring and observability are essential DevOps practices that help you understand the health, performance, and reliability of your applications and infrastructure. In this topic, you'll learn how to instrument your application with OpenTelemetry to produce logs, traces, and metrics, and export that telemetry to your cloud provider's monitoring platform (Azure Monitor, AWS CloudWatch/X-Ray, or GCP Cloud Monitoring).
 order: 5
 learning_objectives:
 - id: observability-principles
-  text: Differentiate monitoring and observability and explain their role in reliability engineering.
+  text: Differentiate monitoring and observability and explain the three pillars (logs, traces, metrics).
   order: 1
-- id: observability-tooling
-  text: Configure core metrics tooling and dashboards for practical system insight.
+- id: observability-otel-fundamentals
+  text: Explain what OpenTelemetry is and why vendor-neutral instrumentation matters.
   order: 2
-- id: observability-incident-awareness
-  text: Use telemetry to detect, investigate, and respond to operational issues.
+- id: observability-tooling
+  text: Instrument a Python/FastAPI application with the OpenTelemetry SDK to produce logs, traces, and metrics.
   order: 3
+- id: observability-cloud-export
+  text: Export OpenTelemetry signals to a cloud monitoring platform and query them.
+  order: 4
+- id: observability-dashboards
+  text: Visualize telemetry data using Prometheus, Grafana, or your cloud provider's dashboards.
+  order: 5
 learning_steps:
 - order: 1
   action: 'Read:'
@@ -46,11 +52,70 @@ learning_steps:
   id: phase5-topic5-read-observability-patterns-microsoft-learn
 - order: 4
   action: 'Read:'
-  description: 'The industry-standard monitoring stack:'
+  title: What is OpenTelemetry?
+  url: https://opentelemetry.io/docs/what-is-opentelemetry/
+  description: Understand OpenTelemetry (OTel) — the vendor-neutral, open-source observability framework. Learn why it matters and how it provides a single set of APIs and SDKs for emitting logs, traces, and metrics from any application.
+  id: phase5-topic5-read-what-is-opentelemetry
+- order: 5
+  action: 'Read:'
+  title: 'OpenTelemetry Concepts: Signals'
+  url: https://opentelemetry.io/docs/concepts/signals/
+  description: 'Understand the three telemetry signals OpenTelemetry standardizes: traces (request flow across services), metrics (numeric measurements over time), and logs (timestamped event records). In Phase 3 you added basic logging — now you''ll connect all three signals into a unified observability pipeline.'
+  id: phase5-topic5-read-opentelemetry-signals
+- order: 6
+  action: 'Read:'
+  title: OpenTelemetry Python SDK
+  url: https://opentelemetry.io/docs/languages/python/
+  description: Review the official OpenTelemetry Python documentation. Understand how to install the SDK, configure providers and exporters, and auto-instrument popular frameworks.
+  id: phase5-topic5-read-opentelemetry-python-sdk
+- order: 7
+  action: 'Practice:'
+  title: Instrument Your FastAPI App with OpenTelemetry
+  description: 'Add OpenTelemetry instrumentation to your Journal API. Install the core packages and the FastAPI auto-instrumentation library, then configure a trace provider and a metrics provider. You should be able to see traces for incoming HTTP requests and custom spans for key operations.'
+  checklist:
+    - 'Install packages: `opentelemetry-api`, `opentelemetry-sdk`, `opentelemetry-instrumentation-fastapi`'
+    - Configure a `TracerProvider` with a `Resource` that identifies your service name
+    - Configure a `MeterProvider` for custom metrics
+    - Call `FastAPIInstrumentor.instrument_app(app)` to auto-instrument routes
+    - 'Add at least one custom span (e.g., around a database call or LLM call) using `tracer.start_as_current_span()`'
+    - 'Add at least one custom metric (e.g., a counter for journal entries created)'
+    - Connect your Python logger to the OTel log pipeline so structured logs are correlated with traces
+  url: https://opentelemetry-python-contrib.readthedocs.io/en/latest/instrumentation/fastapi/fastapi.html
+  id: phase5-topic5-practice-instrument-fastapi-with-otel
+- order: 8
+  action: 'Practice:'
+  title: Export Telemetry to Your Cloud Provider
+  description: 'Connect your OpenTelemetry pipeline to your cloud provider''s monitoring backend so logs, traces, and metrics are visible in the cloud console. Follow the guide for your provider:'
+  options:
+  - provider: azure
+    title: Azure Monitor OpenTelemetry (Python)
+    url: https://learn.microsoft.com/azure/azure-monitor/app/opentelemetry-enable?tabs=python
+    description: 'Install `azure-monitor-opentelemetry-exporter` and configure the exporter with your Application Insights connection string. Traces, metrics, and logs will appear in the Azure portal under Application Insights.'
+  - provider: aws
+    title: AWS Distro for OpenTelemetry (Python)
+    url: https://aws-otel.github.io/docs/getting-started/python-sdk/trace-auto-instr
+    description: 'Use the AWS Distro for OpenTelemetry (ADOT) to export traces to AWS X-Ray and metrics to CloudWatch. Install the `opentelemetry-exporter-otlp` package and configure the ADOT Collector as your OTLP endpoint.'
+  - provider: gcp
+    title: Google Cloud OpenTelemetry (Python)
+    url: https://cloud.google.com/trace/docs/setup/python-ot
+    description: 'Install `opentelemetry-exporter-gcp-trace` and `opentelemetry-exporter-gcp-monitoring` to export traces to Cloud Trace and metrics to Cloud Monitoring.'
+  id: phase5-topic5-practice-export-telemetry-cloud-provider
+- order: 9
+  action: 'Practice:'
+  title: Verify Telemetry in Your Cloud Console
+  description: 'After instrumenting your app and configuring the exporter, send a few requests to your Journal API and verify the telemetry appears in your cloud console:'
+  checklist:
+    - 'Confirm traces are visible (Azure: Application Insights → Transaction search, AWS: X-Ray → Traces, GCP: Cloud Trace → Trace list)'
+    - 'Confirm metrics are visible (Azure: Application Insights → Metrics, AWS: CloudWatch → Metrics, GCP: Cloud Monitoring → Metrics Explorer)'
+    - 'Confirm logs are correlated with trace IDs (Azure: Application Insights → Logs, AWS: CloudWatch Logs, GCP: Cloud Logging)'
+  id: phase5-topic5-practice-verify-telemetry-cloud-console
+- order: 10
+  action: 'Read:'
+  description: 'The industry-standard monitoring stack for self-hosted environments:'
   title: Prometheus & Grafana
   url: https://grafana.com/docs/grafana/latest/fundamentals/getting-started/first-dashboards/get-started-grafana-prometheus/
   id: phase5-topic5-read-prometheus-grafana
-- order: 5
+- order: 11
   action: 'Practice:'
   description: 'Install Prometheus using Docker:'
   code: '# Create prometheus.yml config:
@@ -66,7 +131,7 @@ learning_steps:
     docker run \ -p 9090:9090 \ -v /path/to/prometheus.yml:/etc/prometheus/prometheus.yml \ prom/prometheus'
   title: Set Up Prometheus
   id: phase5-topic5-practice-set-up-prometheus
-- order: 6
+- order: 12
   action: 'Practice:'
   description: 'Install Grafana and connect to Prometheus:'
   code: '# Run Grafana container:
@@ -84,25 +149,19 @@ learning_steps:
     # URL: http://host.docker.internal:9090'
   title: Set Up Grafana
   id: phase5-topic5-practice-set-up-grafana
-- order: 7
-  action: 'Practice:'
-  description: 'Add metrics to your application:'
-  title: Instrument Your App
-  url: https://opentelemetry-python-contrib.readthedocs.io/en/latest/instrumentation/fastapi/fastapi.html
-  id: phase5-topic5-practice-instrument-your-app
-- order: 8
+- order: 13
   action: 'Read:'
   title: What are AI Agents? (Optional advanced)
   url: https://www.ibm.com/think/topics/ai-agents
   description: Optional extension topic. Understand how AI agents can assist monitoring by responding to alerts, analyzing logs for potential causes, and suggesting remediation steps.
   id: phase5-topic5-read-what-are-ai-agents
-- order: 9
+- order: 14
   action: 'Practice:'
   title: n8n Overview (Optional advanced)
   url: https://n8n.io/features/
   description: Optional extension lab. Install n8n with Docker (`docker run -d -p 5678:5678 --name n8n n8nio/n8n:latest`), then build a workflow that queries Prometheus for a metric, checks a threshold, and calls an LLM to analyze anomalies.
   id: phase5-topic5-practice-n8n-overview-optional-advanced
-- order: 10
+- order: 15
   action: 'Read:'
   title: Prometheus & Grafana Documentation
   url: https://prometheus.io/docs/
