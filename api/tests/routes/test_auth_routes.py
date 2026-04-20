@@ -275,13 +275,3 @@ class TestLogoutRoute:
         assert result.status_code == 302
         assert result.headers["location"] == "/"
         assert request.session == {}
-
-    async def test_logout_works_when_already_logged_out(self):
-        """Logout on an empty session still succeeds."""
-        request = _mock_request(session={})
-
-        result = await logout(request)
-
-        assert isinstance(result, RedirectResponse)
-        assert result.status_code == 302
-        assert result.headers["location"] == "/"

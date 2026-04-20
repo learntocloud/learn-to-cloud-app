@@ -41,7 +41,6 @@ from routes import (
     auth_router,
     health_router,
     htmx_router,
-    legacy_redirects_router,
     pages_router,
     users_router,
 )
@@ -304,6 +303,5 @@ app.include_router(health_router)
 app.include_router(auth_router)
 app.include_router(users_router)
 app.include_router(htmx_router)
-app.include_router(legacy_redirects_router)
 # Must be last to avoid catching API routes
 app.include_router(pages_router)

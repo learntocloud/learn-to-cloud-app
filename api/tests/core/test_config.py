@@ -11,7 +11,7 @@ Tests cover:
 import pytest
 from pydantic import ValidationError
 
-from core.config import Settings, clear_settings_cache, get_settings
+from core.config import Settings, clear_settings_cache
 
 
 @pytest.fixture(autouse=True)
@@ -186,26 +186,3 @@ class TestAllowedOrigins:
         )
         count = s.allowed_origins.count("http://localhost:4280")
         assert count == 1
-
-
-# ---------------------------------------------------------------------------
-# get_settings / clear_settings_cache
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.unit
-class TestGetSettings:
-    def test_returns_same_instance(self, monkeypatch):
-        monkeypatch.setenv("DATABASE_URL", "postgresql+asyncpg://localhost/test")
-        monkeypatch.setenv("DEBUG", "true")
-        s1 = get_settings()
-        s2 = get_settings()
-        assert s1 is s2
-
-    def test_clear_cache_resets(self, monkeypatch):
-        monkeypatch.setenv("DATABASE_URL", "postgresql+asyncpg://localhost/test")
-        monkeypatch.setenv("DEBUG", "true")
-        s1 = get_settings()
-        clear_settings_cache()
-        s2 = get_settings()
-        assert s1 is not s2

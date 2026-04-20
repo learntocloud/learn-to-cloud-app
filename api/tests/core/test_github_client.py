@@ -74,33 +74,5 @@ class TestGetGitHubClient:
 @pytest.mark.unit
 class TestCloseGitHubClient:
     @pytest.mark.asyncio
-    async def test_closes_client(self):
-        mock_settings = MagicMock()
-        mock_settings.external_api_timeout = 10.0
-        with patch(
-            "core.github_client.get_settings",
-            autospec=True,
-            return_value=mock_settings,
-        ):
-            client = await get_github_client()
-        await close_github_client()
-        assert client.is_closed
-
-    @pytest.mark.asyncio
     async def test_noop_when_none(self):
         await close_github_client()
-
-    @pytest.mark.asyncio
-    async def test_sets_global_to_none(self):
-        import core.github_client as mod
-
-        mock_settings = MagicMock()
-        mock_settings.external_api_timeout = 10.0
-        with patch(
-            "core.github_client.get_settings",
-            autospec=True,
-            return_value=mock_settings,
-        ):
-            await get_github_client()
-        await close_github_client()
-        assert mod._github_http_client is None

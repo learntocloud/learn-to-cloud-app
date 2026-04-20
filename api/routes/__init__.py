@@ -3,7 +3,6 @@
 from routes.auth_routes import router as auth_router
 from routes.health_routes import router as health_router
 from routes.htmx_routes import router as htmx_router
-from routes.legacy_redirects import router as legacy_redirects_router
 from routes.pages_routes import router as pages_router
 from routes.users_routes import router as users_router
 
@@ -11,7 +10,6 @@ __all__ = [
     "auth_router",
     "health_router",
     "htmx_router",
-    "legacy_redirects_router",
     "pages_router",
     "users_router",
 ]
