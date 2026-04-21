@@ -125,3 +125,20 @@ def instrument_app(app: Any) -> None:
             "telemetry.fastapi.failed",
             extra={"error": str(exc)},
         )
+
+
+def instrument_database(engine: Any) -> None:
+    """Instrument a SQLAlchemy engine for database dependency spans."""
+    if not _telemetry_enabled:
+        return
+
+    from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
+
+    try:
+        SQLAlchemyInstrumentor().instrument(engine=engine.sync_engine)
+        logger.info("telemetry.sqlalchemy.instrumented")
+    except Exception as exc:
+        logger.warning(
+            "telemetry.sqlalchemy.failed",
+            extra={"error": str(exc)},
+        )
