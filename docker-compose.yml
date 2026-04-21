@@ -1,7 +1,6 @@
 services:
   # Just PostgreSQL for local development
-  # Frontend: npm run dev (in /frontend)
-  # API: swa start (uses Azure Functions CLI)
+  # Start the app locally from /api (see README for uvicorn/Tailwind commands)
   db:
     image: postgres:16-alpine
     ports:
