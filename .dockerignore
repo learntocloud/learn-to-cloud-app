@@ -19,7 +19,7 @@
 .git/
 .gitignore
 
-# Node modules (frontend builds separately)
+# Node modules (used for Tailwind tooling under api/)
 **/node_modules/
 
 # Test artifacts
