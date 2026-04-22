@@ -127,7 +127,6 @@ async def phase_page(
     sub_context = await get_phase_submission_context(db, user_id, phase_id)
     submissions_by_req = sub_context.submissions_by_req
     feedback_by_req = sub_context.feedback_by_req
-    daily_submissions_remaining = sub_context.daily_submissions_remaining
 
     # Pre-compute per-requirement derived URLs and PR-review prefixes so the
     # Jinja template never builds GitHub URLs.  Uses the same helper as the
@@ -162,7 +161,6 @@ async def phase_page(
             derived_urls_by_req=derived_urls_by_req,
             pr_url_prefixes_by_req=pr_url_prefixes_by_req,
             progress=progress,
-            daily_submissions_remaining=daily_submissions_remaining,
             verification_locked=verification_locked,
             prerequisite_phase_id=prerequisite_phase_id,
         ),

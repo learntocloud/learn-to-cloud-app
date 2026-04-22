@@ -221,7 +221,7 @@ Known alert names from Terraform (match against `AlertName`):
 Custom OTel counters for key domain events.
 
 ```bash
-az monitor log-analytics query -w $LOG_NAME --analytics-query "AppMetrics | where TimeGenerated > ago(24h) and Name in ('auth.login', 'submission.daily_limit_exceeded', 'submission.cooldown_active', 'user.deletion', 'step.completed', 'verification.attempt') | summarize Total=sum(Sum) by Name | order by Name asc" -o json
+az monitor log-analytics query -w $LOG_NAME --analytics-query "AppMetrics | where TimeGenerated > ago(24h) and Name in ('auth.login', 'submission.cooldown_active', 'user.deletion', 'step.completed', 'verification.attempt') | summarize Total=sum(Sum) by Name | order by Name asc" -o json
 ```
 
 Also check auth success/failure ratio:
@@ -230,7 +230,7 @@ Also check auth success/failure ratio:
 az monitor log-analytics query -w $LOG_NAME --analytics-query "AppMetrics | where TimeGenerated > ago(24h) and Name == 'auth.login' | extend result = tostring(Properties['result']) | summarize Total=sum(Sum) by result" -o json
 ```
 
-**Verdict**: ⚠️ if auth failure rate > 50% (possible GitHub OAuth outage) or daily_limit_exceeded > 50 (capacity pressure). Include totals in report for situational awareness.
+**Verdict**: ⚠️ if auth failure rate > 50% (possible GitHub OAuth outage). Include totals in report for situational awareness.
 
 ### Step 13: Console Log Errors (24h)
 

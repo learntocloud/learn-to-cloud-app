@@ -47,7 +47,6 @@ from services.steps_service import (
 from services.submissions_service import (
     AlreadyValidatedError,
     ConcurrentSubmissionError,
-    DailyLimitExceededError,
     DuplicatePrError,
     PriorPhaseNotCompleteError,
     submit_validation,
@@ -69,7 +68,6 @@ logger = logging.getLogger(__name__)
 
 # Submission errors whose message is safe to show directly to the user.
 _USER_FACING_ERRORS = (
-    DailyLimitExceededError,
     AlreadyValidatedError,
     ConcurrentSubmissionError,
     DuplicatePrError,

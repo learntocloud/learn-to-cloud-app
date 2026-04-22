@@ -3,7 +3,6 @@
 This module handles:
 - Submission creation/update with validation
 - Data transformation helpers used by other services (e.g. progress)
-- Daily submission cap across all requirements (default 20/day)
 - Already-validated short-circuit (skip re-verification for passed requirements)
 - Concurrent request protection via per-user+requirement locks
 - DB connection release during long-running verification calls
@@ -22,7 +21,6 @@ from cachetools import TTLCache
 from opentelemetry import trace
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from core.config import get_settings
 from models import Submission, SubmissionType
 from repositories.submission_repository import SubmissionRepository
 from schemas import (
@@ -135,14 +133,9 @@ async def get_phase_submission_context(
                     {"requirement_id": sub.requirement_id},
                 )
 
-    settings = get_settings()
-    today_count = await repo.count_submissions_today(user_id)
-    remaining = max(0, settings.daily_submission_limit - today_count)
-
     return PhaseSubmissionContext(
         submissions_by_req=submissions_by_req,
         feedback_by_req=feedback_by_req,
-        daily_submissions_remaining=remaining,
     )
 
 
@@ -152,20 +145,6 @@ class RequirementNotFoundError(Exception):
 
 class GitHubUsernameRequiredError(Exception):
     pass
-
-
-class DailyLimitExceededError(Exception):
-    """Raised when a user exceeds the daily submission cap."""
-
-    def __init__(
-        self,
-        message: str,
-        limit: int,
-        existing_submission: SubmissionData | None = None,
-    ):
-        super().__init__(message)
-        self.limit = limit
-        self.existing_submission = existing_submission
 
 
 class AlreadyValidatedError(Exception):
@@ -211,7 +190,7 @@ async def _check_submission_preconditions(
     """Shared pre-validation checks for submission paths.
 
     Validates requirement existence, already-validated status, phase gating,
-    daily cap, PR uniqueness, and GitHub username requirement.
+    PR uniqueness, and GitHub username requirement.
 
     Opens a short-lived DB session for reads, then releases it before
     returning.  Raises the same exceptions as ``submit_validation``.
@@ -249,18 +228,6 @@ async def _check_submission_preconditions(
                         f"verifications before submitting for Phase {phase_id}.",
                         prerequisite_phase=prereq_phase,
                     )
-
-        # Global daily submission cap
-        settings = get_settings()
-        today_count = await submission_repo.count_submissions_today(user_id)
-        if today_count >= settings.daily_submission_limit:
-            raise DailyLimitExceededError(
-                f"You have reached the daily limit of "
-                f"{settings.daily_submission_limit} "
-                f"submissions. Please try again tomorrow.",
-                limit=settings.daily_submission_limit,
-                existing_submission=_to_submission_data(existing) if existing else None,
-            )
 
         # PR uniqueness: same PR URL cannot be reused for a different
         # requirement within the same phase.
@@ -333,7 +300,6 @@ async def submit_validation(
     Raises:
         RequirementNotFoundError: If requirement doesn't exist.
         AlreadyValidatedError: If requirement is already validated.
-        DailyLimitExceededError: If user exceeded daily submission cap.
         GitHubUsernameRequiredError: If GitHub username required but not provided.
         ConcurrentSubmissionError: If validation is already in progress for this
             user+requirement (prevents race conditions).

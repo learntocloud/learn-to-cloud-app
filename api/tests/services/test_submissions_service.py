@@ -1,7 +1,6 @@
 """Tests for submissions_service abuse protection.
 
 Tests cover:
-- Daily submission cap enforcement
 - Already-validated short-circuit
 - Concurrent submission protection
 - Sequential phase gating
@@ -18,7 +17,6 @@ from schemas import HandsOnRequirement, ValidationResult
 from services.submissions_service import (
     AlreadyValidatedError,
     ConcurrentSubmissionError,
-    DailyLimitExceededError,
     GitHubUsernameRequiredError,
     PriorPhaseNotCompleteError,
     RequirementNotFoundError,
@@ -150,7 +148,6 @@ class TestSubmissionValidationErrors:
         ):
             mock_repo = MagicMock()
             mock_repo.get_by_user_and_requirement = AsyncMock(return_value=None)
-            mock_repo.count_submissions_today = AsyncMock(return_value=0)
             mock_repo.get_last_submission_time = AsyncMock(return_value=None)
             mock_repo_class.return_value = mock_repo
 
@@ -210,7 +207,6 @@ class TestConcurrentSubmissionProtection:
         ):
             mock_repo = MagicMock()
             mock_repo.get_by_user_and_requirement = AsyncMock(return_value=None)
-            mock_repo.count_submissions_today = AsyncMock(return_value=0)
             mock_repo.get_last_submission_time = AsyncMock(return_value=None)
             mock_repo_class.return_value = mock_repo
 
@@ -292,7 +288,6 @@ class TestAlreadyValidatedShortCircuit:
             mock_repo.get_by_user_and_requirement = AsyncMock(
                 return_value=_make_mock_submission()
             )
-            mock_repo.count_submissions_today = AsyncMock(return_value=0)
             mock_repo.get_last_submission_time = AsyncMock(return_value=None)
             mock_repo.create = AsyncMock(
                 return_value=MagicMock(
@@ -313,114 +308,6 @@ class TestAlreadyValidatedShortCircuit:
                 )
             )
             mock_repo_class.return_value = mock_repo
-
-            mock_validate.return_value = ValidationResult(
-                is_valid=True,
-                message="All tasks passed",
-            )
-
-            result = await submit_validation(
-                session_maker=mock_session_maker,
-                user_id=123,
-                requirement_id="test-requirement",
-                submitted_value="https://github.com/user/repo",
-                github_username="user",
-            )
-
-            assert result.is_valid is True
-
-
-@pytest.mark.unit
-class TestDailySubmissionCap:
-    """Tests for global daily submission limit."""
-
-    @pytest.mark.asyncio
-    async def test_daily_limit_exceeded_raises_error(self):
-        """Exceeding daily submission cap should raise DailyLimitExceededError."""
-        mock_session_maker = _mock_session_maker()
-        mock_requirement = _make_mock_requirement()
-
-        with (
-            patch(
-                "services.submissions_service.get_requirement_by_id",
-                autospec=True,
-                return_value=mock_requirement,
-            ),
-            patch(
-                "services.submissions_service.SubmissionRepository",
-                autospec=True,
-            ) as mock_repo_class,
-            patch(
-                "services.submissions_service.get_settings", autospec=True
-            ) as mock_settings,
-        ):
-            mock_repo = MagicMock()
-            mock_repo.get_by_user_and_requirement = AsyncMock(return_value=None)
-            mock_repo.count_submissions_today = AsyncMock(return_value=20)
-            mock_repo_class.return_value = mock_repo
-
-            mock_settings.return_value.daily_submission_limit = 20
-
-            with pytest.raises(DailyLimitExceededError) as exc_info:
-                await submit_validation(
-                    session_maker=mock_session_maker,
-                    user_id=123,
-                    requirement_id="test-requirement",
-                    submitted_value="https://github.com/user/repo",
-                    github_username="user",
-                )
-
-            assert exc_info.value.limit == 20
-
-    @pytest.mark.asyncio
-    async def test_under_daily_limit_allowed(self):
-        """Submissions under the daily cap should proceed normally."""
-        mock_session_maker = _mock_session_maker()
-        mock_requirement = _make_mock_requirement()
-
-        with (
-            patch(
-                "services.submissions_service.get_requirement_by_id",
-                autospec=True,
-                return_value=mock_requirement,
-            ),
-            patch(
-                "services.submissions_service.SubmissionRepository",
-                autospec=True,
-            ) as mock_repo_class,
-            patch(
-                "services.submissions_service.get_settings", autospec=True
-            ) as mock_settings,
-            patch(
-                "services.submissions_service.validate_submission",
-                autospec=True,
-            ) as mock_validate,
-        ):
-            mock_repo = MagicMock()
-            mock_repo.get_by_user_and_requirement = AsyncMock(return_value=None)
-            mock_repo.count_submissions_today = AsyncMock(return_value=5)
-            mock_repo.get_last_submission_time = AsyncMock(return_value=None)
-            mock_repo.create = AsyncMock(
-                return_value=MagicMock(
-                    id=1,
-                    requirement_id="test-requirement",
-                    submission_type=SubmissionType.CI_STATUS,
-                    phase_id=3,
-                    submitted_value="https://github.com/user/repo",
-                    extracted_username="user",
-                    is_validated=True,
-                    validated_at=datetime.now(UTC),
-                    verification_completed=True,
-                    created_at=datetime.now(UTC),
-                    feedback_json=None,
-                    validation_message=None,
-                    cloud_provider=None,
-                    updated_at=datetime.now(UTC),
-                )
-            )
-            mock_repo_class.return_value = mock_repo
-
-            mock_settings.return_value.daily_submission_limit = 20
 
             mock_validate.return_value = ValidationResult(
                 is_valid=True,
@@ -479,7 +366,6 @@ class TestSequentialPhaseGating:
         ):
             mock_repo = MagicMock()
             mock_repo.get_by_user_and_requirement = AsyncMock(return_value=None)
-            mock_repo.count_submissions_today = AsyncMock(return_value=0)
             mock_repo.are_all_requirements_validated = AsyncMock(return_value=False)
             mock_repo_class.return_value = mock_repo
 
@@ -532,7 +418,6 @@ class TestSequentialPhaseGating:
         ):
             mock_repo = MagicMock()
             mock_repo.get_by_user_and_requirement = AsyncMock(return_value=None)
-            mock_repo.count_submissions_today = AsyncMock(return_value=0)
             mock_repo.get_last_submission_time = AsyncMock(return_value=None)
             mock_repo.are_all_requirements_validated = AsyncMock(return_value=True)
             mock_repo.create = AsyncMock(
@@ -585,13 +470,11 @@ class TestGetPhaseSubmissionContext:
             "services.submissions_service.SubmissionRepository", autospec=True
         ) as MockRepo:
             MockRepo.return_value.get_by_user_and_phase = AsyncMock(return_value=[])
-            MockRepo.return_value.count_submissions_today = AsyncMock(return_value=0)
             result = await get_phase_submission_context(
                 AsyncMock(), user_id=1, phase_id=3
             )
         assert result.submissions_by_req == {}
         assert result.feedback_by_req == {}
-        assert result.daily_submissions_remaining == 20
 
     @pytest.mark.asyncio
     async def test_submission_without_feedback(self):
@@ -603,7 +486,6 @@ class TestGetPhaseSubmissionContext:
             MockRepo.return_value.get_by_user_and_phase = AsyncMock(
                 return_value=[mock_sub]
             )
-            MockRepo.return_value.count_submissions_today = AsyncMock(return_value=0)
             result = await get_phase_submission_context(
                 AsyncMock(), user_id=1, phase_id=3
             )
@@ -624,7 +506,6 @@ class TestGetPhaseSubmissionContext:
             MockRepo.return_value.get_by_user_and_phase = AsyncMock(
                 return_value=[mock_sub]
             )
-            MockRepo.return_value.count_submissions_today = AsyncMock(return_value=0)
             result = await get_phase_submission_context(
                 AsyncMock(), user_id=1, phase_id=3
             )
