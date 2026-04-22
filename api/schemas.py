@@ -406,6 +406,7 @@ class PhaseSubmissionContext(FrozenModel):
 
     submissions_by_req: dict[str, SubmissionData]
     feedback_by_req: dict[str, dict[str, object]]
+    daily_submissions_remaining: int
 
 
 class ValidationResult(FrozenModel):

@@ -585,11 +585,13 @@ class TestGetPhaseSubmissionContext:
             "services.submissions_service.SubmissionRepository", autospec=True
         ) as MockRepo:
             MockRepo.return_value.get_by_user_and_phase = AsyncMock(return_value=[])
+            MockRepo.return_value.count_submissions_today = AsyncMock(return_value=0)
             result = await get_phase_submission_context(
                 AsyncMock(), user_id=1, phase_id=3
             )
         assert result.submissions_by_req == {}
         assert result.feedback_by_req == {}
+        assert result.daily_submissions_remaining == 20
 
     @pytest.mark.asyncio
     async def test_submission_without_feedback(self):
@@ -601,6 +603,7 @@ class TestGetPhaseSubmissionContext:
             MockRepo.return_value.get_by_user_and_phase = AsyncMock(
                 return_value=[mock_sub]
             )
+            MockRepo.return_value.count_submissions_today = AsyncMock(return_value=0)
             result = await get_phase_submission_context(
                 AsyncMock(), user_id=1, phase_id=3
             )
@@ -621,6 +624,7 @@ class TestGetPhaseSubmissionContext:
             MockRepo.return_value.get_by_user_and_phase = AsyncMock(
                 return_value=[mock_sub]
             )
+            MockRepo.return_value.count_submissions_today = AsyncMock(return_value=0)
             result = await get_phase_submission_context(
                 AsyncMock(), user_id=1, phase_id=3
             )

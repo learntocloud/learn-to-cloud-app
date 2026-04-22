@@ -87,7 +87,7 @@
         {% elif not ns.found_active %}
         {# First incomplete — show full card #}
         {% set ns.found_active = true %}
-        {% with requirement=req, submission=submission, feedback_tasks=feedback_tasks, feedback_passed=feedback_passed, phase_id=phase.order, error_banner=persisted_error, server_error=False, server_error_message=None, derived_url=derived_urls_by_req.get(req.id), pr_url_prefix=pr_url_prefixes_by_req.get(req.id) %}
+        {% with requirement=req, submission=submission, feedback_tasks=feedback_tasks, feedback_passed=feedback_passed, phase_id=phase.order, error_banner=persisted_error, server_error=False, server_error_message=None, derived_url=derived_urls_by_req.get(req.id), pr_url_prefix=pr_url_prefixes_by_req.get(req.id), daily_submissions_remaining=daily_submissions_remaining %}
         {% include "partials/requirement_card.html" %}
         {% endwith %}
         {% else %}

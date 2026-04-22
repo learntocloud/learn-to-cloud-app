@@ -22,6 +22,7 @@ import logging
 import os
 import re
 import sys
+from contextvars import ContextVar
 from datetime import UTC, datetime
 from typing import ClassVar
 
@@ -33,6 +34,27 @@ _CONTROL_CHAR_RE = re.compile(r"[\x00-\x08\x0a-\x1f\x7f]")
 _BUILTIN_RECORD_KEYS: set[str] = set(
     logging.LogRecord("", 0, "", 0, "", (), None).__dict__
 )
+
+# Request-scoped context var — set by ``UserTrackingMiddleware`` per request,
+# read by ``_UserContextFilter`` to auto-inject into every log record.
+request_github_username: ContextVar[str | None] = ContextVar(
+    "request_github_username", default=None
+)
+
+
+class _UserContextFilter(logging.Filter):
+    """Auto-inject ``github_username`` into every log record.
+
+    Reads from the ``request_github_username`` ContextVar set by
+    ``UserTrackingMiddleware``, so callers don't need to pass it manually.
+    """
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        if not getattr(record, "github_username", None):
+            username = request_github_username.get(None)
+            if username:
+                record.github_username = username  # type: ignore[attr-defined]
+        return True
 
 
 class _JSONFormatter(logging.Formatter):
@@ -95,6 +117,7 @@ def configure_logging() -> None:
         else logging.Formatter("%(levelname)-5s [%(name)s] %(message)s")
     )
     root.addHandler(console)
+    root.addFilter(_UserContextFilter())
     root.setLevel(level)
 
     for name in (

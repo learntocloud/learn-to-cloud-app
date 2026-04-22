@@ -238,6 +238,7 @@ class TestAuthPageSmoke:
         mock_sub_context = MagicMock()
         mock_sub_context.submissions_by_req = {}
         mock_sub_context.feedback_by_req = {}
+        mock_sub_context.daily_submissions_remaining = 20
 
         with (
             patch(

@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 from dataclasses import dataclass
 
 from cachetools import TTLCache
@@ -40,6 +41,7 @@ from services.verification.requirements import (
 )
 
 tracer = trace.get_tracer(__name__)
+logger = logging.getLogger(__name__)
 
 _LOCK_TTL = 7200  # 2 hours
 _submission_locks: TTLCache[tuple[int, str], asyncio.Lock] = TTLCache(
@@ -133,9 +135,14 @@ async def get_phase_submission_context(
                     {"requirement_id": sub.requirement_id},
                 )
 
+    settings = get_settings()
+    today_count = await repo.count_submissions_today(user_id)
+    remaining = max(0, settings.daily_submission_limit - today_count)
+
     return PhaseSubmissionContext(
         submissions_by_req=submissions_by_req,
         feedback_by_req=feedback_by_req,
+        daily_submissions_remaining=remaining,
     )
 
 
@@ -413,6 +420,19 @@ async def submit_validation(
             span.set_attribute("submission.is_valid", validation_result.is_valid)
             span.set_attribute(
                 "submission.verification_completed", verification_completed
+            )
+
+            logger.info(
+                "submission.completed",
+                extra={
+                    "user_id": user_id,
+                    "requirement_id": requirement_id,
+                    "phase_id": phase_id,
+                    "submission_type": requirement.submission_type,
+                    "is_valid": validation_result.is_valid,
+                    "verification_completed": verification_completed,
+                    "validation_message": validation_message,
+                },
             )
 
             return SubmissionResult(
