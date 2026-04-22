@@ -13,6 +13,7 @@ use a background task + SSE pattern:
 """
 
 import asyncio
+import html
 import logging
 from typing import Annotated
 
@@ -44,6 +45,10 @@ from services.steps_service import (
     uncomplete_step,
 )
 from services.submissions_service import (
+    AlreadyValidatedError,
+    ConcurrentSubmissionError,
+    DuplicatePrError,
+    PriorPhaseNotCompleteError,
     submit_validation,
 )
 from services.users_service import (
@@ -60,6 +65,14 @@ from services.verification.requirements import get_requirement_by_id
 from services.verification.url_derivation import derive_submission_value, is_derivable
 
 logger = logging.getLogger(__name__)
+
+# Submission errors whose message is safe to show directly to the user.
+_USER_FACING_ERRORS = (
+    AlreadyValidatedError,
+    ConcurrentSubmissionError,
+    DuplicatePrError,
+    PriorPhaseNotCompleteError,
+)
 
 router = APIRouter(prefix="/htmx", tags=["htmx"], include_in_schema=False)
 
@@ -275,11 +288,13 @@ async def htmx_submit_verification(
     except Exception as exc:
         span = trace.get_current_span()
         span.record_exception(exc)
+        span.set_attribute("error.type", type(exc).__name__)
         logger.exception(
             "htmx.submit.unexpected_error",
             extra={
                 "user_id": user_id,
                 "requirement_id": requirement_id,
+                "error_type": type(exc).__name__,
             },
         )
         return _render_card(
@@ -340,12 +355,41 @@ async def htmx_verification_stream(
                 "Refresh the page to check for results.</div>\n\n"
             )
             return
-        except Exception:
+        except _USER_FACING_ERRORS as exc:
             span = trace.get_current_span()
-            span.record_exception(Exception("verification.stream.task_failed"))
+            span.record_exception(exc)
+            span.set_attribute("error.type", type(exc).__name__)
+            span.set_attribute("user.id", user_id)
+            span.set_attribute("requirement.id", requirement_id)
+            logger.warning(
+                "verification.stream.user_error",
+                extra={
+                    "user_id": user_id,
+                    "requirement_id": requirement_id,
+                    "error_type": type(exc).__name__,
+                    "error_message": str(exc),
+                },
+            )
+            safe_msg = html.escape(str(exc))
+            yield (
+                "event: verification-result\n"
+                f"data: <div class='text-amber-600 text-sm p-2'>"
+                f"{safe_msg}</div>\n\n"
+            )
+            return
+        except Exception as exc:
+            span = trace.get_current_span()
+            span.record_exception(exc)
+            span.set_attribute("error.type", type(exc).__name__)
+            span.set_attribute("user.id", user_id)
+            span.set_attribute("requirement.id", requirement_id)
             logger.exception(
                 "verification.stream.task_failed",
-                extra={"user_id": user_id, "requirement_id": requirement_id},
+                extra={
+                    "user_id": user_id,
+                    "requirement_id": requirement_id,
+                    "error_type": type(exc).__name__,
+                },
             )
             yield (
                 "event: verification-result\n"
@@ -384,7 +428,7 @@ async def htmx_verification_stream(
             ):
                 error_banner = result.message
 
-            html = templates.get_template("partials/requirement_card.html").render(
+            card_html = templates.get_template("partials/requirement_card.html").render(
                 request=request,
                 **build_requirement_card_context(
                     requirement=requirement,
@@ -401,7 +445,7 @@ async def htmx_verification_stream(
                 ),
             )
             # SSE data lines: replace newlines with \ndata: for multi-line HTML
-            data_lines = html.replace("\n", "\ndata: ")
+            data_lines = card_html.replace("\n", "\ndata: ")
             yield f"event: verification-result\ndata: {data_lines}\n\n"
 
     return StreamingResponse(

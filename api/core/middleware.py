@@ -2,17 +2,12 @@
 
 from __future__ import annotations
 
-from contextvars import ContextVar
 from typing import ClassVar
 
 from opentelemetry import trace
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
-# Request-scoped context vars — set per request, auto-reset after.
-# The logging filter in core.logger reads these to enrich every log record.
-request_github_username: ContextVar[str | None] = ContextVar(
-    "request_github_username", default=None
-)
+from core.logger import request_github_username
 
 
 class SecurityHeadersMiddleware:

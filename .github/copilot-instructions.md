@@ -26,3 +26,18 @@ Keep docstrings short and useful. One line is enough for most functions.
 - Don't document implementation history ("removed X", "no longer uses Y")
 - Don't add `Args:` / `Returns:` blocks when the types and names are self-explanatory
 - Only comment code that needs clarification — skip the obvious
+
+## Database Migrations
+
+Never edit alembic migration files after they've been created. They are immutable historical records that may have already run in production. If a migration needs correcting, create a new migration instead.
+
+## Quality Gates
+
+Do not push unless all of the following pass:
+
+- `ruff check .`
+- `ruff format --check .`
+- `ty check --exclude scripts --exclude tests .`
+- `pytest tests/`
+
+Do not write `# noqa`, `type: ignore`, or ty/ruff suppression comments unless absolutely unavoidable.

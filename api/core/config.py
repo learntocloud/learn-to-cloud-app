@@ -37,8 +37,6 @@ class Settings(BaseSettings):
 
     labs_verification_secret: str = ""
 
-    daily_submission_limit: int = 20
-
     # Timeout settings (seconds)
     db_timeout: int = 30
     external_api_timeout: float = 15.0

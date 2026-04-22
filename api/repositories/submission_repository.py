@@ -1,6 +1,6 @@
 """Submission repository for hands-on validation database operations."""
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -159,24 +159,6 @@ class SubmissionRepository:
                 Submission.user_id == user_id,
                 Submission.requirement_id.in_(requirement_ids),
                 Submission.is_validated.is_(True),
-            )
-        )
-        return result.scalar_one() or 0
-
-    async def count_submissions_today(self, user_id: int) -> int:
-        """Count completed verification attempts by this user in the last 24 hours.
-
-        Used to enforce a global daily submission cap across all requirements.
-        Only counts submissions where verification actually ran.
-        """
-        cutoff = datetime.now(UTC) - timedelta(hours=24)
-        result = await self.db.execute(
-            select(func.count())
-            .select_from(Submission)
-            .where(
-                Submission.user_id == user_id,
-                Submission.verification_completed.is_(True),
-                Submission.updated_at >= cutoff,
             )
         )
         return result.scalar_one() or 0

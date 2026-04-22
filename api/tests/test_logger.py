@@ -176,8 +176,10 @@ class TestConfigureLogging:
 
         assert otel_handler in root.handlers
 
-    def test_no_filters_on_root_logger(self):
-        """Root logger filters were removed (dead code due to propagation bug)."""
+    def test_user_context_filter_on_root_logger(self):
+        """Root logger has _UserContextFilter to auto-inject github_username."""
         configure_logging()
         root = logging.getLogger()
-        assert len(root.filters) == 0
+        from core.logger import _UserContextFilter
+
+        assert any(isinstance(f, _UserContextFilter) for f in root.filters)
