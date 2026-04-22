@@ -29,33 +29,10 @@ def _configure_azure_monitor(resource: Resource) -> None:
     from azure.monitor.opentelemetry import (
         configure_azure_monitor as _configure_azure_monitor_sdk,
     )
-    from opentelemetry.context import get_value
-    from opentelemetry.sdk.trace import ReadableSpan, Span, SpanProcessor
-
-    class _UserAttributeSpanProcessor(SpanProcessor):
-        """Copy user identity from parent span to all child spans.
-
-        The ``UserTrackingMiddleware`` sets ``enduser.id`` and
-        ``enduser.name`` on the root request span, but Azure Monitor only
-        exports ``CustomDimensions`` from the span that owns them.  This
-        processor propagates those attributes to every child span so they
-        appear in ``AppDependencies``, ``AppTraces``, and ``AppExceptions``.
-        """
-
-        def on_start(self, span: Span, parent_context: Any = None) -> None:
-            parent = get_value("current-span", parent_context)
-            if parent is None or not isinstance(parent, ReadableSpan):
-                return
-            parent_attrs = parent.attributes or {}
-            for key in ("enduser.id", "enduser.name"):
-                value = parent_attrs.get(key)
-                if value is not None:
-                    span.set_attribute(key, value)
 
     _configure_azure_monitor_sdk(
         resource=resource,
         enable_live_metrics=True,
-        span_processors=[_UserAttributeSpanProcessor()],
         instrumentation_options={
             "azure_sdk": {"enabled": True},
             "flask": {"enabled": False},
