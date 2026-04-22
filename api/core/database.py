@@ -25,6 +25,7 @@ from sqlalchemy.orm import DeclarativeBase
 
 from core.azure_auth import get_token as _get_azure_token
 from core.config import get_settings
+from core.observability import instrument_database
 
 logger = logging.getLogger(__name__)
 
@@ -126,6 +127,7 @@ def create_engine() -> AsyncEngine:
     engine = create_async_engine(database_url, **engine_kwargs)
 
     _setup_pool_event_listeners(engine)
+    instrument_database(engine)
 
     return engine
 
