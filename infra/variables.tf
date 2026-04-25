@@ -14,6 +14,17 @@ variable "github_client_secret" {
   sensitive   = true
 }
 
+variable "github_token" {
+  description = "Read-only GitHub API token used for server-side verification requests"
+  type        = string
+  sensitive   = true
+
+  validation {
+    condition     = length(trimspace(var.github_token)) > 0
+    error_message = "github_token must be set to a read-only GitHub API token for production verification."
+  }
+}
+
 variable "session_secret_key" {
   description = "Secret key for signing session cookies"
   type        = string
