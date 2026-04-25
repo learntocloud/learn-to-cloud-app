@@ -17,6 +17,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from fastapi.responses import HTMLResponse
 
+from core.auth import AuthenticatedUser
 from routes.htmx_routes import (
     htmx_complete_step,
     htmx_delete_account,
@@ -186,14 +187,9 @@ class TestHtmxSubmitVerification:
     async def test_submit_success_returns_processing_card(self):
         """Successful submission fires task and returns processing card."""
         request = _mock_request()
-        mock_db = AsyncMock()
+        current_user = AuthenticatedUser(user_id=1, github_username="user")
 
         with (
-            patch(
-                "routes.htmx_routes.get_user_by_id",
-                autospec=True,
-                return_value=MagicMock(github_username="user"),
-            ),
             patch("routes.htmx_routes.get_requirement_by_id", return_value=MagicMock()),
             patch(
                 "routes.htmx_routes.derive_submission_value",
@@ -207,8 +203,7 @@ class TestHtmxSubmitVerification:
             mock_asyncio.create_task.return_value = MagicMock()
             result = await htmx_submit_verification(
                 request,
-                mock_db,
-                user_id=1,
+                current_user,
                 requirement_id="req-1",
                 submitted_value="test",
             )
@@ -219,14 +214,9 @@ class TestHtmxSubmitVerification:
     async def test_submit_unexpected_error_renders_server_error(self):
         """Unexpected exceptions render a server error card."""
         request = _mock_request()
-        mock_db = AsyncMock()
+        current_user = AuthenticatedUser(user_id=1, github_username="user")
 
         with (
-            patch(
-                "routes.htmx_routes.get_user_by_id",
-                autospec=True,
-                return_value=MagicMock(github_username="user"),
-            ),
             patch("routes.htmx_routes.get_requirement_by_id", return_value=MagicMock()),
             patch(
                 "routes.htmx_routes.derive_submission_value",
@@ -240,8 +230,7 @@ class TestHtmxSubmitVerification:
         ):
             result = await htmx_submit_verification(
                 request,
-                mock_db,
-                user_id=1,
+                current_user,
                 requirement_id="req-1",
                 submitted_value="test",
             )

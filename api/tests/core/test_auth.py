@@ -13,11 +13,16 @@ import pytest
 from fastapi import HTTPException, Request
 
 from core.auth import (
+    AuthenticatedUser,
+    get_authenticated_user_from_session,
+    get_github_username_from_session,
     get_user_id_from_session,
     init_oauth,
     oauth,
     optional_auth,
+    optional_authenticated_user,
     require_auth,
+    require_authenticated_user,
 )
 
 
@@ -51,6 +56,41 @@ class TestGetUserIdFromSession:
 
 
 @pytest.mark.unit
+class TestGetGitHubUsernameFromSession:
+    """Test get_github_username_from_session reads session correctly."""
+
+    def test_returns_username_when_present(self):
+        request = _make_request(session={"github_username": "testuser"})
+        result = get_github_username_from_session(request)
+        assert result == "testuser"
+
+    def test_returns_none_when_missing_or_empty(self):
+        request = _make_request(session={"github_username": ""})
+        result = get_github_username_from_session(request)
+        assert result is None
+
+
+@pytest.mark.unit
+class TestGetAuthenticatedUserFromSession:
+    """Test session identity extraction."""
+
+    def test_returns_identity_when_user_id_present(self):
+        request = _make_request(session={"user_id": 42, "github_username": "testuser"})
+        result = get_authenticated_user_from_session(request)
+        assert result == AuthenticatedUser(user_id=42, github_username="testuser")
+
+    def test_returns_identity_without_username(self):
+        request = _make_request(session={"user_id": 42})
+        result = get_authenticated_user_from_session(request)
+        assert result == AuthenticatedUser(user_id=42, github_username=None)
+
+    def test_returns_none_when_user_id_missing(self):
+        request = _make_request(session={"github_username": "testuser"})
+        result = get_authenticated_user_from_session(request)
+        assert result is None
+
+
+@pytest.mark.unit
 class TestRequireAuth:
     """Test require_auth dependency."""
 
@@ -77,6 +117,24 @@ class TestRequireAuth:
 
 
 @pytest.mark.unit
+class TestRequireAuthenticatedUser:
+    """Test require_authenticated_user dependency."""
+
+    def test_returns_identity_and_sets_state(self):
+        request = _make_request(session={"user_id": 42, "github_username": "testuser"})
+        result = require_authenticated_user(request)
+        assert result == AuthenticatedUser(user_id=42, github_username="testuser")
+        assert request.state.user_id == 42
+        assert request.state.github_username == "testuser"
+
+    def test_raises_401_for_htmx_requests(self):
+        request = _make_request(session={}, headers={"hx-request": "true"})
+        with pytest.raises(HTTPException) as exc_info:
+            require_authenticated_user(request)
+        assert exc_info.value.status_code == 401
+
+
+@pytest.mark.unit
 class TestOptionalAuth:
     """Test optional_auth dependency."""
 
@@ -89,6 +147,23 @@ class TestOptionalAuth:
     def test_returns_none_when_not_authenticated(self):
         request = _make_request(session={})
         result = optional_auth(request)
+        assert result is None
+
+
+@pytest.mark.unit
+class TestOptionalAuthenticatedUser:
+    """Test optional_authenticated_user dependency."""
+
+    def test_returns_identity_and_sets_state(self):
+        request = _make_request(session={"user_id": 99, "github_username": "user"})
+        result = optional_authenticated_user(request)
+        assert result == AuthenticatedUser(user_id=99, github_username="user")
+        assert request.state.user_id == 99
+        assert request.state.github_username == "user"
+
+    def test_returns_none_when_not_authenticated(self):
+        request = _make_request(session={})
+        result = optional_authenticated_user(request)
         assert result is None
 
 

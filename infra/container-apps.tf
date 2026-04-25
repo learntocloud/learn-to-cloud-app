@@ -44,6 +44,11 @@ resource "azurerm_container_app" "api" {
   }
 
   secret {
+    name  = "github-token"
+    value = var.github_token
+  }
+
+  secret {
     name  = "session-secret-key"
     value = var.session_secret_key
   }
@@ -110,6 +115,11 @@ resource "azurerm_container_app" "api" {
       env {
         name        = "GITHUB_CLIENT_SECRET"
         secret_name = "github-client-secret"
+      }
+
+      env {
+        name        = "GITHUB_TOKEN"
+        secret_name = "github-token"
       }
 
       env {

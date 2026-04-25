@@ -20,12 +20,11 @@ from typing import Annotated
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse
 from opentelemetry import trace
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from starlette.responses import StreamingResponse
 
-from core.auth import UserId
+from core.auth import CurrentUser, UserId
 from core.config import get_settings
-from core.database import DbSession, DbSessionReadOnly
+from core.database import DbSession
 from core.ratelimit import limiter
 from core.templates import templates
 from models import SubmissionType
@@ -195,8 +194,7 @@ async def htmx_uncomplete_step(
 @limiter.limit("10/minute")
 async def htmx_submit_verification(
     request: Request,
-    db: DbSessionReadOnly,
-    user_id: UserId,
+    current_user: CurrentUser,
     requirement_id: Annotated[str, Form(max_length=100)],
     submitted_value: Annotated[str, Form(max_length=2048)] = "",
     pr_number: Annotated[str, Form(max_length=16)] = "",
@@ -208,8 +206,8 @@ async def htmx_submit_verification(
     All validation (preconditions, grading, persistence) happens
     in the background task — errors surface via SSE.
     """
-    user = await get_user_by_id(db, user_id)
-    github_username = user.github_username if user else None
+    user_id = current_user.user_id
+    github_username = current_user.github_username
 
     requirement = get_requirement_by_id(requirement_id)
 
@@ -310,7 +308,7 @@ async def htmx_submit_verification(
 async def htmx_verification_stream(
     request: Request,
     requirement_id: str,
-    user_id: UserId,
+    current_user: CurrentUser,
 ) -> StreamingResponse:
     """SSE stream that pushes the verification result when ready.
 
@@ -321,14 +319,9 @@ async def htmx_verification_stream(
     If the client disconnects before the result arrives (tab close, nav),
     the result is still persisted in the DB and will show on next page load.
     """
+    user_id = current_user.user_id
+    stream_github_username = current_user.github_username
     task = get_task(user_id, requirement_id)
-
-    # Fetch github_username with a short-lived session so we don't hold a
-    # DB connection open for the entire SSE stream (up to 180s).
-    session_maker: async_sessionmaker[AsyncSession] = request.app.state.session_maker
-    async with session_maker() as db:
-        stream_user = await get_user_by_id(db, user_id)
-        stream_github_username = stream_user.github_username if stream_user else None
 
     async def event_generator():
         if task is None:

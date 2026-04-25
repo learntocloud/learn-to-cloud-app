@@ -139,6 +139,8 @@ See the [Contributing Guide](docs/contributing.md) for linting, testing, the dog
 ## Deployment
 
 Push to `main` triggers automated deployment via GitHub Actions → Terraform → Azure Container Apps.
+Production verification uses the GitHub Actions secret `TF_VAR_github_token`
+to populate the Container App `GITHUB_TOKEN` environment variable.
 
 ## License
 
