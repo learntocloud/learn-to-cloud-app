@@ -100,7 +100,9 @@ learning_steps:
     - 'Install OpenTelemetry packages: `opentelemetry-api`, `opentelemetry-sdk`, `opentelemetry-instrumentation-fastapi`'
     - Configure a `TracerProvider` and `MeterProvider` with a `Resource` identifying your service
     - Call `FastAPIInstrumentor.instrument_app(app)` to auto-instrument HTTP requests
-    - 'Add at least one custom span (e.g., around a database or LLM call) and one custom metric (e.g., entries created counter)'
+    - 'Trace how one request moves through your app, including at least one custom span around a database call'
+    - Log something meaningful during that request, such as a journal entry being created or a validation error being returned
+    - Measure useful behavior with metrics, such as request count, request latency, error count, or journal entries created
     - Verify telemetry locally with an OTLP-compatible tool such as Aspire Dashboard before sending it to the cloud
     - 'Install your provider''s OTel exporter (`azure-monitor-opentelemetry`, `opentelemetry-exporter-otlp` for AWS/ADOT, or `opentelemetry-exporter-gcp-trace`/`opentelemetry-exporter-gcp-monitoring`)'
     - Configure the exporter so traces, metrics, and logs are sent to your cloud console (Azure Application Insights, AWS X-Ray + CloudWatch, or GCP Cloud Trace + Cloud Monitoring)

@@ -89,9 +89,10 @@ learning_steps:
     - Configure a `TracerProvider` with a `Resource` that identifies your service name
     - Configure a `MeterProvider` for custom metrics
     - Call `FastAPIInstrumentor.instrument_app(app)` to auto-instrument routes
-    - 'Add at least one custom span (e.g., around a database call) using `tracer.start_as_current_span()`'
-    - 'Add at least one custom metric (e.g., a counter for journal entries created)'
-    - Connect your Python logger to the OTel log pipeline so structured logs are correlated with traces
+    - 'Trace how one request moves through your app, including at least one custom span around a database call using `tracer.start_as_current_span()`'
+    - Log something meaningful during that request, such as a journal entry being created or a validation error being returned
+    - 'Measure useful behavior with metrics, such as request count, request latency, error count, or journal entries created'
+    - Connect your Python logger to the OTel log pipeline so logs are correlated with traces
   url: https://opentelemetry-python-contrib.readthedocs.io/en/latest/instrumentation/fastapi/fastapi.html
   id: phase5-topic5-practice-instrument-fastapi-with-otel
 - order: 9
@@ -103,7 +104,8 @@ learning_steps:
     - 'Set `OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317` for your local app'
     - Start the Journal API and send requests to several routes, including at least one route that returns an error
     - Open `http://localhost:18888` and confirm requests appear as traces
-    - Confirm logs include trace context and that your custom metric appears in the dashboard
+    - Confirm logs include trace context
+    - Confirm metrics such as request count, latency, errors, or your custom counter appear in the dashboard
   id: phase5-topic5-practice-verify-telemetry-aspire-dashboard
 - order: 10
   action: 'Practice:'
