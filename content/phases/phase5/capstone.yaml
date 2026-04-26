@@ -101,11 +101,14 @@ learning_steps:
     - Configure a `TracerProvider` and `MeterProvider` with a `Resource` identifying your service
     - Call `FastAPIInstrumentor.instrument_app(app)` to auto-instrument HTTP requests
     - 'Add at least one custom span (e.g., around a database or LLM call) and one custom metric (e.g., entries created counter)'
-    - 'Install your provider''s OTel exporter (`azure-monitor-opentelemetry-exporter`, `opentelemetry-exporter-otlp` for AWS/ADOT, or `opentelemetry-exporter-gcp-trace`/`opentelemetry-exporter-gcp-monitoring`)'
+    - Verify telemetry locally with an OTLP-compatible tool such as Aspire Dashboard before sending it to the cloud
+    - 'Install your provider''s OTel exporter (`azure-monitor-opentelemetry`, `opentelemetry-exporter-otlp` for AWS/ADOT, or `opentelemetry-exporter-gcp-trace`/`opentelemetry-exporter-gcp-monitoring`)'
     - Configure the exporter so traces, metrics, and logs are sent to your cloud console (Azure Application Insights, AWS X-Ray + CloudWatch, or GCP Cloud Trace + Cloud Monitoring)
-    - Verify telemetry appears in your cloud console — find a trace for an API request and confirm logs are correlated with trace IDs
-    - '(Optional) Deploy Prometheus and Grafana in your K8s cluster for additional metric visualization'
-  done_when: Traces, metrics, and logs from your Journal API are visible in your cloud provider's monitoring console.
+    - Query your telemetry in your provider's tool (Azure KQL, CloudWatch Logs Insights, or GCP Logs Explorer)
+    - Build a small dashboard with request count, error rate, latency, and recent exceptions
+    - Create one alert for repeated 5xx responses, high latency, or another user-impacting symptom
+    - 'Optional advanced: recreate the same dashboard with Prometheus and Grafana'
+  done_when: Traces, metrics, and logs from your Journal API are visible in your cloud provider's monitoring console, and you have a basic dashboard and alert.
   id: phase5-topic6-build-monitoring-observability
 
 - order: 6

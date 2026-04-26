@@ -1,7 +1,7 @@
 id: phase5-topic5
 slug: monitoring-observability
 name: Monitoring & Observability
-description: Monitoring and observability are essential DevOps practices that help you understand the health, performance, and reliability of your applications and infrastructure. In this topic, you'll learn how to instrument your application with OpenTelemetry to produce logs, traces, and metrics, and export that telemetry to your cloud provider's monitoring platform (Azure Monitor, AWS CloudWatch/X-Ray, or GCP Cloud Monitoring).
+description: Monitoring and observability are essential DevOps practices that help you understand the health, performance, and reliability of your applications and infrastructure. In this topic, you'll instrument your application with OpenTelemetry, verify telemetry locally with Aspire Dashboard, and export logs, traces, and metrics to your cloud provider's monitoring platform.
 order: 5
 learning_objectives:
 - id: observability-principles
@@ -13,12 +13,18 @@ learning_objectives:
 - id: observability-tooling
   text: Instrument a Python/FastAPI application with the OpenTelemetry SDK to produce logs, traces, and metrics.
   order: 3
+- id: observability-local-validation
+  text: Verify telemetry locally with an OTLP-compatible tool such as Aspire Dashboard before sending it to the cloud.
+  order: 4
 - id: observability-cloud-export
   text: Export OpenTelemetry signals to a cloud monitoring platform and query them.
-  order: 4
-- id: observability-dashboards
-  text: Visualize telemetry data using Prometheus, Grafana, or your cloud provider's dashboards.
   order: 5
+- id: observability-dashboards-alerts
+  text: Build a useful dashboard and alert from application telemetry.
+  order: 6
+- id: observability-tooling-alternatives
+  text: Recognize where Prometheus and Grafana fit as common open-source observability alternatives.
+  order: 7
 learning_steps:
 - order: 1
   action: 'Read:'
@@ -69,20 +75,37 @@ learning_steps:
   description: Review the official OpenTelemetry Python documentation. Understand how to install the SDK, configure providers and exporters, and auto-instrument popular frameworks.
   id: phase5-topic5-read-opentelemetry-python-sdk
 - order: 7
+  action: 'Read:'
+  title: Aspire Dashboard
+  url: https://learn.microsoft.com/dotnet/aspire/fundamentals/dashboard/overview
+  description: Learn how Aspire Dashboard can run locally as a standalone OpenTelemetry dashboard so you can inspect logs, traces, and metrics before wiring your app to a cloud backend.
+  id: phase5-topic5-read-aspire-dashboard
+- order: 8
   action: 'Practice:'
   title: Instrument Your FastAPI App with OpenTelemetry
-  description: 'Add OpenTelemetry instrumentation to your Journal API. Install the core packages and the FastAPI auto-instrumentation library, then configure a trace provider and a metrics provider. You should be able to see traces for incoming HTTP requests and custom spans for key operations.'
+  description: 'Add OpenTelemetry instrumentation to your Journal API. Install the core packages and the FastAPI auto-instrumentation library, then configure tracing, metrics, and log correlation. You should be able to see traces for incoming HTTP requests and custom spans for key operations.'
   checklist:
     - 'Install packages: `opentelemetry-api`, `opentelemetry-sdk`, `opentelemetry-instrumentation-fastapi`'
     - Configure a `TracerProvider` with a `Resource` that identifies your service name
     - Configure a `MeterProvider` for custom metrics
     - Call `FastAPIInstrumentor.instrument_app(app)` to auto-instrument routes
-    - 'Add at least one custom span (e.g., around a database call or LLM call) using `tracer.start_as_current_span()`'
+    - 'Add at least one custom span (e.g., around a database call) using `tracer.start_as_current_span()`'
     - 'Add at least one custom metric (e.g., a counter for journal entries created)'
     - Connect your Python logger to the OTel log pipeline so structured logs are correlated with traces
   url: https://opentelemetry-python-contrib.readthedocs.io/en/latest/instrumentation/fastapi/fastapi.html
   id: phase5-topic5-practice-instrument-fastapi-with-otel
-- order: 8
+- order: 9
+  action: 'Practice:'
+  title: Verify Telemetry Locally with Aspire Dashboard
+  description: 'Run Aspire Dashboard locally, point your Journal API at its OTLP endpoint, and confirm your instrumentation works before sending telemetry to your cloud provider.'
+  checklist:
+    - 'Run the standalone dashboard: `docker run --rm -it -p 18888:18888 -p 4317:18889 -p 4318:18890 -d --name aspire-dashboard mcr.microsoft.com/dotnet/aspire-dashboard:latest`'
+    - 'Set `OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317` for your local app'
+    - Start the Journal API and send requests to several routes, including at least one route that returns an error
+    - Open `http://localhost:18888` and confirm requests appear as traces
+    - Confirm logs include trace context and that your custom metric appears in the dashboard
+  id: phase5-topic5-practice-verify-telemetry-aspire-dashboard
+- order: 10
   action: 'Practice:'
   title: Export Telemetry to Your Cloud Provider
   description: 'Connect your OpenTelemetry pipeline to your cloud provider''s monitoring backend so logs, traces, and metrics are visible in the cloud console. Follow the guide for your provider:'
@@ -90,7 +113,7 @@ learning_steps:
   - provider: azure
     title: Azure Monitor OpenTelemetry (Python)
     url: https://learn.microsoft.com/azure/azure-monitor/app/opentelemetry-enable?tabs=python
-    description: 'Install `azure-monitor-opentelemetry-exporter` and configure the exporter with your Application Insights connection string. Traces, metrics, and logs will appear in the Azure portal under Application Insights.'
+    description: 'Install `azure-monitor-opentelemetry` and configure it with your Application Insights connection string. Traces, metrics, and logs will appear in the Azure portal under Application Insights.'
   - provider: aws
     title: AWS Distro for OpenTelemetry (Python)
     url: https://aws-otel.github.io/docs/getting-started/python-sdk/trace-auto-instr
@@ -100,7 +123,7 @@ learning_steps:
     url: https://cloud.google.com/trace/docs/setup/python-ot
     description: 'Install `opentelemetry-exporter-gcp-trace` and `opentelemetry-exporter-gcp-monitoring` to export traces to Cloud Trace and metrics to Cloud Monitoring.'
   id: phase5-topic5-practice-export-telemetry-cloud-provider
-- order: 9
+- order: 11
   action: 'Practice:'
   title: Verify Telemetry in Your Cloud Console
   description: 'After instrumenting your app and configuring the exporter, send a few requests to your Journal API and verify the telemetry appears in your cloud console:'
@@ -109,61 +132,42 @@ learning_steps:
     - 'Confirm metrics are visible (Azure: Application Insights → Metrics, AWS: CloudWatch → Metrics, GCP: Cloud Monitoring → Metrics Explorer)'
     - 'Confirm logs are correlated with trace IDs (Azure: Application Insights → Logs, AWS: CloudWatch Logs, GCP: Cloud Logging)'
   id: phase5-topic5-practice-verify-telemetry-cloud-console
-- order: 10
-  action: 'Read:'
-  description: 'The industry-standard monitoring stack for self-hosted environments:'
-  title: Prometheus & Grafana
-  url: https://grafana.com/docs/grafana/latest/fundamentals/getting-started/first-dashboards/get-started-grafana-prometheus/
-  id: phase5-topic5-read-prometheus-grafana
-- order: 11
-  action: 'Practice:'
-  description: 'Install Prometheus using Docker:'
-  code: '# Create prometheus.yml config:
-
-    global: scrape_interval: 15s
-
-    scrape_configs: - job_name: ''prometheus'' static_configs: - targets: [''localhost:9090'']
-
-    # Replace 8000 with your app''s metrics endpoint port - job_name: ''app'' static_configs: - targets: [''host.docker.internal:8000'']
-
-    # Run Prometheus container:
-
-    docker run \ -p 9090:9090 \ -v /path/to/prometheus.yml:/etc/prometheus/prometheus.yml \ prom/prometheus'
-  title: Set Up Prometheus
-  id: phase5-topic5-practice-set-up-prometheus
 - order: 12
   action: 'Practice:'
-  description: 'Install Grafana and connect to Prometheus:'
-  code: '# Run Grafana container:
-
-    docker run -d --name=grafana -p 3000:3000 grafana/grafana
-
-
-    # Access Grafana at http://localhost:3000
-
-    # Default login: admin / admin
-
-
-    # Add Prometheus as data source:
-
-    # URL: http://host.docker.internal:9090'
-  title: Set Up Grafana
-  id: phase5-topic5-practice-set-up-grafana
+  title: Query Your Telemetry
+  description: 'Use your provider''s query tool to investigate real application behavior. For Azure, write KQL in Log Analytics or Application Insights Logs. For AWS, use CloudWatch Logs Insights. For GCP, use Logs Explorer and Metrics Explorer.'
+  checklist:
+    - Find failed requests from the last hour
+    - Show request count by route or endpoint
+    - Show slow requests or p95 request duration
+    - Find recent exceptions
+    - Correlate one log entry with the trace/request that produced it
+  id: phase5-topic5-practice-query-telemetry
 - order: 13
-  action: 'Read:'
-  title: What are AI Agents? (Optional advanced)
-  url: https://www.ibm.com/think/topics/ai-agents
-  description: Optional extension topic. Understand how AI agents can assist monitoring by responding to alerts, analyzing logs for potential causes, and suggesting remediation steps.
-  id: phase5-topic5-read-what-are-ai-agents
+  action: 'Practice:'
+  title: Build a Dashboard and Alert
+  description: 'Create a small production-style dashboard and one actionable alert from your telemetry. Keep it simple and focused on signals an on-call engineer would actually use.'
+  checklist:
+    - Add request count
+    - Add error count or error rate
+    - Add average or p95 latency
+    - Add recent exceptions or failed requests
+    - Create one alert for repeated 5xx responses, high latency, or another user-impacting symptom
+  id: phase5-topic5-practice-build-dashboard-alert
 - order: 14
   action: 'Practice:'
-  title: n8n Overview (Optional advanced)
-  url: https://n8n.io/features/
-  description: Optional extension lab. Install n8n with Docker (`docker run -d -p 5678:5678 --name n8n n8nio/n8n:latest`), then build a workflow that queries Prometheus for a metric, checks a threshold, and calls an LLM to analyze anomalies.
-  id: phase5-topic5-practice-n8n-overview-optional-advanced
+  title: Write a Short Incident Note
+  description: 'Trigger or find a small issue in your telemetry and write a short note explaining what happened, how you detected it, which query or dashboard helped, and what alert would catch it next time.'
+  id: phase5-topic5-practice-write-incident-note
 - order: 15
   action: 'Read:'
-  title: Prometheus & Grafana Documentation
+  title: Prometheus and Grafana as Optional Alternatives
+  url: https://grafana.com/docs/grafana/latest/fundamentals/getting-started/first-dashboards/get-started-grafana-prometheus/
+  description: Learn how Prometheus and Grafana fit into open-source and self-hosted observability stacks. Prometheus collects and queries metrics; Grafana visualizes data from Prometheus, cloud monitoring platforms, and many other backends.
+  id: phase5-topic5-read-prometheus-grafana
+- order: 16
+  action: 'Practice:'
+  title: 'Optional: Recreate Your Dashboard with Prometheus and Grafana'
   url: https://prometheus.io/docs/
-  description: Explore the official Prometheus and Grafana docs for deeper monitoring configuration.
+  description: 'Optional advanced practice for learners interested in Kubernetes, SRE, or platform engineering roles. Expose Prometheus-compatible metrics from your app, run Prometheus and Grafana locally, and recreate the same request, error, and latency dashboard you built in your cloud provider.'
   id: phase5-topic5-read-prometheus-grafana-documentation
