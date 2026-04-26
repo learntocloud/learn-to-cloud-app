@@ -2,9 +2,10 @@ id: '5'
 slug: phase5
 name: DevOps Fundamentals
 description: This phase covers DevOps fundamentals - the practices and tools that enable teams to deliver software faster
-  and more reliably. You'll learn containerization, CI/CD pipelines, Infrastructure as Code, and monitoring.
-short_description: Master Docker containers, Kubernetes orchestration, CI/CD pipelines, Terraform IaC, and monitoring with
-  Prometheus and Grafana.
+  and more reliably. You'll learn containerization, CI/CD pipelines, Infrastructure as Code, container orchestration,
+  and how to instrument your application with OpenTelemetry for cloud-native monitoring.
+short_description: Master Docker containers, Kubernetes orchestration, CI/CD pipelines, Terraform IaC, and OpenTelemetry
+  observability with your cloud provider.
 order: 5
 topics:
 - containers
