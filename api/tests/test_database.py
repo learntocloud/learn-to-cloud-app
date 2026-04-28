@@ -1,15 +1,15 @@
 """Tests for core.database module.
 
 Covers the module-specific logic that isn't exercised by integration tests:
-- Azure credential locking and reset
-- Azure token retry/timeout behavior
+- Azure credential locking and singleton behavior
+- Azure token acquisition (get_token delegates to SDK)
+- Credential shutdown cleanup (close_credential)
 - Pool checkout event (transaction state cleanup + safety net)
 - Health check timeout behavior
 - get_db / get_db_readonly commit/rollback semantics
 """
 
 import asyncio
-from typing import Any, cast
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -21,14 +21,12 @@ import pytest
 
 @pytest.fixture(autouse=True)
 async def _reset_credential():
-    """Reset the module-level credential cache before each test."""
-    import core.azure_auth as auth_mod
+    """Reset the module-level credential cache before/after each test."""
+    from core.azure_auth import close_credential
 
-    async with auth_mod._credential_lock:
-        auth_mod._azure_credential = None
+    await close_credential()
     yield
-    async with auth_mod._credential_lock:
-        auth_mod._azure_credential = None
+    await close_credential()
 
 
 # ===========================================================================
@@ -39,14 +37,15 @@ async def _reset_credential():
 class TestAzureCredentialLocking:
     """Verify get_credential uses asyncio.Lock correctly."""
 
-    @patch("core.azure_auth.DefaultAzureCredential", autospec=True)
+    @patch("core.azure_auth.ManagedIdentityCredential", autospec=True)
     async def test_single_credential_created_on_concurrent_calls(
         self, mock_cred_cls: MagicMock
     ):
-        """Concurrent calls should create only one DefaultAzureCredential."""
+        """Concurrent calls should create only one ManagedIdentityCredential."""
         from core.azure_auth import get_credential
 
         sentinel = MagicMock(name="credential_instance")
+        sentinel.close = AsyncMock()
         mock_cred_cls.return_value = sentinel
 
         results = await asyncio.gather(
@@ -58,83 +57,72 @@ class TestAzureCredentialLocking:
         assert all(r is sentinel for r in results)
         mock_cred_cls.assert_called_once()
 
-    async def test_reset_clears_credential(self):
-        """reset_credential should set the cache to None."""
-        import core.azure_auth as auth_mod
-        from core.azure_auth import get_credential, reset_credential
-
-        with patch(
-            "core.azure_auth.DefaultAzureCredential",
-            autospec=True,
-            return_value=MagicMock(),
-        ):
-            await get_credential()
-            assert auth_mod._azure_credential is not None
-
-        await reset_credential()
-
-        async with auth_mod._credential_lock:
-            assert auth_mod._azure_credential is None
-
 
 # ===========================================================================
-# Azure token retry / timeout
+# Azure token acquisition
 # ===========================================================================
 
 
-class TestAzureTokenRetryTimeout:
-    """Verify get_token retry and timeout behavior."""
-
-    async def test_timeout_resets_credential(self):
-        """When token acquisition times out, credential should be reset."""
-        import core.azure_auth as auth_mod
-
-        fake_credential = MagicMock()
-
-        # get_token blocks forever → triggers timeout
-        async def hang_forever(*args, **kwargs):
-            await asyncio.sleep(9999)
-
-        with (
-            patch(
-                "core.azure_auth.DefaultAzureCredential",
-                autospec=True,
-                return_value=fake_credential,
-            ),
-            patch(
-                "core.azure_auth.get_settings",
-                return_value=MagicMock(db_timeout=0.05),
-            ),
-            patch.object(auth_mod, "_AZURE_RETRY_ATTEMPTS", 1),
-            patch("asyncio.to_thread", autospec=True, side_effect=hang_forever),
-        ):
-            # We call the inner logic directly via __wrapped__ to bypass tenacity
-            unwrapped = cast(Any, auth_mod.get_token).__wrapped__
-            with pytest.raises(TimeoutError):
-                await unwrapped()
-
-        async with auth_mod._credential_lock:
-            assert auth_mod._azure_credential is None
+class TestAzureGetToken:
+    """Verify get_token delegates to the SDK credential."""
 
     async def test_successful_token_acquisition(self):
-        """Happy path: token acquired successfully."""
-        import core.azure_auth as auth_mod
-
-        fake_credential = MagicMock()
+        """get_token should return the token string from credential.get_token."""
         fake_token = MagicMock()
         fake_token.token = "test-token-123"
-        fake_credential.get_token.return_value = fake_token
+
+        fake_credential = AsyncMock()
+        fake_credential.get_token = AsyncMock(return_value=fake_token)
+        fake_credential.close = AsyncMock()
 
         with patch(
-            "core.azure_auth.DefaultAzureCredential",
+            "core.azure_auth.ManagedIdentityCredential",
             autospec=True,
             return_value=fake_credential,
         ):
-            unwrapped = cast(Any, auth_mod.get_token).__wrapped__
-            token = await unwrapped()
+            from core.azure_auth import get_token
+
+            token = await get_token()
 
         assert token == "test-token-123"
-        fake_credential.get_token.assert_called_once()
+        fake_credential.get_token.assert_awaited_once()
+
+
+# ===========================================================================
+# Credential shutdown cleanup
+# ===========================================================================
+
+
+class TestCloseCredential:
+    """Verify close_credential properly closes and clears the cached credential."""
+
+    async def test_close_credential_closes_transport(self):
+        """close_credential should await credential.close() and clear cache."""
+        import core.azure_auth as auth_mod
+
+        fake_credential = AsyncMock()
+        fake_credential.close = AsyncMock()
+
+        with patch(
+            "core.azure_auth.ManagedIdentityCredential",
+            autospec=True,
+            return_value=fake_credential,
+        ):
+            await auth_mod.get_credential()
+            assert auth_mod._azure_credential is not None
+
+        await auth_mod.close_credential()
+
+        fake_credential.close.assert_awaited_once()
+        assert auth_mod._azure_credential is None
+
+    async def test_close_credential_noop_when_none(self):
+        """close_credential should be safe to call when no credential exists."""
+        import core.azure_auth as auth_mod
+
+        assert auth_mod._azure_credential is None
+        await auth_mod.close_credential()  # should not raise
+        assert auth_mod._azure_credential is None
 
 
 # ===========================================================================

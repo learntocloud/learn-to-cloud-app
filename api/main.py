@@ -20,6 +20,7 @@ from slowapi.errors import RateLimitExceeded
 from starlette.middleware.sessions import SessionMiddleware
 
 from core.auth import init_oauth
+from core.azure_auth import close_credential
 from core.config import get_settings
 from core.csrf import CSRFMiddleware
 from core.database import (
@@ -216,6 +217,8 @@ async def lifespan(app: fastapi.FastAPI):
         await close_github_client()
         await close_deployed_api_client()
         await dispose_engine(app.state.engine)
+        if get_settings().use_azure_postgres:
+            await close_credential()
 
 
 _settings = get_settings()
