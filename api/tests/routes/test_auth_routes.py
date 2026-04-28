@@ -27,6 +27,16 @@ def _mock_request(*, session: dict | None = None) -> MagicMock:
     request = MagicMock()
     request.session = session if session is not None else {}
     request.url_for.return_value = "http://testserver/auth/callback"
+
+    # session_maker context manager used by callback() for scoped DB access
+    mock_session = AsyncMock()
+    mock_cm = AsyncMock()
+    mock_cm.__aenter__ = AsyncMock(return_value=mock_session)
+    mock_cm.__aexit__ = AsyncMock(return_value=False)
+    mock_session_maker = MagicMock(return_value=mock_cm)
+    request.app.state.session_maker = mock_session_maker
+    request._mock_db_session = mock_session  # exposed for test assertions
+
     return request
 
 
@@ -108,7 +118,6 @@ class TestCallbackRoute:
     async def test_callback_creates_session_on_success(self):
         """Successful OAuth callback sets session and redirects to /dashboard."""
         request = _mock_request(session={})
-        mock_db = AsyncMock()
         mock_github = MagicMock()
 
         token = {"access_token": "gho_fake_token"}
@@ -138,7 +147,7 @@ class TestCallbackRoute:
         ):
             mock_oauth.create_client.return_value = mock_github
 
-            result = await callback(request, mock_db)
+            result = await callback(request)
 
         # Session should be populated
         assert request.session["user_id"] == 42
@@ -149,9 +158,9 @@ class TestCallbackRoute:
         assert result.status_code == 302
         assert result.headers["location"] == "/dashboard"
 
-        # User creation should have been called with parsed data
+        # User creation should have been called with the scoped DB session
         mock_get_or_create.assert_awaited_once_with(
-            db=mock_db,
+            db=request._mock_db_session,
             github_id=12345,
             first_name="Test",
             last_name="User",
@@ -162,7 +171,6 @@ class TestCallbackRoute:
     async def test_callback_handles_oauth_error(self):
         """OAuthError during token exchange redirects to /."""
         request = _mock_request(session={})
-        mock_db = AsyncMock()
         mock_github = MagicMock()
         mock_github.authorize_access_token = AsyncMock(
             side_effect=OAuthError(error="access_denied")
@@ -171,7 +179,7 @@ class TestCallbackRoute:
         with patch("routes.auth_routes.oauth") as mock_oauth:
             mock_oauth.create_client.return_value = mock_github
 
-            result = await callback(request, mock_db)
+            result = await callback(request)
 
         assert isinstance(result, RedirectResponse)
         assert result.status_code == 302
@@ -182,12 +190,11 @@ class TestCallbackRoute:
     async def test_callback_redirects_home_when_github_not_configured(self):
         """When GitHub OAuth is not configured, redirects to /."""
         request = _mock_request(session={})
-        mock_db = AsyncMock()
 
         with patch("routes.auth_routes.oauth") as mock_oauth:
             mock_oauth.create_client.return_value = None
 
-            result = await callback(request, mock_db)
+            result = await callback(request)
 
         assert isinstance(result, RedirectResponse)
         assert result.status_code == 302
@@ -196,7 +203,6 @@ class TestCallbackRoute:
     async def test_callback_handles_missing_github_id(self):
         """Malformed GitHub response (no 'id') redirects to / gracefully."""
         request = _mock_request(session={})
-        mock_db = AsyncMock()
         mock_github = MagicMock()
         mock_github.authorize_access_token = AsyncMock(
             return_value={"access_token": "gho_fake"}
@@ -214,7 +220,7 @@ class TestCallbackRoute:
         with patch("routes.auth_routes.oauth") as mock_oauth:
             mock_oauth.create_client.return_value = mock_github
 
-            result = await callback(request, mock_db)
+            result = await callback(request)
 
         assert isinstance(result, RedirectResponse)
         assert result.status_code == 302
@@ -225,7 +231,6 @@ class TestCallbackRoute:
     async def test_callback_lowercases_github_username(self):
         """GitHub username is stored lowercase in the database."""
         request = _mock_request(session={})
-        mock_db = AsyncMock()
         mock_github = MagicMock()
         mock_github.authorize_access_token = AsyncMock(
             return_value={"access_token": "gho_fake"}
@@ -254,7 +259,7 @@ class TestCallbackRoute:
         ):
             mock_oauth.create_client.return_value = mock_github
 
-            await callback(request, mock_db)
+            await callback(request)
 
         # Verify github_username was lowercased before being passed
         call_kwargs = mock_get_or_create.call_args.kwargs
