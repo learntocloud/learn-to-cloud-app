@@ -108,11 +108,7 @@ def create_engine() -> AsyncEngine:
         "max_overflow": settings.db_pool_max_overflow,
         "pool_timeout": settings.db_pool_timeout,
         "pool_recycle": settings.db_pool_recycle,
-        # pool_pre_ping is disabled because SQLAlchemy's asyncpg adapter uses
-        # Connection.transaction() for the ping, which can conflict with
-        # asyncpg's strict protocol-level transaction state tracking.
-        # pool_recycle provides staleness protection instead.
-        "pool_pre_ping": False,
+        "pool_pre_ping": True,
     }
 
     if async_creator is None:

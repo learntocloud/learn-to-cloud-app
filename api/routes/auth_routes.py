@@ -7,15 +7,16 @@ Handles:
 """
 
 import logging
+import time
 
 import httpx
 from authlib.integrations.starlette_client import OAuthError
 from fastapi import APIRouter, Request
 from fastapi.responses import RedirectResponse
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from core.auth import oauth
 from core.config import get_settings
-from core.database import DbSession
 from core.ratelimit import limiter
 from services.users_service import get_or_create_user_from_github, parse_display_name
 
@@ -54,12 +55,15 @@ async def login(request: Request) -> RedirectResponse:
     summary="GitHub OAuth callback",
     include_in_schema=False,
 )
-async def callback(request: Request, db: DbSession) -> RedirectResponse:
+async def callback(request: Request) -> RedirectResponse:
     """Handle GitHub OAuth callback.
 
     Exchanges the authorization code for an access token, fetches the
     user's GitHub profile, creates or updates the user in the database,
     and sets the session cookie.
+
+    DB session is acquired only after GitHub API calls complete to avoid
+    holding a connection idle during external HTTP round-trips.
     """
     github = oauth.create_client("github")
     if github is None:
@@ -67,6 +71,7 @@ async def callback(request: Request, db: DbSession) -> RedirectResponse:
         return RedirectResponse(url="/", status_code=302)
 
     try:
+        t0 = time.perf_counter()
         token = await github.authorize_access_token(request)
     except (OAuthError, httpx.HTTPStatusError, httpx.ReadTimeout) as exc:
         logger.error(
@@ -78,7 +83,9 @@ async def callback(request: Request, db: DbSession) -> RedirectResponse:
         )
         return RedirectResponse(url="/", status_code=302)
 
+    t1 = time.perf_counter()
     resp = await github.get("user", token=token)
+    t2 = time.perf_counter()
     github_user = resp.json()
 
     github_id = github_user.get("id")
@@ -93,21 +100,33 @@ async def callback(request: Request, db: DbSession) -> RedirectResponse:
     avatar_url = github_user.get("avatar_url")
     first_name, last_name = parse_display_name(github_user.get("name", ""))
 
-    user = await get_or_create_user_from_github(
-        db=db,
-        github_id=github_id,
-        first_name=first_name,
-        last_name=last_name,
-        avatar_url=avatar_url,
-        github_username=github_username.lower(),
-    )
+    # Acquire DB session only now — GitHub API calls are done.
+    sm: async_sessionmaker[AsyncSession] = request.app.state.session_maker
+    async with sm() as db:
+        user = await get_or_create_user_from_github(
+            db=db,
+            github_id=github_id,
+            first_name=first_name,
+            last_name=last_name,
+            avatar_url=avatar_url,
+            github_username=github_username.lower(),
+        )
+        await db.commit()
+    t3 = time.perf_counter()
 
     request.session["user_id"] = user.id
     request.session["github_username"] = user.github_username or ""
 
     logger.info(
         "auth.login.success",
-        extra={"user_id": user.id, "github_username": github_username},
+        extra={
+            "user_id": user.id,
+            "github_username": github_username,
+            "token_exchange_ms": round((t1 - t0) * 1000, 1),
+            "github_user_fetch_ms": round((t2 - t1) * 1000, 1),
+            "db_upsert_ms": round((t3 - t2) * 1000, 1),
+            "total_ms": round((t3 - t0) * 1000, 1),
+        },
     )
 
     return RedirectResponse(url="/dashboard", status_code=302)
