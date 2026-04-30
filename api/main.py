@@ -244,6 +244,7 @@ app.add_middleware(UserTrackingMiddleware)
 app.add_middleware(
     CSRFMiddleware,
     exempt_urls=[re.compile(r"^/auth/callback$")],
+    trusted_origins=_settings.allowed_origins,
 )
 app.add_middleware(
     SessionMiddleware,

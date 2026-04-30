@@ -9,7 +9,8 @@ Tests the Synchronizer Token Pattern:
 - 403 on missing or wrong token
 - Exempt URLs skip checks
 - Non-HTTP scopes pass through
-- No session → middleware is a no-op
+- No session → fail-closed on unsafe methods, pass-through on safe methods
+- Origin / Referer verification (defence-in-depth)
 """
 
 import re
@@ -24,6 +25,7 @@ from core.csrf import CSRFMiddleware
 # ---------------------------------------------------------------------------
 
 _TOKEN = "test-csrf-token-value"
+_TRUSTED_ORIGIN = "https://example.com"
 
 
 async def _noop_receive():
@@ -203,11 +205,19 @@ class TestCSRFMiddleware:
         await middleware(scope, _noop_receive, _noop_send)
         assert called
 
-    async def test_no_session_passes_through(self):
-        """If no session is available, middleware should not enforce CSRF."""
+    async def test_no_session_rejects_unsafe_method(self):
+        """Unsafe methods without a session should be rejected (fail-closed)."""
         middleware = CSRFMiddleware(_make_app_that_sends_response)
         scope = _http_scope(method="POST")
-        # No "session" key in scope.
+        sent = []
+
+        await middleware(scope, _noop_receive, _collect_send(sent))
+        assert any(m.get("status") == 403 for m in sent)
+
+    async def test_no_session_allows_safe_method(self):
+        """Safe methods without a session should still pass through."""
+        middleware = CSRFMiddleware(_make_app_that_sends_response)
+        scope = _http_scope(method="GET")
         sent = []
 
         await middleware(scope, _noop_receive, _collect_send(sent))
@@ -239,3 +249,163 @@ class TestCSRFMiddleware:
         assert any(m.get("status") == 403 for m in sent)
         body_msg = next((m for m in sent if m.get("type") == "http.response.body"), {})
         assert b"refresh" in body_msg.get("body", b"").lower()
+
+
+@pytest.mark.unit
+class TestCSRFOriginVerification:
+    """Test Origin / Referer defence-in-depth checks."""
+
+    async def test_valid_origin_header_accepted(self):
+        """POST with matching Origin header should pass."""
+        session = {"_csrf_token": _TOKEN}
+        middleware = CSRFMiddleware(
+            _make_app_that_sends_response,
+            trusted_origins=[_TRUSTED_ORIGIN],
+        )
+        scope = _http_scope(
+            method="POST",
+            session=session,
+            headers=[
+                (b"x-csrftoken", _TOKEN.encode()),
+                (b"origin", b"https://example.com"),
+            ],
+        )
+        sent = []
+
+        await middleware(scope, _noop_receive, _collect_send(sent))
+        assert any(m.get("status") == 200 for m in sent)
+
+    async def test_invalid_origin_header_rejected(self):
+        """POST with non-matching Origin header should return 403."""
+        session = {"_csrf_token": _TOKEN}
+        middleware = CSRFMiddleware(
+            _make_app_that_sends_response,
+            trusted_origins=[_TRUSTED_ORIGIN],
+        )
+        scope = _http_scope(
+            method="POST",
+            session=session,
+            headers=[
+                (b"x-csrftoken", _TOKEN.encode()),
+                (b"origin", b"https://evil.com"),
+            ],
+        )
+        sent = []
+
+        await middleware(scope, _noop_receive, _collect_send(sent))
+        assert any(m.get("status") == 403 for m in sent)
+
+    async def test_valid_referer_accepted(self):
+        """POST with matching Referer (no Origin) should pass."""
+        session = {"_csrf_token": _TOKEN}
+        middleware = CSRFMiddleware(
+            _make_app_that_sends_response,
+            trusted_origins=[_TRUSTED_ORIGIN],
+        )
+        scope = _http_scope(
+            method="POST",
+            session=session,
+            headers=[
+                (b"x-csrftoken", _TOKEN.encode()),
+                (b"referer", b"https://example.com/some/page"),
+            ],
+        )
+        sent = []
+
+        await middleware(scope, _noop_receive, _collect_send(sent))
+        assert any(m.get("status") == 200 for m in sent)
+
+    async def test_invalid_referer_rejected(self):
+        """POST with non-matching Referer (no Origin) should return 403."""
+        session = {"_csrf_token": _TOKEN}
+        middleware = CSRFMiddleware(
+            _make_app_that_sends_response,
+            trusted_origins=[_TRUSTED_ORIGIN],
+        )
+        scope = _http_scope(
+            method="POST",
+            session=session,
+            headers=[
+                (b"x-csrftoken", _TOKEN.encode()),
+                (b"referer", b"https://evil.com/attack"),
+            ],
+        )
+        sent = []
+
+        await middleware(scope, _noop_receive, _collect_send(sent))
+        assert any(m.get("status") == 403 for m in sent)
+
+    async def test_no_origin_or_referer_falls_through_to_token_check(self):
+        """Missing both Origin and Referer should fall through to token check."""
+        session = {"_csrf_token": _TOKEN}
+        middleware = CSRFMiddleware(
+            _make_app_that_sends_response,
+            trusted_origins=[_TRUSTED_ORIGIN],
+        )
+        scope = _http_scope(
+            method="POST",
+            session=session,
+            headers=[(b"x-csrftoken", _TOKEN.encode())],
+        )
+        sent = []
+
+        await middleware(scope, _noop_receive, _collect_send(sent))
+        assert any(m.get("status") == 200 for m in sent)
+
+    async def test_origin_check_skipped_when_no_trusted_origins(self):
+        """Without trusted_origins configured, origin check is skipped."""
+        session = {"_csrf_token": _TOKEN}
+        middleware = CSRFMiddleware(_make_app_that_sends_response)
+        scope = _http_scope(
+            method="POST",
+            session=session,
+            headers=[
+                (b"x-csrftoken", _TOKEN.encode()),
+                (b"origin", b"https://evil.com"),
+            ],
+        )
+        sent = []
+
+        await middleware(scope, _noop_receive, _collect_send(sent))
+        # Should pass because origin check is not enforced.
+        assert any(m.get("status") == 200 for m in sent)
+
+    async def test_origin_normalization_strips_default_port(self):
+        """Origin with default port should match the same origin without port."""
+        session = {"_csrf_token": _TOKEN}
+        middleware = CSRFMiddleware(
+            _make_app_that_sends_response,
+            trusted_origins=["https://example.com"],
+        )
+        scope = _http_scope(
+            method="POST",
+            session=session,
+            headers=[
+                (b"x-csrftoken", _TOKEN.encode()),
+                (b"origin", b"https://example.com:443"),
+            ],
+        )
+        sent = []
+
+        await middleware(scope, _noop_receive, _collect_send(sent))
+        assert any(m.get("status") == 200 for m in sent)
+
+    async def test_origin_normalization_preserves_non_default_port(self):
+        """Origin with non-default port should require exact match."""
+        session = {"_csrf_token": _TOKEN}
+        middleware = CSRFMiddleware(
+            _make_app_that_sends_response,
+            trusted_origins=["http://localhost:4280"],
+        )
+        scope = _http_scope(
+            method="POST",
+            session=session,
+            headers=[
+                (b"x-csrftoken", _TOKEN.encode()),
+                (b"origin", b"http://localhost:4280"),
+            ],
+        )
+        sent = []
+
+        await middleware(scope, _noop_receive, _collect_send(sent))
+        assert any(m.get("status") == 200 for m in sent)

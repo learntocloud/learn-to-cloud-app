@@ -5,7 +5,8 @@ directly and therefore can't catch wiring mistakes in `main.py`.
 
 This test proves the expected behavior:
 - Session wraps CSRF (correct) -> POST without token is rejected (403)
-- CSRF wraps Session (wrong) -> CSRF becomes a no-op and POST succeeds (200)
+- CSRF wraps Session (wrong) -> CSRF can't read session, so unsafe
+  requests are also rejected (403) thanks to fail-closed behaviour.
 """
 
 from __future__ import annotations
@@ -34,7 +35,7 @@ def _build_app(*, correct_order: bool) -> FastAPI:
         app.add_middleware(CSRFMiddleware)
         app.add_middleware(SessionMiddleware, secret_key="test-secret")
     else:
-        # Wrong: CSRF runs before Session at runtime and becomes a silent no-op.
+        # Wrong: CSRF runs before Session at runtime — session is unavailable.
         app.add_middleware(SessionMiddleware, secret_key="test-secret")
         app.add_middleware(CSRFMiddleware)
 
@@ -58,7 +59,8 @@ class TestCSRFMiddlewareOrdering:
             r = await client.post("/protected", headers={"X-CSRFToken": token})
             assert r.status_code == 200
 
-    async def test_wrong_order_disables_csrf(self) -> None:
+    async def test_wrong_order_rejects_unsafe_requests(self) -> None:
+        """Wrong middleware order means no session — fail-closed returns 403."""
         app = _build_app(correct_order=False)
         async with httpx.AsyncClient(
             transport=httpx.ASGITransport(app=app),
@@ -68,4 +70,4 @@ class TestCSRFMiddlewareOrdering:
             assert token == ""
 
             r = await client.post("/protected")
-            assert r.status_code == 200
+            assert r.status_code == 403
