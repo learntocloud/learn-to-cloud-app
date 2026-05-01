@@ -2,7 +2,6 @@
 
 import asyncio
 import logging
-import re
 import subprocess
 import sys
 from contextlib import asynccontextmanager
@@ -22,7 +21,6 @@ from starlette.middleware.sessions import SessionMiddleware
 from core.auth import init_oauth
 from core.azure_auth import close_credential
 from core.config import get_settings
-from core.csrf import CSRFMiddleware
 from core.database import (
     create_engine,
     create_session_maker,
@@ -242,10 +240,6 @@ app.add_exception_handler(Exception, global_exception_handler)
 
 app.add_middleware(UserTrackingMiddleware)
 app.add_middleware(
-    CSRFMiddleware,
-    exempt_urls=[re.compile(r"^/auth/callback$")],
-)
-app.add_middleware(
     SessionMiddleware,
     secret_key=_settings.session_secret_key,
     session_cookie="session",
@@ -267,9 +261,6 @@ if _settings.debug:
         expose_headers=["X-Request-Duration-Ms", "X-Request-Id"],
         max_age=600,
     )
-
-# NOTE: CSRFMiddleware must be added BEFORE SessionMiddleware in code
-# (Starlette processes middleware in reverse order, so Session runs first).
 
 _static_dir = Path(__file__).parent / "static"
 if _static_dir.exists():

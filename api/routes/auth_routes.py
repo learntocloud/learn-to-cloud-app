@@ -15,7 +15,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from core.auth import oauth
+from core.auth import UserId, oauth
 from core.config import get_settings
 from core.ratelimit import limiter
 from services.users_service import get_or_create_user_from_github, parse_display_name
@@ -138,9 +138,8 @@ async def callback(request: Request) -> RedirectResponse:
     include_in_schema=False,
 )
 @limiter.limit("10/minute")
-async def logout(request: Request) -> RedirectResponse:
+async def logout(request: Request, user_id: UserId) -> RedirectResponse:
     """Clear the session cookie and redirect to home."""
-    user_id = request.session.get("user_id")
     request.session.clear()
 
     if user_id:
