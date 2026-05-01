@@ -274,7 +274,7 @@ class TestLogoutRoute:
         """Logout clears session data and redirects to /."""
         request = _mock_request(session={"user_id": 42, "github_username": "testuser"})
 
-        result = await logout(request)
+        result = await logout(request, user_id=42)
 
         assert isinstance(result, RedirectResponse)
         assert result.status_code == 302

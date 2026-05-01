@@ -47,13 +47,6 @@
                 window.location.href = '/auth/login';
             }
         });
-        // Attach CSRF token to all HTMX requests
-        document.addEventListener('htmx:configRequest', function(event) {
-            var token = document.querySelector('meta[name="csrf-token"]');
-            if (token) {
-                event.detail.headers['X-CSRFToken'] = token.content;
-            }
-        });
     </script>
 
     <script>
@@ -129,7 +122,7 @@
         })();
     </script>
 
-    <meta name="csrf-token" content="{{ request.scope.get('csrf_token', '') }}">
+
 
     {% block head %}{% endblock %}
 </head>
