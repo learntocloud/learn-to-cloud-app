@@ -1,10 +1,7 @@
 """Reset local development database to match current models."""
 
 import asyncio
-import sys
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).parent.parent))
+from importlib import import_module
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
@@ -31,8 +28,8 @@ async def reset() -> None:
     await admin.dispose()
 
     # Import models so they register with Base.metadata
-    import models as models  # noqa: PLC0415  # after sys.path setup
-    from core.database import Base  # noqa: PLC0415
+    import_module("learn_to_cloud.models")
+    from learn_to_cloud.core.database import Base  # noqa: PLC0415
 
     engine = create_async_engine(
         "postgresql+asyncpg://postgres:postgres@db:5432/learn_to_cloud",
@@ -57,7 +54,7 @@ async def reset() -> None:
                 "VALUES ('0014_drop_certificates_table')"
             )
         )
-        print("Schema created from models")
+        print("Schema created from learn_to_cloud.models")
     await engine.dispose()
     print("Alembic stamped to head")
 

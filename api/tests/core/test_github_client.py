@@ -13,13 +13,13 @@ from unittest.mock import MagicMock, patch
 import httpx
 import pytest
 
-from core.github_client import close_github_client, get_github_client
+from learn_to_cloud.core.github_client import close_github_client, get_github_client
 
 
 @pytest.fixture(autouse=True)
 async def _reset_github_client():
     """Reset the module-level singleton between tests."""
-    import core.github_client as mod
+    import learn_to_cloud.core.github_client as mod
 
     yield
     if mod._github_http_client is not None and not mod._github_http_client.is_closed:
@@ -34,7 +34,7 @@ class TestGetGitHubClient:
         mock_settings = MagicMock()
         mock_settings.external_api_timeout = 10.0
         with patch(
-            "core.github_client.get_settings",
+            "learn_to_cloud.core.github_client.get_settings",
             autospec=True,
             return_value=mock_settings,
         ):
@@ -47,7 +47,7 @@ class TestGetGitHubClient:
         mock_settings = MagicMock()
         mock_settings.external_api_timeout = 10.0
         with patch(
-            "core.github_client.get_settings",
+            "learn_to_cloud.core.github_client.get_settings",
             autospec=True,
             return_value=mock_settings,
         ):
@@ -60,7 +60,7 @@ class TestGetGitHubClient:
         mock_settings = MagicMock()
         mock_settings.external_api_timeout = 10.0
         with patch(
-            "core.github_client.get_settings",
+            "learn_to_cloud.core.github_client.get_settings",
             autospec=True,
             return_value=mock_settings,
         ):

@@ -34,6 +34,6 @@ cd api && uv run alembic upgrade head && cd ..
 echo "✅ Setup complete!"
 echo ""
 echo "To start developing:"
-echo "  API: cd api && uv run uvicorn main:app --reload"
+echo "  API: cd api && uv run uvicorn learn_to_cloud.main:app --reload"
 echo ""
 echo "Note: Database is provisioned by docker-compose (PostgreSQL on port 54320)."

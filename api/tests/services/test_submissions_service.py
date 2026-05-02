@@ -12,9 +12,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from models import SubmissionType
-from schemas import HandsOnRequirement, ValidationResult
-from services.submissions_service import (
+from learn_to_cloud.models import SubmissionType
+from learn_to_cloud.schemas import HandsOnRequirement, ValidationResult
+from learn_to_cloud.services.submissions_service import (
     AlreadyValidatedError,
     ConcurrentSubmissionError,
     GitHubUsernameRequiredError,
@@ -31,17 +31,17 @@ def _mock_phase_id_mapping():
     """Mock requirement → phase mapping and prerequisite functions for all tests."""
     with (
         patch(
-            "services.submissions_service.get_phase_id_for_requirement",
+            "learn_to_cloud.services.submissions_service.get_phase_id_for_requirement",
             autospec=True,
             return_value=3,
         ),
         patch(
-            "services.submissions_service.get_prerequisite_phase",
+            "learn_to_cloud.services.submissions_service.get_prerequisite_phase",
             autospec=True,
             return_value=None,
         ),
         patch(
-            "services.submissions_service.get_requirement_ids_for_phase",
+            "learn_to_cloud.services.submissions_service.get_requirement_ids_for_phase",
             autospec=True,
             return_value=[],
         ),
@@ -113,7 +113,7 @@ class TestSubmissionValidationErrors:
 
         with (
             patch(
-                "services.submissions_service.get_requirement_by_id",
+                "learn_to_cloud.services.submissions_service.get_requirement_by_id",
                 autospec=True,
                 return_value=None,
             ),
@@ -137,12 +137,12 @@ class TestSubmissionValidationErrors:
 
         with (
             patch(
-                "services.submissions_service.get_requirement_by_id",
+                "learn_to_cloud.services.submissions_service.get_requirement_by_id",
                 autospec=True,
                 return_value=mock_requirement,
             ),
             patch(
-                "services.submissions_service.SubmissionRepository",
+                "learn_to_cloud.services.submissions_service.SubmissionRepository",
                 autospec=True,
             ) as mock_repo_class,
         ):
@@ -196,12 +196,12 @@ class TestConcurrentSubmissionProtection:
 
         with (
             patch(
-                "services.submissions_service.get_requirement_by_id",
+                "learn_to_cloud.services.submissions_service.get_requirement_by_id",
                 autospec=True,
                 return_value=mock_requirement,
             ),
             patch(
-                "services.submissions_service.SubmissionRepository",
+                "learn_to_cloud.services.submissions_service.SubmissionRepository",
                 autospec=True,
             ) as mock_repo_class,
         ):
@@ -237,12 +237,12 @@ class TestAlreadyValidatedShortCircuit:
 
         with (
             patch(
-                "services.submissions_service.get_requirement_by_id",
+                "learn_to_cloud.services.submissions_service.get_requirement_by_id",
                 autospec=True,
                 return_value=mock_requirement,
             ),
             patch(
-                "services.submissions_service.SubmissionRepository",
+                "learn_to_cloud.services.submissions_service.SubmissionRepository",
                 autospec=True,
             ) as mock_repo_class,
         ):
@@ -270,16 +270,16 @@ class TestAlreadyValidatedShortCircuit:
 
         with (
             patch(
-                "services.submissions_service.get_requirement_by_id",
+                "learn_to_cloud.services.submissions_service.get_requirement_by_id",
                 autospec=True,
                 return_value=mock_requirement,
             ),
             patch(
-                "services.submissions_service.SubmissionRepository",
+                "learn_to_cloud.services.submissions_service.SubmissionRepository",
                 autospec=True,
             ) as mock_repo_class,
             patch(
-                "services.submissions_service.validate_submission",
+                "learn_to_cloud.services.submissions_service.validate_submission",
                 autospec=True,
             ) as mock_validate,
         ):
@@ -340,27 +340,27 @@ class TestSequentialPhaseGating:
 
         with (
             patch(
-                "services.submissions_service.get_requirement_by_id",
+                "learn_to_cloud.services.submissions_service.get_requirement_by_id",
                 autospec=True,
                 return_value=mock_requirement,
             ),
             patch(
-                "services.submissions_service.get_phase_id_for_requirement",
+                "learn_to_cloud.services.submissions_service.get_phase_id_for_requirement",
                 return_value=4,  # no autospec: autouse fixture
             ),
             patch(
-                "services.submissions_service.get_prerequisite_phase",
+                "learn_to_cloud.services.submissions_service.get_prerequisite_phase",
                 return_value=3,  # no autospec: autouse fixture
             ),
             patch(
-                "services.submissions_service.get_requirement_ids_for_phase",
+                "learn_to_cloud.services.submissions_service.get_requirement_ids_for_phase",
                 return_value=[
                     "journal-pr-logging",
                     "journal-pr-get-entry",
                 ],  # no autospec: autouse fixture
             ),
             patch(
-                "services.submissions_service.SubmissionRepository",
+                "learn_to_cloud.services.submissions_service.SubmissionRepository",
                 autospec=True,
             ) as mock_repo_class,
         ):
@@ -391,28 +391,28 @@ class TestSequentialPhaseGating:
 
         with (
             patch(
-                "services.submissions_service.get_requirement_by_id",
+                "learn_to_cloud.services.submissions_service.get_requirement_by_id",
                 autospec=True,
                 return_value=mock_requirement,
             ),
             patch(
-                "services.submissions_service.get_phase_id_for_requirement",
+                "learn_to_cloud.services.submissions_service.get_phase_id_for_requirement",
                 return_value=4,  # no autospec: autouse fixture
             ),
             patch(
-                "services.submissions_service.get_prerequisite_phase",
+                "learn_to_cloud.services.submissions_service.get_prerequisite_phase",
                 return_value=3,  # no autospec: autouse fixture
             ),
             patch(
-                "services.submissions_service.get_requirement_ids_for_phase",
+                "learn_to_cloud.services.submissions_service.get_requirement_ids_for_phase",
                 return_value=["journal-pr-logging"],  # no autospec: autouse fixture
             ),
             patch(
-                "services.submissions_service.SubmissionRepository",
+                "learn_to_cloud.services.submissions_service.SubmissionRepository",
                 autospec=True,
             ) as mock_repo_class,
             patch(
-                "services.submissions_service.validate_submission",
+                "learn_to_cloud.services.submissions_service.validate_submission",
                 autospec=True,
             ) as mock_validate,
         ):
@@ -467,7 +467,8 @@ class TestGetPhaseSubmissionContext:
     @pytest.mark.asyncio
     async def test_empty_submissions(self):
         with patch(
-            "services.submissions_service.SubmissionRepository", autospec=True
+            "learn_to_cloud.services.submissions_service.SubmissionRepository",
+            autospec=True,
         ) as MockRepo:
             MockRepo.return_value.get_by_user_and_phase = AsyncMock(return_value=[])
             result = await get_phase_submission_context(
@@ -481,7 +482,8 @@ class TestGetPhaseSubmissionContext:
         mock_sub = _make_mock_submission(is_validated=True)
         mock_sub.feedback_json = None
         with patch(
-            "services.submissions_service.SubmissionRepository", autospec=True
+            "learn_to_cloud.services.submissions_service.SubmissionRepository",
+            autospec=True,
         ) as MockRepo:
             MockRepo.return_value.get_by_user_and_phase = AsyncMock(
                 return_value=[mock_sub]
@@ -500,7 +502,8 @@ class TestGetPhaseSubmissionContext:
         mock_sub.feedback_json = '[{"task_name":"A","passed":true,"feedback":"ok"}]'
         with (
             patch(
-                "services.submissions_service.SubmissionRepository", autospec=True
+                "learn_to_cloud.services.submissions_service.SubmissionRepository",
+                autospec=True,
             ) as MockRepo,
         ):
             MockRepo.return_value.get_by_user_and_phase = AsyncMock(

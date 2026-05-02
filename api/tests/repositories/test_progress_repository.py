@@ -3,8 +3,8 @@
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from repositories.progress_repository import StepProgressRepository
-from repositories.user_repository import UserRepository
+from learn_to_cloud.repositories.progress_repository import StepProgressRepository
+from learn_to_cloud.repositories.user_repository import UserRepository
 
 pytestmark = pytest.mark.integration
 

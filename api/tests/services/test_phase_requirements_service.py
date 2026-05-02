@@ -11,13 +11,13 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from models import SubmissionType
-from schemas import (
+from learn_to_cloud.models import SubmissionType
+from learn_to_cloud.schemas import (
     HandsOnRequirement,
     Phase,
     PhaseHandsOnVerificationOverview,
 )
-from services.verification.requirements import (
+from learn_to_cloud.services.verification.requirements import (
     _get_requirement_id_map,
     _get_requirement_phase_id_map,
     _get_requirements_map,
@@ -96,7 +96,7 @@ class TestRequirementLookups:
     def test_get_requirements_for_known_phase(self):
         phase = _make_phase_with_requirements(3, ["req-a", "req-b"])
         with patch(
-            "services.verification.requirements.get_all_phases",
+            "learn_to_cloud.services.verification.requirements.get_all_phases",
             autospec=True,
             return_value=(phase,),
         ):
@@ -105,7 +105,7 @@ class TestRequirementLookups:
 
     def test_get_requirements_for_unknown_phase(self):
         with patch(
-            "services.verification.requirements.get_all_phases",
+            "learn_to_cloud.services.verification.requirements.get_all_phases",
             autospec=True,
             return_value=(),
         ):
@@ -115,7 +115,7 @@ class TestRequirementLookups:
     def test_get_requirement_by_id_found(self):
         phase = _make_phase_with_requirements(3, ["req-a"])
         with patch(
-            "services.verification.requirements.get_all_phases",
+            "learn_to_cloud.services.verification.requirements.get_all_phases",
             autospec=True,
             return_value=(phase,),
         ):
@@ -125,7 +125,7 @@ class TestRequirementLookups:
 
     def test_get_requirement_by_id_not_found(self):
         with patch(
-            "services.verification.requirements.get_all_phases",
+            "learn_to_cloud.services.verification.requirements.get_all_phases",
             autospec=True,
             return_value=(),
         ):
@@ -134,7 +134,7 @@ class TestRequirementLookups:
     def test_get_phase_id_for_requirement(self):
         phase = _make_phase_with_requirements(3, ["req-a"])
         with patch(
-            "services.verification.requirements.get_all_phases",
+            "learn_to_cloud.services.verification.requirements.get_all_phases",
             autospec=True,
             return_value=(phase,),
         ):
@@ -143,7 +143,7 @@ class TestRequirementLookups:
     def test_get_requirement_ids_for_phase(self):
         phase = _make_phase_with_requirements(3, ["req-a", "req-b"])
         with patch(
-            "services.verification.requirements.get_all_phases",
+            "learn_to_cloud.services.verification.requirements.get_all_phases",
             autospec=True,
             return_value=(phase,),
         ):
@@ -173,12 +173,12 @@ class TestIsPhaseVerificationLocked:
 
         with (
             patch(
-                "services.verification.requirements.get_all_phases",
+                "learn_to_cloud.services.verification.requirements.get_all_phases",
                 autospec=True,
                 return_value=(phase3, phase4),
             ),
             patch(
-                "services.verification.requirements.SubmissionRepository",
+                "learn_to_cloud.services.verification.requirements.SubmissionRepository",
                 autospec=True,
             ) as MockRepo,
         ):
@@ -199,12 +199,12 @@ class TestIsPhaseVerificationLocked:
 
         with (
             patch(
-                "services.verification.requirements.get_all_phases",
+                "learn_to_cloud.services.verification.requirements.get_all_phases",
                 autospec=True,
                 return_value=(phase3, phase4),
             ),
             patch(
-                "services.verification.requirements.SubmissionRepository",
+                "learn_to_cloud.services.verification.requirements.SubmissionRepository",
                 autospec=True,
             ) as MockRepo,
         ):

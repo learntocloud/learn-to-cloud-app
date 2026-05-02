@@ -26,9 +26,9 @@ import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 
-from core.auth import optional_auth, require_auth
-from core.database import get_db, get_db_readonly
-from schemas import (
+from learn_to_cloud.core.auth import optional_auth, require_auth
+from learn_to_cloud.core.database import get_db, get_db_readonly
+from learn_to_cloud.schemas import (
     DashboardData,
     PhaseProgress,
     PhaseProgressData,
@@ -90,7 +90,7 @@ async def anon_client():
     Mocks DB dependencies and auth to return None (anonymous user).
     Does NOT require a running database.
     """
-    from main import app
+    from learn_to_cloud.main import app
 
     mock_db = AsyncMock()
 
@@ -125,7 +125,7 @@ async def auth_client():
 
     Overrides auth to return user_id=1, mocks DB and user service.
     """
-    from main import app
+    from learn_to_cloud.main import app
 
     mock_db = AsyncMock()
 
@@ -197,11 +197,11 @@ class TestAuthPageSmoke:
         """GET /dashboard renders the dashboard template."""
         with (
             patch(
-                "routes.pages_routes.get_user_by_id",
+                "learn_to_cloud.routes.pages_routes.get_user_by_id",
                 return_value=_fake_user(),
             ),
             patch(
-                "routes.pages_routes.get_dashboard_data",
+                "learn_to_cloud.routes.pages_routes.get_dashboard_data",
                 return_value=_fake_dashboard(),
             ),
         ):
@@ -211,7 +211,7 @@ class TestAuthPageSmoke:
     async def test_account_renders(self, auth_client: AsyncClient):
         """GET /account renders the account settings template."""
         with patch(
-            "routes.pages_routes.get_user_by_id",
+            "learn_to_cloud.routes.pages_routes.get_user_by_id",
             return_value=_fake_user(),
         ):
             response = await auth_client.get("/account")
@@ -219,7 +219,7 @@ class TestAuthPageSmoke:
 
     async def test_phase_page_renders(self, auth_client: AsyncClient):
         """GET /phase/1 renders the phase detail template."""
-        from services.content_service import get_all_phases
+        from learn_to_cloud.services.content_service import get_all_phases
 
         phases = get_all_phases()
         if not phases:
@@ -241,19 +241,19 @@ class TestAuthPageSmoke:
 
         with (
             patch(
-                "routes.pages_routes.get_user_by_id",
+                "learn_to_cloud.routes.pages_routes.get_user_by_id",
                 return_value=_fake_user(),
             ),
             patch(
-                "routes.pages_routes.fetch_phase_progress",
+                "learn_to_cloud.routes.pages_routes.fetch_phase_progress",
                 return_value=detail,
             ),
             patch(
-                "routes.pages_routes.get_phase_submission_context",
+                "learn_to_cloud.routes.pages_routes.get_phase_submission_context",
                 return_value=mock_sub_context,
             ),
             patch(
-                "routes.pages_routes.is_phase_verification_locked",
+                "learn_to_cloud.routes.pages_routes.is_phase_verification_locked",
                 return_value=(False, None),
             ),
         ):
@@ -262,7 +262,7 @@ class TestAuthPageSmoke:
 
     async def test_topic_page_renders(self, auth_client: AsyncClient):
         """GET /phase/1/{topic_slug} renders the topic detail template."""
-        from services.content_service import get_phase_by_slug
+        from learn_to_cloud.services.content_service import get_phase_by_slug
 
         phase = get_phase_by_slug("phase1")
         if not phase or not phase.topics:
@@ -272,11 +272,11 @@ class TestAuthPageSmoke:
 
         with (
             patch(
-                "routes.pages_routes.get_user_by_id",
+                "learn_to_cloud.routes.pages_routes.get_user_by_id",
                 return_value=_fake_user(),
             ),
             patch(
-                "routes.pages_routes.get_valid_completed_steps",
+                "learn_to_cloud.routes.pages_routes.get_valid_completed_steps",
                 return_value=[],
             ),
         ):

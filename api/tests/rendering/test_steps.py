@@ -9,13 +9,13 @@ Tests cover:
 
 import pytest
 
-from rendering.steps import (
+from learn_to_cloud.rendering.steps import (
     _process_admonitions,
     _provider_sort_key,
     build_step_data,
     render_md,
 )
-from schemas import LearningStep, ProviderOption
+from learn_to_cloud.schemas import LearningStep, ProviderOption
 
 # ---------------------------------------------------------------------------
 # render_md

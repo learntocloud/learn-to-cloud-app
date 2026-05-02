@@ -42,7 +42,7 @@ The fastest way to get started on **Windows (WSL), macOS, or Linux** is with VS 
    - Copies `.env.example` → `.env` if needed
 4. Start the API:
    ```bash
-   cd api && uv run uvicorn main:app --reload --port 8000
+   cd api && uv run uvicorn learn_to_cloud.main:app --reload --port 8000
    ```
 
 | Service | URL |
@@ -92,10 +92,10 @@ Start the API:
 
 ```bash
 # macOS/Linux
-.venv/bin/python -m uvicorn main:app --reload --port 8000
+.venv/bin/python -m uvicorn learn_to_cloud.main:app --reload --port 8000
 
 # Windows
-.venv\Scripts\python -m uvicorn main:app --reload --port 8000
+.venv\Scripts\python -m uvicorn learn_to_cloud.main:app --reload --port 8000
 ```
 
 Or use VS Code's debugger with the **"API: FastAPI (uvicorn)"** launch configuration.
@@ -113,15 +113,17 @@ Or use VS Code's debugger with the **"API: FastAPI (uvicorn)"** launch configura
 
 ```
 ├── api/                  # FastAPI backend (serves HTML + JSON API)
-│   ├── main.py           # App entry point
-│   ├── models.py         # SQLAlchemy models
-│   ├── schemas.py        # Pydantic schemas
-│   ├── routes/           # API + page endpoints
-│   ├── services/         # Business logic
-│   ├── repositories/     # Database queries
-│   ├── core/             # Config, auth, database
-│   ├── templates/        # Jinja2 templates (HTMX)
-│   ├── static/           # CSS, JS, images
+│   ├── src/
+│   │   └── learn_to_cloud/
+│   │       ├── main.py       # App entry point
+│   │       ├── models.py     # SQLAlchemy models
+│   │       ├── schemas.py    # Pydantic schemas
+│   │       ├── routes/       # API + page endpoints
+│   │       ├── services/     # Business logic
+│   │       ├── repositories/ # Database queries
+│   │       ├── core/         # Config, auth, database
+│   │       ├── templates/    # Jinja2 templates (HTMX)
+│   │       └── static/       # CSS, JS, images
 │   └── tests/
 ├── content/              # Course content (YAML)
 │   └── phases/           # Phase and topic definitions

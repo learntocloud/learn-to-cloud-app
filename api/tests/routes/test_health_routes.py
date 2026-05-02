@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from fastapi import HTTPException
 
-from routes.health_routes import health, ready
+from learn_to_cloud.routes.health_routes import health, ready
 
 
 @pytest.mark.unit
@@ -30,7 +30,7 @@ class TestReadyEndpoint:
         request.app.state.init_done = True
 
         with patch(
-            "routes.health_routes.check_db_connection",
+            "learn_to_cloud.routes.health_routes.check_db_connection",
             autospec=True,
         ) as mock_check:
             result = await ready(request)
@@ -71,7 +71,7 @@ class TestReadyEndpoint:
 
         with (
             patch(
-                "routes.health_routes.check_db_connection",
+                "learn_to_cloud.routes.health_routes.check_db_connection",
                 autospec=True,
                 side_effect=ConnectionError("connection refused"),
             ),

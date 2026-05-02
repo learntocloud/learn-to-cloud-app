@@ -12,9 +12,9 @@ from unittest.mock import patch
 
 import pytest
 
-from models import SubmissionType
-from schemas import HandsOnRequirement, ValidationResult
-from services.verification.dispatcher import (
+from learn_to_cloud.models import SubmissionType
+from learn_to_cloud.schemas import HandsOnRequirement, ValidationResult
+from learn_to_cloud.services.verification.dispatcher import (
     validate_submission,
 )
 
@@ -44,7 +44,7 @@ class TestValidateSubmissionRouting:
         requirement = _make_requirement(SubmissionType.NETWORKING_TOKEN)
 
         with patch(
-            "services.verification.dispatcher.verify_networking_token",
+            "learn_to_cloud.services.verification.dispatcher.verify_networking_token",
             autospec=True,
         ) as mock:
             mock.return_value = ValidationResult(
@@ -83,7 +83,7 @@ class TestValidateSubmissionRouting:
         )
 
         with patch(
-            "services.verification.dispatcher.validate_repo_fork",
+            "learn_to_cloud.services.verification.dispatcher.validate_repo_fork",
             autospec=True,
         ) as mock:
             mock.return_value = ValidationResult(
@@ -153,7 +153,7 @@ class TestSubmissionRouting:
         )
 
         with patch(
-            "services.verification.dispatcher.validate_deployed_api",
+            "learn_to_cloud.services.verification.dispatcher.validate_deployed_api",
             autospec=True,
         ) as mock:
             mock.return_value = ValidationResult(
@@ -181,7 +181,7 @@ class TestSubmissionRouting:
         )
 
         with patch(
-            "services.verification.dispatcher.validate_pr",
+            "learn_to_cloud.services.verification.dispatcher.validate_pr",
             autospec=True,
         ) as mock:
             mock.return_value = ValidationResult(
@@ -211,7 +211,7 @@ class TestSubmissionRouting:
         )
 
         with patch(
-            "services.verification.dispatcher.run_devops_workflow",
+            "learn_to_cloud.services.verification.dispatcher.run_devops_workflow",
             autospec=True,
         ) as mock:
             mock.return_value = ValidationResult(
@@ -271,7 +271,7 @@ class TestValidateSubmissionUsernameRequirements:
         requirement = _make_requirement(SubmissionType.DEPLOYED_API)
 
         with patch(
-            "services.verification.dispatcher.validate_deployed_api",
+            "learn_to_cloud.services.verification.dispatcher.validate_deployed_api",
             autospec=True,
         ) as mock:
             mock.return_value = ValidationResult(is_valid=True, message="API verified!")
@@ -297,7 +297,7 @@ class TestDispatchGitHubProfile:
     async def test_github_profile_routes_correctly(self):
         requirement = _make_requirement(SubmissionType.GITHUB_PROFILE)
         with patch(
-            "services.verification.dispatcher.validate_github_profile",
+            "learn_to_cloud.services.verification.dispatcher.validate_github_profile",
             autospec=True,
         ) as mock:
             mock.return_value = ValidationResult(is_valid=True, message="Verified!")
@@ -319,7 +319,7 @@ class TestDispatchSecurityScanning:
             required_repo="learntocloud/journal-starter",
         )
         with patch(
-            "services.verification.dispatcher.validate_security_scanning",
+            "learn_to_cloud.services.verification.dispatcher.validate_security_scanning",
             autospec=True,
         ) as mock:
             mock.return_value = ValidationResult(is_valid=True, message="Scanned!")

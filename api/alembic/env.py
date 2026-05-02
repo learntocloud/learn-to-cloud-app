@@ -1,25 +1,21 @@
 from __future__ import annotations
 
 import logging
-import sys
 import time
+from importlib import import_module
 from logging.config import fileConfig
-from pathlib import Path
 
 from sqlalchemy import Connection, create_engine, text
 
-# Ensure parent directory (api/) is in Python path for module imports
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
-# Import models to register them with Base.metadata
-# Redundant alias tells ruff this is an intentional side-effect import
-import models as models
 from alembic import context
-from core.azure_auth import (
+from learn_to_cloud.core.azure_auth import (
     AZURE_PG_SCOPE,
 )
-from core.config import get_settings
-from core.database import Base
+from learn_to_cloud.core.config import get_settings
+from learn_to_cloud.core.database import Base
+
+# Import models to register them with Base.metadata
+import_module("learn_to_cloud.models")
 
 config = context.config
 

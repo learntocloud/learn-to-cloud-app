@@ -11,7 +11,7 @@ Tests cover:
 import pytest
 from pydantic import ValidationError
 
-from core.config import Settings, clear_settings_cache
+from learn_to_cloud.core.config import Settings, clear_settings_cache
 
 
 @pytest.fixture(autouse=True)

@@ -19,7 +19,7 @@ import pytest
 from authlib.integrations.starlette_client import OAuthError
 from fastapi.responses import RedirectResponse
 
-from routes.auth_routes import callback, login, logout
+from learn_to_cloud.routes.auth_routes import callback, login, logout
 
 
 def _mock_request(*, session: dict | None = None) -> MagicMock:
@@ -55,8 +55,8 @@ class TestLoginRoute:
         )
 
         with (
-            patch("routes.auth_routes.oauth") as mock_oauth,
-            patch("routes.auth_routes.get_settings") as mock_settings,
+            patch("learn_to_cloud.routes.auth_routes.oauth") as mock_oauth,
+            patch("learn_to_cloud.routes.auth_routes.get_settings") as mock_settings,
         ):
             mock_settings.return_value.require_https = False
             mock_oauth.create_client.return_value = mock_github
@@ -80,8 +80,8 @@ class TestLoginRoute:
         )
 
         with (
-            patch("routes.auth_routes.oauth") as mock_oauth,
-            patch("routes.auth_routes.get_settings") as mock_settings,
+            patch("learn_to_cloud.routes.auth_routes.oauth") as mock_oauth,
+            patch("learn_to_cloud.routes.auth_routes.get_settings") as mock_settings,
         ):
             mock_settings.return_value.require_https = True
             mock_oauth.create_client.return_value = mock_github
@@ -98,8 +98,8 @@ class TestLoginRoute:
         request = _mock_request()
 
         with (
-            patch("routes.auth_routes.oauth") as mock_oauth,
-            patch("routes.auth_routes.get_settings") as mock_settings,
+            patch("learn_to_cloud.routes.auth_routes.oauth") as mock_oauth,
+            patch("learn_to_cloud.routes.auth_routes.get_settings") as mock_settings,
         ):
             mock_settings.return_value.require_https = False
             mock_oauth.create_client.return_value = None
@@ -138,9 +138,9 @@ class TestCallbackRoute:
         mock_user.github_username = "testuser"
 
         with (
-            patch("routes.auth_routes.oauth") as mock_oauth,
+            patch("learn_to_cloud.routes.auth_routes.oauth") as mock_oauth,
             patch(
-                "routes.auth_routes.get_or_create_user_from_github",
+                "learn_to_cloud.routes.auth_routes.get_or_create_user_from_github",
                 autospec=True,
                 return_value=mock_user,
             ) as mock_get_or_create,
@@ -176,7 +176,7 @@ class TestCallbackRoute:
             side_effect=OAuthError(error="access_denied")
         )
 
-        with patch("routes.auth_routes.oauth") as mock_oauth:
+        with patch("learn_to_cloud.routes.auth_routes.oauth") as mock_oauth:
             mock_oauth.create_client.return_value = mock_github
 
             result = await callback(request)
@@ -191,7 +191,7 @@ class TestCallbackRoute:
         """When GitHub OAuth is not configured, redirects to /."""
         request = _mock_request(session={})
 
-        with patch("routes.auth_routes.oauth") as mock_oauth:
+        with patch("learn_to_cloud.routes.auth_routes.oauth") as mock_oauth:
             mock_oauth.create_client.return_value = None
 
             result = await callback(request)
@@ -217,7 +217,7 @@ class TestCallbackRoute:
         mock_response.status_code = 401
         mock_github.get = AsyncMock(return_value=mock_response)
 
-        with patch("routes.auth_routes.oauth") as mock_oauth:
+        with patch("learn_to_cloud.routes.auth_routes.oauth") as mock_oauth:
             mock_oauth.create_client.return_value = mock_github
 
             result = await callback(request)
@@ -250,9 +250,9 @@ class TestCallbackRoute:
         mock_user.github_username = "mixedcase"
 
         with (
-            patch("routes.auth_routes.oauth") as mock_oauth,
+            patch("learn_to_cloud.routes.auth_routes.oauth") as mock_oauth,
             patch(
-                "routes.auth_routes.get_or_create_user_from_github",
+                "learn_to_cloud.routes.auth_routes.get_or_create_user_from_github",
                 autospec=True,
                 return_value=mock_user,
             ) as mock_get_or_create,

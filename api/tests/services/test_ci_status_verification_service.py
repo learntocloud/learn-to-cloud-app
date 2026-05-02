@@ -16,7 +16,7 @@ from unittest.mock import MagicMock, patch
 import httpx
 import pytest
 
-from services.verification.ci_status import verify_ci_status
+from learn_to_cloud.services.verification.ci_status import verify_ci_status
 
 _TEST_OWNER = "testuser"
 _TEST_REPO = "journal-starter"
@@ -39,7 +39,9 @@ def _make_response(json_data: dict, status_code: int = 200) -> httpx.Response:
 class TestCiStatusCheck:
     """Tests for the GitHub Actions workflow status check."""
 
-    @patch("services.verification.ci_status.github_api_get", autospec=True)
+    @patch(
+        "learn_to_cloud.services.verification.ci_status.github_api_get", autospec=True
+    )
     async def test_workflow_not_found_returns_helpful_message(self, mock_get):
         response = httpx.Response(404, request=httpx.Request("GET", "https://test"))
         mock_get.side_effect = httpx.HTTPStatusError(
@@ -50,14 +52,18 @@ class TestCiStatusCheck:
         assert "CI workflow not found" in result.message
         assert "ci.yml" in result.message
 
-    @patch("services.verification.ci_status.github_api_get", autospec=True)
+    @patch(
+        "learn_to_cloud.services.verification.ci_status.github_api_get", autospec=True
+    )
     async def test_no_runs_on_main(self, mock_get):
         mock_get.return_value = _make_response({"workflow_runs": []})
         result = await verify_ci_status(_TEST_OWNER, _TEST_REPO)
         assert not result.is_valid
         assert "No CI runs found" in result.message
 
-    @patch("services.verification.ci_status.github_api_get", autospec=True)
+    @patch(
+        "learn_to_cloud.services.verification.ci_status.github_api_get", autospec=True
+    )
     async def test_run_in_progress(self, mock_get):
         mock_get.return_value = _make_response(
             {
@@ -76,7 +82,9 @@ class TestCiStatusCheck:
         assert "still" in result.message
         assert "#5" in result.message
 
-    @patch("services.verification.ci_status.github_api_get", autospec=True)
+    @patch(
+        "learn_to_cloud.services.verification.ci_status.github_api_get", autospec=True
+    )
     async def test_run_queued(self, mock_get):
         mock_get.return_value = _make_response(
             {
@@ -94,7 +102,9 @@ class TestCiStatusCheck:
         assert not result.is_valid
         assert "#3" in result.message
 
-    @patch("services.verification.ci_status.github_api_get", autospec=True)
+    @patch(
+        "learn_to_cloud.services.verification.ci_status.github_api_get", autospec=True
+    )
     async def test_run_succeeded(self, mock_get):
         mock_get.return_value = _make_response(
             {
@@ -113,7 +123,9 @@ class TestCiStatusCheck:
         assert "#10" in result.message
         assert "passing" in result.message.lower()
 
-    @patch("services.verification.ci_status.github_api_get", autospec=True)
+    @patch(
+        "learn_to_cloud.services.verification.ci_status.github_api_get", autospec=True
+    )
     async def test_run_failed(self, mock_get):
         run_url = "https://github.com/testuser/journal-starter/actions/runs/999"
         mock_get.return_value = _make_response(
@@ -133,7 +145,9 @@ class TestCiStatusCheck:
         assert "failure" in result.message
         assert run_url in result.message
 
-    @patch("services.verification.ci_status.github_api_get", autospec=True)
+    @patch(
+        "learn_to_cloud.services.verification.ci_status.github_api_get", autospec=True
+    )
     async def test_run_cancelled(self, mock_get):
         mock_get.return_value = _make_response(
             {
@@ -161,7 +175,9 @@ class TestCiStatusCheck:
 class TestCiStatusErrorHandling:
     """Tests for GitHub API error handling."""
 
-    @patch("services.verification.ci_status.github_api_get", autospec=True)
+    @patch(
+        "learn_to_cloud.services.verification.ci_status.github_api_get", autospec=True
+    )
     async def test_github_server_error(self, mock_get):
         response = httpx.Response(500, request=httpx.Request("GET", "https://test"))
         mock_get.side_effect = httpx.HTTPStatusError(
@@ -171,14 +187,18 @@ class TestCiStatusErrorHandling:
         assert not result.is_valid
         assert result.verification_completed is False
 
-    @patch("services.verification.ci_status.github_api_get", autospec=True)
+    @patch(
+        "learn_to_cloud.services.verification.ci_status.github_api_get", autospec=True
+    )
     async def test_transient_failure(self, mock_get):
         mock_get.side_effect = httpx.ConnectError("connection refused")
         result = await verify_ci_status(_TEST_OWNER, _TEST_REPO)
         assert not result.is_valid
         assert result.verification_completed is False
 
-    @patch("services.verification.ci_status.github_api_get", autospec=True)
+    @patch(
+        "learn_to_cloud.services.verification.ci_status.github_api_get", autospec=True
+    )
     async def test_request_timeout(self, mock_get):
         mock_get.side_effect = httpx.TimeoutException("timed out")
         result = await verify_ci_status(_TEST_OWNER, _TEST_REPO)

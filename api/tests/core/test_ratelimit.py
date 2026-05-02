@@ -12,7 +12,10 @@ import pytest
 from fastapi import Request
 from slowapi.errors import RateLimitExceeded
 
-from core.ratelimit import _get_request_identifier, rate_limit_exceeded_handler
+from learn_to_cloud.core.ratelimit import (
+    _get_request_identifier,
+    rate_limit_exceeded_handler,
+)
 
 
 def _make_rate_limit_exc(
@@ -44,14 +47,14 @@ def _make_request(user_id: int | None = None) -> Request:
 class TestGetRequestIdentifier:
     """Test _get_request_identifier key generation."""
 
-    @patch("core.ratelimit.get_remote_address", autospec=True)
+    @patch("learn_to_cloud.core.ratelimit.get_remote_address", autospec=True)
     def test_returns_user_key_when_authenticated(self, mock_get_remote):
         request = _make_request(user_id=42)
         result = _get_request_identifier(request)
         assert result == "user:42"
         mock_get_remote.assert_not_called()
 
-    @patch("core.ratelimit.get_remote_address", autospec=True)
+    @patch("learn_to_cloud.core.ratelimit.get_remote_address", autospec=True)
     def test_falls_back_to_ip_when_no_user_id(self, mock_get_remote):
         mock_get_remote.return_value = "192.168.1.1"
         request = _make_request(user_id=None)

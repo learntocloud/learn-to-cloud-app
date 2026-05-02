@@ -13,8 +13,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from schemas import LearningStep, Topic
-from services.steps_service import (
+from learn_to_cloud.schemas import LearningStep, Topic
+from learn_to_cloud.services.steps_service import (
     StepInvalidStepIdError,
     StepUnknownTopicError,
     _resolve_step,
@@ -58,7 +58,7 @@ class TestResolveStep:
     def test_valid_step_resolved(self):
         topic = _make_topic(steps=["step-intro", "step-basics"])
         with patch(
-            "services.steps_service.get_topic_by_id",
+            "learn_to_cloud.services.steps_service.get_topic_by_id",
             autospec=True,
             return_value=topic,
         ):
@@ -69,7 +69,7 @@ class TestResolveStep:
 
     def test_unknown_topic_raises(self):
         with patch(
-            "services.steps_service.get_topic_by_id",
+            "learn_to_cloud.services.steps_service.get_topic_by_id",
             autospec=True,
             return_value=None,
         ):
@@ -80,7 +80,7 @@ class TestResolveStep:
     def test_invalid_step_id_raises(self):
         topic = _make_topic(steps=["step-intro"])
         with patch(
-            "services.steps_service.get_topic_by_id",
+            "learn_to_cloud.services.steps_service.get_topic_by_id",
             autospec=True,
             return_value=topic,
         ):
@@ -133,12 +133,12 @@ class TestCompleteStep:
 
         with (
             patch(
-                "services.steps_service.get_topic_by_id",
+                "learn_to_cloud.services.steps_service.get_topic_by_id",
                 autospec=True,
                 return_value=topic,
             ),
             patch(
-                "services.steps_service.StepProgressRepository",
+                "learn_to_cloud.services.steps_service.StepProgressRepository",
                 autospec=True,
             ) as MockRepo,
         ):
@@ -160,12 +160,12 @@ class TestCompleteStep:
 
         with (
             patch(
-                "services.steps_service.get_topic_by_id",
+                "learn_to_cloud.services.steps_service.get_topic_by_id",
                 autospec=True,
                 return_value=topic,
             ),
             patch(
-                "services.steps_service.StepProgressRepository",
+                "learn_to_cloud.services.steps_service.StepProgressRepository",
                 autospec=True,
             ) as MockRepo,
         ):
@@ -194,12 +194,12 @@ class TestUncompleteStep:
 
         with (
             patch(
-                "services.steps_service.get_topic_by_id",
+                "learn_to_cloud.services.steps_service.get_topic_by_id",
                 autospec=True,
                 return_value=topic,
             ),
             patch(
-                "services.steps_service.StepProgressRepository",
+                "learn_to_cloud.services.steps_service.StepProgressRepository",
                 autospec=True,
             ) as MockRepo,
         ):
@@ -221,12 +221,12 @@ class TestUncompleteStep:
 
         with (
             patch(
-                "services.steps_service.get_topic_by_id",
+                "learn_to_cloud.services.steps_service.get_topic_by_id",
                 autospec=True,
                 return_value=topic,
             ),
             patch(
-                "services.steps_service.StepProgressRepository",
+                "learn_to_cloud.services.steps_service.StepProgressRepository",
                 autospec=True,
             ) as MockRepo,
         ):
@@ -253,7 +253,7 @@ class TestGetValidCompletedSteps:
         topic = _make_topic(steps=["s1", "s2"])
 
         with patch(
-            "services.steps_service.StepProgressRepository",
+            "learn_to_cloud.services.steps_service.StepProgressRepository",
             autospec=True,
         ) as MockRepo:
             repo = MockRepo.return_value

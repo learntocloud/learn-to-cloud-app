@@ -11,7 +11,7 @@ from datetime import UTC, datetime
 
 import pytest
 
-from services.verification.token_base import verify_lab_token
+from learn_to_cloud.services.verification.token_base import verify_lab_token
 
 # Same test secret used in conftest.py
 TEST_SECRET = "test_ctf_secret_must_be_32_chars!"

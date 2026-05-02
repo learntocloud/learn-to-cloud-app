@@ -12,7 +12,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from services.users_service import (
+from learn_to_cloud.services.users_service import (
     UserNotFoundError,
     delete_user_account,
     get_or_create_user_from_github,
@@ -34,7 +34,7 @@ class TestDeleteUserAccount:
         mock_user.github_username = "testuser"
 
         with patch(
-            "services.users_service.UserRepository", autospec=True
+            "learn_to_cloud.services.users_service.UserRepository", autospec=True
         ) as mock_repo_class:
             mock_repo = mock_repo_class.return_value
             mock_repo.get_by_id = AsyncMock(return_value=mock_user)
@@ -53,7 +53,7 @@ class TestDeleteUserAccount:
         mock_db = AsyncMock()
 
         with patch(
-            "services.users_service.UserRepository", autospec=True
+            "learn_to_cloud.services.users_service.UserRepository", autospec=True
         ) as mock_repo_class:
             mock_repo = mock_repo_class.return_value
             mock_repo.get_by_id = AsyncMock(return_value=None)
@@ -72,7 +72,7 @@ class TestDeleteUserAccount:
         mock_user.github_username = "loguser"
 
         with patch(
-            "services.users_service.UserRepository", autospec=True
+            "learn_to_cloud.services.users_service.UserRepository", autospec=True
         ) as mock_repo_class:
             mock_repo = mock_repo_class.return_value
             mock_repo.get_by_id = AsyncMock(return_value=mock_user)
@@ -146,14 +146,18 @@ class TestGetUserById:
     @pytest.mark.asyncio
     async def test_returns_user_from_db(self):
         mock_user = MagicMock()
-        with patch("services.users_service.UserRepository", autospec=True) as MockRepo:
+        with patch(
+            "learn_to_cloud.services.users_service.UserRepository", autospec=True
+        ) as MockRepo:
             MockRepo.return_value.get_by_id = AsyncMock(return_value=mock_user)
             result = await get_user_by_id(AsyncMock(), user_id=1)
         assert result is mock_user
 
     @pytest.mark.asyncio
     async def test_not_found_returns_none(self):
-        with patch("services.users_service.UserRepository", autospec=True) as MockRepo:
+        with patch(
+            "learn_to_cloud.services.users_service.UserRepository", autospec=True
+        ) as MockRepo:
             MockRepo.return_value.get_by_id = AsyncMock(return_value=None)
             result = await get_user_by_id(AsyncMock(), user_id=999)
         assert result is None
@@ -169,7 +173,9 @@ class TestGetOrCreateUserFromGithub:
     @pytest.mark.asyncio
     async def test_new_user(self):
         mock_user = MagicMock()
-        with patch("services.users_service.UserRepository", autospec=True) as MockRepo:
+        with patch(
+            "learn_to_cloud.services.users_service.UserRepository", autospec=True
+        ) as MockRepo:
             repo = MockRepo.return_value
             repo.get_by_github_username = AsyncMock(return_value=None)
             repo.upsert = AsyncMock(return_value=mock_user)
@@ -189,7 +195,9 @@ class TestGetOrCreateUserFromGithub:
         old_owner = MagicMock()
         old_owner.id = 456
         new_user = MagicMock()
-        with patch("services.users_service.UserRepository", autospec=True) as MockRepo:
+        with patch(
+            "learn_to_cloud.services.users_service.UserRepository", autospec=True
+        ) as MockRepo:
             repo = MockRepo.return_value
             repo.get_by_github_username = AsyncMock(return_value=old_owner)
             repo.clear_github_username = AsyncMock()

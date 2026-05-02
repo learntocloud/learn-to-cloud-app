@@ -5,17 +5,15 @@ Tests ASGI middleware:
 - SecurityHeadersMiddleware skips non-HTTP scopes
 - SecurityHeadersMiddleware adds cache-control for static paths
 - UserTrackingMiddleware sets OTel span attributes for authenticated users
-- UserTrackingMiddleware sets/resets context var
 """
 
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from core.middleware import (
+from learn_to_cloud.core.middleware import (
     SecurityHeadersMiddleware,
     UserTrackingMiddleware,
-    request_github_username,
 )
 
 
@@ -127,9 +125,9 @@ class TestSecurityHeadersMiddleware:
 
 @pytest.mark.unit
 class TestUserTrackingMiddleware:
-    """Test UserTrackingMiddleware sets OTel span attributes and context var."""
+    """Test UserTrackingMiddleware sets OTel span attributes."""
 
-    @patch("core.middleware.trace", autospec=True)
+    @patch("learn_to_cloud.core.middleware.trace", autospec=True)
     async def test_sets_span_attributes_when_authenticated(self, mock_trace):
         mock_span = MagicMock()
         mock_span.is_recording.return_value = True
@@ -149,7 +147,7 @@ class TestUserTrackingMiddleware:
         mock_span.set_attribute.assert_any_call("enduser.id", "42")
         mock_span.set_attribute.assert_any_call("enduser.name", "testuser")
 
-    @patch("core.middleware.trace", autospec=True)
+    @patch("learn_to_cloud.core.middleware.trace", autospec=True)
     async def test_sets_only_user_id_when_no_username(self, mock_trace):
         mock_span = MagicMock()
         mock_span.is_recording.return_value = True
@@ -165,49 +163,7 @@ class TestUserTrackingMiddleware:
 
         mock_span.set_attribute.assert_called_once_with("enduser.id", "42")
 
-    @patch("core.middleware.trace", autospec=True)
-    async def test_sets_context_var(self, mock_trace):
-        mock_span = MagicMock()
-        mock_span.is_recording.return_value = False
-        mock_trace.get_current_span.return_value = mock_span
-
-        captured_username = None
-
-        async def inner_app(scope, receive, send):
-            nonlocal captured_username
-            captured_username = request_github_username.get()
-
-        middleware = UserTrackingMiddleware(inner_app)
-        scope = {
-            "type": "http",
-            "session": {"github_username": "testuser"},
-        }
-
-        await middleware(scope, _noop_receive, _noop_send)
-        assert captured_username == "testuser"
-
-    @patch("core.middleware.trace", autospec=True)
-    async def test_resets_context_var_in_finally(self, mock_trace):
-        mock_span = MagicMock()
-        mock_span.is_recording.return_value = False
-        mock_trace.get_current_span.return_value = mock_span
-
-        async def failing_app(scope, receive, send):
-            raise RuntimeError("app error")
-
-        middleware = UserTrackingMiddleware(failing_app)
-        scope = {
-            "type": "http",
-            "session": {"github_username": "testuser"},
-        }
-
-        with pytest.raises(RuntimeError, match="app error"):
-            await middleware(scope, _noop_receive, _noop_send)
-
-        # Context var should be reset to default after finally block
-        assert request_github_username.get() is None
-
-    @patch("core.middleware.trace", autospec=True)
+    @patch("learn_to_cloud.core.middleware.trace", autospec=True)
     async def test_skips_non_http_scopes(self, mock_trace):
         called = False
 
@@ -223,7 +179,7 @@ class TestUserTrackingMiddleware:
         assert called
         mock_trace.get_current_span.assert_not_called()
 
-    @patch("core.middleware.trace", autospec=True)
+    @patch("learn_to_cloud.core.middleware.trace", autospec=True)
     async def test_no_span_attributes_when_unauthenticated(self, mock_trace):
         mock_span = MagicMock()
         mock_span.is_recording.return_value = True

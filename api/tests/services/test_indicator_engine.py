@@ -11,9 +11,9 @@ Tests cover:
 
 import pytest
 
-from models import SubmissionType
-from schemas import HandsOnRequirement
-from services.verification.indicator_engine import check_indicators
+from learn_to_cloud.models import SubmissionType
+from learn_to_cloud.schemas import HandsOnRequirement
+from learn_to_cloud.services.verification.indicator_engine import check_indicators
 
 
 def _make_requirement(

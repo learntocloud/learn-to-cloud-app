@@ -6,12 +6,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from fastapi import HTTPException
 
-from models import User
-from routes.users_routes import (
+from learn_to_cloud.models import User
+from learn_to_cloud.routes.users_routes import (
     delete_current_user,
     get_current_user,
 )
-from services.users_service import UserNotFoundError
+from learn_to_cloud.services.users_service import UserNotFoundError
 
 
 def _fake_user() -> User:
@@ -38,7 +38,7 @@ class TestGetCurrentUser:
         user = _fake_user()
 
         with patch(
-            "routes.users_routes.get_user_by_id",
+            "learn_to_cloud.routes.users_routes.get_user_by_id",
             autospec=True,
             return_value=user,
         ) as mock_service:
@@ -55,7 +55,7 @@ class TestGetCurrentUser:
 
         with (
             patch(
-                "routes.users_routes.get_user_by_id",
+                "learn_to_cloud.routes.users_routes.get_user_by_id",
                 autospec=True,
                 return_value=None,
             ),
@@ -76,7 +76,7 @@ class TestDeleteCurrentUser:
         mock_request = MagicMock()
 
         with patch(
-            "routes.users_routes.delete_user_account",
+            "learn_to_cloud.routes.users_routes.delete_user_account",
             autospec=True,
         ) as mock_service:
             result = await delete_current_user(mock_request, user_id=42, db=mock_db)
@@ -92,7 +92,7 @@ class TestDeleteCurrentUser:
 
         with (
             patch(
-                "routes.users_routes.delete_user_account",
+                "learn_to_cloud.routes.users_routes.delete_user_account",
                 autospec=True,
                 side_effect=UserNotFoundError(42),
             ),

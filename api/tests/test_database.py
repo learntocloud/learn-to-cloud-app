@@ -22,7 +22,7 @@ import pytest
 @pytest.fixture(autouse=True)
 async def _reset_credential():
     """Reset the module-level credential cache before/after each test."""
-    from core.azure_auth import close_credential
+    from learn_to_cloud.core.azure_auth import close_credential
 
     await close_credential()
     yield
@@ -37,12 +37,12 @@ async def _reset_credential():
 class TestAzureCredentialLocking:
     """Verify get_credential uses asyncio.Lock correctly."""
 
-    @patch("core.azure_auth.ManagedIdentityCredential", autospec=True)
+    @patch("learn_to_cloud.core.azure_auth.ManagedIdentityCredential", autospec=True)
     async def test_single_credential_created_on_concurrent_calls(
         self, mock_cred_cls: MagicMock
     ):
         """Concurrent calls should create only one ManagedIdentityCredential."""
-        from core.azure_auth import get_credential
+        from learn_to_cloud.core.azure_auth import get_credential
 
         sentinel = MagicMock(name="credential_instance")
         sentinel.close = AsyncMock()
@@ -76,11 +76,11 @@ class TestAzureGetToken:
         fake_credential.close = AsyncMock()
 
         with patch(
-            "core.azure_auth.ManagedIdentityCredential",
+            "learn_to_cloud.core.azure_auth.ManagedIdentityCredential",
             autospec=True,
             return_value=fake_credential,
         ):
-            from core.azure_auth import get_token
+            from learn_to_cloud.core.azure_auth import get_token
 
             token = await get_token()
 
@@ -98,13 +98,13 @@ class TestCloseCredential:
 
     async def test_close_credential_closes_transport(self):
         """close_credential should await credential.close() and clear cache."""
-        import core.azure_auth as auth_mod
+        import learn_to_cloud.core.azure_auth as auth_mod
 
         fake_credential = AsyncMock()
         fake_credential.close = AsyncMock()
 
         with patch(
-            "core.azure_auth.ManagedIdentityCredential",
+            "learn_to_cloud.core.azure_auth.ManagedIdentityCredential",
             autospec=True,
             return_value=fake_credential,
         ):
@@ -118,7 +118,7 @@ class TestCloseCredential:
 
     async def test_close_credential_noop_when_none(self):
         """close_credential should be safe to call when no credential exists."""
-        import core.azure_auth as auth_mod
+        import learn_to_cloud.core.azure_auth as auth_mod
 
         assert auth_mod._azure_credential is None
         await auth_mod.close_credential()  # should not raise
@@ -146,7 +146,7 @@ class TestCheckoutEventTransactionCleanup:
 
     def test_rollback_and_reset_when_in_transaction(self):
         """Checkout should ROLLBACK and reset adapter state."""
-        from core.database import _setup_pool_event_listeners
+        from learn_to_cloud.core.database import _setup_pool_event_listeners
 
         # Build a mock engine just to capture the checkout listener
         mock_pool = MagicMock()
@@ -164,7 +164,7 @@ class TestCheckoutEventTransactionCleanup:
             return decorator
 
         with patch(
-            "core.database.event.listens_for",
+            "learn_to_cloud.core.database.event.listens_for",
             autospec=True,
             side_effect=fake_listens_for,
         ):
@@ -181,7 +181,7 @@ class TestCheckoutEventTransactionCleanup:
 
     def test_safety_net_on_missing_private_attrs(self):
         """If _transaction/_started are missing, should not crash."""
-        from core.database import _setup_pool_event_listeners
+        from learn_to_cloud.core.database import _setup_pool_event_listeners
 
         mock_pool = MagicMock()
         mock_engine = MagicMock()
@@ -197,7 +197,7 @@ class TestCheckoutEventTransactionCleanup:
             return decorator
 
         with patch(
-            "core.database.event.listens_for",
+            "learn_to_cloud.core.database.event.listens_for",
             autospec=True,
             side_effect=fake_listens_for,
         ):
@@ -232,7 +232,7 @@ class TestCheckDbConnection:
 
     async def test_timeout_on_hanging_connection(self):
         """check_db_connection should raise TimeoutError if DB hangs."""
-        from core.database import check_db_connection
+        from learn_to_cloud.core.database import check_db_connection
 
         # Make engine.connect().__aenter__ hang
         async def hang_forever(*_args, **_kwargs):
@@ -255,7 +255,7 @@ class TestCheckDbConnection:
         # Replace the 30s timeout with 0.05s for test speed
         with (
             patch(
-                "core.database.asyncio.timeout",
+                "learn_to_cloud.core.database.asyncio.timeout",
                 autospec=True,
                 side_effect=lambda _: real_timeout(0.05),
             ),
@@ -265,7 +265,7 @@ class TestCheckDbConnection:
 
     async def test_success_path(self):
         """check_db_connection should succeed when DB responds."""
-        from core.database import check_db_connection
+        from learn_to_cloud.core.database import check_db_connection
 
         mock_conn = AsyncMock()
         mock_cm = AsyncMock()
@@ -310,7 +310,7 @@ class TestGetDbDependency:
 
     async def test_commit_on_success(self):
         """get_db should commit when no exception occurs."""
-        from core.database import get_db
+        from learn_to_cloud.core.database import get_db
 
         mock_request, mock_session = self._make_mock_request()
 
@@ -327,7 +327,7 @@ class TestGetDbDependency:
 
     async def test_rollback_on_exception(self):
         """get_db should rollback when an exception is thrown into the generator."""
-        from core.database import get_db
+        from learn_to_cloud.core.database import get_db
 
         mock_request, mock_session = self._make_mock_request()
 
@@ -343,7 +343,7 @@ class TestGetDbDependency:
 
     async def test_rollback_failure_does_not_mask_original_error(self):
         """If rollback fails, the original exception should still propagate."""
-        from core.database import get_db
+        from learn_to_cloud.core.database import get_db
 
         mock_request, mock_session = self._make_mock_request()
         mock_session.rollback = AsyncMock(side_effect=RuntimeError("rollback failed"))
@@ -379,7 +379,7 @@ class TestGetDbReadonlyDependency:
 
     async def test_no_commit_on_success(self):
         """get_db_readonly should NOT call commit."""
-        from core.database import get_db_readonly
+        from learn_to_cloud.core.database import get_db_readonly
 
         mock_request, mock_session = self._make_mock_request()
 
@@ -395,7 +395,7 @@ class TestGetDbReadonlyDependency:
 
     async def test_rollback_on_exception(self):
         """get_db_readonly should rollback on exception."""
-        from core.database import get_db_readonly
+        from learn_to_cloud.core.database import get_db_readonly
 
         mock_request, mock_session = self._make_mock_request()
 

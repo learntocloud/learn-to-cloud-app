@@ -35,8 +35,8 @@ from sqlalchemy.ext.asyncio import (
 )
 from sqlalchemy.pool import NullPool
 
-from core.config import Settings
-from core.database import Base
+from learn_to_cloud.core.config import Settings
+from learn_to_cloud.core.database import Base
 
 # =============================================================================
 # Test Settings
@@ -229,7 +229,7 @@ async def app(
     - Uses test database
     """
     # Import here to avoid circular imports and ensure fresh app state
-    from main import app as fastapi_app
+    from learn_to_cloud.main import app as fastapi_app
 
     fastapi_app.state.engine = test_engine
     fastapi_app.state.session_maker = async_sessionmaker(

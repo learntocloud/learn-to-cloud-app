@@ -15,7 +15,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import httpx
 import pytest
 
-from services.verification.deployed_api import (
+from learn_to_cloud.services.verification.deployed_api import (
     DeployedApiServerError,
     _check_response_ip,
     _extract_entries_list,
@@ -281,7 +281,7 @@ def _mock_fetch_side_effect(
 
 @pytest.mark.unit
 @patch(
-    "services.verification.deployed_api._validate_url_target",
+    "learn_to_cloud.services.verification.deployed_api._validate_url_target",
     new_callable=AsyncMock,
     return_value=None,
 )
@@ -367,12 +367,12 @@ class TestValidateDeployedApi:
 
         with (
             patch(
-                "services.verification.deployed_api._fetch_with_retry",
+                "learn_to_cloud.services.verification.deployed_api._fetch_with_retry",
                 autospec=True,
                 side_effect=capturing_mock_fetch,
             ),
             patch(
-                "services.verification.deployed_api._cleanup_challenge_entry",
+                "learn_to_cloud.services.verification.deployed_api._cleanup_challenge_entry",
                 autospec=True,
             ) as mock_cleanup,
         ):
@@ -389,7 +389,7 @@ class TestValidateDeployedApi:
     async def test_post_timeout_error(self, _mock_ssrf):
         """Timeout on POST should return appropriate error."""
         with patch(
-            "services.verification.deployed_api._fetch_with_retry",
+            "learn_to_cloud.services.verification.deployed_api._fetch_with_retry",
             autospec=True,
         ) as mock_fetch:
             mock_fetch.side_effect = httpx.TimeoutException("Request timed out")
@@ -403,7 +403,7 @@ class TestValidateDeployedApi:
     async def test_post_connection_error(self, _mock_ssrf):
         """Connection error on POST should return appropriate message."""
         with patch(
-            "services.verification.deployed_api._fetch_with_retry",
+            "learn_to_cloud.services.verification.deployed_api._fetch_with_retry",
             autospec=True,
         ) as mock_fetch:
             mock_fetch.side_effect = httpx.ConnectError("Connection refused")
@@ -417,7 +417,7 @@ class TestValidateDeployedApi:
     async def test_post_server_error(self, _mock_ssrf):
         """5xx errors on POST should return appropriate message."""
         with patch(
-            "services.verification.deployed_api._fetch_with_retry",
+            "learn_to_cloud.services.verification.deployed_api._fetch_with_retry",
             autospec=True,
         ) as mock_fetch:
             mock_fetch.side_effect = DeployedApiServerError("Server returned 500")
@@ -431,7 +431,7 @@ class TestValidateDeployedApi:
     async def test_transient_failure(self, _mock_ssrf):
         """Transient connection failure should return retry message."""
         with patch(
-            "services.verification.deployed_api._fetch_with_retry",
+            "learn_to_cloud.services.verification.deployed_api._fetch_with_retry",
             autospec=True,
         ) as mock_fetch:
             mock_fetch.side_effect = httpx.ConnectError("connection refused")
@@ -450,7 +450,7 @@ class TestValidateDeployedApi:
         mock_response.status_code = 404
 
         with patch(
-            "services.verification.deployed_api._fetch_with_retry",
+            "learn_to_cloud.services.verification.deployed_api._fetch_with_retry",
             autospec=True,
         ) as mock_fetch:
             mock_fetch.return_value = mock_response
@@ -467,7 +467,7 @@ class TestValidateDeployedApi:
         mock_response.status_code = 422
 
         with patch(
-            "services.verification.deployed_api._fetch_with_retry",
+            "learn_to_cloud.services.verification.deployed_api._fetch_with_retry",
             autospec=True,
         ) as mock_fetch:
             mock_fetch.return_value = mock_response
@@ -508,12 +508,12 @@ class TestValidateDeployedApi:
 
         with (
             patch(
-                "services.verification.deployed_api._fetch_with_retry",
+                "learn_to_cloud.services.verification.deployed_api._fetch_with_retry",
                 autospec=True,
                 side_effect=mock_fetch,
             ),
             patch(
-                "services.verification.deployed_api._cleanup_challenge_entry",
+                "learn_to_cloud.services.verification.deployed_api._cleanup_challenge_entry",
                 autospec=True,
             ),
         ):
@@ -544,12 +544,12 @@ class TestValidateDeployedApi:
 
         with (
             patch(
-                "services.verification.deployed_api._fetch_with_retry",
+                "learn_to_cloud.services.verification.deployed_api._fetch_with_retry",
                 autospec=True,
                 side_effect=mock_fetch,
             ),
             patch(
-                "services.verification.deployed_api._cleanup_challenge_entry",
+                "learn_to_cloud.services.verification.deployed_api._cleanup_challenge_entry",
                 autospec=True,
             ),
         ):
@@ -604,12 +604,12 @@ class TestValidateDeployedApi:
 
         with (
             patch(
-                "services.verification.deployed_api._fetch_with_retry",
+                "learn_to_cloud.services.verification.deployed_api._fetch_with_retry",
                 autospec=True,
                 side_effect=mock_fetch,
             ),
             patch(
-                "services.verification.deployed_api._cleanup_challenge_entry",
+                "learn_to_cloud.services.verification.deployed_api._cleanup_challenge_entry",
                 autospec=True,
             ),
         ):
@@ -664,12 +664,12 @@ class TestValidateDeployedApi:
 
         with (
             patch(
-                "services.verification.deployed_api._fetch_with_retry",
+                "learn_to_cloud.services.verification.deployed_api._fetch_with_retry",
                 autospec=True,
                 side_effect=mock_fetch,
             ) as mock,
             patch(
-                "services.verification.deployed_api._cleanup_challenge_entry",
+                "learn_to_cloud.services.verification.deployed_api._cleanup_challenge_entry",
                 autospec=True,
             ),
         ):
@@ -688,9 +688,9 @@ class TestValidateSubmissionIntegration:
     @pytest.mark.asyncio
     async def test_deployed_api_routes_to_verification(self):
         """DEPLOYED_API should route to validate_deployed_api."""
-        from models import SubmissionType
-        from schemas import HandsOnRequirement, ValidationResult
-        from services.verification.dispatcher import validate_submission
+        from learn_to_cloud.models import SubmissionType
+        from learn_to_cloud.schemas import HandsOnRequirement, ValidationResult
+        from learn_to_cloud.services.verification.dispatcher import validate_submission
 
         requirement = HandsOnRequirement(
             id="deployed-journal-api",
@@ -700,7 +700,7 @@ class TestValidateSubmissionIntegration:
         )
 
         with patch(
-            "services.verification.dispatcher.validate_deployed_api",
+            "learn_to_cloud.services.verification.dispatcher.validate_deployed_api",
             autospec=True,
         ) as mock:
             mock.return_value = ValidationResult(is_valid=True, message="API verified!")
@@ -792,7 +792,7 @@ class TestValidateUrlTarget:
     async def test_blocks_dns_resolving_to_private(self):
         """Hostnames resolving to private IPs should be blocked."""
         with patch(
-            "services.verification.deployed_api.asyncio.get_running_loop"
+            "learn_to_cloud.services.verification.deployed_api.asyncio.get_running_loop"
         ) as mock_loop:
             mock_loop.return_value.getaddrinfo = AsyncMock(
                 return_value=[(2, 1, 6, "", ("127.0.0.1", 443))]
@@ -805,7 +805,7 @@ class TestValidateUrlTarget:
     async def test_allows_dns_resolving_to_public(self):
         """Hostnames resolving to public IPs should be allowed."""
         with patch(
-            "services.verification.deployed_api.asyncio.get_running_loop"
+            "learn_to_cloud.services.verification.deployed_api.asyncio.get_running_loop"
         ) as mock_loop:
             mock_loop.return_value.getaddrinfo = AsyncMock(
                 return_value=[(2, 1, 6, "", ("20.50.2.100", 443))]
@@ -819,7 +819,7 @@ class TestValidateUrlTarget:
         import socket as _socket
 
         with patch(
-            "services.verification.deployed_api.asyncio.get_running_loop"
+            "learn_to_cloud.services.verification.deployed_api.asyncio.get_running_loop"
         ) as mock_loop:
             mock_loop.return_value.getaddrinfo = AsyncMock(
                 side_effect=_socket.gaierror("Name resolution failed")

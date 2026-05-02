@@ -21,7 +21,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from routes.pages_routes import (
+from learn_to_cloud.routes.pages_routes import (
     account_page,
     curriculum_page,
     dashboard_page,
@@ -38,7 +38,7 @@ from routes.pages_routes import (
 def _patch_templates():
     """Patch the templates module import for all page route tests."""
     mock_templates = MagicMock()
-    with patch("routes.pages_routes.templates", mock_templates):
+    with patch("learn_to_cloud.routes.pages_routes.templates", mock_templates):
         yield mock_templates
 
 
@@ -80,9 +80,11 @@ class TestHomePage:
         phases = [_fake_phase(order=i) for i in range(1, 6)]
 
         with (
-            patch("routes.pages_routes.get_all_phases", return_value=phases),
             patch(
-                "routes.pages_routes.get_user_by_id",
+                "learn_to_cloud.routes.pages_routes.get_all_phases", return_value=phases
+            ),
+            patch(
+                "learn_to_cloud.routes.pages_routes.get_user_by_id",
                 autospec=True,
                 return_value=None,
             ),
@@ -104,9 +106,11 @@ class TestHomePage:
         phases = [_fake_phase()]
 
         with (
-            patch("routes.pages_routes.get_all_phases", return_value=phases),
             patch(
-                "routes.pages_routes.get_user_by_id",
+                "learn_to_cloud.routes.pages_routes.get_all_phases", return_value=phases
+            ),
+            patch(
+                "learn_to_cloud.routes.pages_routes.get_user_by_id",
                 autospec=True,
                 return_value=mock_user,
             ),
@@ -128,9 +132,11 @@ class TestCurriculumPage:
         phases = [_fake_phase(order=i) for i in range(1, 6)]
 
         with (
-            patch("routes.pages_routes.get_all_phases", return_value=phases),
             patch(
-                "routes.pages_routes.get_user_by_id",
+                "learn_to_cloud.routes.pages_routes.get_all_phases", return_value=phases
+            ),
+            patch(
+                "learn_to_cloud.routes.pages_routes.get_user_by_id",
                 autospec=True,
                 return_value=None,
             ),
@@ -152,9 +158,12 @@ class TestPhasePage:
         mock_db = AsyncMock()
 
         with (
-            patch("routes.pages_routes.get_phase_by_slug", return_value=None),
             patch(
-                "routes.pages_routes.get_user_by_id",
+                "learn_to_cloud.routes.pages_routes.get_phase_by_slug",
+                return_value=None,
+            ),
+            patch(
+                "learn_to_cloud.routes.pages_routes.get_user_by_id",
                 autospec=True,
                 return_value=None,
             ),
@@ -178,25 +187,31 @@ class TestPhasePage:
         mock_sub_context.feedback_by_req = {}
 
         with (
-            patch("routes.pages_routes.get_phase_by_slug", return_value=phase),
             patch(
-                "routes.pages_routes.get_user_by_id",
+                "learn_to_cloud.routes.pages_routes.get_phase_by_slug",
+                return_value=phase,
+            ),
+            patch(
+                "learn_to_cloud.routes.pages_routes.get_user_by_id",
                 autospec=True,
                 return_value=mock_user,
             ),
             patch(
-                "routes.pages_routes.fetch_phase_progress",
+                "learn_to_cloud.routes.pages_routes.fetch_phase_progress",
                 autospec=True,
                 return_value={},
             ),
-            patch("routes.pages_routes.build_phase_topics", return_value=([], {})),
             patch(
-                "routes.pages_routes.get_phase_submission_context",
+                "learn_to_cloud.routes.pages_routes.build_phase_topics",
+                return_value=([], {}),
+            ),
+            patch(
+                "learn_to_cloud.routes.pages_routes.get_phase_submission_context",
                 autospec=True,
                 return_value=mock_sub_context,
             ),
             patch(
-                "routes.pages_routes.is_phase_verification_locked",
+                "learn_to_cloud.routes.pages_routes.is_phase_verification_locked",
                 autospec=True,
                 return_value=(False, None),
             ),
@@ -220,10 +235,18 @@ class TestTopicPage:
         mock_db = AsyncMock()
 
         with (
-            patch("routes.pages_routes.get_phase_by_slug", return_value=None),
-            patch("routes.pages_routes.get_topic_by_slugs", return_value=None),
             patch(
-                "routes.pages_routes.get_user_by_id", autospec=True, return_value=None
+                "learn_to_cloud.routes.pages_routes.get_phase_by_slug",
+                return_value=None,
+            ),
+            patch(
+                "learn_to_cloud.routes.pages_routes.get_topic_by_slugs",
+                return_value=None,
+            ),
+            patch(
+                "learn_to_cloud.routes.pages_routes.get_user_by_id",
+                autospec=True,
+                return_value=None,
             ),
         ):
             await topic_page(
@@ -239,10 +262,18 @@ class TestTopicPage:
         phase = _fake_phase()
 
         with (
-            patch("routes.pages_routes.get_phase_by_slug", return_value=phase),
-            patch("routes.pages_routes.get_topic_by_slugs", return_value=None),
             patch(
-                "routes.pages_routes.get_user_by_id", autospec=True, return_value=None
+                "learn_to_cloud.routes.pages_routes.get_phase_by_slug",
+                return_value=phase,
+            ),
+            patch(
+                "learn_to_cloud.routes.pages_routes.get_topic_by_slugs",
+                return_value=None,
+            ),
+            patch(
+                "learn_to_cloud.routes.pages_routes.get_user_by_id",
+                autospec=True,
+                return_value=None,
             ),
         ):
             await topic_page(
@@ -260,19 +291,28 @@ class TestTopicPage:
         phase.topics = [topic]
 
         with (
-            patch("routes.pages_routes.get_phase_by_slug", return_value=phase),
-            patch("routes.pages_routes.get_topic_by_slugs", return_value=topic),
             patch(
-                "routes.pages_routes.get_user_by_id",
+                "learn_to_cloud.routes.pages_routes.get_phase_by_slug",
+                return_value=phase,
+            ),
+            patch(
+                "learn_to_cloud.routes.pages_routes.get_topic_by_slugs",
+                return_value=topic,
+            ),
+            patch(
+                "learn_to_cloud.routes.pages_routes.get_user_by_id",
                 autospec=True,
                 return_value=MagicMock(),
             ),
             patch(
-                "routes.pages_routes.get_valid_completed_steps",
+                "learn_to_cloud.routes.pages_routes.get_valid_completed_steps",
                 autospec=True,
                 return_value=[],
             ),
-            patch("routes.pages_routes.build_topic_nav", return_value=(None, None)),
+            patch(
+                "learn_to_cloud.routes.pages_routes.build_topic_nav",
+                return_value=(None, None),
+            ),
         ):
             await topic_page(
                 request, phase_id=1, topic_slug="linux-basics", db=mock_db, user_id=1
@@ -296,12 +336,12 @@ class TestDashboardPage:
 
         with (
             patch(
-                "routes.pages_routes.get_user_by_id",
+                "learn_to_cloud.routes.pages_routes.get_user_by_id",
                 autospec=True,
                 return_value=mock_user,
             ),
             patch(
-                "routes.pages_routes.get_dashboard_data",
+                "learn_to_cloud.routes.pages_routes.get_dashboard_data",
                 autospec=True,
                 return_value=mock_dashboard,
             ),
@@ -319,7 +359,9 @@ class TestDashboardPage:
         mock_db = AsyncMock()
 
         with patch(
-            "routes.pages_routes.get_user_by_id", autospec=True, return_value=None
+            "learn_to_cloud.routes.pages_routes.get_user_by_id",
+            autospec=True,
+            return_value=None,
         ):
             await dashboard_page(request, mock_db, user_id=999)
 
@@ -339,7 +381,9 @@ class TestAccountPage:
         mock_user = MagicMock()
 
         with patch(
-            "routes.pages_routes.get_user_by_id", autospec=True, return_value=mock_user
+            "learn_to_cloud.routes.pages_routes.get_user_by_id",
+            autospec=True,
+            return_value=mock_user,
         ):
             await account_page(request, mock_db, user_id=42)
 
@@ -353,7 +397,9 @@ class TestAccountPage:
         mock_db = AsyncMock()
 
         with patch(
-            "routes.pages_routes.get_user_by_id", autospec=True, return_value=None
+            "learn_to_cloud.routes.pages_routes.get_user_by_id",
+            autospec=True,
+            return_value=None,
         ):
             await account_page(request, mock_db, user_id=999)
 
@@ -378,7 +424,9 @@ class TestPublicPages:
         mock_db = AsyncMock()
 
         with patch(
-            "routes.pages_routes.get_user_by_id", autospec=True, return_value=None
+            "learn_to_cloud.routes.pages_routes.get_user_by_id",
+            autospec=True,
+            return_value=None,
         ):
             await handler(request, mock_db, user_id=None)
 

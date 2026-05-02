@@ -6,9 +6,9 @@ edge cases, and the is_derivable / fork_name_from_required_repo helpers.
 
 import pytest
 
-from models import SubmissionType
-from schemas import HandsOnRequirement
-from services.verification.url_derivation import (
+from learn_to_cloud.models import SubmissionType
+from learn_to_cloud.schemas import HandsOnRequirement
+from learn_to_cloud.services.verification.url_derivation import (
     _parse_pr_number,
     derive_submission_value,
     fork_name_from_required_repo,

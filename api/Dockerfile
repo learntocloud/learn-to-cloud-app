@@ -19,15 +19,15 @@ ENV UV_PROJECT_ENVIRONMENT=/app/.venv
 
 # Install dependencies to virtual environment
 RUN uv venv /app/.venv && \
-    uv sync --no-dev --frozen
+    uv sync --no-dev --frozen --no-install-project
 
 # Tailwind CSS v4 build stage
 FROM node:22-slim AS tailwind
 WORKDIR /build
 COPY api/package.json api/package-lock.json ./
 RUN npm ci
-COPY api/static/css/input.css ./static/css/input.css
-COPY api/templates/ ./templates/
+COPY api/src/learn_to_cloud/static/css/input.css ./static/css/input.css
+COPY api/src/learn_to_cloud/templates/ ./templates/
 RUN npx @tailwindcss/cli -i static/css/input.css -o static/css/styles.css --minify
 
 # Production stage - minimal runtime
@@ -50,6 +50,7 @@ COPY --from=builder /app/.venv /app/.venv
 # Activate virtual environment
 ENV PATH="/app/.venv/bin:$PATH"
 ENV VIRTUAL_ENV="/app/.venv"
+ENV PYTHONPATH="/app/src"
 
 # Enable Python fault handler for debugging
 ENV PYTHONFAULTHANDLER=1
@@ -61,7 +62,7 @@ ENV CONTENT_DIR="/app/content/phases"
 COPY --chown=appuser:appuser api/ .
 
 # Copy Tailwind-generated CSS from build stage
-COPY --from=tailwind --chown=appuser:appuser /build/static/css/styles.css /app/static/css/styles.css
+COPY --from=tailwind --chown=appuser:appuser /build/static/css/styles.css /app/src/learn_to_cloud/static/css/styles.css
 
 # Copy content YAML files (single source of truth)
 COPY --chown=appuser:appuser content /app/content
@@ -79,4 +80,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
 # Use tini as init process for proper signal handling and zombie reaping
 ENTRYPOINT ["tini", "-g", "--"]
 
-CMD ["python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips", "*"]
+CMD ["python", "-m", "uvicorn", "learn_to_cloud.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips", "*"]
