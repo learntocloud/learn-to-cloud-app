@@ -11,9 +11,9 @@ from unittest.mock import patch
 import httpx
 import pytest
 
-from models import SubmissionType
-from schemas import HandsOnRequirement
-from services.verification.pull_request import validate_pr
+from learn_to_cloud.models import SubmissionType
+from learn_to_cloud.schemas import HandsOnRequirement
+from learn_to_cloud.services.verification.pull_request import validate_pr
 
 
 def _make_pr_requirement(
@@ -49,7 +49,10 @@ class TestValidatePr:
     """Tests for the full PR validation flow."""
 
     @pytest.mark.asyncio
-    @patch("services.verification.pull_request._fetch_pr_data", autospec=True)
+    @patch(
+        "learn_to_cloud.services.verification.pull_request._fetch_pr_data",
+        autospec=True,
+    )
     async def test_open_pr_fails(self, mock_fetch):
         mock_fetch.return_value = {"merged": False, "state": "open"}
         result = await validate_pr(_TEST_PR_URL, _make_pr_requirement())
@@ -57,7 +60,10 @@ class TestValidatePr:
         assert "still open" in result.message
 
     @pytest.mark.asyncio
-    @patch("services.verification.pull_request._fetch_pr_data", autospec=True)
+    @patch(
+        "learn_to_cloud.services.verification.pull_request._fetch_pr_data",
+        autospec=True,
+    )
     async def test_closed_unmerged_pr_fails(self, mock_fetch):
         mock_fetch.return_value = {"merged": False, "state": "closed"}
         result = await validate_pr(_TEST_PR_URL, _make_pr_requirement())
@@ -65,8 +71,14 @@ class TestValidatePr:
         assert "without merging" in result.message
 
     @pytest.mark.asyncio
-    @patch("services.verification.pull_request._fetch_pr_diff", autospec=True)
-    @patch("services.verification.pull_request._fetch_pr_data", autospec=True)
+    @patch(
+        "learn_to_cloud.services.verification.pull_request._fetch_pr_diff",
+        autospec=True,
+    )
+    @patch(
+        "learn_to_cloud.services.verification.pull_request._fetch_pr_data",
+        autospec=True,
+    )
     async def test_merged_pr_with_missing_indicators_fails(self, mock_data, mock_diff):
         """Merged PR missing pass indicators fails deterministically."""
         mock_data.return_value = {
@@ -84,8 +96,14 @@ class TestValidatePr:
         assert not result.task_results[0].passed
 
     @pytest.mark.asyncio
-    @patch("services.verification.pull_request._fetch_pr_diff", autospec=True)
-    @patch("services.verification.pull_request._fetch_pr_data", autospec=True)
+    @patch(
+        "learn_to_cloud.services.verification.pull_request._fetch_pr_diff",
+        autospec=True,
+    )
+    @patch(
+        "learn_to_cloud.services.verification.pull_request._fetch_pr_data",
+        autospec=True,
+    )
     async def test_merged_pr_with_fail_indicator_fails(self, mock_data, mock_diff):
         """Merged PR with fail indicator present fails deterministically."""
         mock_data.return_value = {
@@ -105,8 +123,14 @@ class TestValidatePr:
         assert "starter/placeholder" in result.task_results[0].feedback
 
     @pytest.mark.asyncio
-    @patch("services.verification.pull_request._fetch_pr_diff", autospec=True)
-    @patch("services.verification.pull_request._fetch_pr_data", autospec=True)
+    @patch(
+        "learn_to_cloud.services.verification.pull_request._fetch_pr_diff",
+        autospec=True,
+    )
+    @patch(
+        "learn_to_cloud.services.verification.pull_request._fetch_pr_data",
+        autospec=True,
+    )
     async def test_merged_pr_with_indicators_passes(self, mock_data, mock_diff):
         """Merged PR with matching pass indicators passes instantly."""
         mock_data.return_value = {
@@ -131,7 +155,10 @@ class TestValidatePrErrorHandling:
     """Tests for GitHub API error handling."""
 
     @pytest.mark.asyncio
-    @patch("services.verification.pull_request._fetch_pr_data", autospec=True)
+    @patch(
+        "learn_to_cloud.services.verification.pull_request._fetch_pr_data",
+        autospec=True,
+    )
     async def test_pr_not_found_404(self, mock_fetch):
         response = httpx.Response(404, request=httpx.Request("GET", "https://test"))
         mock_fetch.side_effect = httpx.HTTPStatusError(
@@ -143,7 +170,10 @@ class TestValidatePrErrorHandling:
         assert result.verification_completed is True
 
     @pytest.mark.asyncio
-    @patch("services.verification.pull_request._fetch_pr_data", autospec=True)
+    @patch(
+        "learn_to_cloud.services.verification.pull_request._fetch_pr_data",
+        autospec=True,
+    )
     async def test_github_server_error_marks_server_error(self, mock_fetch):
         response = httpx.Response(500, request=httpx.Request("GET", "https://test"))
         mock_fetch.side_effect = httpx.HTTPStatusError(

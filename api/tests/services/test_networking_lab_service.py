@@ -19,7 +19,7 @@ from datetime import UTC, datetime
 
 import pytest
 
-from services.verification.token_base import (
+from learn_to_cloud.services.verification.token_base import (
     REQUIRED_CHALLENGES,
     verify_networking_token,
 )

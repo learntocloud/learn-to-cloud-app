@@ -8,5 +8,5 @@ import pytest
 @pytest.fixture(autouse=True)
 def _disable_rate_limiter():
     """Disable slowapi rate limiting so route handlers can be called directly."""
-    with patch("core.ratelimit.limiter.enabled", False):
+    with patch("learn_to_cloud.core.ratelimit.limiter.enabled", False):
         yield

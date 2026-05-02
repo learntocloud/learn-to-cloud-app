@@ -7,7 +7,7 @@ from pathlib import Path
 
 
 def main() -> None:
-    static_dir = Path(__file__).parent.parent / "static"
+    static_dir = Path(__file__).parent.parent / "src" / "learn_to_cloud" / "static"
     svg_path = static_dir / "favicon.svg"
 
     if not svg_path.exists():

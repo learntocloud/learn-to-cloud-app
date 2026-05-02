@@ -11,13 +11,13 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from schemas import (
+from learn_to_cloud.schemas import (
     LearningStep,
     Phase,
     PhaseProgress,
     Topic,
 )
-from services.progress_service import (
+from learn_to_cloud.services.progress_service import (
     _build_phase_requirements,
     compute_topic_progress,
     fetch_phase_progress,
@@ -182,20 +182,20 @@ class TestFetchUserProgress:
 
         with (
             patch(
-                "services.progress_service.get_all_phases",
+                "learn_to_cloud.services.progress_service.get_all_phases",
                 autospec=True,
                 return_value=(phase,),
             ),
             patch(
-                "services.progress_service.SubmissionRepository",
+                "learn_to_cloud.services.progress_service.SubmissionRepository",
                 autospec=True,
             ) as MockSubRepo,
             patch(
-                "services.progress_service.StepProgressRepository",
+                "learn_to_cloud.services.progress_service.StepProgressRepository",
                 autospec=True,
             ) as MockStepRepo,
             patch(
-                "services.progress_service.get_requirements_for_phase",
+                "learn_to_cloud.services.progress_service.get_requirements_for_phase",
                 autospec=True,
                 return_value=[],
             ),
@@ -224,16 +224,16 @@ class TestFetchPhaseProgress:
 
         with (
             patch(
-                "services.progress_service.StepProgressRepository",
+                "learn_to_cloud.services.progress_service.StepProgressRepository",
                 autospec=True,
             ) as MockStepRepo,
             patch(
-                "services.progress_service.get_requirements_for_phase",
+                "learn_to_cloud.services.progress_service.get_requirements_for_phase",
                 autospec=True,
                 return_value=[],
             ),
             patch(
-                "services.progress_service.get_phase_requirements",
+                "learn_to_cloud.services.progress_service.get_phase_requirements",
                 autospec=True,
                 return_value=None,
             ),
@@ -256,20 +256,20 @@ class TestFetchPhaseProgress:
 
         with (
             patch(
-                "services.progress_service.StepProgressRepository",
+                "learn_to_cloud.services.progress_service.StepProgressRepository",
                 autospec=True,
             ) as MockStepRepo,
             patch(
-                "services.progress_service.get_requirements_for_phase",
+                "learn_to_cloud.services.progress_service.get_requirements_for_phase",
                 autospec=True,
                 return_value=[mock_req],
             ),
             patch(
-                "services.progress_service.SubmissionRepository",
+                "learn_to_cloud.services.progress_service.SubmissionRepository",
                 autospec=True,
             ) as MockSubRepo,
             patch(
-                "services.progress_service.get_phase_requirements",
+                "learn_to_cloud.services.progress_service.get_phase_requirements",
                 autospec=True,
                 return_value=None,
             ),
@@ -299,20 +299,20 @@ class TestFetchPhaseProgress:
 
         with (
             patch(
-                "services.progress_service.StepProgressRepository",
+                "learn_to_cloud.services.progress_service.StepProgressRepository",
                 autospec=True,
             ) as MockStepRepo,
             patch(
-                "services.progress_service.get_requirements_for_phase",
+                "learn_to_cloud.services.progress_service.get_requirements_for_phase",
                 autospec=True,
                 return_value=[mock_req],
             ),
             patch(
-                "services.progress_service.SubmissionRepository",
+                "learn_to_cloud.services.progress_service.SubmissionRepository",
                 autospec=True,
             ) as MockSubRepo,
             patch(
-                "services.progress_service.get_phase_requirements",
+                "learn_to_cloud.services.progress_service.get_phase_requirements",
                 autospec=True,
                 return_value=None,
             ),

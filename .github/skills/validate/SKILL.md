@@ -70,7 +70,7 @@ cd <workspace>/api && uv run ty check <relative_file_path>
 
 ```bash
 cd <workspace>/api
-uv run python -m uvicorn main:app --host 127.0.0.1 --port 8000 &
+uv run python -m uvicorn learn_to_cloud.main:app --host 127.0.0.1 --port 8000 &
 echo $! > .api-pid
 sleep 3
 ```

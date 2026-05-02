@@ -144,7 +144,7 @@ jobs:
         run: uv run ty check --python .venv/bin/python --exclude "scripts/" --exclude "tests/"
 
       - name: Run tests with coverage
-        run: uv run pytest tests/ -v --tb=short --cov=. --cov-report=xml --cov-report=term-missing
+        run: uv run pytest tests/ -v --tb=short --cov=learn_to_cloud --cov-report=xml --cov-report=term-missing
 
   # -----------------------------------------------------------------------
   # Status gates — always run so required checks are reported on every PR,

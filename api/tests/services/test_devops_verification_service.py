@@ -12,13 +12,13 @@ from unittest.mock import MagicMock, patch
 import httpx
 import pytest
 
-from services.verification.devops_analysis import (
+from learn_to_cloud.services.verification.devops_analysis import (
     _check_required_files,
     _check_task_indicators,
     _filter_devops_files,
     run_devops_workflow,
 )
-from services.verification.tasks.phase5 import (
+from learn_to_cloud.services.verification.tasks.phase5 import (
     MAX_FILES_PER_CATEGORY,
     PHASE5_TASKS,
 )
@@ -184,7 +184,7 @@ class TestCheckTaskIndicators:
             "RUN pip install -r requirements.txt\n"
             "COPY . .\n"
             "EXPOSE 8000\n"
-            'CMD ["uvicorn", "main:app"]\n'
+            'CMD ["uvicorn", "learn_to_cloud.main:app"]\n'
         ]
         result = _check_task_indicators(task_def, contents)
         assert result.passed is True
@@ -280,7 +280,7 @@ class TestRunDevopsWorkflow:
         mock_response.status_code = 404
 
         with patch(
-            "services.verification.devops_analysis.fetch_repo_tree",
+            "learn_to_cloud.services.verification.devops_analysis.fetch_repo_tree",
             autospec=True,
             side_effect=httpx.HTTPStatusError(
                 "Not Found", request=MagicMock(), response=mock_response
@@ -295,7 +295,7 @@ class TestRunDevopsWorkflow:
     async def test_all_missing_returns_fast(self):
         """When no tasks pass existence check, return immediately."""
         with patch(
-            "services.verification.devops_analysis.fetch_repo_tree",
+            "learn_to_cloud.services.verification.devops_analysis.fetch_repo_tree",
             autospec=True,
             return_value=["README.md"],
         ):
@@ -318,7 +318,7 @@ class TestRunDevopsWorkflow:
         ]
 
         with patch(
-            "services.verification.devops_analysis.fetch_repo_tree",
+            "learn_to_cloud.services.verification.devops_analysis.fetch_repo_tree",
             autospec=True,
             return_value=mock_files,
         ):
@@ -347,7 +347,7 @@ class TestRunDevopsWorkflow:
         dockerfile_content = (
             "FROM python:3.12-slim\nWORKDIR /app\n"
             "COPY requirements.txt .\nRUN pip install -r requirements.txt\n"
-            'COPY . .\nEXPOSE 8000\nCMD ["uvicorn", "main:app"]\n'
+            'COPY . .\nEXPOSE 8000\nCMD ["uvicorn", "learn_to_cloud.main:app"]\n'
         )
         cicd_content = (
             "name: CI\non:\n  push:\n    branches: [main]\n"
@@ -396,12 +396,12 @@ class TestRunDevopsWorkflow:
 
         with (
             patch(
-                "services.verification.devops_analysis.fetch_repo_tree",
+                "learn_to_cloud.services.verification.devops_analysis.fetch_repo_tree",
                 autospec=True,
                 return_value=mock_files,
             ),
             patch(
-                "services.verification.devops_analysis._fetch_file_content",
+                "learn_to_cloud.services.verification.devops_analysis._fetch_file_content",
                 side_effect=mock_fetch,
             ),
         ):

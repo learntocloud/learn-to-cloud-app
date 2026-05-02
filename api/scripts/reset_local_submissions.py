@@ -19,7 +19,7 @@ import logging
 
 from sqlalchemy import text
 
-from core.database import create_engine
+from learn_to_cloud.core.database import create_engine
 
 logger = logging.getLogger(__name__)
 

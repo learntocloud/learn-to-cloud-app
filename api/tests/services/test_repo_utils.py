@@ -8,8 +8,8 @@ Tests cover:
 
 import pytest
 
-from schemas import ValidationResult
-from services.verification.repo_utils import (
+from learn_to_cloud.schemas import ValidationResult
+from learn_to_cloud.services.verification.repo_utils import (
     extract_repo_info,
     sanitize_feedback,
     validate_repo_url,

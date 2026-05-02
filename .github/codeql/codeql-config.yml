@@ -1,20 +1,20 @@
 # CodeQL configuration
 #
-# Log Injection (py/log-injection) is excluded because this codebase has a
-# centralized runtime defence: _LogSanitizationFilter on the root logger
-# (api/core/logger.py) strips \n, \r, \0, and all C0 control characters
-# from every extra={} field before any handler sees the record.
+# Log Injection (py/log-injection) is excluded because this codebase emits
+# structured JSON logs through a centralized python-json-logger stdout
+# formatter. It serializes records with json.dumps(), so control characters in
+# string extra={} fields are JSON-escaped instead of emitted as raw line breaks
+# in container logs.
 #
-# This filter is:
-# - Registered on the root logger in configure_logging() — every log call
-#   in the app goes through it, no opt-in needed
-# - Tested with 7 unit tests including a full injection attack simulation
-# - Defence-in-depth on top of structured JSON logging in production
+# This formatter is:
+# - Registered on the app-owned stdout handler in configure_logging()
+# - Tested with unit coverage for JSON-escaped control characters
+# - Used for structured JSON logging in production
 #
-# CodeQL's static analysis cannot trace through runtime logging filters,
+# CodeQL's static analysis cannot trace through runtime logging formatters,
 # so it reports false positives on every log call that includes user input.
-# Rather than wrapping 50+ call sites in a redundant sanitizer function,
-# we exclude the rule and rely on the tested centralized defence.
+# Rather than wrapping 50+ call sites in redundant logging helper calls,
+# we exclude the rule and rely on centralized JSON serialization.
 
 queries:
   - uses: security-extended

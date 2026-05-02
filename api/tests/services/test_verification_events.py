@@ -11,7 +11,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from services.verification.events import (
+from learn_to_cloud.services.verification.events import (
     get_task,
     remove_task,
     store_task,

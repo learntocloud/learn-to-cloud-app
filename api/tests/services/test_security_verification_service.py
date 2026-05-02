@@ -12,7 +12,9 @@ from unittest.mock import AsyncMock, patch
 import httpx
 import pytest
 
-from services.verification.security_scanning import validate_security_scanning
+from learn_to_cloud.services.verification.security_scanning import (
+    validate_security_scanning,
+)
 
 _TEST_OWNER = "testuser"
 _TEST_REPO = "my-repo"
@@ -33,7 +35,7 @@ class TestValidateSecurityScanning404:
             status_code=404, request=httpx.Request("GET", "https://api.github.com")
         )
         with patch(
-            "services.verification.security_scanning.fetch_repo_tree",
+            "learn_to_cloud.services.verification.security_scanning.fetch_repo_tree",
             new_callable=AsyncMock,
             side_effect=httpx.HTTPStatusError(
                 "Not Found", request=mock_response.request, response=mock_response

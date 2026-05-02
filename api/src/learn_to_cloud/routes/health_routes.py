@@ -1,0 +1,71 @@
+"""Health check endpoints."""
+
+import logging
+
+from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import PlainTextResponse
+from starlette import status
+
+from learn_to_cloud.core.database import check_db_connection
+from learn_to_cloud.schemas import HealthResponse
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter(tags=["health"])
+
+
+@router.get("/health", summary="Health check")
+async def health() -> HealthResponse:
+    """Health check endpoint."""
+    return HealthResponse(status="healthy", service="learn-to-cloud-api")
+
+
+@router.get(
+    "/ready",
+    summary="Readiness check",
+    responses={
+        503: {
+            "description": "Service unavailable - init failed or DB unreachable",
+            "content": {
+                "application/json": {"example": {"detail": "Database unavailable"}}
+            },
+        }
+    },
+)
+async def ready(request: Request) -> HealthResponse:
+    """Readiness endpoint.
+
+    Returns 200 only when:
+    - Background initialization has completed successfully
+    - The database is reachable
+    """
+    init_error = getattr(request.app.state, "init_error", None)
+    if init_error:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Initialization failed: {init_error}",
+        )
+
+    init_done = bool(getattr(request.app.state, "init_done", False))
+    if not init_done:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Starting",
+        )
+
+    try:
+        await check_db_connection(request.app.state.engine)
+    except Exception as e:
+        logger.warning("health.ready.db_unavailable", extra={"error": str(e)})
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database unavailable",
+        ) from e
+
+    return HealthResponse(status="ready", service="learn-to-cloud-api")
+
+
+@router.get("/robots.txt", response_class=PlainTextResponse, include_in_schema=False)
+async def robots_txt() -> str:
+    """Serve robots.txt to stop crawlers generating 404s."""
+    return "User-agent: *\nAllow: /\n"

@@ -117,9 +117,8 @@ class TestPoolPrePing:
             result = await conn.execute(text("SELECT pg_backend_pid()"))
             second_pid = result.scalar()
 
-        assert (
-            first_pid == second_pid
-        ), "Healthy connection should be reused, not replaced"
+        reuse_message = "Healthy connection should be reused, not replaced"
+        assert first_pid == second_pid, reuse_message
 
         await engine.dispose()
 
@@ -166,8 +165,7 @@ class TestPoolPrePing:
         async with engine.connect() as conn:
             await conn.execute(text("SELECT 1"))
 
-        assert (
-            invalidated_count >= 1
-        ), "Expected at least one connection to be invalidated"
+        invalidation_message = "Expected at least one connection to be invalidated"
+        assert invalidated_count >= 1, invalidation_message
 
         await engine.dispose()

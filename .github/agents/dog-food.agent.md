@@ -36,7 +36,7 @@ lsof -ti:8000 | xargs -r kill -9 2>/dev/null || true
 
 # Start API in background
 cd /workspaces/learn-to-cloud-app/api
-nohup uv run uvicorn main:app --host 127.0.0.1 --port 8000 > /tmp/api.log 2>&1 &
+nohup uv run uvicorn learn_to_cloud.main:app --host 127.0.0.1 --port 8000 > /tmp/api.log 2>&1 &
 ```
 
 Use `isBackground=true` for the API startup. Wait 5 seconds, then verify:

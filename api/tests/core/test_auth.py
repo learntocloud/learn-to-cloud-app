@@ -12,7 +12,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from fastapi import HTTPException, Request
 
-from core.auth import (
+from learn_to_cloud.core.auth import (
     AuthenticatedUser,
     get_authenticated_user_from_session,
     get_github_username_from_session,
@@ -171,7 +171,7 @@ class TestOptionalAuthenticatedUser:
 class TestInitOauth:
     """Test init_oauth registers GitHub provider."""
 
-    @patch("core.auth.get_settings", autospec=True)
+    @patch("learn_to_cloud.core.auth.get_settings", autospec=True)
     def test_registers_github_when_client_id_set(self, mock_get_settings):
         mock_settings = MagicMock()
         mock_settings.github_client_id = "test-client-id"
@@ -185,7 +185,7 @@ class TestInitOauth:
 
         assert "github" in oauth._clients
 
-    @patch("core.auth.get_settings", autospec=True)
+    @patch("learn_to_cloud.core.auth.get_settings", autospec=True)
     def test_skips_registration_when_client_id_empty(self, mock_get_settings):
         mock_settings = MagicMock()
         mock_settings.github_client_id = ""

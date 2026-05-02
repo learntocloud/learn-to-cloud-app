@@ -11,13 +11,16 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from schemas import (
+from learn_to_cloud.schemas import (
     Phase,
     PhaseProgress,
     PhaseProgressData,
     UserProgress,
 )
-from services.dashboard_service import _build_phase_summary, get_dashboard_data
+from learn_to_cloud.services.dashboard_service import (
+    _build_phase_summary,
+    get_dashboard_data,
+)
 
 # ---------------------------------------------------------------------------
 # Test helpers
@@ -108,7 +111,7 @@ class TestGetDashboardDataUnauthenticated:
     async def test_returns_zeroed_stats(self):
         phases = (_make_phase(0), _make_phase(1))
         with patch(
-            "services.dashboard_service.get_all_phases",
+            "learn_to_cloud.services.dashboard_service.get_all_phases",
             autospec=True,
             return_value=phases,
         ):
@@ -124,7 +127,7 @@ class TestGetDashboardDataUnauthenticated:
     async def test_includes_all_phases(self):
         phases = (_make_phase(0), _make_phase(1), _make_phase(2))
         with patch(
-            "services.dashboard_service.get_all_phases",
+            "learn_to_cloud.services.dashboard_service.get_all_phases",
             autospec=True,
             return_value=phases,
         ):
@@ -163,17 +166,17 @@ class TestGetDashboardDataAuthenticated:
 
         with (
             patch(
-                "services.dashboard_service.get_all_phases",
+                "learn_to_cloud.services.dashboard_service.get_all_phases",
                 autospec=True,
                 return_value=phases,
             ),
             patch(
-                "services.dashboard_service.fetch_user_progress",
+                "learn_to_cloud.services.dashboard_service.fetch_user_progress",
                 autospec=True,
                 return_value=user_progress,
             ),
             patch(
-                "services.dashboard_service.phase_progress_to_data",
+                "learn_to_cloud.services.dashboard_service.phase_progress_to_data",
                 autospec=True,
                 return_value=progress_data,
             ),
@@ -212,17 +215,17 @@ class TestGetDashboardDataAuthenticated:
 
         with (
             patch(
-                "services.dashboard_service.get_all_phases",
+                "learn_to_cloud.services.dashboard_service.get_all_phases",
                 autospec=True,
                 return_value=phases,
             ),
             patch(
-                "services.dashboard_service.fetch_user_progress",
+                "learn_to_cloud.services.dashboard_service.fetch_user_progress",
                 autospec=True,
                 return_value=user_progress,
             ),
             patch(
-                "services.dashboard_service.phase_progress_to_data",
+                "learn_to_cloud.services.dashboard_service.phase_progress_to_data",
                 autospec=True,
                 return_value=progress_data,
             ),
@@ -255,17 +258,17 @@ class TestGetDashboardDataAuthenticated:
 
         with (
             patch(
-                "services.dashboard_service.get_all_phases",
+                "learn_to_cloud.services.dashboard_service.get_all_phases",
                 autospec=True,
                 return_value=phases,
             ),
             patch(
-                "services.dashboard_service.fetch_user_progress",
+                "learn_to_cloud.services.dashboard_service.fetch_user_progress",
                 autospec=True,
                 return_value=user_progress,
             ),
             patch(
-                "services.dashboard_service.phase_progress_to_data",
+                "learn_to_cloud.services.dashboard_service.phase_progress_to_data",
                 autospec=True,
                 return_value=progress_data,
             ),

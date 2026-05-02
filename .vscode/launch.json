@@ -6,11 +6,11 @@
       "type": "debugpy",
       "request": "launch",
       "module": "uvicorn",
-      "args": ["main:app", "--reload", "--reload-include", "*.py", "--reload-include", "*.html", "--reload-exclude", ".venv", "--host", "0.0.0.0", "--port", "8000"],
+      "args": ["learn_to_cloud.main:app", "--reload", "--reload-include", "*.py", "--reload-include", "*.html", "--reload-exclude", ".venv", "--host", "0.0.0.0", "--port", "8000"],
       "cwd": "${workspaceFolder}/api",
       "envFile": "${workspaceFolder}/api/.env",
       "env": {
-        "PYTHONPATH": "${workspaceFolder}/api",
+        "PYTHONPATH": "${workspaceFolder}/api/src",
         "DYLD_FALLBACK_LIBRARY_PATH": "/opt/homebrew/lib"
       },
       "console": "integratedTerminal",
@@ -20,7 +20,7 @@
       "name": "Tailwind: Watch",
       "type": "node-terminal",
       "request": "launch",
-      "command": "npx @tailwindcss/cli -i static/css/input.css -o static/css/styles.css --watch",
+      "command": "npx @tailwindcss/cli -i src/learn_to_cloud/static/css/input.css -o src/learn_to_cloud/static/css/styles.css --watch",
       "cwd": "${workspaceFolder}/api"
     }
   ],

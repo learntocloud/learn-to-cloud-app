@@ -17,15 +17,15 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from fastapi.responses import HTMLResponse
 
-from core.auth import AuthenticatedUser
-from routes.htmx_routes import (
+from learn_to_cloud.core.auth import AuthenticatedUser
+from learn_to_cloud.routes.htmx_routes import (
     htmx_complete_step,
     htmx_delete_account,
     htmx_submit_verification,
     htmx_uncomplete_step,
 )
-from services.steps_service import StepValidationError
-from services.users_service import UserNotFoundError
+from learn_to_cloud.services.steps_service import StepValidationError
+from learn_to_cloud.services.users_service import UserNotFoundError
 
 
 def _mock_request(*, session: dict | None = None) -> MagicMock:
@@ -45,7 +45,7 @@ def _patch_templates():
     mock_templates.TemplateResponse = MagicMock(
         return_value=HTMLResponse("<html>mock</html>")
     )
-    with patch("routes.htmx_routes.templates", mock_templates):
+    with patch("learn_to_cloud.routes.htmx_routes.templates", mock_templates):
         yield mock_templates
 
 
@@ -63,20 +63,30 @@ class TestHtmxCompleteStep:
         mock_topic.learning_steps = [mock_step]
 
         with (
-            patch("routes.htmx_routes.complete_step", autospec=True) as mock_complete,
-            patch("routes.htmx_routes.get_topic_by_id", return_value=mock_topic),
             patch(
-                "routes.htmx_routes.get_user_by_id",
+                "learn_to_cloud.routes.htmx_routes.complete_step", autospec=True
+            ) as mock_complete,
+            patch(
+                "learn_to_cloud.routes.htmx_routes.get_topic_by_id",
+                return_value=mock_topic,
+            ),
+            patch(
+                "learn_to_cloud.routes.htmx_routes.get_user_by_id",
                 autospec=True,
                 return_value=MagicMock(),
             ),
             patch(
-                "routes.htmx_routes.get_valid_completed_steps",
+                "learn_to_cloud.routes.htmx_routes.get_valid_completed_steps",
                 autospec=True,
                 return_value=["step-1"],
             ),
-            patch("routes.htmx_routes.build_step_data", return_value=MagicMock()),
-            patch("routes.htmx_routes.build_progress_dict", return_value={}),
+            patch(
+                "learn_to_cloud.routes.htmx_routes.build_step_data",
+                return_value=MagicMock(),
+            ),
+            patch(
+                "learn_to_cloud.routes.htmx_routes.build_progress_dict", return_value={}
+            ),
         ):
             result = await htmx_complete_step(
                 request,
@@ -96,7 +106,7 @@ class TestHtmxCompleteStep:
         mock_db = AsyncMock()
 
         with patch(
-            "routes.htmx_routes.complete_step",
+            "learn_to_cloud.routes.htmx_routes.complete_step",
             autospec=True,
             side_effect=StepValidationError("step not found"),
         ):
@@ -127,22 +137,33 @@ class TestHtmxUncompleteStep:
 
         with (
             patch(
-                "routes.htmx_routes.uncomplete_step", autospec=True
+                "learn_to_cloud.routes.htmx_routes.uncomplete_step", autospec=True
             ) as mock_uncomplete,
-            patch("routes.htmx_routes.parse_phase_id_from_topic_id", return_value=1),
-            patch("routes.htmx_routes.get_topic_by_id", return_value=mock_topic),
             patch(
-                "routes.htmx_routes.get_user_by_id",
+                "learn_to_cloud.routes.htmx_routes.parse_phase_id_from_topic_id",
+                return_value=1,
+            ),
+            patch(
+                "learn_to_cloud.routes.htmx_routes.get_topic_by_id",
+                return_value=mock_topic,
+            ),
+            patch(
+                "learn_to_cloud.routes.htmx_routes.get_user_by_id",
                 autospec=True,
                 return_value=MagicMock(),
             ),
             patch(
-                "routes.htmx_routes.get_valid_completed_steps",
+                "learn_to_cloud.routes.htmx_routes.get_valid_completed_steps",
                 autospec=True,
                 return_value=[],
             ),
-            patch("routes.htmx_routes.build_step_data", return_value=MagicMock()),
-            patch("routes.htmx_routes.build_progress_dict", return_value={}),
+            patch(
+                "learn_to_cloud.routes.htmx_routes.build_step_data",
+                return_value=MagicMock(),
+            ),
+            patch(
+                "learn_to_cloud.routes.htmx_routes.build_progress_dict", return_value={}
+            ),
         ):
             result = await htmx_uncomplete_step(
                 request,
@@ -161,7 +182,7 @@ class TestHtmxUncompleteStep:
         mock_db = AsyncMock()
 
         with patch(
-            "routes.htmx_routes.uncomplete_step",
+            "learn_to_cloud.routes.htmx_routes.uncomplete_step",
             autospec=True,
             side_effect=StepValidationError("step not found"),
         ):
@@ -190,15 +211,21 @@ class TestHtmxSubmitVerification:
         current_user = AuthenticatedUser(user_id=1, github_username="user")
 
         with (
-            patch("routes.htmx_routes.get_requirement_by_id", return_value=MagicMock()),
             patch(
-                "routes.htmx_routes.derive_submission_value",
+                "learn_to_cloud.routes.htmx_routes.get_requirement_by_id",
+                return_value=MagicMock(),
+            ),
+            patch(
+                "learn_to_cloud.routes.htmx_routes.derive_submission_value",
                 autospec=True,
                 return_value="test",
             ),
-            patch("routes.htmx_routes.store_task"),
-            patch("routes.htmx_routes.submit_validation", new_callable=AsyncMock),
-            patch("routes.htmx_routes.asyncio") as mock_asyncio,
+            patch("learn_to_cloud.routes.htmx_routes.store_task"),
+            patch(
+                "learn_to_cloud.routes.htmx_routes.submit_validation",
+                new_callable=AsyncMock,
+            ),
+            patch("learn_to_cloud.routes.htmx_routes.asyncio") as mock_asyncio,
         ):
             mock_asyncio.create_task.return_value = MagicMock()
             result = await htmx_submit_verification(
@@ -217,14 +244,17 @@ class TestHtmxSubmitVerification:
         current_user = AuthenticatedUser(user_id=1, github_username="user")
 
         with (
-            patch("routes.htmx_routes.get_requirement_by_id", return_value=MagicMock()),
             patch(
-                "routes.htmx_routes.derive_submission_value",
+                "learn_to_cloud.routes.htmx_routes.get_requirement_by_id",
+                return_value=MagicMock(),
+            ),
+            patch(
+                "learn_to_cloud.routes.htmx_routes.derive_submission_value",
                 autospec=True,
                 return_value="test",
             ),
             patch(
-                "routes.htmx_routes.asyncio",
+                "learn_to_cloud.routes.htmx_routes.asyncio",
                 **{"create_task.side_effect": RuntimeError("boom")},
             ),
         ):
@@ -248,7 +278,9 @@ class TestHtmxDeleteAccount:
         request = _mock_request(session={"user_id": 42, "github_username": "testuser"})
         mock_db = AsyncMock()
 
-        with patch("routes.htmx_routes.delete_user_account", autospec=True):
+        with patch(
+            "learn_to_cloud.routes.htmx_routes.delete_user_account", autospec=True
+        ):
             result = await htmx_delete_account(request, mock_db, user_id=42)
 
         assert result.headers.get("HX-Redirect") == "/"
@@ -260,7 +292,7 @@ class TestHtmxDeleteAccount:
         mock_db = AsyncMock()
 
         with patch(
-            "routes.htmx_routes.delete_user_account",
+            "learn_to_cloud.routes.htmx_routes.delete_user_account",
             autospec=True,
             side_effect=UserNotFoundError(999),
         ):

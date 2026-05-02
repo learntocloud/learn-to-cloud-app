@@ -9,15 +9,15 @@ Tests cover:
 
 import pytest
 
-from models import SubmissionType
-from rendering.context import (
+from learn_to_cloud.models import SubmissionType
+from learn_to_cloud.rendering.context import (
     build_feedback_tasks_from_results,
     build_phase_topics,
     build_progress_dict,
     build_requirement_card_context,
     build_topic_nav,
 )
-from schemas import (
+from learn_to_cloud.schemas import (
     HandsOnRequirement,
     LearningStep,
     Phase,

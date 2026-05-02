@@ -14,7 +14,7 @@ from unittest.mock import patch
 
 import pytest
 
-from services.content_service import (
+from learn_to_cloud.services.content_service import (
     ContentValidationError,
     _load_phase,
     _load_topic,
@@ -168,7 +168,7 @@ learning_steps:
 class TestLoadPhase:
     def test_missing_meta_file_returns_none(self, tmp_path: Path):
         with patch(
-            "services.content_service._get_content_dir",
+            "learn_to_cloud.services.content_service._get_content_dir",
             autospec=True,
             return_value=tmp_path,
         ):
@@ -202,7 +202,7 @@ learning_steps:
 """
         )
         with patch(
-            "services.content_service._get_content_dir",
+            "learn_to_cloud.services.content_service._get_content_dir",
             autospec=True,
             return_value=tmp_path,
         ):
@@ -221,7 +221,7 @@ learning_steps:
 class TestGetAllPhases:
     def test_empty_directory(self, tmp_path: Path):
         with patch(
-            "services.content_service._get_content_dir",
+            "learn_to_cloud.services.content_service._get_content_dir",
             autospec=True,
             return_value=tmp_path,
         ):
@@ -229,7 +229,7 @@ class TestGetAllPhases:
 
     def test_nonexistent_directory(self, tmp_path: Path):
         with patch(
-            "services.content_service._get_content_dir",
+            "learn_to_cloud.services.content_service._get_content_dir",
             autospec=True,
             return_value=tmp_path / "nonexistent",
         ):
@@ -239,7 +239,7 @@ class TestGetAllPhases:
         (tmp_path / "README.md").touch()
         (tmp_path / "not-a-phase").mkdir()
         with patch(
-            "services.content_service._get_content_dir",
+            "learn_to_cloud.services.content_service._get_content_dir",
             autospec=True,
             return_value=tmp_path,
         ):
@@ -254,11 +254,11 @@ class TestGetAllPhases:
 @pytest.mark.unit
 class TestLookupFunctions:
     def test_get_phase_by_slug_found(self):
-        from schemas import Phase
+        from learn_to_cloud.schemas import Phase
 
         phase = Phase(id=0, name="P0", slug="phase0", order=0, topics=[])
         with patch(
-            "services.content_service.get_all_phases",
+            "learn_to_cloud.services.content_service.get_all_phases",
             autospec=True,
             return_value=(phase,),
         ):
@@ -266,7 +266,7 @@ class TestLookupFunctions:
 
     def test_get_phase_by_slug_not_found(self):
         with patch(
-            "services.content_service.get_all_phases",
+            "learn_to_cloud.services.content_service.get_all_phases",
             autospec=True,
             return_value=(),
         ):
@@ -274,7 +274,7 @@ class TestLookupFunctions:
 
     def test_get_topic_by_id_not_found(self):
         with patch(
-            "services.content_service.get_all_phases",
+            "learn_to_cloud.services.content_service.get_all_phases",
             autospec=True,
             return_value=(),
         ):
@@ -282,7 +282,7 @@ class TestLookupFunctions:
 
     def test_get_topic_by_slugs_phase_not_found(self):
         with patch(
-            "services.content_service.get_all_phases",
+            "learn_to_cloud.services.content_service.get_all_phases",
             autospec=True,
             return_value=(),
         ):

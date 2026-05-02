@@ -13,8 +13,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from schemas import ValidationResult
-from services.verification.github_profile import (
+from learn_to_cloud.schemas import ValidationResult
+from learn_to_cloud.services.verification.github_profile import (
     _parse_retry_after,
     get_github_headers,
     parse_github_url,
@@ -57,7 +57,7 @@ class TestGetGitHubHeaders:
         mock_settings = MagicMock()
         mock_settings.github_token = "ghp_test123"
         with patch(
-            "services.verification.github_profile.get_settings",
+            "learn_to_cloud.services.verification.github_profile.get_settings",
             autospec=True,
             return_value=mock_settings,
         ):
@@ -69,7 +69,7 @@ class TestGetGitHubHeaders:
         mock_settings = MagicMock()
         mock_settings.github_token = ""
         with patch(
-            "services.verification.github_profile.get_settings",
+            "learn_to_cloud.services.verification.github_profile.get_settings",
             autospec=True,
             return_value=mock_settings,
         ):
@@ -200,7 +200,7 @@ class TestValidateGitHubProfile:
     @pytest.mark.asyncio
     async def test_profile_exists_succeeds(self):
         with patch(
-            "services.verification.github_profile.check_github_url_exists",
+            "learn_to_cloud.services.verification.github_profile.check_github_url_exists",
             autospec=True,
             return_value=ValidationResult(is_valid=True, message="URL exists"),
         ):
@@ -213,7 +213,7 @@ class TestValidateGitHubProfile:
     @pytest.mark.asyncio
     async def test_profile_not_found_fails(self):
         with patch(
-            "services.verification.github_profile.check_github_url_exists",
+            "learn_to_cloud.services.verification.github_profile.check_github_url_exists",
             autospec=True,
             return_value=ValidationResult(
                 is_valid=False, message="URL not found (404)"
@@ -228,7 +228,7 @@ class TestValidateGitHubProfile:
     @pytest.mark.asyncio
     async def test_server_error_propagated(self):
         with patch(
-            "services.verification.github_profile.check_github_url_exists",
+            "learn_to_cloud.services.verification.github_profile.check_github_url_exists",
             autospec=True,
             return_value=ValidationResult(
                 is_valid=False,
@@ -279,7 +279,7 @@ class TestValidateProfileReadme:
     @pytest.mark.asyncio
     async def test_readme_exists_succeeds(self):
         with patch(
-            "services.verification.github_profile.check_github_url_exists",
+            "learn_to_cloud.services.verification.github_profile.check_github_url_exists",
             autospec=True,
             return_value=ValidationResult(is_valid=True, message="URL exists"),
         ):
@@ -292,7 +292,7 @@ class TestValidateProfileReadme:
     @pytest.mark.asyncio
     async def test_readme_not_found_fails(self):
         with patch(
-            "services.verification.github_profile.check_github_url_exists",
+            "learn_to_cloud.services.verification.github_profile.check_github_url_exists",
             autospec=True,
             return_value=ValidationResult(
                 is_valid=False, message="URL not found (404)"
@@ -340,7 +340,7 @@ class TestValidateRepoFork:
     @pytest.mark.asyncio
     async def test_valid_fork_succeeds(self):
         with patch(
-            "services.verification.github_profile.check_repo_is_fork_of",
+            "learn_to_cloud.services.verification.github_profile.check_repo_is_fork_of",
             autospec=True,
             return_value=ValidationResult(
                 is_valid=True, message="Verified fork of learntocloud/repo"
@@ -356,7 +356,7 @@ class TestValidateRepoFork:
     @pytest.mark.asyncio
     async def test_not_a_fork_fails(self):
         with patch(
-            "services.verification.github_profile.check_repo_is_fork_of",
+            "learn_to_cloud.services.verification.github_profile.check_repo_is_fork_of",
             autospec=True,
             return_value=ValidationResult(
                 is_valid=False, message="Repository is not a fork"
@@ -372,7 +372,7 @@ class TestValidateRepoFork:
     @pytest.mark.asyncio
     async def test_server_error_propagated(self):
         with patch(
-            "services.verification.github_profile.check_repo_is_fork_of",
+            "learn_to_cloud.services.verification.github_profile.check_repo_is_fork_of",
             autospec=True,
             return_value=ValidationResult(
                 is_valid=False,

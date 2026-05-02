@@ -3,9 +3,9 @@
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from models import SubmissionType
-from repositories.submission_repository import SubmissionRepository
-from repositories.user_repository import UserRepository
+from learn_to_cloud.models import SubmissionType
+from learn_to_cloud.repositories.submission_repository import SubmissionRepository
+from learn_to_cloud.repositories.user_repository import UserRepository
 
 pytestmark = pytest.mark.integration
 
