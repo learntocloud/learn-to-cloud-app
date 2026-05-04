@@ -13,6 +13,12 @@
 # Required - Azure subscription
 subscription_id = "your-azure-subscription-id"
 
+# Required - PostgreSQL Microsoft Entra admin
+# Use a DBA/break-glass Entra group, not the API managed identity.
+postgres_entra_admin_object_id      = "00000000-0000-0000-0000-000000000000"
+postgres_entra_admin_principal_name = "Learn to Cloud PostgreSQL Admins"
+# postgres_entra_admin_principal_type = "Group"
+
 # Required - GitHub OAuth App (create at https://github.com/settings/developers)
 github_client_id     = "Ov23xxx"
 github_client_secret = "xxx"

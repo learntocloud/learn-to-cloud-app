@@ -77,10 +77,6 @@ resource "azurerm_container_app" "api" {
     # Scaling uses the default HTTP rule (10 concurrent requests per replica).
     max_replicas = 2
 
-    # Migrations run inside the app lifespan (not an init container) because
-    # Azure Container Apps init containers don't have access to the managed
-    # identity sidecar needed for Entra ID database authentication.
-
     container {
       name   = "api"
       image  = "${azurerm_container_registry.main.login_server}/api:latest"
@@ -105,6 +101,11 @@ resource "azurerm_container_app" "api" {
       env {
         name  = "AZURE_CLIENT_ID"
         value = azurerm_user_assigned_identity.api.client_id
+      }
+
+      env {
+        name  = "RUN_MIGRATIONS_ON_STARTUP"
+        value = "false"
       }
 
       env {

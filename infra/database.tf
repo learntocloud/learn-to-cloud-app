@@ -31,12 +31,16 @@ resource "azurerm_postgresql_flexible_server_firewall_rule" "allow_azure" {
   end_ip_address   = "0.0.0.0"
 }
 
-# Entra admin is the API's managed identity (not a human user)
-resource "azurerm_postgresql_flexible_server_active_directory_administrator" "api" {
+moved {
+  from = azurerm_postgresql_flexible_server_active_directory_administrator.api
+  to   = azurerm_postgresql_flexible_server_active_directory_administrator.main
+}
+
+resource "azurerm_postgresql_flexible_server_active_directory_administrator" "main" {
   server_name         = azurerm_postgresql_flexible_server.main.name
   resource_group_name = azurerm_resource_group.main.name
   tenant_id           = data.azurerm_client_config.current.tenant_id
-  object_id           = azurerm_user_assigned_identity.api.principal_id
-  principal_name      = azurerm_user_assigned_identity.api.name
-  principal_type      = "ServicePrincipal"
+  object_id           = var.postgres_entra_admin_object_id
+  principal_name      = var.postgres_entra_admin_principal_name
+  principal_type      = var.postgres_entra_admin_principal_type
 }
