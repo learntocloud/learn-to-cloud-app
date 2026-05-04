@@ -310,6 +310,8 @@ jobs:
               --resource-group "$RESOURCE_GROUP" \
               --container-name migrations \
               --image "$IMAGE" \
+              --command alembic \
+              --args upgrade head \
               --registry-identity "$MIGRATION_IDENTITY_ID" \
               --query name \
               --output tsv
