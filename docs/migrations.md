@@ -4,20 +4,25 @@ This project uses [Alembic](https://alembic.sqlalchemy.org/) for database schema
 
 ## How Migrations Run in Production
 
-Migrations run in GitHub Actions before the Container App image is updated. The
-workflow:
+Migrations run in an Azure Container Apps manual Job before the API Container
+App image is updated. The workflow:
 
-1. Authenticates to Azure with the deploy service principal.
-2. Runs `uv run alembic upgrade head` with `POSTGRES_USER` set to the mapped migration principal.
-3. Stops the deployment before `az containerapp update` if the migration fails.
+1. Builds and pushes the new API image to Azure Container Registry.
+2. Starts the migration job with that image tag.
+3. The job runs `alembic upgrade head` with `POSTGRES_USER` set to the mapped
+   migration PostgreSQL role.
+4. The workflow polls the job execution until it succeeds or fails.
+5. Stops the deployment before `az containerapp update` if the migration job
+   fails.
 
 The API container sets `RUN_MIGRATIONS_ON_STARTUP=false` in
 [`infra/container-apps.tf`](../infra/container-apps.tf). This keeps the runtime
 managed identity from needing schema owner or PostgreSQL administrator
 privileges.
 
-> **Note:** Because Container Apps may have multiple replicas, Alembic uses a PostgreSQL advisory lock
-> (defined in `alembic/env.py`) to ensure only one replica runs migrations at a time.
+> **Note:** The migration job runs with one replica, and Alembic also uses a
+> PostgreSQL advisory lock (defined in `alembic/env.py`) to guard against
+> accidental concurrent executions.
 
 ## Production Database Identities
 
@@ -28,9 +33,10 @@ state, not a bootstrap procedure.
 | Principal | Purpose |
 | --- | --- |
 | PostgreSQL Entra admin group | Break-glass administration and role management. Configured with `postgres_entra_admin_*` Terraform variables. Do not use this principal for app runtime or normal migrations. |
-| API managed identity | Runtime application identity attached to the Container App. It gets the Entra token used for PostgreSQL login. |
+| API managed identity | Runtime application identity attached to the API Container App. It gets the Entra token used for runtime PostgreSQL login. |
 | API PostgreSQL role | Runtime database role, `ltc_api_runtime_<environment>` by default. It is mapped to the API managed identity object ID, has DML and sequence privileges, and must not own schema objects. |
-| Migration principal | Deploy-time Alembic migrations. It owns application schema objects and runs schema changes. This principal does not need Azure RBAC beyond acquiring a PostgreSQL Entra token. |
+| Migration job managed identity | User-assigned identity attached to the Container Apps migration job. It pulls the API image from ACR and gets the Entra token used by Alembic. |
+| Migration PostgreSQL role | Deploy-time Alembic migration role. It owns application schema objects and runs schema changes. Its name is provided by `POSTGRES_MIGRATION_USER` in GitHub Actions and by `postgres_migration_role` in Terraform. |
 
 Do not make the API managed identity a PostgreSQL Flexible Server Entra admin.
 Azure removes a PostgreSQL Entra admin by attempting to drop the mapped database
@@ -47,19 +53,22 @@ Required repository variables for deployment:
 | `POSTGRES_ENTRA_ADMIN_OBJECT_ID` | Object ID for the dedicated PostgreSQL Entra admin group/principal. |
 | `POSTGRES_ENTRA_ADMIN_PRINCIPAL_NAME` | Display name for the PostgreSQL Entra admin principal. |
 | `POSTGRES_ENTRA_ADMIN_PRINCIPAL_TYPE` | `Group`, `User`, or `ServicePrincipal`; defaults to `Group` in the workflow. |
-| `POSTGRES_MIGRATION_USER` | PostgreSQL role name for the mapped migration principal used by Alembic. |
+| `POSTGRES_MIGRATION_USER` | PostgreSQL role name for the mapped migration job identity used by Alembic. The deploy workflow passes this into Terraform as `postgres_migration_role`. |
 
-Optional Terraform variable:
+Terraform variables:
 
 | Variable | Purpose |
 | --- | --- |
+| `postgres_migration_role` | PostgreSQL migration role used by the Azure Container Apps migration job. Required; set from `POSTGRES_MIGRATION_USER` in GitHub Actions. |
 | `postgres_api_runtime_role` | PostgreSQL runtime role used by the API. Defaults to `ltc_api_runtime_<environment>`. |
 
-Required repository secret for migrations:
+No GitHub secret is needed for PostgreSQL migration authentication. GitHub only
+starts the Azure Container Apps Job; the job uses its own managed identity to
+acquire the PostgreSQL Entra token inside Azure.
 
-| Secret | Purpose |
-| --- | --- |
-| `AZURE_MIGRATION_CLIENT_ID` | Client ID of the migration service principal or managed identity. It is used only to acquire a PostgreSQL Entra token. |
+The migration job identity must be mapped to the migration PostgreSQL role before
+the job can connect. Use the Terraform output
+`migration_identity_principal_id` when creating or verifying that mapping.
 
 ## Running Migrations Locally
 

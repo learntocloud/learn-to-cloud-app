@@ -45,6 +45,16 @@ variable "postgres_api_runtime_role" {
   }
 }
 
+variable "postgres_migration_role" {
+  description = "PostgreSQL role used by the Azure Container Apps migration job. It must be mapped to the migration managed identity and own/manage schema objects."
+  type        = string
+
+  validation {
+    condition     = can(regex("^[A-Za-z_][A-Za-z0-9_]*$", var.postgres_migration_role))
+    error_message = "postgres_migration_role must be a valid PostgreSQL role identifier using letters, numbers, and underscores, and must not start with a number."
+  }
+}
+
 variable "github_client_id" {
   description = "GitHub OAuth App client ID"
   type        = string

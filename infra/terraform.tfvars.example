@@ -18,6 +18,11 @@ subscription_id = "your-azure-subscription-id"
 postgres_entra_admin_object_id      = "00000000-0000-0000-0000-000000000000"
 postgres_entra_admin_principal_name = "Learn to Cloud PostgreSQL Admins"
 # postgres_entra_admin_principal_type = "Group"
+
+# Required - PostgreSQL migration role mapped to the migration job identity
+postgres_migration_role = "ltc_migrations_dev"
+
+# Optional - PostgreSQL runtime role mapped to the API managed identity
 # postgres_api_runtime_role = "ltc_api_runtime_dev"
 
 # Required - GitHub OAuth App (create at https://github.com/settings/developers)
