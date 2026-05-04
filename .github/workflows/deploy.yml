@@ -202,6 +202,7 @@ jobs:
       database_host: ${{ steps.tf-outputs.outputs.database_host }}
       database_name: ${{ steps.tf-outputs.outputs.database_name }}
       migration_job_name: ${{ steps.tf-outputs.outputs.migration_job_name }}
+      migration_identity_client_id: ${{ steps.tf-outputs.outputs.migration_identity_client_id }}
       migration_identity_id: ${{ steps.tf-outputs.outputs.migration_identity_id }}
       api_url: ${{ steps.tf-outputs.outputs.api_url }}
     steps:
@@ -253,6 +254,7 @@ jobs:
           echo "database_host=$(terraform output -raw database_host)" >> "$GITHUB_OUTPUT"
           echo "database_name=$(terraform output -raw postgres_database_name)" >> "$GITHUB_OUTPUT"
           echo "migration_job_name=$(terraform output -raw migration_job_name)" >> "$GITHUB_OUTPUT"
+          echo "migration_identity_client_id=$(terraform output -raw migration_identity_client_id)" >> "$GITHUB_OUTPUT"
           echo "migration_identity_id=$(terraform output -raw migration_identity_id)" >> "$GITHUB_OUTPUT"
           echo "api_url=$(terraform output -raw api_url)" >> "$GITHUB_OUTPUT"
 
@@ -298,7 +300,11 @@ jobs:
       - name: Run database migrations
         env:
           MIGRATION_JOB_NAME: ${{ needs.terraform.outputs.migration_job_name }}
+          MIGRATION_CLIENT_ID: ${{ needs.terraform.outputs.migration_identity_client_id }}
           MIGRATION_IDENTITY_ID: ${{ needs.terraform.outputs.migration_identity_id }}
+          POSTGRES_DATABASE: ${{ needs.terraform.outputs.database_name }}
+          POSTGRES_HOST: ${{ needs.terraform.outputs.database_host }}
+          POSTGRES_USER: ${{ vars.POSTGRES_MIGRATION_USER }}
           RESOURCE_GROUP: ${{ needs.terraform.outputs.resource_group_name }}
           IMAGE: ${{ needs.terraform.outputs.container_registry_endpoint }}/api:${{ github.sha }}
         run: |
@@ -312,6 +318,12 @@ jobs:
               --image "$IMAGE" \
               --command alembic \
               --args upgrade head \
+              --env-vars \
+                POSTGRES_HOST="$POSTGRES_HOST" \
+                POSTGRES_USER="$POSTGRES_USER" \
+                POSTGRES_DATABASE="$POSTGRES_DATABASE" \
+                AZURE_CLIENT_ID="$MIGRATION_CLIENT_ID" \
+                DEBUG=true \
               --registry-identity "$MIGRATION_IDENTITY_ID" \
               --query name \
               --output tsv
