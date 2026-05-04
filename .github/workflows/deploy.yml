@@ -201,6 +201,8 @@ jobs:
       container_registry_endpoint: ${{ steps.tf-outputs.outputs.container_registry_endpoint }}
       database_host: ${{ steps.tf-outputs.outputs.database_host }}
       database_name: ${{ steps.tf-outputs.outputs.database_name }}
+      migration_job_name: ${{ steps.tf-outputs.outputs.migration_job_name }}
+      migration_identity_id: ${{ steps.tf-outputs.outputs.migration_identity_id }}
       api_url: ${{ steps.tf-outputs.outputs.api_url }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -236,6 +238,7 @@ jobs:
           TF_VAR_postgres_entra_admin_object_id: ${{ vars.POSTGRES_ENTRA_ADMIN_OBJECT_ID }}
           TF_VAR_postgres_entra_admin_principal_name: ${{ vars.POSTGRES_ENTRA_ADMIN_PRINCIPAL_NAME }}
           TF_VAR_postgres_entra_admin_principal_type: ${{ vars.POSTGRES_ENTRA_ADMIN_PRINCIPAL_TYPE || 'Group' }}
+          TF_VAR_postgres_migration_role: ${{ vars.POSTGRES_MIGRATION_USER }}
 
       - name: Terraform Apply
         run: terraform apply -auto-approve -lock-timeout=120s tfplan
@@ -249,6 +252,8 @@ jobs:
           echo "container_registry_endpoint=$(terraform output -raw AZURE_CONTAINER_REGISTRY_ENDPOINT)" >> "$GITHUB_OUTPUT"
           echo "database_host=$(terraform output -raw database_host)" >> "$GITHUB_OUTPUT"
           echo "database_name=$(terraform output -raw postgres_database_name)" >> "$GITHUB_OUTPUT"
+          echo "migration_job_name=$(terraform output -raw migration_job_name)" >> "$GITHUB_OUTPUT"
+          echo "migration_identity_id=$(terraform output -raw migration_identity_id)" >> "$GITHUB_OUTPUT"
           echo "api_url=$(terraform output -raw api_url)" >> "$GITHUB_OUTPUT"
 
   # -----------------------------------------------------------------------
@@ -258,7 +263,7 @@ jobs:
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && (github.event_name == 'workflow_dispatch' || needs.changes.outputs.deploy == 'true')
     needs: [terraform, changes]
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
@@ -268,17 +273,6 @@ jobs:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
-
-      - name: Set up Python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
-        with:
-          python-version-file: "api/pyproject.toml"
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
-        with:
-          version: "0.9.26"
-          enable-cache: true
 
       - name: Log in to ACR
         run: az acr login --name ${{ needs.terraform.outputs.container_registry_name }}
@@ -301,31 +295,64 @@ jobs:
           docker push ${{ needs.terraform.outputs.container_registry_endpoint }}/api:${{ github.sha }}
           docker push ${{ needs.terraform.outputs.container_registry_endpoint }}/api:latest
 
-      - name: Azure CLI Login for migrations
-        uses: azure/login@532459ea530d8321f2fb9bb10d1e0bcf23869a43 # v3
-        with:
-          client-id: ${{ secrets.AZURE_MIGRATION_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          allow-no-subscriptions: true
-
       - name: Run database migrations
-        working-directory: api
         env:
-          DEBUG: "true"
-          POSTGRES_HOST: ${{ needs.terraform.outputs.database_host }}
-          POSTGRES_DATABASE: ${{ needs.terraform.outputs.database_name }}
-          POSTGRES_USER: ${{ vars.POSTGRES_MIGRATION_USER }}
+          MIGRATION_JOB_NAME: ${{ needs.terraform.outputs.migration_job_name }}
+          MIGRATION_IDENTITY_ID: ${{ needs.terraform.outputs.migration_identity_id }}
+          RESOURCE_GROUP: ${{ needs.terraform.outputs.resource_group_name }}
+          IMAGE: ${{ needs.terraform.outputs.container_registry_endpoint }}/api:${{ github.sha }}
         run: |
-          : "${POSTGRES_USER:?Set repository variable POSTGRES_MIGRATION_USER to the mapped PostgreSQL migration principal name.}"
-          uv sync --locked
-          uv run alembic upgrade head
+          az config set extension.use_dynamic_install=yes_without_prompt
 
-      - name: Azure CLI Login for app update
-        uses: azure/login@532459ea530d8321f2fb9bb10d1e0bcf23869a43 # v3
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+          execution_name=$(
+            az containerapp job start \
+              --name "$MIGRATION_JOB_NAME" \
+              --resource-group "$RESOURCE_GROUP" \
+              --container-name migrations \
+              --image "$IMAGE" \
+              --registry-identity "$MIGRATION_IDENTITY_ID" \
+              --query name \
+              --output tsv
+          )
+          echo "Started migration job execution: $execution_name"
+
+          for i in {1..180}; do
+            status=$(
+              az containerapp job execution show \
+                --name "$MIGRATION_JOB_NAME" \
+                --resource-group "$RESOURCE_GROUP" \
+                --job-execution-name "$execution_name" \
+                --query "properties.status" \
+                --output tsv
+            )
+            echo "Migration job status: $status"
+
+            if [[ "$status" == "Succeeded" ]]; then
+              exit 0
+            fi
+            if [[ "$status" =~ ^(Failed|Canceled|Cancelled)$ ]]; then
+              az containerapp job logs show \
+                --name "$MIGRATION_JOB_NAME" \
+                --resource-group "$RESOURCE_GROUP" \
+                --container migrations \
+                --execution "$execution_name" \
+                --tail 100 \
+                --format text || true
+              exit 1
+            fi
+
+            sleep 10
+          done
+
+          echo "Migration job did not complete before timeout."
+          az containerapp job logs show \
+            --name "$MIGRATION_JOB_NAME" \
+            --resource-group "$RESOURCE_GROUP" \
+            --container migrations \
+            --execution "$execution_name" \
+            --tail 100 \
+            --format text || true
+          exit 1
 
       - name: Deploy to Container App
         run: |

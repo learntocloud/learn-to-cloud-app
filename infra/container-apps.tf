@@ -14,6 +14,13 @@ resource "azurerm_role_assignment" "api_acr_pull" {
   principal_type       = "ServicePrincipal"
 }
 
+resource "azurerm_role_assignment" "migrations_acr_pull" {
+  scope                = azurerm_container_registry.main.id
+  role_definition_name = "AcrPull"
+  principal_id         = azurerm_user_assigned_identity.migrations.principal_id
+  principal_type       = "ServicePrincipal"
+}
+
 resource "azurerm_container_app_environment" "main" {
   name                       = "cae-ltc-${var.environment}"
   location                   = azurerm_resource_group.main.location

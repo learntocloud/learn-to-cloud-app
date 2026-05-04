@@ -46,9 +46,10 @@ resource "random_string" "suffix" {
 }
 
 locals {
-  api_postgres_role   = coalesce(var.postgres_api_runtime_role, "ltc_api_runtime_${var.environment}")
-  suffix              = random_string.suffix.result
-  resource_group_name = "rg-ltc-${var.environment}"
+  api_postgres_role       = coalesce(var.postgres_api_runtime_role, "ltc_api_runtime_${var.environment}")
+  migration_postgres_role = var.postgres_migration_role
+  suffix                  = random_string.suffix.result
+  resource_group_name     = "rg-ltc-${var.environment}"
   tags = {
     environment = var.environment
     project     = "learntocloud"

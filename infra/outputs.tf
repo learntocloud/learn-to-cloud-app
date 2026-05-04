@@ -48,3 +48,23 @@ output "api_url" {
   description = "API URL (for CI/CD)"
   value       = "https://${azurerm_container_app.api.ingress[0].fqdn}"
 }
+
+output "migration_job_name" {
+  description = "Container Apps Job name used to run database migrations"
+  value       = azurerm_container_app_job.migrations.name
+}
+
+output "migration_identity_client_id" {
+  description = "Client ID for the migration job managed identity"
+  value       = azurerm_user_assigned_identity.migrations.client_id
+}
+
+output "migration_identity_id" {
+  description = "Resource ID for the migration job managed identity"
+  value       = azurerm_user_assigned_identity.migrations.id
+}
+
+output "migration_identity_principal_id" {
+  description = "Principal ID for mapping the migration job identity to PostgreSQL"
+  value       = azurerm_user_assigned_identity.migrations.principal_id
+}

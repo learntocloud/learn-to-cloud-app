@@ -105,4 +105,4 @@ Routes (HTTP) → Services (Business Logic) → Repositories (Database)
 - Database models use `TimestampMixin` for `created_at`/`updated_at`
 - Enums: `class MyEnum(str, PyEnum)` with `native_enum=False` in columns
 - Config via `pydantic-settings` (`Settings` class in `core/config.py`)
-- Migrations run as subprocess in lifespan to avoid asyncio/psycopg2 deadlock
+- Production migrations run through an Azure Container Apps Job before API deployment
