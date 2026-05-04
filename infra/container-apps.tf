@@ -3,8 +3,15 @@ resource "azurerm_container_registry" "main" {
   resource_group_name = azurerm_resource_group.main.name
   location            = azurerm_resource_group.main.location
   sku                 = "Basic"
-  admin_enabled       = true
+  admin_enabled       = false
   tags                = local.tags
+}
+
+resource "azurerm_role_assignment" "api_acr_pull" {
+  scope                = azurerm_container_registry.main.id
+  role_definition_name = "AcrPull"
+  principal_id         = azurerm_user_assigned_identity.api.principal_id
+  principal_type       = "ServicePrincipal"
 }
 
 resource "azurerm_container_app_environment" "main" {
@@ -28,14 +35,8 @@ resource "azurerm_container_app" "api" {
   }
 
   registry {
-    server               = azurerm_container_registry.main.login_server
-    username             = azurerm_container_registry.main.admin_username
-    password_secret_name = "acr-password"
-  }
-
-  secret {
-    name  = "acr-password"
-    value = azurerm_container_registry.main.admin_password
+    server   = azurerm_container_registry.main.login_server
+    identity = azurerm_user_assigned_identity.api.id
   }
 
   secret {
@@ -179,6 +180,7 @@ resource "azurerm_container_app" "api" {
   }
 
   depends_on = [
+    azurerm_role_assignment.api_acr_pull,
     azurerm_postgresql_flexible_server_database.main,
   ]
 }
