@@ -3,6 +3,37 @@ variable "subscription_id" {
   type        = string
 }
 
+variable "postgres_entra_admin_object_id" {
+  description = "Object ID of the Microsoft Entra principal that administers PostgreSQL. Use a DBA/break-glass group, not the API runtime identity."
+  type        = string
+
+  validation {
+    condition     = length(trimspace(var.postgres_entra_admin_object_id)) > 0
+    error_message = "postgres_entra_admin_object_id must be set to the object ID of a dedicated PostgreSQL Entra admin principal."
+  }
+}
+
+variable "postgres_entra_admin_principal_name" {
+  description = "Display name of the Microsoft Entra principal that administers PostgreSQL."
+  type        = string
+
+  validation {
+    condition     = length(trimspace(var.postgres_entra_admin_principal_name)) > 0
+    error_message = "postgres_entra_admin_principal_name must be set to the PostgreSQL Entra admin principal display name."
+  }
+}
+
+variable "postgres_entra_admin_principal_type" {
+  description = "Type of the Microsoft Entra principal that administers PostgreSQL."
+  type        = string
+  default     = "Group"
+
+  validation {
+    condition     = contains(["User", "Group", "ServicePrincipal"], var.postgres_entra_admin_principal_type)
+    error_message = "postgres_entra_admin_principal_type must be User, Group, or ServicePrincipal."
+  }
+}
+
 variable "github_client_id" {
   description = "GitHub OAuth App client ID"
   type        = string

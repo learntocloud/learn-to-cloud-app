@@ -176,8 +176,11 @@ async def lifespan(app: fastapi.FastAPI):
             db_task = init_db(app.state.engine)
             await asyncio.gather(oauth_task, db_task)
 
-        async with asyncio.timeout(settings.startup_timeout):
-            await _run_alembic_migrations()
+        if settings.run_migrations_on_startup:
+            async with asyncio.timeout(settings.startup_timeout):
+                await _run_alembic_migrations()
+        else:
+            logger.info("migrations.skipped")
 
         app.state.init_done = True
         logger.info("init.complete")

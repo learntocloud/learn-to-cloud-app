@@ -3,11 +3,6 @@ output "azure_portal_url" {
   value       = "https://portal.azure.com/#@/resource/subscriptions/${var.subscription_id}/resourceGroups/${azurerm_resource_group.main.name}/overview"
 }
 
-output "api_identity_principal_id" {
-  description = "API managed identity principal ID (for Entra admin setup)"
-  value       = azurerm_user_assigned_identity.api.principal_id
-}
-
 output "database_host" {
   description = "PostgreSQL server hostname"
   value       = azurerm_postgresql_flexible_server.main.fqdn
@@ -16,6 +11,11 @@ output "database_host" {
 output "postgres_server_name" {
   description = "PostgreSQL server name"
   value       = azurerm_postgresql_flexible_server.main.name
+}
+
+output "postgres_database_name" {
+  description = "PostgreSQL database name"
+  value       = azurerm_postgresql_flexible_server_database.main.name
 }
 
 output "application_insights_connection_string" {
