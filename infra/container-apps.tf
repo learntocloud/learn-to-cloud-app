@@ -112,11 +112,6 @@ resource "azurerm_container_app" "api" {
       }
 
       env {
-        name  = "RUN_MIGRATIONS_ON_STARTUP"
-        value = "false"
-      }
-
-      env {
         name  = "GITHUB_CLIENT_ID"
         value = var.github_client_id
       }

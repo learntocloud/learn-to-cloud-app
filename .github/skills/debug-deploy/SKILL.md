@@ -51,7 +51,7 @@ Look for these common patterns in the logs:
 #### Authentication Failures
 **Pattern:** `AuthorizationFailed`, `AADSTS`, `unauthorized`
 
-**Fix:** Check that `AZURE_CREDENTIALS` secret is valid. The service principal may need credential rotation.
+**Fix:** Check the OIDC deployment configuration: `AZURE_CLIENT_ID` and `AZURE_TENANT_ID` secrets, plus the `AZURE_SUBSCRIPTION_ID` repository variable. The federated credential or Azure RBAC assignment may need updating.
 
 #### Resource Not Found
 **Pattern:** `ResourceNotFound` or `does not exist`
@@ -63,15 +63,16 @@ Look for these common patterns in the logs:
 
 **Fix:** Request quota increase in Azure portal or clean up unused resources.
 
-#### Migration Race Condition (Multi-Worker)
-**Pattern:** `/ready` returns 503 but `/health` returns 200, or `DuplicateTableError: relation already exists`
+#### Migration Job Failure
+**Pattern:** `Run database migrations` fails, `/ready` returns 503 after deploy, or Alembic reports a database error.
 
-**Cause:** Multiple uvicorn workers tried to run migrations simultaneously.
+**Cause:** The Azure Container Apps migration job failed before the API image was updated. Common causes are missing PostgreSQL role mapping, migration SQL errors, or job image/env override issues.
 
-**Fix:** This should be handled by `pg_advisory_lock` in `api/alembic/env.py`. If it recurs:
-1. Test locally: `docker compose down -v && docker compose up db api-multiworker`
-2. Check that `alembic/env.py` uses psycopg2 (sync driver) and acquires advisory lock before migrations
-3. Ensure the lock is committed before Alembic runs (so Alembic starts a clean transaction)
+**Fix:**
+1. Inspect the failed workflow step and the ACA Job logs.
+2. Verify `migration_identity_principal_id` is mapped to the Terraform `migration_postgres_role` output in PostgreSQL.
+3. Confirm `az containerapp job start` passes the SHA image, `alembic upgrade head`, DB env vars, `AZURE_CLIENT_ID`, and `--registry-identity`.
+4. Check that `alembic/env.py` still uses psycopg2 and acquires the advisory lock before migrations.
 
 #### Test Failures
 **Pattern:** `FAILED`, `pytest`, `AssertionError`

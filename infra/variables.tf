@@ -46,12 +46,13 @@ variable "postgres_api_runtime_role" {
 }
 
 variable "postgres_migration_role" {
-  description = "PostgreSQL role used by the Azure Container Apps migration job. It must be mapped to the migration managed identity and own/manage schema objects."
+  description = "PostgreSQL role used by the Azure Container Apps migration job. Defaults to ltc-postgres-migrations-<environment>."
   type        = string
+  default     = null
 
   validation {
-    condition     = length(trimspace(var.postgres_migration_role)) > 0 && length(var.postgres_migration_role) <= 63
-    error_message = "postgres_migration_role must be a non-empty PostgreSQL role name no longer than 63 characters."
+    condition     = var.postgres_migration_role == null ? true : length(trimspace(var.postgres_migration_role)) > 0 && length(var.postgres_migration_role) <= 63
+    error_message = "postgres_migration_role must be a non-empty PostgreSQL role name no longer than 63 characters when set."
   }
 }
 
