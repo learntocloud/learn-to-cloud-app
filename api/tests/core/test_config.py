@@ -78,21 +78,6 @@ class TestSettingsValidation:
         )
         assert settings.debug is False
 
-    def test_migrations_run_on_startup_by_default(self):
-        settings = Settings(
-            database_url="postgresql+asyncpg://localhost/test",
-            debug=True,
-        )
-        assert settings.run_migrations_on_startup is True
-
-    def test_migrations_can_be_disabled_on_startup(self):
-        settings = Settings(
-            database_url="postgresql+asyncpg://localhost/test",
-            debug=True,
-            run_migrations_on_startup=False,
-        )
-        assert settings.run_migrations_on_startup is False
-
 
 # ---------------------------------------------------------------------------
 # use_azure_postgres

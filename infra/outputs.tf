@@ -68,3 +68,8 @@ output "migration_identity_principal_id" {
   description = "Principal ID for mapping the migration job identity to PostgreSQL"
   value       = azurerm_user_assigned_identity.migrations.principal_id
 }
+
+output "migration_postgres_role" {
+  description = "PostgreSQL role used by the Azure Container Apps migration job"
+  value       = local.migration_postgres_role
+}

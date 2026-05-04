@@ -204,6 +204,7 @@ jobs:
       migration_job_name: ${{ steps.tf-outputs.outputs.migration_job_name }}
       migration_identity_client_id: ${{ steps.tf-outputs.outputs.migration_identity_client_id }}
       migration_identity_id: ${{ steps.tf-outputs.outputs.migration_identity_id }}
+      migration_postgres_role: ${{ steps.tf-outputs.outputs.migration_postgres_role }}
       api_url: ${{ steps.tf-outputs.outputs.api_url }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -239,7 +240,6 @@ jobs:
           TF_VAR_postgres_entra_admin_object_id: ${{ vars.POSTGRES_ENTRA_ADMIN_OBJECT_ID }}
           TF_VAR_postgres_entra_admin_principal_name: ${{ vars.POSTGRES_ENTRA_ADMIN_PRINCIPAL_NAME }}
           TF_VAR_postgres_entra_admin_principal_type: ${{ vars.POSTGRES_ENTRA_ADMIN_PRINCIPAL_TYPE || 'Group' }}
-          TF_VAR_postgres_migration_role: ${{ vars.POSTGRES_MIGRATION_USER }}
 
       - name: Terraform Apply
         run: terraform apply -auto-approve -lock-timeout=120s tfplan
@@ -256,6 +256,7 @@ jobs:
           echo "migration_job_name=$(terraform output -raw migration_job_name)" >> "$GITHUB_OUTPUT"
           echo "migration_identity_client_id=$(terraform output -raw migration_identity_client_id)" >> "$GITHUB_OUTPUT"
           echo "migration_identity_id=$(terraform output -raw migration_identity_id)" >> "$GITHUB_OUTPUT"
+          echo "migration_postgres_role=$(terraform output -raw migration_postgres_role)" >> "$GITHUB_OUTPUT"
           echo "api_url=$(terraform output -raw api_url)" >> "$GITHUB_OUTPUT"
 
   # -----------------------------------------------------------------------
@@ -304,7 +305,7 @@ jobs:
           MIGRATION_IDENTITY_ID: ${{ needs.terraform.outputs.migration_identity_id }}
           POSTGRES_DATABASE: ${{ needs.terraform.outputs.database_name }}
           POSTGRES_HOST: ${{ needs.terraform.outputs.database_host }}
-          POSTGRES_USER: ${{ vars.POSTGRES_MIGRATION_USER }}
+          POSTGRES_USER: ${{ needs.terraform.outputs.migration_postgres_role }}
           RESOURCE_GROUP: ${{ needs.terraform.outputs.resource_group_name }}
           IMAGE: ${{ needs.terraform.outputs.container_registry_endpoint }}/api:${{ github.sha }}
         run: |

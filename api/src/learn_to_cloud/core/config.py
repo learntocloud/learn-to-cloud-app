@@ -57,7 +57,6 @@ class Settings(BaseSettings):
     db_pool_recycle: int = 1800
     db_statement_timeout_ms: int = 10000
     db_echo: bool = False
-    run_migrations_on_startup: bool = True
 
     debug: bool = False
     require_https: bool = True

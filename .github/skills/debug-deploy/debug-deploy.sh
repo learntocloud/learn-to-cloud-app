@@ -116,8 +116,9 @@ cmd_logs() {
     if echo "$logs" | grep -q "AuthorizationFailed\|AADSTS\|authentication\|unauthorized"; then
         print_error "DETECTED: Authentication/Authorization Issue"
         echo ""
-        echo "Check that AZURE_CREDENTIALS secret is valid and not expired."
-        echo "The service principal may need its credentials rotated."
+        echo "Check the OIDC deployment configuration: AZURE_CLIENT_ID and AZURE_TENANT_ID secrets,"
+        echo "plus the AZURE_SUBSCRIPTION_ID repository variable."
+        echo "The federated credential or Azure RBAC assignment may need updating."
     fi
 
     # Check for resource not found
@@ -248,7 +249,7 @@ Examples:
 
 Common Issues Detected:
   • Terraform State Lock - Run 'unlock' command to fix
-  • Authentication Errors - Check AZURE_CREDENTIALS secret
+  • Authentication Errors - Check OIDC deployment secrets/variables and Azure RBAC
   • Resource Not Found - Resource may have been deleted outside Terraform
   • Quota Exceeded - Request quota increase or clean up resources
   • Test Failures - Run tests locally with 'pytest api/tests/'

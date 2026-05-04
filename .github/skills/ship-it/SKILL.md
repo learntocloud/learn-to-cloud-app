@@ -181,7 +181,7 @@ gh run view $run_id --log-failed
 | Pattern | Fix |
 |---------|-----|
 | `Error acquiring the state lock` | Extract Lock ID, `cd infra && terraform force-unlock -force <lock-id>`, re-run |
-| `AuthorizationFailed` | Check `AZURE_CREDENTIALS` secret — not fixable locally |
+| `AuthorizationFailed` | Check OIDC deployment secrets/variables and Azure RBAC — not fixable locally |
 | `ResourceNotFound` | `terraform refresh` or re-import |
 
 #### Build/Deploy Failures

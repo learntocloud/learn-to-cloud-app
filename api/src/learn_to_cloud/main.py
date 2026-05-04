@@ -2,8 +2,6 @@
 
 import asyncio
 import logging
-import subprocess
-import sys
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from pathlib import Path
@@ -124,42 +122,6 @@ async def _background_warmup(app: fastapi.FastAPI) -> None:
         logger.warning("content.preload.failed", exc_info=True)
 
 
-async def _run_alembic_migrations() -> None:
-    """Run Alembic migrations in a subprocess.
-
-    psycopg2's connection pool cleanup deadlocks inside
-    asyncio.to_thread when uvloop is the event loop.  Running
-    migrations as a subprocess avoids the issue entirely.
-    """
-    cmd = [
-        sys.executable,
-        "-c",
-        (
-            "from alembic import command; "
-            "from alembic.config import Config; "
-            "command.upgrade(Config('alembic.ini'), 'head')"
-        ),
-    ]
-    cwd = Path(__file__).resolve().parents[2]
-
-    result = await asyncio.to_thread(
-        lambda: subprocess.run(
-            cmd,
-            cwd=cwd,
-            capture_output=True,
-            text=True,
-            timeout=get_settings().startup_timeout,
-        )
-    )
-
-    if result.returncode != 0:
-        stderr = result.stderr.strip()
-        logger.error("migrations.failed", extra={"stderr": stderr})
-        raise RuntimeError(f"Alembic migration failed:\n{stderr}")
-
-    logger.info("migrations.complete")
-
-
 @asynccontextmanager
 async def lifespan(app: fastapi.FastAPI):
     """Create DB engine at startup, dispose on shutdown."""
@@ -175,12 +137,6 @@ async def lifespan(app: fastapi.FastAPI):
             oauth_task = asyncio.to_thread(init_oauth)
             db_task = init_db(app.state.engine)
             await asyncio.gather(oauth_task, db_task)
-
-        if settings.run_migrations_on_startup:
-            async with asyncio.timeout(settings.startup_timeout):
-                await _run_alembic_migrations()
-        else:
-            logger.info("migrations.skipped")
 
         app.state.init_done = True
         logger.info("init.complete")
