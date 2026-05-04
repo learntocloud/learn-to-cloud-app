@@ -21,72 +21,24 @@ privileges.
 
 ## Production Database Identities
 
-Production uses separate PostgreSQL data-plane principals:
+Production uses separate PostgreSQL data-plane principals. The production
+cutover to this model is complete; these notes describe the intended steady
+state, not a bootstrap procedure.
 
 | Principal | Purpose |
 | --- | --- |
-| PostgreSQL Entra admin group | Bootstrap, break-glass administration, and role management. Configured with `postgres_entra_admin_*` Terraform variables. |
-| API managed identity | Runtime application access only. It must be mapped as a non-admin PostgreSQL Entra principal. |
-| Migration principal | Deploy-time Alembic migrations. It owns application schema objects and grants DML privileges to the API role. This principal does not need Azure RBAC. |
+| PostgreSQL Entra admin group | Break-glass administration and role management. Configured with `postgres_entra_admin_*` Terraform variables. Do not use this principal for app runtime or normal migrations. |
+| API managed identity | Runtime application identity attached to the Container App. It gets the Entra token used for PostgreSQL login. |
+| API PostgreSQL role | Runtime database role, `ltc_api_runtime_<environment>` by default. It is mapped to the API managed identity object ID, has DML and sequence privileges, and must not own schema objects. |
+| Migration principal | Deploy-time Alembic migrations. It owns application schema objects and runs schema changes. This principal does not need Azure RBAC beyond acquiring a PostgreSQL Entra token. |
 
-### Rollout order
-
-Before merging the Terraform change that removes the API identity as a
-PostgreSQL Entra administrator, make sure the dedicated PostgreSQL Entra admin
-principal exists and the GitHub repository variables/secrets below are set.
-
-After Terraform switches the server admin to the dedicated admin principal, run
-the bootstrap script as that admin before deploying the app with
-`RUN_MIGRATIONS_ON_STARTUP=false`. This avoids leaving the runtime API identity
-without a mapped non-admin PostgreSQL role.
-
-The one-time identity setup starts with:
-
-```bash
-scripts/bootstrap_db_identities.sh
-```
-
-The script creates or reuses the PostgreSQL admin group and migration service
-principal, configures GitHub Actions OIDC for migrations, sets the repository
-variables/secrets below, applies Terraform when requested, and runs the SQL
-bootstrap when requested.
-
-For production rollout without local Terraform secrets:
-
-1. Run `scripts/bootstrap_db_identities.sh` to create/reuse identities and set
-   GitHub variables/secrets. This sets `DB_IDENTITY_BOOTSTRAPPED=false`, so a
-   merge can apply Terraform without running migrations or updating the app.
-2. Merge the branch and let GitHub Actions apply Terraform with repository
-   secrets.
-3. Run `scripts/bootstrap_db_identities.sh --skip-gh --run-sql` locally to map
-   and grant the PostgreSQL roles. After SQL succeeds, the script sets
-   `DB_IDENTITY_BOOTSTRAPPED=true`.
-4. Run the deploy workflow manually to run migrations and update the app.
-
-If you need to run the SQL manually instead:
-
-```bash
-API_OBJECT_ID="$(az identity show \
-  --resource-group <resource-group-name> \
-  --name id-ltc-api-dev \
-  --query principalId \
-  -o tsv)"
-
-export PGPASSWORD="$(az account get-access-token --resource-type oss-rdbms --query accessToken -o tsv)"
-
-psql "host=<server>.postgres.database.azure.com dbname=postgres sslmode=require user=<admin-group-name>" \
-  -v database_name=learntocloud \
-  -v api_role=id-ltc-api-dev \
-  -v api_object_id="$API_OBJECT_ID" \
-  -v migration_role=<migration-principal-name> \
-  -v migration_object_id=<migration-principal-object-id> \
-  -f infra/postgres-bootstrap.sql
-```
-
-The bootstrap script creates the API and migration Entra principals with
-`isAdmin=false`, revokes elevated API role flags where present, grants runtime
-DML privileges to the API role, and transfers schema object ownership to the
-migration role.
+Do not make the API managed identity a PostgreSQL Flexible Server Entra admin.
+Azure removes a PostgreSQL Entra admin by attempting to drop the mapped database
+role. If the API runtime role is also a server admin, removing that admin can
+break the runtime role or fail because database objects, grants, or default ACLs
+still depend on it. Keep the Azure managed identity name and PostgreSQL role name
+distinct so it is clear which object lives in Azure and which object lives in
+PostgreSQL.
 
 Required repository variables for deployment:
 
@@ -96,7 +48,12 @@ Required repository variables for deployment:
 | `POSTGRES_ENTRA_ADMIN_PRINCIPAL_NAME` | Display name for the PostgreSQL Entra admin principal. |
 | `POSTGRES_ENTRA_ADMIN_PRINCIPAL_TYPE` | `Group`, `User`, or `ServicePrincipal`; defaults to `Group` in the workflow. |
 | `POSTGRES_MIGRATION_USER` | PostgreSQL role name for the mapped migration principal used by Alembic. |
-| `DB_IDENTITY_BOOTSTRAPPED` | Deployment gate. Keep `false` until the SQL bootstrap succeeds, then set `true`. |
+
+Optional Terraform variable:
+
+| Variable | Purpose |
+| --- | --- |
+| `postgres_api_runtime_role` | PostgreSQL runtime role used by the API. Defaults to `ltc_api_runtime_<environment>`. |
 
 Required repository secret for migrations:
 

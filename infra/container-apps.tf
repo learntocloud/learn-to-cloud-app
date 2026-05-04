@@ -90,7 +90,7 @@ resource "azurerm_container_app" "api" {
 
       env {
         name  = "POSTGRES_USER"
-        value = azurerm_user_assigned_identity.api.name
+        value = local.api_postgres_role
       }
 
       env {

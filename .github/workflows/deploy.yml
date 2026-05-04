@@ -255,7 +255,7 @@ jobs:
   # Deploy — build image, push, update container app (push to main only)
   # -----------------------------------------------------------------------
   deploy:
-    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && vars.DB_IDENTITY_BOOTSTRAPPED == 'true' && (github.event_name == 'workflow_dispatch' || needs.changes.outputs.deploy == 'true')
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && (github.event_name == 'workflow_dispatch' || needs.changes.outputs.deploy == 'true')
     needs: [terraform, changes]
     runs-on: ubuntu-latest
     timeout-minutes: 20
