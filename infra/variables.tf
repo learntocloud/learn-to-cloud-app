@@ -50,8 +50,8 @@ variable "postgres_migration_role" {
   type        = string
 
   validation {
-    condition     = can(regex("^[A-Za-z_][A-Za-z0-9_]*$", var.postgres_migration_role))
-    error_message = "postgres_migration_role must be a valid PostgreSQL role identifier using letters, numbers, and underscores, and must not start with a number."
+    condition     = length(trimspace(var.postgres_migration_role)) > 0 && length(var.postgres_migration_role) <= 63
+    error_message = "postgres_migration_role must be a non-empty PostgreSQL role name no longer than 63 characters."
   }
 }
 
