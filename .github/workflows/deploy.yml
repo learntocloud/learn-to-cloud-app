@@ -260,7 +260,7 @@ jobs:
   # Deploy — build image, push, update container app (push to main only)
   # -----------------------------------------------------------------------
   deploy:
-    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && (github.event_name == 'workflow_dispatch' || needs.changes.outputs.deploy == 'true')
+    if: always() && github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && (github.event_name == 'workflow_dispatch' || needs.changes.outputs.deploy == 'true') && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled')
     needs: [terraform, changes]
     runs-on: ubuntu-latest
     timeout-minutes: 45
