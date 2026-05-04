@@ -34,6 +34,17 @@ variable "postgres_entra_admin_principal_type" {
   }
 }
 
+variable "postgres_api_runtime_role" {
+  description = "PostgreSQL role used by the API at runtime. It is mapped to the API managed identity but is not the Azure identity name."
+  type        = string
+  default     = null
+
+  validation {
+    condition     = var.postgres_api_runtime_role == null || can(regex("^[A-Za-z_][A-Za-z0-9_]*$", var.postgres_api_runtime_role))
+    error_message = "postgres_api_runtime_role must be a valid PostgreSQL role identifier using letters, numbers, and underscores, and must not start with a number."
+  }
+}
+
 variable "github_client_id" {
   description = "GitHub OAuth App client ID"
   type        = string

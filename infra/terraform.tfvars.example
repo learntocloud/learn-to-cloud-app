@@ -18,6 +18,7 @@ subscription_id = "your-azure-subscription-id"
 postgres_entra_admin_object_id      = "00000000-0000-0000-0000-000000000000"
 postgres_entra_admin_principal_name = "Learn to Cloud PostgreSQL Admins"
 # postgres_entra_admin_principal_type = "Group"
+# postgres_api_runtime_role = "ltc_api_runtime_dev"
 
 # Required - GitHub OAuth App (create at https://github.com/settings/developers)
 github_client_id     = "Ov23xxx"
