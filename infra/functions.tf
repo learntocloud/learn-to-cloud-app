@@ -65,6 +65,15 @@ resource "azurerm_role_assignment" "verification_functions_durable_task" {
   skip_service_principal_aad_check = true
 }
 
+resource "azurerm_role_assignment" "verification_task_hub_dashboard_readers" {
+  for_each = toset(lookup(var.durable_task_dashboard_reader_group_object_ids_by_environment, var.environment, []))
+
+  scope                = azapi_resource.verification_task_hub.id
+  role_definition_name = "Durable Task Data Reader"
+  principal_id         = each.value
+  principal_type       = "Group"
+}
+
 resource "azurerm_function_app_flex_consumption" "verification" {
   name                = "func-ltc-verification-${var.environment}"
   resource_group_name = azurerm_resource_group.main.name
