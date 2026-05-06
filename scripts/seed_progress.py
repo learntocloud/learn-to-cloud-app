@@ -10,58 +10,39 @@ import asyncio
 import os
 import sys
 from datetime import UTC, datetime
-from pathlib import Path
 
 import asyncpg
-import yaml
+
+from learn_to_cloud_shared.content_service import get_all_phases
 
 DATABASE_URL = os.environ.get(
     "DATABASE_URL", "postgresql://postgres:postgres@db:5432/learn_to_cloud"
 )
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
-CONTENT_DIR = REPO_ROOT / "content" / "phases"
-
 
 def load_content() -> tuple[
     dict[int, list[tuple[str, list[str]]]],
-    dict[int, list[tuple[str, str, str]]],
+    dict[int, list[dict[str, str | None]]],
 ]:
-    """Load topic IDs, step IDs, and requirements from content YAML files."""
+    """Load topic IDs, step IDs, and requirements from packaged content."""
     phase_topics: dict[int, list[tuple[str, list[str]]]] = {}
-    phase_requirements: dict[int, list[tuple[str, str, str]]] = {}
+    phase_requirements: dict[int, list[dict[str, str | None]]] = {}
 
-    for phase_dir in sorted(CONTENT_DIR.iterdir()):
-        if not phase_dir.is_dir() or not phase_dir.name.startswith("phase"):
-            continue
-        phase_id = int(phase_dir.name.replace("phase", ""))
+    for phase in get_all_phases():
+        phase_topics[phase.id] = [
+            (topic.id, [step.id for step in topic.learning_steps])
+            for topic in phase.topics
+        ]
 
-        phase_meta = phase_dir / "_phase.yaml"
-        if phase_meta.exists():
-            with open(phase_meta, encoding="utf-8") as f:
-                meta = yaml.safe_load(f)
-            reqs = []
-            hov = meta.get("hands_on_verification", {})
-            for req in hov.get("requirements", []):
-                reqs.append(
-                    {
-                        "id": req["id"],
-                        "submission_type": req["submission_type"],
-                        "required_repo": req.get("required_repo"),
-                    }
-                )
-            phase_requirements[phase_id] = reqs
-
-        topics = []
-        for topic_file in sorted(phase_dir.glob("*.yaml")):
-            if topic_file.name == "_phase.yaml":
-                continue
-            with open(topic_file, encoding="utf-8") as f:
-                data = yaml.safe_load(f)
-            topic_id = data["id"]
-            step_ids = [s["id"] for s in data.get("learning_steps", [])]
-            topics.append((topic_id, step_ids))
-        phase_topics[phase_id] = topics
+        if phase.hands_on_verification:
+            phase_requirements[phase.id] = [
+                {
+                    "id": req.id,
+                    "submission_type": str(req.submission_type),
+                    "required_repo": req.required_repo,
+                }
+                for req in phase.hands_on_verification.requirements
+            ]
 
     return phase_topics, phase_requirements
 

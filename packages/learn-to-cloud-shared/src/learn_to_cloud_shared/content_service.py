@@ -3,8 +3,8 @@
 This module loads course content from YAML files and provides
 a clean interface for accessing phases and topics.
 
-Content files are located in content/phases/ (dev) or
-/app/content/phases/ (Docker) and are loaded once at startup for performance.
+Content files are packaged with learn_to_cloud_shared and loaded once at startup
+for performance.
 """
 
 from __future__ import annotations

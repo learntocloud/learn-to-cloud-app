@@ -360,7 +360,7 @@ jobs:
         with:
           persist-credentials: false
           sparse-checkout: |
-            content/phases
+            packages/learn-to-cloud-shared/src/learn_to_cloud_shared/content/phases
             .github/workflows
           sparse-checkout-cone-mode: true
 

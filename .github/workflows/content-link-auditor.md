@@ -15,7 +15,7 @@ steps:
     with:
       persist-credentials: false
       sparse-checkout: |
-        content/phases
+        packages/learn-to-cloud-shared/src/learn_to_cloud_shared/content/phases
         .github/workflows
       sparse-checkout-cone-mode: true
 
@@ -105,7 +105,7 @@ You are a content quality auditor for the Learn to Cloud curriculum.
 
 ## Goal
 
-Audit every external URL found in the content YAML files under `content/phases/` and produce a report identifying broken links, permanent redirects, and potentially retired resources.
+Audit every external URL found in the content YAML files under `packages/learn-to-cloud-shared/src/learn_to_cloud_shared/content/phases/` and produce a report identifying broken links, permanent redirects, and potentially retired resources.
 
 ## Process
 
@@ -118,7 +118,7 @@ Important: do **not** rely on `**` globbing (globstar is often disabled in non-i
 Preferred extraction (robust; preserves file + line number context):
 
 ```bash
-find content/phases -type f \( -name "*.yaml" -o -name "*.yml" \) -print0 | \
+find packages/learn-to-cloud-shared/src/learn_to_cloud_shared/content/phases -type f \( -name "*.yaml" -o -name "*.yml" \) -print0 | \
   xargs -0 -n 50 grep -RInE '^[[:space:]]*url:[[:space:]]*https?://' | \
   sort -u
 ```
@@ -126,7 +126,7 @@ find content/phases -type f \( -name "*.yaml" -o -name "*.yml" \) -print0 | \
 To build a deduplicated list of URLs only:
 
 ```bash
-find content/phases -type f \( -name "*.yaml" -o -name "*.yml" \) -print0 | \
+find packages/learn-to-cloud-shared/src/learn_to_cloud_shared/content/phases -type f \( -name "*.yaml" -o -name "*.yml" \) -print0 | \
   xargs -0 -n 50 grep -RInE '^[[:space:]]*url:[[:space:]]*https?://' | \
   sed -E 's/^[^:]+:[0-9]+:[[:space:]]*url:[[:space:]]*//' | \
   sort -u

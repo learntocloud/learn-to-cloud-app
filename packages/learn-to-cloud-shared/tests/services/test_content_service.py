@@ -219,6 +219,16 @@ learning_steps:
 
 @pytest.mark.unit
 class TestGetAllPhases:
+    def test_packaged_content_contains_journal_requirement(self):
+        requirements = [
+            requirement
+            for phase in get_all_phases()
+            if phase.hands_on_verification
+            for requirement in phase.hands_on_verification.requirements
+        ]
+
+        assert any(req.id == "journal-api-implementation" for req in requirements)
+
     def test_empty_directory(self, tmp_path: Path):
         with patch(
             "learn_to_cloud_shared.content_service._get_content_dir",
