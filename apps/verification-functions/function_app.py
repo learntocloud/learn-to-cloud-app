@@ -166,7 +166,7 @@ def verification_orchestrator(context: df.DurableOrchestrationContext):
 @app.activity_trigger(input_name="job_id")
 async def prepare_verification_job(
     job_id: str,
-    context: func.Context | None = None,
+    context: func.Context,
 ) -> dict[str, object]:
     """Load and mark the persisted verification job as running."""
     _ensure_observability()
@@ -186,7 +186,7 @@ async def prepare_verification_job(
 @app.activity_trigger(input_name="job_payload")
 async def execute_requirement_verification(
     job_payload,
-    context: func.Context | None = None,
+    context: func.Context,
 ) -> dict[str, object]:
     """Run the requirement verifier without writing database state."""
     _ensure_observability()
@@ -200,7 +200,7 @@ async def execute_requirement_verification(
 @app.activity_trigger(input_name="run_payload")
 async def persist_verification_result(
     run_payload,
-    context: func.Context | None = None,
+    context: func.Context,
 ) -> dict[str, object]:
     """Persist the verification result and mark the job terminal."""
     _ensure_observability()
@@ -217,7 +217,7 @@ async def persist_verification_result(
 async def start_verification_job(
     req: func.HttpRequest,
     client: df.DurableOrchestrationClient,
-    context: func.Context | None = None,
+    context: func.Context,
 ) -> func.HttpResponse:
     """Start the verification orchestration for an existing job."""
     _ensure_observability()
