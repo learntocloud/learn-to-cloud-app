@@ -78,6 +78,22 @@ variable "durable_task_scheduler_ip_allowlist" {
   }
 }
 
+variable "durable_task_dashboard_reader_group_object_ids_by_environment" {
+  description = "Microsoft Entra group object IDs allowed to view Durable Task Scheduler dashboard orchestration data, keyed by environment."
+  type        = map(list(string))
+  default = {
+    dev = ["2141d117-ca04-40c9-a8e2-a0af566791a3"]
+  }
+
+  validation {
+    condition = alltrue([
+      for object_id in flatten(values(var.durable_task_dashboard_reader_group_object_ids_by_environment)) :
+      can(regex("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$", object_id))
+    ])
+    error_message = "durable_task_dashboard_reader_group_object_ids_by_environment values must be valid Microsoft Entra object IDs."
+  }
+}
+
 variable "github_client_id" {
   description = "GitHub OAuth App client ID"
   type        = string
