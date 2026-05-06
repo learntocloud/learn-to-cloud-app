@@ -130,7 +130,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
         with:
-          python-version-file: "api/pyproject.toml"
+          python-version-file: "apps/verification-functions/pyproject.toml"
 
       - name: Install uv
         uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
@@ -305,7 +305,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
         with:
-          python-version-file: "api/pyproject.toml"
+          python-version-file: "apps/verification-functions/pyproject.toml"
 
       - name: Install uv
         uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
@@ -324,6 +324,7 @@ jobs:
         run: |
           rm -rf apps/verification-functions/.python_packages
           cd apps/verification-functions
+          python -c "import sys; assert sys.version_info[:2] == (3, 13), sys.version"
           uv export \
             --locked \
             --no-dev \
@@ -336,6 +337,7 @@ jobs:
             --python "$(which python)" \
             --target .python_packages/lib/site-packages \
             -r /tmp/verification-functions-requirements.txt
+          PYTHONPATH="$PWD/.python_packages/lib/site-packages" python -c "import asyncpg, function_app"
 
       - name: Deploy verification Functions
         uses: Azure/functions-action@bc63708cc6539760eea18d8a7de4ce8ef5fdf593 # v1

@@ -9,7 +9,7 @@ py-modules = ["function_app"]
 name = "learn-to-cloud-verification-functions"
 version = "0.1.0"
 description = "Durable Functions host for Learn to Cloud verification jobs"
-requires-python = ">=3.13"
+requires-python = ">=3.13,<3.14"
 dependencies = [
     "azure-monitor-opentelemetry>=1.8.6",
     "azure-functions>=1.24.0",
