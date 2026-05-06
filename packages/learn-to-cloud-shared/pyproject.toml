@@ -37,8 +37,8 @@ dependencies = [
 dev = [
     "pytest>=8.4.2",
     "pytest-asyncio>=1.3.0",
-    "ruff==0.15.11",
-    "ty==0.0.32",
+    "ruff==0.15.12",
+    "ty==0.0.34",
 ]
 
 [tool.ruff]

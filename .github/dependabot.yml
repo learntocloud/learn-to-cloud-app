@@ -2,7 +2,7 @@ version: 2
 updates:
   # Python dependencies (uv ecosystem — updates pyproject.toml + uv.lock together)
   - package-ecosystem: "uv"
-    directory: "/api"
+    directory: "/"
     schedule:
       interval: "weekly"
     commit-message:
@@ -11,35 +11,7 @@ updates:
       - "dependencies"
       - "python"
     groups:
-      python-api:
-        patterns:
-          - "*"
-
-  - package-ecosystem: "uv"
-    directory: "/apps/verification-functions"
-    schedule:
-      interval: "weekly"
-    commit-message:
-      prefix: "chore(deps):"
-    labels:
-      - "dependencies"
-      - "python"
-    groups:
-      python-functions:
-        patterns:
-          - "*"
-
-  - package-ecosystem: "uv"
-    directory: "/packages/learn-to-cloud-shared"
-    schedule:
-      interval: "weekly"
-    commit-message:
-      prefix: "chore(deps):"
-    labels:
-      - "dependencies"
-      - "python"
-    groups:
-      python-shared:
+      python-all:
         patterns:
           - "*"
 

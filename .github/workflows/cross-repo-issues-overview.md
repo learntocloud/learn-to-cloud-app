@@ -1,6 +1,6 @@
 ---
 on:
-  schedule: daily around 5am ET
+  schedule: weekly on monday around 5am ET
   workflow_dispatch:
 permissions:
   contents: read
@@ -10,6 +10,8 @@ tools:
   github:
     toolsets: [issues, pull_requests, repos]
 safe-outputs:
+  report-failure-as-issue: false
+  missing-tool: false
   github-token: ${{ secrets.GH_AW_CROSS_REPO_PAT }}
   create-issue:
     title-prefix: "[issues-overview] "
@@ -63,3 +65,10 @@ Structure the report as a clean markdown issue with:
 - Use tables for issue lists
 - Use emoji for status indicators (🔴 stale, 🟡 needs-triage, ⚪ unassigned, ✅ healthy)
 - Include direct links to each issue
+
+## Safe output requirement
+
+You must finish by calling exactly one safe output tool:
+- Call `create_issue` with the complete report when you generated a report.
+- Call `noop` with a short reason only if no report can be generated.
+- Do not finish with only a chat response; the workflow is considered failed unless a safe output tool is called.
