@@ -325,6 +325,8 @@ jobs:
           rm -rf apps/verification-functions/.python_packages
           cd apps/verification-functions
           python -c "import sys; assert sys.version_info[:2] == (3, 13), sys.version"
+          rm -rf content
+          cp -R ../../content content
           uv export \
             --locked \
             --no-dev \
@@ -337,7 +339,13 @@ jobs:
             --python "$(which python)" \
             --target .python_packages/lib/site-packages \
             -r /tmp/verification-functions-requirements.txt
-          PYTHONPATH="$PWD/.python_packages/lib/site-packages" python -c "import asyncpg, function_app"
+          DEBUG=true DATABASE_URL="postgresql+asyncpg://postgres:postgres@localhost:5432/learntocloud" PYTHONPATH="$PWD/.python_packages/lib/site-packages" python - <<'PY'
+          import asyncpg
+          import function_app
+          from learn_to_cloud_shared.verification.requirements import get_requirement_by_id
+
+          assert get_requirement_by_id("journal-api-implementation") is not None
+          PY
 
       - name: Deploy verification Functions
         uses: Azure/functions-action@bc63708cc6539760eea18d8a7de4ce8ef5fdf593 # v1
