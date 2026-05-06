@@ -338,7 +338,7 @@ jobs:
             -r /tmp/verification-functions-requirements.txt
 
       - name: Deploy verification Functions
-        uses: Azure/functions-action@c9cc8ee93d1285e2a17312cc8357dc1775955272 # v1
+        uses: Azure/functions-action@bc63708cc6539760eea18d8a7de4ce8ef5fdf593 # v1
         with:
           app-name: ${{ needs.terraform.outputs.verification_functions_name }}
           package: apps/verification-functions

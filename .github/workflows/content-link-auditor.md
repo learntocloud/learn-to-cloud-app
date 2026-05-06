@@ -91,6 +91,8 @@ network:
     - "*.certbot.eff.org"
 
 safe-outputs:
+  report-failure-as-issue: false
+  missing-tool: false
   create-issue:
     title-prefix: "[content-audit] "
     labels: [content, automation]
@@ -196,3 +198,10 @@ All {N} other links are healthy.
 - Be conservative: only flag a link as broken if you're confident it's not a transient error. If a URL times out once, note it as "possibly broken" rather than definitely broken.
 - Never classify 403 (Cloudflare bot-protection) or 429 (rate limiting) responses as broken — report them in a separate "Connection Issues" section with a note that manual verification is recommended.
 - For YouTube videos, only flag if the response is clearly a 404 or removed video — don't flag age-restricted or region-locked content.
+
+## Safe output requirement
+
+You must finish by calling exactly one safe output tool:
+- Call `create_issue` only when broken links, redirects, or connection issues need review.
+- Call `noop` when all scanned links are healthy or there is no actionable report.
+- Do not finish with only a chat response; the workflow is considered failed unless a safe output tool is called.
