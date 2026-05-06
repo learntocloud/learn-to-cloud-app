@@ -65,11 +65,6 @@ resource "azurerm_role_assignment" "verification_functions_durable_task" {
   skip_service_principal_aad_check = true
 }
 
-resource "random_password" "verification_functions_key" {
-  length  = 64
-  special = false
-}
-
 resource "azurerm_function_app_flex_consumption" "verification" {
   name                = "func-ltc-verification-${var.environment}"
   resource_group_name = azurerm_resource_group.main.name
@@ -91,7 +86,6 @@ resource "azurerm_function_app_flex_consumption" "verification" {
   }
 
   app_settings = {
-    APPLICATIONINSIGHTS_CONNECTION_STRING    = azurerm_application_insights.main.connection_string
     AZURE_CLIENT_ID                          = azurerm_user_assigned_identity.verification_functions.client_id
     DATABASE_URL                             = ""
     DURABLE_TASK_SCHEDULER_CONNECTION_STRING = "Endpoint=${azapi_resource.verification_scheduler.output.properties.endpoint};Authentication=ManagedIdentity;ClientID=${azurerm_user_assigned_identity.verification_functions.client_id}"
@@ -118,17 +112,9 @@ resource "azurerm_function_app_flex_consumption" "verification" {
   ]
 }
 
-resource "azapi_resource" "verification_functions_host_key" {
-  type      = "Microsoft.Web/sites/host/functionKeys@2022-09-01"
-  name      = "default/verification-api"
-  parent_id = azurerm_function_app_flex_consumption.verification.id
+data "azurerm_function_app_host_keys" "verification" {
+  name                = azurerm_function_app_flex_consumption.verification.name
+  resource_group_name = azurerm_resource_group.main.name
 
-  body = {
-    properties = {
-      name  = "verification-api"
-      value = random_password.verification_functions_key.result
-    }
-  }
-
-  schema_validation_enabled = false
+  depends_on = [azurerm_function_app_flex_consumption.verification]
 }

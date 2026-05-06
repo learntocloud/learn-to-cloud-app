@@ -78,7 +78,7 @@ resource "azurerm_container_app" "api" {
 
   secret {
     name  = "verification-functions-key"
-    value = random_password.verification_functions_key.result
+    value = data.azurerm_function_app_host_keys.verification.default_function_key
   }
 
   ingress {
@@ -209,7 +209,6 @@ resource "azurerm_container_app" "api" {
   depends_on = [
     azurerm_role_assignment.api_acr_pull,
     azurerm_role_assignment.api_key_vault_secrets_user,
-    azapi_resource.verification_functions_host_key,
     azurerm_postgresql_flexible_server_database.main,
   ]
 }
