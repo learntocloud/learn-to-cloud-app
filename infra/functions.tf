@@ -95,7 +95,6 @@ resource "azurerm_function_app_flex_consumption" "verification" {
     AZURE_CLIENT_ID                          = azurerm_user_assigned_identity.verification_functions.client_id
     DATABASE_URL                             = ""
     DURABLE_TASK_SCHEDULER_CONNECTION_STRING = "Endpoint=${azapi_resource.verification_scheduler.output.properties.endpoint};Authentication=ManagedIdentity;ClientID=${azurerm_user_assigned_identity.verification_functions.client_id}"
-    FUNCTIONS_WORKER_RUNTIME                 = "python"
     GITHUB_CLIENT_ID                         = var.github_client_id
     GITHUB_CLIENT_SECRET                     = "@Microsoft.KeyVault(VaultName=${azurerm_key_vault.main.name};SecretName=github-client-secret)"
     GITHUB_TOKEN                             = "@Microsoft.KeyVault(VaultName=${azurerm_key_vault.main.name};SecretName=github-token)"
