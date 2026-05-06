@@ -1,7 +1,7 @@
 """Phase hands-on requirements sourced from content.
 
-Requirements live in content/phases/**/_phase.yaml under
-hands_on_verification.requirements. This module provides access helpers.
+Requirements live in packaged content under hands_on_verification.requirements.
+This module provides access helpers.
 """
 
 from __future__ import annotations

@@ -147,9 +147,7 @@ Or use VS Code's **"API + Verification"** compound launch configuration.
 ├── apps/
 │   └── verification-functions/ # Durable Functions host for async verification jobs
 ├── packages/
-│   └── learn-to-cloud-shared/  # Shared domain, repositories, and verification logic
-├── content/              # Course content (YAML)
-│   └── phases/           # Phase and topic definitions
+│   └── learn-to-cloud-shared/  # Shared domain, repositories, verification logic, and content
 ├── infra/                # Terraform (Azure)
 └── .github/
     ├── workflows/        # CI/CD

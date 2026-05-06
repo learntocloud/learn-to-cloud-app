@@ -1,6 +1,7 @@
 """Application configuration using pydantic-settings."""
 
 from functools import cached_property, lru_cache
+from importlib.resources import files
 from pathlib import Path
 from typing import Self
 
@@ -95,17 +96,12 @@ class Settings(BaseSettings):
 
     @cached_property
     def content_dir_path(self) -> Path:
-        """Defaults to content/phases if CONTENT_DIR not set."""
+        """Defaults to packaged content/phases if CONTENT_DIR not set."""
         if self.content_dir:
             return Path(self.content_dir)
 
-        current = Path(__file__).resolve()
-        for parent in current.parents:
-            candidate = parent / "content" / "phases"
-            if candidate.exists():
-                return candidate
-
-        return current.parents[4] / "content" / "phases"
+        packaged_content = files("learn_to_cloud_shared").joinpath("content", "phases")
+        return Path(str(packaged_content))
 
     @cached_property
     def allowed_origins(self) -> list[str]:

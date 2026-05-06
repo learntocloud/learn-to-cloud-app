@@ -6,6 +6,9 @@ build-backend = "setuptools.build_meta"
 where = ["src"]
 include = ["learn_to_cloud_shared*"]
 
+[tool.setuptools.package-data]
+learn_to_cloud_shared = ["content/phases/**/*.yaml", "content/phases/**/*.yml"]
+
 [project]
 name = "learn-to-cloud-shared"
 version = "0.1.0"

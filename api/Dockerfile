@@ -57,17 +57,11 @@ ENV PYTHONPATH="/app/src"
 # Enable Python fault handler for debugging
 ENV PYTHONFAULTHANDLER=1
 
-# Set content directory for Docker
-ENV CONTENT_DIR="/app/content/phases"
-
 # Copy application code from api/
 COPY --chown=appuser:appuser api/ .
 
 # Copy Tailwind-generated CSS from build stage
 COPY --from=tailwind --chown=appuser:appuser /build/static/css/styles.css /app/src/learn_to_cloud/static/css/styles.css
-
-# Copy content YAML files (single source of truth)
-COPY --chown=appuser:appuser content /app/content
 
 # Switch to non-root user
 USER appuser

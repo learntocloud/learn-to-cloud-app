@@ -132,6 +132,7 @@ class TestContentDirPath:
         )
         assert s.content_dir_path.name == "phases"
         assert "content" in s.content_dir_path.parts
+        assert "learn_to_cloud_shared" in s.content_dir_path.parts
 
 
 # ---------------------------------------------------------------------------

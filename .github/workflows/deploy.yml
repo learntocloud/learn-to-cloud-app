@@ -6,7 +6,6 @@ on:
     paths:
       - 'api/**'
       - 'apps/verification-functions/**'
-      - 'content/**'
       - 'infra/**'
       - 'packages/learn-to-cloud-shared/**'
       - 'pyproject.toml'
@@ -71,7 +70,6 @@ jobs:
             deploy:
               - 'api/**'
               - 'apps/verification-functions/**'
-              - 'content/**'
               - 'infra/**'
               - 'packages/learn-to-cloud-shared/**'
               - 'pyproject.toml'
@@ -82,7 +80,6 @@ jobs:
             code:
               - 'api/**'
               - 'apps/verification-functions/**'
-              - 'content/**'
               - 'packages/learn-to-cloud-shared/**'
               - 'pyproject.toml'
               - 'api/uv.lock'
@@ -325,8 +322,6 @@ jobs:
           rm -rf apps/verification-functions/.python_packages
           cd apps/verification-functions
           python -c "import sys; assert sys.version_info[:2] == (3, 13), sys.version"
-          rm -rf content
-          cp -R ../../content content
           uv export \
             --locked \
             --no-dev \
