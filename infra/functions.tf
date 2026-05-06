@@ -36,8 +36,7 @@ resource "azapi_resource" "verification_scheduler" {
     properties = {
       ipAllowlist = var.durable_task_scheduler_ip_allowlist
       sku = {
-        capacity = 1
-        name     = "Consumption"
+        name = "Consumption"
       }
     }
   }
