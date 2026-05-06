@@ -13,11 +13,14 @@ Data sources:
 import logging
 from functools import lru_cache
 
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from learn_to_cloud.repositories.progress_repository import StepProgressRepository
-from learn_to_cloud.repositories.submission_repository import SubmissionRepository
-from learn_to_cloud.schemas import (
+from learn_to_cloud_shared.content_service import get_all_phases
+from learn_to_cloud_shared.repositories.progress_repository import (
+    StepProgressRepository,
+)
+from learn_to_cloud_shared.repositories.submission_repository import (
+    SubmissionRepository,
+)
+from learn_to_cloud_shared.schemas import (
     Phase,
     PhaseProgress,
     PhaseProgressData,
@@ -26,8 +29,8 @@ from learn_to_cloud.schemas import (
     TopicProgressData,
     UserProgress,
 )
-from learn_to_cloud.services.content_service import get_all_phases
-from learn_to_cloud.services.verification.requirements import get_requirements_for_phase
+from learn_to_cloud_shared.verification.requirements import get_requirements_for_phase
+from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 

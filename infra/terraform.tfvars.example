@@ -26,18 +26,20 @@ postgres_entra_admin_principal_name = "Learn to Cloud PostgreSQL Admins"
 # Optional - PostgreSQL runtime role mapped to the API managed identity
 # postgres_api_runtime_role = "ltc_api_runtime_dev"
 
-# Required - GitHub OAuth App (create at https://github.com/settings/developers)
-github_client_id     = "Ov23xxx"
-github_client_secret = "xxx"
+# Optional - PostgreSQL runtime role mapped to the verification Functions managed identity
+# postgres_verification_functions_role = "ltc_verification_functions_dev"
 
-# Required - Session cookie signing key
-# Generate with: python -c "import secrets; print(secrets.token_hex(32))"
-session_secret_key = "your-64-char-hex-string"
+# Optional - CIDR ranges allowed to connect to Durable Task Scheduler.
+# durable_task_scheduler_ip_allowlist = ["0.0.0.0/0"]
 
-# Required - CTF/Networking lab verification secret
-# Must match the MASTER_SECRET in learntocloud/linux-ctfs ctf_setup.sh
-# See: https://github.com/learntocloud/linux-ctfs/blob/main/VERIFICATION.md
-labs_verification_secret = "L2C_CTF_MASTER_2024"
+# Required - GitHub OAuth App client ID (create at https://github.com/settings/developers)
+github_client_id = "Ov23xxx"
+
+# Runtime secrets are stored in Key Vault, not tfvars:
+# - github-client-secret
+# - github-token
+# - session-secret-key
+# - labs-verification-secret
 
 # Optional - Override defaults
 # location    = "centralus"

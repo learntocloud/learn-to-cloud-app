@@ -8,12 +8,23 @@ The devcontainer handles everything automatically — see the [README](../README
 
 ```bash
 cd api
+uv run ruff check . ../packages/learn-to-cloud-shared
+uv run ruff format --check . ../packages/learn-to-cloud-shared
+uv run ty check --exclude scripts --exclude tests .
+cd ..
 
-# Lint + format + type-check
-ruff check . && ruff format --check . && ty check
+cd packages/learn-to-cloud-shared
+uv run ty check --exclude tests .
+cd ../..
+
+cd apps/verification-functions
+uv run ruff check .
+uv run ruff format --check .
+uv run ty check .
+cd ../..
 
 # Auto-fix lint issues
-ruff check --fix .
+cd api && uv run ruff check --fix . ../packages/learn-to-cloud-shared && cd ..
 
 # Pre-commit (runs all checks)
 prek run --all-files
@@ -23,10 +34,10 @@ prek run --all-files
 
 ```bash
 cd api
-
-pytest                  # all tests
-pytest -m unit          # unit only
-pytest -m integration   # integration only (needs DB)
+uv run pytest tests/ ../packages/learn-to-cloud-shared/tests  # all API + shared tests
+uv run pytest tests/ ../packages/learn-to-cloud-shared/tests -m unit
+uv run pytest tests/ ../packages/learn-to-cloud-shared/tests -m integration
+cd ..
 ```
 
 - Tests use transactional rollback for isolation — no table recreation per test

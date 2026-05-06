@@ -23,7 +23,7 @@ All phases, topics, and steps are **fully unlocked** - users can access any cont
 | Purpose | File |
 |---------|------|
 | Progress | `services/progress_service.py` |
-| Hands-on | `services/verification/requirements.py` |
+| Hands-on | `packages/learn-to-cloud-shared/src/learn_to_cloud_shared/verification/requirements.py` |
 
 ## Important
 

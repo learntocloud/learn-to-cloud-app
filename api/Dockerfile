@@ -4,22 +4,24 @@
 # Build context should be repo root: docker build -f api/Dockerfile -t api .
 FROM python:3.13-slim AS builder
 
-WORKDIR /app
+WORKDIR /workspace
 
 # Install uv for fast dependency management
-COPY --from=ghcr.io/astral-sh/uv:0.7 /uv /usr/local/bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.10.10 /uv /usr/local/bin/uv
 
-# Copy dependency files first for caching
-COPY api/pyproject.toml api/uv.lock ./
+# Copy dependency files and local path dependencies first for caching
+COPY api/pyproject.toml api/pyproject.toml
+COPY api/uv.lock api/uv.lock
+COPY packages/learn-to-cloud-shared packages/learn-to-cloud-shared
 
 # Disable uv Python downloads (use system Python) and enable bytecode compilation
 ENV UV_PYTHON_DOWNLOADS=never
 ENV UV_COMPILE_BYTECODE=1
-ENV UV_PROJECT_ENVIRONMENT=/app/.venv
 
-# Install dependencies to virtual environment
-RUN uv venv /app/.venv && \
-    uv sync --no-dev --frozen --no-install-project
+# Install dependencies to virtual environment. Local path dependencies are
+# installed non-editably so the runtime image does not need the packages tree.
+WORKDIR /workspace/api
+RUN uv sync --no-dev --frozen --no-install-project --no-editable
 
 # Tailwind CSS v4 build stage
 FROM node:22-slim AS tailwind
@@ -45,7 +47,7 @@ RUN apt-get update && \
 RUN useradd --create-home --shell /bin/bash appuser
 
 # Copy virtual environment from builder
-COPY --from=builder /app/.venv /app/.venv
+COPY --from=builder /workspace/api/.venv /app/.venv
 
 # Activate virtual environment
 ENV PATH="/app/.venv/bin:$PATH"

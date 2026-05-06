@@ -17,8 +17,7 @@ from typing import Annotated
 
 from authlib.integrations.starlette_client import OAuth
 from fastapi import Depends, HTTPException, Request
-
-from learn_to_cloud.core.config import get_settings
+from learn_to_cloud_shared.core.config import get_settings
 
 logger = logging.getLogger(__name__)
 

@@ -18,7 +18,7 @@ is configured in `.vscode/mcp.json` and provides tools prefixed with
 
 This runs in a **Linux devcontainer** with:
 - PostgreSQL at `db:5432` (docker-compose service, configured in `api/.env`)
-- Python venv at `api/.venv` managed by `uv`
+- Python workspace venv at `.venv` managed by `uv`
 - Playwright MCP server runs via Docker image (`mcr.microsoft.com/playwright/mcp`)
   configured in `.vscode/mcp.json` — no npm/Playwright install needed in the container
 

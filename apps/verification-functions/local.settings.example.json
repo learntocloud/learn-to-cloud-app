@@ -1,0 +1,17 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/devstoreaccount1;QueueEndpoint=http://azurite:10001/devstoreaccount1;TableEndpoint=http://azurite:10002/devstoreaccount1;",
+    "FUNCTIONS_WORKER_RUNTIME": "python",
+    "DURABLE_TASK_SCHEDULER_CONNECTION_STRING": "Endpoint=http://dts:8080;TaskHub=default;Authentication=None",
+    "TASKHUB_NAME": "default",
+    "DATABASE_URL": "postgresql+asyncpg://postgres:postgres@db:5432/learn_to_cloud",
+    "DEBUG": "true",
+    "GITHUB_TOKEN": "",
+    "APPLICATIONINSIGHTS_CONNECTION_STRING": "",
+    "OTEL_EXPORTER_OTLP_ENDPOINT": "http://aspire-dashboard:18889",
+    "OTEL_SERVICE_NAME": "learn-to-cloud-verification-functions",
+    "AzureWebJobsSecretStorageType": "Files",
+    "LABS_VERIFICATION_SECRET": "local_dev_secret_at_least_32_chars"
+  }
+}

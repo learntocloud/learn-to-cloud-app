@@ -2,10 +2,9 @@
 
 import logging
 
+from learn_to_cloud_shared.models import User
+from learn_to_cloud_shared.repositories.user_repository import UserRepository
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from learn_to_cloud.models import User
-from learn_to_cloud.repositories.user_repository import UserRepository
 
 logger = logging.getLogger(__name__)
 

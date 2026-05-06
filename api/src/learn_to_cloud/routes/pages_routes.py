@@ -9,11 +9,22 @@ from datetime import UTC, datetime
 
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
+from learn_to_cloud_shared.content_service import (
+    get_all_phases,
+    get_phase_by_slug,
+    get_topic_by_slugs,
+)
+from learn_to_cloud_shared.core.database import DbSession
+from learn_to_cloud_shared.models import User
+from learn_to_cloud_shared.repositories.verification_job_repository import (
+    VerificationJobRepository,
+)
+from learn_to_cloud_shared.verification.requirements import (
+    is_phase_verification_locked,
+)
 
 from learn_to_cloud.core.auth import OptionalUserId, UserId
-from learn_to_cloud.core.database import DbSession
 from learn_to_cloud.core.templates import templates
-from learn_to_cloud.models import User
 from learn_to_cloud.rendering.context import (
     FAQS,
     HELP_LINKS,
@@ -23,19 +34,11 @@ from learn_to_cloud.rendering.context import (
     build_topic_nav,
 )
 from learn_to_cloud.rendering.steps import build_step_data
-from learn_to_cloud.services.content_service import (
-    get_all_phases,
-    get_phase_by_slug,
-    get_topic_by_slugs,
-)
 from learn_to_cloud.services.dashboard_service import get_dashboard_data
 from learn_to_cloud.services.progress_service import fetch_phase_progress
 from learn_to_cloud.services.steps_service import get_valid_completed_steps
 from learn_to_cloud.services.submissions_service import get_phase_submission_context
 from learn_to_cloud.services.users_service import get_user_by_id
-from learn_to_cloud.services.verification.requirements import (
-    is_phase_verification_locked,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -127,6 +130,11 @@ async def phase_page(
     sub_context = await get_phase_submission_context(db, user_id, phase_id)
     submissions_by_req = sub_context.submissions_by_req
     feedback_by_req = sub_context.feedback_by_req
+    active_jobs = await VerificationJobRepository(db).get_active_for_phase(
+        user_id,
+        phase_id,
+    )
+    active_jobs_by_req = {job.requirement_id: job for job in active_jobs}
 
     # Pre-compute per-requirement derived URLs and PR-review prefixes so the
     # Jinja template never builds GitHub URLs.  Uses the same helper as the
@@ -158,6 +166,7 @@ async def phase_page(
             requirements=requirements,
             submissions_by_req=submissions_by_req,
             feedback_by_req=feedback_by_req,
+            active_jobs_by_req=active_jobs_by_req,
             derived_urls_by_req=derived_urls_by_req,
             pr_url_prefixes_by_req=pr_url_prefixes_by_req,
             progress=progress,

@@ -9,6 +9,12 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      azurite:
+        condition: service_healthy
+      dts:
+        condition: service_started
+      aspire-dashboard:
+        condition: service_started
 
   db:
     image: postgres:16-alpine
@@ -26,5 +32,46 @@ services:
       timeout: 5s
       retries: 5
 
+  azurite:
+    image: mcr.microsoft.com/azure-storage/azurite:latest
+    ports:
+      - "10000:10000"
+      - "10001:10001"
+      - "10002:10002"
+    command: >
+      azurite
+      --blobHost 0.0.0.0
+      --queueHost 0.0.0.0
+      --tableHost 0.0.0.0
+      --location /data
+      --silent
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - require('http').get('http://127.0.0.1:10000/devstoreaccount1', res => process.exit(0)).on('error', () => process.exit(1))
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    volumes:
+      - azurite_data:/data
+
+  dts:
+    image: mcr.microsoft.com/dts/dts-emulator:latest
+    ports:
+      - "8080:8080"
+      - "8082:8082"
+
+  aspire-dashboard:
+    image: mcr.microsoft.com/dotnet/aspire-dashboard:latest
+    ports:
+      - "18888:18888"
+      - "4317:18889"
+      - "4318:18890"
+    environment:
+      ASPIRE_DASHBOARD_UNSECURED_ALLOW_ANONYMOUS: "true"
+
 volumes:
   postgres_data:
+  azurite_data:

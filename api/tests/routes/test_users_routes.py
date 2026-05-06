@@ -5,8 +5,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi import HTTPException
+from learn_to_cloud_shared.models import User
 
-from learn_to_cloud.models import User
 from learn_to_cloud.routes.users_routes import (
     delete_current_user,
     get_current_user,

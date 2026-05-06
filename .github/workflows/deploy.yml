@@ -5,8 +5,14 @@ on:
     branches: [main]
     paths:
       - 'api/**'
+      - 'apps/verification-functions/**'
       - 'content/**'
       - 'infra/**'
+      - 'packages/learn-to-cloud-shared/**'
+      - 'pyproject.toml'
+      - 'api/uv.lock'
+      - 'apps/verification-functions/uv.lock'
+      - 'packages/learn-to-cloud-shared/uv.lock'
       - 'scripts/**'
       - 'docker-compose.yml'
       - '.github/workflows/deploy.yml'
@@ -64,12 +70,24 @@ jobs:
           filters: |
             deploy:
               - 'api/**'
+              - 'apps/verification-functions/**'
               - 'content/**'
               - 'infra/**'
+              - 'packages/learn-to-cloud-shared/**'
+              - 'pyproject.toml'
+              - 'api/uv.lock'
+              - 'apps/verification-functions/uv.lock'
+              - 'packages/learn-to-cloud-shared/uv.lock'
               - '.github/workflows/deploy.yml'
             code:
               - 'api/**'
+              - 'apps/verification-functions/**'
               - 'content/**'
+              - 'packages/learn-to-cloud-shared/**'
+              - 'pyproject.toml'
+              - 'api/uv.lock'
+              - 'apps/verification-functions/uv.lock'
+              - 'packages/learn-to-cloud-shared/uv.lock'
 
   # -----------------------------------------------------------------------
   # Dependency Review — block PRs that introduce vulnerable dependencies
@@ -106,9 +124,6 @@ jobs:
           --health-retries 5
     env:
       DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/learntocloud
-    defaults:
-      run:
-        working-directory: api
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
@@ -123,28 +138,47 @@ jobs:
           version: "0.9.26"
           enable-cache: true
 
-      - name: Install dependencies
-        run: uv sync --locked
+      - name: Install project dependencies
+        run: |
+          (cd api && uv sync --locked)
+          (cd apps/verification-functions && uv sync --locked)
+          (cd packages/learn-to-cloud-shared && uv sync --locked)
 
-      - name: Ruff lint
-        uses: astral-sh/ruff-action@0ce1b0bf8b818ef400413f810f8a11cdbda0034b # v4.0.0
-        with:
-          src: "./api"
-          args: "check"
-          version: "0.8.6"
+      - name: Ruff lint API and shared package
+        working-directory: api
+        run: uv run ruff check . ../packages/learn-to-cloud-shared
 
-      - name: Ruff format check
-        uses: astral-sh/ruff-action@0ce1b0bf8b818ef400413f810f8a11cdbda0034b # v4.0.0
-        with:
-          src: "./api"
-          args: "format --check"
-          version: "0.8.6"
+      - name: Ruff lint verification functions
+        working-directory: apps/verification-functions
+        run: uv run ruff check .
 
-      - name: Type check (ty)
-        run: uv run ty check --python .venv/bin/python --exclude "scripts/" --exclude "tests/"
+      - name: Ruff format check API and shared package
+        working-directory: api
+        run: uv run ruff format --check . ../packages/learn-to-cloud-shared
 
-      - name: Run tests with coverage
-        run: uv run pytest tests/ -v --tb=short --cov=learn_to_cloud --cov-report=xml --cov-report=term-missing
+      - name: Ruff format check verification functions
+        working-directory: apps/verification-functions
+        run: uv run ruff format --check .
+
+      - name: Type check API
+        working-directory: api
+        run: uv run ty check --exclude "scripts/" --exclude "tests/" .
+
+      - name: Type check shared package
+        working-directory: packages/learn-to-cloud-shared
+        run: uv run ty check --exclude "tests/" .
+
+      - name: Type check verification functions
+        working-directory: apps/verification-functions
+        run: uv run ty check .
+
+      - name: Run API and shared tests with coverage
+        working-directory: api
+        run: uv run pytest tests/ ../packages/learn-to-cloud-shared/tests -v --tb=short --cov=learn_to_cloud --cov=learn_to_cloud_shared --cov-report=xml --cov-report=term-missing
+
+      - name: Smoke test verification functions import
+        working-directory: apps/verification-functions
+        run: uv run python -c "import function_app"
 
   # -----------------------------------------------------------------------
   # Status gates — always run so required checks are reported on every PR,
@@ -206,6 +240,7 @@ jobs:
       migration_identity_id: ${{ steps.tf-outputs.outputs.migration_identity_id }}
       migration_postgres_role: ${{ steps.tf-outputs.outputs.migration_postgres_role }}
       api_url: ${{ steps.tf-outputs.outputs.api_url }}
+      verification_functions_name: ${{ steps.tf-outputs.outputs.verification_functions_name }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
@@ -233,10 +268,6 @@ jobs:
         env:
           TF_VAR_subscription_id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
           TF_VAR_github_client_id: ${{ secrets.TF_VAR_github_client_id }}
-          TF_VAR_github_client_secret: ${{ secrets.TF_VAR_github_client_secret }}
-          TF_VAR_github_token: ${{ secrets.TF_VAR_github_token }}
-          TF_VAR_session_secret_key: ${{ secrets.TF_VAR_session_secret_key }}
-          TF_VAR_labs_verification_secret: ${{ secrets.TF_VAR_labs_verification_secret }}
           TF_VAR_postgres_entra_admin_object_id: ${{ vars.POSTGRES_ENTRA_ADMIN_OBJECT_ID }}
           TF_VAR_postgres_entra_admin_principal_name: ${{ vars.POSTGRES_ENTRA_ADMIN_PRINCIPAL_NAME }}
           TF_VAR_postgres_entra_admin_principal_type: ${{ vars.POSTGRES_ENTRA_ADMIN_PRINCIPAL_TYPE || 'Group' }}
@@ -258,6 +289,7 @@ jobs:
           echo "migration_identity_id=$(terraform output -raw migration_identity_id)" >> "$GITHUB_OUTPUT"
           echo "migration_postgres_role=$(terraform output -raw migration_postgres_role)" >> "$GITHUB_OUTPUT"
           echo "api_url=$(terraform output -raw api_url)" >> "$GITHUB_OUTPUT"
+          echo "verification_functions_name=$(terraform output -raw verification_functions_name)" >> "$GITHUB_OUTPUT"
 
   # -----------------------------------------------------------------------
   # Deploy — build image, push, update container app (push to main only)
@@ -270,12 +302,47 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
+        with:
+          python-version-file: "api/pyproject.toml"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          version: "0.9.26"
+          enable-cache: true
+
       - name: Azure CLI Login
         uses: azure/login@532459ea530d8321f2fb9bb10d1e0bcf23869a43 # v3
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Build verification Functions package
+        run: |
+          rm -rf apps/verification-functions/.python_packages
+          cd apps/verification-functions
+          uv export \
+            --locked \
+            --no-dev \
+            --no-emit-project \
+            --no-editable \
+            --format requirements.txt \
+            --no-hashes \
+            --output-file /tmp/verification-functions-requirements.txt
+          uv pip install \
+            --python "$(which python)" \
+            --target .python_packages/lib/site-packages \
+            -r /tmp/verification-functions-requirements.txt
+
+      - name: Deploy verification Functions
+        uses: Azure/functions-action@c9cc8ee93d1285e2a17312cc8357dc1775955272 # v1
+        with:
+          app-name: ${{ needs.terraform.outputs.verification_functions_name }}
+          package: apps/verification-functions
+          remote-build: false
 
       - name: Log in to ACR
         run: az acr login --name ${{ needs.terraform.outputs.container_registry_name }}

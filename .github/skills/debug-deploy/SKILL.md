@@ -77,12 +77,12 @@ Look for these common patterns in the logs:
 #### Test Failures
 **Pattern:** `FAILED`, `pytest`, `AssertionError`
 
-**Fix:** Run tests locally: `cd api && pytest tests/ -v`
+**Fix:** Run tests locally: `(cd api && uv run pytest tests/ ../packages/learn-to-cloud-shared/tests -v)`
 
 #### Lint Failures
 **Pattern:** `ruff`, `lint error`
 
-**Fix:** Run linter locally: `cd api && ruff check .`
+**Fix:** Run linter locally: `(cd api && uv run ruff check . ../packages/learn-to-cloud-shared)`
 
 ### Step 4: Fix and Re-run
 

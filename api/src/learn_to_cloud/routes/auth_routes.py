@@ -13,10 +13,10 @@ import httpx
 from authlib.integrations.starlette_client import OAuthError
 from fastapi import APIRouter, Request
 from fastapi.responses import RedirectResponse
+from learn_to_cloud_shared.core.config import get_settings
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from learn_to_cloud.core.auth import UserId, oauth
-from learn_to_cloud.core.config import get_settings
 from learn_to_cloud.core.ratelimit import limiter
 from learn_to_cloud.services.users_service import (
     get_or_create_user_from_github,

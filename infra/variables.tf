@@ -56,38 +56,31 @@ variable "postgres_migration_role" {
   }
 }
 
-variable "github_client_id" {
-  description = "GitHub OAuth App client ID"
+variable "postgres_verification_functions_role" {
+  description = "PostgreSQL role used by the verification Azure Functions app. Defaults to ltc_verification_functions_<environment>."
   type        = string
-}
-
-variable "github_client_secret" {
-  description = "GitHub OAuth App client secret"
-  type        = string
-  sensitive   = true
-}
-
-variable "github_token" {
-  description = "Read-only GitHub API token used for server-side verification requests"
-  type        = string
-  sensitive   = true
+  default     = null
 
   validation {
-    condition     = length(trimspace(var.github_token)) > 0
-    error_message = "github_token must be set to a read-only GitHub API token for production verification."
+    condition     = var.postgres_verification_functions_role == null || can(regex("^[A-Za-z_][A-Za-z0-9_]*$", var.postgres_verification_functions_role))
+    error_message = "postgres_verification_functions_role must be a valid PostgreSQL role identifier using letters, numbers, and underscores, and must not start with a number."
   }
 }
 
-variable "session_secret_key" {
-  description = "Secret key for signing session cookies"
-  type        = string
-  sensitive   = true
+variable "durable_task_scheduler_ip_allowlist" {
+  description = "CIDR ranges allowed to connect to the Durable Task Scheduler endpoint."
+  type        = list(string)
+  default     = ["0.0.0.0/0"]
+
+  validation {
+    condition     = length(var.durable_task_scheduler_ip_allowlist) > 0
+    error_message = "durable_task_scheduler_ip_allowlist must include at least one IPv4, IPv6, or CIDR range."
+  }
 }
 
-variable "labs_verification_secret" {
-  description = "CTF master secret for flag generation"
+variable "github_client_id" {
+  description = "GitHub OAuth App client ID"
   type        = string
-  sensitive   = true
 }
 
 variable "environment" {

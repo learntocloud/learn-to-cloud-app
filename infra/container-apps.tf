@@ -36,6 +36,12 @@ resource "azurerm_container_app" "api" {
   revision_mode                = "Single"
   tags                         = local.tags
 
+  lifecycle {
+    ignore_changes = [
+      template[0].container[0].image,
+    ]
+  }
+
   identity {
     type         = "UserAssigned"
     identity_ids = [azurerm_user_assigned_identity.api.id]
@@ -47,23 +53,32 @@ resource "azurerm_container_app" "api" {
   }
 
   secret {
-    name  = "github-client-secret"
-    value = var.github_client_secret
+    name                = "github-client-secret"
+    identity            = azurerm_user_assigned_identity.api.id
+    key_vault_secret_id = "${azurerm_key_vault.main.vault_uri}secrets/github-client-secret"
   }
 
   secret {
-    name  = "github-token"
-    value = var.github_token
+    name                = "github-token"
+    identity            = azurerm_user_assigned_identity.api.id
+    key_vault_secret_id = "${azurerm_key_vault.main.vault_uri}secrets/github-token"
   }
 
   secret {
-    name  = "session-secret-key"
-    value = var.session_secret_key
+    name                = "session-secret-key"
+    identity            = azurerm_user_assigned_identity.api.id
+    key_vault_secret_id = "${azurerm_key_vault.main.vault_uri}secrets/session-secret-key"
   }
 
   secret {
-    name  = "ctf-master-secret"
-    value = var.labs_verification_secret
+    name                = "ctf-master-secret"
+    identity            = azurerm_user_assigned_identity.api.id
+    key_vault_secret_id = "${azurerm_key_vault.main.vault_uri}secrets/labs-verification-secret"
+  }
+
+  secret {
+    name  = "verification-functions-key"
+    value = random_password.verification_functions_key.result
   }
 
   ingress {
@@ -78,7 +93,7 @@ resource "azurerm_container_app" "api" {
   }
 
   template {
-    min_replicas = 1
+    min_replicas = 0
     # PostgreSQL max connections vary by SKU.
     # Each replica uses up to 10 (pool_size=5 + max_overflow=5).
     # 2 replicas × 10 = 20 connections — well under typical SKU limits.
@@ -147,6 +162,16 @@ resource "azurerm_container_app" "api" {
       }
 
       env {
+        name  = "VERIFICATION_FUNCTIONS_BASE_URL"
+        value = "https://${azurerm_function_app_flex_consumption.verification.default_hostname}"
+      }
+
+      env {
+        name        = "VERIFICATION_FUNCTIONS_KEY"
+        secret_name = "verification-functions-key"
+      }
+
+      env {
         name  = "FRONTEND_URL"
         value = "https://learntocloud.guide"
       }
@@ -183,6 +208,8 @@ resource "azurerm_container_app" "api" {
 
   depends_on = [
     azurerm_role_assignment.api_acr_pull,
+    azurerm_role_assignment.api_key_vault_secrets_user,
+    azapi_resource.verification_functions_host_key,
     azurerm_postgresql_flexible_server_database.main,
   ]
 }

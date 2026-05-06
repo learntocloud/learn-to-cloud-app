@@ -1,0 +1,28 @@
+{
+  "version": "2.0",
+  "telemetryMode": "OpenTelemetry",
+  "logging": {
+    "logLevel": {
+      "Host.Triggers.DurableTask": "Warning",
+      "DurableTask.Core": "Warning",
+      "DurableTask.DurableTaskScheduler": "Warning"
+    }
+  },
+  "extensions": {
+    "durableTask": {
+      "hubName": "%TASKHUB_NAME%",
+      "storageProvider": {
+        "type": "azureManaged",
+        "connectionStringName": "DURABLE_TASK_SCHEDULER_CONNECTION_STRING"
+      },
+      "tracing": {
+        "distributedTracingEnabled": true,
+        "version": "V2"
+      }
+    }
+  },
+  "extensionBundle": {
+    "id": "Microsoft.Azure.Functions.ExtensionBundle",
+    "version": "[4.32.0, 5.0.0)"
+  }
+}

@@ -9,15 +9,15 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from learn_to_cloud.models import SubmissionType
-from learn_to_cloud.services.verification.url_derivation import (
+from learn_to_cloud_shared.models import SubmissionType
+from learn_to_cloud_shared.verification.url_derivation import (
     derive_submission_value,
     fork_name_from_required_repo,
     is_derivable,
 )
 
 if TYPE_CHECKING:
-    from learn_to_cloud.schemas import Phase, PhaseProgress, TaskResult, Topic
+    from learn_to_cloud_shared.schemas import Phase, PhaseProgress, TaskResult, Topic
 
 # ── FAQ content ──────────────────────────────────────────────
 # Stored here (rendering layer) rather than in templates or routes.

@@ -43,4 +43,4 @@ Create a new feature following the **Routes > Services > Repositories** architec
 - Use `AsyncMock()` for async methods.
 
 ## Validation
-After generating, run: `cd api && uv run ruff check . && uv run ruff format --check . && uv run ty check`
+After generating, run: `cd api && uv run ruff check . ../packages/learn-to-cloud-shared && uv run ruff format --check . ../packages/learn-to-cloud-shared && uv run ty check --exclude scripts --exclude tests .`

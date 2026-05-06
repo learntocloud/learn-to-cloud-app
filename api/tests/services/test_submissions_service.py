@@ -1,8 +1,7 @@
-"""Tests for submissions_service abuse protection.
+"""Tests for submissions_service verification job pre-validation.
 
 Tests cover:
 - Already-validated short-circuit
-- Concurrent submission protection
 - Sequential phase gating
 """
 
@@ -11,18 +10,16 @@ from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from learn_to_cloud_shared.models import SubmissionType
+from learn_to_cloud_shared.schemas import HandsOnRequirement
 
-from learn_to_cloud.models import SubmissionType
-from learn_to_cloud.schemas import HandsOnRequirement, ValidationResult
 from learn_to_cloud.services.submissions_service import (
     AlreadyValidatedError,
-    ConcurrentSubmissionError,
     GitHubUsernameRequiredError,
     PriorPhaseNotCompleteError,
     RequirementNotFoundError,
-    _get_submission_lock,
+    create_verification_job,
     get_phase_submission_context,
-    submit_validation,
 )
 
 
@@ -104,7 +101,7 @@ def _mock_session_maker():
 
 @pytest.mark.unit
 class TestSubmissionValidationErrors:
-    """Tests for error handling in submit_validation."""
+    """Tests for error handling in create_verification_job."""
 
     @pytest.mark.asyncio
     async def test_requirement_not_found_raises_error(self):
@@ -119,7 +116,7 @@ class TestSubmissionValidationErrors:
             ),
             pytest.raises(RequirementNotFoundError),
         ):
-            await submit_validation(
+            await create_verification_job(
                 session_maker=mock_session_maker,
                 user_id=123,
                 requirement_id="nonexistent",
@@ -148,81 +145,16 @@ class TestSubmissionValidationErrors:
         ):
             mock_repo = MagicMock()
             mock_repo.get_by_user_and_requirement = AsyncMock(return_value=None)
-            mock_repo.get_last_submission_time = AsyncMock(return_value=None)
             mock_repo_class.return_value = mock_repo
 
             with pytest.raises(GitHubUsernameRequiredError):
-                await submit_validation(
+                await create_verification_job(
                     session_maker=mock_session_maker,
                     user_id=123,
                     requirement_id="test-requirement",
                     submitted_value="https://github.com/user/repo",
                     github_username=None,  # Missing!
                 )
-
-
-@pytest.mark.unit
-class TestConcurrentSubmissionProtection:
-    """Tests for concurrent submission lock protection."""
-
-    @pytest.mark.asyncio
-    async def test_lock_is_per_user_requirement(self):
-        """Different user+requirement combinations should have separate locks."""
-        lock1 = await _get_submission_lock(1, "req-1")
-        lock2 = await _get_submission_lock(1, "req-2")
-        lock3 = await _get_submission_lock(2, "req-1")
-
-        # All should be different lock instances
-        assert lock1 is not lock2
-        assert lock1 is not lock3
-        assert lock2 is not lock3
-
-    @pytest.mark.asyncio
-    async def test_same_user_requirement_gets_same_lock(self):
-        """Same user+requirement should return the same lock instance."""
-        lock1 = await _get_submission_lock(1, "req-1")
-        lock2 = await _get_submission_lock(1, "req-1")
-
-        assert lock1 is lock2
-
-    @pytest.mark.asyncio
-    async def test_concurrent_submission_raises_error(self):
-        """Second submission while first is in progress should raise error."""
-        mock_session_maker = _mock_session_maker()
-        mock_requirement = _make_mock_requirement()
-
-        # Pre-acquire the lock to simulate in-progress submission
-        lock = await _get_submission_lock(123, "test-requirement")
-
-        with (
-            patch(
-                "learn_to_cloud.services.submissions_service.get_requirement_by_id",
-                autospec=True,
-                return_value=mock_requirement,
-            ),
-            patch(
-                "learn_to_cloud.services.submissions_service.SubmissionRepository",
-                autospec=True,
-            ) as mock_repo_class,
-        ):
-            mock_repo = MagicMock()
-            mock_repo.get_by_user_and_requirement = AsyncMock(return_value=None)
-            mock_repo.get_last_submission_time = AsyncMock(return_value=None)
-            mock_repo_class.return_value = mock_repo
-
-            # Acquire the lock (simulating first request in progress)
-            async with lock:
-                # Second request should fail immediately
-                with pytest.raises(ConcurrentSubmissionError) as exc_info:
-                    await submit_validation(
-                        session_maker=mock_session_maker,
-                        user_id=123,
-                        requirement_id="test-requirement",
-                        submitted_value="https://github.com/user/repo",
-                        github_username="user",
-                    )
-
-                assert "already in progress" in str(exc_info.value)
 
 
 @pytest.mark.unit
@@ -254,7 +186,7 @@ class TestAlreadyValidatedShortCircuit:
             mock_repo_class.return_value = mock_repo
 
             with pytest.raises(AlreadyValidatedError):
-                await submit_validation(
+                await create_verification_job(
                     session_maker=mock_session_maker,
                     user_id=123,
                     requirement_id="test-requirement",
@@ -279,42 +211,25 @@ class TestAlreadyValidatedShortCircuit:
                 autospec=True,
             ) as mock_repo_class,
             patch(
-                "learn_to_cloud.services.submissions_service.validate_submission",
+                "learn_to_cloud.services.submissions_service.VerificationJobRepository",
                 autospec=True,
-            ) as mock_validate,
+            ) as mock_job_repo_class,
         ):
             mock_repo = MagicMock()
             # Existing submission is NOT validated — retry allowed
             mock_repo.get_by_user_and_requirement = AsyncMock(
                 return_value=_make_mock_submission()
             )
-            mock_repo.get_last_submission_time = AsyncMock(return_value=None)
-            mock_repo.create = AsyncMock(
-                return_value=MagicMock(
-                    id=1,
-                    requirement_id="test-requirement",
-                    submission_type=SubmissionType.CI_STATUS,
-                    phase_id=3,
-                    submitted_value="https://github.com/user/repo",
-                    extracted_username="user",
-                    is_validated=True,
-                    validated_at=datetime.now(UTC),
-                    verification_completed=True,
-                    created_at=datetime.now(UTC),
-                    feedback_json=None,
-                    validation_message=None,
-                    cloud_provider=None,
-                    updated_at=datetime.now(UTC),
-                )
-            )
             mock_repo_class.return_value = mock_repo
 
-            mock_validate.return_value = ValidationResult(
-                is_valid=True,
-                message="All tasks passed",
+            mock_job = MagicMock()
+            mock_job_repo = MagicMock()
+            mock_job_repo.create_or_get_active = AsyncMock(
+                return_value=(mock_job, True)
             )
+            mock_job_repo_class.return_value = mock_job_repo
 
-            result = await submit_validation(
+            result = await create_verification_job(
                 session_maker=mock_session_maker,
                 user_id=123,
                 requirement_id="test-requirement",
@@ -322,7 +237,8 @@ class TestAlreadyValidatedShortCircuit:
                 github_username="user",
             )
 
-            assert result.is_valid is True
+            assert result.job is mock_job
+            assert result.created is True
 
 
 @pytest.mark.unit
@@ -370,7 +286,7 @@ class TestSequentialPhaseGating:
             mock_repo_class.return_value = mock_repo
 
             with pytest.raises(PriorPhaseNotCompleteError) as exc_info:
-                await submit_validation(
+                await create_verification_job(
                     session_maker=mock_session_maker,
                     user_id=123,
                     requirement_id="deployed-journal-api",
@@ -412,40 +328,23 @@ class TestSequentialPhaseGating:
                 autospec=True,
             ) as mock_repo_class,
             patch(
-                "learn_to_cloud.services.submissions_service.validate_submission",
+                "learn_to_cloud.services.submissions_service.VerificationJobRepository",
                 autospec=True,
-            ) as mock_validate,
+            ) as mock_job_repo_class,
         ):
             mock_repo = MagicMock()
             mock_repo.get_by_user_and_requirement = AsyncMock(return_value=None)
-            mock_repo.get_last_submission_time = AsyncMock(return_value=None)
             mock_repo.are_all_requirements_validated = AsyncMock(return_value=True)
-            mock_repo.create = AsyncMock(
-                return_value=MagicMock(
-                    id=1,
-                    requirement_id="deployed-journal-api",
-                    submission_type=SubmissionType.DEPLOYED_API,
-                    phase_id=4,
-                    submitted_value="https://api.example.com",
-                    extracted_username=None,
-                    is_validated=True,
-                    validated_at=datetime.now(UTC),
-                    verification_completed=True,
-                    created_at=datetime.now(UTC),
-                    feedback_json=None,
-                    validation_message=None,
-                    cloud_provider=None,
-                    updated_at=datetime.now(UTC),
-                )
-            )
             mock_repo_class.return_value = mock_repo
 
-            mock_validate.return_value = ValidationResult(
-                is_valid=True,
-                message="Deployed API verified!",
+            mock_job = MagicMock()
+            mock_job_repo = MagicMock()
+            mock_job_repo.create_or_get_active = AsyncMock(
+                return_value=(mock_job, True)
             )
+            mock_job_repo_class.return_value = mock_job_repo
 
-            result = await submit_validation(
+            result = await create_verification_job(
                 session_maker=mock_session_maker,
                 user_id=123,
                 requirement_id="deployed-journal-api",
@@ -453,8 +352,9 @@ class TestSequentialPhaseGating:
                 github_username="user",
             )
 
-            assert result.is_valid is True
-            mock_validate.assert_called_once()
+            assert result.job is mock_job
+            assert result.created is True
+            mock_job_repo.create_or_get_active.assert_awaited_once()
 
 
 # ---------------------------------------------------------------------------

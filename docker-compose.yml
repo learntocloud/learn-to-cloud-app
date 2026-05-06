@@ -17,6 +17,37 @@ services:
       timeout: 5s
       retries: 5
 
+  azurite:
+    image: mcr.microsoft.com/azure-storage/azurite:latest
+    ports:
+      - "127.0.0.1:10000:10000"
+      - "127.0.0.1:10001:10001"
+      - "127.0.0.1:10002:10002"
+    command: >
+      azurite
+      --blobHost 0.0.0.0
+      --queueHost 0.0.0.0
+      --tableHost 0.0.0.0
+      --location /data
+      --silent
+    volumes:
+      - azurite_data:/data
+
+  dts:
+    image: mcr.microsoft.com/dts/dts-emulator:latest
+    ports:
+      - "127.0.0.1:8080:8080"
+      - "127.0.0.1:8082:8082"
+
+  aspire-dashboard:
+    image: mcr.microsoft.com/dotnet/aspire-dashboard:latest
+    ports:
+      - "127.0.0.1:18888:18888"
+      - "127.0.0.1:4317:18889"
+      - "127.0.0.1:4318:18890"
+    environment:
+      ASPIRE_DASHBOARD_UNSECURED_ALLOW_ANONYMOUS: "true"
+
   # Test service to reproduce multi-worker migration race condition
   # Usage: docker compose up db api-multiworker --build
   api-multiworker:
@@ -36,3 +67,4 @@ services:
 
 volumes:
   postgres_data:
+  azurite_data:

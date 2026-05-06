@@ -12,8 +12,8 @@ from typing import Any, cast
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from learn_to_cloud_shared.schemas import LearningStep, Topic
 
-from learn_to_cloud.schemas import LearningStep, Topic
 from learn_to_cloud.services.steps_service import (
     StepInvalidStepIdError,
     StepUnknownTopicError,

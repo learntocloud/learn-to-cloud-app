@@ -1,0 +1,22 @@
+{
+  "mcpServers": {
+    "context7": {
+      "type": "local",
+      "command": "context7-mcp",
+      "args": [],
+      "tools": ["*"]
+    },
+    "tavily": {
+      "type": "local",
+      "command": "tavily-mcp",
+      "args": [],
+      "tools": ["*"]
+    },
+    "azure": {
+      "type": "local",
+      "command": "azmcp",
+      "args": ["server", "start"],
+      "tools": ["*"]
+    }
+  }
+}

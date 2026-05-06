@@ -8,16 +8,8 @@ Tests cover:
 """
 
 import pytest
-
-from learn_to_cloud.models import SubmissionType
-from learn_to_cloud.rendering.context import (
-    build_feedback_tasks_from_results,
-    build_phase_topics,
-    build_progress_dict,
-    build_requirement_card_context,
-    build_topic_nav,
-)
-from learn_to_cloud.schemas import (
+from learn_to_cloud_shared.models import SubmissionType
+from learn_to_cloud_shared.schemas import (
     HandsOnRequirement,
     LearningStep,
     Phase,
@@ -25,6 +17,14 @@ from learn_to_cloud.schemas import (
     TaskResult,
     Topic,
     TopicProgressData,
+)
+
+from learn_to_cloud.rendering.context import (
+    build_feedback_tasks_from_results,
+    build_phase_topics,
+    build_progress_dict,
+    build_requirement_card_context,
+    build_topic_nav,
 )
 
 # ---------------------------------------------------------------------------

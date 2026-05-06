@@ -3,39 +3,56 @@
 These routes handle interactive HTMX requests (step toggles, form
 submissions, etc.) and return HTML partials instead of JSON.
 
-Async verifications (DEVOPS_ANALYSIS, PR_REVIEW)
-use a background task + SSE pattern:
+Async verifications use Durable Functions + SSE:
 1. POST /htmx/github/submit — pre-validates and returns a spinner card
-   immediately (~100ms)
-2. Background task runs verification and publishes the result
-3. GET /htmx/verification/{requirement_id}/stream — SSE endpoint that
-   pushes the result HTML when the background task finishes
+    immediately (~100ms)
+2. Durable Functions runs verification and updates PostgreSQL job state
+3. GET /htmx/verification/{requirement_id}/stream polls PostgreSQL and
+   pushes the result HTML when the job reaches a terminal state
 """
 
 import asyncio
-import html
+import json
 import logging
+from dataclasses import dataclass
 from typing import Annotated
 
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse
+from learn_to_cloud_shared.content_service import get_topic_by_id
+from learn_to_cloud_shared.core.config import get_settings
+from learn_to_cloud_shared.core.database import DbSession
+from learn_to_cloud_shared.models import SubmissionType, VerificationJobStatus
+from learn_to_cloud_shared.repositories.submission_repository import (
+    SubmissionRepository,
+)
+from learn_to_cloud_shared.repositories.verification_job_repository import (
+    ACTIVE_JOB_STATUSES,
+    VerificationJobRepository,
+)
+from learn_to_cloud_shared.schemas import SubmissionData
+from learn_to_cloud_shared.verification.execution import to_submission_data
+from learn_to_cloud_shared.verification.requirements import get_requirement_by_id
+from learn_to_cloud_shared.verification.url_derivation import (
+    derive_submission_value,
+    is_derivable,
+)
 from opentelemetry import trace
 from starlette.responses import StreamingResponse
 
 from learn_to_cloud.core.auth import CurrentUser, UserId
-from learn_to_cloud.core.config import get_settings
-from learn_to_cloud.core.database import DbSession
 from learn_to_cloud.core.ratelimit import limiter
 from learn_to_cloud.core.templates import templates
-from learn_to_cloud.models import SubmissionType
 from learn_to_cloud.rendering.context import (
-    build_feedback_tasks_from_results,
     build_progress_dict,
     build_requirement_card_context,
 )
 from learn_to_cloud.rendering.steps import build_step_data
-from learn_to_cloud.schemas import SubmissionData
-from learn_to_cloud.services.content_service import get_topic_by_id
+from learn_to_cloud.services.durable_verification_client import (
+    DurableVerificationConfigError,
+    DurableVerificationStartError,
+    start_verification_orchestration,
+)
 from learn_to_cloud.services.steps_service import (
     StepValidationError,
     complete_step,
@@ -45,25 +62,17 @@ from learn_to_cloud.services.steps_service import (
 )
 from learn_to_cloud.services.submissions_service import (
     AlreadyValidatedError,
-    ConcurrentSubmissionError,
     DuplicatePrError,
+    GitHubUsernameRequiredError,
     PriorPhaseNotCompleteError,
-    submit_validation,
+    RequirementNotFoundError,
+    VerificationJobSubmission,
+    create_verification_job,
 )
 from learn_to_cloud.services.users_service import (
     UserNotFoundError,
     delete_user_account,
     get_user_by_id,
-)
-from learn_to_cloud.services.verification.events import (
-    get_task,
-    remove_task,
-    store_task,
-)
-from learn_to_cloud.services.verification.requirements import get_requirement_by_id
-from learn_to_cloud.services.verification.url_derivation import (
-    derive_submission_value,
-    is_derivable,
 )
 
 logger = logging.getLogger(__name__)
@@ -71,10 +80,76 @@ logger = logging.getLogger(__name__)
 # Submission errors whose message is safe to show directly to the user.
 _USER_FACING_ERRORS = (
     AlreadyValidatedError,
-    ConcurrentSubmissionError,
     DuplicatePrError,
+    GitHubUsernameRequiredError,
     PriorPhaseNotCompleteError,
+    RequirementNotFoundError,
 )
+
+_DURABLE_START_ERROR_MESSAGE = (
+    "Verification could not be started. This attempt was not counted — "
+    "please try again."
+)
+
+
+@dataclass(frozen=True, slots=True)
+class _VerificationStreamState:
+    status: VerificationJobStatus
+    error_message: str | None
+    submission: SubmissionData | None
+
+
+def _build_feedback_tasks_from_submission(
+    submission: SubmissionData | None,
+) -> tuple[list[dict[str, object]], int]:
+    if submission is None or not submission.feedback_json:
+        return [], 0
+
+    try:
+        raw_tasks = json.loads(submission.feedback_json)
+    except (json.JSONDecodeError, TypeError):
+        return [], 0
+
+    tasks = [
+        {
+            "name": task.get("task_name", ""),
+            "passed": task.get("passed", False),
+            "message": task.get("feedback", ""),
+            "next_steps": task.get("next_steps", ""),
+        }
+        for task in raw_tasks
+        if isinstance(task, dict)
+    ]
+    return tasks, sum(1 for task in tasks if task["passed"])
+
+
+async def _load_verification_stream_state(
+    session_maker,
+    user_id: int,
+    requirement_id: str,
+) -> _VerificationStreamState | None:
+    async with session_maker() as session:
+        job = await VerificationJobRepository(session).get_latest_for_requirement(
+            user_id,
+            requirement_id,
+        )
+        if job is None:
+            return None
+
+        submission = None
+        if job.result_submission_id is not None:
+            db_submission = await SubmissionRepository(session).get_by_id(
+                job.result_submission_id
+            )
+            if db_submission is not None:
+                submission = to_submission_data(db_submission)
+
+        return _VerificationStreamState(
+            status=job.status,
+            error_message=job.error_message,
+            submission=submission,
+        )
+
 
 router = APIRouter(prefix="/htmx", tags=["htmx"], include_in_schema=False)
 
@@ -202,13 +277,7 @@ async def htmx_submit_verification(
     submitted_value: Annotated[str, Form(max_length=2048)] = "",
     pr_number: Annotated[str, Form(max_length=16)] = "",
 ) -> HTMLResponse:
-    """Submit a hands-on verification.
-
-    Derives the canonical URL, fires a background task, and returns a
-    spinner card that connects to an SSE stream for the result.
-    All validation (preconditions, grading, persistence) happens
-    in the background task — errors surface via SSE.
-    """
+    """Submit a hands-on verification and start its Durable orchestration."""
     user_id = current_user.user_id
     github_username = current_user.github_username
 
@@ -271,21 +340,60 @@ async def htmx_submit_verification(
     else:
         derived_value = submitted_value
 
-    # ── Fire background task ───────────────────────────────────────────
+    # ── Persist job, then start Durable orchestration ──────────────────
+    job_submission: VerificationJobSubmission | None = None
     try:
-        task = asyncio.create_task(
-            submit_validation(
-                session_maker=session_maker,
-                user_id=user_id,
-                requirement_id=requirement_id,
-                submitted_value=derived_value,
-                github_username=github_username,
-            )
+        job_submission = await create_verification_job(
+            session_maker=session_maker,
+            user_id=user_id,
+            requirement_id=requirement_id,
+            submitted_value=derived_value,
+            github_username=github_username,
         )
-        store_task(user_id, requirement_id, task)
+
+        if (
+            job_submission.created
+            or job_submission.job.orchestration_instance_id is None
+        ):
+            start_result = await start_verification_orchestration(job_submission.job.id)
+            async with session_maker() as write_session:
+                await VerificationJobRepository(write_session).mark_starting(
+                    job_submission.job.id,
+                    start_result.instance_id,
+                )
+                await write_session.commit()
 
         return _render_card(processing=True)
 
+    except _USER_FACING_ERRORS as exc:
+        return _render_card(error_banner=str(exc))
+    except (
+        DurableVerificationConfigError,
+        DurableVerificationStartError,
+    ) as exc:
+        span = trace.get_current_span()
+        span.record_exception(exc)
+        span.set_attribute("error.type", type(exc).__name__)
+        logger.warning(
+            "htmx.submit.durable_start_failed",
+            extra={
+                "user_id": user_id,
+                "requirement_id": requirement_id,
+                "error_type": type(exc).__name__,
+            },
+        )
+        if job_submission is not None:
+            async with session_maker() as write_session:
+                await VerificationJobRepository(write_session).mark_server_error(
+                    job_submission.job.id,
+                    error_code="durable_start_failed",
+                    error_message=_DURABLE_START_ERROR_MESSAGE,
+                )
+                await write_session.commit()
+        return _render_card(
+            server_error=True,
+            server_error_message=_DURABLE_START_ERROR_MESSAGE,
+        )
     except Exception as exc:
         span = trace.get_current_span()
         span.record_exception(exc)
@@ -313,136 +421,116 @@ async def htmx_verification_stream(
     requirement_id: str,
     current_user: CurrentUser,
 ) -> StreamingResponse:
-    """SSE stream that pushes the verification result when ready.
-
-    The HTMX SSE extension connects here after a submission is kicked off.
-    When the background task completes, this endpoint sends a single SSE
-    event containing the rendered result card HTML, then closes.
-
-    If the client disconnects before the result arrives (tab close, nav),
-    the result is still persisted in the DB and will show on next page load.
-    """
+    """SSE stream that pushes the DB-backed verification result when ready."""
     user_id = current_user.user_id
     stream_github_username = current_user.github_username
-    task = get_task(user_id, requirement_id)
+    session_maker = request.app.state.session_maker
 
     async def event_generator():
-        if task is None:
-            # No pending verification — might have already completed.
-            # Send an HX-Refresh to reload the page with DB state.
-            yield (
-                "event: verification-result\n"
-                "data: <div hx-trigger='load' hx-get='/'"
-                " hx-swap='none'></div>\n\n"
-            )
-            return
-
-        try:
-            # Wait up to 3 minutes for the result
-            result = await asyncio.wait_for(
-                asyncio.shield(task),
-                timeout=get_settings().verification_wait_timeout,
-            )
-        except TimeoutError:
-            yield (
-                "event: verification-result\n"
-                "data: <div class='text-amber-600 text-sm p-2'>"
-                "Verification is taking longer than expected. "
-                "Refresh the page to check for results.</div>\n\n"
-            )
-            return
-        except _USER_FACING_ERRORS as exc:
-            span = trace.get_current_span()
-            span.record_exception(exc)
-            span.set_attribute("error.type", type(exc).__name__)
-            span.set_attribute("user.id", user_id)
-            span.set_attribute("requirement.id", requirement_id)
-            logger.warning(
-                "verification.stream.user_error",
-                extra={
-                    "user_id": user_id,
-                    "requirement_id": requirement_id,
-                    "error_type": type(exc).__name__,
-                    "error_message": str(exc),
-                },
-            )
-            safe_msg = html.escape(str(exc))
-            yield (
-                "event: verification-result\n"
-                f"data: <div class='text-amber-600 text-sm p-2'>"
-                f"{safe_msg}</div>\n\n"
-            )
-            return
-        except Exception as exc:
-            span = trace.get_current_span()
-            span.record_exception(exc)
-            span.set_attribute("error.type", type(exc).__name__)
-            span.set_attribute("user.id", user_id)
-            span.set_attribute("requirement.id", requirement_id)
-            logger.exception(
-                "verification.stream.task_failed",
-                extra={
-                    "user_id": user_id,
-                    "requirement_id": requirement_id,
-                    "error_type": type(exc).__name__,
-                },
-            )
-            yield (
-                "event: verification-result\n"
-                "data: <div class='text-red-600 text-sm p-2'>"
-                "An unexpected error occurred during verification. "
-                "This attempt was not counted — please try again.</div>\n\n"
-            )
-            return
-        finally:
-            # Always clean up, even on timeout or client disconnect
-            remove_task(user_id, requirement_id)
-
         requirement = get_requirement_by_id(requirement_id)
-
-        if result.is_valid:
-            # On success, trigger full page refresh so the stepper
-            # advances to the next requirement.
+        if requirement is None:
             yield (
                 "event: verification-result\n"
                 "data: <div hx-trigger='load'"
                 " hx-on::load='setTimeout(()=>location.reload(),100)'"
                 "></div>\n\n"
             )
-        else:
-            # Render the result card HTML inline
-            submission = result.submission
+            return
+        wait_timeout = get_settings().verification_wait_timeout
+        deadline = asyncio.get_running_loop().time() + wait_timeout
 
-            feedback_tasks, feedback_passed = build_feedback_tasks_from_results(
-                result.task_results
+        while True:
+            try:
+                state = await _load_verification_stream_state(
+                    session_maker,
+                    user_id,
+                    requirement_id,
+                )
+            except Exception as exc:
+                span = trace.get_current_span()
+                span.record_exception(exc)
+                span.set_attribute("error.type", type(exc).__name__)
+                span.set_attribute("user.id", user_id)
+                span.set_attribute("requirement.id", requirement_id)
+                logger.exception(
+                    "verification.stream.db_read_failed",
+                    extra={
+                        "user_id": user_id,
+                        "requirement_id": requirement_id,
+                        "error_type": type(exc).__name__,
+                    },
+                )
+                yield (
+                    "event: verification-result\n"
+                    "data: <div class='text-red-600 text-sm p-2'>"
+                    "Unable to load verification status. Refresh the page "
+                    "to check for results.</div>\n\n"
+                )
+                return
+
+            if state is None:
+                yield (
+                    "event: verification-result\n"
+                    "data: <div hx-trigger='load'"
+                    " hx-on::load='setTimeout(()=>location.reload(),100)'"
+                    "></div>\n\n"
+                )
+                return
+
+            if state.status in ACTIVE_JOB_STATUSES:
+                if asyncio.get_running_loop().time() >= deadline:
+                    yield (
+                        "event: verification-result\n"
+                        "data: <div class='text-amber-600 text-sm p-2'>"
+                        "Verification is taking longer than expected. "
+                        "Refresh the page to check for results.</div>\n\n"
+                    )
+                    return
+                await asyncio.sleep(1)
+                continue
+
+            if state.status == VerificationJobStatus.SUCCEEDED:
+                yield (
+                    "event: verification-result\n"
+                    "data: <div hx-trigger='load'"
+                    " hx-on::load='setTimeout(()=>location.reload(),100)'"
+                    "></div>\n\n"
+                )
+                return
+
+            feedback_tasks, feedback_passed = _build_feedback_tasks_from_submission(
+                state.submission
             )
+            server_error = state.status == VerificationJobStatus.SERVER_ERROR
             error_banner = None
-            if (
-                not result.is_valid
-                and not result.is_server_error
-                and not feedback_tasks
-            ):
-                error_banner = result.message
+            if state.status == VerificationJobStatus.FAILED and not feedback_tasks:
+                error_banner = (
+                    state.submission.validation_message
+                    if state.submission and state.submission.validation_message
+                    else state.error_message
+                )
+            elif state.status == VerificationJobStatus.CANCELLED:
+                error_banner = state.error_message or "Verification was cancelled."
 
             card_html = templates.get_template("partials/requirement_card.html").render(
                 request=request,
                 **build_requirement_card_context(
                     requirement=requirement,
                     github_username=stream_github_username,
-                    submission=submission,
-                    feedback_tasks=feedback_tasks or [],
+                    submission=state.submission,
+                    feedback_tasks=feedback_tasks,
                     feedback_passed=feedback_passed,
-                    server_error=result.is_server_error,
+                    server_error=server_error,
                     server_error_message=(
-                        result.message if result.is_server_error else None
+                        state.error_message if server_error else None
                     ),
                     error_banner=error_banner,
                     processing=False,
                 ),
             )
-            # SSE data lines: replace newlines with \ndata: for multi-line HTML
             data_lines = card_html.replace("\n", "\ndata: ")
             yield f"event: verification-result\ndata: {data_lines}\n\n"
+            return
 
     return StreamingResponse(
         event_generator(),
