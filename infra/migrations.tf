@@ -26,8 +26,8 @@ resource "azurerm_container_app_job" "migrations" {
     container {
       name    = "migrations"
       image   = "${azurerm_container_registry.main.login_server}/api:latest"
-      command = ["alembic"]
-      args    = ["upgrade", "head"]
+      command = ["python"]
+      args    = ["scripts/run_migrations.py"]
       cpu     = 0.5
       memory  = "1Gi"
 

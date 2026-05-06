@@ -384,8 +384,8 @@ jobs:
               --resource-group "$RESOURCE_GROUP" \
               --container-name migrations \
               --image "$IMAGE" \
-              --command alembic \
-              --args upgrade head \
+              --command python \
+              --args scripts/run_migrations.py \
               --env-vars \
                 POSTGRES_HOST="$POSTGRES_HOST" \
                 POSTGRES_USER="$POSTGRES_USER" \
