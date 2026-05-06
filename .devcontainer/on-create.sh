@@ -10,11 +10,29 @@ if ! command -v uv &> /dev/null; then
 fi
 export PATH="$HOME/.local/bin:$PATH"
 
-# Setup API (Python/FastAPI)
-echo "🐍 Setting up API..."
-cd api
-uv sync
-cd ..
+echo "🤖 Installing GitHub Copilot CLI + MCP servers..."
+npm install -g \
+    @github/copilot@latest \
+    @upstash/context7-mcp@latest \
+    tavily-mcp@latest \
+    @azure/mcp@latest \
+    mcp-remote@latest
+
+echo "🧠 Configuring Copilot Azure skills..."
+if ! copilot plugin marketplace list | grep -q "azure-skills"; then
+    copilot plugin marketplace add microsoft/azure-skills
+fi
+if ! copilot plugin list | grep -q "azure@azure-skills"; then
+    copilot plugin install azure@azure-skills
+fi
+
+# Setup Python environments. Each uv project owns its local .venv.
+echo "🐍 Setting up API Python environment..."
+(cd api && uv sync --locked)
+echo "⚡ Setting up verification Functions Python environment..."
+(cd apps/verification-functions && uv sync --locked)
+echo "📦 Setting up shared package Python environment..."
+(cd packages/learn-to-cloud-shared && uv sync --locked)
 
 # Install Playwright MCP server + browser for dogfooding
 echo "🎭 Installing Playwright MCP + browser..."
@@ -24,6 +42,12 @@ if [ "$(uname -m)" = "aarch64" ]; then
     npx -y playwright install chromium
 else
     npx -y playwright install chrome
+fi
+
+# Install Azure Functions Core Tools for local Durable Functions development.
+if ! command -v func &> /dev/null; then
+    echo "⚡ Installing Azure Functions Core Tools..."
+    npm install -g azure-functions-core-tools@4 --unsafe-perm true
 fi
 
 # Install prek (pre-commit hook runner)

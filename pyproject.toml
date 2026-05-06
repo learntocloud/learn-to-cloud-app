@@ -1,0 +1,54 @@
+[tool.pytest.ini_options]
+testpaths = [
+    "api/tests",
+    "packages/learn-to-cloud-shared/tests",
+]
+asyncio_mode = "auto"
+pythonpath = [
+    "api",
+    "api/src",
+    "packages/learn-to-cloud-shared/src",
+]
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
+addopts = [
+    "--strict-markers",
+    "--strict-config",
+    "--durations=10",
+    "-ra",
+    "-v",
+]
+markers = [
+    "unit: unit tests (fast, no I/O)",
+    "integration: integration tests (database required)",
+    "slow: tests that take > 1s",
+    "smoke: minimal smoke test subset",
+    "skip_until_fixed: temporarily skipped tests tied to issues",
+]
+
+[tool.coverage.run]
+source = [
+    "api/src/learn_to_cloud",
+    "packages/learn-to-cloud-shared/src/learn_to_cloud_shared",
+]
+omit = [
+    "api/tests/*",
+    "packages/learn-to-cloud-shared/tests/*",
+    "api/alembic/*",
+    "api/scripts/*",
+    "__pycache__/*",
+    ".venv/*",
+    "*.pyc",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+    "if __name__ == .__main__.:",
+    "@abstractmethod",
+    "@abc.abstractmethod",
+]
+fail_under = 40

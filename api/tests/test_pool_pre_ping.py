@@ -11,6 +11,8 @@ from sqlalchemy.pool import AsyncAdaptedQueuePool
 
 from tests.conftest import TEST_DATABASE_URL
 
+pytestmark = pytest.mark.usefixtures("test_engine")
+
 
 class TestPoolPrePing:
     """Verify pool_pre_ping detects and replaces dead connections.

@@ -13,25 +13,26 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from slowapi.errors import RateLimitExceeded
-from starlette.middleware.sessions import SessionMiddleware
-
-from learn_to_cloud.core.auth import init_oauth
-from learn_to_cloud.core.azure_auth import close_credential
-from learn_to_cloud.core.config import get_settings
-from learn_to_cloud.core.database import (
+from learn_to_cloud_shared.content_service import get_all_phases
+from learn_to_cloud_shared.core.azure_auth import close_credential
+from learn_to_cloud_shared.core.config import get_settings
+from learn_to_cloud_shared.core.database import (
     create_engine,
     create_session_maker,
     dispose_engine,
     init_db,
 )
-from learn_to_cloud.core.github_client import close_github_client
-from learn_to_cloud.core.logger import configure_logging
+from learn_to_cloud_shared.core.github_client import close_github_client
+from learn_to_cloud_shared.core.logger import configure_logging
+from learn_to_cloud_shared.core.observability import configure_observability
+from slowapi.errors import RateLimitExceeded
+from starlette.middleware.sessions import SessionMiddleware
+
+from learn_to_cloud.core.auth import init_oauth
 from learn_to_cloud.core.middleware import (
     SecurityHeadersMiddleware,
     UserTrackingMiddleware,
 )
-from learn_to_cloud.core.observability import configure_observability
 from learn_to_cloud.core.ratelimit import limiter, rate_limit_exceeded_handler
 from learn_to_cloud.core.templates import templates
 from learn_to_cloud.routes import (
@@ -41,11 +42,7 @@ from learn_to_cloud.routes import (
     pages_router,
     users_router,
 )
-from learn_to_cloud.services.content_service import get_all_phases
 from learn_to_cloud.services.progress_service import get_all_phase_ids
-from learn_to_cloud.services.verification.deployed_api import (
-    close_deployed_api_client,
-)
 
 # Configure stdlib logging before Azure Monitor adds any logging handlers.
 # Azure Monitor must run before fastapi.FastAPI() is instantiated so request
@@ -173,7 +170,6 @@ async def lifespan(app: fastapi.FastAPI):
             logger.exception("background.task.failed")
 
         await close_github_client()
-        await close_deployed_api_client()
         await dispose_engine(app.state.engine)
         if get_settings().use_azure_postgres:
             await close_credential()

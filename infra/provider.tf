@@ -46,10 +46,15 @@ resource "random_string" "suffix" {
 }
 
 locals {
-  api_postgres_role       = coalesce(var.postgres_api_runtime_role, "ltc_api_runtime_${var.environment}")
-  migration_postgres_role = coalesce(var.postgres_migration_role, "ltc-postgres-migrations-${var.environment}")
-  suffix                  = random_string.suffix.result
-  resource_group_name     = "rg-ltc-${var.environment}"
+  api_postgres_role                             = coalesce(var.postgres_api_runtime_role, "ltc_api_runtime_${var.environment}")
+  key_vault_name                                = "kv-ltc-${var.environment}-${local.suffix}"
+  migration_postgres_role                       = coalesce(var.postgres_migration_role, "ltc-postgres-migrations-${var.environment}")
+  verification_functions_postgres_role          = coalesce(var.postgres_verification_functions_role, "ltc_verification_functions_${var.environment}")
+  verification_functions_storage_account_prefix = substr(replace("stltcfunc${lower(var.environment)}", "-", ""), 0, 18)
+  verification_functions_storage_account_name   = "${local.verification_functions_storage_account_prefix}${local.suffix}"
+  verification_functions_task_hub_name          = "verification-${var.environment}"
+  suffix                                        = random_string.suffix.result
+  resource_group_name                           = "rg-ltc-${var.environment}"
   tags = {
     environment = var.environment
     project     = "learntocloud"

@@ -3,11 +3,11 @@
 import logging
 
 from fastapi import APIRouter, HTTPException, Request
+from learn_to_cloud_shared.core.database import DbSession
+from learn_to_cloud_shared.schemas import UserResponse
 
 from learn_to_cloud.core.auth import UserId
-from learn_to_cloud.core.database import DbSession
 from learn_to_cloud.core.ratelimit import limiter
-from learn_to_cloud.schemas import UserResponse
 from learn_to_cloud.services.users_service import (
     UserNotFoundError,
     delete_user_account,

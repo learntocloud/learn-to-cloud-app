@@ -1,11 +1,11 @@
 ---
 name: validate
-description: Run ruff lint, ruff format, ty type-check, start the API, smoke test endpoints, then kill the API. Use after editing Python files to catch errors before commit.
+description: Run ruff lint, ruff format, ty type-check, shared/API tests, start the API, smoke test endpoints, then kill the API. Use after editing Python files to catch errors before commit.
 ---
 
 # Validate Python Changes
 
-Run linting, formatting, type checking, start the API, smoke test endpoints, then **clean up**.
+Run linting, formatting, type checking, shared/API tests, start the API, smoke test endpoints, then **clean up**.
 
 **All steps are mandatory. Do not skip API startup and smoke tests.**
 
@@ -35,7 +35,8 @@ lsof -ti:8000 | xargs kill -9 2>/dev/null || true
 ## Step 1: Run Ruff Lint
 
 ```bash
-cd <workspace>/api && uv run ruff check <relative_file_path>
+cd <workspace>/api && uv run ruff check . ../packages/learn-to-cloud-shared
+cd <workspace>/apps/verification-functions && uv run ruff check .
 ```
 
 **If errors found:** Show them and offer to auto-fix with `uv run ruff check --fix <file>`
@@ -45,7 +46,8 @@ cd <workspace>/api && uv run ruff check <relative_file_path>
 ## Step 2: Run Ruff Format Check
 
 ```bash
-cd <workspace>/api && uv run ruff format --check <relative_file_path>
+cd <workspace>/api && uv run ruff format --check . ../packages/learn-to-cloud-shared
+cd <workspace>/apps/verification-functions && uv run ruff format --check .
 ```
 
 **If formatting needed:** Offer to fix with `uv run ruff format <file>`
@@ -55,7 +57,9 @@ cd <workspace>/api && uv run ruff format --check <relative_file_path>
 ## Step 3: Run ty Type Check
 
 ```bash
-cd <workspace>/api && uv run ty check <relative_file_path>
+cd <workspace>/api && uv run ty check --exclude scripts --exclude tests .
+cd <workspace>/packages/learn-to-cloud-shared && uv run ty check --exclude tests .
+cd <workspace>/apps/verification-functions && uv run ty check .
 ```
 
 ---
@@ -121,20 +125,19 @@ lsof -ti:8000 | xargs kill -9 2>/dev/null || true
 
 ---
 
-## Step 7: Run Tests (Optional)
+## Step 7: Run Tests
 
 If the changes affect logic (not just formatting/docs), run the test suite:
 
 ```bash
-cd <workspace>/api && uv run pytest tests/ -x
+cd <workspace>/api && uv run pytest tests/ ../packages/learn-to-cloud-shared/tests -x
+cd <workspace>/apps/verification-functions && uv run python -c "import function_app"
 ```
 
 **Flags:**
 - `-x` — stop on first failure for fast feedback
 
-**When to skip**: Pure formatting, comment, or doc-only changes.
-
-**When mandatory**: Changes to repositories, services, routes, models, or schemas.
+**When mandatory**: Changes to repositories, services, routes, models, schemas, shared verification, or Functions code.
 
 ---
 
@@ -143,11 +146,11 @@ cd <workspace>/api && uv run pytest tests/ -x
 | Task | Command |
 |------|---------|
 | Kill API | `lsof -ti:8000 \| xargs kill -9 2>/dev/null \|\| true` |
-| Lint | `uv run ruff check <file>` |
+| Lint | `cd api && uv run ruff check . ../packages/learn-to-cloud-shared` |
 | Lint + fix | `uv run ruff check --fix <file>` |
-| Format check | `uv run ruff format --check <file>` |
+| Format check | `cd api && uv run ruff format --check . ../packages/learn-to-cloud-shared` |
 | Format fix | `uv run ruff format <file>` |
-| Type check | `uv run ty check <file>` |
+| Type check | `cd api && uv run ty check --exclude scripts --exclude tests .` |
 | Health check | `curl -s http://localhost:8000/health` |
 
 ---

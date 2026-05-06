@@ -21,7 +21,7 @@ Create an Alembic migration for the requested schema change.
 
 ### 2. Generate the migration
 ```bash
-cd api && uv run alembic revision --autogenerate -m "description_of_change"
+(cd api && uv run alembic revision --autogenerate -m "description_of_change")
 ```
 
 ### 3. Review the generated migration
@@ -32,9 +32,9 @@ cd api && uv run alembic revision --autogenerate -m "description_of_change"
 
 ### 4. Test the migration
 ```bash
-cd api && uv run alembic upgrade head
-cd api && uv run alembic downgrade -1
-cd api && uv run alembic upgrade head
+(cd api && uv run alembic upgrade head)
+(cd api && uv run alembic downgrade -1)
+(cd api && uv run alembic upgrade head)
 ```
 
 ### 5. Update dependent code
@@ -43,4 +43,4 @@ cd api && uv run alembic upgrade head
 - Add or update tests.
 
 ## Validation
-After generating, run: `cd api && uv run ruff check . && uv run ruff format --check . && uv run ty check`
+After generating, run: `cd api && uv run ruff check . ../packages/learn-to-cloud-shared && uv run ruff format --check . ../packages/learn-to-cloud-shared && uv run ty check --exclude scripts --exclude tests .`

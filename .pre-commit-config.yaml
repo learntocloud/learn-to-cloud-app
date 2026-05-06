@@ -11,19 +11,19 @@ repos:
       - id: ruff
         name: ruff lint
         args: [--fix]
-        files: ^api/
+        files: ^(api|apps/verification-functions|packages/learn-to-cloud-shared)/
       - id: ruff-format
         name: ruff format
-        files: ^api/
+        files: ^(api|apps/verification-functions|packages/learn-to-cloud-shared)/
 
   # ty - Python type checking
   - repo: local
     hooks:
       - id: ty
         name: ty type check
-        entry: uv run --directory api ty check --exclude scripts --exclude tests .
+        entry: bash -c 'uv run --project api ty check --exclude scripts --exclude tests api && (cd packages/learn-to-cloud-shared && uv run --project . ty check --exclude tests .) && uv run --project apps/verification-functions ty check apps/verification-functions'
         language: system
-        files: ^api/.*\.py$
+        files: ^(api|apps/verification-functions|packages/learn-to-cloud-shared)/.*\.py$
         pass_filenames: false
 
   # General file hygiene + check-yaml

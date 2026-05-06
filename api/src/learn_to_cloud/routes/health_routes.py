@@ -4,10 +4,9 @@ import logging
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import PlainTextResponse
+from learn_to_cloud_shared.core.database import check_db_connection
+from learn_to_cloud_shared.schemas import HealthResponse
 from starlette import status
-
-from learn_to_cloud.core.database import check_db_connection
-from learn_to_cloud.schemas import HealthResponse
 
 logger = logging.getLogger(__name__)
 

@@ -6,16 +6,16 @@ for the dashboard page.
 
 import logging
 
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from learn_to_cloud.schemas import (
+from learn_to_cloud_shared.content_service import get_all_phases
+from learn_to_cloud_shared.schemas import (
     ContinuePhaseData,
     DashboardData,
     Phase,
     PhaseProgressData,
     PhaseSummaryData,
 )
-from learn_to_cloud.services.content_service import get_all_phases
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from learn_to_cloud.services.progress_service import (
     fetch_user_progress,
     phase_progress_to_data,

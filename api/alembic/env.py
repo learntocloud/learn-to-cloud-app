@@ -5,17 +5,17 @@ import time
 from importlib import import_module
 from logging.config import fileConfig
 
+from learn_to_cloud_shared.core.azure_auth import (
+    AZURE_PG_SCOPE,
+)
+from learn_to_cloud_shared.core.config import get_settings
+from learn_to_cloud_shared.core.database import Base
 from sqlalchemy import Connection, create_engine, text
 
 from alembic import context
-from learn_to_cloud.core.azure_auth import (
-    AZURE_PG_SCOPE,
-)
-from learn_to_cloud.core.config import get_settings
-from learn_to_cloud.core.database import Base
 
 # Import models to register them with Base.metadata
-import_module("learn_to_cloud.models")
+import_module("learn_to_cloud_shared.models")
 
 config = context.config
 

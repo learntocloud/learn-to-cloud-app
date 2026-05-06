@@ -6,12 +6,11 @@ multiply the rate limits by the number of replicas.
 """
 
 from fastapi import Request, Response
+from learn_to_cloud_shared.core.config import get_settings
 from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 from starlette.responses import JSONResponse
-
-from learn_to_cloud.core.config import get_settings
 
 
 def _get_request_identifier(request: Request) -> str:

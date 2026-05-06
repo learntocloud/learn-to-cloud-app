@@ -11,8 +11,7 @@ from collections.abc import Callable
 from typing import Any
 
 import markdown
-
-from learn_to_cloud.schemas import LearningStep
+from learn_to_cloud_shared.schemas import LearningStep
 
 _md = markdown.Markdown(extensions=["fenced_code", "tables"])
 

@@ -8,6 +8,7 @@ Tests cover:
 """
 
 import pytest
+from learn_to_cloud_shared.schemas import LearningStep, ProviderOption
 
 from learn_to_cloud.rendering.steps import (
     _process_admonitions,
@@ -15,7 +16,6 @@ from learn_to_cloud.rendering.steps import (
     build_step_data,
     render_md,
 )
-from learn_to_cloud.schemas import LearningStep, ProviderOption
 
 # ---------------------------------------------------------------------------
 # render_md

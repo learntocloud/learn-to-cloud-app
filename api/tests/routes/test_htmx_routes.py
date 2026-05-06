@@ -12,7 +12,9 @@ Testing approach:
 - HTMX-specific behavior: HX-Refresh, HX-Redirect headers
 """
 
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
+from uuid import uuid4
 
 import pytest
 from fastapi.responses import HTMLResponse
@@ -201,14 +203,22 @@ class TestHtmxUncompleteStep:
 class TestHtmxSubmitVerification:
     """Tests for POST /htmx/github/submit.
 
-    The route is thin: derive URL, fire background task, return spinner.
-    All validation errors surface via SSE, not the route itself.
+    The route is thin: derive URL, persist a job, start Durable, return spinner.
     """
 
     async def test_submit_success_returns_processing_card(self):
-        """Successful submission fires task and returns processing card."""
+        """Successful submission starts Durable and returns processing card."""
         request = _mock_request()
         current_user = AuthenticatedUser(user_id=1, github_username="user")
+        job = SimpleNamespace(id=uuid4(), orchestration_instance_id=None)
+        job_submission = SimpleNamespace(job=job, created=True)
+        start_result = SimpleNamespace(instance_id=str(job.id))
+        write_session = AsyncMock()
+        request.app.state.session_maker.return_value.__aenter__.return_value = (
+            write_session
+        )
+        repo = MagicMock()
+        repo.mark_starting = AsyncMock()
 
         with (
             patch(
@@ -220,14 +230,21 @@ class TestHtmxSubmitVerification:
                 autospec=True,
                 return_value="test",
             ),
-            patch("learn_to_cloud.routes.htmx_routes.store_task"),
             patch(
-                "learn_to_cloud.routes.htmx_routes.submit_validation",
+                "learn_to_cloud.routes.htmx_routes.create_verification_job",
                 new_callable=AsyncMock,
+                return_value=job_submission,
+            ) as mock_create_job,
+            patch(
+                "learn_to_cloud.routes.htmx_routes.start_verification_orchestration",
+                new_callable=AsyncMock,
+                return_value=start_result,
+            ) as mock_start,
+            patch(
+                "learn_to_cloud.routes.htmx_routes.VerificationJobRepository",
+                return_value=repo,
             ),
-            patch("learn_to_cloud.routes.htmx_routes.asyncio") as mock_asyncio,
         ):
-            mock_asyncio.create_task.return_value = MagicMock()
             result = await htmx_submit_verification(
                 request,
                 current_user,
@@ -237,6 +254,10 @@ class TestHtmxSubmitVerification:
 
         # Should return a processing card, not a final result
         assert result is not None
+        mock_create_job.assert_awaited_once()
+        mock_start.assert_awaited_once_with(job.id)
+        repo.mark_starting.assert_awaited_once_with(job.id, start_result.instance_id)
+        write_session.commit.assert_awaited_once()
 
     async def test_submit_unexpected_error_renders_server_error(self):
         """Unexpected exceptions render a server error card."""
@@ -254,8 +275,9 @@ class TestHtmxSubmitVerification:
                 return_value="test",
             ),
             patch(
-                "learn_to_cloud.routes.htmx_routes.asyncio",
-                **{"create_task.side_effect": RuntimeError("boom")},
+                "learn_to_cloud.routes.htmx_routes.create_verification_job",
+                new_callable=AsyncMock,
+                side_effect=RuntimeError("boom"),
             ),
         ):
             result = await htmx_submit_verification(

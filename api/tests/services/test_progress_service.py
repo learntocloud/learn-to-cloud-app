@@ -10,13 +10,13 @@ Tests cover:
 from unittest.mock import AsyncMock, patch
 
 import pytest
-
-from learn_to_cloud.schemas import (
+from learn_to_cloud_shared.schemas import (
     LearningStep,
     Phase,
     PhaseProgress,
     Topic,
 )
+
 from learn_to_cloud.services.progress_service import (
     _build_phase_requirements,
     compute_topic_progress,

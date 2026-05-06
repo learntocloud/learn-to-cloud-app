@@ -74,13 +74,12 @@ verifying that mapping.
 ### Prerequisites
 
 - PostgreSQL running locally (via `docker compose up db` or a local install)
-- API virtual environment set up (`cd api && uv sync`)
+- API virtual environment set up (`cd api && uv sync --locked`)
 
 ### Run All Pending Migrations
 
 ```bash
-cd api
-uv run alembic upgrade head
+cd api && uv run alembic upgrade head
 ```
 
 ### Create a New Migration
@@ -88,8 +87,7 @@ uv run alembic upgrade head
 After modifying models in `models.py`:
 
 ```bash
-cd api
-uv run alembic revision --autogenerate -m "short description of change"
+cd api && uv run alembic revision --autogenerate -m "short description of change"
 ```
 
 Review the generated file in `api/alembic/versions/` — autogenerate is not perfect, so always check:
@@ -100,22 +98,19 @@ Review the generated file in `api/alembic/versions/` — autogenerate is not per
 ### Rollback One Migration
 
 ```bash
-cd api
-uv run alembic downgrade -1
+cd api && uv run alembic downgrade -1
 ```
 
 ### Check Current Migration State
 
 ```bash
-cd api
-uv run alembic current
+cd api && uv run alembic current
 ```
 
 ### View Migration History
 
 ```bash
-cd api
-uv run alembic history --verbose
+cd api && uv run alembic history --verbose
 ```
 
 ## Using docker compose

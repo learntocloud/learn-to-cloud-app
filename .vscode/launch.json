@@ -5,13 +5,17 @@
       "name": "API: FastAPI (uvicorn)",
       "type": "debugpy",
       "request": "launch",
+      "python": "${workspaceFolder}/api/.venv/bin/python",
       "module": "uvicorn",
       "args": ["learn_to_cloud.main:app", "--reload", "--reload-include", "*.py", "--reload-include", "*.html", "--reload-exclude", ".venv", "--host", "0.0.0.0", "--port", "8000"],
       "cwd": "${workspaceFolder}/api",
       "envFile": "${workspaceFolder}/api/.env",
       "env": {
-        "PYTHONPATH": "${workspaceFolder}/api/src",
-        "DYLD_FALLBACK_LIBRARY_PATH": "/opt/homebrew/lib"
+        "DYLD_FALLBACK_LIBRARY_PATH": "/opt/homebrew/lib",
+        "VERIFICATION_FUNCTIONS_BASE_URL": "http://localhost:7071",
+        "VERIFICATION_FUNCTIONS_KEY": "local-dev",
+        "OTEL_EXPORTER_OTLP_ENDPOINT": "http://aspire-dashboard:18889",
+        "OTEL_SERVICE_NAME": "learn-to-cloud-api"
       },
       "console": "integratedTerminal",
       "justMyCode": true
@@ -22,12 +26,31 @@
       "request": "launch",
       "command": "npx @tailwindcss/cli -i src/learn_to_cloud/static/css/input.css -o src/learn_to_cloud/static/css/styles.css --watch",
       "cwd": "${workspaceFolder}/api"
+    },
+    {
+      "name": "Verification: Durable Functions",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "test -f local.settings.json || cp local.settings.example.json local.settings.json; uv sync --locked; uv run func start --port 7071",
+      "cwd": "${workspaceFolder}/apps/verification-functions",
+      "env": {
+        "APPLICATIONINSIGHTS_CONNECTION_STRING": "",
+        "OTEL_EXPORTER_OTLP_ENDPOINT": "http://aspire-dashboard:18889",
+        "OTEL_SERVICE_NAME": "learn-to-cloud-verification-functions"
+      }
     }
   ],
   "compounds": [
     {
       "name": "API + Tailwind",
       "configurations": ["API: FastAPI (uvicorn)", "Tailwind: Watch"]
+    },
+    {
+      "name": "API + Verification",
+      "configurations": [
+        "Verification: Durable Functions",
+        "API: FastAPI (uvicorn)"
+      ]
     }
   ]
 }

@@ -3,6 +3,27 @@ set -e
 
 export PATH="$HOME/.local/bin:$PATH"
 
+COPILOT_ENV_FILE="$PWD/.devcontainer/copilot.env"
+COPILOT_ENV_EXAMPLE="$PWD/.devcontainer/copilot.env.example"
+COPILOT_BASHRC_MARKER="# Learn to Cloud Copilot MCP secrets"
+
+if [ ! -f "$COPILOT_ENV_FILE" ] && [ -f "$COPILOT_ENV_EXAMPLE" ]; then
+    echo "📝 Creating .devcontainer/copilot.env from example..."
+    cp "$COPILOT_ENV_EXAMPLE" "$COPILOT_ENV_FILE"
+fi
+
+if ! grep -Fq "$COPILOT_BASHRC_MARKER" "$HOME/.bashrc"; then
+    echo "🤖 Configuring shell to load Copilot MCP secrets..."
+    {
+        printf '\n%s\n' "$COPILOT_BASHRC_MARKER"
+        printf 'if [ -f "%s" ]; then\n' "$COPILOT_ENV_FILE"
+        printf '    set -a\n'
+        printf '    . "%s"\n' "$COPILOT_ENV_FILE"
+        printf '    set +a\n'
+        printf 'fi\n'
+    } >> "$HOME/.bashrc"
+fi
+
 # Install pre-commit hooks (--overwrite removes any legacy pre-commit hook)
 echo "🪝 Installing pre-commit hooks..."
 prek install --overwrite
@@ -29,7 +50,7 @@ fi
 
 # Run database migrations
 echo "🗄️  Running database migrations..."
-cd api && uv run alembic upgrade head && cd ..
+(cd api && uv run alembic upgrade head)
 
 echo "✅ Setup complete!"
 echo ""

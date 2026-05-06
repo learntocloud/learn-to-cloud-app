@@ -17,9 +17,8 @@ import argparse
 import asyncio
 import logging
 
+from learn_to_cloud_shared.core.database import create_engine
 from sqlalchemy import text
-
-from learn_to_cloud.core.database import create_engine
 
 logger = logging.getLogger(__name__)
 

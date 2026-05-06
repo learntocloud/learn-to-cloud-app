@@ -2,16 +2,15 @@
 
 from typing import TYPE_CHECKING
 
+from learn_to_cloud_shared.content_service import get_topic_by_id
+from learn_to_cloud_shared.models import utcnow
+from learn_to_cloud_shared.repositories import StepProgressRepository
+from learn_to_cloud_shared.schemas import StepCompletionResult
 from opentelemetry import trace
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from learn_to_cloud.models import utcnow
-from learn_to_cloud.repositories import StepProgressRepository
-from learn_to_cloud.schemas import StepCompletionResult
-from learn_to_cloud.services.content_service import get_topic_by_id
-
 if TYPE_CHECKING:
-    from learn_to_cloud.schemas import Topic
+    from learn_to_cloud_shared.schemas import Topic
 
 
 class StepValidationError(Exception):

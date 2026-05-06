@@ -16,6 +16,11 @@
       "installBicep": true
     },
     "ghcr.io/devcontainers/features/github-cli:1": {},
+    "ghcr.io/devcontainers/features/terraform:1": {
+      "version": "latest",
+      "tflint": "none",
+      "terragrunt": "none"
+    },
     "ghcr.io/va-h/devcontainers-features/uv:1": {}
   },
   "customizations": {
@@ -49,7 +54,7 @@
   "remoteEnv": {
     "UV_LINK_MODE": "copy"
   },
-  "forwardPorts": [3000, 54320, 8000],
+  "forwardPorts": [3000, 54320, 7071, 8000, 8082, 18888, 4317, 4318],
   "portsAttributes": {
     "3000": {
       "label": "Frontend (Vite)",
@@ -61,6 +66,26 @@
     },
     "8000": {
       "label": "API (FastAPI)",
+      "onAutoForward": "silent"
+    },
+    "7071": {
+      "label": "Verification Functions",
+      "onAutoForward": "silent"
+    },
+    "8082": {
+      "label": "Durable Task Scheduler Dashboard",
+      "onAutoForward": "silent"
+    },
+    "18888": {
+      "label": "Aspire Dashboard",
+      "onAutoForward": "silent"
+    },
+    "4317": {
+      "label": "Aspire OTLP gRPC",
+      "onAutoForward": "silent"
+    },
+    "4318": {
+      "label": "Aspire OTLP HTTP",
       "onAutoForward": "silent"
     }
   },

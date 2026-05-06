@@ -11,7 +11,35 @@ updates:
       - "dependencies"
       - "python"
     groups:
-      python-all:
+      python-api:
+        patterns:
+          - "*"
+
+  - package-ecosystem: "uv"
+    directory: "/apps/verification-functions"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "chore(deps):"
+    labels:
+      - "dependencies"
+      - "python"
+    groups:
+      python-functions:
+        patterns:
+          - "*"
+
+  - package-ecosystem: "uv"
+    directory: "/packages/learn-to-cloud-shared"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "chore(deps):"
+    labels:
+      - "dependencies"
+      - "python"
+    groups:
+      python-shared:
         patterns:
           - "*"
 

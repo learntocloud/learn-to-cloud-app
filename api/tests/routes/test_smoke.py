@@ -25,15 +25,15 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
-
-from learn_to_cloud.core.auth import optional_auth, require_auth
-from learn_to_cloud.core.database import get_db, get_db_readonly
-from learn_to_cloud.schemas import (
+from learn_to_cloud_shared.core.database import get_db, get_db_readonly
+from learn_to_cloud_shared.schemas import (
     DashboardData,
     PhaseProgress,
     PhaseProgressData,
     PhaseSummaryData,
 )
+
+from learn_to_cloud.core.auth import optional_auth, require_auth
 
 # =============================================================================
 # Fixtures
@@ -219,7 +219,7 @@ class TestAuthPageSmoke:
 
     async def test_phase_page_renders(self, auth_client: AsyncClient):
         """GET /phase/1 renders the phase detail template."""
-        from learn_to_cloud.services.content_service import get_all_phases
+        from learn_to_cloud_shared.content_service import get_all_phases
 
         phases = get_all_phases()
         if not phases:
@@ -253,6 +253,10 @@ class TestAuthPageSmoke:
                 return_value=mock_sub_context,
             ),
             patch(
+                "learn_to_cloud.routes.pages_routes.VerificationJobRepository",
+                return_value=MagicMock(get_active_for_phase=AsyncMock(return_value=[])),
+            ),
+            patch(
                 "learn_to_cloud.routes.pages_routes.is_phase_verification_locked",
                 return_value=(False, None),
             ),
@@ -262,7 +266,7 @@ class TestAuthPageSmoke:
 
     async def test_topic_page_renders(self, auth_client: AsyncClient):
         """GET /phase/1/{topic_slug} renders the topic detail template."""
-        from learn_to_cloud.services.content_service import get_phase_by_slug
+        from learn_to_cloud_shared.content_service import get_phase_by_slug
 
         phase = get_phase_by_slug("phase1")
         if not phase or not phase.topics:

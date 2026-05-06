@@ -1,87 +1,39 @@
-"""Submissions service for hands-on validation submissions.
+"""Submissions service for hands-on verification submissions.
 
 This module handles:
-- Submission creation/update with validation
+- Verification job creation with pre-validation
 - Data transformation helpers used by other services (e.g. progress)
 - Already-validated short-circuit (skip re-verification for passed requirements)
-- Concurrent request protection via per-user+requirement locks
-- DB connection release during long-running verification calls
 
 Routes should delegate submission business logic to this module.
 """
 
 from __future__ import annotations
 
-import asyncio
 import json
-import logging
 from dataclasses import dataclass
 
-from cachetools import TTLCache
-from opentelemetry import trace
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
-
-from learn_to_cloud.models import Submission, SubmissionType
-from learn_to_cloud.repositories.submission_repository import SubmissionRepository
-from learn_to_cloud.schemas import (
+from learn_to_cloud_shared.models import SubmissionType, VerificationJob
+from learn_to_cloud_shared.repositories.submission_repository import (
+    SubmissionRepository,
+)
+from learn_to_cloud_shared.repositories.verification_job_repository import (
+    VerificationJobRepository,
+)
+from learn_to_cloud_shared.schemas import (
     HandsOnRequirement,
     PhaseSubmissionContext,
     SubmissionData,
-    SubmissionResult,
 )
-from learn_to_cloud.services.verification.dispatcher import validate_submission
-from learn_to_cloud.services.verification.github_profile import parse_github_url
-from learn_to_cloud.services.verification.requirements import (
+from learn_to_cloud_shared.verification.execution import to_submission_data
+from learn_to_cloud_shared.verification.requirements import (
     get_phase_id_for_requirement,
     get_prerequisite_phase,
     get_requirement_by_id,
     get_requirement_ids_for_phase,
 )
-
-tracer = trace.get_tracer(__name__)
-logger = logging.getLogger(__name__)
-
-_LOCK_TTL = 7200  # 2 hours
-_submission_locks: TTLCache[tuple[int, str], asyncio.Lock] = TTLCache(
-    maxsize=2000, ttl=_LOCK_TTL
-)
-_locks_lock = asyncio.Lock()  # Protects _submission_locks dict itself
-
-
-async def _get_submission_lock(user_id: int, requirement_id: str) -> asyncio.Lock:
-    """Get or create a lock for a specific user+requirement combination.
-
-    This ensures only one validation can run at a time for each user+requirement,
-    preventing race conditions that waste AI quota.
-    """
-    key = (user_id, requirement_id)
-    async with _locks_lock:
-        if key not in _submission_locks:
-            _submission_locks[key] = asyncio.Lock()
-        return _submission_locks[key]
-
-
-class ConcurrentSubmissionError(Exception):
-    """Raised when a submission is already in progress for this user+requirement."""
-
-
-def _to_submission_data(submission: Submission) -> SubmissionData:
-    return SubmissionData(
-        id=submission.id,
-        requirement_id=submission.requirement_id,
-        submission_type=submission.submission_type,
-        phase_id=submission.phase_id,
-        submitted_value=submission.submitted_value,
-        extracted_username=submission.extracted_username,
-        is_validated=submission.is_validated,
-        validated_at=submission.validated_at,
-        verification_completed=submission.verification_completed,
-        feedback_json=submission.feedback_json,
-        validation_message=submission.validation_message,
-        cloud_provider=submission.cloud_provider,
-        created_at=submission.created_at,
-        updated_at=submission.updated_at,
-    )
+from opentelemetry import trace
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 
 async def get_phase_submission_context(
@@ -106,7 +58,7 @@ async def get_phase_submission_context(
     feedback_by_req: dict[str, dict[str, object]] = {}
 
     for sub in raw_submissions:
-        sub_data = _to_submission_data(sub)
+        sub_data = to_submission_data(sub)
         submissions_by_req[sub.requirement_id] = sub_data
 
         if sub.feedback_json and not sub.is_validated:
@@ -171,13 +123,19 @@ class PriorPhaseNotCompleteError(Exception):
 class _PreValidationContext:
     """Data collected during pre-validation checks.
 
-    Returned by ``_check_submission_preconditions`` so callers don't
-    repeat the same DB queries.
+    Returned by ``_check_submission_preconditions`` so callers don't repeat lookups.
     """
 
     requirement: HandsOnRequirement
     phase_id: int
-    existing_data: SubmissionData | None
+
+
+@dataclass(frozen=True, slots=True)
+class VerificationJobSubmission:
+    """Result of creating or reusing a verification job."""
+
+    job: VerificationJob
+    created: bool
 
 
 async def _check_submission_preconditions(
@@ -192,8 +150,7 @@ async def _check_submission_preconditions(
     Validates requirement existence, already-validated status, phase gating,
     PR uniqueness, and GitHub username requirement.
 
-    Opens a short-lived DB session for reads, then releases it before
-    returning.  Raises the same exceptions as ``submit_validation``.
+    Opens a short-lived DB session for reads, then releases it before returning.
     """
     requirement = get_requirement_by_id(requirement_id)
     if not requirement:
@@ -243,7 +200,6 @@ async def _check_submission_preconditions(
                     conflicting_requirement_id=conflicting,
                 )
 
-        existing_data = _to_submission_data(existing) if existing else None
     # read_session is now closed — connection returned to pool
 
     if (
@@ -269,143 +225,34 @@ async def _check_submission_preconditions(
     return _PreValidationContext(
         requirement=requirement,
         phase_id=phase_id,
-        existing_data=existing_data,
     )
 
 
-async def submit_validation(
+async def create_verification_job(
     session_maker: async_sessionmaker[AsyncSession],
     user_id: int,
     requirement_id: str,
     submitted_value: str,
     github_username: str | None,
-) -> SubmissionResult:
-    """Submit a URL or token for hands-on validation.
-
-    DB connection lifecycle:
-        This function uses short-lived sessions instead of holding a single
-        session for the entire request.  The pre-validation checks use one
-        session (released in ~50ms), then the verification call runs with NO session
-        held (may take seconds), and finally a fresh session is opened for the upsert
-        (~50ms).  This prevents long-running verifications from pinning a
-        connection pool slot.
-
-    Args:
-        session_maker: Factory for creating short-lived DB sessions.
-        user_id: Authenticated user ID.
-        requirement_id: The hands-on requirement being submitted.
-        submitted_value: URL, token, or other submission payload.
-        github_username: GitHub username from OAuth (required for most types).
-
-    Raises:
-        RequirementNotFoundError: If requirement doesn't exist.
-        AlreadyValidatedError: If requirement is already validated.
-        GitHubUsernameRequiredError: If GitHub username required but not provided.
-        ConcurrentSubmissionError: If validation is already in progress for this
-            user+requirement (prevents race conditions).
-    """
+) -> VerificationJobSubmission:
+    """Validate request preconditions and create or reuse an active job."""
     ctx = await _check_submission_preconditions(
-        session_maker, user_id, requirement_id, github_username, submitted_value
+        session_maker,
+        user_id,
+        requirement_id,
+        github_username,
+        submitted_value,
     )
-    requirement = ctx.requirement
-    phase_id = ctx.phase_id
 
-    # Prevent concurrent submissions for the same user+requirement.
-    submission_lock = await _get_submission_lock(user_id, requirement_id)
-    if submission_lock.locked():
-        raise ConcurrentSubmissionError(
-            "A verification is already in progress. Please wait for it to complete."
+    async with session_maker() as write_session:
+        repo = VerificationJobRepository(write_session)
+        job, created = await repo.create_or_get_active(
+            user_id=user_id,
+            requirement_id=requirement_id,
+            submission_type=ctx.requirement.submission_type,
+            phase_id=ctx.phase_id,
+            submitted_value=submitted_value,
         )
+        await write_session.commit()
 
-    async with submission_lock:
-        # ── Run validation (NO DB session held) ─────────────────────────
-        # Verification can take seconds for external API calls.  We run it
-        # outside any DB session so it doesn't pin a connection pool slot.
-        with tracer.start_as_current_span(
-            "submit_validation",
-            attributes={
-                "user.id": user_id,
-                "requirement.id": requirement_id,
-                "submission.type": requirement.submission_type,
-            },
-        ) as span:
-            validation_result = await validate_submission(
-                requirement=requirement,
-                submitted_value=submitted_value,
-                expected_username=github_username,
-            )
-
-            extracted_username = None
-            if requirement.submission_type in (
-                SubmissionType.CTF_TOKEN,
-                SubmissionType.NETWORKING_TOKEN,
-            ):
-                extracted_username = github_username
-            else:
-                parsed = parse_github_url(submitted_value)
-                extracted_username = parsed.username if parsed.is_valid else None
-
-            verification_completed = validation_result.verification_completed
-
-            feedback_json = None
-            if validation_result.task_results:
-                feedback_json = json.dumps(
-                    [t.model_dump() for t in validation_result.task_results]
-                )
-
-            # Persist the user-facing message so it survives page reloads.
-            validation_message = (
-                validation_result.message if not validation_result.is_valid else None
-            )
-
-            # Cloud provider (populated for multi-cloud labs like networking).
-            cloud_provider = validation_result.cloud_provider
-
-            # ── Phase 3: Persist result (short-lived session) ───────────────
-            # A fresh session is opened just for the upsert, keeping connection
-            # hold time to ~50ms.
-            async with session_maker() as write_session:
-                write_repo = SubmissionRepository(write_session)
-
-                db_submission = await write_repo.create(
-                    user_id=user_id,
-                    requirement_id=requirement_id,
-                    submission_type=requirement.submission_type,
-                    phase_id=phase_id,
-                    submitted_value=submitted_value,
-                    extracted_username=extracted_username,
-                    is_validated=validation_result.is_valid,
-                    verification_completed=verification_completed,
-                    feedback_json=feedback_json,
-                    validation_message=validation_message,
-                    cloud_provider=cloud_provider,
-                )
-
-                await write_session.commit()
-
-            span.set_attribute("submission.is_valid", validation_result.is_valid)
-            span.set_attribute(
-                "submission.verification_completed", verification_completed
-            )
-
-            logger.info(
-                "submission.completed",
-                extra={
-                    "user_id": user_id,
-                    "requirement_id": requirement_id,
-                    "phase_id": phase_id,
-                    "submission_type": requirement.submission_type,
-                    "is_valid": validation_result.is_valid,
-                    "verification_completed": verification_completed,
-                    "validation_message": validation_message,
-                },
-            )
-
-            return SubmissionResult(
-                submission=_to_submission_data(db_submission),
-                is_valid=validation_result.is_valid,
-                message=validation_result.message,
-                username_match=validation_result.username_match,
-                repo_exists=validation_result.repo_exists,
-                task_results=validation_result.task_results,
-            )
+    return VerificationJobSubmission(job=job, created=created)
