@@ -74,10 +74,12 @@ class TestSecurityHeadersMiddleware:
             for directive in csp.split(";")
             if (parts := directive.strip().split())
         }
+        script_sources = set(directives["script-src"])
+        connect_sources = set(directives["connect-src"])
 
-        assert "https://js.monitor.azure.com" in directives["script-src"]
-        assert "https://*.in.applicationinsights.azure.com" in directives["connect-src"]
-        assert "https://dc.services.visualstudio.com" in directives["connect-src"]
+        assert "https://" + "js.monitor.azure.com" in script_sources
+        assert "https://" + "*.in.applicationinsights.azure.com" in connect_sources
+        assert "https://" + "dc.services.visualstudio.com" in connect_sources
 
     async def test_skips_non_http_scopes(self):
         called = False
