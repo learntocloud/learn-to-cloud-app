@@ -46,9 +46,16 @@ resource "random_string" "suffix" {
 }
 
 locals {
+  api_max_replicas                              = coalesce(var.api_max_replicas, 2)
+  api_min_replicas                              = coalesce(var.api_min_replicas, 0)
   api_postgres_role                             = coalesce(var.postgres_api_runtime_role, "ltc_api_runtime_${var.environment}")
   key_vault_name                                = "kv-ltc-${var.environment}-${local.suffix}"
   migration_postgres_role                       = coalesce(var.postgres_migration_role, "ltc-postgres-migrations-${var.environment}")
+  postgres_backup_retention_days                = coalesce(var.postgres_backup_retention_days, 7)
+  postgres_geo_redundant_backup_enabled         = coalesce(var.postgres_geo_redundant_backup_enabled, false)
+  postgres_sku_name                             = coalesce(var.postgres_sku_name, "B_Standard_B1ms")
+  postgres_storage_mb                           = coalesce(var.postgres_storage_mb, 32768)
+  postgres_zone                                 = coalesce(var.postgres_zone, "3")
   verification_functions_postgres_role          = coalesce(var.postgres_verification_functions_role, "ltc_verification_functions_${var.environment}")
   verification_functions_storage_account_prefix = substr(replace("stltcfunc${lower(var.environment)}", "-", ""), 0, 18)
   verification_functions_storage_account_name   = "${local.verification_functions_storage_account_prefix}${local.suffix}"

@@ -39,20 +39,30 @@ class VerificationJobNotFoundError(Exception):
 class VerificationJobExecutionResult:
     job_id: UUID
     status: VerificationJobStatus
+    code: str
+    requirement_id: str
+    requirement_name: str | None
+    submission_type: str | None
     submission_id: int | None
     is_valid: bool
     verification_completed: bool
     message: str
+    detail: str | None = None
 
     def to_payload(self) -> dict[str, object]:
         """Return a JSON-serializable Durable activity result."""
         return {
             "job_id": str(self.job_id),
             "status": self.status.value,
+            "code": self.code,
+            "requirement_id": self.requirement_id,
+            "requirement_name": self.requirement_name,
+            "submission_type": self.submission_type,
             "submission_id": self.submission_id,
             "is_valid": self.is_valid,
             "verification_completed": self.verification_completed,
             "message": self.message,
+            "detail": self.detail,
         }
 
 
@@ -149,7 +159,9 @@ class _VerificationJobPayload:
     phase_id: int
     submitted_value: str
     status: VerificationJobStatus
+    submission_type: str
     result_submission_id: int | None
+    error_code: str | None
     error_message: str | None
 
 
@@ -204,21 +216,53 @@ async def _load_job_payload(
         phase_id=job.phase_id,
         submitted_value=job.submitted_value,
         status=job.status,
+        submission_type=job.submission_type.value,
         result_submission_id=job.result_submission_id,
+        error_code=job.error_code,
         error_message=job.error_message,
     )
+
+
+def _result_code(status: VerificationJobStatus, error_code: str | None = None) -> str:
+    if status == VerificationJobStatus.SUCCEEDED:
+        return "verification_succeeded"
+    if status == VerificationJobStatus.FAILED:
+        return error_code or VALIDATION_FAILED_ERROR_CODE
+    if status == VerificationJobStatus.SERVER_ERROR:
+        return error_code or VERIFICATION_INCOMPLETE_ERROR_CODE
+    if status == VerificationJobStatus.CANCELLED:
+        return error_code or "verification_cancelled"
+    return status.value
+
+
+def _result_message(status: VerificationJobStatus) -> str:
+    if status == VerificationJobStatus.SUCCEEDED:
+        return "Verification succeeded."
+    if status == VerificationJobStatus.FAILED:
+        return "Verification failed."
+    if status == VerificationJobStatus.SERVER_ERROR:
+        return "Verification could not be completed."
+    if status == VerificationJobStatus.CANCELLED:
+        return "Verification was cancelled."
+    return "Verification job is not complete."
 
 
 def _terminal_result(
     payload: _VerificationJobPayload,
 ) -> VerificationJobExecutionResult:
+    requirement = get_requirement_by_id(payload.requirement_id)
     return VerificationJobExecutionResult(
         job_id=payload.id,
         status=payload.status,
+        code=_result_code(payload.status, payload.error_code),
+        requirement_id=payload.requirement_id,
+        requirement_name=requirement.name if requirement is not None else None,
+        submission_type=payload.submission_type,
         submission_id=payload.result_submission_id,
         is_valid=payload.status == VerificationJobStatus.SUCCEEDED,
         verification_completed=payload.status != VerificationJobStatus.SERVER_ERROR,
-        message=payload.error_message or "Verification job already completed.",
+        message=_result_message(payload.status),
+        detail=payload.error_message,
     )
 
 
@@ -227,13 +271,14 @@ async def _mark_missing_requirement(
     session_maker: async_sessionmaker[AsyncSession],
     job_id: UUID,
     requirement_id: str,
+    submission_type: str,
 ) -> VerificationJobExecutionResult:
-    message = f"Requirement not found: {requirement_id}"
+    detail = f"Requirement not found: {requirement_id}"
     async with session_maker() as db:
         job = await VerificationJobRepository(db).mark_server_error(
             job_id,
             error_code=REQUIREMENT_NOT_FOUND_ERROR_CODE,
-            error_message=message,
+            error_message=detail,
         )
         if job is None:
             raise VerificationJobNotFoundError(str(job_id))
@@ -242,10 +287,15 @@ async def _mark_missing_requirement(
     return VerificationJobExecutionResult(
         job_id=job_id,
         status=VerificationJobStatus.SERVER_ERROR,
+        code=REQUIREMENT_NOT_FOUND_ERROR_CODE,
+        requirement_id=requirement_id,
+        requirement_name=None,
+        submission_type=submission_type,
         submission_id=None,
         is_valid=False,
         verification_completed=False,
-        message=message,
+        message=_result_message(VerificationJobStatus.SERVER_ERROR),
+        detail=detail,
     )
 
 
@@ -279,6 +329,7 @@ async def prepare_verification_job(
                 session_maker=session_maker,
                 job_id=normalized_job_id,
                 requirement_id=payload.requirement_id,
+                submission_type=payload.submission_type,
             )
             span.set_attribute("verification.status", result.status.value)
             return VerificationJobPreparation(terminal_result=result)
@@ -382,10 +433,15 @@ async def persist_verification_result(
         return VerificationJobExecutionResult(
             job_id=job.id,
             status=status,
+            code=_result_code(status),
+            requirement_id=job.requirement.id,
+            requirement_name=job.requirement.name,
+            submission_type=job.requirement.submission_type.value,
             submission_id=submission.id,
             is_valid=validation_result.is_valid,
             verification_completed=validation_result.verification_completed,
-            message=validation_result.message,
+            message=_result_message(status),
+            detail=validation_result.message,
         )
 
 

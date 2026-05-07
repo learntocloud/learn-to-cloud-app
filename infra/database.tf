@@ -3,12 +3,12 @@ resource "azurerm_postgresql_flexible_server" "main" {
   resource_group_name           = azurerm_resource_group.main.name
   location                      = azurerm_resource_group.main.location
   version                       = "16"
-  storage_mb                    = 32768
-  sku_name                      = "B_Standard_B1ms"
-  backup_retention_days         = 7
-  geo_redundant_backup_enabled  = false
+  storage_mb                    = local.postgres_storage_mb
+  sku_name                      = local.postgres_sku_name
+  backup_retention_days         = local.postgres_backup_retention_days
+  geo_redundant_backup_enabled  = local.postgres_geo_redundant_backup_enabled
   public_network_access_enabled = true
-  zone                          = "3"
+  zone                          = local.postgres_zone
   tags                          = local.tags
 
   authentication {

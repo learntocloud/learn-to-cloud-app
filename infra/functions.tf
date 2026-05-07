@@ -43,6 +43,16 @@ resource "azapi_resource" "verification_scheduler" {
 
   response_export_values    = ["properties.endpoint"]
   schema_validation_enabled = false
+
+  lifecycle {
+    precondition {
+      condition = var.environment != "prod" || (
+        !contains(var.durable_task_scheduler_ip_allowlist, "0.0.0.0/0") &&
+        !contains(var.durable_task_scheduler_ip_allowlist, "::/0")
+      )
+      error_message = "durable_task_scheduler_ip_allowlist must not allow all IPv4 or IPv6 addresses in prod."
+    }
+  }
 }
 
 resource "azapi_resource" "verification_task_hub" {

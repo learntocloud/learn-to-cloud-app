@@ -99,6 +99,37 @@ jobs:
           fail-on-severity: moderate
 
   # -----------------------------------------------------------------------
+  # Terraform CI — fast PR checks without Azure credentials or remote state
+  # -----------------------------------------------------------------------
+  terraform-ci:
+    needs: [changes]
+    if: needs.changes.outputs.deploy == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infra
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@5e8dbf3c6d9deaf4193ca7a8fb23f2ac83bb6c85 # v4
+        with:
+          terraform_version: "~1.5"
+          terraform_wrapper: false
+
+      - name: Terraform format check
+        run: terraform fmt -check -recursive
+
+      - name: Terraform init without backend
+        run: terraform init -backend=false
+
+      - name: Terraform validate
+        run: terraform validate
+
+      - name: Terraform tests
+        run: terraform test -no-color
+
+  # -----------------------------------------------------------------------
   # CI — lint, type-check, test (runs on push AND PR)
   # -----------------------------------------------------------------------
   ci:
@@ -210,11 +241,25 @@ jobs:
             exit 1
           fi
 
+  terraform-ci-status:
+    if: always()
+    needs: [terraform-ci]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check Terraform CI result
+        run: |
+          if [[ "${{ needs.terraform-ci.result }}" =~ ^(success|skipped)$ ]]; then
+            echo "Terraform CI passed or was skipped (no deploy changes)"
+          else
+            echo "Terraform CI failed: ${{ needs.terraform-ci.result }}"
+            exit 1
+          fi
+
   # -----------------------------------------------------------------------
-  # Terraform — plan + apply (push to main only)
+  # Terraform — validate/plan on manual branch runs, apply only on main
   # -----------------------------------------------------------------------
   terraform:
-    if: always() && github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && (github.event_name == 'workflow_dispatch' || needs.changes.outputs.deploy == 'true') && !contains(needs.*.result, 'failure')
+    if: always() && github.event_name != 'pull_request' && (github.event_name == 'workflow_dispatch' || (github.ref == 'refs/heads/main' && needs.changes.outputs.deploy == 'true')) && !contains(needs.*.result, 'failure')
     needs: [ci, changes]
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -255,7 +300,7 @@ jobs:
           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
       - name: Terraform Init
-        run: terraform init
+        run: terraform init -backend-config="key=learn-to-cloud-${AZURE_ENV_NAME:-dev}.tfstate"
 
       - name: Terraform Validate
         run: terraform validate
@@ -270,12 +315,14 @@ jobs:
           TF_VAR_postgres_entra_admin_principal_type: ${{ vars.POSTGRES_ENTRA_ADMIN_PRINCIPAL_TYPE || 'Group' }}
 
       - name: Terraform Apply
+        if: github.ref == 'refs/heads/main'
         run: terraform apply -auto-approve -lock-timeout=120s tfplan
 
       - name: Get Terraform Outputs
+        if: github.ref == 'refs/heads/main'
         id: tf-outputs
         run: |
-          echo "api_container_app_name=ca-ltc-api-${{ vars.AZURE_ENV_NAME }}" >> "$GITHUB_OUTPUT"
+          echo "api_container_app_name=$(terraform output -raw api_container_app_name)" >> "$GITHUB_OUTPUT"
           echo "resource_group_name=$(terraform output -raw AZURE_RESOURCE_GROUP)" >> "$GITHUB_OUTPUT"
           echo "container_registry_name=$(terraform output -raw AZURE_CONTAINER_REGISTRY_NAME)" >> "$GITHUB_OUTPUT"
           echo "container_registry_endpoint=$(terraform output -raw AZURE_CONTAINER_REGISTRY_ENDPOINT)" >> "$GITHUB_OUTPUT"

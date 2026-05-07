@@ -146,11 +146,11 @@ cd <workspace>/apps/verification-functions && uv run python -c "import function_
 | Task | Command |
 |------|---------|
 | Kill API | `lsof -ti:8000 \| xargs kill -9 2>/dev/null \|\| true` |
-| Lint | `cd api && uv run ruff check . ../packages/learn-to-cloud-shared` |
+| Lint | `cd api && uv run ruff check . ../packages/learn-to-cloud-shared && cd ../apps/verification-functions && uv run ruff check .` |
 | Lint + fix | `uv run ruff check --fix <file>` |
-| Format check | `cd api && uv run ruff format --check . ../packages/learn-to-cloud-shared` |
+| Format check | `cd api && uv run ruff format --check . ../packages/learn-to-cloud-shared && cd ../apps/verification-functions && uv run ruff format --check .` |
 | Format fix | `uv run ruff format <file>` |
-| Type check | `cd api && uv run ty check --exclude scripts --exclude tests .` |
+| Type check | `cd api && uv run ty check --exclude scripts --exclude tests . && cd ../packages/learn-to-cloud-shared && uv run ty check --exclude tests . && cd ../../apps/verification-functions && uv run ty check .` |
 | Health check | `curl -s http://localhost:8000/health` |
 
 ---
