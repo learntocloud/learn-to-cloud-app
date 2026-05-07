@@ -128,7 +128,7 @@ variable "api_min_replicas" {
   default     = null
 
   validation {
-    condition     = var.api_min_replicas == null || var.api_min_replicas >= 0
+    condition     = var.api_min_replicas == null ? true : var.api_min_replicas >= 0
     error_message = "api_min_replicas must be zero or greater."
   }
 }
@@ -139,7 +139,7 @@ variable "api_max_replicas" {
   default     = null
 
   validation {
-    condition     = var.api_max_replicas == null || var.api_max_replicas >= 1
+    condition     = var.api_max_replicas == null ? true : var.api_max_replicas >= 1
     error_message = "api_max_replicas must be at least 1."
   }
 }
@@ -150,7 +150,7 @@ variable "postgres_sku_name" {
   default     = null
 
   validation {
-    condition     = var.postgres_sku_name == null || length(trimspace(var.postgres_sku_name)) > 0
+    condition     = var.postgres_sku_name == null ? true : length(trimspace(var.postgres_sku_name)) > 0
     error_message = "postgres_sku_name must be non-empty when set."
   }
 }
@@ -161,7 +161,7 @@ variable "postgres_storage_mb" {
   default     = null
 
   validation {
-    condition     = var.postgres_storage_mb == null || var.postgres_storage_mb >= 32768
+    condition     = var.postgres_storage_mb == null ? true : var.postgres_storage_mb >= 32768
     error_message = "postgres_storage_mb must be at least 32768 MB when set."
   }
 }
@@ -172,7 +172,7 @@ variable "postgres_backup_retention_days" {
   default     = null
 
   validation {
-    condition     = var.postgres_backup_retention_days == null || (var.postgres_backup_retention_days >= 7 && var.postgres_backup_retention_days <= 35)
+    condition     = var.postgres_backup_retention_days == null ? true : var.postgres_backup_retention_days >= 7 && var.postgres_backup_retention_days <= 35
     error_message = "postgres_backup_retention_days must be between 7 and 35 when set."
   }
 }
@@ -189,7 +189,7 @@ variable "postgres_zone" {
   default     = null
 
   validation {
-    condition     = var.postgres_zone == null || can(regex("^[1-9][0-9]*$", var.postgres_zone))
+    condition     = var.postgres_zone == null ? true : can(regex("^[1-9][0-9]*$", var.postgres_zone))
     error_message = "postgres_zone must be a positive zone number string when set."
   }
 }
