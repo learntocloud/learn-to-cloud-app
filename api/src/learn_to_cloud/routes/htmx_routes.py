@@ -29,10 +29,10 @@ from learn_to_cloud_shared.verification.url_derivation import (
     derive_submission_value,
     is_derivable,
 )
-from opentelemetry import trace
 
 from learn_to_cloud.core.auth import AuthenticatedUser, CurrentUser, UserId
 from learn_to_cloud.core.ratelimit import limiter
+from learn_to_cloud.core.telemetry import add_span_event, record_span_exception
 from learn_to_cloud.core.templates import templates
 from learn_to_cloud.rendering.context import (
     build_progress_dict,
@@ -187,8 +187,7 @@ async def _render_step_toggle(
                 break
 
     if step is None:
-        span = trace.get_current_span()
-        span.add_event(
+        add_span_event(
             "step_not_found",
             {"user_id": user_id, "topic_id": topic_id, "step_id": step_id},
         )
@@ -230,8 +229,7 @@ async def htmx_complete_step(
     try:
         await complete_step(db, user_id, topic_id, step_id)
     except StepValidationError as e:
-        span = trace.get_current_span()
-        span.add_event(
+        add_span_event(
             "step_complete_invalid",
             {
                 "user_id": user_id,
@@ -260,8 +258,7 @@ async def htmx_uncomplete_step(
     try:
         await uncomplete_step(db, user_id, topic_id, step_id)
     except StepValidationError as e:
-        span = trace.get_current_span()
-        span.add_event(
+        add_span_event(
             "step_uncomplete_invalid",
             {
                 "user_id": user_id,
@@ -397,9 +394,7 @@ async def htmx_submit_verification(
         DurableVerificationConfigError,
         DurableVerificationStartError,
     ) as exc:
-        span = trace.get_current_span()
-        span.record_exception(exc)
-        span.set_attribute("error.type", type(exc).__name__)
+        record_span_exception(exc)
         logger.warning(
             "htmx.submit.durable_start_failed",
             extra={
@@ -421,9 +416,7 @@ async def htmx_submit_verification(
             server_error_message=_DURABLE_START_ERROR_MESSAGE,
         )
     except Exception as exc:
-        span = trace.get_current_span()
-        span.record_exception(exc)
-        span.set_attribute("error.type", type(exc).__name__)
+        record_span_exception(exc)
         logger.exception(
             "htmx.submit.unexpected_error",
             extra={
@@ -455,8 +448,7 @@ async def htmx_verification_job_status(
             expected_user_id=user_id,
         )
     except VerificationStatusTokenError as exc:
-        span = trace.get_current_span()
-        span.add_event(
+        add_span_event(
             "verification_status_token_invalid",
             {"user_id": user_id, "error": str(exc)},
         )
@@ -470,11 +462,13 @@ async def htmx_verification_job_status(
             token_data.instance_id
         )
     except (DurableVerificationConfigError, DurableVerificationStatusError) as exc:
-        span = trace.get_current_span()
-        span.record_exception(exc)
-        span.set_attribute("error.type", type(exc).__name__)
-        span.set_attribute("user.id", user_id)
-        span.set_attribute("verification.job_id", token_data.job_id)
+        record_span_exception(
+            exc,
+            {
+                "user.id": user_id,
+                "verification.job_id": str(token_data.job_id),
+            },
+        )
         logger.warning(
             "verification.status.durable_read_failed",
             extra={
@@ -532,8 +526,7 @@ async def htmx_delete_account(
     try:
         await delete_user_account(db, user_id)
     except UserNotFoundError:
-        span = trace.get_current_span()
-        span.add_event("account_delete_not_found", {"user_id": user_id})
+        add_span_event("account_delete_not_found", {"user_id": user_id})
         return HTMLResponse(
             '<p class="text-sm text-red-600">Account not found.</p>',
             status_code=404,
