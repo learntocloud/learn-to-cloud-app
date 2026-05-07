@@ -187,7 +187,14 @@ async def test_execute_verification_job_marks_success_and_links_submission(
     assert result.submission_id is not None
     assert result.is_valid is True
     assert result.verification_completed is True
-    assert result.to_payload()["status"] == "succeeded"
+    payload = result.to_payload()
+    assert payload["status"] == "succeeded"
+    assert payload["code"] == "verification_succeeded"
+    assert payload["requirement_id"] == REQUIREMENT_ID
+    assert payload["requirement_name"] == "Verification Executor Test"
+    assert payload["submission_type"] == SubmissionType.CI_STATUS.value
+    assert payload["message"] == "Verification succeeded."
+    assert payload["detail"] == "Verified"
 
     status, result_submission_id, error_code, error_message = await _get_job_status(
         session_maker,
@@ -235,6 +242,9 @@ async def test_execute_verification_job_marks_user_validation_failure(
     assert result.submission_id is not None
     assert result.is_valid is False
     assert result.verification_completed is True
+    assert result.code == VALIDATION_FAILED_ERROR_CODE
+    assert result.message == "Verification failed."
+    assert result.detail == "Fix your repository settings."
 
     status, result_submission_id, error_code, error_message = await _get_job_status(
         session_maker,
@@ -279,6 +289,9 @@ async def test_execute_verification_job_marks_server_error(
     assert result.submission_id is not None
     assert result.is_valid is False
     assert result.verification_completed is False
+    assert result.code == VERIFICATION_INCOMPLETE_ERROR_CODE
+    assert result.message == "Verification could not be completed."
+    assert result.detail == "GitHub API unavailable."
 
     status, result_submission_id, error_code, error_message = await _get_job_status(
         session_maker,
@@ -325,6 +338,8 @@ async def test_execute_verification_job_is_idempotent_for_terminal_jobs(
 
     assert result.status == VerificationJobStatus.SUCCEEDED
     assert result.submission_id == submission.id
+    assert result.code == "verification_succeeded"
+    assert result.message == "Verification succeeded."
     assert await _count_submissions(session_maker) == 1
     validation.assert_not_awaited()
 
@@ -350,6 +365,9 @@ async def test_execute_verification_job_marks_missing_requirement_server_error(
     assert result.status == VerificationJobStatus.SERVER_ERROR
     assert result.submission_id is None
     assert result.verification_completed is False
+    assert result.code == REQUIREMENT_NOT_FOUND_ERROR_CODE
+    assert result.message == "Verification could not be completed."
+    assert result.detail == f"Requirement not found: {REQUIREMENT_ID}"
 
     status, result_submission_id, error_code, error_message = await _get_job_status(
         session_maker,
