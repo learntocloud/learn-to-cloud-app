@@ -236,6 +236,8 @@ def build_requirement_card_context(
     server_error_message: str | None = None,
     error_banner: str | None = None,
     processing: bool = False,
+    verification_status_token: str | None = None,
+    verification_status_delay_seconds: int = 2,
 ) -> dict[str, Any]:
     """Build the template context for ``partials/requirement_card.html``.
 
@@ -259,6 +261,8 @@ def build_requirement_card_context(
         server_error_message: Optional server-error text.
         error_banner: Optional inline error banner text.
         processing: Whether the card is in the "analysing..." state.
+        verification_status_token: Signed token used by the HTMX polling card.
+        verification_status_delay_seconds: Delay before the next status poll.
     """
     derived_url: str | None = None
     pr_url_prefix: str | None = None
@@ -294,6 +298,8 @@ def build_requirement_card_context(
         "server_error_message": server_error_message,
         "error_banner": error_banner,
         "processing": processing,
+        "verification_status_token": verification_status_token,
+        "verification_status_delay_seconds": verification_status_delay_seconds,
         "derived_url": derived_url,
         "pr_url_prefix": pr_url_prefix,
     }

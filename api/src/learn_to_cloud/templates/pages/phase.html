@@ -77,6 +77,7 @@
         {% set feedback_tasks = fb.get('tasks', []) if fb else [] %}
         {% set feedback_passed = fb.get('passed', 0) if fb else 0 %}
         {% set active_job = active_jobs_by_req.get(req.id) if active_jobs_by_req is defined else None %}
+        {% set verification_status_token = verification_status_tokens_by_req.get(req.id) if verification_status_tokens_by_req is defined else None %}
         {% set persisted_error = submission.validation_message if submission and not submission.is_validated and submission.validation_message else None %}
 
         {% if is_verified %}
@@ -88,7 +89,7 @@
         {% elif not ns.found_active %}
         {# First incomplete — show full card #}
         {% set ns.found_active = true %}
-        {% with requirement=req, submission=submission, feedback_tasks=feedback_tasks, feedback_passed=feedback_passed, phase_id=phase.order, error_banner=persisted_error, server_error=False, server_error_message=None, processing=active_job is not none, derived_url=derived_urls_by_req.get(req.id), pr_url_prefix=pr_url_prefixes_by_req.get(req.id) %}
+        {% with requirement=req, submission=submission, feedback_tasks=feedback_tasks, feedback_passed=feedback_passed, phase_id=phase.order, error_banner=persisted_error, server_error=False, server_error_message=None, processing=active_job is not none, verification_status_token=verification_status_token, verification_status_delay_seconds=2, derived_url=derived_urls_by_req.get(req.id), pr_url_prefix=pr_url_prefixes_by_req.get(req.id) %}
         {% include "partials/requirement_card.html" %}
         {% endwith %}
         {% else %}

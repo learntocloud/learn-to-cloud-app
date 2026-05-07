@@ -20,12 +20,11 @@
     <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">{{ requirement.description }}</p>
     {% endif %}
 
-    {% if processing %}
-    {# LLM verification in progress — connect to SSE stream for result #}
+    {% if processing and verification_status_token %}
+    {# Verification in progress — poll the Durable status proxy until terminal. #}
     <div
-        hx-ext="sse"
-        sse-connect="/htmx/verification/{{ requirement.id }}/stream"
-        sse-swap="verification-result"
+        hx-get="/htmx/verification/jobs/status?token={{ verification_status_token | urlencode }}"
+        hx-trigger="load delay:{{ verification_status_delay_seconds | default(2) }}s"
         hx-target="#requirement-{{ requirement.id }}"
         hx-swap="outerHTML"
         class="flex items-center gap-3 py-3"
@@ -34,6 +33,10 @@
         <span class="text-sm text-gray-600 dark:text-gray-400">
             Analyzing your code... this usually takes 30–60 seconds.
         </span>
+    </div>
+    {% elif processing %}
+    <div class="text-amber-600 dark:text-amber-400 text-sm p-2">
+        Verification is running. Refresh the page to check for results.
     </div>
     {% elif not submission or not submission.is_validated %}
     <form
