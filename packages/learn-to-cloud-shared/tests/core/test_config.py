@@ -136,6 +136,30 @@ class TestContentDirPath:
 
 
 # ---------------------------------------------------------------------------
+# frontend telemetry
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+class TestFrontendTelemetryConfig:
+    def test_defaults_to_disabled(self):
+        s = Settings(
+            debug=True,
+            database_url="postgresql+asyncpg://localhost/db",
+        )
+        assert s.frontend_applicationinsights_connection_string == ""
+
+    def test_accepts_frontend_connection_string(self):
+        conn_str = "InstrumentationKey=abc;IngestionEndpoint=https://example.invalid/"
+        s = Settings(
+            debug=True,
+            database_url="postgresql+asyncpg://localhost/db",
+            frontend_applicationinsights_connection_string=conn_str,
+        )
+        assert s.frontend_applicationinsights_connection_string == conn_str
+
+
+# ---------------------------------------------------------------------------
 # allowed_origins
 # ---------------------------------------------------------------------------
 

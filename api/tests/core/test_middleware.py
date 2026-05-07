@@ -56,6 +56,31 @@ class TestSecurityHeadersMiddleware:
         assert b"strict-transport-security" in header_names
         assert b"permissions-policy" in header_names
 
+    async def test_csp_allows_frontend_telemetry_endpoints(self):
+        middleware = SecurityHeadersMiddleware(_make_app_that_sends_response)
+        scope = {"type": "http", "path": "/"}
+        sent_messages = []
+
+        async def mock_send(message):
+            sent_messages.append(message)
+
+        await middleware(scope, _noop_receive, mock_send)
+
+        response_start = sent_messages[0]
+        headers_dict = {h[0]: h[1] for h in response_start["headers"]}
+        csp = headers_dict[b"content-security-policy"].decode()
+        directives = {
+            parts[0]: parts[1:]
+            for directive in csp.split(";")
+            if (parts := directive.strip().split())
+        }
+        script_sources = set(directives["script-src"])
+        connect_sources = set(directives["connect-src"])
+
+        assert "https://" + "js.monitor.azure.com" in script_sources
+        assert "https://" + "*.in.applicationinsights.azure.com" in connect_sources
+        assert "https://" + "dc.services.visualstudio.com" in connect_sources
+
     async def test_skips_non_http_scopes(self):
         called = False
 

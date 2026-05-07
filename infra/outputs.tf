@@ -24,6 +24,17 @@ output "application_insights_connection_string" {
   sensitive   = true
 }
 
+output "frontend_application_insights_connection_string" {
+  description = "Frontend Application Insights connection string"
+  value       = azurerm_application_insights.frontend.connection_string
+  sensitive   = true
+}
+
+output "frontend_application_insights_name" {
+  description = "Frontend Application Insights resource name"
+  value       = azurerm_application_insights.frontend.name
+}
+
 output "action_group_id" {
   description = "Action group ID for critical alerts (Sev1)"
   value       = azurerm_monitor_action_group.critical.id
