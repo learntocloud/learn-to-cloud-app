@@ -59,6 +59,11 @@ output "api_url" {
   value       = "https://${azurerm_container_app.api.ingress[0].fqdn}"
 }
 
+output "api_container_app_name" {
+  description = "API Container App name (for CI/CD)"
+  value       = azurerm_container_app.api.name
+}
+
 output "migration_job_name" {
   description = "Container Apps Job name used to run database migrations"
   value       = azurerm_container_app_job.migrations.name

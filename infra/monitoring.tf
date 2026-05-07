@@ -53,10 +53,14 @@ resource "azurerm_monitor_scheduled_query_rules_alert_v2" "api_5xx_errors" {
   criteria {
     query                   = <<-QUERY
       requests
+      | where cloud_RoleName in ("learn-to-cloud-api", "ca-ltc-api-${var.environment}")
+          or cloud_RoleName has "learn-to-cloud-api"
+          or cloud_RoleName has "ca-ltc-api"
       | where resultCode startswith "5"
       | summarize ErrorCount = count() by bin(timestamp, 5m)
     QUERY
-    time_aggregation_method = "Count"
+    time_aggregation_method = "Maximum"
+    metric_measure_column   = "ErrorCount"
     operator                = "GreaterThanOrEqual"
     threshold               = 3
 

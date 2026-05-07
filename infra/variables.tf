@@ -103,6 +103,11 @@ variable "environment" {
   description = "Environment name (dev, staging, prod)"
   type        = string
   default     = "dev"
+
+  validation {
+    condition     = contains(["dev", "staging", "prod"], var.environment)
+    error_message = "environment must be dev, staging, or prod."
+  }
 }
 
 variable "location" {
@@ -115,4 +120,76 @@ variable "alert_emails" {
   description = "Email addresses to receive monitoring alerts"
   type        = list(string)
   default     = ["learntocloudguide@gmail.com"]
+}
+
+variable "api_min_replicas" {
+  description = "Minimum API Container App replicas. Defaults to 0 so the API can scale to zero."
+  type        = number
+  default     = null
+
+  validation {
+    condition     = var.api_min_replicas == null || var.api_min_replicas >= 0
+    error_message = "api_min_replicas must be zero or greater."
+  }
+}
+
+variable "api_max_replicas" {
+  description = "Maximum API Container App replicas."
+  type        = number
+  default     = null
+
+  validation {
+    condition     = var.api_max_replicas == null || var.api_max_replicas >= 1
+    error_message = "api_max_replicas must be at least 1."
+  }
+}
+
+variable "postgres_sku_name" {
+  description = "PostgreSQL Flexible Server SKU. Defaults to the cheapest configured burstable SKU."
+  type        = string
+  default     = null
+
+  validation {
+    condition     = var.postgres_sku_name == null || length(trimspace(var.postgres_sku_name)) > 0
+    error_message = "postgres_sku_name must be non-empty when set."
+  }
+}
+
+variable "postgres_storage_mb" {
+  description = "PostgreSQL Flexible Server storage size in MB."
+  type        = number
+  default     = null
+
+  validation {
+    condition     = var.postgres_storage_mb == null || var.postgres_storage_mb >= 32768
+    error_message = "postgres_storage_mb must be at least 32768 MB when set."
+  }
+}
+
+variable "postgres_backup_retention_days" {
+  description = "PostgreSQL Flexible Server backup retention in days."
+  type        = number
+  default     = null
+
+  validation {
+    condition     = var.postgres_backup_retention_days == null || (var.postgres_backup_retention_days >= 7 && var.postgres_backup_retention_days <= 35)
+    error_message = "postgres_backup_retention_days must be between 7 and 35 when set."
+  }
+}
+
+variable "postgres_geo_redundant_backup_enabled" {
+  description = "Whether PostgreSQL geo-redundant backup is enabled. Decide before initial production creation."
+  type        = bool
+  default     = null
+}
+
+variable "postgres_zone" {
+  description = "PostgreSQL Flexible Server availability zone. Set to null only when the target region/SKU supports zone omission."
+  type        = string
+  default     = null
+
+  validation {
+    condition     = var.postgres_zone == null || can(regex("^[1-9][0-9]*$", var.postgres_zone))
+    error_message = "postgres_zone must be a positive zone number string when set."
+  }
 }

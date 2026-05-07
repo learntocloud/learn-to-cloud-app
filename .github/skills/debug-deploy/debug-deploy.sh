@@ -3,7 +3,7 @@
 # Debug Deploy Workflow Script
 # =============================================================================
 # This script helps diagnose and fix issues with the GitHub Actions deploy workflow.
-# Usage: ./scripts/debug-deploy.sh [command]
+# Usage: .github/skills/debug-deploy/debug-deploy.sh [command]
 #
 # Commands:
 #   status    - Show recent workflow runs and their status (default)
@@ -26,7 +26,8 @@ NC='\033[0m' # No Color
 
 # Navigate to repo root
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+SCRIPT_RELATIVE_PATH=".github/skills/debug-deploy/debug-deploy.sh"
 cd "$REPO_ROOT"
 
 print_header() {
@@ -67,7 +68,7 @@ cmd_status() {
     gh run list --workflow=deploy.yml --limit 10
 
     echo ""
-    print_info "Use './scripts/debug-deploy.sh logs <run-id>' to view logs for a specific run"
+    print_info "Use '$SCRIPT_RELATIVE_PATH logs <run-id>' to view logs for a specific run"
 }
 
 # View failed logs
@@ -102,7 +103,7 @@ cmd_logs() {
         echo "The Terraform state file is locked by another process."
         echo ""
         echo "To fix this, run:"
-        echo -e "  ${GREEN}./scripts/debug-deploy.sh unlock${NC}"
+        echo -e "  ${GREEN}$SCRIPT_RELATIVE_PATH unlock${NC}"
         echo ""
 
         # Extract lock ID if present
@@ -148,7 +149,7 @@ cmd_logs() {
     if echo "$logs" | grep -q "ruff\|lint error\|E501\|F401"; then
         print_warning "DETECTED: Linting Issues"
         echo ""
-        echo "Code linting failed. Run 'ruff check api/' locally to see issues."
+        echo "Code linting failed. Run '(cd api && uv run ruff check . ../packages/learn-to-cloud-shared)' locally to see issues."
     fi
 }
 
@@ -209,7 +210,7 @@ cmd_rerun() {
     print_success "Workflow re-run requested!"
 
     echo ""
-    print_info "Watch the run with: ./scripts/debug-deploy.sh watch"
+    print_info "Watch the run with: $SCRIPT_RELATIVE_PATH watch"
 }
 
 # Watch a workflow run
@@ -230,7 +231,7 @@ cmd_help() {
     cat << EOF
 Debug Deploy Workflow Script
 
-Usage: ./scripts/debug-deploy.sh [command] [args]
+Usage: .github/skills/debug-deploy/debug-deploy.sh [command] [args]
 
 Commands:
   status          Show recent workflow runs and their status (default)
@@ -241,19 +242,19 @@ Commands:
   help            Show this help message
 
 Examples:
-  ./scripts/debug-deploy.sh                    # Show status
-  ./scripts/debug-deploy.sh logs               # View most recent failure
-  ./scripts/debug-deploy.sh logs 12345678      # View specific run
-  ./scripts/debug-deploy.sh unlock             # Fix Terraform lock
-  ./scripts/debug-deploy.sh rerun              # Re-run latest failed
+  .github/skills/debug-deploy/debug-deploy.sh                    # Show status
+  .github/skills/debug-deploy/debug-deploy.sh logs               # View most recent failure
+  .github/skills/debug-deploy/debug-deploy.sh logs 12345678      # View specific run
+  .github/skills/debug-deploy/debug-deploy.sh unlock             # Fix Terraform lock
+  .github/skills/debug-deploy/debug-deploy.sh rerun              # Re-run latest failed
 
 Common Issues Detected:
   • Terraform State Lock - Run 'unlock' command to fix
   • Authentication Errors - Check OIDC deployment secrets/variables and Azure RBAC
   • Resource Not Found - Resource may have been deleted outside Terraform
   • Quota Exceeded - Request quota increase or clean up resources
-  • Test Failures - Run tests locally with 'pytest api/tests/'
-  • Lint Failures - Run 'ruff check api/' locally
+  • Test Failures - Run tests locally with 'cd api && uv run pytest tests/ ../packages/learn-to-cloud-shared/tests -x'
+  • Lint Failures - Run 'cd api && uv run ruff check . ../packages/learn-to-cloud-shared' locally
 
 EOF
 }

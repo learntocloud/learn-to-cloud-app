@@ -40,6 +40,12 @@ resource "azurerm_container_app" "api" {
     ignore_changes = [
       template[0].container[0].image,
     ]
+
+    precondition {
+      condition     = local.api_min_replicas <= local.api_max_replicas
+      error_message = "api_min_replicas must be less than or equal to api_max_replicas."
+    }
+
   }
 
   identity {
@@ -93,12 +99,12 @@ resource "azurerm_container_app" "api" {
   }
 
   template {
-    min_replicas = 0
+    min_replicas = local.api_min_replicas
     # PostgreSQL max connections vary by SKU.
     # Each replica uses up to 10 (pool_size=5 + max_overflow=5).
     # 2 replicas × 10 = 20 connections — well under typical SKU limits.
     # Scaling uses the default HTTP rule (10 concurrent requests per replica).
-    max_replicas = 2
+    max_replicas = local.api_max_replicas
 
     container {
       name   = "api"

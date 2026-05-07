@@ -30,6 +30,7 @@ postgres_entra_admin_principal_name = "Learn to Cloud PostgreSQL Admins"
 # postgres_verification_functions_role = "ltc_verification_functions_dev"
 
 # Optional - CIDR ranges allowed to connect to Durable Task Scheduler.
+# For prod, use trusted CIDRs only; Terraform rejects 0.0.0.0/0 and ::/0.
 # durable_task_scheduler_ip_allowlist = ["0.0.0.0/0"]
 
 # Optional - Durable Task Scheduler dashboard readers by environment.
@@ -51,3 +52,14 @@ github_client_id = "Ov23xxx"
 # location    = "centralus"
 # environment = "dev"
 # alert_emails = ["learntocloud@gmail.com"]
+# api_min_replicas = 0
+# api_max_replicas = 2
+#
+# PostgreSQL defaults use the cheapest configured deployment shape. Override
+# only if you intentionally want a larger SKU, more retention, or geo-redundant
+# backups.
+# postgres_sku_name                      = "B_Standard_B1ms"
+# postgres_storage_mb                    = 32768
+# postgres_backup_retention_days         = 35
+# postgres_geo_redundant_backup_enabled  = true
+# postgres_zone                          = "3"

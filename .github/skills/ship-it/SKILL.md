@@ -37,7 +37,7 @@ Reply with "LFG 🚀 I'll ship it" to acknowledge the user's intent.
 ## Step 1: Run Prek
 
 ```bash
-cd <workspace> && uv run prek run --all-files
+cd <workspace> && prek run --all-files
 ```
 
 ### Handling Failures
@@ -48,7 +48,7 @@ Prek hooks may auto-fix issues (ruff lint `--fix`, ruff format, trailing whitesp
 
 1. **Check if hooks auto-fixed files** — many hooks modify files in place. Re-run prek:
    ```bash
-   uv run prek run --all-files
+   prek run --all-files
    ```
 
 2. **If the second run passes** — the auto-fixes resolved everything. Proceed to Step 2.
