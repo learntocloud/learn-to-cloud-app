@@ -69,12 +69,15 @@ class TestSecurityHeadersMiddleware:
         response_start = sent_messages[0]
         headers_dict = {h[0]: h[1] for h in response_start["headers"]}
         csp = headers_dict[b"content-security-policy"].decode()
+        directives = {
+            parts[0]: parts[1:]
+            for directive in csp.split(";")
+            if (parts := directive.strip().split())
+        }
 
-        assert "script-src" in csp
-        assert "https://js.monitor.azure.com" in csp
-        assert "connect-src" in csp
-        assert "https://*.in.applicationinsights.azure.com" in csp
-        assert "https://dc.services.visualstudio.com" in csp
+        assert "https://js.monitor.azure.com" in directives["script-src"]
+        assert "https://*.in.applicationinsights.azure.com" in directives["connect-src"]
+        assert "https://dc.services.visualstudio.com" in directives["connect-src"]
 
     async def test_skips_non_http_scopes(self):
         called = False
