@@ -13,6 +13,7 @@ from pathlib import Path
 
 from fastapi import Request
 from fastapi.templating import Jinja2Templates
+from learn_to_cloud_shared.core.config import get_settings
 
 _templates_dir = Path(__file__).resolve().parent.parent / "templates"
 _static_dir = Path(__file__).resolve().parent.parent / "static"
@@ -48,11 +49,24 @@ def _static_url_context(request: Request) -> dict[str, object]:
     return {"static_url": static_url}
 
 
+def _frontend_telemetry_context(request: Request) -> dict[str, object]:
+    """Inject browser telemetry config when frontend telemetry is enabled."""
+    conn_str = get_settings().frontend_applicationinsights_connection_string
+    if not conn_str:
+        return {"frontend_telemetry": None}
+
+    return {
+        "frontend_telemetry": {
+            "connection_string": conn_str,
+        }
+    }
+
+
 # Populate hashes at import time
 if _static_dir.exists():
     _static_hashes.update(_build_static_file_hashes(_static_dir))
 
 templates = Jinja2Templates(
     directory=str(_templates_dir),
-    context_processors=[_static_url_context],
+    context_processors=[_static_url_context, _frontend_telemetry_context],
 )

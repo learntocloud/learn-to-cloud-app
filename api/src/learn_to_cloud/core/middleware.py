@@ -19,10 +19,12 @@ class SecurityHeadersMiddleware:
         (
             b"content-security-policy",
             b"default-src 'self';"
-            b" script-src 'self' 'unsafe-inline' 'unsafe-eval';"
+            b" script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.monitor.azure.com;"
             b" style-src 'self' 'unsafe-inline';"
             b" img-src 'self' https://avatars.githubusercontent.com data:;"
-            b" connect-src 'self' https://github.com;"
+            b" connect-src 'self' https://github.com"
+            b" https://*.in.applicationinsights.azure.com"
+            b" https://dc.services.visualstudio.com;"
             b" font-src 'self';"
             b" frame-ancestors 'none'",
         ),

@@ -51,6 +51,7 @@ class Settings(BaseSettings):
     ratelimit_storage_uri: str = "memory://"
 
     frontend_url: str = "http://localhost:4280"
+    frontend_applicationinsights_connection_string: str = ""
 
     content_dir: str = ""
 

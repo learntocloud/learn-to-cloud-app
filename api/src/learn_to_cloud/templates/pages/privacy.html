@@ -3,7 +3,7 @@
 
 {% block page_header %}
 <h1 class="text-3xl font-bold text-gray-900 dark:text-white text-center">Privacy Policy</h1>
-<p class="mt-2 text-sm text-gray-500 dark:text-gray-400 text-center">Last updated: February 23, 2026</p>
+<p class="mt-2 text-sm text-gray-500 dark:text-gray-400 text-center">Last updated: May 7, 2026</p>
 {% endblock %}
 
 {% block page_body %}
@@ -32,6 +32,11 @@
         <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">
             We do <strong>not</strong> collect your email address, password, private repositories, or any other personal
             information beyond what is listed above.
+        </p>
+        <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">
+            We collect basic browser telemetry, such as page views, performance timings, and client-side errors, to
+            diagnose reliability issues. Browser telemetry is not linked to your GitHub account, username, or internal
+            user ID.
         </p>
     </section>
 
@@ -62,6 +67,7 @@
             <li>Track your learning progress across phases</li>
             <li>Verify completion of hands-on exercises</li>
             <li>Compute anonymous, aggregate community statistics</li>
+            <li>Diagnose client-side errors and performance issues</li>
         </ul>
     </section>
 
@@ -80,7 +86,8 @@
         <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Cookies</h2>
         <p class="text-sm text-gray-600 dark:text-gray-400">
             We use a single session cookie to keep you signed in. This cookie is signed, HTTP-only, and contains only
-            your user ID. We do not use tracking cookies, analytics cookies, or any third-party cookies.
+            your user ID. We do not use tracking cookies, analytics cookies, or any third-party cookies. Browser
+            telemetry is configured without cookies or browser storage.
         </p>
     </section>
 
@@ -102,6 +109,7 @@
         <ul class="mt-2 list-disc list-inside text-sm text-gray-600 dark:text-gray-400 space-y-1">
             <li><strong>GitHub API</strong> — to verify repositories and profiles you submit</li>
             <li><strong>Azure OpenAI</strong> — to analyze code you submit for verification (code is not stored by the LLM)</li>
+            <li><strong>Azure Application Insights</strong> — to collect server and browser diagnostics</li>
         </ul>
     </section>
 

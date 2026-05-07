@@ -11,6 +11,31 @@
 
     <link rel="stylesheet" href="{{ static_url('css/styles.css') }}">
 
+    {% if frontend_telemetry %}
+    <script src="https://js.monitor.azure.com/scripts/b/ai.3.gbl.min.js" crossorigin="anonymous"></script>
+    <script>
+        if (window.Microsoft && window.Microsoft.ApplicationInsights) {
+            window.appInsights = new Microsoft.ApplicationInsights.ApplicationInsights({
+                config: {
+                    connectionString: {{ frontend_telemetry.connection_string | tojson }},
+                    disableCookiesUsage: true,
+                    cookieCfg: { enabled: false },
+                    isStorageUseDisabled: true,
+                    enableSessionStorageBuffer: false,
+                    enableAutoRouteTracking: false,
+                    enableUnhandledPromiseRejectionTracking: true
+                }
+            });
+            window.appInsights.loadAppInsights();
+            window.appInsights.trackPageView({
+                name: document.title,
+                uri: window.location.href
+            });
+        }
+    </script>
+    <script defer src="{{ static_url('js/frontend-telemetry.js') }}"></script>
+    {% endif %}
+
     <!-- Apply dark class synchronously to prevent FOUC -->
     <script>
         document.documentElement.classList.toggle(

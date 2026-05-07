@@ -163,6 +163,11 @@ resource "azurerm_container_app" "api" {
       }
 
       env {
+        name  = "FRONTEND_APPLICATIONINSIGHTS_CONNECTION_STRING"
+        value = azurerm_application_insights.frontend.connection_string
+      }
+
+      env {
         name  = "OTEL_SERVICE_NAME"
         value = "learn-to-cloud-api"
       }
