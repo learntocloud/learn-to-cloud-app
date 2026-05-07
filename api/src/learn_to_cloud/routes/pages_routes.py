@@ -39,6 +39,9 @@ from learn_to_cloud.services.progress_service import fetch_phase_progress
 from learn_to_cloud.services.steps_service import get_valid_completed_steps
 from learn_to_cloud.services.submissions_service import get_phase_submission_context
 from learn_to_cloud.services.users_service import get_user_by_id
+from learn_to_cloud.services.verification_status_tokens import (
+    create_verification_status_token,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -135,6 +138,16 @@ async def phase_page(
         phase_id,
     )
     active_jobs_by_req = {job.requirement_id: job for job in active_jobs}
+    verification_status_tokens_by_req = {
+        job.requirement_id: create_verification_status_token(
+            user_id=user_id,
+            job_id=job.id,
+            instance_id=job.orchestration_instance_id,
+            requirement_id=job.requirement_id,
+        )
+        for job in active_jobs
+        if job.orchestration_instance_id is not None
+    }
 
     # Pre-compute per-requirement derived URLs and PR-review prefixes so the
     # Jinja template never builds GitHub URLs.  Uses the same helper as the
@@ -167,6 +180,7 @@ async def phase_page(
             submissions_by_req=submissions_by_req,
             feedback_by_req=feedback_by_req,
             active_jobs_by_req=active_jobs_by_req,
+            verification_status_tokens_by_req=verification_status_tokens_by_req,
             derived_urls_by_req=derived_urls_by_req,
             pr_url_prefixes_by_req=pr_url_prefixes_by_req,
             progress=progress,

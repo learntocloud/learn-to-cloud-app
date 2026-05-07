@@ -120,7 +120,7 @@ def _attached_invocation_context(context: func.Context | None) -> Iterator[None]
 
 def _json_response(payload: dict[str, object], status_code: int) -> func.HttpResponse:
     return func.HttpResponse(
-        json.dumps(payload),
+        json.dumps(payload, default=str),
         status_code=status_code,
         mimetype="application/json",
     )
@@ -241,3 +241,68 @@ async def start_verification_job(
             extra={"job_id": job_id, "instance_id": instance_id},
         )
         return client.create_check_status_response(req, instance_id)
+
+
+@app.route(route="verification/jobs/{instance_id}/status", methods=["GET"])
+@app.durable_client_input(client_name="client")
+async def get_verification_job_status(
+    req: func.HttpRequest,
+    client: df.DurableOrchestrationClient,
+    context: func.Context,
+) -> func.HttpResponse:
+    """Return minimal Durable status for a verification orchestration."""
+    _ensure_observability()
+    with _attached_invocation_context(context):
+        raw_instance_id = req.route_params.get("instance_id")
+        if raw_instance_id is None:
+            return _json_response({"error": "missing_instance_id"}, status_code=400)
+
+        try:
+            instance_id = str(UUID(raw_instance_id))
+        except ValueError:
+            return _json_response({"error": "invalid_instance_id"}, status_code=400)
+
+        status = await client.get_status(
+            instance_id,
+            show_history=False,
+            show_history_output=False,
+            show_input=False,
+        )
+        if status is None:
+            return _json_response({"error": "instance_not_found"}, status_code=404)
+
+        return _json_response(
+            {
+                "instanceId": _status_attr(status, "instance_id", "instanceId")
+                or instance_id,
+                "runtimeStatus": _status_value(
+                    _status_attr(status, "runtime_status", "runtimeStatus")
+                ),
+                "customStatus": _status_attr(status, "custom_status", "customStatus"),
+                "output": _status_attr(status, "output"),
+                "createdTime": _status_attr(status, "created_time", "createdTime"),
+                "lastUpdatedTime": _status_attr(
+                    status,
+                    "last_updated_time",
+                    "lastUpdatedTime",
+                ),
+            },
+            status_code=200,
+        )
+
+
+def _status_attr(value: object, *names: str) -> object | None:
+    for name in names:
+        attr = getattr(value, name, None)
+        if attr is not None:
+            return attr
+    return None
+
+
+def _status_value(value: object | None) -> str | None:
+    if value is None:
+        return None
+    enum_value = getattr(value, "value", None)
+    if isinstance(enum_value, str):
+        return enum_value
+    return str(value)

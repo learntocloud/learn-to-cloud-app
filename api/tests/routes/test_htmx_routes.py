@@ -25,9 +25,12 @@ from learn_to_cloud.routes.htmx_routes import (
     htmx_delete_account,
     htmx_submit_verification,
     htmx_uncomplete_step,
+    htmx_verification_job_status,
 )
+from learn_to_cloud.services.durable_verification_client import DurableStatusResult
 from learn_to_cloud.services.steps_service import StepValidationError
 from learn_to_cloud.services.users_service import UserNotFoundError
+from learn_to_cloud.services.verification_status_tokens import VerificationStatusToken
 
 
 def _mock_request(*, session: dict | None = None) -> MagicMock:
@@ -289,6 +292,121 @@ class TestHtmxSubmitVerification:
 
         # Should render a server error card, not crash
         assert result is not None
+
+
+@pytest.mark.unit
+class TestHtmxVerificationJobStatus:
+    """Tests for Durable-backed verification status polling."""
+
+    async def test_running_status_returns_next_poll_card(self):
+        request = _mock_request()
+        current_user = AuthenticatedUser(user_id=1, github_username="user")
+        token_data = VerificationStatusToken(
+            user_id=1,
+            job_id=str(uuid4()),
+            instance_id=str(uuid4()),
+            requirement_id="req-1",
+        )
+
+        with (
+            patch(
+                "learn_to_cloud.routes.htmx_routes.load_verification_status_token",
+                return_value=token_data,
+            ) as mock_load_token,
+            patch(
+                "learn_to_cloud.routes.htmx_routes.get_verification_orchestration_status",
+                new_callable=AsyncMock,
+                return_value=DurableStatusResult(runtime_status="Running"),
+            ) as mock_get_status,
+            patch(
+                "learn_to_cloud.routes.htmx_routes.get_requirement_by_id",
+                return_value=MagicMock(),
+            ),
+        ):
+            result = await htmx_verification_job_status(
+                request,
+                token="signed-token",
+                current_user=current_user,
+            )
+
+        assert isinstance(result, HTMLResponse)
+        mock_load_token.assert_called_once_with(
+            "signed-token",
+            expected_user_id=1,
+        )
+        mock_get_status.assert_awaited_once_with(token_data.instance_id)
+
+    async def test_completed_status_returns_reload_trigger(self):
+        request = _mock_request()
+        current_user = AuthenticatedUser(user_id=1, github_username="user")
+        token_data = VerificationStatusToken(
+            user_id=1,
+            job_id=str(uuid4()),
+            instance_id=str(uuid4()),
+            requirement_id="req-1",
+        )
+
+        with (
+            patch(
+                "learn_to_cloud.routes.htmx_routes.load_verification_status_token",
+                return_value=token_data,
+            ),
+            patch(
+                "learn_to_cloud.routes.htmx_routes.get_verification_orchestration_status",
+                new_callable=AsyncMock,
+                return_value=DurableStatusResult(runtime_status="Completed"),
+            ),
+        ):
+            result = await htmx_verification_job_status(
+                request,
+                token="signed-token",
+                current_user=current_user,
+            )
+
+        assert isinstance(result, HTMLResponse)
+        assert "location.reload()" in bytes(result.body).decode()
+
+    async def test_failed_status_marks_job_server_error(self):
+        request = _mock_request()
+        mock_session = AsyncMock()
+        request.app.state.session_maker.return_value.__aenter__.return_value = (
+            mock_session
+        )
+        current_user = AuthenticatedUser(user_id=1, github_username="user")
+        job_id = uuid4()
+        token_data = VerificationStatusToken(
+            user_id=1,
+            job_id=str(job_id),
+            instance_id=str(uuid4()),
+            requirement_id="req-1",
+        )
+
+        with (
+            patch(
+                "learn_to_cloud.routes.htmx_routes.load_verification_status_token",
+                return_value=token_data,
+            ),
+            patch(
+                "learn_to_cloud.routes.htmx_routes.get_verification_orchestration_status",
+                new_callable=AsyncMock,
+                return_value=DurableStatusResult(runtime_status="Failed"),
+            ),
+            patch(
+                "learn_to_cloud.routes.htmx_routes.VerificationJobRepository",
+                autospec=True,
+            ) as mock_repository_class,
+        ):
+            result = await htmx_verification_job_status(
+                request,
+                token="signed-token",
+                current_user=current_user,
+            )
+
+        assert isinstance(result, HTMLResponse)
+        mock_repository = mock_repository_class.return_value
+        mock_repository.mark_server_error.assert_awaited_once()
+        assert mock_repository.mark_server_error.await_args.args == (job_id,)
+        mock_session.commit.assert_awaited_once()
 
 
 @pytest.mark.unit

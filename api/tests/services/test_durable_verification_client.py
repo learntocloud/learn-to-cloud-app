@@ -10,6 +10,8 @@ import pytest
 from learn_to_cloud.services.durable_verification_client import (
     DurableVerificationConfigError,
     DurableVerificationStartError,
+    DurableVerificationStatusError,
+    get_verification_orchestration_status,
     start_verification_orchestration,
 )
 
@@ -32,8 +34,10 @@ def _async_client(response: httpx.Response | Exception):
     client = MagicMock()
     if isinstance(response, Exception):
         client.post = AsyncMock(side_effect=response)
+        client.get = AsyncMock(side_effect=response)
     else:
         client.post = AsyncMock(return_value=response)
+        client.get = AsyncMock(return_value=response)
 
     context_manager = MagicMock()
     context_manager.__aenter__ = AsyncMock(return_value=client)
@@ -114,3 +118,46 @@ async def test_transport_error_raises_start_error():
         pytest.raises(DurableVerificationStartError, match="request failed"),
     ):
         await start_verification_orchestration(uuid4())
+
+
+async def test_gets_orchestration_status_with_function_key_header():
+    instance_id = str(uuid4())
+    client, context_manager = _async_client(
+        httpx.Response(200, json={"runtimeStatus": "Running", "customStatus": None})
+    )
+
+    with (
+        patch(
+            "learn_to_cloud.services.durable_verification_client.get_settings",
+            return_value=_settings(),
+        ),
+        patch(
+            "learn_to_cloud.services.durable_verification_client.httpx.AsyncClient",
+            return_value=context_manager,
+        ) as async_client,
+    ):
+        result = await get_verification_orchestration_status(instance_id)
+
+    assert result.runtime_status == "Running"
+    async_client.assert_called_once_with(timeout=3.0)
+    client.get.assert_awaited_once_with(
+        f"http://localhost:7071/api/verification/jobs/{instance_id}/status",
+        headers={"x-functions-key": "function-key"},
+    )
+
+
+async def test_status_without_runtime_status_raises_status_error():
+    _, context_manager = _async_client(httpx.Response(200, json={"output": {}}))
+
+    with (
+        patch(
+            "learn_to_cloud.services.durable_verification_client.get_settings",
+            return_value=_settings(),
+        ),
+        patch(
+            "learn_to_cloud.services.durable_verification_client.httpx.AsyncClient",
+            return_value=context_manager,
+        ),
+        pytest.raises(DurableVerificationStatusError, match="runtimeStatus"),
+    ):
+        await get_verification_orchestration_status(str(uuid4()))
