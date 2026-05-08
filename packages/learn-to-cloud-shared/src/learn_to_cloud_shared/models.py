@@ -166,7 +166,7 @@ class Submission(TimestampMixin, Base):
             "ix_submissions_user_req_latest",
             "user_id",
             "requirement_id",
-            "created_at",
+            text("created_at DESC"),
         ),
     )
 
