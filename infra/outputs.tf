@@ -130,6 +130,31 @@ output "verification_functions_postgres_role" {
   value       = local.verification_functions_postgres_role
 }
 
+output "foundry_account_name" {
+  description = "Azure AI Services account backing the verification Foundry project"
+  value       = azapi_resource.foundry_account.name
+}
+
+output "foundry_project_resource_id" {
+  description = "Foundry project resource ID used by the verification LLM grader"
+  value       = azapi_resource.foundry_project.id
+}
+
+output "foundry_project_endpoint" {
+  description = "Foundry project endpoint used by the verification LLM grader"
+  value       = local.foundry_project_endpoint
+}
+
+output "foundry_location" {
+  description = "Azure region for the verification Foundry account and project"
+  value       = var.foundry_location
+}
+
+output "foundry_model_deployment_name" {
+  description = "Foundry model deployment used by the verification LLM grader"
+  value       = azapi_resource.foundry_model_deployment.name
+}
+
 output "durable_task_scheduler_name" {
   description = "Durable Task Scheduler name used by verification Functions"
   value       = azapi_resource.verification_scheduler.name

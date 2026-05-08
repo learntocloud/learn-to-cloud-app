@@ -1,26 +1,12 @@
-"""Phase 5 task definitions: DevOps artifact verification.
-
-Defines the 4 tasks learners must add to their journal-starter fork
-(Dockerfile, CI/CD, Terraform, Kubernetes).
-"""
+"""Phase 5 task definitions: DevOps artifact verification."""
 
 from __future__ import annotations
 
-from typing import TypedDict
-
-
-class TaskDefinition(TypedDict):
-    """Type definition for a Phase 5 verification task."""
-
-    id: str
-    name: str
-    path_patterns: list[str]
-    criteria: list[str]
-    pass_indicators: list[str]
-    fail_indicators: list[str]
-    required_files: list[str]
-    min_pass_count: int
-
+from learn_to_cloud_shared.verification.tasks.base import (
+    EvidencePolicy,
+    IndicatorGraderConfig,
+    VerificationTask,
+)
 
 # Maximum number of files to fetch per category (prevent abuse)
 MAX_FILES_PER_CATEGORY: int = 10
@@ -32,13 +18,24 @@ MAX_FILE_SIZE_BYTES: int = 50 * 1024
 MAX_TOTAL_CONTENT_BYTES: int = 200 * 1024
 
 
-PHASE5_TASKS: list[TaskDefinition] = [
-    {
-        "id": "dockerfile",
-        "name": "Containerization (Dockerfile)",
-        "path_patterns": ["Dockerfile", "dockerfile", ".dockerignore"],
-        "required_files": ["Dockerfile"],
-        "criteria": [
+PHASE5_REQUIREMENT_ID = "devops-implementation"
+
+
+PHASE5_TASKS: list[VerificationTask] = [
+    VerificationTask(
+        id="dockerfile",
+        phase_id=5,
+        requirement_id=PHASE5_REQUIREMENT_ID,
+        name="Containerization (Dockerfile)",
+        evidence=EvidencePolicy(
+            source="repo_files",
+            path_patterns=["Dockerfile", "dockerfile", ".dockerignore"],
+            required_files=["Dockerfile"],
+            max_files=MAX_FILES_PER_CATEGORY,
+            max_file_size_bytes=MAX_FILE_SIZE_BYTES,
+            max_total_bytes=MAX_TOTAL_CONTENT_BYTES,
+        ),
+        criteria=[
             "MUST have a Dockerfile at the repository root",
             (
                 "MUST have a FROM instruction specifying"
@@ -57,26 +54,35 @@ PHASE5_TASKS: list[TaskDefinition] = [
                 " non-production files (.git/, tests/)"
             ),
         ],
-        "pass_indicators": [
-            "FROM ",
-            "CMD ",
-            "ENTRYPOINT ",
-            "COPY ",
-            "EXPOSE ",
-            "uv sync",
-            "uv ",
-            "PYTHONPATH",
-            "uvicorn",
-        ],
-        "fail_indicators": [],
-        "min_pass_count": 5,
-    },
-    {
-        "id": "cicd-pipeline",
-        "name": "CI/CD Pipeline (GitHub Actions)",
-        "path_patterns": [".github/workflows/"],
-        "required_files": [".github/workflows/"],
-        "criteria": [
+        grader=IndicatorGraderConfig(
+            pass_indicators=[
+                "FROM ",
+                "CMD ",
+                "ENTRYPOINT ",
+                "COPY ",
+                "EXPOSE ",
+                "uv sync",
+                "uv ",
+                "PYTHONPATH",
+                "uvicorn",
+            ],
+            min_pass_count=5,
+        ),
+    ),
+    VerificationTask(
+        id="cicd-pipeline",
+        phase_id=5,
+        requirement_id=PHASE5_REQUIREMENT_ID,
+        name="CI/CD Pipeline (GitHub Actions)",
+        evidence=EvidencePolicy(
+            source="repo_files",
+            path_patterns=[".github/workflows/"],
+            required_files=[".github/workflows/"],
+            max_files=MAX_FILES_PER_CATEGORY,
+            max_file_size_bytes=MAX_FILE_SIZE_BYTES,
+            max_total_bytes=MAX_TOTAL_CONTENT_BYTES,
+        ),
+        criteria=[
             "MUST have at least one workflow YAML in .github/workflows/",
             "MUST trigger on push to main (or pull_request)",
             ("MUST have at least 3 jobs: test, build-and-push, and deploy"),
@@ -95,26 +101,35 @@ PHASE5_TASKS: list[TaskDefinition] = [
                 " an image placeholder in K8s manifests"
             ),
         ],
-        "pass_indicators": [
-            "on:",
-            "jobs:",
-            "steps:",
-            "runs-on:",
-            "uses:",
-            "docker",
-            "kubectl",
-            "pytest",
-            "deploy",
-        ],
-        "fail_indicators": [],
-        "min_pass_count": 6,
-    },
-    {
-        "id": "terraform-iac",
-        "name": "Infrastructure as Code (Terraform)",
-        "path_patterns": ["infra/"],
-        "required_files": ["infra/"],
-        "criteria": [
+        grader=IndicatorGraderConfig(
+            pass_indicators=[
+                "on:",
+                "jobs:",
+                "steps:",
+                "runs-on:",
+                "uses:",
+                "docker",
+                "kubectl",
+                "pytest",
+                "deploy",
+            ],
+            min_pass_count=6,
+        ),
+    ),
+    VerificationTask(
+        id="terraform-iac",
+        phase_id=5,
+        requirement_id=PHASE5_REQUIREMENT_ID,
+        name="Infrastructure as Code (Terraform)",
+        evidence=EvidencePolicy(
+            source="repo_files",
+            path_patterns=["infra/"],
+            required_files=["infra/"],
+            max_files=MAX_FILES_PER_CATEGORY,
+            max_file_size_bytes=MAX_FILE_SIZE_BYTES,
+            max_total_bytes=MAX_TOTAL_CONTENT_BYTES,
+        ),
+        criteria=[
             "MUST have .tf files in the infra/ directory",
             "MUST have a provider block (e.g., azurerm, aws)",
             ("MUST define a container registry resource (e.g., ACR, ECR, GCR)"),
@@ -134,33 +149,39 @@ PHASE5_TASKS: list[TaskDefinition] = [
             ),
             ("SHOULD have a providers.tf with provider and Terraform version config"),
         ],
-        "pass_indicators": [
-            "provider ",
-            "resource ",
-            "terraform {",
-            "variable ",
-            "output ",
-            "kubernetes",
-            "container_registry",
-            "postgresql",
-        ],
-        "fail_indicators": [],
-        "min_pass_count": 4,
-    },
-    {
-        "id": "kubernetes-manifests",
-        "name": "Container Orchestration (Kubernetes)",
-        "path_patterns": [
-            # Exact files first — guaranteed inclusion even when
-            # k8s/ has many subdirectory files
-            "k8s/deployment.yaml",
-            "k8s/service.yaml",
-            "k8s/secrets.yaml.example",
-            # Fallback: any other YAML under k8s/ fills remaining capacity
-            "k8s/",
-        ],
-        "required_files": ["k8s/deployment.yaml", "k8s/service.yaml"],
-        "criteria": [
+        grader=IndicatorGraderConfig(
+            pass_indicators=[
+                "provider ",
+                "resource ",
+                "terraform {",
+                "variable ",
+                "output ",
+                "kubernetes",
+                "container_registry",
+                "postgresql",
+            ],
+            min_pass_count=4,
+        ),
+    ),
+    VerificationTask(
+        id="kubernetes-manifests",
+        phase_id=5,
+        requirement_id=PHASE5_REQUIREMENT_ID,
+        name="Container Orchestration (Kubernetes)",
+        evidence=EvidencePolicy(
+            source="repo_files",
+            path_patterns=[
+                "k8s/deployment.yaml",
+                "k8s/service.yaml",
+                "k8s/secrets.yaml.example",
+                "k8s/",
+            ],
+            required_files=["k8s/deployment.yaml", "k8s/service.yaml"],
+            max_files=MAX_FILES_PER_CATEGORY,
+            max_file_size_bytes=MAX_FILE_SIZE_BYTES,
+            max_total_bytes=MAX_TOTAL_CONTENT_BYTES,
+        ),
+        criteria=[
             "MUST have YAML files in the k8s/ directory",
             ("MUST have a Deployment manifest (kind: Deployment) in deployment.yaml"),
             (
@@ -183,20 +204,21 @@ PHASE5_TASKS: list[TaskDefinition] = [
             "SHOULD use LoadBalancer or NodePort type",
             "SHOULD define resource limits or requests",
         ],
-        "pass_indicators": [
-            "kind: Deployment",
-            "kind: Service",
-            "containers:",
-            "image:",
-            "IMAGE_PLACEHOLDER",
-            "envFrom",
-            "secretRef",
-            "livenessProbe",
-            "readinessProbe",
-            "/health",
-            "containerPort",
-        ],
-        "fail_indicators": [],
-        "min_pass_count": 6,
-    },
+        grader=IndicatorGraderConfig(
+            pass_indicators=[
+                "kind: Deployment",
+                "kind: Service",
+                "containers:",
+                "image:",
+                "IMAGE_PLACEHOLDER",
+                "envFrom",
+                "secretRef",
+                "livenessProbe",
+                "readinessProbe",
+                "/health",
+                "containerPort",
+            ],
+            min_pass_count=6,
+        ),
+    ),
 ]

@@ -84,6 +84,14 @@ resource "azurerm_role_assignment" "verification_task_hub_dashboard_readers" {
   principal_type       = "Group"
 }
 
+resource "azurerm_role_assignment" "verification_functions_foundry" {
+  scope                            = azapi_resource.foundry_project.id
+  role_definition_name             = "Azure AI User"
+  principal_id                     = azurerm_user_assigned_identity.verification_functions.principal_id
+  principal_type                   = "ServicePrincipal"
+  skip_service_principal_aad_check = true
+}
+
 resource "azurerm_function_app_flex_consumption" "verification" {
   name                = "func-ltc-verification-${var.environment}"
   resource_group_name = azurerm_resource_group.main.name
@@ -107,10 +115,13 @@ resource "azurerm_function_app_flex_consumption" "verification" {
   app_settings = {
     AZURE_CLIENT_ID                          = azurerm_user_assigned_identity.verification_functions.client_id
     DATABASE_URL                             = ""
+    ENABLE_INSTRUMENTATION                   = "true"
     DURABLE_TASK_SCHEDULER_CONNECTION_STRING = "Endpoint=${azapi_resource.verification_scheduler.output.properties.endpoint};Authentication=ManagedIdentity;ClientID=${azurerm_user_assigned_identity.verification_functions.client_id}"
     GITHUB_CLIENT_ID                         = var.github_client_id
     GITHUB_CLIENT_SECRET                     = "@Microsoft.KeyVault(VaultName=${azurerm_key_vault.main.name};SecretName=github-client-secret)"
     GITHUB_TOKEN                             = "@Microsoft.KeyVault(VaultName=${azurerm_key_vault.main.name};SecretName=github-token)"
+    FOUNDRY_MODEL_DEPLOYMENT_NAME            = azapi_resource.foundry_model_deployment.name
+    FOUNDRY_PROJECT_ENDPOINT                 = local.foundry_project_endpoint
     LABS_VERIFICATION_SECRET                 = "@Microsoft.KeyVault(VaultName=${azurerm_key_vault.main.name};SecretName=labs-verification-secret)"
     OTEL_SERVICE_NAME                        = "learn-to-cloud-verification-functions"
     POSTGRES_DATABASE                        = azurerm_postgresql_flexible_server_database.main.name
@@ -127,6 +138,8 @@ resource "azurerm_function_app_flex_consumption" "verification" {
 
   depends_on = [
     azurerm_role_assignment.verification_functions_durable_task,
+    azurerm_role_assignment.verification_functions_foundry,
+    azapi_resource.foundry_model_deployment,
     azurerm_postgresql_flexible_server_database.main,
   ]
 }

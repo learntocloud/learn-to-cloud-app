@@ -14,7 +14,7 @@ from typing import Annotated
 
 import asyncpg
 from fastapi import Depends, Request
-from sqlalchemy import event, text
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -73,25 +73,6 @@ async def _azure_asyncpg_creator():
         raise
 
 
-def _setup_pool_event_listeners(engine: AsyncEngine) -> None:
-    pool = engine.sync_engine.pool
-
-    @event.listens_for(pool, "checkout")
-    def _on_checkout(dbapi_conn, connection_record, connection_proxy):
-        # Clean up lingering transaction state that causes asyncpg's
-        # "cannot use Connection.transaction() in a manually started
-        # transaction" error on next use.
-        raw_conn = dbapi_conn._connection
-        if raw_conn.is_in_transaction():
-            dbapi_conn.await_(raw_conn.execute("ROLLBACK"))
-            # Reset private asyncpg adapter state (verified 2.0.46).
-            try:
-                dbapi_conn._transaction = None
-                dbapi_conn._started = False
-            except AttributeError:
-                pass
-
-
 def create_engine() -> AsyncEngine:
     settings = get_settings()
 
@@ -102,13 +83,17 @@ def create_engine() -> AsyncEngine:
         database_url = settings.database_url
         async_creator = None
 
+    # Note: pool_pre_ping is intentionally NOT enabled. It interacts badly
+    # with the asyncpg dialect's transaction state tracking and required a
+    # brittle private-state workaround. pool_recycle keeps connections fresh
+    # within Azure's idle timeout window; the (rare) silently-dropped
+    # connection surfaces as a single failed request that the user retries.
     engine_kwargs: dict = {
         "echo": settings.db_echo,
         "pool_size": settings.db_pool_size,
         "max_overflow": settings.db_pool_max_overflow,
         "pool_timeout": settings.db_pool_timeout,
         "pool_recycle": settings.db_pool_recycle,
-        "pool_pre_ping": True,
     }
 
     if async_creator is None:
@@ -122,7 +107,6 @@ def create_engine() -> AsyncEngine:
 
     engine = create_async_engine(database_url, **engine_kwargs)
 
-    _setup_pool_event_listeners(engine)
     instrument_database(engine)
 
     return engine

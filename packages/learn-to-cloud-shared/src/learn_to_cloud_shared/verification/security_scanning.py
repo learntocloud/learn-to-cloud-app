@@ -19,6 +19,7 @@ from __future__ import annotations
 import asyncio
 
 import httpx
+import yaml
 from opentelemetry import trace
 from tenacity import (
     retry,
@@ -27,19 +28,27 @@ from tenacity import (
     wait_exponential_jitter,
 )
 
-from learn_to_cloud_shared.core.github_client import (
-    get_github_client as _get_github_client,
-)
 from learn_to_cloud_shared.schemas import TaskResult, ValidationResult
 from learn_to_cloud_shared.verification.devops_analysis import fetch_repo_tree
+from learn_to_cloud_shared.verification.evidence import (
+    collect_repo_file_evidence,
+    fetch_repo_file_content,
+)
 from learn_to_cloud_shared.verification.github_profile import (
     RETRIABLE_EXCEPTIONS,
-    get_github_headers,
 )
 from learn_to_cloud_shared.verification.repo_utils import VerificationError
-
-# CodeQL action identifier in workflow file content
-CODEQL_ACTION_PATTERN = "github/codeql-action"
+from learn_to_cloud_shared.verification.tasks.base import (
+    EvidenceBundle,
+    VerificationTask,
+)
+from learn_to_cloud_shared.verification.tasks.phase6 import (
+    CODEQL_ACTION_PATTERN,
+    CODEQL_TASK,
+    DEPENDABOT_CONFIG_PATHS,
+    DEPENDABOT_TASK,
+    SECURITY_SCANNING_RUBRIC_TASK,
+)
 
 
 class SecurityVerificationError(VerificationError):
@@ -52,12 +61,11 @@ async def _check_dependabot(owner: str, repo: str, file_paths: list[str]) -> Tas
     Verifies both file existence and content: the file must contain
     a ``version`` key and at least one ``updates`` entry.
     """
-    dependabot_paths = {".github/dependabot.yml", ".github/dependabot.yaml"}
-    found = [p for p in file_paths if p in dependabot_paths]
+    found = [p for p in file_paths if p in DEPENDABOT_CONFIG_PATHS]
 
     if not found:
         return TaskResult(
-            task_name="Dependabot Configuration",
+            task_name=DEPENDABOT_TASK.name,
             passed=False,
             feedback=(
                 "No Dependabot config found. Add a .github/dependabot.yml file "
@@ -68,7 +76,7 @@ async def _check_dependabot(owner: str, repo: str, file_paths: list[str]) -> Tas
     content = await _fetch_workflow_content(owner, repo, found[0])
     if not content:
         return TaskResult(
-            task_name="Dependabot Configuration",
+            task_name=DEPENDABOT_TASK.name,
             passed=False,
             feedback=(
                 f"Found {found[0]} but could not read its content. "
@@ -76,13 +84,18 @@ async def _check_dependabot(owner: str, repo: str, file_paths: list[str]) -> Tas
             ),
         )
 
-    # Validate required keys exist in the file content
-    has_version = "version" in content
-    has_updates = "updates" in content
+    try:
+        parsed = yaml.safe_load(content)
+    except yaml.YAMLError:
+        parsed = None
+
+    has_version = isinstance(parsed, dict) and "version" in parsed
+    updates = parsed.get("updates") if isinstance(parsed, dict) else None
+    has_updates = isinstance(updates, list) and len(updates) > 0
 
     if has_version and has_updates:
         return TaskResult(
-            task_name="Dependabot Configuration",
+            task_name=DEPENDABOT_TASK.name,
             passed=True,
             feedback=f"Found valid Dependabot config: {found[0]}",
         )
@@ -94,7 +107,7 @@ async def _check_dependabot(owner: str, repo: str, file_paths: list[str]) -> Tas
         missing.append("updates")
 
     return TaskResult(
-        task_name="Dependabot Configuration",
+        task_name=DEPENDABOT_TASK.name,
         passed=False,
         feedback=(
             f"Found {found[0]} but it is missing required keys: "
@@ -132,21 +145,7 @@ def _find_codeql_workflow_candidates(file_paths: list[str]) -> list[str]:
 
 async def _fetch_workflow_content(owner: str, repo: str, path: str) -> str | None:
     """Fetch a single workflow file's raw content from GitHub."""
-    client = await _get_github_client()
-    headers = get_github_headers()
-
-    url = f"https://raw.githubusercontent.com/{owner}/{repo}/main/{path}"
-    try:
-        response = await client.get(url, headers=headers)
-        response.raise_for_status()
-        return response.text
-    except httpx.HTTPStatusError:
-        span = trace.get_current_span()
-        span.add_event(
-            "workflow_fetch_failed",
-            {"owner": owner, "repo": repo, "path": path},
-        )
-        return None
+    return await fetch_repo_file_content(owner, repo, path)
 
 
 async def _check_codeql(owner: str, repo: str, file_paths: list[str]) -> TaskResult:
@@ -159,7 +158,7 @@ async def _check_codeql(owner: str, repo: str, file_paths: list[str]) -> TaskRes
 
     if not candidates:
         return TaskResult(
-            task_name="CodeQL Scanning",
+            task_name=CODEQL_TASK.name,
             passed=False,
             feedback=(
                 "No CodeQL workflow found. Add a CodeQL analysis workflow "
@@ -174,36 +173,54 @@ async def _check_codeql(owner: str, repo: str, file_paths: list[str]) -> TaskRes
         content = await _fetch_workflow_content(owner, repo, codeql_named[0])
         if content and CODEQL_ACTION_PATTERN in content:
             return TaskResult(
-                task_name="CodeQL Scanning",
+                task_name=CODEQL_TASK.name,
                 passed=True,
                 feedback=f"Found CodeQL workflow: {codeql_named[0]}",
             )
 
     # Check remaining workflow files for CodeQL action usage
-    # Limit to 5 files to avoid excessive API calls
-    to_check = [c for c in candidates if c not in codeql_named][:5]
+    to_check = [c for c in candidates if c not in codeql_named][
+        : CODEQL_TASK.evidence.max_files
+    ]
 
     fetch_tasks = [_fetch_workflow_content(owner, repo, path) for path in to_check]
     results = await asyncio.gather(*fetch_tasks, return_exceptions=True)
 
-    for path, result in zip(to_check, results, strict=False):
+    for path, result in zip(to_check, results, strict=True):
         if isinstance(result, BaseException) or result is None:
             continue
         if CODEQL_ACTION_PATTERN in result:
             return TaskResult(
-                task_name="CodeQL Scanning",
+                task_name=CODEQL_TASK.name,
                 passed=True,
                 feedback=f"Found CodeQL action in workflow: {path}",
             )
 
     return TaskResult(
-        task_name="CodeQL Scanning",
+        task_name=CODEQL_TASK.name,
         passed=False,
         feedback=(
             "No workflow using github/codeql-action found. Add a CodeQL "
             "analysis workflow to enable code scanning."
         ),
     )
+
+
+async def collect_security_scanning_evidence(
+    owner: str,
+    repo: str,
+    file_paths: list[str],
+    task: VerificationTask = SECURITY_SCANNING_RUBRIC_TASK,
+) -> EvidenceBundle:
+    """Collect bounded Phase 6 repository evidence for rubric grading."""
+    codeql_candidates = set(_find_codeql_workflow_candidates(file_paths))
+    candidate_paths = [
+        path
+        for path in file_paths
+        if path in DEPENDABOT_CONFIG_PATHS or path in codeql_candidates
+    ]
+    unique_paths = list(dict.fromkeys(candidate_paths))[: task.evidence.max_files]
+    return await collect_repo_file_evidence(owner, repo, unique_paths, task)
 
 
 @retry(

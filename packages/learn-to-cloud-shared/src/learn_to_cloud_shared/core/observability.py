@@ -14,7 +14,6 @@ import logging
 import os
 from typing import Any
 
-from dotenv import load_dotenv
 from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
 
 from learn_to_cloud_shared.core.logger import APP_LOGGER_NAMESPACE
@@ -122,8 +121,6 @@ def configure_observability() -> None:
 
     if _telemetry_enabled:
         return
-
-    load_dotenv()
 
     conn_str = os.getenv("APPLICATIONINSIGHTS_CONNECTION_STRING")
     otlp_endpoint = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT")

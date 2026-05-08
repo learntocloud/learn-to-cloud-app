@@ -94,6 +94,72 @@ variable "durable_task_dashboard_reader_group_object_ids_by_environment" {
   }
 }
 
+variable "foundry_model_deployment_name" {
+  description = "Foundry model deployment name used by the verification LLM grader."
+  type        = string
+  default     = "gpt-5-mini-verifier"
+
+  validation {
+    condition     = can(regex("^[A-Za-z0-9][A-Za-z0-9_.-]{1,63}$", var.foundry_model_deployment_name))
+    error_message = "foundry_model_deployment_name must be 2-64 characters and contain only letters, numbers, underscores, periods, or hyphens."
+  }
+}
+
+variable "foundry_model_name" {
+  description = "Foundry model name deployed for verification LLM grading."
+  type        = string
+  default     = "gpt-5-mini"
+
+  validation {
+    condition     = length(trimspace(var.foundry_model_name)) > 0
+    error_message = "foundry_model_name must be set."
+  }
+}
+
+variable "foundry_model_version" {
+  description = "Pinned Foundry model version deployed for verification LLM grading."
+  type        = string
+  default     = "2025-08-07"
+
+  validation {
+    condition     = length(trimspace(var.foundry_model_version)) > 0
+    error_message = "foundry_model_version must be set to a pinned model version."
+  }
+}
+
+variable "foundry_model_sku_name" {
+  description = "Foundry model deployment SKU name."
+  type        = string
+  default     = "GlobalStandard"
+
+  validation {
+    condition     = length(trimspace(var.foundry_model_sku_name)) > 0
+    error_message = "foundry_model_sku_name must be set."
+  }
+}
+
+variable "foundry_model_capacity" {
+  description = "Foundry model deployment capacity. For Azure OpenAI Standard/GlobalStandard, this is in thousands of tokens per minute."
+  type        = number
+  default     = 1
+
+  validation {
+    condition     = var.foundry_model_capacity > 0
+    error_message = "foundry_model_capacity must be greater than zero."
+  }
+}
+
+variable "foundry_location" {
+  description = "Azure region for the verification Foundry account and project. Defaults to a GlobalStandard GPT-5 mini region."
+  type        = string
+  default     = "eastus2"
+
+  validation {
+    condition     = length(trimspace(var.foundry_location)) > 0
+    error_message = "foundry_location must be set."
+  }
+}
+
 variable "github_client_id" {
   description = "GitHub OAuth App client ID"
   type        = string

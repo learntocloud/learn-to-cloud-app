@@ -11,18 +11,18 @@ from opentelemetry import trace
 
 from learn_to_cloud_shared.core.github_client import get_github_client
 from learn_to_cloud_shared.schemas import TaskResult, ValidationResult
+from learn_to_cloud_shared.verification.evidence import truncate_to_bytes
 from learn_to_cloud_shared.verification.github_profile import (
     RETRIABLE_EXCEPTIONS,
     get_github_headers,
     github_api_get,
     github_error_to_validation_result,
 )
+from learn_to_cloud_shared.verification.graders import grade_indicator_task
+from learn_to_cloud_shared.verification.tasks.base import VerificationTask
 from learn_to_cloud_shared.verification.tasks.phase5 import (
     MAX_FILE_SIZE_BYTES,
-    MAX_FILES_PER_CATEGORY,
-    MAX_TOTAL_CONTENT_BYTES,
     PHASE5_TASKS,
-    TaskDefinition,
 )
 
 tracer = trace.get_tracer(__name__)
@@ -62,7 +62,7 @@ def _check_required_files(all_files: list[str]) -> list[TaskResult]:
 
     for task in PHASE5_TASKS:
         missing: list[str] = []
-        for req in task["required_files"]:
+        for req in task.evidence.required_files:
             if req.endswith("/"):
                 if not any(f.startswith(req.lower()) for f in all_files_lower):
                     missing.append(req)
@@ -78,7 +78,7 @@ def _check_required_files(all_files: list[str]) -> list[TaskResult]:
                 next_step = f"Add {first} to your repository."
             failures.append(
                 TaskResult(
-                    task_name=task["name"],
+                    task_name=task.name,
                     passed=False,
                     feedback=(
                         "Required file(s) not found in repository: "
@@ -92,69 +92,11 @@ def _check_required_files(all_files: list[str]) -> list[TaskResult]:
 
 
 def _check_task_indicators(
-    task_def: TaskDefinition,
+    task_def: VerificationTask,
     file_contents: list[str],
 ) -> TaskResult:
     """Check pass/fail indicators against file contents for one task."""
-    task_name = task_def["name"]
-    combined = "\n".join(file_contents) if file_contents else ""
-    combined_lower = combined.lower()
-
-    # Check fail indicators first (any match → fail)
-    for indicator in task_def.get("fail_indicators", []):
-        if indicator.lower() in combined_lower:
-            return TaskResult(
-                task_name=task_name,
-                passed=False,
-                feedback=f"Found disallowed pattern: {indicator}",
-                next_steps=f"Remove or replace: {indicator}",
-            )
-
-    # Check pass indicators (threshold-based)
-    pass_indicators = task_def.get("pass_indicators", [])
-    min_count = task_def.get("min_pass_count", 1)
-
-    if not pass_indicators:
-        return TaskResult(
-            task_name=task_name,
-            passed=True,
-            feedback="No specific indicators required.",
-            next_steps="",
-        )
-
-    matched: list[str] = []
-    missing: list[str] = []
-    for indicator in pass_indicators:
-        if indicator.lower() in combined_lower:
-            matched.append(indicator)
-        else:
-            missing.append(indicator)
-
-    if len(matched) >= min_count:
-        return TaskResult(
-            task_name=task_name,
-            passed=True,
-            feedback=(
-                f"Found {len(matched)}/{len(pass_indicators)} "
-                f"implementation indicators."
-            ),
-            next_steps="",
-        )
-
-    return TaskResult(
-        task_name=task_name,
-        passed=False,
-        feedback=(
-            f"Found {len(matched)}/{len(pass_indicators)} indicators "
-            f"(need at least {min_count}). "
-            f"Missing: {', '.join(missing[:5])}"
-        ),
-        next_steps=(
-            f"Add the missing implementation. Look for: {missing[0]}"
-            if missing
-            else "Review the requirements."
-        ),
-    )
+    return grade_indicator_task(task_def, file_contents).to_task_result()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -191,8 +133,8 @@ def _filter_devops_files(all_files: list[str]) -> dict[str, list[str]]:
     result: dict[str, list[str]] = {}
 
     for task in PHASE5_TASKS:
-        exact_patterns = [p for p in task["path_patterns"] if not p.endswith("/")]
-        dir_patterns = [p for p in task["path_patterns"] if p.endswith("/")]
+        exact_patterns = [p for p in task.evidence.path_patterns if not p.endswith("/")]
+        dir_patterns = [p for p in task.evidence.path_patterns if p.endswith("/")]
 
         exact_matches: list[str] = []
         dir_matches: list[str] = []
@@ -214,7 +156,7 @@ def _filter_devops_files(all_files: list[str]) -> dict[str, list[str]]:
 
         # Exact matches always come first; directory matches fill remaining slots
         combined = exact_matches + [f for f in dir_matches if f not in exact_set]
-        result[task["id"]] = combined[:MAX_FILES_PER_CATEGORY]
+        result[task.id] = combined[: task.evidence.max_files]
 
     return result
 
@@ -234,8 +176,7 @@ async def _fetch_file_content(
     content = response.text
 
     if len(content.encode("utf-8")) > MAX_FILE_SIZE_BYTES:
-        content = content[: MAX_FILE_SIZE_BYTES // 2]
-        content += "\n\n[FILE TRUNCATED - exceeded size limit]"
+        content = truncate_to_bytes(content, MAX_FILE_SIZE_BYTES)
 
     content_lower = content.lower()
     for pattern in _SUSPICIOUS_PATTERNS:
@@ -267,7 +208,7 @@ async def _fetch_all_devops_files(
             fetch_tasks.append((task_id, path))
 
     if not fetch_tasks:
-        return {task["id"]: [] for task in PHASE5_TASKS}
+        return {task.id: [] for task in PHASE5_TASKS}
 
     async def _fetch_one(task_id: str, path: str) -> tuple[str, str | None]:
         try:
@@ -281,8 +222,9 @@ async def _fetch_all_devops_files(
         return_exceptions=True,
     )
 
-    grouped: dict[str, list[str]] = {task["id"]: [] for task in PHASE5_TASKS}
+    grouped: dict[str, list[str]] = {task.id: [] for task in PHASE5_TASKS}
     total_bytes = 0
+    max_total_bytes = max(task.evidence.max_total_bytes for task in PHASE5_TASKS)
 
     for result in results:
         if isinstance(result, BaseException):
@@ -292,7 +234,7 @@ async def _fetch_all_devops_files(
             continue
 
         content_size = len(content.encode("utf-8"))
-        if total_bytes + content_size > MAX_TOTAL_CONTENT_BYTES:
+        if total_bytes + content_size > max_total_bytes:
             continue
         total_bytes += content_size
         grouped[task_id].append(content)
@@ -373,7 +315,7 @@ async def run_devops_workflow(owner: str, repo: str) -> ValidationResult:
         # ── Step 4: Run indicator checks per task ────────────────
         task_results: list[TaskResult] = []
         for task_def in PHASE5_TASKS:
-            task_files = file_contents.get(task_def["id"], [])
+            task_files = file_contents.get(task_def.id, [])
             result = _check_task_indicators(task_def, task_files)
             task_results.append(result)
 

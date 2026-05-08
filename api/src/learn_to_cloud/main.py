@@ -138,7 +138,7 @@ async def lifespan(app: fastapi.FastAPI):
         app.state.init_done = True
         logger.info("init.complete")
     except TimeoutError:
-        logger.error(
+        logger.exception(
             "init.timeout",
             extra={
                 "init_done": app.state.init_done,
@@ -148,10 +148,9 @@ async def lifespan(app: fastapi.FastAPI):
         raise RuntimeError("Application startup timed out") from None
     except Exception as e:
         app.state.init_error = str(e)
-        logger.error(
+        logger.exception(
             "init.failed",
             extra={"error": str(e)},
-            exc_info=True,
         )
         raise
 

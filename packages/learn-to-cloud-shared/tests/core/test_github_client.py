@@ -25,9 +25,7 @@ async def _reset_github_client():
     import learn_to_cloud_shared.core.github_client as mod
 
     yield
-    if mod._github_http_client is not None and not mod._github_http_client.is_closed:
-        await mod._github_http_client.aclose()
-    mod._github_http_client = None
+    await mod._pool.close()
 
 
 @pytest.mark.unit

@@ -1,7 +1,7 @@
 """Shared utilities for verification services.
 
-GitHub URL parsing, ownership validation, feedback sanitization,
-and the base VerificationError exception.
+GitHub URL parsing, ownership validation, and the base
+VerificationError exception.
 """
 
 from __future__ import annotations
@@ -10,9 +10,13 @@ import logging
 import re
 from urllib.parse import urlparse
 
-from learn_to_cloud_shared.schemas import ValidationResult
+from learn_to_cloud_shared.schemas import ParsedGitHubUrl, ValidationResult
 
 logger = logging.getLogger(__name__)
+
+# GitHub usernames: 1-39 chars, alphanumeric + hyphen, can't start/end with hyphen
+_GITHUB_USERNAME_RE = re.compile(r"^[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?$")
+_MAX_USERNAME_LENGTH = 39
 
 
 class VerificationError(Exception):
@@ -27,19 +31,23 @@ class VerificationError(Exception):
         self.retriable = retriable
 
 
-def extract_repo_info(repo_url: str) -> tuple[str, str]:
-    """Extract owner and repo name from a GitHub URL.
+def parse_github_url(url: str) -> ParsedGitHubUrl:
+    """Parse a GitHub URL and extract username, repo, and file path.
 
     Handles common variants: ``https://``, ``http://``, ``www.github.com``,
-    trailing slashes, ``.git`` suffixes, sub-paths, query strings, and
-    fragment identifiers.
+    bare ``github.com/...``, trailing slashes, ``.git`` suffixes, query
+    strings, and fragment identifiers.
 
-    Raises:
-        ValueError: If *repo_url* is not a valid GitHub repository URL.
+    Recognises ``/blob/<branch>/<path>`` and ``/tree/<branch>/<path>``
+    sub-paths and returns ``file_path`` for the former.
     """
-    url = repo_url.strip()
+    url = (url or "").strip()
     if not url:
-        raise ValueError(f"Invalid GitHub repository URL: {repo_url}")
+        return ParsedGitHubUrl(
+            username="",
+            is_valid=False,
+            error="URL must be a GitHub URL (e.g., https://github.com/username/repo)",
+        )
 
     if not url.startswith(("http://", "https://")):
         url = "https://" + url
@@ -48,16 +56,45 @@ def extract_repo_info(repo_url: str) -> tuple[str, str]:
     host = (parsed.hostname or "").lower()
 
     if host not in ("github.com", "www.github.com"):
-        raise ValueError(f"Invalid GitHub repository URL: {repo_url}")
+        return ParsedGitHubUrl(
+            username="",
+            is_valid=False,
+            error="URL must be a GitHub URL (e.g., https://github.com/username/repo)",
+        )
 
     segments = [s for s in parsed.path.split("/") if s]
-    if len(segments) < 2:
+    if not segments:
+        return ParsedGitHubUrl(
+            username="", is_valid=False, error="Could not extract username from URL"
+        )
+
+    username = segments[0]
+    if len(username) > _MAX_USERNAME_LENGTH or not _GITHUB_USERNAME_RE.match(username):
+        return ParsedGitHubUrl(
+            username=username, is_valid=False, error="Invalid GitHub username format"
+        )
+
+    repo_name = segments[1].removesuffix(".git") if len(segments) > 1 else None
+
+    file_path = None
+    if len(segments) > 4 and segments[2] == "blob":
+        file_path = "/".join(segments[4:])
+
+    return ParsedGitHubUrl(
+        username=username, repo_name=repo_name, file_path=file_path, is_valid=True
+    )
+
+
+def extract_repo_info(repo_url: str) -> tuple[str, str]:
+    """Extract owner and repo name from a GitHub URL.
+
+    Raises:
+        ValueError: If *repo_url* is not a valid GitHub repository URL.
+    """
+    parsed = parse_github_url(repo_url)
+    if not parsed.is_valid or not parsed.repo_name:
         raise ValueError(f"Invalid GitHub repository URL: {repo_url}")
-
-    owner = segments[0]
-    repo = segments[1].removesuffix(".git")
-
-    return owner, repo
+    return parsed.username, parsed.repo_name
 
 
 def validate_repo_url(
@@ -93,22 +130,3 @@ def validate_repo_url(
         )
 
     return owner, repo
-
-
-def sanitize_feedback(feedback: str | None) -> str:
-    """Sanitize feedback before displaying to users.
-
-    Removes HTML tags, code blocks, and URLs.
-    """
-    if not feedback or not isinstance(feedback, str):
-        return "No feedback provided"
-
-    max_length = 500
-    if len(feedback) > max_length:
-        feedback = feedback[:max_length].rsplit(" ", 1)[0] + "..."
-
-    feedback = re.sub(r"<[^>]+>", "", feedback)
-    feedback = re.sub(r"```[\s\S]*?```", "[code snippet]", feedback)
-    feedback = re.sub(r"https?://\S+", "[link removed]", feedback)
-
-    return feedback.strip() or "No feedback provided"
