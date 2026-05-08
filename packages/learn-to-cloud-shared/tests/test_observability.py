@@ -21,7 +21,6 @@ def _restore_telemetry_flag():
 def test_configure_observability_noops_without_exporter_env():
     with (
         patch.dict("os.environ", {}, clear=True),
-        patch("learn_to_cloud_shared.core.observability.load_dotenv"),
         patch(
             "learn_to_cloud_shared.core.observability._configure_azure_monitor"
         ) as azure_monitor,
@@ -46,7 +45,6 @@ def test_configure_observability_uses_azure_monitor_when_connection_string_set()
             {"APPLICATIONINSIGHTS_CONNECTION_STRING": "InstrumentationKey=test"},
             clear=True,
         ),
-        patch("learn_to_cloud_shared.core.observability.load_dotenv"),
         patch(
             "learn_to_cloud_shared.core.observability._configure_azure_monitor"
         ) as azure_monitor,
@@ -71,7 +69,6 @@ def test_configure_observability_uses_otlp_when_endpoint_set():
             {"OTEL_EXPORTER_OTLP_ENDPOINT": "http://localhost:4317"},
             clear=True,
         ),
-        patch("learn_to_cloud_shared.core.observability.load_dotenv"),
         patch(
             "learn_to_cloud_shared.core.observability._configure_azure_monitor"
         ) as azure_monitor,
@@ -96,7 +93,6 @@ def test_configure_observability_does_not_enable_telemetry_after_failure():
             {"APPLICATIONINSIGHTS_CONNECTION_STRING": "InstrumentationKey=test"},
             clear=True,
         ),
-        patch("learn_to_cloud_shared.core.observability.load_dotenv"),
         patch(
             "learn_to_cloud_shared.core.observability._configure_azure_monitor",
             side_effect=RuntimeError("boom"),
@@ -117,7 +113,6 @@ def test_configure_observability_noops_when_already_enabled():
     observability._telemetry_enabled = True
 
     with (
-        patch("learn_to_cloud_shared.core.observability.load_dotenv") as load_dotenv,
         patch(
             "learn_to_cloud_shared.core.observability._configure_azure_monitor"
         ) as azure_monitor,
@@ -127,7 +122,6 @@ def test_configure_observability_noops_when_already_enabled():
     ):
         observability.configure_observability()
 
-    load_dotenv.assert_not_called()
     azure_monitor.assert_not_called()
     httpx_instrumentor.assert_not_called()
 

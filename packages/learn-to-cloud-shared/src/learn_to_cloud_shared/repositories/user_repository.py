@@ -1,12 +1,10 @@
 """User repository for database operations."""
 
-from datetime import UTC, datetime
-
 from sqlalchemy import delete, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from learn_to_cloud_shared.models import User
+from learn_to_cloud_shared.models import User, utcnow
 
 
 class UserRepository:
@@ -112,7 +110,7 @@ class UserRepository:
             "last_name": last_name,
             "avatar_url": avatar_url,
             "github_username": github_username,
-            "updated_at": datetime.now(UTC),
+            "updated_at": utcnow(),
         }
 
         stmt = (
@@ -129,7 +127,7 @@ class UserRepository:
         user = await self.get_by_id(user_id)
         if user is not None:
             user.github_username = None
-            user.updated_at = datetime.now(UTC)
+            user.updated_at = utcnow()
             await self.db.flush()
 
     async def delete(self, user_id: int) -> None:

@@ -48,6 +48,9 @@ resource "random_string" "suffix" {
 locals {
   api_max_replicas                              = coalesce(var.api_max_replicas, 2)
   api_min_replicas                              = coalesce(var.api_min_replicas, 0)
+  foundry_account_name                          = "ais-ltc-${var.environment}-${local.suffix}"
+  foundry_project_endpoint                      = "https://${local.foundry_account_name}.services.ai.azure.com/api/projects/${local.foundry_project_name}"
+  foundry_project_name                          = "ltc-verification-${var.environment}"
   api_postgres_role                             = coalesce(var.postgres_api_runtime_role, "ltc_api_runtime_${var.environment}")
   key_vault_name                                = "kv-ltc-${var.environment}-${local.suffix}"
   migration_postgres_role                       = coalesce(var.postgres_migration_role, "ltc-postgres-migrations-${var.environment}")

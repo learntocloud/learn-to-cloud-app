@@ -229,6 +229,14 @@ class TestGetAllPhases:
 
         assert any(req.id == "journal-api-implementation" for req in requirements)
 
+    def test_phase3_exposes_single_final_journal_verification(self):
+        phase3 = next(phase for phase in get_all_phases() if phase.id == 3)
+
+        assert phase3.hands_on_verification is not None
+        assert [
+            requirement.id for requirement in phase3.hands_on_verification.requirements
+        ] == ["journal-api-implementation"]
+
     def test_empty_directory(self, tmp_path: Path):
         with patch(
             "learn_to_cloud_shared.content_service._get_content_dir",

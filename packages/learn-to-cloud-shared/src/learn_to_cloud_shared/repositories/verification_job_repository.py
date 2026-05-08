@@ -1,9 +1,8 @@
 """Repository for verification job status records."""
 
-from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -11,6 +10,7 @@ from learn_to_cloud_shared.models import (
     SubmissionType,
     VerificationJob,
     VerificationJobStatus,
+    utcnow,
 )
 
 ACTIVE_JOB_STATUSES = (
@@ -18,6 +18,7 @@ ACTIVE_JOB_STATUSES = (
     VerificationJobStatus.STARTING,
     VerificationJobStatus.RUNNING,
 )
+ACTIVE_JOB_STATUS_PREDICATE = "status IN ('queued', 'starting', 'running')"
 
 TERMINAL_JOB_STATUSES = (
     VerificationJobStatus.SUCCEEDED,
@@ -80,7 +81,7 @@ class VerificationJobRepository:
     ) -> tuple[VerificationJob, bool]:
         """Create a queued job, or return the active one for the requirement."""
         for _ in range(2):
-            now = datetime.now(UTC)
+            now = utcnow()
             stmt = (
                 pg_insert(VerificationJob)
                 .values(
@@ -100,7 +101,7 @@ class VerificationJobRepository:
                 )
                 .on_conflict_do_nothing(
                     index_elements=["user_id", "requirement_id"],
-                    index_where=VerificationJob.status.in_(ACTIVE_JOB_STATUSES),
+                    index_where=text(ACTIVE_JOB_STATUS_PREDICATE),
                 )
                 .returning(VerificationJob)
             )
@@ -189,7 +190,7 @@ class VerificationJobRepository:
         if job is None:
             return None
 
-        now = datetime.now(UTC)
+        now = utcnow()
         job.status = status
         job.updated_at = now
         if status in (VerificationJobStatus.STARTING, VerificationJobStatus.RUNNING):

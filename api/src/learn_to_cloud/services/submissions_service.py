@@ -69,6 +69,7 @@ async def get_phase_submission_context(
                         "name": t.get("task_name", ""),
                         "passed": t.get("passed", False),
                         "message": t.get("feedback", ""),
+                        "next_steps": t.get("next_steps", ""),
                     }
                     for t in raw_tasks
                 ]

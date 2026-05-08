@@ -74,14 +74,12 @@ def _load_topic(phase_dir: Path, topic_slug: str) -> Topic | None:
             data = yaml.safe_load(f)
         _validate_topic_payload(data, topic_file)
         return Topic.model_validate(data)
-    except (yaml.YAMLError, ContentValidationError, ValueError, KeyError) as exc:
-        logger.error(
+    except (yaml.YAMLError, ContentValidationError, ValueError, KeyError):
+        logger.exception(
             "content.topic.load_failed",
             extra={
                 "topic_slug": topic_slug,
                 "path": str(topic_file),
-                "exc_type": type(exc).__name__,
-                "exc_message": str(exc),
             },
         )
         return None
@@ -108,14 +106,12 @@ def _load_phase(phase_slug: str) -> Phase | None:
         data["topics"] = topics
 
         return Phase.model_validate(data)
-    except (yaml.YAMLError, ContentValidationError, ValueError, KeyError) as exc:
-        logger.error(
+    except (yaml.YAMLError, ContentValidationError, ValueError, KeyError):
+        logger.exception(
             "content.phase.load_failed",
             extra={
                 "phase_slug": phase_slug,
                 "path": str(meta_file),
-                "exc_type": type(exc).__name__,
-                "exc_message": str(exc),
             },
         )
         return None

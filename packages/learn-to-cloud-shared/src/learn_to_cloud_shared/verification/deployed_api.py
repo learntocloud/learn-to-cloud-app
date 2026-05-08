@@ -23,17 +23,16 @@ from __future__ import annotations
 import asyncio
 import ipaddress
 import json
-import re
 import secrets
 import socket
 from datetime import datetime
 from typing import Any
 from urllib.parse import urlparse
+from uuid import UUID
 
 import httpx
 from opentelemetry import trace
 from tenacity import (
-    RetryCallState,
     retry,
     retry_if_exception_type,
     stop_after_attempt,
@@ -41,6 +40,7 @@ from tenacity import (
 )
 
 from learn_to_cloud_shared.core.config import get_settings
+from learn_to_cloud_shared.core.http_client import PooledClient
 from learn_to_cloud_shared.schemas import ValidationResult
 from learn_to_cloud_shared.verification.errors import (
     DeployedApiServerError,
@@ -48,20 +48,24 @@ from learn_to_cloud_shared.verification.errors import (
     make_retriable,
 )
 
-# Shared HTTP client for deployed API requests (connection pooling)
-_deployed_api_client: httpx.AsyncClient | None = None
-_client_lock = asyncio.Lock()
+
+def _build_deployed_api_client() -> httpx.AsyncClient:
+    return httpx.AsyncClient(
+        timeout=httpx.Timeout(
+            get_settings().external_api_timeout,
+            connect=5.0,
+        ),
+        follow_redirects=False,
+        limits=httpx.Limits(max_connections=20, max_keepalive_connections=10),
+    )
+
+
+_pool = PooledClient(_build_deployed_api_client)
 
 
 # Exceptions that should trigger retry
 RETRIABLE_EXCEPTIONS: tuple[type[Exception], ...] = make_retriable(
     DeployedApiServerError
-)
-
-# UUID v4 pattern (standard format from Python's uuid module)
-_UUID_PATTERN = re.compile(
-    r"^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
-    re.IGNORECASE,
 )
 
 # Required fields for a journal entry
@@ -73,37 +77,13 @@ _MAX_STRING_LENGTH = 256
 
 
 async def _get_client() -> httpx.AsyncClient:
-    """Get or create a shared HTTP client for deployed API requests.
-
-    Uses connection pooling to reduce overhead from per-request client creation.
-    Thread-safe via asyncio.Lock to prevent race conditions.
-    """
-    global _deployed_api_client
-
-    if _deployed_api_client is not None and not _deployed_api_client.is_closed:
-        return _deployed_api_client
-
-    async with _client_lock:
-        if _deployed_api_client is not None and not _deployed_api_client.is_closed:
-            return _deployed_api_client
-
-        _deployed_api_client = httpx.AsyncClient(
-            timeout=httpx.Timeout(
-                get_settings().external_api_timeout,
-                connect=5.0,
-            ),
-            follow_redirects=False,
-            limits=httpx.Limits(max_connections=20, max_keepalive_connections=10),
-        )
-        return _deployed_api_client
+    """Return the shared pooled HTTP client for deployed API requests."""
+    return await _pool.get()
 
 
 async def close_deployed_api_client() -> None:
     """Close the shared HTTP client (called on application shutdown)."""
-    global _deployed_api_client
-    if _deployed_api_client is not None and not _deployed_api_client.is_closed:
-        await _deployed_api_client.aclose()
-    _deployed_api_client = None
+    await _pool.close()
 
 
 def _is_valid_url(value: str) -> bool:
@@ -215,7 +195,10 @@ def _normalize_base_url(url: str) -> str:
 
 def _validate_uuid(value: str) -> bool:
     """Check if a string is a valid UUID v4."""
-    return bool(_UUID_PATTERN.match(value))
+    try:
+        return UUID(value).version == 4
+    except (ValueError, AttributeError, TypeError):
+        return False
 
 
 def _validate_datetime(value: str) -> bool:
@@ -336,14 +319,9 @@ def _extract_entries_list(data: Any) -> list | None:
     return None
 
 
-def _wait_exponential(retry_state: RetryCallState) -> float:
-    """Exponential backoff with jitter."""
-    return wait_exponential_jitter(initial=0.5, max=10)(retry_state)
-
-
 @retry(
     stop=stop_after_attempt(3),
-    wait=_wait_exponential,
+    wait=wait_exponential_jitter(initial=0.5, max=10),
     retry=retry_if_exception_type(RETRIABLE_EXCEPTIONS),
     reraise=True,
 )

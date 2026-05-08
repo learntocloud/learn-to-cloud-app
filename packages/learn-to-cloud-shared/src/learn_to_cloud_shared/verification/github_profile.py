@@ -4,16 +4,14 @@ This module handles all GitHub-specific validations including:
 - GitHub profile verification (Phase 0)
 - Profile README verification (Phase 1)
 - Repository fork verification (Phase 1)
-- GitHub URL parsing
 
+For URL parsing, see ``repo_utils.parse_github_url``.
 For the main hands-on verification orchestration, see hands_on_verification.py
 
 SCALABILITY:
 - Retry with exponential backoff + jitter for transient failures (3 attempts)
 - Connection pooling via shared httpx.AsyncClient
 """
-
-import re
 
 import httpx
 from opentelemetry import trace
@@ -29,12 +27,13 @@ from learn_to_cloud_shared.core.config import get_settings
 from learn_to_cloud_shared.core.github_client import (
     get_github_client as _get_github_client,
 )
-from learn_to_cloud_shared.schemas import ParsedGitHubUrl, ValidationResult
+from learn_to_cloud_shared.schemas import ValidationResult
 from learn_to_cloud_shared.verification.errors import (
     GitHubServerError,
     github_error_to_result,
     make_retriable,
 )
+from learn_to_cloud_shared.verification.repo_utils import parse_github_url
 
 
 def _parse_retry_after(header_value: str | None) -> float | None:
@@ -101,70 +100,6 @@ async def github_api_get(
         raise GitHubServerError("GitHub rate limited (429)", retry_after=retry_after)
     response.raise_for_status()
     return response
-
-
-def parse_github_url(url: str) -> ParsedGitHubUrl:
-    """Parse a GitHub URL and extract components.
-
-    Supports:
-    - Profile README: https://github.com/username/username/blob/main/README.md
-    - Repository: https://github.com/username/repo-name
-    - Repository with path: https://github.com/username/repo-name/tree/main/folder
-
-    Also handles common URL variations:
-    - Missing https:// prefix (auto-prepends)
-    - http:// prefix (converts to https://)
-    - www.github.com (normalizes)
-    """
-    url = url.strip().rstrip("/")
-
-    # Normalize common URL variations (always upgrade to https)
-    if url.startswith("http://github.com/"):
-        url = "https://" + url[len("http://") :]
-    elif url.startswith("http://www.github.com/"):
-        url = "https://" + url[len("http://www.") :]
-    elif url.startswith("https://www.github.com/"):
-        url = "https://" + url[len("https://www.") :]
-    elif url.startswith("www.github.com/"):
-        url = "https://" + url[len("www.") :]
-    elif url.startswith("github.com/"):
-        url = "https://" + url
-
-    if not url.startswith("https://github.com/"):
-        return ParsedGitHubUrl(
-            username="",
-            is_valid=False,
-            error="URL must be a GitHub URL (e.g., https://github.com/username/repo)",
-        )
-
-    path = url.replace("https://github.com/", "")
-
-    parts = path.split("/")
-
-    if not parts or not parts[0]:
-        return ParsedGitHubUrl(
-            username="", is_valid=False, error="Could not extract username from URL"
-        )
-
-    username = parts[0]
-
-    # GitHub usernames: 1-39 chars, alphanumeric + hyphen, can't start/end with hyphen
-    if len(username) > 39 or not re.match(
-        r"^[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?$", username
-    ):
-        return ParsedGitHubUrl(
-            username=username, is_valid=False, error="Invalid GitHub username format"
-        )
-
-    repo_name = parts[1] if len(parts) > 1 else None
-
-    file_path = None
-    if len(parts) > 3 and parts[2] in ("blob", "tree") and len(parts) > 4:
-        file_path = "/".join(parts[4:])
-
-    return ParsedGitHubUrl(
-        username=username, repo_name=repo_name, file_path=file_path, is_valid=True
-    )
 
 
 @retry(
@@ -324,28 +259,17 @@ async def validate_github_profile(
     The URL should be like: https://github.com/username
     And the username should match the expected_username (case-insensitive).
     """
-    url = github_url.strip().rstrip("/")
+    parsed = parse_github_url(github_url)
 
-    if not url.startswith("https://github.com/"):
+    if not parsed.is_valid or not parsed.username:
         return ValidationResult(
             is_valid=False,
-            message="URL must be a GitHub profile URL (https://github.com/username)",
+            message=parsed.error or "Could not extract username from URL",
             username_match=False,
             repo_exists=False,
         )
 
-    path = url.replace("https://github.com/", "")
-    parts = path.split("/")
-    username = parts[0] if parts else ""
-
-    if not username:
-        return ValidationResult(
-            is_valid=False,
-            message="Could not extract username from URL",
-            username_match=False,
-            repo_exists=False,
-        )
-
+    username = parsed.username
     username_match = username.lower() == expected_username.lower()
 
     if not username_match:

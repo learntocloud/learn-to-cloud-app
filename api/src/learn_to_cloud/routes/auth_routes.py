@@ -76,14 +76,8 @@ async def callback(request: Request) -> RedirectResponse:
     try:
         t0 = time.perf_counter()
         token = await github.authorize_access_token(request)
-    except (OAuthError, httpx.HTTPStatusError, httpx.ReadTimeout) as exc:
-        logger.error(
-            "auth.callback.token_exchange_failed",
-            extra={
-                "exc_type": type(exc).__name__,
-                "exc_message": str(exc),
-            },
-        )
+    except (OAuthError, httpx.HTTPStatusError, httpx.ReadTimeout):
+        logger.exception("auth.callback.token_exchange_failed")
         return RedirectResponse(url="/", status_code=302)
 
     t1 = time.perf_counter()

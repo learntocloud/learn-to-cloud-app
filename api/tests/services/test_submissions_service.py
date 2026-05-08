@@ -399,7 +399,10 @@ class TestGetPhaseSubmissionContext:
         mock_sub = _make_mock_submission(
             is_validated=False, verification_completed=True
         )
-        mock_sub.feedback_json = '[{"task_name":"A","passed":true,"feedback":"ok"}]'
+        mock_sub.feedback_json = (
+            '[{"task_name":"A","passed":true,"feedback":"ok",'
+            '"next_steps":"review the rubric"}]'
+        )
         with (
             patch(
                 "learn_to_cloud.services.submissions_service.SubmissionRepository",
@@ -415,3 +418,11 @@ class TestGetPhaseSubmissionContext:
         assert "test-requirement" in result.feedback_by_req
         feedback = result.feedback_by_req["test-requirement"]
         assert feedback["passed"] == 1
+        assert feedback["tasks"] == [
+            {
+                "name": "A",
+                "passed": True,
+                "message": "ok",
+                "next_steps": "review the rubric",
+            }
+        ]

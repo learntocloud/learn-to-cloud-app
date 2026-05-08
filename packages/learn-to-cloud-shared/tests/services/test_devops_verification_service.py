@@ -18,6 +18,11 @@ from learn_to_cloud_shared.verification.devops_analysis import (
     _filter_devops_files,
     run_devops_workflow,
 )
+from learn_to_cloud_shared.verification.tasks.base import (
+    EvidencePolicy,
+    IndicatorGraderConfig,
+    VerificationTask,
+)
 from learn_to_cloud_shared.verification.tasks.phase5 import (
     MAX_FILES_PER_CATEGORY,
     PHASE5_TASKS,
@@ -61,13 +66,13 @@ class TestFilterDevopsFiles:
     def test_empty_repo(self):
         result = _filter_devops_files([])
         for task in PHASE5_TASKS:
-            assert result[task["id"]] == []
+            assert result[task.id] == []
 
     def test_no_devops_files(self):
         files = ["README.md", "api/main.py", "requirements.txt"]
         result = _filter_devops_files(files)
         for task in PHASE5_TASKS:
-            assert result[task["id"]] == []
+            assert result[task.id] == []
 
     def test_limits_files_per_category(self):
         """Should cap files per category to MAX_FILES_PER_CATEGORY."""
@@ -200,13 +205,17 @@ class TestCheckTaskIndicators:
     def test_fail_indicator_causes_failure(self):
         """Any fail_indicator match → immediate failure."""
         # Use a synthetic task_def since real Phase 5 tasks may not have fail_indicators
-        task_def = {
-            "id": "test-task",
-            "name": "Test Task",
-            "pass_indicators": ["FROM "],
-            "fail_indicators": ["TODO"],
-            "min_pass_count": 1,
-        }
+        task_def = VerificationTask(
+            id="test-task",
+            phase_id=5,
+            name="Test Task",
+            evidence=EvidencePolicy(source="repo_files"),
+            grader=IndicatorGraderConfig(
+                pass_indicators=["FROM "],
+                fail_indicators=["TODO"],
+                min_pass_count=1,
+            ),
+        )
         contents = ["FROM python:3.12\nTODO: fix this\n"]
         result = _check_task_indicators(task_def, contents)
         assert result.passed is False
@@ -234,7 +243,7 @@ class TestCheckTaskIndicators:
 
     def test_cicd_task_indicators(self):
         """CI/CD pipeline task passes with enough workflow indicators."""
-        task_def = next(t for t in PHASE5_TASKS if t["id"] == "cicd-pipeline")
+        task_def = next(t for t in PHASE5_TASKS if t.id == "cicd-pipeline")
         contents = [
             "name: CI\n"
             "on:\n  push:\n    branches: [main]\n"
@@ -249,7 +258,7 @@ class TestCheckTaskIndicators:
 
     def test_terraform_task_indicators(self):
         """Terraform task passes with enough IaC indicators."""
-        task_def = next(t for t in PHASE5_TASKS if t["id"] == "terraform-iac")
+        task_def = next(t for t in PHASE5_TASKS if t.id == "terraform-iac")
         contents = [
             'resource "azurerm_resource_group" "rg" {\n'
             '  name     = "myapp"\n'

@@ -1,11 +1,9 @@
 """Submission repository for hands-on validation database operations."""
 
-from datetime import UTC, datetime
-
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from learn_to_cloud_shared.models import Submission, SubmissionType
+from learn_to_cloud_shared.models import Submission, SubmissionType, utcnow
 
 
 class SubmissionRepository:
@@ -87,7 +85,7 @@ class SubmissionRepository:
             cloud_provider: Cloud provider slug ("aws", "azure", "gcp") for
                 multi-cloud labs. None for non-multi-cloud submissions.
         """
-        now = datetime.now(UTC)
+        now = utcnow()
 
         result = await self.db.execute(
             select(func.coalesce(func.max(Submission.attempt_number), 0)).where(

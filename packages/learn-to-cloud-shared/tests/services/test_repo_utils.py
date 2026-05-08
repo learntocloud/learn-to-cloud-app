@@ -3,7 +3,6 @@
 Tests cover:
 - GitHub URL parsing and validation (extract_repo_info)
 - Repository ownership validation (validate_repo_url)
-- Feedback sanitization (sanitize_feedback)
 """
 
 import pytest
@@ -11,7 +10,6 @@ import pytest
 from learn_to_cloud_shared.schemas import ValidationResult
 from learn_to_cloud_shared.verification.repo_utils import (
     extract_repo_info,
-    sanitize_feedback,
     validate_repo_url,
 )
 
@@ -156,49 +154,3 @@ class TestValidateRepoUrl:
         assert result.is_valid is False
         assert "does not match the expected fork name" in result.message
         assert result.username_match is True
-
-
-# ---------------------------------------------------------------------------
-# sanitize_feedback
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.unit
-class TestSanitizeFeedback:
-    """Tests for feedback sanitization security function."""
-
-    def test_normal_feedback_unchanged(self):
-        feedback = "Good job! You implemented logging correctly."
-        assert sanitize_feedback(feedback) == feedback
-
-    def test_empty_feedback_returns_default(self):
-        assert sanitize_feedback("") == "No feedback provided"
-        assert sanitize_feedback(None) == "No feedback provided"
-
-    def test_long_feedback_truncated(self):
-        long_feedback = "x" * 1000
-        result = sanitize_feedback(long_feedback)
-        assert len(result) <= 503  # 500 + "..."
-
-    def test_html_tags_stripped(self):
-        feedback = "Good <script>alert('xss')</script> job!"
-        result = sanitize_feedback(feedback)
-        assert "<script>" not in result
-        assert "</script>" not in result
-        assert "Good" in result
-        assert "job!" in result
-
-    def test_code_blocks_replaced(self):
-        feedback = "Check this: ```python\nprint('injection')```"
-        result = sanitize_feedback(feedback)
-        assert "```" not in result
-        assert "[code snippet]" in result
-
-    def test_urls_removed(self):
-        feedback = "Visit https://malicious.com for more info"
-        result = sanitize_feedback(feedback)
-        assert "https://malicious.com" not in result
-        assert "[link removed]" in result
-
-    def test_whitespace_only_returns_default(self):
-        assert sanitize_feedback("   ") == "No feedback provided"
