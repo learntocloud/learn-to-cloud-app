@@ -664,6 +664,7 @@ name = "learn-to-cloud-shared"
 version = "0.1.0"
 source = { editable = "../../packages/learn-to-cloud-shared" }
 dependencies = [
+    { name = "aiohttp" },
     { name = "asyncpg" },
     { name = "azure-identity" },
     { name = "azure-monitor-opentelemetry" },
@@ -685,6 +686,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
+    { name = "aiohttp", specifier = ">=3.9.0" },
     { name = "asyncpg", specifier = ">=0.31.0" },
     { name = "azure-identity", specifier = ">=1.25.2" },
     { name = "azure-monitor-opentelemetry", specifier = ">=1.8.6" },
