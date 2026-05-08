@@ -15,6 +15,7 @@ version = "0.1.0"
 description = "Shared Learn to Cloud domain, database, and verification code"
 requires-python = ">=3.13"
 dependencies = [
+    "aiohttp>=3.9.0",
     "asyncpg>=0.31.0",
     "azure-identity>=1.25.2",
     "azure-monitor-opentelemetry>=1.8.6",
