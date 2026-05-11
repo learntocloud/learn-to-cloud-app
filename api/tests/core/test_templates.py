@@ -34,5 +34,22 @@ def test_frontend_telemetry_context_includes_connection_string(monkeypatch):
     assert context == {
         "frontend_telemetry": {
             "connection_string": conn_str,
+            "sampling_percentage": 100.0,
+        }
+    }
+
+
+@pytest.mark.unit
+def test_frontend_telemetry_context_includes_sampling_percentage(monkeypatch):
+    conn_str = "InstrumentationKey=abc;IngestionEndpoint=https://example.invalid/"
+    monkeypatch.setenv("FRONTEND_APPLICATIONINSIGHTS_CONNECTION_STRING", conn_str)
+    monkeypatch.setenv("FRONTEND_TELEMETRY_SAMPLING_PERCENTAGE", "10")
+
+    context = _frontend_telemetry_context(MagicMock())
+
+    assert context == {
+        "frontend_telemetry": {
+            "connection_string": conn_str,
+            "sampling_percentage": 10.0,
         }
     }

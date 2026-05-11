@@ -23,6 +23,9 @@
                     isStorageUseDisabled: true,
                     enableSessionStorageBuffer: false,
                     enableAutoRouteTracking: false,
+                    disableAjaxTracking: true,
+                    disableFetchTracking: true,
+                    samplingPercentage: {{ frontend_telemetry.sampling_percentage | tojson }},
                     enableUnhandledPromiseRejectionTracking: true
                 }
             });

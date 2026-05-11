@@ -109,8 +109,8 @@ resource "azurerm_container_app" "api" {
     container {
       name   = "api"
       image  = "${azurerm_container_registry.main.login_server}/api:latest"
-      cpu    = 0.5
-      memory = "1Gi"
+      cpu    = 0.25
+      memory = "0.5Gi"
 
       env {
         name  = "POSTGRES_HOST"
@@ -192,7 +192,7 @@ resource "azurerm_container_app" "api" {
         path                    = "/health"
         port                    = 8000
         initial_delay           = 30
-        interval_seconds        = 30
+        interval_seconds        = 60
         timeout                 = 5
         failure_count_threshold = 3
       }
@@ -201,7 +201,7 @@ resource "azurerm_container_app" "api" {
         transport               = "HTTP"
         path                    = "/health"
         port                    = 8000
-        interval_seconds        = 10
+        interval_seconds        = 30
         timeout                 = 5
         failure_count_threshold = 3
       }

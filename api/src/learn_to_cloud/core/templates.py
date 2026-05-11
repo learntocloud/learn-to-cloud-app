@@ -55,9 +55,11 @@ def _frontend_telemetry_context(request: Request) -> dict[str, object]:
     if not conn_str:
         return {"frontend_telemetry": None}
 
+    settings = get_settings()
     return {
         "frontend_telemetry": {
             "connection_string": conn_str,
+            "sampling_percentage": settings.frontend_telemetry_sampling_percentage,
         }
     }
 

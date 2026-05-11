@@ -5,7 +5,7 @@ from importlib.resources import files
 from pathlib import Path
 from typing import Self
 
-from pydantic import model_validator
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -52,6 +52,9 @@ class Settings(BaseSettings):
 
     frontend_url: str = "http://localhost:4280"
     frontend_applicationinsights_connection_string: str = ""
+    frontend_telemetry_sampling_percentage: float = Field(
+        default=100.0, ge=0.0, le=100.0
+    )
 
     content_dir: str = ""
 
