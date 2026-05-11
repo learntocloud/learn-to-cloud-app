@@ -21,6 +21,7 @@ dependencies = [
     "azure-monitor-opentelemetry>=1.8.6",
     "cachetools>=7.0.6",
     "fastapi>=0.136.0,<1",
+    "greenlet>=3.2.4",
     "httpx>=0.28.1,<1",
     "opentelemetry-exporter-otlp-proto-grpc>=1.20.0",
     "opentelemetry-exporter-otlp-proto-http>=1.20.0",

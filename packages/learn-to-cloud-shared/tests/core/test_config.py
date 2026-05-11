@@ -148,6 +148,7 @@ class TestFrontendTelemetryConfig:
             database_url="postgresql+asyncpg://localhost/db",
         )
         assert s.frontend_applicationinsights_connection_string == ""
+        assert s.frontend_telemetry_sampling_percentage == 100.0
 
     def test_accepts_frontend_connection_string(self):
         conn_str = "InstrumentationKey=abc;IngestionEndpoint=https://example.invalid/"
@@ -157,6 +158,22 @@ class TestFrontendTelemetryConfig:
             frontend_applicationinsights_connection_string=conn_str,
         )
         assert s.frontend_applicationinsights_connection_string == conn_str
+
+    def test_accepts_frontend_telemetry_sampling_percentage(self):
+        s = Settings(
+            debug=True,
+            database_url="postgresql+asyncpg://localhost/db",
+            frontend_telemetry_sampling_percentage=10,
+        )
+        assert s.frontend_telemetry_sampling_percentage == 10.0
+
+    def test_rejects_invalid_frontend_telemetry_sampling_percentage(self):
+        with pytest.raises(ValidationError):
+            Settings(
+                debug=True,
+                database_url="postgresql+asyncpg://localhost/db",
+                frontend_telemetry_sampling_percentage=101,
+            )
 
 
 # ---------------------------------------------------------------------------
