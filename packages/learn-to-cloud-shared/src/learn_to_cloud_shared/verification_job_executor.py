@@ -21,7 +21,10 @@ from learn_to_cloud_shared.repositories.verification_job_repository import (
 )
 from learn_to_cloud_shared.schemas import HandsOnRequirement, ValidationResult
 from learn_to_cloud_shared.verification.dispatcher import validate_submission
-from learn_to_cloud_shared.verification.execution import persist_validation_result
+from learn_to_cloud_shared.verification.execution import (
+    persist_validation_result,
+    persisted_validation_message,
+)
 from learn_to_cloud_shared.verification.requirements import get_requirement_by_id
 
 tracer = trace.get_tracer(__name__)
@@ -411,7 +414,9 @@ async def persist_verification_result(
                 updated_job = await job_repo.mark_failed(
                     job.id,
                     error_code=VALIDATION_FAILED_ERROR_CODE,
-                    error_message=validation_result.message,
+                    error_message=(
+                        persisted_validation_message(validation_result.message) or ""
+                    ),
                     result_submission_id=submission.id,
                 )
                 status = VerificationJobStatus.FAILED
@@ -419,7 +424,9 @@ async def persist_verification_result(
                 updated_job = await job_repo.mark_server_error(
                     job.id,
                     error_code=VERIFICATION_INCOMPLETE_ERROR_CODE,
-                    error_message=validation_result.message,
+                    error_message=(
+                        persisted_validation_message(validation_result.message) or ""
+                    ),
                     result_submission_id=submission.id,
                 )
                 status = VerificationJobStatus.SERVER_ERROR

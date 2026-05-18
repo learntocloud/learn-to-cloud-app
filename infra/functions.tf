@@ -86,7 +86,7 @@ resource "azurerm_role_assignment" "verification_task_hub_dashboard_readers" {
 
 resource "azurerm_role_assignment" "verification_functions_foundry" {
   scope                            = azapi_resource.foundry_project.id
-  role_definition_name             = "Azure AI User"
+  role_definition_name             = "Foundry User"
   principal_id                     = azurerm_user_assigned_identity.verification_functions.principal_id
   principal_type                   = "ServicePrincipal"
   skip_service_principal_aad_check = true
