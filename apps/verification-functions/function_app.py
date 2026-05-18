@@ -16,6 +16,10 @@ import azure.functions as func
 from learn_to_cloud_shared.core.database import create_engine, create_session_maker
 from learn_to_cloud_shared.core.logger import APP_LOGGER_NAMESPACE, configure_logging
 from learn_to_cloud_shared.core.observability import configure_observability
+from learn_to_cloud_shared.models import SubmissionType, VerificationJob
+from learn_to_cloud_shared.repositories.verification_job_repository import (
+    VerificationJobRepository,
+)
 from learn_to_cloud_shared.verification.llm_grading import (
     LLMGradingDecisionPayload,
     LLMGradingRequest,
@@ -66,7 +70,21 @@ configure_observability()
 
 app = df.DFApp(http_auth_level=func.AuthLevel.FUNCTION)
 
-_ORCHESTRATOR_NAME = "verification_orchestrator"
+_DEFAULT_ORCHESTRATOR_NAME = "verification_orchestrator"
+_ORCHESTRATOR_NAMES_BY_SUBMISSION_TYPE = {
+    SubmissionType.GITHUB_PROFILE: "verify_github_profile_orchestrator",
+    SubmissionType.PROFILE_README: "verify_profile_readme_orchestrator",
+    SubmissionType.REPO_FORK: "verify_repo_fork_orchestrator",
+    SubmissionType.CTF_TOKEN: "verify_ctf_token_orchestrator",
+    SubmissionType.NETWORKING_TOKEN: "verify_networking_token_orchestrator",
+    SubmissionType.JOURNAL_API_RESPONSE: "verify_phase3_journal_api_orchestrator",
+    SubmissionType.CODE_ANALYSIS: "verify_phase3_journal_api_orchestrator",
+    SubmissionType.PR_REVIEW: "verify_phase3_pr_review_orchestrator",
+    SubmissionType.CI_STATUS: "verify_phase3_ci_status_orchestrator",
+    SubmissionType.DEPLOYED_API: "verify_phase4_deployed_api_orchestrator",
+    SubmissionType.DEVOPS_ANALYSIS: "verify_phase5_devops_orchestrator",
+    SubmissionType.SECURITY_SCANNING: "verify_phase6_security_orchestrator",
+}
 _VERIFY_RETRY_OPTIONS = df.RetryOptions(
     first_retry_interval_in_milliseconds=5000,
     max_number_of_attempts=3,
@@ -248,8 +266,41 @@ def _log_verification_job_completed(
     )
 
 
-@app.orchestration_trigger(context_name="context")
-def verification_orchestrator(context: df.DurableOrchestrationContext):
+def _orchestrator_name_for_job(job: VerificationJob) -> str:
+    return _ORCHESTRATOR_NAMES_BY_SUBMISSION_TYPE.get(
+        job.submission_type,
+        _DEFAULT_ORCHESTRATOR_NAME,
+    )
+
+
+def _job_custom_status(
+    step: str,
+    job_id: object,
+    job: PreparedVerificationJob,
+) -> dict[str, object]:
+    return {
+        "step": step,
+        "job_id": job_id,
+        "phase_id": job.phase_id,
+        "requirement_id": job.requirement.id,
+        "submission_type": job.requirement.submission_type.value,
+    }
+
+
+def _result_custom_status(
+    step: str,
+    job_id: object,
+    result: Mapping[str, object],
+) -> dict[str, object]:
+    status: dict[str, object] = {"step": step, "job_id": job_id}
+    for key in ("phase_id", "requirement_id", "submission_type"):
+        value = result.get(key)
+        if value is not None:
+            status[key] = value
+    return status
+
+
+def _run_verification_orchestration(context: df.DurableOrchestrationContext):
     """Run one verification job workflow."""
     job_id = context.get_input()
     if isinstance(job_id, str):
@@ -263,15 +314,22 @@ def verification_orchestrator(context: df.DurableOrchestrationContext):
 
     terminal_result = preparation.get("terminal_result")
     if terminal_result is not None:
-        _set_result_span_attributes(_activity_payload(terminal_result))
-        context.set_custom_status({"step": "completed", "job_id": job_id})
+        result_payload = _activity_payload(terminal_result)
+        _set_result_span_attributes(result_payload)
+        context.set_custom_status(
+            _result_custom_status("completed", job_id, result_payload)
+        )
         return terminal_result
 
     prepared_job = preparation["job"]
-    _set_prepared_job_span_attributes(
-        PreparedVerificationJob.from_payload(_activity_payload(prepared_job))
+    prepared_job_payload = _activity_payload(prepared_job)
+    prepared_verification_job = PreparedVerificationJob.from_payload(
+        prepared_job_payload
     )
-    context.set_custom_status({"step": "verifying", "job_id": job_id})
+    _set_prepared_job_span_attributes(prepared_verification_job)
+    context.set_custom_status(
+        _job_custom_status("verifying", job_id, prepared_verification_job)
+    )
     run_result = yield context.call_activity_with_retry(
         "execute_requirement_verification",
         _VERIFY_RETRY_OPTIONS,
@@ -282,7 +340,9 @@ def verification_orchestrator(context: df.DurableOrchestrationContext):
         run_result,
     )
     if llm_requests:
-        context.set_custom_status({"step": "llm_grading", "job_id": job_id})
+        context.set_custom_status(
+            _job_custom_status("llm_grading", job_id, prepared_verification_job)
+        )
         try:
             decisions: list[dict[str, object]] = []
             for request_payload in llm_requests:
@@ -303,15 +363,92 @@ def verification_orchestrator(context: df.DurableOrchestrationContext):
                 {"run_result": run_result, "detail": str(exc)},
             )
 
-    context.set_custom_status({"step": "persisting", "job_id": job_id})
+    context.set_custom_status(
+        _job_custom_status("persisting", job_id, prepared_verification_job)
+    )
     result = yield context.call_activity_with_retry(
         "persist_verification_result",
         _TRANSIENT_RETRY_OPTIONS,
         run_result,
     )
-    _set_result_span_attributes(_activity_payload(result))
-    context.set_custom_status({"step": "completed", "job_id": job_id})
+    result_payload = _activity_payload(result)
+    _set_result_span_attributes(result_payload)
+    context.set_custom_status(
+        _result_custom_status("completed", job_id, result_payload)
+    )
     return result
+
+
+@app.orchestration_trigger(context_name="context")
+def verification_orchestrator(context: df.DurableOrchestrationContext):
+    """Run the legacy generic verification workflow."""
+    return (yield from _run_verification_orchestration(context))
+
+
+@app.orchestration_trigger(context_name="context")
+def verify_github_profile_orchestrator(context: df.DurableOrchestrationContext):
+    """Run GitHub profile verification."""
+    return (yield from _run_verification_orchestration(context))
+
+
+@app.orchestration_trigger(context_name="context")
+def verify_profile_readme_orchestrator(context: df.DurableOrchestrationContext):
+    """Run profile README verification."""
+    return (yield from _run_verification_orchestration(context))
+
+
+@app.orchestration_trigger(context_name="context")
+def verify_repo_fork_orchestrator(context: df.DurableOrchestrationContext):
+    """Run repository fork verification."""
+    return (yield from _run_verification_orchestration(context))
+
+
+@app.orchestration_trigger(context_name="context")
+def verify_ctf_token_orchestrator(context: df.DurableOrchestrationContext):
+    """Run CTF token verification."""
+    return (yield from _run_verification_orchestration(context))
+
+
+@app.orchestration_trigger(context_name="context")
+def verify_networking_token_orchestrator(context: df.DurableOrchestrationContext):
+    """Run networking token verification."""
+    return (yield from _run_verification_orchestration(context))
+
+
+@app.orchestration_trigger(context_name="context")
+def verify_phase3_journal_api_orchestrator(context: df.DurableOrchestrationContext):
+    """Run Phase 3 journal API verification."""
+    return (yield from _run_verification_orchestration(context))
+
+
+@app.orchestration_trigger(context_name="context")
+def verify_phase3_pr_review_orchestrator(context: df.DurableOrchestrationContext):
+    """Run Phase 3 pull request verification."""
+    return (yield from _run_verification_orchestration(context))
+
+
+@app.orchestration_trigger(context_name="context")
+def verify_phase3_ci_status_orchestrator(context: df.DurableOrchestrationContext):
+    """Run Phase 3 CI status verification."""
+    return (yield from _run_verification_orchestration(context))
+
+
+@app.orchestration_trigger(context_name="context")
+def verify_phase4_deployed_api_orchestrator(context: df.DurableOrchestrationContext):
+    """Run Phase 4 deployed API verification."""
+    return (yield from _run_verification_orchestration(context))
+
+
+@app.orchestration_trigger(context_name="context")
+def verify_phase5_devops_orchestrator(context: df.DurableOrchestrationContext):
+    """Run Phase 5 DevOps verification."""
+    return (yield from _run_verification_orchestration(context))
+
+
+@app.orchestration_trigger(context_name="context")
+def verify_phase6_security_orchestrator(context: df.DurableOrchestrationContext):
+    """Run Phase 6 security verification."""
+    return (yield from _run_verification_orchestration(context))
 
 
 @app.activity_trigger(input_name="job_id")
@@ -465,19 +602,33 @@ async def start_verification_job(
             return _json_response({"error": "missing_job_id"}, status_code=400)
 
         try:
-            job_id = str(UUID(raw_job_id))
+            job_uuid = UUID(raw_job_id)
         except ValueError:
             return _json_response({"error": "invalid_job_id"}, status_code=400)
 
+        job_id = str(job_uuid)
+        async with _get_session_maker()() as session:
+            job = await VerificationJobRepository(session).get_by_id(job_uuid)
+        if job is None:
+            return _json_response({"error": "job_not_found"}, status_code=404)
+
+        orchestrator_name = _orchestrator_name_for_job(job)
         _set_verification_span_attributes(job_id=job_id)
         instance_id = await client.start_new(
-            _ORCHESTRATOR_NAME,
+            orchestrator_name,
             instance_id=job_id,
             client_input=job_id,
         )
         logger.info(
             "verification.orchestration.started",
-            extra={"job_id": job_id, "instance_id": instance_id},
+            extra={
+                "job_id": job_id,
+                "instance_id": instance_id,
+                "orchestrator_name": orchestrator_name,
+                "phase_id": job.phase_id,
+                "requirement_id": job.requirement_id,
+                "submission_type": job.submission_type.value,
+            },
         )
         return client.create_check_status_response(req, instance_id)
 
