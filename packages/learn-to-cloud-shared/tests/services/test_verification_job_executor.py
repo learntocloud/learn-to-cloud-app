@@ -20,6 +20,7 @@ from learn_to_cloud_shared.repositories.verification_job_repository import (
     VerificationJobRepository,
 )
 from learn_to_cloud_shared.schemas import HandsOnRequirement, ValidationResult
+from learn_to_cloud_shared.verification.execution import MAX_VALIDATION_MESSAGE_LENGTH
 from learn_to_cloud_shared.verification_job_executor import (
     REQUIREMENT_NOT_FOUND_ERROR_CODE,
     VALIDATION_FAILED_ERROR_CODE,
@@ -306,6 +307,51 @@ async def test_execute_verification_job_marks_server_error(
     assert submission.is_validated is False
     assert submission.verification_completed is False
     assert submission.validation_message == "GitHub API unavailable."
+
+
+async def test_execute_verification_job_truncates_persisted_error_messages(
+    session_maker: async_sessionmaker[AsyncSession],
+):
+    job_id = await _create_job(session_maker)
+    long_message = "LLM verification grading failed: " + ("permission denied " * 200)
+    validation = AsyncMock(
+        return_value=ValidationResult(
+            is_valid=False,
+            message=long_message,
+            verification_completed=False,
+        )
+    )
+
+    with (
+        patch(
+            "learn_to_cloud_shared.verification_job_executor.get_requirement_by_id",
+            return_value=_requirement(),
+        ),
+        patch(
+            "learn_to_cloud_shared.verification_job_executor.validate_submission",
+            validation,
+        ),
+    ):
+        result = await execute_verification_job(job_id, session_maker=session_maker)
+
+    assert result.status == VerificationJobStatus.SERVER_ERROR
+    assert result.detail == long_message
+
+    status, result_submission_id, error_code, error_message = await _get_job_status(
+        session_maker,
+        job_id,
+    )
+    assert status == VerificationJobStatus.SERVER_ERROR
+    assert result_submission_id == result.submission_id
+    assert error_code == VERIFICATION_INCOMPLETE_ERROR_CODE
+    assert error_message is not None
+    assert len(error_message) == MAX_VALIDATION_MESSAGE_LENGTH
+    assert error_message.endswith("...")
+
+    submission = await _get_submission(session_maker, result.submission_id)
+    assert submission.validation_message is not None
+    assert len(submission.validation_message) == MAX_VALIDATION_MESSAGE_LENGTH
+    assert submission.validation_message == error_message
 
 
 async def test_execute_verification_job_is_idempotent_for_terminal_jobs(

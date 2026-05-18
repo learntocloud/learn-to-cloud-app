@@ -110,7 +110,7 @@ def llm_grading_unavailable_result(
     validation_result = run_result.validation_result.model_copy(
         update={
             "is_valid": False,
-            "message": f"LLM verification grading failed: {detail}",
+            "message": "LLM verification grading failed. Please try again later.",
             "verification_completed": False,
         }
     )

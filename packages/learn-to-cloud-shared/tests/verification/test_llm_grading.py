@@ -181,5 +181,5 @@ def test_llm_grading_unavailable_result_marks_server_error():
     assert updated.validation_result.is_valid is False
     assert updated.validation_result.verification_completed is False
     assert updated.validation_result.message == (
-        "LLM verification grading failed: structured output missing"
+        "LLM verification grading failed. Please try again later."
     )

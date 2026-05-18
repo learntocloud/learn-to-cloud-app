@@ -29,6 +29,14 @@ SubmissionPersistHook = Callable[
     [AsyncSession, Submission, ValidationResult],
     Awaitable[None],
 ]
+MAX_VALIDATION_MESSAGE_LENGTH = 1024
+
+
+def persisted_validation_message(message: str | None) -> str | None:
+    """Return a validation message that fits persisted status columns."""
+    if message is None or len(message) <= MAX_VALIDATION_MESSAGE_LENGTH:
+        return message
+    return f"{message[: MAX_VALIDATION_MESSAGE_LENGTH - 3]}..."
 
 
 def to_submission_data(submission: Submission) -> SubmissionData:
@@ -98,7 +106,9 @@ async def persist_validation_result(
         verification_completed=validation_result.verification_completed,
         feedback_json=_feedback_json(validation_result),
         validation_message=(
-            validation_result.message if not validation_result.is_valid else None
+            persisted_validation_message(validation_result.message)
+            if not validation_result.is_valid
+            else None
         ),
         cloud_provider=validation_result.cloud_provider,
     )
