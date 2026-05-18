@@ -237,6 +237,18 @@ class TestGetAllPhases:
             requirement.id for requirement in phase3.hands_on_verification.requirements
         ] == ["journal-api-implementation"]
 
+    def test_phase5_aws_observability_link_uses_current_adot_guide(self):
+        topic = get_topic_by_slugs("phase5", "monitoring-observability")
+        assert topic is not None
+        step = next(
+            step
+            for step in topic.learning_steps
+            if step.id == "phase5-topic5-practice-export-telemetry-cloud-provider"
+        )
+        aws_option = next(option for option in step.options if option.provider == "aws")
+
+        assert aws_option.url == "https://aws-otel.github.io/docs/getting-started/x-ray"
+
     def test_empty_directory(self, tmp_path: Path):
         with patch(
             "learn_to_cloud_shared.content_service._get_content_dir",

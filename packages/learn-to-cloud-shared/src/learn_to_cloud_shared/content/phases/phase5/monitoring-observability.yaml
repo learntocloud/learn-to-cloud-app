@@ -116,7 +116,7 @@ learning_steps:
     description: 'Install `azure-monitor-opentelemetry` and configure it with your Application Insights connection string. Traces, metrics, and logs will appear in the Azure portal under Application Insights.'
   - provider: aws
     title: AWS Distro for OpenTelemetry (Python)
-    url: https://aws-otel.github.io/docs/getting-started/python-sdk/trace-auto-instr
+    url: https://aws-otel.github.io/docs/getting-started/x-ray
     description: 'Use the AWS Distro for OpenTelemetry (ADOT) to export traces to AWS X-Ray and metrics to CloudWatch. Install the `opentelemetry-exporter-otlp` package and configure the ADOT Collector as your OTLP endpoint.'
   - provider: gcp
     title: Google Cloud OpenTelemetry (Python)
