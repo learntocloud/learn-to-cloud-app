@@ -32,6 +32,7 @@ from learn_to_cloud_shared.verification_job_executor import (
     run_verification,
 )
 from opentelemetry import context as otel_context
+from opentelemetry import trace as otel_trace
 from opentelemetry.propagate import extract
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from verification_agents import grade_evidence
@@ -155,10 +156,104 @@ def _activity_payloads(value: object) -> list[dict[str, object]]:
     return [_activity_payload(item) for item in value]
 
 
+def _set_verification_span_attributes(
+    *,
+    job_id: str,
+    user_id: int | None = None,
+    github_username: str | None = None,
+    phase_id: int | None = None,
+    requirement_id: str | None = None,
+    submission_type: str | None = None,
+    status: str | None = None,
+    result_submission_id: int | None = None,
+) -> None:
+    """Add verification identity to the current span when telemetry is enabled."""
+    span = otel_trace.get_current_span()
+    if not span.is_recording():
+        return
+
+    span.set_attribute("verification.job_id", job_id)
+    if phase_id is not None:
+        span.set_attribute("verification.phase_id", phase_id)
+    if requirement_id:
+        span.set_attribute("verification.requirement_id", requirement_id)
+    if submission_type:
+        span.set_attribute("verification.submission_type", submission_type)
+    if status:
+        span.set_attribute("verification.status", status)
+    if result_submission_id is not None:
+        span.set_attribute("verification.result_submission_id", result_submission_id)
+    if user_id is not None:
+        user_id_text = str(user_id)
+        span.set_attribute("enduser.id", user_id_text)
+        span.set_attribute("app.user_id", user_id_text)
+    if github_username:
+        span.set_attribute("enduser.name", github_username)
+        span.set_attribute("app.github_username", github_username)
+
+
+def _set_prepared_job_span_attributes(job: PreparedVerificationJob) -> None:
+    _set_verification_span_attributes(
+        job_id=str(job.id),
+        user_id=job.user_id,
+        github_username=job.github_username,
+        phase_id=job.phase_id,
+        requirement_id=job.requirement.id,
+        submission_type=job.requirement.submission_type.value,
+    )
+
+
+def _set_result_span_attributes(result: Mapping[str, object]) -> None:
+    job_id = result.get("job_id")
+    if not isinstance(job_id, str):
+        return
+
+    phase_id = result.get("phase_id")
+    requirement_id = result.get("requirement_id")
+    submission_type = result.get("submission_type")
+    status = result.get("status")
+    result_submission_id = result.get("submission_id")
+
+    _set_verification_span_attributes(
+        job_id=job_id,
+        phase_id=phase_id if isinstance(phase_id, int) else None,
+        requirement_id=requirement_id if isinstance(requirement_id, str) else None,
+        submission_type=submission_type if isinstance(submission_type, str) else None,
+        status=status if isinstance(status, str) else None,
+        result_submission_id=(
+            result_submission_id if isinstance(result_submission_id, int) else None
+        ),
+    )
+
+
+def _log_verification_job_completed(
+    result: Mapping[str, object],
+    job: PreparedVerificationJob,
+) -> None:
+    logger.info(
+        "verification.job.completed",
+        extra={
+            "job_id": result.get("job_id"),
+            "user_id": job.user_id,
+            "github_username": job.github_username,
+            "phase_id": job.phase_id,
+            "requirement_id": job.requirement.id,
+            "submission_type": job.requirement.submission_type.value,
+            "status": result.get("status"),
+            "result_submission_id": result.get("submission_id"),
+            "is_valid": result.get("is_valid"),
+            "verification_completed": result.get("verification_completed"),
+            "error_code": result.get("code"),
+        },
+    )
+
+
 @app.orchestration_trigger(context_name="context")
 def verification_orchestrator(context: df.DurableOrchestrationContext):
     """Run one verification job workflow."""
     job_id = context.get_input()
+    if isinstance(job_id, str):
+        _set_verification_span_attributes(job_id=job_id)
     context.set_custom_status({"step": "preparing", "job_id": job_id})
     preparation = yield context.call_activity_with_retry(
         "prepare_verification_job",
@@ -168,10 +263,14 @@ def verification_orchestrator(context: df.DurableOrchestrationContext):
 
     terminal_result = preparation.get("terminal_result")
     if terminal_result is not None:
+        _set_result_span_attributes(_activity_payload(terminal_result))
         context.set_custom_status({"step": "completed", "job_id": job_id})
         return terminal_result
 
     prepared_job = preparation["job"]
+    _set_prepared_job_span_attributes(
+        PreparedVerificationJob.from_payload(_activity_payload(prepared_job))
+    )
     context.set_custom_status({"step": "verifying", "job_id": job_id})
     run_result = yield context.call_activity_with_retry(
         "execute_requirement_verification",
@@ -210,6 +309,7 @@ def verification_orchestrator(context: df.DurableOrchestrationContext):
         _TRANSIENT_RETRY_OPTIONS,
         run_result,
     )
+    _set_result_span_attributes(_activity_payload(result))
     context.set_custom_status({"step": "completed", "job_id": job_id})
     return result
 
@@ -221,6 +321,7 @@ async def prepare_verification_job(
 ) -> dict[str, object]:
     """Load and mark the persisted verification job as running."""
     with _attached_invocation_context(context):
+        _set_verification_span_attributes(job_id=job_id)
         try:
             preparation = await prepare_persisted_verification_job(
                 job_id,
@@ -230,6 +331,8 @@ async def prepare_verification_job(
             logger.warning("verification.job.not_found", extra={"job_id": job_id})
             raise
 
+        if preparation.job is not None:
+            _set_prepared_job_span_attributes(preparation.job)
         return preparation.to_payload()
 
 
@@ -240,10 +343,14 @@ async def execute_requirement_verification(
 ) -> dict[str, object]:
     """Run the requirement verifier without writing database state."""
     with _attached_invocation_context(context):
-        run_result = await run_verification(
-            PreparedVerificationJob.from_payload(_activity_payload(job_payload)),
+        prepared_job = PreparedVerificationJob.from_payload(
+            _activity_payload(job_payload)
         )
-        return run_result.to_payload()
+        _set_prepared_job_span_attributes(prepared_job)
+        run_result = await run_verification(prepared_job)
+        result_payload = run_result.to_payload()
+        _set_result_span_attributes(result_payload)
+        return result_payload
 
 
 @app.activity_trigger(input_name="run_payload")
@@ -253,9 +360,9 @@ async def collect_llm_grading_requests(
 ) -> list[dict[str, object]]:
     """Prepare durable LLM grading requests for the completed verifier output."""
     with _attached_invocation_context(context):
-        requests = await collect_llm_requests(
-            VerificationRunResult.from_payload(_activity_payload(run_payload))
-        )
+        run_result = VerificationRunResult.from_payload(_activity_payload(run_payload))
+        _set_prepared_job_span_attributes(run_result.job)
+        requests = await collect_llm_requests(run_result)
         return [request.model_dump(mode="json") for request in requests]
 
 
@@ -267,6 +374,9 @@ async def run_llm_grading(
     """Call Foundry for one LLM grading request and return durable-safe JSON."""
     with _attached_invocation_context(context):
         request = LLMGradingRequest.model_validate(_activity_payload(request_payload))
+        span = otel_trace.get_current_span()
+        if span.is_recording():
+            span.set_attribute("verification.llm_thread_id", request.thread_id)
         decision = await grade_evidence(request.message)
         return LLMGradingDecisionPayload(
             task=request.task,
@@ -283,15 +393,19 @@ async def apply_llm_grading_results(
     with _attached_invocation_context(context):
         data = _activity_payload(payload)
         run_payload = _activity_payload(data["run_result"])
+        run_result_payload = VerificationRunResult.from_payload(run_payload)
+        _set_prepared_job_span_attributes(run_result_payload.job)
         decision_payloads = [
             LLMGradingDecisionPayload.model_validate(item)
             for item in _activity_payloads(data["decisions"])
         ]
         run_result = apply_llm_decisions(
-            VerificationRunResult.from_payload(run_payload),
+            run_result_payload,
             decision_payloads,
         )
-        return run_result.to_payload()
+        result_payload = run_result.to_payload()
+        _set_result_span_attributes(result_payload)
+        return result_payload
 
 
 @app.activity_trigger(input_name="payload")
@@ -305,11 +419,17 @@ async def llm_grading_failed(
         detail = data.get("detail")
         if not isinstance(detail, str) or not detail:
             detail = "unknown_error"
+        run_result_payload = VerificationRunResult.from_payload(
+            _activity_payload(data["run_result"])
+        )
+        _set_prepared_job_span_attributes(run_result_payload.job)
         run_result = llm_grading_unavailable_result(
-            VerificationRunResult.from_payload(_activity_payload(data["run_result"])),
+            run_result_payload,
             detail,
         )
-        return run_result.to_payload()
+        result_payload = run_result.to_payload()
+        _set_result_span_attributes(result_payload)
+        return result_payload
 
 
 @app.activity_trigger(input_name="run_payload")
@@ -319,11 +439,16 @@ async def persist_verification_result(
 ) -> dict[str, object]:
     """Persist the verification result and mark the job terminal."""
     with _attached_invocation_context(context):
+        run_result = VerificationRunResult.from_payload(_activity_payload(run_payload))
+        _set_prepared_job_span_attributes(run_result.job)
         result = await persist_prepared_verification_result(
-            VerificationRunResult.from_payload(_activity_payload(run_payload)),
+            run_result,
             session_maker=_get_session_maker(),
         )
-        return result.to_payload()
+        result_payload = result.to_payload()
+        _set_result_span_attributes(result_payload)
+        _log_verification_job_completed(result_payload, run_result.job)
+        return result_payload
 
 
 @app.route(route="verification/jobs/{job_id}/start", methods=["POST"])
@@ -344,6 +469,7 @@ async def start_verification_job(
         except ValueError:
             return _json_response({"error": "invalid_job_id"}, status_code=400)
 
+        _set_verification_span_attributes(job_id=job_id)
         instance_id = await client.start_new(
             _ORCHESTRATOR_NAME,
             instance_id=job_id,

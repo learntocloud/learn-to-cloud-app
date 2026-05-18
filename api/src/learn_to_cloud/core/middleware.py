@@ -7,6 +7,8 @@ from typing import ClassVar
 from opentelemetry import trace
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
+from learn_to_cloud.core.auth import SESSION_ID_KEY, new_session_id
+
 
 class SecurityHeadersMiddleware:
     """Adds security headers (CSP, HSTS, X-Frame-Options, etc.)."""
@@ -59,8 +61,8 @@ class SecurityHeadersMiddleware:
 class UserTrackingMiddleware:
     """Stamps user identity on the active OTel span.
 
-    Sets ``enduser.id`` and ``enduser.name`` on the span so App Insights
-    telemetry can correlate authenticated requests with the active user.
+    ``enduser.id`` maps to App Insights ``AuthenticatedUserId``.
+    ``enduser.pseudo.id`` maps to App Insights ``UserId``.
 
     Must be added BEFORE ``SessionMiddleware`` in ``add_middleware()``
     calls so that Starlette's ``insert(0, ...)`` ordering places it
@@ -80,10 +82,19 @@ class UserTrackingMiddleware:
         github_username = session.get("github_username")
 
         if user_id is not None:
+            session_id = session.get(SESSION_ID_KEY)
+            if not isinstance(session_id, str) or not session_id:
+                session_id = new_session_id()
+                session[SESSION_ID_KEY] = session_id
             span = trace.get_current_span()
             if span.is_recording():
                 span.set_attribute("enduser.id", str(user_id))
+                span.set_attribute("app.user_id", str(user_id))
+                span.set_attribute("enduser.pseudo.id", session_id)
+                span.set_attribute("app.session_id", session_id)
+                span.set_attribute("ai.session.id", session_id)
                 if github_username:
                     span.set_attribute("enduser.name", github_username)
+                    span.set_attribute("app.github_username", github_username)
 
         await self.app(scope, receive, send)

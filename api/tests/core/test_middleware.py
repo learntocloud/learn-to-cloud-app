@@ -170,13 +170,40 @@ class TestUserTrackingMiddleware:
         await middleware(scope, _noop_receive, _noop_send)
 
         mock_span.set_attribute.assert_any_call("enduser.id", "42")
+        mock_span.set_attribute.assert_any_call("app.user_id", "42")
         mock_span.set_attribute.assert_any_call("enduser.name", "testuser")
+        mock_span.set_attribute.assert_any_call("app.github_username", "testuser")
 
     @patch("learn_to_cloud.core.middleware.trace", autospec=True)
-    async def test_sets_only_user_id_when_no_username(self, mock_trace):
+    async def test_sets_session_attributes_when_session_id_present(self, mock_trace):
         mock_span = MagicMock()
         mock_span.is_recording.return_value = True
         mock_trace.get_current_span.return_value = mock_span
+
+        async def inner_app(scope, receive, send):
+            pass
+
+        middleware = UserTrackingMiddleware(inner_app)
+        scope = {
+            "type": "http",
+            "session": {"user_id": 42, "session_id": "session-123"},
+        }
+
+        await middleware(scope, _noop_receive, _noop_send)
+
+        mock_span.set_attribute.assert_any_call("enduser.pseudo.id", "session-123")
+        mock_span.set_attribute.assert_any_call("app.session_id", "session-123")
+        mock_span.set_attribute.assert_any_call("ai.session.id", "session-123")
+
+    @patch("learn_to_cloud.core.middleware.trace", autospec=True)
+    @patch("learn_to_cloud.core.middleware.new_session_id", autospec=True)
+    async def test_sets_only_user_id_when_no_username(
+        self, mock_new_session_id, mock_trace
+    ):
+        mock_span = MagicMock()
+        mock_span.is_recording.return_value = True
+        mock_trace.get_current_span.return_value = mock_span
+        mock_new_session_id.return_value = "generated-session"
 
         async def inner_app(scope, receive, send):
             pass
@@ -186,7 +213,12 @@ class TestUserTrackingMiddleware:
 
         await middleware(scope, _noop_receive, _noop_send)
 
-        mock_span.set_attribute.assert_called_once_with("enduser.id", "42")
+        mock_span.set_attribute.assert_any_call("enduser.id", "42")
+        mock_span.set_attribute.assert_any_call("app.user_id", "42")
+        mock_span.set_attribute.assert_any_call(
+            "enduser.pseudo.id", "generated-session"
+        )
+        assert scope["session"]["session_id"] == "generated-session"
 
     @patch("learn_to_cloud.core.middleware.trace", autospec=True)
     async def test_skips_non_http_scopes(self, mock_trace):
