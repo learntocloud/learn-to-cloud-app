@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
+from secrets import token_urlsafe
 from typing import Annotated
 
 from authlib.integrations.starlette_client import OAuth
@@ -22,6 +23,7 @@ from learn_to_cloud_shared.core.config import get_settings
 logger = logging.getLogger(__name__)
 
 oauth = OAuth()
+SESSION_ID_KEY = "session_id"
 
 
 @dataclass(frozen=True, slots=True)
@@ -75,6 +77,28 @@ def get_github_username_from_session(request: Request) -> str | None:
     if isinstance(github_username, str) and github_username:
         return github_username
     return None
+
+
+def new_session_id() -> str:
+    """Create an opaque telemetry session ID."""
+    return token_urlsafe(24)
+
+
+def get_session_id_from_session(request: Request) -> str | None:
+    """Read the telemetry session ID from the session cookie."""
+    session_id = request.session.get(SESSION_ID_KEY)
+    if isinstance(session_id, str) and session_id:
+        return session_id
+    return None
+
+
+def ensure_session_id(request: Request) -> str:
+    """Return the telemetry session ID, creating one when needed."""
+    session_id = get_session_id_from_session(request)
+    if session_id is None:
+        session_id = new_session_id()
+        request.session[SESSION_ID_KEY] = session_id
+    return session_id
 
 
 def get_authenticated_user_from_session(request: Request) -> AuthenticatedUser | None:

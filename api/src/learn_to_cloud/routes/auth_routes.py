@@ -16,7 +16,7 @@ from fastapi.responses import RedirectResponse
 from learn_to_cloud_shared.core.config import get_settings
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from learn_to_cloud.core.auth import UserId, oauth
+from learn_to_cloud.core.auth import UserId, ensure_session_id, oauth
 from learn_to_cloud.core.ratelimit import limiter
 from learn_to_cloud.services.users_service import (
     get_or_create_user_from_github,
@@ -113,6 +113,7 @@ async def callback(request: Request) -> RedirectResponse:
 
     request.session["user_id"] = user.id
     request.session["github_username"] = user.github_username or ""
+    ensure_session_id(request)
 
     logger.info(
         "auth.login.success",

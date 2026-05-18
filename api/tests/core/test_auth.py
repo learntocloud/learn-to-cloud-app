@@ -14,10 +14,13 @@ from fastapi import HTTPException, Request
 
 from learn_to_cloud.core.auth import (
     AuthenticatedUser,
+    ensure_session_id,
     get_authenticated_user_from_session,
     get_github_username_from_session,
+    get_session_id_from_session,
     get_user_id_from_session,
     init_oauth,
+    new_session_id,
     oauth,
     optional_auth,
     optional_authenticated_user,
@@ -68,6 +71,32 @@ class TestGetGitHubUsernameFromSession:
         request = _make_request(session={"github_username": ""})
         result = get_github_username_from_session(request)
         assert result is None
+
+
+@pytest.mark.unit
+class TestSessionIdHelpers:
+    """Test telemetry session ID helpers."""
+
+    def test_get_session_id_returns_existing_value(self):
+        request = _make_request(session={"session_id": "session-123"})
+        assert get_session_id_from_session(request) == "session-123"
+
+    def test_get_session_id_returns_none_when_missing_or_empty(self):
+        request = _make_request(session={"session_id": ""})
+        assert get_session_id_from_session(request) is None
+
+    def test_ensure_session_id_creates_and_reuses_value(self):
+        request = _make_request(session={})
+
+        created = ensure_session_id(request)
+        reused = ensure_session_id(request)
+
+        assert created
+        assert reused == created
+        assert request.session["session_id"] == created
+
+    def test_new_session_id_returns_opaque_value(self):
+        assert len(new_session_id()) >= 32
 
 
 @pytest.mark.unit
