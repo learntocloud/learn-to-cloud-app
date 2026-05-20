@@ -102,7 +102,6 @@ _TERMINAL_DURABLE_STATUSES = {"completed", "failed", "terminated", "canceled"}
 _DURABLE_FAILURE_STATUSES = {"failed", "terminated", "canceled"}
 _INITIAL_STATUS_DELAY_SECONDS = 2
 _RUNNING_STATUS_DELAY_SECONDS = 5
-_DURABLE_TERMINAL_FAILURE_MESSAGE = "Verification did not complete. Please try again."
 
 
 router = APIRouter(prefix="/htmx", tags=["htmx"], include_in_schema=False)
@@ -147,29 +146,34 @@ def _render_processing_card(
     )
 
 
-async def _mark_durable_terminal_failure(
+async def _delete_terminal_job(
     request: Request,
     token_data: VerificationStatusToken,
     status: str,
 ) -> None:
+    """Drop the verification_jobs row after Durable reaches terminal failure.
+
+    Replaces the older ``mark_server_error`` / ``mark_cancelled`` writes:
+    the user-facing failure message comes from Durable's runtime status
+    in the poller, not from a Postgres re-read, so we don't need to copy
+    Durable's terminal state back into Postgres. Deleting frees the
+    partial unique index so the user can retry.
+
+    The delete is guarded — if the persist activity won a race and
+    attached a Submission first, ``delete_active`` returns False and we
+    leave the row alone.
+    """
     session_maker = request.app.state.session_maker
     async with session_maker() as session:
         repository = VerificationJobRepository(session)
         job_id = UUID(token_data.job_id)
-        error_code = f"durable_{status}"
-        if status == "canceled":
-            await repository.mark_cancelled(
-                job_id,
-                error_code=error_code,
-                error_message=_DURABLE_TERMINAL_FAILURE_MESSAGE,
-            )
-        else:
-            await repository.mark_server_error(
-                job_id,
-                error_code=error_code,
-                error_message=_DURABLE_TERMINAL_FAILURE_MESSAGE,
-            )
+        deleted = await repository.delete_active(job_id)
         await session.commit()
+    if not deleted:
+        logger.info(
+            "verification.poller.delete_skipped",
+            extra={"job_id": str(job_id), "runtime_status": status},
+        )
 
 
 async def _render_step_toggle(
@@ -497,11 +501,12 @@ async def _start_async_job_and_render(
                 "error_type": type(exc).__name__,
             },
         )
+        # Delete the just-created row so the partial unique index doesn't
+        # block the user's retry. Durable owns terminal-state messaging
+        # now; we just need to free the in-flight slot.
         async with session_maker() as write_session:
-            await VerificationJobRepository(write_session).mark_server_error(
+            await VerificationJobRepository(write_session).delete_active(
                 job_submission.job.id,
-                error_code="durable_start_failed",
-                error_message=_DURABLE_START_ERROR_MESSAGE,
             )
             await write_session.commit()
         return render_card(
@@ -570,7 +575,7 @@ async def htmx_verification_job_status(
         )
 
     if status in _DURABLE_FAILURE_STATUSES:
-        await _mark_durable_terminal_failure(request, token_data, status)
+        await _delete_terminal_job(request, token_data, status)
         return HTMLResponse(_reload_verification_html())
 
     if status in _TERMINAL_DURABLE_STATUSES:

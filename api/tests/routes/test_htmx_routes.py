@@ -30,7 +30,10 @@ from learn_to_cloud.routes.htmx_routes import (
     htmx_uncomplete_step,
     htmx_verification_job_status,
 )
-from learn_to_cloud.services.durable_verification_client import DurableStatusResult
+from learn_to_cloud.services.durable_verification_client import (
+    DurableStatusResult,
+    DurableVerificationStartError,
+)
 from learn_to_cloud.services.steps_service import StepValidationError
 from learn_to_cloud.services.submissions_service import (
     SyncVerificationResult,
@@ -300,6 +303,61 @@ class TestHtmxSubmitVerification:
         # Should render a server error card, not crash
         assert result is not None
 
+    async def test_durable_start_failure_deletes_job(self):
+        """When Durable's start_new fails, the route deletes the just-
+        created job row instead of marking it server_error. Frees the
+        partial unique index so the user can retry immediately."""
+        request = _mock_request()
+        current_user = AuthenticatedUser(user_id=1, github_username="user")
+        job = SimpleNamespace(id=uuid4(), orchestration_instance_id=None)
+        async_result = VerificationJobSubmission(
+            job=cast(VerificationJob, job),
+            created=True,
+        )
+        write_session = AsyncMock()
+        request.app.state.session_maker.return_value.__aenter__.return_value = (
+            write_session
+        )
+        repo = MagicMock()
+        repo.delete_active = AsyncMock(return_value=True)
+
+        with (
+            patch(
+                "learn_to_cloud.routes.htmx_routes.get_requirement_by_id",
+                return_value=MagicMock(),
+            ),
+            patch(
+                "learn_to_cloud.routes.htmx_routes.derive_submission_value",
+                autospec=True,
+                return_value="https://github.com/user/repo",
+            ),
+            patch(
+                "learn_to_cloud.routes.htmx_routes.create_verification_job",
+                new_callable=AsyncMock,
+                return_value=async_result,
+            ),
+            patch(
+                "learn_to_cloud.routes.htmx_routes.start_verification_orchestration",
+                new_callable=AsyncMock,
+                side_effect=DurableVerificationStartError("boom"),
+            ),
+            patch(
+                "learn_to_cloud.routes.htmx_routes.VerificationJobRepository",
+                return_value=repo,
+            ),
+        ):
+            result = await htmx_submit_verification(
+                request,
+                current_user,
+                requirement_id="req-1",
+                submitted_value="https://github.com/user/repo",
+            )
+
+        assert isinstance(result, HTMLResponse)
+        repo.delete_active.assert_awaited_once_with(job.id)
+        repo.mark_server_error.assert_not_called()
+        write_session.commit.assert_awaited_once()
+
     async def test_sync_submit_returns_reload_trigger(self):
         """Sync submission types finish in-request and return a page-reload
         snippet so the next requirement re-renders with fresh server state."""
@@ -535,7 +593,10 @@ class TestHtmxVerificationJobStatus:
         assert isinstance(result, HTMLResponse)
         assert "location.reload()" in bytes(result.body).decode()
 
-    async def test_failed_status_marks_job_server_error(self):
+    async def test_failed_status_deletes_active_job(self):
+        """Durable terminal failure deletes the row instead of marking
+        a server-error status. Frees the partial unique index for retry
+        without copying Durable's terminal state into Postgres."""
         request = _mock_request()
         mock_session = AsyncMock()
         request.app.state.session_maker.return_value.__aenter__.return_value = (
@@ -565,6 +626,9 @@ class TestHtmxVerificationJobStatus:
                 autospec=True,
             ) as mock_repository_class,
         ):
+            mock_repository = mock_repository_class.return_value
+            mock_repository.delete_active = AsyncMock(return_value=True)
+
             result = await htmx_verification_job_status(
                 request,
                 token="signed-token",
@@ -572,10 +636,98 @@ class TestHtmxVerificationJobStatus:
             )
 
         assert isinstance(result, HTMLResponse)
-        mock_repository = mock_repository_class.return_value
-        mock_repository.mark_server_error.assert_awaited_once()
-        assert mock_repository.mark_server_error.await_args.args == (job_id,)
+        mock_repository.delete_active.assert_awaited_once_with(job_id)
+        mock_repository.mark_server_error.assert_not_called()
+        mock_repository.mark_cancelled.assert_not_called()
         mock_session.commit.assert_awaited_once()
+
+    async def test_canceled_status_also_deletes_active_job(self):
+        """``Canceled`` and ``Terminated`` are handled the same way as
+        ``Failed`` — delete the row, let the user retry."""
+        request = _mock_request()
+        mock_session = AsyncMock()
+        request.app.state.session_maker.return_value.__aenter__.return_value = (
+            mock_session
+        )
+        current_user = AuthenticatedUser(user_id=1, github_username="user")
+        job_id = uuid4()
+        token_data = VerificationStatusToken(
+            user_id=1,
+            job_id=str(job_id),
+            instance_id=str(uuid4()),
+            requirement_id="req-1",
+        )
+
+        with (
+            patch(
+                "learn_to_cloud.routes.htmx_routes.load_verification_status_token",
+                return_value=token_data,
+            ),
+            patch(
+                "learn_to_cloud.routes.htmx_routes.get_verification_orchestration_status",
+                new_callable=AsyncMock,
+                return_value=DurableStatusResult(runtime_status="Canceled"),
+            ),
+            patch(
+                "learn_to_cloud.routes.htmx_routes.VerificationJobRepository",
+                autospec=True,
+            ) as mock_repository_class,
+        ):
+            mock_repository = mock_repository_class.return_value
+            mock_repository.delete_active = AsyncMock(return_value=True)
+
+            result = await htmx_verification_job_status(
+                request,
+                token="signed-token",
+                current_user=current_user,
+            )
+
+        assert isinstance(result, HTMLResponse)
+        mock_repository.delete_active.assert_awaited_once_with(job_id)
+
+    async def test_failed_status_delete_skipped_when_persist_won_race(self):
+        """If ``delete_active`` returns False (persist linked a
+        Submission first) the poller still responds with a reload — it
+        just logs and moves on."""
+        request = _mock_request()
+        mock_session = AsyncMock()
+        request.app.state.session_maker.return_value.__aenter__.return_value = (
+            mock_session
+        )
+        current_user = AuthenticatedUser(user_id=1, github_username="user")
+        token_data = VerificationStatusToken(
+            user_id=1,
+            job_id=str(uuid4()),
+            instance_id=str(uuid4()),
+            requirement_id="req-1",
+        )
+
+        with (
+            patch(
+                "learn_to_cloud.routes.htmx_routes.load_verification_status_token",
+                return_value=token_data,
+            ),
+            patch(
+                "learn_to_cloud.routes.htmx_routes.get_verification_orchestration_status",
+                new_callable=AsyncMock,
+                return_value=DurableStatusResult(runtime_status="Failed"),
+            ),
+            patch(
+                "learn_to_cloud.routes.htmx_routes.VerificationJobRepository",
+                autospec=True,
+            ) as mock_repository_class,
+        ):
+            mock_repository = mock_repository_class.return_value
+            mock_repository.delete_active = AsyncMock(return_value=False)
+
+            result = await htmx_verification_job_status(
+                request,
+                token="signed-token",
+                current_user=current_user,
+            )
+
+        assert isinstance(result, HTMLResponse)
+        assert "location.reload()" in bytes(result.body).decode()
 
 
 @pytest.mark.unit

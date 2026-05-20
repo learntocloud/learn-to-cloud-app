@@ -11,6 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from learn_to_cloud_shared.models import (
+    Submission,
     User,
     VerificationJob,
     VerificationJobStatus,
@@ -374,12 +375,63 @@ async def run_verification(
         return VerificationRunResult(job=job, validation_result=validation_result)
 
 
+async def _result_from_existing_submission(
+    db: AsyncSession,
+    *,
+    job: PreparedVerificationJob,
+    submission_id: int,
+) -> VerificationJobExecutionResult:
+    """Build the persist-activity result from an already-written Submission.
+
+    Used when an activity retry runs against a job that's already been
+    persisted. The original Submission and job state are the source of
+    truth; we just rebuild the durable-safe execution result.
+    """
+    existing = await db.get(Submission, submission_id)
+    if existing is None:
+        # Job points to a submission that vanished. Treat as a hard
+        # integrity error; do not silently persist a duplicate row.
+        raise VerificationJobNotFoundError(
+            f"job {job.id} references missing submission {submission_id}",
+        )
+
+    is_valid = existing.is_validated
+    verification_completed = existing.verification_completed
+    if is_valid:
+        status = VerificationJobStatus.SUCCEEDED
+    elif verification_completed:
+        status = VerificationJobStatus.FAILED
+    else:
+        status = VerificationJobStatus.SERVER_ERROR
+
+    return VerificationJobExecutionResult(
+        job_id=job.id,
+        status=status,
+        code=_result_code(status),
+        requirement_id=job.requirement.id,
+        requirement_name=job.requirement.name,
+        submission_type=job.requirement.submission_type.value,
+        submission_id=existing.id,
+        is_valid=is_valid,
+        verification_completed=verification_completed,
+        message=_result_message(status),
+        detail=existing.validation_message,
+    )
+
+
 async def persist_verification_result(
     run_result: VerificationRunResult,
     *,
     session_maker: async_sessionmaker[AsyncSession],
 ) -> VerificationJobExecutionResult:
-    """Persist a validation result and mark the verification job terminal."""
+    """Persist a validation result and mark the verification job terminal.
+
+    Idempotent on Durable activity retry: if the job already references
+    a persisted ``Submission`` we return the same result without writing
+    a duplicate row. Falls back to the legacy ``status``-based terminal
+    short-circuit so this stays correct during a rolling deploy where
+    older code paths still set ``status``.
+    """
     job = run_result.job
     validation_result = run_result.validation_result
 
@@ -391,6 +443,22 @@ async def persist_verification_result(
             payload = await _load_job_payload(db, job.id)
             if payload is None:
                 raise VerificationJobNotFoundError(str(job.id))
+
+            # Replay-safety guard: a prior successful run of this
+            # activity already attached a Submission. Return the same
+            # result instead of writing another row. Preferred over the
+            # status-based guard below because it survives the schema
+            # slim-down planned for PR3.
+            if payload.result_submission_id is not None:
+                result = await _result_from_existing_submission(
+                    db,
+                    job=job,
+                    submission_id=payload.result_submission_id,
+                )
+                span.set_attribute("verification.status", result.status.value)
+                span.set_attribute("verification.replay", True)
+                return result
+
             if payload.status in TERMINAL_JOB_STATUSES:
                 result = _terminal_result(payload)
                 span.set_attribute("verification.status", result.status.value)

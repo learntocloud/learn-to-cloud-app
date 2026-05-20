@@ -2,7 +2,7 @@
 
 from uuid import UUID, uuid4
 
-from sqlalchemy import select, text
+from sqlalchemy import delete, select, text
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -288,3 +288,25 @@ class VerificationJobRepository:
             error_code=error_code,
             error_message=error_message,
         )
+
+    async def delete_active(self, job_id: UUID) -> bool:
+        """Delete an active, unlinked verification job by id.
+
+        Guards against racing the persist activity: deletion only runs
+        when the row is still active AND has no linked Submission. If
+        persist won the race and attached a Submission (or already
+        flipped the row to a terminal status), the delete is a no-op
+        and the caller learns by the returned ``False``.
+
+        Returns:
+            True if the row was deleted, False otherwise (already
+            terminal, already linked to a Submission, or never existed).
+        """
+        stmt = delete(VerificationJob).where(
+            VerificationJob.id == job_id,
+            VerificationJob.result_submission_id.is_(None),
+            VerificationJob.status.in_(ACTIVE_JOB_STATUSES),
+        )
+        result = await self.db.execute(stmt)
+        rowcount = getattr(result, "rowcount", 0) or 0
+        return rowcount > 0

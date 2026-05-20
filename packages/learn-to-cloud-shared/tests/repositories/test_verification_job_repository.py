@@ -228,3 +228,91 @@ class TestStatusTransitions:
         assert updated.error_code == "github_unavailable"
         assert updated.error_message == "GitHub API unavailable"
         assert updated.completed_at is not None
+
+
+class TestDeleteActive:
+    """``delete_active`` guards against racing the persist activity."""
+
+    async def test_deletes_active_unlinked_row(
+        self,
+        db_session: AsyncSession,
+        user,
+    ):
+        repo = VerificationJobRepository(db_session)
+        job = await _create_job(repo)
+
+        deleted = await repo.delete_active(job.id)
+        await db_session.commit()
+
+        assert deleted is True
+        remaining = await db_session.execute(
+            select(func.count()).select_from(VerificationJob)
+        )
+        assert remaining.scalar() == 0
+
+    async def test_refuses_when_result_submission_linked(
+        self,
+        db_session: AsyncSession,
+        user,
+    ):
+        repo = VerificationJobRepository(db_session)
+        job = await _create_job(repo)
+
+        submission = await SubmissionRepository(db_session).create(
+            user_id=USER_ID,
+            requirement_id="req-1",
+            submission_type=SubmissionType.GITHUB_PROFILE,
+            phase_id=0,
+            submitted_value="https://github.com/testuser",
+            extracted_username="testuser",
+            is_validated=False,
+            verification_completed=True,
+        )
+        await repo.mark_failed(
+            job.id,
+            error_code="validation_failed",
+            error_message="nope",
+            result_submission_id=submission.id,
+        )
+
+        deleted = await repo.delete_active(job.id)
+
+        assert deleted is False
+        loaded = await repo.get_by_id(job.id)
+        assert loaded is not None
+        assert loaded.result_submission_id == submission.id
+
+    async def test_refuses_when_status_already_terminal(
+        self,
+        db_session: AsyncSession,
+        user,
+    ):
+        repo = VerificationJobRepository(db_session)
+        job = await _create_job(repo)
+
+        # Move the job to a terminal status WITHOUT setting
+        # result_submission_id. This is the "Durable failed and persist
+        # already marked it terminal" race window.
+        await repo.mark_server_error(
+            job.id,
+            error_code="durable_failed",
+            error_message="durable failed",
+        )
+
+        deleted = await repo.delete_active(job.id)
+
+        assert deleted is False
+        loaded = await repo.get_by_id(job.id)
+        assert loaded is not None
+        assert loaded.status == VerificationJobStatus.SERVER_ERROR
+
+    async def test_unknown_id_returns_false(
+        self,
+        db_session: AsyncSession,
+        user,
+    ):
+        repo = VerificationJobRepository(db_session)
+
+        deleted = await repo.delete_active(UUID("00000000-0000-0000-0000-000000000000"))
+
+        assert deleted is False
