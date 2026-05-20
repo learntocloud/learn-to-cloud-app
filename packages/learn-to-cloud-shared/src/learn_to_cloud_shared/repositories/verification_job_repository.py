@@ -20,6 +20,14 @@ ACTIVE_JOB_STATUSES = (
 )
 ACTIVE_JOB_STATUS_PREDICATE = "status IN ('queued', 'starting', 'running')"
 
+# PR3 expand step: new "active job" predicate keyed on the absence of a
+# linked Submission rather than on the status enum. Matches the partial
+# unique index ``uq_verification_jobs_active_user_requirement_v2`` and the
+# supporting non-unique index ``ix_verification_jobs_user_phase_active``
+# added by migration 0020. New code uses this predicate; old code mid-deploy
+# keeps using the status-based one.
+ACTIVE_JOB_UNLINKED_PREDICATE = "result_submission_id IS NULL"
+
 TERMINAL_JOB_STATUSES = (
     VerificationJobStatus.SUCCEEDED,
     VerificationJobStatus.FAILED,
@@ -99,9 +107,15 @@ class VerificationJobRepository:
                     created_at=now,
                     updated_at=now,
                 )
+                # Use the new ``result_submission_id IS NULL`` partial unique
+                # index. A brand-new row has ``result_submission_id=NULL``
+                # so it lands in the index and dedupes any concurrent
+                # submit for the same (user_id, requirement_id). Once the
+                # persist activity links a Submission the row exits the
+                # index and a follow-up submit succeeds.
                 .on_conflict_do_nothing(
                     index_elements=["user_id", "requirement_id"],
-                    index_where=text(ACTIVE_JOB_STATUS_PREDICATE),
+                    index_where=text(ACTIVE_JOB_UNLINKED_PREDICATE),
                 )
                 .returning(VerificationJob)
             )
@@ -128,13 +142,18 @@ class VerificationJobRepository:
         user_id: int,
         requirement_id: str,
     ) -> VerificationJob | None:
-        """Get the active job for a user and requirement, if one exists."""
+        """Get the active job for a user and requirement, if one exists.
+
+        "Active" means a row exists with no linked Submission yet — the
+        ``delete_active`` poller path and the persist activity both
+        flip rows out of this predicate when work completes.
+        """
         result = await self.db.execute(
             select(VerificationJob)
             .where(
                 VerificationJob.user_id == user_id,
                 VerificationJob.requirement_id == requirement_id,
-                VerificationJob.status.in_(ACTIVE_JOB_STATUSES),
+                VerificationJob.result_submission_id.is_(None),
             )
             .order_by(VerificationJob.created_at.desc())
             .limit(1)
@@ -146,13 +165,17 @@ class VerificationJobRepository:
         user_id: int,
         phase_id: int,
     ) -> list[VerificationJob]:
-        """Get active jobs for a user in a phase."""
+        """Get active jobs for a user in a phase.
+
+        "Active" means a row exists with no linked Submission yet —
+        see :meth:`get_active_for_requirement`.
+        """
         result = await self.db.execute(
             select(VerificationJob)
             .where(
                 VerificationJob.user_id == user_id,
                 VerificationJob.phase_id == phase_id,
-                VerificationJob.status.in_(ACTIVE_JOB_STATUSES),
+                VerificationJob.result_submission_id.is_(None),
             )
             .order_by(VerificationJob.created_at.desc())
         )

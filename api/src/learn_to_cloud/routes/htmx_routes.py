@@ -457,29 +457,28 @@ async def _start_async_job_and_render(
 ) -> HTMLResponse:
     """Start a Durable orchestration for an async job and render the spinner.
 
-    On a successful start (or when a previous start is already known via
-    ``orchestration_instance_id``) returns the processing card with a
-    signed status token the browser polls. On Durable start failure marks
-    the job server-error and renders a banner.
+    The job's UUID *is* the Durable orchestration instance id (we always pass
+    ``instance_id=job.id`` to the starter), so we don't need to read it back
+    from ``VerificationJob.orchestration_instance_id`` — that column is dead
+    weight kept for old code mid-deploy and will be removed in PR4.
+
+    On the rare concurrent-submit case (``created=False``) the original submit
+    already kicked off Durable; we skip the start call and let the poller
+    discover the existing instance via ``job.id``. If that original start
+    never actually succeeded, the poller will see a 404 from Durable and
+    surface the error so the user can retry.
+
+    On Durable start failure deletes the just-created row so the partial
+    unique index doesn't block the user's retry.
     """
     try:
-        existing_instance_id = job_submission.job.orchestration_instance_id
-        if job_submission.created or existing_instance_id is None:
-            start_result = await start_verification_orchestration(job_submission.job.id)
-            instance_id = start_result.instance_id
-            async with session_maker() as write_session:
-                await VerificationJobRepository(write_session).mark_starting(
-                    job_submission.job.id,
-                    start_result.instance_id,
-                )
-                await write_session.commit()
-        else:
-            instance_id = existing_instance_id
+        if job_submission.created:
+            await start_verification_orchestration(job_submission.job.id)
 
         status_token = create_verification_status_token(
             user_id=user_id,
             job_id=job_submission.job.id,
-            instance_id=instance_id,
+            instance_id=str(job_submission.job.id),
             requirement_id=requirement_id,
         )
 

@@ -243,6 +243,22 @@ class VerificationJob(TimestampMixin, Base):
             unique=True,
             postgresql_where=text("status IN ('queued', 'starting', 'running')"),
         ),
+        # PR3 expand step: result_submission_id-keyed predicates replace
+        # the status-based "active job" index. Kept alongside the legacy
+        # index until PR4 drops the status column.
+        Index(
+            "uq_verification_jobs_active_user_requirement_v2",
+            "user_id",
+            "requirement_id",
+            unique=True,
+            postgresql_where=text("result_submission_id IS NULL"),
+        ),
+        Index(
+            "ix_verification_jobs_user_phase_active",
+            "user_id",
+            "phase_id",
+            postgresql_where=text("result_submission_id IS NULL"),
+        ),
     )
 
     id: Mapped[UUID] = mapped_column(
