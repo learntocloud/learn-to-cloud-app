@@ -24,8 +24,13 @@ from learn_to_cloud_shared.schemas import (
     HandsOnRequirement,
     PhaseSubmissionContext,
     SubmissionData,
+    SubmissionResult,
 )
-from learn_to_cloud_shared.verification.execution import to_submission_data
+from learn_to_cloud_shared.verification.dispatcher import is_sync_verifiable
+from learn_to_cloud_shared.verification.execution import (
+    execute_sync_submission_validation,
+    to_submission_data,
+)
 from learn_to_cloud_shared.verification.requirements import (
     get_phase_id_for_requirement,
     get_prerequisite_phase,
@@ -133,10 +138,28 @@ class _PreValidationContext:
 
 @dataclass(frozen=True, slots=True)
 class VerificationJobSubmission:
-    """Result of creating or reusing a verification job."""
+    """Result of creating or reusing a verification job (async Durable path)."""
 
     job: VerificationJob
     created: bool
+
+
+@dataclass(frozen=True, slots=True)
+class SyncVerificationResult:
+    """Result of running a sync verification inside the FastAPI request.
+
+    Returned by :func:`create_verification_job` for submission types whose
+    validators finish in well under a second (phases 0-2). No Durable
+    Functions orchestration is started — the ``Submission`` row is already
+    persisted by the time this is returned.
+    """
+
+    submission_result: SubmissionResult
+
+
+# Tagged union returned by ``create_verification_job``. Callers use
+# ``isinstance`` to pick the rendering path.
+SubmissionDispatchResult = VerificationJobSubmission | SyncVerificationResult
 
 
 async def _check_submission_preconditions(
@@ -235,8 +258,14 @@ async def create_verification_job(
     requirement_id: str,
     submitted_value: str,
     github_username: str | None,
-) -> VerificationJobSubmission:
-    """Validate request preconditions and create or reuse an active job."""
+) -> SubmissionDispatchResult:
+    """Validate request preconditions and dispatch to the right execution path.
+
+    Returns a :class:`SyncVerificationResult` for submission types whose
+    validators run inside the FastAPI request (phases 0-2). Returns a
+    :class:`VerificationJobSubmission` for types that go through Durable
+    Functions (phases 3-6).
+    """
     ctx = await _check_submission_preconditions(
         session_maker,
         user_id,
@@ -244,6 +273,17 @@ async def create_verification_job(
         github_username,
         submitted_value,
     )
+
+    if is_sync_verifiable(ctx.requirement.submission_type):
+        submission_result = await execute_sync_submission_validation(
+            session_maker=session_maker,
+            user_id=user_id,
+            requirement=ctx.requirement,
+            phase_id=ctx.phase_id,
+            submitted_value=submitted_value,
+            github_username=github_username,
+        )
+        return SyncVerificationResult(submission_result=submission_result)
 
     async with session_maker() as write_session:
         repo = VerificationJobRepository(write_session)

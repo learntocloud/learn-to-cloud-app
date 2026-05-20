@@ -132,6 +132,27 @@ _USERNAME_NOT_REQUIRED: frozenset[SubmissionType] = frozenset(
 )
 
 
+# Submission types that finish in well under a second (one GitHub API call
+# or a constant-time token compare) and can run inside the FastAPI request
+# instead of going through Durable Functions.  Phase 3+ types involve LLM
+# grading, fan-out, or external probes with retries and stay on the async
+# Durable path.
+SYNC_VERIFIABLE_SUBMISSION_TYPES: frozenset[SubmissionType] = frozenset(
+    {
+        SubmissionType.GITHUB_PROFILE,
+        SubmissionType.PROFILE_README,
+        SubmissionType.REPO_FORK,
+        SubmissionType.CTF_TOKEN,
+        SubmissionType.NETWORKING_TOKEN,
+    }
+)
+
+
+def is_sync_verifiable(submission_type: SubmissionType) -> bool:
+    """Return True if the submission type runs synchronously in FastAPI."""
+    return submission_type in SYNC_VERIFIABLE_SUBMISSION_TYPES
+
+
 async def _dispatch_validation(
     requirement: HandsOnRequirement,
     submitted_value: str,
