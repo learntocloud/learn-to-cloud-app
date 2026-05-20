@@ -269,8 +269,10 @@ class TestHtmxSubmitVerification:
         assert result is not None
         mock_create_job.assert_awaited_once()
         mock_start.assert_awaited_once_with(job.id)
-        repo.mark_starting.assert_awaited_once_with(job.id, start_result.instance_id)
-        write_session.commit.assert_awaited_once()
+        # PR3: mark_starting is no longer called — the job UUID IS the
+        # Durable instance id, so we don't need to round-trip it back
+        # into Postgres.
+        repo.mark_starting.assert_not_called()
 
     async def test_submit_unexpected_error_renders_server_error(self):
         """Unexpected exceptions render a server error card."""
@@ -518,7 +520,53 @@ class TestHtmxSubmitVerification:
 
         assert isinstance(result, HTMLResponse)
         mock_start.assert_awaited_once_with(job.id)
-        repo.mark_starting.assert_awaited_once_with(job.id, start_result.instance_id)
+        # PR3: mark_starting is no longer called — the job UUID IS the
+        # Durable instance id, so we don't round-trip it back into Postgres.
+        repo.mark_starting.assert_not_called()
+
+    async def test_duplicate_submit_skips_durable_start(self):
+        """When ``create_verification_job`` returns ``created=False``
+        (concurrent submit raced into the same job row), the route does
+        NOT call ``start_verification_orchestration`` — the original
+        submit already kicked off Durable, and calling start_new again
+        with the same instance id would error."""
+        request = _mock_request()
+        current_user = AuthenticatedUser(user_id=1, github_username="user")
+        job = SimpleNamespace(id=uuid4(), orchestration_instance_id=None)
+        async_result = VerificationJobSubmission(
+            job=cast(VerificationJob, job),
+            created=False,
+        )
+
+        with (
+            patch(
+                "learn_to_cloud.routes.htmx_routes.get_requirement_by_id",
+                return_value=MagicMock(),
+            ),
+            patch(
+                "learn_to_cloud.routes.htmx_routes.derive_submission_value",
+                autospec=True,
+                return_value="https://github.com/user/repo",
+            ),
+            patch(
+                "learn_to_cloud.routes.htmx_routes.create_verification_job",
+                new_callable=AsyncMock,
+                return_value=async_result,
+            ),
+            patch(
+                "learn_to_cloud.routes.htmx_routes.start_verification_orchestration",
+                new_callable=AsyncMock,
+            ) as mock_start,
+        ):
+            result = await htmx_submit_verification(
+                request,
+                current_user,
+                requirement_id="req-1",
+                submitted_value="https://github.com/user/repo",
+            )
+
+        assert isinstance(result, HTMLResponse)
+        mock_start.assert_not_awaited()
 
 
 @pytest.mark.unit

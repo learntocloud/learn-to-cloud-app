@@ -138,15 +138,17 @@ async def phase_page(
         phase_id,
     )
     active_jobs_by_req = {job.requirement_id: job for job in active_jobs}
+    # The Durable orchestration instance id IS the job UUID — we always
+    # pass ``instance_id=job.id`` to the starter, so we don't need to read
+    # back the now-dead ``orchestration_instance_id`` column.
     verification_status_tokens_by_req = {
         job.requirement_id: create_verification_status_token(
             user_id=user_id,
             job_id=job.id,
-            instance_id=job.orchestration_instance_id,
+            instance_id=str(job.id),
             requirement_id=job.requirement_id,
         )
         for job in active_jobs
-        if job.orchestration_instance_id is not None
     }
 
     # Pre-compute per-requirement derived URLs and PR-review prefixes so the

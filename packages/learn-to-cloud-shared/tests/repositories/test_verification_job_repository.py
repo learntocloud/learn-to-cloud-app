@@ -102,6 +102,10 @@ class TestCreate:
         db_session: AsyncSession,
         user,
     ):
+        """After PR3 the "active" predicate is ``result_submission_id IS NULL``,
+        so a terminal-but-unlinked row would still block. Real production
+        terminal calls always link a Submission (executor) or delete the
+        row (poller); the test reflects the executor path."""
         repo = VerificationJobRepository(db_session)
 
         first, first_created = await repo.create_or_get_active(
@@ -111,10 +115,21 @@ class TestCreate:
             phase_id=1,
             submitted_value="token-1",
         )
+        submission = await SubmissionRepository(db_session).create(
+            user_id=USER_ID,
+            requirement_id="req-retry",
+            submission_type=SubmissionType.CTF_TOKEN,
+            phase_id=1,
+            submitted_value="token-1",
+            extracted_username=None,
+            is_validated=False,
+            verification_completed=True,
+        )
         await repo.mark_failed(
             first.id,
             error_code="validation_failed",
             error_message="Try again",
+            result_submission_id=submission.id,
         )
         second, second_created = await repo.create_or_get_active(
             user_id=USER_ID,
@@ -136,9 +151,14 @@ class TestFind:
         db_session: AsyncSession,
         user,
     ):
+        """After PR3, ``get_active_for_requirement`` keys on
+        ``result_submission_id IS NULL`` rather than the status enum.
+        Use ``delete_active`` (the actual poller path post-PR2) to release
+        the first row, then create the second."""
         repo = VerificationJobRepository(db_session)
         first = await _create_job(repo, requirement_id="req-latest")
-        await repo.mark_cancelled(first.id, error_code="user_cancelled")
+        deleted = await repo.delete_active(first.id)
+        assert deleted is True
         second = await _create_job(repo, requirement_id="req-latest")
 
         active = await repo.get_active_for_requirement(USER_ID, "req-latest")
