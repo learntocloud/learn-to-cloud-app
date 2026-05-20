@@ -7,6 +7,7 @@ import logging
 from collections.abc import Awaitable, Callable
 
 from opentelemetry import trace
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from learn_to_cloud_shared.models import Submission, SubmissionType
@@ -30,6 +31,16 @@ SubmissionPersistHook = Callable[
     Awaitable[None],
 ]
 MAX_VALIDATION_MESSAGE_LENGTH = 1024
+
+
+class SubmissionAlreadyInFlightError(Exception):
+    """Raised when a sync verification is already running for the same requirement.
+
+    Used as a dedupe signal when two concurrent submits (e.g. a double-click)
+    arrive for the same ``(user_id, requirement_id)``. The first one holds a
+    Postgres transactional advisory lock; the second one sees the lock is
+    busy and bails out so the user can wait for the first to finish.
+    """
 
 
 def persisted_validation_message(message: str | None) -> str | None:
@@ -187,6 +198,106 @@ async def execute_submission_validation(
                     if not validation_result.is_valid
                     else None
                 ),
+            },
+        )
+
+        return build_submission_result(db_submission, validation_result)
+
+
+def _advisory_lock_key(user_id: int, requirement_id: str) -> str:
+    """Stable Postgres advisory-lock key for one (user, requirement) pair.
+
+    Namespaced so it can't collide with any other advisory locks the app
+    may take in the future.
+    """
+    return f"verification-sub:{user_id}:{requirement_id}"
+
+
+async def execute_sync_submission_validation(
+    *,
+    session_maker: async_sessionmaker[AsyncSession],
+    user_id: int,
+    requirement: HandsOnRequirement,
+    phase_id: int,
+    submitted_value: str,
+    github_username: str | None,
+) -> SubmissionResult:
+    """Run a sync (sub-second) verification in one DB transaction.
+
+    Used for submission types that finish quickly enough to answer from
+    the same HTTP request — no Durable Functions, no spinner, no polling.
+
+    Concurrency: takes a Postgres transactional advisory lock keyed on
+    ``(user_id, requirement_id)`` so two parallel submits (e.g. a
+    double-click) can't both run validation and race
+    ``Submission.attempt_number`` into a duplicate-key crash. If the lock
+    is already held, raises :class:`SubmissionAlreadyInFlightError`.
+
+    The DB connection is held across the validator call (typically a
+    single GitHub API request, ~200-500ms). Lock contention is bounded to
+    the same user submitting the same requirement, so pool pressure
+    stays negligible.
+    """
+    lock_key = _advisory_lock_key(user_id, requirement.id)
+
+    with tracer.start_as_current_span(
+        "execute_sync_submission_validation",
+        attributes={
+            "user.id": user_id,
+            "requirement.id": requirement.id,
+            "submission.type": requirement.submission_type.value,
+        },
+    ) as span:
+        async with session_maker() as session, session.begin():
+            acquired = await session.scalar(
+                text("SELECT pg_try_advisory_xact_lock(hashtext(:key))"),
+                {"key": lock_key},
+            )
+            if not acquired:
+                span.set_attribute("submission.lock_acquired", False)
+                raise SubmissionAlreadyInFlightError(
+                    "A verification for this requirement is already in progress. "
+                    "Please wait a moment and try again."
+                )
+            span.set_attribute("submission.lock_acquired", True)
+
+            validation_result = await validate_submission(
+                requirement=requirement,
+                submitted_value=submitted_value,
+                expected_username=github_username,
+            )
+
+            db_submission = await persist_validation_result(
+                session,
+                user_id=user_id,
+                requirement=requirement,
+                phase_id=phase_id,
+                submitted_value=submitted_value,
+                github_username=github_username,
+                validation_result=validation_result,
+            )
+
+        span.set_attribute("submission.is_valid", validation_result.is_valid)
+        span.set_attribute(
+            "submission.verification_completed",
+            validation_result.verification_completed,
+        )
+
+        logger.info(
+            "submission.completed",
+            extra={
+                "user_id": user_id,
+                "requirement_id": requirement.id,
+                "phase_id": phase_id,
+                "submission_type": requirement.submission_type,
+                "is_valid": validation_result.is_valid,
+                "verification_completed": validation_result.verification_completed,
+                "validation_message": (
+                    validation_result.message
+                    if not validation_result.is_valid
+                    else None
+                ),
+                "execution_path": "sync",
             },
         )
 

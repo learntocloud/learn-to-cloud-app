@@ -12,6 +12,7 @@ Async verifications use Durable Functions + HTMX polling:
 """
 
 import logging
+from collections.abc import Callable
 from typing import Annotated
 from uuid import UUID
 
@@ -23,12 +24,16 @@ from learn_to_cloud_shared.models import SubmissionType
 from learn_to_cloud_shared.repositories.verification_job_repository import (
     VerificationJobRepository,
 )
-from learn_to_cloud_shared.schemas import SubmissionData
+from learn_to_cloud_shared.schemas import SubmissionData, SubmissionResult
+from learn_to_cloud_shared.verification.execution import (
+    SubmissionAlreadyInFlightError,
+)
 from learn_to_cloud_shared.verification.requirements import get_requirement_by_id
 from learn_to_cloud_shared.verification.url_derivation import (
     derive_submission_value,
     is_derivable,
 )
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from learn_to_cloud.core.auth import AuthenticatedUser, CurrentUser, UserId
 from learn_to_cloud.core.ratelimit import limiter
@@ -59,6 +64,7 @@ from learn_to_cloud.services.submissions_service import (
     GitHubUsernameRequiredError,
     PriorPhaseNotCompleteError,
     RequirementNotFoundError,
+    SyncVerificationResult,
     VerificationJobSubmission,
     create_verification_job,
 )
@@ -83,6 +89,7 @@ _USER_FACING_ERRORS = (
     GitHubUsernameRequiredError,
     PriorPhaseNotCompleteError,
     RequirementNotFoundError,
+    SubmissionAlreadyInFlightError,
 )
 
 _DURABLE_START_ERROR_MESSAGE = (
@@ -285,7 +292,19 @@ async def htmx_submit_verification(
     submitted_value: Annotated[str, Form(max_length=2048)] = "",
     pr_number: Annotated[str, Form(max_length=16)] = "",
 ) -> HTMLResponse:
-    """Submit a hands-on verification and start its Durable orchestration."""
+    """Submit a hands-on verification.
+
+    Routes to one of two execution paths based on the requirement's
+    submission type:
+
+    * Sync (phases 0-2) — :func:`create_verification_job` runs validation
+      inside this request and persists the ``Submission`` row. The response
+      reloads the page so the just-updated card and any newly-unlocked
+      requirement render with fresh server-side state.
+    * Async (phases 3-6) — :func:`create_verification_job` returns a
+      ``VerificationJobSubmission`` and we start a Durable orchestration,
+      then return a spinner card that polls for status.
+    """
     user_id = current_user.user_id
     github_username = current_user.github_username
 
@@ -352,17 +371,94 @@ async def htmx_submit_verification(
     else:
         derived_value = submitted_value
 
-    # ── Persist job, then start Durable orchestration ──────────────────
-    job_submission: VerificationJobSubmission | None = None
+    # ── Dispatch to sync or async execution path ───────────────────────
     try:
-        job_submission = await create_verification_job(
+        dispatch_result = await create_verification_job(
             session_maker=session_maker,
             user_id=user_id,
             requirement_id=requirement_id,
             submitted_value=derived_value,
             github_username=github_username,
         )
+    except _USER_FACING_ERRORS as exc:
+        return _render_card(error_banner=str(exc))
+    except Exception as exc:
+        record_span_exception(exc)
+        logger.exception(
+            "htmx.submit.unexpected_error",
+            extra={
+                "user_id": user_id,
+                "requirement_id": requirement_id,
+                "error_type": type(exc).__name__,
+            },
+        )
+        return _render_card(
+            server_error=True,
+            server_error_message=(
+                "An unexpected error occurred during verification. "
+                "This attempt was not counted — please try again."
+            ),
+        )
 
+    if isinstance(dispatch_result, SyncVerificationResult):
+        return _render_sync_result(
+            user_id=user_id,
+            result=dispatch_result.submission_result,
+        )
+
+    return await _start_async_job_and_render(
+        session_maker=session_maker,
+        user_id=user_id,
+        requirement_id=requirement_id,
+        job_submission=dispatch_result,
+        render_card=_render_card,
+    )
+
+
+def _render_sync_result(
+    *,
+    user_id: int,
+    result: SubmissionResult,
+) -> HTMLResponse:
+    """Render the response for a sync verification that already finished.
+
+    The ``Submission`` row is already persisted; we reload the phase page
+    so the card, progress bar, and any newly-unlocked next requirement
+    all render from fresh server state. Reload trigger matches the
+    pattern used by :func:`_reload_verification_html` for async
+    completion so behavior is consistent across paths.
+    """
+    logger.info(
+        "htmx.submit.sync_completed",
+        extra={
+            "user_id": user_id,
+            "submission_id": result.submission.id,
+            "requirement_id": result.submission.requirement_id,
+            "submission_type": result.submission.submission_type.value,
+            "is_valid": result.is_valid,
+            "verification_completed": result.submission.verification_completed,
+            "is_server_error": result.is_server_error,
+        },
+    )
+    return HTMLResponse(_reload_verification_html())
+
+
+async def _start_async_job_and_render(
+    *,
+    session_maker: async_sessionmaker[AsyncSession],
+    user_id: int,
+    requirement_id: str,
+    job_submission: VerificationJobSubmission,
+    render_card: Callable[..., HTMLResponse],
+) -> HTMLResponse:
+    """Start a Durable orchestration for an async job and render the spinner.
+
+    On a successful start (or when a previous start is already known via
+    ``orchestration_instance_id``) returns the processing card with a
+    signed status token the browser polls. On Durable start failure marks
+    the job server-error and renders a banner.
+    """
+    try:
         existing_instance_id = job_submission.job.orchestration_instance_id
         if job_submission.created or existing_instance_id is None:
             start_result = await start_verification_orchestration(job_submission.job.id)
@@ -383,13 +479,11 @@ async def htmx_submit_verification(
             requirement_id=requirement_id,
         )
 
-        return _render_card(
+        return render_card(
             processing=True,
             verification_status_token=status_token,
         )
 
-    except _USER_FACING_ERRORS as exc:
-        return _render_card(error_banner=str(exc))
     except (
         DurableVerificationConfigError,
         DurableVerificationStartError,
@@ -403,34 +497,16 @@ async def htmx_submit_verification(
                 "error_type": type(exc).__name__,
             },
         )
-        if job_submission is not None:
-            async with session_maker() as write_session:
-                await VerificationJobRepository(write_session).mark_server_error(
-                    job_submission.job.id,
-                    error_code="durable_start_failed",
-                    error_message=_DURABLE_START_ERROR_MESSAGE,
-                )
-                await write_session.commit()
-        return _render_card(
+        async with session_maker() as write_session:
+            await VerificationJobRepository(write_session).mark_server_error(
+                job_submission.job.id,
+                error_code="durable_start_failed",
+                error_message=_DURABLE_START_ERROR_MESSAGE,
+            )
+            await write_session.commit()
+        return render_card(
             server_error=True,
             server_error_message=_DURABLE_START_ERROR_MESSAGE,
-        )
-    except Exception as exc:
-        record_span_exception(exc)
-        logger.exception(
-            "htmx.submit.unexpected_error",
-            extra={
-                "user_id": user_id,
-                "requirement_id": requirement_id,
-                "error_type": type(exc).__name__,
-            },
-        )
-        return _render_card(
-            server_error=True,
-            server_error_message=(
-                "An unexpected error occurred during verification. "
-                "This attempt was not counted — please try again."
-            ),
         )
 
 

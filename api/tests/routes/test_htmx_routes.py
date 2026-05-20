@@ -13,11 +13,14 @@ Testing approach:
 """
 
 from types import SimpleNamespace
+from typing import cast
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
 from fastapi.responses import HTMLResponse
+from learn_to_cloud_shared.models import VerificationJob
+from learn_to_cloud_shared.schemas import SubmissionResult
 
 from learn_to_cloud.core.auth import AuthenticatedUser
 from learn_to_cloud.routes.htmx_routes import (
@@ -29,6 +32,10 @@ from learn_to_cloud.routes.htmx_routes import (
 )
 from learn_to_cloud.services.durable_verification_client import DurableStatusResult
 from learn_to_cloud.services.steps_service import StepValidationError
+from learn_to_cloud.services.submissions_service import (
+    SyncVerificationResult,
+    VerificationJobSubmission,
+)
 from learn_to_cloud.services.users_service import UserNotFoundError
 from learn_to_cloud.services.verification_status_tokens import VerificationStatusToken
 
@@ -292,6 +299,168 @@ class TestHtmxSubmitVerification:
 
         # Should render a server error card, not crash
         assert result is not None
+
+    async def test_sync_submit_returns_reload_trigger(self):
+        """Sync submission types finish in-request and return a page-reload
+        snippet so the next requirement re-renders with fresh server state."""
+        request = _mock_request()
+        current_user = AuthenticatedUser(user_id=1, github_username="user")
+        submission = SimpleNamespace(
+            id=42,
+            requirement_id="req-1",
+            submission_type=SimpleNamespace(value="github_profile"),
+            verification_completed=True,
+        )
+        sync_result = SyncVerificationResult(
+            submission_result=cast(
+                SubmissionResult,
+                SimpleNamespace(
+                    submission=submission,
+                    is_valid=True,
+                    is_server_error=False,
+                ),
+            ),
+        )
+
+        with (
+            patch(
+                "learn_to_cloud.routes.htmx_routes.get_requirement_by_id",
+                return_value=MagicMock(),
+            ),
+            patch(
+                "learn_to_cloud.routes.htmx_routes.derive_submission_value",
+                autospec=True,
+                return_value="https://github.com/user",
+            ),
+            patch(
+                "learn_to_cloud.routes.htmx_routes.create_verification_job",
+                new_callable=AsyncMock,
+                return_value=sync_result,
+            ) as mock_create_job,
+            patch(
+                "learn_to_cloud.routes.htmx_routes.start_verification_orchestration",
+                new_callable=AsyncMock,
+            ) as mock_start,
+            patch(
+                "learn_to_cloud.routes.htmx_routes.VerificationJobRepository",
+            ) as mock_repo_class,
+        ):
+            result = await htmx_submit_verification(
+                request,
+                current_user,
+                requirement_id="req-1",
+                submitted_value="https://github.com/user",
+            )
+
+        assert isinstance(result, HTMLResponse)
+        # Page reload trigger (matches the async terminal pattern).
+        assert "location.reload()" in bytes(result.body).decode()
+        # Critical: sync path must never touch Durable or VerificationJob.
+        mock_start.assert_not_awaited()
+        mock_repo_class.assert_not_called()
+        mock_create_job.assert_awaited_once()
+
+    async def test_sync_submit_failure_also_returns_reload_trigger(self):
+        """A failed sync verification still reloads so the failed card is
+        re-rendered from the persisted Submission state."""
+        request = _mock_request()
+        current_user = AuthenticatedUser(user_id=1, github_username="user")
+        submission = SimpleNamespace(
+            id=43,
+            requirement_id="req-1",
+            submission_type=SimpleNamespace(value="github_profile"),
+            verification_completed=True,
+        )
+        sync_result = SyncVerificationResult(
+            submission_result=cast(
+                SubmissionResult,
+                SimpleNamespace(
+                    submission=submission,
+                    is_valid=False,
+                    is_server_error=False,
+                ),
+            ),
+        )
+
+        with (
+            patch(
+                "learn_to_cloud.routes.htmx_routes.get_requirement_by_id",
+                return_value=MagicMock(),
+            ),
+            patch(
+                "learn_to_cloud.routes.htmx_routes.derive_submission_value",
+                autospec=True,
+                return_value="https://github.com/user",
+            ),
+            patch(
+                "learn_to_cloud.routes.htmx_routes.create_verification_job",
+                new_callable=AsyncMock,
+                return_value=sync_result,
+            ),
+        ):
+            result = await htmx_submit_verification(
+                request,
+                current_user,
+                requirement_id="req-1",
+                submitted_value="https://github.com/user",
+            )
+
+        assert isinstance(result, HTMLResponse)
+        assert "location.reload()" in bytes(result.body).decode()
+
+    async def test_async_submit_still_returns_processing_card(self):
+        """Regression: async submissions must keep using the
+        VerificationJobSubmission spinner-and-poll path."""
+        request = _mock_request()
+        current_user = AuthenticatedUser(user_id=1, github_username="user")
+        job = SimpleNamespace(id=uuid4(), orchestration_instance_id=None)
+        async_result = VerificationJobSubmission(
+            job=cast(VerificationJob, job),
+            created=True,
+        )
+        start_result = SimpleNamespace(instance_id=str(job.id))
+        write_session = AsyncMock()
+        request.app.state.session_maker.return_value.__aenter__.return_value = (
+            write_session
+        )
+        repo = MagicMock()
+        repo.mark_starting = AsyncMock()
+
+        with (
+            patch(
+                "learn_to_cloud.routes.htmx_routes.get_requirement_by_id",
+                return_value=MagicMock(),
+            ),
+            patch(
+                "learn_to_cloud.routes.htmx_routes.derive_submission_value",
+                autospec=True,
+                return_value="https://github.com/user/repo",
+            ),
+            patch(
+                "learn_to_cloud.routes.htmx_routes.create_verification_job",
+                new_callable=AsyncMock,
+                return_value=async_result,
+            ),
+            patch(
+                "learn_to_cloud.routes.htmx_routes.start_verification_orchestration",
+                new_callable=AsyncMock,
+                return_value=start_result,
+            ) as mock_start,
+            patch(
+                "learn_to_cloud.routes.htmx_routes.VerificationJobRepository",
+                return_value=repo,
+            ),
+        ):
+            result = await htmx_submit_verification(
+                request,
+                current_user,
+                requirement_id="req-1",
+                submitted_value="https://github.com/user/repo",
+            )
+
+        assert isinstance(result, HTMLResponse)
+        mock_start.assert_awaited_once_with(job.id)
+        repo.mark_starting.assert_awaited_once_with(job.id, start_result.instance_id)
 
 
 @pytest.mark.unit

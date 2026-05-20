@@ -71,12 +71,12 @@ configure_observability()
 app = df.DFApp(http_auth_level=func.AuthLevel.FUNCTION)
 
 _DEFAULT_ORCHESTRATOR_NAME = "verification_orchestrator"
+# Async-only submission types: phase 3+ verifications that involve LLM
+# grading, multi-task fan-out, or external probes with retries and stay on
+# the Durable Functions path. Phase 0-2 sync types (github_profile,
+# profile_readme, repo_fork, ctf_token, networking_token) run inside the
+# FastAPI request instead and are intentionally absent.
 _ORCHESTRATOR_NAMES_BY_SUBMISSION_TYPE = {
-    SubmissionType.GITHUB_PROFILE: "verify_github_profile_orchestrator",
-    SubmissionType.PROFILE_README: "verify_profile_readme_orchestrator",
-    SubmissionType.REPO_FORK: "verify_repo_fork_orchestrator",
-    SubmissionType.CTF_TOKEN: "verify_ctf_token_orchestrator",
-    SubmissionType.NETWORKING_TOKEN: "verify_networking_token_orchestrator",
     SubmissionType.JOURNAL_API_RESPONSE: "verify_phase3_journal_api_orchestrator",
     SubmissionType.CODE_ANALYSIS: "verify_phase3_journal_api_orchestrator",
     SubmissionType.PR_REVIEW: "verify_phase3_pr_review_orchestrator",
@@ -387,31 +387,49 @@ def verification_orchestrator(context: df.DurableOrchestrationContext):
 
 @app.orchestration_trigger(context_name="context")
 def verify_github_profile_orchestrator(context: df.DurableOrchestrationContext):
-    """Run GitHub profile verification."""
+    """Drain-only orchestrator for in-flight phase 0 GitHub profile jobs.
+
+    Phase 0-2 verifications now run synchronously in FastAPI (see
+    ``api/src/learn_to_cloud/routes/htmx_routes.py``). This trigger stays
+    registered so any orchestration started before the cutover can still
+    complete cleanly. Safe to remove after Durable retention expires.
+    """
     return (yield from _run_verification_orchestration(context))
 
 
 @app.orchestration_trigger(context_name="context")
 def verify_profile_readme_orchestrator(context: df.DurableOrchestrationContext):
-    """Run profile README verification."""
+    """Drain-only orchestrator for in-flight phase 0 profile README jobs.
+
+    See :func:`verify_github_profile_orchestrator` for rationale.
+    """
     return (yield from _run_verification_orchestration(context))
 
 
 @app.orchestration_trigger(context_name="context")
 def verify_repo_fork_orchestrator(context: df.DurableOrchestrationContext):
-    """Run repository fork verification."""
+    """Drain-only orchestrator for in-flight phase 0 repo fork jobs.
+
+    See :func:`verify_github_profile_orchestrator` for rationale.
+    """
     return (yield from _run_verification_orchestration(context))
 
 
 @app.orchestration_trigger(context_name="context")
 def verify_ctf_token_orchestrator(context: df.DurableOrchestrationContext):
-    """Run CTF token verification."""
+    """Drain-only orchestrator for in-flight phase 1 CTF token jobs.
+
+    See :func:`verify_github_profile_orchestrator` for rationale.
+    """
     return (yield from _run_verification_orchestration(context))
 
 
 @app.orchestration_trigger(context_name="context")
 def verify_networking_token_orchestrator(context: df.DurableOrchestrationContext):
-    """Run networking token verification."""
+    """Drain-only orchestrator for in-flight phase 2 networking token jobs.
+
+    See :func:`verify_github_profile_orchestrator` for rationale.
+    """
     return (yield from _run_verification_orchestration(context))
 
 

@@ -18,6 +18,8 @@ from learn_to_cloud.services.submissions_service import (
     GitHubUsernameRequiredError,
     PriorPhaseNotCompleteError,
     RequirementNotFoundError,
+    SyncVerificationResult,
+    VerificationJobSubmission,
     create_verification_job,
     get_phase_submission_context,
 )
@@ -237,6 +239,7 @@ class TestAlreadyValidatedShortCircuit:
                 github_username="user",
             )
 
+            assert isinstance(result, VerificationJobSubmission)
             assert result.job is mock_job
             assert result.created is True
 
@@ -352,9 +355,198 @@ class TestSequentialPhaseGating:
                 github_username="user",
             )
 
+            assert isinstance(result, VerificationJobSubmission)
             assert result.job is mock_job
             assert result.created is True
             mock_job_repo.create_or_get_active.assert_awaited_once()
+
+
+@pytest.mark.unit
+class TestSyncDispatchBranch:
+    """Tests for the sync (phase 0-2) execution branch in create_verification_job."""
+
+    @pytest.mark.asyncio
+    async def test_sync_type_runs_in_process_and_returns_sync_result(self):
+        """A sync submission type calls execute_sync_submission_validation
+        and never touches VerificationJobRepository."""
+        mock_session_maker = _mock_session_maker()
+        mock_requirement = _make_mock_requirement(
+            submission_type=SubmissionType.GITHUB_PROFILE,
+        )
+        sentinel_result = MagicMock(name="SubmissionResult")
+
+        with (
+            patch(
+                "learn_to_cloud.services.submissions_service.get_requirement_by_id",
+                autospec=True,
+                return_value=mock_requirement,
+            ),
+            patch(
+                "learn_to_cloud.services.submissions_service.SubmissionRepository",
+                autospec=True,
+            ) as mock_repo_class,
+            patch(
+                "learn_to_cloud.services.submissions_service.VerificationJobRepository",
+                autospec=True,
+            ) as mock_job_repo_class,
+            patch(
+                "learn_to_cloud.services.submissions_service.execute_sync_submission_validation",
+                new_callable=AsyncMock,
+                return_value=sentinel_result,
+            ) as mock_sync_execute,
+        ):
+            mock_repo = MagicMock()
+            mock_repo.get_by_user_and_requirement = AsyncMock(return_value=None)
+            mock_repo_class.return_value = mock_repo
+
+            result = await create_verification_job(
+                session_maker=mock_session_maker,
+                user_id=123,
+                requirement_id="test-requirement",
+                submitted_value="https://github.com/user",
+                github_username="user",
+            )
+
+        assert isinstance(result, SyncVerificationResult)
+        assert result.submission_result is sentinel_result
+        mock_sync_execute.assert_awaited_once()
+        # Critical: sync path must not create or look up VerificationJob rows.
+        mock_job_repo_class.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_async_type_returns_verification_job_submission(self):
+        """A phase 3+ submission type still goes through the Durable
+        VerificationJob path and returns VerificationJobSubmission."""
+        mock_session_maker = _mock_session_maker()
+        mock_requirement = _make_mock_requirement(
+            submission_type=SubmissionType.CI_STATUS,
+        )
+        mock_job = MagicMock()
+
+        with (
+            patch(
+                "learn_to_cloud.services.submissions_service.get_requirement_by_id",
+                autospec=True,
+                return_value=mock_requirement,
+            ),
+            patch(
+                "learn_to_cloud.services.submissions_service.SubmissionRepository",
+                autospec=True,
+            ) as mock_repo_class,
+            patch(
+                "learn_to_cloud.services.submissions_service.VerificationJobRepository",
+                autospec=True,
+            ) as mock_job_repo_class,
+            patch(
+                "learn_to_cloud.services.submissions_service.execute_sync_submission_validation",
+                new_callable=AsyncMock,
+            ) as mock_sync_execute,
+        ):
+            mock_repo = MagicMock()
+            mock_repo.get_by_user_and_requirement = AsyncMock(return_value=None)
+            mock_repo_class.return_value = mock_repo
+
+            mock_job_repo = MagicMock()
+            mock_job_repo.create_or_get_active = AsyncMock(
+                return_value=(mock_job, True)
+            )
+            mock_job_repo_class.return_value = mock_job_repo
+
+            result = await create_verification_job(
+                session_maker=mock_session_maker,
+                user_id=123,
+                requirement_id="test-requirement",
+                submitted_value="https://github.com/user/repo",
+                github_username="user",
+            )
+
+        assert isinstance(result, VerificationJobSubmission)
+        assert result.job is mock_job
+        assert result.created is True
+        # Critical: async path must not run the in-request sync validator.
+        mock_sync_execute.assert_not_awaited()
+        mock_job_repo.create_or_get_active.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_sync_preconditions_still_enforced(self):
+        """Sync path still rejects already-validated requirements before
+        running the validator. Guards against regression where the branch
+        skips _check_submission_preconditions."""
+        mock_session_maker = _mock_session_maker()
+        mock_requirement = _make_mock_requirement(
+            submission_type=SubmissionType.CTF_TOKEN,
+        )
+
+        with (
+            patch(
+                "learn_to_cloud.services.submissions_service.get_requirement_by_id",
+                autospec=True,
+                return_value=mock_requirement,
+            ),
+            patch(
+                "learn_to_cloud.services.submissions_service.SubmissionRepository",
+                autospec=True,
+            ) as mock_repo_class,
+            patch(
+                "learn_to_cloud.services.submissions_service.execute_sync_submission_validation",
+                new_callable=AsyncMock,
+            ) as mock_sync_execute,
+        ):
+            mock_repo = MagicMock()
+            mock_repo.get_by_user_and_requirement = AsyncMock(
+                return_value=MagicMock(is_validated=True)
+            )
+            mock_repo_class.return_value = mock_repo
+
+            with pytest.raises(AlreadyValidatedError):
+                await create_verification_job(
+                    session_maker=mock_session_maker,
+                    user_id=123,
+                    requirement_id="test-requirement",
+                    submitted_value="some-token",
+                    github_username="user",
+                )
+
+        mock_sync_execute.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_sync_path_requires_github_username_for_ctf_token(self):
+        """CTF_TOKEN without github_username must still raise even on the
+        sync path, since the validator can't run anonymously."""
+        mock_session_maker = _mock_session_maker()
+        mock_requirement = _make_mock_requirement(
+            submission_type=SubmissionType.CTF_TOKEN,
+        )
+
+        with (
+            patch(
+                "learn_to_cloud.services.submissions_service.get_requirement_by_id",
+                autospec=True,
+                return_value=mock_requirement,
+            ),
+            patch(
+                "learn_to_cloud.services.submissions_service.SubmissionRepository",
+                autospec=True,
+            ) as mock_repo_class,
+            patch(
+                "learn_to_cloud.services.submissions_service.execute_sync_submission_validation",
+                new_callable=AsyncMock,
+            ) as mock_sync_execute,
+        ):
+            mock_repo = MagicMock()
+            mock_repo.get_by_user_and_requirement = AsyncMock(return_value=None)
+            mock_repo_class.return_value = mock_repo
+
+            with pytest.raises(GitHubUsernameRequiredError):
+                await create_verification_job(
+                    session_maker=mock_session_maker,
+                    user_id=123,
+                    requirement_id="test-requirement",
+                    submitted_value="some-token",
+                    github_username=None,
+                )
+
+        mock_sync_execute.assert_not_awaited()
 
 
 # ---------------------------------------------------------------------------
