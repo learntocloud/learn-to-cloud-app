@@ -1,4 +1,23 @@
-"""Execute persisted verification jobs outside the FastAPI request path."""
+"""Execute persisted verification jobs outside the FastAPI request path.
+
+PR4 removed the legacy ``status`` enum and the ``mark_*`` lifecycle
+writes. A verification job is now identified by the presence of its row
+in ``verification_jobs``; the outcome lives entirely in the linked
+``Submission``. The executor:
+
+1. ``prepare_verification_job`` loads the job and, if it already has a
+   linked Submission (Durable replay after a successful prior run),
+   returns the same execution result without doing more work.
+2. ``run_verification`` runs the validator (no DB writes).
+3. ``persist_verification_result`` writes the ``Submission`` and links
+   it to the job via ``VerificationJobRepository.link_submission``.
+   Idempotent against retries via the ``ALREADY_LINKED`` short-circuit.
+
+The missing-requirement edge case writes a server-error ``Submission``
+and links it, so ``prepare`` stays idempotent on retry — the row exists,
+the link exists, and ``preparation.terminal_result`` is reconstructed
+from the linked Submission.
+"""
 
 from __future__ import annotations
 
@@ -12,12 +31,15 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from learn_to_cloud_shared.models import (
     Submission,
+    SubmissionType,
     User,
     VerificationJob,
-    VerificationJobStatus,
+)
+from learn_to_cloud_shared.repositories.submission_repository import (
+    SubmissionRepository,
 )
 from learn_to_cloud_shared.repositories.verification_job_repository import (
-    TERMINAL_JOB_STATUSES,
+    LinkResult,
     VerificationJobRepository,
 )
 from learn_to_cloud_shared.schemas import HandsOnRequirement, ValidationResult
@@ -33,6 +55,20 @@ tracer = trace.get_tracer(__name__)
 VALIDATION_FAILED_ERROR_CODE = "validation_failed"
 VERIFICATION_INCOMPLETE_ERROR_CODE = "verification_incomplete"
 REQUIREMENT_NOT_FOUND_ERROR_CODE = "requirement_not_found"
+VERIFICATION_SUCCEEDED_CODE = "verification_succeeded"
+
+# Plain string outcomes kept for Durable activity payload compatibility
+# with deployed pre-PR4 readers. ``status`` consumers expect one of these
+# literals.
+_OUTCOME_SUCCEEDED = "succeeded"
+_OUTCOME_FAILED = "failed"
+_OUTCOME_SERVER_ERROR = "server_error"
+
+_MESSAGE_BY_OUTCOME = {
+    _OUTCOME_SUCCEEDED: "Verification succeeded.",
+    _OUTCOME_FAILED: "Verification failed.",
+    _OUTCOME_SERVER_ERROR: "Verification could not be completed.",
+}
 
 
 class VerificationJobNotFoundError(Exception):
@@ -41,8 +77,16 @@ class VerificationJobNotFoundError(Exception):
 
 @dataclass(frozen=True, slots=True)
 class VerificationJobExecutionResult:
+    """Result of running one persisted verification job.
+
+    ``status`` is a plain string (``"succeeded"`` / ``"failed"`` /
+    ``"server_error"``) rather than the legacy ``VerificationJobStatus``
+    enum so Durable activity payloads stay compatible with any pre-PR4
+    readers still in flight.
+    """
+
     job_id: UUID
-    status: VerificationJobStatus
+    status: str
     code: str
     requirement_id: str
     requirement_name: str | None
@@ -57,7 +101,7 @@ class VerificationJobExecutionResult:
         """Return a JSON-serializable Durable activity result."""
         return {
             "job_id": str(self.job_id),
-            "status": self.status.value,
+            "status": self.status,
             "code": self.code,
             "requirement_id": self.requirement_id,
             "requirement_name": self.requirement_name,
@@ -162,11 +206,8 @@ class _VerificationJobPayload:
     requirement_id: str
     phase_id: int
     submitted_value: str
-    status: VerificationJobStatus
     submission_type: str
     result_submission_id: int | None
-    error_code: str | None
-    error_message: str | None
 
 
 def _expect_mapping(value: object) -> Mapping[str, object]:
@@ -219,86 +260,112 @@ async def _load_job_payload(
         requirement_id=job.requirement_id,
         phase_id=job.phase_id,
         submitted_value=job.submitted_value,
-        status=job.status,
         submission_type=job.submission_type.value,
         result_submission_id=job.result_submission_id,
-        error_code=job.error_code,
-        error_message=job.error_message,
     )
 
 
-def _result_code(status: VerificationJobStatus, error_code: str | None = None) -> str:
-    if status == VerificationJobStatus.SUCCEEDED:
-        return "verification_succeeded"
-    if status == VerificationJobStatus.FAILED:
-        return error_code or VALIDATION_FAILED_ERROR_CODE
-    if status == VerificationJobStatus.SERVER_ERROR:
-        return error_code or VERIFICATION_INCOMPLETE_ERROR_CODE
-    if status == VerificationJobStatus.CANCELLED:
-        return error_code or "verification_cancelled"
-    return status.value
+def _outcome_for(validation_result: ValidationResult) -> str:
+    if validation_result.is_valid:
+        return _OUTCOME_SUCCEEDED
+    if validation_result.verification_completed:
+        return _OUTCOME_FAILED
+    return _OUTCOME_SERVER_ERROR
 
 
-def _result_message(status: VerificationJobStatus) -> str:
-    if status == VerificationJobStatus.SUCCEEDED:
-        return "Verification succeeded."
-    if status == VerificationJobStatus.FAILED:
-        return "Verification failed."
-    if status == VerificationJobStatus.SERVER_ERROR:
-        return "Verification could not be completed."
-    if status == VerificationJobStatus.CANCELLED:
-        return "Verification was cancelled."
-    return "Verification job is not complete."
+def _code_for_outcome(outcome: str, fallback: str | None = None) -> str:
+    if outcome == _OUTCOME_SUCCEEDED:
+        return VERIFICATION_SUCCEEDED_CODE
+    if outcome == _OUTCOME_FAILED:
+        return fallback or VALIDATION_FAILED_ERROR_CODE
+    return fallback or VERIFICATION_INCOMPLETE_ERROR_CODE
 
 
-def _terminal_result(
-    payload: _VerificationJobPayload,
+def _outcome_from_submission(submission: Submission) -> str:
+    if submission.is_validated:
+        return _OUTCOME_SUCCEEDED
+    if submission.verification_completed:
+        return _OUTCOME_FAILED
+    return _OUTCOME_SERVER_ERROR
+
+
+def _build_result_from_submission(
+    *,
+    job_id: UUID,
+    submission: Submission,
+    requirement: HandsOnRequirement | None,
 ) -> VerificationJobExecutionResult:
-    requirement = get_requirement_by_id(payload.requirement_id)
+    """Build a ``VerificationJobExecutionResult`` from an already-persisted
+    ``Submission``. Used by the replay short-circuit in
+    :func:`prepare_verification_job` and :func:`persist_verification_result`.
+    """
+    outcome = _outcome_from_submission(submission)
     return VerificationJobExecutionResult(
-        job_id=payload.id,
-        status=payload.status,
-        code=_result_code(payload.status, payload.error_code),
-        requirement_id=payload.requirement_id,
+        job_id=job_id,
+        status=outcome,
+        code=_code_for_outcome(outcome),
+        requirement_id=submission.requirement_id,
         requirement_name=requirement.name if requirement is not None else None,
-        submission_type=payload.submission_type,
-        submission_id=payload.result_submission_id,
-        is_valid=payload.status == VerificationJobStatus.SUCCEEDED,
-        verification_completed=payload.status != VerificationJobStatus.SERVER_ERROR,
-        message=_result_message(payload.status),
-        detail=payload.error_message,
+        submission_type=submission.submission_type.value,
+        submission_id=submission.id,
+        is_valid=submission.is_validated,
+        verification_completed=submission.verification_completed,
+        message=_MESSAGE_BY_OUTCOME[outcome],
+        detail=submission.validation_message,
     )
 
 
-async def _mark_missing_requirement(
+async def _handle_missing_requirement(
     *,
     session_maker: async_sessionmaker[AsyncSession],
-    job_id: UUID,
-    requirement_id: str,
-    submission_type: str,
+    payload: _VerificationJobPayload,
 ) -> VerificationJobExecutionResult:
-    detail = f"Requirement not found: {requirement_id}"
+    """Record a server-error ``Submission`` for a job whose requirement was
+    removed from content, link the job to it, and return the resulting
+    execution result.
+
+    Linking the Submission (rather than deleting the job row) keeps
+    ``prepare_verification_job`` idempotent: a retry sees the linked row
+    and short-circuits via the replay path.
+    """
+    detail = f"Requirement not found: {payload.requirement_id}"
+    try:
+        submission_type = SubmissionType(payload.submission_type)
+    except ValueError:
+        submission_type = SubmissionType.GITHUB_PROFILE
+
     async with session_maker() as db:
-        job = await VerificationJobRepository(db).mark_server_error(
-            job_id,
-            error_code=REQUIREMENT_NOT_FOUND_ERROR_CODE,
-            error_message=detail,
+        submission_repo = SubmissionRepository(db)
+        submission = await submission_repo.create(
+            user_id=payload.user_id,
+            requirement_id=payload.requirement_id,
+            submission_type=submission_type,
+            phase_id=payload.phase_id,
+            submitted_value=payload.submitted_value,
+            extracted_username=None,
+            is_validated=False,
+            verification_completed=False,
+            validation_message=detail,
         )
-        if job is None:
-            raise VerificationJobNotFoundError(str(job_id))
+        link = await VerificationJobRepository(db).link_submission(
+            payload.id,
+            submission.id,
+        )
+        if link is LinkResult.MISSING:
+            raise VerificationJobNotFoundError(str(payload.id))
         await db.commit()
 
     return VerificationJobExecutionResult(
-        job_id=job_id,
-        status=VerificationJobStatus.SERVER_ERROR,
+        job_id=payload.id,
+        status=_OUTCOME_SERVER_ERROR,
         code=REQUIREMENT_NOT_FOUND_ERROR_CODE,
-        requirement_id=requirement_id,
+        requirement_id=payload.requirement_id,
         requirement_name=None,
-        submission_type=submission_type,
-        submission_id=None,
+        submission_type=payload.submission_type,
+        submission_id=submission.id,
         is_valid=False,
         verification_completed=False,
-        message=_result_message(VerificationJobStatus.SERVER_ERROR),
+        message=_MESSAGE_BY_OUTCOME[_OUTCOME_SERVER_ERROR],
         detail=detail,
     )
 
@@ -308,7 +375,15 @@ async def prepare_verification_job(
     *,
     session_maker: async_sessionmaker[AsyncSession],
 ) -> VerificationJobPreparation:
-    """Load and mark a verification job as running before validation."""
+    """Load a verification job and dispatch to the right execution path.
+
+    Replay-safe short-circuits:
+    1. If the job is already linked to a ``Submission`` (Durable retried
+       prepare after the persist activity already finished), return the
+       same execution result from the linked Submission.
+    2. If the requirement was removed from content between submit and
+       execute, record a server-error Submission and short-circuit.
+    """
     normalized_job_id = _coerce_job_id(job_id)
 
     with tracer.start_as_current_span(
@@ -319,23 +394,31 @@ async def prepare_verification_job(
             payload = await _load_job_payload(db, normalized_job_id)
             if payload is None:
                 raise VerificationJobNotFoundError(str(normalized_job_id))
-            if payload.status in TERMINAL_JOB_STATUSES:
-                result = _terminal_result(payload)
-                span.set_attribute("verification.status", result.status.value)
-                return VerificationJobPreparation(terminal_result=result)
 
-            await VerificationJobRepository(db).mark_running(normalized_job_id)
-            await db.commit()
+            if payload.result_submission_id is not None:
+                submission = await db.get(Submission, payload.result_submission_id)
+                if submission is None:
+                    raise VerificationJobNotFoundError(
+                        f"job {normalized_job_id} references missing submission "
+                        f"{payload.result_submission_id}"
+                    )
+                requirement = get_requirement_by_id(payload.requirement_id)
+                result = _build_result_from_submission(
+                    job_id=normalized_job_id,
+                    submission=submission,
+                    requirement=requirement,
+                )
+                span.set_attribute("verification.status", result.status)
+                span.set_attribute("verification.replay", True)
+                return VerificationJobPreparation(terminal_result=result)
 
         requirement = get_requirement_by_id(payload.requirement_id)
         if requirement is None:
-            result = await _mark_missing_requirement(
+            result = await _handle_missing_requirement(
                 session_maker=session_maker,
-                job_id=normalized_job_id,
-                requirement_id=payload.requirement_id,
-                submission_type=payload.submission_type,
+                payload=payload,
             )
-            span.set_attribute("verification.status", result.status.value)
+            span.set_attribute("verification.status", result.status)
             return VerificationJobPreparation(terminal_result=result)
 
         return VerificationJobPreparation(
@@ -375,62 +458,17 @@ async def run_verification(
         return VerificationRunResult(job=job, validation_result=validation_result)
 
 
-async def _result_from_existing_submission(
-    db: AsyncSession,
-    *,
-    job: PreparedVerificationJob,
-    submission_id: int,
-) -> VerificationJobExecutionResult:
-    """Build the persist-activity result from an already-written Submission.
-
-    Used when an activity retry runs against a job that's already been
-    persisted. The original Submission and job state are the source of
-    truth; we just rebuild the durable-safe execution result.
-    """
-    existing = await db.get(Submission, submission_id)
-    if existing is None:
-        # Job points to a submission that vanished. Treat as a hard
-        # integrity error; do not silently persist a duplicate row.
-        raise VerificationJobNotFoundError(
-            f"job {job.id} references missing submission {submission_id}",
-        )
-
-    is_valid = existing.is_validated
-    verification_completed = existing.verification_completed
-    if is_valid:
-        status = VerificationJobStatus.SUCCEEDED
-    elif verification_completed:
-        status = VerificationJobStatus.FAILED
-    else:
-        status = VerificationJobStatus.SERVER_ERROR
-
-    return VerificationJobExecutionResult(
-        job_id=job.id,
-        status=status,
-        code=_result_code(status),
-        requirement_id=job.requirement.id,
-        requirement_name=job.requirement.name,
-        submission_type=job.requirement.submission_type.value,
-        submission_id=existing.id,
-        is_valid=is_valid,
-        verification_completed=verification_completed,
-        message=_result_message(status),
-        detail=existing.validation_message,
-    )
-
-
 async def persist_verification_result(
     run_result: VerificationRunResult,
     *,
     session_maker: async_sessionmaker[AsyncSession],
 ) -> VerificationJobExecutionResult:
-    """Persist a validation result and mark the verification job terminal.
+    """Persist a validation result and link it to the verification job.
 
-    Idempotent on Durable activity retry: if the job already references
-    a persisted ``Submission`` we return the same result without writing
-    a duplicate row. Falls back to the legacy ``status``-based terminal
-    short-circuit so this stays correct during a rolling deploy where
-    older code paths still set ``status``.
+    Idempotent against Durable activity retries via the
+    ``result_submission_id`` short-circuit and the
+    :class:`~learn_to_cloud_shared.repositories.verification_job_repository.LinkResult.ALREADY_LINKED`
+    case from ``link_submission``.
     """
     job = run_result.job
     validation_result = run_result.validation_result
@@ -444,24 +482,20 @@ async def persist_verification_result(
             if payload is None:
                 raise VerificationJobNotFoundError(str(job.id))
 
-            # Replay-safety guard: a prior successful run of this
-            # activity already attached a Submission. Return the same
-            # result instead of writing another row. Preferred over the
-            # status-based guard below because it survives the schema
-            # slim-down planned for PR3.
             if payload.result_submission_id is not None:
-                result = await _result_from_existing_submission(
-                    db,
-                    job=job,
-                    submission_id=payload.result_submission_id,
+                submission = await db.get(Submission, payload.result_submission_id)
+                if submission is None:
+                    raise VerificationJobNotFoundError(
+                        f"job {job.id} references missing submission "
+                        f"{payload.result_submission_id}"
+                    )
+                result = _build_result_from_submission(
+                    job_id=job.id,
+                    submission=submission,
+                    requirement=job.requirement,
                 )
-                span.set_attribute("verification.status", result.status.value)
+                span.set_attribute("verification.status", result.status)
                 span.set_attribute("verification.replay", True)
-                return result
-
-            if payload.status in TERMINAL_JOB_STATUSES:
-                result = _terminal_result(payload)
-                span.set_attribute("verification.status", result.status.value)
                 return result
 
             submission = await persist_validation_result(
@@ -474,49 +508,56 @@ async def persist_verification_result(
                 validation_result=validation_result,
             )
 
-            job_repo = VerificationJobRepository(db)
-            if validation_result.is_valid:
-                updated_job = await job_repo.mark_succeeded(job.id, submission.id)
-                status = VerificationJobStatus.SUCCEEDED
-            elif validation_result.verification_completed:
-                updated_job = await job_repo.mark_failed(
-                    job.id,
-                    error_code=VALIDATION_FAILED_ERROR_CODE,
-                    error_message=(
-                        persisted_validation_message(validation_result.message) or ""
-                    ),
-                    result_submission_id=submission.id,
-                )
-                status = VerificationJobStatus.FAILED
-            else:
-                updated_job = await job_repo.mark_server_error(
-                    job.id,
-                    error_code=VERIFICATION_INCOMPLETE_ERROR_CODE,
-                    error_message=(
-                        persisted_validation_message(validation_result.message) or ""
-                    ),
-                    result_submission_id=submission.id,
-                )
-                status = VerificationJobStatus.SERVER_ERROR
-
-            if updated_job is None:
+            link = await VerificationJobRepository(db).link_submission(
+                job.id,
+                submission.id,
+            )
+            if link is LinkResult.MISSING:
                 raise VerificationJobNotFoundError(str(job.id))
+            if link is LinkResult.ALREADY_LINKED:
+                # Another activity attempt linked a Submission between our
+                # _load_job_payload and the link_submission UPDATE. Roll
+                # back our duplicate insert by aborting the transaction;
+                # reload the canonical Submission and return its result.
+                await db.rollback()
+                async with session_maker() as fresh_db:
+                    canonical = await _load_job_payload(fresh_db, job.id)
+                    if canonical is None or canonical.result_submission_id is None:
+                        raise VerificationJobNotFoundError(str(job.id))
+                    canonical_submission = await fresh_db.get(
+                        Submission,
+                        canonical.result_submission_id,
+                    )
+                    if canonical_submission is None:
+                        raise VerificationJobNotFoundError(str(job.id))
+                    result = _build_result_from_submission(
+                        job_id=job.id,
+                        submission=canonical_submission,
+                        requirement=job.requirement,
+                    )
+                span.set_attribute("verification.status", result.status)
+                span.set_attribute("verification.replay", True)
+                return result
 
             await db.commit()
 
-        span.set_attribute("verification.status", status.value)
+        outcome = _outcome_for(validation_result)
+        code = _code_for_outcome(outcome)
+        span.set_attribute("verification.status", outcome)
         return VerificationJobExecutionResult(
             job_id=job.id,
-            status=status,
-            code=_result_code(status),
+            status=outcome,
+            code=code,
             requirement_id=job.requirement.id,
             requirement_name=job.requirement.name,
             submission_type=job.requirement.submission_type.value,
             submission_id=submission.id,
             is_valid=validation_result.is_valid,
             verification_completed=validation_result.verification_completed,
-            message=_result_message(status),
-            detail=validation_result.message,
+            message=_MESSAGE_BY_OUTCOME[outcome],
+            detail=persisted_validation_message(validation_result.message)
+            if not validation_result.is_valid
+            else None,
         )
 
 
@@ -525,7 +566,7 @@ async def execute_verification_job(
     *,
     session_maker: async_sessionmaker[AsyncSession],
 ) -> VerificationJobExecutionResult:
-    """Run one persisted verification job and update its DB status."""
+    """Run one persisted verification job end-to-end."""
     normalized_job_id = _coerce_job_id(job_id)
 
     with tracer.start_as_current_span(
@@ -539,7 +580,7 @@ async def execute_verification_job(
         if preparation.terminal_result is not None:
             span.set_attribute(
                 "verification.status",
-                preparation.terminal_result.status.value,
+                preparation.terminal_result.status,
             )
             return preparation.terminal_result
         if preparation.job is None:
@@ -550,5 +591,5 @@ async def execute_verification_job(
             run_result,
             session_maker=session_maker,
         )
-        span.set_attribute("verification.status", result.status.value)
+        span.set_attribute("verification.status", result.status)
         return result

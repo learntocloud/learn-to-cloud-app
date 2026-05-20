@@ -1,43 +1,41 @@
-"""Repository for verification job status records."""
+"""Repository for verification job records.
 
+PR4 stripped the legacy status enum and the ``mark_*`` lifecycle methods.
+``VerificationJob`` is now a thin work-queue marker: a row exists during
+in-flight verification work, gets linked to a ``Submission`` via
+:meth:`VerificationJobRepository.link_submission` when the persist
+activity completes, and is deleted by the poller on Durable terminal
+failure via :meth:`VerificationJobRepository.delete_active`.
+"""
+
+from __future__ import annotations
+
+from enum import StrEnum
 from uuid import UUID, uuid4
 
-from sqlalchemy import delete, select, text
+from sqlalchemy import delete, select, text, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from learn_to_cloud_shared.models import (
     SubmissionType,
     VerificationJob,
-    VerificationJobStatus,
     utcnow,
 )
 
-ACTIVE_JOB_STATUSES = (
-    VerificationJobStatus.QUEUED,
-    VerificationJobStatus.STARTING,
-    VerificationJobStatus.RUNNING,
-)
-ACTIVE_JOB_STATUS_PREDICATE = "status IN ('queued', 'starting', 'running')"
-
-# PR3 expand step: new "active job" predicate keyed on the absence of a
-# linked Submission rather than on the status enum. Matches the partial
-# unique index ``uq_verification_jobs_active_user_requirement_v2`` and the
-# supporting non-unique index ``ix_verification_jobs_user_phase_active``
-# added by migration 0020. New code uses this predicate; old code mid-deploy
-# keeps using the status-based one.
 ACTIVE_JOB_UNLINKED_PREDICATE = "result_submission_id IS NULL"
 
-TERMINAL_JOB_STATUSES = (
-    VerificationJobStatus.SUCCEEDED,
-    VerificationJobStatus.FAILED,
-    VerificationJobStatus.SERVER_ERROR,
-    VerificationJobStatus.CANCELLED,
-)
+
+class LinkResult(StrEnum):
+    """Outcome of :meth:`VerificationJobRepository.link_submission`."""
+
+    LINKED = "linked"
+    ALREADY_LINKED = "already_linked"
+    MISSING = "missing"
 
 
 class VerificationJobRepository:
-    """Repository for verification job status records."""
+    """Repository for verification job records."""
 
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
@@ -52,8 +50,6 @@ class VerificationJobRepository:
         submitted_value: str,
         extracted_username: str | None = None,
         cloud_provider: str | None = None,
-        status: VerificationJobStatus = VerificationJobStatus.QUEUED,
-        orchestration_instance_id: str | None = None,
         traceparent: str | None = None,
     ) -> VerificationJob:
         """Create a verification job and let DB constraints enforce uniqueness."""
@@ -66,8 +62,6 @@ class VerificationJobRepository:
             submitted_value=submitted_value,
             extracted_username=extracted_username,
             cloud_provider=cloud_provider,
-            status=status,
-            orchestration_instance_id=orchestration_instance_id,
             traceparent=traceparent,
         )
         self.db.add(job)
@@ -84,10 +78,17 @@ class VerificationJobRepository:
         submitted_value: str,
         extracted_username: str | None = None,
         cloud_provider: str | None = None,
-        orchestration_instance_id: str | None = None,
         traceparent: str | None = None,
     ) -> tuple[VerificationJob, bool]:
-        """Create a queued job, or return the active one for the requirement."""
+        """Create a queued job, or return the active one for the requirement.
+
+        The partial unique index
+        ``uq_verification_jobs_active_user_requirement_v2`` ensures only
+        one row per ``(user_id, requirement_id)`` may be unlinked at a
+        time. A brand-new row has ``result_submission_id=NULL`` so it
+        falls under the predicate; once the persist activity links a
+        Submission the row exits and a follow-up submit succeeds.
+        """
         for _ in range(2):
             now = utcnow()
             stmt = (
@@ -101,18 +102,10 @@ class VerificationJobRepository:
                     submitted_value=submitted_value,
                     extracted_username=extracted_username,
                     cloud_provider=cloud_provider,
-                    status=VerificationJobStatus.QUEUED,
-                    orchestration_instance_id=orchestration_instance_id,
                     traceparent=traceparent,
                     created_at=now,
                     updated_at=now,
                 )
-                # Use the new ``result_submission_id IS NULL`` partial unique
-                # index. A brand-new row has ``result_submission_id=NULL``
-                # so it lands in the index and dedupes any concurrent
-                # submit for the same (user_id, requirement_id). Once the
-                # persist activity links a Submission the row exits the
-                # index and a follow-up submit succeeds.
                 .on_conflict_do_nothing(
                     index_elements=["user_id", "requirement_id"],
                     index_where=text(ACTIVE_JOB_UNLINKED_PREDICATE),
@@ -142,12 +135,7 @@ class VerificationJobRepository:
         user_id: int,
         requirement_id: str,
     ) -> VerificationJob | None:
-        """Get the active job for a user and requirement, if one exists.
-
-        "Active" means a row exists with no linked Submission yet — the
-        ``delete_active`` poller path and the persist activity both
-        flip rows out of this predicate when work completes.
-        """
+        """Get the active (unlinked) job for a user and requirement, if any."""
         result = await self.db.execute(
             select(VerificationJob)
             .where(
@@ -165,11 +153,7 @@ class VerificationJobRepository:
         user_id: int,
         phase_id: int,
     ) -> list[VerificationJob]:
-        """Get active jobs for a user in a phase.
-
-        "Active" means a row exists with no linked Submission yet —
-        see :meth:`get_active_for_requirement`.
-        """
+        """Get active (unlinked) jobs for a user in a phase."""
         result = await self.db.execute(
             select(VerificationJob)
             .where(
@@ -198,137 +182,50 @@ class VerificationJobRepository:
         )
         return result.scalar_one_or_none()
 
-    async def update_status(
+    async def link_submission(
         self,
         job_id: UUID,
-        status: VerificationJobStatus,
-        *,
-        orchestration_instance_id: str | None = None,
-        result_submission_id: int | None = None,
-        error_code: str | None = None,
-        error_message: str | None = None,
-    ) -> VerificationJob | None:
-        """Update a verification job status and lifecycle metadata."""
-        job = await self.get_by_id(job_id)
-        if job is None:
-            return None
+        submission_id: int,
+    ) -> LinkResult:
+        """Link a persisted ``Submission`` to this verification job.
 
-        now = utcnow()
-        job.status = status
-        job.updated_at = now
-        if status in (VerificationJobStatus.STARTING, VerificationJobStatus.RUNNING):
-            job.started_at = job.started_at or now
-        if status in TERMINAL_JOB_STATUSES:
-            job.completed_at = now
-        if orchestration_instance_id is not None:
-            job.orchestration_instance_id = orchestration_instance_id
-        if result_submission_id is not None:
-            job.result_submission_id = result_submission_id
-        if error_code is not None:
-            job.error_code = error_code
-        if error_message is not None:
-            job.error_message = error_message
-        if status == VerificationJobStatus.SUCCEEDED:
-            job.error_code = None
-            job.error_message = None
-
-        await self.db.flush()
-        return job
-
-    async def mark_starting(
-        self,
-        job_id: UUID,
-        orchestration_instance_id: str,
-    ) -> VerificationJob | None:
-        """Mark a job as starting under an execution backend."""
-        return await self.update_status(
-            job_id,
-            VerificationJobStatus.STARTING,
-            orchestration_instance_id=orchestration_instance_id,
+        Idempotent against Durable activity retries: only links when the
+        row is still unlinked. On rowcount=0 re-reads to distinguish the
+        "another activity attempt linked it first" case from the
+        "poller already deleted the row" case.
+        """
+        stmt = (
+            update(VerificationJob)
+            .where(
+                VerificationJob.id == job_id,
+                VerificationJob.result_submission_id.is_(None),
+            )
+            .values(
+                result_submission_id=submission_id,
+                updated_at=utcnow(),
+            )
         )
+        result = await self.db.execute(stmt)
+        rowcount = getattr(result, "rowcount", 0) or 0
+        if rowcount > 0:
+            return LinkResult.LINKED
 
-    async def mark_running(self, job_id: UUID) -> VerificationJob | None:
-        """Mark a job as running."""
-        return await self.update_status(job_id, VerificationJobStatus.RUNNING)
-
-    async def mark_succeeded(
-        self,
-        job_id: UUID,
-        result_submission_id: int,
-    ) -> VerificationJob | None:
-        """Mark a job as succeeded with its persisted submission result."""
-        return await self.update_status(
-            job_id,
-            VerificationJobStatus.SUCCEEDED,
-            result_submission_id=result_submission_id,
-        )
-
-    async def mark_failed(
-        self,
-        job_id: UUID,
-        *,
-        error_code: str,
-        error_message: str,
-        result_submission_id: int | None = None,
-    ) -> VerificationJob | None:
-        """Mark a job as failed due to user-correctable validation failure."""
-        return await self.update_status(
-            job_id,
-            VerificationJobStatus.FAILED,
-            error_code=error_code,
-            error_message=error_message,
-            result_submission_id=result_submission_id,
-        )
-
-    async def mark_server_error(
-        self,
-        job_id: UUID,
-        *,
-        error_code: str,
-        error_message: str,
-        result_submission_id: int | None = None,
-    ) -> VerificationJob | None:
-        """Mark a job as failed due to verifier infrastructure or server error."""
-        return await self.update_status(
-            job_id,
-            VerificationJobStatus.SERVER_ERROR,
-            error_code=error_code,
-            error_message=error_message,
-            result_submission_id=result_submission_id,
-        )
-
-    async def mark_cancelled(
-        self,
-        job_id: UUID,
-        *,
-        error_code: str | None = None,
-        error_message: str | None = None,
-    ) -> VerificationJob | None:
-        """Mark a job as cancelled."""
-        return await self.update_status(
-            job_id,
-            VerificationJobStatus.CANCELLED,
-            error_code=error_code,
-            error_message=error_message,
-        )
+        existing = await self.get_by_id(job_id)
+        if existing is None:
+            return LinkResult.MISSING
+        return LinkResult.ALREADY_LINKED
 
     async def delete_active(self, job_id: UUID) -> bool:
         """Delete an active, unlinked verification job by id.
 
         Guards against racing the persist activity: deletion only runs
-        when the row is still active AND has no linked Submission. If
-        persist won the race and attached a Submission (or already
-        flipped the row to a terminal status), the delete is a no-op
-        and the caller learns by the returned ``False``.
-
-        Returns:
-            True if the row was deleted, False otherwise (already
-            terminal, already linked to a Submission, or never existed).
+        when the row still has no linked Submission. If persist won the
+        race the delete is a no-op and the caller learns via the
+        returned ``False``.
         """
         stmt = delete(VerificationJob).where(
             VerificationJob.id == job_id,
             VerificationJob.result_submission_id.is_(None),
-            VerificationJob.status.in_(ACTIVE_JOB_STATUSES),
         )
         result = await self.db.execute(stmt)
         rowcount = getattr(result, "rowcount", 0) or 0

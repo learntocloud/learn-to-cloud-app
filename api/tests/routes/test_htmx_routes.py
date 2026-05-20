@@ -231,7 +231,6 @@ class TestHtmxSubmitVerification:
             write_session
         )
         repo = MagicMock()
-        repo.mark_starting = AsyncMock()
 
         with (
             patch(
@@ -269,10 +268,6 @@ class TestHtmxSubmitVerification:
         assert result is not None
         mock_create_job.assert_awaited_once()
         mock_start.assert_awaited_once_with(job.id)
-        # PR3: mark_starting is no longer called — the job UUID IS the
-        # Durable instance id, so we don't need to round-trip it back
-        # into Postgres.
-        repo.mark_starting.assert_not_called()
 
     async def test_submit_unexpected_error_renders_server_error(self):
         """Unexpected exceptions render a server error card."""
@@ -357,7 +352,6 @@ class TestHtmxSubmitVerification:
 
         assert isinstance(result, HTMLResponse)
         repo.delete_active.assert_awaited_once_with(job.id)
-        repo.mark_server_error.assert_not_called()
         write_session.commit.assert_awaited_once()
 
     async def test_sync_submit_returns_reload_trigger(self):
@@ -484,7 +478,6 @@ class TestHtmxSubmitVerification:
             write_session
         )
         repo = MagicMock()
-        repo.mark_starting = AsyncMock()
 
         with (
             patch(
@@ -520,9 +513,6 @@ class TestHtmxSubmitVerification:
 
         assert isinstance(result, HTMLResponse)
         mock_start.assert_awaited_once_with(job.id)
-        # PR3: mark_starting is no longer called — the job UUID IS the
-        # Durable instance id, so we don't round-trip it back into Postgres.
-        repo.mark_starting.assert_not_called()
 
     async def test_duplicate_submit_skips_durable_start(self):
         """When ``create_verification_job`` returns ``created=False``
@@ -685,8 +675,6 @@ class TestHtmxVerificationJobStatus:
 
         assert isinstance(result, HTMLResponse)
         mock_repository.delete_active.assert_awaited_once_with(job_id)
-        mock_repository.mark_server_error.assert_not_called()
-        mock_repository.mark_cancelled.assert_not_called()
         mock_session.commit.assert_awaited_once()
 
     async def test_canceled_status_also_deletes_active_job(self):
