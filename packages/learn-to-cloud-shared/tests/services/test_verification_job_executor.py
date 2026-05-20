@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, patch
 from uuid import UUID
 
 import pytest
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from learn_to_cloud_shared.models import (
@@ -425,3 +425,89 @@ async def test_execute_verification_job_marks_missing_requirement_server_error(
     assert error_message == f"Requirement not found: {REQUIREMENT_ID}"
     assert await _count_submissions(session_maker) == 0
     validation.assert_not_awaited()
+
+
+# ---------------------------------------------------------------------------
+# Replay safety: persist_verification_result is idempotent on activity retry
+# ---------------------------------------------------------------------------
+
+
+async def test_persist_is_idempotent_via_result_submission_id_guard(
+    session_maker: async_sessionmaker[AsyncSession],
+):
+    """A Durable activity retry must NOT write a second Submission row.
+
+    Simulates the race where the persist activity's DB commit succeeds
+    but the activity's response is lost in transit, so Durable retries
+    the activity. The job row has ``result_submission_id`` already set;
+    the second call must short-circuit on that and return the same
+    result without inserting another Submission.
+
+    This test specifically exercises the new ``result_submission_id``
+    guard rather than the older ``status in TERMINAL_JOB_STATUSES``
+    guard: status is reset to RUNNING so only the new guard can rescue
+    us. That matches the post-PR3 schema where ``status`` is gone.
+    """
+    from learn_to_cloud_shared.verification_job_executor import (
+        PreparedVerificationJob,
+        VerificationRunResult,
+    )
+
+    job_id = await _create_job(session_maker)
+
+    # Build the prepared job + run result that the activity would
+    # receive — no DB needed for these objects.
+    prepared = PreparedVerificationJob(
+        id=job_id,
+        user_id=USER_ID,
+        github_username="executoruser",
+        requirement=_requirement(),
+        phase_id=3,
+        submitted_value="https://github.com/executoruser/repo",
+    )
+    run_result = VerificationRunResult(
+        job=prepared,
+        validation_result=ValidationResult(is_valid=True, message="Verified"),
+    )
+
+    first = await persist_verification_result(
+        run_result,
+        session_maker=session_maker,
+    )
+    assert first.status == VerificationJobStatus.SUCCEEDED
+    assert first.submission_id is not None
+    assert await _count_submissions(session_maker) == 1
+
+    # Reset job.status to RUNNING but keep result_submission_id linked.
+    # This isolates the new replay guard: the old TERMINAL guard would
+    # not fire here.
+    async with session_maker() as db:
+        await db.execute(
+            text(
+                "UPDATE verification_jobs SET status='running', "
+                "completed_at=NULL WHERE id=:id"
+            ),
+            {"id": str(job_id)},
+        )
+        await db.commit()
+
+    # Activity retry: same run_result, second call.
+    second = await persist_verification_result(
+        run_result,
+        session_maker=session_maker,
+    )
+
+    # Same outcome, same submission_id, no second Submission row.
+    assert second.status == VerificationJobStatus.SUCCEEDED
+    assert second.submission_id == first.submission_id
+    assert second.is_valid is True
+    assert second.requirement_id == REQUIREMENT_ID
+    assert await _count_submissions(session_maker) == 1
+
+
+# Note: a "result_submission_id points at a missing Submission" guard
+# exists in _result_from_existing_submission for defense in depth, but
+# the FK ``verification_jobs_result_submission_id_fkey`` with
+# ON DELETE SET NULL makes that state unreachable at the database
+# level — deleting the Submission nulls the link before the activity
+# could see the dangling id. So there's no realistic state to test.
