@@ -6,16 +6,13 @@ import pytest
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from learn_to_cloud_shared.models import (
-    SubmissionType,
-    VerificationJob,
-    VerificationJobStatus,
-)
+from learn_to_cloud_shared.models import SubmissionType, VerificationJob
 from learn_to_cloud_shared.repositories.submission_repository import (
     SubmissionRepository,
 )
 from learn_to_cloud_shared.repositories.user_repository import UserRepository
 from learn_to_cloud_shared.repositories.verification_job_repository import (
+    LinkResult,
     VerificationJobRepository,
 )
 
@@ -47,6 +44,25 @@ async def _create_job(
     )
 
 
+async def _create_submission(
+    db_session: AsyncSession,
+    *,
+    requirement_id: str = "req-1",
+    is_validated: bool = True,
+    verification_completed: bool = True,
+):
+    return await SubmissionRepository(db_session).create(
+        user_id=USER_ID,
+        requirement_id=requirement_id,
+        submission_type=SubmissionType.GITHUB_PROFILE,
+        phase_id=0,
+        submitted_value="https://github.com/testuser",
+        extracted_username="testuser",
+        is_validated=is_validated,
+        verification_completed=verification_completed,
+    )
+
+
 class TestCreate:
     async def test_creates_verification_job(
         self,
@@ -58,12 +74,12 @@ class TestCreate:
         job = await _create_job(repo)
 
         assert isinstance(job.id, UUID)
-        assert job.status == VerificationJobStatus.QUEUED
         assert job.user_id == USER_ID
         assert job.requirement_id == "req-1"
         assert job.submission_type == SubmissionType.GITHUB_PROFILE
         assert job.traceparent is not None
         assert job.created_at is not None
+        assert job.result_submission_id is None
 
     async def test_create_or_get_active_returns_existing_active_job(
         self,
@@ -97,15 +113,15 @@ class TestCreate:
         )
         assert count == 1
 
-    async def test_terminal_job_allows_new_active_job(
+    async def test_linked_job_allows_new_active_job(
         self,
         db_session: AsyncSession,
         user,
     ):
-        """After PR3 the "active" predicate is ``result_submission_id IS NULL``,
-        so a terminal-but-unlinked row would still block. Real production
-        terminal calls always link a Submission (executor) or delete the
-        row (poller); the test reflects the executor path."""
+        """After ``link_submission`` flips a job out of the unlinked
+        partial unique index, a follow-up submit must succeed.
+        Mirrors the failure-retry path: persist a Submission and link
+        it, then submit again."""
         repo = VerificationJobRepository(db_session)
 
         first, first_created = await repo.create_or_get_active(
@@ -115,22 +131,15 @@ class TestCreate:
             phase_id=1,
             submitted_value="token-1",
         )
-        submission = await SubmissionRepository(db_session).create(
-            user_id=USER_ID,
+        submission = await _create_submission(
+            db_session,
             requirement_id="req-retry",
-            submission_type=SubmissionType.CTF_TOKEN,
-            phase_id=1,
-            submitted_value="token-1",
-            extracted_username=None,
             is_validated=False,
             verification_completed=True,
         )
-        await repo.mark_failed(
-            first.id,
-            error_code="validation_failed",
-            error_message="Try again",
-            result_submission_id=submission.id,
-        )
+        link = await repo.link_submission(first.id, submission.id)
+        assert link is LinkResult.LINKED
+
         second, second_created = await repo.create_or_get_active(
             user_id=USER_ID,
             requirement_id="req-retry",
@@ -151,10 +160,6 @@ class TestFind:
         db_session: AsyncSession,
         user,
     ):
-        """After PR3, ``get_active_for_requirement`` keys on
-        ``result_submission_id IS NULL`` rather than the status enum.
-        Use ``delete_active`` (the actual poller path post-PR2) to release
-        the first row, then create the second."""
         repo = VerificationJobRepository(db_session)
         first = await _create_job(repo, requirement_id="req-latest")
         deleted = await repo.delete_active(first.id)
@@ -181,73 +186,62 @@ class TestFind:
         assert result is None
 
 
-class TestStatusTransitions:
-    async def test_marks_starting_and_running(
+class TestLinkSubmission:
+    """``link_submission`` is the executor's terminal write."""
+
+    async def test_links_unlinked_job(
         self,
         db_session: AsyncSession,
         user,
     ):
         repo = VerificationJobRepository(db_session)
         job = await _create_job(repo)
+        submission = await _create_submission(db_session)
 
-        starting = await repo.mark_starting(job.id, "durable-instance-1")
-        assert starting is not None
-        assert starting.status == VerificationJobStatus.STARTING
-        assert starting.orchestration_instance_id == "durable-instance-1"
-        assert starting.started_at is not None
+        before = job.updated_at
+        result = await repo.link_submission(job.id, submission.id)
+        await db_session.commit()
 
-        running = await repo.mark_running(job.id)
+        assert result is LinkResult.LINKED
+        loaded = await repo.get_by_id(job.id)
+        assert loaded is not None
+        assert loaded.result_submission_id == submission.id
+        assert loaded.updated_at >= before
 
-        assert running is not None
-        assert running.status == VerificationJobStatus.RUNNING
-        assert running.started_at == starting.started_at
-
-    async def test_marks_succeeded_with_submission_result(
+    async def test_second_call_returns_already_linked(
         self,
         db_session: AsyncSession,
         user,
     ):
-        job_repo = VerificationJobRepository(db_session)
-        submission_repo = SubmissionRepository(db_session)
-        job = await _create_job(job_repo)
-        submission = await submission_repo.create(
-            user_id=USER_ID,
-            requirement_id="req-1",
-            submission_type=SubmissionType.GITHUB_PROFILE,
-            phase_id=0,
-            submitted_value="https://github.com/testuser",
-            extracted_username="testuser",
-            is_validated=True,
-        )
+        """Idempotency check: a Durable activity retry that re-runs
+        ``link_submission`` sees ``ALREADY_LINKED`` instead of writing
+        again."""
+        repo = VerificationJobRepository(db_session)
+        job = await _create_job(repo)
+        submission = await _create_submission(db_session)
 
-        updated = await job_repo.mark_succeeded(job.id, submission.id)
+        first = await repo.link_submission(job.id, submission.id)
+        # Even if the retry passes a different submission id, the row's
+        # existing link wins. Reuse the same id for simplicity.
+        second = await repo.link_submission(job.id, submission.id)
 
-        assert updated is not None
-        assert updated.status == VerificationJobStatus.SUCCEEDED
-        assert updated.result_submission_id == submission.id
-        assert updated.error_code is None
-        assert updated.error_message is None
-        assert updated.completed_at is not None
+        assert first is LinkResult.LINKED
+        assert second is LinkResult.ALREADY_LINKED
 
-    async def test_marks_server_error_with_error_details(
+    async def test_missing_job_returns_missing(
         self,
         db_session: AsyncSession,
         user,
     ):
         repo = VerificationJobRepository(db_session)
-        job = await _create_job(repo)
+        submission = await _create_submission(db_session)
 
-        updated = await repo.mark_server_error(
-            job.id,
-            error_code="github_unavailable",
-            error_message="GitHub API unavailable",
+        result = await repo.link_submission(
+            UUID("00000000-0000-0000-0000-000000000000"),
+            submission.id,
         )
 
-        assert updated is not None
-        assert updated.status == VerificationJobStatus.SERVER_ERROR
-        assert updated.error_code == "github_unavailable"
-        assert updated.error_message == "GitHub API unavailable"
-        assert updated.completed_at is not None
+        assert result is LinkResult.MISSING
 
 
 class TestDeleteActive:
@@ -277,23 +271,8 @@ class TestDeleteActive:
     ):
         repo = VerificationJobRepository(db_session)
         job = await _create_job(repo)
-
-        submission = await SubmissionRepository(db_session).create(
-            user_id=USER_ID,
-            requirement_id="req-1",
-            submission_type=SubmissionType.GITHUB_PROFILE,
-            phase_id=0,
-            submitted_value="https://github.com/testuser",
-            extracted_username="testuser",
-            is_validated=False,
-            verification_completed=True,
-        )
-        await repo.mark_failed(
-            job.id,
-            error_code="validation_failed",
-            error_message="nope",
-            result_submission_id=submission.id,
-        )
+        submission = await _create_submission(db_session)
+        await repo.link_submission(job.id, submission.id)
 
         deleted = await repo.delete_active(job.id)
 
@@ -301,30 +280,6 @@ class TestDeleteActive:
         loaded = await repo.get_by_id(job.id)
         assert loaded is not None
         assert loaded.result_submission_id == submission.id
-
-    async def test_refuses_when_status_already_terminal(
-        self,
-        db_session: AsyncSession,
-        user,
-    ):
-        repo = VerificationJobRepository(db_session)
-        job = await _create_job(repo)
-
-        # Move the job to a terminal status WITHOUT setting
-        # result_submission_id. This is the "Durable failed and persist
-        # already marked it terminal" race window.
-        await repo.mark_server_error(
-            job.id,
-            error_code="durable_failed",
-            error_message="durable failed",
-        )
-
-        deleted = await repo.delete_active(job.id)
-
-        assert deleted is False
-        loaded = await repo.get_by_id(job.id)
-        assert loaded is not None
-        assert loaded.status == VerificationJobStatus.SERVER_ERROR
 
     async def test_unknown_id_returns_false(
         self,

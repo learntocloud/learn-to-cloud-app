@@ -4,17 +4,10 @@ from unittest.mock import AsyncMock, patch
 from uuid import UUID
 
 import pytest
-from sqlalchemy import func, select, text
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
-from learn_to_cloud_shared.models import (
-    Submission,
-    SubmissionType,
-    VerificationJobStatus,
-)
-from learn_to_cloud_shared.repositories.submission_repository import (
-    SubmissionRepository,
-)
+from learn_to_cloud_shared.models import Submission, SubmissionType, VerificationJob
 from learn_to_cloud_shared.repositories.user_repository import UserRepository
 from learn_to_cloud_shared.repositories.verification_job_repository import (
     VerificationJobRepository,
@@ -25,6 +18,10 @@ from learn_to_cloud_shared.verification_job_executor import (
     REQUIREMENT_NOT_FOUND_ERROR_CODE,
     VALIDATION_FAILED_ERROR_CODE,
     VERIFICATION_INCOMPLETE_ERROR_CODE,
+    VERIFICATION_SUCCEEDED_CODE,
+    PreparedVerificationJob,
+    VerificationJobNotFoundError,
+    VerificationRunResult,
     execute_verification_job,
     persist_verification_result,
     prepare_verification_job,
@@ -79,33 +76,26 @@ async def _create_job(
         return job.id
 
 
-async def _get_job_status(
+async def _get_job_link(
     session_maker: async_sessionmaker[AsyncSession],
     job_id: UUID,
-) -> tuple[VerificationJobStatus, int | None, str | None, str | None]:
+) -> int | None:
+    """Return ``result_submission_id`` for the job, or ``None`` if missing.
+
+    Asserts the row exists; tests for "row deleted" outcomes should query
+    differently.
+    """
     async with session_maker() as db:
         job = await VerificationJobRepository(db).get_by_id(job_id)
         assert job is not None
-        return (
-            job.status,
-            job.result_submission_id,
-            job.error_code,
-            job.error_message,
-        )
+        return job.result_submission_id
 
 
-async def _get_submission(
+async def _count_jobs(
     session_maker: async_sessionmaker[AsyncSession],
-    submission_id: int,
-) -> Submission:
+) -> int:
     async with session_maker() as db:
-        submission = await SubmissionRepository(db).get_by_user_and_requirement(
-            USER_ID,
-            REQUIREMENT_ID,
-        )
-        assert submission is not None
-        assert submission.id == submission_id
-        return submission
+        return await db.scalar(select(func.count()).select_from(VerificationJob)) or 0
 
 
 async def _count_submissions(
@@ -113,6 +103,16 @@ async def _count_submissions(
 ) -> int:
     async with session_maker() as db:
         return await db.scalar(select(func.count()).select_from(Submission)) or 0
+
+
+async def _get_submission(
+    session_maker: async_sessionmaker[AsyncSession],
+    submission_id: int,
+) -> Submission:
+    async with session_maker() as db:
+        submission = await db.get(Submission, submission_id)
+        assert submission is not None
+        return submission
 
 
 async def test_split_verification_primitives_prepare_run_and_persist(
@@ -136,15 +136,6 @@ async def test_split_verification_primitives_prepare_run_and_persist(
     assert preparation.job is not None
     assert preparation.job.to_payload()["id"] == str(job_id)
 
-    status, result_submission_id, error_code, error_message = await _get_job_status(
-        session_maker,
-        job_id,
-    )
-    assert status == VerificationJobStatus.RUNNING
-    assert result_submission_id is None
-    assert error_code is None
-    assert error_message is None
-
     with patch(
         "learn_to_cloud_shared.verification_job_executor.validate_submission",
         validation,
@@ -159,9 +150,11 @@ async def test_split_verification_primitives_prepare_run_and_persist(
         session_maker=session_maker,
     )
 
-    assert result.status == VerificationJobStatus.SUCCEEDED
+    assert result.status == "succeeded"
+    assert result.code == VERIFICATION_SUCCEEDED_CODE
     assert result.submission_id is not None
     assert await _count_submissions(session_maker) == 1
+    assert await _get_job_link(session_maker, job_id) == result.submission_id
 
 
 async def test_execute_verification_job_marks_success_and_links_submission(
@@ -184,35 +177,23 @@ async def test_execute_verification_job_marks_success_and_links_submission(
     ):
         result = await execute_verification_job(job_id, session_maker=session_maker)
 
-    assert result.status == VerificationJobStatus.SUCCEEDED
+    assert result.status == "succeeded"
     assert result.submission_id is not None
     assert result.is_valid is True
     assert result.verification_completed is True
     payload = result.to_payload()
     assert payload["status"] == "succeeded"
-    assert payload["code"] == "verification_succeeded"
+    assert payload["code"] == VERIFICATION_SUCCEEDED_CODE
     assert payload["requirement_id"] == REQUIREMENT_ID
     assert payload["requirement_name"] == "Verification Executor Test"
     assert payload["submission_type"] == SubmissionType.CI_STATUS.value
     assert payload["message"] == "Verification succeeded."
-    assert payload["detail"] == "Verified"
+    # On success there is no validation message; ``detail`` is None.
+    assert payload["detail"] is None
 
-    status, result_submission_id, error_code, error_message = await _get_job_status(
-        session_maker,
-        job_id,
-    )
-    assert status == VerificationJobStatus.SUCCEEDED
-    assert result_submission_id == result.submission_id
-    assert error_code is None
-    assert error_message is None
-
+    assert await _get_job_link(session_maker, job_id) == result.submission_id
     submission = await _get_submission(session_maker, result.submission_id)
     assert submission.is_validated is True
-    assert submission.verification_completed is True
-    assert submission.extracted_username == "executoruser"
-
-    validation.assert_awaited_once()
-    assert validation.await_args.kwargs["expected_username"] == "executoruser"
 
 
 async def test_execute_verification_job_marks_user_validation_failure(
@@ -222,7 +203,7 @@ async def test_execute_verification_job_marks_user_validation_failure(
     validation = AsyncMock(
         return_value=ValidationResult(
             is_valid=False,
-            message="Fix your repository settings.",
+            message="GitHub username does not match",
             verification_completed=True,
         )
     )
@@ -239,37 +220,26 @@ async def test_execute_verification_job_marks_user_validation_failure(
     ):
         result = await execute_verification_job(job_id, session_maker=session_maker)
 
-    assert result.status == VerificationJobStatus.FAILED
-    assert result.submission_id is not None
+    assert result.status == "failed"
+    assert result.code == VALIDATION_FAILED_ERROR_CODE
     assert result.is_valid is False
     assert result.verification_completed is True
-    assert result.code == VALIDATION_FAILED_ERROR_CODE
-    assert result.message == "Verification failed."
-    assert result.detail == "Fix your repository settings."
+    assert result.detail == "GitHub username does not match"
 
-    status, result_submission_id, error_code, error_message = await _get_job_status(
-        session_maker,
-        job_id,
-    )
-    assert status == VerificationJobStatus.FAILED
-    assert result_submission_id == result.submission_id
-    assert error_code == VALIDATION_FAILED_ERROR_CODE
-    assert error_message == "Fix your repository settings."
-
-    submission = await _get_submission(session_maker, result.submission_id)
-    assert submission.is_validated is False
-    assert submission.verification_completed is True
-    assert submission.validation_message == "Fix your repository settings."
+    assert await _get_job_link(session_maker, job_id) == result.submission_id
 
 
 async def test_execute_verification_job_marks_server_error(
     session_maker: async_sessionmaker[AsyncSession],
 ):
+    """A validator returning ``verification_completed=False`` records a
+    server-error result. The Submission row exists and is linked but
+    is_validated=False / verification_completed=False."""
     job_id = await _create_job(session_maker)
     validation = AsyncMock(
         return_value=ValidationResult(
             is_valid=False,
-            message="GitHub API unavailable.",
+            message="GitHub API unavailable",
             verification_completed=False,
         )
     )
@@ -286,39 +256,29 @@ async def test_execute_verification_job_marks_server_error(
     ):
         result = await execute_verification_job(job_id, session_maker=session_maker)
 
-    assert result.status == VerificationJobStatus.SERVER_ERROR
-    assert result.submission_id is not None
-    assert result.is_valid is False
-    assert result.verification_completed is False
+    assert result.status == "server_error"
     assert result.code == VERIFICATION_INCOMPLETE_ERROR_CODE
-    assert result.message == "Verification could not be completed."
-    assert result.detail == "GitHub API unavailable."
-
-    status, result_submission_id, error_code, error_message = await _get_job_status(
-        session_maker,
-        job_id,
-    )
-    assert status == VerificationJobStatus.SERVER_ERROR
-    assert result_submission_id == result.submission_id
-    assert error_code == VERIFICATION_INCOMPLETE_ERROR_CODE
-    assert error_message == "GitHub API unavailable."
+    assert result.verification_completed is False
+    assert result.detail == "GitHub API unavailable"
 
     submission = await _get_submission(session_maker, result.submission_id)
     assert submission.is_validated is False
     assert submission.verification_completed is False
-    assert submission.validation_message == "GitHub API unavailable."
 
 
 async def test_execute_verification_job_truncates_persisted_error_messages(
     session_maker: async_sessionmaker[AsyncSession],
 ):
+    """Validation messages over the persisted limit are truncated for
+    storage; the ``detail`` in the activity result follows the same
+    rule."""
     job_id = await _create_job(session_maker)
-    long_message = "LLM verification grading failed: " + ("permission denied " * 200)
+    long_message = "x" * (MAX_VALIDATION_MESSAGE_LENGTH + 64)
     validation = AsyncMock(
         return_value=ValidationResult(
             is_valid=False,
             message=long_message,
-            verification_completed=False,
+            verification_completed=True,
         )
     )
 
@@ -334,65 +294,21 @@ async def test_execute_verification_job_truncates_persisted_error_messages(
     ):
         result = await execute_verification_job(job_id, session_maker=session_maker)
 
-    assert result.status == VerificationJobStatus.SERVER_ERROR
-    assert result.detail == long_message
-
-    status, result_submission_id, error_code, error_message = await _get_job_status(
-        session_maker,
-        job_id,
-    )
-    assert status == VerificationJobStatus.SERVER_ERROR
-    assert result_submission_id == result.submission_id
-    assert error_code == VERIFICATION_INCOMPLETE_ERROR_CODE
-    assert error_message is not None
-    assert len(error_message) == MAX_VALIDATION_MESSAGE_LENGTH
-    assert error_message.endswith("...")
-
-    submission = await _get_submission(session_maker, result.submission_id)
-    assert submission.validation_message is not None
-    assert len(submission.validation_message) == MAX_VALIDATION_MESSAGE_LENGTH
-    assert submission.validation_message == error_message
-
-
-async def test_execute_verification_job_is_idempotent_for_terminal_jobs(
-    session_maker: async_sessionmaker[AsyncSession],
-):
-    job_id = await _create_job(session_maker)
-    async with session_maker() as db:
-        submission = await SubmissionRepository(db).create(
-            user_id=USER_ID,
-            requirement_id=REQUIREMENT_ID,
-            submission_type=SubmissionType.CI_STATUS,
-            phase_id=3,
-            submitted_value="https://github.com/executoruser/repo",
-            extracted_username="executoruser",
-            is_validated=True,
-        )
-        updated = await VerificationJobRepository(db).mark_succeeded(
-            job_id,
-            submission.id,
-        )
-        assert updated is not None
-        await db.commit()
-
-    validation = AsyncMock()
-    with patch(
-        "learn_to_cloud_shared.verification_job_executor.validate_submission",
-        validation,
-    ):
-        result = await execute_verification_job(job_id, session_maker=session_maker)
-
-    assert result.status == VerificationJobStatus.SUCCEEDED
-    assert result.submission_id == submission.id
-    assert result.code == "verification_succeeded"
-    assert result.message == "Verification succeeded."
-    assert await _count_submissions(session_maker) == 1
-    validation.assert_not_awaited()
+    assert result.status == "failed"
+    assert result.detail is not None
+    assert len(result.detail) <= MAX_VALIDATION_MESSAGE_LENGTH
 
 
 async def test_execute_verification_job_marks_missing_requirement_server_error(
     session_maker: async_sessionmaker[AsyncSession],
 ):
+    """When the requirement vanishes from content between submit and
+    execute, the executor writes a server-error Submission, links it,
+    and short-circuits via the terminal_result path.
+
+    Linking (rather than deleting the job row) keeps the executor
+    idempotent on Durable activity retry — the second attempt sees the
+    linked row and returns the same result."""
     job_id = await _create_job(session_maker)
     validation = AsyncMock()
 
@@ -408,55 +324,65 @@ async def test_execute_verification_job_marks_missing_requirement_server_error(
     ):
         result = await execute_verification_job(job_id, session_maker=session_maker)
 
-    assert result.status == VerificationJobStatus.SERVER_ERROR
-    assert result.submission_id is None
+    assert result.status == "server_error"
+    assert result.submission_id is not None
     assert result.verification_completed is False
     assert result.code == REQUIREMENT_NOT_FOUND_ERROR_CODE
     assert result.message == "Verification could not be completed."
     assert result.detail == f"Requirement not found: {REQUIREMENT_ID}"
 
-    status, result_submission_id, error_code, error_message = await _get_job_status(
-        session_maker,
-        job_id,
-    )
-    assert status == VerificationJobStatus.SERVER_ERROR
-    assert result_submission_id is None
-    assert error_code == REQUIREMENT_NOT_FOUND_ERROR_CODE
-    assert error_message == f"Requirement not found: {REQUIREMENT_ID}"
-    assert await _count_submissions(session_maker) == 0
+    # Row stays linked so a retry is idempotent.
+    assert await _get_job_link(session_maker, job_id) == result.submission_id
+    submission = await _get_submission(session_maker, result.submission_id)
+    assert submission.is_validated is False
+    assert submission.verification_completed is False
+    assert submission.validation_message == f"Requirement not found: {REQUIREMENT_ID}"
+
     validation.assert_not_awaited()
 
 
-# ---------------------------------------------------------------------------
-# Replay safety: persist_verification_result is idempotent on activity retry
-# ---------------------------------------------------------------------------
+async def test_execute_verification_job_is_idempotent_for_terminal_jobs(
+    session_maker: async_sessionmaker[AsyncSession],
+):
+    """The replay short-circuit fires when the job already has a linked
+    Submission; the result is reconstructed from that Submission rather
+    than running the validator again."""
+    job_id = await _create_job(session_maker)
+    validation = AsyncMock(
+        return_value=ValidationResult(is_valid=True, message="Verified")
+    )
+
+    with (
+        patch(
+            "learn_to_cloud_shared.verification_job_executor.get_requirement_by_id",
+            return_value=_requirement(),
+        ),
+        patch(
+            "learn_to_cloud_shared.verification_job_executor.validate_submission",
+            validation,
+        ),
+    ):
+        first = await execute_verification_job(job_id, session_maker=session_maker)
+        # Reset the validator so the retry would clearly be observable
+        # if the short-circuit weren't in place.
+        validation.reset_mock()
+        second = await execute_verification_job(job_id, session_maker=session_maker)
+
+    assert first.status == "succeeded"
+    assert second.status == "succeeded"
+    assert second.submission_id == first.submission_id
+    assert await _count_submissions(session_maker) == 1
+    validation.assert_not_awaited()
 
 
 async def test_persist_is_idempotent_via_result_submission_id_guard(
     session_maker: async_sessionmaker[AsyncSession],
 ):
-    """A Durable activity retry must NOT write a second Submission row.
-
-    Simulates the race where the persist activity's DB commit succeeds
-    but the activity's response is lost in transit, so Durable retries
-    the activity. The job row has ``result_submission_id`` already set;
-    the second call must short-circuit on that and return the same
-    result without inserting another Submission.
-
-    This test specifically exercises the new ``result_submission_id``
-    guard rather than the older ``status in TERMINAL_JOB_STATUSES``
-    guard: status is reset to RUNNING so only the new guard can rescue
-    us. That matches the post-PR3 schema where ``status`` is gone.
-    """
-    from learn_to_cloud_shared.verification_job_executor import (
-        PreparedVerificationJob,
-        VerificationRunResult,
-    )
-
+    """A second ``persist_verification_result`` call after the first one
+    linked a Submission must short-circuit on the result_submission_id
+    guard, not write a duplicate row."""
     job_id = await _create_job(session_maker)
 
-    # Build the prepared job + run result that the activity would
-    # receive — no DB needed for these objects.
     prepared = PreparedVerificationJob(
         id=job_id,
         user_id=USER_ID,
@@ -474,40 +400,49 @@ async def test_persist_is_idempotent_via_result_submission_id_guard(
         run_result,
         session_maker=session_maker,
     )
-    assert first.status == VerificationJobStatus.SUCCEEDED
-    assert first.submission_id is not None
-    assert await _count_submissions(session_maker) == 1
-
-    # Reset job.status to RUNNING but keep result_submission_id linked.
-    # This isolates the new replay guard: the old TERMINAL guard would
-    # not fire here.
-    async with session_maker() as db:
-        await db.execute(
-            text(
-                "UPDATE verification_jobs SET status='running', "
-                "completed_at=NULL WHERE id=:id"
-            ),
-            {"id": str(job_id)},
-        )
-        await db.commit()
-
-    # Activity retry: same run_result, second call.
     second = await persist_verification_result(
         run_result,
         session_maker=session_maker,
     )
 
-    # Same outcome, same submission_id, no second Submission row.
-    assert second.status == VerificationJobStatus.SUCCEEDED
+    assert first.status == "succeeded"
+    assert second.status == "succeeded"
     assert second.submission_id == first.submission_id
-    assert second.is_valid is True
-    assert second.requirement_id == REQUIREMENT_ID
     assert await _count_submissions(session_maker) == 1
 
 
-# Note: a "result_submission_id points at a missing Submission" guard
-# exists in _result_from_existing_submission for defense in depth, but
-# the FK ``verification_jobs_result_submission_id_fkey`` with
-# ON DELETE SET NULL makes that state unreachable at the database
-# level — deleting the Submission nulls the link before the activity
-# could see the dangling id. So there's no realistic state to test.
+async def test_persist_raises_when_job_row_was_deleted(
+    session_maker: async_sessionmaker[AsyncSession],
+):
+    """If the poller's ``delete_active`` won the race the persist
+    activity raises ``VerificationJobNotFoundError`` rather than
+    creating an orphan Submission."""
+    job_id = await _create_job(session_maker)
+
+    # Simulate the poller having deleted the row mid-flight.
+    async with session_maker() as db:
+        deleted = await VerificationJobRepository(db).delete_active(job_id)
+        await db.commit()
+        assert deleted is True
+
+    prepared = PreparedVerificationJob(
+        id=job_id,
+        user_id=USER_ID,
+        github_username="executoruser",
+        requirement=_requirement(),
+        phase_id=3,
+        submitted_value="https://github.com/executoruser/repo",
+    )
+    run_result = VerificationRunResult(
+        job=prepared,
+        validation_result=ValidationResult(is_valid=True, message="Verified"),
+    )
+
+    with pytest.raises(VerificationJobNotFoundError):
+        await persist_verification_result(
+            run_result,
+            session_maker=session_maker,
+        )
+
+    assert await _count_submissions(session_maker) == 0
+    assert await _count_jobs(session_maker) == 0

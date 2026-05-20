@@ -123,18 +123,6 @@ class SubmissionType(StrEnum):
     SECURITY_SCANNING = "security_scanning"
 
 
-class VerificationJobStatus(StrEnum):
-    """Lifecycle status for an asynchronous verification job."""
-
-    QUEUED = "queued"
-    STARTING = "starting"
-    RUNNING = "running"
-    SUCCEEDED = "succeeded"
-    FAILED = "failed"
-    SERVER_ERROR = "server_error"
-    CANCELLED = "cancelled"
-
-
 class Submission(TimestampMixin, Base):
     """Tracks validated submissions for hands-on verification.
 
@@ -225,7 +213,16 @@ class Submission(TimestampMixin, Base):
 
 
 class VerificationJob(TimestampMixin, Base):
-    """App-facing status record for asynchronous verification execution."""
+    """Work-queue marker for asynchronous verification execution.
+
+    A row exists during in-flight Durable orchestration. The persist
+    activity links a ``Submission`` via ``result_submission_id`` when
+    work completes; the poller deletes the row if Durable reports
+    terminal failure. PR4 dropped the legacy ``status`` enum, the
+    ``mark_*`` lifecycle methods, and the Postgres-side error /
+    timestamp columns — Durable owns runtime state, ``Submission``
+    owns the outcome.
+    """
 
     __tablename__ = "verification_jobs"
     __table_args__ = (
@@ -235,17 +232,6 @@ class VerificationJob(TimestampMixin, Base):
             "requirement_id",
             "created_at",
         ),
-        Index("ix_verification_jobs_status_updated", "status", "updated_at"),
-        Index(
-            "uq_verification_jobs_active_user_requirement",
-            "user_id",
-            "requirement_id",
-            unique=True,
-            postgresql_where=text("status IN ('queued', 'starting', 'running')"),
-        ),
-        # PR3 expand step: result_submission_id-keyed predicates replace
-        # the status-based "active job" index. Kept alongside the legacy
-        # index until PR4 drops the status column.
         Index(
             "uq_verification_jobs_active_user_requirement_v2",
             "user_id",
@@ -285,36 +271,12 @@ class VerificationJob(TimestampMixin, Base):
     submitted_value: Mapped[str] = mapped_column(Text, nullable=False)
     extracted_username: Mapped[str | None] = mapped_column(String(255), nullable=True)
     cloud_provider: Mapped[str | None] = mapped_column(String(16), nullable=True)
-    status: Mapped[VerificationJobStatus] = mapped_column(
-        Enum(
-            VerificationJobStatus,
-            name="verification_job_status",
-            native_enum=False,
-            create_constraint=True,
-            values_callable=lambda x: [e.value for e in x],
-        ),
-        nullable=False,
-        default=VerificationJobStatus.QUEUED,
-    )
-    orchestration_instance_id: Mapped[str | None] = mapped_column(
-        String(255), nullable=True
-    )
     result_submission_id: Mapped[int | None] = mapped_column(
         Integer,
         ForeignKey("submissions.id", ondelete="SET NULL"),
         nullable=True,
     )
-    error_code: Mapped[str | None] = mapped_column(String(100), nullable=True)
-    error_message: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     traceparent: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    started_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True),
-        nullable=True,
-    )
-    completed_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True),
-        nullable=True,
-    )
 
     user: Mapped["User"] = relationship(back_populates="verification_jobs")
     result_submission: Mapped["Submission | None"] = relationship(
