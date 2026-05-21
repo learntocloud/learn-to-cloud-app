@@ -188,7 +188,23 @@ On a topic page:
 
 Navigate to the target phase page and submit its verification requirement.
 
-### 5a — Navigate to the phase page
+### 5a — Reset any existing submission
+
+Before submitting, reset the existing submission for the target requirement so
+the form is in a clean state:
+
+```bash
+cd /workspaces/learn-to-cloud-app/api && uv run python scripts/reset_local_submissions.py \
+  --requirement-id <requirement-id> \
+  --user-id 6733686
+```
+
+Replace `<requirement-id>` with the value from the Submission Types Reference
+table (e.g. `journal-api-implementation` for phase 3). The `--user-id` is the
+GitHub user ID for `madebygps` (`6733686`). Run with `--dry-run` first if you
+want to preview what will be deleted.
+
+### 5b — Navigate to the phase page
 
 ```
 http://localhost:8000/phase/{N}
@@ -198,7 +214,7 @@ Confirm the page loads (no 500, `<nav>` and `<main>` present). Find the
 requirement card for the target requirement ID (see the Submission Types
 Reference table above).
 
-### 5b — Submit the requirement
+### 5c — Submit the requirement
 
 - For **auto-derived** types: the input is pre-filled or read-only. Just click
   the `Submit` button on the requirement card.
@@ -211,7 +227,7 @@ After submitting, the page will either:
 - Show an inline result immediately (sync types)
 - Show a spinner / "verification in progress" state (async/Functions types)
 
-### 5c — Poll for verification result (async types only)
+### 5d — Poll for verification result (async types only)
 
 For phases 3–6, the requirement card will poll automatically via HTMX. Wait
 up to 60 seconds for the spinner to resolve. Use
@@ -221,12 +237,16 @@ up to 60 seconds for the spinner to resolve. Use
 
 Report the final state and any visible message text from the card.
 
-### 5d — Undo the submission (cleanup)
+### 5e — Reset after test (cleanup)
 
-If verification succeeded and you want to leave the DB clean, note that you
-can reset submissions via `scripts/reset_submissions.py` if it exists, or
-just report and leave it. Do not attempt to undo via the UI unless there is
-an explicit "reset" button.
+After recording the result, reset the submission again to leave the DB clean
+for the next run:
+
+```bash
+cd /workspaces/learn-to-cloud-app/api && uv run python scripts/reset_local_submissions.py \
+  --requirement-id <requirement-id> \
+  --user-id 6733686
+```
 
 ---
 
