@@ -28,7 +28,7 @@ _DERIVABLE_TYPES: frozenset[SubmissionType] = frozenset(
         SubmissionType.GITHUB_PROFILE,
         SubmissionType.PROFILE_README,
         SubmissionType.REPO_FORK,
-        SubmissionType.CI_STATUS,
+        SubmissionType.JOURNAL_API_VERIFIER,
         SubmissionType.DEVOPS_ANALYSIS,
         SubmissionType.SECURITY_SCANNING,
     }
@@ -104,7 +104,7 @@ def derive_submission_value(
 
     if sub_type in (
         SubmissionType.REPO_FORK,
-        SubmissionType.CI_STATUS,
+        SubmissionType.JOURNAL_API_VERIFIER,
         SubmissionType.DEVOPS_ANALYSIS,
         SubmissionType.SECURITY_SCANNING,
     ):

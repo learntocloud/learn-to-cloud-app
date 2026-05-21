@@ -111,7 +111,7 @@ class SubmissionType(StrEnum):
     # rolling deploys before the 0015 migration converts them to ci_status.
     CODE_ANALYSIS = "code_analysis"
     PR_REVIEW = "pr_review"
-    CI_STATUS = "ci_status"
+    JOURNAL_API_VERIFIER = "journal_api_verifier"
 
     # Phase 4: Cloud deployment validation
     DEPLOYED_API = "deployed_api"

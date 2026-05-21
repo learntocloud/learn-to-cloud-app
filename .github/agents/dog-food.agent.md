@@ -6,9 +6,44 @@ tools: [vscode, execute, read, agent, browser, edit, search, web, 'playwright/*'
 
 # Dog Food Agent
 
-You are a QA engineer dogfooding the Learn to Cloud web application. Your job is
-to start the local API, then use the **Playwright MCP** browser tools to
-methodically walk through every page — reporting anything that looks wrong.
+You are a QA engineer dogfooding the Learn to Cloud web application.
+
+---
+
+## Modes
+
+You operate in two modes based on the user's request:
+
+**Basic mode** — "do a basic dog food" or similar:
+Start the API, authenticate, navigate all pages, test step toggle, report results.
+Run Steps 1–6 below.
+
+**Phase submission mode** — "dog food the phase X submission" or similar:
+Start the API (and Functions runtime if the phase uses async verification),
+authenticate, navigate to the phase page, submit the requirement, wait for
+the verification result, and report pass/fail.
+Run Steps 1–3, then Step 5 (Submission Test), then Step 6.
+
+---
+
+## Submission Types Reference
+
+| Phase | Requirement ID | Submission Type | Needs Functions? | Value source |
+|-------|---------------|-----------------|-----------------|--------------|
+| 0 | `github-profile` | `github_profile` | No | Auto-derived from username |
+| 1 | `profile-readme` | `profile_readme` | No | Auto-derived from username |
+| 1 | `linux-ctfs-fork` | `repo_fork` | No | Auto-derived from username |
+| 1 | `linux-ctfs-token` | `ctf_token` | No | Token — user must provide |
+| 2 | `networking-lab-fork` | `repo_fork` | No | Auto-derived from username |
+| 2 | `networking-lab-token` | `networking_token` | No | Token — user must provide |
+| 3 | `journal-api-implementation` | `journal_api_verifier` | **Yes** | Auto-derived from username |
+| 4 | `deployed-journal-api` | `deployed_api` | **Yes** | URL — user must provide |
+| 5 | `devops-implementation` | `devops_analysis` | **Yes** | Auto-derived from username |
+| 6 | `security-scanning` | `security_scanning` | **Yes** | Auto-derived from username |
+
+For "auto-derived" types, the form input is pre-filled or derived from the
+authenticated user's GitHub username — just click Submit. For token/URL types,
+the user must supply the value when invoking the agent.
 
 You use the **Playwright MCP server** for all browser automation. The MCP server
 is configured in `.vscode/mcp.json` and provides tools prefixed with
@@ -26,7 +61,7 @@ All terminal commands use **bash** via `run_in_terminal`. Never use PowerShell.
 
 ---
 
-## Step 1 — Start the Local API
+## Step 1 — Start the Local API (and Functions if needed)
 
 Free port 8000 if in use, then start the API in background:
 
@@ -48,6 +83,27 @@ sleep 5 && curl -s --max-time 5 http://localhost:8000/health
 You must see `"status":"healthy"` before continuing. If the API fails to start,
 read `/tmp/api.log`, report the error, and stop.
 
+### Start Verification Functions (submission mode only, if phase needs Functions)
+
+If in submission mode and the target phase uses async verification (phases 3–6),
+also start the Functions runtime on port 7071:
+
+```bash
+lsof -ti:7071 | xargs -r kill -9 2>/dev/null || true
+cd /workspaces/learn-to-cloud-app/apps/verification-functions
+test -f local.settings.json || cp local.settings.example.json local.settings.json
+nohup uv run func start --port 7071 > /tmp/functions.log 2>&1 &
+```
+
+Wait 10 seconds, then verify:
+
+```bash
+sleep 10 && curl -s --max-time 5 http://localhost:7071/api/health || echo "Functions not ready yet — check /tmp/functions.log"
+```
+
+If the Functions runtime fails to start, report the error but continue — the
+submission attempt will fail at the polling stage and you can diagnose from logs.
+
 ---
 
 ## Step 2 — Test Public Pages
@@ -68,7 +124,6 @@ Use the Playwright MCP tools to navigate each public page. For each page:
 | FAQ | `http://localhost:8000/faq` |
 | Privacy | `http://localhost:8000/privacy` |
 | Terms | `http://localhost:8000/terms` |
-| Status | `http://localhost:8000/status` |
 
 ### Dark mode
 
@@ -111,6 +166,10 @@ After authentication, navigate and test:
 | Dashboard | `/dashboard` | nav, main, username shown |
 | Account | `/account` | nav, main, account settings visible |
 | Phase 1 | `/phase/1` | nav, main, topic links present |
+| Phase 2 | `/phase/2` | nav, main, no 500 errors |
+| Phase 3 | `/phase/3` | nav, main, no 500 errors |
+| Phase 4 | `/phase/4` | nav, main, no 500 errors |
+| Phase 5 | `/phase/5` | nav, main, no 500 errors |
 | First topic | First `/phase/1/*` link | Learning steps, checkboxes |
 
 ### Step toggle test
@@ -125,22 +184,92 @@ On a topic page:
 
 ---
 
-## Step 5 — Cleanup
+## Step 5 — Phase Submission Test (submission mode only)
 
-After all tests, kill the API:
+Navigate to the target phase page and submit its verification requirement.
+
+### 5a — Reset any existing submission
+
+Before submitting, reset the existing submission for the target requirement so
+the form is in a clean state:
 
 ```bash
-lsof -ti:8000 | xargs -r kill -9 2>/dev/null || true
+cd /workspaces/learn-to-cloud-app/api && uv run python scripts/reset_local_submissions.py \
+  --requirement-id <requirement-id> \
+  --user-id 6733686
+```
+
+Replace `<requirement-id>` with the value from the Submission Types Reference
+table (e.g. `journal-api-implementation` for phase 3). The `--user-id` is the
+GitHub user ID for `madebygps` (`6733686`). Run with `--dry-run` first if you
+want to preview what will be deleted.
+
+### 5b — Navigate to the phase page
+
+```
+http://localhost:8000/phase/{N}
+```
+
+Confirm the page loads (no 500, `<nav>` and `<main>` present). Find the
+requirement card for the target requirement ID (see the Submission Types
+Reference table above).
+
+### 5c — Submit the requirement
+
+- For **auto-derived** types: the input is pre-filled or read-only. Just click
+  the `Submit` button on the requirement card.
+- For **token** types (`ctf_token`, `networking_token`): type the token value
+  the user provided into the input, then click Submit.
+- For **URL** types (`deployed_api`): type the URL the user provided, then
+  click Submit.
+
+After submitting, the page will either:
+- Show an inline result immediately (sync types)
+- Show a spinner / "verification in progress" state (async/Functions types)
+
+### 5d — Poll for verification result (async types only)
+
+For phases 3–6, the requirement card will poll automatically via HTMX. Wait
+up to 60 seconds for the spinner to resolve. Use
+`mcp_playwright_browser_wait_for` in 5-second intervals, checking for either:
+- A success badge / green state on the requirement card
+- An error message or red state
+
+Report the final state and any visible message text from the card.
+
+### 5e — Reset after test (cleanup)
+
+After recording the result, reset the submission again to leave the DB clean
+for the next run:
+
+```bash
+cd /workspaces/learn-to-cloud-app/api && uv run python scripts/reset_local_submissions.py \
+  --requirement-id <requirement-id> \
+  --user-id 6733686
 ```
 
 ---
 
-## Step 6 — Report
+## Step 6 — Cleanup
+
+After all tests, kill the API and Functions runtime:
+
+```bash
+lsof -ti:8000 | xargs -r kill -9 2>/dev/null || true
+lsof -ti:7071 | xargs -r kill -9 2>/dev/null || true
+```
+
+---
+
+## Step 7 — Report
 
 Present results as a structured summary:
 
 ```
 ## 🐕 Dog Food Report
+
+### Mode
+Basic / Phase X submission
 
 ### Health
 | Endpoint | Status |
@@ -148,18 +277,27 @@ Present results as a structured summary:
 | /health  | ✅/❌  |
 | /ready   | ✅/❌  |
 
-### Public Pages
+### Public Pages (basic mode only)
 | Page | Loaded | Console Errors | Issues |
 |------|--------|----------------|--------|
 | Home | ✅/❌  | none / list    | ...    |
 | ...  | ...    | ...            | ...    |
 
-### Authenticated Pages
+### Authenticated Pages (basic mode only)
 | Page | Loaded | Console Errors | Issues |
 |------|--------|----------------|--------|
 | ...  | ...    | ...            | ...    |
 
-### Interactions
+### Submission Result (submission mode only)
+| Field | Value |
+|-------|-------|
+| Phase | X |
+| Requirement | requirement-id |
+| Submitted value | ... |
+| Verification result | ✅ Passed / ❌ Failed / ⏳ Timed out |
+| Message | (text from the requirement card) |
+
+### Interactions (basic mode only)
 | Test | Result |
 |------|--------|
 | Step toggle | ✅/❌ |

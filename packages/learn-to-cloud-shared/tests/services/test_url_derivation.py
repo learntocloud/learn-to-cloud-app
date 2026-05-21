@@ -37,7 +37,7 @@ class TestIsDerivable:
             SubmissionType.GITHUB_PROFILE,
             SubmissionType.PROFILE_README,
             SubmissionType.REPO_FORK,
-            SubmissionType.CI_STATUS,
+            SubmissionType.JOURNAL_API_VERIFIER,
             SubmissionType.DEVOPS_ANALYSIS,
             SubmissionType.SECURITY_SCANNING,
         ],
@@ -94,9 +94,9 @@ class TestDeriveSubmissionValue:
             == "https://github.com/alice/linux-ctfs"
         )
 
-    def test_ci_status(self):
+    def test_journal_api_verifier(self):
         req = _req(
-            SubmissionType.CI_STATUS,
+            SubmissionType.JOURNAL_API_VERIFIER,
             required_repo="learntocloud/journal-starter",
         )
         assert (

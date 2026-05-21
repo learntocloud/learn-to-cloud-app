@@ -49,7 +49,7 @@ def _mock_phase_id_mapping():
 
 
 def _make_mock_requirement(
-    submission_type: SubmissionType = SubmissionType.CI_STATUS,
+    submission_type: SubmissionType = SubmissionType.JOURNAL_API_VERIFIER,
 ) -> HandsOnRequirement:
     """Create a mock requirement for testing."""
     return HandsOnRequirement(
@@ -64,7 +64,7 @@ def _make_mock_submission(
     *,
     is_validated: bool = False,
     verification_completed: bool = True,
-    submission_type: SubmissionType = SubmissionType.CI_STATUS,
+    submission_type: SubmissionType = SubmissionType.JOURNAL_API_VERIFIER,
 ) -> MagicMock:
     """Create a mock Submission DB model with all fields for _to_submission_data."""
     return MagicMock(
@@ -127,11 +127,11 @@ class TestSubmissionValidationErrors:
             )
 
     @pytest.mark.asyncio
-    async def test_github_username_required_for_ci_status(self):
-        """CI_STATUS without github_username should raise error."""
+    async def test_github_username_required_for_journal_api_verifier(self):
+        """JOURNAL_API_VERIFIER without github_username should raise error."""
         mock_session_maker = _mock_session_maker()
         mock_requirement = _make_mock_requirement(
-            submission_type=SubmissionType.CI_STATUS
+            submission_type=SubmissionType.JOURNAL_API_VERIFIER
         )
 
         with (
@@ -419,7 +419,7 @@ class TestSyncDispatchBranch:
         VerificationJob path and returns VerificationJobSubmission."""
         mock_session_maker = _mock_session_maker()
         mock_requirement = _make_mock_requirement(
-            submission_type=SubmissionType.CI_STATUS,
+            submission_type=SubmissionType.JOURNAL_API_VERIFIER,
         )
         mock_job = MagicMock()
 

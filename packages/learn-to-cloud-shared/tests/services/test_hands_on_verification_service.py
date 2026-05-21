@@ -208,7 +208,7 @@ class TestValidateSubmissionUsernameRequirements:
             SubmissionType.REPO_FORK,
             SubmissionType.CTF_TOKEN,
             SubmissionType.NETWORKING_TOKEN,
-            SubmissionType.CI_STATUS,
+            SubmissionType.JOURNAL_API_VERIFIER,
             SubmissionType.DEVOPS_ANALYSIS,
             SubmissionType.SECURITY_SCANNING,
         ],

@@ -197,7 +197,7 @@ async def _dispatch_validation(
     elif requirement.submission_type == SubmissionType.NETWORKING_TOKEN:
         return verify_networking_token(submitted_value, username)
 
-    elif requirement.submission_type == SubmissionType.CI_STATUS:
+    elif requirement.submission_type == SubmissionType.JOURNAL_API_VERIFIER:
         expected_name = _expected_fork_name(requirement)
         result = validate_repo_url(submitted_value, username, expected_name)
         if isinstance(result, ValidationResult):

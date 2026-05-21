@@ -249,9 +249,9 @@ class TestBuildRequirementCardContext:
         )
         assert ctx["derived_url"] == "https://github.com/alice"
 
-    def test_derivable_ci_status_uses_required_repo(self):
+    def test_derivable_journal_api_verifier_uses_required_repo(self):
         req = _make_requirement(
-            SubmissionType.CI_STATUS,
+            SubmissionType.JOURNAL_API_VERIFIER,
             required_repo="learntocloud/journal-starter",
         )
         ctx = build_requirement_card_context(
@@ -269,10 +269,10 @@ class TestBuildRequirementCardContext:
         assert ctx["derived_url"] is None
 
     def test_misconfigured_required_repo_falls_back_to_none(self):
-        # CI_STATUS without required_repo would raise inside derive,
+        # JOURNAL_API_VERIFIER without required_repo would raise inside derive,
         # but the builder should swallow that and return None so the
         # template can show its error state.
-        req = _make_requirement(SubmissionType.CI_STATUS)
+        req = _make_requirement(SubmissionType.JOURNAL_API_VERIFIER)
         ctx = build_requirement_card_context(
             requirement=req,
             github_username="alice",

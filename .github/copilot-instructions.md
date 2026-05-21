@@ -31,6 +31,8 @@ Keep docstrings short and useful. One line is enough for most functions.
 
 Never edit alembic migration files after they've been created. They are immutable historical records that may have already run in production. If a migration needs correcting, create a new migration instead.
 
+When a migration updates row values AND modifies check constraints, always drop the constraints first, then update rows, then add new constraints. Postgres enforces check constraints during the UPDATE, so updating rows before dropping the old constraint will fail if the new value isn't in the old constraint's allowed list.
+
 ## Quality Gates
 
 Do not push unless all of the following pass:
