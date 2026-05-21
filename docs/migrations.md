@@ -23,6 +23,25 @@ privileges.
 > PostgreSQL advisory lock (defined in `alembic/env.py`) to guard against
 > accidental concurrent executions.
 
+### Failure Detection
+
+Two layers guard against silent migration failures:
+
+1. **`alembic/env.py`** logs and re-raises every exception from
+   `context.run_migrations()`. Earlier versions substring-matched
+   `"duplicate"` / `"already exists"` and swallowed those errors as
+   "already applied by another process." Because real `UniqueViolation`s
+   contain the word `duplicate`, that swallow turned genuine failures
+   into silent no-ops, and the migration job exited 0 against an unmoved
+   schema. The session-level advisory lock above already guarantees serial
+   execution, so there is no legitimate concurrent-race case to swallow.
+2. **`scripts/run_migrations.py`** verifies the post-upgrade schema
+   matches the script directory head by comparing
+   `MigrationContext.get_current_heads()` to
+   `ScriptDirectory.get_heads()`. If they diverge, the script raises and
+   the job exits non-zero, failing the deploy. This is defense in depth
+   against future regressions in the env.py swallow path.
+
 ## Production Database Identities
 
 Production uses separate PostgreSQL data-plane principals. The production

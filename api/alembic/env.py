@@ -5,14 +5,11 @@ import time
 from importlib import import_module
 from logging.config import fileConfig
 
-from learn_to_cloud_shared.core.azure_auth import (
-    AZURE_PG_SCOPE,
-)
-from learn_to_cloud_shared.core.config import get_settings
 from learn_to_cloud_shared.core.database import Base
 from sqlalchemy import Connection, create_engine, text
 
 from alembic import context
+from learn_to_cloud._migrations_url import get_sync_database_url
 
 # Import models to register them with Base.metadata
 import_module("learn_to_cloud_shared.models")
@@ -31,71 +28,9 @@ _ADVISORY_LOCK_KEY = 743028475  # hash("learn-to-cloud-migrations") % (2**31)
 _LOCK_TIMEOUT_SECONDS = 120
 
 
-def _get_azure_token_with_retry() -> str:
-    """Get Azure AD token with retry logic for transient failures.
-
-    Uses sync credential since Alembic runs outside asyncio event loop.
-    On Container Apps cold start the managed identity sidecar may take
-    up to 30s to become available, so we retry with exponential backoff.
-
-    Passes AZURE_CLIENT_ID (if set) to DefaultAzureCredential so it can
-    target the correct user-assigned managed identity.
-    """
-    import os
-
-    from azure.identity import DefaultAzureCredential
-
-    max_attempts = 6  # More attempts than core module — Alembic runs at cold start
-    initial_wait = 2  # Longer initial wait for sidecar readiness
-
-    # Pass managed_identity_client_id for user-assigned identity
-    client_id = os.environ.get("AZURE_CLIENT_ID")
-    cred_kwargs = {}
-    if client_id:
-        cred_kwargs["managed_identity_client_id"] = client_id
-
-    last_error = None
-    for attempt in range(max_attempts):
-        try:
-            credential = DefaultAzureCredential(**cred_kwargs)
-            token = credential.get_token(AZURE_PG_SCOPE)
-            return token.token
-        except Exception as e:
-            last_error = e
-            if attempt < max_attempts - 1:
-                delay = initial_wait * (2**attempt)  # 2, 4, 8, 16, 32s
-                time.sleep(delay)
-
-    raise RuntimeError(
-        f"Failed to acquire Azure AD token after {max_attempts} attempts"
-    ) from last_error
-
-
-def _get_sync_database_url() -> str:
-    """Get a synchronous database URL for migrations.
-
-    Uses psycopg2 (synchronous driver) instead of asyncpg to avoid
-    event loop conflicts when running in background threads.
-    """
-    settings = get_settings()
-    if settings.use_azure_postgres:
-        token = _get_azure_token_with_retry()
-        return (
-            f"postgresql+psycopg2://{settings.postgres_user}:{token}"
-            f"@{settings.postgres_host}:{settings.postgres_port}/{settings.postgres_database}"
-            f"?sslmode=require"
-        )
-
-    # Convert asyncpg URL to psycopg2 URL for local dev
-    url = settings.database_url
-    if "+asyncpg" in url:
-        url = url.replace("+asyncpg", "+psycopg2")
-    return url
-
-
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode."""
-    url = _get_sync_database_url()
+    url = get_sync_database_url()
     context.configure(
         url=url,
         target_metadata=target_metadata,
@@ -139,7 +74,7 @@ def _run_migrations(connection: Connection) -> None:
                 "Another process may be stuck holding the lock."
             )
 
-    migration_error = None
+    migration_error: Exception | None = None
     try:
         context.configure(
             connection=connection,
@@ -151,19 +86,19 @@ def _run_migrations(connection: Connection) -> None:
         with context.begin_transaction():
             context.run_migrations()
     except Exception as e:
+        # Always log the underlying error. The previous substring-based
+        # "already exists" / "duplicate" swallow turned real UniqueViolations
+        # into silent no-ops, masking failed deploys for days. With the
+        # session-level advisory lock above, a second worker cannot advance
+        # the schema while we hold the lock, so there is no legitimate
+        # "another worker already ran it" race to swallow here — any
+        # exception is a real failure and must propagate.
+        logger.exception("alembic.migration.failed")
         migration_error = e
-        # Check if this is a "table already exists" error - another worker may have
-        # already run migrations even though we had the lock (race at startup)
-        error_str = str(e).lower()
-        if "already exists" in error_str or "duplicate" in error_str:
-            # Migrations were already applied by another process, this is OK
-            logger.info("Migrations already applied by another process, continuing...")
-            migration_error = None  # Don't re-raise this error
-        else:
-            try:
-                connection.rollback()
-            except Exception:
-                pass  # Ignore rollback errors
+        try:
+            connection.rollback()
+        except Exception as rb_err:
+            logger.warning("alembic.migration.rollback_failed: %s", rb_err)
     finally:
         if lock_acquired:
             try:
@@ -174,8 +109,15 @@ def _run_migrations(connection: Connection) -> None:
                 result.close()
                 logger.info("Released migration advisory lock")
             except Exception as unlock_error:
-                # Log but don't raise - lock released when session ends anyway
+                # Session-level advisory locks survive transaction rollback
+                # and only disappear on explicit unlock or session close.
+                # If unlock fails, invalidate the connection so SQLAlchemy
+                # doesn't return it to the pool still holding the lock.
                 logger.warning("advisory.lock.release.failed: %s", unlock_error)
+                try:
+                    connection.invalidate()
+                except Exception as inv_err:
+                    logger.warning("advisory.lock.invalidate_failed: %s", inv_err)
 
     if migration_error is not None:
         raise migration_error
@@ -187,7 +129,7 @@ def run_migrations_online() -> None:
     Uses psycopg2 (synchronous driver) to avoid event loop conflicts
     when running in a background thread during app startup.
     """
-    url = _get_sync_database_url()
+    url = get_sync_database_url()
     engine = create_engine(url)
 
     with engine.connect() as connection:
