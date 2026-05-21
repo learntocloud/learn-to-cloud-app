@@ -68,7 +68,6 @@ Use the Playwright MCP tools to navigate each public page. For each page:
 | FAQ | `http://localhost:8000/faq` |
 | Privacy | `http://localhost:8000/privacy` |
 | Terms | `http://localhost:8000/terms` |
-| Status | `http://localhost:8000/status` |
 
 ### Dark mode
 
