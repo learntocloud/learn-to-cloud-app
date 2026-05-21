@@ -54,7 +54,12 @@ _VERIFICATION_JOBS_CONSTRAINT = (
 
 
 def upgrade() -> None:
-    # Migrate rows on both tables
+    # Drop constraints first so the UPDATE below isn't blocked by the old
+    # constraint that doesn't include journal_api_verifier
+    op.execute(_DROP_CONSTRAINT_SQL.format(table="submissions"))
+    op.execute(_DROP_CONSTRAINT_SQL.format(table="verification_jobs"))
+
+    # Migrate existing ci_status rows on both tables
     op.execute(
         "UPDATE submissions SET submission_type = 'journal_api_verifier' "
         "WHERE submission_type = 'ci_status'"
@@ -64,15 +69,12 @@ def upgrade() -> None:
         "WHERE submission_type = 'ci_status'"
     )
 
-    # Recreate check constraints without ci_status
-    op.execute(_DROP_CONSTRAINT_SQL.format(table="submissions"))
+    # Add new check constraints with journal_api_verifier instead of ci_status
     op.create_check_constraint(
         "submission_type",
         "submissions",
         _SUBMISSIONS_CONSTRAINT,
     )
-
-    op.execute(_DROP_CONSTRAINT_SQL.format(table="verification_jobs"))
     op.create_check_constraint(
         "submission_type",
         "verification_jobs",
