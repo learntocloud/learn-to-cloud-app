@@ -21,7 +21,8 @@
       "tflint": "none",
       "terragrunt": "none"
     },
-    "ghcr.io/va-h/devcontainers-features/uv:1": {}
+    "ghcr.io/va-h/devcontainers-features/uv:1": {},
+    "ghcr.io/microsoft/aspire-devcontainer-feature/aspire:2": {}
   },
   "customizations": {
     "vscode": {
@@ -45,7 +46,8 @@
         "dbaeumer.vscode-eslint",
         "bradlc.vscode-tailwindcss",
         "GitHub.copilot",
-        "ms-azuretools.vscode-azure-mcp-server"
+        "ms-azuretools.vscode-azure-mcp-server",
+        "microsoft-aspire.aspire-vscode"
       ]
     }
   },

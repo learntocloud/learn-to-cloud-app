@@ -17,6 +17,12 @@
       "command": "azmcp",
       "args": ["server", "start"],
       "tools": ["*"]
+    },
+    "aspire": {
+      "type": "local",
+      "command": "aspire",
+      "args": ["agent", "mcp"],
+      "tools": ["*"]
     }
   }
 }
