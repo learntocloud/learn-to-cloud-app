@@ -20,7 +20,6 @@ from fastapi import APIRouter, Form, Query, Request
 from fastapi.responses import HTMLResponse
 from learn_to_cloud_shared.content_service import get_topic_by_id
 from learn_to_cloud_shared.core.database import DbSession
-from learn_to_cloud_shared.models import SubmissionType
 from learn_to_cloud_shared.repositories.verification_job_repository import (
     VerificationJobRepository,
 )
@@ -60,7 +59,6 @@ from learn_to_cloud.services.steps_service import (
 )
 from learn_to_cloud.services.submissions_service import (
     AlreadyValidatedError,
-    DuplicatePrError,
     GitHubUsernameRequiredError,
     PriorPhaseNotCompleteError,
     RequirementNotFoundError,
@@ -85,7 +83,6 @@ logger = logging.getLogger(__name__)
 # Submission errors whose message is safe to show directly to the user.
 _USER_FACING_ERRORS = (
     AlreadyValidatedError,
-    DuplicatePrError,
     GitHubUsernameRequiredError,
     PriorPhaseNotCompleteError,
     RequirementNotFoundError,
@@ -294,7 +291,6 @@ async def htmx_submit_verification(
     current_user: CurrentUser,
     requirement_id: Annotated[str, Form(max_length=100)],
     submitted_value: Annotated[str, Form(max_length=2048)] = "",
-    pr_number: Annotated[str, Form(max_length=16)] = "",
 ) -> HTMLResponse:
     """Submit a hands-on verification.
 
@@ -350,9 +346,7 @@ async def htmx_submit_verification(
     # ── Derive the canonical submission value ──────────────────────────
     if requirement is not None:
         try:
-            if requirement.submission_type == SubmissionType.PR_REVIEW:
-                user_input: str | None = pr_number
-            elif is_derivable(requirement.submission_type):
+            if is_derivable(requirement.submission_type):
                 user_input = None
             else:
                 user_input = submitted_value

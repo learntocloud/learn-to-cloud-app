@@ -8,7 +8,7 @@
       "version": "3.13",
       "installTools": false
     },
-    "ghcr.io/devcontainers/features/node:1": {
+    "ghcr.io/devcontainers/features/node:2.0.0": {
       "version": "20",
       "INSTALLYARNUSINGAPT": false
     },
@@ -16,7 +16,7 @@
       "installBicep": true
     },
     "ghcr.io/devcontainers/features/github-cli:1": {},
-    "ghcr.io/devcontainers/features/terraform:1": {
+    "ghcr.io/devcontainers/features/terraform:1.4.3": {
       "version": "latest",
       "tflint": "none",
       "terragrunt": "none"

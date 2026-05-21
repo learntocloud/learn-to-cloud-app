@@ -9,10 +9,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from learn_to_cloud_shared.models import SubmissionType
 from learn_to_cloud_shared.verification.url_derivation import (
     derive_submission_value,
-    fork_name_from_required_repo,
     is_derivable,
 )
 
@@ -243,8 +241,8 @@ def build_requirement_card_context(
 
     Centralises context-building so the phase page and the HTMX submit
     route (including the SSE stream) all produce identically-shaped dicts.
-    Pre-computes ``derived_url`` for read-only display and ``pr_url_prefix``
-    for PR-review inputs so the Jinja template never builds URLs.
+    Pre-computes ``derived_url`` for read-only display so the Jinja template
+    never builds URLs.
 
     Args:
         requirement: The :class:`HandsOnRequirement` being rendered.
@@ -265,29 +263,18 @@ def build_requirement_card_context(
         verification_status_delay_seconds: Delay before the next status poll.
     """
     derived_url: str | None = None
-    pr_url_prefix: str | None = None
-
     if requirement is not None and github_username:
-        sub_type = requirement.submission_type
         try:
-            if is_derivable(sub_type):
+            if is_derivable(requirement.submission_type):
                 derived_url = derive_submission_value(
                     requirement=requirement,
                     github_username=github_username,
                     user_input=None,
                 )
-            elif (
-                sub_type == SubmissionType.PR_REVIEW
-                and requirement.required_repo
-                and "/" in requirement.required_repo
-            ):
-                fork = fork_name_from_required_repo(requirement.required_repo)
-                pr_url_prefix = f"https://github.com/{github_username}/{fork}/pull/"
         except ValueError:
             # Misconfigured requirement (e.g. missing required_repo).  The
             # template will fall back to its read-only placeholder branch.
             derived_url = None
-            pr_url_prefix = None
 
     return {
         "requirement": requirement,
@@ -301,7 +288,6 @@ def build_requirement_card_context(
         "verification_status_token": verification_status_token,
         "verification_status_delay_seconds": verification_status_delay_seconds,
         "derived_url": derived_url,
-        "pr_url_prefix": pr_url_prefix,
     }
 
 

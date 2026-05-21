@@ -36,7 +36,6 @@ from learn_to_cloud_shared.verification.github_profile import (
     validate_profile_readme,
     validate_repo_fork,
 )
-from learn_to_cloud_shared.verification.pull_request import validate_pr
 from learn_to_cloud_shared.verification.repo_utils import (
     VerificationError,
     validate_repo_url,
@@ -197,9 +196,6 @@ async def _dispatch_validation(
 
     elif requirement.submission_type == SubmissionType.NETWORKING_TOKEN:
         return verify_networking_token(submitted_value, username)
-
-    elif requirement.submission_type == SubmissionType.PR_REVIEW:
-        return await validate_pr(submitted_value, requirement)
 
     elif requirement.submission_type == SubmissionType.CI_STATUS:
         expected_name = _expected_fork_name(requirement)
