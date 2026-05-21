@@ -111,6 +111,10 @@ After authentication, navigate and test:
 | Dashboard | `/dashboard` | nav, main, username shown |
 | Account | `/account` | nav, main, account settings visible |
 | Phase 1 | `/phase/1` | nav, main, topic links present |
+| Phase 2 | `/phase/2` | nav, main, no 500 errors |
+| Phase 3 | `/phase/3` | nav, main, no 500 errors |
+| Phase 4 | `/phase/4` | nav, main, no 500 errors |
+| Phase 5 | `/phase/5` | nav, main, no 500 errors |
 | First topic | First `/phase/1/*` link | Learning steps, checkboxes |
 
 ### Step toggle test
