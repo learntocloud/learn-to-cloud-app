@@ -119,7 +119,7 @@ async def main(github_username: str) -> None:
                 elif sub_type in (
                     "devops_analysis",
                     "security_scanning",
-                    "ci_status",
+                    "journal_api_verifier",
                 ):
                     submitted_value = (
                         f"https://github.com/{github_username}/journal-starter"

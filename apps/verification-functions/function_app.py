@@ -80,7 +80,7 @@ _ORCHESTRATOR_NAMES_BY_SUBMISSION_TYPE = {
     SubmissionType.JOURNAL_API_RESPONSE: "verify_phase3_journal_api_orchestrator",
     SubmissionType.CODE_ANALYSIS: "verify_phase3_journal_api_orchestrator",
     SubmissionType.PR_REVIEW: "verify_phase3_pr_review_orchestrator",
-    SubmissionType.CI_STATUS: "verify_phase3_ci_status_orchestrator",
+    SubmissionType.JOURNAL_API_VERIFIER: "verify_phase3_journal_api_verifier_orchestrator",
     SubmissionType.DEPLOYED_API: "verify_phase4_deployed_api_orchestrator",
     SubmissionType.DEVOPS_ANALYSIS: "verify_phase5_devops_orchestrator",
     SubmissionType.SECURITY_SCANNING: "verify_phase6_security_orchestrator",
@@ -448,7 +448,18 @@ def verify_phase3_pr_review_orchestrator(context: df.DurableOrchestrationContext
 
 @app.orchestration_trigger(context_name="context")
 def verify_phase3_ci_status_orchestrator(context: df.DurableOrchestrationContext):
-    """Run Phase 3 CI status verification."""
+    """Drain-only orchestrator for in-flight phase 3 ci_status jobs.
+
+    See :func:`verify_github_profile_orchestrator` for rationale.
+    """
+    return (yield from _run_verification_orchestration(context))
+
+
+@app.orchestration_trigger(context_name="context")
+def verify_phase3_journal_api_verifier_orchestrator(
+    context: df.DurableOrchestrationContext,
+):
+    """Run Phase 3 journal API verification (CI gate + LLM rubric review)."""
     return (yield from _run_verification_orchestration(context))
 
 

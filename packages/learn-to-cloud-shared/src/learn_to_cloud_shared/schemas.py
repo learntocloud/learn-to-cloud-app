@@ -63,7 +63,7 @@ class HandsOnRequirement(FrozenModel):
     placeholder: str | None = None
 
     # Upstream repo (``owner/name``) for GitHub repo-backed verification
-    # types: ``repo_fork``, ``pr_review``, ``ci_status``,
+    # types: ``repo_fork``, ``pr_review``, ``journal_api_verifier``,
     # ``devops_analysis``, and ``security_scanning``.  Used to derive the
     # canonical learner fork URL
     # (``https://github.com/{learner}/{name}``).

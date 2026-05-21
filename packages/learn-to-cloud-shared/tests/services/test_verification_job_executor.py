@@ -45,7 +45,7 @@ def session_maker(test_engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
 
 
 def _requirement(
-    submission_type: SubmissionType = SubmissionType.CI_STATUS,
+    submission_type: SubmissionType = SubmissionType.JOURNAL_API_VERIFIER,
 ) -> HandsOnRequirement:
     return HandsOnRequirement(
         id=REQUIREMENT_ID,
@@ -58,7 +58,7 @@ def _requirement(
 async def _create_job(
     session_maker: async_sessionmaker[AsyncSession],
     *,
-    submission_type: SubmissionType = SubmissionType.CI_STATUS,
+    submission_type: SubmissionType = SubmissionType.JOURNAL_API_VERIFIER,
 ) -> UUID:
     async with session_maker() as db:
         await UserRepository(db).upsert(
@@ -186,7 +186,7 @@ async def test_execute_verification_job_marks_success_and_links_submission(
     assert payload["code"] == VERIFICATION_SUCCEEDED_CODE
     assert payload["requirement_id"] == REQUIREMENT_ID
     assert payload["requirement_name"] == "Verification Executor Test"
-    assert payload["submission_type"] == SubmissionType.CI_STATUS.value
+    assert payload["submission_type"] == SubmissionType.JOURNAL_API_VERIFIER.value
     assert payload["message"] == "Verification succeeded."
     # On success there is no validation message; ``detail`` is None.
     assert payload["detail"] is None
