@@ -130,7 +130,8 @@ lsof -ti:8000 | xargs kill -9 2>/dev/null || true
 If the changes affect logic (not just formatting/docs), run the test suite:
 
 ```bash
-cd <workspace>/api && uv run pytest tests/ ../packages/learn-to-cloud-shared/tests -x
+cd <workspace>/api && uv run pytest tests/ -x
+cd <workspace>/packages/learn-to-cloud-shared && uv run pytest tests/ -x
 cd <workspace>/apps/verification-functions && uv run python -c "import function_app"
 ```
 

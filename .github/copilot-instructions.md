@@ -41,7 +41,8 @@ Do not push unless all of the following pass:
 - `cd api && uv run ruff format --check . ../packages/learn-to-cloud-shared`
 - `cd api && uv run ty check --exclude scripts --exclude tests .`
 - `cd packages/learn-to-cloud-shared && uv run ty check --exclude tests .`
-- `cd api && uv run pytest tests/ ../packages/learn-to-cloud-shared/tests`
+- `cd api && uv run pytest tests/`
+- `cd packages/learn-to-cloud-shared && uv run pytest tests/`
 - `cd apps/verification-functions && uv run ruff check . && uv run ruff format --check . && uv run ty check . && uv run python -c "import function_app"`
 
 Do not write `# noqa`, `type: ignore`, or ty/ruff suppression comments unless absolutely unavoidable.

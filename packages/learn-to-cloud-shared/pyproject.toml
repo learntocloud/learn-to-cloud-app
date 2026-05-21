@@ -40,6 +40,7 @@ dependencies = [
 dev = [
     "pytest>=8.4.2",
     "pytest-asyncio>=1.3.0",
+    "pytest-cov>=4.1.0",
     "ruff==0.15.12",
     "ty==0.0.34",
 ]
@@ -54,6 +55,27 @@ select = ["E", "F", "I", "UP", "PLC0415"]
 [tool.ruff.lint.per-file-ignores]
 "src/learn_to_cloud_shared/core/observability.py" = ["PLC0415"]
 "tests/**" = ["PLC0415"]
+
+[tool.coverage.run]
+source = ["src/learn_to_cloud_shared"]
+omit = [
+    "tests/*",
+    "__pycache__/*",
+    ".venv/*",
+    "*.pyc",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+    "if __name__ == .__main__.:",
+    "@abstractmethod",
+    "@abc.abstractmethod",
+]
+fail_under = 40
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

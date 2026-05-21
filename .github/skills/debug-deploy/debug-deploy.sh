@@ -253,7 +253,7 @@ Common Issues Detected:
   • Authentication Errors - Check OIDC deployment secrets/variables and Azure RBAC
   • Resource Not Found - Resource may have been deleted outside Terraform
   • Quota Exceeded - Request quota increase or clean up resources
-  • Test Failures - Run tests locally with 'cd api && uv run pytest tests/ ../packages/learn-to-cloud-shared/tests -x'
+  • Test Failures - Run tests locally with 'cd api && uv run pytest tests/ -x' and 'cd packages/learn-to-cloud-shared && uv run pytest tests/ -x'
   • Lint Failures - Run 'cd api && uv run ruff check . ../packages/learn-to-cloud-shared' locally
 
 EOF

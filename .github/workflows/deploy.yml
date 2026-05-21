@@ -200,9 +200,13 @@ jobs:
         working-directory: apps/verification-functions
         run: uv run ty check .
 
-      - name: Run API and shared tests with coverage
+      - name: Run API tests with coverage
         working-directory: api
-        run: uv run pytest tests/ ../packages/learn-to-cloud-shared/tests -v --tb=short --cov=learn_to_cloud --cov=learn_to_cloud_shared --cov-report=xml --cov-report=term-missing
+        run: uv run pytest tests/ -v --tb=short --cov=learn_to_cloud --cov-report=xml --cov-report=term-missing
+
+      - name: Run shared tests with coverage
+        working-directory: packages/learn-to-cloud-shared
+        run: uv run pytest tests/ -v --tb=short --cov=learn_to_cloud_shared --cov-report=xml --cov-report=term-missing
 
       - name: Smoke test verification functions import
         working-directory: apps/verification-functions

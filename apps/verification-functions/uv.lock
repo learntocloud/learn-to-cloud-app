@@ -714,6 +714,7 @@ requires-dist = [
 dev = [
     { name = "pytest", specifier = ">=8.4.2" },
     { name = "pytest-asyncio", specifier = ">=1.3.0" },
+    { name = "pytest-cov", specifier = ">=4.1.0" },
     { name = "ruff", specifier = "==0.15.12" },
     { name = "ty", specifier = "==0.0.34" },
 ]

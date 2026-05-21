@@ -33,11 +33,17 @@ prek run --all-files
 ## Tests
 
 ```bash
+# API tests (run from api/)
 cd api
-uv run pytest tests/ ../packages/learn-to-cloud-shared/tests  # all API + shared tests
-uv run pytest tests/ ../packages/learn-to-cloud-shared/tests -m unit
-uv run pytest tests/ ../packages/learn-to-cloud-shared/tests -m integration
+uv run pytest tests/
+uv run pytest tests/ -m unit
+uv run pytest tests/ -m integration
 cd ..
+
+# Shared package tests (run from the shared package)
+cd packages/learn-to-cloud-shared
+uv run pytest tests/
+cd ../..
 ```
 
 - Tests use transactional rollback for isolation — no table recreation per test

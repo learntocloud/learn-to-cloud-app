@@ -165,7 +165,8 @@ User-confirmed frontend telemetry decisions:
 | Shared type check | `cd packages/learn-to-cloud-shared && uv run ty check --exclude tests .` | Passed |
 | Verification Functions type check | `cd apps/verification-functions && uv run ty check .` | Passed |
 | API startup and smoke tests | `/health`, `/ready`, `/openapi.json` against local uvicorn | Passed |
-| API/shared tests | `cd api && uv run pytest tests/ ../packages/learn-to-cloud-shared/tests -x --tb=short` | Passed, 642 tests |
+| API tests | `cd api && uv run pytest tests/ -x --tb=short` | Passed, 220 tests |
+| Shared tests | `cd packages/learn-to-cloud-shared && uv run pytest tests/ -x --tb=short` | Passed, 457 tests |
 | Verification Functions import | `cd apps/verification-functions && uv run python -c "import function_app"` | Passed |
 
 **Validated by:** Local repository validation. Pending azure-validate skill before deployment.
