@@ -167,31 +167,3 @@ class SubmissionRepository:
             )
         )
         return result.scalar_one() or 0
-
-    async def find_validated_by_value_in_phase(
-        self,
-        user_id: int,
-        phase_id: int,
-        submitted_value: str,
-        exclude_requirement_id: str,
-    ) -> str | None:
-        """Find a validated submission with the same value in the same phase.
-
-        Used to enforce PR uniqueness: the same PR URL cannot be used for
-        multiple requirements within a phase.
-
-        Returns:
-            The requirement_id of the conflicting submission, or None.
-        """
-        result = await self.db.execute(
-            select(Submission.requirement_id)
-            .where(
-                Submission.user_id == user_id,
-                Submission.phase_id == phase_id,
-                Submission.submitted_value == submitted_value,
-                Submission.requirement_id != exclude_requirement_id,
-                Submission.is_validated.is_(True),
-            )
-            .limit(1)
-        )
-        return result.scalar_one_or_none()

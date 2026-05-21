@@ -301,7 +301,8 @@ def _result_custom_status(
 
 
 def _run_verification_orchestration(context: df.DurableOrchestrationContext):
-    """Run one verification job workflow."""
+    """Run one verification job wor
+    kflow."""
     job_id = context.get_input()
     if isinstance(job_id, str):
         _set_verification_span_attributes(job_id=job_id)
@@ -436,7 +437,7 @@ def verify_networking_token_orchestrator(context: df.DurableOrchestrationContext
 @app.orchestration_trigger(context_name="context")
 def verify_phase3_journal_api_orchestrator(context: df.DurableOrchestrationContext):
     """Run Phase 3 journal API verification."""
-    return (yield from _run_verification_orchestration(context))
+    return ((yield from _run_verification_orchestration(context)),)
 
 
 @app.orchestration_trigger(context_name="context")

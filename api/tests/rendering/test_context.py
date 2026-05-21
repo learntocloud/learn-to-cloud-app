@@ -248,7 +248,6 @@ class TestBuildRequirementCardContext:
             github_username="alice",
         )
         assert ctx["derived_url"] == "https://github.com/alice"
-        assert ctx["pr_url_prefix"] is None
 
     def test_derivable_ci_status_uses_required_repo(self):
         req = _make_requirement(
@@ -261,20 +260,6 @@ class TestBuildRequirementCardContext:
         )
         assert ctx["derived_url"] == "https://github.com/bob/journal-starter"
 
-    def test_pr_review_populates_pr_url_prefix(self):
-        req = _make_requirement(
-            SubmissionType.PR_REVIEW,
-            required_repo="learntocloud/journal-starter",
-        )
-        ctx = build_requirement_card_context(
-            requirement=req,
-            github_username="carol",
-        )
-        assert ctx["derived_url"] is None
-        assert ctx["pr_url_prefix"] == (
-            "https://github.com/carol/journal-starter/pull/"
-        )
-
     def test_token_type_has_no_derived_url_or_prefix(self):
         req = _make_requirement(SubmissionType.CTF_TOKEN)
         ctx = build_requirement_card_context(
@@ -282,7 +267,6 @@ class TestBuildRequirementCardContext:
             github_username="alice",
         )
         assert ctx["derived_url"] is None
-        assert ctx["pr_url_prefix"] is None
 
     def test_misconfigured_required_repo_falls_back_to_none(self):
         # CI_STATUS without required_repo would raise inside derive,

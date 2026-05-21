@@ -109,14 +109,6 @@ class AlreadyValidatedError(Exception):
     """Raised when re-submitting a requirement that is already validated."""
 
 
-class DuplicatePrError(Exception):
-    """Raised when the same PR URL is used for a different requirement."""
-
-    def __init__(self, message: str, conflicting_requirement_id: str):
-        super().__init__(message)
-        self.conflicting_requirement_id = conflicting_requirement_id
-
-
 class PriorPhaseNotCompleteError(Exception):
     """Raised when submitting for a phase whose prerequisite isn't fully verified."""
 
@@ -172,7 +164,7 @@ async def _check_submission_preconditions(
     """Shared pre-validation checks for submission paths.
 
     Validates requirement existence, already-validated status, phase gating,
-    PR uniqueness, and GitHub username requirement.
+    and GitHub username requirement.
 
     Opens a short-lived DB session for reads, then releases it before returning.
     """
@@ -210,20 +202,6 @@ async def _check_submission_preconditions(
                         prerequisite_phase=prereq_phase,
                     )
 
-        # PR uniqueness: same PR URL cannot be reused for a different
-        # requirement within the same phase.
-        if submitted_value and requirement.submission_type == SubmissionType.PR_REVIEW:
-            conflicting = await submission_repo.find_validated_by_value_in_phase(
-                user_id, phase_id, submitted_value, requirement_id
-            )
-            if conflicting:
-                raise DuplicatePrError(
-                    "This PR was already used for a different requirement. "
-                    "Each task must have its own PR — follow the branching "
-                    "workflow in the journal-starter README.",
-                    conflicting_requirement_id=conflicting,
-                )
-
     # read_session is now closed — connection returned to pool
 
     if (
@@ -237,7 +215,6 @@ async def _check_submission_preconditions(
             SubmissionType.CI_STATUS,
             SubmissionType.DEVOPS_ANALYSIS,
             SubmissionType.SECURITY_SCANNING,
-            SubmissionType.PR_REVIEW,
         )
         and not github_username
     ):

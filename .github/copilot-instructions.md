@@ -43,3 +43,7 @@ Do not push unless all of the following pass:
 - `cd apps/verification-functions && uv run ruff check . && uv run ruff format --check . && uv run ty check . && uv run python -c "import function_app"`
 
 Do not write `# noqa`, `type: ignore`, or ty/ruff suppression comments unless absolutely unavoidable.
+
+## Research
+
+If you need to research something that is azure related, use azure-skills plugin. If you need more info or another topic, use firecrawl and or context7.
