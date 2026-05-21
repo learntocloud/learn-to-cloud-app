@@ -31,7 +31,7 @@ gh run view <run-id> --log-failed
 
 Or use the debug script in this skill's folder:
 ```bash
-.github/skills/debug-deploy/debug-deploy.sh logs
+.agents/skills/debug-deploy/debug-deploy.sh logs
 ```
 
 ### Step 3: Identify the Issue
@@ -100,12 +100,12 @@ gh run watch <run-id>
 
 | Command | Description |
 |---------|-------------|
-| `./.github/skills/debug-deploy/debug-deploy.sh status` | Show recent workflow runs |
-| `./.github/skills/debug-deploy/debug-deploy.sh logs` | View and analyze failed logs |
-| `./.github/skills/debug-deploy/debug-deploy.sh logs <id>` | View specific run's failed logs |
-| `./.github/skills/debug-deploy/debug-deploy.sh unlock` | Fix Terraform state lock |
-| `./.github/skills/debug-deploy/debug-deploy.sh rerun` | Re-run most recent failed workflow |
-| `./.github/skills/debug-deploy/debug-deploy.sh watch` | Watch running workflow |
+| `./.agents/skills/debug-deploy/debug-deploy.sh status` | Show recent workflow runs |
+| `./.agents/skills/debug-deploy/debug-deploy.sh logs` | View and analyze failed logs |
+| `./.agents/skills/debug-deploy/debug-deploy.sh logs <id>` | View specific run's failed logs |
+| `./.agents/skills/debug-deploy/debug-deploy.sh unlock` | Fix Terraform state lock |
+| `./.agents/skills/debug-deploy/debug-deploy.sh rerun` | Re-run most recent failed workflow |
+| `./.agents/skills/debug-deploy/debug-deploy.sh watch` | Watch running workflow |
 
 ## Debug Script
 

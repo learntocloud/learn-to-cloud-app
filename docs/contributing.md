@@ -90,7 +90,7 @@ Screenshots are saved to `.dogfood/` (gitignored). No artifacts pollute the repo
 
 ## Copilot Skills
 
-The project ships several Copilot agent skills in `.github/skills/`:
+The project ships several Copilot agent skills in `.agents/skills/`:
 
 | Skill | Trigger | What it does |
 |-------|---------|--------------|

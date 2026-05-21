@@ -3,7 +3,7 @@
 # Debug Deploy Workflow Script
 # =============================================================================
 # This script helps diagnose and fix issues with the GitHub Actions deploy workflow.
-# Usage: .github/skills/debug-deploy/debug-deploy.sh [command]
+# Usage: .agents/skills/debug-deploy/debug-deploy.sh [command]
 #
 # Commands:
 #   status    - Show recent workflow runs and their status (default)
@@ -27,7 +27,7 @@ NC='\033[0m' # No Color
 # Navigate to repo root
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
-SCRIPT_RELATIVE_PATH=".github/skills/debug-deploy/debug-deploy.sh"
+SCRIPT_RELATIVE_PATH=".agents/skills/debug-deploy/debug-deploy.sh"
 cd "$REPO_ROOT"
 
 print_header() {
@@ -231,7 +231,7 @@ cmd_help() {
     cat << EOF
 Debug Deploy Workflow Script
 
-Usage: .github/skills/debug-deploy/debug-deploy.sh [command] [args]
+Usage: .agents/skills/debug-deploy/debug-deploy.sh [command] [args]
 
 Commands:
   status          Show recent workflow runs and their status (default)
@@ -242,11 +242,11 @@ Commands:
   help            Show this help message
 
 Examples:
-  .github/skills/debug-deploy/debug-deploy.sh                    # Show status
-  .github/skills/debug-deploy/debug-deploy.sh logs               # View most recent failure
-  .github/skills/debug-deploy/debug-deploy.sh logs 12345678      # View specific run
-  .github/skills/debug-deploy/debug-deploy.sh unlock             # Fix Terraform lock
-  .github/skills/debug-deploy/debug-deploy.sh rerun              # Re-run latest failed
+  .agents/skills/debug-deploy/debug-deploy.sh                    # Show status
+  .agents/skills/debug-deploy/debug-deploy.sh logs               # View most recent failure
+  .agents/skills/debug-deploy/debug-deploy.sh logs 12345678      # View specific run
+  .agents/skills/debug-deploy/debug-deploy.sh unlock             # Fix Terraform lock
+  .agents/skills/debug-deploy/debug-deploy.sh rerun              # Re-run latest failed
 
 Common Issues Detected:
   • Terraform State Lock - Run 'unlock' command to fix
