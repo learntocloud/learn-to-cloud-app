@@ -25,6 +25,11 @@
       "resolved": "ghcr.io/devcontainers/features/terraform@sha256:503d0888b3a43a32335e08cd4477f8c4629404ad83f6a36f0e0fee7f567c06c7",
       "integrity": "sha256:503d0888b3a43a32335e08cd4477f8c4629404ad83f6a36f0e0fee7f567c06c7"
     },
+    "ghcr.io/microsoft/aspire-devcontainer-feature/aspire:2": {
+      "version": "2.0.0",
+      "resolved": "ghcr.io/microsoft/aspire-devcontainer-feature/aspire@sha256:85cef97f2de880d21a742f799120af2e53f69f4c9334d525381629f81c0409af",
+      "integrity": "sha256:85cef97f2de880d21a742f799120af2e53f69f4c9334d525381629f81c0409af"
+    },
     "ghcr.io/va-h/devcontainers-features/uv:1": {
       "version": "1.1.4",
       "resolved": "ghcr.io/va-h/devcontainers-features/uv@sha256:a15737142539d150ef4d358e2d6a7424a0a2f3dc43b29a3aa1b50162a8b11bc1",
