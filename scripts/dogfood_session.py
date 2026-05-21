@@ -72,7 +72,9 @@ def _get_user_from_db(user_id: int | None = None) -> dict[str, object] | None:
                 ).fetchone()
             else:
                 row = conn.execute(
-                    sqlalchemy.text("SELECT id, github_username FROM users ORDER BY id LIMIT 1")
+                    sqlalchemy.text(
+                        "SELECT id, github_username FROM users WHERE github_username = 'madebygps' LIMIT 1"
+                    )
                 ).fetchone()
 
             if row:
@@ -119,8 +121,8 @@ def main() -> None:
         user_id = 1
         username = "dogfood-user"
         print(
-            "Warning: No users found in DB. Using synthetic user_id=1. "
-            "Pass a user ID as argument or seed the DB first.",
+            "Warning: User 'madebygps' not found in DB. Using synthetic user_id=1. "
+            "Seed the DB or pass a user ID as argument.",
             file=sys.stderr,
         )
 
