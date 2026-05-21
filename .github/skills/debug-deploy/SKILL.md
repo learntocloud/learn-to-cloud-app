@@ -77,7 +77,7 @@ Look for these common patterns in the logs:
 #### Test Failures
 **Pattern:** `FAILED`, `pytest`, `AssertionError`
 
-**Fix:** Run tests locally: `(cd api && uv run pytest tests/ ../packages/learn-to-cloud-shared/tests -v)`
+**Fix:** Run tests locally: `(cd api && uv run pytest tests/ -v)` and `(cd packages/learn-to-cloud-shared && uv run pytest tests/ -v)`
 
 #### Lint Failures
 **Pattern:** `ruff`, `lint error`

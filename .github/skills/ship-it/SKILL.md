@@ -71,7 +71,8 @@ Prek hooks may auto-fix issues (ruff lint `--fix`, ruff format, trailing whitesp
 Run the full test suite locally. This catches runtime errors (template rendering, import issues, dependency upgrades) that static checks cannot detect.
 
 ```bash
-cd <workspace>/api && uv run pytest tests/ ../packages/learn-to-cloud-shared/tests -x --tb=short
+cd <workspace>/api && uv run pytest tests/ -x --tb=short
+cd <workspace>/packages/learn-to-cloud-shared && uv run pytest tests/ -x --tb=short
 cd <workspace>/apps/verification-functions && uv run python -c "import function_app"
 ```
 
@@ -175,7 +176,7 @@ gh run view $run_id --log-failed
 | `ruff` lint errors | `(cd api && uv run ruff check --fix . ../packages/learn-to-cloud-shared)`, commit & push |
 | `ruff-format` | `(cd api && uv run ruff format . ../packages/learn-to-cloud-shared)`, commit & push |
 | `ty` type errors | Fix type errors, commit & push |
-| `pytest` / `FAILED` | `(cd api && uv run pytest tests/ ../packages/learn-to-cloud-shared/tests -x)`, fix, commit & push |
+| `pytest` / `FAILED` | `(cd api && uv run pytest tests/ -x)` and `(cd packages/learn-to-cloud-shared && uv run pytest tests/ -x)`, fix, commit & push |
 
 #### Terraform Failures
 
