@@ -163,7 +163,9 @@ class Submission(TimestampMixin, Base):
         String(100),
         nullable=False,
     )
-    attempt_number: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    attempt_number: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default=text("1"), default=1
+    )
     submission_type: Mapped[SubmissionType] = mapped_column(
         Enum(
             SubmissionType,

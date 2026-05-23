@@ -1,7 +1,6 @@
 """Drop redundant submission indexes.
 
-Revision ID: 0006
-Revises: 0005
+Revision ID: 0016_drop_redundant_indexes
 Create Date: 2025-07-18
 
 Removes 3 overlapping indexes on the submissions table:

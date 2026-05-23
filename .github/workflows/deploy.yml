@@ -200,6 +200,31 @@ jobs:
         working-directory: apps/verification-functions
         run: uv run ty check .
 
+      - name: Verify single migration head (no branches)
+        working-directory: api
+        run: |
+          set -euo pipefail
+          heads=$(uv run alembic heads)
+          count=$(echo "$heads" | grep -c '(head)' || echo 0)
+          if [ "$count" -ne 1 ]; then
+            echo "Expected exactly 1 alembic head; found $count:" >&2
+            echo "$heads" >&2
+            exit 1
+          fi
+          echo "OK: 1 alembic head"
+
+      - name: Lint migration filenames and docstrings
+        working-directory: api
+        run: uv run python scripts/check_migration_naming.py
+
+      - name: Apply migrations to CI database
+        working-directory: api
+        run: uv run alembic upgrade head
+
+      - name: Verify model and migrations are in sync (alembic check)
+        working-directory: api
+        run: uv run alembic check
+
       - name: Run API tests with coverage
         working-directory: api
         run: uv run pytest tests/ -v --tb=short --cov=learn_to_cloud --cov-report=xml --cov-report=term-missing
