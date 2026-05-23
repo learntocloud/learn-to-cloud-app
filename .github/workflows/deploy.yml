@@ -219,10 +219,14 @@ jobs:
 
       - name: Apply migrations to CI database
         working-directory: api
+        env:
+          DEBUG: "true"
         run: uv run alembic upgrade head
 
       - name: Verify model and migrations are in sync (alembic check)
         working-directory: api
+        env:
+          DEBUG: "true"
         run: uv run alembic check
 
       - name: Run API tests with coverage
