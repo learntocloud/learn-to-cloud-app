@@ -50,11 +50,6 @@ resource "azurerm_container_app_job" "migrations" {
         name  = "AZURE_CLIENT_ID"
         value = azurerm_user_assigned_identity.migrations.client_id
       }
-
-      env {
-        name  = "DEBUG"
-        value = "true"
-      }
     }
   }
 

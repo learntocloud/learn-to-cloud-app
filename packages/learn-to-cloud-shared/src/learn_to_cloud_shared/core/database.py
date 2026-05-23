@@ -24,7 +24,7 @@ from sqlalchemy.ext.asyncio import (
 from sqlalchemy.orm import DeclarativeBase
 
 from learn_to_cloud_shared.core.azure_auth import get_token as _get_azure_token
-from learn_to_cloud_shared.core.config import get_settings
+from learn_to_cloud_shared.core.config import get_database_settings
 from learn_to_cloud_shared.core.observability import instrument_database
 
 logger = logging.getLogger(__name__)
@@ -35,7 +35,7 @@ class Base(DeclarativeBase):
 
 
 def _build_azure_database_url() -> str:
-    settings = get_settings()
+    settings = get_database_settings()
     return (
         f"postgresql+asyncpg://{settings.postgres_user}"
         f"@{settings.postgres_host}:{settings.postgres_port}/{settings.postgres_database}"
@@ -49,7 +49,7 @@ async def _azure_asyncpg_creator():
     Tokens expire (~1 hour), so each new connection fetches a fresh one
     via managed identity.
     """
-    settings = get_settings()
+    settings = get_database_settings()
     token = await _get_azure_token()
 
     try:
@@ -74,7 +74,7 @@ async def _azure_asyncpg_creator():
 
 
 def create_engine() -> AsyncEngine:
-    settings = get_settings()
+    settings = get_database_settings()
 
     if settings.use_azure_postgres:
         database_url = _build_azure_database_url()
@@ -169,7 +169,7 @@ async def init_db(engine: AsyncEngine) -> None:
     """Verify database is reachable. Schema managed via migrations."""
     logger.info("db.connectivity.verifying")
 
-    async with asyncio.timeout(get_settings().db_timeout):
+    async with asyncio.timeout(get_database_settings().db_timeout):
         async with engine.connect() as conn:
             await conn.execute(text("SELECT 1"))
             await conn.rollback()
@@ -183,7 +183,7 @@ async def dispose_engine(engine: AsyncEngine) -> None:
 
 async def check_db_connection(engine: AsyncEngine) -> None:
     """Verify database is reachable."""
-    async with asyncio.timeout(get_settings().db_timeout):
+    async with asyncio.timeout(get_database_settings().db_timeout):
         async with engine.connect() as conn:
             await conn.execute(text("SELECT 1"))
             await conn.rollback()

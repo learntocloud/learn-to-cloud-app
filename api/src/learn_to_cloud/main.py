@@ -15,7 +15,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from learn_to_cloud_shared.content_service import get_all_phases
 from learn_to_cloud_shared.core.azure_auth import close_credential
-from learn_to_cloud_shared.core.config import get_settings
+from learn_to_cloud_shared.core.config import get_web_settings
 from learn_to_cloud_shared.core.database import (
     create_engine,
     create_session_maker,
@@ -129,7 +129,7 @@ async def lifespan(app: fastapi.FastAPI):
     app.state.init_error = None
 
     try:
-        settings = get_settings()
+        settings = get_web_settings()
         async with asyncio.timeout(settings.startup_timeout):
             oauth_task = asyncio.to_thread(init_oauth)
             db_task = init_db(app.state.engine)
@@ -170,19 +170,21 @@ async def lifespan(app: fastapi.FastAPI):
 
         await close_github_client()
         await dispose_engine(app.state.engine)
-        if get_settings().use_azure_postgres:
+        if get_web_settings().use_azure_postgres:
             await close_credential()
 
 
-_settings = get_settings()
+_settings = get_web_settings()
 
 app = fastapi.FastAPI(
     title="Learn to Cloud API",
     version="1.0.0",
     lifespan=lifespan,
-    docs_url="/docs" if _settings.enable_docs or _settings.debug else None,
-    redoc_url="/redoc" if _settings.enable_docs or _settings.debug else None,
-    openapi_url=("/openapi.json" if _settings.enable_docs or _settings.debug else None),
+    docs_url="/docs" if _settings.enable_docs or _settings.is_development else None,
+    redoc_url="/redoc" if _settings.enable_docs or _settings.is_development else None,
+    openapi_url=(
+        "/openapi.json" if _settings.enable_docs or _settings.is_development else None
+    ),
 )
 
 app.state.limiter = limiter
@@ -204,7 +206,7 @@ app.add_middleware(
 app.add_middleware(GZipMiddleware, minimum_size=500)
 app.add_middleware(SecurityHeadersMiddleware)
 
-if _settings.debug:
+if _settings.is_development:
     app.add_middleware(
         CORSMiddleware,
         allow_origins=_settings.allowed_origins,

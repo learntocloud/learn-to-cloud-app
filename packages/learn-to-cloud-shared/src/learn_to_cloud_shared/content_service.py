@@ -15,7 +15,7 @@ from pathlib import Path
 
 import yaml
 
-from learn_to_cloud_shared.core.config import get_settings
+from learn_to_cloud_shared.core.config import get_worker_settings
 from learn_to_cloud_shared.schemas import Phase, Topic
 
 logger = logging.getLogger(__name__)
@@ -60,7 +60,7 @@ def _get_content_dir() -> Path:
 
     Lazily accessed to avoid module-level settings initialization.
     """
-    return get_settings().content_dir_path
+    return get_worker_settings().content_dir_path
 
 
 def _load_topic(phase_dir: Path, topic_slug: str) -> Topic | None:

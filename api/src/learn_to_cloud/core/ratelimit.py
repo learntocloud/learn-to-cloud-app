@@ -6,7 +6,7 @@ multiply the rate limits by the number of replicas.
 """
 
 from fastapi import Request, Response
-from learn_to_cloud_shared.core.config import get_settings
+from learn_to_cloud_shared.core.config import get_web_settings
 from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
@@ -20,7 +20,7 @@ def _get_request_identifier(request: Request) -> str:
 
 
 def _get_storage_uri() -> str:
-    return get_settings().ratelimit_storage_uri
+    return get_web_settings().ratelimit_storage_uri
 
 
 limiter = Limiter(

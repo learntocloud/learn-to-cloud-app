@@ -8,12 +8,12 @@ from __future__ import annotations
 
 import httpx
 
-from learn_to_cloud_shared.core.config import get_settings
+from learn_to_cloud_shared.core.config import get_worker_settings
 from learn_to_cloud_shared.core.http_client import PooledClient
 
 
 def _build_github_client() -> httpx.AsyncClient:
-    settings = get_settings()
+    settings = get_worker_settings()
     return httpx.AsyncClient(
         timeout=settings.external_api_timeout,
         follow_redirects=True,

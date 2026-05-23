@@ -30,11 +30,21 @@ from logging.config import fileConfig
 
 from azure.identity import DefaultAzureCredential
 from learn_to_cloud_shared.core.azure_auth import AZURE_PG_SCOPE
-from learn_to_cloud_shared.core.config import get_settings
+from learn_to_cloud_shared.core.config import (
+    DatabaseSettings,
+    configure_settings,
+    get_database_settings,
+)
 from learn_to_cloud_shared.core.database import Base
 from sqlalchemy import create_engine
 
 from alembic import context
+
+# Alembic only needs DB config. Calling configure_settings before any
+# get_*_settings() call keeps env.py honest about its profile and skips
+# the web-only validation that would otherwise demand OAuth credentials
+# the migration runner has no business knowing about.
+configure_settings(DatabaseSettings)
 
 # Import models so Base.metadata is populated for autogenerate.
 import_module("learn_to_cloud_shared.models")
@@ -83,7 +93,7 @@ def _get_sync_database_url() -> str:
     Sync driver lets alembic run without an asyncio event loop. The
     runtime app uses asyncpg; the two URLs are intentionally separate.
     """
-    settings = get_settings()
+    settings = get_database_settings()
     if settings.use_azure_postgres:
         token = _get_azure_token_with_retry()
         return (

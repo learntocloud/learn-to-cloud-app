@@ -35,7 +35,7 @@ class TestGetGitHubClient:
         mock_settings = MagicMock()
         mock_settings.external_api_timeout = 10.0
         with patch(
-            "learn_to_cloud_shared.core.github_client.get_settings",
+            "learn_to_cloud_shared.core.github_client.get_worker_settings",
             autospec=True,
             return_value=mock_settings,
         ):
@@ -48,7 +48,7 @@ class TestGetGitHubClient:
         mock_settings = MagicMock()
         mock_settings.external_api_timeout = 10.0
         with patch(
-            "learn_to_cloud_shared.core.github_client.get_settings",
+            "learn_to_cloud_shared.core.github_client.get_worker_settings",
             autospec=True,
             return_value=mock_settings,
         ):
@@ -61,7 +61,7 @@ class TestGetGitHubClient:
         mock_settings = MagicMock()
         mock_settings.external_api_timeout = 10.0
         with patch(
-            "learn_to_cloud_shared.core.github_client.get_settings",
+            "learn_to_cloud_shared.core.github_client.get_worker_settings",
             autospec=True,
             return_value=mock_settings,
         ):

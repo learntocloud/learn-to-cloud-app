@@ -200,7 +200,7 @@ class TestOptionalAuthenticatedUser:
 class TestInitOauth:
     """Test init_oauth registers GitHub provider."""
 
-    @patch("learn_to_cloud.core.auth.get_settings", autospec=True)
+    @patch("learn_to_cloud.core.auth.get_web_settings", autospec=True)
     def test_registers_github_when_client_id_set(self, mock_get_settings):
         mock_settings = MagicMock()
         mock_settings.github_client_id = "test-client-id"
@@ -214,7 +214,7 @@ class TestInitOauth:
 
         assert "github" in oauth._clients
 
-    @patch("learn_to_cloud.core.auth.get_settings", autospec=True)
+    @patch("learn_to_cloud.core.auth.get_web_settings", autospec=True)
     def test_skips_registration_when_client_id_empty(self, mock_get_settings):
         mock_settings = MagicMock()
         mock_settings.github_client_id = ""

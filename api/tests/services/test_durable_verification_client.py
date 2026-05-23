@@ -51,7 +51,7 @@ async def test_starts_orchestration_with_function_key_header():
 
     with (
         patch(
-            "learn_to_cloud.services.durable_verification_client.get_settings",
+            "learn_to_cloud.services.durable_verification_client.get_web_settings",
             return_value=_settings(),
         ),
         patch(
@@ -72,7 +72,7 @@ async def test_starts_orchestration_with_function_key_header():
 async def test_missing_config_fails_before_http_call():
     with (
         patch(
-            "learn_to_cloud.services.durable_verification_client.get_settings",
+            "learn_to_cloud.services.durable_verification_client.get_web_settings",
             return_value=_settings(base_url="", key=""),
         ),
         patch(
@@ -90,7 +90,7 @@ async def test_http_error_status_raises_start_error():
 
     with (
         patch(
-            "learn_to_cloud.services.durable_verification_client.get_settings",
+            "learn_to_cloud.services.durable_verification_client.get_web_settings",
             return_value=_settings(),
         ),
         patch(
@@ -108,7 +108,7 @@ async def test_transport_error_raises_start_error():
 
     with (
         patch(
-            "learn_to_cloud.services.durable_verification_client.get_settings",
+            "learn_to_cloud.services.durable_verification_client.get_web_settings",
             return_value=_settings(),
         ),
         patch(
@@ -128,7 +128,7 @@ async def test_gets_orchestration_status_with_function_key_header():
 
     with (
         patch(
-            "learn_to_cloud.services.durable_verification_client.get_settings",
+            "learn_to_cloud.services.durable_verification_client.get_web_settings",
             return_value=_settings(),
         ),
         patch(
@@ -151,7 +151,7 @@ async def test_status_without_runtime_status_raises_status_error():
 
     with (
         patch(
-            "learn_to_cloud.services.durable_verification_client.get_settings",
+            "learn_to_cloud.services.durable_verification_client.get_web_settings",
             return_value=_settings(),
         ),
         patch(
