@@ -5,7 +5,6 @@ intersected with current content definitions. The denormalized
 completed_steps column is no longer written or read.
 
 Revision ID: 0013_drop_completed_steps_column
-Revises: 0012_remove_iac_token_add_pr_review
 Create Date: 2026-02-15
 """
 

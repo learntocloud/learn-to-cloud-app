@@ -1,9 +1,11 @@
 """${message}
 
-Revision ID: ${up_revision}
-Revises: ${down_revision | comma,n}
-Create Date: ${create_date}
+Why this change: TODO — describe the motivation in one or two sentences.
+Schema effect: TODO — list the tables/columns/indexes affected.
+Rollback notes: TODO — call out any data loss or special steps for downgrade.
 
+Revision ID: ${up_revision}
+Create Date: ${create_date}
 """
 
 from __future__ import annotations

@@ -11,6 +11,13 @@ That single-runner guarantee lets this env stay tiny:
 no advisory lock dance, no background-thread asyncio workarounds, no race
 handling. If concurrency assumptions ever change, restore the advisory
 lock pattern from git history (see PR #436 and earlier).
+
+Post-migration head verification is performed by
+``scripts/run_migrations.py`` via the upstream ``alembic.command.current(
+config, check_heads=True)``; this env.py no longer carries a custom
+``_verify_schema_at_head`` check. The original silent-failure bug (issue
+#432) is still defended against because ``command.upgrade`` itself
+re-raises every exception logged here.
 """
 
 from __future__ import annotations
@@ -21,13 +28,11 @@ import time
 from importlib import import_module
 from logging.config import fileConfig
 
-from alembic.runtime.migration import MigrationContext
-from alembic.script import ScriptDirectory
 from azure.identity import DefaultAzureCredential
 from learn_to_cloud_shared.core.azure_auth import AZURE_PG_SCOPE
 from learn_to_cloud_shared.core.config import get_settings
 from learn_to_cloud_shared.core.database import Base
-from sqlalchemy import Connection, create_engine
+from sqlalchemy import create_engine
 
 from alembic import context
 
@@ -93,57 +98,6 @@ def _get_sync_database_url() -> str:
     return url
 
 
-def _verify_schema_at_head(connection: Connection, logger: logging.Logger) -> None:
-    """Confirm ``alembic_version`` matches the script directory head(s).
-
-    Runs on the same connection that just ran the migrations so there is
-    no second Entra token acquisition. Defense in depth: if
-    ``context.run_migrations()`` ever returns cleanly without advancing
-    the version row (the original bug in issue #432, caused by an
-    exception swallow that has since been removed), this raises and the
-    migration job exits non-zero, failing the deploy gate.
-    """
-    expected_heads = set(ScriptDirectory.from_config(config).get_heads())
-    if not expected_heads:
-        logger.warning("alembic.verify.skipped: no script heads to compare against")
-        return
-
-    current_heads = set(MigrationContext.configure(connection).get_current_heads())
-    if current_heads != expected_heads:
-        raise RuntimeError(
-            "Migration verification failed: alembic_version "
-            f"current={sorted(current_heads) or 'none'} "
-            f"expected={sorted(expected_heads)}"
-        )
-    logger.info("alembic.verified heads=%s", sorted(current_heads))
-
-
-def _should_verify_head() -> bool:
-    """Verify schema reached head only when the command's destination is head.
-
-    Skip verification for ``alembic current``, ``alembic downgrade``, or any
-    targeted upgrade to a non-head revision — those intentionally leave the
-    database off head and the verify check would otherwise raise spuriously
-    during local dev.
-
-    The deploy job runs ``alembic upgrade head``, so verification stays
-    active in production. Alembic resolves the literal ``"head"`` to the
-    concrete revision id before storing it, so we compare against the
-    script directory's current head(s) rather than the string.
-    """
-    try:
-        destination = context.get_revision_argument()
-    except KeyError:
-        # Commands like ``alembic current`` set no destination revision.
-        return False
-    if destination is None:
-        return False
-    if destination == "head":
-        return True
-    expected_heads = set(ScriptDirectory.from_config(config).get_heads())
-    return destination in expected_heads
-
-
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode (emit SQL, no DB connection)."""
     context.configure(
@@ -173,8 +127,6 @@ def run_migrations_online() -> None:
             )
             with context.begin_transaction():
                 context.run_migrations()
-            if _should_verify_head():
-                _verify_schema_at_head(connection, logger)
     except Exception:
         # Always log so silent failures (e.g. swallowed by some future
         # exception handler) cannot ship green. See issue #432.

@@ -1,9 +1,12 @@
-"""Unit tests for ``alembic/env.py`` schema-verification helper.
+"""Unit tests for ``alembic/env.py`` URL helpers.
 
-The full subprocess-based regression test lives in
-``test_alembic_env_regression.py``. These tests cover the in-process
-branches of ``_verify_schema_at_head`` directly so failure cases are
-fast to iterate on.
+Head-verification used to live in env.py (``_verify_schema_at_head``) but
+was replaced with the official ``alembic.command.current(check_heads=True)``
+call from ``scripts/run_migrations.py``. The four tests for the deleted
+helper were removed with the function. The end-to-end regression for
+issue #432 still lives in ``test_alembic_env_regression.py`` which runs
+``alembic upgrade head`` against a deliberately failing migration and
+asserts the failure propagates.
 
 ``alembic/env.py`` runs migrations at import time, so we can't just
 ``import``  it. We load it with ``importlib.util`` from the alembic
@@ -13,7 +16,6 @@ directory after monkeypatching the alembic context to skip ``run()``.
 from __future__ import annotations
 
 import importlib.util
-import logging
 import sys
 import types
 from pathlib import Path
@@ -54,86 +56,6 @@ def _load_env_module(monkeypatch: pytest.MonkeyPatch) -> types.ModuleType:
     finally:
         sys.modules.pop("_env_under_test", None)
     return module
-
-
-def test_verify_schema_at_head_passes_when_heads_match(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    env = _load_env_module(monkeypatch)
-
-    monkeypatch.setattr(
-        env.ScriptDirectory,
-        "from_config",
-        lambda _cfg: MagicMock(get_heads=lambda: ["0023"]),
-    )
-    monkeypatch.setattr(
-        env.MigrationContext,
-        "configure",
-        lambda _conn: MagicMock(get_current_heads=lambda: ("0023",)),
-    )
-
-    env._verify_schema_at_head(MagicMock(), logging.getLogger("test"))
-
-
-def test_verify_schema_at_head_raises_when_db_below_head(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Regression test for issue #432: ``alembic_version`` pinned to an
-    older revision must raise so the migration job exits non-zero."""
-    env = _load_env_module(monkeypatch)
-
-    monkeypatch.setattr(
-        env.ScriptDirectory,
-        "from_config",
-        lambda _cfg: MagicMock(get_heads=lambda: ["0023"]),
-    )
-    monkeypatch.setattr(
-        env.MigrationContext,
-        "configure",
-        lambda _conn: MagicMock(get_current_heads=lambda: ("0019",)),
-    )
-
-    with pytest.raises(RuntimeError, match="Migration verification failed"):
-        env._verify_schema_at_head(MagicMock(), logging.getLogger("test"))
-
-
-def test_verify_schema_at_head_raises_when_db_empty(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    env = _load_env_module(monkeypatch)
-
-    monkeypatch.setattr(
-        env.ScriptDirectory,
-        "from_config",
-        lambda _cfg: MagicMock(get_heads=lambda: ["0023"]),
-    )
-    monkeypatch.setattr(
-        env.MigrationContext,
-        "configure",
-        lambda _conn: MagicMock(get_current_heads=lambda: ()),
-    )
-
-    with pytest.raises(RuntimeError, match="Migration verification failed"):
-        env._verify_schema_at_head(MagicMock(), logging.getLogger("test"))
-
-
-def test_verify_schema_at_head_skipped_when_no_script_heads(
-    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
-) -> None:
-    """If the script directory is empty there's nothing to verify against;
-    don't raise, just log and continue."""
-    env = _load_env_module(monkeypatch)
-
-    monkeypatch.setattr(
-        env.ScriptDirectory,
-        "from_config",
-        lambda _cfg: MagicMock(get_heads=lambda: []),
-    )
-
-    with caplog.at_level(logging.WARNING):
-        env._verify_schema_at_head(MagicMock(), logging.getLogger("test"))
-
-    assert any("alembic.verify.skipped" in r.message for r in caplog.records)
 
 
 def test_get_sync_database_url_converts_asyncpg_to_psycopg2(
