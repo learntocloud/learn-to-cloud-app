@@ -118,6 +118,32 @@ def _verify_schema_at_head(connection: Connection, logger: logging.Logger) -> No
     logger.info("alembic.verified heads=%s", sorted(current_heads))
 
 
+def _should_verify_head() -> bool:
+    """Verify schema reached head only when the command's destination is head.
+
+    Skip verification for ``alembic current``, ``alembic downgrade``, or any
+    targeted upgrade to a non-head revision — those intentionally leave the
+    database off head and the verify check would otherwise raise spuriously
+    during local dev.
+
+    The deploy job runs ``alembic upgrade head``, so verification stays
+    active in production. Alembic resolves the literal ``"head"`` to the
+    concrete revision id before storing it, so we compare against the
+    script directory's current head(s) rather than the string.
+    """
+    try:
+        destination = context.get_revision_argument()
+    except KeyError:
+        # Commands like ``alembic current`` set no destination revision.
+        return False
+    if destination is None:
+        return False
+    if destination == "head":
+        return True
+    expected_heads = set(ScriptDirectory.from_config(config).get_heads())
+    return destination in expected_heads
+
+
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode (emit SQL, no DB connection)."""
     context.configure(
@@ -125,6 +151,7 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         literal_binds=True,
         compare_type=True,
+        compare_server_default=True,
         dialect_opts={"paramstyle": "named"},
     )
     with context.begin_transaction():
@@ -142,11 +169,12 @@ def run_migrations_online() -> None:
                 connection=connection,
                 target_metadata=target_metadata,
                 compare_type=True,
-                render_as_batch=True,
+                compare_server_default=True,
             )
             with context.begin_transaction():
                 context.run_migrations()
-            _verify_schema_at_head(connection, logger)
+            if _should_verify_head():
+                _verify_schema_at_head(connection, logger)
     except Exception:
         # Always log so silent failures (e.g. swallowed by some future
         # exception handler) cannot ship green. See issue #432.
