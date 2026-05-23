@@ -57,7 +57,7 @@ class TestGetGitHubHeaders:
         mock_settings = MagicMock()
         mock_settings.github_token = "ghp_test123"
         with patch(
-            "learn_to_cloud_shared.verification.github_profile.get_settings",
+            "learn_to_cloud_shared.verification.github_profile.get_worker_settings",
             autospec=True,
             return_value=mock_settings,
         ):
@@ -69,7 +69,7 @@ class TestGetGitHubHeaders:
         mock_settings = MagicMock()
         mock_settings.github_token = ""
         with patch(
-            "learn_to_cloud_shared.verification.github_profile.get_settings",
+            "learn_to_cloud_shared.verification.github_profile.get_worker_settings",
             autospec=True,
             return_value=mock_settings,
         ):

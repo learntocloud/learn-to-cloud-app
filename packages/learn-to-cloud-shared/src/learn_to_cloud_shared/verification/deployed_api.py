@@ -39,7 +39,7 @@ from tenacity import (
     wait_exponential_jitter,
 )
 
-from learn_to_cloud_shared.core.config import get_settings
+from learn_to_cloud_shared.core.config import get_worker_settings
 from learn_to_cloud_shared.core.http_client import PooledClient
 from learn_to_cloud_shared.schemas import ValidationResult
 from learn_to_cloud_shared.verification.errors import (
@@ -52,7 +52,7 @@ from learn_to_cloud_shared.verification.errors import (
 def _build_deployed_api_client() -> httpx.AsyncClient:
     return httpx.AsyncClient(
         timeout=httpx.Timeout(
-            get_settings().external_api_timeout,
+            get_worker_settings().external_api_timeout,
             connect=5.0,
         ),
         follow_redirects=False,

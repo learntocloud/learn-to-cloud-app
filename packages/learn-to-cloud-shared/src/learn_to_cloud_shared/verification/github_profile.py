@@ -23,7 +23,7 @@ from tenacity import (
     wait_exponential_jitter,
 )
 
-from learn_to_cloud_shared.core.config import get_settings
+from learn_to_cloud_shared.core.config import get_worker_settings
 from learn_to_cloud_shared.core.github_client import (
     get_github_client as _get_github_client,
 )
@@ -64,7 +64,7 @@ github_error_to_validation_result = github_error_to_result
 def get_github_headers() -> dict[str, str]:
     """Get headers for GitHub API requests, including auth token if available."""
     headers = {"Accept": "application/vnd.github.v3+json"}
-    settings = get_settings()
+    settings = get_worker_settings()
     if settings.github_token:
         headers["Authorization"] = f"Bearer {settings.github_token}"
     return headers

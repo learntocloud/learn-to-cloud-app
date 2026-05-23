@@ -16,14 +16,14 @@ from typing import Any
 
 from opentelemetry import trace
 
-from learn_to_cloud_shared.core.config import get_settings
+from learn_to_cloud_shared.core.config import get_worker_settings
 from learn_to_cloud_shared.schemas import ValidationResult
 
 
 def _derive_secret(instance_id: str) -> str:
     """Derive an instance-specific secret via SHA-256."""
-    master_secret = get_settings().labs_verification_secret
-    if not get_settings().debug and not master_secret:
+    master_secret = get_worker_settings().labs_verification_secret
+    if not master_secret:
         raise RuntimeError("Labs verification secret is not configured")
     data = f"{master_secret}:{instance_id}"
     return hashlib.sha256(data.encode()).hexdigest()

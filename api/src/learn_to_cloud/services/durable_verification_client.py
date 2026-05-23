@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from uuid import UUID
 
 import httpx
-from learn_to_cloud_shared.core.config import get_settings
+from learn_to_cloud_shared.core.config import get_web_settings
 
 
 class DurableVerificationConfigError(Exception):
@@ -35,7 +35,7 @@ class DurableStatusResult:
 
 async def start_verification_orchestration(job_id: UUID) -> DurableStartResult:
     """Start the Durable orchestration for a persisted verification job."""
-    settings = get_settings()
+    settings = get_web_settings()
     base_url = settings.verification_functions_base_url.rstrip("/")
     function_key = settings.verification_functions_key
 
@@ -78,7 +78,7 @@ async def get_verification_orchestration_status(
     instance_id: str,
 ) -> DurableStatusResult:
     """Fetch Durable orchestration status through the Function app proxy."""
-    settings = get_settings()
+    settings = get_web_settings()
     base_url = settings.verification_functions_base_url.rstrip("/")
     function_key = settings.verification_functions_key
 

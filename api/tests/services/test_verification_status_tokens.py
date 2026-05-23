@@ -27,7 +27,7 @@ def test_token_round_trip_validates_expected_user():
     instance_id = str(job_id)
 
     with patch(
-        "learn_to_cloud.services.verification_status_tokens.get_settings",
+        "learn_to_cloud.services.verification_status_tokens.get_web_settings",
         return_value=_settings(),
     ):
         token = create_verification_status_token(
@@ -47,7 +47,7 @@ def test_token_round_trip_validates_expected_user():
 def test_tampered_token_is_rejected():
     with (
         patch(
-            "learn_to_cloud.services.verification_status_tokens.get_settings",
+            "learn_to_cloud.services.verification_status_tokens.get_web_settings",
             return_value=_settings(),
         ),
         pytest.raises(VerificationStatusTokenError, match="invalid"),
@@ -58,7 +58,7 @@ def test_tampered_token_is_rejected():
 def test_user_mismatch_is_rejected():
     with (
         patch(
-            "learn_to_cloud.services.verification_status_tokens.get_settings",
+            "learn_to_cloud.services.verification_status_tokens.get_web_settings",
             return_value=_settings(),
         ),
         pytest.raises(VerificationStatusTokenError, match="user mismatch"),
@@ -75,7 +75,7 @@ def test_user_mismatch_is_rejected():
 def test_invalid_uuid_fields_are_rejected():
     with (
         patch(
-            "learn_to_cloud.services.verification_status_tokens.get_settings",
+            "learn_to_cloud.services.verification_status_tokens.get_web_settings",
             return_value=_settings(),
         ),
         pytest.raises(VerificationStatusTokenError, match="invalid instance_id"),
@@ -95,7 +95,7 @@ def test_expired_token_is_rejected():
 
     with (
         patch(
-            "learn_to_cloud.services.verification_status_tokens.get_settings",
+            "learn_to_cloud.services.verification_status_tokens.get_web_settings",
             return_value=settings,
         ),
         pytest.raises(VerificationStatusTokenError, match="expired"),

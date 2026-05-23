@@ -19,14 +19,14 @@ os.environ.setdefault(
 )
 os.environ.setdefault("GITHUB_TOKEN", "test_github_token")
 os.environ.setdefault("LABS_VERIFICATION_SECRET", "test_ctf_secret_must_be_32_chars!")
-os.environ.setdefault("DEBUG", "true")
+os.environ.setdefault("ENVIRONMENT", "development")
 
 from collections.abc import AsyncGenerator
 
 import pytest
 import pytest_asyncio
 from fastapi import FastAPI
-from learn_to_cloud_shared.core.config import Settings
+from learn_to_cloud_shared.core.config import Environment, WebSettings
 from learn_to_cloud_shared.core.database import Base
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import (
@@ -65,14 +65,14 @@ TEST_DATABASE_URL, _DB_HOST, _DB_PORT = _build_test_database_url()
 
 
 @pytest.fixture(scope="session")
-def test_settings() -> Settings:
+def test_settings() -> WebSettings:
     """Create test settings pointing to test database.
 
     Uses the same PostgreSQL instance from docker-compose but a separate database.
     """
-    return Settings(
+    return WebSettings(
         database_url=TEST_DATABASE_URL,
-        debug=True,
+        environment=Environment.DEVELOPMENT,
         require_https=False,
         github_client_id="test_github_client_id",
         github_client_secret="test_github_client_secret",

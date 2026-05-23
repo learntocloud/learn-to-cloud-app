@@ -18,7 +18,7 @@ from typing import Annotated
 
 from authlib.integrations.starlette_client import OAuth
 from fastapi import Depends, HTTPException, Request
-from learn_to_cloud_shared.core.config import get_settings
+from learn_to_cloud_shared.core.config import get_web_settings
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +40,7 @@ def init_oauth() -> None:
     Call once at app startup (in lifespan). Uses Authlib's built-in
     GitHub integration which knows the authorize/token/userinfo URLs.
     """
-    settings = get_settings()
+    settings = get_web_settings()
     if not settings.github_client_id:
         logger.warning(
             "auth.github_oauth_disabled",

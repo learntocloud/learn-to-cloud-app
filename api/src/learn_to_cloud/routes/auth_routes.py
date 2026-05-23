@@ -13,7 +13,7 @@ import httpx
 from authlib.integrations.starlette_client import OAuthError
 from fastapi import APIRouter, Request
 from fastapi.responses import RedirectResponse
-from learn_to_cloud_shared.core.config import get_settings
+from learn_to_cloud_shared.core.config import get_web_settings
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from learn_to_cloud.core.auth import UserId, ensure_session_id, oauth
@@ -47,7 +47,7 @@ async def login(request: Request) -> RedirectResponse:
     redirect_uri = str(request.url_for("auth_callback"))
     # Azure Container Apps terminates TLS at the load balancer; ensure
     # the redirect URI uses https so it matches the GitHub OAuth config.
-    if get_settings().require_https and redirect_uri.startswith("http://"):
+    if get_web_settings().require_https and redirect_uri.startswith("http://"):
         redirect_uri = redirect_uri.replace("http://", "https://", 1)
     return await github.authorize_redirect(request, redirect_uri)
 

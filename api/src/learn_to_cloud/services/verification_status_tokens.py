@@ -7,7 +7,7 @@ from typing import Any
 from uuid import UUID
 
 from itsdangerous import BadData, SignatureExpired, URLSafeTimedSerializer
-from learn_to_cloud_shared.core.config import get_settings
+from learn_to_cloud_shared.core.config import get_web_settings
 
 _TOKEN_SALT = "verification-status-v1"
 
@@ -25,7 +25,9 @@ class VerificationStatusToken:
 
 
 def _serializer() -> URLSafeTimedSerializer:
-    return URLSafeTimedSerializer(get_settings().session_secret_key, salt=_TOKEN_SALT)
+    return URLSafeTimedSerializer(
+        get_web_settings().session_secret_key, salt=_TOKEN_SALT
+    )
 
 
 def create_verification_status_token(
@@ -49,7 +51,7 @@ def load_verification_status_token(
     *,
     expected_user_id: int,
 ) -> VerificationStatusToken:
-    max_age = get_settings().verification_wait_timeout + 120
+    max_age = get_web_settings().verification_wait_timeout + 120
     try:
         payload = _serializer().loads(token, max_age=max_age)
     except SignatureExpired as exc:

@@ -9,7 +9,7 @@ os.environ.setdefault(
 )
 os.environ.setdefault("GITHUB_TOKEN", "test_github_token")
 os.environ.setdefault("LABS_VERIFICATION_SECRET", "test_ctf_secret_must_be_32_chars!")
-os.environ.setdefault("DEBUG", "true")
+os.environ.setdefault("ENVIRONMENT", "development")
 
 import pytest
 import pytest_asyncio
@@ -22,7 +22,7 @@ from sqlalchemy.ext.asyncio import (
 )
 from sqlalchemy.pool import NullPool
 
-from learn_to_cloud_shared.core.config import Settings
+from learn_to_cloud_shared.core.config import Environment, WebSettings
 from learn_to_cloud_shared.core.database import Base
 
 
@@ -46,11 +46,11 @@ _DB_AVAILABLE: bool | None = None
 
 
 @pytest.fixture(scope="session")
-def test_settings() -> Settings:
+def test_settings() -> WebSettings:
     """Create test settings pointing to the test database."""
-    return Settings(
+    return WebSettings(
         database_url=TEST_DATABASE_URL,
-        debug=True,
+        environment=Environment.DEVELOPMENT,
         require_https=False,
         github_client_id="test_github_client_id",
         github_client_secret="test_github_client_secret",

@@ -219,14 +219,10 @@ jobs:
 
       - name: Apply migrations to CI database
         working-directory: api
-        env:
-          DEBUG: "true"
         run: uv run alembic upgrade head
 
       - name: Verify model and migrations are in sync (alembic check)
         working-directory: api
-        env:
-          DEBUG: "true"
         run: uv run alembic check
 
       - name: Run API tests with coverage
@@ -414,7 +410,7 @@ jobs:
             --python "$(which python)" \
             --target .python_packages/lib/site-packages \
             -r /tmp/verification-functions-requirements.txt
-          DEBUG=true DATABASE_URL="postgresql+asyncpg://postgres:postgres@localhost:5432/learntocloud" PYTHONPATH="$PWD/.python_packages/lib/site-packages" python - <<'PY'
+          DATABASE_URL="postgresql+asyncpg://postgres:postgres@localhost:5432/learntocloud" PYTHONPATH="$PWD/.python_packages/lib/site-packages" python - <<'PY'
           import asyncpg
           import function_app
           from learn_to_cloud_shared.verification.requirements import get_requirement_by_id
@@ -476,7 +472,6 @@ jobs:
                 POSTGRES_USER="$POSTGRES_USER" \
                 POSTGRES_DATABASE="$POSTGRES_DATABASE" \
                 AZURE_CLIENT_ID="$MIGRATION_CLIENT_ID" \
-                DEBUG=true \
               --registry-identity "$MIGRATION_IDENTITY_ID" \
               --query name \
               --output tsv
