@@ -63,12 +63,13 @@ psql -h psql-ltc-dev-8v4tyz.postgres.database.azure.com -d learntocloud -U "$PG_
       ORDER BY created_at;" | cat
 ```
 
-Also check the current progress counter:
+Also check the current validated submissions for this phase:
 
 ```bash
 psql -h psql-ltc-dev-8v4tyz.postgres.database.azure.com -d learntocloud -U "$PG_USER" \
   --set=sslmode=require -P pager=off \
-  -c "SELECT * FROM user_phase_progress WHERE user_id = <USER_ID> AND phase_id = <PHASE_ID>;" | cat
+  -c "SELECT COUNT(*) FROM submissions
+      WHERE user_id = <USER_ID> AND phase_id = <PHASE_ID> AND is_validated = true;" | cat
 ```
 
 ## Step 5: Confirm with User
@@ -85,11 +86,12 @@ psql -h psql-ltc-dev-8v4tyz.postgres.database.azure.com -d learntocloud -U "$PG_
   -c "
 BEGIN;
 DELETE FROM submissions WHERE user_id = <USER_ID> AND phase_id = <PHASE_ID>;
-UPDATE user_phase_progress SET validated_submissions = 0, updated_at = NOW()
-  WHERE user_id = <USER_ID> AND phase_id = <PHASE_ID>;
 COMMIT;
 " | cat
 ```
+
+Progress is derived live from the submissions table, so no separate
+counter table needs to be updated.
 
 ### Resetting Specific Requirements Only
 
@@ -103,12 +105,6 @@ BEGIN;
 DELETE FROM submissions
   WHERE user_id = <USER_ID> AND phase_id = <PHASE_ID>
     AND requirement_id IN ('<REQ_1>', '<REQ_2>');
-UPDATE user_phase_progress
-  SET validated_submissions = (
-    SELECT COUNT(*) FROM submissions
-    WHERE user_id = <USER_ID> AND phase_id = <PHASE_ID> AND is_validated = true
-  ), updated_at = NOW()
-  WHERE user_id = <USER_ID> AND phase_id = <PHASE_ID>;
 COMMIT;
 " | cat
 ```
@@ -121,7 +117,8 @@ Confirm the reset was successful:
 psql -h psql-ltc-dev-8v4tyz.postgres.database.azure.com -d learntocloud -U "$PG_USER" \
   --set=sslmode=require -P pager=off \
   -c "SELECT COUNT(*) as remaining FROM submissions WHERE user_id = <USER_ID> AND phase_id = <PHASE_ID>;
-      SELECT validated_submissions FROM user_phase_progress WHERE user_id = <USER_ID> AND phase_id = <PHASE_ID>;" | cat
+      SELECT COUNT(*) as validated FROM submissions
+       WHERE user_id = <USER_ID> AND phase_id = <PHASE_ID> AND is_validated = true;" | cat
 ```
 
 ## Known Users
@@ -132,4 +129,4 @@ psql -h psql-ltc-dev-8v4tyz.postgres.database.azure.com -d learntocloud -U "$PG_
 
 ## Tables
 
-`users` · `submissions` · `user_phase_progress`
+`users` · `submissions`

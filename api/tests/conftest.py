@@ -142,9 +142,11 @@ async def test_engine() -> AsyncGenerator[AsyncEngine]:
         echo=False,
     )
 
-    # Recreate all tables to ensure schema matches current models
+    # Reset to a clean slate so tables dropped from current metadata (e.g.
+    # across branch switches) cannot linger as orphans and block FK chains.
     async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
+        await conn.execute(text("DROP SCHEMA public CASCADE"))
+        await conn.execute(text("CREATE SCHEMA public"))
         await conn.run_sync(Base.metadata.create_all)
 
     yield engine

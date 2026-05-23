@@ -61,9 +61,9 @@ cd <workspace>/api && uv run python scripts/reset_local_submissions.py \
 
 - Matching rows found and affected user IDs
 - Number of deleted submission rows
-- Recomputed `user_phase_progress.validated_submissions` per affected phase
 
 ## Notes
 
 - This is for local/testing databases only.
-- The script updates denormalized progress counts so dashboard progress remains consistent.
+- Progress is derived live from the submissions table on next page load,
+  so no denormalized counter needs updating.

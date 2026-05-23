@@ -47,6 +47,20 @@ Do not push unless all of the following pass:
 
 Do not write `# noqa`, `type: ignore`, or ty/ruff suppression comments unless absolutely unavoidable.
 
+### Validation Workflow (run continuously, not just at the end)
+
+The Quality Gates commands above are the source of truth — **not `prek run --all-files`**. `prek --all-files` only inspects git-tracked files, so newly-created files (new migrations, new modules, new tests) get silently skipped. Relying on prek alone will let real ruff/ty violations slip through until the commit hook fires.
+
+Follow this loop:
+
+1. **After every batch of edits**, run the explicit Quality Gates commands for the project(s) you touched. At minimum, run `ruff check`, `ruff format --check`, and `ty check`. Do this even if you only changed one file — it takes seconds.
+2. **When creating new files**, either `git add` them first (so prek sees them) or run ruff/ty directly against the file path: `uv run ruff check path/to/new_file.py`.
+3. **Before declaring work complete**, run the entire Quality Gates block from top to bottom, in addition to any test/dog-food steps. Treat any failure as blocking.
+4. **Write code that respects ruff and ty by default** — match `line-length = 88`, prefer explicit imports, keep functions type-annotated, avoid unused imports/variables. Don't write code first and clean up later; getting it right the first time is faster.
+5. **Long SQL or string literals in migrations** must respect `line-length = 88`. Break long `SELECT` / `INSERT` lists across multiple lines inside the SQL string — ruff lints the Python source, not the SQL.
+
+If a check fails, fix it before moving on. Do not batch lint fixes for the end of the task.
+
 ## Research
 
 If you need to research something that is azure related, use azure-skills plugin. If you need more info or another topic, use firecrawl and or context7.
