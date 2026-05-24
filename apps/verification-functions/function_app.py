@@ -17,7 +17,7 @@ from learn_to_cloud_shared.core.config import WorkerSettings, configure_settings
 from learn_to_cloud_shared.core.database import create_engine, create_session_maker
 from learn_to_cloud_shared.core.logger import APP_LOGGER_NAMESPACE, configure_logging
 from learn_to_cloud_shared.core.observability import configure_observability
-from learn_to_cloud_shared.models import SubmissionType, VerificationJob
+from learn_to_cloud_shared.models import SubmissionType
 from learn_to_cloud_shared.repositories.verification_job_repository import (
     VerificationJobRepository,
 )
@@ -39,6 +39,7 @@ from learn_to_cloud_shared.verification_job_executor import (
 from opentelemetry import context as otel_context
 from opentelemetry import trace as otel_trace
 from opentelemetry.propagate import extract
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from verification_agents import grade_evidence
 
@@ -221,7 +222,6 @@ def _set_prepared_job_span_attributes(job: PreparedVerificationJob) -> None:
         job_id=str(job.id),
         user_id=job.user_id,
         github_username=job.github_username,
-        phase_id=job.phase_id,
         requirement_id=job.requirement.id,
         submission_type=job.requirement.submission_type.value,
     )
@@ -260,7 +260,6 @@ def _log_verification_job_completed(
             "job_id": result.get("job_id"),
             "user_id": job.user_id,
             "github_username": job.github_username,
-            "phase_id": job.phase_id,
             "requirement_id": job.requirement.id,
             "submission_type": job.requirement.submission_type.value,
             "status": result.get("status"),
@@ -272,9 +271,19 @@ def _log_verification_job_completed(
     )
 
 
-def _orchestrator_name_for_job(job: VerificationJob) -> str:
+def _orchestrator_name_for_submission_type(submission_type: str) -> str:
+    """Pick the Durable orchestrator for a verification's submission type.
+
+    Phase D.3 dropped ``submission_type`` from ``verification_jobs``;
+    callers resolve it via the linked requirement (see
+    :func:`start_verification_job`).
+    """
+    try:
+        enum_value = SubmissionType(submission_type)
+    except ValueError:
+        return _DEFAULT_ORCHESTRATOR_NAME
     return _ORCHESTRATOR_NAMES_BY_SUBMISSION_TYPE.get(
-        job.submission_type,
+        enum_value,
         _DEFAULT_ORCHESTRATOR_NAME,
     )
 
@@ -287,7 +296,6 @@ def _job_custom_status(
     return {
         "step": step,
         "job_id": job_id,
-        "phase_id": job.phase_id,
         "requirement_id": job.requirement.id,
         "submission_type": job.requirement.submission_type.value,
     }
@@ -645,10 +653,27 @@ async def start_verification_job(
         job_id = str(job_uuid)
         async with _get_session_maker()() as session:
             job = await VerificationJobRepository(session).get_by_id(job_uuid)
-        if job is None:
-            return _json_response({"error": "job_not_found"}, status_code=404)
+            if job is None:
+                return _json_response({"error": "job_not_found"}, status_code=404)
 
-        orchestrator_name = _orchestrator_name_for_job(job)
+            # verification_jobs no longer carries submission_type/requirement_id
+            # (Phase D.3). Resolve them via a direct lookup against the
+            # requirements table -- this includes soft-deleted rows because
+            # the FK is ON DELETE RESTRICT, so the row always still exists.
+            requirement_row = (
+                await session.execute(
+                    text(
+                        "SELECT id, submission_type FROM requirements "
+                        "WHERE uuid = :uuid LIMIT 1"
+                    ),
+                    {"uuid": job.requirement_uuid},
+                )
+            ).first()
+        if requirement_row is None:
+            return _json_response({"error": "requirement_not_found"}, status_code=404)
+        requirement_id, submission_type_str = requirement_row[0], requirement_row[1]
+
+        orchestrator_name = _orchestrator_name_for_submission_type(submission_type_str)
         _set_verification_span_attributes(job_id=job_id)
         instance_id = await client.start_new(
             orchestrator_name,
@@ -661,9 +686,8 @@ async def start_verification_job(
                 "job_id": job_id,
                 "instance_id": instance_id,
                 "orchestrator_name": orchestrator_name,
-                "phase_id": job.phase_id,
-                "requirement_id": job.requirement_id,
-                "submission_type": job.submission_type.value,
+                "requirement_id": requirement_id,
+                "submission_type": submission_type_str,
             },
         )
         return client.create_check_status_response(req, instance_id)

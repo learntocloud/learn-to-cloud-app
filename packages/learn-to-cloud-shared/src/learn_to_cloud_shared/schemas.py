@@ -509,12 +509,17 @@ class UserProgress(FrozenModel):
 
 
 class SubmissionData(FrozenModel):
-    """Submission data (service-layer response model)."""
+    """Submission data (service-layer response model).
+
+    After Phase D.2 + D.3 of #461 / #465 the denormalized
+    ``requirement_id`` / ``submission_type`` / ``phase_id`` columns
+    are gone from the underlying ``submissions`` table and nothing
+    in the app reads them off ``SubmissionData`` either -- callers
+    that need them have the corresponding ``HandsOnRequirement``
+    in scope.
+    """
 
     id: int
-    requirement_id: str
-    submission_type: SubmissionType
-    phase_id: int
     submitted_value: str
     extracted_username: str | None = None
     is_validated: bool

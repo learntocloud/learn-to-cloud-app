@@ -42,7 +42,6 @@ def _run_result(is_valid: bool = True) -> VerificationRunResult:
             user_id=1,
             github_username="learner",
             requirement=requirement,
-            phase_id=6,
             submitted_value="https://github.com/learner/journal",
         ),
         validation_result=ValidationResult(
@@ -76,7 +75,6 @@ def _phase3_run_result(is_valid: bool = True) -> VerificationRunResult:
             user_id=1,
             github_username="learner",
             requirement=requirement,
-            phase_id=3,
             submitted_value="https://github.com/learner/journal-starter",
         ),
         validation_result=ValidationResult(

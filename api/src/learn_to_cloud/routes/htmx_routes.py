@@ -23,7 +23,11 @@ from learn_to_cloud_shared.core.database import DbSession
 from learn_to_cloud_shared.repositories.verification_job_repository import (
     VerificationJobRepository,
 )
-from learn_to_cloud_shared.schemas import SubmissionData, SubmissionResult
+from learn_to_cloud_shared.schemas import (
+    HandsOnRequirement,
+    SubmissionData,
+    SubmissionResult,
+)
 from learn_to_cloud_shared.verification.execution import (
     SubmissionAlreadyInFlightError,
 )
@@ -403,6 +407,7 @@ async def htmx_submit_verification(
     if isinstance(dispatch_result, SyncVerificationResult):
         return _render_sync_result(
             user_id=user_id,
+            requirement=requirement,
             result=dispatch_result.submission_result,
         )
 
@@ -418,6 +423,7 @@ async def htmx_submit_verification(
 def _render_sync_result(
     *,
     user_id: int,
+    requirement: HandsOnRequirement | None,
     result: SubmissionResult,
 ) -> HTMLResponse:
     """Render the response for a sync verification that already finished.
@@ -433,8 +439,10 @@ def _render_sync_result(
         extra={
             "user_id": user_id,
             "submission_id": result.submission.id,
-            "requirement_id": result.submission.requirement_id,
-            "submission_type": result.submission.submission_type.value,
+            "requirement_id": requirement.id if requirement is not None else None,
+            "submission_type": (
+                requirement.submission_type.value if requirement is not None else None
+            ),
             "is_valid": result.is_valid,
             "verification_completed": result.submission.verification_completed,
             "is_server_error": result.is_server_error,

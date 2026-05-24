@@ -78,12 +78,7 @@ async def get_phase_submission_context(
             # uuid is in the input list, but if curriculum drift slips one
             # past us we skip silently rather than crash the phase page.
             continue
-        sub_data = to_submission_data(
-            sub,
-            requirement_id=requirement.id,
-            submission_type=requirement.submission_type,
-            phase_id=phase.id,
-        )
+        sub_data = to_submission_data(sub)
         submissions_by_req[requirement.id] = sub_data
 
         if sub.feedback_json and not sub.is_validated:
@@ -277,7 +272,6 @@ async def create_verification_job(
             session_maker=session_maker,
             user_id=user_id,
             requirement=ctx.requirement,
-            phase_id=ctx.phase_id,
             submitted_value=submitted_value,
             github_username=github_username,
         )
@@ -287,9 +281,7 @@ async def create_verification_job(
         repo = VerificationJobRepository(write_session)
         job, created = await repo.create_or_get_active(
             user_id=user_id,
-            requirement_id=requirement_id,
-            submission_type=ctx.requirement.submission_type,
-            phase_id=ctx.phase_id,
+            requirement_uuid=ctx.requirement.uuid,
             submitted_value=submitted_value,
         )
         await write_session.commit()

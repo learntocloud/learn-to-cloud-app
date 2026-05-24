@@ -51,7 +51,7 @@ from learn_to_cloud_shared.verification.execution import (
     persist_validation_result,
     persisted_validation_message,
 )
-from learn_to_cloud_shared.verification.requirements import get_requirement_by_id
+from learn_to_cloud_shared.verification.requirements import load_requirement_index
 
 tracer = trace.get_tracer(__name__)
 
@@ -125,7 +125,6 @@ class PreparedVerificationJob:
     user_id: int
     github_username: str | None
     requirement: HandsOnRequirement
-    phase_id: int
     submitted_value: str
 
     def to_payload(self) -> dict[str, object]:
@@ -135,7 +134,6 @@ class PreparedVerificationJob:
             "user_id": self.user_id,
             "github_username": self.github_username,
             "requirement": self.requirement.model_dump(mode="json"),
-            "phase_id": self.phase_id,
             "submitted_value": self.submitted_value,
         }
 
@@ -154,7 +152,6 @@ class PreparedVerificationJob:
             requirement=HandsOnRequirementAdapter.validate_python(
                 payload["requirement"]
             ),
-            phase_id=_expect_int(payload["phase_id"], "phase_id"),
             submitted_value=_expect_str(payload["submitted_value"], "submitted_value"),
         )
 
@@ -208,10 +205,8 @@ class _VerificationJobPayload:
     id: UUID
     user_id: int
     github_username: str | None
-    requirement_id: str
-    phase_id: int
+    requirement_uuid: UUID
     submitted_value: str
-    submission_type: str
     result_submission_id: int | None
 
 
@@ -262,10 +257,8 @@ async def _load_job_payload(
         id=job.id,
         user_id=job.user_id,
         github_username=github_username,
-        requirement_id=job.requirement_id,
-        phase_id=job.phase_id,
+        requirement_uuid=job.requirement_uuid,
         submitted_value=job.submitted_value,
-        submission_type=job.submission_type.value,
         result_submission_id=job.result_submission_id,
     )
 
@@ -298,20 +291,26 @@ def _build_result_from_submission(
     *,
     job_id: UUID,
     submission: Submission,
-    requirement_id: str,
-    submission_type: str,
-    requirement_name: str | None,
+    requirement: HandsOnRequirement | None,
+    requirement_id_fallback: str | None = None,
 ) -> VerificationJobExecutionResult:
     """Build a ``VerificationJobExecutionResult`` from an already-persisted
     ``Submission``. Used by the replay short-circuit in
     :func:`prepare_verification_job` and :func:`persist_verification_result`.
 
-    ``requirement_id`` and ``submission_type`` are passed in by the caller
-    rather than read off the ``Submission`` row: Phase D.2 (#465) dropped
-    those denormalized columns from ``submissions``. The job payload
-    (sourced from ``verification_jobs``) still carries them until D.3.
+    When ``requirement`` is None (active lookup didn't find it -- the
+    requirement was soft-deleted), the caller passes the legacy
+    ``requirement_id_fallback`` so the result payload still surfaces
+    something useful in templates.
     """
     outcome = _outcome_from_submission(submission)
+    requirement_id = (
+        requirement.id if requirement is not None else (requirement_id_fallback or "")
+    )
+    submission_type = (
+        requirement.submission_type.value if requirement is not None else None
+    )
+    requirement_name = requirement.name if requirement is not None else None
     return VerificationJobExecutionResult(
         job_id=job_id,
         status=outcome,
@@ -327,23 +326,41 @@ def _build_result_from_submission(
     )
 
 
-async def _resolve_requirement_uuid(
-    db: AsyncSession, requirement_id: str
-) -> UUID | None:
-    """Look up ``requirements.uuid`` by legacy id including soft-deleted rows.
+async def _load_requirement_metadata(
+    db: AsyncSession, requirement_uuid: UUID
+) -> tuple[str, str] | None:
+    """Return ``(requirement_id, submission_type)`` for a requirement by UUID,
+    even if it has been soft-deleted.
 
-    The active read path (``get_requirement_by_id``) filters out
-    soft-deleted entries, but a submission persist may need the UUID
-    for a requirement that was soft-deleted between submit and
-    execute. The ``requirements`` FK on submissions is ON DELETE
-    RESTRICT, so soft-deleted UUIDs are always still resolvable.
+    Used by the missing-requirement path to fill in the legacy fields on
+    a server-error result when the active ``get_requirement_by_id``
+    lookup returns None.
     """
     result = await db.execute(
-        text("SELECT uuid FROM requirements WHERE id = :id LIMIT 1"),
-        {"id": requirement_id},
+        text("SELECT id, submission_type FROM requirements WHERE uuid = :uuid LIMIT 1"),
+        {"uuid": requirement_uuid},
     )
     row = result.first()
-    return row[0] if row else None
+    return (row[0], row[1]) if row else None
+
+
+async def _find_requirement_by_uuid(
+    db: AsyncSession, requirement_uuid: UUID
+) -> HandsOnRequirement | None:
+    """Return the active ``HandsOnRequirement`` matching the given UUID.
+
+    Walks the loaded curriculum tree -- the curriculum is small enough
+    (~10 requirements) that an explicit lookup map per call is cheaper
+    than a JOIN through ``requirements``. Soft-deleted requirements
+    return None here; callers fall back to ``_load_requirement_metadata``
+    for the legacy id/submission_type when they need to render a
+    server-error result.
+    """
+    index = await load_requirement_index(db)
+    for req in index.by_id.values():
+        if req.uuid == requirement_uuid:
+            return req
+    return None
 
 
 async def _handle_missing_requirement(
@@ -352,30 +369,29 @@ async def _handle_missing_requirement(
     payload: _VerificationJobPayload,
 ) -> VerificationJobExecutionResult:
     """Record a server-error ``Submission`` for a job whose requirement was
-    removed from content, link the job to it, and return the resulting
-    execution result.
+    soft-deleted from content, link the job to it, and return the
+    resulting execution result.
 
     Linking the Submission (rather than deleting the job row) keeps
-    ``prepare_verification_job`` idempotent: a retry sees the linked row
-    and short-circuits via the replay path. If the requirement no
-    longer exists at all (not even soft-deleted), raises
-    ``VerificationJobNotFoundError`` so the orchestration surfaces a
-    clear failure -- the job's payload is unrecoverable.
+    ``prepare_verification_job`` idempotent: a retry sees the linked
+    row and short-circuits via the replay path. The FK on
+    ``verification_jobs.requirement_uuid`` is ON DELETE RESTRICT, so
+    the requirement row always still exists in the ``requirements``
+    table -- the active read just filters out soft-deleted entries.
+    The fallback metadata lookup below pulls ``id`` and
+    ``submission_type`` even from soft-deleted rows for the
+    server-error payload.
     """
-    detail = f"Requirement not found: {payload.requirement_id}"
-
     async with session_maker() as db:
-        requirement_uuid = await _resolve_requirement_uuid(db, payload.requirement_id)
-        if requirement_uuid is None:
-            raise VerificationJobNotFoundError(
-                f"job {payload.id} references unknown requirement "
-                f"{payload.requirement_id!r}"
-            )
+        metadata = await _load_requirement_metadata(db, payload.requirement_uuid)
+        requirement_id_fallback = metadata[0] if metadata is not None else ""
+        submission_type_fallback = metadata[1] if metadata is not None else None
+        detail = f"Requirement not found: {requirement_id_fallback}"
 
         submission_repo = SubmissionRepository(db)
         submission = await submission_repo.create(
             user_id=payload.user_id,
-            requirement_uuid=requirement_uuid,
+            requirement_uuid=payload.requirement_uuid,
             submitted_value=payload.submitted_value,
             extracted_username=None,
             is_validated=False,
@@ -394,9 +410,9 @@ async def _handle_missing_requirement(
         job_id=payload.id,
         status=_OUTCOME_SERVER_ERROR,
         code=REQUIREMENT_NOT_FOUND_ERROR_CODE,
-        requirement_id=payload.requirement_id,
+        requirement_id=requirement_id_fallback,
         requirement_name=None,
-        submission_type=payload.submission_type,
+        submission_type=submission_type_fallback,
         submission_id=submission.id,
         is_valid=False,
         verification_completed=False,
@@ -430,6 +446,8 @@ async def prepare_verification_job(
             if payload is None:
                 raise VerificationJobNotFoundError(str(normalized_job_id))
 
+            requirement = await _find_requirement_by_uuid(db, payload.requirement_uuid)
+
             if payload.result_submission_id is not None:
                 submission = await db.get(Submission, payload.result_submission_id)
                 if submission is None:
@@ -437,21 +455,21 @@ async def prepare_verification_job(
                         f"job {normalized_job_id} references missing submission "
                         f"{payload.result_submission_id}"
                     )
-                requirement = await get_requirement_by_id(db, payload.requirement_id)
+                fallback = None
+                if requirement is None:
+                    metadata = await _load_requirement_metadata(
+                        db, payload.requirement_uuid
+                    )
+                    fallback = metadata[0] if metadata is not None else None
                 result = _build_result_from_submission(
                     job_id=normalized_job_id,
                     submission=submission,
-                    requirement_id=payload.requirement_id,
-                    submission_type=payload.submission_type,
-                    requirement_name=(
-                        requirement.name if requirement is not None else None
-                    ),
+                    requirement=requirement,
+                    requirement_id_fallback=fallback,
                 )
                 span.set_attribute("verification.status", result.status)
                 span.set_attribute("verification.replay", True)
                 return VerificationJobPreparation(terminal_result=result)
-
-            requirement = await get_requirement_by_id(db, payload.requirement_id)
 
         if requirement is None:
             result = await _handle_missing_requirement(
@@ -467,7 +485,6 @@ async def prepare_verification_job(
                 user_id=payload.user_id,
                 github_username=payload.github_username,
                 requirement=requirement,
-                phase_id=payload.phase_id,
                 submitted_value=payload.submitted_value,
             )
         )
@@ -532,9 +549,7 @@ async def persist_verification_result(
                 result = _build_result_from_submission(
                     job_id=job.id,
                     submission=submission,
-                    requirement_id=job.requirement.id,
-                    submission_type=job.requirement.submission_type.value,
-                    requirement_name=job.requirement.name,
+                    requirement=job.requirement,
                 )
                 span.set_attribute("verification.status", result.status)
                 span.set_attribute("verification.replay", True)
@@ -544,7 +559,6 @@ async def persist_verification_result(
                 db,
                 user_id=job.user_id,
                 requirement=job.requirement,
-                phase_id=job.phase_id,
                 submitted_value=job.submitted_value,
                 github_username=job.github_username,
                 validation_result=validation_result,
@@ -575,9 +589,7 @@ async def persist_verification_result(
                     result = _build_result_from_submission(
                         job_id=job.id,
                         submission=canonical_submission,
-                        requirement_id=job.requirement.id,
-                        submission_type=job.requirement.submission_type.value,
-                        requirement_name=job.requirement.name,
+                        requirement=job.requirement,
                     )
                 span.set_attribute("verification.status", result.status)
                 span.set_attribute("verification.replay", True)
