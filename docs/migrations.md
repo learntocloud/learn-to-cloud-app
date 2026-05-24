@@ -152,6 +152,7 @@ Alternatively, create a one-off migration service in `docker-compose.yml` (see b
 - **Never edit a migration that's already been applied in production.** Create a new migration instead.
 - **Test migrations both ways** -- run `upgrade head` then `downgrade -1` then `upgrade head` again locally before pushing.
 - **Large data migrations** should be done in a separate migration file from schema changes to keep each migration focused and reversible.
+- **When adding a unique index or constraint**, always clean up duplicate rows first in the same migration. CI runs against an empty database, so it won't catch constraint violations that only happen with real data.
 
 ## Migration Tests
 
@@ -160,30 +161,21 @@ automated migration testing. Tests live in `api/tests/test_migration_chain.py`
 and run against a dedicated `test_alembic_migrations` database (separate from
 the main test database).
 
-### Built-in tests
+### What the tests check
 
-pytest-alembic provides four tests out of the box:
-
-| Test | What it checks |
+| Test | What it does |
 | --- | --- |
-| `test_upgrade` | Runs `upgrade` through every revision from base to head |
-| `test_single_head_revision` | Verifies the migration chain has no branches (exactly one head) |
-| `test_model_definitions_match_ddl` | Compares SQLAlchemy model metadata against the actual schema at head |
-| `test_up_down_consistency` | Upgrades then downgrades each revision individually |
-
-### Custom regression test
-
-`test_upgrade_with_prod_data_shapes` loads realistic data (duplicate rows,
-ghost foreign keys) at revision 0019 and upgrades through 0020+. This catches
-constraint violations like issue #432, where a unique index failed on prod data
-that CI's empty database never exercised.
+| `test_upgrade` | Runs every migration from base to head, one at a time |
+| `test_single_head_revision` | Makes sure the migration chain has no forks |
+| `test_model_definitions_match_ddl` | Checks that SQLAlchemy models match the actual database schema |
+| `test_up_down_consistency` | Upgrades then downgrades each migration to make sure both directions work |
 
 ### How it works
 
-pytest-alembic injects an engine into `alembic/env.py` via
+pytest-alembic passes a database engine into `alembic/env.py` via
 `config.attributes["connection"]`. The `run_migrations_online()` function
-checks for this injected engine and uses it instead of creating its own. This
-lets the test framework control the database lifecycle.
+uses that engine instead of creating its own. This lets the test framework
+control which database gets used.
 
 ### Running migration tests
 
