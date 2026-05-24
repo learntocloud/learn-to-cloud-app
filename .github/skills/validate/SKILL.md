@@ -142,6 +142,48 @@ cd <workspace>/apps/verification-functions && uv run python -c "import function_
 
 ---
 
+## Step 8: Reproduce CI Environment for New CI Steps
+
+**Mandatory when this change adds or modifies a `.github/workflows/deploy.yml` step that runs a Python script or command.**
+
+CI runs scripts with a minimal env (just `DATABASE_URL` is set in the `ci` job). Local dev shells almost always have more env vars set (devcontainer, `.env` files, shell history). Scripts that work locally can blow up in CI because they touch settings/config that demand env vars CI doesn't have.
+
+This step caught a real production failure (issue #469: `validate_content.py` instantiated `WebSettings` which required `GITHUB_CLIENT_ID`/`GITHUB_CLIENT_SECRET`, both unset in CI).
+
+### How to reproduce CI's env
+
+Strip your shell to bare essentials, then re-run the new CI step's command exactly as it appears in the workflow:
+
+```bash
+env -i HOME=$HOME PATH=$PATH \
+    DATABASE_URL="postgresql+asyncpg://postgres:postgres@db:5432/learntocloud" \
+    uv run python <path/to/new_script.py>
+```
+
+`env -i` clears all env vars. `HOME` and `PATH` are kept so `uv` and Python work. `DATABASE_URL` matches the value in `deploy.yml`'s `ci` job env block.
+
+If the new CI step uses additional env vars in the workflow, add them here too — only the ones the workflow sets.
+
+### Pass criteria
+
+- Command exits 0
+- Output matches what you expect CI to print
+- No `pydantic_core.ValidationError`, `KeyError`, or `EnvironmentError` for missing config
+
+### What to do if it fails
+
+The script depends on something CI doesn't provide. Options in order of preference:
+
+1. **Decouple the script from settings.** The cleanest fix is for scripts to not need full app config (e.g., compute paths from `__file__` instead of reading `Settings.content_dir_path`).
+2. **Configure the minimal settings profile inside the script.** Call `configure_settings(WorkerSettings)` or `configure_settings(DatabaseSettings)` at script top before importing modules that touch the settings tree. Suppress `E402` on the late import with `# noqa: E402` and a comment explaining why.
+3. **Add the missing env var to the workflow's `env:` block.** Last resort -- expands CI's env surface and risks hiding similar issues in future scripts.
+
+### When to skip this step
+
+Only when the workflow change is purely YAML restructuring with no new Python invocation -- e.g., reordering steps, renaming, changing concurrency keys.
+
+---
+
 ## Quick Reference
 
 | Task | Command |
@@ -190,6 +232,9 @@ When user says "validate changes" after editing `<file>`:
 
 ### 7. Run Tests (Optional)
 ✅ All passed / ❌ X failures (list them)
+
+### 8. CI Env Parity (only if new CI step added)
+✅ Passed in stripped env / ❌ Failed -- fix script or workflow / N/A -- no CI step added
 ```
 
 ---
