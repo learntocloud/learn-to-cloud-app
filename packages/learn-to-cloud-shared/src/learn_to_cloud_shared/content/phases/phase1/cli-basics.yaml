@@ -4,7 +4,6 @@ id: phase1-topic5
 slug: cli-basics
 name: CLI Basics
 description: The Linux command line is your gateway to cloud infrastructure. Work through Linux Basics for Hackers chapter by chapter to prepare for the CTF challenges.
-order: 5
 learning_objectives:
 - uuid: 896e503c-ea2e-4064-970a-fde0427ba214
   id: cli-basics-navigation

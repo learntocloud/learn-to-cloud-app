@@ -4,7 +4,6 @@ id: phase3-topic3
 slug: databases
 name: Databases
 description: We will be using a PostgreSQL database to store our application data. You'll learn SQL fundamentals, run PostgreSQL locally using Docker, and connect to it from Python.
-order: 3
 learning_objectives:
 - uuid: bd7c4812-65f2-4b0c-83cb-0bcd1e492f15
   id: databases-sql-foundations

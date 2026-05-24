@@ -4,7 +4,6 @@ id: phase4-topic3
 slug: cloud-networking
 name: Cloud Networking Fundamentals
 description: This topic focuses on cloud networking concepts essential for secure deployments, building on Phase 2 networking fundamentals. You'll learn VPC/VNet architecture, subnet segmentation, security groups, and routing — then validate your understanding by deploying and testing resources in a real cloud network.
-order: 3
 learning_objectives:
 - uuid: ae5453c4-5f75-41e8-b2d5-230506f8ea07
   id: cloud-networking-architecture

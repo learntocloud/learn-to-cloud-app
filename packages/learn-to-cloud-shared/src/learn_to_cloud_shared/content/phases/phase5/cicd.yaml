@@ -4,7 +4,6 @@ id: phase5-topic2
 slug: cicd
 name: CI/CD Pipelines
 description: One challenge you'll face after containerizing your application is the need to manually rebuild and push for every code change. CI/CD pipelines automate this entire process - building, testing, and deploying your application every time changes are made, ensuring a smooth and reliable development workflow.
-order: 2
 learning_objectives:
 - uuid: d5114bfd-0b48-4185-836b-3a77ff605527
   id: cicd-fundamentals

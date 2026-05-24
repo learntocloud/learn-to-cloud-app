@@ -4,7 +4,6 @@ id: phase4-topic8
 slug: cloud-ai-services
 name: Cloud AI Service Platforms
 description: Cloud providers offer comprehensive AI service platforms. In this topic, you'll take the same LLM workflow you built in Phase 3 and run it on a cloud AI platform. You'll learn model options, deployment strategies, safety controls, and operational features needed for production use.
-order: 8
 learning_objectives:
 - uuid: 94fb0b7b-880c-4e19-a592-cbc30fdd993f
   id: cloud-ai-platform-overview

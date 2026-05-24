@@ -4,7 +4,6 @@ id: phase0-topic3
 slug: programming
 name: What is Computer Programming
 description: Computer programming enables you to automate tasks and manage cloud resources efficiently. Understanding the basics will help you throughout your cloud journey.
-order: 3
 learning_objectives:
 - uuid: 1d541314-ba5d-4800-8075-d4799bd839a4
   id: programming-purpose

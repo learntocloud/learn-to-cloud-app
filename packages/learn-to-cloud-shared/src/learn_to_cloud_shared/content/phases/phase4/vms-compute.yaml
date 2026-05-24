@@ -4,7 +4,6 @@ id: phase4-topic1
 slug: vms-compute
 name: Virtual Machines & Compute Services
 description: Virtualization and compute services are fundamental to cloud engineering, enabling scalable and flexible infrastructure. In this topic, you will focus on deploying virtual machines on various cloud providers (such as AWS, Azure, and GCP).
-order: 1
 learning_objectives:
 - uuid: 8485c9ca-5d6b-409a-8528-6964c9d7ec37
   id: vms-compute-foundations

@@ -4,7 +4,6 @@ id: phase3-topic2
 slug: fastapi
 name: FastAPI
 description: FastAPI is a modern, fast (high-performance) web framework for building APIs with Python 3.6+ based on standard Python type hints. It is the framework we use to build the L2C Journal application and what you will use as well.
-order: 2
 learning_objectives:
 - uuid: f3b3edbc-165a-47d6-a56a-3550722cfe43
   id: fastapi-framework-basics

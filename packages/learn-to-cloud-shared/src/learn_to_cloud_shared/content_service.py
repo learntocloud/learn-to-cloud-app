@@ -69,8 +69,14 @@ def _get_content_dir() -> Path:
     return get_worker_settings().content_dir_path
 
 
-def _load_topic(phase_dir: Path, topic_slug: str) -> Topic | None:
-    """Load a single topic from its YAML file."""
+def _load_topic(phase_dir: Path, topic_slug: str, *, order: int) -> Topic | None:
+    """Load a single topic from its YAML file.
+
+    ``order`` is supplied by the caller from the topic's position in the
+    parent phase's ``topics:`` slug list. Topic YAML files must not
+    carry their own ``order`` field; the loader rejects it to keep one
+    source of truth (issue #463).
+    """
     topic_file = phase_dir / f"{topic_slug}.yaml"
     if not topic_file.exists():
         return None
@@ -78,7 +84,14 @@ def _load_topic(phase_dir: Path, topic_slug: str) -> Topic | None:
     try:
         with open(topic_file, encoding="utf-8") as f:
             data = yaml.safe_load(f)
+        if isinstance(data, dict) and "order" in data:
+            raise ContentValidationError(
+                f"topic {topic_file.name}: 'order' field is no longer allowed. "
+                "Topic order is derived from the position in _phase.yaml's "
+                "'topics:' list -- remove the 'order' field from this file."
+            )
         _validate_topic_payload(data, topic_file)
+        data["order"] = order
         return Topic.model_validate(data)
     except (yaml.YAMLError, ContentValidationError, ValueError, KeyError):
         logger.exception(
@@ -146,10 +159,14 @@ def _load_phase(phase_slug: str) -> Phase | None:
         with open(meta_file, encoding="utf-8") as f:
             data: dict = yaml.safe_load(f)
 
-        # "topics" in the YAML is a list of slug strings; resolve to Topic objects
+        # "topics" in the YAML is a list of slug strings; resolve to Topic objects.
+        # The slug's position in the list becomes the topic's ``order`` -- one
+        # source of truth (issue #463).
         topic_slugs: list[str] = data.get("topics", [])
         topics = [
-            t for slug in topic_slugs if (t := _load_topic(phase_dir, slug)) is not None
+            t
+            for idx, slug in enumerate(topic_slugs)
+            if (t := _load_topic(phase_dir, slug, order=idx + 1)) is not None
         ]
         data["topic_slugs"] = topic_slugs
         data["topics"] = topics

@@ -4,7 +4,6 @@ id: phase5-topic7
 slug: ai-tooling-mcp
 name: AI Tooling & MCP
 description: Modern DevOps workflows increasingly integrate AI-powered tools. The Model Context Protocol (MCP) provides a standard way for AI assistants to interact with external services through containerized servers. In this topic, you'll learn what MCP is, set up MCP servers in VS Code, and use GitHub Copilot to query your CI/CD pipelines and cloud telemetry.
-order: 6
 learning_objectives:
 - uuid: b5570b5b-f2ad-4e38-9291-3656cc8bac0e
   id: mcp-concepts

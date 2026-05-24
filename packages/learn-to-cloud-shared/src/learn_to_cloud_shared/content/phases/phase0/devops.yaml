@@ -4,7 +4,6 @@ id: phase0-topic5
 slug: devops
 name: What is DevOps
 description: DevOps combines development and operations practices to improve software delivery. It's a key methodology in cloud engineering.
-order: 5
 learning_objectives:
 - uuid: 2a8a6633-5b79-44c7-8f2d-c630c9665466
   id: devops-foundation

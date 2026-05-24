@@ -4,7 +4,6 @@ id: phase4-topic2
 slug: security-iam
 name: Security & Identity Management
 description: This section focuses on identity and access management (IAM) to control permissions and protect cloud resources through users, roles, policies, and the principle of least privilege.
-order: 2
 learning_objectives:
 - uuid: 0051b6a9-b335-412d-a23e-29abc035e967
   id: security-iam-core-concepts

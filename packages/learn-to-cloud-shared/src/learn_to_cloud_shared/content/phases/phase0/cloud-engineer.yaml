@@ -4,7 +4,6 @@ id: phase0-topic6
 slug: cloud-engineer
 name: What is a Cloud Engineer
 description: Learn about the cloud engineer role, what they do day-to-day, and whether it's the right fit for you.
-order: 6
 learning_objectives:
 - uuid: 0dcf3b3d-f52e-49f6-a205-19a5f1b693cf
   id: cloud-engineer-role

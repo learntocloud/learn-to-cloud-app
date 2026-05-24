@@ -4,7 +4,6 @@ id: phase3-topic1
 slug: python
 name: Python Basics
 description: Python is the most popular programming language in cloud engineering. Work through Python Crash Course chapter by chapter to build a solid foundation.
-order: 1
 learning_objectives:
 - uuid: 6a322426-8484-44da-ba72-4cc8221237c2
   id: python-fundamentals-core-syntax

@@ -4,7 +4,6 @@ id: phase1-topic1
 slug: developer-setup
 name: Developer Setup
 description: Set up your local development environment and foundational GitHub workflow so you can move through the rest of Phase 1 smoothly.
-order: 1
 learning_objectives:
 - uuid: 61c7c482-54a9-4d3b-90fe-937a8be8ce5e
   id: developer-setup-repository-follow

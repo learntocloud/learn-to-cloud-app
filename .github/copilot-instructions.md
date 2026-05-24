@@ -38,6 +38,15 @@ Keep docstrings short and useful. One line is enough for most functions.
 - Don't add `Args:` / `Returns:` blocks when the types and names are self-explanatory
 - Only comment code that needs clarification — skip the obvious
 
+## No Hacks or Bandaids
+
+Never write hacks, bandaids, or workarounds. Specifically:
+
+- Don't silence linters, type checkers, or tests just to make a warning go away. If a rule fires, either the code is wrong (fix the code) or the rule doesn't fit the codebase (have an explicit, justified discussion before excluding it).
+- Don't paper over a symptom when a proper fix exists. If the proper fix requires a refactor, surface that choice explicitly: name the refactor, explain why the band-aid is tempting, and let the user decide.
+- Don't add `# noqa`, `# type: ignore`, `try/except: pass`, or rule exclusions to make CI green. Same applies to inserting "make the warning happy" code that wouldn't otherwise belong.
+- When you catch yourself reaching for one of these, stop and propose the proper fix as a real choice instead.
+
 ## Database Migrations
 
 Never edit alembic migration files after they've been created. They are immutable historical records that may have already run in production. If a migration needs correcting, create a new migration instead.

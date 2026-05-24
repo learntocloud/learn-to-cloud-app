@@ -4,7 +4,6 @@ id: phase0-topic4
 slug: cloud-computing
 name: What is Cloud Computing
 description: Cloud computing is the foundation of modern infrastructure. Learn about IaaS, PaaS, SaaS, and different service models.
-order: 4
 learning_objectives:
 - uuid: 6affa270-c865-4e23-bcc1-3ff2e1b0a86c
   id: cloud-models

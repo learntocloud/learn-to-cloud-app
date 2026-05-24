@@ -4,7 +4,6 @@ id: phase2-topic1
 slug: fundamentals
 name: Networking Fundamentals
 description: 'Master the building blocks of networking: IP addresses, subnets, routing, and DNS. These concepts are the foundation for everything in cloud infrastructure.'
-order: 1
 learning_objectives:
 - uuid: 0b2eb39d-a3d1-4a59-82a4-8d394d32d187
   id: networking-fundamentals-core-models

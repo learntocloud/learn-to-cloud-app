@@ -4,7 +4,6 @@ id: phase5-topic1
 slug: containers
 name: Containerization
 description: Containerization is a modern approach to deploying and managing applications across various environments. It allows you to package software, tools, and their dependencies into lightweight, portable units called containers. Key benefits include consistency across environments, efficient resource utilization, simplified deployment, and isolation between applications.
-order: 1
 learning_objectives:
 - uuid: 73870957-eb0f-4062-83eb-780854c74e20
   id: containers-core-concepts

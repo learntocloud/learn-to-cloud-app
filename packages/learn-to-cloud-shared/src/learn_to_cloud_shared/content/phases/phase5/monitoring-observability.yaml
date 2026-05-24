@@ -4,7 +4,6 @@ id: phase5-topic5
 slug: monitoring-observability
 name: Monitoring & Observability
 description: Monitoring and observability are essential DevOps practices that help you understand the health, performance, and reliability of your applications and infrastructure. In this topic, you'll instrument your application with OpenTelemetry, verify telemetry locally with Aspire Dashboard, and export logs, traces, and metrics to your cloud provider's monitoring platform.
-order: 5
 learning_objectives:
 - uuid: 25f4f0a3-9407-4159-8983-99ac72fa91de
   id: observability-principles

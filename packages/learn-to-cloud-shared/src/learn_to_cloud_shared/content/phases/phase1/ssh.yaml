@@ -4,7 +4,6 @@ id: phase1-topic4
 slug: ssh
 name: SSH
 description: Now you need to learn how to access a virtual machine via SSH. This is a fundamental skill for working with cloud servers.
-order: 4
 learning_objectives:
 - uuid: 24581de1-a22b-47b5-9983-28aea80c3aac
   id: ssh-security-purpose

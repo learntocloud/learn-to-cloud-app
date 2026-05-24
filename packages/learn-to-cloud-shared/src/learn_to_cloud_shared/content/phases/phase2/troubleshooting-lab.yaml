@@ -4,7 +4,6 @@ id: phase2-topic4
 slug: troubleshooting-lab
 name: 'Capstone: Network Troubleshooting Lab'
 description: Put your networking knowledge to the test! Diagnose and fix connectivity issues in a broken environment using the tools you've learned. The curriculum may not have covered everything you need — that's intentional. Researching what you don't know is part of the job.
-order: 4
 learning_objectives:
 - uuid: fcd0e23f-53c2-4d44-b180-df1f6e5547e6
   id: networking-lab-diagnosis

@@ -4,7 +4,6 @@ id: phase5-topic4
 slug: container-orchestration
 name: Container Orchestration - Kubernetes
 description: As applications grow in complexity, managing containers manually becomes challenging. Kubernetes (K8s) is an open-source container orchestration platform that automates the deployment, scaling, and management of containerized applications. It's widely used in modern cloud-native environments to ensure applications are highly available, scalable, and resilient.
-order: 4
 learning_objectives:
 - uuid: 3d5e623c-ba40-420d-8c56-6cc8036a546f
   id: k8s-architecture-basics

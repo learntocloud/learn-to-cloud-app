@@ -4,7 +4,6 @@ id: phase1-topic3
 slug: iac
 name: Infrastructure as Code
 description: We will spend a lot more time on Infrastructure as Code and other DevOps practices later as all of our labs use them. For now, you need to familiarize yourself with a few Terraform concepts.
-order: 3
 learning_objectives:
 - uuid: df842b16-a929-49f7-9a1c-82f506208b91
   id: iac-core-concepts

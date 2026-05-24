@@ -4,7 +4,6 @@ id: phase4-topic7
 slug: billing-cost-management
 name: Cloud Billing & Cost Management
 description: Cloud services are billed based on consumption. Every VM, database, and API call has a cost. In this topic, you'll learn to monitor spending, set up cost alerts, and estimate expenses before deploying infrastructure. These skills prevent surprise bills and teach you to make cost-aware architecture decisions.
-order: 7
 learning_objectives:
 - uuid: b26382c1-d1cb-4c66-88dc-c8317b7fe7bb
   id: billing-cost-pricing-models

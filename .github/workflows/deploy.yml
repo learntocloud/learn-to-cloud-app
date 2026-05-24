@@ -246,6 +246,13 @@ jobs:
         working-directory: api
         run: uv run alembic check
 
+      - name: Run curriculum YAML -> DB sync (simulates deploy-time job)
+        working-directory: packages/learn-to-cloud-shared
+        # Matches the subprocess invocation in api/scripts/run_migrations.py.
+        # Exercises the full deploy path so settings/packaging bugs surface
+        # in CI instead of in the production migration job.
+        run: uv run python scripts/sync_curriculum.py
+
       - name: Run API tests with coverage
         working-directory: api
         run: uv run pytest tests/ -v --tb=short --cov=learn_to_cloud --cov-report=xml --cov-report=term-missing

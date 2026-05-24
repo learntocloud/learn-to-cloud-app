@@ -4,7 +4,6 @@ id: phase1-topic2
 slug: cloud-cli
 name: Cloud CLI
 description: Learn to interact with cloud platforms through the command line. The CLI is essential for automation and scripting.
-order: 2
 learning_objectives:
 - uuid: 948decfc-494b-44e6-a266-713af819abd0
   id: cloud-cli-installation

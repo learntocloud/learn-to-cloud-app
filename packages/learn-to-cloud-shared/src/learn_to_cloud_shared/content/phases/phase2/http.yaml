@@ -4,7 +4,6 @@ id: phase2-topic3
 slug: http
 name: HTTP and Web Basics
 description: 'Understand how the web works: HTTP requests and responses, headers, status codes, and TLS/HTTPS. Essential knowledge for working with APIs and web services.'
-order: 3
 learning_objectives:
 - uuid: 48df55a2-6cec-4433-b46c-81243ec33d70
   id: http-request-response
