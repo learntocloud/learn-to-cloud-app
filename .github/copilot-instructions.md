@@ -72,6 +72,10 @@ Follow this loop:
 
 If a check fails, fix it before moving on. Do not batch lint fixes for the end of the task.
 
+## Communication
+
+Write in clear, plain language. Avoid jargon, technical shorthand, and dense descriptions. PR titles, commit messages, code comments, and explanations should all be easy to understand at a glance. If a non-engineer wouldn't understand it, rewrite it simpler.
+
 ## Research
 
 When asked to research, or if you need to research something that is Azure related, use the azure-skills plugin. For everything else, use firecrawl or tavily (whichever one is installed) and/or context7.
