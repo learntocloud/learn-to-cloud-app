@@ -8,8 +8,8 @@ re-runs leave ``updated_at`` untouched unless something actually
 changed.
 
 This module does NOT load on app startup. It's intended to run once
-per deploy via ``scripts/sync_curriculum.py`` in the Container Apps
-migration job, after ``alembic upgrade head``.
+per deploy via ``python -m learn_to_cloud_shared.cli.sync_curriculum``
+in the Container Apps migration job, after ``alembic upgrade head``.
 
 Design decisions (#461):
 - **Strict load**: bypasses the tolerant ``get_all_phases`` to avoid

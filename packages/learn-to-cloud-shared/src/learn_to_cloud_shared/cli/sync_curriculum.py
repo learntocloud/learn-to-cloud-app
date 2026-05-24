@@ -1,23 +1,26 @@
 """Run the curriculum YAML -> DB sync (issue #463 / Phase B).
 
-Standalone entry point for the deploy-time curriculum sync. Must run
-in a separate Python process from the Alembic migration runner so the
-settings singleton starts fresh as WorkerSettings (Alembic uses
+Importable CLI entry point for the deploy-time curriculum sync. Must
+run in a separate Python process from the Alembic migration runner so
+the settings singleton starts fresh as WorkerSettings (Alembic uses
 DatabaseSettings; sharing the same process can lock the singleton to
 the wrong profile).
 
-Usage::
+Usage (anywhere the ``learn-to-cloud-shared`` wheel is installed)::
 
-    cd packages/learn-to-cloud-shared && uv run python scripts/sync_curriculum.py
+    python -m learn_to_cloud_shared.cli.sync_curriculum
 
 Exit codes:
     0  Sync completed cleanly.
     1  Sync aborted (validation error, collision, or other ContentSyncError).
     2  Unexpected exception.
 
+Lives inside the installed package (not in ``scripts/``) so the
+production runtime container has it via the wheel -- the runtime image
+does not copy the source tree (see ``api/Dockerfile``).
+
 Wired into ``api/scripts/run_migrations.py`` as a subprocess that runs
-after ``alembic upgrade head`` in the production Container Apps
-migration job.
+after ``alembic upgrade head`` in the Container Apps migration job.
 """
 
 from __future__ import annotations
@@ -31,7 +34,7 @@ from dataclasses import asdict
 # Register the minimal settings profile before importing anything that
 # touches the shared settings tree. WebSettings (the package default)
 # would demand GitHub OAuth secrets in production; not needed here.
-from learn_to_cloud_shared.core.config import (  # noqa: I001
+from learn_to_cloud_shared.core.config import (
     WorkerSettings,
     configure_settings,
 )

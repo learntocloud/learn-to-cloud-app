@@ -9,9 +9,10 @@ the DB faithfully represents the slug-list order from
 
 Schema effect: Adds ``requirements.order BIGINT NOT NULL`` with a
 ``server_default = '0'`` so existing rows are backfilled in place. The
-deploy-time sync (``scripts/sync_curriculum.py``) overwrites these
-values with the real position-based order on its next run, so the
-default never sticks.
+deploy-time sync
+(``python -m learn_to_cloud_shared.cli.sync_curriculum``) overwrites
+these values with the real position-based order on its next run, so
+the default never sticks.
 
 Rollback notes: Pure additive column. Downgrade drops it. Safe.
 
