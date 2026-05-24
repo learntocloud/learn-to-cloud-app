@@ -293,6 +293,7 @@ class StepProgress(Base):
         UniqueConstraint("user_id", "topic_id", "step_id", name="uq_user_topic_step"),
         Index("ix_step_progress_user_topic", "user_id", "topic_id"),
         Index("ix_step_progress_user_phase", "user_id", "phase_id"),
+        Index("ix_step_progress_step_uuid", "step_uuid"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -310,6 +311,13 @@ class StepProgress(Base):
     step_order: Mapped[int] = mapped_column(
         Integer,
         nullable=False,
+    )
+    # UUID reference to ``steps.uuid``. Nullable through PR D.1a (this PR)
+    # while we dual-write; PR D.1c will set NOT NULL and add the FK once
+    # all production rows are backfilled.
+    step_uuid: Mapped[UUID | None] = mapped_column(
+        Uuid(as_uuid=True),
+        nullable=True,
     )
     completed_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

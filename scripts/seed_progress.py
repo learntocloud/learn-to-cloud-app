@@ -71,11 +71,13 @@ async def main(github_username: str) -> None:
                                     step_id,
                                     phase_id,
                                     step_order,
+                                    step_uuid,
                                     completed_at
                                 )
                                 VALUES (
                                     :user_id, :topic_id, :step_id,
-                                    :phase_id, :step_order, :completed_at
+                                    :phase_id, :step_order, :step_uuid,
+                                    :completed_at
                                 )
                                 ON CONFLICT (user_id, topic_id, step_id) DO NOTHING
                                 """
@@ -86,6 +88,7 @@ async def main(github_username: str) -> None:
                                 "step_id": step.id,
                                 "phase_id": phase.id,
                                 "step_order": step_order,
+                                "step_uuid": step.uuid,
                                 "completed_at": now,
                             },
                         )
