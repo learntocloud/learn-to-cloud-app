@@ -279,7 +279,14 @@ class LearningObjective(FrozenModel):
 
 
 class Topic(FrozenModel):
-    """A topic within a phase."""
+    """A topic within a phase.
+
+    Display order is determined by the topic's position in the parent
+    phase's ``topics:`` slug list (in ``_phase.yaml``); the loader
+    injects ``order`` based on that position. Topic YAML files do not
+    carry an ``order`` field -- two sources of truth would inevitably
+    drift (issue #463).
+    """
 
     # Stable opaque identifier (issue #462).
     uuid: UUID

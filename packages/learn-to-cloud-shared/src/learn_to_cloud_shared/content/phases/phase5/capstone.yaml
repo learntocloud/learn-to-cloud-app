@@ -5,7 +5,6 @@ slug: capstone
 name: 'Capstone: DevOps Project'
 description: Now that you've learned the fundamentals of DevOps, it's time to apply these practices to the Journal API app you built in Phase 3 and deployed in Phase 4. In this capstone, you'll containerize the app, automate its deployment, manage infrastructure as code, set up monitoring, and orchestrate containers with Kubernetes—demonstrating your end-to-end DevOps skills. The curriculum may not have covered everything you need — that's intentional. Researching what you don't know is part of the job.
 short_description: Containerize your app with Docker, deploy to Kubernetes, automate with CI/CD, and instrument with OpenTelemetry for cloud-native observability.
-order: 7
 learning_objectives:
 - uuid: a8da24c4-65e0-45a6-88c3-f6ea7c851706
   id: devops-capstone-integration

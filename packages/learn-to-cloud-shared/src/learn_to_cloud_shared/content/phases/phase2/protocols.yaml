@@ -4,7 +4,6 @@ id: phase2-topic2
 slug: protocols
 name: Ports and Protocols
 description: Learn how applications communicate over networks through ports and protocols. Understand TCP vs UDP, common port numbers, and how firewalls control traffic flow.
-order: 2
 learning_objectives:
 - uuid: c9fb08ef-462a-4f82-bf9e-104533ffa493
   id: protocols-tcp-udp

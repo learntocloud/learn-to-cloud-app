@@ -794,7 +794,7 @@
       "type": "object"
     },
     "Topic": {
-      "description": "A topic within a phase.",
+      "description": "A topic within a phase.\n\nDisplay order is determined by the topic's position in the parent\nphase's ``topics:`` slug list (in ``_phase.yaml``); the loader\ninjects ``order`` based on that position. Topic YAML files do not\ncarry an ``order`` field -- two sources of truth would inevitably\ndrift (issue #463).",
       "properties": {
         "description": {
           "title": "Description",

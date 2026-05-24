@@ -32,15 +32,22 @@ depends_on = None
 
 
 def upgrade() -> None:
+    # Bound any single statement in this migration to short timeouts so a
+    # stalled lock or runaway query can't hold up the deploy. Brand-new
+    # empty tables run instantly under these limits; this is squawk's
+    # recommended safety pattern (require-timeout-settings).
+    op.execute("SET LOCAL lock_timeout = '5s'")
+    op.execute("SET LOCAL statement_timeout = '30s'")
+
     op.create_table(
         "phases",
         sa.Column("uuid", postgresql.UUID(as_uuid=True), nullable=False),
-        sa.Column("legacy_id", sa.Integer(), nullable=False),
+        sa.Column("legacy_id", sa.BigInteger(), nullable=False),
         sa.Column("slug", sa.Text(), nullable=False),
         sa.Column("name", sa.Text(), nullable=False),
         sa.Column("description", sa.Text(), nullable=False),
         sa.Column("short_description", sa.Text(), nullable=False),
-        sa.Column("order", sa.Integer(), nullable=False),
+        sa.Column("order", sa.BigInteger(), nullable=False),
         sa.Column("deleted_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
@@ -62,7 +69,7 @@ def upgrade() -> None:
         sa.Column("slug", sa.Text(), nullable=False),
         sa.Column("name", sa.Text(), nullable=False),
         sa.Column("description", sa.Text(), nullable=False),
-        sa.Column("order", sa.Integer(), nullable=False),
+        sa.Column("order", sa.BigInteger(), nullable=False),
         sa.Column("deleted_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
@@ -87,7 +94,7 @@ def upgrade() -> None:
         sa.Column("uuid", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("topic_uuid", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("legacy_id", sa.Text(), nullable=False),
-        sa.Column("order", sa.Integer(), nullable=False),
+        sa.Column("order", sa.BigInteger(), nullable=False),
         sa.Column("action", sa.Text(), nullable=True),
         sa.Column("title", sa.Text(), nullable=True),
         sa.Column("url", sa.Text(), nullable=True),
@@ -123,7 +130,7 @@ def upgrade() -> None:
         sa.Column("topic_uuid", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("legacy_id", sa.Text(), nullable=False),
         sa.Column("text", sa.Text(), nullable=False),
-        sa.Column("order", sa.Integer(), nullable=False),
+        sa.Column("order", sa.BigInteger(), nullable=False),
         sa.Column("deleted_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),

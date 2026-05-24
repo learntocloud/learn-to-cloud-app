@@ -4,7 +4,6 @@ id: phase0-topic1
 slug: linux
 name: What is Linux
 description: Linux is the backbone of all cloud environments. Understanding what it is and why it matters is essential for cloud engineering.
-order: 1
 learning_objectives:
 - uuid: 5ad3a05b-9291-46f6-b8e4-f34608c12426
   id: linux-basics

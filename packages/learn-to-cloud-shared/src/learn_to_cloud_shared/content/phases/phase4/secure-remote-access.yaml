@@ -4,7 +4,6 @@ id: phase4-topic4
 slug: secure-remote-access
 name: Secure Remote Access
 description: In the previous topic, you learned about cloud networking fundamentals, including VPCs, subnets, and traffic flow. Now, the focus is on understanding secure remote access mechanisms that protect cloud resources from unauthorized access.
-order: 4
 learning_objectives:
 - uuid: a17d5793-3363-421b-bd5d-8cbb21d7e650
   id: secure-access-patterns

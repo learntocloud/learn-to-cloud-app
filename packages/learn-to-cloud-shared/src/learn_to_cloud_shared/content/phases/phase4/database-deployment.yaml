@@ -4,7 +4,6 @@ id: phase4-topic5
 slug: database-deployment
 name: Database Deployment & Configuration
 description: Learn to deploy and configure PostgreSQL databases in the cloud. This topic covers the fundamentals of relational database deployment, including architecture, installation, and secure remote access configuration. It builds on Phase 3 database fundamentals and focuses on cloud-specific deployment and network hardening.
-order: 5
 learning_objectives:
 - uuid: 43076020-3783-4f18-8a59-c87d723e49e0
   id: database-deployment-postgres-basics

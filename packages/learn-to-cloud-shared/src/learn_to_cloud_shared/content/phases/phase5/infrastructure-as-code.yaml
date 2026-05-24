@@ -4,7 +4,6 @@ id: phase5-topic3
 slug: infrastructure-as-code
 name: Infrastructure as Code (IaC)
 description: Infrastructure as Code (IaC) is a key DevOps practice that allows you to manage and provision infrastructure using code, rather than manual processes like using the console. In this phase, you'll build on Phase 1 fundamentals and execute a complete Terraform workflow for real cloud provisioning.
-order: 3
 learning_objectives:
 - uuid: ec4d1b2c-5e6e-428c-9628-f3ec1fc248f7
   id: iac-devops-principles

@@ -4,7 +4,6 @@ id: phase6-topic4
 slug: monitoring-incident-response
 name: Monitoring & Incident Response
 description: Set up logging and alerts so you know when something goes wrong, and have a basic plan for what to do when it does.
-order: 3
 learning_objectives:
 - uuid: f27b1a64-990b-4446-8d60-097ef6dee345
   id: security-monitoring-foundations

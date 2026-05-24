@@ -4,7 +4,6 @@ id: phase3-topic4
 slug: genai-apis
 name: Generative AI APIs
 description: Generative AI and Large Language Models (LLMs) are transforming how we build applications. In this topic, you'll learn how to integrate LLM APIs into your Python applications using GitHub Models. This topic is intentionally focused on coding fundamentals before moving to cloud AI platform operations in Phase 4.
-order: 4
 learning_objectives:
 - uuid: 3a23023a-af15-4252-8ec8-bbf11f317b51
   id: genai-apis-request-patterns

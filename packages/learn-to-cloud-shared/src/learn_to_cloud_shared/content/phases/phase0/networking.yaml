@@ -4,7 +4,6 @@ id: phase0-topic2
 slug: networking
 name: What is Computer Networking
 description: Computer networking is how data moves across the internet and within cloud environments. Understanding the basics is crucial.
-order: 2
 learning_objectives:
 - uuid: 57d1440e-c044-48d6-8fe3-c2aca4f63d24
   id: networking-basics

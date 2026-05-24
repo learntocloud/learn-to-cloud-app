@@ -111,7 +111,7 @@ class TestValidateTopicPayload:
 @pytest.mark.unit
 class TestLoadTopic:
     def test_missing_file_returns_none(self, tmp_path: Path):
-        assert _load_topic(tmp_path, "nonexistent") is None
+        assert _load_topic(tmp_path, "nonexistent", order=1) is None
 
     def test_valid_yaml_returns_topic(self, tmp_path: Path):
         topic_file = tmp_path / "basics.yaml"
@@ -122,7 +122,6 @@ id: phase0-topic1
 slug: basics
 name: Basics
 description: Learn the basics
-order: 0
 learning_steps:
   - uuid: 00000000-0000-0000-0000-000000000002
     id: step-intro
@@ -130,15 +129,37 @@ learning_steps:
     title: Introduction
 """
         )
-        topic = _load_topic(tmp_path, "basics")
+        topic = _load_topic(tmp_path, "basics", order=1)
         assert topic is not None
         assert topic.id == "phase0-topic1"
+        assert topic.order == 1  # supplied by caller, not from YAML
         assert len(topic.learning_steps) == 1
 
     def test_invalid_yaml_returns_none(self, tmp_path: Path):
         topic_file = tmp_path / "bad.yaml"
         topic_file.write_text("{invalid yaml: [")
-        assert _load_topic(tmp_path, "bad") is None
+        assert _load_topic(tmp_path, "bad", order=1) is None
+
+    def test_topic_with_order_field_is_rejected(self, tmp_path: Path):
+        """``order`` in topic YAML must be removed -- it's derived from
+        the slug list position in _phase.yaml (issue #463)."""
+        topic_file = tmp_path / "withorder.yaml"
+        topic_file.write_text(
+            """
+uuid: 00000000-0000-0000-0000-000000000099
+id: phase0-topic99
+slug: withorder
+name: With Order
+description: Has a stale order field
+order: 5
+learning_steps:
+  - uuid: 00000000-0000-0000-0000-0000000000aa
+    id: s
+    order: 0
+    title: T
+"""
+        )
+        assert _load_topic(tmp_path, "withorder", order=1) is None
 
     def test_validation_failure_returns_none(self, tmp_path: Path):
         topic_file = tmp_path / "dup.yaml"
@@ -149,7 +170,6 @@ id: topic-dup
 slug: dup
 name: Dup
 description: duplicate steps
-order: 0
 learning_steps:
   - uuid: 00000000-0000-0000-0000-000000000011
     id: same-id
@@ -161,7 +181,7 @@ learning_steps:
     title: B
 """
         )
-        assert _load_topic(tmp_path, "dup") is None
+        assert _load_topic(tmp_path, "dup", order=1) is None
 
 
 # ---------------------------------------------------------------------------
@@ -201,7 +221,6 @@ id: phase0-basics
 slug: basics
 name: Basics
 description: desc
-order: 0
 learning_steps:
   - uuid: 00000000-0000-0000-0000-000000000102
     id: step-1

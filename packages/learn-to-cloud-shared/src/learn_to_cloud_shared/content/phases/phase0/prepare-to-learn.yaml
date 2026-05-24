@@ -4,7 +4,6 @@ id: phase0-topic0
 slug: prepare-to-learn
 name: Prepare to Learn
 description: Before you learn anything technical, you need to set yourself up for success. That means committing to one path, eliminating distractions, and learning how to actually learn. Most people restart their journey every time they watch a new roadmap video — this topic exists so you don't become one of them.
-order: 0
 learning_objectives:
 - uuid: 5b2e06d9-55df-4384-ae83-0f98e1bbd57c
   id: commit-to-path

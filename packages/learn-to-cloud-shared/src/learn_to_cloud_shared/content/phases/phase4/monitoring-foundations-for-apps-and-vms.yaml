@@ -4,7 +4,6 @@ id: phase4-topic6
 slug: monitoring-foundations-for-apps-and-vms
 name: Monitoring Foundations for Apps and VMs
 description: This topic focuses on monitoring cloud-hosted applications. You'll learn provider monitoring fundamentals, how application logs are collected and queried, and how infrastructure and application metrics give you runtime visibility.
-order: 6
 learning_objectives:
 - uuid: 9440f45d-67d5-4d3a-b0f3-23b31e415f89
   id: monitor-application-infrastructure-provider-basics

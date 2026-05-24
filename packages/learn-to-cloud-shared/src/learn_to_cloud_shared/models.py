@@ -350,12 +350,12 @@ class CurriculumPhase(TimestampMixin, Base):
     )
 
     uuid: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
-    legacy_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    legacy_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
     slug: Mapped[str] = mapped_column(Text, nullable=False)
     name: Mapped[str] = mapped_column(Text, nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False)
     short_description: Mapped[str] = mapped_column(Text, nullable=False)
-    order: Mapped[int] = mapped_column(Integer, nullable=False)
+    order: Mapped[int] = mapped_column(BigInteger, nullable=False)
     deleted_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
@@ -385,7 +385,7 @@ class CurriculumTopic(TimestampMixin, Base):
     slug: Mapped[str] = mapped_column(Text, nullable=False)
     name: Mapped[str] = mapped_column(Text, nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False)
-    order: Mapped[int] = mapped_column(Integer, nullable=False)
+    order: Mapped[int] = mapped_column(BigInteger, nullable=False)
     deleted_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
@@ -412,7 +412,7 @@ class CurriculumStep(TimestampMixin, Base):
         nullable=False,
     )
     legacy_id: Mapped[str] = mapped_column(Text, nullable=False)
-    order: Mapped[int] = mapped_column(Integer, nullable=False)
+    order: Mapped[int] = mapped_column(BigInteger, nullable=False)
     action: Mapped[str | None] = mapped_column(Text, nullable=True)
     title: Mapped[str | None] = mapped_column(Text, nullable=True)
     url: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -453,7 +453,7 @@ class CurriculumLearningObjective(TimestampMixin, Base):
     )
     legacy_id: Mapped[str] = mapped_column(Text, nullable=False)
     text_: Mapped[str] = mapped_column("text", Text, nullable=False)
-    order: Mapped[int] = mapped_column(Integer, nullable=False)
+    order: Mapped[int] = mapped_column(BigInteger, nullable=False)
     deleted_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
