@@ -65,12 +65,13 @@ class TestResolveStep:
             new_callable=AsyncMock,
             return_value=topic,
         ):
-            step_id, order, total = await _resolve_step(
+            step_id, order, total, step_uuid = await _resolve_step(
                 AsyncMock(), "phase0-topic1", "step-intro"
             )
         assert step_id == "step-intro"
         assert order == 0
         assert total == 2
+        assert step_uuid == topic.learning_steps[0].uuid
 
     @pytest.mark.asyncio
     async def test_unknown_topic_raises(self):

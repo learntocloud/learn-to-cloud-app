@@ -1,5 +1,7 @@
 """Repository for step progress operations."""
 
+from uuid import UUID
+
 from sqlalchemy import delete, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -34,11 +36,17 @@ class StepProgressRepository:
         step_id: str,
         step_order: int,
         phase_id: int,
+        step_uuid: UUID | None = None,
     ) -> StepProgress | None:
         """Atomically create a step progress record if it doesn't exist.
 
         Uses INSERT ... ON CONFLICT DO NOTHING RETURNING to check and insert
         in a single round-trip instead of SELECT + INSERT (2 round-trips).
+
+        ``step_uuid`` is the curriculum reference being introduced in
+        Phase D.1a. It is dual-written alongside the legacy ``step_id``
+        / ``topic_id`` so PR D.1b can switch reads over and PR D.1c can
+        drop the legacy columns and add the FK.
 
         Returns:
             The created StepProgress if inserted, or None if already existed.
@@ -51,6 +59,7 @@ class StepProgressRepository:
                 step_id=step_id,
                 phase_id=phase_id,
                 step_order=step_order,
+                step_uuid=step_uuid,
             )
             .on_conflict_do_nothing(
                 constraint="uq_user_topic_step",

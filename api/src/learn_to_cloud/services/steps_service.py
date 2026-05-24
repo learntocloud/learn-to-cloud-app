@@ -1,6 +1,7 @@
 """Step progress service for learning step management."""
 
 from typing import TYPE_CHECKING
+from uuid import UUID
 
 from learn_to_cloud_shared.content_service import get_topic_by_id
 from learn_to_cloud_shared.models import utcnow
@@ -36,11 +37,14 @@ class StepInvalidStepIdError(StepValidationError):
 
 async def _resolve_step(
     db: AsyncSession, topic_id: str, step_id: str
-) -> tuple[str, int, int]:
+) -> tuple[str, int, int, UUID]:
     """Resolve and validate a step by stable step id.
 
     Returns:
-        Tuple of (resolved_step_id, step_order, total_steps)
+        Tuple of (resolved_step_id, step_order, total_steps, step_uuid).
+        ``step_uuid`` is plumbed through to the repository so it can
+        dual-write the new ``step_progress.step_uuid`` column (Phase
+        D.1a of #461).
     """
     topic = await get_topic_by_id(db, topic_id)
     if topic is None:
@@ -49,7 +53,7 @@ async def _resolve_step(
     total_steps = len(topic.learning_steps)
     for step in topic.learning_steps:
         if step.id == step_id:
-            return step.id, step.order, total_steps
+            return step.id, step.order, total_steps, step.uuid
 
     raise StepInvalidStepIdError(topic_id, step_id)
 
@@ -103,7 +107,9 @@ async def complete_step(
         Idempotent — completing an already-completed step is a no-op
         that returns the current state without error.
     """
-    resolved_step_id, step_order, _ = await _resolve_step(db, topic_id, step_id)
+    resolved_step_id, step_order, _, step_uuid = await _resolve_step(
+        db, topic_id, step_id
+    )
 
     step_repo = StepProgressRepository(db)
     phase_id = parse_phase_id_from_topic_id(topic_id)
@@ -116,6 +122,7 @@ async def complete_step(
         step_id=resolved_step_id,
         step_order=step_order,
         phase_id=phase_id,
+        step_uuid=step_uuid,
     )
 
     span = trace.get_current_span()
@@ -167,7 +174,7 @@ async def uncomplete_step(
         StepUnknownTopicError: If topic_id doesn't exist in content
         StepInvalidStepIdError: If step_id doesn't exist in the topic
     """
-    resolved_step_id, step_order, _ = await _resolve_step(db, topic_id, step_id)
+    resolved_step_id, step_order, _, _ = await _resolve_step(db, topic_id, step_id)
 
     step_repo = StepProgressRepository(db)
     deleted = await step_repo.delete_step(user_id, topic_id, resolved_step_id)
