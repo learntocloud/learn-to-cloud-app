@@ -17,16 +17,16 @@ from learn_to_cloud_shared.verification.tasks.base import (
 )
 from learn_to_cloud_shared.verification.tasks.phase3 import (
     JOURNAL_API_FINAL_RUBRIC_TASK,
-    PHASE3_FINAL_REQUIREMENT_ID,
+    PHASE3_FINAL_REQUIREMENT_SLUG,
     PHASE3_LLM_TASKS,
 )
 from learn_to_cloud_shared.verification.tasks.phase5 import (
-    PHASE5_REQUIREMENT_ID,
+    PHASE5_REQUIREMENT_SLUG,
     PHASE5_TASKS,
 )
 from learn_to_cloud_shared.verification.tasks.phase6 import (
     PHASE6_LLM_TASKS,
-    PHASE6_REQUIREMENT_ID,
+    PHASE6_REQUIREMENT_SLUG,
     PHASE6_TASKS,
     SECURITY_SCANNING_RUBRIC_TASK,
 )
@@ -43,11 +43,11 @@ __all__ = [
     "LLMGradingDecision",
     "LLMRubricGraderConfig",
     "JOURNAL_API_FINAL_RUBRIC_TASK",
-    "PHASE3_FINAL_REQUIREMENT_ID",
+    "PHASE3_FINAL_REQUIREMENT_SLUG",
     "PHASE3_LLM_TASKS",
-    "PHASE5_REQUIREMENT_ID",
+    "PHASE5_REQUIREMENT_SLUG",
     "PHASE5_TASKS",
-    "PHASE6_REQUIREMENT_ID",
+    "PHASE6_REQUIREMENT_SLUG",
     "PHASE6_LLM_TASKS",
     "PHASE6_TASKS",
     "SECURITY_SCANNING_RUBRIC_TASK",

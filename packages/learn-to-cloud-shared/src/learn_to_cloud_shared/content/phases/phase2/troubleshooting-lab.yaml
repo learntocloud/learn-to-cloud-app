@@ -1,20 +1,16 @@
 # yaml-language-server: $schema=../../schemas/topic.schema.json
 uuid: 4a4cc769-c479-48c4-a852-3c01b19b6d88
-id: phase2-topic4
 slug: troubleshooting-lab
 name: 'Capstone: Network Troubleshooting Lab'
 description: Put your networking knowledge to the test! Diagnose and fix connectivity issues in a broken environment using the tools you've learned. The curriculum may not have covered everything you need — that's intentional. Researching what you don't know is part of the job.
 learning_objectives:
 - uuid: fcd0e23f-53c2-4d44-b180-df1f6e5547e6
-  id: networking-lab-diagnosis
   text: Diagnose broken network behavior using structured troubleshooting methods.
   order: 1
 - uuid: 23947eca-ba5c-4523-b112-cac85c3bebff
-  id: networking-lab-remediation
   text: Apply targeted fixes for DNS, routing, firewall, and service connectivity issues.
   order: 2
 - uuid: c2c6646c-e8e5-4b7e-9a13-f9b599e1cdd9
-  id: networking-lab-validation
   text: Validate restored connectivity and communicate the troubleshooting process clearly.
   order: 3
 learning_steps:
@@ -24,10 +20,10 @@ learning_steps:
   title: Networking Lab Repository
   url: https://github.com/learntocloud/networking-lab
   description: 'The repository README has everything you need: setup instructions, lab scenarios, and troubleshooting exercises. Follow the instructions there to complete the lab.'
-  id: phase2-topic4-practice-networking-lab-repository
+  slug: phase2-topic4-practice-networking-lab-repository
 - uuid: 17b368e6-eb5d-493e-ac11-e489b0ebd609
   order: 2
   action: 'Reflect:'
   title: Share Your Progress
   description: When you've completed the networking lab, share your experience on LinkedIn or the Learn to Cloud community to celebrate your progress and help others.
-  id: phase2-topic4-reflect-share-your-progress
+  slug: phase2-topic4-reflect-share-your-progress

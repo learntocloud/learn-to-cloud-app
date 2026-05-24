@@ -299,17 +299,18 @@ class StepProgress(Base):
 # ---------------------------------------------------------------------------
 # Curriculum tables (issue #463 / Phase B of #461)
 #
-# These tables hold the curriculum content authored in YAML. Phase B is
-# additive only: the sync function writes to them on deploy but the app
-# still reads from YAML at runtime. User-state tables do NOT reference
-# these yet; that comes in Phase D.
+# These tables hold the curriculum content authored in YAML. The sync
+# function writes to them on deploy; the app reads from them at runtime
+# via content_db_loader (Phase C).
 #
 # All curriculum entities:
 #   * use UUID primary keys (issue #462)
 #   * support soft-delete via ``deleted_at`` (Q3 of #461)
 #   * use ON DELETE RESTRICT on FKs (Q4 of #461)
-#   * have a ``legacy_id`` column preserving the original YAML string id
-#     so Phase D can backfill user_state.*_id -> *.uuid via this column
+# Topics, steps, and requirements carry a ``slug`` -- the kebab-case
+# human-readable id from YAML (matches the YAML filename or the inline
+# slug field). Phases use ``slug`` (e.g. "phase0") + ``order`` (int 0-6)
+# as the human keys; learning_objectives are identified solely by uuid.
 # ---------------------------------------------------------------------------
 
 
@@ -327,7 +328,6 @@ class CurriculumPhase(TimestampMixin, Base):
     )
 
     uuid: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
-    legacy_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
     slug: Mapped[str] = mapped_column(Text, nullable=False)
     name: Mapped[str] = mapped_column(Text, nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False)
@@ -358,7 +358,6 @@ class CurriculumTopic(TimestampMixin, Base):
         ForeignKey("phases.uuid", ondelete="RESTRICT", name="fk_topics_phase_uuid"),
         nullable=False,
     )
-    legacy_id: Mapped[str] = mapped_column(Text, nullable=False)
     slug: Mapped[str] = mapped_column(Text, nullable=False)
     name: Mapped[str] = mapped_column(Text, nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False)
@@ -388,7 +387,7 @@ class CurriculumStep(TimestampMixin, Base):
         ForeignKey("topics.uuid", ondelete="RESTRICT", name="fk_steps_topic_uuid"),
         nullable=False,
     )
-    legacy_id: Mapped[str] = mapped_column(Text, nullable=False)
+    slug: Mapped[str] = mapped_column(Text, nullable=False)
     order: Mapped[int] = mapped_column(BigInteger, nullable=False)
     action: Mapped[str | None] = mapped_column(Text, nullable=True)
     title: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -428,7 +427,6 @@ class CurriculumLearningObjective(TimestampMixin, Base):
         ),
         nullable=False,
     )
-    legacy_id: Mapped[str] = mapped_column(Text, nullable=False)
     text_: Mapped[str] = mapped_column("text", Text, nullable=False)
     order: Mapped[int] = mapped_column(BigInteger, nullable=False)
     deleted_at: Mapped[datetime | None] = mapped_column(
@@ -449,19 +447,20 @@ class CurriculumRequirement(TimestampMixin, Base):
     __tablename__ = "requirements"
     __table_args__ = (
         Index(
-            "uq_requirements_phase_id_active",
+            "uq_requirements_phase_slug_active",
             "phase_uuid",
-            "id",
+            "slug",
             unique=True,
             postgresql_where=text("deleted_at IS NULL"),
         ),
-        # Requirement IDs are globally unique because user-state tables
-        # store the bare string id (e.g. "github-profile"); two
-        # requirements sharing an id in different phases would make
-        # Phase D's UUID backfill ambiguous.
+        # Requirement slugs are globally unique: they show up in URLs,
+        # log lines, and ad-hoc queries, so two requirements sharing a
+        # slug in different phases would be too easy to confuse. The
+        # FK from submissions/verification_jobs targets uuid, so this
+        # invariant is for humans, not the schema.
         Index(
-            "uq_requirements_id_active",
-            "id",
+            "uq_requirements_slug_active",
+            "slug",
             unique=True,
             postgresql_where=text("deleted_at IS NULL"),
         ),
@@ -477,7 +476,7 @@ class CurriculumRequirement(TimestampMixin, Base):
         ),
         nullable=False,
     )
-    id: Mapped[str] = mapped_column(Text, nullable=False)
+    slug: Mapped[str] = mapped_column(Text, nullable=False)
     name: Mapped[str] = mapped_column(Text, nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False)
     submission_type: Mapped[str] = mapped_column(Text, nullable=False)

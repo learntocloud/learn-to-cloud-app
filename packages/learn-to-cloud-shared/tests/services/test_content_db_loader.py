@@ -18,8 +18,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from learn_to_cloud_shared.content_db_loader import (
     load_all_phases_from_db,
     load_phase_by_slug_from_db,
-    load_topic_by_id_from_db,
     load_topic_by_slugs_from_db,
+    load_topic_by_uuid_from_db,
 )
 from learn_to_cloud_shared.content_sync import sync_curriculum_to_db
 from learn_to_cloud_shared.content_yaml_loader import (
@@ -114,25 +114,25 @@ async def test_db_loader_returns_requirements_in_order_within_phase(
     yaml_by_slug = {p.slug: p for p in yaml_phases}
     for db_phase in db_phases:
         yaml_phase = yaml_by_slug[db_phase.slug]
-        db_req_ids = [
-            r.id
+        db_req_slugs = [
+            r.slug
             for r in (
                 db_phase.hands_on_verification.requirements
                 if db_phase.hands_on_verification
                 else []
             )
         ]
-        yaml_req_ids = [
-            r.id
+        yaml_req_slugs = [
+            r.slug
             for r in (
                 yaml_phase.hands_on_verification.requirements
                 if yaml_phase.hands_on_verification
                 else []
             )
         ]
-        assert db_req_ids == yaml_req_ids, (
-            f"{db_phase.slug}: DB requirement order {db_req_ids} "
-            f"differs from YAML {yaml_req_ids}"
+        assert db_req_slugs == yaml_req_slugs, (
+            f"{db_phase.slug}: DB requirement order {db_req_slugs} "
+            f"differs from YAML {yaml_req_slugs}"
         )
 
 
@@ -164,16 +164,18 @@ async def test_load_topic_by_id_returns_known_topic(
     clear_cache()
     yaml_phases = get_all_phases()
     sample_topic = yaml_phases[0].topics[0]
-    topic = await load_topic_by_id_from_db(db_session, sample_topic.id)
+    topic = await load_topic_by_uuid_from_db(db_session, sample_topic.uuid)
     assert topic is not None
-    assert topic.id == sample_topic.id
+    assert topic.uuid == sample_topic.uuid
 
 
 async def test_load_topic_by_id_returns_none_for_unknown(
     db_session: AsyncSession,
 ) -> None:
+    from uuid import uuid4
+
     await _seed_with_real_content(db_session)
-    assert await load_topic_by_id_from_db(db_session, "no-such-topic") is None
+    assert await load_topic_by_uuid_from_db(db_session, uuid4()) is None
 
 
 async def test_load_topic_by_slugs_returns_known_topic(
@@ -297,7 +299,6 @@ async def test_requirement_rehydrates_to_correct_subclass(
     now = datetime.now(UTC)
     phase = CurriculumPhase(
         uuid=uuid4(),
-        legacy_id=99,
         slug="phase99",
         name="Phase 99",
         description="d",
@@ -314,7 +315,7 @@ async def test_requirement_rehydrates_to_correct_subclass(
     req = CurriculumRequirement(
         uuid=req_uuid,
         phase_uuid=phase.uuid,
-        id="repo-fork-test",
+        slug="repo-fork-test",
         name="Test Fork",
         description="desc",
         submission_type="repo_fork",

@@ -1,20 +1,16 @@
 # yaml-language-server: $schema=../../schemas/topic.schema.json
 uuid: 6b9b665a-fc4c-4037-8d74-12cc6741711f
-id: phase1-topic2
 slug: cloud-cli
 name: Cloud CLI
 description: Learn to interact with cloud platforms through the command line. The CLI is essential for automation and scripting.
 learning_objectives:
 - uuid: 948decfc-494b-44e6-a266-713af819abd0
-  id: cloud-cli-installation
   text: Install the CLI for your chosen cloud provider and verify it works locally.
   order: 1
 - uuid: 7754d73f-9b3b-46e8-be44-f3e1c668ba16
-  id: cloud-cli-authentication
   text: Configure authentication securely for command-line access to cloud resources.
   order: 2
 - uuid: 19cad967-2d96-486d-bc1d-9c71da5008e4
-  id: cloud-cli-readiness
   text: Build baseline CLI fluency needed for upcoming labs and automation tasks.
   order: 3
 learning_steps:
@@ -36,7 +32,7 @@ learning_steps:
     url: https://docs.cloud.google.com/sdk/docs/install-sdk
     description: Follow the official guide to install the gcloud CLI on your system.
   title: Install your cloud provider's CLI
-  id: phase1-topic2-practice-install-your-cloud-providers
+  slug: phase1-topic2-practice-install-your-cloud-providers
 - uuid: 3a9e7fe9-4ba8-4ea3-b9e3-af8ba62a3e7f
   order: 2
   action: 'Practice:'
@@ -61,7 +57,7 @@ learning_steps:
 
       ```bash gcloud --version ```'
   title: Test your CLI installation
-  id: phase1-topic2-practice-test-your-cli-installation
+  slug: phase1-topic2-practice-test-your-cli-installation
 - uuid: 6c8ee969-af99-4bdc-b75d-989c751aa71c
   order: 3
   action: 'Practice:'
@@ -86,4 +82,4 @@ learning_steps:
 
       ```bash gcloud auth login ```'
   title: Configure authentication
-  id: phase1-topic2-practice-configure-authentication
+  slug: phase1-topic2-practice-configure-authentication

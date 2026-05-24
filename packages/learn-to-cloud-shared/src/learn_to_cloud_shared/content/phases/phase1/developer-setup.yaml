@@ -1,20 +1,16 @@
 # yaml-language-server: $schema=../../schemas/topic.schema.json
 uuid: 7617e76a-d657-43e1-9615-a47b065c8833
-id: phase1-topic1
 slug: developer-setup
 name: Developer Setup
 description: Set up your local development environment and foundational GitHub workflow so you can move through the rest of Phase 1 smoothly.
 learning_objectives:
 - uuid: 61c7c482-54a9-4d3b-90fe-937a8be8ce5e
-  id: developer-setup-repository-follow
   text: Star the Learn to Cloud app repository and use the community discussions page for support.
   order: 1
 - uuid: 17c49b72-c555-46ea-8708-1af21f87a424
-  id: developer-setup-local-environment
   text: Install VS Code and practice core terminal commands on your operating system.
   order: 2
 - uuid: 37069f97-e291-4273-ac57-64c319654725
-  id: developer-setup-git-practice
   text: Create and update a profile README using a local-to-remote Git workflow.
   order: 3
 learning_steps:
@@ -24,14 +20,14 @@ learning_steps:
   title: Star the Learn to Cloud App repository
   url: https://github.com/learntocloud/learn-to-cloud-app
   description: Open the repository and click Star so you can keep up with updates.
-  id: phase1-topic1-practice-star-the-learn-to
+  slug: phase1-topic1-practice-star-the-learn-to
 - uuid: ed86669d-9137-4e97-95d3-2c83cf795b91
   order: 2
   action: 'Practice:'
   title: Install VS Code
   url: https://code.visualstudio.com/
   description: We use VS Code for all programming and labs in this course.
-  id: phase1-topic1-practice-install-vs-code
+  slug: phase1-topic1-practice-install-vs-code
 - uuid: 6b267155-1732-4ee9-a625-30f344dbb2ce
   order: 3
   action: 'Practice:'
@@ -50,38 +46,38 @@ learning_steps:
     title: macOS terminal
     url: https://support.apple.com/guide/terminal/welcome/mac
     description: Use the built-in Terminal app and practice basic command-line workflow.
-  id: phase1-topic1-practice-practice-terminal-usage-on
+  slug: phase1-topic1-practice-practice-terminal-usage-on
 - uuid: 6aac64fd-2d9d-4088-948c-386b9088e19d
   order: 4
   action: 'Read:'
   title: Set up GitHub Copilot
   url: https://code.visualstudio.com/blogs/2024/12/18/free-github-copilot
   description: Every GitHub account includes free usage of GitHub Copilot, so you do not need a paid plan to start. Enable Copilot and use it as a learning assistant while working through Learn to Cloud.
-  id: phase1-topic1-read-set-up-github-copilot
+  slug: phase1-topic1-read-set-up-github-copilot
 - uuid: 5ba1f017-4242-4b65-b817-bd4a4a72b1d8
   order: 5
   action: 'Practice:'
   title: Communicate using markdown
   url: https://learn.microsoft.com/training/modules/communicate-using-markdown/
   description: Learn Markdown basics so you can write clean documentation in READMEs, issues, and project notes.
-  id: phase1-topic1-practice-communicate-using-markdown
+  slug: phase1-topic1-practice-communicate-using-markdown
 - uuid: 21e322f4-9fae-4609-af79-13fb33f828a0
   order: 6
   action: 'Practice:'
   title: Adding a profile README
   url: https://docs.github.com/account-and-profile/how-tos/profile-customization/managing-your-profile-readme
   description: Follow this guide to create the special repository that powers your GitHub profile README.
-  id: phase1-topic1-practice-adding-a-profile-readme
+  slug: phase1-topic1-practice-adding-a-profile-readme
 - uuid: 4a41c7e9-a0aa-4ab4-b47d-8760d92c6ffc
   order: 7
   action: 'Practice:'
   description: Clone your README repo to your local machine. Use VS Code to edit it and push changes back to GitHub from the terminal. Don't feel like you have to make a very fancy README—write a brief description on who you are and add links to your socials.
   title: Practice Git workflow
-  id: phase1-topic1-practice-practice-git-workflow
+  slug: phase1-topic1-practice-practice-git-workflow
 - uuid: e2b87158-c3d4-4aae-b6ee-b38d48fce103
   order: 8
   action: 'Practice:'
   title: Join the Learn to Cloud community
   description: Open the Learn to Cloud discussions page and bookmark it. If you ever have questions while working through the curriculum, this is the primary place to ask, share progress, and get support.
   url: https://github.com/learntocloud/learn-to-cloud-app/discussions
-  id: phase1-topic1-practice-join-the-learn-to
+  slug: phase1-topic1-practice-join-the-learn-to

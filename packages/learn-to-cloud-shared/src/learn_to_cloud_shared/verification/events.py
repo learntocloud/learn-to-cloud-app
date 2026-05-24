@@ -25,26 +25,26 @@ logger = logging.getLogger(__name__)
 _RESULT_TTL = 600
 _MAX_PENDING = 500
 
-# Keyed by (user_id, requirement_id)
+# Keyed by (user_id, requirement_slug)
 _pending_tasks: TTLCache[tuple[int, str], asyncio.Task[SubmissionResult]] = TTLCache(
     maxsize=_MAX_PENDING, ttl=_RESULT_TTL
 )
 
 
 def store_task(
-    user_id: int, requirement_id: str, task: asyncio.Task[SubmissionResult]
+    user_id: int, requirement_slug: str, task: asyncio.Task[SubmissionResult]
 ) -> None:
     """Store a verification task.  Overwrites any existing one."""
-    _pending_tasks[(user_id, requirement_id)] = task
+    _pending_tasks[(user_id, requirement_slug)] = task
 
 
 def get_task(
-    user_id: int, requirement_id: str
+    user_id: int, requirement_slug: str
 ) -> asyncio.Task[SubmissionResult] | None:
     """Get a pending verification task, or None if not found / expired."""
-    return _pending_tasks.get((user_id, requirement_id))
+    return _pending_tasks.get((user_id, requirement_slug))
 
 
-def remove_task(user_id: int, requirement_id: str) -> None:
+def remove_task(user_id: int, requirement_slug: str) -> None:
     """Remove a pending task (cleanup after SSE delivery)."""
-    _pending_tasks.pop((user_id, requirement_id), None)
+    _pending_tasks.pop((user_id, requirement_slug), None)

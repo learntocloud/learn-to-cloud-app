@@ -20,9 +20,11 @@ from learn_to_cloud_shared.verification.tasks.base import (
     require_indicator_grader,
     require_llm_rubric_grader,
 )
-from learn_to_cloud_shared.verification.tasks.phase3 import PHASE3_FINAL_REQUIREMENT_ID
-from learn_to_cloud_shared.verification.tasks.phase5 import PHASE5_REQUIREMENT_ID
-from learn_to_cloud_shared.verification.tasks.phase6 import PHASE6_REQUIREMENT_ID
+from learn_to_cloud_shared.verification.tasks.phase3 import (
+    PHASE3_FINAL_REQUIREMENT_SLUG,
+)
+from learn_to_cloud_shared.verification.tasks.phase5 import PHASE5_REQUIREMENT_SLUG
+from learn_to_cloud_shared.verification.tasks.phase6 import PHASE6_REQUIREMENT_SLUG
 
 
 @pytest.mark.unit
@@ -46,7 +48,7 @@ def test_phase_task_ids_are_stable_and_unique():
 def test_phase5_tasks_use_indicator_graders():
     for task in PHASE5_TASKS:
         assert task.phase_id == 5
-        assert task.requirement_id == PHASE5_REQUIREMENT_ID
+        assert task.requirement_slug == PHASE5_REQUIREMENT_SLUG
         assert task.evidence.source == "repo_files"
         assert task.evidence.path_patterns
         assert task.evidence.required_files
@@ -57,7 +59,7 @@ def test_phase5_tasks_use_indicator_graders():
 def test_phase6_tasks_use_file_presence_graders():
     for task in PHASE6_TASKS:
         assert task.phase_id == 6
-        assert task.requirement_id == PHASE6_REQUIREMENT_ID
+        assert task.requirement_slug == PHASE6_REQUIREMENT_SLUG
         assert task.evidence.source == "repo_files"
         assert task.evidence.path_patterns
         assert isinstance(require_file_presence_grader(task), FilePresenceGraderConfig)
@@ -71,7 +73,7 @@ def test_phase3_llm_tasks_use_rubric_graders():
     task = PHASE3_LLM_TASKS[0]
 
     assert task.phase_id == 3
-    assert task.requirement_id == PHASE3_FINAL_REQUIREMENT_ID
+    assert task.requirement_slug == PHASE3_FINAL_REQUIREMENT_SLUG
     assert task.evidence.source == "repo_files"
     assert isinstance(require_llm_rubric_grader(task), LLMRubricGraderConfig)
 
@@ -82,7 +84,7 @@ def test_phase6_llm_tasks_use_rubric_graders():
     task = PHASE6_LLM_TASKS[0]
 
     assert task.phase_id == 6
-    assert task.requirement_id == PHASE6_REQUIREMENT_ID
+    assert task.requirement_slug == PHASE6_REQUIREMENT_SLUG
     assert task.evidence.source == "repo_files"
     assert isinstance(require_llm_rubric_grader(task), LLMRubricGraderConfig)
 

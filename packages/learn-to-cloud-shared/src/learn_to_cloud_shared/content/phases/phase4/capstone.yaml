@@ -1,25 +1,20 @@
 # yaml-language-server: $schema=../../schemas/topic.schema.json
 uuid: ddd726e7-818e-4672-b33a-579718b1a8f3
-id: phase4-topic9
 slug: capstone
 name: 'Capstone: Cloud Deployment'
 description: Deploy the Journal API you built in Phase 3 to a secure 2-tier cloud architecture. This capstone challenges you to research, design, and implement a production-ready environment with proper networking and security, using the database and deployment preparation work you completed in earlier Phase 4 topics. You must have all Phase 3 endpoints implemented (GET single entry, DELETE single entry, and AI analysis) before starting. The curriculum may not have covered everything you need — that's intentional. Researching what you don't know is part of the job.
 short_description: Deploy your completed Journal API to a secure 2-tier cloud architecture with VMs, networking, and HTTPS.
 learning_objectives:
 - uuid: a8283b86-24bb-4e2e-8a20-7679cd19741a
-  id: cloud-capstone-architecture
   text: Design a secure two-tier cloud architecture for API and database workloads.
   order: 1
 - uuid: 6654c03c-ccbf-4983-9147-3130f07ee90e
-  id: cloud-capstone-implementation
   text: Implement networking, compute, and database components to run the Journal API end to end.
   order: 2
 - uuid: f3263740-4646-4160-9cb7-e5d07445ce2c
-  id: cloud-capstone-cloud-ai
   text: Deploy and integrate a cloud-hosted AI model with your application.
   order: 3
 - uuid: 0f9954fd-42d1-4a8a-99e1-9ee7b8f1a8d4
-  id: cloud-capstone-verification
   text: Validate deployment success criteria including HTTPS, connectivity controls, and functional API behavior.
   order: 4
 learning_steps:
@@ -41,7 +36,7 @@ learning_steps:
   - type: note
     text: On some cloud platforms, subnets are not inherently "public" or "private" — visibility depends on whether a VM has a public IP and what the firewall rules allow.
   done_when: You have a diagram showing public subnet (API), private subnet (database), CIDR ranges, firewall rules including SSH access, and the port chain from internet to database.
-  id: phase4-topic9-explore-design-your-2-tier-architecture
+  slug: phase4-topic9-explore-design-your-2-tier-architecture
 
 - uuid: c35ea082-b623-475d-94ff-32a71fa9e519
   order: 2
@@ -54,7 +49,7 @@ learning_steps:
   - Associate each security group with its respective subnet
   - Verify outbound internet access is allowed for both subnets (needed for package installation — most platforms allow this by default)
   done_when: Both subnets exist, security groups are associated with them, and your firewall rules match the design from Step 1.
-  id: phase4-topic9-practice-create-your-virtual-network
+  slug: phase4-topic9-practice-create-your-virtual-network
 
 - uuid: 91dd5f9e-365f-445f-a113-fca4abbfe0c0
   order: 3
@@ -74,7 +69,7 @@ learning_steps:
   - type: tip
     text: The DB VM needs outbound internet to install packages — use a temporary public IP (remove after) or a managed NAT service. If your VM has ≤1 GiB RAM, configure swap space (2 GiB recommended) or PostgreSQL may be killed by the OOM handler.
   done_when: You can connect to PostgreSQL from the API subnet via private IP, your dedicated user can read and write the `entries` table, and the database is **not** reachable from the internet.
-  id: phase4-topic9-practice-deploy-the-database-in
+  slug: phase4-topic9-practice-deploy-the-database-in
 
 - uuid: 4c1da717-a539-446a-81bc-deb7aec0e05a
   order: 4
@@ -92,7 +87,7 @@ learning_steps:
   - type: tip
     text: The Journal API requires Python 3.11+. Ubuntu 24.04 LTS ships Python 3.12 — older images may need a separate install. If your VM has ≤1 GiB RAM, configure swap space (2 GiB recommended).
   done_when: "All CRUD operations work from the VM — `POST /entries`, `GET /entries`, `GET /entries/{id}`, `PATCH /entries/{id}`, and `DELETE /entries/{id}`."
-  id: phase4-topic9-practice-deploy-the-api-server
+  slug: phase4-topic9-practice-deploy-the-api-server
 
 - uuid: 27462a4a-7f2d-47f2-b910-2eb9d030deba
   order: 5
@@ -107,7 +102,7 @@ learning_steps:
   - type: warning
     text: The automated verifier does **not** follow HTTP redirects. Ensure `GET /entries` on your HTTPS URL returns a direct `200 OK`, not a `3xx` redirect. Watch for trailing-slash behavior — FastAPI redirects `/entries/` to `/entries` with a 307. Use `/entries` (no trailing slash).
   done_when: "`curl -v https://yourdomain/entries` returns valid JSON with a trusted certificate, a 200 status code, and no redirects."
-  id: phase4-topic9-practice-expose-your-api-over-https
+  slug: phase4-topic9-practice-expose-your-api-over-https
 
 - uuid: 023ae8e4-f00e-4c6b-af08-93055c275aeb
   order: 6
@@ -119,7 +114,7 @@ learning_steps:
   - "**Option B — Provider-specific SDK:** Modify the client creation in `llm_service.py` to use your provider's client class. Check your provider's docs for integration"
   - "**Redeploy** — Push changes to the VM and restart your service"
   done_when: "`curl -X POST https://yourdomain/entries/{id}/analyze` returns sentiment, summary, and topics from your cloud-hosted model."
-  id: phase4-topic9-practice-deploy-and-switch-your
+  slug: phase4-topic9-practice-deploy-and-switch-your
 
 - uuid: a6ab032c-fe77-4d31-987f-564f6248ede6
   order: 7
@@ -130,7 +125,7 @@ learning_steps:
   - type: tip
     text: Your API's response format must match the data schema defined in the journal-starter README. Your API must respond within 15 seconds.
   done_when: The verifier shows "Deployed API verified!"
-  id: phase4-topic9-practice-verify-and-submit-your
+  slug: phase4-topic9-practice-verify-and-submit-your
 
 - uuid: 6dd5149a-494d-4f19-a401-fe7a1a71c75c
   order: 8
@@ -145,11 +140,11 @@ learning_steps:
   tips:
   - type: tip
     text: If your cloud platform supports resource groups or tagging, use them — deleting a single group or filtering by tag makes cleanup straightforward.
-  id: phase4-topic9-practice-clean-up-your-cloud
+  slug: phase4-topic9-practice-clean-up-your-cloud
 
 - uuid: ab084238-bf88-487e-9aa9-45c257463179
   order: 9
   action: 'Reflect:'
   title: Share your progress
   description: Push your work to GitHub and write a brief technical writeup covering your architecture decisions, what networking and security controls you implemented, and what you'd do differently. Share it on LinkedIn or with the Learn to Cloud community to get feedback and celebrate your progress.
-  id: phase4-topic9-reflect-share-your-progress
+  slug: phase4-topic9-reflect-share-your-progress

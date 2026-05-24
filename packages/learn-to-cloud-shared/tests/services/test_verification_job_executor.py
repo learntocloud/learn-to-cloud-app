@@ -59,7 +59,7 @@ async def synced_requirement(
 
     Phase D.2 added an FK on ``submissions.requirement_uuid``; tests
     persisting submissions need the referenced requirement to exist,
-    and ``get_requirement_by_id`` only returns active rows so the test
+    and ``get_requirement_by_slug`` only returns active rows so the test
     requirement must be alive in the curriculum.
     """
     from learn_to_cloud_shared.testing.requirement_factories import (
@@ -75,7 +75,7 @@ async def synced_requirement(
             await db.execute(
                 select(
                     CurriculumRequirement.uuid,
-                    CurriculumRequirement.id,
+                    CurriculumRequirement.slug,
                     CurriculumRequirement.submission_type,
                 )
                 .where(CurriculumRequirement.submission_type == "journal_api_verifier")
@@ -85,7 +85,7 @@ async def synced_requirement(
 
     return make_requirement(
         SubmissionType(row.submission_type),
-        id=row.id,
+        slug=row.slug,
         name="Verification Executor Test",
         description="Test requirement",
     ).model_copy(update={"uuid": row.uuid})
@@ -215,7 +215,7 @@ async def test_execute_verification_job_marks_success_and_links_submission(
     payload = result.to_payload()
     assert payload["status"] == "succeeded"
     assert payload["code"] == VERIFICATION_SUCCEEDED_CODE
-    assert payload["requirement_id"] == synced_requirement.id
+    assert payload["requirement_slug"] == synced_requirement.slug
     assert payload["requirement_name"] == "Verification Executor Test"
     assert payload["submission_type"] == SubmissionType.JOURNAL_API_VERIFIER.value
     assert payload["message"] == "Verification succeeded."
@@ -364,7 +364,7 @@ async def test_execute_verification_job_marks_missing_requirement_server_error(
     assert result.verification_completed is False
     assert result.code == REQUIREMENT_NOT_FOUND_ERROR_CODE
     assert result.message == "Verification could not be completed."
-    assert result.detail == f"Requirement not found: {synced_requirement.id}"
+    assert result.detail == f"Requirement not found: {synced_requirement.slug}"
 
     # Row stays linked so a retry is idempotent.
     assert await _get_job_link(session_maker, job_id) == result.submission_id
@@ -373,7 +373,7 @@ async def test_execute_verification_job_marks_missing_requirement_server_error(
     assert submission.verification_completed is False
     assert (
         submission.validation_message
-        == f"Requirement not found: {synced_requirement.id}"
+        == f"Requirement not found: {synced_requirement.slug}"
     )
 
     validation.assert_not_awaited()

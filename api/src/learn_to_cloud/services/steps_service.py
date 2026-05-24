@@ -1,12 +1,18 @@
-"""Step progress service for learning step management."""
+"""Step progress service for learning step management.
+
+After the Phase E follow-up that dropped legacy id columns, the unit of
+identity for steps is ``step.uuid``. The HTMX endpoints take a step
+UUID directly; the topic context is recovered (when needed for
+rendering) by walking the loaded curriculum tree.
+"""
 
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from learn_to_cloud_shared.content_service import get_topic_by_id
+from learn_to_cloud_shared.content_service import get_all_phases
 from learn_to_cloud_shared.models import utcnow
 from learn_to_cloud_shared.repositories import StepProgressRepository
-from learn_to_cloud_shared.schemas import StepCompletionResult
+from learn_to_cloud_shared.schemas import LearningStep, StepCompletionResult
 from opentelemetry import trace
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -18,157 +24,122 @@ class StepValidationError(Exception):
     """Raised when step validation fails."""
 
 
-class StepUnknownTopicError(StepValidationError):
-    """Raised when a topic_id doesn't exist in content."""
+class StepNotFoundError(StepValidationError):
+    """Raised when a step_uuid does not exist in the loaded curriculum."""
 
-    def __init__(self, topic_id: str):
-        self.topic_id = topic_id
-        super().__init__(f"Unknown topic_id: {topic_id}")
-
-
-class StepInvalidStepIdError(StepValidationError):
-    """Raised when a step_id does not exist in the topic."""
-
-    def __init__(self, topic_id: str, step_id: str):
-        self.topic_id = topic_id
-        self.step_id = step_id
-        super().__init__(f"Invalid step_id '{step_id}' for {topic_id}")
+    def __init__(self, step_uuid: UUID):
+        self.step_uuid = step_uuid
+        super().__init__(f"Unknown step_uuid: {step_uuid}")
 
 
-async def _resolve_step(
-    db: AsyncSession, topic_id: str, step_id: str
-) -> tuple[str, int, int, UUID]:
-    """Resolve and validate a step by stable step id.
+async def _find_step(db: AsyncSession, step_uuid: UUID) -> tuple["Topic", LearningStep]:
+    """Resolve a step UUID to its parent topic + step model.
 
-    Returns:
-        Tuple of (resolved_step_id, step_order, total_steps, step_uuid).
+    Walks the in-memory curriculum tree (small N). Soft-deleted steps
+    are excluded because ``get_all_phases`` only returns active rows;
+    raising :class:`StepNotFoundError` keeps the surface uniform with
+    the verification request paths.
     """
-    topic = await get_topic_by_id(db, topic_id)
-    if topic is None:
-        raise StepUnknownTopicError(topic_id)
-
-    total_steps = len(topic.learning_steps)
-    for step in topic.learning_steps:
-        if step.id == step_id:
-            return step.id, step.order, total_steps, step.uuid
-
-    raise StepInvalidStepIdError(topic_id, step_id)
-
-
-def parse_phase_id_from_topic_id(topic_id: str) -> int | None:
-    """Extract phase ID from a topic_id string (e.g., 'phase1-topic5' -> 1).
-
-    Used by the HTMX templates to render phase-aware navigation. The
-    DB no longer carries ``step_progress.phase_id`` (Phase D.1c of
-    #465) but the URL contract still uses phase ids, so callers parse
-    them from the topic id string.
-    """
-    if not isinstance(topic_id, str) or not topic_id.startswith("phase"):
-        return None
-    try:
-        return int(topic_id.split("-")[0].replace("phase", ""))
-    except (ValueError, IndexError):
-        return None
+    phases = await get_all_phases(db)
+    for phase in phases:
+        for topic in phase.topics:
+            for step in topic.learning_steps:
+                if step.uuid == step_uuid:
+                    return topic, step
+    raise StepNotFoundError(step_uuid)
 
 
 async def get_valid_completed_steps(
     db: AsyncSession,
     user_id: int,
     topic: "Topic",
-) -> set[str]:
-    """Get completed step IDs filtered to only steps that exist in content.
-
-    The repo speaks UUIDs; we translate back to the human-readable step
-    IDs the rest of the app and templates expect. Soft-deleted steps
-    drop out automatically because ``topic.learning_steps`` only
-    contains active steps.
-    """
+) -> set[UUID]:
+    """Get completed step UUIDs filtered to steps that exist in this topic."""
     step_repo = StepProgressRepository(db)
-    completed_uuids = await step_repo.get_completed_step_uuids(
+    return await step_repo.get_completed_step_uuids(
         user_id, (step.uuid for step in topic.learning_steps)
     )
-    return {step.id for step in topic.learning_steps if step.uuid in completed_uuids}
 
 
 async def complete_step(
     db: AsyncSession,
     user_id: int,
-    topic_id: str,
-    step_id: str,
-) -> tuple[StepCompletionResult, set[str]]:
+    step_uuid: UUID,
+) -> tuple[StepCompletionResult, "Topic", set[UUID]]:
     """Mark a learning step as complete.
 
-    Steps can be completed in any order. Idempotent -- completing an
-    already-completed step is a no-op that returns the current state
-    without error.
+    Idempotent -- completing an already-completed step is a no-op that
+    returns the current state without error.
+
+    Returns the (result, parent topic, set of completed step UUIDs in
+    that topic) tuple so the HTMX caller can re-render the step partial
+    and the topic progress bar without re-loading the curriculum.
     """
-    resolved_step_id, step_order, _, step_uuid = await _resolve_step(
-        db, topic_id, step_id
-    )
+    topic, step = await _find_step(db, step_uuid)
 
     step_repo = StepProgressRepository(db)
     step_progress = await step_repo.create_if_not_exists(
         user_id=user_id,
-        step_uuid=step_uuid,
+        step_uuid=step.uuid,
     )
 
     span = trace.get_current_span()
-    span.set_attribute("step.topic_id", topic_id)
-    span.set_attribute("step.step_id", resolved_step_id)
-    span.set_attribute("step.order", step_order)
+    span.set_attribute("step.uuid", str(step.uuid))
+    span.set_attribute("step.slug", step.slug)
+    span.set_attribute("topic.slug", topic.slug)
+    span.set_attribute("step.order", step.order)
 
-    topic = await get_topic_by_id(db, topic_id)
-    completed_steps: set[str] = set()
-    if topic is not None:
-        completed_steps = await get_valid_completed_steps(db, user_id, topic)
+    completed = await get_valid_completed_steps(db, user_id, topic)
 
     if step_progress is None:
         span.set_attribute("step.action", "already_completed")
-        return StepCompletionResult(
-            topic_id=topic_id,
-            step_id=resolved_step_id,
-            completed_at=utcnow(),
-        ), completed_steps
+        return (
+            StepCompletionResult(
+                topic_slug=topic.slug,
+                step_slug=step.slug,
+                completed_at=utcnow(),
+            ),
+            topic,
+            completed,
+        )
 
     span.set_attribute("step.action", "completed")
 
-    return StepCompletionResult(
-        topic_id=topic_id,
-        step_id=resolved_step_id,
-        completed_at=step_progress.completed_at,
-    ), completed_steps
+    return (
+        StepCompletionResult(
+            topic_slug=topic.slug,
+            step_slug=step.slug,
+            completed_at=step_progress.completed_at,
+        ),
+        topic,
+        completed,
+    )
 
 
 async def uncomplete_step(
     db: AsyncSession,
     user_id: int,
-    topic_id: str,
-    step_id: str,
-) -> tuple[int, set[str]]:
+    step_uuid: UUID,
+) -> tuple[int, "Topic", LearningStep, set[UUID]]:
     """Mark a single learning step as incomplete.
 
-    Only removes the specified step -- does not cascade to other steps.
+    Only removes the specified step -- does not cascade.
 
     Raises:
-        StepUnknownTopicError: If topic_id doesn't exist in content
-        StepInvalidStepIdError: If step_id doesn't exist in the topic
+        StepNotFoundError: If step_uuid doesn't exist in active content.
     """
-    resolved_step_id, step_order, _, step_uuid = await _resolve_step(
-        db, topic_id, step_id
-    )
+    topic, step = await _find_step(db, step_uuid)
 
     step_repo = StepProgressRepository(db)
-    deleted = await step_repo.delete_step(user_id, step_uuid)
+    deleted = await step_repo.delete_step(user_id, step.uuid)
 
     span = trace.get_current_span()
-    span.set_attribute("step.topic_id", topic_id)
-    span.set_attribute("step.step_id", resolved_step_id)
-    span.set_attribute("step.order", step_order)
+    span.set_attribute("step.uuid", str(step.uuid))
+    span.set_attribute("step.slug", step.slug)
+    span.set_attribute("topic.slug", topic.slug)
+    span.set_attribute("step.order", step.order)
     span.set_attribute("step.action", "uncompleted")
 
-    topic = await get_topic_by_id(db, topic_id)
-    completed_steps: set[str] = set()
-    if topic is not None:
-        completed_steps = await get_valid_completed_steps(db, user_id, topic)
+    completed = await get_valid_completed_steps(db, user_id, topic)
 
-    return deleted, completed_steps
+    return deleted, topic, step, completed

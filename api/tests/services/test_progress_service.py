@@ -31,7 +31,9 @@ from learn_to_cloud.services.progress_service import (
 
 
 def _make_step(step_id: str, order: int = 0) -> LearningStep:
-    return LearningStep(uuid=uuid4(), id=step_id, order=order, title=f"Step {step_id}")
+    return LearningStep(
+        uuid=uuid4(), slug=step_id, order=order, title=f"Step {step_id}"
+    )
 
 
 def _make_topic(
@@ -41,7 +43,6 @@ def _make_topic(
     step_ids = steps if steps is not None else ["s1", "s2", "s3"]
     return Topic(
         uuid=uuid4(),
-        id=topic_id,
         slug="topic1",
         name="Test Topic",
         description="A test topic",
@@ -56,7 +57,6 @@ def _make_phase(
 ) -> Phase:
     return Phase(
         uuid=uuid4(),
-        id=phase_id,
         name=f"Phase {phase_id}",
         slug=f"phase{phase_id}",
         order=phase_id,
@@ -234,7 +234,7 @@ class TestFetchPhaseProgress:
         )
 
         topic = _make_topic(topic_id="phase3-topic1", steps=["s1", "s2"])
-        req = journal_api_verifier_requirement(id="req1", name="R", description="d")
+        req = journal_api_verifier_requirement(slug="req1", name="R", description="d")
         phase = _make_phase(3, topics=[topic])
         phase = phase.model_copy(
             update={
@@ -279,7 +279,7 @@ class TestFetchPhaseProgress:
         )
 
         topic = _make_topic(topic_id="phase3-topic1", steps=["s1", "s2"])
-        req = journal_api_verifier_requirement(id="req1", name="R", description="d")
+        req = journal_api_verifier_requirement(slug="req1", name="R", description="d")
         phase = _make_phase(3, topics=[topic])
         phase = phase.model_copy(
             update={

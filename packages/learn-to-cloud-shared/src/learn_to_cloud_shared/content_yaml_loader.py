@@ -36,9 +36,8 @@ class ContentValidationError(Exception):
 
 
 def _validate_topic_payload(data: dict, topic_file: Path) -> None:
-    """Validate topic payload learning step IDs are explicit and unique."""
-    topic_id = str(data.get("id", "")).strip()
-    topic_name = topic_id or topic_file.stem
+    """Validate topic payload learning step slugs are explicit and unique."""
+    topic_name = topic_file.stem
     steps = data.get("learning_steps", [])
     if not isinstance(steps, list):
         raise ContentValidationError("learning_steps must be a list")
@@ -48,21 +47,21 @@ def _validate_topic_payload(data: dict, topic_file: Path) -> None:
         if not isinstance(step, dict):
             raise ContentValidationError("Each learning step must be a mapping")
 
-        step_id = str(step.get("id", "")).strip()
-        if not step_id:
+        step_slug = str(step.get("slug", "")).strip()
+        if not step_slug:
             raise ContentValidationError(
-                f"Missing learning_steps[].id in topic '{topic_name}'"
+                f"Missing learning_steps[].slug in topic '{topic_name}'"
             )
-        if len(step_id) > 100:
+        if len(step_slug) > 100:
             raise ContentValidationError(
-                f"learning_steps[].id '{step_id[:60]}...' is {len(step_id)} chars "
-                f"(max 100) in topic '{topic_name}'"
+                f"learning_steps[].slug '{step_slug[:60]}...' is "
+                f"{len(step_slug)} chars (max 100) in topic '{topic_name}'"
             )
-        if step_id in seen:
+        if step_slug in seen:
             raise ContentValidationError(
-                f"Duplicate learning_steps[].id '{step_id}' in topic '{topic_name}'"
+                f"Duplicate learning_steps[].slug '{step_slug}' in topic '{topic_name}'"
             )
-        seen.add(step_id)
+        seen.add(step_slug)
 
 
 def _get_content_dir() -> Path:
@@ -127,11 +126,11 @@ def _load_requirement(phase_dir: Path, requirement_slug: str) -> Any | None:
                 f"requirement {req_file.name} must be a YAML mapping"
             )
         file_stem = req_file.stem
-        yaml_id = str(data.get("id", "")).strip()
-        if yaml_id != file_stem:
+        yaml_slug = str(data.get("slug", "")).strip()
+        if yaml_slug != file_stem:
             raise ContentValidationError(
-                f"requirement {req_file.name}: id '{yaml_id}' does not match "
-                f"filename stem '{file_stem}'"
+                f"requirement {req_file.name}: slug '{yaml_slug}' does not "
+                f"match filename stem '{file_stem}'"
             )
         return HandsOnRequirementAdapter.validate_python(data)
     except (
@@ -162,6 +161,12 @@ def _load_phase(phase_slug: str) -> Phase | None:
     try:
         with open(meta_file, encoding="utf-8") as f:
             data: dict = yaml.safe_load(f)
+
+        # The phase directory name is authoritative -- the loader injects
+        # the slug here rather than trusting any YAML field, so a file
+        # accidentally placed in the wrong directory still ends up tagged
+        # with that directory's slug.
+        data["slug"] = phase_slug
 
         topic_slugs: list[str] = data.get("topics", [])
         topics = [
@@ -248,7 +253,7 @@ def _collect_uuids(phases: tuple[Phase, ...]) -> list[tuple[str, str]]:
                 items.append(
                     (
                         str(req.uuid),
-                        f"phase[{phase.slug}].requirements[{req.id}]",
+                        f"phase[{phase.slug}].requirements[{req.slug}]",
                     )
                 )
         for topic in phase.topics:
@@ -257,11 +262,16 @@ def _collect_uuids(phases: tuple[Phase, ...]) -> list[tuple[str, str]]:
                 items.append(
                     (
                         str(obj.uuid),
-                        f"topic[{topic.slug}].objectives[{obj.id}]",
+                        f"topic[{topic.slug}].objectives[{obj.uuid}]",
                     )
                 )
             for step in topic.learning_steps:
-                items.append((str(step.uuid), f"topic[{topic.slug}].steps[{step.id}]"))
+                items.append(
+                    (
+                        str(step.uuid),
+                        f"topic[{topic.slug}].steps[{step.slug}]",
+                    )
+                )
     return items
 
 
@@ -283,12 +293,12 @@ def _check_topic_slugs_resolve(phases: tuple[Phase, ...]) -> list[str]:
     errors: list[str] = []
     for phase in phases:
         if len(phase.topics) < len(phase.topic_slugs):
-            loaded_ids = {t.id for t in phase.topics}
+            loaded_slugs = {t.slug for t in phase.topics}
             errors.append(
                 f"phase[{phase.slug}] expected {len(phase.topic_slugs)} "
                 f"topics but only {len(phase.topics)} loaded. "
                 f"Listed topics: {phase.topic_slugs}. "
-                f"Loaded topic ids: {sorted(loaded_ids)}. "
+                f"Loaded topic slugs: {sorted(loaded_slugs)}. "
                 "Check for YAML parse errors in the missing files."
             )
     return errors
@@ -301,12 +311,12 @@ def _check_step_order_uniqueness(phases: tuple[Phase, ...]) -> list[str]:
         for topic in phase.topics:
             by_order: dict[int, list[str]] = {}
             for step in topic.learning_steps:
-                by_order.setdefault(step.order, []).append(step.id)
-            for order, step_ids in by_order.items():
-                if len(step_ids) > 1:
+                by_order.setdefault(step.order, []).append(step.slug)
+            for order, step_slugs in by_order.items():
+                if len(step_slugs) > 1:
                     errors.append(
                         f"topic[{topic.slug}] has multiple steps with "
-                        f"order={order}: {', '.join(step_ids)}"
+                        f"order={order}: {', '.join(step_slugs)}"
                     )
     return errors
 
@@ -320,32 +330,32 @@ def _check_requirement_slugs_resolve(phases: tuple[Phase, ...]) -> list[str]:
         declared = phase.hands_on_verification.requirement_slugs
         loaded = phase.hands_on_verification.requirements
         if len(loaded) < len(declared):
-            loaded_ids = {r.id for r in loaded}
+            loaded_slugs = {r.slug for r in loaded}
             errors.append(
                 f"phase[{phase.slug}] expected {len(declared)} requirements "
                 f"but only {len(loaded)} loaded. "
-                f"Listed: {declared}. Loaded ids: {sorted(loaded_ids)}. "
+                f"Listed: {declared}. Loaded slugs: {sorted(loaded_slugs)}. "
                 "Check for YAML parse errors in the missing requirement files."
             )
     return errors
 
 
-def _check_requirement_ids_globally_unique(
+def _check_requirement_slugs_globally_unique(
     phases: tuple[Phase, ...],
 ) -> list[str]:
-    """Return errors for requirement IDs that collide across the whole curriculum."""
-    by_id: dict[str, list[str]] = {}
+    """Return errors for requirement slugs that collide across the curriculum."""
+    by_slug: dict[str, list[str]] = {}
     for phase in phases:
         if phase.hands_on_verification is None:
             continue
         for req in phase.hands_on_verification.requirements:
-            by_id.setdefault(req.id, []).append(phase.slug)
+            by_slug.setdefault(req.slug, []).append(phase.slug)
 
     errors: list[str] = []
-    for req_id, phase_slugs in by_id.items():
+    for req_slug, phase_slugs in by_slug.items():
         if len(phase_slugs) > 1:
             errors.append(
-                f"Duplicate requirement id '{req_id}' appears in phases: "
+                f"Duplicate requirement slug '{req_slug}' appears in phases: "
                 f"{', '.join(phase_slugs)}"
             )
     return errors
@@ -364,5 +374,5 @@ def validate_content() -> list[str]:
     errors.extend(_check_topic_slugs_resolve(phases))
     errors.extend(_check_step_order_uniqueness(phases))
     errors.extend(_check_requirement_slugs_resolve(phases))
-    errors.extend(_check_requirement_ids_globally_unique(phases))
+    errors.extend(_check_requirement_slugs_globally_unique(phases))
     return errors

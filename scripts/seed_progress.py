@@ -109,11 +109,11 @@ async def main(github_username: str) -> None:
                             f"https://github.com/{github_username}/journal-starter"
                         )
                     elif sub_type == "pr_review":
-                        submitted_value = f"https://seed-data.example.com/{req.id}"
+                        submitted_value = f"https://seed-data.example.com/{req.slug}"
                     elif sub_type == "deployed_api":
                         submitted_value = "https://journal-api.example.com"
                     else:
-                        submitted_value = f"https://seed-data.example.com/{req.id}"
+                        submitted_value = f"https://seed-data.example.com/{req.slug}"
 
                     await conn.execute(
                         text(

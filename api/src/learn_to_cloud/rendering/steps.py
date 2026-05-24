@@ -119,7 +119,8 @@ def build_step_data(
         md_renderer: Markdown-to-HTML callable (default: module-level render_md).
     """
     data: dict[str, Any] = {
-        "id": step.id,
+        "uuid": str(step.uuid),
+        "slug": step.slug,
         "order": step.order,
         "action": step.action or "",
         "title": step.title or "",

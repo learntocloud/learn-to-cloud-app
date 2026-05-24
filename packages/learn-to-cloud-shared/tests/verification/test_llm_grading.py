@@ -31,7 +31,7 @@ def _run_result(is_valid: bool = True) -> VerificationRunResult:
     )
 
     requirement = security_scanning_requirement(
-        id="security-scanning",
+        slug="security-scanning",
         name="Security scanning",
         description="Enable security scanning",
         required_repo="learntocloud/journal",
@@ -64,7 +64,7 @@ def _phase3_run_result(is_valid: bool = True) -> VerificationRunResult:
     )
 
     requirement = journal_api_verifier_requirement(
-        id="journal-api-implementation",
+        slug="journal-api-implementation",
         name="Verify Journal API Implementation",
         description="Verify that CI tests pass on the fork's main branch.",
         required_repo="learntocloud/journal-starter",

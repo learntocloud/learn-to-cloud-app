@@ -1,20 +1,16 @@
 # yaml-language-server: $schema=../../schemas/topic.schema.json
 uuid: 8ae1dfb6-626c-424c-b57d-b86a82eafb30
-id: phase4-topic5
 slug: database-deployment
 name: Database Deployment & Configuration
 description: Learn to deploy and configure PostgreSQL databases in the cloud. This topic covers the fundamentals of relational database deployment, including architecture, installation, and secure remote access configuration. It builds on Phase 3 database fundamentals and focuses on cloud-specific deployment and network hardening.
 learning_objectives:
 - uuid: 43076020-3783-4f18-8a59-c87d723e49e0
-  id: database-deployment-postgres-basics
   text: Understand PostgreSQL deployment fundamentals in cloud environments.
   order: 1
 - uuid: 4a336d46-8248-4430-ac39-dd9e03588fc8
-  id: database-deployment-secure-access
   text: Configure database access controls for private, least-exposed connectivity.
   order: 2
 - uuid: 5c303b3f-b97c-4adb-be3f-e573aca6ac66
-  id: database-deployment-operational-validation
   text: Validate secure application-to-database connectivity in a realistic deployment pattern.
   order: 3
 learning_steps:
@@ -36,7 +32,7 @@ learning_steps:
     url: https://docs.cloud.google.com/sql/docs/postgres/introduction
     description: Understand PostgreSQL options on Google Cloud and choose the right deployment path.
   title: Compare PostgreSQL deployment options by provider
-  id: phase4-topic5-read-compare-postgresql-deployment-options
+  slug: phase4-topic5-read-compare-postgresql-deployment-options
 - uuid: 3caf398c-5af1-4f52-ab12-af9efe430220
   order: 2
   action: 'Read:'
@@ -55,7 +51,7 @@ learning_steps:
     url: https://www.postgresql.org/download/linux/
     description: Official PostgreSQL installation instructions for Ubuntu, Debian, RHEL, and other Linux distributions.
   title: Learn how to install PostgreSQL on Linux
-  id: phase4-topic5-read-install-postgresql-on-linux
+  slug: phase4-topic5-read-install-postgresql-on-linux
 - uuid: 05687ff1-b259-4ad8-ac72-9ea73f821a63
   order: 3
   action: 'Practice:'
@@ -74,14 +70,14 @@ learning_steps:
     url: https://docs.cloud.google.com/compute/docs/instances/create-vm-specific-subnet
     description: Launch a VM in your chosen subnet and use no external IP for private-only database hosting.
   title: Deploy a VM in a private subnet and install PostgreSQL
-  id: phase4-topic5-practice-deploy-a-vm-in
+  slug: phase4-topic5-practice-deploy-a-vm-in
 - uuid: 59dbd8d7-026f-4385-9744-1e669ca28b0e
   order: 4
   action: 'Practice:'
   description: "Even though your database VM sits in a private subnet, network controls alone aren't enough. A misconfigured NSG/security-group rule, a compromised peer workload, or a future subnet expansion could expose the database to unintended clients. pg_hba.conf is PostgreSQL's own host-based authentication layer. Edit pg_hba.conf to allow connections only from your API server's IP range and require strong authentication. Then create database users with least-privilege permissions for your application."
   url: https://www.postgresql.org/docs/current/auth-pg-hba-conf.html
   title: Configure pg_hba.conf for secure remote access
-  id: phase4-topic5-practice-configure-pghbaconf-for-secure
+  slug: phase4-topic5-practice-configure-pghbaconf-for-secure
 - uuid: 690ffd69-c16f-481b-b8ac-933572437133
   order: 5
   action: 'Practice:'
@@ -100,10 +96,10 @@ learning_steps:
     url: https://docs.cloud.google.com/iap/docs/using-tcp-forwarding
     description: An identity-aware tunnel proxy — creates an encrypted tunnel from your machine authenticated via IAM, then you use your own SSH client through it. No agent required.
   title: Verify database connectivity and security
-  id: phase4-topic5-practice-verify-database-connectivity-and
+  slug: phase4-topic5-practice-verify-database-connectivity-and
 - uuid: 4b2a2cd1-84f5-4851-b7fc-1fd89d591add
   order: 6
   action: 'Practice:'
   title: Clean up your cloud resources
   description: Delete all resources you created — VMs, PostgreSQL installations, Bastion/SSM/IAP configurations, VPC/VNet, subnets, and security groups. Check your cloud console to confirm nothing is still running. Leaving resources active will incur charges.
-  id: phase4-topic5-practice-clean-up-your-cloud
+  slug: phase4-topic5-practice-clean-up-your-cloud

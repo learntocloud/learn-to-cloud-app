@@ -1,24 +1,19 @@
 # yaml-language-server: $schema=../../schemas/topic.schema.json
 uuid: 282db8e5-b3a0-47f5-bb37-ffcd63e92ae7
-id: phase4-topic6
 slug: monitoring-foundations-for-apps-and-vms
 name: Monitoring Foundations for Apps and VMs
 description: This topic focuses on monitoring cloud-hosted applications. You'll learn provider monitoring fundamentals, how application logs are collected and queried, and how infrastructure and application metrics give you runtime visibility.
 learning_objectives:
 - uuid: 9440f45d-67d5-4d3a-b0f3-23b31e415f89
-  id: monitor-application-infrastructure-provider-basics
   text: Understand core monitoring services across Azure, AWS, and GCP for app and VM visibility.
   order: 1
 - uuid: f3aad083-8f5f-42e9-8d76-f733e904e85f
-  id: monitor-application-infrastructure-logs
   text: Understand where application logs come from and how to query them during incident response.
   order: 2
 - uuid: 7a1500b3-5ae9-4df8-9761-37166dde49cc
-  id: monitor-application-infrastructure-metrics
   text: Understand how infrastructure and application metrics are collected and used for runtime visibility.
   order: 3
 - uuid: 535a72c7-c580-4759-8bf1-884cf6dac142
-  id: monitor-application-infrastructure-query-logs
   text: Configure a VM to emit logs and metrics, then query the data in your provider's console.
   order: 4
 learning_steps:
@@ -40,7 +35,7 @@ learning_steps:
     url: https://docs.cloud.google.com/monitoring/docs/monitoring-overview
     description: Learn Google Cloud Monitoring fundamentals for infrastructure and services.
   title: Learn your provider's monitoring fundamentals
-  id: phase4-topic6-read-learn-your-providers-monitoring
+  slug: phase4-topic6-read-learn-your-providers-monitoring
 - uuid: dde46b10-97bc-4812-bf2e-035d3d261315
   order: 2
   action: 'Read:'
@@ -59,7 +54,7 @@ learning_steps:
     url: https://docs.cloud.google.com/logging/docs/overview
     description: Understand structured logs and query workflows in Cloud Logging.
   title: Understand logs
-  id: phase4-topic6-read-understand-logs
+  slug: phase4-topic6-read-understand-logs
 - uuid: 7e385e9a-b597-4762-8446-45a16eb57acd
   order: 3
   action: 'Read:'
@@ -78,7 +73,7 @@ learning_steps:
     url: https://docs.cloud.google.com/monitoring/docs/monitoring-overview
     description: Understand built-in and custom metrics in Google Cloud Monitoring.
   title: Understand metrics
-  id: phase4-topic6-read-understand-metrics
+  slug: phase4-topic6-read-understand-metrics
 - uuid: 12aa5b66-0391-47e0-8e7a-29538ad740b8
   order: 4
   action: 'Practice:'
@@ -97,7 +92,7 @@ learning_steps:
     url: https://docs.cloud.google.com/stackdriver/docs/solutions/agents/ops-agent/installation
     description: Install the Ops Agent to collect logs and metrics from your Compute Engine VM and send them to Cloud Monitoring and Cloud Logging.
   title: Configure a VM to emit logs and metrics
-  id: phase4-topic6-practice-configure-vm-monitoring
+  slug: phase4-topic6-practice-configure-vm-monitoring
 - uuid: e6cd4b85-f809-44d2-a437-ab525295f9ea
   order: 5
   action: 'Practice:'
@@ -116,10 +111,10 @@ learning_steps:
     url: https://docs.cloud.google.com/logging/docs/view/logs-explorer-interface
     description: Open Logs Explorer and write a query to find SSH login events on your VM from the last hour.
   title: Query your VM's logs for SSH login events
-  id: phase4-topic6-practice-query-vm-logs
+  slug: phase4-topic6-practice-query-vm-logs
 - uuid: bf28478b-d877-44c5-b436-a5fcf7fae96a
   order: 6
   action: 'Practice:'
   title: Clean up your cloud resources
   description: Delete the VM, monitoring agent configuration, and any associated resources (disks, public IPs, security groups, Log Analytics workspace or log groups). Check your cloud console to confirm nothing is still running. Leaving resources active will incur charges.
-  id: phase4-topic6-practice-clean-up-your-cloud
+  slug: phase4-topic6-practice-clean-up-your-cloud

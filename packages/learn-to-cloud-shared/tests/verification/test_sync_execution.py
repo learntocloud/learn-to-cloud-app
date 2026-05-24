@@ -68,14 +68,14 @@ async def _make_requirement_in_db(
         row_uuid = (
             await db.execute(
                 select(CurriculumRequirement.uuid)
-                .order_by(CurriculumRequirement.id)
+                .order_by(CurriculumRequirement.slug)
                 .limit(1)
             )
         ).scalar_one()
 
     return make_requirement(
         submission_type,
-        id=REQUIREMENT_ID,
+        slug=REQUIREMENT_ID,
         name="Sync Execution Test",
         description="Test requirement",
     ).model_copy(update={"uuid": row_uuid})
@@ -317,12 +317,12 @@ async def test_advisory_lock_keyed_per_requirement(
                 await db.execute(
                     select(CurriculumRequirement.uuid)
                     .where(CurriculumRequirement.uuid != requirement.uuid)
-                    .order_by(CurriculumRequirement.id)
+                    .order_by(CurriculumRequirement.slug)
                     .limit(1)
                 )
             ).scalar_one()
         other_requirement = requirement.model_copy(
-            update={"id": other_requirement_id, "uuid": other_uuid}
+            update={"slug": other_requirement_id, "uuid": other_uuid}
         )
         with patch(
             "learn_to_cloud_shared.verification.execution.validate_submission",

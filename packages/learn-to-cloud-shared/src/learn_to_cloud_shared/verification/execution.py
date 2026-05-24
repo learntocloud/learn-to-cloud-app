@@ -37,7 +37,7 @@ class SubmissionAlreadyInFlightError(Exception):
     """Raised when a sync verification is already running for the same requirement.
 
     Used as a dedupe signal when two concurrent submits (e.g. a double-click)
-    arrive for the same ``(user_id, requirement_id)``. The first one holds a
+    arrive for the same ``(user_id, requirement_slug)``. The first one holds a
     Postgres transactional advisory lock; the second one sees the lock is
     busy and bails out so the user can wait for the first to finish.
     """
@@ -54,7 +54,7 @@ def to_submission_data(submission: Submission) -> SubmissionData:
     """Project a ``Submission`` row into the ``SubmissionData`` response model.
 
     Phase D.2 + D.3 (#461 / #465) removed the denormalized
-    ``requirement_id`` / ``submission_type`` / ``phase_id`` fields from
+    ``requirement_slug`` / ``submission_type`` / ``phase_id`` fields from
     both the table and the schema -- callers that need them work off
     the in-memory ``HandsOnRequirement`` directly.
     """
@@ -154,7 +154,7 @@ async def execute_submission_validation(
         "execute_submission_validation",
         attributes={
             "user.id": user_id,
-            "requirement.id": requirement.id,
+            "requirement.slug": requirement.slug,
             "submission.type": requirement.submission_type.value,
         },
     ) as span:
@@ -187,7 +187,7 @@ async def execute_submission_validation(
             "submission.completed",
             extra={
                 "user_id": user_id,
-                "requirement_id": requirement.id,
+                "requirement_slug": requirement.slug,
                 "submission_type": requirement.submission_type,
                 "is_valid": validation_result.is_valid,
                 "verification_completed": validation_result.verification_completed,
@@ -202,13 +202,13 @@ async def execute_submission_validation(
         return build_submission_result(db_submission, validation_result)
 
 
-def _advisory_lock_key(user_id: int, requirement_id: str) -> str:
+def _advisory_lock_key(user_id: int, requirement_slug: str) -> str:
     """Stable Postgres advisory-lock key for one (user, requirement) pair.
 
     Namespaced so it can't collide with any other advisory locks the app
     may take in the future.
     """
-    return f"verification-sub:{user_id}:{requirement_id}"
+    return f"verification-sub:{user_id}:{requirement_slug}"
 
 
 async def execute_sync_submission_validation(
@@ -225,7 +225,7 @@ async def execute_sync_submission_validation(
     the same HTTP request — no Durable Functions, no spinner, no polling.
 
     Concurrency: takes a Postgres transactional advisory lock keyed on
-    ``(user_id, requirement_id)`` so two parallel submits (e.g. a
+    ``(user_id, requirement_slug)`` so two parallel submits (e.g. a
     double-click) can't both run validation and race
     ``Submission.attempt_number`` into a duplicate-key crash. If the lock
     is already held, raises :class:`SubmissionAlreadyInFlightError`.
@@ -235,13 +235,13 @@ async def execute_sync_submission_validation(
     the same user submitting the same requirement, so pool pressure
     stays negligible.
     """
-    lock_key = _advisory_lock_key(user_id, requirement.id)
+    lock_key = _advisory_lock_key(user_id, requirement.slug)
 
     with tracer.start_as_current_span(
         "execute_sync_submission_validation",
         attributes={
             "user.id": user_id,
-            "requirement.id": requirement.id,
+            "requirement.slug": requirement.slug,
             "submission.type": requirement.submission_type.value,
         },
     ) as span:
@@ -283,7 +283,7 @@ async def execute_sync_submission_validation(
             "submission.completed",
             extra={
                 "user_id": user_id,
-                "requirement_id": requirement.id,
+                "requirement_slug": requirement.slug,
                 "submission_type": requirement.submission_type,
                 "is_valid": validation_result.is_valid,
                 "verification_completed": validation_result.verification_completed,

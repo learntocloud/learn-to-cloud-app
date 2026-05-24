@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=../../../schemas/requirement.schema.json
 uuid: cd4dfc97-5081-4361-a345-a3690c86f1e6
-id: deployed-journal-api
+slug: deployed-journal-api
 submission_type: deployed_api
 name: Deploy a Public Journal API
 description: Submit your HTTPS API base URL so the verifier can run POST/GET challenge-response checks on /entries and validate the response format.

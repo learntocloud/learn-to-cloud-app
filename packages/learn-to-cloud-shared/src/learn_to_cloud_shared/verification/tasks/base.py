@@ -133,7 +133,7 @@ class VerificationTask(FrozenModel):
 
     id: str
     phase_id: int
-    requirement_id: str | None = None
+    requirement_slug: str | None = None
     name: str
     criteria: list[str] = Field(default_factory=list)
     evidence: EvidencePolicy

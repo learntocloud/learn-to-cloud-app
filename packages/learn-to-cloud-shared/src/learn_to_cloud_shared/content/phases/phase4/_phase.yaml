@@ -1,6 +1,5 @@
 # yaml-language-server: $schema=../../schemas/phase.schema.json
 uuid: 0308493d-4c94-4ea9-b643-6a7f534bacda
-id: '4'
 slug: phase4
 name: Cloud Platform Fundamentals
 description: This phase focuses on cloud platform fundamentals - the core concepts and skills you need to work effectively with cloud services. You'll learn everything from virtual machines and networking to security and application deployment. Through hands-on practice and real-world projects, you'll build the practical experience needed to work with cloud platforms professionally.

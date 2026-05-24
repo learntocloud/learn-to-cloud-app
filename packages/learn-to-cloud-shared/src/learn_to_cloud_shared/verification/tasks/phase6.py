@@ -9,14 +9,14 @@ from learn_to_cloud_shared.verification.tasks.base import (
     VerificationTask,
 )
 
-PHASE6_REQUIREMENT_ID = "security-scanning"
+PHASE6_REQUIREMENT_SLUG = "security-scanning"
 CODEQL_ACTION_PATTERN = "github/codeql-action"
 DEPENDABOT_CONFIG_PATHS = (".github/dependabot.yml", ".github/dependabot.yaml")
 
 DEPENDABOT_TASK = VerificationTask(
     id="dependabot",
     phase_id=6,
-    requirement_id=PHASE6_REQUIREMENT_ID,
+    requirement_slug=PHASE6_REQUIREMENT_SLUG,
     name="Dependabot Configuration",
     criteria=[
         "MUST include a .github/dependabot.yml or .github/dependabot.yaml file",
@@ -37,7 +37,7 @@ DEPENDABOT_TASK = VerificationTask(
 CODEQL_TASK = VerificationTask(
     id="codeql",
     phase_id=6,
-    requirement_id=PHASE6_REQUIREMENT_ID,
+    requirement_slug=PHASE6_REQUIREMENT_SLUG,
     name="CodeQL Scanning",
     criteria=[
         "MUST include a GitHub Actions workflow for CodeQL",
@@ -57,7 +57,7 @@ CODEQL_TASK = VerificationTask(
 SECURITY_SCANNING_RUBRIC_TASK = VerificationTask(
     id="security-scanning-rubric",
     phase_id=6,
-    requirement_id=PHASE6_REQUIREMENT_ID,
+    requirement_slug=PHASE6_REQUIREMENT_SLUG,
     name="Security Scanning Rubric Review",
     criteria=[
         "MUST show valid Dependabot configuration or CodeQL scanning evidence",

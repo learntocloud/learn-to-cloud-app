@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=../../../schemas/requirement.schema.json
 uuid: 96327def-780b-4209-8ef1-b0d85b34357f
-id: profile-readme
+slug: profile-readme
 submission_type: profile_readme
 name: Create a Developer Profile README
 description: Create your profile README repository and add a clear introduction, goals, and cloud-learning focus.

@@ -59,10 +59,10 @@ async def collect_llm_grading_requests(
     if not tasks:
         return []
 
-    if run_result.job.requirement.id == "security-scanning":
+    if run_result.job.requirement.slug == "security-scanning":
         return await _collect_phase6_requests(run_result, tasks)
 
-    if run_result.job.requirement.id == "journal-api-implementation":
+    if run_result.job.requirement.slug == "journal-api-implementation":
         return await _collect_phase3_requests(run_result, tasks)
 
     return []
@@ -220,7 +220,7 @@ def _build_grading_message(
     grader = require_llm_rubric_grader(task)
     payload = {
         "requirement": {
-            "id": run_result.job.requirement.id,
+            "id": run_result.job.requirement.slug,
             "name": run_result.job.requirement.name,
         },
         "task": {
@@ -270,9 +270,9 @@ def _decision_to_grading_result(
 def _llm_tasks_for_requirement(
     requirement: HandsOnRequirement,
 ) -> list[VerificationTask]:
-    if requirement.id == "security-scanning":
+    if requirement.slug == "security-scanning":
         return PHASE6_LLM_TASKS
-    if requirement.id == "journal-api-implementation":
+    if requirement.slug == "journal-api-implementation":
         return PHASE3_LLM_TASKS
     return []
 

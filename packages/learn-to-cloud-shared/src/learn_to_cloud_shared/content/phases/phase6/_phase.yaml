@@ -1,6 +1,5 @@
 # yaml-language-server: $schema=../../schemas/phase.schema.json
 uuid: 4fb2871c-ba79-4de7-933c-76bad9639f8e
-id: '6'
 slug: phase6
 name: Securing Your Cloud Applications
 description: You've built your Journal API, deployed it to the cloud, and set up CI/CD pipelines. Now it's time to lock it down. Security isn't a separate thing you bolt on at the end—it's something every cloud engineer needs to think about from day one. In this phase, we'll walk you through the key security practices that keep real production apps safe. By the end, your Journal API will be hardened and production-ready.

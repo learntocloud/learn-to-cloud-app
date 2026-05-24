@@ -21,7 +21,7 @@ class VerificationStatusToken:
     user_id: int
     job_id: str
     instance_id: str
-    requirement_id: str
+    requirement_slug: str
 
 
 def _serializer() -> URLSafeTimedSerializer:
@@ -35,13 +35,13 @@ def create_verification_status_token(
     user_id: int,
     job_id: UUID,
     instance_id: str,
-    requirement_id: str,
+    requirement_slug: str,
 ) -> str:
     payload = {
         "user_id": user_id,
         "job_id": str(job_id),
         "instance_id": instance_id,
-        "requirement_id": requirement_id,
+        "requirement_slug": requirement_slug,
     }
     return _serializer().dumps(payload)
 
@@ -76,7 +76,7 @@ def load_verification_status_token(
         user_id=user_id,
         job_id=_expect_uuid_str(payload, "job_id"),
         instance_id=_expect_uuid_str(payload, "instance_id"),
-        requirement_id=_expect_str(payload, "requirement_id"),
+        requirement_slug=_expect_str(payload, "requirement_slug"),
     )
 
 

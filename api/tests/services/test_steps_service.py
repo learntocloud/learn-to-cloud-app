@@ -1,150 +1,64 @@
-"""Unit tests for steps_service.
+"""Unit tests for steps_service after the step_uuid simplification."""
 
-Tests cover:
-- _resolve_step validates topic and step existence
-- parse_phase_id_from_topic_id extracts phase ID from topic ID strings
-- complete_step first-time completion, idempotent re-completion
-- uncomplete_step deletion and no-op for non-existent steps
-- get_valid_completed_steps filters stale step IDs
-"""
-
-from typing import Any, cast
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
-from learn_to_cloud_shared.schemas import LearningStep, Topic
+from learn_to_cloud_shared.schemas import (
+    LearningStep,
+    Phase,
+    Topic,
+)
 
 from learn_to_cloud.services.steps_service import (
-    StepInvalidStepIdError,
-    StepUnknownTopicError,
-    _resolve_step,
+    StepNotFoundError,
     complete_step,
     get_valid_completed_steps,
-    parse_phase_id_from_topic_id,
     uncomplete_step,
 )
 
-# ---------------------------------------------------------------------------
-# Test helpers
-# ---------------------------------------------------------------------------
+
+def _make_step(slug: str = "step-1") -> LearningStep:
+    return LearningStep(uuid=uuid4(), slug=slug, order=1)
 
 
-def _make_step(step_id: str, order: int = 0) -> LearningStep:
-    return LearningStep(uuid=uuid4(), id=step_id, order=order, title=f"Step {step_id}")
-
-
-def _make_topic(
-    topic_id: str = "phase0-topic1",
-    steps: list[str] | None = None,
-) -> Topic:
-    step_ids = steps if steps is not None else ["step-intro", "step-basics"]
+def _make_topic(steps: list[LearningStep] | None = None) -> Topic:
     return Topic(
         uuid=uuid4(),
-        id=topic_id,
         slug="topic1",
         name="Test Topic",
-        description="A test topic",
+        description="d",
         order=0,
-        learning_steps=[_make_step(sid, i) for i, sid in enumerate(step_ids)],
+        learning_steps=steps or [_make_step()],
     )
 
 
-# ---------------------------------------------------------------------------
-# _resolve_step
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.unit
-class TestResolveStep:
-    @pytest.mark.asyncio
-    async def test_valid_step_resolved(self):
-        topic = _make_topic(steps=["step-intro", "step-basics"])
-        with patch(
-            "learn_to_cloud.services.steps_service.get_topic_by_id",
-            new_callable=AsyncMock,
-            return_value=topic,
-        ):
-            step_id, order, total, step_uuid = await _resolve_step(
-                AsyncMock(), "phase0-topic1", "step-intro"
-            )
-        assert step_id == "step-intro"
-        assert order == 0
-        assert total == 2
-        assert step_uuid == topic.learning_steps[0].uuid
-
-    @pytest.mark.asyncio
-    async def test_unknown_topic_raises(self):
-        with patch(
-            "learn_to_cloud.services.steps_service.get_topic_by_id",
-            new_callable=AsyncMock,
-            return_value=None,
-        ):
-            with pytest.raises(StepUnknownTopicError) as exc_info:
-                await _resolve_step(AsyncMock(), "nonexistent", "step-1")
-            assert exc_info.value.topic_id == "nonexistent"
-
-    @pytest.mark.asyncio
-    async def test_invalid_step_id_raises(self):
-        topic = _make_topic(steps=["step-intro"])
-        with patch(
-            "learn_to_cloud.services.steps_service.get_topic_by_id",
-            new_callable=AsyncMock,
-            return_value=topic,
-        ):
-            with pytest.raises(StepInvalidStepIdError) as exc_info:
-                await _resolve_step(AsyncMock(), "phase0-topic1", "nonexistent-step")
-            assert exc_info.value.step_id == "nonexistent-step"
-
-
-# ---------------------------------------------------------------------------
-# parse_phase_id_from_topic_id
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.unit
-class TestParsePhaseIdFromTopicId:
-    def test_phase0(self):
-        assert parse_phase_id_from_topic_id("phase0-topic1") == 0
-
-    def test_phase1(self):
-        assert parse_phase_id_from_topic_id("phase1-topic5") == 1
-
-    def test_phase6(self):
-        assert parse_phase_id_from_topic_id("phase6-topic1") == 6
-
-    def test_invalid_prefix(self):
-        assert parse_phase_id_from_topic_id("invalid") is None
-
-    def test_empty_string(self):
-        assert parse_phase_id_from_topic_id("") is None
-
-    def test_non_string(self):
-        assert parse_phase_id_from_topic_id(cast(Any, 123)) is None
-
-
-# ---------------------------------------------------------------------------
-# complete_step
-# ---------------------------------------------------------------------------
+def _make_phase(topic: Topic) -> Phase:
+    return Phase(
+        uuid=uuid4(),
+        slug="phase0",
+        name="P0",
+        order=0,
+        topics=[topic],
+    )
 
 
 @pytest.mark.unit
 class TestCompleteStep:
     @pytest.mark.asyncio
     async def test_first_completion_creates_record(self):
-        topic = _make_topic(steps=["step-intro"])
-        step_uuid = topic.learning_steps[0].uuid
-        mock_step_progress = MagicMock(
-            user_id=1,
-            step_uuid=step_uuid,
-            completed_at=MagicMock(),
+        step = _make_step()
+        topic = _make_topic([step])
+        phase = _make_phase(topic)
+        mock_progress = MagicMock(
+            user_id=1, step_uuid=step.uuid, completed_at=MagicMock()
         )
 
         with (
             patch(
-                "learn_to_cloud.services.steps_service.get_topic_by_id",
+                "learn_to_cloud.services.steps_service.get_all_phases",
                 new_callable=AsyncMock,
-                return_value=topic,
+                return_value=(phase,),
             ),
             patch(
                 "learn_to_cloud.services.steps_service.StepProgressRepository",
@@ -152,61 +66,42 @@ class TestCompleteStep:
             ) as MockRepo,
         ):
             repo = MockRepo.return_value
-            repo.create_if_not_exists = AsyncMock(return_value=mock_step_progress)
-            repo.get_completed_step_uuids = AsyncMock(return_value={step_uuid})
+            repo.create_if_not_exists = AsyncMock(return_value=mock_progress)
+            repo.get_completed_step_uuids = AsyncMock(return_value={step.uuid})
 
-            result, completed = await complete_step(
-                AsyncMock(), user_id=1, topic_id="phase0-topic1", step_id="step-intro"
+            result, returned_topic, completed = await complete_step(
+                AsyncMock(), user_id=1, step_uuid=step.uuid
             )
 
-        assert result.step_id == "step-intro"
-        assert "step-intro" in completed
+        assert result.step_slug == step.slug
+        assert returned_topic.uuid == topic.uuid
+        assert step.uuid in completed
 
     @pytest.mark.asyncio
-    async def test_idempotent_re_completion(self):
-        """Already-completed step returns current state without error."""
-        topic = _make_topic(steps=["step-intro"])
-        step_uuid = topic.learning_steps[0].uuid
-
-        with (
-            patch(
-                "learn_to_cloud.services.steps_service.get_topic_by_id",
-                new_callable=AsyncMock,
-                return_value=topic,
-            ),
-            patch(
-                "learn_to_cloud.services.steps_service.StepProgressRepository",
-                autospec=True,
-            ) as MockRepo,
+    async def test_unknown_step_raises(self):
+        phase = _make_phase(_make_topic())
+        with patch(
+            "learn_to_cloud.services.steps_service.get_all_phases",
+            new_callable=AsyncMock,
+            return_value=(phase,),
         ):
-            repo = MockRepo.return_value
-            repo.create_if_not_exists = AsyncMock(return_value=None)
-            repo.get_completed_step_uuids = AsyncMock(return_value={step_uuid})
-
-            result, completed = await complete_step(
-                AsyncMock(), user_id=1, topic_id="phase0-topic1", step_id="step-intro"
-            )
-
-        assert result.step_id == "step-intro"
-        assert "step-intro" in completed
-
-
-# ---------------------------------------------------------------------------
-# uncomplete_step
-# ---------------------------------------------------------------------------
+            with pytest.raises(StepNotFoundError):
+                await complete_step(AsyncMock(), user_id=1, step_uuid=uuid4())
 
 
 @pytest.mark.unit
 class TestUncompleteStep:
     @pytest.mark.asyncio
     async def test_existing_step_deleted(self):
-        topic = _make_topic(steps=["step-intro"])
+        step = _make_step()
+        topic = _make_topic([step])
+        phase = _make_phase(topic)
 
         with (
             patch(
-                "learn_to_cloud.services.steps_service.get_topic_by_id",
+                "learn_to_cloud.services.steps_service.get_all_phases",
                 new_callable=AsyncMock,
-                return_value=topic,
+                return_value=(phase,),
             ),
             patch(
                 "learn_to_cloud.services.steps_service.StepProgressRepository",
@@ -217,65 +112,32 @@ class TestUncompleteStep:
             repo.delete_step = AsyncMock(return_value=1)
             repo.get_completed_step_uuids = AsyncMock(return_value=set())
 
-            deleted, completed = await uncomplete_step(
-                AsyncMock(), user_id=1, topic_id="phase0-topic1", step_id="step-intro"
+            deleted, returned_topic, returned_step, completed = await uncomplete_step(
+                AsyncMock(), user_id=1, step_uuid=step.uuid
             )
 
         assert deleted == 1
+        assert returned_step.uuid == step.uuid
         assert completed == set()
-
-    @pytest.mark.asyncio
-    async def test_nonexistent_step_noop(self):
-        """Deleting a step that doesn't exist returns 0."""
-        topic = _make_topic(steps=["step-intro"])
-
-        with (
-            patch(
-                "learn_to_cloud.services.steps_service.get_topic_by_id",
-                new_callable=AsyncMock,
-                return_value=topic,
-            ),
-            patch(
-                "learn_to_cloud.services.steps_service.StepProgressRepository",
-                autospec=True,
-            ) as MockRepo,
-        ):
-            repo = MockRepo.return_value
-            repo.delete_step = AsyncMock(return_value=0)
-            repo.get_completed_step_uuids = AsyncMock(return_value=set())
-
-            deleted, completed = await uncomplete_step(
-                AsyncMock(), user_id=1, topic_id="phase0-topic1", step_id="step-intro"
-            )
-
-        assert deleted == 0
-
-
-# ---------------------------------------------------------------------------
-# get_valid_completed_steps
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.unit
 class TestGetValidCompletedSteps:
     @pytest.mark.asyncio
-    async def test_filters_stale_step_ids(self):
-        topic = _make_topic(steps=["s1", "s2"])
-        s1_uuid = topic.learning_steps[0].uuid
-        s2_uuid = topic.learning_steps[1].uuid
+    async def test_returns_completed_subset(self):
+        s1 = _make_step("s1")
+        s2 = _make_step("s2")
+        topic = _make_topic([s1, s2])
 
         with patch(
             "learn_to_cloud.services.steps_service.StepProgressRepository",
             autospec=True,
         ) as MockRepo:
             repo = MockRepo.return_value
-            # Only known step uuids; the repo can't return UUIDs the
-            # caller didn't ask about, so "stale" filtering happens
-            # implicitly via the (active) topic.learning_steps list.
-            repo.get_completed_step_uuids = AsyncMock(return_value={s1_uuid, s2_uuid})
+            repo.get_completed_step_uuids = AsyncMock(return_value={s1.uuid})
 
             result = await get_valid_completed_steps(
                 AsyncMock(), user_id=1, topic=topic
             )
 
-        assert result == {"s1", "s2"}
+        assert result == {s1.uuid}

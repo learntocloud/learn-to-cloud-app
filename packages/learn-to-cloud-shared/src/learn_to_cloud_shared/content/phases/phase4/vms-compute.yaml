@@ -1,20 +1,16 @@
 # yaml-language-server: $schema=../../schemas/topic.schema.json
 uuid: dc870ba9-0c1a-4174-9beb-e3bd917608a1
-id: phase4-topic1
 slug: vms-compute
 name: Virtual Machines & Compute Services
 description: Virtualization and compute services are fundamental to cloud engineering, enabling scalable and flexible infrastructure. In this topic, you will focus on deploying virtual machines on various cloud providers (such as AWS, Azure, and GCP).
 learning_objectives:
 - uuid: 8485c9ca-5d6b-409a-8528-6964c9d7ec37
-  id: vms-compute-foundations
   text: Explain virtualization and cloud compute fundamentals across AWS, Azure, and GCP.
   order: 1
 - uuid: 81ea5bd1-7c3d-4daa-a32c-b11d79e4df3a
-  id: vms-compute-sizing
   text: Select appropriate VM sizes or instance types based on workload, performance, and cost constraints.
   order: 2
 - uuid: 45f4c56e-8f9f-40fb-a728-f56df40485eb
-  id: vms-compute-deployment
   text: Deploy and verify a working cloud virtual machine in your chosen cloud provider.
   order: 3
 learning_steps:
@@ -24,14 +20,14 @@ learning_steps:
   title: What are Compute Services?
   url: https://aws.amazon.com/what-is/compute/
   description: Learn the fundamentals of cloud compute - the on-demand delivery of computing power that forms the foundation of cloud infrastructure.
-  id: phase4-topic1-read-what-are-compute-services
+  slug: phase4-topic1-read-what-are-compute-services
 - uuid: d587e404-5f25-4ee0-a410-1ffa16d3f5b1
   order: 2
   action: 'Read:'
   title: Understanding Virtualization
   url: https://aws.amazon.com/what-is/virtualization/
   description: Understand how virtualization technology enables running multiple virtual machines on a single physical server, enabling cloud scalability.
-  id: phase4-topic1-read-understanding-virtualization
+  slug: phase4-topic1-read-understanding-virtualization
 - uuid: c56ed215-c0d5-47af-841f-bcc9c2382d60
   order: 3
   action: 'Read:'
@@ -50,7 +46,7 @@ learning_steps:
     url: https://docs.cloud.google.com/compute/docs/machine-resource
     description: Learn how Google Cloud machine families map to common workload requirements.
   title: Compare VM sizing guidance by cloud provider
-  id: phase4-topic1-read-compare-vm-sizing-guidance
+  slug: phase4-topic1-read-compare-vm-sizing-guidance
 - uuid: 9d3fd137-7819-4c6b-80e9-44956912dc42
   order: 4
   action: 'Practice:'
@@ -69,10 +65,10 @@ learning_steps:
     url: https://cloud.google.com/products/compute#create-your-first-vm
     description: Get started with Google Compute Engine
   title: Deploy a VM on your cloud provider
-  id: phase4-topic1-practice-deploy-a-vm-on
+  slug: phase4-topic1-practice-deploy-a-vm-on
 - uuid: 44bb3ac3-c295-41e7-807a-22797f7a28e9
   order: 5
   action: 'Practice:'
   title: Clean up your cloud resources
   description: Delete the virtual machine you created and any associated resources (disks, public IPs, security groups). Check your cloud console to confirm nothing is still running. Leaving resources active will incur charges.
-  id: phase4-topic1-practice-clean-up-your-cloud
+  slug: phase4-topic1-practice-clean-up-your-cloud

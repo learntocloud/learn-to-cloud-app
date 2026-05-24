@@ -37,12 +37,11 @@ from learn_to_cloud.rendering.context import (
 def _make_topic(topic_id: str, slug: str, name: str = "") -> Topic:
     return Topic(
         uuid=uuid4(),
-        id=topic_id,
         slug=slug,
         name=name or slug,
         description="",
         order=0,
-        learning_steps=[LearningStep(uuid=uuid4(), id="s1", order=0)],
+        learning_steps=[LearningStep(uuid=uuid4(), slug="s1", order=0)],
     )
 
 
@@ -102,7 +101,6 @@ class TestBuildPhaseTopics:
         topic = _make_topic("phase0-t1", "basics", "Basics")
         phase = Phase(
             uuid=uuid4(),
-            id=0,
             name="P0",
             slug="phase0",
             order=0,
@@ -115,7 +113,7 @@ class TestBuildPhaseTopics:
             hands_on_validated=0,
             hands_on_required=0,
             topic_progress={
-                "phase0-t1": TopicProgressData(
+                topic.uuid: TopicProgressData(
                     steps_completed=1,
                     steps_total=3,
                     percentage=33.3,
@@ -135,7 +133,6 @@ class TestBuildPhaseTopics:
         topic = _make_topic("phase0-t1", "basics")
         phase = Phase(
             uuid=uuid4(),
-            id=0,
             name="P0",
             slug="phase0",
             order=0,
@@ -156,7 +153,6 @@ class TestBuildPhaseTopics:
         topic = _make_topic("phase0-t1", "basics", "Basics")
         phase = Phase(
             uuid=uuid4(),
-            id=0,
             name="P0",
             slug="phase0",
             order=0,
@@ -169,7 +165,7 @@ class TestBuildPhaseTopics:
             hands_on_validated=1,
             hands_on_required=1,
             topic_progress={
-                "phase0-t1": TopicProgressData(
+                topic.uuid: TopicProgressData(
                     steps_completed=3,
                     steps_total=3,
                     percentage=100.0,
@@ -246,7 +242,7 @@ def _make_requirement(
 
     return make_requirement(
         submission_type,
-        id="req-1",
+        slug="req-1",
         name="Test",
         description="Test",
         required_repo=required_repo,

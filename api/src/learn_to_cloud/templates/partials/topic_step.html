@@ -1,22 +1,22 @@
 <!-- Single learning step - swappable via HTMX -->
-<div id="step-{{ topic_id }}-{{ step.id }}"
-    class="rounded-xl border {% if step.id in completed_steps %}border-green-200 bg-green-50/40 dark:border-green-800/50 dark:bg-green-900/10{% else %}border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800/50{% endif %} shadow-sm transition-colors"
-    x-data="{ expanded: {{ 'false' if step.id in completed_steps else 'true' }} }"
+<div id="step-{{ step.uuid }}"
+    class="rounded-xl border {% if step.uuid in completed_steps %}border-green-200 bg-green-50/40 dark:border-green-800/50 dark:bg-green-900/10{% else %}border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800/50{% endif %} shadow-sm transition-colors"
+    x-data="{ expanded: {{ 'false' if step.uuid in completed_steps else 'true' }} }"
 >
     <!-- Step header — always visible -->
     <div class="flex items-center gap-3 px-4 py-3 cursor-pointer select-none" @click="expanded = !expanded">
         {% if user %}
         <input
             type="checkbox"
-            {% if step.id in completed_steps %}checked{% endif %}
+            {% if step.uuid in completed_steps %}checked{% endif %}
             class="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-3 focus:ring-blue-500 cursor-pointer flex-shrink-0"
-            {% if step.id in completed_steps %}
-            hx-delete="/htmx/steps/{{ topic_id }}/{{ step.id }}"
+            {% if step.uuid in completed_steps %}
+            hx-delete="/htmx/steps/{{ step.uuid }}"
             {% else %}
             hx-post="/htmx/steps/complete"
-            hx-vals='{"topic_id": "{{ topic_id }}", "step_id": "{{ step.id }}", "phase_id": {{ phase_id }}}'
+            hx-vals='{"step_uuid": "{{ step.uuid }}"}'
             {% endif %}
-            hx-target="#step-{{ topic_id }}-{{ step.id }}"
+            hx-target="#step-{{ step.uuid }}"
             hx-swap="outerHTML"
             hx-disabled-elt="this"
             @click.stop
@@ -27,7 +27,7 @@
 
         <!-- Step number badge -->
         <span class="flex-shrink-0 flex items-center justify-center h-6 w-6 rounded-full text-xs font-bold
-            {% if step.id in completed_steps %}bg-green-100 text-green-700 dark:bg-green-800/40 dark:text-green-300
+            {% if step.uuid in completed_steps %}bg-green-100 text-green-700 dark:bg-green-800/40 dark:text-green-300
             {% else %}bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300{% endif %}">
             {{ step.order }}
         </span>
@@ -44,7 +44,7 @@
                 {{ step.action | replace(':', '') }}
             </span>
             {% endif %}
-            <span class="text-sm font-semibold {% if step.id in completed_steps %}line-through text-gray-400 dark:text-gray-500{% else %}text-gray-900 dark:text-gray-100{% endif %}">
+            <span class="text-sm font-semibold {% if step.uuid in completed_steps %}line-through text-gray-400 dark:text-gray-500{% else %}text-gray-900 dark:text-gray-100{% endif %}">
                 {% if step.title and step.url %}
                 <a href="{{ step.url }}" target="_blank" rel="noopener" hx-boost="false" class="underline hover:text-blue-600 dark:hover:text-blue-400" @click.stop>{{ step.title }}</a>
                 {% elif step.title %}

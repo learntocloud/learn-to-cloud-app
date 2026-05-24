@@ -33,7 +33,7 @@ pytestmark = pytest.mark.integration
 def _make_step(uuid_str: str, order: int) -> LearningStep:
     return LearningStep(
         uuid=UUID(uuid_str),
-        id=f"step-{order}",
+        slug=f"step-{order}",
         order=order,
         action="Read:",
         title=f"Step {order}",
@@ -43,7 +43,6 @@ def _make_step(uuid_str: str, order: int) -> LearningStep:
 def _make_objective(uuid_str: str, order: int) -> LearningObjective:
     return LearningObjective(
         uuid=UUID(uuid_str),
-        id=f"obj-{order}",
         text=f"Objective {order}",
         order=order,
     )
@@ -52,7 +51,6 @@ def _make_objective(uuid_str: str, order: int) -> LearningObjective:
 def _make_topic(uuid_str: str, slug: str, order: int = 0) -> Topic:
     return Topic(
         uuid=UUID(uuid_str),
-        id=f"phaseX-topic-{slug}",
         slug=slug,
         name=slug.title(),
         description=f"Topic {slug}",
@@ -71,7 +69,7 @@ def _make_requirement(uuid_str: str, req_id: str) -> object:
     return HandsOnRequirementAdapter.validate_python(
         {
             "uuid": uuid_str,
-            "id": req_id,
+            "slug": req_id,
             "submission_type": "github_profile",
             "name": f"Requirement {req_id}",
             "description": "Test requirement",
@@ -95,7 +93,6 @@ def _make_phase(
         )
     return Phase(
         uuid=UUID(uuid_str),
-        id=phase_int_id,
         slug=slug,
         name=slug.title(),
         description=f"Description for {slug}",
@@ -261,7 +258,7 @@ async def test_submission_type_change_is_refused(
     different_type_req = HandsOnRequirementAdapter.validate_python(
         {
             "uuid": req_uuid,
-            "id": "github-profile",
+            "slug": "github-profile",
             "submission_type": "repo_fork",
             "name": "Requirement github-profile",
             "description": "Test requirement",
@@ -270,7 +267,6 @@ async def test_submission_type_change_is_refused(
     )
     bad_phase = Phase(
         uuid=UUID("00000000-0000-0000-0000-000000000001"),
-        id=0,
         slug="phase0",
         name="Phase0",
         description="...",

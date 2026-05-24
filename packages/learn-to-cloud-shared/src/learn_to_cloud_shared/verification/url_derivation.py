@@ -102,7 +102,9 @@ def derive_submission_value(
         SubmissionType.SECURITY_SCANNING,
     ):
         if not requirement.required_repo:
-            raise ValueError(f"Requirement {requirement.id!r} is missing required_repo")
+            raise ValueError(
+                f"Requirement {requirement.slug!r} is missing required_repo"
+            )
         fork = fork_name_from_required_repo(requirement.required_repo)
         return f"https://github.com/{github_username}/{fork}"
 

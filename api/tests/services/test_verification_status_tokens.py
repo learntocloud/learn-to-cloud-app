@@ -34,14 +34,14 @@ def test_token_round_trip_validates_expected_user():
             user_id=42,
             job_id=job_id,
             instance_id=instance_id,
-            requirement_id="journal-api",
+            requirement_slug="journal-api",
         )
         result = load_verification_status_token(token, expected_user_id=42)
 
     assert result.user_id == 42
     assert result.job_id == str(job_id)
     assert result.instance_id == instance_id
-    assert result.requirement_id == "journal-api"
+    assert result.requirement_slug == "journal-api"
 
 
 def test_tampered_token_is_rejected():
@@ -67,7 +67,7 @@ def test_user_mismatch_is_rejected():
             user_id=42,
             job_id=uuid4(),
             instance_id=str(uuid4()),
-            requirement_id="journal-api",
+            requirement_slug="journal-api",
         )
         load_verification_status_token(token, expected_user_id=7)
 
@@ -84,7 +84,7 @@ def test_invalid_uuid_fields_are_rejected():
             user_id=42,
             job_id=uuid4(),
             instance_id="not-a-uuid",
-            requirement_id="journal-api",
+            requirement_slug="journal-api",
         )
         load_verification_status_token(token, expected_user_id=42)
 
@@ -104,6 +104,6 @@ def test_expired_token_is_rejected():
             user_id=42,
             job_id=uuid4(),
             instance_id=str(uuid4()),
-            requirement_id="journal-api",
+            requirement_slug="journal-api",
         )
         load_verification_status_token(token, expected_user_id=42)

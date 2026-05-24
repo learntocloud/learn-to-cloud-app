@@ -34,7 +34,7 @@ def _make_mock_requirement(
 
     return make_requirement(
         submission_type,
-        id="test-requirement",
+        slug="test-requirement",
         name="Test Requirement",
         description="Test description",
     )
@@ -49,7 +49,7 @@ def _make_mock_submission(
     """Create a mock Submission DB model with all fields for _to_submission_data."""
     return MagicMock(
         id=1,
-        requirement_id="test-requirement",
+        requirement_slug="test-requirement",
         submission_type=submission_type,
         phase_id=3,
         submitted_value="https://github.com/user/repo",
@@ -91,7 +91,7 @@ def _build_index(
     """Build a RequirementIndex containing the given requirement plus optional
     prerequisite-phase requirement ids.
 
-    The submissions service only ever reads ``by_id``, ``phase_id_by_req_id``,
+    The submissions service only ever reads ``by_id``, ``phase_order_by_req_slug``,
     and ``requirement_ids_for_phase`` from the index. We construct the prereq
     requirements with the real factory so the index's type signature stays
     honest.
@@ -101,24 +101,26 @@ def _build_index(
     )
 
     by_phase: dict[int, list[HandsOnRequirement]] = {}
-    by_id: dict[str, HandsOnRequirement] = {}
-    phase_id_by_req_id: dict[str, int] = {}
+    by_slug: dict[str, HandsOnRequirement] = {}
+    phase_order_by_req_slug: dict[str, int] = {}
     if requirement is not None:
         by_phase[phase_id] = [requirement]
-        by_id[requirement.id] = requirement
-        phase_id_by_req_id[requirement.id] = phase_id
+        by_slug[requirement.slug] = requirement
+        phase_order_by_req_slug[requirement.slug] = phase_id
     if prereq_phase is not None and prereq_req_ids:
         prereq_reqs = [
-            journal_api_verifier_requirement(id=req_id, name="stub", description="stub")
+            journal_api_verifier_requirement(
+                slug=req_id, name="stub", description="stub"
+            )
             for req_id in prereq_req_ids
         ]
         by_phase[prereq_phase] = list(prereq_reqs)
         for req in prereq_reqs:
-            phase_id_by_req_id[req.id] = prereq_phase
+            phase_order_by_req_slug[req.slug] = prereq_phase
     return RequirementIndex(
-        by_phase=by_phase,
-        by_id=by_id,
-        phase_id_by_req_id=phase_id_by_req_id,
+        by_phase_order=by_phase,
+        by_slug=by_slug,
+        phase_order_by_req_slug=phase_order_by_req_slug,
     )
 
 
@@ -141,7 +143,7 @@ class TestSubmissionValidationErrors:
             await create_verification_job(
                 session_maker=mock_session_maker,
                 user_id=123,
-                requirement_id="nonexistent",
+                requirement_slug="nonexistent",
                 submitted_value="https://github.com/user/repo",
                 github_username="user",
             )
@@ -172,7 +174,7 @@ class TestSubmissionValidationErrors:
                 await create_verification_job(
                     session_maker=mock_session_maker,
                     user_id=123,
-                    requirement_id="test-requirement",
+                    requirement_slug="test-requirement",
                     submitted_value="https://github.com/user/repo",
                     github_username=None,
                 )
@@ -206,7 +208,7 @@ class TestAlreadyValidatedShortCircuit:
                 await create_verification_job(
                     session_maker=mock_session_maker,
                     user_id=123,
-                    requirement_id="test-requirement",
+                    requirement_slug="test-requirement",
                     submitted_value="https://github.com/user/repo",
                     github_username="user",
                 )
@@ -247,7 +249,7 @@ class TestAlreadyValidatedShortCircuit:
             result = await create_verification_job(
                 session_maker=mock_session_maker,
                 user_id=123,
-                requirement_id="test-requirement",
+                requirement_slug="test-requirement",
                 submitted_value="https://github.com/user/repo",
                 github_username="user",
             )
@@ -291,7 +293,7 @@ class TestSequentialPhaseGating:
                 await create_verification_job(
                     session_maker=mock_session_maker,
                     user_id=123,
-                    requirement_id="test-requirement",
+                    requirement_slug="test-requirement",
                     submitted_value="https://api.example.com",
                     github_username="user",
                 )
@@ -341,7 +343,7 @@ class TestSequentialPhaseGating:
             result = await create_verification_job(
                 session_maker=mock_session_maker,
                 user_id=123,
-                requirement_id="test-requirement",
+                requirement_slug="test-requirement",
                 submitted_value="https://api.example.com",
                 github_username="user",
             )
@@ -389,7 +391,7 @@ class TestSyncDispatchBranch:
             result = await create_verification_job(
                 session_maker=mock_session_maker,
                 user_id=123,
-                requirement_id="test-requirement",
+                requirement_slug="test-requirement",
                 submitted_value="https://github.com/user",
                 github_username="user",
             )
@@ -439,7 +441,7 @@ class TestSyncDispatchBranch:
             result = await create_verification_job(
                 session_maker=mock_session_maker,
                 user_id=123,
-                requirement_id="test-requirement",
+                requirement_slug="test-requirement",
                 submitted_value="https://github.com/user/repo",
                 github_username="user",
             )
@@ -482,7 +484,7 @@ class TestSyncDispatchBranch:
                 await create_verification_job(
                     session_maker=mock_session_maker,
                     user_id=123,
-                    requirement_id="test-requirement",
+                    requirement_slug="test-requirement",
                     submitted_value="some-token",
                     github_username="user",
                 )
@@ -519,7 +521,7 @@ class TestSyncDispatchBranch:
                 await create_verification_job(
                     session_maker=mock_session_maker,
                     user_id=123,
-                    requirement_id="test-requirement",
+                    requirement_slug="test-requirement",
                     submitted_value="some-token",
                     github_username=None,
                 )
@@ -539,7 +541,6 @@ def _phase_with_requirement(req: HandsOnRequirement) -> Phase:
 
     return Phase(
         uuid=uuid4(),
-        id=3,
         name="Phase 3",
         slug="phase3",
         order=3,
@@ -586,7 +587,7 @@ class TestGetPhaseSubmissionContext:
             result = await get_phase_submission_context(
                 AsyncMock(), user_id=1, phase=phase
             )
-        assert req.id in result.submissions_by_req
+        assert req.slug in result.submissions_by_req
         assert result.feedback_by_req == {}
 
     @pytest.mark.asyncio
@@ -611,8 +612,8 @@ class TestGetPhaseSubmissionContext:
             result = await get_phase_submission_context(
                 AsyncMock(), user_id=1, phase=phase
             )
-        assert req.id in result.feedback_by_req
-        feedback = result.feedback_by_req[req.id]
+        assert req.slug in result.feedback_by_req
+        feedback = result.feedback_by_req[req.slug]
         assert feedback["passed"] == 1
         assert feedback["tasks"] == [
             {

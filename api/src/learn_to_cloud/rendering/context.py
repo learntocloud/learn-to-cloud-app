@@ -168,7 +168,7 @@ def build_phase_topics(
     """
     topics: list[dict[str, Any]] = []
     for t in phase.topics:
-        tp = detail.topic_progress.get(t.id) if detail.topic_progress else None
+        tp = detail.topic_progress.get(t.uuid) if detail.topic_progress else None
         topics.append(
             {
                 "name": t.name,

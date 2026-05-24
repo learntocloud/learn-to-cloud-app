@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=../../../schemas/requirement.schema.json
 uuid: c359bc2e-3215-4841-ab9b-e51be59ed3ff
-id: networking-lab-token
+slug: networking-lab-token
 submission_type: networking_token
 name: Submit the Networking Lab Completion Token
 description: Finish all four networking challenges and submit the completion token shown at the end.

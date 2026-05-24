@@ -28,12 +28,12 @@
           "title": "Description",
           "type": "string"
         },
-        "id": {
-          "title": "Id",
-          "type": "string"
-        },
         "name": {
           "title": "Name",
+          "type": "string"
+        },
+        "slug": {
+          "title": "Slug",
           "type": "string"
         },
         "submission_type": {
@@ -52,7 +52,7 @@
       },
       "required": [
         "uuid",
-        "id",
+        "slug",
         "name",
         "description",
         "submission_type"
@@ -88,12 +88,12 @@
           "title": "Description",
           "type": "string"
         },
-        "id": {
-          "title": "Id",
-          "type": "string"
-        },
         "name": {
           "title": "Name",
+          "type": "string"
+        },
+        "slug": {
+          "title": "Slug",
           "type": "string"
         },
         "submission_type": {
@@ -112,7 +112,7 @@
       },
       "required": [
         "uuid",
-        "id",
+        "slug",
         "name",
         "description",
         "submission_type"
@@ -143,12 +143,12 @@
           "title": "Description",
           "type": "string"
         },
-        "id": {
-          "title": "Id",
-          "type": "string"
-        },
         "name": {
           "title": "Name",
+          "type": "string"
+        },
+        "slug": {
+          "title": "Slug",
           "type": "string"
         },
         "submission_type": {
@@ -167,7 +167,7 @@
       },
       "required": [
         "uuid",
-        "id",
+        "slug",
         "name",
         "description",
         "submission_type",
@@ -190,12 +190,12 @@
           "title": "Description",
           "type": "string"
         },
-        "id": {
-          "title": "Id",
-          "type": "string"
-        },
         "name": {
           "title": "Name",
+          "type": "string"
+        },
+        "slug": {
+          "title": "Slug",
           "type": "string"
         },
         "submission_type": {
@@ -214,7 +214,7 @@
       },
       "required": [
         "uuid",
-        "id",
+        "slug",
         "name",
         "description",
         "submission_type"
@@ -245,12 +245,12 @@
           "title": "Description",
           "type": "string"
         },
-        "id": {
-          "title": "Id",
-          "type": "string"
-        },
         "name": {
           "title": "Name",
+          "type": "string"
+        },
+        "slug": {
+          "title": "Slug",
           "type": "string"
         },
         "submission_type": {
@@ -269,7 +269,7 @@
       },
       "required": [
         "uuid",
-        "id",
+        "slug",
         "name",
         "description",
         "submission_type",
@@ -281,10 +281,6 @@
     "LearningObjective": {
       "description": "A learning objective for a topic.",
       "properties": {
-        "id": {
-          "title": "Id",
-          "type": "string"
-        },
         "order": {
           "title": "Order",
           "type": "integer"
@@ -301,7 +297,6 @@
       },
       "required": [
         "uuid",
-        "id",
         "text",
         "order"
       ],
@@ -366,10 +361,6 @@
           "default": null,
           "title": "Done When"
         },
-        "id": {
-          "title": "Id",
-          "type": "string"
-        },
         "options": {
           "items": {
             "$ref": "#/$defs/ProviderOption"
@@ -380,6 +371,10 @@
         "order": {
           "title": "Order",
           "type": "integer"
+        },
+        "slug": {
+          "title": "Slug",
+          "type": "string"
         },
         "tips": {
           "items": {
@@ -420,7 +415,7 @@
       },
       "required": [
         "uuid",
-        "id",
+        "slug",
         "order"
       ],
       "title": "LearningStep",
@@ -454,12 +449,12 @@
           "title": "Description",
           "type": "string"
         },
-        "id": {
-          "title": "Id",
-          "type": "string"
-        },
         "name": {
           "title": "Name",
+          "type": "string"
+        },
+        "slug": {
+          "title": "Slug",
           "type": "string"
         },
         "submission_type": {
@@ -478,7 +473,7 @@
       },
       "required": [
         "uuid",
-        "id",
+        "slug",
         "name",
         "description",
         "submission_type"
@@ -594,12 +589,12 @@
           "title": "Description",
           "type": "string"
         },
-        "id": {
-          "title": "Id",
-          "type": "string"
-        },
         "name": {
           "title": "Name",
+          "type": "string"
+        },
+        "slug": {
+          "title": "Slug",
           "type": "string"
         },
         "submission_type": {
@@ -618,7 +613,7 @@
       },
       "required": [
         "uuid",
-        "id",
+        "slug",
         "name",
         "description",
         "submission_type"
@@ -685,12 +680,12 @@
           "title": "Description",
           "type": "string"
         },
-        "id": {
-          "title": "Id",
-          "type": "string"
-        },
         "name": {
           "title": "Name",
+          "type": "string"
+        },
+        "slug": {
+          "title": "Slug",
           "type": "string"
         },
         "submission_type": {
@@ -709,7 +704,7 @@
       },
       "required": [
         "uuid",
-        "id",
+        "slug",
         "name",
         "description",
         "submission_type",
@@ -741,12 +736,12 @@
           "title": "Description",
           "type": "string"
         },
-        "id": {
-          "title": "Id",
-          "type": "string"
-        },
         "name": {
           "title": "Name",
+          "type": "string"
+        },
+        "slug": {
+          "title": "Slug",
           "type": "string"
         },
         "submission_type": {
@@ -765,7 +760,7 @@
       },
       "required": [
         "uuid",
-        "id",
+        "slug",
         "name",
         "description",
         "submission_type",
@@ -798,10 +793,6 @@
       "properties": {
         "description": {
           "title": "Description",
-          "type": "string"
-        },
-        "id": {
-          "title": "Id",
           "type": "string"
         },
         "learning_objectives": {
@@ -838,7 +829,6 @@
       },
       "required": [
         "uuid",
-        "id",
         "slug",
         "name",
         "description",
@@ -849,7 +839,7 @@
       "type": "object"
     }
   },
-  "description": "A phase in the curriculum.",
+  "description": "A phase in the curriculum.\n\nPhases use ``slug`` (e.g. ``\"phase0\"``) and ``order`` (int ``0..6``)\nas their human keys. The slug is what shows up in URLs and is the\nprimary lookup key; ``order`` drives display ordering and is also\nused in URL paths today (``/phase/{order}``).",
   "properties": {
     "capstone": {
       "anyOf": [
@@ -877,10 +867,6 @@
         }
       ],
       "default": null
-    },
-    "id": {
-      "title": "Id",
-      "type": "integer"
     },
     "name": {
       "title": "Name",
@@ -929,7 +915,6 @@
   },
   "required": [
     "uuid",
-    "id",
     "name",
     "slug"
   ],

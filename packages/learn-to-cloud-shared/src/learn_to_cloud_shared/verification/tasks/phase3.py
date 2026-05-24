@@ -8,7 +8,7 @@ from learn_to_cloud_shared.verification.tasks.base import (
     VerificationTask,
 )
 
-PHASE3_FINAL_REQUIREMENT_ID = "journal-api-implementation"
+PHASE3_FINAL_REQUIREMENT_SLUG = "journal-api-implementation"
 
 JOURNAL_API_IMPORTANT_PATHS = (
     "api/main.py",
@@ -30,7 +30,7 @@ JOURNAL_API_IMPORTANT_PATHS = (
 JOURNAL_API_FINAL_RUBRIC_TASK = VerificationTask(
     id="journal-api-implementation-rubric",
     phase_id=3,
-    requirement_id=PHASE3_FINAL_REQUIREMENT_ID,
+    requirement_slug=PHASE3_FINAL_REQUIREMENT_SLUG,
     name="Journal API Final Rubric Review",
     criteria=[
         "MUST grade only the supplied repository evidence and CI result",

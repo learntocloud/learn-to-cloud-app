@@ -12,7 +12,7 @@ Example::
     )
 
     req = repo_fork_requirement(
-        id="my-fork",
+        slug="my-fork",
         name="Fork the repo",
         required_repo="owner/repo",
     )
@@ -48,13 +48,13 @@ from learn_to_cloud_shared.schemas import (
 
 def github_profile_requirement(
     *,
-    id: str = "github-profile",
+    slug: str = "github-profile",
     name: str = "Test GitHub profile requirement",
     description: str = "Test description",
 ) -> GithubProfileRequirement:
     return GithubProfileRequirement(
         uuid=uuid4(),
-        id=id,
+        slug=slug,
         submission_type=SubmissionType.GITHUB_PROFILE,
         name=name,
         description=description,
@@ -63,13 +63,13 @@ def github_profile_requirement(
 
 def profile_readme_requirement(
     *,
-    id: str = "profile-readme",
+    slug: str = "profile-readme",
     name: str = "Test profile README requirement",
     description: str = "Test description",
 ) -> ProfileReadmeRequirement:
     return ProfileReadmeRequirement(
         uuid=uuid4(),
-        id=id,
+        slug=slug,
         submission_type=SubmissionType.PROFILE_README,
         name=name,
         description=description,
@@ -78,14 +78,14 @@ def profile_readme_requirement(
 
 def repo_fork_requirement(
     *,
-    id: str = "test-fork",
+    slug: str = "test-fork",
     name: str = "Test repo fork requirement",
     description: str = "Test description",
     required_repo: str = "owner/test-repo",
 ) -> RepoForkRequirement:
     return RepoForkRequirement(
         uuid=uuid4(),
-        id=id,
+        slug=slug,
         submission_type=SubmissionType.REPO_FORK,
         name=name,
         description=description,
@@ -95,14 +95,14 @@ def repo_fork_requirement(
 
 def ctf_token_requirement(
     *,
-    id: str = "ctf-token",
+    slug: str = "ctf-token",
     name: str = "Test CTF token requirement",
     description: str = "Test description",
     placeholder: str | None = None,
 ) -> CtfTokenRequirement:
     return CtfTokenRequirement(
         uuid=uuid4(),
-        id=id,
+        slug=slug,
         submission_type=SubmissionType.CTF_TOKEN,
         name=name,
         description=description,
@@ -112,14 +112,14 @@ def ctf_token_requirement(
 
 def networking_token_requirement(
     *,
-    id: str = "networking-token",
+    slug: str = "networking-token",
     name: str = "Test networking token requirement",
     description: str = "Test description",
     placeholder: str | None = None,
 ) -> NetworkingTokenRequirement:
     return NetworkingTokenRequirement(
         uuid=uuid4(),
-        id=id,
+        slug=slug,
         submission_type=SubmissionType.NETWORKING_TOKEN,
         name=name,
         description=description,
@@ -129,14 +129,14 @@ def networking_token_requirement(
 
 def journal_api_verifier_requirement(
     *,
-    id: str = "journal-api",
+    slug: str = "journal-api",
     name: str = "Test Journal API requirement",
     description: str = "Test description",
     required_repo: str = "owner/journal-repo",
 ) -> JournalApiVerifierRequirement:
     return JournalApiVerifierRequirement(
         uuid=uuid4(),
-        id=id,
+        slug=slug,
         submission_type=SubmissionType.JOURNAL_API_VERIFIER,
         name=name,
         description=description,
@@ -146,14 +146,14 @@ def journal_api_verifier_requirement(
 
 def deployed_api_requirement(
     *,
-    id: str = "deployed-api",
+    slug: str = "deployed-api",
     name: str = "Test deployed API requirement",
     description: str = "Test description",
     placeholder: str | None = None,
 ) -> DeployedApiRequirement:
     return DeployedApiRequirement(
         uuid=uuid4(),
-        id=id,
+        slug=slug,
         submission_type=SubmissionType.DEPLOYED_API,
         name=name,
         description=description,
@@ -163,14 +163,14 @@ def deployed_api_requirement(
 
 def devops_analysis_requirement(
     *,
-    id: str = "devops-analysis",
+    slug: str = "devops-analysis",
     name: str = "Test devops analysis requirement",
     description: str = "Test description",
     required_repo: str = "owner/devops-repo",
 ) -> DevopsAnalysisRequirement:
     return DevopsAnalysisRequirement(
         uuid=uuid4(),
-        id=id,
+        slug=slug,
         submission_type=SubmissionType.DEVOPS_ANALYSIS,
         name=name,
         description=description,
@@ -180,14 +180,14 @@ def devops_analysis_requirement(
 
 def security_scanning_requirement(
     *,
-    id: str = "security-scanning",
+    slug: str = "security-scanning",
     name: str = "Test security scanning requirement",
     description: str = "Test description",
     required_repo: str = "owner/sec-repo",
 ) -> SecurityScanningRequirement:
     return SecurityScanningRequirement(
         uuid=uuid4(),
-        id=id,
+        slug=slug,
         submission_type=SubmissionType.SECURITY_SCANNING,
         name=name,
         description=description,
@@ -198,7 +198,7 @@ def security_scanning_requirement(
 def make_requirement(
     submission_type: SubmissionType,
     *,
-    id: str = "test-req",
+    slug: str = "test-req",
     name: str = "Test requirement",
     description: str = "Test description",
     required_repo: str | None = None,
@@ -213,45 +213,49 @@ def make_requirement(
     """
     match submission_type:
         case SubmissionType.GITHUB_PROFILE:
-            return github_profile_requirement(id=id, name=name, description=description)
+            return github_profile_requirement(
+                slug=slug, name=name, description=description
+            )
         case SubmissionType.PROFILE_README:
-            return profile_readme_requirement(id=id, name=name, description=description)
+            return profile_readme_requirement(
+                slug=slug, name=name, description=description
+            )
         case SubmissionType.REPO_FORK:
             return repo_fork_requirement(
-                id=id,
+                slug=slug,
                 name=name,
                 description=description,
                 required_repo=required_repo or "owner/test-repo",
             )
         case SubmissionType.CTF_TOKEN:
             return ctf_token_requirement(
-                id=id, name=name, description=description, placeholder=placeholder
+                slug=slug, name=name, description=description, placeholder=placeholder
             )
         case SubmissionType.NETWORKING_TOKEN:
             return networking_token_requirement(
-                id=id, name=name, description=description, placeholder=placeholder
+                slug=slug, name=name, description=description, placeholder=placeholder
             )
         case SubmissionType.JOURNAL_API_VERIFIER:
             return journal_api_verifier_requirement(
-                id=id,
+                slug=slug,
                 name=name,
                 description=description,
                 required_repo=required_repo or "owner/journal-repo",
             )
         case SubmissionType.DEPLOYED_API:
             return deployed_api_requirement(
-                id=id, name=name, description=description, placeholder=placeholder
+                slug=slug, name=name, description=description, placeholder=placeholder
             )
         case SubmissionType.DEVOPS_ANALYSIS:
             return devops_analysis_requirement(
-                id=id,
+                slug=slug,
                 name=name,
                 description=description,
                 required_repo=required_repo or "owner/devops-repo",
             )
         case SubmissionType.SECURITY_SCANNING:
             return security_scanning_requirement(
-                id=id,
+                slug=slug,
                 name=name,
                 description=description,
                 required_repo=required_repo or "owner/sec-repo",
