@@ -1,12 +1,10 @@
+# yaml-language-server: $schema=../../schemas/phase.schema.json
+uuid: 0308493d-4c94-4ea9-b643-6a7f534bacda
 id: '4'
 slug: phase4
 name: Cloud Platform Fundamentals
-description: This phase focuses on cloud platform fundamentals - the core concepts and skills you need to work effectively
-  with cloud services. You'll learn everything from virtual machines and networking to security and application deployment.
-  Through hands-on practice and real-world projects, you'll build the practical experience needed to work with cloud platforms
-  professionally.
-short_description: 'Deploy on AWS, Azure, or GCP: virtual machines, cloud networking, IAM security, databases, and application
-  hosting.'
+description: This phase focuses on cloud platform fundamentals - the core concepts and skills you need to work effectively with cloud services. You'll learn everything from virtual machines and networking to security and application deployment. Through hands-on practice and real-world projects, you'll build the practical experience needed to work with cloud platforms professionally.
+short_description: 'Deploy on AWS, Azure, or GCP: virtual machines, cloud networking, IAM security, databases, and application hosting.'
 order: 4
 topics:
 - vms-compute
@@ -15,12 +13,13 @@ topics:
 - cloud-networking
 - secure-remote-access
 - database-deployment
-- monitor-application-infrastructure
+- monitoring-foundations-for-apps-and-vms
 - cloud-ai-services
 - capstone
 hands_on_verification:
   requirements:
-  - id: deployed-journal-api
+  - uuid: cd4dfc97-5081-4361-a345-a3690c86f1e6
+    id: deployed-journal-api
     submission_type: deployed_api
     name: Deploy a Public Journal API
     description: Submit your HTTPS API base URL so the verifier can run POST/GET challenge-response checks on /entries and validate the response format.

@@ -688,11 +688,14 @@ class TestValidateSubmissionIntegration:
     @pytest.mark.asyncio
     async def test_deployed_api_routes_to_verification(self):
         """DEPLOYED_API should route to validate_deployed_api."""
+        from uuid import uuid4
+
         from learn_to_cloud_shared.models import SubmissionType
         from learn_to_cloud_shared.schemas import HandsOnRequirement, ValidationResult
         from learn_to_cloud_shared.verification.dispatcher import validate_submission
 
         requirement = HandsOnRequirement(
+            uuid=uuid4(),
             id="deployed-journal-api",
             submission_type=SubmissionType.DEPLOYED_API,
             name="Deployed API",

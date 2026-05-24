@@ -8,6 +8,7 @@ Tests cover:
 """
 
 from unittest.mock import AsyncMock, patch
+from uuid import uuid4
 
 import pytest
 from learn_to_cloud_shared.schemas import (
@@ -31,7 +32,7 @@ from learn_to_cloud.services.progress_service import (
 
 
 def _make_step(step_id: str, order: int = 0) -> LearningStep:
-    return LearningStep(id=step_id, order=order, title=f"Step {step_id}")
+    return LearningStep(uuid=uuid4(), id=step_id, order=order, title=f"Step {step_id}")
 
 
 def _make_topic(
@@ -40,6 +41,7 @@ def _make_topic(
 ) -> Topic:
     step_ids = steps if steps is not None else ["s1", "s2", "s3"]
     return Topic(
+        uuid=uuid4(),
         id=topic_id,
         slug="topic1",
         name="Test Topic",
@@ -54,6 +56,7 @@ def _make_phase(
     topics: list[Topic] | None = None,
 ) -> Phase:
     return Phase(
+        uuid=uuid4(),
         id=phase_id,
         name=f"Phase {phase_id}",
         slug=f"phase{phase_id}",

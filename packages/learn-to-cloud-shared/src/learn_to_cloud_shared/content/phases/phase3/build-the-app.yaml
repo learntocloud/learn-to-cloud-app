@@ -1,3 +1,5 @@
+# yaml-language-server: $schema=../../schemas/topic.schema.json
+uuid: e8852e92-83a5-4e92-92f1-a450324278f3
 id: phase3-topic5
 slug: build-the-app
 name: 'Capstone: Learning Journal API'
@@ -5,26 +7,32 @@ description: Time to put everything together! In this capstone project, you'll b
 short_description: Build a Learning Journal API with FastAPI, PostgreSQL, and AI-powered entry analysis using LLMs.
 order: 5
 learning_objectives:
-- id: build-app-system-integration
+- uuid: a52a062c-bc9b-4140-8948-aabe16deef8c
+  id: build-app-system-integration
   text: Integrate FastAPI routing, request/response models, PostgreSQL data access, and LLM analysis into one working API.
   order: 1
-- id: build-app-feature-delivery
+- uuid: 09fdd5e6-070c-4f25-8556-d76b0933764d
+  id: build-app-feature-delivery
   text: Implement required capstone behaviors end to end, including path-parameter routes, correct 404 handling, and async-ready service flows.
   order: 2
-- id: build-app-dev-workflow
+- uuid: bee07dd7-b40c-49cb-973b-b6f4da245636
+  id: build-app-dev-workflow
   text: Follow a professional development workflow using feature branches, pull requests, and test-driven development for each task.
   order: 3
-- id: build-app-portfolio-readiness
+- uuid: 856aacbe-63c9-4cf1-8096-da33a19b2a03
+  id: build-app-portfolio-readiness
   text: Validate required API behaviors, publish your implementation on GitHub, and present it as a cloud engineering project artifact.
   order: 4
 learning_steps:
-- order: 1
+- uuid: 29ca368b-cd6e-4145-bb59-c395775b45b5
+  order: 1
   action: 'Practice:'
   title: Journal Starter Repository
   url: https://github.com/learntocloud/journal-starter
   description: "Time to complete the capstone. The repository README has everything you need: Dev Container setup, development tasks, LLM provider configuration, and troubleshooting tips. Fork the repo and follow the instructions there to build your Journal API. Important: Follow the development workflow — create a feature branch for each task, run the tests, then open a Pull Request to merge into main. You'll need to submit each merged PR link for verification."
   id: phase3-topic5-practice-journal-starter-repository
-- order: 2
+- uuid: 0f5b41ca-70f1-43f3-a1d2-f6396f00f1c3
+  order: 2
   action: 'Reflect:'
   title: Share Your Progress
   description: When you've completed the capstone, push your work to GitHub! This becomes part of your portfolio. Consider sharing it on LinkedIn or with the Learn to Cloud community to get feedback and celebrate your progress.

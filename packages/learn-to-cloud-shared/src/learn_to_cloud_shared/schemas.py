@@ -8,6 +8,7 @@ All schemas use frozen=True for immutability where appropriate.
 """
 
 from datetime import datetime
+from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field
 
@@ -53,6 +54,9 @@ class HandsOnRequirement(FrozenModel):
     3. Implement the validator in hands_on_verification.py
     """
 
+    # Stable opaque identifier (issue #462). Required in YAML; backfilled
+    # by scripts/backfill_yaml_uuids.py.
+    uuid: UUID
     id: str
     submission_type: SubmissionType
     name: str
@@ -112,6 +116,8 @@ class TipItem(FrozenModel):
 class LearningStep(FrozenModel):
     """A learning step within a topic."""
 
+    # Stable opaque identifier (issue #462).
+    uuid: UUID
     id: str
     order: int
     action: str | None = None
@@ -128,6 +134,8 @@ class LearningStep(FrozenModel):
 class LearningObjective(FrozenModel):
     """A learning objective for a topic."""
 
+    # Stable opaque identifier (issue #462).
+    uuid: UUID
     id: str
     text: str
     order: int
@@ -136,6 +144,8 @@ class LearningObjective(FrozenModel):
 class Topic(FrozenModel):
     """A topic within a phase."""
 
+    # Stable opaque identifier (issue #462).
+    uuid: UUID
     id: str
     slug: str
     name: str
@@ -165,6 +175,8 @@ class Phase(FrozenModel):
 
     model_config = ConfigDict(frozen=True, extra="ignore")
 
+    # Stable opaque identifier (issue #462).
+    uuid: UUID
     id: int
     name: str
     slug: str

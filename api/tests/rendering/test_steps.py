@@ -7,6 +7,8 @@ Tests cover:
 - build_step_data LearningStep to template dict
 """
 
+from uuid import uuid4
+
 import pytest
 from learn_to_cloud_shared.schemas import LearningStep, ProviderOption
 
@@ -116,6 +118,7 @@ class TestProviderSortKey:
 class TestBuildStepData:
     def test_basic_step(self):
         step = LearningStep(
+            uuid=uuid4(),
             id="step-1",
             order=0,
             title="Install",
@@ -127,7 +130,7 @@ class TestBuildStepData:
         assert "<p>" in data["description_html"]
 
     def test_empty_optional_fields(self):
-        step = LearningStep(id="step-1", order=0)
+        step = LearningStep(uuid=uuid4(), id="step-1", order=0)
         data = build_step_data(step)
         assert data["action"] == ""
         assert data["title"] == ""
@@ -136,6 +139,7 @@ class TestBuildStepData:
 
     def test_options_sorted_by_provider(self):
         step = LearningStep(
+            uuid=uuid4(),
             id="step-1",
             order=0,
             options=[
@@ -164,6 +168,6 @@ class TestBuildStepData:
         assert providers == ["azure", "aws", "gcp"]
 
     def test_custom_md_renderer(self):
-        step = LearningStep(id="step-1", order=0, description="hello")
+        step = LearningStep(uuid=uuid4(), id="step-1", order=0, description="hello")
         data = build_step_data(step, md_renderer=lambda s: f"CUSTOM:{s}")
         assert data["description_html"] == "CUSTOM:hello"

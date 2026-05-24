@@ -29,6 +29,7 @@ from learn_to_cloud_shared.verification_job_executor import (
 
 def _run_result(is_valid: bool = True) -> VerificationRunResult:
     requirement = HandsOnRequirement(
+        uuid=uuid4(),
         id="security-scanning",
         submission_type=SubmissionType.SECURITY_SCANNING,
         name="Security scanning",
@@ -60,6 +61,7 @@ def _run_result(is_valid: bool = True) -> VerificationRunResult:
 
 def _phase3_run_result(is_valid: bool = True) -> VerificationRunResult:
     requirement = HandsOnRequirement(
+        uuid=uuid4(),
         id="journal-api-implementation",
         submission_type=SubmissionType.JOURNAL_API_VERIFIER,
         name="Verify Journal API Implementation",

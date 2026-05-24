@@ -1,23 +1,30 @@
+# yaml-language-server: $schema=../../schemas/topic.schema.json
+uuid: 282db8e5-b3a0-47f5-bb37-ffcd63e92ae7
 id: phase4-topic6
 slug: monitoring-foundations-for-apps-and-vms
 name: Monitoring Foundations for Apps and VMs
 description: This topic focuses on monitoring cloud-hosted applications. You'll learn provider monitoring fundamentals, how application logs are collected and queried, and how infrastructure and application metrics give you runtime visibility.
 order: 6
 learning_objectives:
-- id: monitor-application-infrastructure-provider-basics
+- uuid: 9440f45d-67d5-4d3a-b0f3-23b31e415f89
+  id: monitor-application-infrastructure-provider-basics
   text: Understand core monitoring services across Azure, AWS, and GCP for app and VM visibility.
   order: 1
-- id: monitor-application-infrastructure-logs
+- uuid: f3aad083-8f5f-42e9-8d76-f733e904e85f
+  id: monitor-application-infrastructure-logs
   text: Understand where application logs come from and how to query them during incident response.
   order: 2
-- id: monitor-application-infrastructure-metrics
+- uuid: 7a1500b3-5ae9-4df8-9761-37166dde49cc
+  id: monitor-application-infrastructure-metrics
   text: Understand how infrastructure and application metrics are collected and used for runtime visibility.
   order: 3
-- id: monitor-application-infrastructure-query-logs
+- uuid: 535a72c7-c580-4759-8bf1-884cf6dac142
+  id: monitor-application-infrastructure-query-logs
   text: Configure a VM to emit logs and metrics, then query the data in your provider's console.
   order: 4
 learning_steps:
-- order: 1
+- uuid: d30e3be8-f18f-487b-9e33-cea2b8f15abb
+  order: 1
   action: 'Read:'
   description: 'Start with your cloud provider''s monitoring platform and understand how logs, metrics, traces, and alerts are organized:'
   options:
@@ -35,7 +42,8 @@ learning_steps:
     description: Learn Google Cloud Monitoring fundamentals for infrastructure and services.
   title: Learn your provider's monitoring fundamentals
   id: phase4-topic6-read-learn-your-providers-monitoring
-- order: 2
+- uuid: dde46b10-97bc-4812-bf2e-035d3d261315
+  order: 2
   action: 'Read:'
   description: Learn where application logs come from in your provider and how to query them during incident response.
   options:
@@ -53,7 +61,8 @@ learning_steps:
     description: Understand structured logs and query workflows in Cloud Logging.
   title: Understand logs
   id: phase4-topic6-read-understand-logs
-- order: 3
+- uuid: 7e385e9a-b597-4762-8446-45a16eb57acd
+  order: 3
   action: 'Read:'
   description: Learn how infrastructure and application metrics are collected and how to use them for dashboards, alerts, and capacity planning.
   options:
@@ -71,7 +80,8 @@ learning_steps:
     description: Understand built-in and custom metrics in Google Cloud Monitoring.
   title: Understand metrics
   id: phase4-topic6-read-understand-metrics
-- order: 4
+- uuid: 12aa5b66-0391-47e0-8e7a-29538ad740b8
+  order: 4
   action: 'Practice:'
   description: Deploy a VM on your cloud provider and install your provider's monitoring agent so the VM emits logs and metrics to your monitoring platform.
   options:
@@ -89,7 +99,8 @@ learning_steps:
     description: Install the Ops Agent to collect logs and metrics from your Compute Engine VM and send them to Cloud Monitoring and Cloud Logging.
   title: Configure a VM to emit logs and metrics
   id: phase4-topic6-practice-configure-vm-monitoring
-- order: 5
+- uuid: e6cd4b85-f809-44d2-a437-ab525295f9ea
+  order: 5
   action: 'Practice:'
   description: 'Now that your VM is emitting data, open your provider''s log query tool and find all SSH login attempts on your VM from the last hour. You SSH''d in to install the agent, so you should see at least your own session. This is the same workflow you''d use during a real security investigation.'
   options:
@@ -107,7 +118,8 @@ learning_steps:
     description: Open Logs Explorer and write a query to find SSH login events on your VM from the last hour.
   title: Query your VM's logs for SSH login events
   id: phase4-topic6-practice-query-vm-logs
-- order: 6
+- uuid: bf28478b-d877-44c5-b436-a5fcf7fae96a
+  order: 6
   action: 'Practice:'
   title: Clean up your cloud resources
   description: Delete the VM, monitoring agent configuration, and any associated resources (disks, public IPs, security groups, Log Analytics workspace or log groups). Check your cloud console to confirm nothing is still running. Leaving resources active will incur charges.

@@ -1,23 +1,30 @@
+# yaml-language-server: $schema=../../schemas/topic.schema.json
+uuid: 822291f9-041c-4846-8db0-90d58ca414f0
 id: phase4-topic3
 slug: cloud-networking
 name: Cloud Networking Fundamentals
 description: This topic focuses on cloud networking concepts essential for secure deployments, building on Phase 2 networking fundamentals. You'll learn VPC/VNet architecture, subnet segmentation, security groups, and routing — then validate your understanding by deploying and testing resources in a real cloud network.
 order: 3
 learning_objectives:
-- id: cloud-networking-architecture
+- uuid: ae5453c4-5f75-41e8-b2d5-230506f8ea07
+  id: cloud-networking-architecture
   text: Describe VPC/VNet architecture, CIDR planning, and subnet segmentation.
   order: 1
-- id: cloud-networking-security-groups
+- uuid: 8d52131a-53da-48a7-8c5a-c85d5b370229
+  id: cloud-networking-security-groups
   text: Explain security group and firewall principles used to control network traffic.
   order: 2
-- id: cloud-networking-routing
+- uuid: 01232608-54bc-41b8-9c19-012b024c096e
+  id: cloud-networking-routing
   text: Configure routing components such as gateways, NAT, and route tables correctly.
   order: 3
-- id: cloud-networking-validation
+- uuid: 5ebda0e3-9bf3-4df9-aafd-acf011419a95
+  id: cloud-networking-validation
   text: Validate secure network behavior through practical deployment and connectivity testing.
   order: 4
 learning_steps:
-- order: 1
+- uuid: 53e1643d-7acd-4a23-b096-aa774adf4d82
+  order: 1
   action: 'Read:'
   description: A VPC is your private network in the cloud - an isolated section where you can launch resources with full control over IP addressing, subnets, and routing.
   options:
@@ -35,7 +42,8 @@ learning_steps:
     description: Google Cloud VPC documentation
   title: Understand Virtual Private Cloud (VPC/VNet)
   id: phase4-topic3-read-understand-virtual-private-cloud
-- order: 2
+- uuid: 26bacf49-3e5e-421d-90ec-78f6391ab57e
+  order: 2
   action: 'Read:'
   description: Security groups act as virtual firewalls for your cloud resources, controlling inbound and outbound traffic.
   options:
@@ -53,7 +61,8 @@ learning_steps:
     description: Understanding firewall rules in Google Cloud
   title: Understand Security Groups & Firewall Rules
   id: phase4-topic3-read-understand-security-groups-firewall
-- order: 3
+- uuid: 8c0ed360-124a-40c9-96d3-5dd329a4a038
+  order: 3
   action: 'Read:'
   description: Understand public vs. private subnets and CIDR block notation. This is fundamental to designing secure cloud architectures.
   options:
@@ -71,7 +80,8 @@ learning_steps:
     description: Understand subnet ranges and IP design in Google Cloud VPC.
   title: Learn CIDR and subnet design by provider
   id: phase4-topic3-read-learn-cidr-and-subnet
-- order: 4
+- uuid: d6297150-72ba-447b-b9b6-d9fb3f16dd64
+  order: 4
   action: 'Read:'
   description: Understand how public-facing network components enable internet connectivity for resources in public subnets.
   options:
@@ -89,7 +99,8 @@ learning_steps:
     description: Understand how public IP addresses provide external access in GCP.
   title: Understand internet connectivity components by provider
   id: phase4-topic3-read-understand-internet-connectivity-components
-- order: 5
+- uuid: 9490f99b-6efb-452e-8836-731cf2201d94
+  order: 5
   action: 'Read:'
   description: NAT services allow private subnet resources to access the internet for updates and package downloads without direct inbound exposure.
   options:
@@ -107,7 +118,8 @@ learning_steps:
     description: Configure private Google Cloud workloads to reach the internet via NAT.
   title: Compare NAT patterns across cloud providers
   id: phase4-topic3-read-compare-nat-patterns-across
-- order: 6
+- uuid: 378183a3-37a3-4a99-aee6-586060c2d27b
+  order: 6
   action: 'Read:'
   description: Use provider-native diagnostics to validate effective routes and security policy decisions. Focus on proving why traffic is allowed or denied, not re-learning networking basics.
   options:
@@ -125,7 +137,8 @@ learning_steps:
     description: Run path analysis to verify routing and firewall behavior for target endpoints.
   title: Validate routing and security decisions by provider
   id: phase4-topic3-read-validate-routing-and-security
-- order: 7
+- uuid: aff9e130-cccb-4dc4-afa6-17361f6f4f11
+  order: 7
   action: 'Read:'
   title: Restrict database access to your API server only
   description: Your database should accept connections only from your API server — not from the public internet. Use private endpoints or private IP connectivity to eliminate the public network path to your database entirely.
@@ -143,7 +156,8 @@ learning_steps:
     url: https://docs.cloud.google.com/sql/docs/postgres/private-ip
     description: Connect to Cloud SQL over private IP with no public internet exposure
   id: phase4-topic3-read-restrict-database-access
-- order: 8
+- uuid: 8942ce4b-d77d-4fde-9940-618817454bea
+  order: 8
   action: 'Read:'
   title: Cloud Load Balancers
   description: 'Load balancers distribute traffic across multiple targets and enable high availability. Understand the difference between Layer 4 (network) and Layer 7 (application) load balancers, health checks, and target groups in your cloud provider.'
@@ -161,7 +175,8 @@ learning_steps:
     url: https://docs.cloud.google.com/load-balancing/docs/load-balancing-overview
     description: Global and regional load balancing with HTTP(S), TCP/UDP, and internal options.
   id: phase4-topic3-read-cloud-load-balancers
-- order: 9
+- uuid: cb2747b5-c258-4a06-8010-ce59db026109
+  order: 9
   action: 'Practice:'
   title: Explore Cloud Networking via CLI
   description: 'Use your cloud CLI to inspect networking resources. Practice listing VPCs, subnets, security groups, and route tables. Learn to filter output and parse JSON — these skills are essential for the Phase 2 networking lab and real-world troubleshooting.'
@@ -179,27 +194,32 @@ learning_steps:
     url: https://cloud.google.com/sdk/gcloud/reference/compute/networks
     description: Inspect VPCs, subnets, and firewall rules from the command line. Use --format and --filter flags to shape output, or pipe to jq.
   id: phase4-topic3-practice-explore-cloud-networking-cli
-- order: 10
+- uuid: 0f26efe0-8522-4ab1-b490-4983a0794eb4
+  order: 10
   action: 'Practice:'
   description: Create a VPC or VNet on your cloud provider with a custom CIDR block.
   title: Set up a cloud network (VPC/VNet)
   id: phase4-topic3-practice-set-up-a-cloud
-- order: 11
+- uuid: 4410640a-0605-4463-abc6-283ff91d8d5f
+  order: 11
   action: 'Practice:'
   description: Create two subnets inside your VPC — one public (with a route to the internet gateway) and one private (no direct internet access).
   title: Create a public and a private subnet
   id: phase4-topic3-practice-create-a-public-and
-- order: 12
+- uuid: bfc78160-ddef-4a7c-a413-922298da9fdb
+  order: 12
   action: 'Practice:'
   description: Associate subnets with appropriate route tables and set up security groups for each subnet.
   title: Configure routing and security groups
   id: phase4-topic3-practice-configure-routing-and-security
-- order: 13
+- uuid: 062f4256-fb79-4d87-a114-60ca34f92c0d
+  order: 13
   action: 'Practice:'
   description: Deploy a VM in the public subnet and another in the private subnet. Verify the public VM is accessible from the internet and the private VM is not.
   title: Deploy VMs in each subnet and verify access
   id: phase4-topic3-practice-deploy-vms-in-each
-- order: 14
+- uuid: ca268dba-b19f-4c48-a31a-827c9ac6d4fa
+  order: 14
   action: 'Practice:'
   title: Clean up your cloud resources
   description: Delete all resources you created in this topic — VMs, VPC/VNet, subnets, route tables, internet gateways, NAT gateways, and security groups. Check your cloud console to confirm nothing is still running. Leaving resources active will incur charges.

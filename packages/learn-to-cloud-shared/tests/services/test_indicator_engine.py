@@ -9,6 +9,8 @@ Tests cover:
 - No indicators defined → fail
 """
 
+from uuid import uuid4
+
 import pytest
 
 from learn_to_cloud_shared.models import SubmissionType
@@ -22,6 +24,7 @@ def _make_requirement(
     expected_files: list[str] | None = None,
 ) -> HandsOnRequirement:
     return HandsOnRequirement(
+        uuid=uuid4(),
         id="test-req",
         submission_type=SubmissionType.PR_REVIEW,
         name="Test Requirement",

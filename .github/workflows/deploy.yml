@@ -202,6 +202,21 @@ jobs:
         working-directory: apps/verification-functions
         run: uv run ty check .
 
+      - name: Validate curriculum content integrity
+        working-directory: packages/learn-to-cloud-shared
+        run: uv run python scripts/validate_content.py
+
+      - name: Verify generated YAML JSON schemas are up to date
+        working-directory: packages/learn-to-cloud-shared
+        run: |
+          set -euo pipefail
+          uv run python scripts/generate_yaml_schemas.py
+          if ! git diff --exit-code src/learn_to_cloud_shared/content/schemas/; then
+            echo "::error::JSON Schemas drifted from Pydantic models." >&2
+            echo "Run 'cd packages/learn-to-cloud-shared && uv run python scripts/generate_yaml_schemas.py' and commit the result." >&2
+            exit 1
+          fi
+
       - name: Verify single migration head (no branches)
         working-directory: api
         run: |

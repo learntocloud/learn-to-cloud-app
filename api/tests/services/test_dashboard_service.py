@@ -8,6 +8,7 @@ Tests cover:
 """
 
 from unittest.mock import AsyncMock, patch
+from uuid import uuid4
 
 import pytest
 from learn_to_cloud_shared.schemas import (
@@ -30,6 +31,7 @@ from learn_to_cloud.services.dashboard_service import (
 def _make_phase(phase_id: int, name: str = "", slug: str = "") -> Phase:
     """Create a minimal Phase for testing."""
     return Phase(
+        uuid=uuid4(),
         id=phase_id,
         name=name or f"Phase {phase_id}",
         slug=slug or f"phase{phase_id}",
@@ -85,6 +87,7 @@ class TestBuildPhaseSummary:
 
     def test_maps_all_phase_fields(self):
         phase = Phase(
+            uuid=uuid4(),
             id=2,
             name="Networking",
             slug="phase2",

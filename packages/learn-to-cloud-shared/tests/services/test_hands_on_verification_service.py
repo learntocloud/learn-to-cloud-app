@@ -9,6 +9,7 @@ Tests the submission routing logic in validate_submission():
 """
 
 from unittest.mock import patch
+from uuid import uuid4
 
 import pytest
 
@@ -26,6 +27,7 @@ def _make_requirement(
 ) -> HandsOnRequirement:
     """Helper to create test requirements."""
     return HandsOnRequirement(
+        uuid=uuid4(),
         id=requirement_id,
         submission_type=submission_type,
         name="Test Requirement",

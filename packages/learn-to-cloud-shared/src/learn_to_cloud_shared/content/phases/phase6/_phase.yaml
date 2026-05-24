@@ -1,12 +1,10 @@
+# yaml-language-server: $schema=../../schemas/phase.schema.json
+uuid: 4fb2871c-ba79-4de7-933c-76bad9639f8e
 id: '6'
 slug: phase6
 name: Securing Your Cloud Applications
-description: You've built your Journal API, deployed it to the cloud, and set up CI/CD pipelines. Now it's time to lock it
-  down. Security isn't a separate thing you bolt on at the end—it's something every cloud engineer needs to think about from
-  day one. In this phase, we'll walk you through the key security practices that keep real production apps safe. By the end,
-  your Journal API will be hardened and production-ready.
-short_description: Secure your Journal API with IAM, secrets management, network controls, monitoring, and incident response.
-  Make it production-ready.
+description: You've built your Journal API, deployed it to the cloud, and set up CI/CD pipelines. Now it's time to lock it down. Security isn't a separate thing you bolt on at the end—it's something every cloud engineer needs to think about from day one. In this phase, we'll walk you through the key security practices that keep real production apps safe. By the end, your Journal API will be hardened and production-ready.
+short_description: Secure your Journal API with IAM, secrets management, network controls, monitoring, and incident response. Make it production-ready.
 order: 6
 topics:
 - iam-secrets
@@ -15,7 +13,8 @@ topics:
 - capstone
 hands_on_verification:
   requirements:
-  - id: security-scanning
+  - uuid: 2f9a6c38-28f5-474b-9578-a71734f112b2
+    id: security-scanning
     submission_type: security_scanning
     name: Enable Security Scanning
     description: Verify your fork has Dependabot or CodeQL scanning enabled so automated checks can confirm it is configured.

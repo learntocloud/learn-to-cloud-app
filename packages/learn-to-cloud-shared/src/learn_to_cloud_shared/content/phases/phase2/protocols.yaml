@@ -1,50 +1,61 @@
+# yaml-language-server: $schema=../../schemas/topic.schema.json
+uuid: 90328c27-63fd-4eec-b187-fb7109a4225c
 id: phase2-topic2
 slug: protocols
 name: Ports and Protocols
 description: Learn how applications communicate over networks through ports and protocols. Understand TCP vs UDP, common port numbers, and how firewalls control traffic flow.
 order: 2
 learning_objectives:
-- id: protocols-tcp-udp
+- uuid: c9fb08ef-462a-4f82-bf9e-104533ffa493
+  id: protocols-tcp-udp
   text: Differentiate TCP and UDP behavior and identify appropriate use cases.
   order: 1
-- id: protocols-ports-firewalls
+- uuid: 416553fa-5204-4696-90b4-0f9efe73fba4
+  id: protocols-ports-firewalls
   text: Identify common ports and explain how firewall rules control network traffic.
   order: 2
-- id: protocols-connection-analysis
+- uuid: 381d9dcf-49be-4137-bc1d-7fa14a41648d
+  id: protocols-connection-analysis
   text: Analyze active connections and listening services with practical host-level tools.
   order: 3
 learning_steps:
-- order: 1
+- uuid: a65b223b-f2f2-4b17-a73b-f537ef714f96
+  order: 1
   action: 'Watch:'
   title: TCP and UDP Explained
   url: https://www.youtube.com/watch?v=uwoD5YsGACg
   description: Understand the difference between TCP (connection-oriented, reliable) and UDP (connectionless, fast). Know when to use each protocol.
   id: phase2-topic2-watch-tcp-and-udp-explained
-- order: 2
+- uuid: 14b373f4-f7f0-4006-804e-20a10f0892d4
+  order: 2
   action: 'Watch:'
   title: TCP Three-Way Handshake
   url: https://www.youtube.com/watch?v=xMtP5ZB3wSk
   description: Understand SYN, SYN-ACK, ACK and how TCP connections are established. This knowledge is crucial for troubleshooting connection issues.
   id: phase2-topic2-watch-tcp-three-way-handshake
-- order: 3
+- uuid: 35a8eb0f-3406-49d5-89a7-49cb32cbc70c
+  order: 3
   action: 'Read:'
   title: Common Port Numbers
   url: https://www.cloudflare.com/learning/network-layer/what-is-a-computer-port/
   description: Every service you run uses a port. Some services have well-known, commonly used ports—read this overview to understand the most important ones.
   id: phase2-topic2-read-common-port-numbers
-- order: 4
+- uuid: 574ee75d-60a2-4085-ba29-d3ff9d6ba813
+  order: 4
   action: 'Watch:'
   title: How Firewalls Work
   url: https://www.youtube.com/watch?v=kDEX1HXybrU
   description: Understand how firewalls filter traffic based on IP, port, and protocol. Learn about stateful vs stateless firewalls.
   id: phase2-topic2-watch-how-firewalls-work
-- order: 5
+- uuid: 6ca28aaa-c88c-4989-95f3-2e8b063715b6
+  order: 5
   action: 'Watch:'
   title: How Load Balancers Work
   url: https://www.youtube.com/watch?v=sCR3SAVdyCc
   description: 'Understand how load balancers distribute traffic across multiple servers: health checks, round-robin vs least-connections, and Layer 4 vs Layer 7 balancing. Load balancers are essential for high availability and scaling.'
   id: phase2-topic2-watch-how-load-balancers-work
-- order: 6
+- uuid: 9613348d-847f-4c27-aa21-53229c98c74e
+  order: 6
   action: 'Read:'
   title: Cloud Security Groups
   description: Preview how cloud providers implement firewalls as security groups. Understand inbound vs outbound rules and the concept of least privilege.
@@ -62,7 +73,8 @@ learning_steps:
     url: https://docs.cloud.google.com/firewall/docs/firewalls
     description: Ingress and egress firewall rules for VPC networks
   id: phase2-topic2-read-cloud-security-groups
-- order: 7
+- uuid: 5ea4e8b8-c405-44ec-b0d6-f01b43a0ab73
+  order: 7
   action: 'Practice:'
   title: View Active Connections
   description: Use ss -lntup as your primary command to see listening ports and owning processes. If you're on Windows, run these commands inside WSL. Use netstat only as a fallback on older systems. You may need sudo to see process names/PIDs for services owned by other users.

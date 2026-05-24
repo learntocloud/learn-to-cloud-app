@@ -1,32 +1,42 @@
+# yaml-language-server: $schema=../../schemas/topic.schema.json
+uuid: 14b8435a-4fba-433f-a38e-f80d9124277f
 id: phase5-topic5
 slug: monitoring-observability
 name: Monitoring & Observability
 description: Monitoring and observability are essential DevOps practices that help you understand the health, performance, and reliability of your applications and infrastructure. In this topic, you'll instrument your application with OpenTelemetry, verify telemetry locally with Aspire Dashboard, and export logs, traces, and metrics to your cloud provider's monitoring platform.
 order: 5
 learning_objectives:
-- id: observability-principles
+- uuid: 25f4f0a3-9407-4159-8983-99ac72fa91de
+  id: observability-principles
   text: Differentiate monitoring and observability and explain the three pillars (logs, traces, metrics).
   order: 1
-- id: observability-otel-fundamentals
+- uuid: 22208e90-14b4-4dd3-b40d-9eca857c23f5
+  id: observability-otel-fundamentals
   text: Explain what OpenTelemetry is and why vendor-neutral instrumentation matters.
   order: 2
-- id: observability-tooling
+- uuid: d92428eb-720a-4464-bad6-1cfe179fc2a7
+  id: observability-tooling
   text: Instrument a Python/FastAPI application with the OpenTelemetry SDK to produce logs, traces, and metrics.
   order: 3
-- id: observability-local-validation
+- uuid: 4ab4a8bc-c12a-45f0-b689-ab809714884a
+  id: observability-local-validation
   text: Verify telemetry locally with an OTLP-compatible tool such as Aspire Dashboard before sending it to the cloud.
   order: 4
-- id: observability-cloud-export
+- uuid: 28667c2b-fbd4-42b5-a31c-00b2a8d74e81
+  id: observability-cloud-export
   text: Export OpenTelemetry signals to a cloud monitoring platform and query them.
   order: 5
-- id: observability-dashboards-alerts
+- uuid: 4c55eaa2-f985-44af-9f6c-a73aa178fe6b
+  id: observability-dashboards-alerts
   text: Build a useful dashboard and alert from application telemetry.
   order: 6
-- id: observability-tooling-alternatives
+- uuid: ca50fda2-0114-45b8-94f5-819ce3dfa7da
+  id: observability-tooling-alternatives
   text: Recognize where Prometheus and Grafana fit as common open-source observability alternatives.
   order: 7
 learning_steps:
-- order: 1
+- uuid: 9778ac75-c4f4-45a2-bdf1-ad573b1c534e
+  order: 1
   action: 'Read:'
   description: Optional refresher from Phase 4. If you've already completed the monitoring foundations topic, skim this quickly to reconnect with your provider's core monitoring services.
   options:
@@ -44,68 +54,77 @@ learning_steps:
     description: Understand how Cloud Monitoring collects and visualizes service telemetry.
   title: 'Prerequisite refresher: provider monitoring basics (optional)'
   id: phase5-topic5-read-prerequisite-refresher-provider-monitoring
-- order: 2
+- uuid: 03d129e2-06e2-4bcb-9abc-0aee9662933c
+  order: 2
   action: 'Read:'
   title: Monitoring vs Observability
   url: https://www.ibm.com/think/topics/observability-vs-monitoring
   description: Understand the difference between monitoring and observability in DevOps.
   id: phase5-topic5-read-monitoring-vs-observability
-- order: 3
+- uuid: f1f3d332-062f-4569-9656-ffdfd7f508aa
+  order: 3
   action: 'Read:'
   title: Observability Patterns (Microsoft Learn)
   url: https://learn.microsoft.com/dotnet/architecture/cloud-native/observability-patterns
   description: Learn the three pillars of observability — metrics, logs, and traces — and how dashboards and alerts are built from these telemetry signals.
   id: phase5-topic5-read-observability-patterns-microsoft-learn
-- order: 4
+- uuid: 8bf22d48-b4ac-4fd8-85ee-bbfcff518b80
+  order: 4
   action: 'Read:'
   title: What is OpenTelemetry?
   url: https://opentelemetry.io/docs/what-is-opentelemetry/
   description: Understand OpenTelemetry (OTel) — the vendor-neutral, open-source observability framework. Learn why it matters and how it provides a single set of APIs and SDKs for emitting logs, traces, and metrics from any application.
   id: phase5-topic5-read-what-is-opentelemetry
-- order: 5
+- uuid: 9b9a6d47-51ec-4259-a65f-d77069664892
+  order: 5
   action: 'Read:'
   title: 'OpenTelemetry Concepts: Signals'
   url: https://opentelemetry.io/docs/concepts/signals/
   description: 'Understand the three telemetry signals OpenTelemetry standardizes: traces (request flow across services), metrics (numeric measurements over time), and logs (timestamped event records). In Phase 3 you added basic logging — now you''ll connect all three signals into a unified observability pipeline.'
   id: phase5-topic5-read-opentelemetry-signals
-- order: 6
+- uuid: 24ac8a65-ad9d-457e-8098-716ab2673efe
+  order: 6
   action: 'Read:'
   title: OpenTelemetry Python SDK
   url: https://opentelemetry.io/docs/languages/python/
   description: Review the official OpenTelemetry Python documentation. Understand how to install the SDK, configure providers and exporters, and auto-instrument popular frameworks.
   id: phase5-topic5-read-opentelemetry-python-sdk
-- order: 7
+- uuid: 314986af-5e2b-421b-867b-9b805d60896e
+  order: 7
   action: 'Read:'
   title: Aspire Dashboard
   url: https://learn.microsoft.com/dotnet/aspire/fundamentals/dashboard/overview
   description: Learn how Aspire Dashboard can run locally as a standalone OpenTelemetry dashboard so you can inspect logs, traces, and metrics before wiring your app to a cloud backend.
   id: phase5-topic5-read-aspire-dashboard
-- order: 8
+- uuid: 4f00d06f-6fd2-4fc8-9dee-f6cb1d1fbc15
+  order: 8
   action: 'Practice:'
   title: Instrument Your FastAPI App with OpenTelemetry
   description: 'Add OpenTelemetry instrumentation to your Journal API. Install the core packages and the FastAPI auto-instrumentation library, then configure tracing, metrics, and log correlation. You should be able to see traces for incoming HTTP requests and custom spans for key operations.'
   checklist:
-    - 'Install packages: `opentelemetry-api`, `opentelemetry-sdk`, `opentelemetry-instrumentation-fastapi`'
-    - Configure a `TracerProvider` with a `Resource` that identifies your service name
-    - Configure a `MeterProvider` for custom metrics
-    - Call `FastAPIInstrumentor.instrument_app(app)` to auto-instrument routes
-    - 'Add at least one custom span (e.g., around a database call) using `tracer.start_as_current_span()`'
-    - 'Add at least one custom metric (e.g., a counter for journal entries created)'
-    - Connect your Python logger to the OTel log pipeline so structured logs are correlated with traces
+  - 'Install packages: `opentelemetry-api`, `opentelemetry-sdk`, `opentelemetry-instrumentation-fastapi`'
+  - Configure a `TracerProvider` with a `Resource` that identifies your service name
+  - Configure a `MeterProvider` for custom metrics
+  - Call `FastAPIInstrumentor.instrument_app(app)` to auto-instrument routes
+  - 'Add at least one custom span (e.g., around a database call) using `tracer.start_as_current_span()`'
+  - 'Add at least one custom metric (e.g., a counter for journal entries created)'
+  - Connect your Python logger to the OTel log pipeline so structured logs are correlated with traces
   url: https://opentelemetry-python-contrib.readthedocs.io/en/latest/instrumentation/fastapi/fastapi.html
   id: phase5-topic5-practice-instrument-fastapi-with-otel
-- order: 9
+- uuid: 5fab9ffe-c081-4b75-8a90-7986edfa59e9
+  order: 9
   action: 'Practice:'
   title: Verify Telemetry Locally with Aspire Dashboard
   description: 'Run Aspire Dashboard locally, point your Journal API at its OTLP endpoint, and confirm your instrumentation works before sending telemetry to your cloud provider.'
   checklist:
-    - 'Run the standalone dashboard: `docker run --rm -it -p 18888:18888 -p 4317:18889 -p 4318:18890 -d --name aspire-dashboard mcr.microsoft.com/dotnet/aspire-dashboard:latest`'
-    - 'Set `OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317` for your local app'
-    - Start the Journal API and send requests to several routes, including at least one route that returns an error
-    - Open `http://localhost:18888` and confirm requests appear as traces
-    - Confirm logs include trace context and that your custom metric appears in the dashboard
+  - 'Run the standalone dashboard: `docker run --rm -it -p 18888:18888 -p 4317:18889 -p 4318:18890 -d --name aspire-dashboard mcr.microsoft.com/dotnet/aspire-dashboard:latest`'
+  - 'Set `OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317` for your local app'
+  - Start the Journal API and send requests to several routes, including at least one route that returns an error
+  - Open `http://localhost:18888` and confirm requests appear as traces
+  - Confirm logs include trace context and that your custom metric appears in the dashboard
   id: phase5-topic5-practice-verify-telemetry-aspire-dashboard
-- order: 10
+- uuid: 1b44c659-927a-4bce-ad0d-06088f5d44b4
+  order: 10
   action: 'Practice:'
   title: Export Telemetry to Your Cloud Provider
   description: 'Connect your OpenTelemetry pipeline to your cloud provider''s monitoring backend so logs, traces, and metrics are visible in the cloud console. Follow the guide for your provider:'
@@ -123,49 +142,55 @@ learning_steps:
     url: https://cloud.google.com/trace/docs/setup/python-ot
     description: 'Install `opentelemetry-exporter-gcp-trace` and `opentelemetry-exporter-gcp-monitoring` to export traces to Cloud Trace and metrics to Cloud Monitoring.'
   id: phase5-topic5-practice-export-telemetry-cloud-provider
-- order: 11
+- uuid: 18ae6ef5-4958-4bc9-92c9-3c978f5fe767
+  order: 11
   action: 'Practice:'
   title: Verify Telemetry in Your Cloud Console
   description: 'After instrumenting your app and configuring the exporter, send a few requests to your Journal API and verify the telemetry appears in your cloud console:'
   checklist:
-    - 'Confirm traces are visible (Azure: Application Insights → Transaction search, AWS: X-Ray → Traces, GCP: Cloud Trace → Trace list)'
-    - 'Confirm metrics are visible (Azure: Application Insights → Metrics, AWS: CloudWatch → Metrics, GCP: Cloud Monitoring → Metrics Explorer)'
-    - 'Confirm logs are correlated with trace IDs (Azure: Application Insights → Logs, AWS: CloudWatch Logs, GCP: Cloud Logging)'
+  - 'Confirm traces are visible (Azure: Application Insights → Transaction search, AWS: X-Ray → Traces, GCP: Cloud Trace → Trace list)'
+  - 'Confirm metrics are visible (Azure: Application Insights → Metrics, AWS: CloudWatch → Metrics, GCP: Cloud Monitoring → Metrics Explorer)'
+  - 'Confirm logs are correlated with trace IDs (Azure: Application Insights → Logs, AWS: CloudWatch Logs, GCP: Cloud Logging)'
   id: phase5-topic5-practice-verify-telemetry-cloud-console
-- order: 12
+- uuid: 87962710-a649-4f86-b576-5a17c32157a5
+  order: 12
   action: 'Practice:'
   title: Query Your Telemetry
   description: 'Use your provider''s query tool to investigate real application behavior. For Azure, write KQL in Log Analytics or Application Insights Logs. For AWS, use CloudWatch Logs Insights. For GCP, use Logs Explorer and Metrics Explorer.'
   checklist:
-    - Find failed requests from the last hour
-    - Show request count by route or endpoint
-    - Show slow requests or p95 request duration
-    - Find recent exceptions
-    - Correlate one log entry with the trace/request that produced it
+  - Find failed requests from the last hour
+  - Show request count by route or endpoint
+  - Show slow requests or p95 request duration
+  - Find recent exceptions
+  - Correlate one log entry with the trace/request that produced it
   id: phase5-topic5-practice-query-telemetry
-- order: 13
+- uuid: f726e27e-64c7-4c69-a633-b38817f7eec4
+  order: 13
   action: 'Practice:'
   title: Build a Dashboard and Alert
   description: 'Create a small production-style dashboard and one actionable alert from your telemetry. Keep it simple and focused on signals an on-call engineer would actually use.'
   checklist:
-    - Add request count
-    - Add error count or error rate
-    - Add average or p95 latency
-    - Add recent exceptions or failed requests
-    - Create one alert for repeated 5xx responses, high latency, or another user-impacting symptom
+  - Add request count
+  - Add error count or error rate
+  - Add average or p95 latency
+  - Add recent exceptions or failed requests
+  - Create one alert for repeated 5xx responses, high latency, or another user-impacting symptom
   id: phase5-topic5-practice-build-dashboard-alert
-- order: 14
+- uuid: c7d2f35c-ab16-4118-b18b-ac0c7d171d1a
+  order: 14
   action: 'Practice:'
   title: Write a Short Incident Note
   description: 'Trigger or find a small issue in your telemetry and write a short note explaining what happened, how you detected it, which query or dashboard helped, and what alert would catch it next time.'
   id: phase5-topic5-practice-write-incident-note
-- order: 15
+- uuid: 0d18c18e-1d6f-4e0d-898e-ae7bba9b9bb9
+  order: 15
   action: 'Read:'
   title: Prometheus and Grafana as Optional Alternatives
   url: https://grafana.com/docs/grafana/latest/fundamentals/getting-started/first-dashboards/get-started-grafana-prometheus/
   description: Learn how Prometheus and Grafana fit into open-source and self-hosted observability stacks. Prometheus collects and queries metrics; Grafana visualizes data from Prometheus, cloud monitoring platforms, and many other backends.
   id: phase5-topic5-read-prometheus-grafana
-- order: 16
+- uuid: 0c42eb14-c41b-46b5-8fd0-ae9eb132ad2a
+  order: 16
   action: 'Practice:'
   title: 'Optional: Recreate Your Dashboard with Prometheus and Grafana'
   url: https://prometheus.io/docs/

@@ -1,7 +1,7 @@
 """Integration tests for persisted verification job execution."""
 
 from unittest.mock import AsyncMock, patch
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytest
 from sqlalchemy import func, select
@@ -48,6 +48,7 @@ def _requirement(
     submission_type: SubmissionType = SubmissionType.JOURNAL_API_VERIFIER,
 ) -> HandsOnRequirement:
     return HandsOnRequirement(
+        uuid=uuid4(),
         id=REQUIREMENT_ID,
         submission_type=submission_type,
         name="Verification Executor Test",

@@ -1,44 +1,54 @@
+# yaml-language-server: $schema=../../schemas/topic.schema.json
+uuid: cb7a1da6-95af-429e-8717-5cb0b9751f81
 id: phase3-topic3
 slug: databases
 name: Databases
 description: We will be using a PostgreSQL database to store our application data. You'll learn SQL fundamentals, run PostgreSQL locally using Docker, and connect to it from Python.
 order: 3
 learning_objectives:
-- id: databases-sql-foundations
+- uuid: bd7c4812-65f2-4b0c-83cb-0bcd1e492f15
+  id: databases-sql-foundations
   text: Apply SQL fundamentals for querying and mutating relational data.
   order: 1
-- id: databases-postgres-setup
+- uuid: a8f11146-2998-44ba-8292-33a3129c68cb
+  id: databases-postgres-setup
   text: Run and configure PostgreSQL locally for development workflows.
   order: 2
-- id: databases-python-integration
+- uuid: 986ba0ff-1219-4ed2-bcac-00e1f400e448
+  id: databases-python-integration
   text: Implement database access patterns in Python with SQLAlchemy.
   order: 3
 learning_steps:
-- order: 1
+- uuid: 869435d0-543e-4977-bffb-e23e0502f99f
+  order: 1
   action: 'Watch:'
   title: PostgreSQL Tutorial for Beginners
   url: https://www.youtube.com/watch?v=SpfIwlAYaKk
   description: Learn SQL fundamentals that directly support the capstone. Focus on SELECT, INSERT, UPDATE, DELETE, WHERE, ORDER BY, and basic joins.
   id: phase3-topic3-watch-postgresql-tutorial-for-beginners
-- order: 2
+- uuid: 23f18616-4070-4f9c-9aa4-0290f9ac6f0a
+  order: 2
   action: 'Practice:'
   title: PostgreSQL in Docker
   url: https://www.docker.com/blog/how-to-use-the-postgres-docker-official-image/
   description: Learn how to run PostgreSQL in a Docker container. This is the easiest way to get a database running locally without installing PostgreSQL on your system.
   id: phase3-topic3-practice-postgresql-in-docker
-- order: 3
+- uuid: bb805ff1-45b7-469e-8ce9-8b9ee9a00698
+  order: 3
   action: 'Practice:'
   title: Install VS Code PostgreSQL Extension
   url: https://www.youtube.com/watch?v=d_wpn8wW2sw
   description: Install the PostgreSQL extension in VS Code so you can connect to your local database, inspect tables, and run queries while building the capstone. For a guided walkthrough, watch https://www.youtube.com/watch?v=d_wpn8wW2sw.
   id: phase3-topic3-practice-install-vs-code-postgresql
-- order: 4
+- uuid: a6b42622-8f13-4696-a0ba-75111f6d0b4a
+  order: 4
   action: 'Practice:'
   title: SQLAlchemy Tutorial
   url: https://docs.sqlalchemy.org/en/20/tutorial/index.html
   description: Learn how to connect to PostgreSQL from Python using SQLAlchemy, the most popular Python ORM. This is the same library used in the capstone project.
   id: phase3-topic3-practice-sqlalchemy-tutorial
-- order: 5
+- uuid: dbe66489-45ce-49a1-b32b-1ef688545250
+  order: 5
   action: 'Practice:'
   title: Capstone DB Workflow Check
   description: Create a local PostgreSQL database, verify connection from the app, and run simple CRUD queries against the journal entry table shape used in the capstone.

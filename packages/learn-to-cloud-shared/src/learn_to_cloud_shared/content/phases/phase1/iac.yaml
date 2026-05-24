@@ -1,49 +1,60 @@
+# yaml-language-server: $schema=../../schemas/topic.schema.json
+uuid: 492f5805-7709-4cff-b9fb-baa4a93f4504
 id: phase1-topic3
 slug: iac
 name: Infrastructure as Code
 description: We will spend a lot more time on Infrastructure as Code and other DevOps practices later as all of our labs use them. For now, you need to familiarize yourself with a few Terraform concepts.
 order: 3
 learning_objectives:
-- id: iac-core-concepts
+- uuid: df842b16-a929-49f7-9a1c-82f506208b91
+  id: iac-core-concepts
   text: Describe Infrastructure as Code principles and why IaC improves consistency.
   order: 1
-- id: iac-terraform-basics
+- uuid: 3670ae48-bed3-4213-95b7-b97655ff790a
+  id: iac-terraform-basics
   text: Understand the purpose of key Terraform commands used in real workflows.
   order: 2
-- id: iac-environment-setup
+- uuid: 0bdc2207-d784-47be-855a-74ad03e81058
+  id: iac-environment-setup
   text: Install Terraform and prepare your environment for hands-on infrastructure work.
   order: 3
 learning_steps:
-- order: 1
+- uuid: 9b6bb9e2-dfe0-4de8-adfb-117e4ff3ecc4
+  order: 1
   action: 'Read:'
   title: What is IaC
   url: https://www.hashicorp.com/resources/what-is-infrastructure-as-code
   description: Learn the fundamentals of Infrastructure as Code and why it's important.
   id: phase1-topic3-read-what-is-iac
-- order: 2
+- uuid: ecaf51a3-166a-4584-b843-aa46549cbf66
+  order: 2
   action: 'Read:'
   title: What is Infrastructure as Code with Terraform?
   url: https://developer.hashicorp.com/terraform/intro
   id: phase1-topic3-read-what-is-infrastructure-as
-- order: 3
+- uuid: 1219cbf7-2205-4e4a-b727-7d549f6a7854
+  order: 3
   action: 'Read:'
   title: Terraform init
   url: https://developer.hashicorp.com/terraform/cli/commands/init
   description: Learn what terraform init does and why it's the first command you run.
   id: phase1-topic3-read-terraform-init
-- order: 4
+- uuid: 34aeb3ff-88e1-4f82-8810-a3084ac76899
+  order: 4
   action: 'Read:'
   title: Terraform apply
   url: https://developer.hashicorp.com/terraform/cli/commands/apply
   description: Learn how terraform apply creates and updates infrastructure.
   id: phase1-topic3-read-terraform-apply
-- order: 5
+- uuid: 8566b08e-2db1-4358-bf50-52de49ca0133
+  order: 5
   action: 'Read:'
   description: 'Remember: The goal is for AI to challenge your understanding, not give you the answer. Use this prompt to verify you understand IaC concepts:'
   code: 'I''m studying cloud engineering and recently learned about Infrastructure as Code. I will provide you an explanation about it and please ask me any questions if my explanation is not clear. I want to make sure I really understand this concept so please do not correct me, simply ask questions until I get the explanation right. Here is my explanation: IaC is...'
   title: Test your understanding with an AI assistant
   id: phase1-topic3-read-test-your-understanding-with
-- order: 6
+- uuid: 7b9f42b2-796a-412c-b522-94e88770517e
+  order: 6
   action: 'Practice:'
   title: Install Terraform
   url: https://developer.hashicorp.com/terraform/install

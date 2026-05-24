@@ -8,6 +8,7 @@ Tests cover:
 """
 
 from unittest.mock import AsyncMock, patch
+from uuid import uuid4
 
 import pytest
 
@@ -41,6 +42,7 @@ def _clear_lru_caches():
 
 def _make_requirement(req_id: str = "req-1") -> HandsOnRequirement:
     return HandsOnRequirement(
+        uuid=uuid4(),
         id=req_id,
         submission_type=SubmissionType.JOURNAL_API_VERIFIER,
         name="Test Requirement",
@@ -51,6 +53,7 @@ def _make_requirement(req_id: str = "req-1") -> HandsOnRequirement:
 def _make_phase_with_requirements(phase_id: int, req_ids: list[str]) -> Phase:
     reqs = [_make_requirement(rid) for rid in req_ids]
     return Phase(
+        uuid=uuid4(),
         id=phase_id,
         name=f"Phase {phase_id}",
         slug=f"phase{phase_id}",

@@ -10,6 +10,7 @@ Tests cover:
 
 from typing import Any, cast
 from unittest.mock import AsyncMock, MagicMock, patch
+from uuid import uuid4
 
 import pytest
 from learn_to_cloud_shared.schemas import LearningStep, Topic
@@ -30,7 +31,7 @@ from learn_to_cloud.services.steps_service import (
 
 
 def _make_step(step_id: str, order: int = 0) -> LearningStep:
-    return LearningStep(id=step_id, order=order, title=f"Step {step_id}")
+    return LearningStep(uuid=uuid4(), id=step_id, order=order, title=f"Step {step_id}")
 
 
 def _make_topic(
@@ -39,6 +40,7 @@ def _make_topic(
 ) -> Topic:
     step_ids = steps if steps is not None else ["step-intro", "step-basics"]
     return Topic(
+        uuid=uuid4(),
         id=topic_id,
         slug="topic1",
         name="Test Topic",

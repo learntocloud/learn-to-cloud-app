@@ -1,3 +1,5 @@
+# yaml-language-server: $schema=../../schemas/topic.schema.json
+uuid: ca57ab23-c56b-4352-bb47-9cbd0530e78b
 id: phase6-capstone
 slug: capstone
 name: 'Capstone: Secure Your Journal API'
@@ -5,119 +7,131 @@ description: Apply everything from this phase to harden your Journal API with re
 short_description: Harden your Journal API with IAM, secrets management, network controls, and monitoring.
 order: 4
 learning_objectives:
-- id: security-capstone-hardening
+- uuid: f48146c0-831d-49a1-ab8d-4f431bf9e347
+  id: security-capstone-hardening
   text: Apply layered security controls to harden your deployed Journal API.
   order: 1
-- id: security-capstone-governance
+- uuid: 5c9c6e63-d54a-4a02-9099-fd4f94d70ebc
+  id: security-capstone-governance
   text: Implement IAM, secret handling, network controls, and monitoring in a production mindset.
   order: 2
-- id: security-capstone-validation
+- uuid: 5bdc6d77-f343-4592-9f43-c479b9256fd7
+  id: security-capstone-validation
   text: Demonstrate verifiable security posture improvements through scanning and operational checks.
   order: 3
 learning_steps:
-- order: 1
+- uuid: d9163b7c-2c94-4715-8de2-2824a3983eda
+  order: 1
   action: 'Practice:'
   title: Create a dedicated service account for your Journal API
   description: Stop using your personal credentials. Create a service account (or managed identity) with **only** the permissions your API needs.
   checklist:
-    - "**Create the identity** — A service principal (Azure), IAM role (AWS), or service account (GCP) dedicated to your Journal API"
-    - "**Scope permissions** — Grant only what the API needs: database access, secrets read, and container registry pull. No admin rights"
-    - "**Assign to your VM or container** — Attach the identity so your app authenticates automatically without storing credentials"
-    - "**Remove personal credentials** — Delete any personal access keys or passwords from your `.env` and VM"
+  - "**Create the identity** — A service principal (Azure), IAM role (AWS), or service account (GCP) dedicated to your Journal API"
+  - "**Scope permissions** — Grant only what the API needs: database access, secrets read, and container registry pull. No admin rights"
+  - "**Assign to your VM or container** — Attach the identity so your app authenticates automatically without storing credentials"
+  - "**Remove personal credentials** — Delete any personal access keys or passwords from your `.env` and VM"
   done_when: Your API runs using the service account's identity, not your personal credentials, and the service account has no more permissions than necessary.
   id: phase6-capstone-practice-create-a-dedicated-service
 
-- order: 2
+- uuid: 53510b1d-2c77-49c2-8041-4692eee7b96f
+  order: 2
   action: 'Practice:'
   title: Move secrets to a cloud secrets manager
   description: Move your database password, LLM API key, and any other secrets out of `.env` files and into a managed secrets service.
   checklist:
-    - "**Create the vault** — Azure Key Vault, AWS Secrets Manager, or GCP Secret Manager"
-    - "**Store each secret** — `DATABASE_URL`, `OPENAI_API_KEY`, and any other API keys or tokens"
-    - "**Grant your service account** (from Step 1) read-only access to the vault"
-    - "**Update your app** to retrieve secrets from the vault at startup instead of reading `.env`"
-    - "**Delete the `.env` file** from your VM"
+  - "**Create the vault** — Azure Key Vault, AWS Secrets Manager, or GCP Secret Manager"
+  - "**Store each secret** — `DATABASE_URL`, `OPENAI_API_KEY`, and any other API keys or tokens"
+  - "**Grant your service account** (from Step 1) read-only access to the vault"
+  - "**Update your app** to retrieve secrets from the vault at startup instead of reading `.env`"
+  - "**Delete the `.env` file** from your VM"
   done_when: Your app starts successfully with all secrets loaded from the vault, and no plaintext secrets exist on disk.
   id: phase6-capstone-practice-move-secrets-to-a
 
-- order: 3
+- uuid: 0bd35d1d-88e6-4175-ac71-56dfd47bd393
+  order: 3
   action: 'Practice:'
   title: Verify your database is in a private subnet
   description: Confirm your database is **not** accessible from the public internet — it should only accept connections from your API server's subnet.
   checklist:
-    - "**Check firewall rules** — Only allow inbound on port 5432 from the API subnet's CIDR range"
-    - "**Check public IP** — Your database VM should have no public IP attached (remove the temporary one from Phase 4 if you haven't already)"
-    - "**Test from outside** — Attempt to connect from your local machine — it should fail"
-    - "**Test from inside** — Connect from your API VM — it should succeed"
+  - "**Check firewall rules** — Only allow inbound on port 5432 from the API subnet's CIDR range"
+  - "**Check public IP** — Your database VM should have no public IP attached (remove the temporary one from Phase 4 if you haven't already)"
+  - "**Test from outside** — Attempt to connect from your local machine — it should fail"
+  - "**Test from inside** — Connect from your API VM — it should succeed"
   done_when: The database is unreachable from the internet and only accepts connections from your API server.
   id: phase6-capstone-practice-verify-your-database-is
 
-- order: 4
+- uuid: 58a1b003-1828-4475-9960-a0f5e23707ce
+  order: 4
   action: 'Practice:'
   title: Configure HTTPS for all API traffic
   description: Ensure your API **only** accepts HTTPS connections. No plaintext HTTP traffic should reach your application.
   checklist:
-    - "**Verify TLS** — `curl -v https://yourdomain/entries` shows a valid certificate"
-    - "**Block HTTP** — Either redirect HTTP→HTTPS in your reverse proxy, or remove port 80 from your security group entirely"
-    - "**Test plaintext** — `curl http://yourdomain/entries` should either redirect to HTTPS or fail to connect"
+  - "**Verify TLS** — `curl -v https://yourdomain/entries` shows a valid certificate"
+  - "**Block HTTP** — Either redirect HTTP→HTTPS in your reverse proxy, or remove port 80 from your security group entirely"
+  - "**Test plaintext** — `curl http://yourdomain/entries` should either redirect to HTTPS or fail to connect"
   done_when: "All API traffic is encrypted, and `curl http://yourdomain/entries` does not return a plaintext `200 OK`."
   id: phase6-capstone-practice-configure-https-for-all
 
-- order: 5
+- uuid: 69d24a4d-881b-44eb-946e-0c23f9ffccef
+  order: 5
   action: 'Practice:'
   title: Enable audit logging
   description: Enable cloud-native audit logging so you can track who did what across your infrastructure.
   checklist:
-    - "**Enable the service** — CloudTrail (AWS), Activity Log + Diagnostic Settings (Azure), or Cloud Audit Logs (GCP)"
-    - "**Verify events** — Perform an action (e.g., restart your VM) and confirm it appears in the logs"
-    - "**Set retention** — Ensure logs are retained for at least 90 days"
+  - "**Enable the service** — CloudTrail (AWS), Activity Log + Diagnostic Settings (Azure), or Cloud Audit Logs (GCP)"
+  - "**Verify events** — Perform an action (e.g., restart your VM) and confirm it appears in the logs"
+  - "**Set retention** — Ensure logs are retained for at least 90 days"
   tips:
-    - type: tip
-      text: Most cloud platforms enable some audit logging by default, but you may need to configure a storage destination or enable additional log categories.
+  - type: tip
+    text: Most cloud platforms enable some audit logging by default, but you may need to configure a storage destination or enable additional log categories.
   done_when: You can view audit events for your infrastructure actions in your cloud console's logging dashboard.
   id: phase6-capstone-practice-enable-audit-logging
 
-- order: 6
+- uuid: 0ba614b5-943c-44e6-ba9a-2cfdf6d60b7e
+  order: 6
   action: 'Practice:'
   title: Set up at least one security alert
   description: Create at least one automated alert for a security-relevant event in your infrastructure.
   checklist:
-    - "**Choose an event** — e.g., failed SSH logins, security group changes, unusual traffic, or unexpected secret access"
-    - "**Create the alert rule** in your cloud monitoring service"
-    - "**Configure a notification channel** — email, Slack, or webhook"
-    - "**Trigger a test event** and verify you receive the alert"
+  - "**Choose an event** — e.g., failed SSH logins, security group changes, unusual traffic, or unexpected secret access"
+  - "**Create the alert rule** in your cloud monitoring service"
+  - "**Configure a notification channel** — email, Slack, or webhook"
+  - "**Trigger a test event** and verify you receive the alert"
   done_when: You trigger a test event and receive an alert notification.
   id: phase6-capstone-practice-set-up-at-least
 
-- order: 7
+- uuid: e2b8c099-6322-446d-9118-a1406c1ad6b8
+  order: 7
   action: 'Practice:'
   title: Enable security scanning on your repository
   description: Enable automated security scanning on your GitHub repository to catch vulnerabilities in your code and dependencies.
   checklist:
-    - "**Enable Dependabot** — Settings → Code security and analysis → Enable Dependabot alerts and security updates"
-    - "**Enable CodeQL** (optional) — Add a CodeQL analysis workflow in `.github/workflows/`"
-    - "**Review findings** — Check the Security tab for any alerts"
-    - "**Triage** — Fix critical/high severity findings, dismiss false positives with a reason"
+  - "**Enable Dependabot** — Settings → Code security and analysis → Enable Dependabot alerts and security updates"
+  - "**Enable CodeQL** (optional) — Add a CodeQL analysis workflow in `.github/workflows/`"
+  - "**Review findings** — Check the Security tab for any alerts"
+  - "**Triage** — Fix critical/high severity findings, dismiss false positives with a reason"
   done_when: Dependabot is enabled, you've reviewed any alerts, and critical findings are addressed.
   id: phase6-capstone-practice-enable-security-scanning-on
 
-- order: 8
+- uuid: 831a7907-14bc-4a99-b03d-d7dc1fc4d742
+  order: 8
   action: 'Practice:'
   title: Clean up your cloud resources
   description: This is the final phase — delete **all** cloud resources to avoid ongoing charges.
   checklist:
-    - VMs, disks, and public IPs
-    - Virtual networks, subnets, and security groups
-    - Secrets manager entries and service accounts
-    - AI service deployments
-    - Monitoring or logging configurations that incur cost
+  - VMs, disks, and public IPs
+  - Virtual networks, subnets, and security groups
+  - Secrets manager entries and service accounts
+  - AI service deployments
+  - Monitoring or logging configurations that incur cost
   tips:
-    - type: tip
-      text: If you used resource groups or tags, deleting the group removes everything at once.
+  - type: tip
+    text: If you used resource groups or tags, deleting the group removes everything at once.
   done_when: Your cloud console shows no remaining billable resources from this project.
   id: phase6-capstone-practice-clean-up-your-cloud
 
-- order: 9
+- uuid: 31c6ef21-d9a3-43fc-b102-8d58ecbe4342
+  order: 9
   action: 'Reflect:'
   title: Share Your Progress
   description: |-

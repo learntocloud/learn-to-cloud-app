@@ -1,20 +1,26 @@
+# yaml-language-server: $schema=../../schemas/topic.schema.json
+uuid: 16f07808-1272-48e1-874b-6271e5efd51b
 id: phase6-topic4
 slug: monitoring-incident-response
 name: Monitoring & Incident Response
 description: Set up logging and alerts so you know when something goes wrong, and have a basic plan for what to do when it does.
 order: 3
 learning_objectives:
-- id: security-monitoring-foundations
+- uuid: f27b1a64-990b-4446-8d60-097ef6dee345
+  id: security-monitoring-foundations
   text: Configure monitoring and audit logging needed for cloud security visibility.
   order: 1
-- id: security-monitoring-alerting
+- uuid: 552ecf9c-f00b-4ab8-9787-63d190c50dd4
+  id: security-monitoring-alerting
   text: Implement targeted alerts for critical security-relevant events.
   order: 2
-- id: security-monitoring-response
+- uuid: 1958f8a4-4964-4b39-9acb-1614553eb93c
+  id: security-monitoring-response
   text: Create an actionable incident response baseline for common compromise scenarios.
   order: 3
 learning_steps:
-- order: 1
+- uuid: 43f1641a-9837-4502-a771-825b409ac904
+  order: 1
   action: 'Read:'
   title: Cloud Monitoring Overview
   description: Each cloud provider has monitoring (metrics) and audit logging (who did what). Read the overview for your provider.
@@ -32,7 +38,8 @@ learning_steps:
     url: https://docs.cloud.google.com/monitoring/docs/monitoring-overview
     description: Monitoring in Google Cloud
   id: phase6-topic4-read-cloud-monitoring-overview
-- order: 2
+- uuid: dfcfa2e6-43a5-4a29-b5b3-af7c344eb5f9
+  order: 2
   action: 'Practice:'
   description: Enable CloudTrail (AWS), Activity Log (Azure), or Cloud Logging (GCP) so you have a record of all actions taken on your cloud resources.
   title: Enable audit logging for your cloud services
@@ -50,7 +57,8 @@ learning_steps:
     url: https://docs.cloud.google.com/logging/docs/audit
     description: Audit logging for Google Cloud services and APIs
   id: phase6-topic4-practice-enable-audit-logging-for
-- order: 3
+- uuid: 7476a6e8-f134-4d7a-bf07-4d979c9d48cc
+  order: 3
   action: 'Practice:'
   description: Create at least one alert — for example, notify you when someone modifies a security group or when there are repeated failed login attempts.
   title: Set up an alert for a critical security event
@@ -68,7 +76,8 @@ learning_steps:
     url: https://docs.cloud.google.com/monitoring/alerts
     description: Create alerting policies for metrics, logs, and uptime checks
   id: phase6-topic4-practice-set-up-an-alert
-- order: 4
+- uuid: 87dbdc81-57c1-45fe-92b7-e3171300bc1a
+  order: 4
   action: 'Practice:'
   description: Turn on the managed threat detection service that scans your environment for suspicious activity.
   options:
@@ -86,13 +95,15 @@ learning_steps:
     description: Threat detection in Google Cloud
   title: Enable your cloud provider's threat detection service
   id: phase6-topic4-practice-enable-your-cloud-providers
-- order: 5
+- uuid: 51dbcfaa-6647-4961-9591-591f078e7f02
+  order: 5
   action: 'Practice:'
   title: GitHub Security Scanning
   url: https://docs.github.com/code-security/tutorials
   description: Enable at least one scanning tool on your journal-starter repository. Dependabot monitors your dependencies for known vulnerabilities — enable it by adding a .github/dependabot.yml file. CodeQL analyzes your code for security issues — enable it via the Security tab or by adding a workflow to .github/workflows/. This is what the phase verification checks.
   id: phase6-topic4-practice-github-security-scanning
-- order: 6
+- uuid: 68bbb198-ba76-47c4-abc5-2d386d377bce
+  order: 6
   action: 'Practice:'
   description: Write a short runbook answering "What do we do if credentials are leaked?" Include steps to rotate credentials, check for unauthorized access, and notify stakeholders.
   title: Write a basic incident response runbook

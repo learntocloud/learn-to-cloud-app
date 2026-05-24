@@ -8,6 +8,7 @@ Tests cover:
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
+from uuid import uuid4
 
 import pytest
 from learn_to_cloud_shared.models import SubmissionType
@@ -53,6 +54,7 @@ def _make_mock_requirement(
 ) -> HandsOnRequirement:
     """Create a mock requirement for testing."""
     return HandsOnRequirement(
+        uuid=uuid4(),
         id="test-requirement",
         submission_type=submission_type,
         name="Test Requirement",

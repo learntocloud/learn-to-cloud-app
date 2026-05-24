@@ -1,44 +1,54 @@
+# yaml-language-server: $schema=../../schemas/topic.schema.json
+uuid: fc28fe36-e319-44f2-a3aa-d8bbb1621db5
 id: phase5-topic1
 slug: containers
 name: Containerization
 description: Containerization is a modern approach to deploying and managing applications across various environments. It allows you to package software, tools, and their dependencies into lightweight, portable units called containers. Key benefits include consistency across environments, efficient resource utilization, simplified deployment, and isolation between applications.
 order: 1
 learning_objectives:
-- id: containers-core-concepts
+- uuid: 73870957-eb0f-4062-83eb-780854c74e20
+  id: containers-core-concepts
   text: Explain containerization benefits and differences from traditional virtualization.
   order: 1
-- id: containers-build-distribute
+- uuid: 19c66e8f-1105-46e1-bb14-791a1d9ef6e0
+  id: containers-build-distribute
   text: Build container images and distribute them through registry workflows.
   order: 2
-- id: containers-project-application
+- uuid: b4535664-bd6a-4753-9ddc-843bd4fc54a9
+  id: containers-project-application
   text: Apply container practices directly to your Journal API project lifecycle.
   order: 3
 learning_steps:
-- order: 1
+- uuid: 1ab0f304-8648-4ce0-8338-a936bdd4c69a
+  order: 1
   action: 'Read:'
   title: What is Containerization?
   url: https://github.com/resources/articles/containerization
   description: Learn how containers package applications with their dependencies for consistent deployment.
   id: phase5-topic1-read-what-is-containerization
-- order: 2
+- uuid: bc4f427e-7570-4e70-ad88-ad34982a001f
+  order: 2
   action: 'Read:'
   title: Containerization vs Virtualization
   url: https://kodekloud.com/blog/virtualization-vs-containerization/
   description: Understand the key differences between containers and virtual machines.
   id: phase5-topic1-read-containerization-vs-virtualization
-- order: 3
+- uuid: 9e4f8ffd-e67c-40c2-a18f-d1e48316d376
+  order: 3
   action: 'Watch:'
   title: What is Docker?
   url: https://youtu.be/3c-iBn73dDE
   description: Comprehensive video introduction to Docker and containerization.
   id: phase5-topic1-watch-what-is-docker
-- order: 4
+- uuid: 8b29c044-7f74-49fa-b7a7-0a4bfd682424
+  order: 4
   action: 'Explore:'
   title: What is a Container Registry?
   url: https://docs.docker.com/get-started/docker-concepts/the-basics/what-is-a-registry/
   description: Learn how container registries store and distribute Docker images.
   id: phase5-topic1-explore-what-is-a-container
-- order: 5
+- uuid: 38475b32-430f-417c-8a80-5093d1b15969
+  order: 5
   action: 'Practice:'
   description: 'Write a Dockerfile for your Journal API. Use the sample below as a reference:'
   code: 'FROM python:3.11-slim
@@ -61,12 +71,14 @@ learning_steps:
     CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]'
   title: Write a Dockerfile for your Journal API
   id: phase5-topic1-practice-write-a-dockerfile-for
-- order: 6
+- uuid: 626b6cfe-1133-49c7-acc9-70042f5415e8
+  order: 6
   action: 'Practice:'
   description: Build the Docker image from your Dockerfile and run it locally. Test that your Journal API works correctly inside the container.
   title: Build and run your container locally
   id: phase5-topic1-practice-build-and-run-your
-- order: 7
+- uuid: bc8cb897-feb7-4b62-9501-addac708c334
+  order: 7
   action: 'Practice:'
   description: 'Tag your image and push it to a container registry. Follow the guide for your cloud provider:'
   options:
@@ -84,13 +96,15 @@ learning_steps:
     description: Push images to Google Container Registry
   title: Push your image to a container registry
   id: phase5-topic1-practice-push-your-image-to
-- order: 8
+- uuid: 61d5fb18-5389-4b6e-a564-179df9d4da8c
+  order: 8
   action: 'Read:'
   title: Docker Troubleshooting
   url: https://docs.docker.com/engine/daemon/troubleshoot/
   description: Reference for common Docker issues and solutions.
   id: phase5-topic1-read-docker-troubleshooting
-- order: 9
+- uuid: ff97145c-d0be-48ba-9403-c7eb1e613d91
+  order: 9
   action: 'Note:'
   title: Keep your container image for the capstone
   description: Don't delete the container image you pushed to your registry — you'll need it for the DevOps capstone project. Registry storage for a single image is minimal cost.

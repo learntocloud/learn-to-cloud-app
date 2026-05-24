@@ -1,26 +1,34 @@
+# yaml-language-server: $schema=../../schemas/topic.schema.json
+uuid: 2ca41505-7759-4ac6-bed1-e046488e00ef
 id: phase4-topic2
 slug: security-iam
 name: Security & Identity Management
 description: This section focuses on identity and access management (IAM) to control permissions and protect cloud resources through users, roles, policies, and the principle of least privilege.
 order: 2
 learning_objectives:
-- id: security-iam-core-concepts
+- uuid: 0051b6a9-b335-412d-a23e-29abc035e967
+  id: security-iam-core-concepts
   text: Explain IAM primitives including users, groups, roles, and policy-based access.
   order: 1
-- id: security-iam-least-privilege
+- uuid: ed3f5b2e-2cde-42e1-b950-203aafcd3270
+  id: security-iam-least-privilege
   text: Apply least-privilege access principles for safer day-to-day operations.
   order: 2
-- id: security-iam-managed-identities
+- uuid: 4154913a-cccc-4cfd-a5c1-d95935c6d594
+  id: security-iam-managed-identities
   text: Explain how managed identities and service accounts allow workloads to authenticate without long-lived credentials.
   order: 3
-- id: security-iam-mfa-credentials
+- uuid: 189690ba-1467-40d9-8afc-f27c300fcf84
+  id: security-iam-mfa-credentials
   text: Describe the importance of MFA enforcement and secure credential management.
   order: 4
-- id: security-iam-hands-on
+- uuid: ed34908d-f0de-47af-9bf4-763afa0bea21
+  id: security-iam-hands-on
   text: Create and scope IAM roles and policies through hands-on practice.
   order: 5
 learning_steps:
-- order: 1
+- uuid: 41cc723c-6ce1-4860-a15a-0de33b2eefe2
+  order: 1
   action: 'Read:'
   description: 'Identity and Access Management (IAM) is how you control who can do what in your cloud environment. Master these core concepts: Users, Groups, Roles, and Policies.'
   options:
@@ -38,7 +46,8 @@ learning_steps:
     description: Understanding Identity and Access Management in Google Cloud
   title: Learn IAM concepts across cloud providers
   id: phase4-topic2-read-learn-iam-concepts-across
-- order: 2
+- uuid: b3d0791b-a219-4904-ad2f-1d3eee9ab2a8
+  order: 2
   action: 'Read:'
   description: Understand role-based access control and the principle of least privilege — granting only the minimum permissions needed for a task.
   options:
@@ -56,7 +65,8 @@ learning_steps:
     description: Review IAM security best practices and least-privilege guidance in GCP
   title: Learn least-privilege IAM practices by provider
   id: phase4-topic2-read-learn-least-privilege-iam-practices
-- order: 3
+- uuid: 8d2f5eff-e699-4065-bef0-ae164fa3a3c9
+  order: 3
   action: 'Read:'
   description: In production, workloads (VMs, containers, functions) need their own identity to access other cloud services. Managed identities and service accounts eliminate the need for storing secrets or rotating access keys manually.
   options:
@@ -74,7 +84,8 @@ learning_steps:
     description: Learn how GCP workloads use service accounts for authentication
   title: Understand managed identities and service accounts
   id: phase4-topic2-read-understand-managed-identities
-- order: 4
+- uuid: c34d57df-b86b-4cbb-a763-085c511a13cc
+  order: 4
   action: 'Read:'
   description: Multi-factor authentication (MFA) adds a critical second layer of protection. Understand why MFA should be enforced for all human users and why long-lived access keys should be avoided.
   options:
@@ -92,12 +103,14 @@ learning_steps:
     description: Enforce MFA across Google Cloud user accounts
   title: Learn MFA and credential hygiene by provider
   id: phase4-topic2-read-learn-mfa-credential-hygiene
-- order: 5
+- uuid: cfe6c01b-e0fa-4840-98de-dc790a41095e
+  order: 5
   action: 'Practice:'
   description: "Create a storage bucket or container (S3, Azure Blob Storage, or GCS). Upload a test file using your admin account. Then create a new IAM role or user with a policy that grants ONLY read access to that storage service. Sign in or assume that restricted role and verify: (1) you can list and download the file, (2) you CANNOT upload or delete files."
   title: Create a read-only storage role and test its limits
   id: phase4-topic2-practice-create-scoped-iam-role
-- order: 6
+- uuid: df127f82-93f4-4ee8-966c-5508fd7b70cf
+  order: 6
   action: 'Practice:'
   title: Clean up your cloud resources
   description: Delete the storage bucket, test files, and IAM role or user you created. Check your cloud console to confirm all resources are removed.
