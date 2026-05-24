@@ -32,10 +32,8 @@ from learn_to_cloud_shared.verification.execution import (
     to_submission_data,
 )
 from learn_to_cloud_shared.verification.requirements import (
-    get_phase_id_for_requirement,
     get_prerequisite_phase,
-    get_requirement_by_id,
-    get_requirement_ids_for_phase,
+    load_requirement_index,
 )
 from opentelemetry import trace
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -168,17 +166,18 @@ async def _check_submission_preconditions(
 
     Opens a short-lived DB session for reads, then releases it before returning.
     """
-    requirement = get_requirement_by_id(requirement_id)
-    if not requirement:
-        raise RequirementNotFoundError(f"Requirement not found: {requirement_id}")
-
-    phase_id = get_phase_id_for_requirement(requirement_id)
-    if phase_id is None:
-        raise RequirementNotFoundError(
-            f"Requirement not mapped to a phase: {requirement_id}"
-        )
-
     async with session_maker() as read_session:
+        index = await load_requirement_index(read_session)
+        requirement = index.by_id.get(requirement_id)
+        if not requirement:
+            raise RequirementNotFoundError(f"Requirement not found: {requirement_id}")
+
+        phase_id = index.phase_id_by_req_id.get(requirement_id)
+        if phase_id is None:
+            raise RequirementNotFoundError(
+                f"Requirement not mapped to a phase: {requirement_id}"
+            )
+
         submission_repo = SubmissionRepository(read_session)
 
         existing = await submission_repo.get_by_user_and_requirement(
@@ -190,7 +189,7 @@ async def _check_submission_preconditions(
         # Sequential phase gating
         prereq_phase = get_prerequisite_phase(phase_id)
         if prereq_phase is not None:
-            prereq_req_ids = get_requirement_ids_for_phase(prereq_phase)
+            prereq_req_ids = index.requirement_ids_for_phase(prereq_phase)
             if prereq_req_ids:
                 all_done = await submission_repo.are_all_requirements_validated(
                     user_id, prereq_req_ids

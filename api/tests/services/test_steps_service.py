@@ -57,37 +57,42 @@ def _make_topic(
 
 @pytest.mark.unit
 class TestResolveStep:
-    def test_valid_step_resolved(self):
+    @pytest.mark.asyncio
+    async def test_valid_step_resolved(self):
         topic = _make_topic(steps=["step-intro", "step-basics"])
         with patch(
             "learn_to_cloud.services.steps_service.get_topic_by_id",
-            autospec=True,
+            new_callable=AsyncMock,
             return_value=topic,
         ):
-            step_id, order, total = _resolve_step("phase0-topic1", "step-intro")
+            step_id, order, total = await _resolve_step(
+                AsyncMock(), "phase0-topic1", "step-intro"
+            )
         assert step_id == "step-intro"
         assert order == 0
         assert total == 2
 
-    def test_unknown_topic_raises(self):
+    @pytest.mark.asyncio
+    async def test_unknown_topic_raises(self):
         with patch(
             "learn_to_cloud.services.steps_service.get_topic_by_id",
-            autospec=True,
+            new_callable=AsyncMock,
             return_value=None,
         ):
             with pytest.raises(StepUnknownTopicError) as exc_info:
-                _resolve_step("nonexistent", "step-1")
+                await _resolve_step(AsyncMock(), "nonexistent", "step-1")
             assert exc_info.value.topic_id == "nonexistent"
 
-    def test_invalid_step_id_raises(self):
+    @pytest.mark.asyncio
+    async def test_invalid_step_id_raises(self):
         topic = _make_topic(steps=["step-intro"])
         with patch(
             "learn_to_cloud.services.steps_service.get_topic_by_id",
-            autospec=True,
+            new_callable=AsyncMock,
             return_value=topic,
         ):
             with pytest.raises(StepInvalidStepIdError) as exc_info:
-                _resolve_step("phase0-topic1", "nonexistent-step")
+                await _resolve_step(AsyncMock(), "phase0-topic1", "nonexistent-step")
             assert exc_info.value.step_id == "nonexistent-step"
 
 

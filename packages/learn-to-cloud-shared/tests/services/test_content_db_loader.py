@@ -21,11 +21,13 @@ from learn_to_cloud_shared.content_db_loader import (
     load_topic_by_id_from_db,
     load_topic_by_slugs_from_db,
 )
-from learn_to_cloud_shared.content_service import (
-    clear_cache,
-    get_all_phases,
-)
 from learn_to_cloud_shared.content_sync import sync_curriculum_to_db
+from learn_to_cloud_shared.content_yaml_loader import (
+    clear_cache,
+)
+from learn_to_cloud_shared.content_yaml_loader import (
+    get_all_phases_from_yaml as get_all_phases,
+)
 from learn_to_cloud_shared.models import (
     CurriculumPhase,
     CurriculumRequirement,

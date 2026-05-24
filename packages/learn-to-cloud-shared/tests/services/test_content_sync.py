@@ -131,7 +131,7 @@ async def _patch_validators_and_run(
     """Patch the loader and validators for deterministic test input."""
     with (
         patch(
-            "learn_to_cloud_shared.content_sync.get_all_phases",
+            "learn_to_cloud_shared.content_sync.get_all_phases_from_yaml",
             return_value=phases,
         ),
         patch(
@@ -311,7 +311,7 @@ async def test_validation_failure_blocks_sync(
     """If validate_content returns errors, sync aborts before any writes."""
     with (
         patch(
-            "learn_to_cloud_shared.content_sync.get_all_phases",
+            "learn_to_cloud_shared.content_sync.get_all_phases_from_yaml",
             return_value=fresh_curriculum,
         ),
         patch(

@@ -12,6 +12,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from learn_to_cloud_shared.models import SubmissionType
 from learn_to_cloud_shared.schemas import HandsOnRequirement
+from learn_to_cloud_shared.verification.requirements import RequirementIndex
 
 from learn_to_cloud.services.submissions_service import (
     AlreadyValidatedError,
@@ -23,29 +24,6 @@ from learn_to_cloud.services.submissions_service import (
     create_verification_job,
     get_phase_submission_context,
 )
-
-
-@pytest.fixture(autouse=True)
-def _mock_phase_id_mapping():
-    """Mock requirement → phase mapping and prerequisite functions for all tests."""
-    with (
-        patch(
-            "learn_to_cloud.services.submissions_service.get_phase_id_for_requirement",
-            autospec=True,
-            return_value=3,
-        ),
-        patch(
-            "learn_to_cloud.services.submissions_service.get_prerequisite_phase",
-            autospec=True,
-            return_value=None,
-        ),
-        patch(
-            "learn_to_cloud.services.submissions_service.get_requirement_ids_for_phase",
-            autospec=True,
-            return_value=[],
-        ),
-    ):
-        yield
 
 
 def _make_mock_requirement(
@@ -91,8 +69,8 @@ def _mock_session_maker():
     """Create a mock async_sessionmaker for testing.
 
     Returns a callable that produces async context managers yielding
-    an AsyncMock session.  Since tests patch SubmissionRepository,
-    the actual session object is irrelevant — it just needs to support
+    an AsyncMock session. Since tests patch SubmissionRepository,
+    the actual session object is irrelevant -- it just needs to support
     the async-with protocol and have a .commit() coroutine.
     """
 
@@ -103,20 +81,60 @@ def _mock_session_maker():
     return _factory
 
 
+def _build_index(
+    requirement: HandsOnRequirement | None,
+    *,
+    phase_id: int = 3,
+    prereq_phase: int | None = None,
+    prereq_req_ids: list[str] | None = None,
+) -> RequirementIndex:
+    """Build a RequirementIndex containing the given requirement plus optional
+    prerequisite-phase requirement ids.
+
+    The submissions service only ever reads ``by_id``, ``phase_id_by_req_id``,
+    and ``requirement_ids_for_phase`` from the index. We construct the prereq
+    requirements with the real factory so the index's type signature stays
+    honest.
+    """
+    from learn_to_cloud_shared.testing.requirement_factories import (
+        journal_api_verifier_requirement,
+    )
+
+    by_phase: dict[int, list[HandsOnRequirement]] = {}
+    by_id: dict[str, HandsOnRequirement] = {}
+    phase_id_by_req_id: dict[str, int] = {}
+    if requirement is not None:
+        by_phase[phase_id] = [requirement]
+        by_id[requirement.id] = requirement
+        phase_id_by_req_id[requirement.id] = phase_id
+    if prereq_phase is not None and prereq_req_ids:
+        prereq_reqs = [
+            journal_api_verifier_requirement(id=req_id, name="stub", description="stub")
+            for req_id in prereq_req_ids
+        ]
+        by_phase[prereq_phase] = list(prereq_reqs)
+        for req in prereq_reqs:
+            phase_id_by_req_id[req.id] = prereq_phase
+    return RequirementIndex(
+        by_phase=by_phase,
+        by_id=by_id,
+        phase_id_by_req_id=phase_id_by_req_id,
+    )
+
+
 @pytest.mark.unit
 class TestSubmissionValidationErrors:
     """Tests for error handling in create_verification_job."""
 
     @pytest.mark.asyncio
     async def test_requirement_not_found_raises_error(self):
-        """Unknown requirement ID should raise RequirementNotFoundError."""
         mock_session_maker = _mock_session_maker()
 
         with (
             patch(
-                "learn_to_cloud.services.submissions_service.get_requirement_by_id",
-                autospec=True,
-                return_value=None,
+                "learn_to_cloud.services.submissions_service.load_requirement_index",
+                new_callable=AsyncMock,
+                return_value=_build_index(None),
             ),
             pytest.raises(RequirementNotFoundError),
         ):
@@ -130,7 +148,6 @@ class TestSubmissionValidationErrors:
 
     @pytest.mark.asyncio
     async def test_github_username_required_for_journal_api_verifier(self):
-        """JOURNAL_API_VERIFIER without github_username should raise error."""
         mock_session_maker = _mock_session_maker()
         mock_requirement = _make_mock_requirement(
             submission_type=SubmissionType.JOURNAL_API_VERIFIER
@@ -138,9 +155,9 @@ class TestSubmissionValidationErrors:
 
         with (
             patch(
-                "learn_to_cloud.services.submissions_service.get_requirement_by_id",
-                autospec=True,
-                return_value=mock_requirement,
+                "learn_to_cloud.services.submissions_service.load_requirement_index",
+                new_callable=AsyncMock,
+                return_value=_build_index(mock_requirement),
             ),
             patch(
                 "learn_to_cloud.services.submissions_service.SubmissionRepository",
@@ -157,25 +174,22 @@ class TestSubmissionValidationErrors:
                     user_id=123,
                     requirement_id="test-requirement",
                     submitted_value="https://github.com/user/repo",
-                    github_username=None,  # Missing!
+                    github_username=None,
                 )
 
 
 @pytest.mark.unit
 class TestAlreadyValidatedShortCircuit:
-    """Tests for already-validated requirement short-circuit."""
-
     @pytest.mark.asyncio
     async def test_already_validated_raises_error(self):
-        """Re-submitting a validated requirement should raise AlreadyValidatedError."""
         mock_session_maker = _mock_session_maker()
         mock_requirement = _make_mock_requirement()
 
         with (
             patch(
-                "learn_to_cloud.services.submissions_service.get_requirement_by_id",
-                autospec=True,
-                return_value=mock_requirement,
+                "learn_to_cloud.services.submissions_service.load_requirement_index",
+                new_callable=AsyncMock,
+                return_value=_build_index(mock_requirement),
             ),
             patch(
                 "learn_to_cloud.services.submissions_service.SubmissionRepository",
@@ -183,7 +197,6 @@ class TestAlreadyValidatedShortCircuit:
             ) as mock_repo_class,
         ):
             mock_repo = MagicMock()
-            # Existing submission is already validated
             mock_repo.get_by_user_and_requirement = AsyncMock(
                 return_value=MagicMock(is_validated=True)
             )
@@ -200,15 +213,14 @@ class TestAlreadyValidatedShortCircuit:
 
     @pytest.mark.asyncio
     async def test_failed_submission_allows_retry(self):
-        """A previously failed (not validated) submission should allow retry."""
         mock_session_maker = _mock_session_maker()
         mock_requirement = _make_mock_requirement()
 
         with (
             patch(
-                "learn_to_cloud.services.submissions_service.get_requirement_by_id",
-                autospec=True,
-                return_value=mock_requirement,
+                "learn_to_cloud.services.submissions_service.load_requirement_index",
+                new_callable=AsyncMock,
+                return_value=_build_index(mock_requirement),
             ),
             patch(
                 "learn_to_cloud.services.submissions_service.SubmissionRepository",
@@ -220,7 +232,6 @@ class TestAlreadyValidatedShortCircuit:
             ) as mock_job_repo_class,
         ):
             mock_repo = MagicMock()
-            # Existing submission is NOT validated — retry allowed
             mock_repo.get_by_user_and_requirement = AsyncMock(
                 return_value=_make_mock_submission()
             )
@@ -248,12 +259,8 @@ class TestAlreadyValidatedShortCircuit:
 
 @pytest.mark.unit
 class TestSequentialPhaseGating:
-    """Tests for sequential phase verification gating."""
-
     @pytest.mark.asyncio
     async def test_submission_blocked_when_prior_phase_incomplete(self):
-        """Submission should raise PriorPhaseNotCompleteError
-        when prerequisite phase is incomplete."""
         mock_session_maker = _mock_session_maker()
         mock_requirement = _make_mock_requirement(
             submission_type=SubmissionType.DEPLOYED_API,
@@ -261,24 +268,14 @@ class TestSequentialPhaseGating:
 
         with (
             patch(
-                "learn_to_cloud.services.submissions_service.get_requirement_by_id",
-                autospec=True,
-                return_value=mock_requirement,
-            ),
-            patch(
-                "learn_to_cloud.services.submissions_service.get_phase_id_for_requirement",
-                return_value=4,  # no autospec: autouse fixture
-            ),
-            patch(
-                "learn_to_cloud.services.submissions_service.get_prerequisite_phase",
-                return_value=3,  # no autospec: autouse fixture
-            ),
-            patch(
-                "learn_to_cloud.services.submissions_service.get_requirement_ids_for_phase",
-                return_value=[
-                    "journal-pr-logging",
-                    "journal-pr-get-entry",
-                ],  # no autospec: autouse fixture
+                "learn_to_cloud.services.submissions_service.load_requirement_index",
+                new_callable=AsyncMock,
+                return_value=_build_index(
+                    mock_requirement,
+                    phase_id=4,
+                    prereq_phase=3,
+                    prereq_req_ids=["journal-pr-logging", "journal-pr-get-entry"],
+                ),
             ),
             patch(
                 "learn_to_cloud.services.submissions_service.SubmissionRepository",
@@ -294,7 +291,7 @@ class TestSequentialPhaseGating:
                 await create_verification_job(
                     session_maker=mock_session_maker,
                     user_id=123,
-                    requirement_id="deployed-journal-api",
+                    requirement_id="test-requirement",
                     submitted_value="https://api.example.com",
                     github_username="user",
                 )
@@ -304,7 +301,6 @@ class TestSequentialPhaseGating:
 
     @pytest.mark.asyncio
     async def test_submission_allowed_when_prior_phase_complete(self):
-        """Submission should proceed when prerequisite phase is fully verified."""
         mock_session_maker = _mock_session_maker()
         mock_requirement = _make_mock_requirement(
             submission_type=SubmissionType.DEPLOYED_API,
@@ -312,21 +308,14 @@ class TestSequentialPhaseGating:
 
         with (
             patch(
-                "learn_to_cloud.services.submissions_service.get_requirement_by_id",
-                autospec=True,
-                return_value=mock_requirement,
-            ),
-            patch(
-                "learn_to_cloud.services.submissions_service.get_phase_id_for_requirement",
-                return_value=4,  # no autospec: autouse fixture
-            ),
-            patch(
-                "learn_to_cloud.services.submissions_service.get_prerequisite_phase",
-                return_value=3,  # no autospec: autouse fixture
-            ),
-            patch(
-                "learn_to_cloud.services.submissions_service.get_requirement_ids_for_phase",
-                return_value=["journal-pr-logging"],  # no autospec: autouse fixture
+                "learn_to_cloud.services.submissions_service.load_requirement_index",
+                new_callable=AsyncMock,
+                return_value=_build_index(
+                    mock_requirement,
+                    phase_id=4,
+                    prereq_phase=3,
+                    prereq_req_ids=["journal-pr-logging"],
+                ),
             ),
             patch(
                 "learn_to_cloud.services.submissions_service.SubmissionRepository",
@@ -352,7 +341,7 @@ class TestSequentialPhaseGating:
             result = await create_verification_job(
                 session_maker=mock_session_maker,
                 user_id=123,
-                requirement_id="deployed-journal-api",
+                requirement_id="test-requirement",
                 submitted_value="https://api.example.com",
                 github_username="user",
             )
@@ -365,12 +354,8 @@ class TestSequentialPhaseGating:
 
 @pytest.mark.unit
 class TestSyncDispatchBranch:
-    """Tests for the sync (phase 0-2) execution branch in create_verification_job."""
-
     @pytest.mark.asyncio
     async def test_sync_type_runs_in_process_and_returns_sync_result(self):
-        """A sync submission type calls execute_sync_submission_validation
-        and never touches VerificationJobRepository."""
         mock_session_maker = _mock_session_maker()
         mock_requirement = _make_mock_requirement(
             submission_type=SubmissionType.GITHUB_PROFILE,
@@ -379,9 +364,9 @@ class TestSyncDispatchBranch:
 
         with (
             patch(
-                "learn_to_cloud.services.submissions_service.get_requirement_by_id",
-                autospec=True,
-                return_value=mock_requirement,
+                "learn_to_cloud.services.submissions_service.load_requirement_index",
+                new_callable=AsyncMock,
+                return_value=_build_index(mock_requirement),
             ),
             patch(
                 "learn_to_cloud.services.submissions_service.SubmissionRepository",
@@ -412,13 +397,10 @@ class TestSyncDispatchBranch:
         assert isinstance(result, SyncVerificationResult)
         assert result.submission_result is sentinel_result
         mock_sync_execute.assert_awaited_once()
-        # Critical: sync path must not create or look up VerificationJob rows.
         mock_job_repo_class.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_async_type_returns_verification_job_submission(self):
-        """A phase 3+ submission type still goes through the Durable
-        VerificationJob path and returns VerificationJobSubmission."""
         mock_session_maker = _mock_session_maker()
         mock_requirement = _make_mock_requirement(
             submission_type=SubmissionType.JOURNAL_API_VERIFIER,
@@ -427,9 +409,9 @@ class TestSyncDispatchBranch:
 
         with (
             patch(
-                "learn_to_cloud.services.submissions_service.get_requirement_by_id",
-                autospec=True,
-                return_value=mock_requirement,
+                "learn_to_cloud.services.submissions_service.load_requirement_index",
+                new_callable=AsyncMock,
+                return_value=_build_index(mock_requirement),
             ),
             patch(
                 "learn_to_cloud.services.submissions_service.SubmissionRepository",
@@ -465,15 +447,11 @@ class TestSyncDispatchBranch:
         assert isinstance(result, VerificationJobSubmission)
         assert result.job is mock_job
         assert result.created is True
-        # Critical: async path must not run the in-request sync validator.
         mock_sync_execute.assert_not_awaited()
         mock_job_repo.create_or_get_active.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_sync_preconditions_still_enforced(self):
-        """Sync path still rejects already-validated requirements before
-        running the validator. Guards against regression where the branch
-        skips _check_submission_preconditions."""
         mock_session_maker = _mock_session_maker()
         mock_requirement = _make_mock_requirement(
             submission_type=SubmissionType.CTF_TOKEN,
@@ -481,9 +459,9 @@ class TestSyncDispatchBranch:
 
         with (
             patch(
-                "learn_to_cloud.services.submissions_service.get_requirement_by_id",
-                autospec=True,
-                return_value=mock_requirement,
+                "learn_to_cloud.services.submissions_service.load_requirement_index",
+                new_callable=AsyncMock,
+                return_value=_build_index(mock_requirement),
             ),
             patch(
                 "learn_to_cloud.services.submissions_service.SubmissionRepository",
@@ -513,8 +491,6 @@ class TestSyncDispatchBranch:
 
     @pytest.mark.asyncio
     async def test_sync_path_requires_github_username_for_ctf_token(self):
-        """CTF_TOKEN without github_username must still raise even on the
-        sync path, since the validator can't run anonymously."""
         mock_session_maker = _mock_session_maker()
         mock_requirement = _make_mock_requirement(
             submission_type=SubmissionType.CTF_TOKEN,
@@ -522,9 +498,9 @@ class TestSyncDispatchBranch:
 
         with (
             patch(
-                "learn_to_cloud.services.submissions_service.get_requirement_by_id",
-                autospec=True,
-                return_value=mock_requirement,
+                "learn_to_cloud.services.submissions_service.load_requirement_index",
+                new_callable=AsyncMock,
+                return_value=_build_index(mock_requirement),
             ),
             patch(
                 "learn_to_cloud.services.submissions_service.SubmissionRepository",
@@ -597,12 +573,10 @@ class TestGetPhaseSubmissionContext:
             '[{"task_name":"A","passed":true,"feedback":"ok",'
             '"next_steps":"review the rubric"}]'
         )
-        with (
-            patch(
-                "learn_to_cloud.services.submissions_service.SubmissionRepository",
-                autospec=True,
-            ) as MockRepo,
-        ):
+        with patch(
+            "learn_to_cloud.services.submissions_service.SubmissionRepository",
+            autospec=True,
+        ) as MockRepo:
             MockRepo.return_value.get_by_user_and_phase = AsyncMock(
                 return_value=[mock_sub]
             )

@@ -81,7 +81,9 @@ class TestHomePage:
 
         with (
             patch(
-                "learn_to_cloud.routes.pages_routes.get_all_phases", return_value=phases
+                "learn_to_cloud.routes.pages_routes.get_all_phases",
+                new_callable=AsyncMock,
+                return_value=phases,
             ),
             patch(
                 "learn_to_cloud.routes.pages_routes.get_user_by_id",
@@ -107,7 +109,9 @@ class TestHomePage:
 
         with (
             patch(
-                "learn_to_cloud.routes.pages_routes.get_all_phases", return_value=phases
+                "learn_to_cloud.routes.pages_routes.get_all_phases",
+                new_callable=AsyncMock,
+                return_value=phases,
             ),
             patch(
                 "learn_to_cloud.routes.pages_routes.get_user_by_id",
@@ -133,7 +137,9 @@ class TestCurriculumPage:
 
         with (
             patch(
-                "learn_to_cloud.routes.pages_routes.get_all_phases", return_value=phases
+                "learn_to_cloud.routes.pages_routes.get_all_phases",
+                new_callable=AsyncMock,
+                return_value=phases,
             ),
             patch(
                 "learn_to_cloud.routes.pages_routes.get_user_by_id",
@@ -160,6 +166,7 @@ class TestPhasePage:
         with (
             patch(
                 "learn_to_cloud.routes.pages_routes.get_phase_by_slug",
+                new_callable=AsyncMock,
                 return_value=None,
             ),
             patch(
@@ -189,6 +196,7 @@ class TestPhasePage:
         with (
             patch(
                 "learn_to_cloud.routes.pages_routes.get_phase_by_slug",
+                new_callable=AsyncMock,
                 return_value=phase,
             ),
             patch(
@@ -241,10 +249,7 @@ class TestTopicPage:
         with (
             patch(
                 "learn_to_cloud.routes.pages_routes.get_phase_by_slug",
-                return_value=None,
-            ),
-            patch(
-                "learn_to_cloud.routes.pages_routes.get_topic_by_slugs",
+                new_callable=AsyncMock,
                 return_value=None,
             ),
             patch(
@@ -264,15 +269,13 @@ class TestTopicPage:
         request, template = _mock_request(_patch_templates)
         mock_db = AsyncMock()
         phase = _fake_phase()
+        phase.topics = []  # no topic matches the requested slug
 
         with (
             patch(
                 "learn_to_cloud.routes.pages_routes.get_phase_by_slug",
+                new_callable=AsyncMock,
                 return_value=phase,
-            ),
-            patch(
-                "learn_to_cloud.routes.pages_routes.get_topic_by_slugs",
-                return_value=None,
             ),
             patch(
                 "learn_to_cloud.routes.pages_routes.get_user_by_id",
@@ -297,11 +300,8 @@ class TestTopicPage:
         with (
             patch(
                 "learn_to_cloud.routes.pages_routes.get_phase_by_slug",
+                new_callable=AsyncMock,
                 return_value=phase,
-            ),
-            patch(
-                "learn_to_cloud.routes.pages_routes.get_topic_by_slugs",
-                return_value=topic,
             ),
             patch(
                 "learn_to_cloud.routes.pages_routes.get_user_by_id",

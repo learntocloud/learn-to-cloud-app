@@ -12,7 +12,6 @@ from fastapi.responses import HTMLResponse
 from learn_to_cloud_shared.content_service import (
     get_all_phases,
     get_phase_by_slug,
-    get_topic_by_slugs,
 )
 from learn_to_cloud_shared.core.database import DbSession
 from learn_to_cloud_shared.models import User
@@ -74,7 +73,7 @@ async def home_page(
 ) -> HTMLResponse:
     """Home page with phase overview."""
     user = await _get_user_or_none(db, user_id)
-    phases = get_all_phases()
+    phases = await get_all_phases(db)
 
     return templates.TemplateResponse(
         request,
@@ -91,7 +90,7 @@ async def curriculum_page(
 ) -> HTMLResponse:
     """Full curriculum overview with all phases and topics."""
     user = await _get_user_or_none(db, user_id)
-    phases = get_all_phases()
+    phases = await get_all_phases(db)
 
     return templates.TemplateResponse(
         request,
@@ -113,7 +112,7 @@ async def phase_page(
 ) -> HTMLResponse:
     """Single phase detail with topics and verification (requires auth)."""
     user = await _get_user_or_none(db, user_id)
-    phase = get_phase_by_slug(f"phase{phase_id}")
+    phase = await get_phase_by_slug(db, f"phase{phase_id}")
     if phase is None:
         return templates.TemplateResponse(
             request,
@@ -204,8 +203,10 @@ async def topic_page(
     """Single topic with learning steps (requires auth)."""
     user = await _get_user_or_none(db, user_id)
     phase_slug = f"phase{phase_id}"
-    phase = get_phase_by_slug(phase_slug)
-    topic = get_topic_by_slugs(phase_slug, topic_slug)
+    phase = await get_phase_by_slug(db, phase_slug)
+    topic = None
+    if phase is not None:
+        topic = next((t for t in phase.topics if t.slug == topic_slug), None)
 
     if phase is None or topic is None:
         return templates.TemplateResponse(

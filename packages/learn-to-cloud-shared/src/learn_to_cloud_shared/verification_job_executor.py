@@ -408,7 +408,7 @@ async def prepare_verification_job(
                         f"job {normalized_job_id} references missing submission "
                         f"{payload.result_submission_id}"
                     )
-                requirement = get_requirement_by_id(payload.requirement_id)
+                requirement = await get_requirement_by_id(db, payload.requirement_id)
                 result = _build_result_from_submission(
                     job_id=normalized_job_id,
                     submission=submission,
@@ -418,7 +418,8 @@ async def prepare_verification_job(
                 span.set_attribute("verification.replay", True)
                 return VerificationJobPreparation(terminal_result=result)
 
-        requirement = get_requirement_by_id(payload.requirement_id)
+            requirement = await get_requirement_by_id(db, payload.requirement_id)
+
         if requirement is None:
             result = await _handle_missing_requirement(
                 session_maker=session_maker,

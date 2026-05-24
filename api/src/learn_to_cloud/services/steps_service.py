@@ -34,13 +34,15 @@ class StepInvalidStepIdError(StepValidationError):
         super().__init__(f"Invalid step_id '{step_id}' for {topic_id}")
 
 
-def _resolve_step(topic_id: str, step_id: str) -> tuple[str, int, int]:
+async def _resolve_step(
+    db: AsyncSession, topic_id: str, step_id: str
+) -> tuple[str, int, int]:
     """Resolve and validate a step by stable step id.
 
     Returns:
         Tuple of (resolved_step_id, step_order, total_steps)
     """
-    topic = get_topic_by_id(topic_id)
+    topic = await get_topic_by_id(db, topic_id)
     if topic is None:
         raise StepUnknownTopicError(topic_id)
 
@@ -101,7 +103,7 @@ async def complete_step(
         Idempotent — completing an already-completed step is a no-op
         that returns the current state without error.
     """
-    resolved_step_id, step_order, _ = _resolve_step(topic_id, step_id)
+    resolved_step_id, step_order, _ = await _resolve_step(db, topic_id, step_id)
 
     step_repo = StepProgressRepository(db)
     phase_id = parse_phase_id_from_topic_id(topic_id)
@@ -165,7 +167,7 @@ async def uncomplete_step(
         StepUnknownTopicError: If topic_id doesn't exist in content
         StepInvalidStepIdError: If step_id doesn't exist in the topic
     """
-    resolved_step_id, step_order, _ = _resolve_step(topic_id, step_id)
+    resolved_step_id, step_order, _ = await _resolve_step(db, topic_id, step_id)
 
     step_repo = StepProgressRepository(db)
     deleted = await step_repo.delete_step(user_id, topic_id, resolved_step_id)

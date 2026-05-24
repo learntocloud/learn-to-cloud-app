@@ -441,9 +441,17 @@ jobs:
           DATABASE_URL="postgresql+asyncpg://postgres:postgres@localhost:5432/learntocloud" PYTHONPATH="$PWD/.python_packages/lib/site-packages" python - <<'PY'
           import asyncpg
           import function_app
-          from learn_to_cloud_shared.verification.requirements import get_requirement_by_id
+          from learn_to_cloud_shared.content_yaml_loader import (
+              get_all_phases_from_yaml,
+          )
 
-          assert get_requirement_by_id("journal-api-implementation") is not None
+          phases = get_all_phases_from_yaml()
+          assert any(
+              req.id == "journal-api-implementation"
+              for phase in phases
+              if phase.hands_on_verification
+              for req in phase.hands_on_verification.requirements
+          ), "journal-api-implementation requirement not found in packaged YAML"
           PY
 
       - name: Deploy verification Functions

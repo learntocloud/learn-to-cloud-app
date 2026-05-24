@@ -84,7 +84,47 @@ def _fake_dashboard() -> DashboardData:
 
 
 @pytest_asyncio.fixture
-async def anon_client():
+async def _patched_content():
+    """Route smoke tests don't run against a real DB; redirect content reads
+    to the packaged YAML loader so routes get a real curriculum tree."""
+    from learn_to_cloud_shared.content_yaml_loader import (
+        get_all_phases_from_yaml,
+    )
+
+    yaml_phases = get_all_phases_from_yaml()
+
+    async def _all_phases(_db):
+        return yaml_phases
+
+    async def _phase_by_slug(_db, slug):
+        return next((p for p in yaml_phases if p.slug == slug), None)
+
+    async def _topic_by_id(_db, topic_id):
+        for phase in yaml_phases:
+            for topic in phase.topics:
+                if topic.id == topic_id:
+                    return topic
+        return None
+
+    with (
+        patch(
+            "learn_to_cloud.routes.pages_routes.get_all_phases",
+            side_effect=_all_phases,
+        ),
+        patch(
+            "learn_to_cloud.routes.pages_routes.get_phase_by_slug",
+            side_effect=_phase_by_slug,
+        ),
+        patch(
+            "learn_to_cloud.routes.htmx_routes.get_topic_by_id",
+            side_effect=_topic_by_id,
+        ),
+    ):
+        yield yaml_phases
+
+
+@pytest_asyncio.fixture
+async def anon_client(_patched_content):
     """HTTP client for anonymous (unauthenticated) requests.
 
     Mocks DB dependencies and auth to return None (anonymous user).
@@ -120,7 +160,7 @@ async def anon_client():
 
 
 @pytest_asyncio.fixture
-async def auth_client():
+async def auth_client(_patched_content):
     """HTTP client for authenticated requests.
 
     Overrides auth to return user_id=1, mocks DB and user service.
@@ -219,9 +259,11 @@ class TestAuthPageSmoke:
 
     async def test_phase_page_renders(self, auth_client: AsyncClient):
         """GET /phase/1 renders the phase detail template."""
-        from learn_to_cloud_shared.content_service import get_all_phases
+        from learn_to_cloud_shared.content_yaml_loader import (
+            get_all_phases_from_yaml,
+        )
 
-        phases = get_all_phases()
+        phases = get_all_phases_from_yaml()
         if not phases:
             pytest.skip("No content phases loaded")
 
@@ -266,9 +308,13 @@ class TestAuthPageSmoke:
 
     async def test_topic_page_renders(self, auth_client: AsyncClient):
         """GET /phase/1/{topic_slug} renders the topic detail template."""
-        from learn_to_cloud_shared.content_service import get_phase_by_slug
+        from learn_to_cloud_shared.content_yaml_loader import (
+            get_all_phases_from_yaml,
+        )
 
-        phase = get_phase_by_slug("phase1")
+        phase = next(
+            (p for p in get_all_phases_from_yaml() if p.slug == "phase1"), None
+        )
         if not phase or not phase.topics:
             pytest.skip("No topics in phase1")
 

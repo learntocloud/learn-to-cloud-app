@@ -53,7 +53,7 @@ async def get_dashboard_data(
     Returns phase list, overall stats, and continue-phase pointer.
     For unauthenticated users, returns phases only with zeroed stats.
     """
-    phases = get_all_phases()
+    phases = await get_all_phases(db)
 
     if user_id is None:
         return DashboardData(
@@ -64,7 +64,7 @@ async def get_dashboard_data(
             is_program_complete=False,
         )
 
-    user_progress = await fetch_user_progress(db, user_id)
+    user_progress = await fetch_user_progress(db, user_id, phases=phases)
 
     phase_summaries = [
         _build_phase_summary(

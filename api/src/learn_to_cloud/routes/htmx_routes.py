@@ -118,15 +118,16 @@ def _status_error_response(message: str, *, status_code: int = 400) -> HTMLRespo
     )
 
 
-def _render_processing_card(
+async def _render_processing_card(
     request: Request,
+    db: DbSession,
     current_user: AuthenticatedUser,
     token_data: VerificationStatusToken,
     token: str,
     *,
     delay_seconds: int,
 ) -> HTMLResponse:
-    requirement = get_requirement_by_id(token_data.requirement_id)
+    requirement = await get_requirement_by_id(db, token_data.requirement_id)
     if requirement is None:
         return HTMLResponse(_reload_verification_html())
 
@@ -186,7 +187,7 @@ async def _render_step_toggle(
     Looks up the step content and returns the combined step + progress
     HTML partials.
     """
-    topic = get_topic_by_id(topic_id)
+    topic = await get_topic_by_id(db, topic_id)
     step = None
     if topic:
         for s in topic.learning_steps:
@@ -288,6 +289,7 @@ async def htmx_uncomplete_step(
 @limiter.limit("10/minute")
 async def htmx_submit_verification(
     request: Request,
+    db: DbSession,
     current_user: CurrentUser,
     requirement_id: Annotated[str, Form(max_length=100)],
     submitted_value: Annotated[str, Form(max_length=2048)] = "",
@@ -308,7 +310,7 @@ async def htmx_submit_verification(
     user_id = current_user.user_id
     github_username = current_user.github_username
 
-    requirement = get_requirement_by_id(requirement_id)
+    requirement = await get_requirement_by_id(db, requirement_id)
 
     session_maker = request.app.state.session_maker
 
@@ -511,6 +513,7 @@ async def _start_async_job_and_render(
 @router.get("/verification/jobs/status", response_class=HTMLResponse)
 async def htmx_verification_job_status(
     request: Request,
+    db: DbSession,
     token: Annotated[str, Query(max_length=4096)],
     current_user: CurrentUser,
 ) -> HTMLResponse:
@@ -559,8 +562,9 @@ async def htmx_verification_job_status(
 
     status = durable_status.runtime_status.lower()
     if status in _ACTIVE_DURABLE_STATUSES:
-        return _render_processing_card(
+        return await _render_processing_card(
             request,
+            db,
             current_user,
             token_data,
             token,

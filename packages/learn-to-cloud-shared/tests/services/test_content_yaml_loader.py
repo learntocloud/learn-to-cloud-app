@@ -1,4 +1,4 @@
-"""Unit tests for content_service.
+"""Unit tests for content_yaml_loader.
 
 Tests cover:
 - _validate_topic_payload step ID validation rules
@@ -14,16 +14,15 @@ from unittest.mock import patch
 
 import pytest
 
-from learn_to_cloud_shared.content_service import (
+from learn_to_cloud_shared.content_yaml_loader import (
     ContentValidationError,
     _load_phase,
     _load_topic,
     _validate_topic_payload,
     clear_cache,
-    get_all_phases,
-    get_phase_by_slug,
-    get_topic_by_id,
-    get_topic_by_slugs,
+)
+from learn_to_cloud_shared.content_yaml_loader import (
+    get_all_phases_from_yaml as get_all_phases,
 )
 
 
@@ -193,7 +192,7 @@ learning_steps:
 class TestLoadPhase:
     def test_missing_meta_file_returns_none(self, tmp_path: Path):
         with patch(
-            "learn_to_cloud_shared.content_service._get_content_dir",
+            "learn_to_cloud_shared.content_yaml_loader._get_content_dir",
             autospec=True,
             return_value=tmp_path,
         ):
@@ -229,7 +228,7 @@ learning_steps:
 """
         )
         with patch(
-            "learn_to_cloud_shared.content_service._get_content_dir",
+            "learn_to_cloud_shared.content_yaml_loader._get_content_dir",
             autospec=True,
             return_value=tmp_path,
         ):
@@ -265,8 +264,8 @@ class TestGetAllPhases:
         ] == ["journal-api-implementation"]
 
     def test_phase5_aws_observability_link_uses_current_adot_guide(self):
-        topic = get_topic_by_slugs("phase5", "monitoring-observability")
-        assert topic is not None
+        phase5 = next(phase for phase in get_all_phases() if phase.slug == "phase5")
+        topic = next(t for t in phase5.topics if t.slug == "monitoring-observability")
         step = next(
             step
             for step in topic.learning_steps
@@ -278,7 +277,7 @@ class TestGetAllPhases:
 
     def test_empty_directory(self, tmp_path: Path):
         with patch(
-            "learn_to_cloud_shared.content_service._get_content_dir",
+            "learn_to_cloud_shared.content_yaml_loader._get_content_dir",
             autospec=True,
             return_value=tmp_path,
         ):
@@ -286,7 +285,7 @@ class TestGetAllPhases:
 
     def test_nonexistent_directory(self, tmp_path: Path):
         with patch(
-            "learn_to_cloud_shared.content_service._get_content_dir",
+            "learn_to_cloud_shared.content_yaml_loader._get_content_dir",
             autospec=True,
             return_value=tmp_path / "nonexistent",
         ):
@@ -296,7 +295,7 @@ class TestGetAllPhases:
         (tmp_path / "README.md").touch()
         (tmp_path / "not-a-phase").mkdir()
         with patch(
-            "learn_to_cloud_shared.content_service._get_content_dir",
+            "learn_to_cloud_shared.content_yaml_loader._get_content_dir",
             autospec=True,
             return_value=tmp_path,
         ):
@@ -304,48 +303,10 @@ class TestGetAllPhases:
 
 
 # ---------------------------------------------------------------------------
-# Lookup functions
+# Lookup-by-walking helpers used to live in this module. Phase C (#464)
+# moved them to the DB loader, where ``test_content_db_loader.py`` exercises
+# the same behavior against real curriculum tables.
 # ---------------------------------------------------------------------------
-
-
-@pytest.mark.unit
-class TestLookupFunctions:
-    def test_get_phase_by_slug_found(self):
-        from uuid import uuid4
-
-        from learn_to_cloud_shared.schemas import Phase
-
-        phase = Phase(uuid=uuid4(), id=0, name="P0", slug="phase0", order=0, topics=[])
-        with patch(
-            "learn_to_cloud_shared.content_service.get_all_phases",
-            autospec=True,
-            return_value=(phase,),
-        ):
-            assert get_phase_by_slug("phase0") is phase
-
-    def test_get_phase_by_slug_not_found(self):
-        with patch(
-            "learn_to_cloud_shared.content_service.get_all_phases",
-            autospec=True,
-            return_value=(),
-        ):
-            assert get_phase_by_slug("nonexistent") is None
-
-    def test_get_topic_by_id_not_found(self):
-        with patch(
-            "learn_to_cloud_shared.content_service.get_all_phases",
-            autospec=True,
-            return_value=(),
-        ):
-            assert get_topic_by_id("nonexistent") is None
-
-    def test_get_topic_by_slugs_phase_not_found(self):
-        with patch(
-            "learn_to_cloud_shared.content_service.get_all_phases",
-            autospec=True,
-            return_value=(),
-        ):
-            assert get_topic_by_slugs("nonexistent", "topic") is None
 
 
 # ---------------------------------------------------------------------------
@@ -415,11 +376,11 @@ class TestValidateContent:
         )
 
     def test_returns_empty_list_when_no_violations(self):
-        from learn_to_cloud_shared.content_service import validate_content
+        from learn_to_cloud_shared.content_yaml_loader import validate_content
 
         phase = self._build_phase(topics=[self._build_topic()], topic_slugs=["topic1"])
         with patch(
-            "learn_to_cloud_shared.content_service.get_all_phases",
+            "learn_to_cloud_shared.content_yaml_loader.get_all_phases_from_yaml",
             autospec=True,
             return_value=(phase,),
         ):
@@ -428,7 +389,7 @@ class TestValidateContent:
     def test_detects_duplicate_uuid_across_entities(self):
         from uuid import UUID
 
-        from learn_to_cloud_shared.content_service import validate_content
+        from learn_to_cloud_shared.content_yaml_loader import validate_content
         from learn_to_cloud_shared.schemas import LearningStep
 
         # Same UUID used for a topic and one of its steps.
@@ -441,7 +402,7 @@ class TestValidateContent:
         )
         phase = self._build_phase(topics=[topic], topic_slugs=["topic1"])
         with patch(
-            "learn_to_cloud_shared.content_service.get_all_phases",
+            "learn_to_cloud_shared.content_yaml_loader.get_all_phases_from_yaml",
             autospec=True,
             return_value=(phase,),
         ):
@@ -449,7 +410,7 @@ class TestValidateContent:
         assert any("Duplicate uuid" in e for e in errors)
 
     def test_detects_topic_slug_count_mismatch(self):
-        from learn_to_cloud_shared.content_service import validate_content
+        from learn_to_cloud_shared.content_yaml_loader import validate_content
 
         # phase declares two topics in YAML but only one loaded.
         phase = self._build_phase(
@@ -457,7 +418,7 @@ class TestValidateContent:
             topic_slugs=["topic1", "missing-topic"],
         )
         with patch(
-            "learn_to_cloud_shared.content_service.get_all_phases",
+            "learn_to_cloud_shared.content_yaml_loader.get_all_phases_from_yaml",
             autospec=True,
             return_value=(phase,),
         ):
@@ -467,7 +428,7 @@ class TestValidateContent:
     def test_detects_duplicate_step_order_within_topic(self):
         from uuid import UUID
 
-        from learn_to_cloud_shared.content_service import validate_content
+        from learn_to_cloud_shared.content_yaml_loader import validate_content
         from learn_to_cloud_shared.schemas import LearningStep
 
         topic = self._build_topic(
@@ -486,7 +447,7 @@ class TestValidateContent:
         )
         phase = self._build_phase(topics=[topic], topic_slugs=["topic1"])
         with patch(
-            "learn_to_cloud_shared.content_service.get_all_phases",
+            "learn_to_cloud_shared.content_yaml_loader.get_all_phases_from_yaml",
             autospec=True,
             return_value=(phase,),
         ):
