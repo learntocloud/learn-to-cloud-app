@@ -22,6 +22,20 @@ depends_on = None
 
 
 def upgrade() -> None:
+    # Clean up ghost rows that would violate the new partial unique index.
+    # These are verification jobs with a terminal status but no linked
+    # submission (result_submission_id IS NULL). Without this DELETE,
+    # create_index below fails on databases with real data because
+    # multiple terminal jobs for the same (user_id, requirement_id)
+    # all satisfy the WHERE clause. See incident #432.
+    op.execute(
+        "DELETE FROM verification_jobs "
+        "WHERE result_submission_id IS NULL "
+        "AND status IN ("
+        "'succeeded', 'failed', 'server_error', 'cancelled'"
+        ")"
+    )
+
     # New partial unique index: replaces the role of
     # ``uq_verification_jobs_active_user_requirement`` (status-based) once
     # all pods are on the new code. Kept additive in this revision so old
