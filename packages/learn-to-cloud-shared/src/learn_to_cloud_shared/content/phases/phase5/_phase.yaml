@@ -16,9 +16,4 @@ topics:
 - capstone
 hands_on_verification:
   requirements:
-  - uuid: 623a87ae-156f-42da-a83c-09241d523e00
-    id: devops-implementation
-    submission_type: devops_analysis
-    name: Complete the DevOps Capstone
-    description: Submit your journal-starter fork after finishing the DevOps capstone so automated checks can validate your implementation.
-    required_repo: learntocloud/journal-starter
+  - devops-implementation

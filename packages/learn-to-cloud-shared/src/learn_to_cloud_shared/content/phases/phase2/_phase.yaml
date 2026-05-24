@@ -8,18 +8,8 @@ short_description: 'Learn core networking: IP/subnetting, routing, DNS, HTTP, po
 order: 2
 hands_on_verification:
   requirements:
-  - uuid: 1e8d79f3-9936-4fd4-ab46-ddd1a7eea65f
-    id: networking-lab-fork
-    submission_type: repo_fork
-    name: Fork the Networking Lab Repository
-    description: Fork learntocloud/networking-lab so you can complete and track the lab in your own account.
-    required_repo: learntocloud/networking-lab
-  - uuid: c359bc2e-3215-4841-ab9b-e51be59ed3ff
-    id: networking-lab-token
-    submission_type: networking_token
-    name: Submit the Networking Lab Completion Token
-    description: Finish all four networking challenges and submit the completion token shown at the end.
-    placeholder: Paste your Networking Lab completion token here
+  - networking-lab-fork
+  - networking-lab-token
 topics:
 - fundamentals
 - protocols

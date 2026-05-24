@@ -1,7 +1,7 @@
 """Integration tests for persisted verification job execution."""
 
 from unittest.mock import AsyncMock, patch
-from uuid import UUID, uuid4
+from uuid import UUID
 
 import pytest
 from sqlalchemy import func, select
@@ -47,10 +47,11 @@ def session_maker(test_engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
 def _requirement(
     submission_type: SubmissionType = SubmissionType.JOURNAL_API_VERIFIER,
 ) -> HandsOnRequirement:
-    return HandsOnRequirement(
-        uuid=uuid4(),
+    from learn_to_cloud_shared.testing.requirement_factories import make_requirement
+
+    return make_requirement(
+        submission_type,
         id=REQUIREMENT_ID,
-        submission_type=submission_type,
         name="Verification Executor Test",
         description="Test requirement",
     )

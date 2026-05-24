@@ -42,7 +42,11 @@ from learn_to_cloud_shared.repositories.verification_job_repository import (
     LinkResult,
     VerificationJobRepository,
 )
-from learn_to_cloud_shared.schemas import HandsOnRequirement, ValidationResult
+from learn_to_cloud_shared.schemas import (
+    HandsOnRequirement,
+    HandsOnRequirementAdapter,
+    ValidationResult,
+)
 from learn_to_cloud_shared.verification.dispatcher import validate_submission
 from learn_to_cloud_shared.verification.execution import (
     persist_validation_result,
@@ -148,7 +152,9 @@ class PreparedVerificationJob:
                 if github_username is not None
                 else None
             ),
-            requirement=HandsOnRequirement.model_validate(payload["requirement"]),
+            requirement=HandsOnRequirementAdapter.validate_python(
+                payload["requirement"]
+            ),
             phase_id=_expect_int(payload["phase_id"], "phase_id"),
             submitted_value=_expect_str(payload["submitted_value"], "submitted_value"),
         )

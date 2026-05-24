@@ -8,23 +8,9 @@ short_description: Build practical Linux and Bash skills with Git, cloud CLI, SS
 order: 1
 hands_on_verification:
   requirements:
-  - uuid: 96327def-780b-4209-8ef1-b0d85b34357f
-    id: profile-readme
-    submission_type: profile_readme
-    name: Create a Developer Profile README
-    description: Create your profile README repository and add a clear introduction, goals, and cloud-learning focus.
-  - uuid: 44c3bbb6-d6c3-466d-8d55-c1fec757ace7
-    id: linux-ctfs-fork
-    submission_type: repo_fork
-    name: Fork the Linux CTFs Repository
-    description: Fork learntocloud/linux-ctfs to your account so your challenge work is tied to your profile.
-    required_repo: learntocloud/linux-ctfs
-  - uuid: ec20af63-2ea2-418f-ac14-2c2ae3d06ca7
-    id: linux-ctfs-token
-    submission_type: ctf_token
-    name: Submit the Linux CTF Completion Token
-    description: Finish all 18 Linux CTF challenges and submit the final completion token to verify completion.
-    placeholder: Paste your CTF completion token here
+  - profile-readme
+  - linux-ctfs-fork
+  - linux-ctfs-token
 topics:
 - developer-setup
 - cloud-cli

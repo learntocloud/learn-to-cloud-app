@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import asyncio
 from unittest.mock import AsyncMock, patch
-from uuid import uuid4
 
 import pytest
 from sqlalchemy import select, text
@@ -44,10 +43,11 @@ def session_maker(test_engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
 def _requirement(
     submission_type: SubmissionType = SubmissionType.GITHUB_PROFILE,
 ) -> HandsOnRequirement:
-    return HandsOnRequirement(
-        uuid=uuid4(),
+    from learn_to_cloud_shared.testing.requirement_factories import make_requirement
+
+    return make_requirement(
+        submission_type,
         id=REQUIREMENT_ID,
-        submission_type=submission_type,
         name="Sync Execution Test",
         description="Test requirement",
     )
@@ -285,10 +285,12 @@ async def test_advisory_lock_keyed_per_requirement(
         await asyncio.wait_for(started.wait(), timeout=5.0)
 
         # Different requirement → different lock key → must proceed immediately.
-        other_requirement = HandsOnRequirement(
-            uuid=uuid4(),
+        from learn_to_cloud_shared.testing.requirement_factories import (
+            github_profile_requirement,
+        )
+
+        other_requirement = github_profile_requirement(
             id=other_requirement_id,
-            submission_type=SubmissionType.GITHUB_PROFILE,
             name="Other",
             description="Other",
         )

@@ -1,0 +1,8 @@
+# yaml-language-server: $schema=../../../schemas/requirement.schema.json
+uuid: 44c3bbb6-d6c3-466d-8d55-c1fec757ace7
+id: linux-ctfs-fork
+submission_type: repo_fork
+name: Fork the Linux CTFs Repository
+description: Fork learntocloud/linux-ctfs to your account so your challenge work is tied to your profile.
+type_config:
+  required_repo: learntocloud/linux-ctfs

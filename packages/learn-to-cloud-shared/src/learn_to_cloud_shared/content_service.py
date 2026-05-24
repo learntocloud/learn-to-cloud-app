@@ -12,11 +12,17 @@ from __future__ import annotations
 import logging
 from functools import lru_cache
 from pathlib import Path
+from typing import Any
 
 import yaml
+from pydantic import ValidationError
 
 from learn_to_cloud_shared.core.config import get_worker_settings
-from learn_to_cloud_shared.schemas import Phase, Topic
+from learn_to_cloud_shared.schemas import (
+    HandsOnRequirementAdapter,
+    Phase,
+    Topic,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -85,6 +91,49 @@ def _load_topic(phase_dir: Path, topic_slug: str) -> Topic | None:
         return None
 
 
+def _load_requirement(phase_dir: Path, requirement_slug: str) -> Any | None:
+    """Load a single hands-on requirement from its YAML file.
+
+    Returns one of the typed ``HandsOnRequirement`` subclasses (resolved
+    via the discriminated union) or ``None`` if the file is missing or
+    fails validation.
+    """
+    req_file = phase_dir / "requirements" / f"{requirement_slug}.yaml"
+    if not req_file.exists():
+        return None
+
+    try:
+        with open(req_file, encoding="utf-8") as f:
+            data = yaml.safe_load(f)
+        if not isinstance(data, dict):
+            raise ContentValidationError(
+                f"requirement {req_file.name} must be a YAML mapping"
+            )
+        file_stem = req_file.stem
+        yaml_id = str(data.get("id", "")).strip()
+        if yaml_id != file_stem:
+            raise ContentValidationError(
+                f"requirement {req_file.name}: id '{yaml_id}' does not match "
+                f"filename stem '{file_stem}'"
+            )
+        return HandsOnRequirementAdapter.validate_python(data)
+    except (
+        yaml.YAMLError,
+        ContentValidationError,
+        ValidationError,
+        ValueError,
+        KeyError,
+    ):
+        logger.exception(
+            "content.requirement.load_failed",
+            extra={
+                "requirement_slug": requirement_slug,
+                "path": str(req_file),
+            },
+        )
+        return None
+
+
 def _load_phase(phase_slug: str) -> Phase | None:
     """Load a single phase from its directory."""
     phase_dir = _get_content_dir() / phase_slug
@@ -104,6 +153,25 @@ def _load_phase(phase_slug: str) -> Phase | None:
         ]
         data["topic_slugs"] = topic_slugs
         data["topics"] = topics
+
+        # ``hands_on_verification.requirements`` is a list of slug strings in
+        # YAML; resolve each to a ``HandsOnRequirement`` loaded from
+        # ``phase<N>/requirements/<slug>.yaml``.
+        hov = data.get("hands_on_verification")
+        if isinstance(hov, dict):
+            requirement_slugs: list[str] = hov.get("requirements", []) or []
+            if not all(isinstance(s, str) for s in requirement_slugs):
+                raise ContentValidationError(
+                    f"phase '{phase_slug}' hands_on_verification.requirements "
+                    "must be a list of slug strings"
+                )
+            loaded_requirements = [
+                r
+                for slug in requirement_slugs
+                if (r := _load_requirement(phase_dir, slug)) is not None
+            ]
+            hov["requirement_slugs"] = requirement_slugs
+            hov["requirements"] = loaded_requirements
 
         return Phase.model_validate(data)
     except (yaml.YAMLError, ContentValidationError, ValueError, KeyError):
@@ -265,6 +333,55 @@ def _check_step_order_uniqueness(phases: tuple[Phase, ...]) -> list[str]:
     return errors
 
 
+def _check_requirement_slugs_resolve(phases: tuple[Phase, ...]) -> list[str]:
+    """Return errors for requirement slugs in phase yaml without a loaded file.
+
+    Same pattern as ``_check_topic_slugs_resolve``: counts of declared
+    vs loaded must match; missing means a per-phase requirement file
+    failed to parse.
+    """
+    errors: list[str] = []
+    for phase in phases:
+        if phase.hands_on_verification is None:
+            continue
+        declared = phase.hands_on_verification.requirement_slugs
+        loaded = phase.hands_on_verification.requirements
+        if len(loaded) < len(declared):
+            loaded_ids = {r.id for r in loaded}
+            errors.append(
+                f"phase[{phase.slug}] expected {len(declared)} requirements "
+                f"but only {len(loaded)} loaded. "
+                f"Listed: {declared}. Loaded ids: {sorted(loaded_ids)}. "
+                "Check for YAML parse errors in the missing requirement files."
+            )
+    return errors
+
+
+def _check_requirement_ids_globally_unique(
+    phases: tuple[Phase, ...],
+) -> list[str]:
+    """Return errors for requirement IDs that collide across the whole curriculum.
+
+    Requirement IDs are used as filenames and as form field values.
+    Two requirements sharing an ID would clash in lookup and break UI.
+    """
+    by_id: dict[str, list[str]] = {}
+    for phase in phases:
+        if phase.hands_on_verification is None:
+            continue
+        for req in phase.hands_on_verification.requirements:
+            by_id.setdefault(req.id, []).append(phase.slug)
+
+    errors: list[str] = []
+    for req_id, phase_slugs in by_id.items():
+        if len(phase_slugs) > 1:
+            errors.append(
+                f"Duplicate requirement id '{req_id}' appears in phases: "
+                f"{', '.join(phase_slugs)}"
+            )
+    return errors
+
+
 def validate_content() -> list[str]:
     """Run all cross-file validators against the currently-loaded content.
 
@@ -277,4 +394,6 @@ def validate_content() -> list[str]:
     errors.extend(_check_uuid_uniqueness(phases))
     errors.extend(_check_topic_slugs_resolve(phases))
     errors.extend(_check_step_order_uniqueness(phases))
+    errors.extend(_check_requirement_slugs_resolve(phases))
+    errors.extend(_check_requirement_ids_globally_unique(phases))
     return errors

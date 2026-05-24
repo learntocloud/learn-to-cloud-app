@@ -242,10 +242,11 @@ def _make_requirement(
     submission_type: SubmissionType,
     required_repo: str | None = None,
 ) -> HandsOnRequirement:
-    return HandsOnRequirement(
-        uuid=uuid4(),
+    from learn_to_cloud_shared.testing.requirement_factories import make_requirement
+
+    return make_requirement(
+        submission_type,
         id="req-1",
-        submission_type=submission_type,
         name="Test",
         description="Test",
         required_repo=required_repo,
@@ -282,12 +283,27 @@ class TestBuildRequirementCardContext:
         assert ctx["derived_url"] is None
 
     def test_misconfigured_required_repo_falls_back_to_none(self):
-        # JOURNAL_API_VERIFIER without required_repo would raise inside derive,
-        # but the builder should swallow that and return None so the
-        # template can show its error state.
-        req = _make_requirement(SubmissionType.JOURNAL_API_VERIFIER)
-        ctx = build_requirement_card_context(
-            requirement=req,
-            github_username="alice",
-        )
-        assert ctx["derived_url"] is None
+        """JOURNAL_API_VERIFIER without required_repo is now impossible (#470).
+
+        After hoisting requirements into per-type subclasses, the Pydantic
+        schema rejects construction of a JournalApiVerifierRequirement
+        without required_repo. The defensive try/except in
+        build_requirement_card_context still exists as defense in depth
+        but is unreachable through normal construction.
+        """
+        from learn_to_cloud_shared.schemas import HandsOnRequirementAdapter
+        from pydantic import ValidationError
+
+        # Construct via TypeAdapter with raw dict so static analysis
+        # doesn't catch the deliberate validation error.
+        with pytest.raises(ValidationError):
+            HandsOnRequirementAdapter.validate_python(
+                {
+                    "uuid": "00000000-0000-0000-0000-000000000001",
+                    "id": "journal",
+                    "submission_type": "journal_api_verifier",
+                    "name": "Test",
+                    "description": "Test",
+                    "type_config": {},
+                }
+            )
