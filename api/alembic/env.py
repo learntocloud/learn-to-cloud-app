@@ -52,7 +52,7 @@ import_module("learn_to_cloud_shared.models")
 config = context.config
 
 if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+    fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 target_metadata = Base.metadata
 
@@ -125,10 +125,17 @@ def run_migrations_offline() -> None:
 def run_migrations_online() -> None:
     """Run migrations against a live PostgreSQL connection."""
     logger = logging.getLogger("alembic")
-    engine = create_engine(_get_sync_database_url())
+
+    # pytest-alembic injects an engine via config.attributes;
+    # in production the migration job creates its own engine.
+    connectable = config.attributes.get("connection", None)
+    owns_engine = connectable is None
+
+    if owns_engine:
+        connectable = create_engine(_get_sync_database_url())
 
     try:
-        with engine.connect() as connection:
+        with connectable.connect() as connection:
             context.configure(
                 connection=connection,
                 target_metadata=target_metadata,
@@ -143,7 +150,8 @@ def run_migrations_online() -> None:
         logger.exception("alembic.migration.failed")
         raise
     finally:
-        engine.dispose()
+        if owns_engine:
+            connectable.dispose()
 
 
 def run() -> None:
