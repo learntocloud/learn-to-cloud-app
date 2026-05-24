@@ -107,4 +107,5 @@ dev = [
     "pytest-mock>=3.12.0",
     "ruff==0.15.12",
     "ty==0.0.34",
+    "pytest-alembic>=0.12.1",
 ]

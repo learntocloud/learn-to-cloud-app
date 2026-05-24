@@ -150,5 +150,37 @@ Alternatively, create a one-off migration service in `docker-compose.yml` (see b
 ## Tips
 
 - **Never edit a migration that's already been applied in production.** Create a new migration instead.
-- **Test migrations both ways** — run `upgrade head` then `downgrade -1` then `upgrade head` again locally before pushing.
+- **Test migrations both ways** -- run `upgrade head` then `downgrade -1` then `upgrade head` again locally before pushing.
 - **Large data migrations** should be done in a separate migration file from schema changes to keep each migration focused and reversible.
+- **When adding a unique index or constraint**, always clean up duplicate rows first in the same migration. CI runs against an empty database, so it won't catch constraint violations that only happen with real data.
+
+## Migration Tests
+
+The project uses [pytest-alembic](https://pytest-alembic.readthedocs.io/) for
+automated migration testing. Tests live in `api/tests/test_migration_chain.py`
+and run against a dedicated `test_alembic_migrations` database (separate from
+the main test database).
+
+### What the tests check
+
+| Test | What it does |
+| --- | --- |
+| `test_upgrade` | Runs every migration from base to head, one at a time |
+| `test_single_head_revision` | Makes sure the migration chain has no forks |
+| `test_model_definitions_match_ddl` | Checks that SQLAlchemy models match the actual database schema |
+| `test_up_down_consistency` | Upgrades then downgrades each migration to make sure both directions work |
+
+### How it works
+
+pytest-alembic passes a database engine into `alembic/env.py` via
+`config.attributes["connection"]`. The `run_migrations_online()` function
+uses that engine instead of creating its own. This lets the test framework
+control which database gets used.
+
+### Running migration tests
+
+```bash
+cd api && uv run pytest tests/test_migration_chain.py -v
+```
+
+These tests are included in the standard `uv run pytest tests/` run.
