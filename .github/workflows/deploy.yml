@@ -251,7 +251,7 @@ jobs:
         # Matches the subprocess invocation in api/scripts/run_migrations.py.
         # Exercises the full deploy path so settings/packaging bugs surface
         # in CI instead of in the production migration job.
-        run: uv run python scripts/sync_curriculum.py
+        run: uv run python -m learn_to_cloud_shared.cli.sync_curriculum
 
       - name: Run API tests with coverage
         working-directory: api
