@@ -133,16 +133,17 @@ class TestCompleteStep:
     @pytest.mark.asyncio
     async def test_first_completion_creates_record(self):
         topic = _make_topic(steps=["step-intro"])
+        step_uuid = topic.learning_steps[0].uuid
         mock_step_progress = MagicMock(
-            topic_id="phase0-topic1",
-            step_id="step-intro",
+            user_id=1,
+            step_uuid=step_uuid,
             completed_at=MagicMock(),
         )
 
         with (
             patch(
                 "learn_to_cloud.services.steps_service.get_topic_by_id",
-                autospec=True,
+                new_callable=AsyncMock,
                 return_value=topic,
             ),
             patch(
@@ -152,7 +153,7 @@ class TestCompleteStep:
         ):
             repo = MockRepo.return_value
             repo.create_if_not_exists = AsyncMock(return_value=mock_step_progress)
-            repo.get_completed_step_ids = AsyncMock(return_value={"step-intro"})
+            repo.get_completed_step_uuids = AsyncMock(return_value={step_uuid})
 
             result, completed = await complete_step(
                 AsyncMock(), user_id=1, topic_id="phase0-topic1", step_id="step-intro"
@@ -165,11 +166,12 @@ class TestCompleteStep:
     async def test_idempotent_re_completion(self):
         """Already-completed step returns current state without error."""
         topic = _make_topic(steps=["step-intro"])
+        step_uuid = topic.learning_steps[0].uuid
 
         with (
             patch(
                 "learn_to_cloud.services.steps_service.get_topic_by_id",
-                autospec=True,
+                new_callable=AsyncMock,
                 return_value=topic,
             ),
             patch(
@@ -179,7 +181,7 @@ class TestCompleteStep:
         ):
             repo = MockRepo.return_value
             repo.create_if_not_exists = AsyncMock(return_value=None)
-            repo.get_completed_step_ids = AsyncMock(return_value={"step-intro"})
+            repo.get_completed_step_uuids = AsyncMock(return_value={step_uuid})
 
             result, completed = await complete_step(
                 AsyncMock(), user_id=1, topic_id="phase0-topic1", step_id="step-intro"
@@ -203,7 +205,7 @@ class TestUncompleteStep:
         with (
             patch(
                 "learn_to_cloud.services.steps_service.get_topic_by_id",
-                autospec=True,
+                new_callable=AsyncMock,
                 return_value=topic,
             ),
             patch(
@@ -213,7 +215,7 @@ class TestUncompleteStep:
         ):
             repo = MockRepo.return_value
             repo.delete_step = AsyncMock(return_value=1)
-            repo.get_completed_step_ids = AsyncMock(return_value=set())
+            repo.get_completed_step_uuids = AsyncMock(return_value=set())
 
             deleted, completed = await uncomplete_step(
                 AsyncMock(), user_id=1, topic_id="phase0-topic1", step_id="step-intro"
@@ -230,7 +232,7 @@ class TestUncompleteStep:
         with (
             patch(
                 "learn_to_cloud.services.steps_service.get_topic_by_id",
-                autospec=True,
+                new_callable=AsyncMock,
                 return_value=topic,
             ),
             patch(
@@ -240,7 +242,7 @@ class TestUncompleteStep:
         ):
             repo = MockRepo.return_value
             repo.delete_step = AsyncMock(return_value=0)
-            repo.get_completed_step_ids = AsyncMock(return_value=set())
+            repo.get_completed_step_uuids = AsyncMock(return_value=set())
 
             deleted, completed = await uncomplete_step(
                 AsyncMock(), user_id=1, topic_id="phase0-topic1", step_id="step-intro"
@@ -259,17 +261,21 @@ class TestGetValidCompletedSteps:
     @pytest.mark.asyncio
     async def test_filters_stale_step_ids(self):
         topic = _make_topic(steps=["s1", "s2"])
+        s1_uuid = topic.learning_steps[0].uuid
+        s2_uuid = topic.learning_steps[1].uuid
 
         with patch(
             "learn_to_cloud.services.steps_service.StepProgressRepository",
             autospec=True,
         ) as MockRepo:
             repo = MockRepo.return_value
-            repo.get_completed_step_ids = AsyncMock(return_value={"s1", "s2", "s3"})
+            # Only known step uuids; the repo can't return UUIDs the
+            # caller didn't ask about, so "stale" filtering happens
+            # implicitly via the (active) topic.learning_steps list.
+            repo.get_completed_step_uuids = AsyncMock(return_value={s1_uuid, s2_uuid})
 
             result = await get_valid_completed_steps(
                 AsyncMock(), user_id=1, topic=topic
             )
 
         assert result == {"s1", "s2"}
-        assert "s3" not in result

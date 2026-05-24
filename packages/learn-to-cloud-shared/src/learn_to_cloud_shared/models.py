@@ -285,14 +285,15 @@ class VerificationJob(TimestampMixin, Base):
 class StepProgress(Base):
     """Tracks completion of learning steps within topics.
 
-    Note: Only has completed_at timestamp since steps are immutable once done.
+    References the curriculum via ``step_uuid`` (FK to ``steps.uuid``).
+    Phase D.1c (#465) dropped the legacy ``topic_id`` / ``step_id`` /
+    ``phase_id`` / ``step_order`` denormalized columns; that data is now
+    derived from the FK join when needed.
     """
 
     __tablename__ = "step_progress"
     __table_args__ = (
-        UniqueConstraint("user_id", "topic_id", "step_id", name="uq_user_topic_step"),
-        Index("ix_step_progress_user_topic", "user_id", "topic_id"),
-        Index("ix_step_progress_user_phase", "user_id", "phase_id"),
+        UniqueConstraint("user_id", "step_uuid", name="uq_step_progress_user_step"),
         Index("ix_step_progress_step_uuid", "step_uuid"),
     )
 
@@ -302,22 +303,14 @@ class StepProgress(Base):
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
     )
-    topic_id: Mapped[str] = mapped_column(
-        String(100),
-        nullable=False,
-    )
-    step_id: Mapped[str] = mapped_column(String(255), nullable=False)
-    phase_id: Mapped[int] = mapped_column(Integer, nullable=False)
-    step_order: Mapped[int] = mapped_column(
-        Integer,
-        nullable=False,
-    )
-    # UUID reference to ``steps.uuid``. Nullable through PR D.1a (this PR)
-    # while we dual-write; PR D.1c will set NOT NULL and add the FK once
-    # all production rows are backfilled.
-    step_uuid: Mapped[UUID | None] = mapped_column(
+    step_uuid: Mapped[UUID] = mapped_column(
         Uuid(as_uuid=True),
-        nullable=True,
+        ForeignKey(
+            "steps.uuid",
+            ondelete="RESTRICT",
+            name="fk_step_progress_step_uuid",
+        ),
+        nullable=False,
     )
     completed_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

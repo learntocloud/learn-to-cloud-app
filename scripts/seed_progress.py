@@ -61,33 +61,19 @@ async def main(github_username: str) -> None:
             step_count = 0
             for phase in phases:
                 for topic in phase.topics:
-                    for step_order, step in enumerate(topic.learning_steps, 1):
+                    for step in topic.learning_steps:
                         await conn.execute(
                             text(
                                 """
                                 INSERT INTO step_progress (
-                                    user_id,
-                                    topic_id,
-                                    step_id,
-                                    phase_id,
-                                    step_order,
-                                    step_uuid,
-                                    completed_at
+                                    user_id, step_uuid, completed_at
                                 )
-                                VALUES (
-                                    :user_id, :topic_id, :step_id,
-                                    :phase_id, :step_order, :step_uuid,
-                                    :completed_at
-                                )
-                                ON CONFLICT (user_id, topic_id, step_id) DO NOTHING
+                                VALUES (:user_id, :step_uuid, :completed_at)
+                                ON CONFLICT (user_id, step_uuid) DO NOTHING
                                 """
                             ),
                             {
                                 "user_id": user_id,
-                                "topic_id": topic.id,
-                                "step_id": step.id,
-                                "phase_id": phase.id,
-                                "step_order": step_order,
                                 "step_uuid": step.uuid,
                                 "completed_at": now,
                             },
