@@ -14,7 +14,23 @@ from __future__ import annotations
 
 import sys
 
-from learn_to_cloud_shared.content_service import clear_cache, validate_content
+# Register the minimal settings profile (WorkerSettings) before importing
+# anything that touches the shared settings tree. The shared package
+# defaults to WebSettings, which demands GitHub OAuth secrets in
+# production -- irrelevant for a content validator. WorkerSettings is
+# enough; it has content_dir_path. This MUST run before content_service
+# is imported, so the import below is intentionally out of order.
+from learn_to_cloud_shared.core.config import (
+    WorkerSettings,
+    configure_settings,
+)
+
+configure_settings(WorkerSettings)
+
+from learn_to_cloud_shared.content_service import (  # noqa: E402
+    clear_cache,
+    validate_content,
+)
 
 
 def main() -> int:
