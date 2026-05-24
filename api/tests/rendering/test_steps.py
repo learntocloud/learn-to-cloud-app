@@ -132,7 +132,7 @@ class TestBuildStepData:
     def test_empty_optional_fields(self):
         step = LearningStep(uuid=uuid4(), slug="step-1", order=0)
         data = build_step_data(step)
-        assert data["action"] == ""
+        assert data["action"] is None
         assert data["title"] == ""
         assert data["url"] == ""
         assert data["code"] == ""

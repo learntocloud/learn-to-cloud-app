@@ -1,0 +1,37 @@
+{# Reusable badge components for the curriculum UI.
+
+Macros:
+- action_badge(action) — colored pill for a StepAction enum value
+- step_number_badge(order, completed) — circular step-number badge
+- status_pill(label, variant) — top-right status indicator
+  (variant ∈ "success" | "warning" | "error" | "info")
+#}
+
+{% macro action_badge(action) %}
+{% if action %}
+<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold tracking-wide uppercase {{ action.badge_classes }}">
+    {{ action.label }}
+</span>
+{% endif %}
+{% endmacro %}
+
+{% macro step_number_badge(order, completed) %}
+<span class="flex-shrink-0 flex items-center justify-center h-6 w-6 rounded-full text-xs font-bold
+    {% if completed %}bg-green-100 text-green-700 dark:bg-green-800/40 dark:text-green-300
+    {% else %}bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300{% endif %}">
+    {{ order }}
+</span>
+{% endmacro %}
+
+{% set _PILL_CLASSES = {
+    "success": "bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200",
+    "warning": "bg-amber-100 dark:bg-amber-900 text-amber-800 dark:text-amber-200",
+    "error": "bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200",
+    "info": "bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200",
+} %}
+
+{% macro status_pill(label, variant="info") %}
+<span class="inline-flex items-center rounded-full {{ _PILL_CLASSES[variant] }} px-2.5 py-0.5 text-xs font-medium">
+    {{ label }}
+</span>
+{% endmacro %}

@@ -1,18 +1,14 @@
+{% from "macros/badges.html" import status_pill %}
+{% from "macros/callouts.html" import banner %}
 <div id="requirement-{{ requirement.slug }}" class="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
     <div class="flex items-center justify-between mb-2">
         <h4 class="font-medium text-gray-900 dark:text-gray-100">{{ requirement.name }}</h4>
         {% if submission and submission.is_validated %}
-        <span class="inline-flex items-center rounded-full bg-green-100 dark:bg-green-900 px-2.5 py-0.5 text-xs font-medium text-green-800 dark:text-green-200">
-            ✓ Verified
-        </span>
+        {{ status_pill("✓ Verified", "success") }}
         {% elif submission and not submission.is_validated and server_error %}
-        <span class="inline-flex items-center rounded-full bg-amber-100 dark:bg-amber-900 px-2.5 py-0.5 text-xs font-medium text-amber-800 dark:text-amber-200">
-            ⚠ Service Error
-        </span>
+        {{ status_pill("⚠ Service Error", "warning") }}
         {% elif submission and not submission.is_validated %}
-        <span class="inline-flex items-center rounded-full bg-red-100 dark:bg-red-900 px-2.5 py-0.5 text-xs font-medium text-red-800 dark:text-red-200">
-            ✗ Failed
-        </span>
+        {{ status_pill("✗ Failed", "error") }}
         {% endif %}
     </div>
 
@@ -116,18 +112,15 @@
     {% endif %}
 
     {% if server_error %}
-    <div class="mt-3 rounded-md bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 p-3">
-        <p class="text-sm text-amber-800 dark:text-amber-200">
-            ⚠ {{ server_error_message or 'The verification service encountered an error.' }}
-            <strong>This attempt was not counted against your rate limit</strong> — you can try again immediately.
-        </p>
-    </div>
+    {{ banner(
+        (server_error_message or 'The verification service encountered an error.')
+        + ' This attempt was not counted against your rate limit — you can try again immediately.',
+        'warning'
+    ) }}
     {% endif %}
 
     {% if error_banner %}
-    <div class="mt-3 rounded-md bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-3">
-        <p class="text-sm text-red-800 dark:text-red-200">{{ error_banner }}</p>
-    </div>
+    {{ banner(error_banner, 'error') }}
     {% endif %}
 
     {% if feedback_tasks %}

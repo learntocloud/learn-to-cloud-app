@@ -122,7 +122,7 @@ def build_step_data(
         "uuid": str(step.uuid),
         "slug": step.slug,
         "order": step.order,
-        "action": step.action or "",
+        "action": step.action,
         "title": step.title or "",
         "url": step.url or "",
         "description": step.description or "",

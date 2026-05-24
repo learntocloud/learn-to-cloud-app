@@ -8,12 +8,145 @@ All schemas use frozen=True for immutability where appropriate.
 """
 
 from datetime import datetime
+from enum import StrEnum
 from typing import Annotated, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, computed_field
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    TypeAdapter,
+    computed_field,
+    field_validator,
+)
 
 from learn_to_cloud_shared.models import SubmissionType
+
+
+class StepAction(StrEnum):
+    """Categorical action label for a learning step.
+
+    Drives the colored action badge in the step UI. Authored in YAML as
+    ``action: 'Practice:'`` (capitalized, trailing colon) for readability;
+    the schema validator normalizes to the lowercase enum value at load
+    time. The trailing colon is purely a YAML-author affordance and
+    never reaches the rendered UI.
+    """
+
+    BUILD = "build"
+    EXPLORE = "explore"
+    NOTE = "note"
+    PRACTICE = "practice"
+    READ = "read"
+    REFLECT = "reflect"
+    REVIEW = "review"
+    WATCH = "watch"
+
+    @property
+    def label(self) -> str:
+        """Display label shown inside the badge (e.g. ``Practice``)."""
+        return self.value.capitalize()
+
+    @property
+    def badge_classes(self) -> str:
+        """Tailwind utility classes for the action's colored pill."""
+        return _ACTION_BADGE_CLASSES[self]
+
+
+_ACTION_BADGE_CLASSES: dict[StepAction, str] = {
+    StepAction.EXPLORE: (
+        "bg-purple-100 text-purple-700 dark:bg-purple-800/40 dark:text-purple-300"
+    ),
+    StepAction.PRACTICE: (
+        "bg-blue-100 text-blue-700 dark:bg-blue-800/40 dark:text-blue-300"
+    ),
+    StepAction.REFLECT: (
+        "bg-amber-100 text-amber-700 dark:bg-amber-800/40 dark:text-amber-300"
+    ),
+    StepAction.BUILD: (
+        "bg-emerald-100 text-emerald-700 dark:bg-emerald-800/40 dark:text-emerald-300"
+    ),
+    StepAction.READ: ("bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300"),
+    StepAction.WATCH: ("bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300"),
+    StepAction.REVIEW: (
+        "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300"
+    ),
+    StepAction.NOTE: ("bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300"),
+}
+
+
+class TipType(StrEnum):
+    """Categorical type for a callout/tip attached to a learning step."""
+
+    TIP = "tip"
+    NOTE = "note"
+    WARNING = "warning"
+    IMPORTANT = "important"
+
+    @property
+    def icon(self) -> str:
+        return _TIP_ICONS[self]
+
+    @property
+    def container_classes(self) -> str:
+        return _TIP_CONTAINER_CLASSES[self]
+
+    @property
+    def text_classes(self) -> str:
+        return _TIP_TEXT_CLASSES[self]
+
+
+_TIP_ICONS: dict[TipType, str] = {
+    TipType.TIP: "\U0001f4a1",  # 💡
+    TipType.NOTE: "\u2139\ufe0f",  # ℹ️
+    TipType.WARNING: "\u26a0\ufe0f",  # ⚠️
+    TipType.IMPORTANT: "\u2757",  # ❗
+}
+
+_TIP_CONTAINER_CLASSES: dict[TipType, str] = {
+    TipType.TIP: (
+        "bg-emerald-50 border border-emerald-200 "
+        "dark:bg-emerald-900/20 dark:border-emerald-800/50"
+    ),
+    TipType.NOTE: (
+        "bg-blue-50 border border-blue-200 dark:bg-blue-900/20 dark:border-blue-800/50"
+    ),
+    TipType.WARNING: (
+        "bg-amber-50 border border-amber-200 "
+        "dark:bg-amber-900/20 dark:border-amber-800/50"
+    ),
+    TipType.IMPORTANT: (
+        "bg-red-50 border border-red-200 dark:bg-red-900/20 dark:border-red-800/50"
+    ),
+}
+
+_TIP_TEXT_CLASSES: dict[TipType, str] = {
+    TipType.TIP: "text-emerald-800 dark:text-emerald-200",
+    TipType.NOTE: "text-blue-800 dark:text-blue-200",
+    TipType.WARNING: "text-amber-800 dark:text-amber-200",
+    TipType.IMPORTANT: "text-red-800 dark:text-red-200",
+}
+
+
+def _normalize_step_action(raw: str | StepAction | None) -> StepAction | None:
+    """Accept YAML strings like ``"Practice:"`` and normalize to StepAction.
+
+    Returns None for missing/empty values; raises ValueError for unknown
+    labels so authoring mistakes (typos) fail at load time.
+    """
+    if raw is None:
+        return None
+    if isinstance(raw, StepAction):
+        return raw
+    cleaned = raw.strip().rstrip(":").strip().lower()
+    if not cleaned:
+        return None
+    try:
+        return StepAction(cleaned)
+    except ValueError as exc:
+        allowed = ", ".join(a.value for a in StepAction)
+        raise ValueError(f"Unknown step action {raw!r}; allowed: {allowed}") from exc
 
 
 class FrozenModel(BaseModel):
@@ -246,7 +379,7 @@ class ProviderOption(FrozenModel):
 class TipItem(FrozenModel):
     """A tip, note, or warning callout for a learning step."""
 
-    type: str = "tip"  # tip, note, warning, important
+    type: TipType = TipType.TIP
     text: str
 
 
@@ -257,7 +390,7 @@ class LearningStep(FrozenModel):
     uuid: UUID
     slug: str
     order: int
-    action: str | None = None
+    action: StepAction | None = None
     title: str | None = None
     url: str | None = None
     description: str | None = None
@@ -266,6 +399,15 @@ class LearningStep(FrozenModel):
     checklist: list[str] = Field(default_factory=list)
     tips: list[TipItem] = Field(default_factory=list)
     done_when: str | None = None
+
+    @field_validator("action", mode="before")
+    @classmethod
+    def _normalize_action(cls, value: object) -> StepAction | None:
+        if isinstance(value, StepAction) or value is None:
+            return value
+        if isinstance(value, str):
+            return _normalize_step_action(value)
+        raise TypeError(f"action must be a string or StepAction, got {type(value)}")
 
 
 class LearningObjective(FrozenModel):
