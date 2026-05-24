@@ -102,6 +102,10 @@ tfplan
 # Local Copilot CLI / MCP secrets
 .devcontainer/copilot.env
 
+# Book files (copyrighted material)
+*.epub
+*.pdf
+
 # Deep-implement working documents
 research.md
 plan.md
