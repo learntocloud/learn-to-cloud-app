@@ -1,21 +1,17 @@
 # yaml-language-server: $schema=../../schemas/topic.schema.json
 uuid: ca57ab23-c56b-4352-bb47-9cbd0530e78b
-id: phase6-capstone
 slug: capstone
 name: 'Capstone: Secure Your Journal API'
 description: Apply everything from this phase to harden your Journal API with real security controls. By the end, your app will be production-ready.
 short_description: Harden your Journal API with IAM, secrets management, network controls, and monitoring.
 learning_objectives:
 - uuid: f48146c0-831d-49a1-ab8d-4f431bf9e347
-  id: security-capstone-hardening
   text: Apply layered security controls to harden your deployed Journal API.
   order: 1
 - uuid: 5c9c6e63-d54a-4a02-9099-fd4f94d70ebc
-  id: security-capstone-governance
   text: Implement IAM, secret handling, network controls, and monitoring in a production mindset.
   order: 2
 - uuid: 5bdc6d77-f343-4592-9f43-c479b9256fd7
-  id: security-capstone-validation
   text: Demonstrate verifiable security posture improvements through scanning and operational checks.
   order: 3
 learning_steps:
@@ -30,7 +26,7 @@ learning_steps:
   - "**Assign to your VM or container** — Attach the identity so your app authenticates automatically without storing credentials"
   - "**Remove personal credentials** — Delete any personal access keys or passwords from your `.env` and VM"
   done_when: Your API runs using the service account's identity, not your personal credentials, and the service account has no more permissions than necessary.
-  id: phase6-capstone-practice-create-a-dedicated-service
+  slug: phase6-capstone-practice-create-a-dedicated-service
 
 - uuid: 53510b1d-2c77-49c2-8041-4692eee7b96f
   order: 2
@@ -44,7 +40,7 @@ learning_steps:
   - "**Update your app** to retrieve secrets from the vault at startup instead of reading `.env`"
   - "**Delete the `.env` file** from your VM"
   done_when: Your app starts successfully with all secrets loaded from the vault, and no plaintext secrets exist on disk.
-  id: phase6-capstone-practice-move-secrets-to-a
+  slug: phase6-capstone-practice-move-secrets-to-a
 
 - uuid: 0bd35d1d-88e6-4175-ac71-56dfd47bd393
   order: 3
@@ -57,7 +53,7 @@ learning_steps:
   - "**Test from outside** — Attempt to connect from your local machine — it should fail"
   - "**Test from inside** — Connect from your API VM — it should succeed"
   done_when: The database is unreachable from the internet and only accepts connections from your API server.
-  id: phase6-capstone-practice-verify-your-database-is
+  slug: phase6-capstone-practice-verify-your-database-is
 
 - uuid: 58a1b003-1828-4475-9960-a0f5e23707ce
   order: 4
@@ -69,7 +65,7 @@ learning_steps:
   - "**Block HTTP** — Either redirect HTTP→HTTPS in your reverse proxy, or remove port 80 from your security group entirely"
   - "**Test plaintext** — `curl http://yourdomain/entries` should either redirect to HTTPS or fail to connect"
   done_when: "All API traffic is encrypted, and `curl http://yourdomain/entries` does not return a plaintext `200 OK`."
-  id: phase6-capstone-practice-configure-https-for-all
+  slug: phase6-capstone-practice-configure-https-for-all
 
 - uuid: 69d24a4d-881b-44eb-946e-0c23f9ffccef
   order: 5
@@ -84,7 +80,7 @@ learning_steps:
   - type: tip
     text: Most cloud platforms enable some audit logging by default, but you may need to configure a storage destination or enable additional log categories.
   done_when: You can view audit events for your infrastructure actions in your cloud console's logging dashboard.
-  id: phase6-capstone-practice-enable-audit-logging
+  slug: phase6-capstone-practice-enable-audit-logging
 
 - uuid: 0ba614b5-943c-44e6-ba9a-2cfdf6d60b7e
   order: 6
@@ -97,7 +93,7 @@ learning_steps:
   - "**Configure a notification channel** — email, Slack, or webhook"
   - "**Trigger a test event** and verify you receive the alert"
   done_when: You trigger a test event and receive an alert notification.
-  id: phase6-capstone-practice-set-up-at-least
+  slug: phase6-capstone-practice-set-up-at-least
 
 - uuid: e2b8c099-6322-446d-9118-a1406c1ad6b8
   order: 7
@@ -110,7 +106,7 @@ learning_steps:
   - "**Review findings** — Check the Security tab for any alerts"
   - "**Triage** — Fix critical/high severity findings, dismiss false positives with a reason"
   done_when: Dependabot is enabled, you've reviewed any alerts, and critical findings are addressed.
-  id: phase6-capstone-practice-enable-security-scanning-on
+  slug: phase6-capstone-practice-enable-security-scanning-on
 
 - uuid: 831a7907-14bc-4a99-b03d-d7dc1fc4d742
   order: 8
@@ -127,7 +123,7 @@ learning_steps:
   - type: tip
     text: If you used resource groups or tags, deleting the group removes everything at once.
   done_when: Your cloud console shows no remaining billable resources from this project.
-  id: phase6-capstone-practice-clean-up-your-cloud
+  slug: phase6-capstone-practice-clean-up-your-cloud
 
 - uuid: 31c6ef21-d9a3-43fc-b102-8d58ecbe4342
   order: 9
@@ -141,4 +137,4 @@ learning_steps:
     - Key takeaways about cloud security
 
     Share on LinkedIn or with the Learn to Cloud community to celebrate completing the full curriculum!
-  id: phase6-capstone-reflect-share-your-progress
+  slug: phase6-capstone-reflect-share-your-progress

@@ -1,20 +1,16 @@
 # yaml-language-server: $schema=../../schemas/topic.schema.json
 uuid: 39af4f01-5c09-4e1e-8eba-07822628c5b0
-id: phase4-topic7
 slug: billing-cost-management
 name: Cloud Billing & Cost Management
 description: Cloud services are billed based on consumption. Every VM, database, and API call has a cost. In this topic, you'll learn to monitor spending, set up cost alerts, and estimate expenses before deploying infrastructure. These skills prevent surprise bills and teach you to make cost-aware architecture decisions.
 learning_objectives:
 - uuid: b26382c1-d1cb-4c66-88dc-c8317b7fe7bb
-  id: billing-cost-pricing-models
   text: Explain cloud pricing mechanics and billing drivers for common resource types.
   order: 1
 - uuid: c356df1b-722a-44fc-af2f-cff6990a63e7
-  id: billing-cost-guardrails
   text: Configure budgets and alerts to reduce cost overruns and surprise spend.
   order: 2
 - uuid: 073bacc1-913a-4bd2-9b5d-1b26d4d291b7
-  id: billing-cost-estimation
   text: Estimate deployment costs and apply cost-aware decision making before provisioning.
   order: 3
 learning_steps:
@@ -36,7 +32,7 @@ learning_steps:
     url: https://docs.cloud.google.com/billing/docs/concepts
     description: Review how billing accounts, projects, and charges work in Google Cloud.
   title: Learn cloud pricing and billing fundamentals by provider
-  id: phase4-topic7-read-learn-cloud-pricing-and
+  slug: phase4-topic7-read-learn-cloud-pricing-and
 - uuid: ee765ac7-7c31-4e31-b6af-37b87971a1d5
   order: 2
   action: 'Practice:'
@@ -55,7 +51,7 @@ learning_steps:
     url: https://docs.cloud.google.com/billing/docs/how-to
     description: How to manage billing in Google Cloud
   title: Cost Management Overview
-  id: phase4-topic7-practice-cost-management-overview
+  slug: phase4-topic7-practice-cost-management-overview
 - uuid: b2c9d077-315c-4c28-980d-25925d7c61e2
   order: 3
   action: 'Practice:'
@@ -74,7 +70,7 @@ learning_steps:
     url: https://docs.cloud.google.com/billing/docs/how-to/budgets
     description: Configuring budget alerts in Google Cloud
   title: Set Up Budget Alerts
-  id: phase4-topic7-practice-set-up-budget-alerts
+  slug: phase4-topic7-practice-set-up-budget-alerts
 - uuid: a14c93c6-af99-4ad3-ad8f-885ac83c648e
   order: 4
   action: 'Practice:'
@@ -93,7 +89,7 @@ learning_steps:
     url: https://cloud.google.com/products/calculator
     description: Estimate costs for Google Cloud services before deploying
   title: Use Pricing Calculators
-  id: phase4-topic7-practice-use-pricing-calculators
+  slug: phase4-topic7-practice-use-pricing-calculators
 - uuid: 7ce6fc4b-cd77-4709-be7e-9bb01f220426
   order: 5
   action: 'Read:'
@@ -112,10 +108,10 @@ learning_steps:
     url: https://docs.cloud.google.com/architecture/framework/cost-optimization
     description: Follow GCP cost-optimization recommendations for architecture and operations.
   title: Review cost-optimization frameworks by provider
-  id: phase4-topic7-read-review-cost-optimization-frameworks-by
+  slug: phase4-topic7-read-review-cost-optimization-frameworks-by
 - uuid: a9ac36a5-e8e4-4231-9c6e-8a4b45bc6967
   order: 6
   action: 'Practice:'
   description: Open your cloud provider's billing dashboard and review your current month's charges. Identify which resources are costing the most.
   title: Review your current month's charges
-  id: phase4-topic7-practice-review-your-current-months
+  slug: phase4-topic7-practice-review-your-current-months

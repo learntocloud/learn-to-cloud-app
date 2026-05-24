@@ -1,6 +1,5 @@
 # yaml-language-server: $schema=../../schemas/phase.schema.json
 uuid: 9a45b1ee-ff89-4b59-9708-6c7c6229e8bb
-id: '2'
 name: Networking Fundamentals
 slug: phase2
 description: Welcome to Phase 2! This phase covers the core networking concepts you need before diving into cloud infrastructure. Understanding how networks work—IP addressing, routing, DNS, and common protocols—is essential for cloud engineering. You'll learn to troubleshoot connectivity issues and build a mental model of how data flows across networks.

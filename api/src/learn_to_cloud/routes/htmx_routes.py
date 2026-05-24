@@ -13,12 +13,11 @@ Async verifications use Durable Functions + HTMX polling:
 
 import logging
 from collections.abc import Callable
-from typing import Annotated
+from typing import TYPE_CHECKING, Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Form, Query, Request
 from fastapi.responses import HTMLResponse
-from learn_to_cloud_shared.content_service import get_topic_by_id
 from learn_to_cloud_shared.core.database import DbSession
 from learn_to_cloud_shared.repositories.verification_job_repository import (
     VerificationJobRepository,
@@ -31,12 +30,15 @@ from learn_to_cloud_shared.schemas import (
 from learn_to_cloud_shared.verification.execution import (
     SubmissionAlreadyInFlightError,
 )
-from learn_to_cloud_shared.verification.requirements import get_requirement_by_id
+from learn_to_cloud_shared.verification.requirements import get_requirement_by_slug
 from learn_to_cloud_shared.verification.url_derivation import (
     derive_submission_value,
     is_derivable,
 )
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+
+if TYPE_CHECKING:
+    from learn_to_cloud_shared.schemas import Topic
 
 from learn_to_cloud.core.auth import AuthenticatedUser, CurrentUser, UserId
 from learn_to_cloud.core.ratelimit import limiter
@@ -57,8 +59,6 @@ from learn_to_cloud.services.durable_verification_client import (
 from learn_to_cloud.services.steps_service import (
     StepValidationError,
     complete_step,
-    get_valid_completed_steps,
-    parse_phase_id_from_topic_id,
     uncomplete_step,
 )
 from learn_to_cloud.services.submissions_service import (
@@ -131,7 +131,7 @@ async def _render_processing_card(
     *,
     delay_seconds: int,
 ) -> HTMLResponse:
-    requirement = await get_requirement_by_id(db, token_data.requirement_id)
+    requirement = await get_requirement_by_slug(db, token_data.requirement_slug)
     if requirement is None:
         return HTMLResponse(_reload_verification_html())
 
@@ -180,46 +180,24 @@ async def _delete_terminal_job(
 
 async def _render_step_toggle(
     request: Request,
-    db: DbSession,
     user_id: int,
-    topic_id: str,
-    step_id: str,
-    phase_id: int,
+    topic: "Topic",
+    step,
+    completed_step_uuids: set[UUID],
+    db: DbSession,
 ) -> HTMLResponse:
-    """Shared rendering for step complete/uncomplete HTMX responses.
-
-    Looks up the step content and returns the combined step + progress
-    HTML partials.
-    """
-    topic = await get_topic_by_id(db, topic_id)
-    step = None
-    if topic:
-        for s in topic.learning_steps:
-            if s.id == step_id:
-                step = s
-                break
-
-    if step is None:
-        add_span_event(
-            "step_not_found",
-            {"user_id": user_id, "topic_id": topic_id, "step_id": step_id},
-        )
-        return HTMLResponse("")
-
-    assert topic is not None  # guaranteed: topic=None → step=None → early return
+    """Shared rendering for step complete/uncomplete HTMX responses."""
     step_data = build_step_data(step)
     user = await get_user_by_id(db, user_id)
-    completed_steps = await get_valid_completed_steps(db, user_id, topic)
+    completed_uuid_strs = {str(u) for u in completed_step_uuids}
 
     total_steps = len(topic.learning_steps)
-    progress = build_progress_dict(len(completed_steps), total_steps)
+    progress = build_progress_dict(len(completed_step_uuids), total_steps)
 
     step_html = templates.get_template("partials/topic_step.html").render(
         request=request,
         step=step_data,
-        topic_id=topic_id,
-        phase_id=phase_id,
-        completed_steps=completed_steps,
+        completed_steps=completed_uuid_strs,
         user=user,
     )
     progress_html = templates.get_template("partials/topic_progress.html").render(
@@ -234,49 +212,46 @@ async def htmx_complete_step(
     request: Request,
     db: DbSession,
     user_id: UserId,
-    topic_id: Annotated[str, Form()],
-    step_id: Annotated[str, Form()],
-    phase_id: Annotated[int, Form()],
+    step_uuid: Annotated[UUID, Form()],
 ) -> HTMLResponse:
     """Complete a step and return the updated step partial."""
     try:
-        await complete_step(db, user_id, topic_id, step_id)
+        _, topic, completed = await complete_step(db, user_id, step_uuid)
     except StepValidationError as e:
         add_span_event(
             "step_complete_invalid",
             {
                 "user_id": user_id,
-                "topic_id": topic_id,
-                "step_id": step_id,
+                "step_uuid": str(step_uuid),
                 "error": str(e),
             },
         )
-        # Step ID doesn't exist in current content (stale cached page).
+        # Step UUID doesn't exist in current content (stale cached page).
         # Force a full page reload so the user gets the current steps.
         response = HTMLResponse("")
         response.headers["HX-Refresh"] = "true"
         return response
-    return await _render_step_toggle(request, db, user_id, topic_id, step_id, phase_id)
+
+    step = next(s for s in topic.learning_steps if s.uuid == step_uuid)
+    return await _render_step_toggle(request, user_id, topic, step, completed, db)
 
 
-@router.delete("/steps/{topic_id}/{step_id}", response_class=HTMLResponse)
+@router.delete("/steps/{step_uuid}", response_class=HTMLResponse)
 async def htmx_uncomplete_step(
     request: Request,
-    topic_id: str,
-    step_id: str,
+    step_uuid: UUID,
     db: DbSession,
     user_id: UserId,
 ) -> HTMLResponse:
     """Uncomplete a step and return the updated step partial."""
     try:
-        await uncomplete_step(db, user_id, topic_id, step_id)
+        _, topic, step, completed = await uncomplete_step(db, user_id, step_uuid)
     except StepValidationError as e:
         add_span_event(
             "step_uncomplete_invalid",
             {
                 "user_id": user_id,
-                "topic_id": topic_id,
-                "step_id": step_id,
+                "step_uuid": str(step_uuid),
                 "error": str(e),
             },
         )
@@ -284,9 +259,7 @@ async def htmx_uncomplete_step(
         response.headers["HX-Refresh"] = "true"
         return response
 
-    phase_id = parse_phase_id_from_topic_id(topic_id) or 0
-
-    return await _render_step_toggle(request, db, user_id, topic_id, step_id, phase_id)
+    return await _render_step_toggle(request, user_id, topic, step, completed, db)
 
 
 @router.post("/github/submit", response_class=HTMLResponse)
@@ -295,7 +268,7 @@ async def htmx_submit_verification(
     request: Request,
     db: DbSession,
     current_user: CurrentUser,
-    requirement_id: Annotated[str, Form(max_length=100)],
+    requirement_slug: Annotated[str, Form(max_length=100)],
     submitted_value: Annotated[str, Form(max_length=2048)] = "",
 ) -> HTMLResponse:
     """Submit a hands-on verification.
@@ -314,7 +287,7 @@ async def htmx_submit_verification(
     user_id = current_user.user_id
     github_username = current_user.github_username
 
-    requirement = await get_requirement_by_id(db, requirement_id)
+    requirement = await get_requirement_by_slug(db, requirement_slug)
 
     session_maker = request.app.state.session_maker
 
@@ -380,7 +353,7 @@ async def htmx_submit_verification(
         dispatch_result = await create_verification_job(
             session_maker=session_maker,
             user_id=user_id,
-            requirement_id=requirement_id,
+            requirement_slug=requirement_slug,
             submitted_value=derived_value,
             github_username=github_username,
         )
@@ -392,7 +365,7 @@ async def htmx_submit_verification(
             "htmx.submit.unexpected_error",
             extra={
                 "user_id": user_id,
-                "requirement_id": requirement_id,
+                "requirement_slug": requirement_slug,
                 "error_type": type(exc).__name__,
             },
         )
@@ -414,7 +387,7 @@ async def htmx_submit_verification(
     return await _start_async_job_and_render(
         session_maker=session_maker,
         user_id=user_id,
-        requirement_id=requirement_id,
+        requirement_slug=requirement_slug,
         job_submission=dispatch_result,
         render_card=_render_card,
     )
@@ -439,7 +412,7 @@ def _render_sync_result(
         extra={
             "user_id": user_id,
             "submission_id": result.submission.id,
-            "requirement_id": requirement.id if requirement is not None else None,
+            "requirement_slug": requirement.slug if requirement is not None else None,
             "submission_type": (
                 requirement.submission_type.value if requirement is not None else None
             ),
@@ -455,7 +428,7 @@ async def _start_async_job_and_render(
     *,
     session_maker: async_sessionmaker[AsyncSession],
     user_id: int,
-    requirement_id: str,
+    requirement_slug: str,
     job_submission: VerificationJobSubmission,
     render_card: Callable[..., HTMLResponse],
 ) -> HTMLResponse:
@@ -483,7 +456,7 @@ async def _start_async_job_and_render(
             user_id=user_id,
             job_id=job_submission.job.id,
             instance_id=str(job_submission.job.id),
-            requirement_id=requirement_id,
+            requirement_slug=requirement_slug,
         )
 
         return render_card(
@@ -500,7 +473,7 @@ async def _start_async_job_and_render(
             "htmx.submit.durable_start_failed",
             extra={
                 "user_id": user_id,
-                "requirement_id": requirement_id,
+                "requirement_slug": requirement_slug,
                 "error_type": type(exc).__name__,
             },
         )

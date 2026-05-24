@@ -1,25 +1,20 @@
 # yaml-language-server: $schema=../../schemas/topic.schema.json
 uuid: e8852e92-83a5-4e92-92f1-a450324278f3
-id: phase3-topic5
 slug: build-the-app
 name: 'Capstone: Learning Journal API'
 description: Time to put everything together! In this capstone project, you'll build a working Learning Journal API that combines Python, FastAPI, databases, and LLM integration. This project synthesizes all Phase 3 skills into a complete application.
 short_description: Build a Learning Journal API with FastAPI, PostgreSQL, and AI-powered entry analysis using LLMs.
 learning_objectives:
 - uuid: a52a062c-bc9b-4140-8948-aabe16deef8c
-  id: build-app-system-integration
   text: Integrate FastAPI routing, request/response models, PostgreSQL data access, and LLM analysis into one working API.
   order: 1
 - uuid: 09fdd5e6-070c-4f25-8556-d76b0933764d
-  id: build-app-feature-delivery
   text: Implement required capstone behaviors end to end, including path-parameter routes, correct 404 handling, and async-ready service flows.
   order: 2
 - uuid: bee07dd7-b40c-49cb-973b-b6f4da245636
-  id: build-app-dev-workflow
   text: Follow a professional development workflow using feature branches, pull requests, and test-driven development for each task.
   order: 3
 - uuid: 856aacbe-63c9-4cf1-8096-da33a19b2a03
-  id: build-app-portfolio-readiness
   text: Validate required API behaviors, publish your implementation on GitHub, and present it as a cloud engineering project artifact.
   order: 4
 learning_steps:
@@ -29,10 +24,10 @@ learning_steps:
   title: Journal Starter Repository
   url: https://github.com/learntocloud/journal-starter
   description: "Time to complete the capstone. The repository README has everything you need: Dev Container setup, development tasks, LLM provider configuration, and troubleshooting tips. Fork the repo and follow the instructions there to build your Journal API. Important: Follow the development workflow — create a feature branch for each task, run the tests, then open a Pull Request to merge into main. You'll need to submit each merged PR link for verification."
-  id: phase3-topic5-practice-journal-starter-repository
+  slug: phase3-topic5-practice-journal-starter-repository
 - uuid: 0f5b41ca-70f1-43f3-a1d2-f6396f00f1c3
   order: 2
   action: 'Reflect:'
   title: Share Your Progress
   description: When you've completed the capstone, push your work to GitHub! This becomes part of your portfolio. Consider sharing it on LinkedIn or with the Learn to Cloud community to get feedback and celebrate your progress.
-  id: phase3-topic5-reflect-share-your-progress
+  slug: phase3-topic5-reflect-share-your-progress

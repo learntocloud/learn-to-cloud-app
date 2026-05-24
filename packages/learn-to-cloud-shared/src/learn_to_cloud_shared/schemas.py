@@ -131,7 +131,7 @@ class _RequirementBase(StrictFrozenModel):
     """
 
     uuid: UUID
-    id: str
+    slug: str
     name: str
     description: str
 
@@ -229,8 +229,8 @@ class HealthResponse(BaseModel):
 class StepCompletionResult(FrozenModel):
     """Result of completing a step (service-layer response model)."""
 
-    topic_id: str
-    step_id: str
+    topic_slug: str
+    step_slug: str
     completed_at: datetime
 
 
@@ -255,7 +255,7 @@ class LearningStep(FrozenModel):
 
     # Stable opaque identifier (issue #462).
     uuid: UUID
-    id: str
+    slug: str
     order: int
     action: str | None = None
     title: str | None = None
@@ -273,7 +273,6 @@ class LearningObjective(FrozenModel):
 
     # Stable opaque identifier (issue #462).
     uuid: UUID
-    id: str
     text: str
     order: int
 
@@ -290,7 +289,6 @@ class Topic(FrozenModel):
 
     # Stable opaque identifier (issue #462).
     uuid: UUID
-    id: str
     slug: str
     name: str
     description: str
@@ -320,13 +318,18 @@ class PhaseHandsOnVerificationOverview(FrozenModel):
 
 
 class Phase(FrozenModel):
-    """A phase in the curriculum."""
+    """A phase in the curriculum.
+
+    Phases use ``slug`` (e.g. ``"phase0"``) and ``order`` (int ``0..6``)
+    as their human keys. The slug is what shows up in URLs and is the
+    primary lookup key; ``order`` drives display ordering and is also
+    used in URL paths today (``/phase/{order}``).
+    """
 
     model_config = ConfigDict(frozen=True, extra="ignore")
 
     # Stable opaque identifier (issue #462).
     uuid: UUID
-    id: int
     name: str
     slug: str
     description: str = ""
@@ -416,7 +419,7 @@ class PhaseProgress(FrozenModel):
     steps_required: int
     hands_on_validated: int  # count of validated requirements
     hands_on_required: int  # count of required requirements
-    topic_progress: dict[str, TopicProgressData] | None = None
+    topic_progress: dict[UUID, TopicProgressData] | None = None
 
     @computed_field
     @property

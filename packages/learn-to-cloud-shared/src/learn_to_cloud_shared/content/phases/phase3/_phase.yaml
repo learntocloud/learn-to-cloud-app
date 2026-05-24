@@ -1,6 +1,5 @@
 # yaml-language-server: $schema=../../schemas/phase.schema.json
 uuid: 5edbc820-fe9c-4b17-bdb1-91991f0fe9f6
-id: '3'
 name: Programming Fundamentals
 slug: phase3
 description: Welcome to Phase 3! This phase is all about programming with Python and building real applications. Programming is a fundamental skill for cloud engineering, enabling you to create, manage, and optimize cloud resources efficiently. You'll build a working API with database integration—the foundation for everything that follows.

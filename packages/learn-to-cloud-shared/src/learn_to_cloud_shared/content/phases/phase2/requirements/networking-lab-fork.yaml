@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=../../../schemas/requirement.schema.json
 uuid: 1e8d79f3-9936-4fd4-ab46-ddd1a7eea65f
-id: networking-lab-fork
+slug: networking-lab-fork
 submission_type: repo_fork
 name: Fork the Networking Lab Repository
 description: Fork learntocloud/networking-lab so you can complete and track the lab in your own account.

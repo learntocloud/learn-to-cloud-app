@@ -102,7 +102,7 @@ async def _patched_content():
     async def _topic_by_id(_db, topic_id):
         for phase in yaml_phases:
             for topic in phase.topics:
-                if topic.id == topic_id:
+                if topic.slug == topic_id:
                     return topic
         return None
 
@@ -114,10 +114,6 @@ async def _patched_content():
         patch(
             "learn_to_cloud.routes.pages_routes.get_phase_by_slug",
             side_effect=_phase_by_slug,
-        ),
-        patch(
-            "learn_to_cloud.routes.htmx_routes.get_topic_by_id",
-            side_effect=_topic_by_id,
         ),
     ):
         yield yaml_phases

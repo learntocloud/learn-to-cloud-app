@@ -18,6 +18,7 @@ Testing approach:
 """
 
 from unittest.mock import AsyncMock, MagicMock, patch
+from uuid import uuid4
 
 import pytest
 
@@ -63,7 +64,7 @@ def _fake_phase(*, order: int = 1, name: str = "Phase 1", slug: str = "phase1"):
 def _fake_topic(*, topic_id: str = "topic-1", slug: str = "linux-basics"):
     """Build a minimal mock topic object."""
     topic = MagicMock()
-    topic.id = topic_id
+    topic.uuid = uuid4()
     topic.slug = slug
     topic.learning_steps = []
     return topic

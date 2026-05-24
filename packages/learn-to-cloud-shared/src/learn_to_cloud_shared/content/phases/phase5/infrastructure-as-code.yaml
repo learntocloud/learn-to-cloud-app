@@ -1,20 +1,16 @@
 # yaml-language-server: $schema=../../schemas/topic.schema.json
 uuid: 3965a6b1-f216-47a8-a4f4-66e93d16a5ea
-id: phase5-topic3
 slug: infrastructure-as-code
 name: Infrastructure as Code (IaC)
 description: Infrastructure as Code (IaC) is a key DevOps practice that allows you to manage and provision infrastructure using code, rather than manual processes like using the console. In this phase, you'll build on Phase 1 fundamentals and execute a complete Terraform workflow for real cloud provisioning.
 learning_objectives:
 - uuid: ec4d1b2c-5e6e-428c-9628-f3ec1fc248f7
-  id: iac-devops-principles
   text: Explain how IaC improves reliability, repeatability, and change control in DevOps workflows.
   order: 1
 - uuid: cf832a84-8572-4968-a86e-9fca6cd2cd20
-  id: iac-terraform-workflow
   text: Execute end-to-end Terraform workflows from initialization through teardown.
   order: 2
 - uuid: 6152f442-6023-4583-999b-4847b80ff6d7
-  id: iac-cloud-provisioning
   text: Provision and manage cloud resources safely using provider-specific declarative configuration.
   order: 3
 learning_steps:
@@ -36,7 +32,7 @@ learning_steps:
     url: https://youtu.be/VCayKl82Lt8
     description: Video walkthrough of Terraform with GCP
   title: Watch a cloud-specific Terraform tutorial
-  id: phase5-topic3-watch-watch-a-cloud-specific-terraform
+  slug: phase5-topic3-watch-watch-a-cloud-specific-terraform
 - uuid: a10a0883-e424-4d95-ac8e-b03ebb09ca15
   order: 2
   action: 'Practice:'
@@ -55,29 +51,29 @@ learning_steps:
     url: https://registry.terraform.io/providers/hashicorp/google/latest/docs
     description: Terraform provider for Google Cloud Platform
   title: Cloud-Specific Providers
-  id: phase5-topic3-practice-cloud-specific-providers
+  slug: phase5-topic3-practice-cloud-specific-providers
 - uuid: eba35467-ab26-4906-82d9-1385cd4a96e5
   order: 3
   action: 'Practice:'
   description: Write a Terraform configuration file that creates a virtual machine on your cloud provider with a security group allowing SSH access.
   title: Write a Terraform config to create a VM
-  id: phase5-topic3-practice-write-a-terraform-config
+  slug: phase5-topic3-practice-write-a-terraform-config
 - uuid: e7475372-2f50-4c24-a9d3-0d40fdccaf3a
   order: 4
   action: 'Practice:'
   description: Initialize Terraform with `terraform init`, preview your changes with `terraform plan`, then create the resources with `terraform apply`. Verify the resources exist in your cloud console.
   title: Run terraform init, plan, and apply
-  id: phase5-topic3-practice-run-terraform-init-plan
+  slug: phase5-topic3-practice-run-terraform-init-plan
 - uuid: 6eee2650-6a06-41b2-9b9d-7e5789c2924d
   order: 5
   action: 'Practice:'
   description: Run `terraform destroy` to remove all resources you created, and verify cleanup in your cloud console.
   title: Clean up with terraform destroy
-  id: phase5-topic3-practice-clean-up-with-terraform
+  slug: phase5-topic3-practice-clean-up-with-terraform
 - uuid: d8573f28-0fb2-47cf-87cc-0a5b56392582
   order: 6
   action: 'Read:'
   title: Terraform Best Practices
   url: https://www.terraform-best-practices.com/
   description: Learn about module organization, state management, and variable patterns.
-  id: phase5-topic3-read-terraform-best-practices
+  slug: phase5-topic3-read-terraform-best-practices

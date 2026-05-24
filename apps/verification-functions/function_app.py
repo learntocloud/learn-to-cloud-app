@@ -187,7 +187,7 @@ def _set_verification_span_attributes(
     user_id: int | None = None,
     github_username: str | None = None,
     phase_id: int | None = None,
-    requirement_id: str | None = None,
+    requirement_slug: str | None = None,
     submission_type: str | None = None,
     status: str | None = None,
     result_submission_id: int | None = None,
@@ -200,8 +200,8 @@ def _set_verification_span_attributes(
     span.set_attribute("verification.job_id", job_id)
     if phase_id is not None:
         span.set_attribute("verification.phase_id", phase_id)
-    if requirement_id:
-        span.set_attribute("verification.requirement_id", requirement_id)
+    if requirement_slug:
+        span.set_attribute("verification.requirement_slug", requirement_slug)
     if submission_type:
         span.set_attribute("verification.submission_type", submission_type)
     if status:
@@ -222,7 +222,7 @@ def _set_prepared_job_span_attributes(job: PreparedVerificationJob) -> None:
         job_id=str(job.id),
         user_id=job.user_id,
         github_username=job.github_username,
-        requirement_id=job.requirement.id,
+        requirement_slug=job.requirement.slug,
         submission_type=job.requirement.submission_type.value,
     )
 
@@ -233,7 +233,7 @@ def _set_result_span_attributes(result: Mapping[str, object]) -> None:
         return
 
     phase_id = result.get("phase_id")
-    requirement_id = result.get("requirement_id")
+    requirement_slug = result.get("requirement_slug")
     submission_type = result.get("submission_type")
     status = result.get("status")
     result_submission_id = result.get("submission_id")
@@ -241,7 +241,9 @@ def _set_result_span_attributes(result: Mapping[str, object]) -> None:
     _set_verification_span_attributes(
         job_id=job_id,
         phase_id=phase_id if isinstance(phase_id, int) else None,
-        requirement_id=requirement_id if isinstance(requirement_id, str) else None,
+        requirement_slug=(
+            requirement_slug if isinstance(requirement_slug, str) else None
+        ),
         submission_type=submission_type if isinstance(submission_type, str) else None,
         status=status if isinstance(status, str) else None,
         result_submission_id=(
@@ -260,7 +262,7 @@ def _log_verification_job_completed(
             "job_id": result.get("job_id"),
             "user_id": job.user_id,
             "github_username": job.github_username,
-            "requirement_id": job.requirement.id,
+            "requirement_slug": job.requirement.slug,
             "submission_type": job.requirement.submission_type.value,
             "status": result.get("status"),
             "result_submission_id": result.get("submission_id"),
@@ -296,7 +298,7 @@ def _job_custom_status(
     return {
         "step": step,
         "job_id": job_id,
-        "requirement_id": job.requirement.id,
+        "requirement_slug": job.requirement.slug,
         "submission_type": job.requirement.submission_type.value,
     }
 
@@ -307,7 +309,7 @@ def _result_custom_status(
     result: Mapping[str, object],
 ) -> dict[str, object]:
     status: dict[str, object] = {"step": step, "job_id": job_id}
-    for key in ("phase_id", "requirement_id", "submission_type"):
+    for key in ("phase_id", "requirement_slug", "submission_type"):
         value = result.get(key)
         if value is not None:
             status[key] = value
@@ -656,14 +658,14 @@ async def start_verification_job(
             if job is None:
                 return _json_response({"error": "job_not_found"}, status_code=404)
 
-            # verification_jobs no longer carries submission_type/requirement_id
+            # verification_jobs no longer carries submission_type/requirement_slug
             # (Phase D.3). Resolve them via a direct lookup against the
             # requirements table -- this includes soft-deleted rows because
             # the FK is ON DELETE RESTRICT, so the row always still exists.
             requirement_row = (
                 await session.execute(
                     text(
-                        "SELECT id, submission_type FROM requirements "
+                        "SELECT slug, submission_type FROM requirements "
                         "WHERE uuid = :uuid LIMIT 1"
                     ),
                     {"uuid": job.requirement_uuid},
@@ -671,7 +673,7 @@ async def start_verification_job(
             ).first()
         if requirement_row is None:
             return _json_response({"error": "requirement_not_found"}, status_code=404)
-        requirement_id, submission_type_str = requirement_row[0], requirement_row[1]
+        requirement_slug, submission_type_str = requirement_row[0], requirement_row[1]
 
         orchestrator_name = _orchestrator_name_for_submission_type(submission_type_str)
         _set_verification_span_attributes(job_id=job_id)
@@ -686,7 +688,7 @@ async def start_verification_job(
                 "job_id": job_id,
                 "instance_id": instance_id,
                 "orchestrator_name": orchestrator_name,
-                "requirement_id": requirement_id,
+                "requirement_slug": requirement_slug,
                 "submission_type": submission_type_str,
             },
         )

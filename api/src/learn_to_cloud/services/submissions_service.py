@@ -79,7 +79,7 @@ async def get_phase_submission_context(
             # past us we skip silently rather than crash the phase page.
             continue
         sub_data = to_submission_data(sub)
-        submissions_by_req[requirement.id] = sub_data
+        submissions_by_req[requirement.slug] = sub_data
 
         if sub.feedback_json and not sub.is_validated:
             try:
@@ -95,7 +95,7 @@ async def get_phase_submission_context(
                 ]
                 passed = sum(1 for t in tasks if t["passed"])
 
-                feedback_by_req[requirement.id] = {
+                feedback_by_req[requirement.slug] = {
                     "tasks": tasks,
                     "passed": passed,
                 }
@@ -103,7 +103,7 @@ async def get_phase_submission_context(
                 span = trace.get_current_span()
                 span.add_event(
                     "feedback_parse_failed",
-                    {"requirement_id": requirement.id},
+                    {"requirement_slug": requirement.slug},
                 )
 
     return PhaseSubmissionContext(
@@ -140,7 +140,7 @@ class _PreValidationContext:
     """
 
     requirement: HandsOnRequirement
-    phase_id: int
+    phase_order: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -172,7 +172,7 @@ SubmissionDispatchResult = VerificationJobSubmission | SyncVerificationResult
 async def _check_submission_preconditions(
     session_maker: async_sessionmaker[AsyncSession],
     user_id: int,
-    requirement_id: str,
+    requirement_slug: str,
     github_username: str | None,
     submitted_value: str | None = None,
 ) -> _PreValidationContext:
@@ -185,14 +185,14 @@ async def _check_submission_preconditions(
     """
     async with session_maker() as read_session:
         index = await load_requirement_index(read_session)
-        requirement = index.by_id.get(requirement_id)
+        requirement = index.by_slug.get(requirement_slug)
         if not requirement:
-            raise RequirementNotFoundError(f"Requirement not found: {requirement_id}")
+            raise RequirementNotFoundError(f"Requirement not found: {requirement_slug}")
 
-        phase_id = index.phase_id_by_req_id.get(requirement_id)
-        if phase_id is None:
+        phase_order = index.phase_order_by_req_slug.get(requirement_slug)
+        if phase_order is None:
             raise RequirementNotFoundError(
-                f"Requirement not mapped to a phase: {requirement_id}"
+                f"Requirement not mapped to a phase: {requirement_slug}"
             )
 
         submission_repo = SubmissionRepository(read_session)
@@ -204,7 +204,7 @@ async def _check_submission_preconditions(
             raise AlreadyValidatedError("You have already completed this requirement.")
 
         # Sequential phase gating
-        prereq_phase = get_prerequisite_phase(phase_id)
+        prereq_phase = get_prerequisite_phase(phase_order)
         if prereq_phase is not None:
             prereq_req_uuids = index.requirement_uuids_for_phase(prereq_phase)
             if prereq_req_uuids:
@@ -214,7 +214,7 @@ async def _check_submission_preconditions(
                 if not all_done:
                     raise PriorPhaseNotCompleteError(
                         f"You must complete all Phase {prereq_phase} "
-                        f"verifications before submitting for Phase {phase_id}.",
+                        f"verifications before submitting for Phase {phase_order}.",
                         prerequisite_phase=prereq_phase,
                     )
 
@@ -241,14 +241,14 @@ async def _check_submission_preconditions(
 
     return _PreValidationContext(
         requirement=requirement,
-        phase_id=phase_id,
+        phase_order=phase_order,
     )
 
 
 async def create_verification_job(
     session_maker: async_sessionmaker[AsyncSession],
     user_id: int,
-    requirement_id: str,
+    requirement_slug: str,
     submitted_value: str,
     github_username: str | None,
 ) -> SubmissionDispatchResult:
@@ -262,7 +262,7 @@ async def create_verification_job(
     ctx = await _check_submission_preconditions(
         session_maker,
         user_id,
-        requirement_id,
+        requirement_slug,
         github_username,
         submitted_value,
     )

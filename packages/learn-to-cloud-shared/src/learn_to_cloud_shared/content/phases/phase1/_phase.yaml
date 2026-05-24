@@ -1,6 +1,5 @@
 # yaml-language-server: $schema=../../schemas/phase.schema.json
 uuid: 2cc27dfe-e922-4e98-89bb-c0555af94472
-id: '1'
 name: Linux and Bash
 slug: phase1
 description: Phase 1 gets you hands-on immediately with Linux and Bash through a Capture The Flag (CTF) lab. You’ll build the foundation needed to access and complete the lab by setting up your environment, learning core command-line workflows, and practicing the tools you’ll use throughout the rest of the curriculum.

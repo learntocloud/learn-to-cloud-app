@@ -28,12 +28,14 @@ class TestPreparedVerificationJobRoundTrip:
             id=uuid4(),
             user_id=42,
             github_username="alice",
-            requirement=repo_fork_requirement(id="my-fork", required_repo="owner/repo"),
+            requirement=repo_fork_requirement(
+                slug="my-fork", required_repo="owner/repo"
+            ),
             submitted_value="https://github.com/alice/repo",
         )
         payload = job.to_payload()
         restored = PreparedVerificationJob.from_payload(payload)
-        assert restored.requirement.id == job.requirement.id
+        assert restored.requirement.slug == job.requirement.slug
         assert restored.requirement.required_repo == "owner/repo"
         assert type(restored.requirement) is type(job.requirement)
 
@@ -42,12 +44,12 @@ class TestPreparedVerificationJobRoundTrip:
             id=uuid4(),
             user_id=1,
             github_username="bob",
-            requirement=github_profile_requirement(id="profile"),
+            requirement=github_profile_requirement(slug="profile"),
             submitted_value="https://github.com/bob",
         )
         payload = job.to_payload()
         restored = PreparedVerificationJob.from_payload(payload)
-        assert restored.requirement.id == "profile"
+        assert restored.requirement.slug == "profile"
         assert restored.requirement.required_repo is None
 
     def test_deployed_api_requirement_round_trip(self) -> None:
@@ -56,7 +58,7 @@ class TestPreparedVerificationJobRoundTrip:
             user_id=99,
             github_username=None,
             requirement=deployed_api_requirement(
-                id="deployed", placeholder="https://your-api.example.com"
+                slug="deployed", placeholder="https://your-api.example.com"
             ),
             submitted_value="https://api.example.com",
         )

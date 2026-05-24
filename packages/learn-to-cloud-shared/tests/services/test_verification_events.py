@@ -25,9 +25,9 @@ class TestVerificationEvents:
     def test_store_and_get_task(self):
         """Storing a task makes it retrievable."""
         mock_task = MagicMock(spec=asyncio.Task)
-        store_task(user_id=1, requirement_id="req-1", task=mock_task)
+        store_task(user_id=1, requirement_slug="req-1", task=mock_task)
 
-        retrieved = get_task(user_id=1, requirement_id="req-1")
+        retrieved = get_task(user_id=1, requirement_slug="req-1")
         assert retrieved is mock_task
 
         # Cleanup
@@ -35,18 +35,18 @@ class TestVerificationEvents:
 
     def test_get_task_returns_none_for_unknown(self):
         """Unknown user+requirement returns None."""
-        assert get_task(user_id=999, requirement_id="nonexistent") is None
+        assert get_task(user_id=999, requirement_slug="nonexistent") is None
 
     def test_remove_task(self):
         """Removing a task clears it."""
         mock_task = MagicMock(spec=asyncio.Task)
-        store_task(user_id=4, requirement_id="req-4", task=mock_task)
-        remove_task(user_id=4, requirement_id="req-4")
-        assert get_task(user_id=4, requirement_id="req-4") is None
+        store_task(user_id=4, requirement_slug="req-4", task=mock_task)
+        remove_task(user_id=4, requirement_slug="req-4")
+        assert get_task(user_id=4, requirement_slug="req-4") is None
 
     def test_remove_task_for_unknown_is_noop(self):
         """Removing a non-existent task is a no-op."""
-        remove_task(user_id=999, requirement_id="ghost")
+        remove_task(user_id=999, requirement_slug="ghost")
 
     @pytest.mark.asyncio
     async def test_awaiting_task_gets_result(self):
@@ -58,7 +58,7 @@ class TestVerificationEvents:
             return mock_result
 
         task = asyncio.create_task(do_work())
-        store_task(user_id=5, requirement_id="req-5", task=task)
+        store_task(user_id=5, requirement_slug="req-5", task=task)
 
         result = await task
         assert result is mock_result
@@ -68,8 +68,8 @@ class TestVerificationEvents:
         """Storing a new task for the same key overwrites the old one."""
         old = MagicMock(spec=asyncio.Task)
         new = MagicMock(spec=asyncio.Task)
-        store_task(user_id=6, requirement_id="req-6", task=old)
-        store_task(user_id=6, requirement_id="req-6", task=new)
+        store_task(user_id=6, requirement_slug="req-6", task=old)
+        store_task(user_id=6, requirement_slug="req-6", task=new)
 
         assert get_task(6, "req-6") is new
         assert get_task(6, "req-6") is not old

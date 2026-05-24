@@ -1,21 +1,17 @@
 # yaml-language-server: $schema=../../schemas/topic.schema.json
 uuid: bcef3efa-8416-4ac8-a99e-eef16cd88e2a
-id: phase5-topic6
 slug: capstone
 name: 'Capstone: DevOps Project'
 description: Now that you've learned the fundamentals of DevOps, it's time to apply these practices to the Journal API app you built in Phase 3 and deployed in Phase 4. In this capstone, you'll containerize the app, automate its deployment, manage infrastructure as code, set up monitoring, and orchestrate containers with Kubernetes—demonstrating your end-to-end DevOps skills. The curriculum may not have covered everything you need — that's intentional. Researching what you don't know is part of the job.
 short_description: Containerize your app with Docker, deploy to Kubernetes, automate with CI/CD, and instrument with OpenTelemetry for cloud-native observability.
 learning_objectives:
 - uuid: a8da24c4-65e0-45a6-88c3-f6ea7c851706
-  id: devops-capstone-integration
   text: Integrate containerization, CI/CD, IaC, and orchestration into one delivery workflow.
   order: 1
 - uuid: a1c2cce3-b77b-428c-b308-4c76f93e06be
-  id: devops-capstone-implementation
   text: Implement required DevOps project artifacts and deployment components correctly.
   order: 2
 - uuid: f08ad590-a714-4327-b22c-4ab4cf99c5b0
-  id: devops-capstone-communication
   text: Document and communicate technical decisions and outcomes as portfolio-ready work.
   order: 3
 learning_steps:
@@ -36,7 +32,7 @@ learning_steps:
   - type: note
     text: Docker is not available inside the dev container by default. To build locally, run `docker build` on your host machine. Alternatively, use `az acr build --registry <name> --image journal-api:latest .` to build remotely in Azure Container Registry without needing local Docker.
   done_when: "`docker build` succeeds and `docker run` starts the API listening on port 8000."
-  id: phase5-topic6-build-containerize-the-application
+  slug: phase5-topic6-build-containerize-the-application
 
 - uuid: 340708fb-f0f4-438f-9058-e0c88dce33f4
   order: 2
@@ -60,7 +56,7 @@ learning_steps:
   - type: tip
     text: If Terraform fails with `LocationIsOfferRestricted` for PostgreSQL, try a different Azure region (e.g., `centralus`, `westus2`).
   done_when: "`terraform apply` completes, all resources exist, and you can connect to the database."
-  id: phase5-topic6-build-infrastructure-as-code
+  slug: phase5-topic6-build-infrastructure-as-code
 
 - uuid: a995972d-217d-487a-b9cf-4818ca9bd64e
   order: 3
@@ -78,7 +74,7 @@ learning_steps:
   - "**`AZURE_RESOURCE_GROUP` secret** — your resource group name"
   - "**`AKS_CLUSTER_NAME` secret** — your AKS cluster name"
   done_when: Pushing to `main` triggers the workflow, all three jobs pass, and your image is pushed to the registry.
-  id: phase5-topic6-build-cicd-pipeline
+  slug: phase5-topic6-build-cicd-pipeline
 
 - uuid: cddc7d25-1801-4d27-86a8-ba8317bbab8f
   order: 4
@@ -98,7 +94,7 @@ learning_steps:
   - type: note
     text: When creating your `DATABASE_URL` secret for the cloud database, remember to append `?sslmode=require` to the connection string.
   done_when: "`kubectl get pods` shows your app running, and `curl http://<EXTERNAL-IP>/health` returns `{\"status\": \"healthy\"}`."
-  id: phase5-topic6-build-container-orchestration
+  slug: phase5-topic6-build-container-orchestration
 
 - uuid: c77ee2ee-9913-49b5-8e46-e9258129e06e
   order: 5
@@ -118,14 +114,14 @@ learning_steps:
   - Create one alert for repeated 5xx responses, high latency, or another user-impacting symptom
   - 'Optional advanced: recreate the same dashboard with Prometheus and Grafana'
   done_when: Traces, metrics, and logs from your Journal API are visible in your cloud provider's monitoring console, and you have a basic dashboard and alert.
-  id: phase5-topic6-build-monitoring-observability
+  slug: phase5-topic6-build-monitoring-observability
 
 - uuid: 3b4da54e-8bc3-4ff9-945a-85dd2d234d44
   order: 6
   action: 'Build:'
   title: Documentation
   description: Document your setup and deployment process so others can understand and reproduce your work. This step is not auto-verified but strengthens your portfolio.
-  id: phase5-topic6-build-documentation
+  slug: phase5-topic6-build-documentation
 
 - uuid: e080abdc-bf94-4e6b-a78e-33294ef28595
   order: 7
@@ -133,14 +129,14 @@ learning_steps:
   title: Required Project Structure
   description: Your repository must include these directories and files for auto-verification. Steps 1–4 are verified automatically when you submit your repo URL.
   code: "your-journal-starter/\n  ├── Dockerfile              # Step 1: Container definition\n  ├── .dockerignore            # Step 1: Exclude non-production files from build\n  ├── .github/\n  │   └── workflows/          # Step 3: CI/CD pipeline configs\n  │       └── *.yml\n  ├── infra/                   # Step 2: Terraform IaC configs\n  │   ├── main.tf\n  │   ├── variables.tf\n  │   ├── outputs.tf\n  │   └── providers.tf\n  ├── k8s/                     # Step 4: Kubernetes manifests\n  │   ├── deployment.yaml\n  │   ├── service.yaml\n  │   └── secrets.yaml.example # Example secrets (never commit real values)\n  ├── api/                     # Your FastAPI app code\n  └── README.md                # Step 6: Documentation"
-  id: phase5-topic6-build-required-project-structure
+  slug: phase5-topic6-build-required-project-structure
 
 - uuid: c43d5d38-c50f-40eb-af1b-c77cb41c4be2
   order: 8
   action: 'Reflect:'
   title: Share Your Progress
   description: When you've completed the capstone, push your work to GitHub! This becomes part of your portfolio. Consider sharing it on LinkedIn or with the Learn to Cloud community to get feedback and celebrate your progress.
-  id: phase5-topic6-reflect-share-your-progress
+  slug: phase5-topic6-reflect-share-your-progress
 
 - uuid: 8136ecc2-60e2-4909-89ac-cb4d3592725e
   order: 9
@@ -155,4 +151,4 @@ learning_steps:
   tips:
   - type: tip
     text: Check your cloud console to confirm nothing is still running.
-  id: phase5-topic6-practice-clean-up-your-cloud
+  slug: phase5-topic6-practice-clean-up-your-cloud

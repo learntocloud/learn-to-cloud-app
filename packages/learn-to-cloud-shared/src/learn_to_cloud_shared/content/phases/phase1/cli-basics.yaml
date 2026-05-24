@@ -1,20 +1,16 @@
 # yaml-language-server: $schema=../../schemas/topic.schema.json
 uuid: 53ee5ca9-8003-4e86-b2e5-efbea7349f97
-id: phase1-topic5
 slug: cli-basics
 name: CLI Basics
 description: The Linux command line is your gateway to cloud infrastructure. Work through Linux Basics for Hackers chapter by chapter to prepare for the CTF challenges.
 learning_objectives:
 - uuid: 896e503c-ea2e-4064-970a-fde0427ba214
-  id: cli-basics-navigation
   text: Use essential Linux commands to navigate, inspect, and manage files efficiently.
   order: 1
 - uuid: f0f630d7-9e2c-4213-b73f-88c89ffc9c1e
-  id: cli-basics-system-operations
   text: Apply permissions, process management, and package operations in practical scenarios.
   order: 2
 - uuid: 5a2229c0-46c8-4c5e-be3e-274471bea0a2
-  id: cli-basics-ctf-readiness
   text: Build command-line fluency needed to troubleshoot and solve CTF lab challenges.
   order: 3
 learning_steps:
@@ -24,67 +20,67 @@ learning_steps:
   title: Linux Basics for Hackers, 2nd Edition
   url: https://nostarch.com/linux-basics-hackers-2nd-edition
   description: Purchase or borrow Linux Basics for Hackers by OccupyTheWeb. We'll work through chapters 1-9, which cover everything you need for the CTF challenges.
-  id: phase1-topic5-explore-linux-basics-for-hackers
+  slug: phase1-topic5-explore-linux-basics-for-hackers
 - uuid: d6a26f73-06d8-41ee-913b-95895db89e9f
   order: 2
   action: 'Read:'
   title: Getting Started with the Basics
   description: 'Learn essential navigation commands: pwd, cd, ls, whoami, and getting help with man pages. Understand the Linux filesystem hierarchy.'
   url: https://nostarch.com/linux-basics-hackers-2nd-edition
-  id: phase1-topic5-read-getting-started-with-the
+  slug: phase1-topic5-read-getting-started-with-the
 - uuid: 17135a43-1765-46ab-9e94-df925a287ef8
   order: 3
   action: 'Read:'
   title: Text Manipulation
   description: Learn to view and manipulate text files using cat, head, tail, grep, and sed. Master pipes and redirects for chaining commands.
   url: https://nostarch.com/linux-basics-hackers-2nd-edition
-  id: phase1-topic5-read-text-manipulation
+  slug: phase1-topic5-read-text-manipulation
 - uuid: 64492642-4c84-4830-ac37-293a3263bc37
   order: 4
   action: 'Read:'
   title: Analyzing and Managing Networks
   description: 'Learn network analysis commands: ifconfig/ip, iwconfig, dig, and DNS configuration. Essential for cloud engineering.'
   url: https://nostarch.com/linux-basics-hackers-2nd-edition
-  id: phase1-topic5-read-analyzing-and-managing-networks
+  slug: phase1-topic5-read-analyzing-and-managing-networks
 - uuid: 2f641f23-9cd0-41f1-bb7f-ada2e9f46e5c
   order: 5
   action: 'Read:'
   title: Adding and Removing Software
   description: 'Learn package management with apt: searching, installing, updating, and removing software.'
   url: https://nostarch.com/linux-basics-hackers-2nd-edition
-  id: phase1-topic5-read-adding-and-removing-software
+  slug: phase1-topic5-read-adding-and-removing-software
 - uuid: 0909b550-2e76-4785-848c-5db60c93b5a9
   order: 6
   action: 'Read:'
   title: Controlling File and Directory Permissions
   description: 'Master Linux permissions: understanding rwx, chmod, chown, and special permissions. Critical for security.'
   url: https://nostarch.com/linux-basics-hackers-2nd-edition
-  id: phase1-topic5-read-controlling-file-and-directory
+  slug: phase1-topic5-read-controlling-file-and-directory
 - uuid: 221ce82f-c783-45d8-b0a8-5f9614a19f5f
   order: 7
   action: 'Read:'
   title: Process Management
   description: Learn to view and manage processes with ps, top, kill, and nice. Essential for troubleshooting.
   url: https://nostarch.com/linux-basics-hackers-2nd-edition
-  id: phase1-topic5-read-process-management
+  slug: phase1-topic5-read-process-management
 - uuid: c70f8b39-10c0-460a-a8df-acbcd408660e
   order: 8
   action: 'Read:'
   title: Managing User Environment Variables
   description: Understand environment variables like PATH, HOME, and how to configure them in .bashrc.
   url: https://nostarch.com/linux-basics-hackers-2nd-edition
-  id: phase1-topic5-read-managing-user-environment-variables
+  slug: phase1-topic5-read-managing-user-environment-variables
 - uuid: a345d102-ed18-45d1-9ed9-c7ef0c26e3ae
   order: 9
   action: 'Read:'
   title: Bash Scripting
   url: https://nostarch.com/download/LinuxBasicsforHackers2e_chapter8.pdf
   description: 'Introduction to bash scripting: variables, conditionals, loops. Free sample chapter available!'
-  id: phase1-topic5-read-bash-scripting
+  slug: phase1-topic5-read-bash-scripting
 - uuid: b696262e-137e-415a-af9d-c2e72cf5df1e
   order: 10
   action: 'Read:'
   title: Compressing and Archiving
   description: Learn to work with compressed files using tar, gzip, bzip2. Used constantly for logs and backups.
   url: https://nostarch.com/linux-basics-hackers-2nd-edition
-  id: phase1-topic5-read-compressing-and-archiving
+  slug: phase1-topic5-read-compressing-and-archiving

@@ -51,7 +51,9 @@ from learn_to_cloud_shared.verification.execution import (
     persist_validation_result,
     persisted_validation_message,
 )
-from learn_to_cloud_shared.verification.requirements import load_requirement_index
+from learn_to_cloud_shared.verification.requirements import (
+    get_requirement_by_uuid,
+)
 
 tracer = trace.get_tracer(__name__)
 
@@ -91,7 +93,7 @@ class VerificationJobExecutionResult:
     job_id: UUID
     status: str
     code: str
-    requirement_id: str
+    requirement_slug: str
     requirement_name: str | None
     submission_type: str | None
     submission_id: int | None
@@ -106,7 +108,7 @@ class VerificationJobExecutionResult:
             "job_id": str(self.job_id),
             "status": self.status,
             "code": self.code,
-            "requirement_id": self.requirement_id,
+            "requirement_slug": self.requirement_slug,
             "requirement_name": self.requirement_name,
             "submission_type": self.submission_type,
             "submission_id": self.submission_id,
@@ -292,7 +294,7 @@ def _build_result_from_submission(
     job_id: UUID,
     submission: Submission,
     requirement: HandsOnRequirement | None,
-    requirement_id_fallback: str | None = None,
+    requirement_slug_fallback: str | None = None,
 ) -> VerificationJobExecutionResult:
     """Build a ``VerificationJobExecutionResult`` from an already-persisted
     ``Submission``. Used by the replay short-circuit in
@@ -300,12 +302,14 @@ def _build_result_from_submission(
 
     When ``requirement`` is None (active lookup didn't find it -- the
     requirement was soft-deleted), the caller passes the legacy
-    ``requirement_id_fallback`` so the result payload still surfaces
+    ``requirement_slug_fallback`` so the result payload still surfaces
     something useful in templates.
     """
     outcome = _outcome_from_submission(submission)
-    requirement_id = (
-        requirement.id if requirement is not None else (requirement_id_fallback or "")
+    requirement_slug = (
+        requirement.slug
+        if requirement is not None
+        else (requirement_slug_fallback or "")
     )
     submission_type = (
         requirement.submission_type.value if requirement is not None else None
@@ -315,7 +319,7 @@ def _build_result_from_submission(
         job_id=job_id,
         status=outcome,
         code=_code_for_outcome(outcome),
-        requirement_id=requirement_id,
+        requirement_slug=requirement_slug,
         requirement_name=requirement_name,
         submission_type=submission_type,
         submission_id=submission.id,
@@ -329,15 +333,17 @@ def _build_result_from_submission(
 async def _load_requirement_metadata(
     db: AsyncSession, requirement_uuid: UUID
 ) -> tuple[str, str] | None:
-    """Return ``(requirement_id, submission_type)`` for a requirement by UUID,
+    """Return ``(requirement_slug, submission_type)`` for a requirement by UUID,
     even if it has been soft-deleted.
 
-    Used by the missing-requirement path to fill in the legacy fields on
-    a server-error result when the active ``get_requirement_by_id``
+    Used by the missing-requirement path to fill in the slug field on
+    a server-error result when the active ``get_requirement_by_slug``
     lookup returns None.
     """
     result = await db.execute(
-        text("SELECT id, submission_type FROM requirements WHERE uuid = :uuid LIMIT 1"),
+        text(
+            "SELECT slug, submission_type FROM requirements WHERE uuid = :uuid LIMIT 1"
+        ),
         {"uuid": requirement_uuid},
     )
     row = result.first()
@@ -356,11 +362,7 @@ async def _find_requirement_by_uuid(
     for the legacy id/submission_type when they need to render a
     server-error result.
     """
-    index = await load_requirement_index(db)
-    for req in index.by_id.values():
-        if req.uuid == requirement_uuid:
-            return req
-    return None
+    return await get_requirement_by_uuid(db, requirement_uuid)
 
 
 async def _handle_missing_requirement(
@@ -384,9 +386,9 @@ async def _handle_missing_requirement(
     """
     async with session_maker() as db:
         metadata = await _load_requirement_metadata(db, payload.requirement_uuid)
-        requirement_id_fallback = metadata[0] if metadata is not None else ""
+        requirement_slug_fallback = metadata[0] if metadata is not None else ""
         submission_type_fallback = metadata[1] if metadata is not None else None
-        detail = f"Requirement not found: {requirement_id_fallback}"
+        detail = f"Requirement not found: {requirement_slug_fallback}"
 
         submission_repo = SubmissionRepository(db)
         submission = await submission_repo.create(
@@ -410,7 +412,7 @@ async def _handle_missing_requirement(
         job_id=payload.id,
         status=_OUTCOME_SERVER_ERROR,
         code=REQUIREMENT_NOT_FOUND_ERROR_CODE,
-        requirement_id=requirement_id_fallback,
+        requirement_slug=requirement_slug_fallback,
         requirement_name=None,
         submission_type=submission_type_fallback,
         submission_id=submission.id,
@@ -465,7 +467,7 @@ async def prepare_verification_job(
                     job_id=normalized_job_id,
                     submission=submission,
                     requirement=requirement,
-                    requirement_id_fallback=fallback,
+                    requirement_slug_fallback=fallback,
                 )
                 span.set_attribute("verification.status", result.status)
                 span.set_attribute("verification.replay", True)
@@ -498,7 +500,7 @@ async def run_verification(
         "run_verification",
         attributes={
             "verification.job_id": str(job.id),
-            "requirement.id": job.requirement.id,
+            "requirement.slug": job.requirement.slug,
             "submission.type": job.requirement.submission_type.value,
         },
     ) as span:
@@ -604,7 +606,7 @@ async def persist_verification_result(
             job_id=job.id,
             status=outcome,
             code=code,
-            requirement_id=job.requirement.id,
+            requirement_slug=job.requirement.slug,
             requirement_name=job.requirement.name,
             submission_type=job.requirement.submission_type.value,
             submission_id=submission.id,

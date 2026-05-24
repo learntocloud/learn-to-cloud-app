@@ -23,7 +23,7 @@ def _req(
 
     return make_requirement(
         submission_type,
-        id="req-1",
+        slug="req-1",
         name="Test",
         description="Test",
         required_repo=required_repo,

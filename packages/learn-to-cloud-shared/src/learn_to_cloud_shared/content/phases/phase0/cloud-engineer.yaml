@@ -1,20 +1,16 @@
 # yaml-language-server: $schema=../../schemas/topic.schema.json
 uuid: 42af2089-5118-4fe2-a223-a0a83a314d6d
-id: phase0-topic6
 slug: cloud-engineer
 name: What is a Cloud Engineer
 description: Learn about the cloud engineer role, what they do day-to-day, and whether it's the right fit for you.
 learning_objectives:
 - uuid: 0dcf3b3d-f52e-49f6-a205-19a5f1b693cf
-  id: cloud-engineer-role
   text: Explain what cloud engineers do and the types of problems they solve.
   order: 1
 - uuid: c3f08af7-dfd4-4e38-94a2-11e408a2535d
-  id: cloud-engineer-skills
   text: Identify foundational skills and habits needed to grow in cloud engineering.
   order: 2
 - uuid: 5244de99-b6f8-4ffa-adaf-fcae2a60f0ff
-  id: cloud-engineer-self-assessment
   text: Reflect on personal fit and readiness for continuous learning in this career path.
   order: 3
 learning_steps:
@@ -30,24 +26,24 @@ learning_steps:
     and with leadership to choose the right services for the job. The role blends system administration,
     networking, automation, and software development. No two days look the same, and the tooling evolves
     constantly, so curiosity and a willingness to learn are just as important as any specific technology.
-  id: phase0-topic6-read-what-does-a-cloud
+  slug: phase0-topic6-read-what-does-a-cloud
 - uuid: d9d12552-e9af-4f22-ae41-9b77c455fc0a
   order: 2
   action: 'Reflect:'
   description: 'Cloud engineering requires continuous learning and problem-solving. Consider: Do you enjoy figuring out how things work? Are you comfortable with change? Can you commit to learning new technologies regularly?'
   title: Is this for me?
-  id: phase0-topic6-reflect-is-this-for-me
+  slug: phase0-topic6-reflect-is-this-for-me
 - uuid: 666c5db3-ada0-4aa6-b47b-f45df1af7fcd
   order: 3
   action: 'Practice:'
   title: Follow Made by GPS on GitHub
   url: https://github.com/madebygps
   description: Follow the creator of Learn to Cloud on GitHub to stay connected with the community.
-  id: phase0-topic6-practice-follow-made-by-gps
+  slug: phase0-topic6-practice-follow-made-by-gps
 - uuid: 76c727e9-100a-498d-8871-2a13335d527d
   order: 4
   action: 'Practice:'
   title: Subscribe to youtube.com/@madebygps
   url: https://www.youtube.com/@madebygps
   description: Keep up to date with video tutorials and updates on the guide.
-  id: phase0-topic6-practice-subscribe-youtube
+  slug: phase0-topic6-practice-subscribe-youtube

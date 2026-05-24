@@ -1,20 +1,16 @@
 # yaml-language-server: $schema=../../schemas/topic.schema.json
 uuid: 7ca1401a-0e78-4fcb-8665-aeba544555d1
-id: phase4-topic8
 slug: cloud-ai-services
 name: Cloud AI Service Platforms
 description: Cloud providers offer comprehensive AI service platforms. In this topic, you'll take the same LLM workflow you built in Phase 3 and run it on a cloud AI platform. You'll learn model options, deployment strategies, safety controls, and operational features needed for production use.
 learning_objectives:
 - uuid: 94fb0b7b-880c-4e19-a592-cbc30fdd993f
-  id: cloud-ai-platform-overview
   text: Map your Phase 3 GitHub Models workflow to your cloud AI platform's model catalog and deployment options.
   order: 1
 - uuid: c3eece64-dce6-4fcd-978c-bb7c3d0e0a79
-  id: cloud-ai-safety-governance
   text: Evaluate safety and guardrail features for responsible AI application design.
   order: 2
 - uuid: abde4fdd-af46-4e6a-afc9-a805cb0d10dc
-  id: cloud-ai-model-selection
   text: Select and deploy an appropriate cloud-hosted model for your capstone use case.
   order: 3
 learning_steps:
@@ -36,7 +32,7 @@ learning_steps:
     url: https://docs.cloud.google.com/vertex-ai/docs/start/introduction-unified-platform
     description: Google's unified AI platform for building and deploying ML models
   title: Platform Overview
-  id: phase4-topic8-read-platform-overview
+  slug: phase4-topic8-read-platform-overview
 - uuid: 3a242df7-68b2-4d5b-b472-c4611669256d
   order: 2
   action: 'Explore:'
@@ -55,7 +51,7 @@ learning_steps:
     url: https://docs.cloud.google.com/vertex-ai/generative-ai/docs/models
     description: Discover models available in Google's Vertex AI Model Garden
   title: Explore Available Models
-  id: phase4-topic8-explore-explore-available-models
+  slug: phase4-topic8-explore-explore-available-models
 - uuid: d70e1caf-d6be-4c1b-9d9f-fc1e6f544b67
   order: 3
   action: 'Read:'
@@ -74,7 +70,7 @@ learning_steps:
     url: https://docs.cloud.google.com/vertex-ai/docs/general/deployment
     description: Deploy models to endpoints in Vertex AI
   title: Understand Deployment Options
-  id: phase4-topic8-read-understand-deployment-options
+  slug: phase4-topic8-read-understand-deployment-options
 - uuid: f09e2ffb-b85f-46b3-a705-96846f73d321
   order: 4
   action: 'Practice:'
@@ -93,7 +89,7 @@ learning_steps:
     url: https://docs.cloud.google.com/vertex-ai/generative-ai/docs/learn/safety-overview
     description: Understand safety features and content filtering in Vertex AI
   title: Safety & Guardrails
-  id: phase4-topic8-practice-safety-guardrails
+  slug: phase4-topic8-practice-safety-guardrails
 - uuid: 393a8393-f60d-4fe2-b376-dcf4adc4e77d
   order: 5
   action: 'Practice:'
@@ -112,10 +108,10 @@ learning_steps:
     url: https://cloud.google.com/model-garden
     description: Try models directly in Google's Model Garden
   title: Compare and choose a cloud model in the playground
-  id: phase4-topic8-practice-compare-and-choose-a
+  slug: phase4-topic8-practice-compare-and-choose-a
 - uuid: f7762570-e727-4082-b91e-189352787192
   order: 6
   action: 'Practice:'
   title: Clean up your cloud resources
   description: Delete the model deployment and any associated resources on your cloud AI platform. Check your cloud console to confirm nothing is still running. AI model deployments can incur significant per-hour charges.
-  id: phase4-topic8-practice-clean-up-your-cloud
+  slug: phase4-topic8-practice-clean-up-your-cloud

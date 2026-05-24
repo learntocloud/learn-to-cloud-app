@@ -447,7 +447,7 @@ jobs:
 
           phases = get_all_phases_from_yaml()
           assert any(
-              req.id == "journal-api-implementation"
+              req.slug == "journal-api-implementation"
               for phase in phases
               if phase.hands_on_verification
               for req in phase.hands_on_verification.requirements

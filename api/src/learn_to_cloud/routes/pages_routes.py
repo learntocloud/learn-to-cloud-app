@@ -138,7 +138,7 @@ async def phase_page(
         requirements_by_uuid.keys(),
     )
     active_jobs_by_req = {
-        requirements_by_uuid[job.requirement_uuid].id: job
+        requirements_by_uuid[job.requirement_uuid].slug: job
         for job in active_jobs
         if job.requirement_uuid in requirements_by_uuid
     }
@@ -146,11 +146,13 @@ async def phase_page(
     # pass ``instance_id=job.id`` to the starter, so we don't need to read
     # back the now-dead ``orchestration_instance_id`` column.
     verification_status_tokens_by_req = {
-        requirements_by_uuid[job.requirement_uuid].id: create_verification_status_token(
-            user_id=user_id,
-            job_id=job.id,
-            instance_id=str(job.id),
-            requirement_id=requirements_by_uuid[job.requirement_uuid].id,
+        requirements_by_uuid[job.requirement_uuid].slug: (
+            create_verification_status_token(
+                user_id=user_id,
+                job_id=job.id,
+                instance_id=str(job.id),
+                requirement_slug=requirements_by_uuid[job.requirement_uuid].slug,
+            )
         )
         for job in active_jobs
         if job.requirement_uuid in requirements_by_uuid
@@ -166,7 +168,7 @@ async def phase_page(
             requirement=req,
             github_username=github_username,
         )
-        derived_urls_by_req[req.id] = card_ctx["derived_url"]
+        derived_urls_by_req[req.slug] = card_ctx["derived_url"]
 
     # Sequential phase gating — check if prerequisite phase is complete
     verification_locked, prerequisite_phase_id = await is_phase_verification_locked(
@@ -222,7 +224,8 @@ async def topic_page(
             status_code=404,
         )
 
-    completed_step_ids = await get_valid_completed_steps(db, user_id, topic)
+    completed_step_uuids = await get_valid_completed_steps(db, user_id, topic)
+    completed_step_uuid_strs = {str(uuid) for uuid in completed_step_uuids}
 
     steps = [build_step_data(step) for step in topic.learning_steps]
 
@@ -233,7 +236,7 @@ async def topic_page(
 
     total_steps = len(steps)
     progress = (
-        build_progress_dict(len(completed_step_ids), total_steps)
+        build_progress_dict(len(completed_step_uuids), total_steps)
         if total_steps > 0
         else None
     )
@@ -249,7 +252,7 @@ async def topic_page(
             phase_slug=phase_slug,
             phase_name=phase.name,
             phase_id=phase.order,
-            completed_steps=completed_step_ids,
+            completed_steps=completed_step_uuid_strs,
             prev_topic=prev_topic,
             next_topic=next_topic,
             progress=progress,

@@ -695,7 +695,7 @@ class TestValidateSubmissionIntegration:
         from learn_to_cloud_shared.verification.dispatcher import validate_submission
 
         requirement = deployed_api_requirement(
-            id="deployed-journal-api",
+            slug="deployed-journal-api",
             name="Deployed API",
             description="Test",
         )

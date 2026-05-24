@@ -1,20 +1,16 @@
 # yaml-language-server: $schema=../../schemas/topic.schema.json
 uuid: 6fca74ee-f1f1-40cd-a948-ec83ec5efa3e
-id: phase2-topic3
 slug: http
 name: HTTP and Web Basics
 description: 'Understand how the web works: HTTP requests and responses, headers, status codes, and TLS/HTTPS. Essential knowledge for working with APIs and web services.'
 learning_objectives:
 - uuid: 48df55a2-6cec-4433-b46c-81243ec33d70
-  id: http-request-response
   text: Explain HTTP request/response structure including methods, headers, and status codes.
   order: 1
 - uuid: e4af0f61-0d60-4d8b-8afb-3a406295a5ef
-  id: http-security-basics
   text: Describe TLS/HTTPS fundamentals and why encrypted web traffic matters.
   order: 2
 - uuid: 25197e4b-c7d8-4904-bc4e-5bbbcd714425
-  id: http-debugging-tools
   text: Use curl and browser tooling to inspect and debug real web traffic.
   order: 3
 learning_steps:
@@ -24,28 +20,28 @@ learning_steps:
   title: How HTTP Works
   url: https://www.youtube.com/watch?v=iYM2zFP3Zn0
   description: 'Understand the HTTP request/response cycle: methods (GET, POST, PUT, DELETE), headers, body, and how clients communicate with servers.'
-  id: phase2-topic3-watch-how-http-works
+  slug: phase2-topic3-watch-how-http-works
 - uuid: c49d4a1c-4fc6-4e0b-af99-a75d24b66b8d
   order: 2
   action: 'Read:'
   title: Status Code Categories
   url: https://developer.mozilla.org/docs/Web/HTTP/Reference/Status
   description: 'Understand the status code categories: 2xx (success), 3xx (redirect), 4xx (client error), and 5xx (server error). Focus on recognizing patterns and meanings, not memorizing long code lists.'
-  id: phase2-topic3-read-status-code-categories
+  slug: phase2-topic3-read-status-code-categories
 - uuid: b5bb4136-ee37-4049-bcba-07ba927eca58
   order: 3
   action: 'Read:'
   title: Common HTTP Headers
   url: https://developer.mozilla.org/docs/Web/HTTP/Reference/Headers
   description: 'Understand common headers: Content-Type, Authorization, Accept, Cache-Control, User-Agent. Know how headers control request/response behavior.'
-  id: phase2-topic3-read-common-http-headers
+  slug: phase2-topic3-read-common-http-headers
 - uuid: fc294a7f-7c16-4b7b-b945-2506d5faca14
   order: 4
   action: 'Watch:'
   title: TLS/SSL Explained
   url: https://www.youtube.com/watch?v=j9QmMEWmcfo
   description: 'Understand how TLS encrypts HTTP traffic: certificates, certificate authorities, the TLS handshake, and why HTTPS matters for security.'
-  id: phase2-topic3-watch-tlsssl-explained
+  slug: phase2-topic3-watch-tlsssl-explained
 - uuid: 65339025-d672-4899-881a-b4228d8dba04
   order: 5
   action: 'Practice:'
@@ -60,11 +56,11 @@ learning_steps:
     curl https://httpbin.org/status/404
 
     curl -H "X-Demo: l2c" https://httpbin.org/headers'
-  id: phase2-topic3-practice-curl-for-http-testing
+  slug: phase2-topic3-practice-curl-for-http-testing
 - uuid: 6b8cf08a-f1e0-49ba-b9e5-fc0f3ea894d4
   order: 6
   action: 'Practice:'
   title: Inspect Network Traffic
   url: https://developer.chrome.com/docs/devtools/network
   description: Use browser DevTools Network tab to inspect HTTP traffic. Observe request/response headers, timing, and payload data on your favorite websites.
-  id: phase2-topic3-practice-inspect-network-traffic
+  slug: phase2-topic3-practice-inspect-network-traffic

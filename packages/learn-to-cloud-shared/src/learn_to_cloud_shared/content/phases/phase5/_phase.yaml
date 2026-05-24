@@ -1,6 +1,5 @@
 # yaml-language-server: $schema=../../schemas/phase.schema.json
 uuid: 9f4fb0fa-407b-4fe5-9020-dc9c6b44f9e0
-id: '5'
 slug: phase5
 name: DevOps Fundamentals
 description: This phase covers DevOps fundamentals - the practices and tools that enable teams to deliver software faster and more reliably. You'll learn containerization, CI/CD pipelines, Infrastructure as Code, container orchestration, and how to instrument your application with OpenTelemetry for cloud-native monitoring.

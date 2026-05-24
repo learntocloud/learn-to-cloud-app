@@ -3,10 +3,6 @@
     "LearningObjective": {
       "description": "A learning objective for a topic.",
       "properties": {
-        "id": {
-          "title": "Id",
-          "type": "string"
-        },
         "order": {
           "title": "Order",
           "type": "integer"
@@ -23,7 +19,6 @@
       },
       "required": [
         "uuid",
-        "id",
         "text",
         "order"
       ],
@@ -88,10 +83,6 @@
           "default": null,
           "title": "Done When"
         },
-        "id": {
-          "title": "Id",
-          "type": "string"
-        },
         "options": {
           "items": {
             "$ref": "#/$defs/ProviderOption"
@@ -102,6 +93,10 @@
         "order": {
           "title": "Order",
           "type": "integer"
+        },
+        "slug": {
+          "title": "Slug",
+          "type": "string"
         },
         "tips": {
           "items": {
@@ -142,7 +137,7 @@
       },
       "required": [
         "uuid",
-        "id",
+        "slug",
         "order"
       ],
       "title": "LearningStep",
@@ -210,10 +205,6 @@
       "title": "Description",
       "type": "string"
     },
-    "id": {
-      "title": "Id",
-      "type": "string"
-    },
     "learning_objectives": {
       "items": {
         "$ref": "#/$defs/LearningObjective"
@@ -248,7 +239,6 @@
   },
   "required": [
     "uuid",
-    "id",
     "slug",
     "name",
     "description",

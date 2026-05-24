@@ -1,20 +1,16 @@
 # yaml-language-server: $schema=../../schemas/topic.schema.json
 uuid: 6fb1f072-0530-47c5-96e0-f429aa3ed611
-id: phase0-topic3
 slug: programming
 name: What is Computer Programming
 description: Computer programming enables you to automate tasks and manage cloud resources efficiently. Understanding the basics will help you throughout your cloud journey.
 learning_objectives:
 - uuid: 1d541314-ba5d-4800-8075-d4799bd839a4
-  id: programming-purpose
   text: Understand what computer programming is and why it matters for cloud and DevOps automation.
   order: 1
 - uuid: dbdb6def-c2e0-468e-9988-0df16b9fc7d0
-  id: programming-install-python
   text: Install Python and complete beginner Day 1 exercises to set up your coding environment.
   order: 2
 - uuid: 2c7b8ec9-a388-48b1-83ab-42f5cfcbd6db
-  id: programming-json-practice
   text: Build confidence reading API-style JSON data with a simple Python script.
   order: 3
 learning_steps:
@@ -24,18 +20,18 @@ learning_steps:
   title: What is Computer Programming
   url: https://youtu.be/ifo76VyrBYo
   description: Learn core computer programming concepts including what a program, programmer, and programming language are, types of languages (machine, assembly, middle, and high level), and how compilation vs interpretation works.
-  id: phase0-topic3-watch-what-is-computer-programming
+  slug: phase0-topic3-watch-what-is-computer-programming
 - uuid: 05fa7e46-8d09-4845-8ef6-843e16d9700f
   order: 2
   action: 'Practice:'
   title: Install Python and Complete Day 1
   url: https://7daysofpython.com/days/day1/
   description: Install Python on your computer, then complete Day 1 of this beginner track to set up your environment and run your first Python exercises.
-  id: phase0-topic3-practice-install-python-and-complete
+  slug: phase0-topic3-practice-install-python-and-complete
 - uuid: 01e74e45-2267-472e-9a83-506834097d9e
   order: 3
   action: 'Practice:'
   title: Parse JSON with a Simple Python Script
   description: Run this small script to practice reading JSON data like you'll do when working with APIs in later phases.
   code: "sample = {\n  \"service\": \"journal-api\",\n  \"status\": \"healthy\",\n  \"region\": \"eastus\",\n  \"requests_last_hour\": 128,\n}\n\nfor key, value in sample.items():\n    print(f\"{key}: {value}\")\n"
-  id: phase0-topic3-practice-parse-json-with-a
+  slug: phase0-topic3-practice-parse-json-with-a

@@ -43,8 +43,8 @@ def _build_phase_requirements(
     requirements: dict[int, PhaseRequirements] = {}
     for phase in phases:
         total_steps = sum(len(topic.learning_steps) for topic in phase.topics)
-        requirements[phase.id] = PhaseRequirements(
-            phase_id=phase.id,
+        requirements[phase.order] = PhaseRequirements(
+            phase_id=phase.order,
             name=phase.name,
             topics=len(phase.topics),
             steps=total_steps,
@@ -58,7 +58,7 @@ def _compute_phase_progress(
     steps_required: int,
     hands_on_validated: int,
     hands_on_required: int,
-    topic_progress: dict[str, TopicProgressData] | None = None,
+    topic_progress: dict[UUID, TopicProgressData] | None = None,
 ) -> PhaseProgress:
     """Core progress computation shared by dashboard and detail views."""
     return PhaseProgress(
@@ -117,7 +117,7 @@ async def fetch_user_progress(
         for topic in phase.topics:
             topic_uuids = {step.uuid for step in topic.learning_steps}
             total_completed += len(completed_step_uuids & topic_uuids)
-        phase_steps[phase.id] = total_completed
+        phase_steps[phase.order] = total_completed
 
     phase_progress_map: dict[int, PhaseProgress] = {}
     for phase_id, requirements in phase_requirements.items():
@@ -148,8 +148,8 @@ def compute_topic_progress(
 
     Topic Progress = Steps Completed / Total Steps
     """
-    valid_step_ids = {step.id for step in topic.learning_steps}
-    steps_completed = len(completed_steps & valid_step_ids)
+    valid_step_slugs = {step.slug for step in topic.learning_steps}
+    steps_completed = len(completed_steps & valid_step_slugs)
     steps_total = len(topic.learning_steps)
 
     if steps_total == 0:
@@ -190,18 +190,18 @@ async def fetch_phase_progress(
         user_id, all_step_uuids
     )
 
-    topic_progress: dict[str, TopicProgressData] = {}
+    topic_progress: dict[UUID, TopicProgressData] = {}
     total_completed = 0
     total_steps = 0
 
     for topic in phase.topics:
-        completed_step_ids = {
-            step.id
+        completed_step_slugs = {
+            step.slug
             for step in topic.learning_steps
             if step.uuid in completed_step_uuids
         }
-        tp = compute_topic_progress(topic, completed_step_ids)
-        topic_progress[topic.id] = tp
+        tp = compute_topic_progress(topic, completed_step_slugs)
+        topic_progress[topic.uuid] = tp
         total_completed += tp.steps_completed
         total_steps += tp.steps_total
 
@@ -218,7 +218,7 @@ async def fetch_phase_progress(
         )
 
     return _compute_phase_progress(
-        phase_id=phase.id,
+        phase_id=phase.order,
         steps_completed=total_completed,
         steps_required=total_steps,
         hands_on_validated=hands_on_validated,

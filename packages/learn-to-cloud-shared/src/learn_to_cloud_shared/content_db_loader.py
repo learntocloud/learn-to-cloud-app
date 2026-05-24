@@ -121,14 +121,16 @@ async def load_phase_by_slug_from_db(db: AsyncSession, slug: str) -> Phase | Non
     return None
 
 
-async def load_topic_by_id_from_db(db: AsyncSession, topic_id: str) -> Topic | None:
-    """Return the active topic with the given legacy_id, or None.
+async def load_topic_by_uuid_from_db(
+    db: AsyncSession, topic_uuid: UUID
+) -> Topic | None:
+    """Return the active topic with the given uuid, or None.
 
     Routes through ``load_all_phases_from_db`` for consistency.
     """
     for phase in await load_all_phases_from_db(db):
         for topic in phase.topics:
-            if topic.id == topic_id:
+            if topic.uuid == topic_uuid:
                 return topic
     return None
 
@@ -203,7 +205,7 @@ def _build_step(row: CurriculumStep) -> LearningStep:
     # would from YAML.
     payload: dict = {
         "uuid": row.uuid,
-        "id": row.legacy_id,
+        "slug": row.slug,
         "order": row.order,
         "action": row.action,
         "title": row.title,
@@ -219,7 +221,6 @@ def _build_objective(row: CurriculumLearningObjective) -> LearningObjective:
     return LearningObjective.model_validate(
         {
             "uuid": row.uuid,
-            "id": row.legacy_id,
             "text": row.text_,
             "order": row.order,
         }
@@ -235,7 +236,6 @@ def _build_topic(
     return Topic.model_validate(
         {
             "uuid": row.uuid,
-            "id": row.legacy_id,
             "slug": row.slug,
             "name": row.name,
             "description": row.description,
@@ -256,7 +256,7 @@ def _build_requirement(row: CurriculumRequirement):
     return HandsOnRequirementAdapter.validate_python(
         {
             "uuid": row.uuid,
-            "id": row.id,
+            "slug": row.slug,
             "submission_type": row.submission_type,
             "name": row.name,
             "description": row.description,
@@ -274,13 +274,12 @@ def _build_phase(
     hov: PhaseHandsOnVerificationOverview | None = None
     if requirements:
         hov = PhaseHandsOnVerificationOverview(
-            requirement_slugs=[r.id for r in requirements],
+            requirement_slugs=[r.slug for r in requirements],
             requirements=requirements,
         )
     return Phase.model_validate(
         {
             "uuid": row.uuid,
-            "id": row.legacy_id,
             "slug": row.slug,
             "name": row.name,
             "description": row.description,

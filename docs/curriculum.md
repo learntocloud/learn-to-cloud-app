@@ -21,15 +21,16 @@ Each entity has two ids:
 
 - `uuid` — Postgres primary key. Used for foreign keys and as the stable
   identity that survives YAML edits.
-- `legacy_id` — the human-readable id from YAML. For phases that's the
-  int (`0`, `1`, ...); for topics/steps/objectives/requirements it's the
-  kebab-case slug (`phase0-topic1`, `step-intro`, `github-profile`).
-  Used in URLs, templates, and seed scripts. Required for migration
-  backfills from the legacy string-keyed user state.
+- `slug` — the human-readable id from YAML. For phases that's
+  `"phase0"`..`"phase6"` (with an integer `order` 0..6 for URLs); for
+  topics/steps/objectives/requirements it's the kebab-case slug
+  (`prepare-to-learn`, `phase0-topic0-watch-...`, `github-profile`).
+  Used in URLs, templates, seed scripts, and log lines so humans can
+  read what's going on without joining against the curriculum table.
 
-Both ids are stored on every curriculum row. Loaders that hand a
+Both fields are stored on every curriculum row. Loaders that hand a
 `HandsOnRequirement` (or any other Pydantic schema) to the rest of
-the app surface `id` for templates and `uuid` for repository writes.
+the app surface `slug` for templates and `uuid` for repository writes.
 
 ## The flow
 
@@ -99,7 +100,7 @@ functions return Pydantic shapes built from the DB tables:
 ```python
 async def get_all_phases(db) -> tuple[Phase, ...]
 async def get_phase_by_slug(db, slug) -> Phase | None
-async def get_topic_by_id(db, topic_id) -> Topic | None       # legacy_id
+async def get_topic_by_uuid(db, topic_uuid) -> Topic | None
 async def get_topic_by_slugs(db, phase_slug, topic_slug) -> Topic | None
 ```
 
@@ -129,15 +130,15 @@ while user state references them. Soft-delete (`deleted_at` set) is
 the only delete mechanism the sync uses; the FK still resolves so
 historical submissions remain valid.
 
-`requirements.id` (the kebab-case slug) carries a partial unique
-index across active rows + a globally unique index ignoring
-`deleted_at`. The latter exists because the slug used to be
-denormalized into `submissions.requirement_id` and is still used as
-a public id in URLs and templates; duplicates across phases would
-break that.
+`requirements.slug` (the kebab-case human id) carries a partial
+unique index across active rows + a globally unique index ignoring
+`deleted_at`. The latter exists because the slug appears in URLs,
+templates, and log lines as the public id; duplicates across phases
+would break that contract.
 
 Repository APIs take and return UUIDs. The service layer translates
-to/from legacy ids at the boundary when templates need them.
+to/from slugs at the boundary when templates or HTMX form payloads
+need them.
 
 ## Editing curriculum
 
@@ -203,7 +204,7 @@ them later:
   audience justifies, and PR review on YAML diffs is genuinely useful.
 - **UUID PKs from day one**: lets us reorder, rename, or copy
   curriculum content without breaking user state.
-- **`legacy_id` on every row**: humans look at URLs, templates, and
+- **`slug` on every row**: humans look at URLs, templates, and
   log lines. Forcing them to look up a UUID just to discuss "step 3
   of topic 1" would be needlessly hostile. Carry the slug too.
 - **Per-request DB reads, no cache**: the curriculum is small enough

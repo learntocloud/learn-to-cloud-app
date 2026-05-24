@@ -35,7 +35,7 @@ async def req_uuids(db_session: AsyncSession) -> list:
     clear_cache()
     await sync_curriculum_to_db(db_session)
     result = await db_session.execute(
-        select(CurriculumRequirement.uuid).order_by(CurriculumRequirement.id).limit(3)
+        select(CurriculumRequirement.uuid).order_by(CurriculumRequirement.slug).limit(3)
     )
     return [row[0] for row in result.all()]
 

@@ -30,7 +30,7 @@ def _build_phase_summary(
 ) -> PhaseSummaryData:
     """Build PhaseSummaryData from a Phase and computed values."""
     return PhaseSummaryData(
-        id=phase.id,
+        id=phase.order,
         name=phase.name,
         slug=phase.slug,
         description=phase.description,
@@ -70,7 +70,7 @@ async def get_dashboard_data(
         _build_phase_summary(
             phase,
             phase_progress_to_data(progress)
-            if (progress := user_progress.phases.get(phase.id))
+            if (progress := user_progress.phases.get(phase.order))
             else None,
         )
         for phase in phases
@@ -79,10 +79,10 @@ async def get_dashboard_data(
     continue_phase: ContinuePhaseData | None = None
     if not user_progress.is_program_complete:
         current_id = user_progress.current_phase
-        current = next((p for p in phases if p.id == current_id), None)
+        current = next((p for p in phases if p.order == current_id), None)
         if current is not None:
             continue_phase = ContinuePhaseData(
-                phase_id=current.id,
+                phase_id=current.order,
                 name=current.name,
                 slug=current.slug,
                 order=current.order,

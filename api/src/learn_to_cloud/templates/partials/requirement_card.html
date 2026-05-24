@@ -1,4 +1,4 @@
-<div id="requirement-{{ requirement.id }}" class="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+<div id="requirement-{{ requirement.slug }}" class="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
     <div class="flex items-center justify-between mb-2">
         <h4 class="font-medium text-gray-900 dark:text-gray-100">{{ requirement.name }}</h4>
         {% if submission and submission.is_validated %}
@@ -25,7 +25,7 @@
     <div
         hx-get="/htmx/verification/jobs/status?token={{ verification_status_token | urlencode }}"
         hx-trigger="load delay:{{ verification_status_delay_seconds | default(2) }}s"
-        hx-target="#requirement-{{ requirement.id }}"
+        hx-target="#requirement-{{ requirement.slug }}"
         hx-swap="outerHTML"
         class="flex items-center gap-3 py-3"
     >
@@ -41,19 +41,19 @@
     {% elif not submission or not submission.is_validated %}
     <form
         hx-post="/htmx/github/submit"
-        hx-target="#requirement-{{ requirement.id }}"
+        hx-target="#requirement-{{ requirement.slug }}"
         hx-swap="outerHTML"
-        hx-indicator="#spinner-{{ requirement.id }}"
+        hx-indicator="#spinner-{{ requirement.slug }}"
         hx-disabled-elt="find button[type='submit']"
         class="flex gap-2"
     >
-        <input type="hidden" name="requirement_id" value="{{ requirement.id }}">
+        <input type="hidden" name="requirement_slug" value="{{ requirement.slug }}">
 
         {% if requirement.submission_type in ['ctf_token', 'networking_token'] %}
         {# Token input — learner pastes the completion token. #}
-        <label for="input-{{ requirement.id }}" class="sr-only">{{ requirement.name }}</label>
+        <label for="input-{{ requirement.slug }}" class="sr-only">{{ requirement.name }}</label>
         <input
-            id="input-{{ requirement.id }}"
+            id="input-{{ requirement.slug }}"
             type="text"
             name="submitted_value"
             placeholder="{{ requirement.placeholder | default('Paste your completion token here') }}"
@@ -63,9 +63,9 @@
         >
         {% elif requirement.submission_type == 'deployed_api' %}
         {# Free-form deployed API URL — the learner owns the hostname. #}
-        <label for="input-{{ requirement.id }}" class="sr-only">{{ requirement.name }}</label>
+        <label for="input-{{ requirement.slug }}" class="sr-only">{{ requirement.name }}</label>
         <input
-            id="input-{{ requirement.id }}"
+            id="input-{{ requirement.slug }}"
             type="url"
             name="submitted_value"
             placeholder="{{ requirement.placeholder | default('https://your-api.example.com') }}"
@@ -78,9 +78,9 @@
            GitHub username + the requirement's ``required_repo``.  The field is
            read-only so the learner cannot tamper with it; the form posts no
            user-editable value. #}
-        <label for="input-{{ requirement.id }}" class="sr-only">{{ requirement.name }}</label>
+        <label for="input-{{ requirement.slug }}" class="sr-only">{{ requirement.name }}</label>
         <input
-            id="input-{{ requirement.id }}"
+            id="input-{{ requirement.slug }}"
             type="url"
             value="{{ derived_url }}"
             readonly
@@ -91,9 +91,9 @@
         {# Fallback: requirement is misconfigured or the learner has no
            linked GitHub username.  Show a disabled input and let the server
            return an error banner on submit. #}
-        <label for="input-{{ requirement.id }}" class="sr-only">{{ requirement.name }}</label>
+        <label for="input-{{ requirement.slug }}" class="sr-only">{{ requirement.name }}</label>
         <input
-            id="input-{{ requirement.id }}"
+            id="input-{{ requirement.slug }}"
             type="url"
             value=""
             disabled
@@ -109,7 +109,7 @@
         >
             Verify
         </button>
-        <span id="spinner-{{ requirement.id }}" class="htmx-indicator inline-flex items-center text-sm text-gray-500">
+        <span id="spinner-{{ requirement.slug }}" class="htmx-indicator inline-flex items-center text-sm text-gray-500">
             Checking...
         </span>
     </form>
@@ -131,7 +131,7 @@
     {% endif %}
 
     {% if feedback_tasks %}
-    {% with feedback_tasks=feedback_tasks, feedback_passed=feedback_passed, requirement_id=requirement.id %}
+    {% with feedback_tasks=feedback_tasks, feedback_passed=feedback_passed, requirement_slug=requirement.slug %}
     {% include "partials/verification_feedback.html" %}
     {% endwith %}
     {% endif %}

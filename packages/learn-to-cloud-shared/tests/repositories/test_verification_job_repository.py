@@ -39,7 +39,7 @@ async def req_uuid(db_session: AsyncSession) -> UUID:
     clear_cache()
     await sync_curriculum_to_db(db_session)
     result = await db_session.execute(
-        select(CurriculumRequirement.uuid).order_by(CurriculumRequirement.id).limit(1)
+        select(CurriculumRequirement.uuid).order_by(CurriculumRequirement.slug).limit(1)
     )
     return result.scalar_one()
 

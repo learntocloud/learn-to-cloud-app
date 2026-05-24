@@ -18,14 +18,14 @@ MAX_FILE_SIZE_BYTES: int = 50 * 1024
 MAX_TOTAL_CONTENT_BYTES: int = 200 * 1024
 
 
-PHASE5_REQUIREMENT_ID = "devops-implementation"
+PHASE5_REQUIREMENT_SLUG = "devops-implementation"
 
 
 PHASE5_TASKS: list[VerificationTask] = [
     VerificationTask(
         id="dockerfile",
         phase_id=5,
-        requirement_id=PHASE5_REQUIREMENT_ID,
+        requirement_slug=PHASE5_REQUIREMENT_SLUG,
         name="Containerization (Dockerfile)",
         evidence=EvidencePolicy(
             source="repo_files",
@@ -72,7 +72,7 @@ PHASE5_TASKS: list[VerificationTask] = [
     VerificationTask(
         id="cicd-pipeline",
         phase_id=5,
-        requirement_id=PHASE5_REQUIREMENT_ID,
+        requirement_slug=PHASE5_REQUIREMENT_SLUG,
         name="CI/CD Pipeline (GitHub Actions)",
         evidence=EvidencePolicy(
             source="repo_files",
@@ -119,7 +119,7 @@ PHASE5_TASKS: list[VerificationTask] = [
     VerificationTask(
         id="terraform-iac",
         phase_id=5,
-        requirement_id=PHASE5_REQUIREMENT_ID,
+        requirement_slug=PHASE5_REQUIREMENT_SLUG,
         name="Infrastructure as Code (Terraform)",
         evidence=EvidencePolicy(
             source="repo_files",
@@ -166,7 +166,7 @@ PHASE5_TASKS: list[VerificationTask] = [
     VerificationTask(
         id="kubernetes-manifests",
         phase_id=5,
-        requirement_id=PHASE5_REQUIREMENT_ID,
+        requirement_slug=PHASE5_REQUIREMENT_SLUG,
         name="Container Orchestration (Kubernetes)",
         evidence=EvidencePolicy(
             source="repo_files",

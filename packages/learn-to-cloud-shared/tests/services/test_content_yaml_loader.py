@@ -5,7 +5,7 @@ Tests cover:
 - _load_topic YAML loading and error handling
 - _load_phase directory-based phase loading
 - get_all_phases discovery and sorting
-- get_phase_by_slug / get_topic_by_id / get_topic_by_slugs lookups
+- get_phase_by_slug / get_topic_by_uuid / get_topic_by_slugs lookups
 - clear_cache invalidation
 """
 
@@ -45,8 +45,8 @@ class TestValidateTopicPayload:
         data = {
             "id": "topic1",
             "learning_steps": [
-                {"id": "step-1", "order": 1},
-                {"id": "step-2", "order": 2},
+                {"slug": "step-1", "order": 1},
+                {"slug": "step-2", "order": 2},
             ],
         }
         _validate_topic_payload(data, Path("test.yaml"))
@@ -62,7 +62,7 @@ class TestValidateTopicPayload:
     def test_empty_step_id_raises(self):
         data = {
             "id": "topic1",
-            "learning_steps": [{"id": "", "order": 1}],
+            "learning_steps": [{"slug": "", "order": 1}],
         }
         with pytest.raises(ContentValidationError, match="Missing learning_steps"):
             _validate_topic_payload(data, Path("test.yaml"))
@@ -71,8 +71,8 @@ class TestValidateTopicPayload:
         data = {
             "id": "topic1",
             "learning_steps": [
-                {"id": "step-1", "order": 1},
-                {"id": "step-1", "order": 2},
+                {"slug": "step-1", "order": 1},
+                {"slug": "step-1", "order": 2},
             ],
         }
         with pytest.raises(ContentValidationError, match="Duplicate"):
@@ -81,7 +81,7 @@ class TestValidateTopicPayload:
     def test_oversized_step_id_raises(self):
         data = {
             "id": "topic1",
-            "learning_steps": [{"id": "x" * 101, "order": 1}],
+            "learning_steps": [{"slug": "x" * 101, "order": 1}],
         }
         with pytest.raises(ContentValidationError, match="max 100"):
             _validate_topic_payload(data, Path("test.yaml"))
@@ -123,14 +123,14 @@ name: Basics
 description: Learn the basics
 learning_steps:
   - uuid: 00000000-0000-0000-0000-000000000002
-    id: step-intro
+    slug: step-intro
     order: 0
     title: Introduction
 """
         )
         topic = _load_topic(tmp_path, "basics", order=1)
         assert topic is not None
-        assert topic.id == "phase0-topic1"
+        assert topic.slug == "basics"
         assert topic.order == 1  # supplied by caller, not from YAML
         assert len(topic.learning_steps) == 1
 
@@ -153,7 +153,7 @@ description: Has a stale order field
 order: 5
 learning_steps:
   - uuid: 00000000-0000-0000-0000-0000000000aa
-    id: s
+    slug: s
     order: 0
     title: T
 """
@@ -171,11 +171,11 @@ name: Dup
 description: duplicate steps
 learning_steps:
   - uuid: 00000000-0000-0000-0000-000000000011
-    id: same-id
+    slug: same-id
     order: 0
     title: A
   - uuid: 00000000-0000-0000-0000-000000000012
-    id: same-id
+    slug: same-id
     order: 1
     title: B
 """
@@ -222,7 +222,7 @@ name: Basics
 description: desc
 learning_steps:
   - uuid: 00000000-0000-0000-0000-000000000102
-    id: step-1
+    slug: step-1
     order: 0
     title: First step
 """
@@ -234,7 +234,7 @@ learning_steps:
         ):
             phase = _load_phase("phase0")
         assert phase is not None
-        assert phase.id == 0
+        assert phase.order == 0
         assert len(phase.topics) == 1
 
 
@@ -253,14 +253,15 @@ class TestGetAllPhases:
             for requirement in phase.hands_on_verification.requirements
         ]
 
-        assert any(req.id == "journal-api-implementation" for req in requirements)
+        assert any(req.slug == "journal-api-implementation" for req in requirements)
 
     def test_phase3_exposes_single_final_journal_verification(self):
-        phase3 = next(phase for phase in get_all_phases() if phase.id == 3)
+        phase3 = next(phase for phase in get_all_phases() if phase.order == 3)
 
         assert phase3.hands_on_verification is not None
         assert [
-            requirement.id for requirement in phase3.hands_on_verification.requirements
+            requirement.slug
+            for requirement in phase3.hands_on_verification.requirements
         ] == ["journal-api-implementation"]
 
     def test_phase5_aws_observability_link_uses_current_adot_guide(self):
@@ -269,7 +270,7 @@ class TestGetAllPhases:
         step = next(
             step
             for step in topic.learning_steps
-            if step.id == "phase5-topic5-practice-export-telemetry-cloud-provider"
+            if step.slug == "phase5-topic5-practice-export-telemetry-cloud-provider"
         )
         aws_option = next(option for option in step.options if option.provider == "aws")
 
@@ -334,7 +335,6 @@ class TestValidateContent:
 
         return Phase(
             uuid=UUID(phase_uuid),
-            id=0,
             name=slug,
             slug=slug,
             order=0,
@@ -360,7 +360,6 @@ class TestValidateContent:
 
         return Topic(
             uuid=UUID(topic_uuid),
-            id=slug,
             slug=slug,
             name=slug,
             description="",
@@ -369,7 +368,7 @@ class TestValidateContent:
             or [
                 LearningStep(
                     uuid=UUID("00000000-0000-0000-0000-000000000020"),
-                    id="step-1",
+                    slug="step-1",
                     order=0,
                 ),
             ],
@@ -397,7 +396,7 @@ class TestValidateContent:
         topic = self._build_topic(
             topic_uuid=shared,
             learning_steps=[
-                LearningStep(uuid=UUID(shared), id="step-1", order=0),
+                LearningStep(uuid=UUID(shared), slug="step-1", order=0),
             ],
         )
         phase = self._build_phase(topics=[topic], topic_slugs=["topic1"])
@@ -435,12 +434,12 @@ class TestValidateContent:
             learning_steps=[
                 LearningStep(
                     uuid=UUID("00000000-0000-0000-0000-000000000030"),
-                    id="step-a",
+                    slug="step-a",
                     order=1,
                 ),
                 LearningStep(
                     uuid=UUID("00000000-0000-0000-0000-000000000031"),
-                    id="step-b",
+                    slug="step-b",
                     order=1,
                 ),
             ],

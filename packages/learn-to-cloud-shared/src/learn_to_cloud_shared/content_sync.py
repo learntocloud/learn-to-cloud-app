@@ -85,7 +85,6 @@ class SyncStats:
 # ``updated_at``. ``uuid`` is the conflict target so it's not in this
 # list; ``created_at`` is never updated.
 _PHASE_UPDATE_FIELDS = (
-    "legacy_id",
     "slug",
     "name",
     "description",
@@ -96,7 +95,6 @@ _PHASE_UPDATE_FIELDS = (
 )
 _TOPIC_UPDATE_FIELDS = (
     "phase_uuid",
-    "legacy_id",
     "slug",
     "name",
     "description",
@@ -106,7 +104,7 @@ _TOPIC_UPDATE_FIELDS = (
 )
 _STEP_UPDATE_FIELDS = (
     "topic_uuid",
-    "legacy_id",
+    "slug",
     "order",
     "action",
     "title",
@@ -119,7 +117,6 @@ _STEP_UPDATE_FIELDS = (
 )
 _OBJECTIVE_UPDATE_FIELDS = (
     "topic_uuid",
-    "legacy_id",
     "text",
     "order",
     "deleted_at",
@@ -127,7 +124,7 @@ _OBJECTIVE_UPDATE_FIELDS = (
 )
 _REQUIREMENT_UPDATE_FIELDS = (
     "phase_uuid",
-    "id",
+    "slug",
     "name",
     "description",
     "submission_type",
@@ -141,7 +138,6 @@ _REQUIREMENT_UPDATE_FIELDS = (
 def _build_phase_row(phase: Phase, now: datetime) -> dict[str, Any]:
     return {
         "uuid": phase.uuid,
-        "legacy_id": phase.id,
         "slug": phase.slug,
         "name": phase.name,
         "description": phase.description,
@@ -158,7 +154,6 @@ def _build_topic_rows(phase: Phase, now: datetime) -> Iterable[dict[str, Any]]:
         yield {
             "uuid": topic.uuid,
             "phase_uuid": phase.uuid,
-            "legacy_id": topic.id,
             "slug": topic.slug,
             "name": topic.name,
             "description": topic.description,
@@ -176,7 +171,7 @@ def _build_step_rows(phase: Phase, now: datetime) -> Iterable[dict[str, Any]]:
                 mode="json",
                 exclude={
                     "uuid",
-                    "id",
+                    "slug",
                     "order",
                     "action",
                     "title",
@@ -189,7 +184,7 @@ def _build_step_rows(phase: Phase, now: datetime) -> Iterable[dict[str, Any]]:
             yield {
                 "uuid": step.uuid,
                 "topic_uuid": topic.uuid,
-                "legacy_id": step.id,
+                "slug": step.slug,
                 "order": step.order,
                 "action": step.action,
                 "title": step.title,
@@ -209,7 +204,6 @@ def _build_objective_rows(phase: Phase, now: datetime) -> Iterable[dict[str, Any
             yield {
                 "uuid": objective.uuid,
                 "topic_uuid": topic.uuid,
-                "legacy_id": objective.id,
                 "text": objective.text,
                 "order": objective.order,
                 "deleted_at": None,
@@ -227,7 +221,7 @@ def _build_requirement_rows(phase: Phase, now: datetime) -> Iterable[dict[str, A
         yield {
             "uuid": req.uuid,
             "phase_uuid": phase.uuid,
-            "id": req.id,
+            "slug": req.slug,
             "name": req.name,
             "description": req.description,
             "submission_type": req.submission_type.value,
@@ -370,11 +364,11 @@ async def _check_collisions_and_submission_type(
             for yaml_req in yaml_phase.hands_on_verification.requirements:
                 if (
                     db_req.phase_uuid == yaml_phase.uuid
-                    and db_req.id == yaml_req.id
+                    and db_req.slug == yaml_req.slug
                     and db_req.uuid != yaml_req.uuid
                 ):
                     raise ContentSyncError(
-                        f"Requirement id '{yaml_req.id}' in phase "
+                        f"Requirement slug '{yaml_req.slug}' in phase "
                         f"{yaml_phase.slug} active in DB as "
                         f"uuid={db_req.uuid} but YAML uses uuid="
                         f"{yaml_req.uuid}. UUIDs are immutable."
@@ -388,7 +382,7 @@ async def _check_collisions_and_submission_type(
         _, yaml_req = yaml_match
         if db_req.submission_type != yaml_req.submission_type.value:
             raise ContentSyncError(
-                f"Requirement {db_req.id} (uuid={db_req.uuid}) is "
+                f"Requirement {db_req.slug} (uuid={db_req.uuid}) is "
                 f"changing submission_type from '{db_req.submission_type}' "
                 f"to '{yaml_req.submission_type.value}'. This is destructive "
                 "to existing submissions. Create a new requirement with a "

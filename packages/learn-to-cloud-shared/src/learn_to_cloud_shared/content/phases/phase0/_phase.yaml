@@ -1,6 +1,5 @@
 # yaml-language-server: $schema=../../schemas/phase.schema.json
 uuid: be385f44-1086-4b97-bfbb-b652540ad228
-id: '0'
 name: Starting from Zero
 slug: phase0
 description: This phase is designed for complete beginners who are starting from zero and want to build toward cloud engineering. You will learn the core ideas behind Linux, networking, programming, cloud computing, and DevOps in a beginner-friendly sequence. A strong foundation here will make every later phase easier to understand and apply in real projects.

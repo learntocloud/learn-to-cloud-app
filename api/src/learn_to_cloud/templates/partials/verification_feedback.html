@@ -6,7 +6,7 @@
        feedback_tasks   – list of dicts with keys: name, passed, message
        feedback_passed  – int count of passed tasks
      Optional:
-       requirement_id   – used to scope IDs (default: 'default')
+       requirement_slug – used to scope IDs (default: 'default')
 -->
 {% set total = feedback_tasks | length %}
 {% set failed = total - feedback_passed %}

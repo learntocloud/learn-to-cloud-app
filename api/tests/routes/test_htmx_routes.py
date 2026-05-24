@@ -72,28 +72,23 @@ class TestHtmxCompleteStep:
         """Completing a step calls the service and returns HTML."""
         request = _mock_request()
         mock_db = AsyncMock()
+        step_uuid = uuid4()
         mock_topic = MagicMock()
         mock_step = MagicMock()
-        mock_step.id = "step-1"
+        mock_step.uuid = step_uuid
+        mock_step.slug = "step-1"
         mock_topic.learning_steps = [mock_step]
 
         with (
             patch(
-                "learn_to_cloud.routes.htmx_routes.complete_step", autospec=True
+                "learn_to_cloud.routes.htmx_routes.complete_step",
+                autospec=True,
+                return_value=(MagicMock(), mock_topic, {step_uuid}),
             ) as mock_complete,
-            patch(
-                "learn_to_cloud.routes.htmx_routes.get_topic_by_id",
-                return_value=mock_topic,
-            ),
             patch(
                 "learn_to_cloud.routes.htmx_routes.get_user_by_id",
                 autospec=True,
                 return_value=MagicMock(),
-            ),
-            patch(
-                "learn_to_cloud.routes.htmx_routes.get_valid_completed_steps",
-                autospec=True,
-                return_value=["step-1"],
             ),
             patch(
                 "learn_to_cloud.routes.htmx_routes.build_step_data",
@@ -107,18 +102,17 @@ class TestHtmxCompleteStep:
                 request,
                 mock_db,
                 user_id=1,
-                topic_id="topic-1",
-                step_id="step-1",
-                phase_id=1,
+                step_uuid=step_uuid,
             )
 
-        mock_complete.assert_awaited_once_with(mock_db, 1, "topic-1", "step-1")
+        mock_complete.assert_awaited_once_with(mock_db, 1, step_uuid)
         assert isinstance(result, HTMLResponse)
 
     async def test_complete_step_returns_hx_refresh_on_validation_error(self):
         """StepValidationError triggers HX-Refresh for stale page reload."""
         request = _mock_request()
         mock_db = AsyncMock()
+        step_uuid = uuid4()
 
         with patch(
             "learn_to_cloud.routes.htmx_routes.complete_step",
@@ -129,9 +123,7 @@ class TestHtmxCompleteStep:
                 request,
                 mock_db,
                 user_id=1,
-                topic_id="topic-1",
-                step_id="bad-step",
-                phase_id=1,
+                step_uuid=step_uuid,
             )
 
         assert result.headers.get("HX-Refresh") == "true"
@@ -139,38 +131,29 @@ class TestHtmxCompleteStep:
 
 @pytest.mark.unit
 class TestHtmxUncompleteStep:
-    """Tests for DELETE /htmx/steps/{topic_id}/{step_id}."""
+    """Tests for DELETE /htmx/steps/{step_uuid}."""
 
     async def test_uncomplete_step_calls_service(self):
         """Uncompleting a step calls the service and returns HTML."""
         request = _mock_request()
         mock_db = AsyncMock()
+        step_uuid = uuid4()
         mock_topic = MagicMock()
         mock_step = MagicMock()
-        mock_step.id = "step-1"
+        mock_step.uuid = step_uuid
+        mock_step.slug = "step-1"
         mock_topic.learning_steps = [mock_step]
 
         with (
             patch(
-                "learn_to_cloud.routes.htmx_routes.uncomplete_step", autospec=True
+                "learn_to_cloud.routes.htmx_routes.uncomplete_step",
+                autospec=True,
+                return_value=(1, mock_topic, mock_step, set()),
             ) as mock_uncomplete,
-            patch(
-                "learn_to_cloud.routes.htmx_routes.parse_phase_id_from_topic_id",
-                return_value=1,
-            ),
-            patch(
-                "learn_to_cloud.routes.htmx_routes.get_topic_by_id",
-                return_value=mock_topic,
-            ),
             patch(
                 "learn_to_cloud.routes.htmx_routes.get_user_by_id",
                 autospec=True,
                 return_value=MagicMock(),
-            ),
-            patch(
-                "learn_to_cloud.routes.htmx_routes.get_valid_completed_steps",
-                autospec=True,
-                return_value=[],
             ),
             patch(
                 "learn_to_cloud.routes.htmx_routes.build_step_data",
@@ -182,19 +165,19 @@ class TestHtmxUncompleteStep:
         ):
             result = await htmx_uncomplete_step(
                 request,
-                "topic-1",
-                "step-1",
+                step_uuid,
                 mock_db,
                 user_id=1,
             )
 
-        mock_uncomplete.assert_awaited_once_with(mock_db, 1, "topic-1", "step-1")
+        mock_uncomplete.assert_awaited_once_with(mock_db, 1, step_uuid)
         assert isinstance(result, HTMLResponse)
 
     async def test_uncomplete_step_returns_hx_refresh_on_validation_error(self):
         """StepValidationError triggers HX-Refresh."""
         request = _mock_request()
         mock_db = AsyncMock()
+        step_uuid = uuid4()
 
         with patch(
             "learn_to_cloud.routes.htmx_routes.uncomplete_step",
@@ -203,8 +186,7 @@ class TestHtmxUncompleteStep:
         ):
             result = await htmx_uncomplete_step(
                 request,
-                "topic-1",
-                "bad-step",
+                step_uuid,
                 mock_db,
                 user_id=1,
             )
@@ -234,7 +216,7 @@ class TestHtmxSubmitVerification:
 
         with (
             patch(
-                "learn_to_cloud.routes.htmx_routes.get_requirement_by_id",
+                "learn_to_cloud.routes.htmx_routes.get_requirement_by_slug",
                 return_value=MagicMock(),
             ),
             patch(
@@ -261,7 +243,7 @@ class TestHtmxSubmitVerification:
                 request,
                 AsyncMock(),
                 current_user,
-                requirement_id="req-1",
+                requirement_slug="req-1",
                 submitted_value="test",
             )
 
@@ -277,7 +259,7 @@ class TestHtmxSubmitVerification:
 
         with (
             patch(
-                "learn_to_cloud.routes.htmx_routes.get_requirement_by_id",
+                "learn_to_cloud.routes.htmx_routes.get_requirement_by_slug",
                 return_value=MagicMock(),
             ),
             patch(
@@ -295,7 +277,7 @@ class TestHtmxSubmitVerification:
                 request,
                 AsyncMock(),
                 current_user,
-                requirement_id="req-1",
+                requirement_slug="req-1",
                 submitted_value="test",
             )
 
@@ -322,7 +304,7 @@ class TestHtmxSubmitVerification:
 
         with (
             patch(
-                "learn_to_cloud.routes.htmx_routes.get_requirement_by_id",
+                "learn_to_cloud.routes.htmx_routes.get_requirement_by_slug",
                 return_value=MagicMock(),
             ),
             patch(
@@ -349,7 +331,7 @@ class TestHtmxSubmitVerification:
                 request,
                 AsyncMock(),
                 current_user,
-                requirement_id="req-1",
+                requirement_slug="req-1",
                 submitted_value="https://github.com/user/repo",
             )
 
@@ -364,7 +346,7 @@ class TestHtmxSubmitVerification:
         current_user = AuthenticatedUser(user_id=1, github_username="user")
         submission = SimpleNamespace(
             id=42,
-            requirement_id="req-1",
+            requirement_slug="req-1",
             submission_type=SimpleNamespace(value="github_profile"),
             verification_completed=True,
         )
@@ -381,7 +363,7 @@ class TestHtmxSubmitVerification:
 
         with (
             patch(
-                "learn_to_cloud.routes.htmx_routes.get_requirement_by_id",
+                "learn_to_cloud.routes.htmx_routes.get_requirement_by_slug",
                 return_value=MagicMock(),
             ),
             patch(
@@ -406,7 +388,7 @@ class TestHtmxSubmitVerification:
                 request,
                 AsyncMock(),
                 current_user,
-                requirement_id="req-1",
+                requirement_slug="req-1",
                 submitted_value="https://github.com/user",
             )
 
@@ -425,7 +407,7 @@ class TestHtmxSubmitVerification:
         current_user = AuthenticatedUser(user_id=1, github_username="user")
         submission = SimpleNamespace(
             id=43,
-            requirement_id="req-1",
+            requirement_slug="req-1",
             submission_type=SimpleNamespace(value="github_profile"),
             verification_completed=True,
         )
@@ -442,7 +424,7 @@ class TestHtmxSubmitVerification:
 
         with (
             patch(
-                "learn_to_cloud.routes.htmx_routes.get_requirement_by_id",
+                "learn_to_cloud.routes.htmx_routes.get_requirement_by_slug",
                 return_value=MagicMock(),
             ),
             patch(
@@ -460,7 +442,7 @@ class TestHtmxSubmitVerification:
                 request,
                 AsyncMock(),
                 current_user,
-                requirement_id="req-1",
+                requirement_slug="req-1",
                 submitted_value="https://github.com/user",
             )
 
@@ -486,7 +468,7 @@ class TestHtmxSubmitVerification:
 
         with (
             patch(
-                "learn_to_cloud.routes.htmx_routes.get_requirement_by_id",
+                "learn_to_cloud.routes.htmx_routes.get_requirement_by_slug",
                 return_value=MagicMock(),
             ),
             patch(
@@ -513,7 +495,7 @@ class TestHtmxSubmitVerification:
                 request,
                 AsyncMock(),
                 current_user,
-                requirement_id="req-1",
+                requirement_slug="req-1",
                 submitted_value="https://github.com/user/repo",
             )
 
@@ -536,7 +518,7 @@ class TestHtmxSubmitVerification:
 
         with (
             patch(
-                "learn_to_cloud.routes.htmx_routes.get_requirement_by_id",
+                "learn_to_cloud.routes.htmx_routes.get_requirement_by_slug",
                 return_value=MagicMock(),
             ),
             patch(
@@ -558,7 +540,7 @@ class TestHtmxSubmitVerification:
                 request,
                 AsyncMock(),
                 current_user,
-                requirement_id="req-1",
+                requirement_slug="req-1",
                 submitted_value="https://github.com/user/repo",
             )
 
@@ -577,7 +559,7 @@ class TestHtmxVerificationJobStatus:
             user_id=1,
             job_id=str(uuid4()),
             instance_id=str(uuid4()),
-            requirement_id="req-1",
+            requirement_slug="req-1",
         )
 
         with (
@@ -591,7 +573,7 @@ class TestHtmxVerificationJobStatus:
                 return_value=DurableStatusResult(runtime_status="Running"),
             ) as mock_get_status,
             patch(
-                "learn_to_cloud.routes.htmx_routes.get_requirement_by_id",
+                "learn_to_cloud.routes.htmx_routes.get_requirement_by_slug",
                 return_value=MagicMock(),
             ),
         ):
@@ -616,7 +598,7 @@ class TestHtmxVerificationJobStatus:
             user_id=1,
             job_id=str(uuid4()),
             instance_id=str(uuid4()),
-            requirement_id="req-1",
+            requirement_slug="req-1",
         )
 
         with (
@@ -655,7 +637,7 @@ class TestHtmxVerificationJobStatus:
             user_id=1,
             job_id=str(job_id),
             instance_id=str(uuid4()),
-            requirement_id="req-1",
+            requirement_slug="req-1",
         )
 
         with (
@@ -701,7 +683,7 @@ class TestHtmxVerificationJobStatus:
             user_id=1,
             job_id=str(job_id),
             instance_id=str(uuid4()),
-            requirement_id="req-1",
+            requirement_slug="req-1",
         )
 
         with (
@@ -746,7 +728,7 @@ class TestHtmxVerificationJobStatus:
             user_id=1,
             job_id=str(uuid4()),
             instance_id=str(uuid4()),
-            requirement_id="req-1",
+            requirement_slug="req-1",
         )
 
         with (
