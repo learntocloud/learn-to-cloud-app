@@ -18,6 +18,7 @@ from sqlalchemy import (
     Uuid,
     text,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, declared_attr, mapped_column, relationship
 
 from learn_to_cloud_shared.core.database import Base
@@ -316,3 +317,198 @@ class StepProgress(Base):
     )
 
     user: Mapped["User"] = relationship(back_populates="step_progress")
+
+
+# ---------------------------------------------------------------------------
+# Curriculum tables (issue #463 / Phase B of #461)
+#
+# These tables hold the curriculum content authored in YAML. Phase B is
+# additive only: the sync function writes to them on deploy but the app
+# still reads from YAML at runtime. User-state tables do NOT reference
+# these yet; that comes in Phase D.
+#
+# All curriculum entities:
+#   * use UUID primary keys (issue #462)
+#   * support soft-delete via ``deleted_at`` (Q3 of #461)
+#   * use ON DELETE RESTRICT on FKs (Q4 of #461)
+#   * have a ``legacy_id`` column preserving the original YAML string id
+#     so Phase D can backfill user_state.*_id -> *.uuid via this column
+# ---------------------------------------------------------------------------
+
+
+class CurriculumPhase(TimestampMixin, Base):
+    """A curriculum phase (stored copy of YAML _phase.yaml metadata)."""
+
+    __tablename__ = "phases"
+    __table_args__ = (
+        Index(
+            "uq_phases_slug_active",
+            "slug",
+            unique=True,
+            postgresql_where=text("deleted_at IS NULL"),
+        ),
+    )
+
+    uuid: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
+    legacy_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    slug: Mapped[str] = mapped_column(Text, nullable=False)
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    short_description: Mapped[str] = mapped_column(Text, nullable=False)
+    order: Mapped[int] = mapped_column(Integer, nullable=False)
+    deleted_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+
+class CurriculumTopic(TimestampMixin, Base):
+    """A topic within a curriculum phase."""
+
+    __tablename__ = "topics"
+    __table_args__ = (
+        Index(
+            "uq_topics_phase_slug_active",
+            "phase_uuid",
+            "slug",
+            unique=True,
+            postgresql_where=text("deleted_at IS NULL"),
+        ),
+    )
+
+    uuid: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
+    phase_uuid: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("phases.uuid", ondelete="RESTRICT", name="fk_topics_phase_uuid"),
+        nullable=False,
+    )
+    legacy_id: Mapped[str] = mapped_column(Text, nullable=False)
+    slug: Mapped[str] = mapped_column(Text, nullable=False)
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    order: Mapped[int] = mapped_column(Integer, nullable=False)
+    deleted_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+
+class CurriculumStep(TimestampMixin, Base):
+    """A learning step within a curriculum topic."""
+
+    __tablename__ = "steps"
+    __table_args__ = (
+        Index(
+            "uq_steps_topic_order_active",
+            "topic_uuid",
+            "order",
+            unique=True,
+            postgresql_where=text("deleted_at IS NULL"),
+        ),
+    )
+
+    uuid: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
+    topic_uuid: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("topics.uuid", ondelete="RESTRICT", name="fk_steps_topic_uuid"),
+        nullable=False,
+    )
+    legacy_id: Mapped[str] = mapped_column(Text, nullable=False)
+    order: Mapped[int] = mapped_column(Integer, nullable=False)
+    action: Mapped[str | None] = mapped_column(Text, nullable=True)
+    title: Mapped[str | None] = mapped_column(Text, nullable=True)
+    url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    code: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Bundled per-step extras (options, checklist, tips, done_when).
+    # Bundled rather than split out because Phase B doesn't need to query
+    # these individually; split later if Phase C-and-beyond needs it.
+    extra_config: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    deleted_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+
+class CurriculumLearningObjective(TimestampMixin, Base):
+    """A learning objective for a curriculum topic."""
+
+    __tablename__ = "learning_objectives"
+    __table_args__ = (
+        Index(
+            "uq_learning_objectives_topic_order_active",
+            "topic_uuid",
+            "order",
+            unique=True,
+            postgresql_where=text("deleted_at IS NULL"),
+        ),
+    )
+
+    uuid: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
+    topic_uuid: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey(
+            "topics.uuid",
+            ondelete="RESTRICT",
+            name="fk_learning_objectives_topic_uuid",
+        ),
+        nullable=False,
+    )
+    legacy_id: Mapped[str] = mapped_column(Text, nullable=False)
+    text_: Mapped[str] = mapped_column("text", Text, nullable=False)
+    order: Mapped[int] = mapped_column(Integer, nullable=False)
+    deleted_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+
+class CurriculumRequirement(TimestampMixin, Base):
+    """A hands-on requirement for a curriculum phase.
+
+    The ``submission_type`` is stored as plain text rather than the
+    SubmissionType enum because the canonical type-discrimination
+    lives in the Pydantic discriminated union (#470), which keeps
+    type_config aligned. The DB just stores whatever string the sync
+    wrote.
+    """
+
+    __tablename__ = "requirements"
+    __table_args__ = (
+        Index(
+            "uq_requirements_phase_id_active",
+            "phase_uuid",
+            "id",
+            unique=True,
+            postgresql_where=text("deleted_at IS NULL"),
+        ),
+        # Requirement IDs are globally unique because user-state tables
+        # store the bare string id (e.g. "github-profile"); two
+        # requirements sharing an id in different phases would make
+        # Phase D's UUID backfill ambiguous.
+        Index(
+            "uq_requirements_id_active",
+            "id",
+            unique=True,
+            postgresql_where=text("deleted_at IS NULL"),
+        ),
+    )
+
+    uuid: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
+    phase_uuid: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey(
+            "phases.uuid",
+            ondelete="RESTRICT",
+            name="fk_requirements_phase_uuid",
+        ),
+        nullable=False,
+    )
+    id: Mapped[str] = mapped_column(Text, nullable=False)
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    submission_type: Mapped[str] = mapped_column(Text, nullable=False)
+    type_config: Mapped[dict] = mapped_column(
+        JSONB,
+        nullable=False,
+        server_default=text("'{}'::jsonb"),
+    )
+    deleted_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
