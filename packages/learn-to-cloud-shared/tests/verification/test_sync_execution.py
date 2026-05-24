@@ -118,7 +118,6 @@ async def test_sync_validation_persists_submission(
             session_maker=session_maker,
             user_id=USER_ID,
             requirement=requirement,
-            phase_id=PHASE_ID,
             submitted_value="https://github.com/syncuser",
             github_username="syncuser",
         )
@@ -149,7 +148,6 @@ async def test_sync_validation_persists_failure(
             session_maker=session_maker,
             user_id=USER_ID,
             requirement=requirement,
-            phase_id=PHASE_ID,
             submitted_value="https://github.com/wronguser",
             github_username="syncuser",
         )
@@ -180,7 +178,6 @@ async def test_sync_validation_rolls_back_on_validator_exception(
                 session_maker=session_maker,
                 user_id=USER_ID,
                 requirement=requirement,
-                phase_id=PHASE_ID,
                 submitted_value="https://github.com/syncuser",
                 github_username="syncuser",
             )
@@ -202,7 +199,6 @@ async def test_sync_validation_rolls_back_on_validator_exception(
             session_maker=session_maker,
             user_id=USER_ID,
             requirement=requirement,
-            phase_id=PHASE_ID,
             submitted_value="https://github.com/syncuser",
             github_username="syncuser",
         )
@@ -243,7 +239,6 @@ async def test_concurrent_submits_for_same_requirement_dedupe(
                 session_maker=session_maker,
                 user_id=USER_ID,
                 requirement=requirement,
-                phase_id=PHASE_ID,
                 submitted_value="https://github.com/syncuser",
                 github_username="syncuser",
             )
@@ -259,7 +254,6 @@ async def test_concurrent_submits_for_same_requirement_dedupe(
                 session_maker=session_maker,
                 user_id=USER_ID,
                 requirement=requirement,
-                phase_id=PHASE_ID,
                 submitted_value="https://github.com/syncuser",
                 github_username="syncuser",
             )
@@ -310,7 +304,6 @@ async def test_advisory_lock_keyed_per_requirement(
                 session_maker=session_maker,
                 user_id=USER_ID,
                 requirement=requirement,
-                phase_id=PHASE_ID,
                 submitted_value="https://github.com/syncuser",
                 github_username="syncuser",
             )
@@ -339,7 +332,6 @@ async def test_advisory_lock_keyed_per_requirement(
                 session_maker=session_maker,
                 user_id=USER_ID,
                 requirement=other_requirement,
-                phase_id=PHASE_ID,
                 submitted_value="https://github.com/syncuser",
                 github_username="syncuser",
             )
@@ -375,7 +367,6 @@ async def test_advisory_lock_uses_pg_try_advisory_xact_lock(
             session_maker=session_maker,
             user_id=USER_ID,
             requirement=requirement,
-            phase_id=PHASE_ID,
             submitted_value="https://github.com/syncuser",
             github_username="syncuser",
         )

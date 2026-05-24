@@ -296,7 +296,9 @@ class TestAuthPageSmoke:
             ),
             patch(
                 "learn_to_cloud.routes.pages_routes.VerificationJobRepository",
-                return_value=MagicMock(get_active_for_phase=AsyncMock(return_value=[])),
+                return_value=MagicMock(
+                    get_active_for_requirements=AsyncMock(return_value=[])
+                ),
             ),
             patch(
                 "learn_to_cloud.routes.pages_routes.is_phase_verification_locked",

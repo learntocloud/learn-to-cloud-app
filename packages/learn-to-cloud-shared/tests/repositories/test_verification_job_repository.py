@@ -1,6 +1,6 @@
 """Integration tests for VerificationJobRepository."""
 
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytest
 from sqlalchemy import func, select
@@ -10,7 +10,6 @@ from learn_to_cloud_shared.content_sync import sync_curriculum_to_db
 from learn_to_cloud_shared.content_yaml_loader import clear_cache
 from learn_to_cloud_shared.models import (
     CurriculumRequirement,
-    SubmissionType,
     VerificationJob,
 )
 from learn_to_cloud_shared.repositories.submission_repository import (
@@ -47,14 +46,11 @@ async def req_uuid(db_session: AsyncSession) -> UUID:
 
 async def _create_job(
     repo: VerificationJobRepository,
-    *,
-    requirement_id: str = "req-1",
+    requirement_uuid: UUID,
 ):
     return await repo.create(
         user_id=USER_ID,
-        requirement_id=requirement_id,
-        submission_type=SubmissionType.GITHUB_PROFILE,
-        phase_id=0,
+        requirement_uuid=requirement_uuid,
         submitted_value="https://github.com/testuser",
         extracted_username="testuser",
         traceparent="00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01",
@@ -83,15 +79,15 @@ class TestCreate:
         self,
         db_session: AsyncSession,
         user,
+        req_uuid: UUID,
     ):
         repo = VerificationJobRepository(db_session)
 
-        job = await _create_job(repo)
+        job = await _create_job(repo, req_uuid)
 
         assert isinstance(job.id, UUID)
         assert job.user_id == USER_ID
-        assert job.requirement_id == "req-1"
-        assert job.submission_type == SubmissionType.GITHUB_PROFILE
+        assert job.requirement_uuid == req_uuid
         assert job.traceparent is not None
         assert job.created_at is not None
         assert job.result_submission_id is None
@@ -100,21 +96,18 @@ class TestCreate:
         self,
         db_session: AsyncSession,
         user,
+        req_uuid: UUID,
     ):
         repo = VerificationJobRepository(db_session)
 
         first, first_created = await repo.create_or_get_active(
             user_id=USER_ID,
-            requirement_id="req-active",
-            submission_type=SubmissionType.CTF_TOKEN,
-            phase_id=1,
+            requirement_uuid=req_uuid,
             submitted_value="token-1",
         )
         second, second_created = await repo.create_or_get_active(
             user_id=USER_ID,
-            requirement_id="req-active",
-            submission_type=SubmissionType.CTF_TOKEN,
-            phase_id=1,
+            requirement_uuid=req_uuid,
             submitted_value="token-2",
         )
 
@@ -142,9 +135,7 @@ class TestCreate:
 
         first, first_created = await repo.create_or_get_active(
             user_id=USER_ID,
-            requirement_id="req-retry",
-            submission_type=SubmissionType.CTF_TOKEN,
-            phase_id=1,
+            requirement_uuid=req_uuid,
             submitted_value="token-1",
         )
         submission = await _create_submission(
@@ -158,9 +149,7 @@ class TestCreate:
 
         second, second_created = await repo.create_or_get_active(
             user_id=USER_ID,
-            requirement_id="req-retry",
-            submission_type=SubmissionType.CTF_TOKEN,
-            phase_id=1,
+            requirement_uuid=req_uuid,
             submitted_value="token-2",
         )
 
@@ -175,15 +164,16 @@ class TestFind:
         self,
         db_session: AsyncSession,
         user,
+        req_uuid: UUID,
     ):
         repo = VerificationJobRepository(db_session)
-        first = await _create_job(repo, requirement_id="req-latest")
+        first = await _create_job(repo, req_uuid)
         deleted = await repo.delete_active(first.id)
         assert deleted is True
-        second = await _create_job(repo, requirement_id="req-latest")
+        second = await _create_job(repo, req_uuid)
 
-        active = await repo.get_active_for_requirement(USER_ID, "req-latest")
-        latest = await repo.get_latest_for_requirement(USER_ID, "req-latest")
+        active = await repo.get_active_for_requirement(USER_ID, req_uuid)
+        latest = await repo.get_latest_for_requirement(USER_ID, req_uuid)
 
         assert active is not None
         assert active.id == second.id
@@ -194,10 +184,11 @@ class TestFind:
         self,
         db_session: AsyncSession,
         user,
+        req_uuid: UUID,
     ):
         repo = VerificationJobRepository(db_session)
 
-        result = await repo.get_latest_for_requirement(USER_ID, "missing")
+        result = await repo.get_latest_for_requirement(USER_ID, uuid4())
 
         assert result is None
 
@@ -212,7 +203,7 @@ class TestLinkSubmission:
         req_uuid: UUID,
     ):
         repo = VerificationJobRepository(db_session)
-        job = await _create_job(repo)
+        job = await _create_job(repo, req_uuid)
         submission = await _create_submission(db_session, req_uuid)
 
         before = job.updated_at
@@ -235,7 +226,7 @@ class TestLinkSubmission:
         ``link_submission`` sees ``ALREADY_LINKED`` instead of writing
         again."""
         repo = VerificationJobRepository(db_session)
-        job = await _create_job(repo)
+        job = await _create_job(repo, req_uuid)
         submission = await _create_submission(db_session, req_uuid)
 
         first = await repo.link_submission(job.id, submission.id)
@@ -270,9 +261,10 @@ class TestDeleteActive:
         self,
         db_session: AsyncSession,
         user,
+        req_uuid: UUID,
     ):
         repo = VerificationJobRepository(db_session)
-        job = await _create_job(repo)
+        job = await _create_job(repo, req_uuid)
 
         deleted = await repo.delete_active(job.id)
         await db_session.commit()
@@ -290,7 +282,7 @@ class TestDeleteActive:
         req_uuid: UUID,
     ):
         repo = VerificationJobRepository(db_session)
-        job = await _create_job(repo)
+        job = await _create_job(repo, req_uuid)
         submission = await _create_submission(db_session, req_uuid)
         await repo.link_submission(job.id, submission.id)
 
@@ -305,6 +297,7 @@ class TestDeleteActive:
         self,
         db_session: AsyncSession,
         user,
+        req_uuid: UUID,
     ):
         repo = VerificationJobRepository(db_session)
 

@@ -29,7 +29,6 @@ class TestPreparedVerificationJobRoundTrip:
             user_id=42,
             github_username="alice",
             requirement=repo_fork_requirement(id="my-fork", required_repo="owner/repo"),
-            phase_id=1,
             submitted_value="https://github.com/alice/repo",
         )
         payload = job.to_payload()
@@ -44,7 +43,6 @@ class TestPreparedVerificationJobRoundTrip:
             user_id=1,
             github_username="bob",
             requirement=github_profile_requirement(id="profile"),
-            phase_id=0,
             submitted_value="https://github.com/bob",
         )
         payload = job.to_payload()
@@ -60,7 +58,6 @@ class TestPreparedVerificationJobRoundTrip:
             requirement=deployed_api_requirement(
                 id="deployed", placeholder="https://your-api.example.com"
             ),
-            phase_id=4,
             submitted_value="https://api.example.com",
         )
         payload = job.to_payload()

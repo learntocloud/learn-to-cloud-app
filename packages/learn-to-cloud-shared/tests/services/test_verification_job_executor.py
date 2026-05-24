@@ -94,16 +94,11 @@ async def synced_requirement(
 async def _create_job(
     session_maker: async_sessionmaker[AsyncSession],
     requirement: HandsOnRequirement,
-    *,
-    submission_type: SubmissionType | None = None,
 ) -> UUID:
-    sub_type = submission_type or requirement.submission_type
     async with session_maker() as db:
         job = await VerificationJobRepository(db).create(
             user_id=USER_ID,
-            requirement_id=requirement.id,
-            submission_type=sub_type,
-            phase_id=3,
+            requirement_uuid=requirement.uuid,
             submitted_value="https://github.com/executoruser/repo",
         )
         await db.commit()
@@ -159,7 +154,7 @@ async def test_split_verification_primitives_prepare_run_and_persist(
     )
 
     with patch(
-        "learn_to_cloud_shared.verification_job_executor.get_requirement_by_id",
+        "learn_to_cloud_shared.verification_job_executor._find_requirement_by_uuid",
         return_value=synced_requirement,
     ):
         preparation = await prepare_verification_job(
@@ -203,7 +198,7 @@ async def test_execute_verification_job_marks_success_and_links_submission(
 
     with (
         patch(
-            "learn_to_cloud_shared.verification_job_executor.get_requirement_by_id",
+            "learn_to_cloud_shared.verification_job_executor._find_requirement_by_uuid",
             return_value=synced_requirement,
         ),
         patch(
@@ -247,7 +242,7 @@ async def test_execute_verification_job_marks_user_validation_failure(
 
     with (
         patch(
-            "learn_to_cloud_shared.verification_job_executor.get_requirement_by_id",
+            "learn_to_cloud_shared.verification_job_executor._find_requirement_by_uuid",
             return_value=synced_requirement,
         ),
         patch(
@@ -284,7 +279,7 @@ async def test_execute_verification_job_marks_server_error(
 
     with (
         patch(
-            "learn_to_cloud_shared.verification_job_executor.get_requirement_by_id",
+            "learn_to_cloud_shared.verification_job_executor._find_requirement_by_uuid",
             return_value=synced_requirement,
         ),
         patch(
@@ -323,7 +318,7 @@ async def test_execute_verification_job_truncates_persisted_error_messages(
 
     with (
         patch(
-            "learn_to_cloud_shared.verification_job_executor.get_requirement_by_id",
+            "learn_to_cloud_shared.verification_job_executor._find_requirement_by_uuid",
             return_value=synced_requirement,
         ),
         patch(
@@ -354,7 +349,7 @@ async def test_execute_verification_job_marks_missing_requirement_server_error(
 
     with (
         patch(
-            "learn_to_cloud_shared.verification_job_executor.get_requirement_by_id",
+            "learn_to_cloud_shared.verification_job_executor._find_requirement_by_uuid",
             return_value=None,
         ),
         patch(
@@ -398,7 +393,7 @@ async def test_execute_verification_job_is_idempotent_for_terminal_jobs(
 
     with (
         patch(
-            "learn_to_cloud_shared.verification_job_executor.get_requirement_by_id",
+            "learn_to_cloud_shared.verification_job_executor._find_requirement_by_uuid",
             return_value=synced_requirement,
         ),
         patch(
@@ -433,7 +428,6 @@ async def test_persist_is_idempotent_via_result_submission_id_guard(
         user_id=USER_ID,
         github_username="executoruser",
         requirement=synced_requirement,
-        phase_id=3,
         submitted_value="https://github.com/executoruser/repo",
     )
     run_result = VerificationRunResult(
@@ -476,7 +470,6 @@ async def test_persist_raises_when_job_row_was_deleted(
         user_id=USER_ID,
         github_username="executoruser",
         requirement=synced_requirement,
-        phase_id=3,
         submitted_value="https://github.com/executoruser/repo",
     )
     run_result = VerificationRunResult(

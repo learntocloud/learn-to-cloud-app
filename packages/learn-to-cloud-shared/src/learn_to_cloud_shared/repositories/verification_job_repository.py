@@ -1,15 +1,22 @@
 """Repository for verification job records.
 
-PR4 stripped the legacy status enum and the ``mark_*`` lifecycle methods.
-``VerificationJob`` is now a thin work-queue marker: a row exists during
-in-flight verification work, gets linked to a ``Submission`` via
-:meth:`VerificationJobRepository.link_submission` when the persist
-activity completes, and is deleted by the poller on Durable terminal
-failure via :meth:`VerificationJobRepository.delete_active`.
+After Phase D.3 (#465) the table references the curriculum solely via
+``requirement_uuid`` (FK to ``requirements.uuid``). Repo methods speak
+UUIDs; callers translate to/from human-readable requirement ids at
+the boundary.
+
+PR4 stripped the legacy status enum and the ``mark_*`` lifecycle
+methods. ``VerificationJob`` is now a thin work-queue marker: a row
+exists during in-flight verification work, gets linked to a
+``Submission`` via :meth:`VerificationJobRepository.link_submission`
+when the persist activity completes, and is deleted by the poller on
+Durable terminal failure via
+:meth:`VerificationJobRepository.delete_active`.
 """
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from enum import StrEnum
 from uuid import UUID, uuid4
 
@@ -17,11 +24,7 @@ from sqlalchemy import delete, select, text, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from learn_to_cloud_shared.models import (
-    SubmissionType,
-    VerificationJob,
-    utcnow,
-)
+from learn_to_cloud_shared.models import VerificationJob, utcnow
 
 ACTIVE_JOB_UNLINKED_PREDICATE = "result_submission_id IS NULL"
 
@@ -44,9 +47,7 @@ class VerificationJobRepository:
         self,
         *,
         user_id: int,
-        requirement_id: str,
-        submission_type: SubmissionType,
-        phase_id: int,
+        requirement_uuid: UUID,
         submitted_value: str,
         extracted_username: str | None = None,
         cloud_provider: str | None = None,
@@ -56,9 +57,7 @@ class VerificationJobRepository:
         job = VerificationJob(
             id=uuid4(),
             user_id=user_id,
-            requirement_id=requirement_id,
-            phase_id=phase_id,
-            submission_type=submission_type,
+            requirement_uuid=requirement_uuid,
             submitted_value=submitted_value,
             extracted_username=extracted_username,
             cloud_provider=cloud_provider,
@@ -72,9 +71,7 @@ class VerificationJobRepository:
         self,
         *,
         user_id: int,
-        requirement_id: str,
-        submission_type: SubmissionType,
-        phase_id: int,
+        requirement_uuid: UUID,
         submitted_value: str,
         extracted_username: str | None = None,
         cloud_provider: str | None = None,
@@ -83,8 +80,8 @@ class VerificationJobRepository:
         """Create a queued job, or return the active one for the requirement.
 
         The partial unique index
-        ``uq_verification_jobs_active_user_requirement_v2`` ensures only
-        one row per ``(user_id, requirement_id)`` may be unlinked at a
+        ``uq_verification_jobs_active_user_req_uuid`` ensures only one
+        row per ``(user_id, requirement_uuid)`` may be unlinked at a
         time. A brand-new row has ``result_submission_id=NULL`` so it
         falls under the predicate; once the persist activity links a
         Submission the row exits and a follow-up submit succeeds.
@@ -96,9 +93,7 @@ class VerificationJobRepository:
                 .values(
                     id=uuid4(),
                     user_id=user_id,
-                    requirement_id=requirement_id,
-                    phase_id=phase_id,
-                    submission_type=submission_type,
+                    requirement_uuid=requirement_uuid,
                     submitted_value=submitted_value,
                     extracted_username=extracted_username,
                     cloud_provider=cloud_provider,
@@ -107,7 +102,7 @@ class VerificationJobRepository:
                     updated_at=now,
                 )
                 .on_conflict_do_nothing(
-                    index_elements=["user_id", "requirement_id"],
+                    index_elements=["user_id", "requirement_uuid"],
                     index_where=text(ACTIVE_JOB_UNLINKED_PREDICATE),
                 )
                 .returning(VerificationJob)
@@ -117,7 +112,9 @@ class VerificationJobRepository:
             if job is not None:
                 return job, True
 
-            active_job = await self.get_active_for_requirement(user_id, requirement_id)
+            active_job = await self.get_active_for_requirement(
+                user_id, requirement_uuid
+            )
             if active_job is not None:
                 return active_job, False
 
@@ -133,14 +130,14 @@ class VerificationJobRepository:
     async def get_active_for_requirement(
         self,
         user_id: int,
-        requirement_id: str,
+        requirement_uuid: UUID,
     ) -> VerificationJob | None:
         """Get the active (unlinked) job for a user and requirement, if any."""
         result = await self.db.execute(
             select(VerificationJob)
             .where(
                 VerificationJob.user_id == user_id,
-                VerificationJob.requirement_id == requirement_id,
+                VerificationJob.requirement_uuid == requirement_uuid,
                 VerificationJob.result_submission_id.is_(None),
             )
             .order_by(VerificationJob.created_at.desc())
@@ -148,17 +145,26 @@ class VerificationJobRepository:
         )
         return result.scalar_one_or_none()
 
-    async def get_active_for_phase(
+    async def get_active_for_requirements(
         self,
         user_id: int,
-        phase_id: int,
+        requirement_uuids: Iterable[UUID],
     ) -> list[VerificationJob]:
-        """Get active (unlinked) jobs for a user in a phase."""
+        """Get active (unlinked) jobs for a user across a set of requirements.
+
+        Replaces ``get_active_for_phase`` -- callers now resolve a phase
+        to its requirement UUIDs (typically from the in-memory phase
+        tree) and pass them explicitly.
+        """
+        uuids = list(requirement_uuids)
+        if not uuids:
+            return []
+
         result = await self.db.execute(
             select(VerificationJob)
             .where(
                 VerificationJob.user_id == user_id,
-                VerificationJob.phase_id == phase_id,
+                VerificationJob.requirement_uuid.in_(uuids),
                 VerificationJob.result_submission_id.is_(None),
             )
             .order_by(VerificationJob.created_at.desc())
@@ -168,14 +174,14 @@ class VerificationJobRepository:
     async def get_latest_for_requirement(
         self,
         user_id: int,
-        requirement_id: str,
+        requirement_uuid: UUID,
     ) -> VerificationJob | None:
         """Get the latest job for a user and requirement."""
         result = await self.db.execute(
             select(VerificationJob)
             .where(
                 VerificationJob.user_id == user_id,
-                VerificationJob.requirement_id == requirement_id,
+                VerificationJob.requirement_uuid == requirement_uuid,
             )
             .order_by(VerificationJob.created_at.desc())
             .limit(1)

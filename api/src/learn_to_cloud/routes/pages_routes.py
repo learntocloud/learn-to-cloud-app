@@ -132,22 +132,28 @@ async def phase_page(
     sub_context = await get_phase_submission_context(db, user_id, phase)
     submissions_by_req = sub_context.submissions_by_req
     feedback_by_req = sub_context.feedback_by_req
-    active_jobs = await VerificationJobRepository(db).get_active_for_phase(
+    requirements_by_uuid = {req.uuid: req for req in requirements}
+    active_jobs = await VerificationJobRepository(db).get_active_for_requirements(
         user_id,
-        phase_id,
+        requirements_by_uuid.keys(),
     )
-    active_jobs_by_req = {job.requirement_id: job for job in active_jobs}
+    active_jobs_by_req = {
+        requirements_by_uuid[job.requirement_uuid].id: job
+        for job in active_jobs
+        if job.requirement_uuid in requirements_by_uuid
+    }
     # The Durable orchestration instance id IS the job UUID — we always
     # pass ``instance_id=job.id`` to the starter, so we don't need to read
     # back the now-dead ``orchestration_instance_id`` column.
     verification_status_tokens_by_req = {
-        job.requirement_id: create_verification_status_token(
+        requirements_by_uuid[job.requirement_uuid].id: create_verification_status_token(
             user_id=user_id,
             job_id=job.id,
             instance_id=str(job.id),
-            requirement_id=job.requirement_id,
+            requirement_id=requirements_by_uuid[job.requirement_uuid].id,
         )
         for job in active_jobs
+        if job.requirement_uuid in requirements_by_uuid
     }
 
     # Pre-compute per-requirement derived URLs so the Jinja template never

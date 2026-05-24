@@ -50,26 +50,16 @@ def persisted_validation_message(message: str | None) -> str | None:
     return f"{message[: MAX_VALIDATION_MESSAGE_LENGTH - 3]}..."
 
 
-def to_submission_data(
-    submission: Submission,
-    *,
-    requirement_id: str,
-    submission_type: SubmissionType,
-    phase_id: int,
-) -> SubmissionData:
+def to_submission_data(submission: Submission) -> SubmissionData:
     """Project a ``Submission`` row into the ``SubmissionData`` response model.
 
-    After Phase D.2 (#465 / #460) the row no longer carries
-    ``requirement_id`` / ``submission_type`` / ``phase_id``. The caller
-    resolves them from the in-memory ``HandsOnRequirement`` + phase
-    context and passes them in -- ``SubmissionData`` keeps the flat
-    shape so templates and clients don't have to walk a relationship.
+    Phase D.2 + D.3 (#461 / #465) removed the denormalized
+    ``requirement_id`` / ``submission_type`` / ``phase_id`` fields from
+    both the table and the schema -- callers that need them work off
+    the in-memory ``HandsOnRequirement`` directly.
     """
     return SubmissionData(
         id=submission.id,
-        requirement_id=requirement_id,
-        submission_type=submission_type,
-        phase_id=phase_id,
         submitted_value=submission.submitted_value,
         extracted_username=submission.extracted_username,
         is_validated=submission.is_validated,
@@ -109,7 +99,6 @@ async def persist_validation_result(
     *,
     user_id: int,
     requirement: HandsOnRequirement,
-    phase_id: int,
     submitted_value: str,
     github_username: str | None,
     validation_result: ValidationResult,
@@ -140,16 +129,9 @@ async def persist_validation_result(
 def build_submission_result(
     submission: Submission,
     validation_result: ValidationResult,
-    requirement: HandsOnRequirement,
-    phase_id: int,
 ) -> SubmissionResult:
     return SubmissionResult(
-        submission=to_submission_data(
-            submission,
-            requirement_id=requirement.id,
-            submission_type=requirement.submission_type,
-            phase_id=phase_id,
-        ),
+        submission=to_submission_data(submission),
         is_valid=validation_result.is_valid,
         message=validation_result.message,
         username_match=validation_result.username_match,
@@ -163,7 +145,6 @@ async def execute_submission_validation(
     session_maker: async_sessionmaker[AsyncSession],
     user_id: int,
     requirement: HandsOnRequirement,
-    phase_id: int,
     submitted_value: str,
     github_username: str | None,
     after_persist: SubmissionPersistHook | None = None,
@@ -188,7 +169,6 @@ async def execute_submission_validation(
                 write_session,
                 user_id=user_id,
                 requirement=requirement,
-                phase_id=phase_id,
                 submitted_value=submitted_value,
                 github_username=github_username,
                 validation_result=validation_result,
@@ -208,7 +188,6 @@ async def execute_submission_validation(
             extra={
                 "user_id": user_id,
                 "requirement_id": requirement.id,
-                "phase_id": phase_id,
                 "submission_type": requirement.submission_type,
                 "is_valid": validation_result.is_valid,
                 "verification_completed": validation_result.verification_completed,
@@ -220,12 +199,7 @@ async def execute_submission_validation(
             },
         )
 
-        return build_submission_result(
-            db_submission,
-            validation_result,
-            requirement=requirement,
-            phase_id=phase_id,
-        )
+        return build_submission_result(db_submission, validation_result)
 
 
 def _advisory_lock_key(user_id: int, requirement_id: str) -> str:
@@ -242,7 +216,6 @@ async def execute_sync_submission_validation(
     session_maker: async_sessionmaker[AsyncSession],
     user_id: int,
     requirement: HandsOnRequirement,
-    phase_id: int,
     submitted_value: str,
     github_username: str | None,
 ) -> SubmissionResult:
@@ -295,7 +268,6 @@ async def execute_sync_submission_validation(
                 session,
                 user_id=user_id,
                 requirement=requirement,
-                phase_id=phase_id,
                 submitted_value=submitted_value,
                 github_username=github_username,
                 validation_result=validation_result,
@@ -312,7 +284,6 @@ async def execute_sync_submission_validation(
             extra={
                 "user_id": user_id,
                 "requirement_id": requirement.id,
-                "phase_id": phase_id,
                 "submission_type": requirement.submission_type,
                 "is_valid": validation_result.is_valid,
                 "verification_completed": validation_result.verification_completed,
@@ -325,9 +296,4 @@ async def execute_sync_submission_validation(
             },
         )
 
-        return build_submission_result(
-            db_submission,
-            validation_result,
-            requirement=requirement,
-            phase_id=phase_id,
-        )
+        return build_submission_result(db_submission, validation_result)

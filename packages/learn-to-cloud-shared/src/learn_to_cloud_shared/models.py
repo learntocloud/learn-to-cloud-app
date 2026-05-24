@@ -8,7 +8,6 @@ from sqlalchemy import (
     BigInteger,
     Boolean,
     DateTime,
-    Enum,
     ForeignKey,
     Index,
     Integer,
@@ -210,22 +209,16 @@ class VerificationJob(TimestampMixin, Base):
     __tablename__ = "verification_jobs"
     __table_args__ = (
         Index(
-            "ix_verification_jobs_user_req_created",
+            "ix_verification_jobs_user_req_uuid_created",
             "user_id",
-            "requirement_id",
+            "requirement_uuid",
             "created_at",
         ),
         Index(
-            "uq_verification_jobs_active_user_requirement_v2",
+            "uq_verification_jobs_active_user_req_uuid",
             "user_id",
-            "requirement_id",
+            "requirement_uuid",
             unique=True,
-            postgresql_where=text("result_submission_id IS NULL"),
-        ),
-        Index(
-            "ix_verification_jobs_user_phase_active",
-            "user_id",
-            "phase_id",
             postgresql_where=text("result_submission_id IS NULL"),
         ),
     )
@@ -240,14 +233,12 @@ class VerificationJob(TimestampMixin, Base):
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
     )
-    requirement_id: Mapped[str] = mapped_column(String(100), nullable=False)
-    phase_id: Mapped[int] = mapped_column(Integer, nullable=False)
-    submission_type: Mapped[SubmissionType] = mapped_column(
-        Enum(
-            SubmissionType,
-            name="submission_type",
-            native_enum=False,
-            values_callable=lambda x: [e.value for e in x],
+    requirement_uuid: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey(
+            "requirements.uuid",
+            ondelete="RESTRICT",
+            name="fk_verification_jobs_requirement_uuid",
         ),
         nullable=False,
     )
