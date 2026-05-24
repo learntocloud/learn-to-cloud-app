@@ -1,9 +1,9 @@
-"""Unit tests for phase_requirements_service.
+"""Unit tests for verification.requirements.
 
 Tests cover:
 - get_prerequisite_phase returns correct gating rules
-- get_requirements_for_phase returns requirements or empty list
-- get_requirement_by_id / get_phase_id_for_requirement lookups
+- RequirementIndex.from_phases builds the expected lookups
+- Async convenience helpers (get_requirement_by_id, etc.) delegate via the index
 - is_phase_verification_locked prerequisite checking
 """
 
@@ -18,9 +18,7 @@ from learn_to_cloud_shared.schemas import (
     PhaseHandsOnVerificationOverview,
 )
 from learn_to_cloud_shared.verification.requirements import (
-    _get_requirement_id_map,
-    _get_requirement_phase_id_map,
-    _get_requirements_map,
+    RequirementIndex,
     get_phase_id_for_requirement,
     get_prerequisite_phase,
     get_requirement_by_id,
@@ -28,15 +26,6 @@ from learn_to_cloud_shared.verification.requirements import (
     get_requirements_for_phase,
     is_phase_verification_locked,
 )
-
-
-@pytest.fixture(autouse=True)
-def _clear_lru_caches():
-    """Clear lru_cache between tests."""
-    yield
-    _get_requirements_map.cache_clear()
-    _get_requirement_id_map.cache_clear()
-    _get_requirement_phase_id_map.cache_clear()
 
 
 def _make_requirement(req_id: str = "req-1") -> HandsOnRequirement:
@@ -65,7 +54,7 @@ def _make_phase_with_requirements(phase_id: int, req_ids: list[str]) -> Phase:
 
 
 # ---------------------------------------------------------------------------
-# get_prerequisite_phase (pure lookup — no mocking)
+# get_prerequisite_phase (pure lookup -- no mocking)
 # ---------------------------------------------------------------------------
 
 
@@ -91,67 +80,115 @@ class TestGetPrerequisitePhase:
 
 
 # ---------------------------------------------------------------------------
-# Requirement lookup functions
+# RequirementIndex.from_phases
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.unit
-class TestRequirementLookups:
-    def test_get_requirements_for_known_phase(self):
+class TestRequirementIndex:
+    def test_from_phases_builds_lookups(self):
+        phase3 = _make_phase_with_requirements(3, ["req-a", "req-b"])
+        phase4 = _make_phase_with_requirements(4, ["req-c"])
+
+        index = RequirementIndex.from_phases([phase3, phase4])
+
+        assert sorted(index.by_phase.keys()) == [3, 4]
+        assert {r.id for r in index.by_phase[3]} == {"req-a", "req-b"}
+        assert set(index.by_id.keys()) == {"req-a", "req-b", "req-c"}
+        assert index.phase_id_by_req_id["req-a"] == 3
+        assert index.phase_id_by_req_id["req-c"] == 4
+
+    def test_from_phases_handles_no_verification(self):
+        phase = Phase(
+            uuid=uuid4(),
+            id=0,
+            name="P0",
+            slug="phase0",
+            order=0,
+            topics=[],
+            hands_on_verification=None,
+        )
+
+        index = RequirementIndex.from_phases([phase])
+
+        assert index.by_phase[0] == []
+        assert index.by_id == {}
+        assert index.phase_id_by_req_id == {}
+
+    def test_requirements_for_phase_returns_empty_for_unknown(self):
+        index = RequirementIndex()
+        assert index.requirements_for_phase(99) == []
+        assert index.requirement_ids_for_phase(99) == []
+
+
+# ---------------------------------------------------------------------------
+# Async lookup helpers (delegate to load_requirement_index)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+class TestAsyncRequirementLookups:
+    @pytest.mark.asyncio
+    async def test_get_requirements_for_known_phase(self):
         phase = _make_phase_with_requirements(3, ["req-a", "req-b"])
         with patch(
             "learn_to_cloud_shared.verification.requirements.get_all_phases",
-            autospec=True,
+            new_callable=AsyncMock,
             return_value=(phase,),
         ):
-            reqs = get_requirements_for_phase(3)
+            reqs = await get_requirements_for_phase(AsyncMock(), 3)
         assert len(reqs) == 2
 
-    def test_get_requirements_for_unknown_phase(self):
+    @pytest.mark.asyncio
+    async def test_get_requirements_for_unknown_phase(self):
         with patch(
             "learn_to_cloud_shared.verification.requirements.get_all_phases",
-            autospec=True,
+            new_callable=AsyncMock,
             return_value=(),
         ):
-            reqs = get_requirements_for_phase(99)
+            reqs = await get_requirements_for_phase(AsyncMock(), 99)
         assert reqs == []
 
-    def test_get_requirement_by_id_found(self):
+    @pytest.mark.asyncio
+    async def test_get_requirement_by_id_found(self):
         phase = _make_phase_with_requirements(3, ["req-a"])
         with patch(
             "learn_to_cloud_shared.verification.requirements.get_all_phases",
-            autospec=True,
+            new_callable=AsyncMock,
             return_value=(phase,),
         ):
-            req = get_requirement_by_id("req-a")
+            req = await get_requirement_by_id(AsyncMock(), "req-a")
         assert req is not None
         assert req.id == "req-a"
 
-    def test_get_requirement_by_id_not_found(self):
+    @pytest.mark.asyncio
+    async def test_get_requirement_by_id_not_found(self):
         with patch(
             "learn_to_cloud_shared.verification.requirements.get_all_phases",
-            autospec=True,
+            new_callable=AsyncMock,
             return_value=(),
         ):
-            assert get_requirement_by_id("nonexistent") is None
+            assert await get_requirement_by_id(AsyncMock(), "nonexistent") is None
 
-    def test_get_phase_id_for_requirement(self):
+    @pytest.mark.asyncio
+    async def test_get_phase_id_for_requirement(self):
         phase = _make_phase_with_requirements(3, ["req-a"])
         with patch(
             "learn_to_cloud_shared.verification.requirements.get_all_phases",
-            autospec=True,
+            new_callable=AsyncMock,
             return_value=(phase,),
         ):
-            assert get_phase_id_for_requirement("req-a") == 3
+            assert await get_phase_id_for_requirement(AsyncMock(), "req-a") == 3
 
-    def test_get_requirement_ids_for_phase(self):
+    @pytest.mark.asyncio
+    async def test_get_requirement_ids_for_phase(self):
         phase = _make_phase_with_requirements(3, ["req-a", "req-b"])
         with patch(
             "learn_to_cloud_shared.verification.requirements.get_all_phases",
-            autospec=True,
+            new_callable=AsyncMock,
             return_value=(phase,),
         ):
-            ids = get_requirement_ids_for_phase(3)
+            ids = await get_requirement_ids_for_phase(AsyncMock(), 3)
         assert ids == ["req-a", "req-b"]
 
 
@@ -178,7 +215,7 @@ class TestIsPhaseVerificationLocked:
         with (
             patch(
                 "learn_to_cloud_shared.verification.requirements.get_all_phases",
-                autospec=True,
+                new_callable=AsyncMock,
                 return_value=(phase3, phase4),
             ),
             patch(
@@ -204,7 +241,7 @@ class TestIsPhaseVerificationLocked:
         with (
             patch(
                 "learn_to_cloud_shared.verification.requirements.get_all_phases",
-                autospec=True,
+                new_callable=AsyncMock,
                 return_value=(phase3, phase4),
             ),
             patch(

@@ -1,6 +1,6 @@
 """Validate curriculum content for cross-file integrity (issue #462).
 
-Runs the strict validators in ``content_service.validate_content()``
+Runs the strict validators in ``content_yaml_loader.validate_content()``
 against the currently-loaded YAML and exits non-zero on any violation.
 
 Run from the package root::
@@ -18,7 +18,7 @@ import sys
 # anything that touches the shared settings tree. The shared package
 # defaults to WebSettings, which demands GitHub OAuth secrets in
 # production -- irrelevant for a content validator. WorkerSettings is
-# enough; it has content_dir_path. This MUST run before content_service
+# enough; it has content_dir_path. This MUST run before the YAML loader
 # is imported, so the import below is intentionally out of order.
 from learn_to_cloud_shared.core.config import (
     WorkerSettings,
@@ -27,7 +27,7 @@ from learn_to_cloud_shared.core.config import (
 
 configure_settings(WorkerSettings)
 
-from learn_to_cloud_shared.content_service import (  # noqa: E402
+from learn_to_cloud_shared.content_yaml_loader import (  # noqa: E402
     clear_cache,
     validate_content,
 )

@@ -259,6 +259,7 @@ class TestHtmxSubmitVerification:
         ):
             result = await htmx_submit_verification(
                 request,
+                AsyncMock(),
                 current_user,
                 requirement_id="req-1",
                 submitted_value="test",
@@ -292,6 +293,7 @@ class TestHtmxSubmitVerification:
         ):
             result = await htmx_submit_verification(
                 request,
+                AsyncMock(),
                 current_user,
                 requirement_id="req-1",
                 submitted_value="test",
@@ -345,6 +347,7 @@ class TestHtmxSubmitVerification:
         ):
             result = await htmx_submit_verification(
                 request,
+                AsyncMock(),
                 current_user,
                 requirement_id="req-1",
                 submitted_value="https://github.com/user/repo",
@@ -401,6 +404,7 @@ class TestHtmxSubmitVerification:
         ):
             result = await htmx_submit_verification(
                 request,
+                AsyncMock(),
                 current_user,
                 requirement_id="req-1",
                 submitted_value="https://github.com/user",
@@ -454,6 +458,7 @@ class TestHtmxSubmitVerification:
         ):
             result = await htmx_submit_verification(
                 request,
+                AsyncMock(),
                 current_user,
                 requirement_id="req-1",
                 submitted_value="https://github.com/user",
@@ -506,6 +511,7 @@ class TestHtmxSubmitVerification:
         ):
             result = await htmx_submit_verification(
                 request,
+                AsyncMock(),
                 current_user,
                 requirement_id="req-1",
                 submitted_value="https://github.com/user/repo",
@@ -550,6 +556,7 @@ class TestHtmxSubmitVerification:
         ):
             result = await htmx_submit_verification(
                 request,
+                AsyncMock(),
                 current_user,
                 requirement_id="req-1",
                 submitted_value="https://github.com/user/repo",
@@ -590,6 +597,7 @@ class TestHtmxVerificationJobStatus:
         ):
             result = await htmx_verification_job_status(
                 request,
+                AsyncMock(),
                 token="signed-token",
                 current_user=current_user,
             )
@@ -624,6 +632,7 @@ class TestHtmxVerificationJobStatus:
         ):
             result = await htmx_verification_job_status(
                 request,
+                AsyncMock(),
                 token="signed-token",
                 current_user=current_user,
             )
@@ -669,6 +678,7 @@ class TestHtmxVerificationJobStatus:
 
             result = await htmx_verification_job_status(
                 request,
+                AsyncMock(),
                 token="signed-token",
                 current_user=current_user,
             )
@@ -714,6 +724,7 @@ class TestHtmxVerificationJobStatus:
 
             result = await htmx_verification_job_status(
                 request,
+                AsyncMock(),
                 token="signed-token",
                 current_user=current_user,
             )
@@ -758,6 +769,7 @@ class TestHtmxVerificationJobStatus:
 
             result = await htmx_verification_job_status(
                 request,
+                AsyncMock(),
                 token="signed-token",
                 current_user=current_user,
             )

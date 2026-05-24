@@ -19,7 +19,6 @@ from learn_to_cloud_shared.schemas import (
 )
 
 from learn_to_cloud.services.progress_service import (
-    _build_phase_requirements,
     compute_topic_progress,
     fetch_phase_progress,
     fetch_user_progress,
@@ -65,15 +64,8 @@ def _make_phase(
     )
 
 
-@pytest.fixture(autouse=True)
-def _clear_lru_caches():
-    """Clear lru_cache between tests to prevent leakage."""
-    yield
-    _build_phase_requirements.cache_clear()
-
-
 # ---------------------------------------------------------------------------
-# compute_topic_progress (pure function — no mocking needed)
+# compute_topic_progress (pure function -- no mocking needed)
 # ---------------------------------------------------------------------------
 
 
@@ -186,7 +178,7 @@ class TestFetchUserProgress:
         with (
             patch(
                 "learn_to_cloud.services.progress_service.get_all_phases",
-                autospec=True,
+                new_callable=AsyncMock,
                 return_value=(phase,),
             ),
             patch(
@@ -197,11 +189,6 @@ class TestFetchUserProgress:
                 "learn_to_cloud.services.progress_service.StepProgressRepository",
                 autospec=True,
             ) as MockStepRepo,
-            patch(
-                "learn_to_cloud.services.progress_service.get_requirements_for_phase",
-                autospec=True,
-                return_value=[],
-            ),
         ):
             MockSubRepo.return_value.get_validated_requirement_ids = AsyncMock(
                 return_value=set()
@@ -225,22 +212,10 @@ class TestFetchPhaseProgress:
         topic = _make_topic(steps=["s1", "s2"])
         phase = _make_phase(0, topics=[topic])
 
-        with (
-            patch(
-                "learn_to_cloud.services.progress_service.StepProgressRepository",
-                autospec=True,
-            ) as MockStepRepo,
-            patch(
-                "learn_to_cloud.services.progress_service.get_requirements_for_phase",
-                autospec=True,
-                return_value=[],
-            ),
-            patch(
-                "learn_to_cloud.services.progress_service.get_phase_requirements",
-                autospec=True,
-                return_value=None,
-            ),
-        ):
+        with patch(
+            "learn_to_cloud.services.progress_service.StepProgressRepository",
+            autospec=True,
+        ) as MockStepRepo:
             MockStepRepo.return_value.get_completed_for_topics = AsyncMock(
                 return_value={"phase0-topic1": {"s1", "s2"}}
             )
@@ -251,11 +226,22 @@ class TestFetchPhaseProgress:
 
     @pytest.mark.asyncio
     async def test_percentage_includes_hands_on(self):
-        """All steps done but hands-on incomplete → not 100%."""
-        topic = _make_topic(topic_id="phase3-topic1", steps=["s1", "s2"])
-        phase = _make_phase(3, topics=[topic])
+        """All steps done but hands-on incomplete should not be 100%."""
+        from learn_to_cloud_shared.schemas import PhaseHandsOnVerificationOverview
+        from learn_to_cloud_shared.testing.requirement_factories import (
+            journal_api_verifier_requirement,
+        )
 
-        mock_req = type("Req", (), {"id": "req1"})()
+        topic = _make_topic(topic_id="phase3-topic1", steps=["s1", "s2"])
+        req = journal_api_verifier_requirement(id="req1", name="R", description="d")
+        phase = _make_phase(3, topics=[topic])
+        phase = phase.model_copy(
+            update={
+                "hands_on_verification": PhaseHandsOnVerificationOverview(
+                    requirements=[req],
+                ),
+            }
+        )
 
         with (
             patch(
@@ -263,19 +249,9 @@ class TestFetchPhaseProgress:
                 autospec=True,
             ) as MockStepRepo,
             patch(
-                "learn_to_cloud.services.progress_service.get_requirements_for_phase",
-                autospec=True,
-                return_value=[mock_req],
-            ),
-            patch(
                 "learn_to_cloud.services.progress_service.SubmissionRepository",
                 autospec=True,
             ) as MockSubRepo,
-            patch(
-                "learn_to_cloud.services.progress_service.get_phase_requirements",
-                autospec=True,
-                return_value=None,
-            ),
         ):
             MockStepRepo.return_value.get_completed_for_topics = AsyncMock(
                 return_value={"phase3-topic1": {"s1", "s2"}}
@@ -285,7 +261,7 @@ class TestFetchPhaseProgress:
             )
             result = await fetch_phase_progress(AsyncMock(), user_id=1, phase=phase)
 
-        # 2 steps done + 0 hands-on out of 2 steps + 1 hands-on = 2/3 ≈ 67%
+        # 2 steps done + 0 hands-on out of 2 steps + 1 hands-on = 2/3 ~ 67%
         assert result.steps_completed == 2
         assert result.hands_on_validated == 0
         assert result.hands_on_required == 1
@@ -294,11 +270,22 @@ class TestFetchPhaseProgress:
 
     @pytest.mark.asyncio
     async def test_is_complete_when_all_done(self):
-        """All steps and hands-on done → 100% and is_complete."""
-        topic = _make_topic(topic_id="phase3-topic1", steps=["s1", "s2"])
-        phase = _make_phase(3, topics=[topic])
+        """All steps and hands-on done means 100% and is_complete."""
+        from learn_to_cloud_shared.schemas import PhaseHandsOnVerificationOverview
+        from learn_to_cloud_shared.testing.requirement_factories import (
+            journal_api_verifier_requirement,
+        )
 
-        mock_req = type("Req", (), {"id": "req1"})()
+        topic = _make_topic(topic_id="phase3-topic1", steps=["s1", "s2"])
+        req = journal_api_verifier_requirement(id="req1", name="R", description="d")
+        phase = _make_phase(3, topics=[topic])
+        phase = phase.model_copy(
+            update={
+                "hands_on_verification": PhaseHandsOnVerificationOverview(
+                    requirements=[req],
+                ),
+            }
+        )
 
         with (
             patch(
@@ -306,19 +293,9 @@ class TestFetchPhaseProgress:
                 autospec=True,
             ) as MockStepRepo,
             patch(
-                "learn_to_cloud.services.progress_service.get_requirements_for_phase",
-                autospec=True,
-                return_value=[mock_req],
-            ),
-            patch(
                 "learn_to_cloud.services.progress_service.SubmissionRepository",
                 autospec=True,
             ) as MockSubRepo,
-            patch(
-                "learn_to_cloud.services.progress_service.get_phase_requirements",
-                autospec=True,
-                return_value=None,
-            ),
         ):
             MockStepRepo.return_value.get_completed_for_topics = AsyncMock(
                 return_value={"phase3-topic1": {"s1", "s2"}}

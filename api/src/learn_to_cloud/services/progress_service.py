@@ -2,16 +2,16 @@
 
 Progress is a derived value, not stored state:
 
-    progress = what the user has done ÷ what the content requires
+    progress = what the user has done / what the content requires
 
 Data sources:
 - Step completions: ``step_progress`` table (canonical)
 - Hands-on validations: ``submissions`` table (canonical)
-- Requirements: Content YAML (cached at startup)
+- Curriculum shape: DB-backed via ``content_service`` (synced from YAML
+  at deploy time)
 """
 
 import logging
-from functools import lru_cache
 
 from learn_to_cloud_shared.content_service import get_all_phases
 from learn_to_cloud_shared.repositories.progress_repository import (
@@ -29,61 +29,26 @@ from learn_to_cloud_shared.schemas import (
     TopicProgressData,
     UserProgress,
 )
-from learn_to_cloud_shared.verification.requirements import get_requirements_for_phase
+from learn_to_cloud_shared.verification.requirements import RequirementIndex
 from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
 
-@lru_cache(maxsize=1)
-def _build_phase_requirements() -> dict[int, PhaseRequirements]:
-    """Build PHASE_REQUIREMENTS from content JSON files at startup.
-
-    This derives step/topic counts from the actual content,
-    eliminating the need for hardcoded values that can get out of sync.
-    """
+def _build_phase_requirements(
+    phases: tuple[Phase, ...],
+) -> dict[int, PhaseRequirements]:
+    """Derive per-phase totals (topic count, step count) from loaded phases."""
     requirements: dict[int, PhaseRequirements] = {}
-    phases = get_all_phases()
-
     for phase in phases:
-        total_steps = 0
-        for topic in phase.topics:
-            total_steps += len(topic.learning_steps)
-
+        total_steps = sum(len(topic.learning_steps) for topic in phase.topics)
         requirements[phase.id] = PhaseRequirements(
             phase_id=phase.id,
             name=phase.name,
             topics=len(phase.topics),
             steps=total_steps,
         )
-
-    logger.info(
-        "phase_requirements.built",
-        extra={
-            "phases": len(requirements),
-            "steps": sum(r.steps for r in requirements.values()),
-        },
-    )
     return requirements
-
-
-def get_phase_requirements(phase_id: int) -> PhaseRequirements | None:
-    """Get requirements for a specific phase."""
-    return _build_phase_requirements().get(phase_id)
-
-
-def get_all_phase_ids() -> list[int]:
-    """Get all phase IDs in order."""
-    return sorted(_build_phase_requirements().keys())
-
-
-def _get_requirement_ids_by_phase() -> dict[int, set[str]]:
-    """Get current content requirement IDs grouped by phase."""
-    result: dict[int, set[str]] = {}
-    for phase_id in get_all_phase_ids():
-        requirements = get_requirements_for_phase(phase_id)
-        result[phase_id] = {r.id for r in requirements}
-    return result
 
 
 def _compute_phase_progress(
@@ -108,6 +73,8 @@ def _compute_phase_progress(
 async def fetch_user_progress(
     db: AsyncSession,
     user_id: int,
+    *,
+    phases: tuple[Phase, ...] | None = None,
 ) -> UserProgress:
     """Fetch complete progress data for a user.
 
@@ -116,23 +83,22 @@ async def fetch_user_progress(
     - Validated submissions (from submissions table, filtered to current content)
 
     Args:
-        db: Database session
-        user_id: User identifier
+        db: Database session.
+        user_id: User identifier.
+        phases: Optional pre-loaded phase tree. When provided (e.g. by the
+            dashboard service), avoids a redundant curriculum load.
 
     Returns a UserProgress object with all phase completion data.
     """
+    if phases is None:
+        phases = await get_all_phases(db)
 
-    phases = get_all_phases()
+    phase_requirements = _build_phase_requirements(phases)
+    req_index = RequirementIndex.from_phases(phases)
 
-    # Query validated requirement IDs from submissions (source of truth)
     sub_repo = SubmissionRepository(db)
     validated_req_ids = await sub_repo.get_validated_requirement_ids(user_id)
 
-    # Get current content requirement IDs per phase
-    req_ids_by_phase = _get_requirement_ids_by_phase()
-
-    # Canonical step completion: filter persisted completions by currently-defined
-    # step ids so content edits (add/remove/reorder) cannot inflate progress.
     step_repo = StepProgressRepository(db)
     all_topic_ids = [topic.id for phase in phases for topic in phase.topics]
     completed_by_topic = await step_repo.get_completed_for_topics(
@@ -149,12 +115,10 @@ async def fetch_user_progress(
         phase_steps[phase.id] = total_completed
 
     phase_progress_map: dict[int, PhaseProgress] = {}
-    for phase_id in get_all_phase_ids():
-        requirements = get_phase_requirements(phase_id)
-        if not requirements:
-            continue
-
-        current_req_ids = req_ids_by_phase.get(phase_id, set())
+    for phase_id, requirements in phase_requirements.items():
+        current_req_ids = {
+            req_id for req_id in req_index.requirement_ids_for_phase(phase_id)
+        }
         hands_on_validated = len(validated_req_ids & current_req_ids)
         hands_on_required = len(current_req_ids)
 
@@ -166,12 +130,11 @@ async def fetch_user_progress(
             hands_on_required=hands_on_required,
         )
 
-    all_phase_ids = get_all_phase_ids()
-    result = UserProgress(
-        user_id=user_id, phases=phase_progress_map, total_phases=len(all_phase_ids)
+    return UserProgress(
+        user_id=user_id,
+        phases=phase_progress_map,
+        total_phases=len(phase_requirements),
     )
-
-    return result
 
 
 def compute_topic_progress(
@@ -181,12 +144,6 @@ def compute_topic_progress(
     """Compute progress for a single topic.
 
     Topic Progress = Steps Completed / Total Steps
-
-    Args:
-        topic: The topic content definition
-        completed_steps: Set of completed step IDs
-    Returns:
-        TopicProgressData with completion status and percentages
     """
     valid_step_ids = {step.id for step in topic.learning_steps}
     steps_completed = len(completed_steps & valid_step_ids)
@@ -219,8 +176,8 @@ async def fetch_phase_progress(
 ) -> PhaseProgress:
     """Compute progress for a single phase with per-topic breakdown.
 
-    Used by the phase detail page. Same computation as fetch_user_progress
-    but scoped to one phase and includes topic-level detail.
+    Derives required totals and requirement ids from the passed ``phase``
+    object so we never re-load the curriculum here.
     """
     step_repo = StepProgressRepository(db)
     topic_ids = [t.id for t in phase.topics]
@@ -237,9 +194,9 @@ async def fetch_phase_progress(
         total_completed += tp.steps_completed
         total_steps += tp.steps_total
 
-    # Count validated submissions from source of truth, filtered to current content
-    hands_on_requirements = get_requirements_for_phase(phase.id)
-    current_req_ids = {r.id for r in hands_on_requirements}
+    current_req_ids: set[str] = set()
+    if phase.hands_on_verification:
+        current_req_ids = {r.id for r in phase.hands_on_verification.requirements}
     hands_on_required = len(current_req_ids)
 
     hands_on_validated = 0
@@ -249,30 +206,18 @@ async def fetch_phase_progress(
             user_id, current_req_ids
         )
 
-    requirements = get_phase_requirements(phase.id)
-    steps_required = requirements.steps if requirements else total_steps
-
-    result = _compute_phase_progress(
+    return _compute_phase_progress(
         phase_id=phase.id,
         steps_completed=total_completed,
-        steps_required=steps_required,
+        steps_required=total_steps,
         hands_on_validated=hands_on_validated,
         hands_on_required=hands_on_required,
         topic_progress=topic_progress,
     )
 
-    return result
-
 
 def phase_progress_to_data(progress: PhaseProgress) -> PhaseProgressData:
-    """Convert PhaseProgress to PhaseProgressData response model.
-
-    Args:
-        progress: The phase progress data
-
-    Returns:
-        PhaseProgressData suitable for API responses
-    """
+    """Convert PhaseProgress to PhaseProgressData response model."""
     return PhaseProgressData(
         steps_completed=progress.steps_completed,
         steps_required=progress.steps_required,

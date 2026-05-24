@@ -13,7 +13,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from learn_to_cloud_shared.content_service import get_all_phases
 from learn_to_cloud_shared.core.azure_auth import close_credential
 from learn_to_cloud_shared.core.config import get_web_settings
 from learn_to_cloud_shared.core.database import (
@@ -42,7 +41,6 @@ from learn_to_cloud.routes import (
     pages_router,
     users_router,
 )
-from learn_to_cloud.services.progress_service import get_all_phase_ids
 
 # Configure stdlib logging before Azure Monitor adds any logging handlers.
 # Azure Monitor must run before fastapi.FastAPI() is instantiated so request
@@ -109,16 +107,6 @@ async def validation_exception_handler(
     )
 
 
-async def _background_warmup(app: fastapi.FastAPI) -> None:
-    """Preload content caches in the background after the app starts serving."""
-    try:
-        get_all_phases()
-        get_all_phase_ids()
-        logger.info("content.preloaded")
-    except Exception:
-        logger.warning("content.preload.failed", exc_info=True)
-
-
 @asynccontextmanager
 async def lifespan(app: fastapi.FastAPI):
     """Create DB engine at startup, dispose on shutdown."""
@@ -154,20 +142,9 @@ async def lifespan(app: fastapi.FastAPI):
         )
         raise
 
-    warmup_task = asyncio.create_task(_background_warmup(app))
-
     try:
         yield
     finally:
-        if not warmup_task.done():
-            warmup_task.cancel()
-        try:
-            await warmup_task
-        except asyncio.CancelledError:
-            pass  # Expected when shutdown cancels an in-progress warmup
-        except Exception:
-            logger.exception("background.task.failed")
-
         await close_github_client()
         await dispose_engine(app.state.engine)
         if get_web_settings().use_azure_postgres:

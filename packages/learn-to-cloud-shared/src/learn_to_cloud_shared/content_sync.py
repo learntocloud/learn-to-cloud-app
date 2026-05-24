@@ -38,9 +38,9 @@ from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from learn_to_cloud_shared.content_service import (
+from learn_to_cloud_shared.content_yaml_loader import (
     clear_cache,
-    get_all_phases,
+    get_all_phases_from_yaml,
     validate_content,
 )
 from learn_to_cloud_shared.models import (
@@ -449,7 +449,7 @@ async def sync_curriculum_to_db(
             f"Curriculum validation failed; refusing to sync:\n  - {joined}"
         )
 
-    phases = get_all_phases()
+    phases = get_all_phases_from_yaml()
     if not phases and not allow_empty:
         raise ContentSyncError(
             "No phases loaded from YAML. Refusing to sync (would soft-delete "
