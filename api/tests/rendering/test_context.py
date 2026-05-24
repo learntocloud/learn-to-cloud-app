@@ -7,6 +7,8 @@ Tests cover:
 - build_topic_nav prev/next navigation
 """
 
+from uuid import uuid4
+
 import pytest
 from learn_to_cloud_shared.models import SubmissionType
 from learn_to_cloud_shared.schemas import (
@@ -34,12 +36,13 @@ from learn_to_cloud.rendering.context import (
 
 def _make_topic(topic_id: str, slug: str, name: str = "") -> Topic:
     return Topic(
+        uuid=uuid4(),
         id=topic_id,
         slug=slug,
         name=name or slug,
         description="",
         order=0,
-        learning_steps=[LearningStep(id="s1", order=0)],
+        learning_steps=[LearningStep(uuid=uuid4(), id="s1", order=0)],
     )
 
 
@@ -98,6 +101,7 @@ class TestBuildPhaseTopics:
     def test_merges_topics_with_progress(self):
         topic = _make_topic("phase0-t1", "basics", "Basics")
         phase = Phase(
+            uuid=uuid4(),
             id=0,
             name="P0",
             slug="phase0",
@@ -129,7 +133,14 @@ class TestBuildPhaseTopics:
 
     def test_topic_without_progress(self):
         topic = _make_topic("phase0-t1", "basics")
-        phase = Phase(id=0, name="P0", slug="phase0", order=0, topics=[topic])
+        phase = Phase(
+            uuid=uuid4(),
+            id=0,
+            name="P0",
+            slug="phase0",
+            order=0,
+            topics=[topic],
+        )
         detail = PhaseProgress(
             phase_id=0,
             steps_completed=0,
@@ -144,6 +155,7 @@ class TestBuildPhaseTopics:
     def test_progress_is_complete_when_all_done(self):
         topic = _make_topic("phase0-t1", "basics", "Basics")
         phase = Phase(
+            uuid=uuid4(),
             id=0,
             name="P0",
             slug="phase0",
@@ -231,6 +243,7 @@ def _make_requirement(
     required_repo: str | None = None,
 ) -> HandsOnRequirement:
     return HandsOnRequirement(
+        uuid=uuid4(),
         id="req-1",
         submission_type=submission_type,
         name="Test",

@@ -1,3 +1,5 @@
+# yaml-language-server: $schema=../../schemas/topic.schema.json
+uuid: 3fa502ac-3a8e-4878-9f82-516785b4bcbc
 id: phase1-topic6
 slug: ctf-lab
 name: 'Capstone: Linux CTF Lab'
@@ -5,23 +7,28 @@ description: Time to put your Linux skills to the test! Complete 18 progressive 
 short_description: Complete 18 hands-on Linux CTF challenges in a real cloud environment to prove your command line skills.
 order: 6
 learning_objectives:
-- id: ctf-lab-environment-deployment
+- uuid: 9a98bb7e-ab14-4591-9321-011958ca7d1d
+  id: ctf-lab-environment-deployment
   text: Deploy and configure the Linux CTF lab environment successfully.
   order: 1
-- id: ctf-lab-challenge-completion
+- uuid: 78e39df3-a143-4ad2-ba5c-078902a45d4d
+  id: ctf-lab-challenge-completion
   text: Complete the progressive Linux CTF challenges using command-line problem solving.
   order: 2
-- id: ctf-lab-skill-validation
+- uuid: 6f5e9b0d-7140-41b2-adc4-dba34d9e5cd6
+  id: ctf-lab-skill-validation
   text: Demonstrate practical Linux troubleshooting, permissions, and networking skills.
   order: 3
 learning_steps:
-- order: 1
+- uuid: 09fdb96c-4084-40ae-9900-0896ff778d00
+  order: 1
   action: 'Practice:'
   title: Linux CTFs Repository
   url: https://github.com/learntocloud/linux-ctfs
   description: 'The repository README has everything you need: setup instructions for AWS/Azure/GCP, challenge descriptions, and tips. Follow the instructions there to deploy and complete the challenges.'
   id: phase1-topic6-practice-linux-ctfs-repository
-- order: 2
+- uuid: d99e13fa-cc35-472b-8dcc-c106cb4bf4b5
+  order: 2
   action: 'Reflect:'
   title: Share Your Progress
   description: When you've completed the CTF challenges, share your experience on LinkedIn or the Learn to Cloud community to celebrate your progress and help others.

@@ -4,6 +4,8 @@ Covers derive_submission_value for all submission types, _parse_pr_number
 edge cases, and the is_derivable / fork_name_from_required_repo helpers.
 """
 
+from uuid import uuid4
+
 import pytest
 
 from learn_to_cloud_shared.models import SubmissionType
@@ -21,6 +23,7 @@ def _req(
     required_repo: str | None = None,
 ) -> HandsOnRequirement:
     return HandsOnRequirement(
+        uuid=uuid4(),
         id="req-1",
         submission_type=submission_type,
         name="Test",

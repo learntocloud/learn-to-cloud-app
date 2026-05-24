@@ -1,26 +1,33 @@
+# yaml-language-server: $schema=../../schemas/topic.schema.json
+uuid: 4cb6ee56-8266-45a3-a379-e7b5a6b4832c
 id: phase1-topic4
 slug: ssh
 name: SSH
 description: Now you need to learn how to access a virtual machine via SSH. This is a fundamental skill for working with cloud servers.
 order: 4
 learning_objectives:
-- id: ssh-security-purpose
+- uuid: 24581de1-a22b-47b5-9983-28aea80c3aac
+  id: ssh-security-purpose
   text: Explain why SSH is used for secure remote administration of cloud systems.
   order: 1
-- id: ssh-provider-connection
+- uuid: 1dfbd841-95c9-4882-90c9-3d94b20a7214
+  id: ssh-provider-connection
   text: Connect to a virtual machine using your provider’s recommended SSH workflow.
   order: 2
-- id: ssh-operational-readiness
+- uuid: 52261710-7e7b-4b41-bf02-c6c64dec17fe
+  id: ssh-operational-readiness
   text: Build confidence with remote access steps required for future labs and deployments.
   order: 3
 learning_steps:
-- order: 1
+- uuid: 9279efbf-63ea-41c6-8281-cffdbf39acfb
+  order: 1
   action: 'Read:'
   title: What is SSH
   url: https://www.cloudflare.com/learning/access-management/what-is-ssh/
   description: Learn what SSH is and why it's used for secure remote access.
   id: phase1-topic4-read-what-is-ssh
-- order: 2
+- uuid: 452d2dab-33ba-4c57-959f-c52156e53003
+  order: 2
   action: 'Practice:'
   description: 'Follow your cloud provider''s guide to connect to a VM via SSH:'
   options:

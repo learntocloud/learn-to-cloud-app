@@ -1,0 +1,537 @@
+{
+  "$defs": {
+    "HandsOnRequirement": {
+      "description": "A hands-on requirement for phase completion.\n\nUsed both as API schema and for defining phase requirements\nin services/phase_requirements_service.py.\n\nSupports Phase 0 through Phase 6 verification types.\n\nTo add a new verification type:\n1. Add the SubmissionType enum value in models.py\n2. Add optional fields here if needed (e.g., challenge_config)\n3. Implement the validator in hands_on_verification.py",
+      "properties": {
+        "description": {
+          "title": "Description",
+          "type": "string"
+        },
+        "expected_files": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expected Files"
+        },
+        "fail_indicators": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Fail Indicators"
+        },
+        "grading_criteria": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Grading Criteria"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "pass_indicators": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pass Indicators"
+        },
+        "placeholder": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Placeholder"
+        },
+        "required_repo": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Required Repo"
+        },
+        "submission_type": {
+          "$ref": "#/$defs/SubmissionType"
+        },
+        "uuid": {
+          "format": "uuid",
+          "title": "Uuid",
+          "type": "string"
+        }
+      },
+      "required": [
+        "uuid",
+        "id",
+        "submission_type",
+        "name",
+        "description"
+      ],
+      "title": "HandsOnRequirement",
+      "type": "object"
+    },
+    "LearningObjective": {
+      "description": "A learning objective for a topic.",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "order": {
+          "title": "Order",
+          "type": "integer"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "uuid": {
+          "format": "uuid",
+          "title": "Uuid",
+          "type": "string"
+        }
+      },
+      "required": [
+        "uuid",
+        "id",
+        "text",
+        "order"
+      ],
+      "title": "LearningObjective",
+      "type": "object"
+    },
+    "LearningStep": {
+      "description": "A learning step within a topic.",
+      "properties": {
+        "action": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Action"
+        },
+        "checklist": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Checklist",
+          "type": "array"
+        },
+        "code": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Code"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        },
+        "done_when": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Done When"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "options": {
+          "items": {
+            "$ref": "#/$defs/ProviderOption"
+          },
+          "title": "Options",
+          "type": "array"
+        },
+        "order": {
+          "title": "Order",
+          "type": "integer"
+        },
+        "tips": {
+          "items": {
+            "$ref": "#/$defs/TipItem"
+          },
+          "title": "Tips",
+          "type": "array"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Url"
+        },
+        "uuid": {
+          "format": "uuid",
+          "title": "Uuid",
+          "type": "string"
+        }
+      },
+      "required": [
+        "uuid",
+        "id",
+        "order"
+      ],
+      "title": "LearningStep",
+      "type": "object"
+    },
+    "PhaseCapstoneOverview": {
+      "description": "High-level capstone overview for a phase (public summary).",
+      "properties": {
+        "includes": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Includes",
+          "type": "array"
+        },
+        "summary": {
+          "title": "Summary",
+          "type": "string"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "topic_slug": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Topic Slug"
+        }
+      },
+      "required": [
+        "title",
+        "summary"
+      ],
+      "title": "PhaseCapstoneOverview",
+      "type": "object"
+    },
+    "PhaseHandsOnVerificationOverview": {
+      "description": "High-level hands-on verification overview for a phase (public summary).",
+      "properties": {
+        "requirements": {
+          "items": {
+            "$ref": "#/$defs/HandsOnRequirement"
+          },
+          "title": "Requirements",
+          "type": "array"
+        }
+      },
+      "title": "PhaseHandsOnVerificationOverview",
+      "type": "object"
+    },
+    "ProviderOption": {
+      "description": "Cloud provider or platform-specific option for a learning step.",
+      "properties": {
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        },
+        "provider": {
+          "title": "Provider",
+          "type": "string"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "url": {
+          "title": "Url",
+          "type": "string"
+        }
+      },
+      "required": [
+        "provider",
+        "title",
+        "url"
+      ],
+      "title": "ProviderOption",
+      "type": "object"
+    },
+    "SubmissionType": {
+      "description": "Type of submission for hands-on verification.\n\nCurrently supports Phase 0, Phase 1, and Phase 2 verification types.\n\nTo add a new verification type:\n1. Add the enum value here\n2. Add a validator function in the appropriate module:\n   - GitHub-based: api/services/github_hands_on_verification_service.py\n   - Or create a new module for complex verification types\n3. Add the routing case in validate_submission() in hands_on_verification.py\n4. Add optional fields to HandsOnRequirement schema if needed",
+      "enum": [
+        "github_profile",
+        "profile_readme",
+        "repo_fork",
+        "ctf_token",
+        "networking_token",
+        "journal_api_response",
+        "code_analysis",
+        "pr_review",
+        "journal_api_verifier",
+        "deployed_api",
+        "devops_analysis",
+        "security_scanning"
+      ],
+      "title": "SubmissionType",
+      "type": "string"
+    },
+    "TipItem": {
+      "description": "A tip, note, or warning callout for a learning step.",
+      "properties": {
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "type": {
+          "default": "tip",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "TipItem",
+      "type": "object"
+    },
+    "Topic": {
+      "description": "A topic within a phase.",
+      "properties": {
+        "description": {
+          "title": "Description",
+          "type": "string"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "learning_objectives": {
+          "items": {
+            "$ref": "#/$defs/LearningObjective"
+          },
+          "title": "Learning Objectives",
+          "type": "array"
+        },
+        "learning_steps": {
+          "items": {
+            "$ref": "#/$defs/LearningStep"
+          },
+          "title": "Learning Steps",
+          "type": "array"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "order": {
+          "title": "Order",
+          "type": "integer"
+        },
+        "slug": {
+          "title": "Slug",
+          "type": "string"
+        },
+        "uuid": {
+          "format": "uuid",
+          "title": "Uuid",
+          "type": "string"
+        }
+      },
+      "required": [
+        "uuid",
+        "id",
+        "slug",
+        "name",
+        "description",
+        "order",
+        "learning_steps"
+      ],
+      "title": "Topic",
+      "type": "object"
+    }
+  },
+  "description": "A phase in the curriculum.",
+  "properties": {
+    "capstone": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/PhaseCapstoneOverview"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "description": {
+      "default": "",
+      "title": "Description",
+      "type": "string"
+    },
+    "hands_on_verification": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/PhaseHandsOnVerificationOverview"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "id": {
+      "title": "Id",
+      "type": "integer"
+    },
+    "name": {
+      "title": "Name",
+      "type": "string"
+    },
+    "objectives": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Objectives",
+      "type": "array"
+    },
+    "order": {
+      "default": 0,
+      "title": "Order",
+      "type": "integer"
+    },
+    "short_description": {
+      "default": "",
+      "title": "Short Description",
+      "type": "string"
+    },
+    "slug": {
+      "title": "Slug",
+      "type": "string"
+    },
+    "topic_slugs": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Topic Slugs",
+      "type": "array"
+    },
+    "topics": {
+      "items": {
+        "$ref": "#/$defs/Topic"
+      },
+      "title": "Topics",
+      "type": "array"
+    },
+    "uuid": {
+      "format": "uuid",
+      "title": "Uuid",
+      "type": "string"
+    }
+  },
+  "required": [
+    "uuid",
+    "id",
+    "name",
+    "slug"
+  ],
+  "title": "Phase",
+  "type": "object"
+}

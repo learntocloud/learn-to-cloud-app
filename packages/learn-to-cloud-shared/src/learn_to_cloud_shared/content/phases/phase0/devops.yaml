@@ -1,56 +1,68 @@
+# yaml-language-server: $schema=../../schemas/topic.schema.json
+uuid: 54461c96-70f9-4ef4-8d68-8a93941c904e
 id: phase0-topic5
 slug: devops
 name: What is DevOps
 description: DevOps combines development and operations practices to improve software delivery. It's a key methodology in cloud engineering.
 order: 5
 learning_objectives:
-- id: devops-foundation
+- uuid: 2a8a6633-5b79-44c7-8f2d-c630c9665466
+  id: devops-foundation
   text: Understand what DevOps is and why it improves software delivery and reliability.
   order: 1
-- id: devops-culture-practices
+- uuid: e877812b-b03f-472a-a017-f2b646de5447
+  id: devops-culture-practices
   text: Identify core DevOps building blocks including version control, IaC, CI/CD, observability, containers, and Kubernetes.
   order: 2
-- id: devops-cloud-context
+- uuid: fe1c1c58-f4ad-43f6-9d70-95a5805a4c8b
+  id: devops-cloud-context
   text: Explain how these practices and tools fit together in modern cloud engineering workflows.
   order: 3
 learning_steps:
-- order: 1
+- uuid: 86e38156-218e-487d-977b-e1a5088f81df
+  order: 1
   action: 'Watch:'
   title: What is DevOps
   url: https://youtu.be/UbtB4sMaaNM?si=8uH2Gr76QSrvCmAY
   description: Get a practical introduction to DevOps and how it connects software development, operations, and automation.
   id: phase0-topic5-watch-what-is-devops
-- order: 2
+- uuid: 8b041688-0028-46c0-8a4b-8115eaad767a
+  order: 2
   action: 'Read:'
   title: What is Version Control?
   url: https://github.blog/developer-skills/programming-languages-and-frameworks/what-is-git-our-beginners-guide-to-version-control/
   description: Learn version control fundamentals with Git and how to track changes safely when collaborating on code.
   id: phase0-topic5-read-what-is-version-control
-- order: 3
+- uuid: 441e0cfb-beba-45ca-80c8-0926231dbd95
+  order: 3
   action: 'Read:'
   title: What is Infrastructure as Code (IaC)?
   url: https://www.hashicorp.com/resources/what-is-infrastructure-as-code
   description: Understand how infrastructure is defined with code for consistency, repeatability, and automation.
   id: phase0-topic5-read-what-is-infrastructure-as
-- order: 4
+- uuid: 2afaa557-89d4-4367-a100-b924e58b436a
+  order: 4
   action: 'Read:'
   title: What is CI/CD?
   url: https://www.redhat.com/topics/devops/what-is-ci-cd
   description: Learn how continuous integration and continuous delivery automate build, test, and release workflows.
   id: phase0-topic5-read-what-is-cicd
-- order: 5
+- uuid: b02db398-de6d-40fc-bef9-1d9d81b2ef6c
+  order: 5
   action: 'Read:'
   title: What is Observability?
   url: https://www.ibm.com/think/topics/observability
   description: Understand how logs, metrics, and traces help you monitor and troubleshoot systems in production.
   id: phase0-topic5-read-what-is-observability
-- order: 6
+- uuid: 999343bd-9a92-4344-92f0-c1bccd3c5bd8
+  order: 6
   action: 'Read:'
   title: What are Containers?
   url: https://www.docker.com/resources/what-container/
   description: Learn how containers package applications and dependencies so software runs consistently across environments.
   id: phase0-topic5-read-what-are-containers
-- order: 7
+- uuid: b30afc5b-1176-45ef-b049-3cf64d5fbb71
+  order: 7
   action: 'Read:'
   title: What is Kubernetes?
   url: https://kubernetes.io/docs/concepts/overview/

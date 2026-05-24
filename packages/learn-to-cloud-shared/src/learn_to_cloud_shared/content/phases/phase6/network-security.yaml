@@ -1,17 +1,22 @@
+# yaml-language-server: $schema=../../schemas/topic.schema.json
+uuid: 6dc2f02b-b059-4688-a826-66a65680566d
 id: phase6-topic3
 slug: network-security
 name: Network Security
 description: Harden your Journal API's network against external threats. You'll add WAF and DDoS protection to the API tier and enable flow logs — the controls that separate a hardened production environment from an exposed one.
 order: 2
 learning_objectives:
-- id: network-security-waf-ddos
+- uuid: a153b907-f5d6-4ccc-8ebf-69ebe76d9d64
+  id: network-security-waf-ddos
   text: Apply WAF and DDoS protection controls to the API tier.
   order: 1
-- id: network-security-flow-logs
+- uuid: 42c8b772-7d6a-4bb4-91c7-234420a93ce6
+  id: network-security-flow-logs
   text: Enable network flow logging to support security visibility and incident investigation.
   order: 2
 learning_steps:
-- order: 1
+- uuid: 63dd2cdd-79c6-4f07-82cf-e82f9a8e4fb3
+  order: 1
   action: 'Read:'
   title: Web Application Firewall (WAF)
   description: A WAF sits in front of your API and filters malicious HTTP requests — SQL injection, cross-site scripting, and other OWASP Top 10 attacks — before they reach your application code.
@@ -29,7 +34,8 @@ learning_steps:
     url: https://docs.cloud.google.com/armor/docs/cloud-armor-overview
     description: Protect your GCP services with Cloud Armor WAF rules and preconfigured policies
   id: phase6-topic3-read-web-application-firewall
-- order: 2
+- uuid: 910a764f-8ef8-46e1-b17e-462ddb81baef
+  order: 2
   action: 'Read:'
   title: DDoS protection by provider
   description: DDoS attacks flood your service with traffic to take it offline. Every major cloud provider includes a baseline DDoS protection tier automatically. Read what protection is included and when to consider enabling advanced coverage.
@@ -47,7 +53,8 @@ learning_steps:
     url: https://docs.cloud.google.com/armor/docs/adaptive-protection-overview
     description: Adaptive Protection and DDoS mitigations in Cloud Armor
   id: phase6-topic3-read-ddos-protection-by-provider
-- order: 3
+- uuid: 7f720c9b-3311-4041-8ce9-99d4e9c21fd7
+  order: 3
   action: 'Read:'
   title: Network security best practices by provider
   description: Review the network security recommendations for your provider. Focus on what applies to your Journal API — particularly controlling inbound and outbound traffic and encrypting data in transit.
@@ -65,7 +72,8 @@ learning_steps:
     url: https://docs.cloud.google.com/docs/security/infrastructure/design#network-security
     description: Network security design principles in Google Cloud
   id: phase6-topic3-read-network-security-best-practices
-- order: 4
+- uuid: e6fce6ef-d7ee-40f4-99e8-a35d1da4b7d2
+  order: 4
   action: 'Read:'
   title: Enable network flow logs
   description: VPC flow logs record accepted and rejected traffic at the network level. Use them to investigate suspicious connections, verify your security rules are working, and build an evidence trail for incident response.
@@ -83,7 +91,8 @@ learning_steps:
     url: https://docs.cloud.google.com/vpc/docs/flow-logs
     description: Record network flows to and from VMs and GKE nodes in GCP
   id: phase6-topic3-read-enable-network-flow-logs
-- order: 5
+- uuid: d38513a8-1310-4ebe-bb19-21c48ae2776a
+  order: 5
   action: 'Watch:'
   title: Watch a cloud network security walkthrough for your provider
   description: Follow along in your own account if you can.

@@ -1,38 +1,47 @@
+# yaml-language-server: $schema=../../schemas/topic.schema.json
+uuid: 74cb89f5-c79a-4939-94dd-6b28d32801f2
 id: phase5-topic4
 slug: container-orchestration
 name: Container Orchestration - Kubernetes
 description: As applications grow in complexity, managing containers manually becomes challenging. Kubernetes (K8s) is an open-source container orchestration platform that automates the deployment, scaling, and management of containerized applications. It's widely used in modern cloud-native environments to ensure applications are highly available, scalable, and resilient.
 order: 4
 learning_objectives:
-- id: k8s-architecture-basics
+- uuid: 3d5e623c-ba40-420d-8c56-6cc8036a546f
+  id: k8s-architecture-basics
   text: Understand Kubernetes architecture and key workload/resource abstractions.
   order: 1
-- id: k8s-deployment-workflow
+- uuid: 9ef9a5d7-1a01-4e55-ac50-da721c53af12
+  id: k8s-deployment-workflow
   text: Deploy and expose applications using Kubernetes manifests and core commands.
   order: 2
-- id: k8s-platform-readiness
+- uuid: 963dac44-26ee-4c83-a889-1de462b70735
+  id: k8s-platform-readiness
   text: Evaluate local and managed Kubernetes options for real deployment scenarios.
   order: 3
 learning_steps:
-- order: 1
+- uuid: 8e7e6fa0-0f31-4ffc-9366-af4b2f6c2e40
+  order: 1
   action: 'Read:'
   title: Kubernetes Overview
   url: https://kubernetes.io/docs/concepts/overview/
   description: Understand what Kubernetes is and why it was created — automated deployment, self-healing, load balancing, and declarative configuration.
   id: phase5-topic4-read-kubernetes-overview
-- order: 2
+- uuid: 689b3c72-692f-4290-ad8c-4eeaf632b8fa
+  order: 2
   action: 'Read:'
   title: Kubernetes Components
   url: https://kubernetes.io/docs/concepts/overview/components/
   description: Understand the building blocks — clusters, nodes, pods, services, deployments, ConfigMaps, and Secrets.
   id: phase5-topic4-read-kubernetes-components
-- order: 3
+- uuid: 6591585d-4ecf-49e1-84bb-fe311e06eba1
+  order: 3
   action: 'Practice:'
   description: Install Minikube or Kind on your local machine to run a local Kubernetes cluster for development. Verify your cluster is running with `kubectl cluster-info`.
   title: Set up a local Kubernetes cluster
   url: https://minikube.sigs.k8s.io/docs/start/
   id: phase5-topic4-practice-local-setup
-- order: 4
+- uuid: bccb88cc-23e7-4d65-84ff-419a5a185f3f
+  order: 4
   action: 'Read:'
   description: 'Now that you have a cluster running, familiarize yourself with these essential kubectl commands:'
   code: '# View cluster information
@@ -65,18 +74,21 @@ learning_steps:
     kubectl delete -f deployment.yaml'
   title: Essential kubectl commands
   id: phase5-topic4-read-essential-kubectl-commands
-- order: 5
+- uuid: 26fad149-93f0-4fff-a52c-5ae003385c11
+  order: 5
   action: 'Practice:'
   description: 'Create a Kubernetes deployment YAML file for your Journal API and apply it with `kubectl apply -f deployment.yaml`. Verify pods are running with `kubectl get pods`. Use this sample as a starting point:'
   code: "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: journal-api\nspec:\n  replicas: 2\n  selector:\n    matchLabels:\n      app: journal-api\n  template:\n    metadata:\n      labels:\n        app: journal-api\n    spec:\n      containers:\n      - name: journal-api\n        image: your-registry/journal-api:latest\n        ports:\n        - containerPort: 8000"
   title: Deploy your Journal API locally
   id: phase5-topic4-practice-deploy-journal-api-locally
-- order: 6
+- uuid: 41021035-3d16-4394-80a0-121c3acac5b2
+  order: 6
   action: 'Practice:'
   description: Expose your deployment with `kubectl expose deployment journal-api --type=NodePort --port=8000` and access the application in your browser using the NodePort.
   title: Expose your deployment and access it in a browser
   id: phase5-topic4-practice-expose-your-deployment-and
-- order: 7
+- uuid: 7155d4da-4dab-41c0-82a2-3459ad0a9460
+  order: 7
   action: 'Read:'
   description: 'Most cloud providers offer managed Kubernetes services that handle control plane management for you:'
   options:
@@ -94,7 +106,8 @@ learning_steps:
     description: Google Kubernetes Engine — managed Kubernetes on GCP
   title: Managed Kubernetes Services
   id: phase5-topic4-read-managed-kubernetes-services
-- order: 8
+- uuid: e747c63a-bf85-4b91-b4be-855f35042ce6
+  order: 8
   action: 'Practice:'
   description: 'Follow the quickstart for your cloud provider to provision a managed Kubernetes cluster and deploy your Journal API to it:'
   options:
@@ -112,7 +125,8 @@ learning_steps:
     description: Create and validate a Google Kubernetes Engine cluster quickly.
   title: Deploy to a managed Kubernetes cluster
   id: phase5-topic4-practice-deploy-to-managed-k8s
-- order: 9
+- uuid: 2821b5d4-601e-4831-975b-19d9204e474e
+  order: 9
   action: 'Note:'
   title: Keep your cluster for the capstone
   description: You'll reuse your managed Kubernetes cluster in the DevOps capstone project. Managed clusters do incur ongoing costs, so be mindful — but you'll need it for the capstone steps ahead.

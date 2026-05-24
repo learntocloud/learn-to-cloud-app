@@ -1,3 +1,5 @@
+# yaml-language-server: $schema=../../schemas/topic.schema.json
+uuid: bcef3efa-8416-4ac8-a99e-eef16cd88e2a
 id: phase5-topic6
 slug: capstone
 name: 'Capstone: DevOps Project'
@@ -5,75 +7,82 @@ description: Now that you've learned the fundamentals of DevOps, it's time to ap
 short_description: Containerize your app with Docker, deploy to Kubernetes, automate with CI/CD, and instrument with OpenTelemetry for cloud-native observability.
 order: 7
 learning_objectives:
-- id: devops-capstone-integration
+- uuid: a8da24c4-65e0-45a6-88c3-f6ea7c851706
+  id: devops-capstone-integration
   text: Integrate containerization, CI/CD, IaC, and orchestration into one delivery workflow.
   order: 1
-- id: devops-capstone-implementation
+- uuid: a1c2cce3-b77b-428c-b308-4c76f93e06be
+  id: devops-capstone-implementation
   text: Implement required DevOps project artifacts and deployment components correctly.
   order: 2
-- id: devops-capstone-communication
+- uuid: f08ad590-a714-4327-b22c-4ab4cf99c5b0
+  id: devops-capstone-communication
   text: Document and communicate technical decisions and outcomes as portfolio-ready work.
   order: 3
 learning_steps:
-- order: 1
+- uuid: e44b670a-c53c-4e31-8a6a-23fdc0729c6d
+  order: 1
   action: 'Build:'
   title: Containerize the Application
   description: Write a `Dockerfile` at the root of your repository that packages your Journal API into a container image. Also create a `.dockerignore` to exclude non-production files.
   checklist:
-    - Use `python:3.12-slim` as the base image (matches the dev container's Python version)
-    - Install `uv` (not pip) and run `uv sync` to install dependencies
-    - Commit `uv.lock` to your repo for reproducible builds
-    - Set `PYTHONPATH` to your app directory so imports resolve correctly
-    - Expose port 8000
-    - "Use `uvicorn api.main:app --host 0.0.0.0 --port 8000` as the entry point"
-    - "Create `.dockerignore` to exclude `.git/`, `tests/`, `.devcontainer/`"
+  - Use `python:3.12-slim` as the base image (matches the dev container's Python version)
+  - Install `uv` (not pip) and run `uv sync` to install dependencies
+  - Commit `uv.lock` to your repo for reproducible builds
+  - Set `PYTHONPATH` to your app directory so imports resolve correctly
+  - Expose port 8000
+  - "Use `uvicorn api.main:app --host 0.0.0.0 --port 8000` as the entry point"
+  - "Create `.dockerignore` to exclude `.git/`, `tests/`, `.devcontainer/`"
   tips:
-    - type: note
-      text: Docker is not available inside the dev container by default. To build locally, run `docker build` on your host machine. Alternatively, use `az acr build --registry <name> --image journal-api:latest .` to build remotely in Azure Container Registry without needing local Docker.
+  - type: note
+    text: Docker is not available inside the dev container by default. To build locally, run `docker build` on your host machine. Alternatively, use `az acr build --registry <name> --image journal-api:latest .` to build remotely in Azure Container Registry without needing local Docker.
   done_when: "`docker build` succeeds and `docker run` starts the API listening on port 8000."
   id: phase5-topic6-build-containerize-the-application
 
-- order: 2
+- uuid: 340708fb-f0f4-438f-9058-e0c88dce33f4
+  order: 2
   action: 'Build:'
   title: Infrastructure as Code
   description: Create Terraform configuration files in an `infra/` directory to provision your cloud infrastructure.
   checklist:
-    - "**Container registry** — e.g., Azure Container Registry"
-    - "**Managed Kubernetes cluster** — e.g., AKS"
-    - "**Managed PostgreSQL 15 database** — e.g., Azure Database for PostgreSQL Flexible Server"
-    - "**IAM/role bindings** — so your K8s cluster can pull images from the registry"
-    - "**`main.tf`** — core resource definitions"
-    - "**`variables.tf`** — input variable declarations"
-    - "**`providers.tf`** — cloud provider and Terraform version config"
-    - "**`outputs.tf`** — export registry URL, DB connection string, kubeconfig"
-    - "**`terraform.tfvars`** — your variable values (add to `.gitignore`)"
-    - "**Run `database_setup.sql`** against your PostgreSQL instance after provisioning"
+  - "**Container registry** — e.g., Azure Container Registry"
+  - "**Managed Kubernetes cluster** — e.g., AKS"
+  - "**Managed PostgreSQL 15 database** — e.g., Azure Database for PostgreSQL Flexible Server"
+  - "**IAM/role bindings** — so your K8s cluster can pull images from the registry"
+  - "**`main.tf`** — core resource definitions"
+  - "**`variables.tf`** — input variable declarations"
+  - "**`providers.tf`** — cloud provider and Terraform version config"
+  - "**`outputs.tf`** — export registry URL, DB connection string, kubeconfig"
+  - "**`terraform.tfvars`** — your variable values (add to `.gitignore`)"
+  - "**Run `database_setup.sql`** against your PostgreSQL instance after provisioning"
   tips:
-    - type: note
-      text: Azure PostgreSQL requires `?sslmode=require` appended to your `DATABASE_URL`. The local dev format without SSL will not work in the cloud.
-    - type: tip
-      text: If Terraform fails with `LocationIsOfferRestricted` for PostgreSQL, try a different Azure region (e.g., `centralus`, `westus2`).
+  - type: note
+    text: Azure PostgreSQL requires `?sslmode=require` appended to your `DATABASE_URL`. The local dev format without SSL will not work in the cloud.
+  - type: tip
+    text: If Terraform fails with `LocationIsOfferRestricted` for PostgreSQL, try a different Azure region (e.g., `centralus`, `westus2`).
   done_when: "`terraform apply` completes, all resources exist, and you can connect to the database."
   id: phase5-topic6-build-infrastructure-as-code
 
-- order: 3
+- uuid: a995972d-217d-487a-b9cf-4818ca9bd64e
+  order: 3
   action: 'Build:'
   title: CI/CD Pipeline
   description: Apply the GitHub Actions workflow you built in the CI/CD Pipelines topic. It should trigger on every push to `main` with at least three jobs.
   checklist:
-    - "**Test job** — Run linting and tests with a PostgreSQL 15 service container, run `database_setup.sql` before pytest, install `uv` using `astral-sh/setup-uv`"
-    - "**Build & Push job** — Build the Docker image and push to your container registry, tagged with commit SHA and `latest`"
-    - "**Deploy job** — Connect to your K8s cluster, `sed`-substitute the image placeholder, apply manifests from `k8s/`"
-    - "**`AZURE_CREDENTIALS` secret** — output of `az ad sp create-for-rbac --sdk-auth`"
-    - "**`ACR_LOGIN_SERVER` secret** — your ACR login server URL"
-    - "**`ACR_USERNAME` secret** — ACR username"
-    - "**`ACR_PASSWORD` secret** — ACR password"
-    - "**`AZURE_RESOURCE_GROUP` secret** — your resource group name"
-    - "**`AKS_CLUSTER_NAME` secret** — your AKS cluster name"
+  - "**Test job** — Run linting and tests with a PostgreSQL 15 service container, run `database_setup.sql` before pytest, install `uv` using `astral-sh/setup-uv`"
+  - "**Build & Push job** — Build the Docker image and push to your container registry, tagged with commit SHA and `latest`"
+  - "**Deploy job** — Connect to your K8s cluster, `sed`-substitute the image placeholder, apply manifests from `k8s/`"
+  - "**`AZURE_CREDENTIALS` secret** — output of `az ad sp create-for-rbac --sdk-auth`"
+  - "**`ACR_LOGIN_SERVER` secret** — your ACR login server URL"
+  - "**`ACR_USERNAME` secret** — ACR username"
+  - "**`ACR_PASSWORD` secret** — ACR password"
+  - "**`AZURE_RESOURCE_GROUP` secret** — your resource group name"
+  - "**`AKS_CLUSTER_NAME` secret** — your AKS cluster name"
   done_when: Pushing to `main` triggers the workflow, all three jobs pass, and your image is pushed to the registry.
   id: phase5-topic6-build-cicd-pipeline
 
-- order: 4
+- uuid: cddc7d25-1801-4d27-86a8-ba8317bbab8f
+  order: 4
   action: 'Build:'
   title: Container Orchestration
   description: >-
@@ -81,65 +90,70 @@ learning_steps:
     containerized application. First, add a `GET /health` endpoint to `api/main.py`
     that returns `{"status": "healthy"}`.
   checklist:
-    - "**`deployment.yaml`** — use `IMAGE_PLACEHOLDER` as the image reference (CI/CD substitutes with real tag)"
-    - "**Environment from Secret** — reference `journal-api-secrets` via `envFrom` for `DATABASE_URL`, `OPENAI_API_KEY`, etc."
-    - "**Health probes** — configure liveness and readiness probes pointing to `/health` on port 8000"
-    - "**`secrets.yaml.example`** — show required keys (never commit real values)"
-    - "**`service.yaml`** — create a `LoadBalancer` or `NodePort` service routing port 80 → container port 8000"
+  - "**`deployment.yaml`** — use `IMAGE_PLACEHOLDER` as the image reference (CI/CD substitutes with real tag)"
+  - "**Environment from Secret** — reference `journal-api-secrets` via `envFrom` for `DATABASE_URL`, `OPENAI_API_KEY`, etc."
+  - "**Health probes** — configure liveness and readiness probes pointing to `/health` on port 8000"
+  - "**`secrets.yaml.example`** — show required keys (never commit real values)"
+  - "**`service.yaml`** — create a `LoadBalancer` or `NodePort` service routing port 80 → container port 8000"
   tips:
-    - type: note
-      text: When creating your `DATABASE_URL` secret for the cloud database, remember to append `?sslmode=require` to the connection string.
+  - type: note
+    text: When creating your `DATABASE_URL` secret for the cloud database, remember to append `?sslmode=require` to the connection string.
   done_when: "`kubectl get pods` shows your app running, and `curl http://<EXTERNAL-IP>/health` returns `{\"status\": \"healthy\"}`."
   id: phase5-topic6-build-container-orchestration
 
-- order: 5
+- uuid: c77ee2ee-9913-49b5-8e46-e9258129e06e
+  order: 5
   action: 'Build:'
   title: Monitoring & Observability
   description: Instrument your Journal API with OpenTelemetry so that logs, traces, and metrics are exported to your cloud provider's monitoring platform. This builds on the basic logging you added in Phase 3 by connecting all three telemetry signals into a unified, cloud-native observability pipeline. This step is not auto-verified but is essential for production readiness.
   checklist:
-    - 'Install OpenTelemetry packages: `opentelemetry-api`, `opentelemetry-sdk`, `opentelemetry-instrumentation-fastapi`'
-    - Configure a `TracerProvider` and `MeterProvider` with a `Resource` identifying your service
-    - Call `FastAPIInstrumentor.instrument_app(app)` to auto-instrument HTTP requests
-    - 'Add at least one custom span (e.g., around a database or LLM call) and one custom metric (e.g., entries created counter)'
-    - Verify telemetry locally with an OTLP-compatible tool such as Aspire Dashboard before sending it to the cloud
-    - 'Install your provider''s OTel exporter (`azure-monitor-opentelemetry`, `opentelemetry-exporter-otlp` for AWS/ADOT, or `opentelemetry-exporter-gcp-trace`/`opentelemetry-exporter-gcp-monitoring`)'
-    - Configure the exporter so traces, metrics, and logs are sent to your cloud console (Azure Application Insights, AWS X-Ray + CloudWatch, or GCP Cloud Trace + Cloud Monitoring)
-    - Query your telemetry in your provider's tool (Azure KQL, CloudWatch Logs Insights, or GCP Logs Explorer)
-    - Build a small dashboard with request count, error rate, latency, and recent exceptions
-    - Create one alert for repeated 5xx responses, high latency, or another user-impacting symptom
-    - 'Optional advanced: recreate the same dashboard with Prometheus and Grafana'
+  - 'Install OpenTelemetry packages: `opentelemetry-api`, `opentelemetry-sdk`, `opentelemetry-instrumentation-fastapi`'
+  - Configure a `TracerProvider` and `MeterProvider` with a `Resource` identifying your service
+  - Call `FastAPIInstrumentor.instrument_app(app)` to auto-instrument HTTP requests
+  - 'Add at least one custom span (e.g., around a database or LLM call) and one custom metric (e.g., entries created counter)'
+  - Verify telemetry locally with an OTLP-compatible tool such as Aspire Dashboard before sending it to the cloud
+  - 'Install your provider''s OTel exporter (`azure-monitor-opentelemetry`, `opentelemetry-exporter-otlp` for AWS/ADOT, or `opentelemetry-exporter-gcp-trace`/`opentelemetry-exporter-gcp-monitoring`)'
+  - Configure the exporter so traces, metrics, and logs are sent to your cloud console (Azure Application Insights, AWS X-Ray + CloudWatch, or GCP Cloud Trace + Cloud Monitoring)
+  - Query your telemetry in your provider's tool (Azure KQL, CloudWatch Logs Insights, or GCP Logs Explorer)
+  - Build a small dashboard with request count, error rate, latency, and recent exceptions
+  - Create one alert for repeated 5xx responses, high latency, or another user-impacting symptom
+  - 'Optional advanced: recreate the same dashboard with Prometheus and Grafana'
   done_when: Traces, metrics, and logs from your Journal API are visible in your cloud provider's monitoring console, and you have a basic dashboard and alert.
   id: phase5-topic6-build-monitoring-observability
 
-- order: 6
+- uuid: 3b4da54e-8bc3-4ff9-945a-85dd2d234d44
+  order: 6
   action: 'Build:'
   title: Documentation
   description: Document your setup and deployment process so others can understand and reproduce your work. This step is not auto-verified but strengthens your portfolio.
   id: phase5-topic6-build-documentation
 
-- order: 7
+- uuid: e080abdc-bf94-4e6b-a78e-33294ef28595
+  order: 7
   action: 'Build:'
   title: Required Project Structure
   description: Your repository must include these directories and files for auto-verification. Steps 1–4 are verified automatically when you submit your repo URL.
   code: "your-journal-starter/\n  ├── Dockerfile              # Step 1: Container definition\n  ├── .dockerignore            # Step 1: Exclude non-production files from build\n  ├── .github/\n  │   └── workflows/          # Step 3: CI/CD pipeline configs\n  │       └── *.yml\n  ├── infra/                   # Step 2: Terraform IaC configs\n  │   ├── main.tf\n  │   ├── variables.tf\n  │   ├── outputs.tf\n  │   └── providers.tf\n  ├── k8s/                     # Step 4: Kubernetes manifests\n  │   ├── deployment.yaml\n  │   ├── service.yaml\n  │   └── secrets.yaml.example # Example secrets (never commit real values)\n  ├── api/                     # Your FastAPI app code\n  └── README.md                # Step 6: Documentation"
   id: phase5-topic6-build-required-project-structure
 
-- order: 8
+- uuid: c43d5d38-c50f-40eb-af1b-c77cb41c4be2
+  order: 8
   action: 'Reflect:'
   title: Share Your Progress
   description: When you've completed the capstone, push your work to GitHub! This becomes part of your portfolio. Consider sharing it on LinkedIn or with the Learn to Cloud community to get feedback and celebrate your progress.
   id: phase5-topic6-reflect-share-your-progress
 
-- order: 9
+- uuid: 8136ecc2-60e2-4909-89ac-cb4d3592725e
+  order: 9
   action: 'Practice:'
   title: Clean up your cloud resources
   description: After you have submitted your repo for hands-on verification and received a passing result, delete all cloud resources.
   checklist:
-    - Kubernetes clusters
-    - Container registries
-    - Terraform-provisioned infrastructure (`terraform destroy`)
-    - Any other billable resources
+  - Kubernetes clusters
+  - Container registries
+  - Terraform-provisioned infrastructure (`terraform destroy`)
+  - Any other billable resources
   tips:
-    - type: tip
-      text: Check your cloud console to confirm nothing is still running.
+  - type: tip
+    text: Check your cloud console to confirm nothing is still running.
   id: phase5-topic6-practice-clean-up-your-cloud

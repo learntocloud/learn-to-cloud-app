@@ -1,44 +1,54 @@
+# yaml-language-server: $schema=../../schemas/topic.schema.json
+uuid: 622714e9-a0d9-40a3-9345-433128e039ef
 id: phase5-topic2
 slug: cicd
 name: CI/CD Pipelines
 description: One challenge you'll face after containerizing your application is the need to manually rebuild and push for every code change. CI/CD pipelines automate this entire process - building, testing, and deploying your application every time changes are made, ensuring a smooth and reliable development workflow.
 order: 2
 learning_objectives:
-- id: cicd-fundamentals
+- uuid: d5114bfd-0b48-4185-836b-3a77ff605527
+  id: cicd-fundamentals
   text: Explain CI/CD stages and the value of automated build, test, and release workflows.
   order: 1
-- id: cicd-pipeline-authoring
+- uuid: 60c07495-b5ed-4d72-bdb0-83462efec496
+  id: cicd-pipeline-authoring
   text: Create and iterate pipeline definitions for repeatable application delivery.
   order: 2
-- id: cicd-operational-confidence
+- uuid: b212b9c6-b857-44ee-9ab5-299ccbe8e71d
+  id: cicd-operational-confidence
   text: Diagnose and fix workflow failures to maintain a reliable deployment path.
   order: 3
 learning_steps:
-- order: 1
+- uuid: 5259a6d6-6336-420b-a14b-449868928256
+  order: 1
   action: 'Read:'
   title: Understand CI/CD
   url: https://www.jetbrains.com/teamcity/ci-cd-guide/continuous-integration-vs-delivery-vs-deployment/
   description: Learn the fundamentals of continuous integration and continuous deployment, and how CI, continuous delivery, and continuous deployment differ.
   id: phase5-topic2-read-understand-cicd
-- order: 2
+- uuid: 8a2ab5be-dbef-4557-8fb1-576a712277b2
+  order: 2
   action: 'Read:'
   title: Learn about GitHub Actions
   url: https://docs.github.com/actions/get-started/understand-github-actions
   description: Understand how GitHub Actions works — workflows, triggers, jobs, and steps — so you can automate your build and deploy pipeline.
   id: phase5-topic2-read-learn-about-github-actions
-- order: 3
+- uuid: c4826180-0c6a-4927-b530-2408d494451e
+  order: 3
   action: 'Practice:'
   description: 'Create a workflow file in .github/workflows/ that automatically builds your application and runs tests on every push to the main branch. Here''s a starter template:'
   code: "name: CI\n\non:\n  push:\n    branches: [main]\n\njobs:\n  build-and-test:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      \n      - name: Set up Python\n        uses: actions/setup-python@v5\n        with:\n          python-version: '3.11'\n      \n      - name: Install dependencies\n        run: pip install -r requirements.txt\n      \n      - name: Run tests\n        run: pytest"
   title: Create a GitHub Actions workflow that builds and tests your app
   id: phase5-topic2-practice-create-a-github-actions
-- order: 4
+- uuid: 59da8a18-206b-42d0-9e59-636a8ae46515
+  order: 4
   action: 'Practice:'
   description: 'Extend your workflow to build a Docker image and push it to a container registry on successful builds. Use this as a reference:'
   code: "name: Build and Push\n\non:\n  push:\n    branches: [main]\n\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      \n      - name: Build Docker image\n        run: docker build -t myapp:${{ github.sha }} .\n      \n      - name: Login to Registry\n        run: echo ${{ secrets.REGISTRY_PASSWORD }} | docker login -u ${{ secrets.REGISTRY_USER }} --password-stdin\n      \n      - name: Push image\n        run: docker push myapp:${{ github.sha }}"
   title: Add Docker image build and push to your workflow
   id: phase5-topic2-practice-add-docker-image-build
-- order: 5
+- uuid: ccc8eee2-a5ee-480c-8efe-4eb8c3c7dadd
+  order: 5
   action: 'Practice:'
   description: Push a commit and verify that your workflow runs successfully in the GitHub Actions tab. Fix any issues until you have a green build.
   title: Verify a successful workflow run

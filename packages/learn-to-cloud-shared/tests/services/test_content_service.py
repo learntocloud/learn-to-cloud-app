@@ -117,13 +117,15 @@ class TestLoadTopic:
         topic_file = tmp_path / "basics.yaml"
         topic_file.write_text(
             """
+uuid: 00000000-0000-0000-0000-000000000001
 id: phase0-topic1
 slug: basics
 name: Basics
 description: Learn the basics
 order: 0
 learning_steps:
-  - id: step-intro
+  - uuid: 00000000-0000-0000-0000-000000000002
+    id: step-intro
     order: 0
     title: Introduction
 """
@@ -142,16 +144,19 @@ learning_steps:
         topic_file = tmp_path / "dup.yaml"
         topic_file.write_text(
             """
+uuid: 00000000-0000-0000-0000-000000000010
 id: topic-dup
 slug: dup
 name: Dup
 description: duplicate steps
 order: 0
 learning_steps:
-  - id: same-id
+  - uuid: 00000000-0000-0000-0000-000000000011
+    id: same-id
     order: 0
     title: A
-  - id: same-id
+  - uuid: 00000000-0000-0000-0000-000000000012
+    id: same-id
     order: 1
     title: B
 """
@@ -179,6 +184,7 @@ class TestLoadPhase:
         phase_dir.mkdir()
         (phase_dir / "_phase.yaml").write_text(
             """
+uuid: 00000000-0000-0000-0000-000000000100
 id: 0
 name: Foundation
 slug: phase0
@@ -190,13 +196,15 @@ topics:
         )
         (phase_dir / "basics.yaml").write_text(
             """
+uuid: 00000000-0000-0000-0000-000000000101
 id: phase0-basics
 slug: basics
 name: Basics
 description: desc
 order: 0
 learning_steps:
-  - id: step-1
+  - uuid: 00000000-0000-0000-0000-000000000102
+    id: step-1
     order: 0
     title: First step
 """
@@ -284,9 +292,11 @@ class TestGetAllPhases:
 @pytest.mark.unit
 class TestLookupFunctions:
     def test_get_phase_by_slug_found(self):
+        from uuid import uuid4
+
         from learn_to_cloud_shared.schemas import Phase
 
-        phase = Phase(id=0, name="P0", slug="phase0", order=0, topics=[])
+        phase = Phase(uuid=uuid4(), id=0, name="P0", slug="phase0", order=0, topics=[])
         with patch(
             "learn_to_cloud_shared.content_service.get_all_phases",
             autospec=True,
@@ -317,3 +327,149 @@ class TestLookupFunctions:
             return_value=(),
         ):
             assert get_topic_by_slugs("nonexistent", "topic") is None
+
+
+# ---------------------------------------------------------------------------
+# validate_content (cross-file validators -- issue #462)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+class TestValidateContent:
+    def _build_phase(
+        self,
+        *,
+        slug: str = "phase0",
+        phase_uuid: str = "00000000-0000-0000-0000-000000000001",
+        topics: list | None = None,
+        topic_slugs: list[str] | None = None,
+        requirements: list | None = None,
+    ):
+        from uuid import UUID
+
+        from learn_to_cloud_shared.schemas import (
+            Phase,
+            PhaseHandsOnVerificationOverview,
+        )
+
+        return Phase(
+            uuid=UUID(phase_uuid),
+            id=0,
+            name=slug,
+            slug=slug,
+            order=0,
+            topics=topics or [],
+            topic_slugs=topic_slugs or [],
+            hands_on_verification=(
+                PhaseHandsOnVerificationOverview(requirements=requirements)
+                if requirements is not None
+                else None
+            ),
+        )
+
+    def _build_topic(
+        self,
+        *,
+        slug: str = "topic1",
+        topic_uuid: str = "00000000-0000-0000-0000-000000000010",
+        learning_steps: list | None = None,
+    ):
+        from uuid import UUID
+
+        from learn_to_cloud_shared.schemas import LearningStep, Topic
+
+        return Topic(
+            uuid=UUID(topic_uuid),
+            id=slug,
+            slug=slug,
+            name=slug,
+            description="",
+            order=0,
+            learning_steps=learning_steps
+            or [
+                LearningStep(
+                    uuid=UUID("00000000-0000-0000-0000-000000000020"),
+                    id="step-1",
+                    order=0,
+                ),
+            ],
+        )
+
+    def test_returns_empty_list_when_no_violations(self):
+        from learn_to_cloud_shared.content_service import validate_content
+
+        phase = self._build_phase(topics=[self._build_topic()], topic_slugs=["topic1"])
+        with patch(
+            "learn_to_cloud_shared.content_service.get_all_phases",
+            autospec=True,
+            return_value=(phase,),
+        ):
+            assert validate_content() == []
+
+    def test_detects_duplicate_uuid_across_entities(self):
+        from uuid import UUID
+
+        from learn_to_cloud_shared.content_service import validate_content
+        from learn_to_cloud_shared.schemas import LearningStep
+
+        # Same UUID used for a topic and one of its steps.
+        shared = "00000000-0000-0000-0000-deadbeef0001"
+        topic = self._build_topic(
+            topic_uuid=shared,
+            learning_steps=[
+                LearningStep(uuid=UUID(shared), id="step-1", order=0),
+            ],
+        )
+        phase = self._build_phase(topics=[topic], topic_slugs=["topic1"])
+        with patch(
+            "learn_to_cloud_shared.content_service.get_all_phases",
+            autospec=True,
+            return_value=(phase,),
+        ):
+            errors = validate_content()
+        assert any("Duplicate uuid" in e for e in errors)
+
+    def test_detects_topic_slug_count_mismatch(self):
+        from learn_to_cloud_shared.content_service import validate_content
+
+        # phase declares two topics in YAML but only one loaded.
+        phase = self._build_phase(
+            topics=[self._build_topic()],
+            topic_slugs=["topic1", "missing-topic"],
+        )
+        with patch(
+            "learn_to_cloud_shared.content_service.get_all_phases",
+            autospec=True,
+            return_value=(phase,),
+        ):
+            errors = validate_content()
+        assert any("expected 2 topics" in e for e in errors)
+
+    def test_detects_duplicate_step_order_within_topic(self):
+        from uuid import UUID
+
+        from learn_to_cloud_shared.content_service import validate_content
+        from learn_to_cloud_shared.schemas import LearningStep
+
+        topic = self._build_topic(
+            learning_steps=[
+                LearningStep(
+                    uuid=UUID("00000000-0000-0000-0000-000000000030"),
+                    id="step-a",
+                    order=1,
+                ),
+                LearningStep(
+                    uuid=UUID("00000000-0000-0000-0000-000000000031"),
+                    id="step-b",
+                    order=1,
+                ),
+            ],
+        )
+        phase = self._build_phase(topics=[topic], topic_slugs=["topic1"])
+        with patch(
+            "learn_to_cloud_shared.content_service.get_all_phases",
+            autospec=True,
+            return_value=(phase,),
+        ):
+            errors = validate_content()
+        assert any("order=1" in e for e in errors)

@@ -1,0 +1,260 @@
+{
+  "$defs": {
+    "LearningObjective": {
+      "description": "A learning objective for a topic.",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "order": {
+          "title": "Order",
+          "type": "integer"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "uuid": {
+          "format": "uuid",
+          "title": "Uuid",
+          "type": "string"
+        }
+      },
+      "required": [
+        "uuid",
+        "id",
+        "text",
+        "order"
+      ],
+      "title": "LearningObjective",
+      "type": "object"
+    },
+    "LearningStep": {
+      "description": "A learning step within a topic.",
+      "properties": {
+        "action": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Action"
+        },
+        "checklist": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Checklist",
+          "type": "array"
+        },
+        "code": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Code"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        },
+        "done_when": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Done When"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "options": {
+          "items": {
+            "$ref": "#/$defs/ProviderOption"
+          },
+          "title": "Options",
+          "type": "array"
+        },
+        "order": {
+          "title": "Order",
+          "type": "integer"
+        },
+        "tips": {
+          "items": {
+            "$ref": "#/$defs/TipItem"
+          },
+          "title": "Tips",
+          "type": "array"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Url"
+        },
+        "uuid": {
+          "format": "uuid",
+          "title": "Uuid",
+          "type": "string"
+        }
+      },
+      "required": [
+        "uuid",
+        "id",
+        "order"
+      ],
+      "title": "LearningStep",
+      "type": "object"
+    },
+    "ProviderOption": {
+      "description": "Cloud provider or platform-specific option for a learning step.",
+      "properties": {
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        },
+        "provider": {
+          "title": "Provider",
+          "type": "string"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "url": {
+          "title": "Url",
+          "type": "string"
+        }
+      },
+      "required": [
+        "provider",
+        "title",
+        "url"
+      ],
+      "title": "ProviderOption",
+      "type": "object"
+    },
+    "TipItem": {
+      "description": "A tip, note, or warning callout for a learning step.",
+      "properties": {
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "type": {
+          "default": "tip",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "TipItem",
+      "type": "object"
+    }
+  },
+  "description": "A topic within a phase.",
+  "properties": {
+    "description": {
+      "title": "Description",
+      "type": "string"
+    },
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "learning_objectives": {
+      "items": {
+        "$ref": "#/$defs/LearningObjective"
+      },
+      "title": "Learning Objectives",
+      "type": "array"
+    },
+    "learning_steps": {
+      "items": {
+        "$ref": "#/$defs/LearningStep"
+      },
+      "title": "Learning Steps",
+      "type": "array"
+    },
+    "name": {
+      "title": "Name",
+      "type": "string"
+    },
+    "order": {
+      "title": "Order",
+      "type": "integer"
+    },
+    "slug": {
+      "title": "Slug",
+      "type": "string"
+    },
+    "uuid": {
+      "format": "uuid",
+      "title": "Uuid",
+      "type": "string"
+    }
+  },
+  "required": [
+    "uuid",
+    "id",
+    "slug",
+    "name",
+    "description",
+    "order",
+    "learning_steps"
+  ],
+  "title": "Topic",
+  "type": "object"
+}

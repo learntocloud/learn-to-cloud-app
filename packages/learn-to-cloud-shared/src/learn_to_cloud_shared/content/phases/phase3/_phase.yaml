@@ -1,14 +1,15 @@
+# yaml-language-server: $schema=../../schemas/phase.schema.json
+uuid: 5edbc820-fe9c-4b17-bdb1-91991f0fe9f6
 id: '3'
 name: Programming Fundamentals
 slug: phase3
-description: Welcome to Phase 3! This phase is all about programming with Python and building real applications. Programming
-  is a fundamental skill for cloud engineering, enabling you to create, manage, and optimize cloud resources efficiently.
-  You'll build a working API with database integration—the foundation for everything that follows.
+description: Welcome to Phase 3! This phase is all about programming with Python and building real applications. Programming is a fundamental skill for cloud engineering, enabling you to create, manage, and optimize cloud resources efficiently. You'll build a working API with database integration—the foundation for everything that follows.
 short_description: Learn Python programming, FastAPI, and databases. Build a real-world Journal API project.
 order: 3
 hands_on_verification:
   requirements:
-  - id: journal-api-implementation
+  - uuid: d6201101-8873-447a-957a-0e5773627618
+    id: journal-api-implementation
     submission_type: journal_api_verifier
     name: Verify Journal API Implementation
     description: Submit your Journal API fork URL after your implementation is on main. The verifier checks that CI passes, then runs an LLM rubric review of the final code for API completeness, Python quality, validation, logging, AI analysis, cloud CLI setup, and secret safety.

@@ -169,3 +169,112 @@ def get_topic_by_slugs(phase_slug: str, topic_slug: str) -> Topic | None:
 def clear_cache() -> None:
     """Clear the content cache (useful for testing)."""
     get_all_phases.cache_clear()
+
+
+# ---------------------------------------------------------------------------
+# Cross-file validators (issue #462)
+#
+# get_all_phases() is intentionally tolerant -- it logs and skips broken
+# files so the app keeps running on partially-bad content. The validators
+# below are STRICT: they raise on the first violation. They are intended
+# for CI and for the sync step that writes YAML into the DB.
+# ---------------------------------------------------------------------------
+
+
+def _collect_uuids(phases: tuple[Phase, ...]) -> list[tuple[str, str]]:
+    """Return (uuid_str, locator) tuples for every curriculum entity.
+
+    Locator is a human-readable path like ``phases[0]`` or
+    ``topics[phase0-topic5].learning_steps[s1]`` so duplicates can be
+    pointed at concretely.
+    """
+    items: list[tuple[str, str]] = []
+    for phase in phases:
+        items.append((str(phase.uuid), f"phase[{phase.slug}]"))
+        if phase.hands_on_verification:
+            for req in phase.hands_on_verification.requirements:
+                items.append(
+                    (
+                        str(req.uuid),
+                        f"phase[{phase.slug}].requirements[{req.id}]",
+                    )
+                )
+        for topic in phase.topics:
+            items.append((str(topic.uuid), f"topic[{topic.slug}]"))
+            for obj in topic.learning_objectives:
+                items.append(
+                    (
+                        str(obj.uuid),
+                        f"topic[{topic.slug}].objectives[{obj.id}]",
+                    )
+                )
+            for step in topic.learning_steps:
+                items.append((str(step.uuid), f"topic[{topic.slug}].steps[{step.id}]"))
+    return items
+
+
+def _check_uuid_uniqueness(phases: tuple[Phase, ...]) -> list[str]:
+    """Return error messages for any duplicate UUIDs."""
+    by_uuid: dict[str, list[str]] = {}
+    for uuid_str, locator in _collect_uuids(phases):
+        by_uuid.setdefault(uuid_str, []).append(locator)
+
+    errors: list[str] = []
+    for uuid_str, locators in by_uuid.items():
+        if len(locators) > 1:
+            errors.append(f"Duplicate uuid {uuid_str} used by: {', '.join(locators)}")
+    return errors
+
+
+def _check_topic_slugs_resolve(phases: tuple[Phase, ...]) -> list[str]:
+    """Return error messages for topic_slugs in phase yaml without a topic file.
+
+    Compares counts: the loader silently drops topics whose files fail to
+    parse, so a length mismatch between ``phase.topic_slugs`` (the YAML
+    list of expected topic filenames) and ``phase.topics`` (successfully
+    loaded ``Topic`` objects) means at least one slug did not load.
+    """
+    errors: list[str] = []
+    for phase in phases:
+        if len(phase.topics) < len(phase.topic_slugs):
+            loaded_ids = {t.id for t in phase.topics}
+            errors.append(
+                f"phase[{phase.slug}] expected {len(phase.topic_slugs)} "
+                f"topics but only {len(phase.topics)} loaded. "
+                f"Listed topics: {phase.topic_slugs}. "
+                f"Loaded topic ids: {sorted(loaded_ids)}. "
+                "Check for YAML parse errors in the missing files."
+            )
+    return errors
+
+
+def _check_step_order_uniqueness(phases: tuple[Phase, ...]) -> list[str]:
+    """Return error messages for steps that share an order within a topic."""
+    errors: list[str] = []
+    for phase in phases:
+        for topic in phase.topics:
+            by_order: dict[int, list[str]] = {}
+            for step in topic.learning_steps:
+                by_order.setdefault(step.order, []).append(step.id)
+            for order, step_ids in by_order.items():
+                if len(step_ids) > 1:
+                    errors.append(
+                        f"topic[{topic.slug}] has multiple steps with "
+                        f"order={order}: {', '.join(step_ids)}"
+                    )
+    return errors
+
+
+def validate_content() -> list[str]:
+    """Run all cross-file validators against the currently-loaded content.
+
+    Returns a list of error messages; empty list means no issues.
+    Does not raise -- callers (CI scripts, sync step) decide how to handle
+    the result.
+    """
+    phases = get_all_phases()
+    errors: list[str] = []
+    errors.extend(_check_uuid_uniqueness(phases))
+    errors.extend(_check_topic_slugs_resolve(phases))
+    errors.extend(_check_step_order_uniqueness(phases))
+    return errors
