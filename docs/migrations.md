@@ -212,3 +212,142 @@ cd api && uv run python scripts/lint_migration_sql.py
 
 This only checks new migrations (files added vs `origin/main`). If
 you're working on a branch with no new migrations, it exits cleanly.
+
+## Curriculum tables and the concurrent-friendly patterns
+
+Phases B through D of the curriculum refactor (#461) introduced
+patterns this repo now uses as a default for any non-trivial
+migration. They show up across `0028_step_progress_cleanup.py`,
+`0029_submissions_uuid_fk.py`, and `0030_verification_jobs_uuid_fk.py`
+if you need a worked example.
+
+### Standard preamble
+
+```python
+def upgrade() -> None:
+    op.execute("SET LOCAL lock_timeout = '5s'")
+    op.execute("SET LOCAL statement_timeout = '2min'")
+```
+
+`lock_timeout` bounds how long any one statement waits for a lock
+before failing the deploy loudly. `statement_timeout` bounds total
+statement runtime.
+
+### `NOT NULL` without a long write lock
+
+Postgres's naive `ALTER TABLE ... SET NOT NULL` takes
+`ACCESS EXCLUSIVE` and scans the table to prove no NULLs exist. The
+safer pattern:
+
+```python
+# 1. Add a CHECK constraint NOT VALID -- fast, metadata-only.
+op.execute("""
+    DO $$ BEGIN
+      IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_foo_x_nn') THEN
+        ALTER TABLE foo ADD CONSTRAINT ck_foo_x_nn CHECK (x IS NOT NULL) NOT VALID;
+      END IF;
+    END $$;
+""")
+
+# 2. VALIDATE in its own transaction. Runs under SHARE UPDATE EXCLUSIVE
+#    so reads + writes keep flowing.
+with op.get_context().autocommit_block():
+    op.execute("""
+        DO $$ BEGIN
+          IF EXISTS (
+            SELECT 1 FROM pg_constraint
+            WHERE conname = 'ck_foo_x_nn' AND NOT convalidated
+          ) THEN
+            ALTER TABLE foo VALIDATE CONSTRAINT ck_foo_x_nn;
+          END IF;
+        END $$;
+    """)
+
+# 3. SET NOT NULL is now a metadata flip -- postgres uses the
+#    validated CHECK to skip the scan.
+op.alter_column("foo", "x", nullable=False)
+
+# 4. Drop the now-redundant CHECK.
+op.execute("ALTER TABLE foo DROP CONSTRAINT IF EXISTS ck_foo_x_nn")
+```
+
+### Foreign keys without a long write lock
+
+Same idea — `ADD CONSTRAINT ... NOT VALID` in one transaction, then
+`VALIDATE CONSTRAINT` in a separate transaction so the validation scan
+runs under the weaker lock:
+
+```python
+op.execute("""
+    DO $$ BEGIN
+      IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_x') THEN
+        ALTER TABLE foo
+          ADD CONSTRAINT fk_x FOREIGN KEY (x) REFERENCES bar(id)
+          ON DELETE RESTRICT NOT VALID;
+      END IF;
+    END $$;
+""")
+
+with op.get_context().autocommit_block():
+    op.execute("""
+        DO $$ BEGIN
+          IF EXISTS (
+            SELECT 1 FROM pg_constraint
+            WHERE conname = 'fk_x' AND NOT convalidated
+          ) THEN
+            ALTER TABLE foo VALIDATE CONSTRAINT fk_x;
+          END IF;
+        END $$;
+    """)
+```
+
+### Indexes and unique constraints, concurrently
+
+```python
+with op.get_context().autocommit_block():
+    op.execute("""
+        CREATE UNIQUE INDEX CONCURRENTLY IF NOT EXISTS uq_foo_x
+            ON foo (x)
+    """)
+op.execute("""
+    DO $$ BEGIN
+      IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uq_foo_x') THEN
+        ALTER TABLE foo ADD CONSTRAINT uq_foo_x UNIQUE USING INDEX uq_foo_x;
+      END IF;
+    END $$;
+""")
+```
+
+The `IF NOT EXISTS` / `convalidated` / `pg_constraint` checks make the
+operation idempotent so a partial-failure retry succeeds.
+
+### Squawk exclusions
+
+`api/.squawk.toml` excludes a few rules globally with documented
+reasons. The big ones for the curriculum migrations:
+
+- `ban-drop-column` — curriculum refactor explicitly accepts a brief
+  500s window during pod rollover while old pods still reference
+  dropped columns. Documented per-migration in the migration's
+  docstring.
+- `adding-not-nullable-field` — `SET NOT NULL` is in fact safe when
+  preceded by a validated `CHECK (col IS NOT NULL)` constraint
+  (squawk's static checker can't see the prior CHECK).
+
+## Curriculum content sync
+
+The curriculum tables (`phases`, `topics`, `steps`,
+`learning_objectives`, `requirements`) are populated by a separate
+sync step on every deploy. See
+[`docs/curriculum.md`](./curriculum.md) for the full flow. The
+short version:
+
+1. Migrations job runs `alembic upgrade head` and the usual checks.
+2. Same job then runs
+   `python -m learn_to_cloud_shared.cli.sync_curriculum`, which
+   upserts curriculum rows from packaged YAML.
+3. Sync soft-deletes (sets `deleted_at`) rather than hard-deletes
+   curriculum rows so user state FK references stay valid.
+
+Schema changes to curriculum tables are normal Alembic migrations;
+content changes go through the YAML sync.
