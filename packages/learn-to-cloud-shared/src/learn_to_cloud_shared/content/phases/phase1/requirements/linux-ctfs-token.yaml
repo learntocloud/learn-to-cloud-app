@@ -1,0 +1,8 @@
+# yaml-language-server: $schema=../../../schemas/requirement.schema.json
+uuid: ec20af63-2ea2-418f-ac14-2c2ae3d06ca7
+id: linux-ctfs-token
+submission_type: ctf_token
+name: Submit the Linux CTF Completion Token
+description: Finish all 18 Linux CTF challenges and submit the final completion token to verify completion.
+type_config:
+  placeholder: Paste your CTF completion token here

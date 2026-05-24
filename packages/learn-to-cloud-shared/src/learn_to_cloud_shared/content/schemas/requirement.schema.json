@@ -278,154 +278,6 @@
       "title": "JournalApiVerifierRequirement",
       "type": "object"
     },
-    "LearningObjective": {
-      "description": "A learning objective for a topic.",
-      "properties": {
-        "id": {
-          "title": "Id",
-          "type": "string"
-        },
-        "order": {
-          "title": "Order",
-          "type": "integer"
-        },
-        "text": {
-          "title": "Text",
-          "type": "string"
-        },
-        "uuid": {
-          "format": "uuid",
-          "title": "Uuid",
-          "type": "string"
-        }
-      },
-      "required": [
-        "uuid",
-        "id",
-        "text",
-        "order"
-      ],
-      "title": "LearningObjective",
-      "type": "object"
-    },
-    "LearningStep": {
-      "description": "A learning step within a topic.",
-      "properties": {
-        "action": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Action"
-        },
-        "checklist": {
-          "items": {
-            "type": "string"
-          },
-          "title": "Checklist",
-          "type": "array"
-        },
-        "code": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Code"
-        },
-        "description": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Description"
-        },
-        "done_when": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Done When"
-        },
-        "id": {
-          "title": "Id",
-          "type": "string"
-        },
-        "options": {
-          "items": {
-            "$ref": "#/$defs/ProviderOption"
-          },
-          "title": "Options",
-          "type": "array"
-        },
-        "order": {
-          "title": "Order",
-          "type": "integer"
-        },
-        "tips": {
-          "items": {
-            "$ref": "#/$defs/TipItem"
-          },
-          "title": "Tips",
-          "type": "array"
-        },
-        "title": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Title"
-        },
-        "url": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Url"
-        },
-        "uuid": {
-          "format": "uuid",
-          "title": "Uuid",
-          "type": "string"
-        }
-      },
-      "required": [
-        "uuid",
-        "id",
-        "order"
-      ],
-      "title": "LearningStep",
-      "type": "object"
-    },
     "NetworkingTokenConfig": {
       "additionalProperties": false,
       "description": "Config for networking_token requirements.",
@@ -486,107 +338,6 @@
       "title": "NetworkingTokenRequirement",
       "type": "object"
     },
-    "PhaseCapstoneOverview": {
-      "description": "High-level capstone overview for a phase (public summary).",
-      "properties": {
-        "includes": {
-          "items": {
-            "type": "string"
-          },
-          "title": "Includes",
-          "type": "array"
-        },
-        "summary": {
-          "title": "Summary",
-          "type": "string"
-        },
-        "title": {
-          "title": "Title",
-          "type": "string"
-        },
-        "topic_slug": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Topic Slug"
-        }
-      },
-      "required": [
-        "title",
-        "summary"
-      ],
-      "title": "PhaseCapstoneOverview",
-      "type": "object"
-    },
-    "PhaseHandsOnVerificationOverview": {
-      "description": "High-level hands-on verification overview for a phase (public summary).",
-      "properties": {
-        "requirement_slugs": {
-          "items": {
-            "type": "string"
-          },
-          "title": "Requirement Slugs",
-          "type": "array"
-        },
-        "requirements": {
-          "items": {
-            "discriminator": {
-              "mapping": {
-                "ctf_token": "#/$defs/CtfTokenRequirement",
-                "deployed_api": "#/$defs/DeployedApiRequirement",
-                "devops_analysis": "#/$defs/DevopsAnalysisRequirement",
-                "github_profile": "#/$defs/GithubProfileRequirement",
-                "journal_api_verifier": "#/$defs/JournalApiVerifierRequirement",
-                "networking_token": "#/$defs/NetworkingTokenRequirement",
-                "profile_readme": "#/$defs/ProfileReadmeRequirement",
-                "repo_fork": "#/$defs/RepoForkRequirement",
-                "security_scanning": "#/$defs/SecurityScanningRequirement"
-              },
-              "propertyName": "submission_type"
-            },
-            "oneOf": [
-              {
-                "$ref": "#/$defs/GithubProfileRequirement"
-              },
-              {
-                "$ref": "#/$defs/ProfileReadmeRequirement"
-              },
-              {
-                "$ref": "#/$defs/RepoForkRequirement"
-              },
-              {
-                "$ref": "#/$defs/CtfTokenRequirement"
-              },
-              {
-                "$ref": "#/$defs/NetworkingTokenRequirement"
-              },
-              {
-                "$ref": "#/$defs/JournalApiVerifierRequirement"
-              },
-              {
-                "$ref": "#/$defs/DeployedApiRequirement"
-              },
-              {
-                "$ref": "#/$defs/DevopsAnalysisRequirement"
-              },
-              {
-                "$ref": "#/$defs/SecurityScanningRequirement"
-              }
-            ]
-          },
-          "title": "Requirements",
-          "type": "array"
-        }
-      },
-      "title": "PhaseHandsOnVerificationOverview",
-      "type": "object"
-    },
     "ProfileReadmeRequirement": {
       "additionalProperties": false,
       "properties": {
@@ -624,42 +375,6 @@
         "submission_type"
       ],
       "title": "ProfileReadmeRequirement",
-      "type": "object"
-    },
-    "ProviderOption": {
-      "description": "Cloud provider or platform-specific option for a learning step.",
-      "properties": {
-        "description": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Description"
-        },
-        "provider": {
-          "title": "Provider",
-          "type": "string"
-        },
-        "title": {
-          "title": "Title",
-          "type": "string"
-        },
-        "url": {
-          "title": "Url",
-          "type": "string"
-        }
-      },
-      "required": [
-        "provider",
-        "title",
-        "url"
-      ],
-      "title": "ProviderOption",
       "type": "object"
     },
     "RepoForkConfig": {
@@ -773,166 +488,49 @@
       ],
       "title": "SecurityScanningRequirement",
       "type": "object"
-    },
-    "TipItem": {
-      "description": "A tip, note, or warning callout for a learning step.",
-      "properties": {
-        "text": {
-          "title": "Text",
-          "type": "string"
-        },
-        "type": {
-          "default": "tip",
-          "title": "Type",
-          "type": "string"
-        }
-      },
-      "required": [
-        "text"
-      ],
-      "title": "TipItem",
-      "type": "object"
-    },
-    "Topic": {
-      "description": "A topic within a phase.",
-      "properties": {
-        "description": {
-          "title": "Description",
-          "type": "string"
-        },
-        "id": {
-          "title": "Id",
-          "type": "string"
-        },
-        "learning_objectives": {
-          "items": {
-            "$ref": "#/$defs/LearningObjective"
-          },
-          "title": "Learning Objectives",
-          "type": "array"
-        },
-        "learning_steps": {
-          "items": {
-            "$ref": "#/$defs/LearningStep"
-          },
-          "title": "Learning Steps",
-          "type": "array"
-        },
-        "name": {
-          "title": "Name",
-          "type": "string"
-        },
-        "order": {
-          "title": "Order",
-          "type": "integer"
-        },
-        "slug": {
-          "title": "Slug",
-          "type": "string"
-        },
-        "uuid": {
-          "format": "uuid",
-          "title": "Uuid",
-          "type": "string"
-        }
-      },
-      "required": [
-        "uuid",
-        "id",
-        "slug",
-        "name",
-        "description",
-        "order",
-        "learning_steps"
-      ],
-      "title": "Topic",
-      "type": "object"
     }
   },
-  "description": "A phase in the curriculum.",
-  "properties": {
-    "capstone": {
-      "anyOf": [
-        {
-          "$ref": "#/$defs/PhaseCapstoneOverview"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null
+  "discriminator": {
+    "mapping": {
+      "ctf_token": "#/$defs/CtfTokenRequirement",
+      "deployed_api": "#/$defs/DeployedApiRequirement",
+      "devops_analysis": "#/$defs/DevopsAnalysisRequirement",
+      "github_profile": "#/$defs/GithubProfileRequirement",
+      "journal_api_verifier": "#/$defs/JournalApiVerifierRequirement",
+      "networking_token": "#/$defs/NetworkingTokenRequirement",
+      "profile_readme": "#/$defs/ProfileReadmeRequirement",
+      "repo_fork": "#/$defs/RepoForkRequirement",
+      "security_scanning": "#/$defs/SecurityScanningRequirement"
     },
-    "description": {
-      "default": "",
-      "title": "Description",
-      "type": "string"
-    },
-    "hands_on_verification": {
-      "anyOf": [
-        {
-          "$ref": "#/$defs/PhaseHandsOnVerificationOverview"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null
-    },
-    "id": {
-      "title": "Id",
-      "type": "integer"
-    },
-    "name": {
-      "title": "Name",
-      "type": "string"
-    },
-    "objectives": {
-      "items": {
-        "type": "string"
-      },
-      "title": "Objectives",
-      "type": "array"
-    },
-    "order": {
-      "default": 0,
-      "title": "Order",
-      "type": "integer"
-    },
-    "short_description": {
-      "default": "",
-      "title": "Short Description",
-      "type": "string"
-    },
-    "slug": {
-      "title": "Slug",
-      "type": "string"
-    },
-    "topic_slugs": {
-      "items": {
-        "type": "string"
-      },
-      "title": "Topic Slugs",
-      "type": "array"
-    },
-    "topics": {
-      "items": {
-        "$ref": "#/$defs/Topic"
-      },
-      "title": "Topics",
-      "type": "array"
-    },
-    "uuid": {
-      "format": "uuid",
-      "title": "Uuid",
-      "type": "string"
-    }
+    "propertyName": "submission_type"
   },
-  "required": [
-    "uuid",
-    "id",
-    "name",
-    "slug"
-  ],
-  "title": "Phase",
-  "type": "object"
+  "oneOf": [
+    {
+      "$ref": "#/$defs/GithubProfileRequirement"
+    },
+    {
+      "$ref": "#/$defs/ProfileReadmeRequirement"
+    },
+    {
+      "$ref": "#/$defs/RepoForkRequirement"
+    },
+    {
+      "$ref": "#/$defs/CtfTokenRequirement"
+    },
+    {
+      "$ref": "#/$defs/NetworkingTokenRequirement"
+    },
+    {
+      "$ref": "#/$defs/JournalApiVerifierRequirement"
+    },
+    {
+      "$ref": "#/$defs/DeployedApiRequirement"
+    },
+    {
+      "$ref": "#/$defs/DevopsAnalysisRequirement"
+    },
+    {
+      "$ref": "#/$defs/SecurityScanningRequirement"
+    }
+  ]
 }

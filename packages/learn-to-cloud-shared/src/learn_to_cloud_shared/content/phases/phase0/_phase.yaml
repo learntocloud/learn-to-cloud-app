@@ -8,11 +8,7 @@ short_description: Build your beginner-friendly IT foundation across Linux, netw
 order: 0
 hands_on_verification:
   requirements:
-  - uuid: a30a1809-d20a-41f1-bab3-7755cfd3621b
-    id: github-profile
-    submission_type: github_profile
-    name: Create a Public GitHub Profile
-    description: Create a public GitHub profile that you will use to submit verification work in every phase.
+  - github-profile
 topics:
 - prepare-to-learn
 - linux

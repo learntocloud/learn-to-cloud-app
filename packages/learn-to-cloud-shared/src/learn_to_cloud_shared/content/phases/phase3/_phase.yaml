@@ -8,12 +8,7 @@ short_description: Learn Python programming, FastAPI, and databases. Build a rea
 order: 3
 hands_on_verification:
   requirements:
-  - uuid: d6201101-8873-447a-957a-0e5773627618
-    id: journal-api-implementation
-    submission_type: journal_api_verifier
-    name: Verify Journal API Implementation
-    description: Submit your Journal API fork URL after your implementation is on main. The verifier checks that CI passes, then runs an LLM rubric review of the final code for API completeness, Python quality, validation, logging, AI analysis, cloud CLI setup, and secret safety.
-    required_repo: learntocloud/journal-starter
+  - journal-api-implementation
 topics:
 - python
 - fastapi

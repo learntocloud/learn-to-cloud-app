@@ -4,9 +4,7 @@ from uuid import uuid4
 
 import pytest
 
-from learn_to_cloud_shared.models import SubmissionType
 from learn_to_cloud_shared.schemas import (
-    HandsOnRequirement,
     TaskResult,
     ValidationResult,
 )
@@ -28,10 +26,12 @@ from learn_to_cloud_shared.verification_job_executor import (
 
 
 def _run_result(is_valid: bool = True) -> VerificationRunResult:
-    requirement = HandsOnRequirement(
-        uuid=uuid4(),
+    from learn_to_cloud_shared.testing.requirement_factories import (
+        security_scanning_requirement,
+    )
+
+    requirement = security_scanning_requirement(
         id="security-scanning",
-        submission_type=SubmissionType.SECURITY_SCANNING,
         name="Security scanning",
         description="Enable security scanning",
         required_repo="learntocloud/journal",
@@ -60,10 +60,12 @@ def _run_result(is_valid: bool = True) -> VerificationRunResult:
 
 
 def _phase3_run_result(is_valid: bool = True) -> VerificationRunResult:
-    requirement = HandsOnRequirement(
-        uuid=uuid4(),
+    from learn_to_cloud_shared.testing.requirement_factories import (
+        journal_api_verifier_requirement,
+    )
+
+    requirement = journal_api_verifier_requirement(
         id="journal-api-implementation",
-        submission_type=SubmissionType.JOURNAL_API_VERIFIER,
         name="Verify Journal API Implementation",
         description="Verify that CI tests pass on the fork's main branch.",
         required_repo="learntocloud/journal-starter",

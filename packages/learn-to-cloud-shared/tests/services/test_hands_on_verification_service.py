@@ -9,7 +9,6 @@ Tests the submission routing logic in validate_submission():
 """
 
 from unittest.mock import patch
-from uuid import uuid4
 
 import pytest
 
@@ -26,10 +25,11 @@ def _make_requirement(
     requirement_id: str = "test-req",
 ) -> HandsOnRequirement:
     """Helper to create test requirements."""
-    return HandsOnRequirement(
-        uuid=uuid4(),
+    from learn_to_cloud_shared.testing.requirement_factories import make_requirement
+
+    return make_requirement(
+        submission_type,
         id=requirement_id,
-        submission_type=submission_type,
         name="Test Requirement",
         description="Test description",
         required_repo=required_repo,
@@ -127,20 +127,31 @@ class TestValidateSubmissionRouting:
 
     @pytest.mark.asyncio
     async def test_repo_fork_requires_required_repo_config(self):
-        """REPO_FORK should fail if required_repo is missing from config."""
-        requirement = _make_requirement(
-            SubmissionType.REPO_FORK,
-            required_repo=None,  # Missing config
-        )
+        """RepoForkConfig.required_repo is required at Pydantic level (#470).
 
-        result = await validate_submission(
-            requirement=requirement,
-            submitted_value="https://github.com/testuser/networking-lab",
-            expected_username="testuser",
-        )
+        The earlier behavior was: dispatcher caught missing required_repo at
+        runtime and returned a configuration error. After the discriminated
+        union refactor, the schema rejects construction of a RepoForkRequirement
+        without a required_repo, so this is now caught at YAML load time
+        instead of dispatch time -- a strict improvement.
+        """
+        from pydantic import ValidationError
 
-        assert result.is_valid is False
-        assert "configuration error" in result.message.lower()
+        from learn_to_cloud_shared.schemas import HandsOnRequirementAdapter
+
+        # Construct via TypeAdapter with raw dict so static analysis
+        # doesn't catch the deliberate validation error.
+        with pytest.raises(ValidationError):
+            HandsOnRequirementAdapter.validate_python(
+                {
+                    "uuid": "00000000-0000-0000-0000-000000000001",
+                    "id": "repo-fork",
+                    "submission_type": "repo_fork",
+                    "name": "Test",
+                    "description": "Test",
+                    "type_config": {},
+                }
+            )
 
 
 @pytest.mark.unit

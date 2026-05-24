@@ -30,6 +30,7 @@ CONTENT_DIR = (
 SCHEMA_COMMENT_PREFIX = "# yaml-language-server: $schema="
 PHASE_SCHEMA_REL = "../../schemas/phase.schema.json"
 TOPIC_SCHEMA_REL = "../../schemas/topic.schema.json"
+REQUIREMENT_SCHEMA_REL = "../../../schemas/requirement.schema.json"
 
 
 def _ensure_schema_comment(path: Path, schema_rel: str) -> bool:
@@ -62,6 +63,15 @@ def main() -> int:
                 rel = yaml_file.relative_to(CONTENT_DIR.parent.parent.parent.parent)
                 print(f"  + schema comment -> {rel}")
                 added += 1
+
+        # Per-phase requirements/ directory (issue #470).
+        req_dir = phase_dir / "requirements"
+        if req_dir.is_dir():
+            for req_file in sorted(req_dir.glob("*.yaml")):
+                if _ensure_schema_comment(req_file, REQUIREMENT_SCHEMA_REL):
+                    rel = req_file.relative_to(CONTENT_DIR.parent.parent.parent.parent)
+                    print(f"  + schema comment -> {rel}")
+                    added += 1
 
     print(f"\nDone. Added schema comment to {added} file(s).")
     return 0

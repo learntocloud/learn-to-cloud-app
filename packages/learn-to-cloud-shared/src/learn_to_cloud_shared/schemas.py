@@ -8,9 +8,10 @@ All schemas use frozen=True for immutability where appropriate.
 """
 
 from datetime import datetime
+from typing import Annotated, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, computed_field
+from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, computed_field
 
 from learn_to_cloud_shared.models import SubmissionType
 
@@ -19,6 +20,16 @@ class FrozenModel(BaseModel):
     """Base class for immutable Pydantic models (replaces frozen dataclasses)."""
 
     model_config = ConfigDict(frozen=True)
+
+
+class StrictFrozenModel(BaseModel):
+    """Immutable model that rejects unknown YAML fields.
+
+    Use for curriculum entities so authoring mistakes (typos, stale
+    fields) fail at load time instead of being silently ignored.
+    """
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
 
 
 class UserBase(BaseModel):
@@ -40,46 +51,172 @@ class UserResponse(UserBase):
     created_at: datetime
 
 
-class HandsOnRequirement(FrozenModel):
-    """A hands-on requirement for phase completion.
+# ---------------------------------------------------------------------------
+# Hands-on requirement type_config models (issue #470)
+#
+# Every requirement has the same top-level keys
+# (uuid, id, submission_type, name, description, type_config).
+# Variation between submission types lives inside ``type_config``.
+# Pydantic validates per-type config via a discriminated union, so YAML
+# authors get parse errors for mismatched fields (e.g., placeholder on a
+# github_profile requirement).
+# ---------------------------------------------------------------------------
 
-    Used both as API schema and for defining phase requirements
-    in services/phase_requirements_service.py.
 
-    Supports Phase 0 through Phase 6 verification types.
+class EmptyConfig(StrictFrozenModel):
+    """No type-specific config (used by github_profile, profile_readme)."""
 
-    To add a new verification type:
-    1. Add the SubmissionType enum value in models.py
-    2. Add optional fields here if needed (e.g., challenge_config)
-    3. Implement the validator in hands_on_verification.py
+
+class RepoConfig(StrictFrozenModel):
+    """Config shared by all GitHub-repo-backed verification types."""
+
+    required_repo: str = Field(
+        description="Upstream repo (owner/name) the learner forks from.",
+    )
+
+
+class PlaceholderConfig(StrictFrozenModel):
+    """Config shared by free-form input verification types (tokens, URLs)."""
+
+    placeholder: str | None = Field(
+        default=None,
+        description="Input hint shown in the form field.",
+    )
+
+
+# Per-type config classes inherit from the shared shape. Even when
+# behavior is identical, having per-type names keeps JSON Schema clear
+# and lets one type evolve fields independently in the future.
+
+
+class RepoForkConfig(RepoConfig):
+    """Config for repo_fork requirements."""
+
+
+class JournalApiVerifierConfig(RepoConfig):
+    """Config for journal_api_verifier requirements."""
+
+
+class DevopsAnalysisConfig(RepoConfig):
+    """Config for devops_analysis requirements."""
+
+
+class SecurityScanningConfig(RepoConfig):
+    """Config for security_scanning requirements."""
+
+
+class CtfTokenConfig(PlaceholderConfig):
+    """Config for ctf_token requirements."""
+
+
+class NetworkingTokenConfig(PlaceholderConfig):
+    """Config for networking_token requirements."""
+
+
+class DeployedApiConfig(PlaceholderConfig):
+    """Config for deployed_api requirements."""
+
+
+# ---------------------------------------------------------------------------
+# Hands-on requirement subclasses, one per active SubmissionType
+# (issue #470)
+# ---------------------------------------------------------------------------
+
+
+class _RequirementBase(StrictFrozenModel):
+    """Shared top-level fields for every hands-on requirement.
+
+    Subclasses add a ``submission_type`` discriminator field and a typed
+    ``type_config``.
     """
 
-    # Stable opaque identifier (issue #462). Required in YAML; backfilled
-    # by scripts/backfill_yaml_uuids.py.
     uuid: UUID
     id: str
-    submission_type: SubmissionType
     name: str
     description: str
-    # Free-form input hint — only used by token and deployed_api types, since
-    # all GitHub-backed URL types are now auto-derived server-side and
-    # rendered read-only.
-    placeholder: str | None = None
 
-    # Upstream repo (``owner/name``) for GitHub repo-backed verification
-    # types: ``repo_fork``, ``pr_review``, ``journal_api_verifier``,
-    # ``devops_analysis``, and ``security_scanning``.  Used to derive the
-    # canonical learner fork URL
-    # (``https://github.com/{learner}/{name}``).
-    required_repo: str | None = None
+    @property
+    def required_repo(self) -> str | None:
+        """Backwards-compat shim: read ``type_config.required_repo`` if any.
 
-    # For PR_REVIEW: files the merged PR must have touched
-    expected_files: list[str] | None = None
+        Lets dispatcher/url_derivation/templates keep reading
+        ``requirement.required_repo`` directly while consumers migrate
+        to typed ``type_config`` access. Plain ``@property`` (not
+        ``@computed_field``) so it does NOT appear in
+        ``model_dump()`` output and round-trip serialization works.
+        """
+        cfg = getattr(self, "type_config", None)
+        return getattr(cfg, "required_repo", None) if cfg is not None else None
 
-    # For PR_REVIEW: AI diff grading criteria (from content YAML).
-    grading_criteria: list[str] | None = None
-    pass_indicators: list[str] | None = None
-    fail_indicators: list[str] | None = None
+    @property
+    def placeholder(self) -> str | None:
+        """Backwards-compat shim: read ``type_config.placeholder`` if any."""
+        cfg = getattr(self, "type_config", None)
+        return getattr(cfg, "placeholder", None) if cfg is not None else None
+
+
+class GithubProfileRequirement(_RequirementBase):
+    submission_type: Literal[SubmissionType.GITHUB_PROFILE]
+    type_config: EmptyConfig = Field(default_factory=EmptyConfig)
+
+
+class ProfileReadmeRequirement(_RequirementBase):
+    submission_type: Literal[SubmissionType.PROFILE_README]
+    type_config: EmptyConfig = Field(default_factory=EmptyConfig)
+
+
+class RepoForkRequirement(_RequirementBase):
+    submission_type: Literal[SubmissionType.REPO_FORK]
+    type_config: RepoForkConfig
+
+
+class CtfTokenRequirement(_RequirementBase):
+    submission_type: Literal[SubmissionType.CTF_TOKEN]
+    type_config: CtfTokenConfig = Field(default_factory=CtfTokenConfig)
+
+
+class NetworkingTokenRequirement(_RequirementBase):
+    submission_type: Literal[SubmissionType.NETWORKING_TOKEN]
+    type_config: NetworkingTokenConfig = Field(default_factory=NetworkingTokenConfig)
+
+
+class JournalApiVerifierRequirement(_RequirementBase):
+    submission_type: Literal[SubmissionType.JOURNAL_API_VERIFIER]
+    type_config: JournalApiVerifierConfig
+
+
+class DeployedApiRequirement(_RequirementBase):
+    submission_type: Literal[SubmissionType.DEPLOYED_API]
+    type_config: DeployedApiConfig = Field(default_factory=DeployedApiConfig)
+
+
+class DevopsAnalysisRequirement(_RequirementBase):
+    submission_type: Literal[SubmissionType.DEVOPS_ANALYSIS]
+    type_config: DevopsAnalysisConfig
+
+
+class SecurityScanningRequirement(_RequirementBase):
+    submission_type: Literal[SubmissionType.SECURITY_SCANNING]
+    type_config: SecurityScanningConfig
+
+
+HandsOnRequirement = Annotated[
+    GithubProfileRequirement
+    | ProfileReadmeRequirement
+    | RepoForkRequirement
+    | CtfTokenRequirement
+    | NetworkingTokenRequirement
+    | JournalApiVerifierRequirement
+    | DeployedApiRequirement
+    | DevopsAnalysisRequirement
+    | SecurityScanningRequirement,
+    Field(discriminator="submission_type"),
+]
+
+# Annotated unions don't expose ``model_validate``; use this adapter for
+# rehydrating requirements from JSON/dict payloads (e.g., durable
+# verification jobs).
+HandsOnRequirementAdapter = TypeAdapter(HandsOnRequirement)
 
 
 class HealthResponse(BaseModel):
@@ -167,6 +304,11 @@ class PhaseCapstoneOverview(FrozenModel):
 class PhaseHandsOnVerificationOverview(FrozenModel):
     """High-level hands-on verification overview for a phase (public summary)."""
 
+    # Raw slug list from ``_phase.yaml`` (each resolves to
+    # ``phase<N>/requirements/<slug>.yaml``). Preserved alongside the
+    # resolved ``requirements`` list so cross-file validators can detect
+    # a count mismatch (a slug whose file failed to load).
+    requirement_slugs: list[str] = Field(default_factory=list)
     requirements: list[HandsOnRequirement] = Field(default_factory=list)
 
 

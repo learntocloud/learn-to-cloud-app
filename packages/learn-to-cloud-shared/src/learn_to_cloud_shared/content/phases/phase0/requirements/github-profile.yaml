@@ -1,0 +1,6 @@
+# yaml-language-server: $schema=../../../schemas/requirement.schema.json
+uuid: a30a1809-d20a-41f1-bab3-7755cfd3621b
+id: github-profile
+submission_type: github_profile
+name: Create a Public GitHub Profile
+description: Create a public GitHub profile that you will use to submit verification work in every phase.

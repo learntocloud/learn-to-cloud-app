@@ -13,9 +13,4 @@ topics:
 - capstone
 hands_on_verification:
   requirements:
-  - uuid: 2f9a6c38-28f5-474b-9578-a71734f112b2
-    id: security-scanning
-    submission_type: security_scanning
-    name: Enable Security Scanning
-    description: Verify your fork has Dependabot or CodeQL scanning enabled so automated checks can confirm it is configured.
-    required_repo: learntocloud/journal-starter
+  - security-scanning

@@ -11,6 +11,7 @@ Run from the package root::
 Output:
     src/learn_to_cloud_shared/content/schemas/phase.schema.json
     src/learn_to_cloud_shared/content/schemas/topic.schema.json
+    src/learn_to_cloud_shared/content/schemas/requirement.schema.json
 
 A CI check regenerates these and fails if the committed files differ
 (see .github/workflows/deploy.yml).
@@ -22,7 +23,11 @@ import json
 import sys
 from pathlib import Path
 
-from learn_to_cloud_shared.schemas import Phase, Topic
+from learn_to_cloud_shared.schemas import (
+    HandsOnRequirementAdapter,
+    Phase,
+    Topic,
+)
 
 SCHEMAS_DIR = (
     Path(__file__).resolve().parent.parent
@@ -42,15 +47,19 @@ def _write_schema(path: Path, schema: dict) -> None:
 def main() -> int:
     phase_schema = Phase.model_json_schema()
     topic_schema = Topic.model_json_schema()
+    requirement_schema = HandsOnRequirementAdapter.json_schema()
 
     phase_path = SCHEMAS_DIR / "phase.schema.json"
     topic_path = SCHEMAS_DIR / "topic.schema.json"
+    requirement_path = SCHEMAS_DIR / "requirement.schema.json"
 
     _write_schema(phase_path, phase_schema)
     _write_schema(topic_path, topic_schema)
+    _write_schema(requirement_path, requirement_schema)
 
     print(f"Wrote {phase_path.relative_to(Path.cwd())}")
     print(f"Wrote {topic_path.relative_to(Path.cwd())}")
+    print(f"Wrote {requirement_path.relative_to(Path.cwd())}")
     return 0
 
 
