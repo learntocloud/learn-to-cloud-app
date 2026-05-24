@@ -177,9 +177,12 @@ class Submission(TimestampMixin, Base):
     # True when verification logic actually ran (not blocked by server error).
     # Only count completed verification attempts.
     verification_completed: Mapped[bool] = mapped_column(Boolean, default=False)
-    # JSON-serialized task feedback for multi-task verification submissions
-    # Stores list of TaskResult dicts so feedback persists across page reloads
-    feedback_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Structured per-task feedback for multi-task verification
+    # submissions, stored as JSONB. Each element is a TaskResult shape
+    # (``task_name``, ``passed``, ``feedback``, ``next_steps``). Now that
+    # we surface rubric feedback for passing submissions too (#425),
+    # every multi-task verification persists a payload.
+    feedback_json: Mapped[list[dict] | None] = mapped_column(JSONB, nullable=True)
     # User-facing validation error message (persists across page reloads)
     validation_message: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     # Cloud provider for multi-cloud labs ("aws", "azure", "gcp", or None)
