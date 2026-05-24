@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import logging
 from collections.abc import Awaitable, Callable
 
@@ -88,10 +87,10 @@ def _extract_username(
     return parsed.username if parsed.is_valid else None
 
 
-def _feedback_json(validation_result: ValidationResult) -> str | None:
+def _feedback_json(validation_result: ValidationResult) -> list[dict] | None:
     if not validation_result.task_results:
         return None
-    return json.dumps([task.model_dump() for task in validation_result.task_results])
+    return [task.model_dump() for task in validation_result.task_results]
 
 
 async def persist_validation_result(

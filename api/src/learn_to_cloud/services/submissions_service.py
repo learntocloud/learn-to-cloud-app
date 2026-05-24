@@ -10,7 +10,6 @@ Routes should delegate submission business logic to this module.
 
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass
 from uuid import UUID
 
@@ -37,7 +36,6 @@ from learn_to_cloud_shared.verification.requirements import (
     get_prerequisite_phase,
     load_requirement_index,
 )
-from opentelemetry import trace
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 
@@ -81,30 +79,24 @@ async def get_phase_submission_context(
         sub_data = to_submission_data(sub)
         submissions_by_req[requirement.slug] = sub_data
 
-        if sub.feedback_json and not sub.is_validated:
-            try:
-                raw_tasks = json.loads(sub.feedback_json)
-                tasks = [
-                    {
-                        "name": t.get("task_name", ""),
-                        "passed": t.get("passed", False),
-                        "message": t.get("feedback", ""),
-                        "next_steps": t.get("next_steps", ""),
-                    }
-                    for t in raw_tasks
-                ]
-                passed = sum(1 for t in tasks if t["passed"])
-
-                feedback_by_req[requirement.slug] = {
-                    "tasks": tasks,
-                    "passed": passed,
+        # Surface rubric feedback for both passing and failing submissions
+        # (#425). Stored as JSONB (#459) so the rows arrive as a list of
+        # TaskResult dicts and we don't need json.loads / try / except.
+        if sub.feedback_json:
+            tasks = [
+                {
+                    "name": t.get("task_name", ""),
+                    "passed": t.get("passed", False),
+                    "message": t.get("feedback", ""),
+                    "next_steps": t.get("next_steps", ""),
                 }
-            except (json.JSONDecodeError, TypeError):
-                span = trace.get_current_span()
-                span.add_event(
-                    "feedback_parse_failed",
-                    {"requirement_slug": requirement.slug},
-                )
+                for t in sub.feedback_json
+            ]
+            passed = sum(1 for t in tasks if t["passed"])
+            feedback_by_req[requirement.slug] = {
+                "tasks": tasks,
+                "passed": passed,
+            }
 
     return PhaseSubmissionContext(
         submissions_by_req=submissions_by_req,

@@ -84,7 +84,7 @@ class SubmissionRepository:
         extracted_username: str | None,
         is_validated: bool,
         verification_completed: bool = True,
-        feedback_json: str | None = None,
+        feedback_json: list[dict] | None = None,
         validation_message: str | None = None,
         cloud_provider: str | None = None,
     ) -> Submission:
@@ -94,7 +94,8 @@ class SubmissionRepository:
             verification_completed: Whether the verification logic actually ran.
                 Set to False when blocked by server errors (e.g., GitHub API down).
                 Only completed verifications count toward the daily cap.
-            feedback_json: JSON-serialized task feedback for multi-task submissions.
+            feedback_json: Structured per-task feedback for multi-task
+                submissions (list of TaskResult dicts). Persisted as JSONB.
             cloud_provider: Cloud provider slug ("aws", "azure", "gcp") for
                 multi-cloud labs. None for non-multi-cloud submissions.
         """

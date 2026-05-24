@@ -7,6 +7,7 @@ Tests cover:
 
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
+from typing import cast
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -591,17 +592,56 @@ class TestGetPhaseSubmissionContext:
         assert result.feedback_by_req == {}
 
     @pytest.mark.asyncio
-    async def test_submission_with_feedback_json(self):
+    async def test_passing_submission_with_feedback_renders_for_pass(self):
+        """#425: rubric feedback persists for passing submissions too."""
+        req = _make_mock_requirement()
+        phase = _phase_with_requirement(req)
+        mock_sub = _make_mock_submission(is_validated=True, verification_completed=True)
+        mock_sub.requirement_uuid = req.uuid
+        mock_sub.feedback_json = [
+            {
+                "task_name": "rubric-check-1",
+                "passed": True,
+                "feedback": "great job",
+                "next_steps": "",
+            },
+            {
+                "task_name": "rubric-check-2",
+                "passed": True,
+                "feedback": "also good",
+                "next_steps": "",
+            },
+        ]
+        with patch(
+            "learn_to_cloud.services.submissions_service.SubmissionRepository",
+            autospec=True,
+        ) as MockRepo:
+            MockRepo.return_value.get_latest_for_requirements = AsyncMock(
+                return_value=[mock_sub]
+            )
+            result = await get_phase_submission_context(
+                AsyncMock(), user_id=1, phase=phase
+            )
+        assert req.slug in result.feedback_by_req
+        feedback = result.feedback_by_req[req.slug]
+        assert feedback["passed"] == 2
+        tasks = cast(list[dict[str, object]], feedback["tasks"])
+        assert len(tasks) == 2
+        assert all(t["passed"] is True for t in tasks)
         req = _make_mock_requirement()
         phase = _phase_with_requirement(req)
         mock_sub = _make_mock_submission(
             is_validated=False, verification_completed=True
         )
         mock_sub.requirement_uuid = req.uuid
-        mock_sub.feedback_json = (
-            '[{"task_name":"A","passed":true,"feedback":"ok",'
-            '"next_steps":"review the rubric"}]'
-        )
+        mock_sub.feedback_json = [
+            {
+                "task_name": "A",
+                "passed": True,
+                "feedback": "ok",
+                "next_steps": "review the rubric",
+            }
+        ]
         with patch(
             "learn_to_cloud.services.submissions_service.SubmissionRepository",
             autospec=True,
