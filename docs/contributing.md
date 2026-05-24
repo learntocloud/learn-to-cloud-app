@@ -118,8 +118,32 @@ Routes (HTTP) → Services (Business Logic) → Repositories (Database)
 
 ## Conventions
 
-- Async/await everywhere — no sync database calls
+- Async/await everywhere -- no sync database calls
 - Database models use `TimestampMixin` for `created_at`/`updated_at`
 - Enums: `class MyEnum(str, PyEnum)` with `native_enum=False` in columns
 - Config via `pydantic-settings` (`Settings` class in `core/config.py`)
 - Production migrations run through an Azure Container Apps Job before API deployment
+
+## Database Migrations
+
+### Keep schema changes and code changes in separate PRs
+
+A PR that adds a new migration should not also change app code that
+depends on the new schema. Ship them as two PRs:
+
+1. **Schema PR** -- contains only the migration file. Merges and deploys
+   first so the new table/index/column exists in production.
+2. **Code PR** -- uses the new schema (e.g., `ON CONFLICT` against a new
+   index, queries on a new column). Merges after the schema PR has
+   deployed successfully.
+
+Why: if a migration fails silently (or gets rolled back), the old app
+code is still running. If that old code already depends on the new
+schema, users see 500 errors. Keeping them separate means the old code
+keeps working against the old schema.
+
+It's fine to bundle them in one PR when the code change is purely
+additive and the old code path doesn't break without the new schema
+(e.g., adding a nullable column that nothing reads yet).
+
+See [docs/migrations.md](migrations.md) for more on how migrations work.
