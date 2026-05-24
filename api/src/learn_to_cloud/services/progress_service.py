@@ -100,18 +100,22 @@ async def fetch_user_progress(
     validated_req_ids = await sub_repo.get_validated_requirement_ids(user_id)
 
     step_repo = StepProgressRepository(db)
-    all_topic_ids = [topic.id for phase in phases for topic in phase.topics]
-    completed_by_topic = await step_repo.get_completed_for_topics(
-        user_id, all_topic_ids
+    all_step_uuids = [
+        step.uuid
+        for phase in phases
+        for topic in phase.topics
+        for step in topic.learning_steps
+    ]
+    completed_step_uuids = await step_repo.get_completed_step_uuids(
+        user_id, all_step_uuids
     )
 
     phase_steps: dict[int, int] = {}
     for phase in phases:
         total_completed = 0
         for topic in phase.topics:
-            valid_step_ids = {step.id for step in topic.learning_steps}
-            completed = completed_by_topic.get(topic.id, set())
-            total_completed += len(completed & valid_step_ids)
+            topic_uuids = {step.uuid for step in topic.learning_steps}
+            total_completed += len(completed_step_uuids & topic_uuids)
         phase_steps[phase.id] = total_completed
 
     phase_progress_map: dict[int, PhaseProgress] = {}
@@ -180,16 +184,24 @@ async def fetch_phase_progress(
     object so we never re-load the curriculum here.
     """
     step_repo = StepProgressRepository(db)
-    topic_ids = [t.id for t in phase.topics]
-    completed_by_topic = await step_repo.get_completed_for_topics(user_id, topic_ids)
+    all_step_uuids = [
+        step.uuid for topic in phase.topics for step in topic.learning_steps
+    ]
+    completed_step_uuids = await step_repo.get_completed_step_uuids(
+        user_id, all_step_uuids
+    )
 
     topic_progress: dict[str, TopicProgressData] = {}
     total_completed = 0
     total_steps = 0
 
     for topic in phase.topics:
-        completed_steps = completed_by_topic.get(topic.id, set())
-        tp = compute_topic_progress(topic, completed_steps)
+        completed_step_ids = {
+            step.id
+            for step in topic.learning_steps
+            if step.uuid in completed_step_uuids
+        }
+        tp = compute_topic_progress(topic, completed_step_ids)
         topic_progress[topic.id] = tp
         total_completed += tp.steps_completed
         total_steps += tp.steps_total

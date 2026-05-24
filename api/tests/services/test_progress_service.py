@@ -193,8 +193,8 @@ class TestFetchUserProgress:
             MockSubRepo.return_value.get_validated_requirement_ids = AsyncMock(
                 return_value=set()
             )
-            MockStepRepo.return_value.get_completed_for_topics = AsyncMock(
-                return_value={}
+            MockStepRepo.return_value.get_completed_step_uuids = AsyncMock(
+                return_value=set()
             )
             result = await fetch_user_progress(AsyncMock(), user_id=1)
             assert result.user_id == 1
@@ -211,13 +211,14 @@ class TestFetchPhaseProgress:
     async def test_queries_db(self):
         topic = _make_topic(steps=["s1", "s2"])
         phase = _make_phase(0, topics=[topic])
+        completed_uuids = {s.uuid for s in topic.learning_steps}
 
         with patch(
             "learn_to_cloud.services.progress_service.StepProgressRepository",
             autospec=True,
         ) as MockStepRepo:
-            MockStepRepo.return_value.get_completed_for_topics = AsyncMock(
-                return_value={"phase0-topic1": {"s1", "s2"}}
+            MockStepRepo.return_value.get_completed_step_uuids = AsyncMock(
+                return_value=completed_uuids
             )
             result = await fetch_phase_progress(AsyncMock(), user_id=1, phase=phase)
 
@@ -242,6 +243,7 @@ class TestFetchPhaseProgress:
                 ),
             }
         )
+        completed_uuids = {s.uuid for s in topic.learning_steps}
 
         with (
             patch(
@@ -253,8 +255,8 @@ class TestFetchPhaseProgress:
                 autospec=True,
             ) as MockSubRepo,
         ):
-            MockStepRepo.return_value.get_completed_for_topics = AsyncMock(
-                return_value={"phase3-topic1": {"s1", "s2"}}
+            MockStepRepo.return_value.get_completed_step_uuids = AsyncMock(
+                return_value=completed_uuids
             )
             MockSubRepo.return_value.count_validated_for_requirements = AsyncMock(
                 return_value=0
@@ -286,6 +288,7 @@ class TestFetchPhaseProgress:
                 ),
             }
         )
+        completed_uuids = {s.uuid for s in topic.learning_steps}
 
         with (
             patch(
@@ -297,8 +300,8 @@ class TestFetchPhaseProgress:
                 autospec=True,
             ) as MockSubRepo,
         ):
-            MockStepRepo.return_value.get_completed_for_topics = AsyncMock(
-                return_value={"phase3-topic1": {"s1", "s2"}}
+            MockStepRepo.return_value.get_completed_step_uuids = AsyncMock(
+                return_value=completed_uuids
             )
             MockSubRepo.return_value.count_validated_for_requirements = AsyncMock(
                 return_value=1
