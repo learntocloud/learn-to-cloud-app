@@ -2,21 +2,32 @@
 
 ## Branching
 
-Always work on a feature branch — never commit directly to `main`.
+Always work on a feature branch. Never commit directly to `main`, never stage or edit files while on `main`.
+
+**Before making any file changes**, verify you are on a feature branch:
+
+```bash
+git branch --show-current
+```
+
+If the output is `main`, stop and create a branch first. This includes editing files, running formatters, or any operation that modifies the working tree.
 
 Use descriptive prefixes:
 
-- `fix/` — bug fixes (e.g., `fix/deterministic-pr-grading`)
-- `feat/` — new features (e.g., `feat/phase4-verification`)
-- `chore/` — maintenance, deps, docs (e.g., `chore/update-dependencies`)
-- `refactor/` — code restructuring (e.g., `refactor/auth-middleware`)
+- `fix/` for bug fixes (e.g., `fix/deterministic-pr-grading`)
+- `feat/` for new features (e.g., `feat/phase4-verification`)
+- `chore/` for maintenance, deps, docs (e.g., `chore/update-dependencies`)
+- `refactor/` for code restructuring (e.g., `refactor/auth-middleware`)
 
 Workflow:
 
-1. Create a branch from `main` before making changes
-2. Commit and push to the branch
-3. Open a Pull Request to merge into `main`
-4. Never force-push to `main` or commit directly to it
+1. Check current branch before doing anything
+2. Create a branch from `main` if not already on one
+3. Make changes, commit, and push to the branch
+4. Open a Pull Request to merge into `main`
+5. Never force-push to `main` or commit directly to it
+
+After a PR merges (or auto-merges), git may switch you back to `main`. Always re-check your branch before starting the next task.
 
 ## Code Comments and Docstrings
 
@@ -62,4 +73,7 @@ Follow this loop:
 If a check fails, fix it before moving on. Do not batch lint fixes for the end of the task.
 
 ## Research
-When asked to research, or If you need to research something that is azure related, use azure-skills plugin. If you need more info or another topic, use firecrawl or tavily (whichever one is installed) and or context7. The built in web search tool should not be used for research purposes unless no other options are available.
+
+When asked to research, or if you need to research something that is Azure related, use the azure-skills plugin. For everything else, use firecrawl or tavily (whichever one is installed) and/or context7.
+
+**Do not use the built-in web search tool.** It is not an acceptable fallback. If firecrawl, tavily, and context7 are all unavailable, say so and ask the user how to proceed rather than silently falling back to web search.
