@@ -62,5 +62,4 @@ Follow this loop:
 If a check fails, fix it before moving on. Do not batch lint fixes for the end of the task.
 
 ## Research
-
-If you need to research something that is azure related, use azure-skills plugin. If you need more info or another topic, use firecrawl and or context7.
+When asked to research, or If you need to research something that is azure related, use azure-skills plugin. If you need more info or another topic, use firecrawl or tavily (whichever one is installed) and or context7. The built in web search tool should not be used for research purposes unless no other options are available.

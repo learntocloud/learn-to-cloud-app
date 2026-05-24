@@ -34,14 +34,21 @@ echo "⚡ Setting up verification Functions Python environment..."
 echo "📦 Setting up shared package Python environment..."
 (cd packages/learn-to-cloud-shared && uv sync --locked)
 
-# Install Playwright MCP server + browser for dogfooding
+# Install Playwright MCP server + browser for dogfooding.
+# Install `playwright` globally alongside the MCP package so the subsequent
+# `playwright install` call doesn't emit the "install your project's
+# dependencies first" warning (npx looks for playwright in the cwd's
+# package.json, and the repo root has none).
 echo "🎭 Installing Playwright MCP + browser..."
-npm install -g @playwright/mcp@latest
+npm install -g playwright @playwright/mcp@latest
+# `--with-deps` installs the OS libraries (libatk, libnss, etc.) the browser
+# needs to actually launch; without them Chromium/Chrome fail with
+# "error while loading shared libraries". The flag uses sudo internally.
 if [ "$(uname -m)" = "aarch64" ]; then
     # Google Chrome has no ARM64 Linux build; use Playwright's bundled Chromium instead
-    npx -y playwright install chromium
+    playwright install --with-deps chromium
 else
-    npx -y playwright install chrome
+    playwright install --with-deps chrome
 fi
 
 # Install Azure Functions Core Tools for local Durable Functions development.
@@ -65,5 +72,10 @@ if ! command -v prek &> /dev/null; then
         rm -f /tmp/prek
     fi
 fi
+
+# Install Firecrawl CLI + agent skills for web scraping/search.
+echo "🔥 Installing Firecrawl CLI + skills..."
+npm install -g firecrawl-cli@latest
+firecrawl init --all -y --skip-install 2>/dev/null || true
 
 echo "✅ Environment created (venv, tools installed)"

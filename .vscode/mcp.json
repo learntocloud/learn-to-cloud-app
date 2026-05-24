@@ -7,6 +7,15 @@
         "agent",
         "mcp"
       ]
+    },
+    "playwright": {
+      "type": "stdio",
+      "command": "playwright-mcp",
+      "args": [
+        "--headless",
+        "--isolated",
+        "--no-sandbox"
+      ]
     }
   }
 }
