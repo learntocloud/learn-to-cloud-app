@@ -31,14 +31,13 @@
         "action": {
           "anyOf": [
             {
-              "type": "string"
+              "$ref": "#/$defs/StepAction"
             },
             {
               "type": "null"
             }
           ],
-          "default": null,
-          "title": "Action"
+          "default": null
         },
         "checklist": {
           "items": {
@@ -179,6 +178,21 @@
       "title": "ProviderOption",
       "type": "object"
     },
+    "StepAction": {
+      "description": "Categorical action label for a learning step.\n\nDrives the colored action badge in the step UI. Authored in YAML as\n``action: 'Practice:'`` (capitalized, trailing colon) for readability;\nthe schema validator normalizes to the lowercase enum value at load\ntime. The trailing colon is purely a YAML-author affordance and\nnever reaches the rendered UI.",
+      "enum": [
+        "build",
+        "explore",
+        "note",
+        "practice",
+        "read",
+        "reflect",
+        "review",
+        "watch"
+      ],
+      "title": "StepAction",
+      "type": "string"
+    },
     "TipItem": {
       "description": "A tip, note, or warning callout for a learning step.",
       "properties": {
@@ -187,9 +201,8 @@
           "type": "string"
         },
         "type": {
-          "default": "tip",
-          "title": "Type",
-          "type": "string"
+          "$ref": "#/$defs/TipType",
+          "default": "tip"
         }
       },
       "required": [
@@ -197,6 +210,17 @@
       ],
       "title": "TipItem",
       "type": "object"
+    },
+    "TipType": {
+      "description": "Categorical type for a callout/tip attached to a learning step.",
+      "enum": [
+        "tip",
+        "note",
+        "warning",
+        "important"
+      ],
+      "title": "TipType",
+      "type": "string"
     }
   },
   "description": "A topic within a phase.\n\nDisplay order is determined by the topic's position in the parent\nphase's ``topics:`` slug list (in ``_phase.yaml``); the loader\ninjects ``order`` based on that position. Topic YAML files do not\ncarry an ``order`` field -- two sources of truth would inevitably\ndrift (issue #463).",

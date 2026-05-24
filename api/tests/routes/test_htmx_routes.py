@@ -91,10 +91,6 @@ class TestHtmxCompleteStep:
                 return_value=MagicMock(),
             ),
             patch(
-                "learn_to_cloud.routes.htmx_routes.build_step_data",
-                return_value=MagicMock(),
-            ),
-            patch(
                 "learn_to_cloud.routes.htmx_routes.build_progress_dict", return_value={}
             ),
         ):
@@ -153,10 +149,6 @@ class TestHtmxUncompleteStep:
             patch(
                 "learn_to_cloud.routes.htmx_routes.get_user_by_id",
                 autospec=True,
-                return_value=MagicMock(),
-            ),
-            patch(
-                "learn_to_cloud.routes.htmx_routes.build_step_data",
                 return_value=MagicMock(),
             ),
             patch(

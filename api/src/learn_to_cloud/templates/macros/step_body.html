@@ -1,0 +1,45 @@
+{# Provider-tab and numbered-checklist components.
+
+Macros:
+- provider_tabs(options) — Alpine-driven tab switcher for per-cloud
+  ``options``. ``options`` is a list of ``ProviderOption`` schema
+  objects; descriptions are rendered via the ``md`` filter inline.
+- numbered_checklist(items) — ordered checklist rendered from a list of
+  raw markdown strings (e.g. ``step.checklist``).
+#}
+
+{% macro provider_tabs(options) %}
+<div class="mt-3" x-data="{ tab: '{{ options[0].provider | default('option-0') }}' }">
+    <div class="flex gap-1 border-b border-gray-200 dark:border-gray-700">
+        {% for option in options %}
+        <button
+            type="button"
+            @click.stop="tab = '{{ option.provider | default(loop.index0) }}'"
+            :class="tab === '{{ option.provider | default(loop.index0) }}' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400'"
+            class="px-3 py-2 text-sm font-medium border-b-2 -mb-px"
+        >
+            {{ option.provider }}
+        </button>
+        {% endfor %}
+    </div>
+    {% for option in options %}
+    <div x-show="tab === '{{ option.provider | default(loop.index0) }}'" class="mt-2 text-sm text-gray-700 dark:text-gray-300">
+        {{ option.description | md | safe }}
+        {% if option.url %}
+        <a href="{{ option.url }}" target="_blank" rel="noopener" hx-boost="false" class="text-blue-600 hover:underline dark:text-blue-400" @click.stop>{{ option.title | default('Learn more') }}</a>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+{% endmacro %}
+
+{% macro numbered_checklist(items) %}
+<ul class="space-y-2">
+    {% for item in items %}
+    <li class="flex items-start gap-3 text-sm">
+        <span class="flex-shrink-0 mt-0.5 h-5 w-5 rounded border-2 border-gray-300 dark:border-gray-600 flex items-center justify-center text-xs text-gray-400 dark:text-gray-500">{{ loop.index }}</span>
+        <span class="text-gray-700 dark:text-gray-300 prose prose-sm dark:prose-invert max-w-none [&>p]:m-0">{{ item | md | safe }}</span>
+    </li>
+    {% endfor %}
+</ul>
+{% endmacro %}

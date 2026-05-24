@@ -32,7 +32,6 @@ from learn_to_cloud.rendering.context import (
     build_requirement_card_context,
     build_topic_nav,
 )
-from learn_to_cloud.rendering.steps import build_step_data
 from learn_to_cloud.services.dashboard_service import get_dashboard_data
 from learn_to_cloud.services.progress_service import fetch_phase_progress
 from learn_to_cloud.services.steps_service import get_valid_completed_steps
@@ -225,16 +224,13 @@ async def topic_page(
         )
 
     completed_step_uuids = await get_valid_completed_steps(db, user_id, topic)
-    completed_step_uuid_strs = {str(uuid) for uuid in completed_step_uuids}
-
-    steps = [build_step_data(step) for step in topic.learning_steps]
 
     all_topics = phase.topics
     prev_topic, next_topic = build_topic_nav(
         all_topics, topic_slug, phase_id, phase.name
     )
 
-    total_steps = len(steps)
+    total_steps = len(topic.learning_steps)
     progress = (
         build_progress_dict(len(completed_step_uuids), total_steps)
         if total_steps > 0
@@ -248,11 +244,11 @@ async def topic_page(
             request,
             user=user,
             topic=topic,
-            steps=steps,
+            steps=topic.learning_steps,
             phase_slug=phase_slug,
             phase_name=phase.name,
             phase_id=phase.order,
-            completed_steps=completed_step_uuid_strs,
+            completed_steps=completed_step_uuids,
             prev_topic=prev_topic,
             next_topic=next_topic,
             progress=progress,

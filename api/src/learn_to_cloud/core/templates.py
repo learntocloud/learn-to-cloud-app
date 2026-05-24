@@ -15,6 +15,8 @@ from fastapi import Request
 from fastapi.templating import Jinja2Templates
 from learn_to_cloud_shared.core.config import get_web_settings
 
+from learn_to_cloud.rendering.markdown import render_md
+
 _templates_dir = Path(__file__).resolve().parent.parent / "templates"
 _static_dir = Path(__file__).resolve().parent.parent / "static"
 
@@ -72,3 +74,4 @@ templates = Jinja2Templates(
     directory=str(_templates_dir),
     context_processors=[_static_url_context, _frontend_telemetry_context],
 )
+templates.env.filters["md"] = render_md
