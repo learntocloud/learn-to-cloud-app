@@ -184,3 +184,31 @@ cd api && uv run pytest tests/test_migration_chain.py -v
 ```
 
 These tests are included in the standard `uv run pytest tests/` run.
+
+## SQL Linting with Squawk
+
+New migrations are automatically linted with
+[Squawk](https://squawkhq.com/) in CI. Squawk checks the generated SQL
+for unsafe Postgres patterns like:
+
+- Creating indexes without `CONCURRENTLY` (blocks writes)
+- Adding constraints without `NOT VALID` (blocks reads/writes during scan)
+- Missing `lock_timeout` / `statement_timeout` settings
+- Dropping tables or columns (breaks existing clients)
+
+### How it works
+
+The script `api/scripts/lint_migration_sql.py` finds migration files
+added in the PR (compared to `origin/main`), generates the SQL each
+migration would run via `alembic upgrade --sql`, and feeds it to squawk.
+
+Configuration lives in `api/.squawk.toml`.
+
+### Running locally
+
+```bash
+cd api && uv run python scripts/lint_migration_sql.py
+```
+
+This only checks new migrations (files added vs `origin/main`). If
+you're working on a branch with no new migrations, it exits cleanly.

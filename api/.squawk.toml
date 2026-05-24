@@ -1,0 +1,15 @@
+# Squawk configuration for Alembic migration SQL linting.
+# See https://squawkhq.com/docs/ for rule documentation.
+
+pg_version = "16.0"
+
+# Alembic wraps migrations in transactions, and its --sql output
+# includes BEGIN/COMMIT. This tells squawk to expect that.
+assume_in_transaction = true
+
+# transaction-nesting: Alembic's --sql mode always emits BEGIN/COMMIT
+# which squawk sees as nesting inside the assumed transaction. This is
+# harmless and unavoidable with Alembic, so we exclude it.
+excluded_rules = [
+    "transaction-nesting",
+]

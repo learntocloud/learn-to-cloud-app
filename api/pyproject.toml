@@ -108,4 +108,5 @@ dev = [
     "ruff==0.15.12",
     "ty==0.0.34",
     "pytest-alembic>=0.12.1",
+    "squawk-cli>=2.53.0",
 ]
