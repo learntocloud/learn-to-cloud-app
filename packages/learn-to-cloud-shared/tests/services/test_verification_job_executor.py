@@ -7,7 +7,14 @@ import pytest
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
-from learn_to_cloud_shared.models import Submission, SubmissionType, VerificationJob
+from learn_to_cloud_shared.content_sync import sync_curriculum_to_db
+from learn_to_cloud_shared.content_yaml_loader import clear_cache
+from learn_to_cloud_shared.models import (
+    CurriculumRequirement,
+    Submission,
+    SubmissionType,
+    VerificationJob,
+)
 from learn_to_cloud_shared.repositories.user_repository import UserRepository
 from learn_to_cloud_shared.repositories.verification_job_repository import (
     VerificationJobRepository,
@@ -31,7 +38,6 @@ from learn_to_cloud_shared.verification_job_executor import (
 pytestmark = pytest.mark.integration
 
 USER_ID = 82001
-REQUIREMENT_ID = "verification-executor-test"
 
 
 @pytest.fixture()
@@ -44,33 +50,59 @@ def session_maker(test_engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
     )
 
 
-def _requirement(
-    submission_type: SubmissionType = SubmissionType.JOURNAL_API_VERIFIER,
+@pytest.fixture()
+async def synced_requirement(
+    session_maker: async_sessionmaker[AsyncSession],
 ) -> HandsOnRequirement:
-    from learn_to_cloud_shared.testing.requirement_factories import make_requirement
+    """Sync the real curriculum and return a HandsOnRequirement whose
+    UUID + id match an active row in the ``requirements`` table.
+
+    Phase D.2 added an FK on ``submissions.requirement_uuid``; tests
+    persisting submissions need the referenced requirement to exist,
+    and ``get_requirement_by_id`` only returns active rows so the test
+    requirement must be alive in the curriculum.
+    """
+    from learn_to_cloud_shared.testing.requirement_factories import (
+        make_requirement,
+    )
+
+    clear_cache()
+    async with session_maker() as db:
+        await sync_curriculum_to_db(db)
+        await UserRepository(db).upsert(USER_ID, github_username="executoruser")
+        await db.commit()
+        row = (
+            await db.execute(
+                select(
+                    CurriculumRequirement.uuid,
+                    CurriculumRequirement.id,
+                    CurriculumRequirement.submission_type,
+                )
+                .where(CurriculumRequirement.submission_type == "journal_api_verifier")
+                .limit(1)
+            )
+        ).one()
 
     return make_requirement(
-        submission_type,
-        id=REQUIREMENT_ID,
+        SubmissionType(row.submission_type),
+        id=row.id,
         name="Verification Executor Test",
         description="Test requirement",
-    )
+    ).model_copy(update={"uuid": row.uuid})
 
 
 async def _create_job(
     session_maker: async_sessionmaker[AsyncSession],
+    requirement: HandsOnRequirement,
     *,
-    submission_type: SubmissionType = SubmissionType.JOURNAL_API_VERIFIER,
+    submission_type: SubmissionType | None = None,
 ) -> UUID:
+    sub_type = submission_type or requirement.submission_type
     async with session_maker() as db:
-        await UserRepository(db).upsert(
-            USER_ID,
-            github_username="executoruser",
-        )
         job = await VerificationJobRepository(db).create(
             user_id=USER_ID,
-            requirement_id=REQUIREMENT_ID,
-            submission_type=submission_type,
+            requirement_id=requirement.id,
+            submission_type=sub_type,
             phase_id=3,
             submitted_value="https://github.com/executoruser/repo",
         )
@@ -119,15 +151,16 @@ async def _get_submission(
 
 async def test_split_verification_primitives_prepare_run_and_persist(
     session_maker: async_sessionmaker[AsyncSession],
+    synced_requirement: HandsOnRequirement,
 ):
-    job_id = await _create_job(session_maker)
+    job_id = await _create_job(session_maker, synced_requirement)
     validation = AsyncMock(
         return_value=ValidationResult(is_valid=True, message="Verified")
     )
 
     with patch(
         "learn_to_cloud_shared.verification_job_executor.get_requirement_by_id",
-        return_value=_requirement(),
+        return_value=synced_requirement,
     ):
         preparation = await prepare_verification_job(
             job_id,
@@ -161,8 +194,9 @@ async def test_split_verification_primitives_prepare_run_and_persist(
 
 async def test_execute_verification_job_marks_success_and_links_submission(
     session_maker: async_sessionmaker[AsyncSession],
+    synced_requirement: HandsOnRequirement,
 ):
-    job_id = await _create_job(session_maker)
+    job_id = await _create_job(session_maker, synced_requirement)
     validation = AsyncMock(
         return_value=ValidationResult(is_valid=True, message="Verified")
     )
@@ -170,7 +204,7 @@ async def test_execute_verification_job_marks_success_and_links_submission(
     with (
         patch(
             "learn_to_cloud_shared.verification_job_executor.get_requirement_by_id",
-            return_value=_requirement(),
+            return_value=synced_requirement,
         ),
         patch(
             "learn_to_cloud_shared.verification_job_executor.validate_submission",
@@ -186,7 +220,7 @@ async def test_execute_verification_job_marks_success_and_links_submission(
     payload = result.to_payload()
     assert payload["status"] == "succeeded"
     assert payload["code"] == VERIFICATION_SUCCEEDED_CODE
-    assert payload["requirement_id"] == REQUIREMENT_ID
+    assert payload["requirement_id"] == synced_requirement.id
     assert payload["requirement_name"] == "Verification Executor Test"
     assert payload["submission_type"] == SubmissionType.JOURNAL_API_VERIFIER.value
     assert payload["message"] == "Verification succeeded."
@@ -200,8 +234,9 @@ async def test_execute_verification_job_marks_success_and_links_submission(
 
 async def test_execute_verification_job_marks_user_validation_failure(
     session_maker: async_sessionmaker[AsyncSession],
+    synced_requirement: HandsOnRequirement,
 ):
-    job_id = await _create_job(session_maker)
+    job_id = await _create_job(session_maker, synced_requirement)
     validation = AsyncMock(
         return_value=ValidationResult(
             is_valid=False,
@@ -213,7 +248,7 @@ async def test_execute_verification_job_marks_user_validation_failure(
     with (
         patch(
             "learn_to_cloud_shared.verification_job_executor.get_requirement_by_id",
-            return_value=_requirement(),
+            return_value=synced_requirement,
         ),
         patch(
             "learn_to_cloud_shared.verification_job_executor.validate_submission",
@@ -233,11 +268,12 @@ async def test_execute_verification_job_marks_user_validation_failure(
 
 async def test_execute_verification_job_marks_server_error(
     session_maker: async_sessionmaker[AsyncSession],
+    synced_requirement: HandsOnRequirement,
 ):
     """A validator returning ``verification_completed=False`` records a
     server-error result. The Submission row exists and is linked but
     is_validated=False / verification_completed=False."""
-    job_id = await _create_job(session_maker)
+    job_id = await _create_job(session_maker, synced_requirement)
     validation = AsyncMock(
         return_value=ValidationResult(
             is_valid=False,
@@ -249,7 +285,7 @@ async def test_execute_verification_job_marks_server_error(
     with (
         patch(
             "learn_to_cloud_shared.verification_job_executor.get_requirement_by_id",
-            return_value=_requirement(),
+            return_value=synced_requirement,
         ),
         patch(
             "learn_to_cloud_shared.verification_job_executor.validate_submission",
@@ -270,11 +306,12 @@ async def test_execute_verification_job_marks_server_error(
 
 async def test_execute_verification_job_truncates_persisted_error_messages(
     session_maker: async_sessionmaker[AsyncSession],
+    synced_requirement: HandsOnRequirement,
 ):
     """Validation messages over the persisted limit are truncated for
     storage; the ``detail`` in the activity result follows the same
     rule."""
-    job_id = await _create_job(session_maker)
+    job_id = await _create_job(session_maker, synced_requirement)
     long_message = "x" * (MAX_VALIDATION_MESSAGE_LENGTH + 64)
     validation = AsyncMock(
         return_value=ValidationResult(
@@ -287,7 +324,7 @@ async def test_execute_verification_job_truncates_persisted_error_messages(
     with (
         patch(
             "learn_to_cloud_shared.verification_job_executor.get_requirement_by_id",
-            return_value=_requirement(),
+            return_value=synced_requirement,
         ),
         patch(
             "learn_to_cloud_shared.verification_job_executor.validate_submission",
@@ -303,6 +340,7 @@ async def test_execute_verification_job_truncates_persisted_error_messages(
 
 async def test_execute_verification_job_marks_missing_requirement_server_error(
     session_maker: async_sessionmaker[AsyncSession],
+    synced_requirement: HandsOnRequirement,
 ):
     """When the requirement vanishes from content between submit and
     execute, the executor writes a server-error Submission, links it,
@@ -311,7 +349,7 @@ async def test_execute_verification_job_marks_missing_requirement_server_error(
     Linking (rather than deleting the job row) keeps the executor
     idempotent on Durable activity retry — the second attempt sees the
     linked row and returns the same result."""
-    job_id = await _create_job(session_maker)
+    job_id = await _create_job(session_maker, synced_requirement)
     validation = AsyncMock()
 
     with (
@@ -331,25 +369,29 @@ async def test_execute_verification_job_marks_missing_requirement_server_error(
     assert result.verification_completed is False
     assert result.code == REQUIREMENT_NOT_FOUND_ERROR_CODE
     assert result.message == "Verification could not be completed."
-    assert result.detail == f"Requirement not found: {REQUIREMENT_ID}"
+    assert result.detail == f"Requirement not found: {synced_requirement.id}"
 
     # Row stays linked so a retry is idempotent.
     assert await _get_job_link(session_maker, job_id) == result.submission_id
     submission = await _get_submission(session_maker, result.submission_id)
     assert submission.is_validated is False
     assert submission.verification_completed is False
-    assert submission.validation_message == f"Requirement not found: {REQUIREMENT_ID}"
+    assert (
+        submission.validation_message
+        == f"Requirement not found: {synced_requirement.id}"
+    )
 
     validation.assert_not_awaited()
 
 
 async def test_execute_verification_job_is_idempotent_for_terminal_jobs(
     session_maker: async_sessionmaker[AsyncSession],
+    synced_requirement: HandsOnRequirement,
 ):
     """The replay short-circuit fires when the job already has a linked
     Submission; the result is reconstructed from that Submission rather
     than running the validator again."""
-    job_id = await _create_job(session_maker)
+    job_id = await _create_job(session_maker, synced_requirement)
     validation = AsyncMock(
         return_value=ValidationResult(is_valid=True, message="Verified")
     )
@@ -357,7 +399,7 @@ async def test_execute_verification_job_is_idempotent_for_terminal_jobs(
     with (
         patch(
             "learn_to_cloud_shared.verification_job_executor.get_requirement_by_id",
-            return_value=_requirement(),
+            return_value=synced_requirement,
         ),
         patch(
             "learn_to_cloud_shared.verification_job_executor.validate_submission",
@@ -379,17 +421,18 @@ async def test_execute_verification_job_is_idempotent_for_terminal_jobs(
 
 async def test_persist_is_idempotent_via_result_submission_id_guard(
     session_maker: async_sessionmaker[AsyncSession],
+    synced_requirement: HandsOnRequirement,
 ):
     """A second ``persist_verification_result`` call after the first one
     linked a Submission must short-circuit on the result_submission_id
     guard, not write a duplicate row."""
-    job_id = await _create_job(session_maker)
+    job_id = await _create_job(session_maker, synced_requirement)
 
     prepared = PreparedVerificationJob(
         id=job_id,
         user_id=USER_ID,
         github_username="executoruser",
-        requirement=_requirement(),
+        requirement=synced_requirement,
         phase_id=3,
         submitted_value="https://github.com/executoruser/repo",
     )
@@ -415,11 +458,12 @@ async def test_persist_is_idempotent_via_result_submission_id_guard(
 
 async def test_persist_raises_when_job_row_was_deleted(
     session_maker: async_sessionmaker[AsyncSession],
+    synced_requirement: HandsOnRequirement,
 ):
     """If the poller's ``delete_active`` won the race the persist
     activity raises ``VerificationJobNotFoundError`` rather than
     creating an orphan Submission."""
-    job_id = await _create_job(session_maker)
+    job_id = await _create_job(session_maker, synced_requirement)
 
     # Simulate the poller having deleted the row mid-flight.
     async with session_maker() as db:
@@ -431,7 +475,7 @@ async def test_persist_raises_when_job_row_was_deleted(
         id=job_id,
         user_id=USER_ID,
         github_username="executoruser",
-        requirement=_requirement(),
+        requirement=synced_requirement,
         phase_id=3,
         submitted_value="https://github.com/executoruser/repo",
     )

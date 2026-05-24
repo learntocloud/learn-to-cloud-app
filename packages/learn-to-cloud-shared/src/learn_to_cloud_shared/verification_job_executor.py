@@ -26,12 +26,11 @@ from dataclasses import dataclass
 from uuid import UUID
 
 from opentelemetry import trace
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from learn_to_cloud_shared.models import (
     Submission,
-    SubmissionType,
     User,
     VerificationJob,
 )
@@ -299,26 +298,52 @@ def _build_result_from_submission(
     *,
     job_id: UUID,
     submission: Submission,
-    requirement: HandsOnRequirement | None,
+    requirement_id: str,
+    submission_type: str,
+    requirement_name: str | None,
 ) -> VerificationJobExecutionResult:
     """Build a ``VerificationJobExecutionResult`` from an already-persisted
     ``Submission``. Used by the replay short-circuit in
     :func:`prepare_verification_job` and :func:`persist_verification_result`.
+
+    ``requirement_id`` and ``submission_type`` are passed in by the caller
+    rather than read off the ``Submission`` row: Phase D.2 (#465) dropped
+    those denormalized columns from ``submissions``. The job payload
+    (sourced from ``verification_jobs``) still carries them until D.3.
     """
     outcome = _outcome_from_submission(submission)
     return VerificationJobExecutionResult(
         job_id=job_id,
         status=outcome,
         code=_code_for_outcome(outcome),
-        requirement_id=submission.requirement_id,
-        requirement_name=requirement.name if requirement is not None else None,
-        submission_type=submission.submission_type.value,
+        requirement_id=requirement_id,
+        requirement_name=requirement_name,
+        submission_type=submission_type,
         submission_id=submission.id,
         is_valid=submission.is_validated,
         verification_completed=submission.verification_completed,
         message=_MESSAGE_BY_OUTCOME[outcome],
         detail=submission.validation_message,
     )
+
+
+async def _resolve_requirement_uuid(
+    db: AsyncSession, requirement_id: str
+) -> UUID | None:
+    """Look up ``requirements.uuid`` by legacy id including soft-deleted rows.
+
+    The active read path (``get_requirement_by_id``) filters out
+    soft-deleted entries, but a submission persist may need the UUID
+    for a requirement that was soft-deleted between submit and
+    execute. The ``requirements`` FK on submissions is ON DELETE
+    RESTRICT, so soft-deleted UUIDs are always still resolvable.
+    """
+    result = await db.execute(
+        text("SELECT uuid FROM requirements WHERE id = :id LIMIT 1"),
+        {"id": requirement_id},
+    )
+    row = result.first()
+    return row[0] if row else None
 
 
 async def _handle_missing_requirement(
@@ -332,21 +357,25 @@ async def _handle_missing_requirement(
 
     Linking the Submission (rather than deleting the job row) keeps
     ``prepare_verification_job`` idempotent: a retry sees the linked row
-    and short-circuits via the replay path.
+    and short-circuits via the replay path. If the requirement no
+    longer exists at all (not even soft-deleted), raises
+    ``VerificationJobNotFoundError`` so the orchestration surfaces a
+    clear failure -- the job's payload is unrecoverable.
     """
     detail = f"Requirement not found: {payload.requirement_id}"
-    try:
-        submission_type = SubmissionType(payload.submission_type)
-    except ValueError:
-        submission_type = SubmissionType.GITHUB_PROFILE
 
     async with session_maker() as db:
+        requirement_uuid = await _resolve_requirement_uuid(db, payload.requirement_id)
+        if requirement_uuid is None:
+            raise VerificationJobNotFoundError(
+                f"job {payload.id} references unknown requirement "
+                f"{payload.requirement_id!r}"
+            )
+
         submission_repo = SubmissionRepository(db)
         submission = await submission_repo.create(
             user_id=payload.user_id,
-            requirement_id=payload.requirement_id,
-            submission_type=submission_type,
-            phase_id=payload.phase_id,
+            requirement_uuid=requirement_uuid,
             submitted_value=payload.submitted_value,
             extracted_username=None,
             is_validated=False,
@@ -412,7 +441,11 @@ async def prepare_verification_job(
                 result = _build_result_from_submission(
                     job_id=normalized_job_id,
                     submission=submission,
-                    requirement=requirement,
+                    requirement_id=payload.requirement_id,
+                    submission_type=payload.submission_type,
+                    requirement_name=(
+                        requirement.name if requirement is not None else None
+                    ),
                 )
                 span.set_attribute("verification.status", result.status)
                 span.set_attribute("verification.replay", True)
@@ -499,7 +532,9 @@ async def persist_verification_result(
                 result = _build_result_from_submission(
                     job_id=job.id,
                     submission=submission,
-                    requirement=job.requirement,
+                    requirement_id=job.requirement.id,
+                    submission_type=job.requirement.submission_type.value,
+                    requirement_name=job.requirement.name,
                 )
                 span.set_attribute("verification.status", result.status)
                 span.set_attribute("verification.replay", True)
@@ -540,7 +575,9 @@ async def persist_verification_result(
                     result = _build_result_from_submission(
                         job_id=job.id,
                         submission=canonical_submission,
-                        requirement=job.requirement,
+                        requirement_id=job.requirement.id,
+                        submission_type=job.requirement.submission_type.value,
+                        requirement_name=job.requirement.name,
                     )
                 span.set_attribute("verification.status", result.status)
                 span.set_attribute("verification.replay", True)

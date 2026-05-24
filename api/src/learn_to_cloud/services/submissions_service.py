@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
+from uuid import UUID
 
 from learn_to_cloud_shared.models import SubmissionType, VerificationJob
 from learn_to_cloud_shared.repositories.submission_repository import (
@@ -22,6 +23,7 @@ from learn_to_cloud_shared.repositories.verification_job_repository import (
 )
 from learn_to_cloud_shared.schemas import (
     HandsOnRequirement,
+    Phase,
     PhaseSubmissionContext,
     SubmissionData,
     SubmissionResult,
@@ -42,27 +44,47 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 async def get_phase_submission_context(
     db: AsyncSession,
     user_id: int,
-    phase_id: int,
+    phase: Phase,
 ) -> PhaseSubmissionContext:
     """Build submission context for rendering a phase page.
 
-    Fetches all submissions for the user in a phase, converts them to
-    DTOs, and parses stored feedback JSON into template-ready summaries.
-    Calculates remaining time for async submission types.
+    Fetches the latest submission per requirement for the user in
+    ``phase``, converts each to a ``SubmissionData`` DTO, and parses
+    stored feedback JSON into template-ready summaries.
 
-    Returns:
-        PhaseSubmissionContext with submissions and feedback keyed by
-        requirement ID.
+    Takes the resolved ``Phase`` rather than a phase id so we can pull
+    each requirement's UUID, slug, and submission_type out of the
+    in-memory tree -- after Phase D.2 (#465) the ``submissions`` table
+    no longer carries those denormalized fields.
     """
+    requirements_by_uuid: dict[UUID, HandsOnRequirement] = {}
+    if phase.hands_on_verification:
+        requirements_by_uuid = {
+            req.uuid: req for req in phase.hands_on_verification.requirements
+        }
+
     repo = SubmissionRepository(db)
-    raw_submissions = await repo.get_by_user_and_phase(user_id, phase_id)
+    raw_submissions = await repo.get_latest_for_requirements(
+        user_id, requirements_by_uuid.keys()
+    )
 
     submissions_by_req: dict[str, SubmissionData] = {}
     feedback_by_req: dict[str, dict[str, object]] = {}
 
     for sub in raw_submissions:
-        sub_data = to_submission_data(sub)
-        submissions_by_req[sub.requirement_id] = sub_data
+        requirement = requirements_by_uuid.get(sub.requirement_uuid)
+        if requirement is None:
+            # Defensive: get_latest_for_requirements only returns rows whose
+            # uuid is in the input list, but if curriculum drift slips one
+            # past us we skip silently rather than crash the phase page.
+            continue
+        sub_data = to_submission_data(
+            sub,
+            requirement_id=requirement.id,
+            submission_type=requirement.submission_type,
+            phase_id=phase.id,
+        )
+        submissions_by_req[requirement.id] = sub_data
 
         if sub.feedback_json and not sub.is_validated:
             try:
@@ -78,7 +100,7 @@ async def get_phase_submission_context(
                 ]
                 passed = sum(1 for t in tasks if t["passed"])
 
-                feedback_by_req[sub.requirement_id] = {
+                feedback_by_req[requirement.id] = {
                     "tasks": tasks,
                     "passed": passed,
                 }
@@ -86,7 +108,7 @@ async def get_phase_submission_context(
                 span = trace.get_current_span()
                 span.add_event(
                     "feedback_parse_failed",
-                    {"requirement_id": sub.requirement_id},
+                    {"requirement_id": requirement.id},
                 )
 
     return PhaseSubmissionContext(
@@ -181,7 +203,7 @@ async def _check_submission_preconditions(
         submission_repo = SubmissionRepository(read_session)
 
         existing = await submission_repo.get_by_user_and_requirement(
-            user_id, requirement_id
+            user_id, requirement.uuid
         )
         if existing is not None and existing.is_validated:
             raise AlreadyValidatedError("You have already completed this requirement.")
@@ -189,10 +211,10 @@ async def _check_submission_preconditions(
         # Sequential phase gating
         prereq_phase = get_prerequisite_phase(phase_id)
         if prereq_phase is not None:
-            prereq_req_ids = index.requirement_ids_for_phase(prereq_phase)
-            if prereq_req_ids:
+            prereq_req_uuids = index.requirement_uuids_for_phase(prereq_phase)
+            if prereq_req_uuids:
                 all_done = await submission_repo.are_all_requirements_validated(
-                    user_id, prereq_req_ids
+                    user_id, prereq_req_uuids
                 )
                 if not all_done:
                     raise PriorPhaseNotCompleteError(

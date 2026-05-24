@@ -118,30 +118,30 @@ async def main(github_username: str) -> None:
                     await conn.execute(
                         text(
                             """
+                            DELETE FROM submissions
+                            WHERE user_id = :user_id
+                              AND requirement_uuid = :req_uuid
+                            """
+                        ),
+                        {"user_id": user_id, "req_uuid": req.uuid},
+                    )
+                    await conn.execute(
+                        text(
+                            """
                             INSERT INTO submissions (
-                                user_id, requirement_id, attempt_number,
-                                submission_type, phase_id, submitted_value,
+                                user_id, requirement_uuid, submitted_value,
                                 is_validated, validated_at,
                                 verification_completed, created_at, updated_at
                             )
                             VALUES (
-                                :user_id, :req_id, 1, :sub_type, :phase_id,
-                                :submitted_value, true, :now, true, :now, :now
+                                :user_id, :req_uuid, :submitted_value,
+                                true, :now, true, :now, :now
                             )
-                            ON CONFLICT (user_id, requirement_id, attempt_number)
-                            DO UPDATE SET
-                                submitted_value = :submitted_value,
-                                is_validated = true,
-                                validated_at = :now,
-                                verification_completed = true,
-                                updated_at = :now
                             """
                         ),
                         {
                             "user_id": user_id,
-                            "req_id": req.id,
-                            "sub_type": sub_type,
-                            "phase_id": phase.id,
+                            "req_uuid": req.uuid,
                             "submitted_value": submitted_value,
                             "now": now,
                         },

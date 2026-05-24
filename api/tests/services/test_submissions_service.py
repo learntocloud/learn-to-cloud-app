@@ -11,7 +11,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from learn_to_cloud_shared.models import SubmissionType
-from learn_to_cloud_shared.schemas import HandsOnRequirement
+from learn_to_cloud_shared.schemas import HandsOnRequirement, Phase
 from learn_to_cloud_shared.verification.requirements import RequirementIndex
 
 from learn_to_cloud.services.submissions_service import (
@@ -532,43 +532,71 @@ class TestSyncDispatchBranch:
 # ---------------------------------------------------------------------------
 
 
+def _phase_with_requirement(req: HandsOnRequirement) -> Phase:
+    from uuid import uuid4
+
+    from learn_to_cloud_shared.schemas import PhaseHandsOnVerificationOverview
+
+    return Phase(
+        uuid=uuid4(),
+        id=3,
+        name="Phase 3",
+        slug="phase3",
+        order=3,
+        topics=[],
+        hands_on_verification=PhaseHandsOnVerificationOverview(
+            requirements=[req],
+        ),
+    )
+
+
 @pytest.mark.unit
 class TestGetPhaseSubmissionContext:
     @pytest.mark.asyncio
     async def test_empty_submissions(self):
+        req = _make_mock_requirement()
+        phase = _phase_with_requirement(req)
         with patch(
             "learn_to_cloud.services.submissions_service.SubmissionRepository",
             autospec=True,
         ) as MockRepo:
-            MockRepo.return_value.get_by_user_and_phase = AsyncMock(return_value=[])
+            MockRepo.return_value.get_latest_for_requirements = AsyncMock(
+                return_value=[]
+            )
             result = await get_phase_submission_context(
-                AsyncMock(), user_id=1, phase_id=3
+                AsyncMock(), user_id=1, phase=phase
             )
         assert result.submissions_by_req == {}
         assert result.feedback_by_req == {}
 
     @pytest.mark.asyncio
     async def test_submission_without_feedback(self):
+        req = _make_mock_requirement()
+        phase = _phase_with_requirement(req)
         mock_sub = _make_mock_submission(is_validated=True)
+        mock_sub.requirement_uuid = req.uuid
         mock_sub.feedback_json = None
         with patch(
             "learn_to_cloud.services.submissions_service.SubmissionRepository",
             autospec=True,
         ) as MockRepo:
-            MockRepo.return_value.get_by_user_and_phase = AsyncMock(
+            MockRepo.return_value.get_latest_for_requirements = AsyncMock(
                 return_value=[mock_sub]
             )
             result = await get_phase_submission_context(
-                AsyncMock(), user_id=1, phase_id=3
+                AsyncMock(), user_id=1, phase=phase
             )
-        assert "test-requirement" in result.submissions_by_req
+        assert req.id in result.submissions_by_req
         assert result.feedback_by_req == {}
 
     @pytest.mark.asyncio
     async def test_submission_with_feedback_json(self):
+        req = _make_mock_requirement()
+        phase = _phase_with_requirement(req)
         mock_sub = _make_mock_submission(
             is_validated=False, verification_completed=True
         )
+        mock_sub.requirement_uuid = req.uuid
         mock_sub.feedback_json = (
             '[{"task_name":"A","passed":true,"feedback":"ok",'
             '"next_steps":"review the rubric"}]'
@@ -577,14 +605,14 @@ class TestGetPhaseSubmissionContext:
             "learn_to_cloud.services.submissions_service.SubmissionRepository",
             autospec=True,
         ) as MockRepo:
-            MockRepo.return_value.get_by_user_and_phase = AsyncMock(
+            MockRepo.return_value.get_latest_for_requirements = AsyncMock(
                 return_value=[mock_sub]
             )
             result = await get_phase_submission_context(
-                AsyncMock(), user_id=1, phase_id=3
+                AsyncMock(), user_id=1, phase=phase
             )
-        assert "test-requirement" in result.feedback_by_req
-        feedback = result.feedback_by_req["test-requirement"]
+        assert req.id in result.feedback_by_req
+        feedback = result.feedback_by_req[req.id]
         assert feedback["passed"] == 1
         assert feedback["tasks"] == [
             {

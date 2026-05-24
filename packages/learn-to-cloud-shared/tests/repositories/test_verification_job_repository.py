@@ -6,7 +6,13 @@ import pytest
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from learn_to_cloud_shared.models import SubmissionType, VerificationJob
+from learn_to_cloud_shared.content_sync import sync_curriculum_to_db
+from learn_to_cloud_shared.content_yaml_loader import clear_cache
+from learn_to_cloud_shared.models import (
+    CurriculumRequirement,
+    SubmissionType,
+    VerificationJob,
+)
 from learn_to_cloud_shared.repositories.submission_repository import (
     SubmissionRepository,
 )
@@ -28,6 +34,17 @@ async def user(db_session: AsyncSession):
     return await repo.upsert(USER_ID, github_username="verificationjobuser")
 
 
+@pytest.fixture()
+async def req_uuid(db_session: AsyncSession) -> UUID:
+    """Sync curriculum and return a requirement UUID for the submissions FK."""
+    clear_cache()
+    await sync_curriculum_to_db(db_session)
+    result = await db_session.execute(
+        select(CurriculumRequirement.uuid).order_by(CurriculumRequirement.id).limit(1)
+    )
+    return result.scalar_one()
+
+
 async def _create_job(
     repo: VerificationJobRepository,
     *,
@@ -46,16 +63,14 @@ async def _create_job(
 
 async def _create_submission(
     db_session: AsyncSession,
+    requirement_uuid: UUID,
     *,
-    requirement_id: str = "req-1",
     is_validated: bool = True,
     verification_completed: bool = True,
 ):
     return await SubmissionRepository(db_session).create(
         user_id=USER_ID,
-        requirement_id=requirement_id,
-        submission_type=SubmissionType.GITHUB_PROFILE,
-        phase_id=0,
+        requirement_uuid=requirement_uuid,
         submitted_value="https://github.com/testuser",
         extracted_username="testuser",
         is_validated=is_validated,
@@ -117,6 +132,7 @@ class TestCreate:
         self,
         db_session: AsyncSession,
         user,
+        req_uuid: UUID,
     ):
         """After ``link_submission`` flips a job out of the unlinked
         partial unique index, a follow-up submit must succeed.
@@ -133,7 +149,7 @@ class TestCreate:
         )
         submission = await _create_submission(
             db_session,
-            requirement_id="req-retry",
+            req_uuid,
             is_validated=False,
             verification_completed=True,
         )
@@ -193,10 +209,11 @@ class TestLinkSubmission:
         self,
         db_session: AsyncSession,
         user,
+        req_uuid: UUID,
     ):
         repo = VerificationJobRepository(db_session)
         job = await _create_job(repo)
-        submission = await _create_submission(db_session)
+        submission = await _create_submission(db_session, req_uuid)
 
         before = job.updated_at
         result = await repo.link_submission(job.id, submission.id)
@@ -212,13 +229,14 @@ class TestLinkSubmission:
         self,
         db_session: AsyncSession,
         user,
+        req_uuid: UUID,
     ):
         """Idempotency check: a Durable activity retry that re-runs
         ``link_submission`` sees ``ALREADY_LINKED`` instead of writing
         again."""
         repo = VerificationJobRepository(db_session)
         job = await _create_job(repo)
-        submission = await _create_submission(db_session)
+        submission = await _create_submission(db_session, req_uuid)
 
         first = await repo.link_submission(job.id, submission.id)
         # Even if the retry passes a different submission id, the row's
@@ -232,9 +250,10 @@ class TestLinkSubmission:
         self,
         db_session: AsyncSession,
         user,
+        req_uuid: UUID,
     ):
         repo = VerificationJobRepository(db_session)
-        submission = await _create_submission(db_session)
+        submission = await _create_submission(db_session, req_uuid)
 
         result = await repo.link_submission(
             UUID("00000000-0000-0000-0000-000000000000"),
@@ -268,10 +287,11 @@ class TestDeleteActive:
         self,
         db_session: AsyncSession,
         user,
+        req_uuid: UUID,
     ):
         repo = VerificationJobRepository(db_session)
         job = await _create_job(repo)
-        submission = await _create_submission(db_session)
+        submission = await _create_submission(db_session, req_uuid)
         await repo.link_submission(job.id, submission.id)
 
         deleted = await repo.delete_active(job.id)
