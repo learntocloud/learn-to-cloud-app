@@ -504,6 +504,11 @@ class CurriculumRequirement(TimestampMixin, Base):
     name: Mapped[str] = mapped_column(Text, nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False)
     submission_type: Mapped[str] = mapped_column(Text, nullable=False)
+    order: Mapped[int] = mapped_column(
+        BigInteger,
+        nullable=False,
+        server_default=text("0"),
+    )
     type_config: Mapped[dict] = mapped_column(
         JSONB,
         nullable=False,

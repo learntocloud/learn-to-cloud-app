@@ -131,6 +131,7 @@ _REQUIREMENT_UPDATE_FIELDS = (
     "name",
     "description",
     "submission_type",
+    "order",
     "type_config",
     "deleted_at",
     "updated_at",
@@ -220,7 +221,7 @@ def _build_objective_rows(phase: Phase, now: datetime) -> Iterable[dict[str, Any
 def _build_requirement_rows(phase: Phase, now: datetime) -> Iterable[dict[str, Any]]:
     if phase.hands_on_verification is None:
         return
-    for req in phase.hands_on_verification.requirements:
+    for idx, req in enumerate(phase.hands_on_verification.requirements):
         # type_config is a Pydantic submodel; dump as JSON-safe dict.
         type_config = req.type_config.model_dump(mode="json") if req.type_config else {}
         yield {
@@ -230,6 +231,9 @@ def _build_requirement_rows(phase: Phase, now: datetime) -> Iterable[dict[str, A
             "name": req.name,
             "description": req.description,
             "submission_type": req.submission_type.value,
+            # Position in _phase.yaml's requirement slug list = display order.
+            # Mirrors the topic-order convention from #470: one source of truth.
+            "order": idx + 1,
             "type_config": type_config,
             "deleted_at": None,
             "created_at": now,
