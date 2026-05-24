@@ -63,6 +63,34 @@ class TestNormalizeStepActionOnLearningStep:
 
 
 @pytest.mark.unit
+class TestLearningStepSortedOptions:
+    def test_canonical_provider_order(self):
+        from learn_to_cloud_shared.schemas import ProviderOption
+
+        step = LearningStep(
+            uuid=uuid4(),
+            slug="s",
+            order=0,
+            options=[
+                ProviderOption(provider="gcp", title="G", url="https://g"),
+                ProviderOption(provider="aws", title="A", url="https://a"),
+                ProviderOption(provider="azure", title="Az", url="https://az"),
+                ProviderOption(provider="oracle", title="O", url="https://o"),
+            ],
+        )
+        assert [o.provider for o in step.sorted_options] == [
+            "azure",
+            "aws",
+            "gcp",
+            "oracle",
+        ]
+
+    def test_empty_options_returns_empty(self):
+        step = LearningStep(uuid=uuid4(), slug="s", order=0)
+        assert step.sorted_options == []
+
+
+@pytest.mark.unit
 class TestTipType:
     def test_default_is_tip(self):
         item = TipItem(text="hello")

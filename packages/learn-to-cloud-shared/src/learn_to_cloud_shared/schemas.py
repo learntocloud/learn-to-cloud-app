@@ -409,6 +409,28 @@ class LearningStep(FrozenModel):
             return _normalize_step_action(value)
         raise TypeError(f"action must be a string or StepAction, got {type(value)}")
 
+    @property
+    def sorted_options(self) -> list[ProviderOption]:
+        """Options sorted by canonical provider order (Azure, AWS, GCP, ...).
+
+        Implemented as a plain ``@property`` rather than ``@computed_field``
+        so the serialized payload doesn't grow a duplicate list. Lists
+        are small (~3 items) so recomputing per render is negligible.
+        """
+        return sorted(self.options, key=_provider_sort_key)
+
+
+def _provider_sort_key(option: ProviderOption) -> tuple[int, str]:
+    """Canonical provider ordering: Azure → AWS → GCP → everything else."""
+    key = (option.provider or "").strip().lower()
+    if key == "azure":
+        return (0, key)
+    if key == "aws":
+        return (1, key)
+    if key == "gcp":
+        return (2, key)
+    return (3, key)
+
 
 class LearningObjective(FrozenModel):
     """A learning objective for a topic."""

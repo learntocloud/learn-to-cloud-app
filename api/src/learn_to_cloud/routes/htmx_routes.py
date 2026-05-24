@@ -48,7 +48,6 @@ from learn_to_cloud.rendering.context import (
     build_progress_dict,
     build_requirement_card_context,
 )
-from learn_to_cloud.rendering.steps import build_step_data
 from learn_to_cloud.services.durable_verification_client import (
     DurableVerificationConfigError,
     DurableVerificationStartError,
@@ -187,17 +186,15 @@ async def _render_step_toggle(
     db: DbSession,
 ) -> HTMLResponse:
     """Shared rendering for step complete/uncomplete HTMX responses."""
-    step_data = build_step_data(step)
     user = await get_user_by_id(db, user_id)
-    completed_uuid_strs = {str(u) for u in completed_step_uuids}
 
     total_steps = len(topic.learning_steps)
     progress = build_progress_dict(len(completed_step_uuids), total_steps)
 
     step_html = templates.get_template("partials/topic_step.html").render(
         request=request,
-        step=step_data,
-        completed_steps=completed_uuid_strs,
+        step=step,
+        completed_steps=completed_step_uuids,
         user=user,
     )
     progress_html = templates.get_template("partials/topic_progress.html").render(

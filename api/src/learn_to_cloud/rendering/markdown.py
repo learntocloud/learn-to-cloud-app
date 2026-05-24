@@ -1,17 +1,19 @@
-"""Step rendering utilities shared across page and HTMX routes.
+"""Markdown → HTML rendering with GitHub-style admonition support.
 
-Centralises the step content-object → template-dict conversion so the
-same logic isn't duplicated in every route that renders step partials.
+A single renderer instance is shared across threads (Markdown is not
+strictly thread-safe across renders, so ``render_md`` resets state on
+each call). Results are memoized per input string with ``functools.cache``
+so repeated renders of the same authored content are free after the
+first hit; the curriculum is small (~272 steps, mostly stable text)
+which makes this strategy effectively zero-cost in the request path.
 """
 
 from __future__ import annotations
 
 import re
-from collections.abc import Callable
-from typing import Any
+from functools import cache
 
 import markdown
-from learn_to_cloud_shared.schemas import LearningStep
 
 _md = markdown.Markdown(extensions=["fenced_code", "tables"])
 
@@ -76,17 +78,7 @@ def _process_admonitions(html: str) -> str:
     )
 
 
-def _provider_sort_key(provider: str) -> tuple[int, str]:
-    provider_key = (provider or "").strip().lower()
-    if provider_key == "azure":
-        return (0, provider_key)
-    if provider_key == "aws":
-        return (1, provider_key)
-    if provider_key == "gcp":
-        return (2, provider_key)
-    return (3, provider_key)
-
-
+@cache
 def render_md(text: str | None) -> str:
     """Render markdown text to HTML with GitHub-style admonition support.
 
@@ -97,7 +89,8 @@ def render_md(text: str | None) -> str:
     ``> [!NOTE] Note text``
     ``> [!HINT] Hint text``
 
-    Returns empty string if falsy input.
+    Returns empty string if falsy input. Results are memoized across
+    the process lifetime keyed by raw input.
     """
     if not text:
         return ""
@@ -105,49 +98,3 @@ def render_md(text: str | None) -> str:
     html = _md.convert(text)
     html = _process_admonitions(html)
     return html
-
-
-def build_step_data(
-    step: LearningStep,
-    *,
-    md_renderer: Callable[[str | None], str] = render_md,
-) -> dict[str, Any]:
-    """Convert a content LearningStep object to a template-ready dict.
-
-    Args:
-        step: A LearningStep content object.
-        md_renderer: Markdown-to-HTML callable (default: module-level render_md).
-    """
-    data: dict[str, Any] = {
-        "uuid": str(step.uuid),
-        "slug": step.slug,
-        "order": step.order,
-        "action": step.action,
-        "title": step.title or "",
-        "url": step.url or "",
-        "description": step.description or "",
-        "description_html": md_renderer(step.description),
-        "code": step.code or "",
-        "options": [],
-        "checklist": [{"html": md_renderer(item)} for item in step.checklist],
-        "tips": [
-            {"type": tip.type, "html": md_renderer(tip.text)} for tip in step.tips
-        ],
-        "done_when": md_renderer(step.done_when) if step.done_when else "",
-    }
-    sorted_options = sorted(
-        step.options,
-        key=lambda option: _provider_sort_key(option.provider),
-    )
-
-    for opt in sorted_options:
-        data["options"].append(
-            {
-                "provider": opt.provider,
-                "label": opt.provider,
-                "title": opt.title,
-                "url": opt.url,
-                "description_html": md_renderer(opt.description),
-            }
-        )
-    return data

@@ -1,9 +1,13 @@
 {# Single learning step — HTMX-swappable.
 
 Required context:
-- step (dict from build_step_data)
-- completed_steps (set of step uuid strings)
+- step (LearningStep — the Pydantic schema directly, no intermediate dict)
+- completed_steps (set of step UUIDs)
 - user (User | None — drives the checkbox affordance)
+
+Markdown is rendered via the ``md`` Jinja filter (memoized per-process);
+template fields like ``step.description``, ``tip.text`` etc. are raw
+markdown and the template owns the rendering call.
 #}
 {% from "macros/badges.html" import action_badge, step_number_badge %}
 {% from "macros/callouts.html" import tip_callout, done_when %}
@@ -11,6 +15,7 @@ Required context:
 {% from "macros/step_body.html" import provider_tabs, numbered_checklist %}
 
 {% set is_completed = step.uuid in completed_steps %}
+{% set has_body = step.description or step.code or step.options or step.checklist or step.tips or step.done_when %}
 
 <div id="step-{{ step.uuid }}"
     class="rounded-xl border {% if is_completed %}border-green-200 bg-green-50/40 dark:border-green-800/50 dark:bg-green-900/10{% else %}border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800/50{% endif %} shadow-sm transition-colors"
@@ -50,14 +55,14 @@ Required context:
             </span>
         </div>
 
-        {% if step.description or step.code or step.options %}
+        {% if has_body %}
         <svg class="h-5 w-5 text-gray-400 dark:text-gray-500 flex-shrink-0 transition-transform duration-200" :class="expanded ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
             <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
         </svg>
         {% endif %}
     </div>
 
-    {% if step.description or step.code or step.options or step.checklist or step.tips or step.done_when %}
+    {% if has_body %}
     <div x-show="expanded" x-collapse>
         <div class="px-4 pb-4 pl-[4.5rem]">
 
@@ -65,7 +70,7 @@ Required context:
             <div class="text-sm text-gray-600 dark:text-gray-400 prose prose-sm dark:prose-invert max-w-none"
                 x-data="proseCopyButtons"
             >
-                {{ step.description_html | safe }}
+                {{ step.description | md | safe }}
             </div>
             {% endif %}
 
@@ -80,20 +85,20 @@ Required context:
             {% endif %}
 
             {% if step.options %}
-            {{ provider_tabs(step.options) }}
+            {{ provider_tabs(step.sorted_options) }}
             {% endif %}
 
             {% if step.tips %}
             <div class="mt-4 space-y-2">
                 {% for tip in step.tips %}
-                {{ tip_callout(tip.type, tip.html) }}
+                {{ tip_callout(tip.type, tip.text | md) }}
                 {% endfor %}
             </div>
             {% endif %}
 
             {% if step.done_when %}
             <div class="mt-4">
-                {{ done_when(step.done_when) }}
+                {{ done_when(step.done_when | md) }}
             </div>
             {% endif %}
 
