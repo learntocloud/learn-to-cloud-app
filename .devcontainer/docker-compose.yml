@@ -5,6 +5,7 @@ services:
       dockerfile: Dockerfile
     volumes:
       - ..:/workspaces/learn-to-cloud-app:cached
+      - copilot_home:/home/vscode/.copilot
     command: sleep infinity
     depends_on:
       db:
@@ -75,3 +76,4 @@ services:
 volumes:
   postgres_data:
   azurite_data:
+  copilot_home:

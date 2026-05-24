@@ -46,16 +46,17 @@ authenticated user's GitHub username — just click Submit. For token/URL types,
 the user must supply the value when invoking the agent.
 
 You use the **Playwright MCP server** for all browser automation. The MCP server
-is configured in `.vscode/mcp.json` and provides tools prefixed with
-`mcp_playwright_browser_*`.
+is configured in `.mcp.json` (Copilot CLI) and `.vscode/mcp.json` (VS Code) and
+provides tools prefixed with `mcp_playwright_browser_*`.
 
 ## Environment
 
 This runs in a **Linux devcontainer** with:
 - PostgreSQL at `db:5432` (docker-compose service, configured in `api/.env`)
 - Python workspace venv at `.venv` managed by `uv`
-- Playwright MCP server runs via Docker image (`mcr.microsoft.com/playwright/mcp`)
-  configured in `.vscode/mcp.json` — no npm/Playwright install needed in the container
+- Playwright MCP server (`@playwright/mcp`) is installed globally via npm in
+  `.devcontainer/on-create.sh` and registered in `.mcp.json` / `.vscode/mcp.json`.
+  Chromium and its OS libraries are installed via `playwright install --with-deps`.
 
 All terminal commands use **bash** via `run_in_terminal`. Never use PowerShell.
 
