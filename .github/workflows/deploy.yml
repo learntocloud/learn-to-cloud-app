@@ -154,6 +154,8 @@ jobs:
       DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/learntocloud
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
@@ -216,6 +218,10 @@ jobs:
       - name: Lint migration filenames and docstrings
         working-directory: api
         run: uv run python scripts/check_migration_naming.py
+
+      - name: Lint new migration SQL with squawk
+        working-directory: api
+        run: uv run python scripts/lint_migration_sql.py
 
       - name: Apply migrations to CI database
         working-directory: api
