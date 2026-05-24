@@ -129,7 +129,7 @@ async def phase_page(
     if hands_on:
         requirements = hands_on.requirements
 
-    sub_context = await get_phase_submission_context(db, user_id, phase_id)
+    sub_context = await get_phase_submission_context(db, user_id, phase)
     submissions_by_req = sub_context.submissions_by_req
     feedback_by_req = sub_context.feedback_by_req
     active_jobs = await VerificationJobRepository(db).get_active_for_phase(

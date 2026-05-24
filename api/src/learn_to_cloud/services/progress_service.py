@@ -12,6 +12,7 @@ Data sources:
 """
 
 import logging
+from uuid import UUID
 
 from learn_to_cloud_shared.content_service import get_all_phases
 from learn_to_cloud_shared.repositories.progress_repository import (
@@ -97,7 +98,7 @@ async def fetch_user_progress(
     req_index = RequirementIndex.from_phases(phases)
 
     sub_repo = SubmissionRepository(db)
-    validated_req_ids = await sub_repo.get_validated_requirement_ids(user_id)
+    validated_req_uuids = await sub_repo.get_validated_requirement_uuids(user_id)
 
     step_repo = StepProgressRepository(db)
     all_step_uuids = [
@@ -120,11 +121,9 @@ async def fetch_user_progress(
 
     phase_progress_map: dict[int, PhaseProgress] = {}
     for phase_id, requirements in phase_requirements.items():
-        current_req_ids = {
-            req_id for req_id in req_index.requirement_ids_for_phase(phase_id)
-        }
-        hands_on_validated = len(validated_req_ids & current_req_ids)
-        hands_on_required = len(current_req_ids)
+        current_req_uuids = set(req_index.requirement_uuids_for_phase(phase_id))
+        hands_on_validated = len(validated_req_uuids & current_req_uuids)
+        hands_on_required = len(current_req_uuids)
 
         phase_progress_map[phase_id] = _compute_phase_progress(
             phase_id=phase_id,
@@ -206,16 +205,16 @@ async def fetch_phase_progress(
         total_completed += tp.steps_completed
         total_steps += tp.steps_total
 
-    current_req_ids: set[str] = set()
+    current_req_uuids: set[UUID] = set()
     if phase.hands_on_verification:
-        current_req_ids = {r.id for r in phase.hands_on_verification.requirements}
-    hands_on_required = len(current_req_ids)
+        current_req_uuids = {r.uuid for r in phase.hands_on_verification.requirements}
+    hands_on_required = len(current_req_uuids)
 
     hands_on_validated = 0
     if hands_on_required > 0:
         sub_repo = SubmissionRepository(db)
         hands_on_validated = await sub_repo.count_validated_for_requirements(
-            user_id, current_req_ids
+            user_id, current_req_uuids
         )
 
     return _compute_phase_progress(

@@ -11,6 +11,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
+from uuid import UUID
 
 from learn_to_cloud_shared.content_service import get_all_phases
 from learn_to_cloud_shared.repositories.submission_repository import (
@@ -58,6 +59,9 @@ class RequirementIndex:
 
     def requirement_ids_for_phase(self, phase_id: int) -> list[str]:
         return [req.id for req in self.requirements_for_phase(phase_id)]
+
+    def requirement_uuids_for_phase(self, phase_id: int) -> list[UUID]:
+        return [req.uuid for req in self.requirements_for_phase(phase_id)]
 
 
 async def load_requirement_index(db: AsyncSession) -> RequirementIndex:
@@ -128,12 +132,14 @@ async def is_phase_verification_locked(
     if prereq is None:
         return False, None
 
-    prereq_req_ids = await get_requirement_ids_for_phase(db, prereq)
-    if not prereq_req_ids:
+    prereq_req_uuids = (await load_requirement_index(db)).requirement_uuids_for_phase(
+        prereq
+    )
+    if not prereq_req_uuids:
         return False, None
 
     repo = SubmissionRepository(db)
-    all_done = await repo.are_all_requirements_validated(user_id, prereq_req_ids)
+    all_done = await repo.are_all_requirements_validated(user_id, prereq_req_uuids)
     if all_done:
         return False, None
 

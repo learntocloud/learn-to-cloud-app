@@ -123,17 +123,16 @@ class SubmissionType(StrEnum):
 class Submission(TimestampMixin, Base):
     """Tracks validated submissions for hands-on verification.
 
-    Supports multiple submission types: GitHub URLs, deployed apps, CTF tokens, etc.
+    References curriculum via ``requirement_uuid`` (FK to
+    ``requirements.uuid``). Phase D.2 of #461 / #465 dropped the legacy
+    denormalized ``requirement_id`` / ``submission_type`` / ``phase_id``
+    columns and the ``attempt_number`` counter (per #460) -- callers
+    derive those values from the joined ``Requirement`` row when
+    needed.
     """
 
     __tablename__ = "submissions"
     __table_args__ = (
-        UniqueConstraint(
-            "user_id",
-            "requirement_id",
-            "attempt_number",
-            name="uq_user_requirement_attempt",
-        ),
         Index(
             "ix_submissions_user_verified_updated",
             "user_id",
@@ -141,15 +140,9 @@ class Submission(TimestampMixin, Base):
             "updated_at",
         ),
         Index(
-            "ix_submissions_user_phase_req",
+            "ix_submissions_user_req_uuid_latest",
             "user_id",
-            "phase_id",
-            "requirement_id",
-        ),
-        Index(
-            "ix_submissions_user_req_latest",
-            "user_id",
-            "requirement_id",
+            "requirement_uuid",
             text("created_at DESC"),
         ),
     )
@@ -160,23 +153,15 @@ class Submission(TimestampMixin, Base):
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
     )
-    requirement_id: Mapped[str] = mapped_column(
-        String(100),
-        nullable=False,
-    )
-    attempt_number: Mapped[int] = mapped_column(
-        Integer, nullable=False, server_default=text("1"), default=1
-    )
-    submission_type: Mapped[SubmissionType] = mapped_column(
-        Enum(
-            SubmissionType,
-            name="submission_type",
-            native_enum=False,
-            values_callable=lambda x: [e.value for e in x],
+    requirement_uuid: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey(
+            "requirements.uuid",
+            ondelete="RESTRICT",
+            name="fk_submissions_requirement_uuid",
         ),
         nullable=False,
     )
-    phase_id: Mapped[int] = mapped_column(Integer, nullable=False)
     submitted_value: Mapped[str] = mapped_column(
         Text,
         nullable=False,

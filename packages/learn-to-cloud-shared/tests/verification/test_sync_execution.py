@@ -15,7 +15,13 @@ import pytest
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
-from learn_to_cloud_shared.models import Submission, SubmissionType
+from learn_to_cloud_shared.content_sync import sync_curriculum_to_db
+from learn_to_cloud_shared.content_yaml_loader import clear_cache
+from learn_to_cloud_shared.models import (
+    CurriculumRequirement,
+    Submission,
+    SubmissionType,
+)
 from learn_to_cloud_shared.repositories.user_repository import UserRepository
 from learn_to_cloud_shared.schemas import HandsOnRequirement, ValidationResult
 from learn_to_cloud_shared.verification.execution import (
@@ -40,17 +46,39 @@ def session_maker(test_engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
     )
 
 
-def _requirement(
+async def _make_requirement_in_db(
+    session_maker: async_sessionmaker[AsyncSession],
     submission_type: SubmissionType = SubmissionType.GITHUB_PROFILE,
 ) -> HandsOnRequirement:
-    from learn_to_cloud_shared.testing.requirement_factories import make_requirement
+    """Sync the real curriculum and return a HandsOnRequirement whose
+    UUID is present in the ``requirements`` table.
+
+    Phase D.2 added an FK on ``submissions.requirement_uuid``; tests
+    that persist Submission rows need the referenced requirement to
+    exist.
+    """
+    from learn_to_cloud_shared.testing.requirement_factories import (
+        make_requirement,
+    )
+
+    clear_cache()
+    async with session_maker() as db:
+        await sync_curriculum_to_db(db)
+        await db.commit()
+        row_uuid = (
+            await db.execute(
+                select(CurriculumRequirement.uuid)
+                .order_by(CurriculumRequirement.id)
+                .limit(1)
+            )
+        ).scalar_one()
 
     return make_requirement(
         submission_type,
         id=REQUIREMENT_ID,
         name="Sync Execution Test",
         description="Test requirement",
-    )
+    ).model_copy(update={"uuid": row_uuid})
 
 
 async def _seed_user(session_maker: async_sessionmaker[AsyncSession]) -> None:
@@ -74,6 +102,7 @@ async def test_sync_validation_persists_submission(
 ) -> None:
     """Happy path: validator returns success, ``Submission`` row is written."""
     await _seed_user(session_maker)
+    requirement = await _make_requirement_in_db(session_maker)
 
     with patch(
         "learn_to_cloud_shared.verification.execution.validate_submission",
@@ -88,7 +117,7 @@ async def test_sync_validation_persists_submission(
         result = await execute_sync_submission_validation(
             session_maker=session_maker,
             user_id=USER_ID,
-            requirement=_requirement(),
+            requirement=requirement,
             phase_id=PHASE_ID,
             submitted_value="https://github.com/syncuser",
             github_username="syncuser",
@@ -104,6 +133,7 @@ async def test_sync_validation_persists_failure(
 ) -> None:
     """User-correctable failure path: row is written with is_validated=False."""
     await _seed_user(session_maker)
+    requirement = await _make_requirement_in_db(session_maker)
 
     with patch(
         "learn_to_cloud_shared.verification.execution.validate_submission",
@@ -118,7 +148,7 @@ async def test_sync_validation_persists_failure(
         result = await execute_sync_submission_validation(
             session_maker=session_maker,
             user_id=USER_ID,
-            requirement=_requirement(),
+            requirement=requirement,
             phase_id=PHASE_ID,
             submitted_value="https://github.com/wronguser",
             github_username="syncuser",
@@ -139,6 +169,7 @@ async def test_sync_validation_rolls_back_on_validator_exception(
     rolls back the whole thing and the advisory lock is released.
     """
     await _seed_user(session_maker)
+    requirement = await _make_requirement_in_db(session_maker)
 
     with patch(
         "learn_to_cloud_shared.verification.execution.validate_submission",
@@ -148,7 +179,7 @@ async def test_sync_validation_rolls_back_on_validator_exception(
             await execute_sync_submission_validation(
                 session_maker=session_maker,
                 user_id=USER_ID,
-                requirement=_requirement(),
+                requirement=requirement,
                 phase_id=PHASE_ID,
                 submitted_value="https://github.com/syncuser",
                 github_username="syncuser",
@@ -170,7 +201,7 @@ async def test_sync_validation_rolls_back_on_validator_exception(
         await execute_sync_submission_validation(
             session_maker=session_maker,
             user_id=USER_ID,
-            requirement=_requirement(),
+            requirement=requirement,
             phase_id=PHASE_ID,
             submitted_value="https://github.com/syncuser",
             github_username="syncuser",
@@ -189,6 +220,7 @@ async def test_concurrent_submits_for_same_requirement_dedupe(
     long enough for the second request to race past the lock check.
     """
     await _seed_user(session_maker)
+    requirement = await _make_requirement_in_db(session_maker)
 
     started = asyncio.Event()
     release = asyncio.Event()
@@ -210,7 +242,7 @@ async def test_concurrent_submits_for_same_requirement_dedupe(
             execute_sync_submission_validation(
                 session_maker=session_maker,
                 user_id=USER_ID,
-                requirement=_requirement(),
+                requirement=requirement,
                 phase_id=PHASE_ID,
                 submitted_value="https://github.com/syncuser",
                 github_username="syncuser",
@@ -226,7 +258,7 @@ async def test_concurrent_submits_for_same_requirement_dedupe(
             await execute_sync_submission_validation(
                 session_maker=session_maker,
                 user_id=USER_ID,
-                requirement=_requirement(),
+                requirement=requirement,
                 phase_id=PHASE_ID,
                 submitted_value="https://github.com/syncuser",
                 github_username="syncuser",
@@ -247,6 +279,7 @@ async def test_advisory_lock_keyed_per_requirement(
     submit for a *different* requirement must NOT be blocked."""
     other_requirement_id = f"{REQUIREMENT_ID}-other"
     await _seed_user(session_maker)
+    requirement = await _make_requirement_in_db(session_maker)
 
     started = asyncio.Event()
     release = asyncio.Event()
@@ -276,7 +309,7 @@ async def test_advisory_lock_keyed_per_requirement(
             execute_sync_submission_validation(
                 session_maker=session_maker,
                 user_id=USER_ID,
-                requirement=_requirement(),
+                requirement=requirement,
                 phase_id=PHASE_ID,
                 submitted_value="https://github.com/syncuser",
                 github_username="syncuser",
@@ -284,15 +317,19 @@ async def test_advisory_lock_keyed_per_requirement(
         )
         await asyncio.wait_for(started.wait(), timeout=5.0)
 
-        # Different requirement → different lock key → must proceed immediately.
-        from learn_to_cloud_shared.testing.requirement_factories import (
-            github_profile_requirement,
-        )
-
-        other_requirement = github_profile_requirement(
-            id=other_requirement_id,
-            name="Other",
-            description="Other",
+        # Different requirement -> different lock key -> must proceed immediately.
+        # Grab a second curriculum requirement so the FK is satisfied.
+        async with session_maker() as db:
+            other_uuid = (
+                await db.execute(
+                    select(CurriculumRequirement.uuid)
+                    .where(CurriculumRequirement.uuid != requirement.uuid)
+                    .order_by(CurriculumRequirement.id)
+                    .limit(1)
+                )
+            ).scalar_one()
+        other_requirement = requirement.model_copy(
+            update={"id": other_requirement_id, "uuid": other_uuid}
         )
         with patch(
             "learn_to_cloud_shared.verification.execution.validate_submission",
@@ -322,6 +359,7 @@ async def test_advisory_lock_uses_pg_try_advisory_xact_lock(
     after the function returns. Catches regressions where someone swaps
     in pg_advisory_lock (session-level) by mistake."""
     await _seed_user(session_maker)
+    requirement = await _make_requirement_in_db(session_maker)
 
     with patch(
         "learn_to_cloud_shared.verification.execution.validate_submission",
@@ -336,7 +374,7 @@ async def test_advisory_lock_uses_pg_try_advisory_xact_lock(
         await execute_sync_submission_validation(
             session_maker=session_maker,
             user_id=USER_ID,
-            requirement=_requirement(),
+            requirement=requirement,
             phase_id=PHASE_ID,
             submitted_value="https://github.com/syncuser",
             github_username="syncuser",

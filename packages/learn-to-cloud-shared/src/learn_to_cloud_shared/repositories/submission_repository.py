@@ -1,9 +1,18 @@
-"""Submission repository for hands-on validation database operations."""
+"""Submission repository for hands-on validation database operations.
+
+After Phase D.2 of #461 / #465 the table references the curriculum via
+``requirement_uuid`` (FK to ``requirements.uuid``). All public methods
+speak UUIDs; callers translate to/from the human-readable requirement
+ids at the boundary (templates and DTOs).
+"""
+
+from collections.abc import Iterable
+from uuid import UUID
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from learn_to_cloud_shared.models import Submission, SubmissionType, utcnow
+from learn_to_cloud_shared.models import Submission, utcnow
 
 
 class SubmissionRepository:
@@ -12,20 +21,29 @@ class SubmissionRepository:
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
 
-    async def get_by_user_and_phase(
-        self, user_id: int, phase_id: int
+    async def get_latest_for_requirements(
+        self, user_id: int, requirement_uuids: Iterable[UUID]
     ) -> list[Submission]:
-        """Get the latest submission per requirement for a user in a phase."""
+        """Get the latest submission per requirement_uuid for a user.
+
+        Replaces the previous ``get_by_user_and_phase`` -- callers now
+        pass an explicit list of requirement UUIDs (derived from a
+        phase's hands-on requirements) instead of an int ``phase_id``.
+        """
+        uuids = list(requirement_uuids)
+        if not uuids:
+            return []
+
         latest_sq = (
             select(
-                Submission.requirement_id,
+                Submission.requirement_uuid,
                 func.max(Submission.id).label("max_id"),
             )
             .where(
                 Submission.user_id == user_id,
-                Submission.phase_id == phase_id,
+                Submission.requirement_uuid.in_(uuids),
             )
-            .group_by(Submission.requirement_id)
+            .group_by(Submission.requirement_uuid)
             .subquery()
         )
         result = await self.db.execute(
@@ -37,14 +55,14 @@ class SubmissionRepository:
         return list(result.scalars().all())
 
     async def get_by_user_and_requirement(
-        self, user_id: int, requirement_id: str
+        self, user_id: int, requirement_uuid: UUID
     ) -> Submission | None:
         """Get the latest submission for a user and requirement."""
         result = await self.db.execute(
             select(Submission)
             .where(
                 Submission.user_id == user_id,
-                Submission.requirement_id == requirement_id,
+                Submission.requirement_uuid == requirement_uuid,
             )
             .order_by(Submission.id.desc())
             .limit(1)
@@ -61,9 +79,7 @@ class SubmissionRepository:
     async def create(
         self,
         user_id: int,
-        requirement_id: str,
-        submission_type: SubmissionType,
-        phase_id: int,
+        requirement_uuid: UUID,
         submitted_value: str,
         extracted_username: str | None,
         is_validated: bool,
@@ -72,10 +88,7 @@ class SubmissionRepository:
         validation_message: str | None = None,
         cloud_provider: str | None = None,
     ) -> Submission:
-        """Create a new submission attempt.
-
-        Automatically determines the next attempt number for the
-        user+requirement pair.
+        """Create a new submission row.
 
         Args:
             verification_completed: Whether the verification logic actually ran.
@@ -86,21 +99,9 @@ class SubmissionRepository:
                 multi-cloud labs. None for non-multi-cloud submissions.
         """
         now = utcnow()
-
-        result = await self.db.execute(
-            select(func.coalesce(func.max(Submission.attempt_number), 0)).where(
-                Submission.user_id == user_id,
-                Submission.requirement_id == requirement_id,
-            )
-        )
-        max_attempt = result.scalar_one()
-
         submission = Submission(
             user_id=user_id,
-            requirement_id=requirement_id,
-            attempt_number=max_attempt + 1,
-            submission_type=submission_type,
-            phase_id=phase_id,
+            requirement_uuid=requirement_uuid,
             submitted_value=submitted_value,
             extracted_username=extracted_username,
             is_validated=is_validated,
@@ -115,34 +116,35 @@ class SubmissionRepository:
         return submission
 
     async def are_all_requirements_validated(
-        self, user_id: int, requirement_ids: list[str]
+        self, user_id: int, requirement_uuids: Iterable[UUID]
     ) -> bool:
         """Check if the user has validated ALL of the given requirements.
 
-        Used for sequential phase gating — ensures prior phase verification
+        Used for sequential phase gating -- ensures prior phase verification
         is fully complete before allowing the next phase's submissions.
         """
-        if not requirement_ids:
+        uuids = list(requirement_uuids)
+        if not uuids:
             return True
 
         result = await self.db.execute(
-            select(func.count(func.distinct(Submission.requirement_id))).where(
+            select(func.count(func.distinct(Submission.requirement_uuid))).where(
                 Submission.user_id == user_id,
-                Submission.requirement_id.in_(requirement_ids),
+                Submission.requirement_uuid.in_(uuids),
                 Submission.is_validated.is_(True),
             )
         )
         validated_count = result.scalar_one() or 0
-        return validated_count >= len(requirement_ids)
+        return validated_count >= len(uuids)
 
-    async def get_validated_requirement_ids(self, user_id: int) -> set[str]:
-        """Get all distinct requirement IDs with at least one validated submission.
+    async def get_validated_requirement_uuids(self, user_id: int) -> set[UUID]:
+        """Get all requirement UUIDs with at least one validated submission.
 
         Used by progress computation to count hands-on completions
         directly from the source of truth (submissions table).
         """
         result = await self.db.execute(
-            select(func.distinct(Submission.requirement_id)).where(
+            select(func.distinct(Submission.requirement_uuid)).where(
                 Submission.user_id == user_id,
                 Submission.is_validated.is_(True),
             )
@@ -150,19 +152,20 @@ class SubmissionRepository:
         return set(result.scalars().all())
 
     async def count_validated_for_requirements(
-        self, user_id: int, requirement_ids: set[str]
+        self, user_id: int, requirement_uuids: Iterable[UUID]
     ) -> int:
-        """Count how many of the given requirement IDs have been validated.
+        """Count how many of the given requirement UUIDs have been validated.
 
-        Filters against a specific set of requirement IDs (from current content)
-        to prevent stale/removed requirements from inflating counts.
+        Filters against a specific set of UUIDs (from current content)
+        so removed requirements never inflate counts.
         """
-        if not requirement_ids:
+        uuids = list(requirement_uuids)
+        if not uuids:
             return 0
         result = await self.db.execute(
-            select(func.count(func.distinct(Submission.requirement_id))).where(
+            select(func.count(func.distinct(Submission.requirement_uuid))).where(
                 Submission.user_id == user_id,
-                Submission.requirement_id.in_(requirement_ids),
+                Submission.requirement_uuid.in_(uuids),
                 Submission.is_validated.is_(True),
             )
         )

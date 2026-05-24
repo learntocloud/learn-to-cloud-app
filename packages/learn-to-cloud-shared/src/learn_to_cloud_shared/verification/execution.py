@@ -50,12 +50,26 @@ def persisted_validation_message(message: str | None) -> str | None:
     return f"{message[: MAX_VALIDATION_MESSAGE_LENGTH - 3]}..."
 
 
-def to_submission_data(submission: Submission) -> SubmissionData:
+def to_submission_data(
+    submission: Submission,
+    *,
+    requirement_id: str,
+    submission_type: SubmissionType,
+    phase_id: int,
+) -> SubmissionData:
+    """Project a ``Submission`` row into the ``SubmissionData`` response model.
+
+    After Phase D.2 (#465 / #460) the row no longer carries
+    ``requirement_id`` / ``submission_type`` / ``phase_id``. The caller
+    resolves them from the in-memory ``HandsOnRequirement`` + phase
+    context and passes them in -- ``SubmissionData`` keeps the flat
+    shape so templates and clients don't have to walk a relationship.
+    """
     return SubmissionData(
         id=submission.id,
-        requirement_id=submission.requirement_id,
-        submission_type=submission.submission_type,
-        phase_id=submission.phase_id,
+        requirement_id=requirement_id,
+        submission_type=submission_type,
+        phase_id=phase_id,
         submitted_value=submission.submitted_value,
         extracted_username=submission.extracted_username,
         is_validated=submission.is_validated,
@@ -104,9 +118,7 @@ async def persist_validation_result(
     submission_repo = SubmissionRepository(db)
     return await submission_repo.create(
         user_id=user_id,
-        requirement_id=requirement.id,
-        submission_type=requirement.submission_type,
-        phase_id=phase_id,
+        requirement_uuid=requirement.uuid,
         submitted_value=submitted_value,
         extracted_username=_extract_username(
             requirement,
@@ -128,9 +140,16 @@ async def persist_validation_result(
 def build_submission_result(
     submission: Submission,
     validation_result: ValidationResult,
+    requirement: HandsOnRequirement,
+    phase_id: int,
 ) -> SubmissionResult:
     return SubmissionResult(
-        submission=to_submission_data(submission),
+        submission=to_submission_data(
+            submission,
+            requirement_id=requirement.id,
+            submission_type=requirement.submission_type,
+            phase_id=phase_id,
+        ),
         is_valid=validation_result.is_valid,
         message=validation_result.message,
         username_match=validation_result.username_match,
@@ -201,7 +220,12 @@ async def execute_submission_validation(
             },
         )
 
-        return build_submission_result(db_submission, validation_result)
+        return build_submission_result(
+            db_submission,
+            validation_result,
+            requirement=requirement,
+            phase_id=phase_id,
+        )
 
 
 def _advisory_lock_key(user_id: int, requirement_id: str) -> str:
@@ -301,4 +325,9 @@ async def execute_sync_submission_validation(
             },
         )
 
-        return build_submission_result(db_submission, validation_result)
+        return build_submission_result(
+            db_submission,
+            validation_result,
+            requirement=requirement,
+            phase_id=phase_id,
+        )
