@@ -273,9 +273,13 @@ async def run_devops_workflow(owner: str, repo: str) -> ValidationResult:
                         "Make sure the repository is public."
                     ),
                 )
-            if isinstance(e, httpx.HTTPStatusError) and e.response.status_code < 500:
-                pass
-            else:
+            # HTTP 4xx errors are expected user-facing outcomes (e.g. private
+            # repo → 403). They are already recorded via span.add_event inside
+            # github_error_to_validation_result and must not go into the
+            # Application Insights exceptions table, which drives the Sev1 alert.
+            # Network errors and GitHubServerError (5xx after retries) are genuine
+            # system failures and belong in the exceptions table.
+            if not isinstance(e, httpx.HTTPStatusError):
                 span.record_exception(e)
             return github_error_to_validation_result(
                 e,
