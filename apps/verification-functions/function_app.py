@@ -711,20 +711,24 @@ async def start_verification_job(
             return _json_response({"error": "payload_job_id_mismatch"}, status_code=400)
 
         job_id = str(job_uuid)
-        async with _get_session_maker()() as session:
-            job = await VerificationJobRepository(session).get_by_id(job_uuid)
-            if job is None:
-                return _json_response({"error": "job_not_found"}, status_code=404)
+        try:
+            async with _get_session_maker()() as session:
+                job = await VerificationJobRepository(session).get_by_id(job_uuid)
+                if job is None:
+                    return _json_response({"error": "job_not_found"}, status_code=404)
 
-            if (
-                job.user_id != prepared.user_id
-                or job.requirement_uuid != prepared.requirement.uuid
-                or submission_value_from_columns(job) != prepared.typed_submitted_value
-            ):
-                return _json_response(
-                    {"error": "payload_does_not_match_job"},
-                    status_code=400,
-                )
+                if (
+                    job.user_id != prepared.user_id
+                    or job.requirement_uuid != prepared.requirement.uuid
+                    or submission_value_from_columns(job) != prepared.typed_submitted_value
+                ):
+                    return _json_response(
+                        {"error": "payload_does_not_match_job"},
+                        status_code=400,
+                    )
+        except Exception:
+            logger.exception("start_verification_job.db_error", extra={"job_id": job_id})
+            return _json_response({"error": "server_error"}, status_code=500)
 
         submission_type_str = prepared.requirement.submission_type.value
         orchestrator_name = _orchestrator_name_for_submission_type(submission_type_str)

@@ -88,7 +88,8 @@ async def verify_ci_status(
                         "and that GitHub Actions is enabled on your fork."
                     ),
                 )
-            span.record_exception(e)
+            if not isinstance(e, httpx.HTTPStatusError):
+                span.record_exception(e)
             return github_error_to_validation_result(
                 e,
                 event="ci_status.api_error",
