@@ -11,6 +11,16 @@ fi
 
 missing=0
 
+emit_error() {
+  local message="$1"
+  if [[ "${GITHUB_ACTIONS:-}" == "true" ]]; then
+    echo "::error::$message"
+    return
+  fi
+
+  echo "ERROR: $message" >&2
+}
+
 check_image() {
   local repository="$1"
   local tag="$2"
@@ -25,7 +35,7 @@ check_image() {
     return
   fi
 
-  echo "::error::Missing required bootstrap image: $image_ref"
+  emit_error "Missing required bootstrap image: $image_ref"
   missing=1
 }
 
