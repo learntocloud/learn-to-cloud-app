@@ -47,7 +47,9 @@ async def login(request: Request) -> RedirectResponse:
     redirect_uri = str(request.url_for("auth_callback"))
     # Azure Container Apps terminates TLS at the load balancer; ensure
     # the redirect URI uses https so it matches the GitHub OAuth config.
-    if get_web_settings().require_https and redirect_uri.startswith("http://"):
+    if get_web_settings().web_security.require_https and redirect_uri.startswith(
+        "http://"
+    ):
         redirect_uri = redirect_uri.replace("http://", "https://", 1)
     return await github.authorize_redirect(request, redirect_uri)
 

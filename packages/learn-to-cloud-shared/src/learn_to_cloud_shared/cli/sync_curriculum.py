@@ -1,10 +1,6 @@
 """Run the curriculum YAML -> DB sync (issue #463 / Phase B).
 
-Importable CLI entry point for the deploy-time curriculum sync. Must
-run in a separate Python process from the Alembic migration runner so
-the settings singleton starts fresh as WorkerSettings (Alembic uses
-DatabaseSettings; sharing the same process can lock the singleton to
-the wrong profile).
+Importable CLI entry point for the deploy-time curriculum sync.
 
 Usage (anywhere the ``learn-to-cloud-shared`` wheel is installed and
 ``CONTENT_DIR`` points at ``content/phases``)::
@@ -32,21 +28,12 @@ import os
 import sys
 from dataclasses import asdict
 
-# Register the minimal settings profile before importing anything that
-# touches the shared settings tree. WebSettings (the package default)
-# would demand GitHub OAuth secrets in production; not needed here.
-from learn_to_cloud_shared.core.config import (
-    WorkerSettings,
-    configure_settings,
-)
-
-configure_settings(WorkerSettings)
-
-from learn_to_cloud_shared.content_sync import (  # noqa: E402
+from learn_to_cloud_shared.content_sync import (
     ContentSyncError,
     sync_curriculum_to_db,
 )
-from learn_to_cloud_shared.core.database import (  # noqa: E402
+from learn_to_cloud_shared.core.config import get_worker_settings
+from learn_to_cloud_shared.core.database import (
     create_engine,
     create_session_maker,
     dispose_engine,
@@ -56,7 +43,8 @@ logger = logging.getLogger(__name__)
 
 
 async def _run() -> int:
-    engine = create_engine()
+    settings = get_worker_settings()
+    engine = create_engine(settings.database)
     session_maker = create_session_maker(engine)
     try:
         async with session_maker() as session:

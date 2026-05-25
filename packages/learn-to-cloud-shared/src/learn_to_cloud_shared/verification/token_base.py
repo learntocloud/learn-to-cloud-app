@@ -22,7 +22,7 @@ from learn_to_cloud_shared.schemas import ValidationResult
 
 def _derive_secret(instance_id: str) -> str:
     """Derive an instance-specific secret via SHA-256."""
-    master_secret = get_worker_settings().labs_verification_secret
+    master_secret = get_worker_settings().labs.verification_secret
     if not master_secret:
         raise RuntimeError("Labs verification secret is not configured")
     data = f"{master_secret}:{instance_id}"

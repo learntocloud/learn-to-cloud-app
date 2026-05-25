@@ -26,7 +26,17 @@ from collections.abc import AsyncGenerator
 import pytest
 import pytest_asyncio
 from fastapi import FastAPI
-from learn_to_cloud_shared.core.config import Environment, WebSettings
+from learn_to_cloud_shared.core.config import (
+    CorsConfig,
+    DatabaseConfig,
+    Environment,
+    GitHubConfig,
+    LabsConfig,
+    OAuthConfig,
+    SessionConfig,
+    WebSecurityConfig,
+    WebSettings,
+)
 from learn_to_cloud_shared.core.database import Base
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import (
@@ -71,15 +81,17 @@ def test_settings() -> WebSettings:
     Uses the same PostgreSQL instance from docker-compose but a separate database.
     """
     return WebSettings(
-        database_url=TEST_DATABASE_URL,
+        database=DatabaseConfig(url=TEST_DATABASE_URL),
         environment=Environment.DEVELOPMENT,
-        require_https=False,
-        github_client_id="test_github_client_id",
-        github_client_secret="test_github_client_secret",
-        session_secret_key="test_session_secret_key_for_testing",
-        github_token="test_github_token",
-        labs_verification_secret="test_ctf_secret_must_be_32_chars!",
-        cors_allowed_origins="",
+        web_security=WebSecurityConfig(require_https=False),
+        oauth=OAuthConfig(
+            client_id="test_github_client_id",
+            client_secret="test_github_client_secret",
+        ),
+        session=SessionConfig(secret_key="test_session_secret_key_for_testing"),
+        github=GitHubConfig(token="test_github_token"),
+        labs=LabsConfig(verification_secret="test_ctf_secret_must_be_32_chars!"),
+        cors=CorsConfig(allowed_origins=""),
     )
 
 

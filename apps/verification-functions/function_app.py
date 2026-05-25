@@ -13,7 +13,7 @@ from uuid import UUID
 
 import azure.durable_functions as df
 import azure.functions as func
-from learn_to_cloud_shared.core.config import WorkerSettings, configure_settings
+from learn_to_cloud_shared.core.config import get_worker_settings
 from learn_to_cloud_shared.core.database import create_engine, create_session_maker
 from learn_to_cloud_shared.core.logger import APP_LOGGER_NAMESPACE, configure_logging
 from learn_to_cloud_shared.core.observability import configure_observability
@@ -50,11 +50,6 @@ from opentelemetry import trace as otel_trace
 from opentelemetry.propagate import extract
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from verification_agents import grade_evidence
-
-# Worker-only profile: no OAuth/session/CORS concerns. Must run before the
-# first ``get_*_settings()`` call (none happen at import time in shared
-# modules), so any module-level placement after the imports is safe.
-configure_settings(WorkerSettings)
 
 
 def _telemetry_destination_configured() -> bool:
@@ -122,7 +117,7 @@ _session_maker: async_sessionmaker[AsyncSession] | None = None
 def _get_session_maker() -> async_sessionmaker[AsyncSession]:
     global _engine, _session_maker
     if _session_maker is None:
-        _engine = create_engine()
+        _engine = create_engine(get_worker_settings().database)
         _session_maker = create_session_maker(_engine)
     return _session_maker
 

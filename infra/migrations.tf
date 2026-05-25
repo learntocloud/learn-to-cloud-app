@@ -32,17 +32,17 @@ resource "azurerm_container_app_job" "migrations" {
       memory  = "1Gi"
 
       env {
-        name  = "POSTGRES_HOST"
+        name  = "DATABASE__HOST"
         value = azurerm_postgresql_flexible_server.main.fqdn
       }
 
       env {
-        name  = "POSTGRES_USER"
+        name  = "DATABASE__USER"
         value = local.migration_postgres_role
       }
 
       env {
-        name  = "POSTGRES_DATABASE"
+        name  = "DATABASE__NAME"
         value = azurerm_postgresql_flexible_server_database.main.name
       }
 
@@ -57,7 +57,7 @@ resource "azurerm_container_app_job" "migrations" {
       }
 
       env {
-        name  = "CONTENT_DIR"
+        name  = "CONTENT__DIR"
         value = "/app/content/phases"
       }
     }

@@ -65,8 +65,8 @@ def get_github_headers() -> dict[str, str]:
     """Get headers for GitHub API requests, including auth token if available."""
     headers = {"Accept": "application/vnd.github.v3+json"}
     settings = get_worker_settings()
-    if settings.github_token:
-        headers["Authorization"] = f"Bearer {settings.github_token}"
+    if settings.github.token:
+        headers["Authorization"] = f"Bearer {settings.github.token}"
     return headers
 
 

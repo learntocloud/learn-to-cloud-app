@@ -14,9 +14,7 @@ Runs the full deploy-gate sequence:
 4. ``python -m learn_to_cloud_shared.cli.sync_curriculum`` — populate
    curriculum DB tables from the migration image's copied YAML directory
    (issue #463 / Phase B).
-   Runs as a subprocess so its settings singleton starts fresh as
-   ``WorkerSettings``; sharing the Alembic process would lock it to
-   ``DatabaseSettings``.
+   Runs as a subprocess so migration and sync concerns stay isolated.
 
 Steps 1-3 share the same ``Config`` instance and run in the same Python
 process, so the ``DefaultAzureCredential`` token cache is hit for the
@@ -45,11 +43,8 @@ logger = logging.getLogger(__name__)
 def _run_curriculum_sync() -> None:
     """Run the curriculum YAML -> DB sync as a separate subprocess.
 
-    Settings-singleton isolation: this entry point's process has already
-    instantiated ``DatabaseSettings`` via Alembic. The sync needs
-    ``WorkerSettings`` (for ``content_dir_path``), so it must run in a
-    fresh interpreter where ``configure_settings(WorkerSettings)`` can
-    fire before any other code touches the settings tree.
+    The sync has separate runtime concerns from Alembic, so keep it in a
+    fresh interpreter and fail this deploy gate if sync fails.
     """
     logger.info("Running curriculum sync via subprocess")
     result = subprocess.run(

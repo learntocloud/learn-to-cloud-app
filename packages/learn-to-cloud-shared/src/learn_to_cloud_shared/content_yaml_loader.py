@@ -69,7 +69,7 @@ def _get_content_dir() -> Path:
 
     Lazily accessed to avoid module-level settings initialization.
     """
-    return get_worker_settings().content_dir_path
+    return get_worker_settings().content.dir_path
 
 
 def _load_topic(phase_dir: Path, topic_slug: str, *, order: int) -> Topic | None:

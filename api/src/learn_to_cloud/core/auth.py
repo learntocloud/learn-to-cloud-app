@@ -18,7 +18,7 @@ from typing import Annotated
 
 from authlib.integrations.starlette_client import OAuth
 from fastapi import Depends, HTTPException, Request
-from learn_to_cloud_shared.core.config import get_web_settings
+from learn_to_cloud_shared.core.config import OAuthConfig
 
 logger = logging.getLogger(__name__)
 
@@ -34,14 +34,13 @@ class AuthenticatedUser:
     github_username: str | None
 
 
-def init_oauth() -> None:
+def init_oauth(settings: OAuthConfig) -> None:
     """Register GitHub as an OAuth provider.
 
     Call once at app startup (in lifespan). Uses Authlib's built-in
     GitHub integration which knows the authorize/token/userinfo URLs.
     """
-    settings = get_web_settings()
-    if not settings.github_client_id:
+    if not settings.client_id:
         logger.warning(
             "auth.github_oauth_disabled",
             extra={"reason": "github_client_id_not_configured"},
@@ -50,8 +49,8 @@ def init_oauth() -> None:
 
     oauth.register(
         name="github",
-        client_id=settings.github_client_id,
-        client_secret=settings.github_client_secret,
+        client_id=settings.client_id,
+        client_secret=settings.client_secret,
         access_token_url="https://github.com/login/oauth/access_token",
         authorize_url="https://github.com/login/oauth/authorize",
         api_base_url="https://api.github.com/",

@@ -28,9 +28,8 @@ def _settings(
     key: str = "function-key",
 ) -> SimpleNamespace:
     return SimpleNamespace(
-        verification_functions_base_url=base_url,
-        verification_functions_key=key,
-        external_api_timeout=3.0,
+        verification_functions=SimpleNamespace(base_url=base_url, key=key),
+        http=SimpleNamespace(external_api_timeout=3.0),
     )
 
 

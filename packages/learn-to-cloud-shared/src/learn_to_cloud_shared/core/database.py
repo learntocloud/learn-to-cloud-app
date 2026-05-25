@@ -24,7 +24,7 @@ from sqlalchemy.ext.asyncio import (
 from sqlalchemy.orm import DeclarativeBase
 
 from learn_to_cloud_shared.core.azure_auth import get_token as _get_azure_token
-from learn_to_cloud_shared.core.config import get_database_settings
+from learn_to_cloud_shared.core.config import DatabaseConfig
 from learn_to_cloud_shared.core.observability import instrument_database
 
 logger = logging.getLogger(__name__)
@@ -34,53 +34,52 @@ class Base(DeclarativeBase):
     pass
 
 
-def _build_azure_database_url() -> str:
-    settings = get_database_settings()
+def _build_azure_database_url(settings: DatabaseConfig) -> str:
     return (
-        f"postgresql+asyncpg://{settings.postgres_user}"
-        f"@{settings.postgres_host}:{settings.postgres_port}/{settings.postgres_database}"
+        f"postgresql+asyncpg://{settings.user}"
+        f"@{settings.host}:{settings.port}/{settings.name}"
         f"?ssl=require"
     )
 
 
-async def _azure_asyncpg_creator():
+async def _azure_asyncpg_creator(settings: DatabaseConfig):
     """Create an asyncpg connection using a fresh Entra ID token.
 
     Tokens expire (~1 hour), so each new connection fetches a fresh one
     via managed identity.
     """
-    settings = get_database_settings()
     token = await _get_azure_token()
 
     try:
         return await asyncpg.connect(
-            user=settings.postgres_user,
+            user=settings.user,
             password=token,
-            host=settings.postgres_host,
-            port=settings.postgres_port,
-            database=settings.postgres_database,
+            host=settings.host,
+            port=settings.port,
+            database=settings.name,
             ssl="require",
-            timeout=settings.db_timeout,
+            timeout=settings.timeout,
             server_settings={
-                "statement_timeout": str(settings.db_statement_timeout_ms),
+                "statement_timeout": str(settings.statement_timeout_ms),
             },
         )
     except asyncpg.PostgresConnectionError:
         logger.exception(
             "db.connection.failed",
-            extra={"host": settings.postgres_host, "port": settings.postgres_port},
+            extra={"host": settings.host, "port": settings.port},
         )
         raise
 
 
-def create_engine() -> AsyncEngine:
-    settings = get_database_settings()
-
+def create_engine(settings: DatabaseConfig) -> AsyncEngine:
     if settings.use_azure_postgres:
-        database_url = _build_azure_database_url()
-        async_creator = _azure_asyncpg_creator
+        database_url = _build_azure_database_url(settings)
+
+        async def async_creator() -> asyncpg.Connection:
+            return await _azure_asyncpg_creator(settings)
+
     else:
-        database_url = settings.database_url
+        database_url = settings.url
         async_creator = None
 
     # Note: pool_pre_ping is intentionally NOT enabled. It interacts badly
@@ -89,18 +88,16 @@ def create_engine() -> AsyncEngine:
     # within Azure's idle timeout window; the (rare) silently-dropped
     # connection surfaces as a single failed request that the user retries.
     engine_kwargs: dict = {
-        "echo": settings.db_echo,
-        "pool_size": settings.db_pool_size,
-        "max_overflow": settings.db_pool_max_overflow,
-        "pool_timeout": settings.db_pool_timeout,
-        "pool_recycle": settings.db_pool_recycle,
+        "echo": settings.echo,
+        "pool_size": settings.pool_size,
+        "max_overflow": settings.pool_max_overflow,
+        "pool_timeout": settings.pool_timeout,
+        "pool_recycle": settings.pool_recycle,
     }
 
     if async_creator is None:
         engine_kwargs["connect_args"] = {
-            "server_settings": {
-                "statement_timeout": str(settings.db_statement_timeout_ms)
-            }
+            "server_settings": {"statement_timeout": str(settings.statement_timeout_ms)}
         }
     else:
         engine_kwargs["async_creator"] = async_creator
@@ -165,11 +162,11 @@ DbSession = Annotated[AsyncSession, Depends(get_db)]
 DbSessionReadOnly = Annotated[AsyncSession, Depends(get_db_readonly)]
 
 
-async def init_db(engine: AsyncEngine) -> None:
+async def init_db(engine: AsyncEngine, settings: DatabaseConfig) -> None:
     """Verify database is reachable. Schema managed via migrations."""
     logger.info("db.connectivity.verifying")
 
-    async with asyncio.timeout(get_database_settings().db_timeout):
+    async with asyncio.timeout(settings.timeout):
         async with engine.connect() as conn:
             await conn.execute(text("SELECT 1"))
             await conn.rollback()
@@ -181,9 +178,9 @@ async def dispose_engine(engine: AsyncEngine) -> None:
     logger.info("db.engine.disposed")
 
 
-async def check_db_connection(engine: AsyncEngine) -> None:
+async def check_db_connection(engine: AsyncEngine, settings: DatabaseConfig) -> None:
     """Verify database is reachable."""
-    async with asyncio.timeout(get_database_settings().db_timeout):
+    async with asyncio.timeout(settings.timeout):
         async with engine.connect() as conn:
             await conn.execute(text("SELECT 1"))
             await conn.rollback()

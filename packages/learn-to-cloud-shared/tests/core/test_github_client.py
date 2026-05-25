@@ -33,7 +33,7 @@ class TestGetGitHubClient:
     @pytest.mark.asyncio
     async def test_creates_client_on_first_call(self):
         mock_settings = MagicMock()
-        mock_settings.external_api_timeout = 10.0
+        mock_settings.http.external_api_timeout = 10.0
         with patch(
             "learn_to_cloud_shared.core.github_client.get_worker_settings",
             autospec=True,
@@ -46,7 +46,7 @@ class TestGetGitHubClient:
     @pytest.mark.asyncio
     async def test_returns_same_instance(self):
         mock_settings = MagicMock()
-        mock_settings.external_api_timeout = 10.0
+        mock_settings.http.external_api_timeout = 10.0
         with patch(
             "learn_to_cloud_shared.core.github_client.get_worker_settings",
             autospec=True,
@@ -59,7 +59,7 @@ class TestGetGitHubClient:
     @pytest.mark.asyncio
     async def test_recreates_after_close(self):
         mock_settings = MagicMock()
-        mock_settings.external_api_timeout = 10.0
+        mock_settings.http.external_api_timeout = 10.0
         with patch(
             "learn_to_cloud_shared.core.github_client.get_worker_settings",
             autospec=True,

@@ -37,7 +37,10 @@ class TestReadyEndpoint:
 
         assert result.status == "ready"
         assert result.service == "learn-to-cloud-api"
-        mock_check.assert_awaited_once_with(request.app.state.engine)
+        mock_check.assert_awaited_once_with(
+            request.app.state.engine,
+            request.app.state.settings.database,
+        )
 
     async def test_ready_returns_503_when_init_error(self):
         """Ready returns 503 when init_error is set."""

@@ -26,7 +26,8 @@ class VerificationStatusToken:
 
 def _serializer() -> URLSafeTimedSerializer:
     return URLSafeTimedSerializer(
-        get_web_settings().session_secret_key, salt=_TOKEN_SALT
+        get_web_settings().session.secret_key,
+        salt=_TOKEN_SALT,
     )
 
 

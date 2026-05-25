@@ -110,17 +110,18 @@ async def validation_exception_handler(
 @asynccontextmanager
 async def lifespan(app: fastapi.FastAPI):
     """Create DB engine at startup, dispose on shutdown."""
-    app.state.engine = create_engine()
+    app.state.settings = get_web_settings()
+    app.state.engine = create_engine(app.state.settings.database)
     app.state.session_maker = create_session_maker(app.state.engine)
 
     app.state.init_done = False
     app.state.init_error = None
 
     try:
-        settings = get_web_settings()
+        settings = app.state.settings
         async with asyncio.timeout(settings.startup_timeout):
-            oauth_task = asyncio.to_thread(init_oauth)
-            db_task = init_db(app.state.engine)
+            oauth_task = asyncio.to_thread(init_oauth, settings.oauth)
+            db_task = init_db(app.state.engine, settings.database)
             await asyncio.gather(oauth_task, db_task)
 
         app.state.init_done = True
@@ -147,7 +148,7 @@ async def lifespan(app: fastapi.FastAPI):
     finally:
         await close_github_client()
         await dispose_engine(app.state.engine)
-        if get_web_settings().use_azure_postgres:
+        if app.state.settings.database.use_azure_postgres:
             await close_credential()
 
 
@@ -157,10 +158,20 @@ app = fastapi.FastAPI(
     title="Learn to Cloud API",
     version="1.0.0",
     lifespan=lifespan,
-    docs_url="/docs" if _settings.enable_docs or _settings.is_development else None,
-    redoc_url="/redoc" if _settings.enable_docs or _settings.is_development else None,
+    docs_url=(
+        "/docs"
+        if _settings.web_security.enable_docs or _settings.is_development
+        else None
+    ),
+    redoc_url=(
+        "/redoc"
+        if _settings.web_security.enable_docs or _settings.is_development
+        else None
+    ),
     openapi_url=(
-        "/openapi.json" if _settings.enable_docs or _settings.is_development else None
+        "/openapi.json"
+        if _settings.web_security.enable_docs or _settings.is_development
+        else None
     ),
 )
 
@@ -173,11 +184,11 @@ app.add_exception_handler(Exception, global_exception_handler)
 app.add_middleware(UserTrackingMiddleware)
 app.add_middleware(
     SessionMiddleware,
-    secret_key=_settings.session_secret_key,
+    secret_key=_settings.session.secret_key,
     session_cookie="session",
     max_age=60 * 60 * 24 * 30,
     same_site="lax",
-    https_only=_settings.require_https,
+    https_only=_settings.web_security.require_https,
 )
 
 app.add_middleware(GZipMiddleware, minimum_size=500)
