@@ -7,6 +7,12 @@ resource "azurerm_container_app_job" "migrations" {
   replica_retry_limit          = 0
   tags                         = local.tags
 
+  lifecycle {
+    ignore_changes = [
+      template[0].container[0].image,
+    ]
+  }
+
   identity {
     type         = "UserAssigned"
     identity_ids = [azurerm_user_assigned_identity.migrations.id]
@@ -25,7 +31,7 @@ resource "azurerm_container_app_job" "migrations" {
   template {
     container {
       name    = "migrations"
-      image   = "${azurerm_container_registry.main.login_server}/migrations:latest"
+      image   = "${azurerm_container_registry.main.login_server}/migrations:bootstrap"
       command = ["python"]
       args    = ["scripts/run_migrations.py"]
       cpu     = 0.5
