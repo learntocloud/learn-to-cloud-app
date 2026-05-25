@@ -361,11 +361,12 @@ async def _load_job_state(
     db: AsyncSession,
     job_id: UUID,
 ) -> _VerificationJobPayload | None:
-    """Load verification_jobs identity + replay state.
+    """Load the verification_jobs row's identity + replay state.
 
-    No JOIN: ``github_username`` comes from the orchestration payload
-    after the #467 curriculum-decoupling refactor, so the Functions
-    role doesn't need ``SELECT ON users``.
+    No JOIN against ``users`` -- the ``github_username`` snapshot
+    travels with the orchestration payload after the #467
+    curriculum-decoupling refactor, so the Functions role doesn't need
+    ``SELECT ON users`` and this query is one indexed PK lookup.
     """
     job = await db.get(VerificationJob, job_id)
     if job is None:
