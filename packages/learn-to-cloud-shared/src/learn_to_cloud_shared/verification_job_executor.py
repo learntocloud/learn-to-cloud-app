@@ -26,16 +26,11 @@ from dataclasses import dataclass
 from uuid import UUID
 
 from opentelemetry import trace
-from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from learn_to_cloud_shared.models import (
     Submission,
-    User,
     VerificationJob,
-)
-from learn_to_cloud_shared.repositories.submission_repository import (
-    SubmissionRepository,
 )
 from learn_to_cloud_shared.repositories.verification_job_repository import (
     LinkResult,
@@ -50,9 +45,6 @@ from learn_to_cloud_shared.verification.dispatcher import validate_submission
 from learn_to_cloud_shared.verification.execution import (
     persist_validation_result,
     persisted_validation_message,
-)
-from learn_to_cloud_shared.verification.requirements import (
-    get_requirement_by_uuid,
 )
 
 tracer = trace.get_tracer(__name__)
@@ -206,7 +198,6 @@ class VerificationRunResult:
 class _VerificationJobPayload:
     id: UUID
     user_id: int
-    github_username: str | None
     requirement_uuid: UUID
     submitted_value: str
     result_submission_id: int | None
@@ -241,30 +232,6 @@ def _coerce_job_id(job_id: UUID | str) -> UUID:
     return UUID(job_id)
 
 
-async def _load_job_payload(
-    db: AsyncSession,
-    job_id: UUID,
-) -> _VerificationJobPayload | None:
-    result = await db.execute(
-        select(VerificationJob, User.github_username)
-        .join(User, VerificationJob.user_id == User.id)
-        .where(VerificationJob.id == job_id)
-    )
-    row = result.one_or_none()
-    if row is None:
-        return None
-
-    job, github_username = row
-    return _VerificationJobPayload(
-        id=job.id,
-        user_id=job.user_id,
-        github_username=github_username,
-        requirement_uuid=job.requirement_uuid,
-        submitted_value=job.submitted_value,
-        result_submission_id=job.result_submission_id,
-    )
-
-
 def _outcome_for(validation_result: ValidationResult) -> str:
     if validation_result.is_valid:
         return _OUTCOME_SUCCEEDED
@@ -293,35 +260,23 @@ def _build_result_from_submission(
     *,
     job_id: UUID,
     submission: Submission,
-    requirement: HandsOnRequirement | None,
-    requirement_slug_fallback: str | None = None,
+    requirement: HandsOnRequirement,
 ) -> VerificationJobExecutionResult:
     """Build a ``VerificationJobExecutionResult`` from an already-persisted
     ``Submission``. Used by the replay short-circuit in
     :func:`prepare_verification_job` and :func:`persist_verification_result`.
 
-    When ``requirement`` is None (active lookup didn't find it -- the
-    requirement was soft-deleted), the caller passes the legacy
-    ``requirement_slug_fallback`` so the result payload still surfaces
-    something useful in templates.
+    The requirement is always available (carried on the orchestration
+    payload after #467) so we don't need a soft-delete fallback shape.
     """
     outcome = _outcome_from_submission(submission)
-    requirement_slug = (
-        requirement.slug
-        if requirement is not None
-        else (requirement_slug_fallback or "")
-    )
-    submission_type = (
-        requirement.submission_type.value if requirement is not None else None
-    )
-    requirement_name = requirement.name if requirement is not None else None
     return VerificationJobExecutionResult(
         job_id=job_id,
         status=outcome,
         code=_code_for_outcome(outcome),
-        requirement_slug=requirement_slug,
-        requirement_name=requirement_name,
-        submission_type=submission_type,
+        requirement_slug=requirement.slug,
+        requirement_name=requirement.name,
+        submission_type=requirement.submission_type.value,
         submission_id=submission.id,
         is_valid=submission.is_validated,
         verification_completed=submission.verification_completed,
@@ -330,126 +285,29 @@ def _build_result_from_submission(
     )
 
 
-async def _load_requirement_metadata(
-    db: AsyncSession, requirement_uuid: UUID
-) -> tuple[str, str] | None:
-    """Return ``(requirement_slug, submission_type)`` for a requirement by UUID,
-    even if it has been soft-deleted.
-
-    Used by the missing-requirement path to fill in the slug field on
-    a server-error result when the active ``get_requirement_by_slug``
-    lookup returns None.
-    """
-    result = await db.execute(
-        text(
-            "SELECT slug, submission_type FROM requirements WHERE uuid = :uuid LIMIT 1"
-        ),
-        {"uuid": requirement_uuid},
-    )
-    row = result.first()
-    return (row[0], row[1]) if row else None
-
-
-async def _find_requirement_by_uuid(
-    db: AsyncSession, requirement_uuid: UUID
-) -> HandsOnRequirement | None:
-    """Return the active ``HandsOnRequirement`` matching the given UUID.
-
-    Walks the loaded curriculum tree -- the curriculum is small enough
-    (~10 requirements) that an explicit lookup map per call is cheaper
-    than a JOIN through ``requirements``. Soft-deleted requirements
-    return None here; callers fall back to ``_load_requirement_metadata``
-    for the legacy id/submission_type when they need to render a
-    server-error result.
-    """
-    return await get_requirement_by_uuid(db, requirement_uuid)
-
-
-async def _handle_missing_requirement(
-    *,
-    session_maker: async_sessionmaker[AsyncSession],
-    payload: _VerificationJobPayload,
-) -> VerificationJobExecutionResult:
-    """Record a server-error ``Submission`` for a job whose requirement was
-    soft-deleted from content, link the job to it, and return the
-    resulting execution result.
-
-    Linking the Submission (rather than deleting the job row) keeps
-    ``prepare_verification_job`` idempotent: a retry sees the linked
-    row and short-circuits via the replay path. The FK on
-    ``verification_jobs.requirement_uuid`` is ON DELETE RESTRICT, so
-    the requirement row always still exists in the ``requirements``
-    table -- the active read just filters out soft-deleted entries.
-    The fallback metadata lookup below pulls ``id`` and
-    ``submission_type`` even from soft-deleted rows for the
-    server-error payload.
-    """
-    async with session_maker() as db:
-        metadata = await _load_requirement_metadata(db, payload.requirement_uuid)
-        requirement_slug_fallback = metadata[0] if metadata is not None else ""
-        submission_type_fallback = metadata[1] if metadata is not None else None
-        detail = f"Requirement not found: {requirement_slug_fallback}"
-
-        submission_repo = SubmissionRepository(db)
-        submission = await submission_repo.create(
-            user_id=payload.user_id,
-            requirement_uuid=payload.requirement_uuid,
-            submitted_value=payload.submitted_value,
-            extracted_username=None,
-            is_validated=False,
-            verification_completed=False,
-            validation_message=detail,
-        )
-        link = await VerificationJobRepository(db).link_submission(
-            payload.id,
-            submission.id,
-        )
-        if link is LinkResult.MISSING:
-            raise VerificationJobNotFoundError(str(payload.id))
-        await db.commit()
-
-    return VerificationJobExecutionResult(
-        job_id=payload.id,
-        status=_OUTCOME_SERVER_ERROR,
-        code=REQUIREMENT_NOT_FOUND_ERROR_CODE,
-        requirement_slug=requirement_slug_fallback,
-        requirement_name=None,
-        submission_type=submission_type_fallback,
-        submission_id=submission.id,
-        is_valid=False,
-        verification_completed=False,
-        message=_MESSAGE_BY_OUTCOME[_OUTCOME_SERVER_ERROR],
-        detail=detail,
-    )
-
-
 async def prepare_verification_job(
     job_id: UUID | str,
     *,
     session_maker: async_sessionmaker[AsyncSession],
-    prepared_input: PreparedVerificationJob | None = None,
+    prepared_input: PreparedVerificationJob,
 ) -> VerificationJobPreparation:
-    """Load a verification job and dispatch to the right execution path.
+    """Validate a verification job and dispatch to the right execution path.
 
-    Replay-safe short-circuits:
-    1. If the job is already linked to a ``Submission`` (Durable retried
-       prepare after the persist activity already finished), return the
-       same execution result from the linked Submission.
-    2. If the requirement was removed from content between submit and
-       execute and we have no ``prepared_input`` snapshot, record a
-       server-error Submission and short-circuit.
+    The orchestration always carries a full ``PreparedVerificationJob``
+    payload (post-#467 curriculum decoupling). This activity:
 
-    Args:
-        prepared_input: When the orchestration was started with a full
-            :class:`PreparedVerificationJob` payload (the post-#467
-            decoupling path), the requirement definition and
-            ``github_username`` snapshot travel with the orchestration
-            and we skip the curriculum / users reads. The DB row is
-            still loaded so we can validate immutable identity fields
-            against the payload (defense against a forged start
-            request) and check the replay short-circuit. Pass ``None``
-            for legacy in-flight orchestrations whose ``client_input``
-            is a bare job_id string.
+    1. Loads the ``verification_jobs`` row and validates the immutable
+       identity fields (``user_id``, ``requirement_uuid``,
+       ``submitted_value``) against the payload, so a forged start
+       request can't make us run validation against an arbitrary user
+       or requirement.
+    2. If the job is already linked to a ``Submission`` (Durable
+       retried prepare after the persist activity already finished),
+       returns the same execution result from the linked Submission.
+    3. Otherwise returns the prepared job for the orchestrator to run.
+
+    The Functions role only needs ``SELECT`` on ``verification_jobs``
+    + ``submissions`` here -- no curriculum or users reads.
     """
     normalized_job_id = _coerce_job_id(job_id)
 
@@ -458,27 +316,19 @@ async def prepare_verification_job(
         attributes={"verification.job.id": str(normalized_job_id)},
     ) as span:
         async with session_maker() as db:
-            if prepared_input is None:
-                payload = await _load_job_payload(db, normalized_job_id)
-                if payload is None:
-                    raise VerificationJobNotFoundError(str(normalized_job_id))
-                requirement = await _find_requirement_by_uuid(
-                    db, payload.requirement_uuid
+            payload = await _load_job_state(db, normalized_job_id)
+            if payload is None:
+                raise VerificationJobNotFoundError(str(normalized_job_id))
+            if (
+                payload.user_id != prepared_input.user_id
+                or payload.requirement_uuid != prepared_input.requirement.uuid
+                or payload.submitted_value != prepared_input.submitted_value
+            ):
+                raise VerificationJobNotFoundError(
+                    f"prepared payload does not match verification_jobs "
+                    f"row for job {normalized_job_id}"
                 )
-            else:
-                payload = await _load_job_state(db, normalized_job_id)
-                if payload is None:
-                    raise VerificationJobNotFoundError(str(normalized_job_id))
-                if (
-                    payload.user_id != prepared_input.user_id
-                    or payload.requirement_uuid != prepared_input.requirement.uuid
-                    or payload.submitted_value != prepared_input.submitted_value
-                ):
-                    raise VerificationJobNotFoundError(
-                        f"prepared payload does not match verification_jobs "
-                        f"row for job {normalized_job_id}"
-                    )
-                requirement = prepared_input.requirement
+            requirement = prepared_input.requirement
 
             if payload.result_submission_id is not None:
                 submission = await db.get(Submission, payload.result_submission_id)
@@ -487,39 +337,20 @@ async def prepare_verification_job(
                         f"job {normalized_job_id} references missing submission "
                         f"{payload.result_submission_id}"
                     )
-                fallback = None
-                if requirement is None:
-                    metadata = await _load_requirement_metadata(
-                        db, payload.requirement_uuid
-                    )
-                    fallback = metadata[0] if metadata is not None else None
                 result = _build_result_from_submission(
                     job_id=normalized_job_id,
                     submission=submission,
                     requirement=requirement,
-                    requirement_slug_fallback=fallback,
                 )
                 span.set_attribute("verification.status", result.status)
                 span.set_attribute("verification.replay", True)
                 return VerificationJobPreparation(terminal_result=result)
 
-        if requirement is None:
-            result = await _handle_missing_requirement(
-                session_maker=session_maker,
-                payload=payload,
-            )
-            span.set_attribute("verification.status", result.status)
-            return VerificationJobPreparation(terminal_result=result)
-
         return VerificationJobPreparation(
             job=PreparedVerificationJob(
                 id=payload.id,
                 user_id=payload.user_id,
-                github_username=(
-                    prepared_input.github_username
-                    if prepared_input is not None
-                    else payload.github_username
-                ),
+                github_username=prepared_input.github_username,
                 requirement=requirement,
                 submitted_value=payload.submitted_value,
             )
@@ -530,13 +361,11 @@ async def _load_job_state(
     db: AsyncSession,
     job_id: UUID,
 ) -> _VerificationJobPayload | None:
-    """Load verification_jobs identity + replay state without joining users.
+    """Load verification_jobs identity + replay state.
 
-    Used by the new payload-driven prepare path: ``github_username``
-    comes from the orchestration payload, not the DB row, so the
-    Functions role doesn't need ``SELECT ON users``. The returned
-    dataclass's ``github_username`` field is set to ``None`` and
-    callers must read it from the payload instead.
+    No JOIN: ``github_username`` comes from the orchestration payload
+    after the #467 curriculum-decoupling refactor, so the Functions
+    role doesn't need ``SELECT ON users``.
     """
     job = await db.get(VerificationJob, job_id)
     if job is None:
@@ -544,7 +373,6 @@ async def _load_job_state(
     return _VerificationJobPayload(
         id=job.id,
         user_id=job.user_id,
-        github_username=None,
         requirement_uuid=job.requirement_uuid,
         submitted_value=job.submitted_value,
         result_submission_id=job.result_submission_id,
@@ -596,7 +424,7 @@ async def persist_verification_result(
         attributes={"verification.job_id": str(job.id)},
     ) as span:
         async with session_maker() as db:
-            payload = await _load_job_payload(db, job.id)
+            payload = await _load_job_state(db, job.id)
             if payload is None:
                 raise VerificationJobNotFoundError(str(job.id))
 
@@ -638,7 +466,7 @@ async def persist_verification_result(
                 # reload the canonical Submission and return its result.
                 await db.rollback()
                 async with session_maker() as fresh_db:
-                    canonical = await _load_job_payload(fresh_db, job.id)
+                    canonical = await _load_job_state(fresh_db, job.id)
                     if canonical is None or canonical.result_submission_id is None:
                         raise VerificationJobNotFoundError(str(job.id))
                     canonical_submission = await fresh_db.get(
@@ -682,6 +510,7 @@ async def execute_verification_job(
     job_id: UUID | str,
     *,
     session_maker: async_sessionmaker[AsyncSession],
+    prepared_input: PreparedVerificationJob,
 ) -> VerificationJobExecutionResult:
     """Run one persisted verification job end-to-end."""
     normalized_job_id = _coerce_job_id(job_id)
@@ -693,6 +522,7 @@ async def execute_verification_job(
         preparation = await prepare_verification_job(
             normalized_job_id,
             session_maker=session_maker,
+            prepared_input=prepared_input,
         )
         if preparation.terminal_result is not None:
             span.set_attribute(

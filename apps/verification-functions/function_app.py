@@ -318,29 +318,25 @@ def _result_custom_status(
 def _run_verification_orchestration(context: df.DurableOrchestrationContext):
     """Run one verification job workflow.
 
-    Input shape:
-    - **New**: a :class:`PreparedVerificationJob` payload dict (with
-      ``id``, ``requirement``, ``submitted_value`` etc.). This is what
-      the HTTP starter sends after the curriculum-decoupling refactor.
-    - **Legacy**: a bare job_id string. Accepted for one deploy cycle
-      so in-flight orchestrations from before the deploy still execute;
-      the activity falls back to the DB-loading path. Remove once no
-      legacy instances remain.
+    Input is a :class:`PreparedVerificationJob` payload dict (with
+    ``id``, ``requirement``, ``submitted_value`` etc.) -- the HTTP
+    starter always builds and posts one. Functions never reads
+    curriculum or users tables (#467 follow-up).
     """
-    raw_input = context.get_input()
-    if isinstance(raw_input, str):
-        job_id = raw_input
-    elif isinstance(raw_input, Mapping):
-        job_id_obj = raw_input.get("id")
-        job_id = job_id_obj if isinstance(job_id_obj, str) else str(job_id_obj)
-    else:
-        job_id = str(raw_input)
+    input_payload = context.get_input()
+    if not isinstance(input_payload, Mapping):
+        raise TypeError(
+            f"verification orchestration: expected Mapping input, "
+            f"got {type(input_payload).__name__}"
+        )
+    job_id_obj = input_payload.get("id")
+    job_id = job_id_obj if isinstance(job_id_obj, str) else str(job_id_obj)
     _set_verification_span_attributes(job_id=job_id)
     context.set_custom_status({"step": "preparing", "job_id": job_id})
     preparation = yield context.call_activity_with_retry(
         "prepare_verification_job",
         _TRANSIENT_RETRY_OPTIONS,
-        raw_input,
+        input_payload,
     )
 
     terminal_result = preparation.get("terminal_result")
@@ -518,26 +514,19 @@ async def prepare_verification_job(
 ) -> dict[str, object]:
     """Load and mark the persisted verification job as running.
 
-    Accepts either:
-    - a bare job_id string (legacy in-flight orchestrations) — falls
-      back to the DB-load path that reads curriculum tables; or
-    - a full :class:`PreparedVerificationJob` payload dict — the new
-      shape, where the requirement definition + github_username
-      snapshot travel with the orchestration so this activity never
-      reads curriculum or users tables.
+    Input is the :class:`PreparedVerificationJob` payload dict carried
+    by the orchestration. The requirement definition + github_username
+    snapshot travel with the orchestration so this activity never
+    reads curriculum or users tables (#467 follow-up).
     """
     with _attached_invocation_context(context):
-        if isinstance(input_payload, str):
-            job_id = input_payload
-            prepared_input = None
-        elif isinstance(input_payload, Mapping):
-            prepared_input = PreparedVerificationJob.from_payload(input_payload)
-            job_id = str(prepared_input.id)
-        else:
+        if not isinstance(input_payload, Mapping):
             raise TypeError(
-                f"prepare_verification_job: expected str or Mapping input, "
+                f"prepare_verification_job: expected Mapping input, "
                 f"got {type(input_payload).__name__}"
             )
+        prepared_input = PreparedVerificationJob.from_payload(input_payload)
+        job_id = str(prepared_input.id)
         _set_verification_span_attributes(job_id=job_id)
         try:
             preparation = await prepare_persisted_verification_job(
