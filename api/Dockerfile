@@ -32,8 +32,8 @@ COPY api/src/learn_to_cloud/static/css/input.css ./static/css/input.css
 COPY api/src/learn_to_cloud/templates/ ./templates/
 RUN npx @tailwindcss/cli -i static/css/input.css -o static/css/styles.css --minify
 
-# Production stage - minimal runtime
-FROM python:3.13-slim AS runtime
+# Shared production base for API and migration images
+FROM python:3.13-slim AS runtime-base
 
 WORKDIR /app
 
@@ -57,14 +57,33 @@ ENV PYTHONPATH="/app/src"
 # Enable Python fault handler for debugging
 ENV PYTHONFAULTHANDLER=1
 
-# Copy application code from api/
+# Use tini as init process for proper signal handling and zombie reaping
+ENTRYPOINT ["tini", "-g", "--"]
+
+# Switch to non-root user
+USER appuser
+
+# Migration stage - Alembic plus curriculum YAML sync
+FROM runtime-base AS migrations-runtime
+
+COPY --chown=appuser:appuser api/alembic.ini .
+COPY --chown=appuser:appuser api/alembic/ ./alembic/
+COPY --chown=appuser:appuser api/scripts/run_migrations.py ./scripts/run_migrations.py
+COPY --chown=appuser:appuser packages/learn-to-cloud-shared/src/learn_to_cloud_shared/content/phases /app/content/phases
+
+ENV CONTENT_DIR="/app/content/phases"
+
+CMD ["python", "scripts/run_migrations.py"]
+
+# API stage - request-serving runtime
+FROM runtime-base AS api-runtime
+
+# Copy application code from api/. The shared package is already installed in
+# the virtual environment, without curriculum YAML package data.
 COPY --chown=appuser:appuser api/ .
 
 # Copy Tailwind-generated CSS from build stage
 COPY --from=tailwind --chown=appuser:appuser /build/static/css/styles.css /app/src/learn_to_cloud/static/css/styles.css
-
-# Switch to non-root user
-USER appuser
 
 # Expose port
 EXPOSE 8000
@@ -72,8 +91,5 @@ EXPOSE 8000
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"
-
-# Use tini as init process for proper signal handling and zombie reaping
-ENTRYPOINT ["tini", "-g", "--"]
 
 CMD ["python", "-m", "uvicorn", "learn_to_cloud.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips", "*"]

@@ -1,11 +1,11 @@
 """Deploy-time sync from YAML curriculum to DB tables (issue #463).
 
-Reads the packaged curriculum YAML, runs the strict cross-file
-validators, and upserts every curriculum entity into its corresponding
-DB table. Entities no longer present in YAML are soft-deleted; entities
-that reappear (same UUID) have their ``deleted_at`` cleared. Idempotent
-re-runs leave ``updated_at`` untouched unless something actually
-changed.
+Reads the authored curriculum YAML from ``CONTENT_DIR`` in production,
+runs the strict cross-file validators, and upserts every curriculum entity
+into its corresponding DB table. Entities no longer present in YAML are
+soft-deleted; entities that reappear (same UUID) have their ``deleted_at``
+cleared. Idempotent re-runs leave ``updated_at`` untouched unless something
+actually changed.
 
 This module does NOT load on app startup. It's intended to run once
 per deploy via ``python -m learn_to_cloud_shared.cli.sync_curriculum``

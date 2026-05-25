@@ -25,7 +25,7 @@ resource "azurerm_container_app_job" "migrations" {
   template {
     container {
       name    = "migrations"
-      image   = "${azurerm_container_registry.main.login_server}/api:latest"
+      image   = "${azurerm_container_registry.main.login_server}/migrations:latest"
       command = ["python"]
       args    = ["scripts/run_migrations.py"]
       cpu     = 0.5
@@ -54,6 +54,11 @@ resource "azurerm_container_app_job" "migrations" {
       env {
         name  = "POSTGRES_VERIFICATION_FUNCTIONS_ROLE"
         value = local.verification_functions_postgres_role
+      }
+
+      env {
+        name  = "CONTENT_DIR"
+        value = "/app/content/phases"
       }
     }
   }

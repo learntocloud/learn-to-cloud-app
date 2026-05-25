@@ -249,8 +249,10 @@ jobs:
       - name: Run curriculum YAML -> DB sync (simulates deploy-time job)
         working-directory: packages/learn-to-cloud-shared
         # Matches the subprocess invocation in api/scripts/run_migrations.py.
-        # Exercises the full deploy path so settings/packaging bugs surface
-        # in CI instead of in the production migration job.
+        # Production migration images set CONTENT_DIR explicitly because
+        # curriculum YAML is no longer package data in the shared wheel.
+        env:
+          CONTENT_DIR: ${{ github.workspace }}/packages/learn-to-cloud-shared/src/learn_to_cloud_shared/content/phases
         run: uv run python -m learn_to_cloud_shared.cli.sync_curriculum
 
       - name: Run API tests with coverage
@@ -441,17 +443,6 @@ jobs:
           DATABASE_URL="postgresql+asyncpg://postgres:postgres@localhost:5432/learntocloud" PYTHONPATH="$PWD/.python_packages/lib/site-packages" python - <<'PY'
           import asyncpg
           import function_app
-          from learn_to_cloud_shared.content_yaml_loader import (
-              get_all_phases_from_yaml,
-          )
-
-          phases = get_all_phases_from_yaml()
-          assert any(
-              req.slug == "journal-api-implementation"
-              for phase in phases
-              if phase.hands_on_verification
-              for req in phase.hands_on_verification.requirements
-          ), "journal-api-implementation requirement not found in packaged YAML"
           PY
 
       - name: Deploy verification Functions
@@ -464,23 +455,64 @@ jobs:
       - name: Log in to ACR
         run: az acr login --name ${{ needs.terraform.outputs.container_registry_name }}
 
-      - name: Build and Push API Image
+      - name: Build and Push Container Images
         run: |
-          CACHE_FLAGS=""
+          API_CACHE_FLAGS=""
+          MIGRATIONS_CACHE_FLAGS=""
           if [[ "${{ inputs.force_rebuild }}" == "true" ]]; then
-            CACHE_FLAGS="--no-cache --pull"
+            API_CACHE_FLAGS="--no-cache --pull"
+            MIGRATIONS_CACHE_FLAGS="--no-cache --pull"
           else
             docker pull ${{ needs.terraform.outputs.container_registry_endpoint }}/api:latest || true
-            CACHE_FLAGS="--cache-from=${{ needs.terraform.outputs.container_registry_endpoint }}/api:latest"
+            docker pull ${{ needs.terraform.outputs.container_registry_endpoint }}/migrations:latest || true
+            API_CACHE_FLAGS="--cache-from=${{ needs.terraform.outputs.container_registry_endpoint }}/api:latest"
+            MIGRATIONS_CACHE_FLAGS="--cache-from=${{ needs.terraform.outputs.container_registry_endpoint }}/migrations:latest"
           fi
+
           docker build -f api/Dockerfile \
-            $CACHE_FLAGS \
+            --target api-runtime \
+            $API_CACHE_FLAGS \
             --build-arg BUILDKIT_INLINE_CACHE=1 \
             --label git-commit=${{ github.sha }} \
             -t ${{ needs.terraform.outputs.container_registry_endpoint }}/api:${{ github.sha }} \
             -t ${{ needs.terraform.outputs.container_registry_endpoint }}/api:latest .
+
+          docker build -f api/Dockerfile \
+            --target migrations-runtime \
+            $MIGRATIONS_CACHE_FLAGS \
+            --build-arg BUILDKIT_INLINE_CACHE=1 \
+            --label git-commit=${{ github.sha }} \
+            -t ${{ needs.terraform.outputs.container_registry_endpoint }}/migrations:${{ github.sha }} \
+            -t ${{ needs.terraform.outputs.container_registry_endpoint }}/migrations:latest .
+
+          docker run --rm -i ${{ needs.terraform.outputs.container_registry_endpoint }}/api:${{ github.sha }} python - <<'PY'
+          from importlib.resources import files
+          from pathlib import Path
+
+          phases_path = Path(
+              str(files("learn_to_cloud_shared").joinpath("content", "phases"))
+          )
+          assert not phases_path.exists(), f"API image contains YAML at {phases_path}"
+          PY
+
+          docker run --rm -i \
+            -e DATABASE_URL="postgresql+asyncpg://postgres:postgres@localhost:5432/learntocloud" \
+            ${{ needs.terraform.outputs.container_registry_endpoint }}/migrations:${{ github.sha }} \
+            python - <<'PY'
+          from learn_to_cloud_shared.core.config import WorkerSettings, configure_settings
+
+          configure_settings(WorkerSettings)
+
+          from learn_to_cloud_shared.content_yaml_loader import get_all_phases_from_yaml
+
+          phases = get_all_phases_from_yaml()
+          assert phases, "Migration image did not load curriculum phases"
+          PY
+
           docker push ${{ needs.terraform.outputs.container_registry_endpoint }}/api:${{ github.sha }}
           docker push ${{ needs.terraform.outputs.container_registry_endpoint }}/api:latest
+          docker push ${{ needs.terraform.outputs.container_registry_endpoint }}/migrations:${{ github.sha }}
+          docker push ${{ needs.terraform.outputs.container_registry_endpoint }}/migrations:latest
 
       - name: Run database migrations
         env:
@@ -491,7 +523,7 @@ jobs:
           POSTGRES_HOST: ${{ needs.terraform.outputs.database_host }}
           POSTGRES_USER: ${{ needs.terraform.outputs.migration_postgres_role }}
           RESOURCE_GROUP: ${{ needs.terraform.outputs.resource_group_name }}
-          IMAGE: ${{ needs.terraform.outputs.container_registry_endpoint }}/api:${{ github.sha }}
+          IMAGE: ${{ needs.terraform.outputs.container_registry_endpoint }}/migrations:${{ github.sha }}
         run: |
           az config set extension.use_dynamic_install=yes_without_prompt
 
@@ -508,6 +540,7 @@ jobs:
                 POSTGRES_USER="$POSTGRES_USER" \
                 POSTGRES_DATABASE="$POSTGRES_DATABASE" \
                 AZURE_CLIENT_ID="$MIGRATION_CLIENT_ID" \
+                CONTENT_DIR="/app/content/phases" \
               --registry-identity "$MIGRATION_IDENTITY_ID" \
               --query name \
               --output tsv

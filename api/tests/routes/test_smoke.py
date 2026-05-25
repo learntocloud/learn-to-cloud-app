@@ -86,7 +86,7 @@ def _fake_dashboard() -> DashboardData:
 @pytest_asyncio.fixture
 async def _patched_content():
     """Route smoke tests don't run against a real DB; redirect content reads
-    to the packaged YAML loader so routes get a real curriculum tree."""
+    to the authored YAML loader so routes get a real curriculum tree."""
     from learn_to_cloud_shared.content_yaml_loader import (
         get_all_phases_from_yaml,
     )

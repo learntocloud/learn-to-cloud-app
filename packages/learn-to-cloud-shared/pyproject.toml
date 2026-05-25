@@ -2,12 +2,12 @@
 requires = ["setuptools>=82.0.1"]
 build-backend = "setuptools.build_meta"
 
+[tool.setuptools]
+include-package-data = false
+
 [tool.setuptools.packages.find]
 where = ["src"]
 include = ["learn_to_cloud_shared*"]
-
-[tool.setuptools.package-data]
-learn_to_cloud_shared = ["content/phases/**/*.yaml", "content/phases/**/*.yml"]
 
 [project]
 name = "learn-to-cloud-shared"
