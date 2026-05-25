@@ -11,18 +11,17 @@ import os
 import sys
 from datetime import UTC, datetime
 
+from learn_to_cloud_shared.content_service import get_all_phases
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-from learn_to_cloud_shared.content_service import get_all_phases
-
-DATABASE_URL = os.environ.get(
-    "DATABASE_URL", "postgresql+asyncpg://postgres:postgres@db:5432/learn_to_cloud"
+database_url = os.environ.get(
+    "DATABASE__URL", "postgresql+asyncpg://postgres:postgres@db:5432/learn_to_cloud"
 )
 
 
 async def main(github_username: str) -> None:
-    engine = create_async_engine(DATABASE_URL)
+    engine = create_async_engine(database_url)
     session_maker = async_sessionmaker(engine, expire_on_commit=False)
     try:
         async with session_maker() as session:

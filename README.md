@@ -163,7 +163,7 @@ See the [Contributing Guide](docs/contributing.md) for linting, testing, the dog
 
 Push to `main` triggers automated deployment via GitHub Actions → Terraform → Azure.
 Production verification uses the GitHub Actions secret `TF_VAR_github_token`
-to populate the `GITHUB_TOKEN` environment variable used by verification jobs.
+to populate the `GITHUB__TOKEN` environment variable used by verification jobs.
 
 ## License
 

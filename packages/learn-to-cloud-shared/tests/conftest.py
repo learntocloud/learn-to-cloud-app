@@ -42,10 +42,7 @@ def _build_test_database_url() -> tuple[str, str, int]:
 
     raw = os.environ.get(
         "DATABASE__URL",
-        os.environ.get(
-            "DATABASE_URL",
-            "postgresql+asyncpg://postgres:postgres@db:5432/test_learn_to_cloud",
-        ),
+        "postgresql+asyncpg://postgres:postgres@db:5432/test_learn_to_cloud",
     )
     url = make_url(raw)
     host = url.host or "localhost"

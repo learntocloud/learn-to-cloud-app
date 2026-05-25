@@ -57,8 +57,8 @@ services:
     ports:
       - "127.0.0.1:8000:8000"
     environment:
-      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/learn_to_cloud
-      - GITHUB_TOKEN=test_token
+      - DATABASE__URL=postgresql+asyncpg://postgres:postgres@db:5432/learn_to_cloud
+      - GITHUB__TOKEN=test_token
       - APPLICATIONINSIGHTS_CONNECTION_STRING=
     depends_on:
       db:

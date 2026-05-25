@@ -146,9 +146,9 @@ cd <workspace>/apps/verification-functions && uv run python -c "import function_
 
 **Mandatory when this change adds or modifies a `.github/workflows/deploy.yml` step that runs a Python script or command.**
 
-CI runs scripts with a minimal env (just `DATABASE_URL` is set in the `ci` job). Local dev shells almost always have more env vars set (devcontainer, `.env` files, shell history). Scripts that work locally can blow up in CI because they touch settings/config that demand env vars CI doesn't have.
+CI runs scripts with a minimal env (just `DATABASE__URL` is set in the `ci` job). Local dev shells almost always have more env vars set (devcontainer, `.env` files, shell history). Scripts that work locally can blow up in CI because they touch settings/config that demand env vars CI doesn't have.
 
-This step caught a real production failure (issue #469: `validate_content.py` instantiated `WebSettings` which required `GITHUB_CLIENT_ID`/`GITHUB_CLIENT_SECRET`, both unset in CI).
+This step caught a real production failure (issue #469: `validate_content.py` instantiated `WebSettings` which required `OAUTH__CLIENT_ID`/`OAUTH__CLIENT_SECRET`, both unset in CI).
 
 ### How to reproduce CI's env
 
@@ -156,11 +156,11 @@ Strip your shell to bare essentials, then re-run the new CI step's command exact
 
 ```bash
 env -i HOME=$HOME PATH=$PATH \
-    DATABASE_URL="postgresql+asyncpg://postgres:postgres@db:5432/learntocloud" \
+    DATABASE__URL="postgresql+asyncpg://postgres:postgres@db:5432/learntocloud" \
     uv run python <path/to/new_script.py>
 ```
 
-`env -i` clears all env vars. `HOME` and `PATH` are kept so `uv` and Python work. `DATABASE_URL` matches the value in `deploy.yml`'s `ci` job env block.
+`env -i` clears all env vars. `HOME` and `PATH` are kept so `uv` and Python work. `DATABASE__URL` matches the value in `deploy.yml`'s `ci` job env block.
 
 If the new CI step uses additional env vars in the workflow, add them here too — only the ones the workflow sets.
 

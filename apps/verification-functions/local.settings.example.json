@@ -5,15 +5,15 @@
     "FUNCTIONS_WORKER_RUNTIME": "python",
     "DURABLE_TASK_SCHEDULER_CONNECTION_STRING": "Endpoint=http://dts:8080;TaskHub=default;Authentication=None",
     "TASKHUB_NAME": "default",
-    "DATABASE_URL": "postgresql+asyncpg://postgres:postgres@db:5432/learn_to_cloud",
+    "DATABASE__URL": "postgresql+asyncpg://postgres:postgres@db:5432/learn_to_cloud",
     "DEBUG": "true",
-    "GITHUB_TOKEN": "",
+    "GITHUB__TOKEN": "",
     "APPLICATIONINSIGHTS_CONNECTION_STRING": "",
     "OTEL_EXPORTER_OTLP_ENDPOINT": "http://aspire-dashboard:18889",
     "OTEL_SERVICE_NAME": "learn-to-cloud-verification-functions",
     "FOUNDRY_PROJECT_ENDPOINT": "",
     "FOUNDRY_MODEL_DEPLOYMENT_NAME": "",
     "AzureWebJobsSecretStorageType": "Files",
-    "LABS_VERIFICATION_SECRET": "local_dev_secret_at_least_32_chars"
+    "LABS__VERIFICATION_SECRET": "local_dev_secret_at_least_32_chars"
   }
 }

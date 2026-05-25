@@ -56,16 +56,13 @@ def _build_test_database_url() -> tuple[str, str, int]:
     """Derive test DB URL from the configured database env var.
 
     Returns (test_url, host, port). The test database is always
-    'test_learn_to_cloud' regardless of what DATABASE_URL specifies.
+    'test_learn_to_cloud' regardless of what DATABASE__URL specifies.
     """
     from sqlalchemy.engine import make_url
 
     raw = os.environ.get(
         "DATABASE__URL",
-        os.environ.get(
-            "DATABASE_URL",
-            "postgresql+asyncpg://postgres:postgres@db:5432/test_learn_to_cloud",
-        ),
+        "postgresql+asyncpg://postgres:postgres@db:5432/test_learn_to_cloud",
     )
     url = make_url(raw)
     host = url.host or "localhost"

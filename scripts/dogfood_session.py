@@ -5,7 +5,7 @@ browser automation or test scripts can inject the session without
 going through the GitHub OAuth flow.
 
 Usage:
-    cd api && uv run python ../scripts/dogfood_session.py          # auto-detect first user
+    cd api && uv run python ../scripts/dogfood_session.py
     cd api && uv run python ../scripts/dogfood_session.py 6733686  # specific user ID
 
 Security:
@@ -21,18 +21,19 @@ import sys
 from base64 import b64encode
 
 import itsdangerous
+import sqlalchemy
 
 SECRET_KEY = "dev-secret-key-change-in-production"
 
 
 def _load_secret_key() -> str:
-    """Load the session secret key from the API's .env file, falling back to the default."""
+    """Load the session secret key from the API's .env file."""
     env_path = os.path.join(os.path.dirname(__file__), "..", "api", ".env")
     if os.path.exists(env_path):
         with open(env_path) as f:
             for line in f:
                 line = line.strip()
-                if line.startswith("SESSION_SECRET_KEY"):
+                if line.startswith("SESSION__SECRET_KEY"):
                     _, _, value = line.partition("=")
                     value = value.strip().strip("'\"")
                     if value:
@@ -41,19 +42,17 @@ def _load_secret_key() -> str:
 
 
 def _get_user_from_db(user_id: int | None = None) -> dict[str, object] | None:
-    """Query the local DB for a user. Returns {"id": ..., "github_username": ...} or None."""
+    """Query the local DB for a user."""
     try:
-        import sqlalchemy
-
         # Build a sync URL from the async one in .env
-        raw_url = os.environ.get("DATABASE_URL", "")
+        raw_url = os.environ.get("DATABASE__URL", "")
         if not raw_url:
             # Try loading from .env file in api/ directory
             env_path = os.path.join(os.path.dirname(__file__), "..", "api", ".env")
             if os.path.exists(env_path):
                 with open(env_path) as f:
                     for line in f:
-                        if line.startswith("DATABASE_URL="):
+                        if line.startswith("DATABASE__URL="):
                             raw_url = line.split("=", 1)[1].strip()
                             break
 
@@ -67,13 +66,16 @@ def _get_user_from_db(user_id: int | None = None) -> dict[str, object] | None:
         with engine.connect() as conn:
             if user_id is not None:
                 row = conn.execute(
-                    sqlalchemy.text("SELECT id, github_username FROM users WHERE id = :id"),
+                    sqlalchemy.text(
+                        "SELECT id, github_username FROM users WHERE id = :id"
+                    ),
                     {"id": user_id},
                 ).fetchone()
             else:
                 row = conn.execute(
                     sqlalchemy.text(
-                        "SELECT id, github_username FROM users WHERE github_username = 'madebygps' LIMIT 1"
+                        "SELECT id, github_username FROM users "
+                        "WHERE github_username = 'madebygps' LIMIT 1"
                     )
                 ).fetchone()
 

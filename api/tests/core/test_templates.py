@@ -17,7 +17,10 @@ def _clear_settings():
 
 @pytest.mark.unit
 def test_frontend_telemetry_context_disabled_by_default(monkeypatch):
-    monkeypatch.delenv("FRONTEND_APPLICATIONINSIGHTS_CONNECTION_STRING", raising=False)
+    monkeypatch.delenv(
+        "FRONTEND_TELEMETRY__APPLICATIONINSIGHTS_CONNECTION_STRING",
+        raising=False,
+    )
 
     context = _frontend_telemetry_context(MagicMock())
 
@@ -27,7 +30,10 @@ def test_frontend_telemetry_context_disabled_by_default(monkeypatch):
 @pytest.mark.unit
 def test_frontend_telemetry_context_includes_connection_string(monkeypatch):
     conn_str = "InstrumentationKey=abc;IngestionEndpoint=https://example.invalid/"
-    monkeypatch.setenv("FRONTEND_APPLICATIONINSIGHTS_CONNECTION_STRING", conn_str)
+    monkeypatch.setenv(
+        "FRONTEND_TELEMETRY__APPLICATIONINSIGHTS_CONNECTION_STRING",
+        conn_str,
+    )
 
     context = _frontend_telemetry_context(MagicMock())
 
@@ -42,8 +48,11 @@ def test_frontend_telemetry_context_includes_connection_string(monkeypatch):
 @pytest.mark.unit
 def test_frontend_telemetry_context_includes_sampling_percentage(monkeypatch):
     conn_str = "InstrumentationKey=abc;IngestionEndpoint=https://example.invalid/"
-    monkeypatch.setenv("FRONTEND_APPLICATIONINSIGHTS_CONNECTION_STRING", conn_str)
-    monkeypatch.setenv("FRONTEND_TELEMETRY_SAMPLING_PERCENTAGE", "10")
+    monkeypatch.setenv(
+        "FRONTEND_TELEMETRY__APPLICATIONINSIGHTS_CONNECTION_STRING",
+        conn_str,
+    )
+    monkeypatch.setenv("FRONTEND_TELEMETRY__SAMPLING_PERCENTAGE", "10")
 
     context = _frontend_telemetry_context(MagicMock())
 
