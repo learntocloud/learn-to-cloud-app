@@ -143,16 +143,32 @@ After pushing to `main`, the `deploy.yml` workflow triggers automatically.
 
 ```bash
 sleep 5
-gh run list --workflow=deploy.yml --limit 1
+run_id=$(gh run list --workflow=deploy.yml --limit 1 --json databaseId --jq '.[0].databaseId')
+gh run view "$run_id" --json status,conclusion,url,displayTitle
 ```
 
-### Watch the Workflow
+### Monitor the Workflow
 
 ```bash
-gh run watch --exit-status
+while true; do
+  gh run view "$run_id" \
+    --json status,conclusion,url,displayTitle \
+    --jq '{title: .displayTitle, status: .status, conclusion: .conclusion, url: .url}'
+
+  status=$(gh run view "$run_id" --json status --jq .status)
+  if [ "$status" = "completed" ]; then
+    break
+  fi
+
+  sleep 15
+done
+
+conclusion=$(gh run view "$run_id" --json conclusion --jq .conclusion)
+test "$conclusion" = "success"
 ```
 
-This blocks until the workflow completes. Exit code 0 = success, non-zero = failure.
+This keeps deploy monitoring output compact. Exit code 0 = success, non-zero = failure.
+Use full logs only when the run fails.
 
 **If the workflow succeeds** — report success and the deploy URL. Done!
 
