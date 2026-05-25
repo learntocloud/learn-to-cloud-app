@@ -114,11 +114,11 @@ OR (
 _TYPED_VALUE_FORMAT_CHECK = """
 (
     github_url IS NULL
-    OR github_url ~* '^https://github[.]com/[^[:space:]]+$'
+    OR length(btrim(github_url)) > 0
 )
 AND (
     deployed_url IS NULL
-    OR deployed_url ~* '^https?://[^[:space:]]+$'
+    OR length(btrim(deployed_url)) > 0
 )
 AND (
     token_value IS NULL
