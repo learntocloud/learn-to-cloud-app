@@ -137,9 +137,9 @@ def _write_fixture_project(root: Path, db_path: Path) -> None:
 def _run_alembic_upgrade(project: Path) -> subprocess.CompletedProcess[str]:
     """Run ``alembic upgrade head`` against the fixture project."""
     env_overrides = {
-        "DATABASE_URL": f"sqlite:///{project / 'test.db'}",
-        "GITHUB_TOKEN": "test_github_token",
-        "LABS_VERIFICATION_SECRET": "test_ctf_secret_must_be_32_chars!",
+        "DATABASE__URL": f"sqlite:///{project / 'test.db'}",
+        "GITHUB__TOKEN": "test_github_token",
+        "LABS__VERIFICATION_SECRET": "test_ctf_secret_must_be_32_chars!",
         "DEBUG": "true",
         "USE_AZURE_POSTGRES": "false",
     }

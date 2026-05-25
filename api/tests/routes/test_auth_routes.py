@@ -60,7 +60,7 @@ class TestLoginRoute:
                 "learn_to_cloud.routes.auth_routes.get_web_settings"
             ) as mock_settings,
         ):
-            mock_settings.return_value.require_https = False
+            mock_settings.return_value.web_security.require_https = False
             mock_oauth.create_client.return_value = mock_github
 
             result = await login(request)
@@ -87,7 +87,7 @@ class TestLoginRoute:
                 "learn_to_cloud.routes.auth_routes.get_web_settings"
             ) as mock_settings,
         ):
-            mock_settings.return_value.require_https = True
+            mock_settings.return_value.web_security.require_https = True
             mock_oauth.create_client.return_value = mock_github
 
             await login(request)
@@ -107,7 +107,7 @@ class TestLoginRoute:
                 "learn_to_cloud.routes.auth_routes.get_web_settings"
             ) as mock_settings,
         ):
-            mock_settings.return_value.require_https = False
+            mock_settings.return_value.web_security.require_https = False
             mock_oauth.create_client.return_value = None
 
             result = await login(request)

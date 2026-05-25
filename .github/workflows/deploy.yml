@@ -151,7 +151,7 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     env:
-      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/learntocloud
+      DATABASE__URL: postgresql+asyncpg://postgres:postgres@localhost:5432/learntocloud
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
@@ -249,10 +249,10 @@ jobs:
       - name: Run curriculum YAML -> DB sync (simulates deploy-time job)
         working-directory: packages/learn-to-cloud-shared
         # Matches the subprocess invocation in api/scripts/run_migrations.py.
-        # Production migration images set CONTENT_DIR explicitly because
+        # Production migration images set CONTENT__DIR explicitly because
         # curriculum YAML is no longer package data in the shared wheel.
         env:
-          CONTENT_DIR: ${{ github.workspace }}/packages/learn-to-cloud-shared/src/learn_to_cloud_shared/content/phases
+          CONTENT__DIR: ${{ github.workspace }}/packages/learn-to-cloud-shared/src/learn_to_cloud_shared/content/phases
         run: uv run python -m learn_to_cloud_shared.cli.sync_curriculum
 
       - name: Run API tests with coverage
@@ -472,7 +472,7 @@ jobs:
             --python "$(which python)" \
             --target .python_packages/lib/site-packages \
             -r /tmp/verification-functions-requirements.txt
-          DATABASE_URL="postgresql+asyncpg://postgres:postgres@localhost:5432/learntocloud" PYTHONPATH="$PWD/.python_packages/lib/site-packages" python - <<'PY'
+          DATABASE__URL="postgresql+asyncpg://postgres:postgres@localhost:5432/learntocloud" PYTHONPATH="$PWD/.python_packages/lib/site-packages" python - <<'PY'
           import asyncpg
           import function_app
           PY
@@ -528,13 +528,9 @@ jobs:
           PY
 
           docker run --rm -i \
-            -e DATABASE_URL="postgresql+asyncpg://postgres:postgres@localhost:5432/learntocloud" \
+            -e DATABASE__URL="postgresql+asyncpg://postgres:postgres@localhost:5432/learntocloud" \
             ${{ needs.terraform.outputs.container_registry_endpoint }}/migrations:${{ github.sha }} \
             python - <<'PY'
-          from learn_to_cloud_shared.core.config import WorkerSettings, configure_settings
-
-          configure_settings(WorkerSettings)
-
           from learn_to_cloud_shared.content_yaml_loader import get_all_phases_from_yaml
 
           phases = get_all_phases_from_yaml()
@@ -551,9 +547,9 @@ jobs:
           MIGRATION_JOB_NAME: ${{ needs.terraform.outputs.migration_job_name }}
           MIGRATION_CLIENT_ID: ${{ needs.terraform.outputs.migration_identity_client_id }}
           MIGRATION_IDENTITY_ID: ${{ needs.terraform.outputs.migration_identity_id }}
-          POSTGRES_DATABASE: ${{ needs.terraform.outputs.database_name }}
-          POSTGRES_HOST: ${{ needs.terraform.outputs.database_host }}
-          POSTGRES_USER: ${{ needs.terraform.outputs.migration_postgres_role }}
+          DATABASE_NAME: ${{ needs.terraform.outputs.database_name }}
+          DATABASE_HOST: ${{ needs.terraform.outputs.database_host }}
+          DATABASE_USER: ${{ needs.terraform.outputs.migration_postgres_role }}
           RESOURCE_GROUP: ${{ needs.terraform.outputs.resource_group_name }}
           IMAGE: ${{ needs.terraform.outputs.container_registry_endpoint }}/migrations:${{ github.sha }}
         run: |
@@ -568,11 +564,11 @@ jobs:
               --command python \
               --args scripts/run_migrations.py \
               --env-vars \
-                POSTGRES_HOST="$POSTGRES_HOST" \
-                POSTGRES_USER="$POSTGRES_USER" \
-                POSTGRES_DATABASE="$POSTGRES_DATABASE" \
+                DATABASE__HOST="$DATABASE_HOST" \
+                DATABASE__USER="$DATABASE_USER" \
+                DATABASE__NAME="$DATABASE_NAME" \
                 AZURE_CLIENT_ID="$MIGRATION_CLIENT_ID" \
-                CONTENT_DIR="/app/content/phases" \
+                CONTENT__DIR="/app/content/phases" \
               --registry-identity "$MIGRATION_IDENTITY_ID" \
               --query name \
               --output tsv

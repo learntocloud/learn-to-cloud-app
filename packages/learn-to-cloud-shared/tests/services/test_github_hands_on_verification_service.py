@@ -55,7 +55,7 @@ class TestParseRetryAfter:
 class TestGetGitHubHeaders:
     def test_includes_auth_when_token_present(self):
         mock_settings = MagicMock()
-        mock_settings.github_token = "ghp_test123"
+        mock_settings.github.token = "ghp_test123"
         with patch(
             "learn_to_cloud_shared.verification.github_profile.get_worker_settings",
             autospec=True,
@@ -67,7 +67,7 @@ class TestGetGitHubHeaders:
 
     def test_no_auth_when_token_missing(self):
         mock_settings = MagicMock()
-        mock_settings.github_token = ""
+        mock_settings.github.token = ""
         with patch(
             "learn_to_cloud_shared.verification.github_profile.get_worker_settings",
             autospec=True,

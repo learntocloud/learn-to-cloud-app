@@ -52,7 +52,7 @@ from learn_to_cloud_shared.verification.errors import (
 def _build_deployed_api_client() -> httpx.AsyncClient:
     return httpx.AsyncClient(
         timeout=httpx.Timeout(
-            get_worker_settings().external_api_timeout,
+            get_worker_settings().http.external_api_timeout,
             connect=5.0,
         ),
         follow_redirects=False,

@@ -64,11 +64,11 @@ def test_get_sync_database_url_converts_asyncpg_to_psycopg2(
     env = _load_env_module(monkeypatch)
 
     fake_settings = MagicMock()
-    fake_settings.use_azure_postgres = False
-    fake_settings.database_url = (
+    fake_settings.database.use_azure_postgres = False
+    fake_settings.database.url = (
         "postgresql+asyncpg://postgres:postgres@db:5432/test_learn_to_cloud"
     )
-    monkeypatch.setattr(env, "get_database_settings", lambda: fake_settings)
+    monkeypatch.setattr(env, "get_migration_settings", lambda: fake_settings)
 
     url = env._get_sync_database_url()
 

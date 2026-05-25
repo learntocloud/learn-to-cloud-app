@@ -20,7 +20,7 @@ def _get_request_identifier(request: Request) -> str:
 
 
 def _get_storage_uri() -> str:
-    return get_web_settings().ratelimit_storage_uri
+    return get_web_settings().rate_limit.storage_uri
 
 
 limiter = Limiter(

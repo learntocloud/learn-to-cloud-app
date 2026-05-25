@@ -114,20 +114,20 @@ resource "azurerm_function_app_flex_consumption" "verification" {
 
   app_settings = {
     AZURE_CLIENT_ID                          = azurerm_user_assigned_identity.verification_functions.client_id
-    DATABASE_URL                             = ""
+    DATABASE__URL                            = ""
     ENABLE_INSTRUMENTATION                   = "true"
     DURABLE_TASK_SCHEDULER_CONNECTION_STRING = "Endpoint=${azapi_resource.verification_scheduler.output.properties.endpoint};Authentication=ManagedIdentity;ClientID=${azurerm_user_assigned_identity.verification_functions.client_id}"
-    GITHUB_CLIENT_ID                         = var.github_client_id
-    GITHUB_CLIENT_SECRET                     = "@Microsoft.KeyVault(VaultName=${azurerm_key_vault.main.name};SecretName=github-client-secret)"
-    GITHUB_TOKEN                             = "@Microsoft.KeyVault(VaultName=${azurerm_key_vault.main.name};SecretName=github-token)"
+    OAUTH__CLIENT_ID                         = var.github_client_id
+    OAUTH__CLIENT_SECRET                     = "@Microsoft.KeyVault(VaultName=${azurerm_key_vault.main.name};SecretName=github-client-secret)"
+    GITHUB__TOKEN                            = "@Microsoft.KeyVault(VaultName=${azurerm_key_vault.main.name};SecretName=github-token)"
     FOUNDRY_MODEL_DEPLOYMENT_NAME            = azapi_resource.foundry_model_deployment.name
     FOUNDRY_PROJECT_ENDPOINT                 = local.foundry_project_endpoint
-    LABS_VERIFICATION_SECRET                 = "@Microsoft.KeyVault(VaultName=${azurerm_key_vault.main.name};SecretName=labs-verification-secret)"
+    LABS__VERIFICATION_SECRET                = "@Microsoft.KeyVault(VaultName=${azurerm_key_vault.main.name};SecretName=labs-verification-secret)"
     OTEL_SERVICE_NAME                        = "learn-to-cloud-verification-functions"
-    POSTGRES_DATABASE                        = azurerm_postgresql_flexible_server_database.main.name
-    POSTGRES_HOST                            = azurerm_postgresql_flexible_server.main.fqdn
-    POSTGRES_USER                            = local.verification_functions_postgres_role
-    SESSION_SECRET_KEY                       = "@Microsoft.KeyVault(VaultName=${azurerm_key_vault.main.name};SecretName=session-secret-key)"
+    DATABASE__NAME                           = azurerm_postgresql_flexible_server_database.main.name
+    DATABASE__HOST                           = azurerm_postgresql_flexible_server.main.fqdn
+    DATABASE__USER                           = local.verification_functions_postgres_role
+    SESSION__SECRET_KEY                      = "@Microsoft.KeyVault(VaultName=${azurerm_key_vault.main.name};SecretName=session-secret-key)"
     TASKHUB_NAME                             = local.verification_functions_task_hub_name
   }
 

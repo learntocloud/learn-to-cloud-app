@@ -7,10 +7,11 @@ Tests session-based authentication utilities:
 - init_oauth registers GitHub OAuth provider
 """
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 from fastapi import HTTPException, Request
+from learn_to_cloud_shared.core.config import OAuthConfig
 
 from learn_to_cloud.core.auth import (
     AuthenticatedUser,
@@ -200,28 +201,19 @@ class TestOptionalAuthenticatedUser:
 class TestInitOauth:
     """Test init_oauth registers GitHub provider."""
 
-    @patch("learn_to_cloud.core.auth.get_web_settings", autospec=True)
-    def test_registers_github_when_client_id_set(self, mock_get_settings):
-        mock_settings = MagicMock()
-        mock_settings.github_client_id = "test-client-id"
-        mock_settings.github_client_secret = "test-client-secret"
-        mock_get_settings.return_value = mock_settings
-
+    def test_registers_github_when_client_id_set(self):
         # Clear any existing registration
         oauth._clients.pop("github", None)
 
-        init_oauth()
+        init_oauth(
+            OAuthConfig(client_id="test-client-id", client_secret="test-client-secret")
+        )
 
         assert "github" in oauth._clients
 
-    @patch("learn_to_cloud.core.auth.get_web_settings", autospec=True)
-    def test_skips_registration_when_client_id_empty(self, mock_get_settings):
-        mock_settings = MagicMock()
-        mock_settings.github_client_id = ""
-        mock_get_settings.return_value = mock_settings
-
+    def test_skips_registration_when_client_id_empty(self):
         oauth._clients.pop("github", None)
 
-        init_oauth()
+        init_oauth(OAuthConfig(client_id=""))
 
         assert "github" not in oauth._clients

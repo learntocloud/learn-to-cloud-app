@@ -53,7 +53,10 @@ async def ready(request: Request) -> HealthResponse:
         )
 
     try:
-        await check_db_connection(request.app.state.engine)
+        await check_db_connection(
+            request.app.state.engine,
+            request.app.state.settings.database,
+        )
     except Exception as e:
         logger.warning("health.ready.db_unavailable", extra={"error": str(e)})
         raise HTTPException(

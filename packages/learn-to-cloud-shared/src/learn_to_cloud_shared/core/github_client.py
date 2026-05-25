@@ -15,7 +15,7 @@ from learn_to_cloud_shared.core.http_client import PooledClient
 def _build_github_client() -> httpx.AsyncClient:
     settings = get_worker_settings()
     return httpx.AsyncClient(
-        timeout=settings.external_api_timeout,
+        timeout=settings.http.external_api_timeout,
         follow_redirects=True,
         limits=httpx.Limits(max_connections=20, max_keepalive_connections=10),
     )

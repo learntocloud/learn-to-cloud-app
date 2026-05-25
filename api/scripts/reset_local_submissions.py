@@ -17,6 +17,7 @@ import argparse
 import asyncio
 import logging
 
+from learn_to_cloud_shared.core.config import get_web_settings
 from learn_to_cloud_shared.core.database import create_engine
 from sqlalchemy import text
 
@@ -37,7 +38,7 @@ async def reset_submissions(
 
     Returns number of deleted rows.
     """
-    engine = create_engine()
+    engine = create_engine(get_web_settings().database)
     try:
         async with engine.begin() as conn:
             where_clauses = ["requirement_id = ANY(:requirement_ids)"]

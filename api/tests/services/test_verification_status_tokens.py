@@ -17,7 +17,7 @@ pytestmark = pytest.mark.unit
 
 def _settings() -> SimpleNamespace:
     return SimpleNamespace(
-        session_secret_key="test-status-token-secret",
+        session=SimpleNamespace(secret_key="test-status-token-secret"),
         verification_wait_timeout=60,
     )
 

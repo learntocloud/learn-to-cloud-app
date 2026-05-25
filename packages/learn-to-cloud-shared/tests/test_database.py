@@ -14,6 +14,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from learn_to_cloud_shared.core.config import DatabaseConfig
+
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
@@ -136,6 +138,8 @@ class TestCloseCredential:
 class TestCheckDbConnection:
     """Verify check_db_connection has a timeout guard."""
 
+    _settings = DatabaseConfig(url="postgresql+asyncpg://localhost/test")
+
     async def test_timeout_on_hanging_connection(self):
         """check_db_connection should raise TimeoutError if DB hangs."""
         from learn_to_cloud_shared.core.database import check_db_connection
@@ -167,7 +171,7 @@ class TestCheckDbConnection:
             ),
             pytest.raises(TimeoutError),
         ):
-            await check_db_connection(mock_engine)
+            await check_db_connection(mock_engine, self._settings)
 
     async def test_success_path(self):
         """check_db_connection should succeed when DB responds."""
@@ -182,7 +186,7 @@ class TestCheckDbConnection:
         # connect() is a sync call returning an async CM
         mock_engine.connect = MagicMock(return_value=mock_cm)
 
-        await check_db_connection(mock_engine)
+        await check_db_connection(mock_engine, self._settings)
 
         mock_conn.execute.assert_awaited_once()
         mock_conn.rollback.assert_awaited_once()

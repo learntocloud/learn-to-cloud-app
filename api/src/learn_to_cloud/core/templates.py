@@ -53,15 +53,15 @@ def _static_url_context(request: Request) -> dict[str, object]:
 
 def _frontend_telemetry_context(request: Request) -> dict[str, object]:
     """Inject browser telemetry config when frontend telemetry is enabled."""
-    conn_str = get_web_settings().frontend_applicationinsights_connection_string
+    settings = get_web_settings()
+    conn_str = settings.frontend_telemetry.applicationinsights_connection_string
     if not conn_str:
         return {"frontend_telemetry": None}
 
-    settings = get_web_settings()
     return {
         "frontend_telemetry": {
             "connection_string": conn_str,
-            "sampling_percentage": settings.frontend_telemetry_sampling_percentage,
+            "sampling_percentage": settings.frontend_telemetry.sampling_percentage,
         }
     }
 

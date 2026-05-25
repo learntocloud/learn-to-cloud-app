@@ -14,11 +14,11 @@ Architecture follows best practices from:
 import os
 
 os.environ.setdefault(
-    "DATABASE_URL",
+    "DATABASE__URL",
     "postgresql+asyncpg://postgres:postgres@db:5432/test_learn_to_cloud",
 )
-os.environ.setdefault("GITHUB_TOKEN", "test_github_token")
-os.environ.setdefault("LABS_VERIFICATION_SECRET", "test_ctf_secret_must_be_32_chars!")
+os.environ.setdefault("GITHUB__TOKEN", "test_github_token")
+os.environ.setdefault("LABS__VERIFICATION_SECRET", "test_ctf_secret_must_be_32_chars!")
 os.environ.setdefault("ENVIRONMENT", "development")
 
 from collections.abc import AsyncGenerator
@@ -26,7 +26,17 @@ from collections.abc import AsyncGenerator
 import pytest
 import pytest_asyncio
 from fastapi import FastAPI
-from learn_to_cloud_shared.core.config import Environment, WebSettings
+from learn_to_cloud_shared.core.config import (
+    CorsConfig,
+    DatabaseConfig,
+    Environment,
+    GitHubConfig,
+    LabsConfig,
+    OAuthConfig,
+    SessionConfig,
+    WebSecurityConfig,
+    WebSettings,
+)
 from learn_to_cloud_shared.core.database import Base
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import (
@@ -43,7 +53,7 @@ from sqlalchemy.pool import NullPool
 
 
 def _build_test_database_url() -> tuple[str, str, int]:
-    """Derive test DB URL from DATABASE_URL env var.
+    """Derive test DB URL from the configured database env var.
 
     Returns (test_url, host, port). The test database is always
     'test_learn_to_cloud' regardless of what DATABASE_URL specifies.
@@ -51,8 +61,11 @@ def _build_test_database_url() -> tuple[str, str, int]:
     from sqlalchemy.engine import make_url
 
     raw = os.environ.get(
-        "DATABASE_URL",
-        "postgresql+asyncpg://postgres:postgres@db:5432/test_learn_to_cloud",
+        "DATABASE__URL",
+        os.environ.get(
+            "DATABASE_URL",
+            "postgresql+asyncpg://postgres:postgres@db:5432/test_learn_to_cloud",
+        ),
     )
     url = make_url(raw)
     host = url.host or "localhost"
@@ -71,15 +84,17 @@ def test_settings() -> WebSettings:
     Uses the same PostgreSQL instance from docker-compose but a separate database.
     """
     return WebSettings(
-        database_url=TEST_DATABASE_URL,
+        database=DatabaseConfig(url=TEST_DATABASE_URL),
         environment=Environment.DEVELOPMENT,
-        require_https=False,
-        github_client_id="test_github_client_id",
-        github_client_secret="test_github_client_secret",
-        session_secret_key="test_session_secret_key_for_testing",
-        github_token="test_github_token",
-        labs_verification_secret="test_ctf_secret_must_be_32_chars!",
-        cors_allowed_origins="",
+        web_security=WebSecurityConfig(require_https=False),
+        oauth=OAuthConfig(
+            client_id="test_github_client_id",
+            client_secret="test_github_client_secret",
+        ),
+        session=SessionConfig(secret_key="test_session_secret_key_for_testing"),
+        github=GitHubConfig(token="test_github_token"),
+        labs=LabsConfig(verification_secret="test_ctf_secret_must_be_32_chars!"),
+        cors=CorsConfig(allowed_origins=""),
     )
 
 

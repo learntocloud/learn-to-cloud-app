@@ -113,17 +113,17 @@ resource "azurerm_container_app" "api" {
       memory = "0.5Gi"
 
       env {
-        name  = "POSTGRES_HOST"
+        name  = "DATABASE__HOST"
         value = azurerm_postgresql_flexible_server.main.fqdn
       }
 
       env {
-        name  = "POSTGRES_USER"
+        name  = "DATABASE__USER"
         value = local.api_postgres_role
       }
 
       env {
-        name  = "POSTGRES_DATABASE"
+        name  = "DATABASE__NAME"
         value = azurerm_postgresql_flexible_server_database.main.name
       }
 
@@ -133,27 +133,27 @@ resource "azurerm_container_app" "api" {
       }
 
       env {
-        name  = "GITHUB_CLIENT_ID"
+        name  = "OAUTH__CLIENT_ID"
         value = var.github_client_id
       }
 
       env {
-        name        = "GITHUB_CLIENT_SECRET"
+        name        = "OAUTH__CLIENT_SECRET"
         secret_name = "github-client-secret"
       }
 
       env {
-        name        = "GITHUB_TOKEN"
+        name        = "GITHUB__TOKEN"
         secret_name = "github-token"
       }
 
       env {
-        name        = "SESSION_SECRET_KEY"
+        name        = "SESSION__SECRET_KEY"
         secret_name = "session-secret-key"
       }
 
       env {
-        name        = "LABS_VERIFICATION_SECRET"
+        name        = "LABS__VERIFICATION_SECRET"
         secret_name = "ctf-master-secret"
       }
 
@@ -163,7 +163,7 @@ resource "azurerm_container_app" "api" {
       }
 
       env {
-        name  = "FRONTEND_APPLICATIONINSIGHTS_CONNECTION_STRING"
+        name  = "FRONTEND_TELEMETRY__APPLICATIONINSIGHTS_CONNECTION_STRING"
         value = azurerm_application_insights.frontend.connection_string
       }
 
@@ -173,17 +173,17 @@ resource "azurerm_container_app" "api" {
       }
 
       env {
-        name  = "VERIFICATION_FUNCTIONS_BASE_URL"
+        name  = "VERIFICATION_FUNCTIONS__BASE_URL"
         value = "https://${azurerm_function_app_flex_consumption.verification.default_hostname}"
       }
 
       env {
-        name        = "VERIFICATION_FUNCTIONS_KEY"
+        name        = "VERIFICATION_FUNCTIONS__KEY"
         secret_name = "verification-functions-key"
       }
 
       env {
-        name  = "FRONTEND_URL"
+        name  = "CORS__FRONTEND_URL"
         value = "https://learntocloud.guide"
       }
 

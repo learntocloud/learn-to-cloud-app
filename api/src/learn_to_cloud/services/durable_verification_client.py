@@ -48,8 +48,8 @@ async def start_verification_orchestration(
     *definition* and ``github_username`` snapshot.
     """
     settings = get_web_settings()
-    base_url = settings.verification_functions_base_url.rstrip("/")
-    function_key = settings.verification_functions_key
+    base_url = settings.verification_functions.base_url.rstrip("/")
+    function_key = settings.verification_functions.key
 
     if not base_url or not function_key:
         raise DurableVerificationConfigError(
@@ -60,8 +60,9 @@ async def start_verification_orchestration(
     headers = {"x-functions-key": function_key}
     body: dict[str, Any] = prepared.to_payload()
 
+    timeout = settings.http.external_api_timeout
     try:
-        async with httpx.AsyncClient(timeout=settings.external_api_timeout) as client:
+        async with httpx.AsyncClient(timeout=timeout) as client:
             response = await client.post(url, headers=headers, json=body)
     except httpx.HTTPError as exc:
         raise DurableVerificationStartError("Durable starter request failed.") from exc
@@ -92,8 +93,8 @@ async def get_verification_orchestration_status(
 ) -> DurableStatusResult:
     """Fetch Durable orchestration status through the Function app proxy."""
     settings = get_web_settings()
-    base_url = settings.verification_functions_base_url.rstrip("/")
-    function_key = settings.verification_functions_key
+    base_url = settings.verification_functions.base_url.rstrip("/")
+    function_key = settings.verification_functions.key
 
     if not base_url or not function_key:
         raise DurableVerificationConfigError(
@@ -103,8 +104,9 @@ async def get_verification_orchestration_status(
     url = f"{base_url}/api/verification/jobs/{instance_id}/status"
     headers = {"x-functions-key": function_key}
 
+    timeout = settings.http.external_api_timeout
     try:
-        async with httpx.AsyncClient(timeout=settings.external_api_timeout) as client:
+        async with httpx.AsyncClient(timeout=timeout) as client:
             response = await client.get(url, headers=headers)
     except httpx.HTTPError as exc:
         raise DurableVerificationStatusError("Durable status request failed.") from exc
