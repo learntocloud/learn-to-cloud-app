@@ -5,7 +5,7 @@ Phase C (issue #461), runtime reads in the API go through the DB loader in
 ``content_db_loader.py`` via the public ``content_service`` module. The YAML
 loader is still authoritative for deploy-time YAML to DB sync
 (``content_sync.py``) and for the strict cross-file validators run in CI.
-Production migration jobs provide the YAML path through ``CONTENT_DIR``.
+Production migration jobs provide the YAML path through ``CONTENT__DIR``.
 
 Do not import from this module in request-serving code paths. Use
 ``learn_to_cloud_shared.content_service`` (async, DB-backed) instead.

@@ -71,7 +71,7 @@ COPY --chown=appuser:appuser api/alembic/ ./alembic/
 COPY --chown=appuser:appuser api/scripts/run_migrations.py ./scripts/run_migrations.py
 COPY --chown=appuser:appuser packages/learn-to-cloud-shared/src/learn_to_cloud_shared/content/phases /app/content/phases
 
-ENV CONTENT_DIR="/app/content/phases"
+ENV CONTENT__DIR="/app/content/phases"
 
 CMD ["python", "scripts/run_migrations.py"]
 
