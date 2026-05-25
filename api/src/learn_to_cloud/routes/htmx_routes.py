@@ -466,12 +466,18 @@ async def _start_async_job_and_render(
         DurableVerificationStartError,
     ) as exc:
         record_span_exception(exc)
-        logger.warning(
+        logger.exception(
             "htmx.submit.durable_start_failed",
             extra={
                 "user_id": user_id,
                 "requirement_slug": requirement_slug,
                 "error_type": type(exc).__name__,
+                "error_message": str(exc),
+                "error_cause": (
+                    f"{type(exc.__cause__).__name__}: {exc.__cause__}"
+                    if exc.__cause__ is not None
+                    else None
+                ),
             },
         )
         # Delete the just-created row so the partial unique index doesn't
