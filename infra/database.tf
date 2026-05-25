@@ -18,6 +18,22 @@ resource "azurerm_postgresql_flexible_server" "main" {
   }
 }
 
+resource "azurerm_postgresql_flexible_server_configuration" "extensions" {
+  name      = "azure.extensions"
+  server_id = azurerm_postgresql_flexible_server.main.id
+  value     = "PG_STAT_STATEMENTS"
+}
+
+resource "azurerm_postgresql_flexible_server_configuration" "shared_preload_libraries" {
+  name      = "shared_preload_libraries"
+  server_id = azurerm_postgresql_flexible_server.main.id
+  value     = "pg_stat_statements"
+
+  depends_on = [
+    azurerm_postgresql_flexible_server_configuration.extensions,
+  ]
+}
+
 resource "azurerm_postgresql_flexible_server_database" "main" {
   name      = "learntocloud"
   server_id = azurerm_postgresql_flexible_server.main.id

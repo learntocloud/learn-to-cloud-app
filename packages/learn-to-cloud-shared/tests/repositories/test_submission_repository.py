@@ -7,11 +7,12 @@ few real UUIDs the FK requires.
 
 import pytest
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from learn_to_cloud_shared.content_sync import sync_curriculum_to_db
 from learn_to_cloud_shared.content_yaml_loader import clear_cache
-from learn_to_cloud_shared.models import CurriculumRequirement
+from learn_to_cloud_shared.models import CurriculumRequirement, Submission, utcnow
 from learn_to_cloud_shared.repositories.submission_repository import (
     SubmissionRepository,
 )
@@ -20,6 +21,14 @@ from learn_to_cloud_shared.repositories.user_repository import UserRepository
 pytestmark = pytest.mark.integration
 
 USER_ID = 80001
+
+
+def _constraint_name(error: IntegrityError) -> str | None:
+    cause = getattr(error.orig, "__cause__", None)
+    constraint_name = getattr(cause, "constraint_name", None)
+    if isinstance(constraint_name, str):
+        return constraint_name
+    return None
 
 
 @pytest.fixture()
@@ -92,6 +101,56 @@ class TestCreate:
         )
 
         assert sub1.id != sub2.id
+
+    async def test_validated_submission_requires_validated_at(
+        self, db_session: AsyncSession, user, req_uuids
+    ):
+        nested = await db_session.begin_nested()
+        try:
+            db_session.add(
+                Submission(
+                    user_id=USER_ID,
+                    requirement_uuid=req_uuids[0],
+                    submitted_value="https://github.com/testuser",
+                    extracted_username="testuser",
+                    is_validated=True,
+                    validated_at=None,
+                    verification_completed=True,
+                )
+            )
+
+            with pytest.raises(IntegrityError) as error:
+                await db_session.flush()
+        finally:
+            await nested.rollback()
+
+        expected = "ck_submissions_validated_at_when_validated"
+        assert _constraint_name(error.value) == expected
+
+    async def test_validated_submission_requires_completed_verification(
+        self, db_session: AsyncSession, user, req_uuids
+    ):
+        nested = await db_session.begin_nested()
+        try:
+            db_session.add(
+                Submission(
+                    user_id=USER_ID,
+                    requirement_uuid=req_uuids[0],
+                    submitted_value="https://github.com/testuser",
+                    extracted_username="testuser",
+                    is_validated=True,
+                    validated_at=utcnow(),
+                    verification_completed=False,
+                )
+            )
+
+            with pytest.raises(IntegrityError) as error:
+                await db_session.flush()
+        finally:
+            await nested.rollback()
+
+        expected = "ck_submissions_completed_when_validated"
+        assert _constraint_name(error.value) == expected
 
 
 class TestGetByUserAndRequirement:

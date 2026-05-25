@@ -7,6 +7,7 @@ from uuid import UUID, uuid4
 from sqlalchemy import (
     BigInteger,
     Boolean,
+    CheckConstraint,
     DateTime,
     ForeignKey,
     Index,
@@ -132,6 +133,14 @@ class Submission(TimestampMixin, Base):
 
     __tablename__ = "submissions"
     __table_args__ = (
+        CheckConstraint(
+            "is_validated IS FALSE OR validated_at IS NOT NULL",
+            name="ck_submissions_validated_at_when_validated",
+        ),
+        CheckConstraint(
+            "is_validated IS FALSE OR verification_completed IS TRUE",
+            name="ck_submissions_completed_when_validated",
+        ),
         Index(
             "ix_submissions_user_verified_updated",
             "user_id",
@@ -250,7 +259,7 @@ class VerificationJob(TimestampMixin, Base):
     cloud_provider: Mapped[str | None] = mapped_column(String(16), nullable=True)
     result_submission_id: Mapped[int | None] = mapped_column(
         Integer,
-        ForeignKey("submissions.id", ondelete="SET NULL"),
+        ForeignKey("submissions.id", name="fk_verification_jobs_result_submission_id"),
         nullable=True,
     )
     traceparent: Mapped[str | None] = mapped_column(String(255), nullable=True)
