@@ -14,11 +14,11 @@ Architecture follows best practices from:
 import os
 
 os.environ.setdefault(
-    "DATABASE_URL",
+    "DATABASE__URL",
     "postgresql+asyncpg://postgres:postgres@db:5432/test_learn_to_cloud",
 )
-os.environ.setdefault("GITHUB_TOKEN", "test_github_token")
-os.environ.setdefault("LABS_VERIFICATION_SECRET", "test_ctf_secret_must_be_32_chars!")
+os.environ.setdefault("GITHUB__TOKEN", "test_github_token")
+os.environ.setdefault("LABS__VERIFICATION_SECRET", "test_ctf_secret_must_be_32_chars!")
 os.environ.setdefault("ENVIRONMENT", "development")
 
 from collections.abc import AsyncGenerator
@@ -53,7 +53,7 @@ from sqlalchemy.pool import NullPool
 
 
 def _build_test_database_url() -> tuple[str, str, int]:
-    """Derive test DB URL from DATABASE_URL env var.
+    """Derive test DB URL from the configured database env var.
 
     Returns (test_url, host, port). The test database is always
     'test_learn_to_cloud' regardless of what DATABASE_URL specifies.
@@ -61,8 +61,11 @@ def _build_test_database_url() -> tuple[str, str, int]:
     from sqlalchemy.engine import make_url
 
     raw = os.environ.get(
-        "DATABASE_URL",
-        "postgresql+asyncpg://postgres:postgres@db:5432/test_learn_to_cloud",
+        "DATABASE__URL",
+        os.environ.get(
+            "DATABASE_URL",
+            "postgresql+asyncpg://postgres:postgres@db:5432/test_learn_to_cloud",
+        ),
     )
     url = make_url(raw)
     host = url.host or "localhost"

@@ -4,11 +4,11 @@ import os
 from collections.abc import AsyncGenerator
 
 os.environ.setdefault(
-    "DATABASE_URL",
+    "DATABASE__URL",
     "postgresql+asyncpg://postgres:postgres@db:5432/test_learn_to_cloud",
 )
-os.environ.setdefault("GITHUB_TOKEN", "test_github_token")
-os.environ.setdefault("LABS_VERIFICATION_SECRET", "test_ctf_secret_must_be_32_chars!")
+os.environ.setdefault("GITHUB__TOKEN", "test_github_token")
+os.environ.setdefault("LABS__VERIFICATION_SECRET", "test_ctf_secret_must_be_32_chars!")
 os.environ.setdefault("ENVIRONMENT", "development")
 
 import pytest
@@ -37,12 +37,15 @@ from learn_to_cloud_shared.core.database import Base
 
 
 def _build_test_database_url() -> tuple[str, str, int]:
-    """Derive the isolated test database URL from DATABASE_URL."""
+    """Derive the isolated test database URL from configured environment."""
     from sqlalchemy.engine import make_url
 
     raw = os.environ.get(
-        "DATABASE_URL",
-        "postgresql+asyncpg://postgres:postgres@db:5432/test_learn_to_cloud",
+        "DATABASE__URL",
+        os.environ.get(
+            "DATABASE_URL",
+            "postgresql+asyncpg://postgres:postgres@db:5432/test_learn_to_cloud",
+        ),
     )
     url = make_url(raw)
     host = url.host or "localhost"
