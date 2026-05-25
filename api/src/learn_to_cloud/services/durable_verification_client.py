@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from uuid import UUID
+from typing import Any
 
 import httpx
 from learn_to_cloud_shared.core.config import get_web_settings
+from learn_to_cloud_shared.verification_job_executor import PreparedVerificationJob
 
 
 class DurableVerificationConfigError(Exception):
@@ -33,8 +34,19 @@ class DurableStatusResult:
     custom_status: object | None = None
 
 
-async def start_verification_orchestration(job_id: UUID) -> DurableStartResult:
-    """Start the Durable orchestration for a persisted verification job."""
+async def start_verification_orchestration(
+    prepared: PreparedVerificationJob,
+) -> DurableStartResult:
+    """Start the Durable orchestration for a persisted verification job.
+
+    Posts the full :class:`PreparedVerificationJob` payload to the
+    Functions starter so the orchestration has everything it needs to
+    run without reading curriculum tables. The Functions side still
+    validates the immutable fields (``user_id``, ``requirement_uuid``,
+    ``submitted_value``) against the ``verification_jobs`` row before
+    starting -- the payload is trusted only for the requirement
+    *definition* and ``github_username`` snapshot.
+    """
     settings = get_web_settings()
     base_url = settings.verification_functions_base_url.rstrip("/")
     function_key = settings.verification_functions_key
@@ -44,12 +56,13 @@ async def start_verification_orchestration(job_id: UUID) -> DurableStartResult:
             "Verification Functions endpoint is not configured."
         )
 
-    url = f"{base_url}/api/verification/jobs/{job_id}/start"
+    url = f"{base_url}/api/verification/jobs/{prepared.id}/start"
     headers = {"x-functions-key": function_key}
+    body: dict[str, Any] = prepared.to_payload()
 
     try:
         async with httpx.AsyncClient(timeout=settings.external_api_timeout) as client:
-            response = await client.post(url, headers=headers)
+            response = await client.post(url, headers=headers, json=body)
     except httpx.HTTPError as exc:
         raise DurableVerificationStartError("Durable starter request failed.") from exc
 

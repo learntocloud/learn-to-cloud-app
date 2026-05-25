@@ -35,6 +35,7 @@ from learn_to_cloud_shared.verification.url_derivation import (
     derive_submission_value,
     is_derivable,
 )
+from learn_to_cloud_shared.verification_job_executor import PreparedVerificationJob
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 if TYPE_CHECKING:
@@ -431,23 +432,33 @@ async def _start_async_job_and_render(
 ) -> HTMLResponse:
     """Start a Durable orchestration for an async job and render the spinner.
 
-    The job's UUID *is* the Durable orchestration instance id (we always pass
-    ``instance_id=job.id`` to the starter), so we don't need to read it back
-    from ``VerificationJob.orchestration_instance_id`` — that column is dead
-    weight kept for old code mid-deploy and will be removed in PR4.
+    Builds the full :class:`PreparedVerificationJob` payload from the
+    validated requirement + github_username carried on
+    ``job_submission`` and posts it to the Functions starter. Functions
+    validates the immutable fields against the ``verification_jobs``
+    row before starting; the payload is trusted for the requirement
+    definition + username snapshot so Functions never needs to read
+    curriculum or users tables.
 
-    On the rare concurrent-submit case (``created=False``) the original submit
-    already kicked off Durable; we skip the start call and let the poller
-    discover the existing instance via ``job.id``. If that original start
-    never actually succeeded, the poller will see a 404 from Durable and
-    surface the error so the user can retry.
+    On the rare concurrent-submit case (``created=False``) the original
+    submit already kicked off Durable; we skip the start call and let
+    the poller discover the existing instance via ``job.id``. If that
+    original start never actually succeeded, the poller will see a 404
+    from Durable and surface the error so the user can retry.
 
-    On Durable start failure deletes the just-created row so the partial
-    unique index doesn't block the user's retry.
+    On Durable start failure deletes the just-created row so the
+    partial unique index doesn't block the user's retry.
     """
     try:
         if job_submission.created:
-            await start_verification_orchestration(job_submission.job.id)
+            prepared = PreparedVerificationJob(
+                id=job_submission.job.id,
+                user_id=user_id,
+                github_username=job_submission.github_username,
+                requirement=job_submission.requirement,
+                submitted_value=job_submission.job.submitted_value,
+            )
+            await start_verification_orchestration(prepared)
 
         status_token = create_verification_status_token(
             user_id=user_id,

@@ -43,6 +43,20 @@ from learn_to_cloud.services.users_service import UserNotFoundError
 from learn_to_cloud.services.verification_status_tokens import VerificationStatusToken
 
 
+def _async_requirement():
+    """A real HandsOnRequirement for tests that need to build a
+    PreparedVerificationJob payload alongside a VerificationJobSubmission."""
+    from learn_to_cloud_shared.testing.requirement_factories import (
+        journal_api_verifier_requirement,
+    )
+
+    return journal_api_verifier_requirement(
+        slug="journal-api-implementation",
+        name="Journal API",
+        description="Test",
+    )
+
+
 def _mock_request(*, session: dict | None = None) -> MagicMock:
     """Build mock Request with session support."""
     request = MagicMock()
@@ -197,8 +211,17 @@ class TestHtmxSubmitVerification:
         """Successful submission starts Durable and returns processing card."""
         request = _mock_request()
         current_user = AuthenticatedUser(user_id=1, github_username="user")
-        job = SimpleNamespace(id=uuid4(), orchestration_instance_id=None)
-        job_submission = SimpleNamespace(job=job, created=True)
+        job = SimpleNamespace(
+            id=uuid4(),
+            orchestration_instance_id=None,
+            submitted_value="test",
+        )
+        job_submission = SimpleNamespace(
+            job=job,
+            created=True,
+            requirement=_async_requirement(),
+            github_username="user",
+        )
         start_result = SimpleNamespace(instance_id=str(job.id))
         write_session = AsyncMock()
         request.app.state.session_maker.return_value.__aenter__.return_value = (
@@ -242,7 +265,7 @@ class TestHtmxSubmitVerification:
         # Should return a processing card, not a final result
         assert result is not None
         mock_create_job.assert_awaited_once()
-        mock_start.assert_awaited_once_with(job.id)
+        mock_start.assert_awaited_once()
 
     async def test_submit_unexpected_error_renders_server_error(self):
         """Unexpected exceptions render a server error card."""
@@ -282,10 +305,14 @@ class TestHtmxSubmitVerification:
         partial unique index so the user can retry immediately."""
         request = _mock_request()
         current_user = AuthenticatedUser(user_id=1, github_username="user")
-        job = SimpleNamespace(id=uuid4(), orchestration_instance_id=None)
+        job = SimpleNamespace(
+            id=uuid4(), orchestration_instance_id=None, submitted_value="test"
+        )
         async_result = VerificationJobSubmission(
             job=cast(VerificationJob, job),
             created=True,
+            requirement=_async_requirement(),
+            github_username="user",
         )
         write_session = AsyncMock()
         request.app.state.session_maker.return_value.__aenter__.return_value = (
@@ -446,10 +473,14 @@ class TestHtmxSubmitVerification:
         VerificationJobSubmission spinner-and-poll path."""
         request = _mock_request()
         current_user = AuthenticatedUser(user_id=1, github_username="user")
-        job = SimpleNamespace(id=uuid4(), orchestration_instance_id=None)
+        job = SimpleNamespace(
+            id=uuid4(), orchestration_instance_id=None, submitted_value="test"
+        )
         async_result = VerificationJobSubmission(
             job=cast(VerificationJob, job),
             created=True,
+            requirement=_async_requirement(),
+            github_username="user",
         )
         start_result = SimpleNamespace(instance_id=str(job.id))
         write_session = AsyncMock()
@@ -492,7 +523,11 @@ class TestHtmxSubmitVerification:
             )
 
         assert isinstance(result, HTMLResponse)
-        mock_start.assert_awaited_once_with(job.id)
+        mock_start.assert_awaited_once()
+        await_args = mock_start.await_args
+        assert await_args is not None
+        (call_arg,) = await_args.args
+        assert call_arg.id == job.id
 
     async def test_duplicate_submit_skips_durable_start(self):
         """When ``create_verification_job`` returns ``created=False``
@@ -502,10 +537,14 @@ class TestHtmxSubmitVerification:
         with the same instance id would error."""
         request = _mock_request()
         current_user = AuthenticatedUser(user_id=1, github_username="user")
-        job = SimpleNamespace(id=uuid4(), orchestration_instance_id=None)
+        job = SimpleNamespace(
+            id=uuid4(), orchestration_instance_id=None, submitted_value="test"
+        )
         async_result = VerificationJobSubmission(
             job=cast(VerificationJob, job),
             created=False,
+            requirement=_async_requirement(),
+            github_username="user",
         )
 
         with (

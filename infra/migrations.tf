@@ -50,6 +50,11 @@ resource "azurerm_container_app_job" "migrations" {
         name  = "AZURE_CLIENT_ID"
         value = azurerm_user_assigned_identity.migrations.client_id
       }
+
+      env {
+        name  = "POSTGRES_VERIFICATION_FUNCTIONS_ROLE"
+        value = local.verification_functions_postgres_role
+      }
     }
   }
 

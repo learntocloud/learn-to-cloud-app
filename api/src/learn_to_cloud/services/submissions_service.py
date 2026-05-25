@@ -137,10 +137,18 @@ class _PreValidationContext:
 
 @dataclass(frozen=True, slots=True)
 class VerificationJobSubmission:
-    """Result of creating or reusing a verification job (async Durable path)."""
+    """Result of creating or reusing a verification job (async Durable path).
+
+    Carries the validated requirement (and the github_username used at
+    submit time) so the route can build a complete
+    ``PreparedVerificationJob`` payload for the Durable starter without
+    re-deriving anything from the request.
+    """
 
     job: VerificationJob
     created: bool
+    requirement: HandsOnRequirement
+    github_username: str | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -278,4 +286,9 @@ async def create_verification_job(
         )
         await write_session.commit()
 
-    return VerificationJobSubmission(job=job, created=created)
+    return VerificationJobSubmission(
+        job=job,
+        created=created,
+        requirement=ctx.requirement,
+        github_username=github_username,
+    )

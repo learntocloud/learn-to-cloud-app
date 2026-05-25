@@ -22,7 +22,6 @@ from learn_to_cloud_shared.repositories.verification_job_repository import (
 from learn_to_cloud_shared.schemas import HandsOnRequirement, ValidationResult
 from learn_to_cloud_shared.verification.execution import MAX_VALIDATION_MESSAGE_LENGTH
 from learn_to_cloud_shared.verification_job_executor import (
-    REQUIREMENT_NOT_FOUND_ERROR_CODE,
     VALIDATION_FAILED_ERROR_CODE,
     VERIFICATION_INCOMPLETE_ERROR_CODE,
     VERIFICATION_SUCCEEDED_CODE,
@@ -105,6 +104,17 @@ async def _create_job(
         return job.id
 
 
+def _prepared(job_id: UUID, requirement: HandsOnRequirement) -> PreparedVerificationJob:
+    """Build the PreparedVerificationJob the orchestration would carry."""
+    return PreparedVerificationJob(
+        id=job_id,
+        user_id=USER_ID,
+        github_username="executoruser",
+        requirement=requirement,
+        submitted_value="https://github.com/executoruser/repo",
+    )
+
+
 async def _get_job_link(
     session_maker: async_sessionmaker[AsyncSession],
     job_id: UUID,
@@ -152,15 +162,11 @@ async def test_split_verification_primitives_prepare_run_and_persist(
     validation = AsyncMock(
         return_value=ValidationResult(is_valid=True, message="Verified")
     )
-
-    with patch(
-        "learn_to_cloud_shared.verification_job_executor._find_requirement_by_uuid",
-        return_value=synced_requirement,
-    ):
-        preparation = await prepare_verification_job(
-            job_id,
-            session_maker=session_maker,
-        )
+    preparation = await prepare_verification_job(
+        job_id,
+        session_maker=session_maker,
+        prepared_input=_prepared(job_id, synced_requirement),
+    )
 
     assert preparation.terminal_result is None
     assert preparation.job is not None
@@ -198,15 +204,15 @@ async def test_execute_verification_job_marks_success_and_links_submission(
 
     with (
         patch(
-            "learn_to_cloud_shared.verification_job_executor._find_requirement_by_uuid",
-            return_value=synced_requirement,
-        ),
-        patch(
             "learn_to_cloud_shared.verification_job_executor.validate_submission",
             validation,
         ),
     ):
-        result = await execute_verification_job(job_id, session_maker=session_maker)
+        result = await execute_verification_job(
+            job_id,
+            session_maker=session_maker,
+            prepared_input=_prepared(job_id, synced_requirement),
+        )
 
     assert result.status == "succeeded"
     assert result.submission_id is not None
@@ -242,15 +248,15 @@ async def test_execute_verification_job_marks_user_validation_failure(
 
     with (
         patch(
-            "learn_to_cloud_shared.verification_job_executor._find_requirement_by_uuid",
-            return_value=synced_requirement,
-        ),
-        patch(
             "learn_to_cloud_shared.verification_job_executor.validate_submission",
             validation,
         ),
     ):
-        result = await execute_verification_job(job_id, session_maker=session_maker)
+        result = await execute_verification_job(
+            job_id,
+            session_maker=session_maker,
+            prepared_input=_prepared(job_id, synced_requirement),
+        )
 
     assert result.status == "failed"
     assert result.code == VALIDATION_FAILED_ERROR_CODE
@@ -279,15 +285,15 @@ async def test_execute_verification_job_marks_server_error(
 
     with (
         patch(
-            "learn_to_cloud_shared.verification_job_executor._find_requirement_by_uuid",
-            return_value=synced_requirement,
-        ),
-        patch(
             "learn_to_cloud_shared.verification_job_executor.validate_submission",
             validation,
         ),
     ):
-        result = await execute_verification_job(job_id, session_maker=session_maker)
+        result = await execute_verification_job(
+            job_id,
+            session_maker=session_maker,
+            prepared_input=_prepared(job_id, synced_requirement),
+        )
 
     assert result.status == "server_error"
     assert result.code == VERIFICATION_INCOMPLETE_ERROR_CODE
@@ -318,65 +324,51 @@ async def test_execute_verification_job_truncates_persisted_error_messages(
 
     with (
         patch(
-            "learn_to_cloud_shared.verification_job_executor._find_requirement_by_uuid",
-            return_value=synced_requirement,
-        ),
-        patch(
             "learn_to_cloud_shared.verification_job_executor.validate_submission",
             validation,
         ),
     ):
-        result = await execute_verification_job(job_id, session_maker=session_maker)
+        result = await execute_verification_job(
+            job_id,
+            session_maker=session_maker,
+            prepared_input=_prepared(job_id, synced_requirement),
+        )
 
     assert result.status == "failed"
     assert result.detail is not None
     assert len(result.detail) <= MAX_VALIDATION_MESSAGE_LENGTH
 
 
-async def test_execute_verification_job_marks_missing_requirement_server_error(
+async def test_execute_verification_job_rejects_payload_mismatch(
     session_maker: async_sessionmaker[AsyncSession],
     synced_requirement: HandsOnRequirement,
 ):
-    """When the requirement vanishes from content between submit and
-    execute, the executor writes a server-error Submission, links it,
-    and short-circuits via the terminal_result path.
+    """A forged payload (whose ``requirement.uuid`` or ``user_id`` does
+    not match the persisted ``verification_jobs`` row) is rejected via
+    ``VerificationJobNotFoundError`` so the orchestration cannot run
+    validation against an arbitrary user/requirement pair.
 
-    Linking (rather than deleting the job row) keeps the executor
-    idempotent on Durable activity retry — the second attempt sees the
-    linked row and returns the same result."""
+    Replaces the old soft-deleted-requirement test: after #467 the
+    requirement definition travels with the orchestration, so the
+    missing-requirement scenario no longer applies. The new failure
+    mode the validation guards against is payload tampering.
+    """
     job_id = await _create_job(session_maker, synced_requirement)
-    validation = AsyncMock()
-
-    with (
-        patch(
-            "learn_to_cloud_shared.verification_job_executor._find_requirement_by_uuid",
-            return_value=None,
-        ),
-        patch(
-            "learn_to_cloud_shared.verification_job_executor.validate_submission",
-            validation,
-        ),
-    ):
-        result = await execute_verification_job(job_id, session_maker=session_maker)
-
-    assert result.status == "server_error"
-    assert result.submission_id is not None
-    assert result.verification_completed is False
-    assert result.code == REQUIREMENT_NOT_FOUND_ERROR_CODE
-    assert result.message == "Verification could not be completed."
-    assert result.detail == f"Requirement not found: {synced_requirement.slug}"
-
-    # Row stays linked so a retry is idempotent.
-    assert await _get_job_link(session_maker, job_id) == result.submission_id
-    submission = await _get_submission(session_maker, result.submission_id)
-    assert submission.is_validated is False
-    assert submission.verification_completed is False
-    assert (
-        submission.validation_message
-        == f"Requirement not found: {synced_requirement.slug}"
+    forged = _prepared(job_id, synced_requirement)
+    # Forge by replacing user_id; requirement.uuid + submitted_value
+    # still match the DB row, but the start-time identity does not.
+    forged = PreparedVerificationJob(
+        id=forged.id,
+        user_id=forged.user_id + 1,
+        github_username=forged.github_username,
+        requirement=forged.requirement,
+        submitted_value=forged.submitted_value,
     )
 
-    validation.assert_not_awaited()
+    with pytest.raises(VerificationJobNotFoundError, match="does not match"):
+        await execute_verification_job(
+            job_id, session_maker=session_maker, prepared_input=forged
+        )
 
 
 async def test_execute_verification_job_is_idempotent_for_terminal_jobs(
@@ -393,19 +385,23 @@ async def test_execute_verification_job_is_idempotent_for_terminal_jobs(
 
     with (
         patch(
-            "learn_to_cloud_shared.verification_job_executor._find_requirement_by_uuid",
-            return_value=synced_requirement,
-        ),
-        patch(
             "learn_to_cloud_shared.verification_job_executor.validate_submission",
             validation,
         ),
     ):
-        first = await execute_verification_job(job_id, session_maker=session_maker)
+        first = await execute_verification_job(
+            job_id,
+            session_maker=session_maker,
+            prepared_input=_prepared(job_id, synced_requirement),
+        )
         # Reset the validator so the retry would clearly be observable
         # if the short-circuit weren't in place.
         validation.reset_mock()
-        second = await execute_verification_job(job_id, session_maker=session_maker)
+        second = await execute_verification_job(
+            job_id,
+            session_maker=session_maker,
+            prepared_input=_prepared(job_id, synced_requirement),
+        )
 
     assert first.status == "succeeded"
     assert second.status == "succeeded"
