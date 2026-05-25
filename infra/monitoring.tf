@@ -84,6 +84,50 @@ resource "azurerm_monitor_scheduled_query_rules_alert_v2" "api_5xx_errors" {
   }
 }
 
+# The API-wide alert above catches fast 5xx storms. This route-specific alert
+# catches slow leaks on the user-facing verification submit path, where even a
+# few failures can silently block progress.
+resource "azurerm_monitor_scheduled_query_rules_alert_v2" "api_verification_submit_5xx_leak" {
+  name                = "alert-ltc-api-verification-submit-5xx-leak-${var.environment}"
+  resource_group_name = azurerm_resource_group.main.name
+  location            = azurerm_resource_group.main.location
+  description         = "Alert when verification submits return 2+ 5xx errors in 24 hours"
+  severity            = 2
+  enabled             = true
+  tags                = local.tags
+
+  scopes                = [azurerm_application_insights.main.id]
+  evaluation_frequency  = "PT1H"
+  window_duration       = "P1D"
+  target_resource_types = ["microsoft.insights/components"]
+
+  criteria {
+    query                   = <<-QUERY
+      requests
+      | where cloud_RoleName in ("learn-to-cloud-api", "ca-ltc-api-${var.environment}")
+          or cloud_RoleName has "learn-to-cloud-api"
+          or cloud_RoleName has "ca-ltc-api"
+      | where resultCode startswith "5"
+      | where name has "/htmx/github/submit"
+          or url has "/htmx/github/submit"
+      | summarize ErrorCount = count()
+    QUERY
+    time_aggregation_method = "Maximum"
+    metric_measure_column   = "ErrorCount"
+    operator                = "GreaterThanOrEqual"
+    threshold               = 2
+
+    failing_periods {
+      minimum_failing_periods_to_trigger_alert = 1
+      number_of_evaluation_periods             = 1
+    }
+  }
+
+  action {
+    action_groups = [azurerm_monitor_action_group.critical.id]
+  }
+}
+
 resource "azurerm_monitor_scheduled_query_rules_alert_v2" "verification_functions_5xx_errors" {
   name                = "alert-ltc-verification-functions-5xx-${var.environment}"
   resource_group_name = azurerm_resource_group.main.name
