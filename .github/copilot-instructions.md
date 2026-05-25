@@ -85,7 +85,18 @@ If a check fails, fix it before moving on. Do not batch lint fixes for the end o
 
 ## Communication
 
+When talking to @madebygps, use verbose, plain-language explanations. Explain what changed, why it matters, what the tradeoffs are, and what should happen next. Do not assume technical shorthand is obvious.
+
 Write in clear, plain language. Avoid jargon, technical shorthand, and dense descriptions. PR titles, commit messages, code comments, and explanations should all be easy to understand at a glance. If a non-engineer wouldn't understand it, rewrite it simpler.
+
+## Search Hygiene
+
+Keep search output small and targeted.
+
+- Start broad searches with file names or counts, not full content output.
+- Use narrow paths, glob filters, and result limits before switching to matching lines.
+- If a search result is too large, do not read the saved bulk output first. Narrow the query, path, or file type and search again.
+- Once target files are known, read specific line ranges instead of whole large files.
 
 ## Research
 
