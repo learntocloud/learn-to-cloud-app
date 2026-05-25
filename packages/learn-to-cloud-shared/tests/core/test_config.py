@@ -185,7 +185,10 @@ class TestAllowedOrigins:
 
 @pytest.mark.unit
 class TestFlatEnvCompatibility:
-    def test_old_database_url_populates_nested_database(self):
+    def test_old_database_url_populates_nested_database(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        monkeypatch.delenv("DATABASE__URL", raising=False)
         s = MigrationSettings(database_url="postgresql+asyncpg://localhost/db")
         assert s.database.url == "postgresql+asyncpg://localhost/db"
 
@@ -196,7 +199,10 @@ class TestFlatEnvCompatibility:
         )
         assert s.database.url == "postgresql+asyncpg://localhost/new"
 
-    def test_old_web_flat_fields_populate_nested_sections(self):
+    def test_old_web_flat_fields_populate_nested_sections(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        monkeypatch.delenv("DATABASE__URL", raising=False)
         s = WebSettings(
             database_url="postgresql+asyncpg://localhost/db",
             environment="production",
@@ -222,6 +228,7 @@ class TestSettingsFactories:
     def test_clear_settings_cache_reloads_environment(
         self, monkeypatch: pytest.MonkeyPatch
     ):
+        monkeypatch.delenv("DATABASE__URL", raising=False)
         monkeypatch.setenv("DATABASE_URL", "postgresql+asyncpg://localhost/one")
         monkeypatch.setenv("ENVIRONMENT", "development")
         clear_settings_cache()
