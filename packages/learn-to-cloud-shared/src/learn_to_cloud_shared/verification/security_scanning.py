@@ -30,6 +30,7 @@ from tenacity import (
 
 from learn_to_cloud_shared.schemas import TaskResult, ValidationResult
 from learn_to_cloud_shared.verification.devops_analysis import fetch_repo_tree
+from learn_to_cloud_shared.verification.errors import github_error_to_result
 from learn_to_cloud_shared.verification.evidence import (
     collect_repo_file_evidence,
     fetch_repo_file_content,
@@ -300,8 +301,11 @@ async def validate_security_scanning(
     """
     try:
         all_files = await fetch_repo_tree(owner, repo)
-    except httpx.HTTPStatusError as e:
-        if e.response.status_code == 404:
+    except (
+        httpx.HTTPStatusError,
+        *RETRIABLE_EXCEPTIONS,
+    ) as e:
+        if isinstance(e, httpx.HTTPStatusError) and e.response.status_code == 404:
             return ValidationResult(
                 is_valid=False,
                 message=(
@@ -310,6 +314,19 @@ async def validate_security_scanning(
                 ),
                 username_match=True,
             )
-        raise
+        # HTTP 4xx errors are expected user-facing outcomes (e.g. private
+        # repo → 403). They are already recorded via span.add_event inside
+        # github_error_to_result and must not go into the Application Insights
+        # exceptions table, which drives the Sev1 alert.
+        # Network errors and GitHubServerError (5xx after retries) are genuine
+        # system failures and belong in the exceptions table.
+        if not isinstance(e, httpx.HTTPStatusError):
+            span = trace.get_current_span()
+            span.record_exception(e)
+        return github_error_to_result(
+            e,
+            event="security_scanning.api_error",
+            context={"owner": owner, "repo": repo},
+        )
 
     return await _verify_security_scanning(owner, repo, all_files)
