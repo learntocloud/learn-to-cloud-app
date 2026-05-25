@@ -44,6 +44,10 @@ from learn_to_cloud_shared.schemas import (
     HandsOnRequirementAdapter,
     ValidationResult,
 )
+from learn_to_cloud_shared.submission_values import (
+    SubmittedValue,
+    submission_value_from_columns,
+)
 from learn_to_cloud_shared.verification.dispatcher import validate_submission
 from learn_to_cloud_shared.verification.execution import (
     persist_validation_result,
@@ -122,7 +126,15 @@ class PreparedVerificationJob:
     user_id: int
     github_username: str | None
     requirement: HandsOnRequirement
-    submitted_value: str
+    submitted_value: SubmittedValue | str
+
+    def __post_init__(self) -> None:
+        if isinstance(self.submitted_value, str):
+            object.__setattr__(
+                self,
+                "submitted_value",
+                SubmittedValue.from_raw(self.requirement, self.submitted_value),
+            )
 
     def to_payload(self) -> dict[str, object]:
         """Return a JSON-serializable activity payload."""
@@ -131,8 +143,15 @@ class PreparedVerificationJob:
             "user_id": self.user_id,
             "github_username": self.github_username,
             "requirement": self.requirement.model_dump(mode="json"),
-            "submitted_value": self.submitted_value,
+            "submitted_value": self.typed_submitted_value.as_text,
+            "submission_value": self.typed_submitted_value.to_payload(),
         }
+
+    @property
+    def typed_submitted_value(self) -> SubmittedValue:
+        if isinstance(self.submitted_value, str):
+            return SubmittedValue.from_raw(self.requirement, self.submitted_value)
+        return self.submitted_value
 
     @classmethod
     def from_payload(cls, payload: Mapping[str, object]) -> PreparedVerificationJob:
@@ -149,7 +168,14 @@ class PreparedVerificationJob:
             requirement=HandsOnRequirementAdapter.validate_python(
                 payload["requirement"]
             ),
-            submitted_value=_expect_str(payload["submitted_value"], "submitted_value"),
+            submitted_value=(
+                SubmittedValue.from_payload(payload["submission_value"])
+                if "submission_value" in payload
+                else SubmittedValue.from_raw(
+                    HandsOnRequirementAdapter.validate_python(payload["requirement"]),
+                    _expect_str(payload["submitted_value"], "submitted_value"),
+                )
+            ),
         )
 
 
@@ -202,7 +228,7 @@ class _VerificationJobPayload:
     id: UUID
     user_id: int
     requirement_uuid: UUID
-    submitted_value: str
+    submitted_value: SubmittedValue
     result_submission_id: int | None
 
 
@@ -325,7 +351,7 @@ async def prepare_verification_job(
             if (
                 payload.user_id != prepared_input.user_id
                 or payload.requirement_uuid != prepared_input.requirement.uuid
-                or payload.submitted_value != prepared_input.submitted_value
+                or payload.submitted_value != prepared_input.typed_submitted_value
             ):
                 raise VerificationJobNotFoundError(
                     f"prepared payload does not match verification_jobs "
@@ -378,7 +404,7 @@ async def _load_job_state(
         id=job.id,
         user_id=job.user_id,
         requirement_uuid=job.requirement_uuid,
-        submitted_value=job.submitted_value,
+        submitted_value=submission_value_from_columns(job),
         result_submission_id=job.result_submission_id,
     )
 
@@ -397,7 +423,7 @@ async def run_verification(
     ) as span:
         validation_result = await validate_submission(
             requirement=job.requirement,
-            submitted_value=job.submitted_value,
+            submitted_value=job.typed_submitted_value.as_text,
             expected_username=job.github_username,
         )
         span.set_attribute("verification.is_valid", validation_result.is_valid)
@@ -452,7 +478,7 @@ async def persist_verification_result(
                 db,
                 user_id=job.user_id,
                 requirement=job.requirement,
-                submitted_value=job.submitted_value,
+                submitted_value=job.typed_submitted_value,
                 github_username=job.github_username,
                 validation_result=validation_result,
             )

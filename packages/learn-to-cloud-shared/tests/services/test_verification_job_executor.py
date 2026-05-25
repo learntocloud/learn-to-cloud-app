@@ -13,6 +13,7 @@ from learn_to_cloud_shared.models import (
     CurriculumRequirement,
     Submission,
     SubmissionType,
+    SubmissionValueKind,
     VerificationJob,
 )
 from learn_to_cloud_shared.repositories.user_repository import UserRepository
@@ -20,6 +21,7 @@ from learn_to_cloud_shared.repositories.verification_job_repository import (
     VerificationJobRepository,
 )
 from learn_to_cloud_shared.schemas import HandsOnRequirement, ValidationResult
+from learn_to_cloud_shared.submission_values import SubmittedValue
 from learn_to_cloud_shared.verification.execution import MAX_VALIDATION_MESSAGE_LENGTH
 from learn_to_cloud_shared.verification_job_executor import (
     VALIDATION_FAILED_ERROR_CODE,
@@ -37,6 +39,10 @@ from learn_to_cloud_shared.verification_job_executor import (
 pytestmark = pytest.mark.integration
 
 USER_ID = 82001
+
+
+def _github_value(value: str) -> SubmittedValue:
+    return SubmittedValue(kind=SubmissionValueKind.GITHUB_URL, github_url=value)
 
 
 @pytest.fixture()
@@ -98,7 +104,7 @@ async def _create_job(
         job = await VerificationJobRepository(db).create(
             user_id=USER_ID,
             requirement_uuid=requirement.uuid,
-            submitted_value="https://github.com/executoruser/repo",
+            submitted_value=_github_value("https://github.com/executoruser/repo"),
         )
         await db.commit()
         return job.id
@@ -111,7 +117,7 @@ def _prepared(job_id: UUID, requirement: HandsOnRequirement) -> PreparedVerifica
         user_id=USER_ID,
         github_username="executoruser",
         requirement=requirement,
-        submitted_value="https://github.com/executoruser/repo",
+        submitted_value=_github_value("https://github.com/executoruser/repo"),
     )
 
 

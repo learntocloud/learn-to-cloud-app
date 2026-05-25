@@ -13,6 +13,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from learn_to_cloud_shared.models import Submission, utcnow
+from learn_to_cloud_shared.submission_values import SubmittedValue
 
 
 class SubmissionRepository:
@@ -80,7 +81,7 @@ class SubmissionRepository:
         self,
         user_id: int,
         requirement_uuid: UUID,
-        submitted_value: str,
+        submitted_value: SubmittedValue,
         extracted_username: str | None,
         is_validated: bool,
         verification_completed: bool = True,
@@ -100,10 +101,11 @@ class SubmissionRepository:
                 multi-cloud labs. None for non-multi-cloud submissions.
         """
         now = utcnow()
+        value_columns = submitted_value.to_columns()
         submission = Submission(
             user_id=user_id,
             requirement_uuid=requirement_uuid,
-            submitted_value=submitted_value,
+            **value_columns,
             extracted_username=extracted_username,
             is_validated=is_validated,
             validated_at=now if is_validated else None,

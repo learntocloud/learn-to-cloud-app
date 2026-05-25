@@ -27,6 +27,7 @@ from learn_to_cloud_shared.schemas import (
     SubmissionData,
     SubmissionResult,
 )
+from learn_to_cloud_shared.submission_values import submission_value_from_columns
 from learn_to_cloud_shared.verification.execution import (
     SubmissionAlreadyInFlightError,
 )
@@ -64,6 +65,7 @@ from learn_to_cloud.services.steps_service import (
 from learn_to_cloud.services.submissions_service import (
     AlreadyValidatedError,
     GitHubUsernameRequiredError,
+    InvalidSubmittedValueError,
     PriorPhaseNotCompleteError,
     RequirementNotFoundError,
     SyncVerificationResult,
@@ -88,6 +90,7 @@ logger = logging.getLogger(__name__)
 _USER_FACING_ERRORS = (
     AlreadyValidatedError,
     GitHubUsernameRequiredError,
+    InvalidSubmittedValueError,
     PriorPhaseNotCompleteError,
     RequirementNotFoundError,
     SubmissionAlreadyInFlightError,
@@ -456,7 +459,7 @@ async def _start_async_job_and_render(
                 user_id=user_id,
                 github_username=job_submission.github_username,
                 requirement=job_submission.requirement,
-                submitted_value=job_submission.job.submitted_value,
+                submitted_value=submission_value_from_columns(job_submission.job),
             )
             await start_verification_orchestration(prepared)
 

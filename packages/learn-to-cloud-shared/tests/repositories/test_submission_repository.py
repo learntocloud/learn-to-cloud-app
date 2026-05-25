@@ -12,11 +12,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from learn_to_cloud_shared.content_sync import sync_curriculum_to_db
 from learn_to_cloud_shared.content_yaml_loader import clear_cache
-from learn_to_cloud_shared.models import CurriculumRequirement, Submission, utcnow
+from learn_to_cloud_shared.models import (
+    CurriculumRequirement,
+    Submission,
+    SubmissionValueKind,
+    utcnow,
+)
 from learn_to_cloud_shared.repositories.submission_repository import (
     SubmissionRepository,
 )
 from learn_to_cloud_shared.repositories.user_repository import UserRepository
+from learn_to_cloud_shared.submission_values import SubmittedValue
 
 pytestmark = pytest.mark.integration
 
@@ -31,6 +37,10 @@ def _constraint_name(error: IntegrityError) -> str | None:
     return None
 
 
+def _github_value(value: str) -> SubmittedValue:
+    return SubmittedValue(kind=SubmissionValueKind.GITHUB_URL, github_url=value)
+
+
 @pytest.fixture()
 async def user(db_session: AsyncSession):
     """Create a test user for FK constraints."""
@@ -40,11 +50,14 @@ async def user(db_session: AsyncSession):
 
 @pytest.fixture()
 async def req_uuids(db_session: AsyncSession) -> list:
-    """Sync the real curriculum and return the first 3 requirement UUIDs."""
+    """Sync the curriculum and return GitHub URL requirement UUIDs."""
     clear_cache()
     await sync_curriculum_to_db(db_session)
     result = await db_session.execute(
-        select(CurriculumRequirement.uuid).order_by(CurriculumRequirement.slug).limit(3)
+        select(CurriculumRequirement.uuid)
+        .where(CurriculumRequirement.submission_value_kind == "github_url")
+        .order_by(CurriculumRequirement.slug)
+        .limit(3)
     )
     return [row[0] for row in result.all()]
 
@@ -55,7 +68,7 @@ class TestCreate:
         sub = await repo.create(
             user_id=USER_ID,
             requirement_uuid=req_uuids[0],
-            submitted_value="https://github.com/testuser",
+            submitted_value=_github_value("https://github.com/testuser"),
             extracted_username="testuser",
             is_validated=True,
         )
@@ -72,7 +85,7 @@ class TestCreate:
         sub = await repo.create(
             user_id=USER_ID,
             requirement_uuid=req_uuids[0],
-            submitted_value="bad-value",
+            submitted_value=_github_value("https://github.com/testuser/bad"),
             extracted_username=None,
             is_validated=False,
         )
@@ -88,14 +101,14 @@ class TestCreate:
         sub1 = await repo.create(
             user_id=USER_ID,
             requirement_uuid=req_uuids[0],
-            submitted_value="attempt-1",
+            submitted_value=_github_value("https://github.com/testuser/attempt-1"),
             extracted_username=None,
             is_validated=False,
         )
         sub2 = await repo.create(
             user_id=USER_ID,
             requirement_uuid=req_uuids[0],
-            submitted_value="attempt-2",
+            submitted_value=_github_value("https://github.com/testuser/attempt-2"),
             extracted_username=None,
             is_validated=True,
         )
@@ -112,6 +125,8 @@ class TestCreate:
                     user_id=USER_ID,
                     requirement_uuid=req_uuids[0],
                     submitted_value="https://github.com/testuser",
+                    submission_value_kind=SubmissionValueKind.GITHUB_URL.value,
+                    github_url="https://github.com/testuser",
                     extracted_username="testuser",
                     is_validated=True,
                     validated_at=None,
@@ -137,6 +152,8 @@ class TestCreate:
                     user_id=USER_ID,
                     requirement_uuid=req_uuids[0],
                     submitted_value="https://github.com/testuser",
+                    submission_value_kind=SubmissionValueKind.GITHUB_URL.value,
+                    github_url="https://github.com/testuser",
                     extracted_username="testuser",
                     is_validated=True,
                     validated_at=utcnow(),
@@ -161,21 +178,21 @@ class TestGetByUserAndRequirement:
         await repo.create(
             user_id=USER_ID,
             requirement_uuid=req_uuids[0],
-            submitted_value="old",
+            submitted_value=_github_value("https://github.com/testuser/old"),
             extracted_username=None,
             is_validated=False,
         )
         await repo.create(
             user_id=USER_ID,
             requirement_uuid=req_uuids[0],
-            submitted_value="new",
+            submitted_value=_github_value("https://github.com/testuser/new"),
             extracted_username=None,
             is_validated=True,
         )
 
         latest = await repo.get_by_user_and_requirement(USER_ID, req_uuids[0])
         assert latest is not None
-        assert latest.submitted_value == "new"
+        assert latest.submitted_value == "https://github.com/testuser/new"
 
     async def test_returns_none_for_missing(
         self, db_session: AsyncSession, user, req_uuids
@@ -193,21 +210,21 @@ class TestGetLatestForRequirements:
         await repo.create(
             user_id=USER_ID,
             requirement_uuid=req_uuids[0],
-            submitted_value="attempt-1",
+            submitted_value=_github_value("https://github.com/testuser/attempt-1"),
             extracted_username=None,
             is_validated=False,
         )
         await repo.create(
             user_id=USER_ID,
             requirement_uuid=req_uuids[0],
-            submitted_value="attempt-2",
+            submitted_value=_github_value("https://github.com/testuser/attempt-2"),
             extracted_username=None,
             is_validated=True,
         )
         await repo.create(
             user_id=USER_ID,
             requirement_uuid=req_uuids[1],
-            submitted_value="fork-url",
+            submitted_value=_github_value("https://github.com/testuser/fork-url"),
             extracted_username=None,
             is_validated=True,
         )
@@ -219,7 +236,9 @@ class TestGetLatestForRequirements:
         latest_for_first = next(
             s for s in results if s.requirement_uuid == req_uuids[0]
         )
-        assert latest_for_first.submitted_value == "attempt-2"
+        assert (
+            latest_for_first.submitted_value == "https://github.com/testuser/attempt-2"
+        )
 
     async def test_returns_empty_for_no_submissions(
         self, db_session: AsyncSession, user, req_uuids
@@ -242,14 +261,14 @@ class TestAreAllRequirementsValidated:
         await repo.create(
             user_id=USER_ID,
             requirement_uuid=req_uuids[0],
-            submitted_value="v1",
+            submitted_value=_github_value("https://github.com/testuser/v1"),
             extracted_username=None,
             is_validated=True,
         )
         await repo.create(
             user_id=USER_ID,
             requirement_uuid=req_uuids[1],
-            submitted_value="v2",
+            submitted_value=_github_value("https://github.com/testuser/v2"),
             extracted_username=None,
             is_validated=True,
         )
@@ -263,7 +282,7 @@ class TestAreAllRequirementsValidated:
         await repo.create(
             user_id=USER_ID,
             requirement_uuid=req_uuids[0],
-            submitted_value="v1",
+            submitted_value=_github_value("https://github.com/testuser/v1"),
             extracted_username=None,
             is_validated=True,
         )

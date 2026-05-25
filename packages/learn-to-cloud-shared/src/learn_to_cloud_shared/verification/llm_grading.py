@@ -130,7 +130,7 @@ async def _collect_phase6_requests(
 
     expected_name = _expected_fork_name(run_result.job.requirement)
     repo_result = validate_repo_url(
-        run_result.job.submitted_value,
+        run_result.job.typed_submitted_value.as_text,
         github_username,
         expected_name,
     )
@@ -176,7 +176,7 @@ async def _collect_phase3_requests(
 
     expected_name = _expected_fork_name(run_result.job.requirement)
     repo_result = validate_repo_url(
-        run_result.job.submitted_value,
+        run_result.job.typed_submitted_value.as_text,
         github_username,
         expected_name,
     )

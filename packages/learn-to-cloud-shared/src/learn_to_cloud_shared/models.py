@@ -10,6 +10,7 @@ from sqlalchemy import (
     CheckConstraint,
     DateTime,
     ForeignKey,
+    ForeignKeyConstraint,
     Index,
     Integer,
     String,
@@ -120,6 +121,15 @@ class SubmissionType(StrEnum):
     SECURITY_SCANNING = "security_scanning"
 
 
+class SubmissionValueKind(StrEnum):
+    """Storage shape for a submitted verification value."""
+
+    GITHUB_URL = "github_url"
+    TOKEN = "token"
+    DEPLOYED_URL = "deployed_url"
+    TEXT = "text"
+
+
 class Submission(TimestampMixin, Base):
     """Tracks validated submissions for hands-on verification.
 
@@ -140,6 +150,70 @@ class Submission(TimestampMixin, Base):
         CheckConstraint(
             "is_validated IS FALSE OR verification_completed IS TRUE",
             name="ck_submissions_completed_when_validated",
+        ),
+        CheckConstraint(
+            """
+            (
+                submission_value_kind = 'github_url'
+                AND github_url IS NOT NULL
+                AND token_value IS NULL
+                AND deployed_url IS NULL
+                AND text_value IS NULL
+                AND submitted_value = github_url
+            )
+            OR (
+                submission_value_kind = 'token'
+                AND token_value IS NOT NULL
+                AND github_url IS NULL
+                AND deployed_url IS NULL
+                AND text_value IS NULL
+                AND submitted_value = token_value
+            )
+            OR (
+                submission_value_kind = 'deployed_url'
+                AND deployed_url IS NOT NULL
+                AND github_url IS NULL
+                AND token_value IS NULL
+                AND text_value IS NULL
+                AND submitted_value = deployed_url
+            )
+            OR (
+                submission_value_kind = 'text'
+                AND text_value IS NOT NULL
+                AND github_url IS NULL
+                AND token_value IS NULL
+                AND deployed_url IS NULL
+                AND submitted_value = text_value
+            )
+            """,
+            name="ck_submissions_typed_value_shape",
+        ),
+        CheckConstraint(
+            """
+            (
+                github_url IS NULL
+                OR github_url ~* '^https://github[.]com/[^[:space:]]+$'
+            )
+            AND (
+                deployed_url IS NULL
+                OR deployed_url ~* '^https?://[^[:space:]]+$'
+            )
+            AND (
+                token_value IS NULL
+                OR length(btrim(token_value)) > 0
+            )
+            AND (
+                text_value IS NULL
+                OR length(btrim(text_value)) > 0
+            )
+            """,
+            name="ck_submissions_typed_value_format",
+        ),
+        ForeignKeyConstraint(
+            ["requirement_uuid", "submission_value_kind"],
+            ["requirements.uuid", "requirements.submission_value_kind"],
+            name="fk_submissions_requirement_value_kind",
+            ondelete="RESTRICT",
         ),
         Index(
             "ix_submissions_user_verified_updated",
@@ -174,6 +248,11 @@ class Submission(TimestampMixin, Base):
         Text,
         nullable=False,
     )
+    submission_value_kind: Mapped[str] = mapped_column(Text, nullable=False)
+    github_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    token_value: Mapped[str | None] = mapped_column(Text, nullable=True)
+    deployed_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    text_value: Mapped[str | None] = mapped_column(Text, nullable=True)
     extracted_username: Mapped[str | None] = mapped_column(
         String(255),
         nullable=True,
@@ -220,6 +299,70 @@ class VerificationJob(TimestampMixin, Base):
 
     __tablename__ = "verification_jobs"
     __table_args__ = (
+        CheckConstraint(
+            """
+            (
+                submission_value_kind = 'github_url'
+                AND github_url IS NOT NULL
+                AND token_value IS NULL
+                AND deployed_url IS NULL
+                AND text_value IS NULL
+                AND submitted_value = github_url
+            )
+            OR (
+                submission_value_kind = 'token'
+                AND token_value IS NOT NULL
+                AND github_url IS NULL
+                AND deployed_url IS NULL
+                AND text_value IS NULL
+                AND submitted_value = token_value
+            )
+            OR (
+                submission_value_kind = 'deployed_url'
+                AND deployed_url IS NOT NULL
+                AND github_url IS NULL
+                AND token_value IS NULL
+                AND text_value IS NULL
+                AND submitted_value = deployed_url
+            )
+            OR (
+                submission_value_kind = 'text'
+                AND text_value IS NOT NULL
+                AND github_url IS NULL
+                AND token_value IS NULL
+                AND deployed_url IS NULL
+                AND submitted_value = text_value
+            )
+            """,
+            name="ck_verification_jobs_typed_value_shape",
+        ),
+        CheckConstraint(
+            """
+            (
+                github_url IS NULL
+                OR github_url ~* '^https://github[.]com/[^[:space:]]+$'
+            )
+            AND (
+                deployed_url IS NULL
+                OR deployed_url ~* '^https?://[^[:space:]]+$'
+            )
+            AND (
+                token_value IS NULL
+                OR length(btrim(token_value)) > 0
+            )
+            AND (
+                text_value IS NULL
+                OR length(btrim(text_value)) > 0
+            )
+            """,
+            name="ck_verification_jobs_typed_value_format",
+        ),
+        ForeignKeyConstraint(
+            ["requirement_uuid", "submission_value_kind"],
+            ["requirements.uuid", "requirements.submission_value_kind"],
+            name="fk_verification_jobs_requirement_value_kind",
+            ondelete="RESTRICT",
+        ),
         Index(
             "ix_verification_jobs_user_req_uuid_created",
             "user_id",
@@ -255,6 +398,11 @@ class VerificationJob(TimestampMixin, Base):
         nullable=False,
     )
     submitted_value: Mapped[str] = mapped_column(Text, nullable=False)
+    submission_value_kind: Mapped[str] = mapped_column(Text, nullable=False)
+    github_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    token_value: Mapped[str | None] = mapped_column(Text, nullable=True)
+    deployed_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    text_value: Mapped[str | None] = mapped_column(Text, nullable=True)
     extracted_username: Mapped[str | None] = mapped_column(String(255), nullable=True)
     cloud_provider: Mapped[str | None] = mapped_column(String(16), nullable=True)
     result_submission_id: Mapped[int | None] = mapped_column(
@@ -458,6 +606,43 @@ class CurriculumRequirement(TimestampMixin, Base):
 
     __tablename__ = "requirements"
     __table_args__ = (
+        CheckConstraint(
+            """
+            (
+                submission_type IN (
+                    'github_profile',
+                    'profile_readme',
+                    'repo_fork',
+                    'pr_review',
+                    'journal_api_verifier',
+                    'devops_analysis',
+                    'security_scanning',
+                    'ci_status'
+                )
+                AND submission_value_kind = 'github_url'
+            )
+            OR (
+                submission_type IN (
+                    'ctf_token',
+                    'networking_token',
+                    'iac_token'
+                )
+                AND submission_value_kind = 'token'
+            )
+            OR (
+                submission_type = 'deployed_api'
+                AND submission_value_kind = 'deployed_url'
+            )
+            OR (
+                submission_type IN (
+                    'journal_api_response',
+                    'code_analysis'
+                )
+                AND submission_value_kind = 'text'
+            )
+            """,
+            name="ck_requirements_submission_value_kind_matches_type",
+        ),
         Index(
             "uq_requirements_phase_slug_active",
             "phase_uuid",
@@ -476,6 +661,11 @@ class CurriculumRequirement(TimestampMixin, Base):
             unique=True,
             postgresql_where=text("deleted_at IS NULL"),
         ),
+        UniqueConstraint(
+            "uuid",
+            "submission_value_kind",
+            name="uq_requirements_uuid_value_kind",
+        ),
     )
 
     uuid: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
@@ -492,6 +682,7 @@ class CurriculumRequirement(TimestampMixin, Base):
     name: Mapped[str] = mapped_column(Text, nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False)
     submission_type: Mapped[str] = mapped_column(Text, nullable=False)
+    submission_value_kind: Mapped[str] = mapped_column(Text, nullable=False)
     order: Mapped[int] = mapped_column(
         BigInteger,
         nullable=False,

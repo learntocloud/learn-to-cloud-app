@@ -319,6 +319,7 @@ async def test_requirement_rehydrates_to_correct_subclass(
         name="Test Fork",
         description="desc",
         submission_type="repo_fork",
+        submission_value_kind="github_url",
         order=1,
         type_config={"required_repo": "owner/repo"},
         deleted_at=None,

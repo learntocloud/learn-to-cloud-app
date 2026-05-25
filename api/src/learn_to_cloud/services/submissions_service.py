@@ -27,6 +27,7 @@ from learn_to_cloud_shared.schemas import (
     SubmissionData,
     SubmissionResult,
 )
+from learn_to_cloud_shared.submission_values import SubmittedValue
 from learn_to_cloud_shared.verification.dispatcher import is_sync_verifiable
 from learn_to_cloud_shared.verification.execution import (
     execute_sync_submission_validation,
@@ -109,6 +110,10 @@ class RequirementNotFoundError(Exception):
 
 
 class GitHubUsernameRequiredError(Exception):
+    pass
+
+
+class InvalidSubmittedValueError(Exception):
     pass
 
 
@@ -266,13 +271,17 @@ async def create_verification_job(
         github_username,
         submitted_value,
     )
+    try:
+        typed_value = SubmittedValue.from_raw(ctx.requirement, submitted_value)
+    except ValueError as exc:
+        raise InvalidSubmittedValueError(str(exc)) from exc
 
     if is_sync_verifiable(ctx.requirement.submission_type):
         submission_result = await execute_sync_submission_validation(
             session_maker=session_maker,
             user_id=user_id,
             requirement=ctx.requirement,
-            submitted_value=submitted_value,
+            submitted_value=typed_value.as_text,
             github_username=github_username,
         )
         return SyncVerificationResult(submission_result=submission_result)
@@ -282,7 +291,7 @@ async def create_verification_job(
         job, created = await repo.create_or_get_active(
             user_id=user_id,
             requirement_uuid=ctx.requirement.uuid,
-            submitted_value=submitted_value,
+            submitted_value=typed_value,
         )
         await write_session.commit()
 
