@@ -92,6 +92,42 @@ class TestCreate:
 
         assert sub.validated_at is None
 
+    async def test_stores_invalid_github_attempts(
+        self, db_session: AsyncSession, user, req_uuids
+    ):
+        repo = SubmissionRepository(db_session)
+
+        sub = await repo.create(
+            user_id=USER_ID,
+            requirement_uuid=req_uuids[0],
+            submitted_value=_github_value("http://github.com/testuser"),
+            extracted_username=None,
+            is_validated=False,
+        )
+
+        assert sub.github_url == "http://github.com/testuser"
+        assert sub.is_validated is False
+
+    async def test_rejects_blank_typed_value(
+        self, db_session: AsyncSession, user, req_uuids
+    ):
+        repo = SubmissionRepository(db_session)
+        nested = await db_session.begin_nested()
+        try:
+            with pytest.raises(IntegrityError) as error:
+                await repo.create(
+                    user_id=USER_ID,
+                    requirement_uuid=req_uuids[0],
+                    submitted_value=_github_value(""),
+                    extracted_username=None,
+                    is_validated=False,
+                )
+        finally:
+            await nested.rollback()
+
+        expected = "ck_submissions_typed_value_format"
+        assert _constraint_name(error.value) == expected
+
     async def test_multiple_rows_per_user_requirement_allowed(
         self, db_session: AsyncSession, user, req_uuids
     ):
