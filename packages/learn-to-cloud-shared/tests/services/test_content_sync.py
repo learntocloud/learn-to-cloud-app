@@ -157,6 +157,8 @@ async def test_first_sync_inserts_all_rows(
     phase = (await db_session.execute(select(CurriculumPhase))).scalar_one()
     assert phase.slug == "phase0"
     assert phase.deleted_at is None
+    requirement = (await db_session.execute(select(CurriculumRequirement))).scalar_one()
+    assert requirement.submission_value_kind == "github_url"
 
 
 async def test_second_sync_is_idempotent(

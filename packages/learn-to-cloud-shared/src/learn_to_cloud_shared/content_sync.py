@@ -51,6 +51,7 @@ from learn_to_cloud_shared.models import (
     CurriculumTopic,
 )
 from learn_to_cloud_shared.schemas import Phase
+from learn_to_cloud_shared.submission_values import value_kind_for_submission_type
 
 
 class _CurriculumRowProtocol(Protocol):
@@ -128,6 +129,7 @@ _REQUIREMENT_UPDATE_FIELDS = (
     "name",
     "description",
     "submission_type",
+    "submission_value_kind",
     "order",
     "type_config",
     "deleted_at",
@@ -225,6 +227,9 @@ def _build_requirement_rows(phase: Phase, now: datetime) -> Iterable[dict[str, A
             "name": req.name,
             "description": req.description,
             "submission_type": req.submission_type.value,
+            "submission_value_kind": value_kind_for_submission_type(
+                req.submission_type
+            ).value,
             # Position in _phase.yaml's requirement slug list = display order.
             # Mirrors the topic-order convention from #470: one source of truth.
             "order": idx + 1,

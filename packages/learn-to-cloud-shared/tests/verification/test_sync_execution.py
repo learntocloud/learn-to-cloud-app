@@ -24,6 +24,7 @@ from learn_to_cloud_shared.models import (
 )
 from learn_to_cloud_shared.repositories.user_repository import UserRepository
 from learn_to_cloud_shared.schemas import HandsOnRequirement, ValidationResult
+from learn_to_cloud_shared.submission_values import value_kind_for_submission_type
 from learn_to_cloud_shared.verification.execution import (
     SubmissionAlreadyInFlightError,
     execute_sync_submission_validation,
@@ -68,6 +69,10 @@ async def _make_requirement_in_db(
         row_uuid = (
             await db.execute(
                 select(CurriculumRequirement.uuid)
+                .where(
+                    CurriculumRequirement.submission_value_kind
+                    == value_kind_for_submission_type(submission_type).value
+                )
                 .order_by(CurriculumRequirement.slug)
                 .limit(1)
             )
@@ -317,6 +322,7 @@ async def test_advisory_lock_keyed_per_requirement(
                 await db.execute(
                     select(CurriculumRequirement.uuid)
                     .where(CurriculumRequirement.uuid != requirement.uuid)
+                    .where(CurriculumRequirement.submission_value_kind == "github_url")
                     .order_by(CurriculumRequirement.slug)
                     .limit(1)
                 )

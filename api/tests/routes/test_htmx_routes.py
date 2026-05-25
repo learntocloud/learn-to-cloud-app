@@ -19,7 +19,7 @@ from uuid import uuid4
 
 import pytest
 from fastapi.responses import HTMLResponse
-from learn_to_cloud_shared.models import VerificationJob
+from learn_to_cloud_shared.models import SubmissionValueKind, VerificationJob
 from learn_to_cloud_shared.schemas import SubmissionResult
 
 from learn_to_cloud.core.auth import AuthenticatedUser
@@ -54,6 +54,19 @@ def _async_requirement():
         slug="journal-api-implementation",
         name="Journal API",
         description="Test",
+    )
+
+
+def _mock_job(value: str = "https://github.com/user/repo") -> SimpleNamespace:
+    return SimpleNamespace(
+        id=uuid4(),
+        orchestration_instance_id=None,
+        submitted_value=value,
+        submission_value_kind=SubmissionValueKind.GITHUB_URL.value,
+        github_url=value,
+        token_value=None,
+        deployed_url=None,
+        text_value=None,
     )
 
 
@@ -211,11 +224,7 @@ class TestHtmxSubmitVerification:
         """Successful submission starts Durable and returns processing card."""
         request = _mock_request()
         current_user = AuthenticatedUser(user_id=1, github_username="user")
-        job = SimpleNamespace(
-            id=uuid4(),
-            orchestration_instance_id=None,
-            submitted_value="test",
-        )
+        job = _mock_job()
         job_submission = SimpleNamespace(
             job=job,
             created=True,
@@ -237,7 +246,7 @@ class TestHtmxSubmitVerification:
             patch(
                 "learn_to_cloud.routes.htmx_routes.derive_submission_value",
                 autospec=True,
-                return_value="test",
+                return_value="https://github.com/user/repo",
             ),
             patch(
                 "learn_to_cloud.routes.htmx_routes.create_verification_job",
@@ -259,7 +268,7 @@ class TestHtmxSubmitVerification:
                 AsyncMock(),
                 current_user,
                 requirement_slug="req-1",
-                submitted_value="test",
+                submitted_value="https://github.com/user/repo",
             )
 
         # Should return a processing card, not a final result
@@ -305,9 +314,7 @@ class TestHtmxSubmitVerification:
         partial unique index so the user can retry immediately."""
         request = _mock_request()
         current_user = AuthenticatedUser(user_id=1, github_username="user")
-        job = SimpleNamespace(
-            id=uuid4(), orchestration_instance_id=None, submitted_value="test"
-        )
+        job = _mock_job()
         async_result = VerificationJobSubmission(
             job=cast(VerificationJob, job),
             created=True,
@@ -473,9 +480,7 @@ class TestHtmxSubmitVerification:
         VerificationJobSubmission spinner-and-poll path."""
         request = _mock_request()
         current_user = AuthenticatedUser(user_id=1, github_username="user")
-        job = SimpleNamespace(
-            id=uuid4(), orchestration_instance_id=None, submitted_value="test"
-        )
+        job = _mock_job()
         async_result = VerificationJobSubmission(
             job=cast(VerificationJob, job),
             created=True,
@@ -537,9 +542,7 @@ class TestHtmxSubmitVerification:
         with the same instance id would error."""
         request = _mock_request()
         current_user = AuthenticatedUser(user_id=1, github_username="user")
-        job = SimpleNamespace(
-            id=uuid4(), orchestration_instance_id=None, submitted_value="test"
-        )
+        job = _mock_job()
         async_result = VerificationJobSubmission(
             job=cast(VerificationJob, job),
             created=False,

@@ -11,7 +11,7 @@ from typing import cast
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from learn_to_cloud_shared.models import SubmissionType
+from learn_to_cloud_shared.models import SubmissionType, SubmissionValueKind
 from learn_to_cloud_shared.schemas import HandsOnRequirement, Phase
 from learn_to_cloud_shared.verification.requirements import RequirementIndex
 
@@ -54,6 +54,11 @@ def _make_mock_submission(
         submission_type=submission_type,
         phase_id=3,
         submitted_value="https://github.com/user/repo",
+        submission_value_kind=SubmissionValueKind.GITHUB_URL.value,
+        github_url="https://github.com/user/repo",
+        token_value=None,
+        deployed_url=None,
+        text_value=None,
         extracted_username="user",
         is_validated=is_validated,
         validated_at=datetime.now(UTC) if is_validated else None,

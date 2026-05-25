@@ -25,6 +25,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from learn_to_cloud_shared.models import VerificationJob, utcnow
+from learn_to_cloud_shared.submission_values import SubmittedValue
 
 ACTIVE_JOB_UNLINKED_PREDICATE = "result_submission_id IS NULL"
 
@@ -48,17 +49,18 @@ class VerificationJobRepository:
         *,
         user_id: int,
         requirement_uuid: UUID,
-        submitted_value: str,
+        submitted_value: SubmittedValue,
         extracted_username: str | None = None,
         cloud_provider: str | None = None,
         traceparent: str | None = None,
     ) -> VerificationJob:
         """Create a verification job and let DB constraints enforce uniqueness."""
+        value_columns = submitted_value.to_columns()
         job = VerificationJob(
             id=uuid4(),
             user_id=user_id,
             requirement_uuid=requirement_uuid,
-            submitted_value=submitted_value,
+            **value_columns,
             extracted_username=extracted_username,
             cloud_provider=cloud_provider,
             traceparent=traceparent,
@@ -72,7 +74,7 @@ class VerificationJobRepository:
         *,
         user_id: int,
         requirement_uuid: UUID,
-        submitted_value: str,
+        submitted_value: SubmittedValue,
         extracted_username: str | None = None,
         cloud_provider: str | None = None,
         traceparent: str | None = None,
@@ -94,7 +96,7 @@ class VerificationJobRepository:
                     id=uuid4(),
                     user_id=user_id,
                     requirement_uuid=requirement_uuid,
-                    submitted_value=submitted_value,
+                    **submitted_value.to_columns(),
                     extracted_username=extracted_username,
                     cloud_provider=cloud_provider,
                     traceparent=traceparent,

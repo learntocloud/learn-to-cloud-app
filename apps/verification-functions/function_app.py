@@ -21,20 +21,29 @@ from learn_to_cloud_shared.models import SubmissionType
 from learn_to_cloud_shared.repositories.verification_job_repository import (
     VerificationJobRepository,
 )
+from learn_to_cloud_shared.submission_values import submission_value_from_columns
 from learn_to_cloud_shared.verification.llm_grading import (
     LLMGradingDecisionPayload,
     LLMGradingRequest,
-    apply_llm_grading_decisions as apply_llm_decisions,
-    collect_llm_grading_requests as collect_llm_requests,
     llm_grading_unavailable_result,
+)
+from learn_to_cloud_shared.verification.llm_grading import (
+    apply_llm_grading_decisions as apply_llm_decisions,
+)
+from learn_to_cloud_shared.verification.llm_grading import (
+    collect_llm_grading_requests as collect_llm_requests,
 )
 from learn_to_cloud_shared.verification_job_executor import (
     PreparedVerificationJob,
     VerificationJobNotFoundError,
     VerificationRunResult,
-    persist_verification_result as persist_prepared_verification_result,
-    prepare_verification_job as prepare_persisted_verification_job,
     run_verification,
+)
+from learn_to_cloud_shared.verification_job_executor import (
+    persist_verification_result as persist_prepared_verification_result,
+)
+from learn_to_cloud_shared.verification_job_executor import (
+    prepare_verification_job as prepare_persisted_verification_job,
 )
 from opentelemetry import context as otel_context
 from opentelemetry import trace as otel_trace
@@ -86,7 +95,9 @@ _ORCHESTRATOR_NAMES_BY_SUBMISSION_TYPE = {
     SubmissionType.JOURNAL_API_RESPONSE: "verify_phase3_journal_api_orchestrator",
     SubmissionType.CODE_ANALYSIS: "verify_phase3_journal_api_orchestrator",
     SubmissionType.PR_REVIEW: "verify_phase3_pr_review_orchestrator",
-    SubmissionType.JOURNAL_API_VERIFIER: "verify_phase3_journal_api_verifier_orchestrator",
+    SubmissionType.JOURNAL_API_VERIFIER: (
+        "verify_phase3_journal_api_verifier_orchestrator"
+    ),
     SubmissionType.DEPLOYED_API: "verify_phase4_deployed_api_orchestrator",
     SubmissionType.DEVOPS_ANALYSIS: "verify_phase5_devops_orchestrator",
     SubmissionType.SECURITY_SCANNING: "verify_phase6_security_orchestrator",
@@ -713,7 +724,7 @@ async def start_verification_job(
             if (
                 job.user_id != prepared.user_id
                 or job.requirement_uuid != prepared.requirement.uuid
-                or job.submitted_value != prepared.submitted_value
+                or submission_value_from_columns(job) != prepared.typed_submitted_value
             ):
                 return _json_response(
                     {"error": "payload_does_not_match_job"},

@@ -12,6 +12,7 @@ from learn_to_cloud_shared.content_yaml_loader import clear_cache
 from learn_to_cloud_shared.models import (
     CurriculumRequirement,
     Submission,
+    SubmissionValueKind,
     VerificationJob,
 )
 from learn_to_cloud_shared.repositories.submission_repository import (
@@ -22,10 +23,15 @@ from learn_to_cloud_shared.repositories.verification_job_repository import (
     LinkResult,
     VerificationJobRepository,
 )
+from learn_to_cloud_shared.submission_values import SubmittedValue
 
 pytestmark = pytest.mark.integration
 
 USER_ID = 81001
+
+
+def _github_value(value: str) -> SubmittedValue:
+    return SubmittedValue(kind=SubmissionValueKind.GITHUB_URL, github_url=value)
 
 
 @pytest.fixture()
@@ -37,11 +43,14 @@ async def user(db_session: AsyncSession):
 
 @pytest.fixture()
 async def req_uuid(db_session: AsyncSession) -> UUID:
-    """Sync curriculum and return a requirement UUID for the submissions FK."""
+    """Sync curriculum and return a GitHub URL requirement UUID."""
     clear_cache()
     await sync_curriculum_to_db(db_session)
     result = await db_session.execute(
-        select(CurriculumRequirement.uuid).order_by(CurriculumRequirement.slug).limit(1)
+        select(CurriculumRequirement.uuid)
+        .where(CurriculumRequirement.submission_value_kind == "github_url")
+        .order_by(CurriculumRequirement.slug)
+        .limit(1)
     )
     return result.scalar_one()
 
@@ -53,7 +62,7 @@ async def _create_job(
     return await repo.create(
         user_id=USER_ID,
         requirement_uuid=requirement_uuid,
-        submitted_value="https://github.com/testuser",
+        submitted_value=_github_value("https://github.com/testuser"),
         extracted_username="testuser",
         traceparent="00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01",
     )
@@ -69,7 +78,7 @@ async def _create_submission(
     return await SubmissionRepository(db_session).create(
         user_id=USER_ID,
         requirement_uuid=requirement_uuid,
-        submitted_value="https://github.com/testuser",
+        submitted_value=_github_value("https://github.com/testuser"),
         extracted_username="testuser",
         is_validated=is_validated,
         verification_completed=verification_completed,
@@ -105,18 +114,18 @@ class TestCreate:
         first, first_created = await repo.create_or_get_active(
             user_id=USER_ID,
             requirement_uuid=req_uuid,
-            submitted_value="token-1",
+            submitted_value=_github_value("https://github.com/testuser/token-1"),
         )
         second, second_created = await repo.create_or_get_active(
             user_id=USER_ID,
             requirement_uuid=req_uuid,
-            submitted_value="token-2",
+            submitted_value=_github_value("https://github.com/testuser/token-2"),
         )
 
         assert first_created is True
         assert second_created is False
         assert second.id == first.id
-        assert second.submitted_value == "token-1"
+        assert second.submitted_value == "https://github.com/testuser/token-1"
 
         count = await db_session.scalar(
             select(func.count()).select_from(VerificationJob)
@@ -138,7 +147,7 @@ class TestCreate:
         first, first_created = await repo.create_or_get_active(
             user_id=USER_ID,
             requirement_uuid=req_uuid,
-            submitted_value="token-1",
+            submitted_value=_github_value("https://github.com/testuser/token-1"),
         )
         submission = await _create_submission(
             db_session,
@@ -152,13 +161,13 @@ class TestCreate:
         second, second_created = await repo.create_or_get_active(
             user_id=USER_ID,
             requirement_uuid=req_uuid,
-            submitted_value="token-2",
+            submitted_value=_github_value("https://github.com/testuser/token-2"),
         )
 
         assert first_created is True
         assert second_created is True
         assert second.id != first.id
-        assert second.submitted_value == "token-2"
+        assert second.submitted_value == "https://github.com/testuser/token-2"
 
 
 class TestFind:

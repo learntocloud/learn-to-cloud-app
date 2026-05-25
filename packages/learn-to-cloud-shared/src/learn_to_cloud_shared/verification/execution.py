@@ -19,6 +19,10 @@ from learn_to_cloud_shared.schemas import (
     SubmissionResult,
     ValidationResult,
 )
+from learn_to_cloud_shared.submission_values import (
+    SubmittedValue,
+    submission_value_from_columns,
+)
 from learn_to_cloud_shared.verification.dispatcher import validate_submission
 from learn_to_cloud_shared.verification.github_profile import parse_github_url
 
@@ -59,7 +63,7 @@ def to_submission_data(submission: Submission) -> SubmissionData:
     """
     return SubmissionData(
         id=submission.id,
-        submitted_value=submission.submitted_value,
+        submitted_value=submission_value_from_columns(submission).as_text,
         extracted_username=submission.extracted_username,
         is_validated=submission.is_validated,
         validated_at=submission.validated_at,
@@ -98,7 +102,7 @@ async def persist_validation_result(
     *,
     user_id: int,
     requirement: HandsOnRequirement,
-    submitted_value: str,
+    submitted_value: SubmittedValue,
     github_username: str | None,
     validation_result: ValidationResult,
 ) -> Submission:
@@ -110,7 +114,7 @@ async def persist_validation_result(
         submitted_value=submitted_value,
         extracted_username=_extract_username(
             requirement,
-            submitted_value,
+            submitted_value.as_text,
             github_username,
         ),
         is_validated=validation_result.is_valid,
@@ -149,6 +153,7 @@ async def execute_submission_validation(
     after_persist: SubmissionPersistHook | None = None,
 ) -> SubmissionResult:
     """Run validation without holding a DB session, then persist the result."""
+    typed_value = SubmittedValue.from_raw(requirement, submitted_value)
     with tracer.start_as_current_span(
         "execute_submission_validation",
         attributes={
@@ -159,7 +164,7 @@ async def execute_submission_validation(
     ) as span:
         validation_result = await validate_submission(
             requirement=requirement,
-            submitted_value=submitted_value,
+            submitted_value=typed_value.as_text,
             expected_username=github_username,
         )
 
@@ -168,7 +173,7 @@ async def execute_submission_validation(
                 write_session,
                 user_id=user_id,
                 requirement=requirement,
-                submitted_value=submitted_value,
+                submitted_value=typed_value,
                 github_username=github_username,
                 validation_result=validation_result,
             )
@@ -235,6 +240,7 @@ async def execute_sync_submission_validation(
     stays negligible.
     """
     lock_key = _advisory_lock_key(user_id, requirement.slug)
+    typed_value = SubmittedValue.from_raw(requirement, submitted_value)
 
     with tracer.start_as_current_span(
         "execute_sync_submission_validation",
@@ -259,7 +265,7 @@ async def execute_sync_submission_validation(
 
             validation_result = await validate_submission(
                 requirement=requirement,
-                submitted_value=submitted_value,
+                submitted_value=typed_value.as_text,
                 expected_username=github_username,
             )
 
@@ -267,7 +273,7 @@ async def execute_sync_submission_validation(
                 session,
                 user_id=user_id,
                 requirement=requirement,
-                submitted_value=submitted_value,
+                submitted_value=typed_value,
                 github_username=github_username,
                 validation_result=validation_result,
             )
