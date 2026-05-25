@@ -245,12 +245,30 @@ def upgrade() -> None:
     op.alter_column("submissions", "submission_value_kind", nullable=False)
     op.alter_column("verification_jobs", "submission_value_kind", nullable=False)
 
-    op.create_unique_constraint(
-        "uq_requirements_uuid_value_kind",
-        "requirements",
-        ["uuid", "submission_value_kind"],
+    with op.get_context().autocommit_block():
+        op.execute(
+            """
+            CREATE UNIQUE INDEX CONCURRENTLY IF NOT EXISTS
+            uq_requirements_uuid_value_kind
+            ON requirements (uuid, submission_value_kind)
+            """
+        )
+    op.execute(
+        """
+        DO $$
+        BEGIN
+            IF NOT EXISTS (
+                SELECT 1 FROM pg_constraint
+                WHERE conname = 'uq_requirements_uuid_value_kind'
+            ) THEN
+                ALTER TABLE requirements
+                ADD CONSTRAINT uq_requirements_uuid_value_kind
+                UNIQUE USING INDEX uq_requirements_uuid_value_kind;
+            END IF;
+        END $$
+        """
     )
-    op.create_check_constraint(
+    _add_check_constraint_not_valid(
         "ck_requirements_submission_value_kind_matches_type",
         "requirements",
         _REQUIREMENT_KIND_CHECK,
@@ -350,12 +368,12 @@ def _backfill_typed_values(table: str) -> None:
 
 
 def _add_typed_value_constraints(table: str, prefix: str) -> None:
-    op.create_check_constraint(
+    _add_check_constraint_not_valid(
         f"{prefix}_typed_value_shape",
         table,
         _TYPED_VALUE_SHAPE_CHECK,
     )
-    op.create_check_constraint(
+    _add_check_constraint_not_valid(
         f"{prefix}_typed_value_format",
         table,
         _TYPED_VALUE_FORMAT_CHECK,
@@ -368,13 +386,26 @@ def _drop_typed_value_constraints(table: str, prefix: str) -> None:
 
 
 def _add_value_kind_fk(table: str, name: str) -> None:
-    op.create_foreign_key(
-        name,
-        table,
-        "requirements",
-        ["requirement_uuid", "submission_value_kind"],
-        ["uuid", "submission_value_kind"],
-        ondelete="RESTRICT",
+    op.execute(
+        f"""
+        ALTER TABLE {table}
+        ADD CONSTRAINT {name}
+        FOREIGN KEY (requirement_uuid, submission_value_kind)
+        REFERENCES requirements (uuid, submission_value_kind)
+        ON DELETE RESTRICT
+        NOT VALID
+        """
+    )
+
+
+def _add_check_constraint_not_valid(name: str, table: str, condition: str) -> None:
+    op.execute(
+        f"""
+        ALTER TABLE {table}
+        ADD CONSTRAINT {name}
+        CHECK ({condition})
+        NOT VALID
+        """
     )
 
 
