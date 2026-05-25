@@ -3,13 +3,15 @@
 from uuid import UUID, uuid4
 
 import pytest
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from learn_to_cloud_shared.content_sync import sync_curriculum_to_db
 from learn_to_cloud_shared.content_yaml_loader import clear_cache
 from learn_to_cloud_shared.models import (
     CurriculumRequirement,
+    Submission,
     VerificationJob,
 )
 from learn_to_cloud_shared.repositories.submission_repository import (
@@ -292,6 +294,23 @@ class TestDeleteActive:
         loaded = await repo.get_by_id(job.id)
         assert loaded is not None
         assert loaded.result_submission_id == submission.id
+
+    async def test_linked_submission_delete_is_restricted(
+        self,
+        db_session: AsyncSession,
+        user,
+        req_uuid: UUID,
+    ):
+        repo = VerificationJobRepository(db_session)
+        job = await _create_job(repo, req_uuid)
+        submission = await _create_submission(db_session, req_uuid)
+        await repo.link_submission(job.id, submission.id)
+
+        with pytest.raises(IntegrityError):
+            await db_session.execute(
+                delete(Submission).where(Submission.id == submission.id)
+            )
+            await db_session.flush()
 
     async def test_unknown_id_returns_false(
         self,
