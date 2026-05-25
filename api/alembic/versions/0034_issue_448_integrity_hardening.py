@@ -50,8 +50,6 @@ def upgrade() -> None:
     op.execute("SET LOCAL lock_timeout = '5s'")
     op.execute("SET LOCAL statement_timeout = '2min'")
 
-    op.execute("CREATE EXTENSION IF NOT EXISTS pg_stat_statements")
-
     op.execute(
         """
         UPDATE submissions
