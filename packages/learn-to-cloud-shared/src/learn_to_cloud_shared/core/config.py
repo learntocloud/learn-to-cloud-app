@@ -192,114 +192,7 @@ class WebSecurityConfig(FrozenConfig):
     enable_docs: bool = False
 
 
-def _nested_missing(data: dict[str, Any], section: str, field: str) -> bool:
-    value = data.get(section)
-    return not isinstance(value, dict) or value.get(field) in (None, "")
-
-
-def _copy_flat(data: dict[str, Any], *, flat: str, section: str, field: str) -> None:
-    value = data.get(flat)
-    if value in (None, "") or not _nested_missing(data, section, field):
-        return
-    nested = data.setdefault(section, {})
-    if isinstance(nested, dict):
-        nested[field] = value
-
-
-def _apply_flat_compat(data: dict[str, Any]) -> dict[str, Any]:
-    for flat, section, field in (
-        ("database_url", "database", "url"),
-        ("postgres_host", "database", "host"),
-        ("postgres_port", "database", "port"),
-        ("postgres_database", "database", "name"),
-        ("postgres_user", "database", "user"),
-        ("db_timeout", "database", "timeout"),
-        ("db_pool_size", "database", "pool_size"),
-        ("db_pool_max_overflow", "database", "pool_max_overflow"),
-        ("db_pool_timeout", "database", "pool_timeout"),
-        ("db_pool_recycle", "database", "pool_recycle"),
-        ("db_statement_timeout_ms", "database", "statement_timeout_ms"),
-        ("db_echo", "database", "echo"),
-        ("github_token", "github", "token"),
-        ("labs_verification_secret", "labs", "verification_secret"),
-        ("external_api_timeout", "http", "external_api_timeout"),
-        ("content_dir", "content", "dir"),
-        ("github_client_id", "oauth", "client_id"),
-        ("github_client_secret", "oauth", "client_secret"),
-        ("session_secret_key", "session", "secret_key"),
-        ("cors_allowed_origins", "cors", "allowed_origins"),
-        ("frontend_url", "cors", "frontend_url"),
-        (
-            "frontend_applicationinsights_connection_string",
-            "frontend_telemetry",
-            "applicationinsights_connection_string",
-        ),
-        (
-            "frontend_telemetry_sampling_percentage",
-            "frontend_telemetry",
-            "sampling_percentage",
-        ),
-        (
-            "verification_functions_base_url",
-            "verification_functions",
-            "base_url",
-        ),
-        ("verification_functions_key", "verification_functions", "key"),
-        ("ratelimit_storage_uri", "rate_limit", "storage_uri"),
-        ("require_https", "web_security", "require_https"),
-        ("enable_docs", "web_security", "enable_docs"),
-    ):
-        _copy_flat(data, flat=flat, section=section, field=field)
-    return data
-
-
-class _FlatCompatMixin:
-    """Temporary flat env var support during the nested settings rollout."""
-
-    database_url: str = Field(default="", exclude=True)
-    postgres_host: str = Field(default="", exclude=True)
-    postgres_port: int | None = Field(default=None, exclude=True)
-    postgres_database: str = Field(default="", exclude=True)
-    postgres_user: str = Field(default="", exclude=True)
-    db_timeout: int | None = Field(default=None, exclude=True)
-    db_pool_size: int | None = Field(default=None, exclude=True)
-    db_pool_max_overflow: int | None = Field(default=None, exclude=True)
-    db_pool_timeout: int | None = Field(default=None, exclude=True)
-    db_pool_recycle: int | None = Field(default=None, exclude=True)
-    db_statement_timeout_ms: int | None = Field(default=None, exclude=True)
-    db_echo: bool | None = Field(default=None, exclude=True)
-
-    github_token: str = Field(default="", exclude=True)
-    labs_verification_secret: str = Field(default="", exclude=True)
-    external_api_timeout: float | None = Field(default=None, exclude=True)
-    content_dir: str = Field(default="", exclude=True)
-
-    github_client_id: str = Field(default="", exclude=True)
-    github_client_secret: str = Field(default="", exclude=True)
-    session_secret_key: str = Field(default="", exclude=True)
-    cors_allowed_origins: str = Field(default="", exclude=True)
-    frontend_url: str = Field(default="", exclude=True)
-    frontend_applicationinsights_connection_string: str = Field(
-        default="", exclude=True
-    )
-    frontend_telemetry_sampling_percentage: float | None = Field(
-        default=None, exclude=True
-    )
-    verification_functions_base_url: str = Field(default="", exclude=True)
-    verification_functions_key: str = Field(default="", exclude=True)
-    ratelimit_storage_uri: str = Field(default="", exclude=True)
-    require_https: bool | None = Field(default=None, exclude=True)
-    enable_docs: bool | None = Field(default=None, exclude=True)
-
-    @model_validator(mode="before")
-    @classmethod
-    def _migrate_flat_env(cls, data: Any) -> Any:
-        if isinstance(data, dict):
-            return _apply_flat_compat(data)
-        return data
-
-
-class MigrationSettings(_FlatCompatMixin, BaseSettings):
+class MigrationSettings(BaseSettings):
     """Settings loaded by Alembic and migration jobs."""
 
     model_config = _SETTINGS_CONFIG
@@ -308,7 +201,7 @@ class MigrationSettings(_FlatCompatMixin, BaseSettings):
     content: ContentConfig = ContentConfig()
 
 
-class WorkerSettings(_FlatCompatMixin, BaseSettings):
+class WorkerSettings(BaseSettings):
     """Settings for background workers and shared verification code."""
 
     model_config = _SETTINGS_CONFIG
@@ -320,7 +213,7 @@ class WorkerSettings(_FlatCompatMixin, BaseSettings):
     content: ContentConfig = ContentConfig()
 
 
-class WebSettings(_FlatCompatMixin, BaseSettings):
+class WebSettings(BaseSettings):
     """Settings for the FastAPI webapp."""
 
     model_config = _SETTINGS_CONFIG

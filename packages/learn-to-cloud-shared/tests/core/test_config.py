@@ -11,7 +11,6 @@ from learn_to_cloud_shared.core.config import (
     FrontendTelemetryConfig,
     GitHubConfig,
     LabsConfig,
-    MigrationSettings,
     OAuthConfig,
     SessionConfig,
     WebSecurityConfig,
@@ -184,43 +183,9 @@ class TestAllowedOrigins:
 
 
 @pytest.mark.unit
-class TestFlatEnvCompatibility:
-    def test_old_database_url_populates_nested_database(
-        self, monkeypatch: pytest.MonkeyPatch
-    ):
-        monkeypatch.delenv("DATABASE__URL", raising=False)
-        s = MigrationSettings(database_url="postgresql+asyncpg://localhost/db")
-        assert s.database.url == "postgresql+asyncpg://localhost/db"
-
-    def test_new_nested_database_wins_over_old_flat_database_url(self):
-        s = MigrationSettings(
-            database=DatabaseConfig(url="postgresql+asyncpg://localhost/new"),
-            database_url="postgresql+asyncpg://localhost/old",
-        )
-        assert s.database.url == "postgresql+asyncpg://localhost/new"
-
-    def test_old_web_flat_fields_populate_nested_sections(
-        self, monkeypatch: pytest.MonkeyPatch
-    ):
-        monkeypatch.delenv("DATABASE__URL", raising=False)
-        s = WebSettings(
-            database_url="postgresql+asyncpg://localhost/db",
-            environment="production",
-            github_client_id="id",
-            github_client_secret="secret",
-            session_secret_key="prod-secret",
-            require_https=False,
-        )
-        assert s.database.url == "postgresql+asyncpg://localhost/db"
-        assert s.oauth.client_id == "id"
-        assert s.session.secret_key == "prod-secret"
-        assert s.web_security.require_https is False
-
-
-@pytest.mark.unit
 class TestSettingsFactories:
     def test_get_web_settings_is_cached(self, monkeypatch: pytest.MonkeyPatch):
-        monkeypatch.setenv("DATABASE_URL", "postgresql+asyncpg://localhost/db")
+        monkeypatch.setenv("DATABASE__URL", "postgresql+asyncpg://localhost/db")
         monkeypatch.setenv("ENVIRONMENT", "development")
         clear_settings_cache()
         assert get_web_settings() is get_web_settings()
@@ -228,13 +193,12 @@ class TestSettingsFactories:
     def test_clear_settings_cache_reloads_environment(
         self, monkeypatch: pytest.MonkeyPatch
     ):
-        monkeypatch.delenv("DATABASE__URL", raising=False)
-        monkeypatch.setenv("DATABASE_URL", "postgresql+asyncpg://localhost/one")
+        monkeypatch.setenv("DATABASE__URL", "postgresql+asyncpg://localhost/one")
         monkeypatch.setenv("ENVIRONMENT", "development")
         clear_settings_cache()
         assert get_web_settings().database.url.endswith("/one")
 
-        monkeypatch.setenv("DATABASE_URL", "postgresql+asyncpg://localhost/two")
+        monkeypatch.setenv("DATABASE__URL", "postgresql+asyncpg://localhost/two")
         clear_settings_cache()
         assert get_web_settings().database.url.endswith("/two")
 

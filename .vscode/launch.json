@@ -12,8 +12,8 @@
       "envFile": "${workspaceFolder}/api/.env",
       "env": {
         "DYLD_FALLBACK_LIBRARY_PATH": "/opt/homebrew/lib",
-        "VERIFICATION_FUNCTIONS_BASE_URL": "http://localhost:7071",
-        "VERIFICATION_FUNCTIONS_KEY": "local-dev",
+        "VERIFICATION_FUNCTIONS__BASE_URL": "http://localhost:7071",
+        "VERIFICATION_FUNCTIONS__KEY": "local-dev",
         "OTEL_EXPORTER_OTLP_ENDPOINT": "http://aspire-dashboard:18889",
         "OTEL_SERVICE_NAME": "learn-to-cloud-api"
       },
