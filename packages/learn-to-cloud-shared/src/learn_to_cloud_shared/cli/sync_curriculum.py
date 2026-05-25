@@ -6,7 +6,8 @@ the settings singleton starts fresh as WorkerSettings (Alembic uses
 DatabaseSettings; sharing the same process can lock the singleton to
 the wrong profile).
 
-Usage (anywhere the ``learn-to-cloud-shared`` wheel is installed)::
+Usage (anywhere the ``learn-to-cloud-shared`` wheel is installed and
+``CONTENT_DIR`` points at ``content/phases``)::
 
     python -m learn_to_cloud_shared.cli.sync_curriculum
 
@@ -15,9 +16,9 @@ Exit codes:
     1  Sync aborted (validation error, collision, or other ContentSyncError).
     2  Unexpected exception.
 
-Lives inside the installed package (not in ``scripts/``) so the
-production runtime container has it via the wheel -- the runtime image
-does not copy the source tree (see ``api/Dockerfile``).
+Lives inside the installed package (not in ``scripts/``) so the migration
+image can run the CLI from the wheel while owning the copied YAML directory
+separately (see ``api/Dockerfile``).
 
 Wired into ``api/scripts/run_migrations.py`` as a subprocess that runs
 after ``alembic upgrade head`` in the Container Apps migration job.

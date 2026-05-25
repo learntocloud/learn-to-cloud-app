@@ -113,12 +113,21 @@ class WorkerSettings(DatabaseSettings):
 
     @cached_property
     def content_dir_path(self) -> Path:
-        """Defaults to packaged content/phases if CONTENT_DIR not set."""
+        """Resolve authored curriculum YAML for sync and validation jobs."""
         if self.content_dir:
             return Path(self.content_dir)
 
-        packaged_content = files("learn_to_cloud_shared").joinpath("content", "phases")
-        return Path(str(packaged_content))
+        source_content = Path(
+            str(files("learn_to_cloud_shared").joinpath("content", "phases"))
+        )
+        if source_content.exists():
+            return source_content
+
+        raise RuntimeError(
+            "CONTENT_DIR is required because curriculum YAML is not packaged "
+            "with learn-to-cloud-shared. Set CONTENT_DIR to the copied "
+            "content/phases directory in jobs that sync or validate YAML."
+        )
 
 
 class WebSettings(WorkerSettings):

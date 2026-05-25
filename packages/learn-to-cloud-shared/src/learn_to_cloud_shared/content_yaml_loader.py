@@ -1,11 +1,11 @@
-"""YAML-backed curriculum loader (legacy source of truth).
+"""YAML-backed curriculum loader (authoring source of truth).
 
-This module loads the curriculum tree from the packaged YAML files. After
+This module loads the curriculum tree from the authored YAML files. After
 Phase C (issue #461), runtime reads in the API go through the DB loader in
-``content_db_loader.py`` via the public ``content_service`` module. The
-YAML loader is still authoritative -- it remains the source of truth for
-the deploy-time YAML to DB sync (``content_sync.py``) and for the strict
-cross-file validators run in CI.
+``content_db_loader.py`` via the public ``content_service`` module. The YAML
+loader is still authoritative for deploy-time YAML to DB sync
+(``content_sync.py``) and for the strict cross-file validators run in CI.
+Production migration jobs provide the YAML path through ``CONTENT_DIR``.
 
 Do not import from this module in request-serving code paths. Use
 ``learn_to_cloud_shared.content_service`` (async, DB-backed) instead.
@@ -207,7 +207,7 @@ def _load_phase(phase_slug: str) -> Phase | None:
 
 @lru_cache(maxsize=1)
 def get_all_phases_from_yaml() -> tuple[Phase, ...]:
-    """Get all phases in order from packaged YAML files.
+    """Get all phases in order from authored YAML files.
 
     Results are cached for performance. Dynamically discovers phase
     directories (phase0, phase1, ...). Used by ``content_sync.py``

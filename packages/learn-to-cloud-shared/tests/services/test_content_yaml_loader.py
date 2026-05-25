@@ -245,7 +245,7 @@ learning_steps:
 
 @pytest.mark.unit
 class TestGetAllPhases:
-    def test_packaged_content_contains_journal_requirement(self):
+    def test_authored_content_contains_journal_requirement(self):
         requirements = [
             requirement
             for phase in get_all_phases()

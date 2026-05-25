@@ -42,7 +42,7 @@ pytestmark = pytest.mark.integration
 
 
 async def _seed_with_real_content(db: AsyncSession) -> None:
-    """Run the real sync against the packaged YAML content."""
+    """Run the real sync against the authored YAML content."""
     clear_cache()
     await sync_curriculum_to_db(db)
 
@@ -52,13 +52,13 @@ async def _seed_with_real_content(db: AsyncSession) -> None:
 # ---------------------------------------------------------------------------
 
 
-async def test_db_loader_matches_yaml_loader_for_packaged_content(
+async def test_db_loader_matches_yaml_loader_for_authored_content(
     db_session: AsyncSession,
 ) -> None:
     """The DB loader returns the same shape as the YAML loader.
 
-    Runs the real ``sync_curriculum_to_db`` against the packaged YAML
-    (the same content the production app would see), then compares
+    Runs the real ``sync_curriculum_to_db`` against the authored YAML
+    (the same content the migration image syncs), then compares
     ``load_all_phases_from_db`` output against ``get_all_phases``.
 
     Uses ``model_dump(mode='json')`` so equality failures produce a

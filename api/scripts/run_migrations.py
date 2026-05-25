@@ -12,7 +12,8 @@ Runs the full deploy-gate sequence:
    (autogenerate dry-run). Catches model fields added without
    corresponding migrations.
 4. ``python -m learn_to_cloud_shared.cli.sync_curriculum`` — populate
-   curriculum DB tables from packaged YAML (issue #463 / Phase B).
+   curriculum DB tables from the migration image's copied YAML directory
+   (issue #463 / Phase B).
    Runs as a subprocess so its settings singleton starts fresh as
    ``WorkerSettings``; sharing the Alembic process would lock it to
    ``DatabaseSettings``.
@@ -22,11 +23,11 @@ process, so the ``DefaultAzureCredential`` token cache is hit for the
 second and third calls — only one IMDS roundtrip happens per job.
 
 The sync CLI lives inside the installed package
-(``learn_to_cloud_shared.cli.sync_curriculum``) rather than a
-filesystem script, because the runtime container does not copy the
-package source tree -- only the installed wheel ends up in
-``/app/.venv``. ``python -m`` finds the module via the wheel's import
-path, which is portable across local devcontainer, CI, and production.
+(``learn_to_cloud_shared.cli.sync_curriculum``) rather than a filesystem
+script. The migration image copies curriculum YAML separately and points
+``CONTENT_DIR`` at that path, so the API image does not need to ship YAML.
+``python -m`` finds the module via the wheel's import path, which is
+portable across local devcontainer, CI, and production.
 """
 
 from __future__ import annotations
