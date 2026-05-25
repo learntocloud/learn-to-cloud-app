@@ -6,6 +6,10 @@ from uuid import uuid4
 
 import httpx
 import pytest
+from learn_to_cloud_shared.testing.requirement_factories import (
+    github_profile_requirement,
+)
+from learn_to_cloud_shared.verification_job_executor import PreparedVerificationJob
 
 from learn_to_cloud.services.durable_verification_client import (
     DurableVerificationConfigError,
@@ -30,6 +34,16 @@ def _settings(
     )
 
 
+def _prepared(job_id=None) -> PreparedVerificationJob:
+    return PreparedVerificationJob(
+        id=job_id or uuid4(),
+        user_id=42,
+        github_username="testuser",
+        requirement=github_profile_requirement(),
+        submitted_value="https://github.com/testuser",
+    )
+
+
 def _async_client(response: httpx.Response | Exception):
     client = MagicMock()
     if isinstance(response, Exception):
@@ -45,8 +59,8 @@ def _async_client(response: httpx.Response | Exception):
     return client, context_manager
 
 
-async def test_starts_orchestration_with_function_key_header():
-    job_id = uuid4()
+async def test_starts_orchestration_with_function_key_header_and_payload():
+    prepared = _prepared()
     client, context_manager = _async_client(httpx.Response(202, json={"id": "abc"}))
 
     with (
@@ -59,13 +73,14 @@ async def test_starts_orchestration_with_function_key_header():
             return_value=context_manager,
         ) as async_client,
     ):
-        result = await start_verification_orchestration(job_id)
+        result = await start_verification_orchestration(prepared)
 
     assert result.instance_id == "abc"
     async_client.assert_called_once_with(timeout=3.0)
     client.post.assert_awaited_once_with(
-        f"http://localhost:7071/api/verification/jobs/{job_id}/start",
+        f"http://localhost:7071/api/verification/jobs/{prepared.id}/start",
         headers={"x-functions-key": "function-key"},
+        json=prepared.to_payload(),
     )
 
 
@@ -80,7 +95,7 @@ async def test_missing_config_fails_before_http_call():
         ) as async_client,
         pytest.raises(DurableVerificationConfigError),
     ):
-        await start_verification_orchestration(uuid4())
+        await start_verification_orchestration(_prepared())
 
     async_client.assert_not_called()
 
@@ -99,7 +114,7 @@ async def test_http_error_status_raises_start_error():
         ),
         pytest.raises(DurableVerificationStartError, match="HTTP 500"),
     ):
-        await start_verification_orchestration(uuid4())
+        await start_verification_orchestration(_prepared())
 
 
 async def test_transport_error_raises_start_error():
@@ -117,7 +132,7 @@ async def test_transport_error_raises_start_error():
         ),
         pytest.raises(DurableVerificationStartError, match="request failed"),
     ):
-        await start_verification_orchestration(uuid4())
+        await start_verification_orchestration(_prepared())
 
 
 async def test_gets_orchestration_status_with_function_key_header():

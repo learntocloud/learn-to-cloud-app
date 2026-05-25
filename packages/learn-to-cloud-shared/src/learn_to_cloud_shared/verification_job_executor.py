@@ -427,6 +427,7 @@ async def prepare_verification_job(
     job_id: UUID | str,
     *,
     session_maker: async_sessionmaker[AsyncSession],
+    prepared_input: PreparedVerificationJob | None = None,
 ) -> VerificationJobPreparation:
     """Load a verification job and dispatch to the right execution path.
 
@@ -435,20 +436,49 @@ async def prepare_verification_job(
        prepare after the persist activity already finished), return the
        same execution result from the linked Submission.
     2. If the requirement was removed from content between submit and
-       execute, record a server-error Submission and short-circuit.
+       execute and we have no ``prepared_input`` snapshot, record a
+       server-error Submission and short-circuit.
+
+    Args:
+        prepared_input: When the orchestration was started with a full
+            :class:`PreparedVerificationJob` payload (the post-#467
+            decoupling path), the requirement definition and
+            ``github_username`` snapshot travel with the orchestration
+            and we skip the curriculum / users reads. The DB row is
+            still loaded so we can validate immutable identity fields
+            against the payload (defense against a forged start
+            request) and check the replay short-circuit. Pass ``None``
+            for legacy in-flight orchestrations whose ``client_input``
+            is a bare job_id string.
     """
     normalized_job_id = _coerce_job_id(job_id)
 
     with tracer.start_as_current_span(
         "prepare_verification_job",
-        attributes={"verification.job_id": str(normalized_job_id)},
+        attributes={"verification.job.id": str(normalized_job_id)},
     ) as span:
         async with session_maker() as db:
-            payload = await _load_job_payload(db, normalized_job_id)
-            if payload is None:
-                raise VerificationJobNotFoundError(str(normalized_job_id))
-
-            requirement = await _find_requirement_by_uuid(db, payload.requirement_uuid)
+            if prepared_input is None:
+                payload = await _load_job_payload(db, normalized_job_id)
+                if payload is None:
+                    raise VerificationJobNotFoundError(str(normalized_job_id))
+                requirement = await _find_requirement_by_uuid(
+                    db, payload.requirement_uuid
+                )
+            else:
+                payload = await _load_job_state(db, normalized_job_id)
+                if payload is None:
+                    raise VerificationJobNotFoundError(str(normalized_job_id))
+                if (
+                    payload.user_id != prepared_input.user_id
+                    or payload.requirement_uuid != prepared_input.requirement.uuid
+                    or payload.submitted_value != prepared_input.submitted_value
+                ):
+                    raise VerificationJobNotFoundError(
+                        f"prepared payload does not match verification_jobs "
+                        f"row for job {normalized_job_id}"
+                    )
+                requirement = prepared_input.requirement
 
             if payload.result_submission_id is not None:
                 submission = await db.get(Submission, payload.result_submission_id)
@@ -485,11 +515,40 @@ async def prepare_verification_job(
             job=PreparedVerificationJob(
                 id=payload.id,
                 user_id=payload.user_id,
-                github_username=payload.github_username,
+                github_username=(
+                    prepared_input.github_username
+                    if prepared_input is not None
+                    else payload.github_username
+                ),
                 requirement=requirement,
                 submitted_value=payload.submitted_value,
             )
         )
+
+
+async def _load_job_state(
+    db: AsyncSession,
+    job_id: UUID,
+) -> _VerificationJobPayload | None:
+    """Load verification_jobs identity + replay state without joining users.
+
+    Used by the new payload-driven prepare path: ``github_username``
+    comes from the orchestration payload, not the DB row, so the
+    Functions role doesn't need ``SELECT ON users``. The returned
+    dataclass's ``github_username`` field is set to ``None`` and
+    callers must read it from the payload instead.
+    """
+    job = await db.get(VerificationJob, job_id)
+    if job is None:
+        return None
+    return _VerificationJobPayload(
+        id=job.id,
+        user_id=job.user_id,
+        github_username=None,
+        requirement_uuid=job.requirement_uuid,
+        submitted_value=job.submitted_value,
+        result_submission_id=job.result_submission_id,
+    )
 
 
 async def run_verification(

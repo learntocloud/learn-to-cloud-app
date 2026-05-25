@@ -39,7 +39,6 @@ from learn_to_cloud_shared.verification_job_executor import (
 from opentelemetry import context as otel_context
 from opentelemetry import trace as otel_trace
 from opentelemetry.propagate import extract
-from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from verification_agents import grade_evidence
 
@@ -317,16 +316,31 @@ def _result_custom_status(
 
 
 def _run_verification_orchestration(context: df.DurableOrchestrationContext):
-    """Run one verification job wor
-    kflow."""
-    job_id = context.get_input()
-    if isinstance(job_id, str):
-        _set_verification_span_attributes(job_id=job_id)
+    """Run one verification job workflow.
+
+    Input shape:
+    - **New**: a :class:`PreparedVerificationJob` payload dict (with
+      ``id``, ``requirement``, ``submitted_value`` etc.). This is what
+      the HTTP starter sends after the curriculum-decoupling refactor.
+    - **Legacy**: a bare job_id string. Accepted for one deploy cycle
+      so in-flight orchestrations from before the deploy still execute;
+      the activity falls back to the DB-loading path. Remove once no
+      legacy instances remain.
+    """
+    raw_input = context.get_input()
+    if isinstance(raw_input, str):
+        job_id = raw_input
+    elif isinstance(raw_input, Mapping):
+        job_id_obj = raw_input.get("id")
+        job_id = job_id_obj if isinstance(job_id_obj, str) else str(job_id_obj)
+    else:
+        job_id = str(raw_input)
+    _set_verification_span_attributes(job_id=job_id)
     context.set_custom_status({"step": "preparing", "job_id": job_id})
     preparation = yield context.call_activity_with_retry(
         "prepare_verification_job",
         _TRANSIENT_RETRY_OPTIONS,
-        job_id,
+        raw_input,
     )
 
     terminal_result = preparation.get("terminal_result")
@@ -497,18 +511,39 @@ def verify_phase6_security_orchestrator(context: df.DurableOrchestrationContext)
     return (yield from _run_verification_orchestration(context))
 
 
-@app.activity_trigger(input_name="job_id")
+@app.activity_trigger(input_name="input_payload")
 async def prepare_verification_job(
-    job_id: str,
+    input_payload,
     context: func.Context,
 ) -> dict[str, object]:
-    """Load and mark the persisted verification job as running."""
+    """Load and mark the persisted verification job as running.
+
+    Accepts either:
+    - a bare job_id string (legacy in-flight orchestrations) — falls
+      back to the DB-load path that reads curriculum tables; or
+    - a full :class:`PreparedVerificationJob` payload dict — the new
+      shape, where the requirement definition + github_username
+      snapshot travel with the orchestration so this activity never
+      reads curriculum or users tables.
+    """
     with _attached_invocation_context(context):
+        if isinstance(input_payload, str):
+            job_id = input_payload
+            prepared_input = None
+        elif isinstance(input_payload, Mapping):
+            prepared_input = PreparedVerificationJob.from_payload(input_payload)
+            job_id = str(prepared_input.id)
+        else:
+            raise TypeError(
+                f"prepare_verification_job: expected str or Mapping input, "
+                f"got {type(input_payload).__name__}"
+            )
         _set_verification_span_attributes(job_id=job_id)
         try:
             preparation = await prepare_persisted_verification_job(
                 job_id,
                 session_maker=_get_session_maker(),
+                prepared_input=prepared_input,
             )
         except VerificationJobNotFoundError:
             logger.warning("verification.job.not_found", extra={"job_id": job_id})
@@ -641,7 +676,18 @@ async def start_verification_job(
     client: df.DurableOrchestrationClient,
     context: func.Context,
 ) -> func.HttpResponse:
-    """Start the verification orchestration for an existing job."""
+    """Start the verification orchestration for an existing job.
+
+    The API posts a full :class:`PreparedVerificationJob` payload as
+    the request body. We validate the immutable fields against the
+    ``verification_jobs`` row (route ``job_id``, ``user_id``,
+    ``requirement_uuid``, ``submitted_value``) so a leaked function
+    key or API bug can't make us run validation against a forged
+    user/requirement pair. The requirement *definition* and the
+    ``github_username`` snapshot are trusted from the payload -- which
+    is what lets the Functions role drop curriculum/users grants
+    entirely.
+    """
     with _attached_invocation_context(context):
         raw_job_id = req.route_params.get("job_id")
         if raw_job_id is None:
@@ -652,35 +698,45 @@ async def start_verification_job(
         except ValueError:
             return _json_response({"error": "invalid_job_id"}, status_code=400)
 
+        try:
+            body = req.get_json()
+        except ValueError:
+            return _json_response({"error": "invalid_json_body"}, status_code=400)
+
+        try:
+            prepared = PreparedVerificationJob.from_payload(body)
+        except (KeyError, ValueError, TypeError) as exc:
+            return _json_response(
+                {"error": "invalid_payload", "detail": str(exc)},
+                status_code=400,
+            )
+
+        if prepared.id != job_uuid:
+            return _json_response({"error": "payload_job_id_mismatch"}, status_code=400)
+
         job_id = str(job_uuid)
         async with _get_session_maker()() as session:
             job = await VerificationJobRepository(session).get_by_id(job_uuid)
             if job is None:
                 return _json_response({"error": "job_not_found"}, status_code=404)
 
-            # verification_jobs no longer carries submission_type/requirement_slug
-            # (Phase D.3). Resolve them via a direct lookup against the
-            # requirements table -- this includes soft-deleted rows because
-            # the FK is ON DELETE RESTRICT, so the row always still exists.
-            requirement_row = (
-                await session.execute(
-                    text(
-                        "SELECT slug, submission_type FROM requirements "
-                        "WHERE uuid = :uuid LIMIT 1"
-                    ),
-                    {"uuid": job.requirement_uuid},
+            if (
+                job.user_id != prepared.user_id
+                or job.requirement_uuid != prepared.requirement.uuid
+                or job.submitted_value != prepared.submitted_value
+            ):
+                return _json_response(
+                    {"error": "payload_does_not_match_job"},
+                    status_code=400,
                 )
-            ).first()
-        if requirement_row is None:
-            return _json_response({"error": "requirement_not_found"}, status_code=404)
-        requirement_slug, submission_type_str = requirement_row[0], requirement_row[1]
 
+        submission_type_str = prepared.requirement.submission_type.value
         orchestrator_name = _orchestrator_name_for_submission_type(submission_type_str)
         _set_verification_span_attributes(job_id=job_id)
         instance_id = await client.start_new(
             orchestrator_name,
             instance_id=job_id,
-            client_input=job_id,
+            client_input=prepared.to_payload(),
         )
         logger.info(
             "verification.orchestration.started",
@@ -688,7 +744,7 @@ async def start_verification_job(
                 "job_id": job_id,
                 "instance_id": instance_id,
                 "orchestrator_name": orchestrator_name,
-                "requirement_slug": requirement_slug,
+                "requirement_slug": prepared.requirement.slug,
                 "submission_type": submission_type_str,
             },
         )
