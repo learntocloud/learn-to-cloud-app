@@ -273,7 +273,9 @@ async def run_devops_workflow(owner: str, repo: str) -> ValidationResult:
                         "Make sure the repository is public."
                     ),
                 )
-            if not isinstance(e, httpx.HTTPStatusError):
+            if isinstance(e, httpx.HTTPStatusError) and e.response.status_code < 500:
+                pass
+            else:
                 span.record_exception(e)
             return github_error_to_validation_result(
                 e,

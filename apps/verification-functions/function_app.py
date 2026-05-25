@@ -727,7 +727,7 @@ async def start_verification_job(
                         status_code=400,
                     )
         except Exception:
-            logger.exception("start_verification_job.db_error", extra={"job_id": job_id})
+            logger.exception("start_verification_job.setup_error", extra={"job_id": job_id})
             return _json_response({"error": "server_error"}, status_code=500)
 
         submission_type_str = prepared.requirement.submission_type.value
