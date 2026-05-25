@@ -321,7 +321,7 @@ def _run_verification_orchestration(context: df.DurableOrchestrationContext):
     Input is a :class:`PreparedVerificationJob` payload dict (with
     ``id``, ``requirement``, ``submitted_value`` etc.) -- the HTTP
     starter always builds and posts one. Functions never reads
-    curriculum or users tables (#467 follow-up).
+    curriculum or users tables.
     """
     input_payload = context.get_input()
     if not isinstance(input_payload, Mapping):
@@ -512,12 +512,13 @@ async def prepare_verification_job(
     input_payload,
     context: func.Context,
 ) -> dict[str, object]:
-    """Load and mark the persisted verification job as running.
+    """Validate the persisted verification job and return the prepared
+    work item for the orchestrator to run.
 
     Input is the :class:`PreparedVerificationJob` payload dict carried
     by the orchestration. The requirement definition + github_username
     snapshot travel with the orchestration so this activity never
-    reads curriculum or users tables (#467 follow-up).
+    reads curriculum or users tables.
     """
     with _attached_invocation_context(context):
         if not isinstance(input_payload, Mapping):

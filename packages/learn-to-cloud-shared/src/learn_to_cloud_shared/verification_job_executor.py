@@ -5,18 +5,21 @@ writes. A verification job is now identified by the presence of its row
 in ``verification_jobs``; the outcome lives entirely in the linked
 ``Submission``. The executor:
 
-1. ``prepare_verification_job`` loads the job and, if it already has a
-   linked Submission (Durable replay after a successful prior run),
-   returns the same execution result without doing more work.
+1. ``prepare_verification_job`` validates the persisted job against the
+   orchestration's ``PreparedVerificationJob`` payload and, if the job
+   already has a linked Submission (Durable replay after a successful
+   prior run), returns the same execution result without doing more
+   work.
 2. ``run_verification`` runs the validator (no DB writes).
 3. ``persist_verification_result`` writes the ``Submission`` and links
    it to the job via ``VerificationJobRepository.link_submission``.
    Idempotent against retries via the ``ALREADY_LINKED`` short-circuit.
 
-The missing-requirement edge case writes a server-error ``Submission``
-and links it, so ``prepare`` stays idempotent on retry — the row exists,
-the link exists, and ``preparation.terminal_result`` is reconstructed
-from the linked Submission.
+After the curriculum-decoupling refactor, the requirement definition
+and ``github_username`` snapshot travel with the orchestration payload
+so the executor never reads ``users`` or any curriculum table. Any
+soft-delete of the requirement between submit and execute is invisible
+here -- validation runs against the submit-time snapshot.
 """
 
 from __future__ import annotations
@@ -267,7 +270,7 @@ def _build_result_from_submission(
     :func:`prepare_verification_job` and :func:`persist_verification_result`.
 
     The requirement is always available (carried on the orchestration
-    payload after #467) so we don't need a soft-delete fallback shape.
+    payload) so we don't need a soft-delete fallback shape.
     """
     outcome = _outcome_from_submission(submission)
     return VerificationJobExecutionResult(
@@ -294,7 +297,7 @@ async def prepare_verification_job(
     """Validate a verification job and dispatch to the right execution path.
 
     The orchestration always carries a full ``PreparedVerificationJob``
-    payload (post-#467 curriculum decoupling). This activity:
+    payload (curriculum-decoupling refactor). This activity:
 
     1. Loads the ``verification_jobs`` row and validates the immutable
        identity fields (``user_id``, ``requirement_uuid``,
@@ -364,8 +367,8 @@ async def _load_job_state(
     """Load the verification_jobs row's identity + replay state.
 
     No JOIN against ``users`` -- the ``github_username`` snapshot
-    travels with the orchestration payload after the #467
-    curriculum-decoupling refactor, so the Functions role doesn't need
+    travels with the orchestration payload after the curriculum-
+    decoupling refactor, so the Functions role doesn't need
     ``SELECT ON users`` and this query is one indexed PK lookup.
     """
     job = await db.get(VerificationJob, job_id)
@@ -462,7 +465,7 @@ async def persist_verification_result(
                 raise VerificationJobNotFoundError(str(job.id))
             if link is LinkResult.ALREADY_LINKED:
                 # Another activity attempt linked a Submission between our
-                # _load_job_payload and the link_submission UPDATE. Roll
+                # _load_job_state and the link_submission UPDATE. Roll
                 # back our duplicate insert by aborting the transaction;
                 # reload the canonical Submission and return its result.
                 await db.rollback()

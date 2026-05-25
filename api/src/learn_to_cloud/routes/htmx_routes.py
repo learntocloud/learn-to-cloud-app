@@ -438,7 +438,7 @@ async def _start_async_job_and_render(
     validates the immutable fields against the ``verification_jobs``
     row before starting; the payload is trusted for the requirement
     definition + username snapshot so Functions never needs to read
-    curriculum or users tables (#467 follow-up).
+    curriculum or users tables.
 
     On the rare concurrent-submit case (``created=False``) the original
     submit already kicked off Durable; we skip the start call and let
