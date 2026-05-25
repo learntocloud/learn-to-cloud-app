@@ -23,7 +23,7 @@ second and third calls — only one IMDS roundtrip happens per job.
 The sync CLI lives inside the installed package
 (``learn_to_cloud_shared.cli.sync_curriculum``) rather than a filesystem
 script. The migration image copies curriculum YAML separately and points
-``CONTENT_DIR`` at that path, so the API image does not need to ship YAML.
+``CONTENT__DIR`` at that path, so the API image does not need to ship YAML.
 ``python -m`` finds the module via the wheel's import path, which is
 portable across local devcontainer, CI, and production.
 """

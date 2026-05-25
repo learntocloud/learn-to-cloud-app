@@ -1,6 +1,6 @@
 """Deploy-time sync from YAML curriculum to DB tables (issue #463).
 
-Reads the authored curriculum YAML from ``CONTENT_DIR`` in production,
+Reads the authored curriculum YAML from ``CONTENT__DIR`` in production,
 runs the strict cross-file validators, and upserts every curriculum entity
 into its corresponding DB table. Entities no longer present in YAML are
 soft-deleted; entities that reappear (same UUID) have their ``deleted_at``

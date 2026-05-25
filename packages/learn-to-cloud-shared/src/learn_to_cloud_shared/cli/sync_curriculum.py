@@ -3,7 +3,7 @@
 Importable CLI entry point for the deploy-time curriculum sync.
 
 Usage (anywhere the ``learn-to-cloud-shared`` wheel is installed and
-``CONTENT_DIR`` points at ``content/phases``)::
+``CONTENT__DIR`` points at ``content/phases``)::
 
     python -m learn_to_cloud_shared.cli.sync_curriculum
 
