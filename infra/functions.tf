@@ -166,12 +166,12 @@ resource "azapi_resource" "verification_auth_settings" {
         azureActiveDirectory = {
           enabled = true
           registration = {
-            clientId     = azuread_application.verification_functions.client_id
+            clientId     = local.verification_functions_auth_client_id
             openIdIssuer = "https://login.microsoftonline.com/${data.azurerm_client_config.current.tenant_id}/v2.0"
           }
           validation = {
             allowedAudiences = [
-              azuread_application.verification_functions.client_id,
+              local.verification_functions_auth_client_id,
               local.verification_functions_auth_audience,
             ]
             defaultAuthorizationPolicy = {
@@ -193,7 +193,13 @@ resource "azapi_resource" "verification_auth_settings" {
   schema_validation_enabled = false
 
   depends_on = [
-    azuread_service_principal.verification_functions,
     azurerm_function_app_flex_consumption.verification,
   ]
+
+  lifecycle {
+    precondition {
+      condition     = length(trimspace(local.verification_functions_auth_client_id)) > 0
+      error_message = "verification_functions_auth_client_id must be set for this environment."
+    }
+  }
 }
