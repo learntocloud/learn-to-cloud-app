@@ -656,10 +656,12 @@ class TestHtmxVerificationJobStatus:
         assert isinstance(result, HTMLResponse)
         assert "location.reload()" in bytes(result.body).decode()
 
-    async def test_failed_status_deletes_active_job(self):
+    async def test_failed_status_deletes_active_job_and_renders_error(
+        self,
+        _patch_templates,
+    ):
         """Durable terminal failure deletes the row instead of marking
-        a server-error status. Frees the partial unique index for retry
-        without copying Durable's terminal state into Postgres."""
+        a server-error status, then shows a retryable service error."""
         request = _mock_request()
         mock_session = AsyncMock()
         request.app.state.session_maker.return_value.__aenter__.return_value = (
@@ -688,6 +690,10 @@ class TestHtmxVerificationJobStatus:
                 "learn_to_cloud.routes.htmx_routes.VerificationJobRepository",
                 autospec=True,
             ) as mock_repository_class,
+            patch(
+                "learn_to_cloud.routes.htmx_routes.get_requirement_by_slug",
+                return_value=MagicMock(),
+            ),
         ):
             mock_repository = mock_repository_class.return_value
             mock_repository.delete_active = AsyncMock(return_value=True)
@@ -702,6 +708,13 @@ class TestHtmxVerificationJobStatus:
         assert isinstance(result, HTMLResponse)
         mock_repository.delete_active.assert_awaited_once_with(job_id)
         mock_session.commit.assert_awaited_once()
+        _, _, context = _patch_templates.TemplateResponse.call_args.args
+        assert context["server_error"] is True
+        assert (
+            context["server_error_message"]
+            == "Verification failed because the verification service hit an internal "
+            "error. This attempt was not counted. Please try again."
+        )
 
     async def test_canceled_status_also_deletes_active_job(self):
         """``Canceled`` and ``Terminated`` are handled the same way as
@@ -734,6 +747,10 @@ class TestHtmxVerificationJobStatus:
                 "learn_to_cloud.routes.htmx_routes.VerificationJobRepository",
                 autospec=True,
             ) as mock_repository_class,
+            patch(
+                "learn_to_cloud.routes.htmx_routes.get_requirement_by_slug",
+                return_value=MagicMock(),
+            ),
         ):
             mock_repository = mock_repository_class.return_value
             mock_repository.delete_active = AsyncMock(return_value=True)

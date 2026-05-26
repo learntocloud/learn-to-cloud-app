@@ -100,6 +100,10 @@ _DURABLE_START_ERROR_MESSAGE = (
     "Verification could not be started. This attempt was not counted — "
     "please try again."
 )
+_DURABLE_TERMINAL_ERROR_MESSAGE = (
+    "Verification failed because the verification service hit an internal error. "
+    "This attempt was not counted. Please try again."
+)
 
 _ACTIVE_DURABLE_STATUSES = {"pending", "running", "continuedasnew"}
 _TERMINAL_DURABLE_STATUSES = {"completed", "failed", "terminated", "canceled"}
@@ -155,7 +159,7 @@ async def _delete_terminal_job(
     request: Request,
     token_data: VerificationStatusToken,
     status: str,
-) -> None:
+) -> bool:
     """Drop the verification_jobs row after Durable reaches terminal failure.
 
     Replaces the older ``mark_server_error`` / ``mark_cancelled`` writes:
@@ -179,6 +183,7 @@ async def _delete_terminal_job(
             "verification.poller.delete_skipped",
             extra={"job_id": str(job_id), "runtime_status": status},
         )
+    return deleted
 
 
 async def _render_step_toggle(
@@ -570,8 +575,24 @@ async def htmx_verification_job_status(
         )
 
     if status in _DURABLE_FAILURE_STATUSES:
-        await _delete_terminal_job(request, token_data, status)
-        return HTMLResponse(_reload_verification_html())
+        deleted = await _delete_terminal_job(request, token_data, status)
+        if not deleted:
+            return HTMLResponse(_reload_verification_html())
+
+        requirement = await get_requirement_by_slug(db, token_data.requirement_slug)
+        if requirement is None:
+            return HTMLResponse(_reload_verification_html())
+
+        return templates.TemplateResponse(
+            request,
+            "partials/requirement_card.html",
+            build_requirement_card_context(
+                requirement=requirement,
+                github_username=current_user.github_username,
+                server_error=True,
+                server_error_message=_DURABLE_TERMINAL_ERROR_MESSAGE,
+            ),
+        )
 
     if status in _TERMINAL_DURABLE_STATUSES:
         return HTMLResponse(_reload_verification_html())
