@@ -24,6 +24,10 @@ from pytest_alembic.tests import (
 from sqlalchemy import create_engine, text
 
 MIGRATION_DB = "test_alembic_migrations"
+os.environ.setdefault(
+    "POSTGRES_VERIFICATION_FUNCTIONS_ROLE",
+    "ltc_verification_functions_dev",
+)
 
 # Re-export built-in tests so pytest discovers them.
 __all__ = [
