@@ -144,7 +144,7 @@ resource "azurerm_function_app_flex_consumption" "verification" {
   ]
 }
 
-resource "azapi_resource" "verification_auth_settings" {
+resource "azapi_update_resource" "verification_auth_settings" {
   type      = "Microsoft.Web/sites/config@2022-09-01"
   name      = "authsettingsV2"
   parent_id = azurerm_function_app_flex_consumption.verification.id
@@ -189,8 +189,6 @@ resource "azapi_resource" "verification_auth_settings" {
       }
     }
   }
-
-  schema_validation_enabled = false
 
   depends_on = [
     azurerm_function_app_flex_consumption.verification,
