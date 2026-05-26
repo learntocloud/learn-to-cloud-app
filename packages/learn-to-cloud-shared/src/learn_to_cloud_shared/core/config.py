@@ -175,7 +175,7 @@ class VerificationFunctionsConfig(FrozenConfig):
     """Durable verification Functions starter config."""
 
     base_url: str = ""
-    key: str = ""
+    token_scope: str = ""
 
 
 class RateLimitConfig(FrozenConfig):

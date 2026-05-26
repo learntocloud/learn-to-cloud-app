@@ -34,10 +34,10 @@ async def get_credential() -> ManagedIdentityCredential:
         return _azure_credential
 
 
-async def get_token() -> str:
-    """Get Azure AD token for PostgreSQL auth."""
+async def get_token(scope: str = AZURE_PG_SCOPE) -> str:
+    """Get Azure AD token for the requested scope."""
     credential = await get_credential()
-    token = await credential.get_token(AZURE_PG_SCOPE)
+    token = await credential.get_token(scope)
     return token.token
 
 

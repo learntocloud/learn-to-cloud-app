@@ -10,6 +10,10 @@ terraform {
       source  = "Azure/azapi"
       version = "~> 2.0"
     }
+    azuread = {
+      source  = "hashicorp/azuread"
+      version = "~> 3.0"
+    }
     random = {
       source  = "hashicorp/random"
       version = "~> 3.6"
@@ -34,6 +38,10 @@ provider "azurerm" {
 }
 
 provider "azapi" {}
+
+provider "azuread" {
+  tenant_id = data.azurerm_client_config.current.tenant_id
+}
 
 resource "random_string" "suffix" {
   length  = 6
@@ -63,6 +71,9 @@ locals {
   verification_functions_storage_account_prefix = substr(replace("stltcfunc${lower(var.environment)}", "-", ""), 0, 18)
   verification_functions_storage_account_name   = "${local.verification_functions_storage_account_prefix}${local.suffix}"
   verification_functions_task_hub_name          = "verification-${var.environment}"
+  verification_functions_auth_app_name          = "ltc-verification-functions-${var.environment}"
+  verification_functions_auth_audience          = "api://${local.verification_functions_auth_app_name}"
+  verification_functions_auth_scope             = "${local.verification_functions_auth_audience}/.default"
   suffix                                        = random_string.suffix.result
   resource_group_name                           = "rg-ltc-${var.environment}"
   tags = {

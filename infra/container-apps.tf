@@ -82,11 +82,6 @@ resource "azurerm_container_app" "api" {
     key_vault_secret_id = "${azurerm_key_vault.main.vault_uri}secrets/labs-verification-secret"
   }
 
-  secret {
-    name  = "verification-functions-key"
-    value = data.azurerm_function_app_host_keys.verification.default_function_key
-  }
-
   ingress {
     external_enabled = true
     target_port      = 8000
@@ -178,8 +173,8 @@ resource "azurerm_container_app" "api" {
       }
 
       env {
-        name        = "VERIFICATION_FUNCTIONS__KEY"
-        secret_name = "verification-functions-key"
+        name  = "VERIFICATION_FUNCTIONS__TOKEN_SCOPE"
+        value = local.verification_functions_auth_scope
       }
 
       env {

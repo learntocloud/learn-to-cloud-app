@@ -110,6 +110,11 @@ output "verification_functions_url" {
   value       = "https://${azurerm_function_app_flex_consumption.verification.default_hostname}"
 }
 
+output "verification_functions_auth_scope" {
+  description = "Microsoft Entra token scope used by the API Durable client"
+  value       = local.verification_functions_auth_scope
+}
+
 output "verification_functions_identity_client_id" {
   description = "Client ID for the verification Functions managed identity"
   value       = azurerm_user_assigned_identity.verification_functions.client_id

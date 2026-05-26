@@ -78,7 +78,7 @@ logger = logging.getLogger(f"{APP_LOGGER_NAMESPACE}.verification_functions")
 
 configure_observability()
 
-app = df.DFApp(http_auth_level=func.AuthLevel.FUNCTION)
+app = df.DFApp(http_auth_level=func.AuthLevel.ANONYMOUS)
 
 _DEFAULT_ORCHESTRATOR_NAME = "verification_orchestrator"
 # Async-only submission types: phase 3+ verifications that involve LLM
