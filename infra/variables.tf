@@ -165,6 +165,21 @@ variable "github_client_id" {
   type        = string
 }
 
+variable "verification_functions_auth_client_id" {
+  description = "Client ID of the pre-created Entra app registration."
+  type        = string
+  default     = null
+
+  validation {
+    condition = (
+      var.verification_functions_auth_client_id == null
+      ? true
+      : length(trimspace(var.verification_functions_auth_client_id)) > 0
+    )
+    error_message = "verification_functions_auth_client_id must be non-empty when set."
+  }
+}
+
 variable "environment" {
   description = "Environment name (dev, staging, prod)"
   type        = string
