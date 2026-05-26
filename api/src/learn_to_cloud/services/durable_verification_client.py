@@ -6,6 +6,8 @@ from dataclasses import dataclass
 from typing import Any
 
 import httpx
+from azure.core.exceptions import AzureError
+from learn_to_cloud_shared.core.azure_auth import get_token as get_azure_token
 from learn_to_cloud_shared.core.config import get_web_settings
 from learn_to_cloud_shared.verification_job_executor import PreparedVerificationJob
 
@@ -20,6 +22,10 @@ class DurableVerificationStartError(Exception):
 
 class DurableVerificationStatusError(Exception):
     """Raised when Durable status cannot be fetched or parsed."""
+
+
+class DurableVerificationAuthError(Exception):
+    """Raised when a verification Function access token cannot be acquired."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -48,16 +54,12 @@ async def start_verification_orchestration(
     *definition* and ``github_username`` snapshot.
     """
     settings = get_web_settings()
-    base_url = settings.verification_functions.base_url.rstrip("/")
-    function_key = settings.verification_functions.key
+    base_url, token_scope = _verification_endpoint_config(settings)
 
-    if not base_url or not function_key:
-        raise DurableVerificationConfigError(
-            "Verification Functions endpoint is not configured."
-        )
+    token = await _get_verification_token(token_scope)
 
     url = f"{base_url}/api/verification/jobs/{prepared.id}/start"
-    headers = {"x-functions-key": function_key}
+    headers = {"Authorization": f"Bearer {token}"}
     body: dict[str, Any] = prepared.to_payload()
 
     timeout = settings.http.external_api_timeout
@@ -93,16 +95,12 @@ async def get_verification_orchestration_status(
 ) -> DurableStatusResult:
     """Fetch Durable orchestration status through the Function app proxy."""
     settings = get_web_settings()
-    base_url = settings.verification_functions.base_url.rstrip("/")
-    function_key = settings.verification_functions.key
+    base_url, token_scope = _verification_endpoint_config(settings)
 
-    if not base_url or not function_key:
-        raise DurableVerificationConfigError(
-            "Verification Functions endpoint is not configured."
-        )
+    token = await _get_verification_token(token_scope)
 
     url = f"{base_url}/api/verification/jobs/{instance_id}/status"
-    headers = {"x-functions-key": function_key}
+    headers = {"Authorization": f"Bearer {token}"}
 
     timeout = settings.http.external_api_timeout
     try:
@@ -134,3 +132,24 @@ async def get_verification_orchestration_status(
         output=payload.get("output"),
         custom_status=payload.get("customStatus"),
     )
+
+
+def _verification_endpoint_config(settings: Any) -> tuple[str, str]:
+    base_url = settings.verification_functions.base_url.rstrip("/")
+    token_scope = settings.verification_functions.token_scope
+
+    if not base_url or not token_scope:
+        raise DurableVerificationConfigError(
+            "Verification Functions endpoint is not configured."
+        )
+
+    return base_url, token_scope
+
+
+async def _get_verification_token(token_scope: str) -> str:
+    try:
+        return await get_azure_token(token_scope)
+    except AzureError as exc:
+        raise DurableVerificationAuthError(
+            "Verification Functions access token could not be acquired."
+        ) from exc

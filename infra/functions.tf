@@ -144,9 +144,56 @@ resource "azurerm_function_app_flex_consumption" "verification" {
   ]
 }
 
-data "azurerm_function_app_host_keys" "verification" {
-  name                = azurerm_function_app_flex_consumption.verification.name
-  resource_group_name = azurerm_resource_group.main.name
+resource "azapi_resource" "verification_auth_settings" {
+  type      = "Microsoft.Web/sites/config@2022-09-01"
+  name      = "authsettingsV2"
+  parent_id = azurerm_function_app_flex_consumption.verification.id
 
-  depends_on = [azurerm_function_app_flex_consumption.verification]
+  body = {
+    properties = {
+      platform = {
+        enabled        = true
+        runtimeVersion = "~1"
+      }
+      globalValidation = {
+        requireAuthentication       = true
+        unauthenticatedClientAction = "Return401"
+      }
+      httpSettings = {
+        requireHttps = true
+      }
+      identityProviders = {
+        azureActiveDirectory = {
+          enabled = true
+          registration = {
+            clientId     = azuread_application.verification_functions.client_id
+            openIdIssuer = "https://login.microsoftonline.com/${data.azurerm_client_config.current.tenant_id}/v2.0"
+          }
+          validation = {
+            allowedAudiences = [
+              azuread_application.verification_functions.client_id,
+              local.verification_functions_auth_audience,
+            ]
+            defaultAuthorizationPolicy = {
+              allowedApplications = [
+                azurerm_user_assigned_identity.api.client_id,
+              ]
+              allowedPrincipals = {
+                identities = [
+                  azurerm_user_assigned_identity.api.principal_id,
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  schema_validation_enabled = false
+
+  depends_on = [
+    azuread_service_principal.verification_functions,
+    azurerm_function_app_flex_consumption.verification,
+  ]
 }
