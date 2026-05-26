@@ -169,7 +169,7 @@ resource "azurerm_monitor_scheduled_query_rules_alert_v2" "verification_function
   name                = "alert-ltc-verification-functions-exceptions-${var.environment}"
   resource_group_name = azurerm_resource_group.main.name
   location            = azurerm_resource_group.main.location
-  description         = "Alert when verification Functions record any exceptions in a 5-minute window"
+  description         = "Alert when verification Functions record non-learner API exceptions in a 5-minute window"
   severity            = 1
   enabled             = true
   tags                = local.tags
@@ -181,10 +181,21 @@ resource "azurerm_monitor_scheduled_query_rules_alert_v2" "verification_function
 
   criteria {
     query                   = <<-QUERY
+      let LearnerApiDependencyFailures =
+          dependencies
+          | where cloud_RoleName in ("learn-to-cloud-verification-functions", "func-ltc-verification-${var.environment}")
+              or cloud_RoleName has "verification-functions"
+              or cloud_RoleName has "func-ltc-verification"
+          | where type == "HTTP"
+          | where name in ("POST /entries", "GET /entries")
+              or name startswith "DELETE /entries/"
+          | project operation_Id, dependencySpanId = id;
       exceptions
       | where cloud_RoleName in ("learn-to-cloud-verification-functions", "func-ltc-verification-${var.environment}")
           or cloud_RoleName has "verification-functions"
           or cloud_RoleName has "func-ltc-verification"
+      | join kind=leftanti LearnerApiDependencyFailures
+          on operation_Id, $left.operation_ParentId == $right.dependencySpanId
     QUERY
     time_aggregation_method = "Count"
     operator                = "GreaterThanOrEqual"
