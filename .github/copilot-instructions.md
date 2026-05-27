@@ -4,7 +4,7 @@
 
 Always work on a feature branch. Never commit directly to `main`, never stage or edit files while on `main`.
 
-**Before making any file changes**, verify you are on a feature branch:
+**Before making any file changes**, make sure you git pull to ensure your local branch is up to date, and verify you are on a feature branch:
 
 ```bash
 git branch --show-current
@@ -54,6 +54,16 @@ Never edit alembic migration files after they've been created. They are immutabl
 When a migration updates row values AND modifies check constraints, always drop the constraints first, then update rows, then add new constraints. Postgres enforces check constraints during the UPDATE, so updating rows before dropping the old constraint will fail if the new value isn't in the old constraint's allowed list.
 
 When a migration adds a unique index or unique constraint, always clean up existing rows that would violate it first in the same migration. Production databases have data that CI's empty test database does not. Delete or merge duplicate rows before creating the constraint.
+
+## Infrastructure and Terraform Changes
+
+For infrastructure changes, always review the Terraform plan for deployment permissions and Azure resources that may already exist.
+
+- Run an Azure-backed `terraform plan` before merging infrastructure changes.
+- Check whether the GitHub Actions deployment identity can create every resource in the plan. Normal Azure RBAC is not enough for Microsoft Graph or Entra app registration resources.
+- Be careful with new provider families, especially `azuread`. Adding `azuread_*` resources usually means the deploy identity needs Microsoft Graph permissions, or the identity object should be pre-created and passed into Terraform.
+- For Azure child config resources that Azure creates by default, update or import the existing resource instead of trying to create it. For Function App authentication, use `azapi_update_resource` for `authsettingsV2`.
+- For risky auth or identity changes, prefer the smallest safe platform change first, then deploy application code after the platform gate is confirmed.
 
 ## Quality Gates
 
