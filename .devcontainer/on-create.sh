@@ -56,6 +56,14 @@ else
     playwright install --with-deps chrome
 fi
 
+# Install Aspire CLI for the MCP server (aspire agent mcp).
+# Installed via the standalone script so we don't need .NET SDK or the VS Code
+# extension (which pulls in C# DevKit and .NET Installer as dependencies).
+if ! command -v aspire &> /dev/null; then
+    echo "🌐 Installing Aspire CLI..."
+    curl -sSL https://aspire.dev/install.sh | bash
+fi
+
 # Install Azure Functions Core Tools for local Durable Functions development.
 if ! command -v func &> /dev/null; then
     echo "⚡ Installing Azure Functions Core Tools..."
