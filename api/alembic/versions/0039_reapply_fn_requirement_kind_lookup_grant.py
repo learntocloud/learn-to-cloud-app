@@ -21,11 +21,15 @@ _ENV_VAR = "POSTGRES_VERIFICATION_FUNCTIONS_ROLE"
 
 def upgrade() -> None:
     role = _verification_functions_role()
+    if not role:
+        return
     _grant_requirement_lookup(role)
 
 
 def downgrade() -> None:
     role = _verification_functions_role()
+    if not role:
+        return
     _revoke_requirement_lookup(role)
 
 
@@ -59,10 +63,10 @@ def _revoke_requirement_lookup(role: str) -> None:
     )
 
 
-def _verification_functions_role() -> str:
+def _verification_functions_role() -> str | None:
     role = os.environ.get(_ENV_VAR)
     if not role:
-        raise RuntimeError(f"{_ENV_VAR} must be set before running this migration")
+        return None
     if not (role[0].isalpha() or role[0] == "_") or not all(
         c.isalnum() or c == "_" for c in role
     ):
