@@ -19,11 +19,16 @@ npm install -g \
     mcp-remote@latest
 
 echo "🧠 Configuring Copilot Azure skills..."
-if ! copilot plugin marketplace list | grep -q "azure-skills"; then
-    copilot plugin marketplace add microsoft/azure-skills
+# Best-effort: configuring Copilot plugins must never abort the whole
+# devcontainer setup. If a step fails (for example, the Copilot CLI is not
+# logged in yet), warn and continue so the rest of on-create still runs.
+if ! copilot plugin marketplace list 2>/dev/null | grep -q "azure-skills"; then
+    copilot plugin marketplace add microsoft/azure-skills \
+        || echo "⚠️  Could not add the azure-skills marketplace; skipping. Run 'copilot plugin marketplace add microsoft/azure-skills' manually later."
 fi
-if ! copilot plugin list | grep -q "azure@azure-skills"; then
-    copilot plugin install azure@azure-skills
+if ! copilot plugin list 2>/dev/null | grep -q "azure@azure-skills"; then
+    copilot plugin install azure@azure-skills \
+        || echo "⚠️  Could not install the azure-skills plugin; skipping. Run 'copilot plugin install azure@azure-skills' manually later."
 fi
 
 # Setup Python environments. Each uv project owns its local .venv.
