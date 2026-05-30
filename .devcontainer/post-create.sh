@@ -51,9 +51,17 @@ if [ -f api/.env ] && ! grep -q "^DEBUG=true" api/.env; then
     printf '\nDEBUG=true\n' >> api/.env
 fi
 
-# Run database migrations
+# Disable HTTPS redirect for local OAuth (no TLS termination locally)
+if [ -f api/.env ] && ! grep -q "^WEB_SECURITY__REQUIRE_HTTPS=" api/.env; then
+    echo "📝 Adding WEB_SECURITY__REQUIRE_HTTPS=false to api/.env..."
+    printf '\nWEB_SECURITY__REQUIRE_HTTPS=false\n' >> api/.env
+fi
+
+# Run database migrations and sync curriculum content
 echo "🗄️  Running database migrations..."
 (cd api && uv run alembic upgrade head)
+echo "📚 Syncing curriculum content into database..."
+(cd api && uv run python -m learn_to_cloud_shared.cli.sync_curriculum)
 
 echo "✅ Setup complete!"
 echo ""
