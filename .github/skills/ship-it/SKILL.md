@@ -21,9 +21,9 @@ End-to-end workflow: run prek checks, run tests, fix failures, commit, push, and
 
 ## Prerequisites
 
-- `gh` CLI authenticated (`gh auth status`)
+- `gh` CLI authenticated. Check with `gh auth status` at the very start (see Step 1).
 - `git` configured with push access to the remote
-- `prek` installed (`brew install j178/tap/prek`)
+- `prek` installed (already present in the project devcontainer; otherwise install from https://github.com/j178/prek)
 - Working directory is inside the repository
 
 ---
@@ -34,11 +34,29 @@ Reply with "LFG 🚀 I'll ship it" to acknowledge the user's intent.
 
 ---
 
-## Step 1: Run Prek
+## Step 1: Confirm Branch and GitHub Auth
+
+Capture the current branch into a variable so later commands are copy-pasteable, and confirm `gh` is authenticated before doing anything that depends on it.
 
 ```bash
-cd <workspace> && prek run --all-files
+branch=$(git branch --show-current)
+echo "On branch: $branch"
+gh auth status || echo "gh NOT authenticated — deploy monitoring will be skipped"
 ```
+
+- Never commit on `main`. If `$branch` is `main`, stop and ask the user for a feature branch name first.
+- If `gh` is not authenticated, you can still run checks, commit, push, and open a PR through the web link, but you will not be able to monitor the deploy run from here. Tell the user this up front.
+
+---
+
+## Step 2: Run Prek
+
+
+```bash
+cd <workspace> && git add -A && prek run --all-files
+```
+
+> Stage files first (`git add -A`). `prek run --all-files` only inspects git-tracked files, so newly-created files (new migrations, modules, tests) are silently skipped unless staged.
 
 ### Handling Failures
 
@@ -51,7 +69,7 @@ Prek hooks may auto-fix issues (ruff lint `--fix`, ruff format, trailing whitesp
    prek run --all-files
    ```
 
-2. **If the second run passes** — the auto-fixes resolved everything. Proceed to Step 2.
+2. **If the second run passes** — the auto-fixes resolved everything. Proceed to Step 3.
 
 3. **If the second run still fails** — manual intervention needed:
    - **Ruff lint errors**: Read error output, fix the code, re-run
@@ -62,15 +80,23 @@ Prek hooks may auto-fix issues (ruff lint `--fix`, ruff format, trailing whitesp
 
 4. **Keep re-running prek** until all hooks pass.
 
-**Do NOT proceed to Step 2 until prek passes cleanly.**
+**Do NOT proceed to Step 3 until prek passes cleanly.**
 
 ---
 
-## Step 2: Run Tests
+## Step 3: Run the Quality Gates
 
-Run the full test suite locally. This catches runtime errors (template rendering, import issues, dependency upgrades) that static checks cannot detect.
+prek is a fast first pass, but the authoritative checks live in `.github/copilot-instructions.md`. Run the full Quality Gates so a newly-created file cannot pass locally yet fail in CI.
 
 ```bash
+# Lint, format, and type-check across all three projects
+cd <workspace>/api && uv run ruff check . ../packages/learn-to-cloud-shared
+cd <workspace>/api && uv run ruff format --check . ../packages/learn-to-cloud-shared
+cd <workspace>/api && uv run ty check --exclude scripts --exclude tests .
+cd <workspace>/packages/learn-to-cloud-shared && uv run ty check --exclude tests .
+cd <workspace>/apps/verification-functions && uv run ruff check . && uv run ruff format --check . && uv run ty check .
+
+# Tests (catch runtime errors that static checks cannot)
 cd <workspace>/api && uv run pytest tests/ -x --tb=short
 cd <workspace>/packages/learn-to-cloud-shared && uv run pytest tests/ -x --tb=short
 cd <workspace>/apps/verification-functions && uv run python -c "import function_app"
@@ -78,17 +104,18 @@ cd <workspace>/apps/verification-functions && uv run python -c "import function_
 
 ### Handling Failures
 
-**If tests fail:**
+**If any check or test fails:**
 
-1. Read the failure output — fix the code
-2. Re-run prek (Step 1) if you changed Python files
-3. Re-run tests until all pass
+1. Read the failure output — fix the code (never silence with `# noqa` or `type: ignore`)
+2. Re-run prek (Step 2) if you changed Python files
+3. Re-run the Quality Gates until everything passes
 
-**Do NOT proceed to commit until all tests pass. No exceptions.**
+**Do NOT proceed to commit until all checks and tests pass. No exceptions.**
 
 ---
 
-## Step 3: Stage Changed Files
+## Step 4: Stage Changed Files
+
 
 ```bash
 git status
@@ -104,7 +131,7 @@ git diff --cached --stat
 
 ---
 
-## Step 4: Commit
+## Step 5: Commit
 
 **If the user provided a commit message**, use it directly.
 
@@ -116,14 +143,14 @@ git commit -m "<type>: <concise description>"
 
 Conventional commit types: `feat:`, `fix:`, `refactor:`, `docs:`, `style:`, `test:`, `chore:`
 
-Ask the user for a commit message if the intent is ambiguous.
+Include the repo's `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>` trailer unless the user asks otherwise. Ask the user for a commit message if the intent is ambiguous.
 
 ---
 
-## Step 5: Push and Open a PR
+## Step 6: Push and Open a PR
 
 ```bash
-git push -u origin <branch>
+git push -u origin "$branch"
 ```
 
 If rejected (behind remote):
@@ -134,105 +161,89 @@ git pull --rebase && git push
 If the current branch is not `main`, open a PR to `main` after pushing:
 
 ```bash
-gh pr create --fill --base main --head <branch>
+gh pr create --fill --base main --head "$branch"
 ```
 
-**Note**: The deploy workflow is triggered by merging the PR to `main`, not by pushing a feature branch. If the branch is not `main`, tell the user that deployment will happen after the PR is merged.
+Then watch the PR's own checks (CI, terraform-ci, dependency-review). These run on the `pull_request` event but do NOT deploy:
+
+```bash
+gh pr checks "$branch" --watch --fail-fast
+```
+
+**Merging is a separate, explicit decision.** Deploy only happens after the PR merges to `main`. Branch protection may require a human review, so do not assume you can merge. If the user wants to merge and it is allowed:
+
+```bash
+gh pr merge "$branch" --squash --auto --delete-branch
+```
+
+**Note**: The `deploy.yml` deploy jobs are gated to `github.ref == 'refs/heads/main' && github.event_name != 'pull_request'`. A feature-branch push or PR runs CI only. The real Terraform apply and deploy happen on the push to `main` that the merge creates. If `gh` is not authenticated here, stop after opening the PR and tell the user deployment will run after merge.
 
 ---
 
-## Step 6: Monitor the Deploy Workflow
+## Step 7: Monitor the Deploy Workflow
 
-After the PR merges to `main`, the `deploy.yml` workflow triggers automatically.
-
-### Wait for Workflow to Appear
+Only do this once the PR has merged to `main`. Select the deploy run precisely by branch, event, and the merge commit SHA so you do not accidentally watch the PR's CI-only run or another branch's run.
 
 ```bash
+git fetch origin main
+merge_sha=$(git rev-parse origin/main)
+
+# Give Actions a moment to register the push, then find the run for this commit
 sleep 5
-run_id=$(gh run list --workflow=deploy.yml --limit 1 --json databaseId --jq '.[0].databaseId')
-gh run view "$run_id" --json status,conclusion,url,displayTitle
+run_id=$(gh run list --workflow=deploy.yml --branch main --event push \
+  --commit "$merge_sha" --limit 1 --json databaseId --jq '.[0].databaseId')
 ```
 
-### Monitor the Workflow
+Watch it with the built-in command instead of a hand-rolled poll loop. `--exit-status` returns non-zero on failure (handy for chaining), `--compact` keeps output small:
 
 ```bash
-while true; do
-  gh run view "$run_id" \
-    --json status,conclusion,url,displayTitle \
-    --jq '{title: .displayTitle, status: .status, conclusion: .conclusion, url: .url}'
-
-  status=$(gh run view "$run_id" --json status --jq .status)
-  if [ "$status" = "completed" ]; then
-    break
-  fi
-
-  sleep 15
-done
-
-conclusion=$(gh run view "$run_id" --json conclusion --jq .conclusion)
-test "$conclusion" = "success"
+gh run watch "$run_id" --compact --exit-status
 ```
 
-This keeps deploy monitoring output compact. Exit code 0 = success, non-zero = failure.
-Use full logs only when the run fails.
-
-**If the workflow succeeds** — report success and the deploy URL. Done!
+**If the workflow succeeds** — report success and the deploy URL (`gh run view "$run_id" --json url --jq .url`). Done!
 
 ---
 
-## Step 7: Diagnose Deploy Failures
+## Step 8: Diagnose Deploy Failures
 
-If the workflow fails:
+If `gh run watch` exits non-zero, pull just the failed logs:
 
 ```bash
-run_id=$(gh run list --workflow=deploy.yml --limit 1 --json databaseId --jq '.[0].databaseId')
-gh run view $run_id --log-failed
+gh run view "$run_id" --log-failed
 ```
 
-### Common Failure Patterns
+For deeper troubleshooting (Terraform state locks, Azure auth errors, container or migration job failures), use the dedicated **debug-deploy** skill rather than duplicating that guidance here. A quick orientation:
 
-#### CI Failures (lint-and-test job)
+#### CI / lint-and-test failures (fixable locally)
 
 | Pattern | Fix |
 |---------|-----|
 | `ruff` lint errors | `(cd api && uv run ruff check --fix . ../packages/learn-to-cloud-shared)`, commit & push |
 | `ruff-format` | `(cd api && uv run ruff format . ../packages/learn-to-cloud-shared)`, commit & push |
 | `ty` type errors | Fix type errors, commit & push |
-| `pytest` / `FAILED` | `(cd api && uv run pytest tests/ -x)` and `(cd packages/learn-to-cloud-shared && uv run pytest tests/ -x)`, fix, commit & push |
+| `pytest` / `FAILED` | Reproduce with `uv run pytest tests/ -x`, fix, commit & push |
 
-#### Terraform Failures
+#### Terraform / build / deploy failures
 
-| Pattern | Fix |
-|---------|-----|
-| `Error acquiring the state lock` | Extract Lock ID, `cd infra && terraform force-unlock -force <lock-id>`, re-run |
-| `AuthorizationFailed` | Check OIDC deployment secrets/variables and Azure RBAC — not fixable locally |
-| `ResourceNotFound` | `terraform refresh` or re-import |
-
-#### Build/Deploy Failures
-
-| Pattern | Fix |
-|---------|-----|
-| `docker build` fails | Fix Dockerfile or `pyproject.toml`, commit & push |
-| Smoke test `curl -f` fails | Check `docker logs`, fix startup issue, commit & push |
-| API readiness timeout | Check app logs: `az containerapp logs show ...` |
+These usually need the **debug-deploy** skill (state-lock recovery, OIDC/RBAC checks, container and migration job logs). Hand off there instead of guessing.
 
 ### Fix and Re-deploy
 
-After fixing:
-1. Run prek again (Step 1)
+After fixing on the feature branch:
+1. Re-run prek (Step 2) and the Quality Gates (Step 3)
 2. `git add -A && git commit -m "fix: resolve deploy failure"`
 3. `git push`
-4. Monitor again (Step 5)
+4. Once merged to `main`, monitor again (Step 7)
 
-If no code changes needed (e.g., state lock):
+If no code changes are needed (e.g., a transient state lock that debug-deploy cleared):
 ```bash
-gh run rerun $run_id
-gh run watch --exit-status
+gh run rerun "$run_id"
+gh run watch "$run_id" --compact --exit-status
 ```
 
 ---
 
-## Step 8: Verify Production
+## Step 9: Verify Production
 
 After a successful deploy:
 
@@ -241,6 +252,7 @@ curl -s https://<api-url>/health
 curl -s https://<api-url>/ready
 ```
 
+
 ---
 
 ## Full Ship-It Flow Summary
@@ -248,23 +260,23 @@ curl -s https://<api-url>/ready
 ```markdown
 ## Ship It: <branch-name>
 
-### 1. Pre-commit
+### 1. Branch + Auth
+✅ On feature branch `<branch>` | gh authenticated (or noted as not)
+
+### 2. Pre-commit
 ✅ All hooks passed / ❌ Failed → fixed → ✅ Passed on re-run
 
-### 2. Stage
-✅ X files staged
+### 3. Quality Gates
+✅ ruff + ty + pytest passed across api, shared, verification-functions
 
-### 3. Commit
+### 4. Commit
 ✅ `<commit-hash>` — `<commit-message>`
 
-### 4. Push
-✅ Pushed to `<branch>` on `origin`
+### 5. Push + PR
+✅ Pushed to `<branch>`; PR opened to `main`; PR checks passing
 
-### 5. PR to main
-✅ Opened or confirmed PR to `main` for the branch
-
-### 6. Deploy Workflow
-✅ Run #<id> — succeeded in X min / ❌ Failed (see step 7)
+### 6. Deploy Workflow (after merge)
+✅ Run #<id> — succeeded in X min / ❌ Failed (see step 7) / ⏸ pending merge
 
 ### 7. Deploy Fix (if needed)
 ❌ <failure reason> → fixed → ✅ Re-deployed successfully
@@ -272,6 +284,7 @@ curl -s https://<api-url>/ready
 ### 8. Production Health
 ✅ /health — healthy | /ready — ready
 ```
+
 
 ---
 
