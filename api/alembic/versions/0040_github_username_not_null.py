@@ -25,7 +25,10 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    op.drop_constraint("uq_users_github_username", "users", type_="unique")
+    op.execute("SET LOCAL lock_timeout = '5s'")
+    op.execute("SET LOCAL statement_timeout = '30s'")
+
+    op.execute("ALTER TABLE users DROP CONSTRAINT IF EXISTS uq_users_github_username")
 
     # Backfill any rows whose username was previously cleared by the old
     # username-stealing behaviour. The placeholder self-heals on next login.
@@ -33,13 +36,27 @@ def upgrade() -> None:
         "UPDATE users SET github_username = 'gh-' || id WHERE github_username IS NULL"
     )
 
-    op.alter_column("users", "github_username", nullable=False)
-    op.create_index("ix_users_github_username", "users", ["github_username"])
+    op.execute("ALTER TABLE users ALTER COLUMN github_username SET NOT NULL")
+
+    # CREATE INDEX CONCURRENTLY must run outside a transaction. autocommit_block
+    # commits the current tx, builds the index without blocking writes, then
+    # opens a fresh tx. IF NOT EXISTS keeps the statement safe to retry.
+    with op.get_context().autocommit_block():
+        op.execute(
+            "CREATE INDEX CONCURRENTLY IF NOT EXISTS "
+            "ix_users_github_username ON users (github_username)"
+        )
 
 
 def downgrade() -> None:
-    op.drop_index("ix_users_github_username", table_name="users")
-    op.alter_column("users", "github_username", nullable=True)
-    op.create_unique_constraint(
-        "uq_users_github_username", "users", ["github_username"]
+    op.execute("SET LOCAL lock_timeout = '5s'")
+    op.execute("SET LOCAL statement_timeout = '30s'")
+
+    with op.get_context().autocommit_block():
+        op.execute("DROP INDEX CONCURRENTLY IF EXISTS ix_users_github_username")
+
+    op.execute("ALTER TABLE users ALTER COLUMN github_username DROP NOT NULL")
+    op.execute(
+        "ALTER TABLE users "
+        "ADD CONSTRAINT uq_users_github_username UNIQUE (github_username)"
     )
