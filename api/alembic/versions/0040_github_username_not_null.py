@@ -6,8 +6,8 @@ username from the previous owner" behaviour, and NOT NULL enforces that every
 authenticated user always carries their current GitHub handle.
 
 Order matters: drop the unique constraint first, backfill any NULL usernames
-with a deterministic placeholder, then set NOT NULL, then add a plain
-(non-unique) index for lookups.
+with a deterministic placeholder, make the column NOT NULL via the safe
+CHECK-then-flip pattern, then add a plain (non-unique) index concurrently.
 
 Revision ID: 0040_github_username_not_null
 Revises: 0039_reapply_fn_requirement_kind_lookup_grant
@@ -36,7 +36,47 @@ def upgrade() -> None:
         "UPDATE users SET github_username = 'gh-' || id WHERE github_username IS NULL"
     )
 
+    # NOT NULL via the CHECK-then-flip pattern (see api/.squawk.toml and 0028).
+    # A plain SET NOT NULL scans the whole table under an ACCESS EXCLUSIVE lock.
+    # Adding a CHECK ... NOT VALID then VALIDATE-ing it in a separate
+    # transaction does the scan under a weaker lock that still allows reads and
+    # writes; the later SET NOT NULL then skips the scan because the validated
+    # CHECK already proves no NULLs exist. Each step is guarded so a retry works.
+    op.execute(
+        """
+        DO $$
+        BEGIN
+          IF NOT EXISTS (
+            SELECT 1 FROM pg_constraint
+            WHERE conname = 'ck_users_github_username_nn'
+          ) THEN
+            ALTER TABLE users
+              ADD CONSTRAINT ck_users_github_username_nn
+              CHECK (github_username IS NOT NULL) NOT VALID;
+          END IF;
+        END$$;
+        """
+    )
+    with op.get_context().autocommit_block():
+        op.execute(
+            """
+            DO $$
+            BEGIN
+              IF EXISTS (
+                SELECT 1 FROM pg_constraint
+                WHERE conname = 'ck_users_github_username_nn'
+                  AND NOT convalidated
+              ) THEN
+                ALTER TABLE users
+                  VALIDATE CONSTRAINT ck_users_github_username_nn;
+              END IF;
+            END$$;
+            """
+        )
     op.execute("ALTER TABLE users ALTER COLUMN github_username SET NOT NULL")
+    op.execute(
+        "ALTER TABLE users DROP CONSTRAINT IF EXISTS ck_users_github_username_nn"
+    )
 
     # CREATE INDEX CONCURRENTLY must run outside a transaction. autocommit_block
     # commits the current tx, builds the index without blocking writes, then
