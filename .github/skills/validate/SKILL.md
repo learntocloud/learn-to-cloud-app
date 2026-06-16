@@ -32,35 +32,16 @@ lsof -ti:8000 | xargs kill -9 2>/dev/null || true
 
 ---
 
-## Step 1: Run Ruff Lint
+## Steps 1-3: Run the Static Checks (lint, format, type-check)
 
-```bash
-cd <workspace>/api && uv run ruff check . ../packages/learn-to-cloud-shared
-cd <workspace>/apps/verification-functions && uv run ruff check .
-```
+Run the lint, format-check, and type-check commands exactly as listed in the
+**Quality Gates** section of `.github/copilot-instructions.md`. That file is the
+single source of truth for the command list, so it is not repeated here.
 
-**If errors found:** Show them and offer to auto-fix with `uv run ruff check --fix <file>`
+**If lint errors are found:** show them and offer to auto-fix with `uv run ruff check --fix <file>`.
+**If formatting is needed:** offer to fix with `uv run ruff format <file>`.
 
----
-
-## Step 2: Run Ruff Format Check
-
-```bash
-cd <workspace>/api && uv run ruff format --check . ../packages/learn-to-cloud-shared
-cd <workspace>/apps/verification-functions && uv run ruff format --check .
-```
-
-**If formatting needed:** Offer to fix with `uv run ruff format <file>`
-
----
-
-## Step 3: Run ty Type Check
-
-```bash
-cd <workspace>/api && uv run ty check --exclude scripts --exclude tests .
-cd <workspace>/packages/learn-to-cloud-shared && uv run ty check --exclude tests .
-cd <workspace>/apps/verification-functions && uv run ty check .
-```
+Static checks pass before moving on to starting the API.
 
 ---
 
@@ -189,11 +170,9 @@ Only when the workflow change is purely YAML restructuring with no new Python in
 | Task | Command |
 |------|---------|
 | Kill API | `lsof -ti:8000 \| xargs kill -9 2>/dev/null \|\| true` |
-| Lint | `cd api && uv run ruff check . ../packages/learn-to-cloud-shared && cd ../apps/verification-functions && uv run ruff check .` |
+| Lint / format / type-check | See the **Quality Gates** section of `.github/copilot-instructions.md` (single source of truth) |
 | Lint + fix | `uv run ruff check --fix <file>` |
-| Format check | `cd api && uv run ruff format --check . ../packages/learn-to-cloud-shared && cd ../apps/verification-functions && uv run ruff format --check .` |
 | Format fix | `uv run ruff format <file>` |
-| Type check | `cd api && uv run ty check --exclude scripts --exclude tests . && cd ../packages/learn-to-cloud-shared && uv run ty check --exclude tests . && cd ../../apps/verification-functions && uv run ty check .` |
 | Health check | `curl -s http://localhost:8000/health` |
 
 ---
