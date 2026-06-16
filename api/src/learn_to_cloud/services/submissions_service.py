@@ -323,6 +323,9 @@ async def run_submit_smoke_check(
     try:
         SubmittedValue.from_raw(ctx.requirement, "smoke-test")
     except ValueError:
+        # A value-format validation error means the parsing code ran fine,
+        # so it is not a schema/code-health signal and is safe to ignore
+        # here. Any other error type propagates and fails the smoke check.
         pass
 
     return {"requirement_slug": requirement.slug}

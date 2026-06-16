@@ -23,7 +23,7 @@ _SMOKE_TOKEN_HEADER = "X-Smoke-Test-Token"
 @router.post("/internal/smoke/verification")
 async def smoke_verification(
     request: Request,
-    x_smoke_test_token: str | None = Header(default=None),
+    x_smoke_test_token: str | None = Header(default=None, alias=_SMOKE_TOKEN_HEADER),
 ) -> dict[str, str]:
     """Post-deploy smoke check for the verification submit code path.
 
