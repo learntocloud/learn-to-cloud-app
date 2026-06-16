@@ -7,11 +7,24 @@ a single source of truth.
 
 from __future__ import annotations
 
+import logging
+
 import httpx
-from opentelemetry import trace
+from opentelemetry import metrics, trace
 from opentelemetry.util.types import AttributeValue
 
 from learn_to_cloud_shared.schemas import ValidationResult
+
+logger = logging.getLogger(__name__)
+
+_meter = metrics.get_meter("learn_to_cloud")
+# Low-cardinality counter for alerting on upstream/auth failures. Owner/repo
+# stay out of the metric (high cardinality); they live on the log and span.
+_GITHUB_API_ERROR_COUNTER = _meter.create_counter(
+    name="github.api_error",
+    description="GitHub API calls that failed with an auth, client, or server error",
+    unit="{error}",
+)
 
 # ---------------------------------------------------------------------------
 # Base retriable exceptions (httpx network / timeout errors)
@@ -63,28 +76,41 @@ def github_error_to_result(
 ) -> ValidationResult:
     """Map GitHub API exceptions to a user-facing ValidationResult.
 
+    A 404 is a normal outcome (the learner pointed us at something that
+    isn't there), so it stays quiet: span/result only, no warning log or
+    metric. Auth/client errors (401/403), server errors (5xx), and transient
+    network failures are operational problems that operators need to find
+    across all users, so they emit a WARN log (severity, queryable) and bump
+    the ``github.api_error`` counter (alertable) in addition to the span
+    event.
+
     Args:
         e: The caught exception.
         event: Structured log event name (e.g. ``"pr_verification.api_error"``).
         context: Extra fields for structured logging (owner, repo, pr, etc.).
     """
     if isinstance(e, httpx.HTTPStatusError):
-        if e.response.status_code == 404:
+        status = e.response.status_code
+        if status == 404:
             return ValidationResult(
                 is_valid=False,
                 message="Resource not found on GitHub. Check the URL and try again.",
             )
         span = trace.get_current_span()
-        span.add_event(event, {**context, "status": e.response.status_code})
+        span.add_event(event, {**context, "status": status})
+        logger.warning(event, extra={**context, "status": status})
+        _GITHUB_API_ERROR_COUNTER.add(1, {"status": status})
         return ValidationResult(
             is_valid=False,
-            message=f"GitHub API error ({e.response.status_code}). Try again later.",
+            message=f"GitHub API error ({status}). Try again later.",
             verification_completed=False,
         )
 
     # RETRIABLE_EXCEPTIONS (RequestError, TimeoutException, etc.)
     span = trace.get_current_span()
     span.add_event(event, {**context, "error": str(e)})
+    logger.warning(event, extra={**context, "error": str(e)})
+    _GITHUB_API_ERROR_COUNTER.add(1, {"status": "transient"})
     return ValidationResult(
         is_valid=False,
         message="Could not reach GitHub. Please try again later.",

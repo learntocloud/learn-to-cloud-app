@@ -53,6 +53,38 @@ def persisted_validation_message(message: str | None) -> str | None:
     return f"{message[: MAX_VALIDATION_MESSAGE_LENGTH - 3]}..."
 
 
+def _log_submission_completed(
+    *,
+    user_id: int,
+    requirement: HandsOnRequirement,
+    validation_result: ValidationResult,
+    execution_path: str | None = None,
+) -> None:
+    """Log the canonical one-line submission outcome.
+
+    Normal outcomes, including learner-fault failures, log at INFO. When the
+    check could not complete because of an our-side or upstream fault
+    (``verification_completed=False``), log at WARNING so operators can find
+    and alert on it by severity instead of digging through traces.
+    """
+    extra: dict[str, object] = {
+        "user_id": user_id,
+        "requirement_slug": requirement.slug,
+        "submission_type": requirement.submission_type,
+        "is_valid": validation_result.is_valid,
+        "verification_completed": validation_result.verification_completed,
+        "validation_message": (
+            validation_result.message if not validation_result.is_valid else None
+        ),
+    }
+    if execution_path is not None:
+        extra["execution_path"] = execution_path
+    level = (
+        logging.INFO if validation_result.verification_completed else logging.WARNING
+    )
+    logger.log(level, "submission.completed", extra=extra)
+
+
 def to_submission_data(submission: Submission) -> SubmissionData:
     """Project a ``Submission`` row into the ``SubmissionData`` response model.
 
@@ -187,20 +219,10 @@ async def execute_submission_validation(
             validation_result.verification_completed,
         )
 
-        logger.info(
-            "submission.completed",
-            extra={
-                "user_id": user_id,
-                "requirement_slug": requirement.slug,
-                "submission_type": requirement.submission_type,
-                "is_valid": validation_result.is_valid,
-                "verification_completed": validation_result.verification_completed,
-                "validation_message": (
-                    validation_result.message
-                    if not validation_result.is_valid
-                    else None
-                ),
-            },
+        _log_submission_completed(
+            user_id=user_id,
+            requirement=requirement,
+            validation_result=validation_result,
         )
 
         return build_submission_result(db_submission, validation_result)
@@ -284,21 +306,11 @@ async def execute_sync_submission_validation(
             validation_result.verification_completed,
         )
 
-        logger.info(
-            "submission.completed",
-            extra={
-                "user_id": user_id,
-                "requirement_slug": requirement.slug,
-                "submission_type": requirement.submission_type,
-                "is_valid": validation_result.is_valid,
-                "verification_completed": validation_result.verification_completed,
-                "validation_message": (
-                    validation_result.message
-                    if not validation_result.is_valid
-                    else None
-                ),
-                "execution_path": "sync",
-            },
+        _log_submission_completed(
+            user_id=user_id,
+            requirement=requirement,
+            validation_result=validation_result,
+            execution_path="sync",
         )
 
         return build_submission_result(db_submission, validation_result)

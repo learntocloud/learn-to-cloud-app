@@ -4,13 +4,7 @@ from __future__ import annotations
 
 from hashlib import sha256
 
-import httpx
-from opentelemetry import trace
-
-from learn_to_cloud_shared.core.github_client import (
-    get_github_client as _get_github_client,
-)
-from learn_to_cloud_shared.verification.github_profile import get_github_headers
+from learn_to_cloud_shared.verification.repo_files import RepoFiles
 from learn_to_cloud_shared.verification.tasks.base import (
     EvidenceBundle,
     EvidenceItem,
@@ -18,32 +12,8 @@ from learn_to_cloud_shared.verification.tasks.base import (
 )
 
 
-async def fetch_repo_file_content(
-    owner: str,
-    repo: str,
-    path: str,
-    branch: str = "main",
-) -> str | None:
-    """Fetch raw repository file content from GitHub."""
-    client = await _get_github_client()
-    headers = get_github_headers()
-
-    url = f"https://raw.githubusercontent.com/{owner}/{repo}/{branch}/{path}"
-    try:
-        response = await client.get(url, headers=headers)
-        response.raise_for_status()
-    except httpx.HTTPStatusError:
-        span = trace.get_current_span()
-        span.add_event(
-            "repo_file_fetch_failed",
-            {"owner": owner, "repo": repo, "path": path},
-        )
-        return None
-
-    return response.text
-
-
 async def collect_repo_file_evidence(
+    repo_files: RepoFiles,
     owner: str,
     repo: str,
     paths: list[str],
@@ -55,7 +25,7 @@ async def collect_repo_file_evidence(
     total_bytes = 0
 
     for path in list(dict.fromkeys(paths))[: task.evidence.max_files]:
-        content = await fetch_repo_file_content(owner, repo, path, branch)
+        content = await repo_files.file(owner, repo, path, branch)
         if content is None:
             continue
 

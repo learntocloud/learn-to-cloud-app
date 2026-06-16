@@ -9,10 +9,10 @@ from learn_to_cloud_shared.schemas import (
     HandsOnRequirement,
     ValidationResult,
 )
-from learn_to_cloud_shared.verification.devops_analysis import fetch_repo_tree
 from learn_to_cloud_shared.verification.journal_api import (
     collect_journal_api_implementation_evidence,
 )
+from learn_to_cloud_shared.verification.repo_files import RepoFiles, default_repo_files
 from learn_to_cloud_shared.verification.repo_utils import validate_repo_url
 from learn_to_cloud_shared.verification.security_scanning import (
     collect_security_scanning_evidence,
@@ -50,6 +50,7 @@ class LLMGradingDecisionPayload(FrozenModel):
 
 async def collect_llm_grading_requests(
     run_result: VerificationRunResult,
+    repo_files: RepoFiles | None = None,
 ) -> list[LLMGradingRequest]:
     """Collect evidence and prompts for tasks that require LLM grading."""
     if not run_result.validation_result.verification_completed:
@@ -59,11 +60,13 @@ async def collect_llm_grading_requests(
     if not tasks:
         return []
 
+    repo_files = repo_files or default_repo_files()
+
     if run_result.job.requirement.slug == "security-scanning":
-        return await _collect_phase6_requests(run_result, tasks)
+        return await _collect_phase6_requests(run_result, tasks, repo_files)
 
     if run_result.job.requirement.slug == "journal-api-implementation":
-        return await _collect_phase3_requests(run_result, tasks)
+        return await _collect_phase3_requests(run_result, tasks, repo_files)
 
     return []
 
@@ -123,6 +126,7 @@ def llm_grading_unavailable_result(
 async def _collect_phase6_requests(
     run_result: VerificationRunResult,
     tasks: list[VerificationTask],
+    repo_files: RepoFiles,
 ) -> list[LLMGradingRequest]:
     github_username = run_result.job.github_username
     if github_username is None:
@@ -138,7 +142,7 @@ async def _collect_phase6_requests(
         return []
 
     owner, repo = repo_result
-    file_paths = await fetch_repo_tree(owner, repo)
+    file_paths = await repo_files.tree(owner, repo)
     requests: list[LLMGradingRequest] = []
     for task in tasks:
         evidence = await collect_security_scanning_evidence(
@@ -146,6 +150,7 @@ async def _collect_phase6_requests(
             repo,
             file_paths,
             task,
+            repo_files=repo_files,
         )
         requests.append(
             LLMGradingRequest(
@@ -166,6 +171,7 @@ async def _collect_phase6_requests(
 async def _collect_phase3_requests(
     run_result: VerificationRunResult,
     tasks: list[VerificationTask],
+    repo_files: RepoFiles,
 ) -> list[LLMGradingRequest]:
     if not run_result.validation_result.is_valid:
         return []
@@ -184,7 +190,7 @@ async def _collect_phase3_requests(
         return []
 
     owner, repo = repo_result
-    file_paths = await fetch_repo_tree(owner, repo)
+    file_paths = await repo_files.tree(owner, repo)
     requests: list[LLMGradingRequest] = []
     for task in tasks:
         evidence = await collect_journal_api_implementation_evidence(
@@ -192,6 +198,7 @@ async def _collect_phase3_requests(
             repo,
             file_paths,
             task,
+            repo_files=repo_files,
         )
         requests.append(
             LLMGradingRequest(
