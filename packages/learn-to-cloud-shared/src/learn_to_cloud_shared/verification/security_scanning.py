@@ -32,7 +32,7 @@ from learn_to_cloud_shared.schemas import TaskResult, ValidationResult
 from learn_to_cloud_shared.verification.evidence import (
     collect_repo_file_evidence,
 )
-from learn_to_cloud_shared.verification.github_profile import (
+from learn_to_cloud_shared.verification.github_http import (
     RETRIABLE_EXCEPTIONS,
 )
 from learn_to_cloud_shared.verification.repo_files import RepoFiles, default_repo_files

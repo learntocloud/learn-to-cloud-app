@@ -7,16 +7,23 @@ Tests cover:
 - validate_github_profile ownership and existence checks
 - validate_profile_readme URL, ownership, and repo name checks
 - validate_repo_fork URL, ownership, and fork verification
+
+The validation tests inject an :class:`InMemoryGitHubMetadata` adapter
+instead of patching internals, so they exercise the real validator logic
+through the ``GitHubMetadata`` seam.
 """
 
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from learn_to_cloud_shared.schemas import ValidationResult
-from learn_to_cloud_shared.verification.github_profile import (
+from learn_to_cloud_shared.verification.errors import GitHubServerError
+from learn_to_cloud_shared.verification.github_http import (
     _parse_retry_after,
     get_github_headers,
+)
+from learn_to_cloud_shared.verification.github_metadata import InMemoryGitHubMetadata
+from learn_to_cloud_shared.verification.github_profile import (
     parse_github_url,
     validate_github_profile,
     validate_profile_readme,
@@ -57,7 +64,7 @@ class TestGetGitHubHeaders:
         mock_settings = MagicMock()
         mock_settings.github.token = "ghp_test123"
         with patch(
-            "learn_to_cloud_shared.verification.github_profile.get_worker_settings",
+            "learn_to_cloud_shared.verification.github_http.get_worker_settings",
             autospec=True,
             return_value=mock_settings,
         ):
@@ -69,7 +76,7 @@ class TestGetGitHubHeaders:
         mock_settings = MagicMock()
         mock_settings.github.token = ""
         with patch(
-            "learn_to_cloud_shared.verification.github_profile.get_worker_settings",
+            "learn_to_cloud_shared.verification.github_http.get_worker_settings",
             autospec=True,
             return_value=mock_settings,
         ):
@@ -199,46 +206,30 @@ class TestValidateGitHubProfile:
 
     @pytest.mark.asyncio
     async def test_profile_exists_succeeds(self):
-        with patch(
-            "learn_to_cloud_shared.verification.github_profile.check_github_url_exists",
-            autospec=True,
-            return_value=ValidationResult(is_valid=True, message="URL exists"),
-        ):
-            result = await validate_github_profile(
-                "https://github.com/testuser", "testuser"
-            )
+        metadata = InMemoryGitHubMetadata(existing_urls={"https://github.com/testuser"})
+        result = await validate_github_profile(
+            "https://github.com/testuser", "testuser", metadata
+        )
         assert result.is_valid is True
         assert result.username_match is True
 
     @pytest.mark.asyncio
     async def test_profile_not_found_fails(self):
-        with patch(
-            "learn_to_cloud_shared.verification.github_profile.check_github_url_exists",
-            autospec=True,
-            return_value=ValidationResult(
-                is_valid=False, message="URL not found (404)"
-            ),
-        ):
-            result = await validate_github_profile(
-                "https://github.com/testuser", "testuser"
-            )
+        metadata = InMemoryGitHubMetadata(existing_urls=set())
+        result = await validate_github_profile(
+            "https://github.com/testuser", "testuser", metadata
+        )
         assert result.is_valid is False
         assert result.username_match is True
 
     @pytest.mark.asyncio
     async def test_server_error_propagated(self):
-        with patch(
-            "learn_to_cloud_shared.verification.github_profile.check_github_url_exists",
-            autospec=True,
-            return_value=ValidationResult(
-                is_valid=False,
-                message="GitHub service temporarily unavailable",
-                verification_completed=False,
-            ),
-        ):
-            result = await validate_github_profile(
-                "https://github.com/testuser", "testuser"
-            )
+        metadata = InMemoryGitHubMetadata(
+            url_error=GitHubServerError("GitHub service temporarily unavailable")
+        )
+        result = await validate_github_profile(
+            "https://github.com/testuser", "testuser", metadata
+        )
         assert result.is_valid is False
         assert result.verification_completed is False
 
@@ -278,30 +269,16 @@ class TestValidateProfileReadme:
 
     @pytest.mark.asyncio
     async def test_readme_exists_succeeds(self):
-        with patch(
-            "learn_to_cloud_shared.verification.github_profile.check_github_url_exists",
-            autospec=True,
-            return_value=ValidationResult(is_valid=True, message="URL exists"),
-        ):
-            result = await validate_profile_readme(
-                "https://github.com/testuser/testuser/blob/main/README.md",
-                "testuser",
-            )
+        url = "https://github.com/testuser/testuser/blob/main/README.md"
+        metadata = InMemoryGitHubMetadata(existing_urls={url})
+        result = await validate_profile_readme(url, "testuser", metadata)
         assert result.is_valid is True
 
     @pytest.mark.asyncio
     async def test_readme_not_found_fails(self):
-        with patch(
-            "learn_to_cloud_shared.verification.github_profile.check_github_url_exists",
-            autospec=True,
-            return_value=ValidationResult(
-                is_valid=False, message="URL not found (404)"
-            ),
-        ):
-            result = await validate_profile_readme(
-                "https://github.com/testuser/testuser/blob/main/README.md",
-                "testuser",
-            )
+        url = "https://github.com/testuser/testuser/blob/main/README.md"
+        metadata = InMemoryGitHubMetadata(existing_urls=set())
+        result = await validate_profile_readme(url, "testuser", metadata)
         assert result.is_valid is False
 
 
@@ -339,51 +316,74 @@ class TestValidateRepoFork:
 
     @pytest.mark.asyncio
     async def test_valid_fork_succeeds(self):
-        with patch(
-            "learn_to_cloud_shared.verification.github_profile.check_repo_is_fork_of",
-            autospec=True,
-            return_value=ValidationResult(
-                is_valid=True, message="Verified fork of learntocloud/repo"
-            ),
-        ):
-            result = await validate_repo_fork(
-                "https://github.com/testuser/repo",
-                "testuser",
-                "learntocloud/repo",
-            )
+        metadata = InMemoryGitHubMetadata(
+            repos={
+                "testuser/repo": {
+                    "fork": True,
+                    "parent": {"full_name": "learntocloud/repo"},
+                }
+            }
+        )
+        result = await validate_repo_fork(
+            "https://github.com/testuser/repo",
+            "testuser",
+            "learntocloud/repo",
+            metadata,
+        )
         assert result.is_valid is True
 
     @pytest.mark.asyncio
     async def test_not_a_fork_fails(self):
-        with patch(
-            "learn_to_cloud_shared.verification.github_profile.check_repo_is_fork_of",
-            autospec=True,
-            return_value=ValidationResult(
-                is_valid=False, message="Repository is not a fork"
-            ),
-        ):
-            result = await validate_repo_fork(
-                "https://github.com/testuser/repo",
-                "testuser",
-                "learntocloud/repo",
-            )
+        metadata = InMemoryGitHubMetadata(repos={"testuser/repo": {"fork": False}})
+        result = await validate_repo_fork(
+            "https://github.com/testuser/repo",
+            "testuser",
+            "learntocloud/repo",
+            metadata,
+        )
         assert result.is_valid is False
 
     @pytest.mark.asyncio
+    async def test_wrong_parent_fails(self):
+        metadata = InMemoryGitHubMetadata(
+            repos={
+                "testuser/repo": {
+                    "fork": True,
+                    "parent": {"full_name": "someone-else/repo"},
+                }
+            }
+        )
+        result = await validate_repo_fork(
+            "https://github.com/testuser/repo",
+            "testuser",
+            "learntocloud/repo",
+            metadata,
+        )
+        assert result.is_valid is False
+        assert "not learntocloud/repo" in result.message
+
+    @pytest.mark.asyncio
+    async def test_repo_not_found_fails(self):
+        metadata = InMemoryGitHubMetadata(repos={})
+        result = await validate_repo_fork(
+            "https://github.com/testuser/repo",
+            "testuser",
+            "learntocloud/repo",
+            metadata,
+        )
+        assert result.is_valid is False
+        assert "not found" in result.message
+
+    @pytest.mark.asyncio
     async def test_server_error_propagated(self):
-        with patch(
-            "learn_to_cloud_shared.verification.github_profile.check_repo_is_fork_of",
-            autospec=True,
-            return_value=ValidationResult(
-                is_valid=False,
-                message="GitHub unavailable",
-                verification_completed=False,
-            ),
-        ):
-            result = await validate_repo_fork(
-                "https://github.com/testuser/repo",
-                "testuser",
-                "learntocloud/repo",
-            )
+        metadata = InMemoryGitHubMetadata(
+            repo_error=GitHubServerError("GitHub unavailable")
+        )
+        result = await validate_repo_fork(
+            "https://github.com/testuser/repo",
+            "testuser",
+            "learntocloud/repo",
+            metadata,
+        )
         assert result.is_valid is False
         assert result.verification_completed is False

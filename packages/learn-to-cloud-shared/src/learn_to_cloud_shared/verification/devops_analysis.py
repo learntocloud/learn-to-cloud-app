@@ -11,7 +11,7 @@ from opentelemetry import trace
 
 from learn_to_cloud_shared.schemas import TaskResult, ValidationResult
 from learn_to_cloud_shared.verification.evidence import truncate_to_bytes
-from learn_to_cloud_shared.verification.github_profile import (
+from learn_to_cloud_shared.verification.github_http import (
     RETRIABLE_EXCEPTIONS,
     github_error_to_validation_result,
 )

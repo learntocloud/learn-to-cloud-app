@@ -6,129 +6,42 @@ This module handles all GitHub-specific validations including:
 - Repository fork verification (Phase 1)
 
 For URL parsing, see ``repo_utils.parse_github_url``.
+For the GitHub HTTP plumbing (retry, headers, error mapping), see
+``github_http.py``. For the existence/metadata seam these validators build
+on, see ``github_metadata.py``.
 For the main hands-on verification orchestration, see hands_on_verification.py
-
-SCALABILITY:
-- Retry with exponential backoff + jitter for transient failures (3 attempts)
-- Connection pooling via shared httpx.AsyncClient
 """
 
-import httpx
 from opentelemetry import trace
-from tenacity import (
-    RetryCallState,
-    retry,
-    retry_if_exception_type,
-    stop_after_attempt,
-    wait_exponential_jitter,
-)
 
-from learn_to_cloud_shared.core.config import get_worker_settings
-from learn_to_cloud_shared.core.github_client import (
-    get_github_client as _get_github_client,
-)
 from learn_to_cloud_shared.schemas import ValidationResult
-from learn_to_cloud_shared.verification.errors import (
-    GitHubServerError,
-    github_error_to_result,
-    make_retriable,
+from learn_to_cloud_shared.verification.github_http import (
+    RETRIABLE_EXCEPTIONS,
+    github_error_to_validation_result,
+)
+from learn_to_cloud_shared.verification.github_metadata import (
+    GitHubMetadata,
+    default_github_metadata,
 )
 from learn_to_cloud_shared.verification.repo_utils import parse_github_url
 
-
-def _parse_retry_after(header_value: str | None) -> float | None:
-    """Parse Retry-After header into seconds."""
-    if not header_value:
-        return None
-    try:
-        return float(header_value)
-    except ValueError:
-        return None
-
-
-def _wait_with_retry_after(retry_state: RetryCallState) -> float:
-    """Wait respecting Retry-After header, else exponential backoff."""
-    exc = retry_state.outcome.exception() if retry_state.outcome else None
-    if isinstance(exc, GitHubServerError) and exc.retry_after:
-        return min(exc.retry_after, 60.0)
-    return wait_exponential_jitter(initial=0.5, max=10)(retry_state)
+__all__ = [
+    "GitHubMetadata",
+    "RETRIABLE_EXCEPTIONS",
+    "check_github_url_exists",
+    "check_repo_is_fork_of",
+    "default_github_metadata",
+    "github_error_to_validation_result",
+    "parse_github_url",
+    "validate_github_profile",
+    "validate_profile_readme",
+    "validate_repo_fork",
+]
 
 
-# Exceptions that should trigger retry
-RETRIABLE_EXCEPTIONS: tuple[type[Exception], ...] = make_retriable(GitHubServerError)
-
-# Re-export for backward compatibility
-github_error_to_validation_result = github_error_to_result
-
-
-def get_github_headers() -> dict[str, str]:
-    """Get headers for GitHub API requests, including auth token if available."""
-    headers = {"Accept": "application/vnd.github.v3+json"}
-    settings = get_worker_settings()
-    if settings.github.token:
-        headers["Authorization"] = f"Bearer {settings.github.token}"
-    return headers
-
-
-@retry(
-    stop=stop_after_attempt(3),
-    wait=_wait_with_retry_after,
-    retry=retry_if_exception_type(RETRIABLE_EXCEPTIONS),
-    reraise=True,
-)
-async def github_api_get(
-    url: str,
-    *,
-    extra_headers: dict[str, str] | None = None,
-    params: dict[str, str | int] | None = None,
-) -> httpx.Response:
-    """Resilient GitHub API GET with retry and 5xx/429 mapping.
-
-    Raises:
-        GitHubServerError: On 5xx or 429 (triggers retry).
-        httpx.HTTPStatusError: On non-retriable HTTP errors (4xx).
-    """
-    client = await _get_github_client()
-    headers = get_github_headers()
-    if extra_headers:
-        headers.update(extra_headers)
-    response = await client.get(url, headers=headers, params=params)
-    if response.status_code >= 500:
-        raise GitHubServerError(f"GitHub API returned {response.status_code}")
-    if response.status_code == 429:
-        retry_after = _parse_retry_after(response.headers.get("Retry-After"))
-        raise GitHubServerError("GitHub rate limited (429)", retry_after=retry_after)
-    response.raise_for_status()
-    return response
-
-
-@retry(
-    stop=stop_after_attempt(3),
-    wait=_wait_with_retry_after,
-    retry=retry_if_exception_type(RETRIABLE_EXCEPTIONS),
-    reraise=True,
-)
-async def _check_github_url_exists_with_retry(url: str) -> tuple[bool, str]:
-    """Internal: Check URL with retry. Use check_github_url_exists() instead."""
-    client = await _get_github_client()
-    response = await client.head(url)
-
-    if response.status_code >= 500:
-        raise GitHubServerError(f"GitHub returned {response.status_code}")
-
-    if response.status_code == 429:
-        retry_after = _parse_retry_after(response.headers.get("Retry-After"))
-        raise GitHubServerError("GitHub rate limited (429)", retry_after=retry_after)
-
-    if response.status_code == 200:
-        return True, "URL exists"
-    elif response.status_code == 404:
-        return False, "URL not found (404)"
-    else:
-        return False, f"Unexpected status code: {response.status_code}"
-
-
-async def check_github_url_exists(url: str) -> ValidationResult:
+async def check_github_url_exists(
+    url: str, metadata: GitHubMetadata | None = None
+) -> ValidationResult:
     """Check if a GitHub URL exists by making a HEAD request.
 
     Returns:
@@ -139,9 +52,13 @@ async def check_github_url_exists(url: str) -> ValidationResult:
 
     RETRY: 3 attempts with exponential backoff + jitter for transient failures.
     """
+    metadata = metadata or default_github_metadata()
     try:
-        exists, msg = await _check_github_url_exists_with_retry(url)
-        return ValidationResult(is_valid=exists, message=msg)
+        exists = await metadata.url_exists(url)
+        return ValidationResult(
+            is_valid=exists,
+            message="URL exists" if exists else "URL not found (404)",
+        )
     except RETRIABLE_EXCEPTIONS as e:
         span = trace.get_current_span()
         span.record_exception(e)
@@ -162,53 +79,11 @@ async def check_github_url_exists(url: str) -> ValidationResult:
         )
 
 
-@retry(
-    stop=stop_after_attempt(3),
-    wait=_wait_with_retry_after,
-    retry=retry_if_exception_type(RETRIABLE_EXCEPTIONS),
-    reraise=True,
-)
-async def _check_repo_is_fork_of_with_retry(
-    username: str, repo_name: str, original_repo: str
-) -> tuple[bool, str]:
-    """Internal: Check fork with retry. Use check_repo_is_fork_of() instead."""
-    api_url = f"https://api.github.com/repos/{username}/{repo_name}"
-
-    client = await _get_github_client()
-    response = await client.get(api_url, headers=get_github_headers())
-
-    if response.status_code >= 500:
-        raise GitHubServerError(f"GitHub API returned {response.status_code}")
-
-    if response.status_code == 429:
-        retry_after = _parse_retry_after(response.headers.get("Retry-After"))
-        raise GitHubServerError("GitHub rate limited (429)", retry_after=retry_after)
-
-    if response.status_code == 404:
-        return False, f"Repository {username}/{repo_name} not found"
-
-    if response.status_code != 200:
-        return False, f"GitHub API error: {response.status_code}"
-
-    repo_data = response.json()
-
-    if not repo_data.get("fork", False):
-        return False, "Repository is not a fork"
-
-    parent = repo_data.get("parent", {})
-    parent_full_name = parent.get("full_name", "")
-
-    if parent_full_name.lower() == original_repo.lower():
-        return True, f"Verified fork of {original_repo}"
-    else:
-        return (
-            False,
-            f"Forked from {parent_full_name}, not {original_repo}",
-        )
-
-
 async def check_repo_is_fork_of(
-    username: str, repo_name: str, original_repo: str
+    username: str,
+    repo_name: str,
+    original_repo: str,
+    metadata: GitHubMetadata | None = None,
 ) -> ValidationResult:
     """Check if a repository is a fork of the specified original repository.
 
@@ -216,6 +91,7 @@ async def check_repo_is_fork_of(
         username: The GitHub username
         repo_name: The repository name
         original_repo: The original repo in format "owner/repo"
+        metadata: GitHub metadata port (defaults to the production adapter)
 
     Returns:
         ValidationResult with is_valid=True if repo is a fork of original_repo.
@@ -223,11 +99,26 @@ async def check_repo_is_fork_of(
 
     RETRY: 3 attempts with exponential backoff + jitter for transient failures.
     """
+    metadata = metadata or default_github_metadata()
     try:
-        is_fork, msg = await _check_repo_is_fork_of_with_retry(
-            username, repo_name, original_repo
+        repo_data = await metadata.repo_metadata(username, repo_name)
+        if repo_data is None:
+            return ValidationResult(
+                is_valid=False,
+                message=f"Repository {username}/{repo_name} not found",
+            )
+        if not repo_data.get("fork", False):
+            return ValidationResult(is_valid=False, message="Repository is not a fork")
+        parent = repo_data.get("parent", {})
+        parent_full_name = parent.get("full_name", "")
+        if parent_full_name.lower() == original_repo.lower():
+            return ValidationResult(
+                is_valid=True, message=f"Verified fork of {original_repo}"
+            )
+        return ValidationResult(
+            is_valid=False,
+            message=f"Forked from {parent_full_name}, not {original_repo}",
         )
-        return ValidationResult(is_valid=is_fork, message=msg)
     except RETRIABLE_EXCEPTIONS as e:
         span = trace.get_current_span()
         span.record_exception(e)
@@ -252,7 +143,9 @@ async def check_repo_is_fork_of(
 
 
 async def validate_github_profile(
-    github_url: str, expected_username: str
+    github_url: str,
+    expected_username: str,
+    metadata: GitHubMetadata | None = None,
 ) -> ValidationResult:
     """Validate a GitHub profile URL submission.
 
@@ -284,7 +177,7 @@ async def validate_github_profile(
         )
 
     profile_url = f"https://github.com/{username}"
-    result = await check_github_url_exists(profile_url)
+    result = await check_github_url_exists(profile_url, metadata)
 
     if not result.is_valid:
         return result.model_copy(
@@ -304,7 +197,9 @@ async def validate_github_profile(
 
 
 async def validate_profile_readme(
-    github_url: str, expected_username: str
+    github_url: str,
+    expected_username: str,
+    metadata: GitHubMetadata | None = None,
 ) -> ValidationResult:
     """Validate a GitHub profile README submission.
 
@@ -345,7 +240,7 @@ async def validate_profile_readme(
             repo_exists=False,
         )
 
-    result = await check_github_url_exists(github_url)
+    result = await check_github_url_exists(github_url, metadata)
 
     if not result.is_valid:
         return result.model_copy(
@@ -365,7 +260,10 @@ async def validate_profile_readme(
 
 
 async def validate_repo_fork(
-    github_url: str, expected_username: str, required_repo: str
+    github_url: str,
+    expected_username: str,
+    required_repo: str,
+    metadata: GitHubMetadata | None = None,
 ) -> ValidationResult:
     """Validate a repository fork submission.
 
@@ -404,7 +302,7 @@ async def validate_repo_fork(
         )
 
     fork_result = await check_repo_is_fork_of(
-        parsed.username, parsed.repo_name, required_repo
+        parsed.username, parsed.repo_name, required_repo, metadata
     )
 
     if not fork_result.is_valid:

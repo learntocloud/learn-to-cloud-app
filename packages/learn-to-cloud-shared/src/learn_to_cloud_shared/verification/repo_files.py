@@ -18,7 +18,7 @@ import httpx
 from opentelemetry import trace
 
 from learn_to_cloud_shared.core.github_client import get_github_client
-from learn_to_cloud_shared.verification.github_profile import (
+from learn_to_cloud_shared.verification.github_http import (
     get_github_headers,
     github_api_get,
 )

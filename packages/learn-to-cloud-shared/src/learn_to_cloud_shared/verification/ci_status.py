@@ -18,7 +18,7 @@ Workflow::
         → check conclusion
         → ValidationResult
 
-For GitHub API helpers, see ``github_profile.py``.
+For the workflow-runs seam, see ``workflow_runs.py``.
 """
 
 from __future__ import annotations
@@ -27,10 +27,13 @@ import httpx
 from opentelemetry import trace
 
 from learn_to_cloud_shared.schemas import ValidationResult
-from learn_to_cloud_shared.verification.github_profile import (
+from learn_to_cloud_shared.verification.github_http import (
     RETRIABLE_EXCEPTIONS,
-    github_api_get,
     github_error_to_validation_result,
+)
+from learn_to_cloud_shared.verification.workflow_runs import (
+    WorkflowRuns,
+    default_workflow_runs,
 )
 
 tracer = trace.get_tracer(__name__)
@@ -42,6 +45,7 @@ _CI_WORKFLOW_FILE = "ci.yml"
 async def verify_ci_status(
     owner: str,
     repo: str,
+    runs: WorkflowRuns | None = None,
 ) -> ValidationResult:
     """Verify that CI tests pass on the learner's fork's main branch.
 
@@ -51,11 +55,13 @@ async def verify_ci_status(
     Args:
         owner: Repository owner (GitHub username).
         repo: Repository name.
+        runs: Workflow-runs port (defaults to the production adapter).
 
     Returns:
         ``ValidationResult`` — valid when the most recent CI run on
         ``main`` has ``conclusion == "success"``.
     """
+    runs = runs or default_workflow_runs()
     with tracer.start_as_current_span(
         "ci_status_verification",
         attributes={
@@ -63,15 +69,9 @@ async def verify_ci_status(
             "github.repo": repo,
         },
     ) as span:
-        # ── Fetch latest CI workflow runs on main ─────────────────────────
-        url = (
-            f"https://api.github.com/repos/{owner}/{repo}"
-            f"/actions/workflows/{_CI_WORKFLOW_FILE}/runs"
-        )
-        params = {"branch": "main", "per_page": 1}
-
+        # ── Fetch latest CI workflow run on main ──────────────────────────
         try:
-            response = await github_api_get(url, params=params)
+            latest_run = await runs.latest_run(owner, repo, _CI_WORKFLOW_FILE)
         except (
             httpx.HTTPStatusError,
             *RETRIABLE_EXCEPTIONS,
@@ -95,10 +95,7 @@ async def verify_ci_status(
                 context={"owner": owner, "repo": repo},
             )
 
-        data = response.json()
-        runs: list[dict] = data.get("workflow_runs", [])
-
-        if not runs:
+        if latest_run is None:
             span.set_attribute("verification.passed", False)
             span.set_attribute("verification.reason", "no_runs")
             return ValidationResult(
@@ -110,7 +107,6 @@ async def verify_ci_status(
                 ),
             )
 
-        latest_run = runs[0]
         conclusion = latest_run.get("conclusion")
         status = latest_run.get("status")
         run_url = latest_run.get("html_url", "")
