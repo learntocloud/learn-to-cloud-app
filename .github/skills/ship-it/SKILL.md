@@ -5,18 +5,7 @@ description: Run prek, run tests, resolve issues, commit, push, open a PR to mai
 
 # Ship It: Prek, Commit, Push & Monitor Deploy
 
-Run prek, run the Quality Gates, commit, push, open a PR to `main`, and (after merge) monitor the deploy through to a healthy production check.
-
 **Run the steps in order. Do not skip steps. Surface git and CI errors to the user instead of forcing past them.**
-
-
----
-
-## When to Use
-
-- User says "ship it", "land this", "commit and deploy", "push and deploy"
-- User wants to commit, push, and ensure a successful deploy
-- After completing a feature or fix and wanting to ship to production
 
 ---
 
