@@ -1,13 +1,14 @@
 ---
 name: ship-it
-description: Run prek, run tests, resolve issues, commit, push, then monitor the deploy workflow and resolve any deploy failures. Use when user says "ship it", "commit and deploy", "push and deploy", or "land this".
+description: Run prek, run tests, resolve issues, commit, push, open a PR to main, then monitor the deploy workflow after merge and resolve any deploy failures. Use when user says "ship it", "commit and deploy", "push and deploy", or "land this".
 ---
 
 # Ship It — Prek, Commit, Push & Monitor Deploy
 
-End-to-end workflow: run prek checks, run tests, fix failures, commit, push, and monitor the GitHub Actions deploy pipeline through to a healthy production readiness check.
+Run prek, run the Quality Gates, commit, push, open a PR to `main`, and (after merge) monitor the deploy through to a healthy production check.
 
-**This skill orchestrates the full ship cycle. Do NOT skip steps.**
+**Run the steps in order. Do not skip steps. Surface git and CI errors to the user instead of forcing past them.**
+
 
 ---
 
@@ -21,9 +22,9 @@ End-to-end workflow: run prek checks, run tests, fix failures, commit, push, and
 
 ## Prerequisites
 
-- `gh` CLI authenticated (`gh auth status`)
+- `gh` CLI authenticated. Check with `gh auth status` at the very start (see Step 1).
 - `git` configured with push access to the remote
-- `prek` installed (`brew install j178/tap/prek`)
+- `prek` installed (already present in the project devcontainer; otherwise install from https://github.com/j178/prek)
 - Working directory is inside the repository
 
 ---
@@ -34,43 +35,52 @@ Reply with "LFG 🚀 I'll ship it" to acknowledge the user's intent.
 
 ---
 
-## Step 1: Run Prek
+## Step 1: Confirm Branch and GitHub Auth
+
+Capture the current branch into a variable so later commands are copy-pasteable, and confirm `gh` is authenticated before doing anything that depends on it.
 
 ```bash
-cd <workspace> && prek run --all-files
+branch=$(git branch --show-current)
+echo "On branch: $branch"
+gh auth status || echo "gh NOT authenticated — deploy monitoring will be skipped"
 ```
 
-### Handling Failures
-
-Prek hooks may auto-fix issues (ruff lint `--fix`, ruff format, trailing whitespace, end-of-file).
-
-**If prek fails:**
-
-1. **Check if hooks auto-fixed files** — many hooks modify files in place. Re-run prek:
-   ```bash
-   prek run --all-files
-   ```
-
-2. **If the second run passes** — the auto-fixes resolved everything. Proceed to Step 2.
-
-3. **If the second run still fails** — manual intervention needed:
-   - **Ruff lint errors**: Read error output, fix the code, re-run
-   - **ty type errors**: Read error output, fix type issues, re-run
-   - **check-yaml / check-json**: Fix malformed YAML/JSON files
-   - **check-added-large-files**: Remove or `.gitignore` the large file
-   - **check-merge-conflict**: Resolve merge conflict markers
-
-4. **Keep re-running prek** until all hooks pass.
-
-**Do NOT proceed to Step 2 until prek passes cleanly.**
+- Never commit on `main`. If `$branch` is `main`, stop and ask the user for a feature branch name first.
+- If `gh` is not authenticated, you can still run checks, commit, push, and open a PR through the web link, but you will not be able to monitor the deploy run from here. Tell the user this up front.
 
 ---
 
-## Step 2: Run Tests
+## Step 2: Run Prek
 
-Run the full test suite locally. This catches runtime errors (template rendering, import issues, dependency upgrades) that static checks cannot detect.
 
 ```bash
+cd <workspace> && git add -A && prek run --all-files
+```
+
+> Stage files first (`git add -A`). `prek run --all-files` only inspects git-tracked files, so newly-created files (new migrations, modules, tests) are silently skipped unless staged.
+
+### Handling Failures
+
+Many hooks auto-fix in place (ruff lint `--fix`, ruff format, trailing whitespace, end-of-file). Re-run prek; if the second run passes, the fixes resolved it. If it still fails, read the output and fix the cause (lint, types, malformed YAML/JSON, large file, merge-conflict markers), then re-run until clean.
+
+**Do NOT proceed to Step 3 until prek passes cleanly.**
+
+
+---
+
+## Step 3: Run the Quality Gates
+
+prek is a fast first pass, but the authoritative checks live in `.github/copilot-instructions.md`. Run the full Quality Gates so a newly-created file cannot pass locally yet fail in CI.
+
+```bash
+# Lint, format, and type-check across all three projects
+cd <workspace>/api && uv run ruff check . ../packages/learn-to-cloud-shared
+cd <workspace>/api && uv run ruff format --check . ../packages/learn-to-cloud-shared
+cd <workspace>/api && uv run ty check --exclude scripts --exclude tests .
+cd <workspace>/packages/learn-to-cloud-shared && uv run ty check --exclude tests .
+cd <workspace>/apps/verification-functions && uv run ruff check . && uv run ruff format --check . && uv run ty check .
+
+# Tests (catch runtime errors that static checks cannot)
 cd <workspace>/api && uv run pytest tests/ -x --tb=short
 cd <workspace>/packages/learn-to-cloud-shared && uv run pytest tests/ -x --tb=short
 cd <workspace>/apps/verification-functions && uv run python -c "import function_app"
@@ -78,150 +88,116 @@ cd <workspace>/apps/verification-functions && uv run python -c "import function_
 
 ### Handling Failures
 
-**If tests fail:**
+**If any check or test fails:**
 
-1. Read the failure output — fix the code
-2. Re-run prek (Step 1) if you changed Python files
-3. Re-run tests until all pass
+1. Read the failure output — fix the code (never silence with `# noqa` or `type: ignore`)
+2. Re-run prek (Step 2) if you changed Python files
+3. Re-run the Quality Gates until everything passes
 
-**Do NOT proceed to commit until all tests pass. No exceptions.**
+**Do NOT proceed to commit until all checks and tests pass. No exceptions.**
 
 ---
 
-## Step 3: Stage Changed Files
+## Step 4: Stage and Commit
 
-```bash
-git status
-git diff --stat
-```
-
-**Always stage ALL changes. Never cherry-pick files. `ship it` means ship everything.**
+Stage everything (`ship it` means ship all changes, never cherry-pick), review, then commit.
 
 ```bash
 git add -A
 git diff --cached --stat
 ```
 
----
-
-## Step 4: Commit
-
-**If the user provided a commit message**, use it directly.
-
-**If no commit message was provided**, generate one based on the changes:
+Use the user's commit message if given; otherwise write a conventional-commit message (`feat:`, `fix:`, `refactor:`, `docs:`, `style:`, `test:`, `chore:`). Include the repo's trailer unless the user opts out. Ask the user if the intent is ambiguous.
 
 ```bash
-git commit -m "<type>: <concise description>"
+git commit -m "<type>: <concise description>" \
+  -m "Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>"
 ```
-
-Conventional commit types: `feat:`, `fix:`, `refactor:`, `docs:`, `style:`, `test:`, `chore:`
-
-Ask the user for a commit message if the intent is ambiguous.
 
 ---
 
-## Step 5: Push
+## Step 5: Push and Open a PR
 
 ```bash
-git push
+git push -u origin "$branch"
 ```
 
-If rejected (behind remote):
+**If the push is rejected (remote has commits you don't):** do NOT auto-rebase or force-push. Try only a safe fast-forward, and if that fails, stop and surface the situation to the user:
+
 ```bash
-git pull --rebase && git push
+git pull --ff-only || {
+  echo "Remote and local have diverged. Stopping."
+  git status -sb
+  git log --oneline --left-right --graph "@{u}"...HEAD
+}
 ```
 
-**Note**: The deploy workflow triggers on pushes to `main`. If on a different branch, inform the user that deployment won't trigger automatically.
+Rebasing rewrites history and can introduce conflicts that need human judgment, so let the user decide how to reconcile before pushing again.
+
+If the branch is not `main`, open a PR to `main`:
+
+```bash
+gh pr create --fill --base main --head "$branch"
+```
+
+Then watch the PR's own checks (CI, terraform-ci, dependency-review). These run on the `pull_request` event but do NOT deploy:
+
+```bash
+gh pr checks "$branch" --watch --fail-fast
+```
+
+**Merging is a separate, explicit decision.** Deploy only happens after the PR merges to `main`, and branch protection may require a human review, so do not assume you can merge. If the user wants to merge and it is allowed:
+
+```bash
+gh pr merge "$branch" --squash --auto --delete-branch
+```
+
+**Note**: The `deploy.yml` deploy jobs are gated to `github.ref == 'refs/heads/main' && github.event_name != 'pull_request'`. A feature-branch push or PR runs CI only; the real Terraform apply and deploy happen on the push to `main` that the merge creates. If `gh` is not authenticated here, stop after opening the PR and tell the user deployment will run after merge.
 
 ---
 
 ## Step 6: Monitor the Deploy Workflow
 
-After pushing to `main`, the `deploy.yml` workflow triggers automatically.
-
-### Wait for Workflow to Appear
+Only do this once the PR has merged to `main`. Select the deploy run precisely by branch, event, and the merge commit SHA so you do not accidentally watch the PR's CI-only run or another branch's run.
 
 ```bash
+git fetch origin main
+merge_sha=$(git rev-parse origin/main)
+
+# Give Actions a moment to register the push, then find the run for this commit
 sleep 5
-run_id=$(gh run list --workflow=deploy.yml --limit 1 --json databaseId --jq '.[0].databaseId')
-gh run view "$run_id" --json status,conclusion,url,displayTitle
+run_id=$(gh run list --workflow=deploy.yml --branch main --event push \
+  --commit "$merge_sha" --limit 1 --json databaseId --jq '.[0].databaseId')
 ```
 
-### Monitor the Workflow
+Watch it with the built-in command instead of a hand-rolled poll loop. `--exit-status` returns non-zero on failure (handy for chaining), `--compact` keeps output small:
 
 ```bash
-while true; do
-  gh run view "$run_id" \
-    --json status,conclusion,url,displayTitle \
-    --jq '{title: .displayTitle, status: .status, conclusion: .conclusion, url: .url}'
-
-  status=$(gh run view "$run_id" --json status --jq .status)
-  if [ "$status" = "completed" ]; then
-    break
-  fi
-
-  sleep 15
-done
-
-conclusion=$(gh run view "$run_id" --json conclusion --jq .conclusion)
-test "$conclusion" = "success"
+gh run watch "$run_id" --compact --exit-status
 ```
 
-This keeps deploy monitoring output compact. Exit code 0 = success, non-zero = failure.
-Use full logs only when the run fails.
-
-**If the workflow succeeds** — report success and the deploy URL. Done!
+**If the workflow succeeds** — report success and the deploy URL (`gh run view "$run_id" --json url --jq .url`). Done!
 
 ---
 
 ## Step 7: Diagnose Deploy Failures
 
-If the workflow fails:
+If `gh run watch` exits non-zero, pull just the failed logs:
 
 ```bash
-run_id=$(gh run list --workflow=deploy.yml --limit 1 --json databaseId --jq '.[0].databaseId')
-gh run view $run_id --log-failed
+gh run view "$run_id" --log-failed
 ```
 
-### Common Failure Patterns
-
-#### CI Failures (lint-and-test job)
-
-| Pattern | Fix |
-|---------|-----|
-| `ruff` lint errors | `(cd api && uv run ruff check --fix . ../packages/learn-to-cloud-shared)`, commit & push |
-| `ruff-format` | `(cd api && uv run ruff format . ../packages/learn-to-cloud-shared)`, commit & push |
-| `ty` type errors | Fix type errors, commit & push |
-| `pytest` / `FAILED` | `(cd api && uv run pytest tests/ -x)` and `(cd packages/learn-to-cloud-shared && uv run pytest tests/ -x)`, fix, commit & push |
-
-#### Terraform Failures
-
-| Pattern | Fix |
-|---------|-----|
-| `Error acquiring the state lock` | Extract Lock ID, `cd infra && terraform force-unlock -force <lock-id>`, re-run |
-| `AuthorizationFailed` | Check OIDC deployment secrets/variables and Azure RBAC — not fixable locally |
-| `ResourceNotFound` | `terraform refresh` or re-import |
-
-#### Build/Deploy Failures
-
-| Pattern | Fix |
-|---------|-----|
-| `docker build` fails | Fix Dockerfile or `pyproject.toml`, commit & push |
-| Smoke test `curl -f` fails | Check `docker logs`, fix startup issue, commit & push |
-| API readiness timeout | Check app logs: `az containerapp logs show ...` |
+For anything beyond an obvious lint/test slip (Terraform state locks, Azure auth/RBAC, container or migration job failures), hand off to the dedicated **debug-deploy** skill instead of duplicating that guidance here.
 
 ### Fix and Re-deploy
 
-After fixing:
-1. Run prek again (Step 1)
-2. `git add -A && git commit -m "fix: resolve deploy failure"`
-3. `git push`
-4. Monitor again (Step 5)
+After fixing on the feature branch: re-run prek (Step 2) and the Quality Gates (Step 3), commit, push, and once merged to `main`, monitor again (Step 6).
 
-If no code changes needed (e.g., state lock):
+If no code changes are needed (e.g., a transient state lock that debug-deploy cleared):
 ```bash
-gh run rerun $run_id
-gh run watch --exit-status
+gh run rerun "$run_id"
+gh run watch "$run_id" --compact --exit-status
 ```
 
 ---
@@ -235,6 +211,8 @@ curl -s https://<api-url>/health
 curl -s https://<api-url>/ready
 ```
 
+
+
 ---
 
 ## Full Ship-It Flow Summary
@@ -242,42 +220,21 @@ curl -s https://<api-url>/ready
 ```markdown
 ## Ship It: <branch-name>
 
-### 1. Pre-commit
-✅ All hooks passed / ❌ Failed → fixed → ✅ Passed on re-run
-
-### 2. Stage
-✅ X files staged
-
-### 3. Commit
-✅ `<commit-hash>` — `<commit-message>`
-
-### 4. Push
-✅ Pushed to `<branch>` on `origin`
-
-### 5. Deploy Workflow
-✅ Run #<id> — succeeded in X min / ❌ Failed (see step 6)
-
-### 6. Deploy Fix (if needed)
-❌ <failure reason> → fixed → ✅ Re-deployed successfully
-
-### 7. Production Health
-✅ /health — healthy | /ready — ready
+1. **Branch + Auth** — on feature branch `<branch>`; gh authenticated (or noted)
+2. **Prek** — all hooks passed (or fixed and re-run)
+3. **Quality Gates** — ruff + ty + pytest passed across api, shared, verification-functions
+4. **Commit** — `<commit-hash>` `<commit-message>`
+5. **Push + PR** — pushed `<branch>`; PR opened to `main`; PR checks passing
+6. **Deploy (after merge)** — Run #<id> succeeded / failed (see step 7) / pending merge
+7. **Deploy fix (if needed)** — `<failure>` → fixed → re-deployed
+8. **Production** — /health healthy | /ready ready
 ```
 
 ---
 
 ## Retry Policy
 
-- **Pre-commit auto-fixes**: Re-run up to 3 times
-- **Deploy failures**: Attempt fix + re-deploy up to 2 times
-- **If still failing**: Stop and report the issue with full error context
-
----
-
-## Trigger Phrases
-
-- "ship it"
-- "commit and deploy"
-- "push and deploy"
-- "land this"
-- "deploy this"
+- **Prek auto-fixes**: re-run up to 3 times
+- **Deploy failures**: attempt fix + re-deploy up to 2 times
+- **Git push rejected or rebase conflict**: do not force past it — surface to the user
+- **If still failing**: stop and report with full error context
