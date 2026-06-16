@@ -82,6 +82,18 @@ resource "azurerm_container_app" "api" {
     key_vault_secret_id = "${azurerm_key_vault.main.vault_uri}secrets/labs-verification-secret"
   }
 
+  # The smoke-test token is the single source of truth for the post-deploy
+  # verification smoke endpoint and is supplied directly from a GitHub Actions
+  # secret (not Key Vault), so it is set inline here. Only created when a
+  # token is provided so applies without the secret stay valid.
+  dynamic "secret" {
+    for_each = var.smoke_test_token != "" ? [1] : []
+    content {
+      name  = "smoke-test-token"
+      value = var.smoke_test_token
+    }
+  }
+
   ingress {
     external_enabled = true
     target_port      = 8000
@@ -150,6 +162,14 @@ resource "azurerm_container_app" "api" {
       env {
         name        = "LABS__VERIFICATION_SECRET"
         secret_name = "ctf-master-secret"
+      }
+
+      dynamic "env" {
+        for_each = var.smoke_test_token != "" ? [1] : []
+        content {
+          name        = "SMOKE_TEST__TOKEN"
+          secret_name = "smoke-test-token"
+        }
       }
 
       env {

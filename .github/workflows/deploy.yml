@@ -371,6 +371,7 @@ jobs:
         env:
           TF_VAR_subscription_id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
           TF_VAR_github_client_id: ${{ secrets.TF_VAR_github_client_id }}
+          TF_VAR_smoke_test_token: ${{ secrets.SMOKE_TEST_TOKEN }}
           TF_VAR_postgres_entra_admin_object_id: ${{ vars.POSTGRES_ENTRA_ADMIN_OBJECT_ID }}
           TF_VAR_postgres_entra_admin_principal_name: ${{ vars.POSTGRES_ENTRA_ADMIN_PRINCIPAL_NAME }}
           TF_VAR_postgres_entra_admin_principal_type: ${{ vars.POSTGRES_ENTRA_ADMIN_PRINCIPAL_TYPE || 'Group' }}
@@ -658,4 +659,54 @@ jobs:
           az containerapp logs show \
             --name "$APP_NAME" --resource-group "$RG" --revision "$REVISION" \
             --tail 100 --format text 2>&1 || true
+          exit 1
+
+      - name: Smoke test verification submit path
+        env:
+          SMOKE_TEST_TOKEN: ${{ secrets.SMOKE_TEST_TOKEN }}
+          SMOKE_URL: ${{ needs.terraform.outputs.api_url }}/internal/smoke/verification
+        run: |
+          set -euo pipefail
+
+          # The gate only runs once the shared secret exists in both places
+          # (the GitHub secret here and, via Terraform, the running app). Until
+          # then, warn loudly instead of blocking every deploy.
+          if [[ -z "${SMOKE_TEST_TOKEN:-}" ]]; then
+            echo "::warning::SMOKE_TEST_TOKEN is not set — skipping the post-deploy verification smoke test."
+            echo "Set the SMOKE_TEST_TOKEN repository secret to activate this deploy gate."
+            exit 0
+          fi
+
+          echo "POSTing verification smoke check to $SMOKE_URL"
+
+          # Retry briefly: traffic can take a few seconds to fully shift to the
+          # freshly deployed revision after readiness reports healthy.
+          code=000
+          for i in {1..6}; do
+            code=$(curl -s -o /tmp/smoke_body.txt -w "%{http_code}" \
+              -X POST "$SMOKE_URL" \
+              -H "X-Smoke-Test-Token: $SMOKE_TEST_TOKEN" || echo 000)
+            echo "Attempt $i: HTTP $code"
+
+            if [[ "$code" == "200" ]]; then
+              echo "Verification smoke test passed."
+              cat /tmp/smoke_body.txt || true
+              exit 0
+            fi
+
+            # A 5xx means the verification submit code path is broken against the
+            # live database schema (the incident #432 class of failure). Fail now.
+            if [[ "$code" =~ ^5 ]]; then
+              echo "ERROR: smoke endpoint returned $code — verification submit path is broken."
+              cat /tmp/smoke_body.txt || true
+              exit 1
+            fi
+
+            sleep 5
+          done
+
+          echo "ERROR: verification smoke test did not pass (last HTTP $code)."
+          echo "401 means the app's SMOKE_TEST__TOKEN does not match this secret;"
+          echo "404 means the app has no token configured yet."
+          cat /tmp/smoke_body.txt || true
           exit 1

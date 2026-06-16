@@ -134,6 +134,17 @@ class SessionConfig(FrozenConfig):
     secret_key: str = _DEV_SESSION_SECRET
 
 
+class SmokeTestConfig(FrozenConfig):
+    """Post-deploy smoke-test config.
+
+    ``token`` gates the internal verification smoke endpoint. When empty
+    (the default), the endpoint is disabled and returns 404, so the
+    diagnostic surface only exists where the secret is configured.
+    """
+
+    token: str = ""
+
+
 class CorsConfig(FrozenConfig):
     """Frontend URL and CORS config."""
 
@@ -226,6 +237,7 @@ class WebSettings(BaseSettings):
     content: ContentConfig = ContentConfig()
     oauth: OAuthConfig = OAuthConfig()
     session: SessionConfig = SessionConfig()
+    smoke_test: SmokeTestConfig = SmokeTestConfig()
     cors: CorsConfig = CorsConfig()
     frontend_telemetry: FrontendTelemetryConfig = FrontendTelemetryConfig()
     verification_functions: VerificationFunctionsConfig = VerificationFunctionsConfig()

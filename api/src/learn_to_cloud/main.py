@@ -38,6 +38,7 @@ from learn_to_cloud.routes import (
     auth_router,
     health_router,
     htmx_router,
+    internal_router,
     pages_router,
     users_router,
 )
@@ -237,6 +238,7 @@ async def apple_touch_icon() -> FileResponse:
 
 
 app.include_router(health_router)
+app.include_router(internal_router)
 app.include_router(auth_router)
 app.include_router(users_router)
 app.include_router(htmx_router)

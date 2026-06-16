@@ -34,6 +34,7 @@ from learn_to_cloud_shared.verification.execution import (
     to_submission_data,
 )
 from learn_to_cloud_shared.verification.requirements import (
+    RequirementIndex,
     get_prerequisite_phase,
     load_requirement_index,
 )
@@ -275,3 +276,69 @@ async def create_verification_job(
         requirement=ctx.requirement,
         github_username=github_username,
     )
+
+
+# Synthetic user id for the read-only smoke check. It is never a real
+# account (GitHub user ids are positive), so every read returns nothing
+# and the check writes no rows.
+_SMOKE_USER_ID = 0
+
+
+async def run_submit_smoke_check(
+    session_maker: async_sessionmaker[AsyncSession],
+) -> dict[str, str]:
+    """Exercise the verification submit read path without writing anything.
+
+    Runs the same requirement loading, submissions read, phase gating, and
+    typed-value parsing that :func:`create_verification_job` performs for a
+    real submission, but against a synthetic user and an early phase, and
+    stops before persisting anything.
+
+    The goal is to catch a schema-versus-code mismatch (the class of bug
+    behind incident #432) right after deploy: if the running code expects a
+    column or value shape the migrated database does not have, the reads
+    here raise and the post-deploy smoke test fails instead of letting real
+    user submissions return 500s for days.
+
+    Returns the slug it exercised so callers can log what was checked.
+    """
+    async with session_maker() as read_session:
+        index = await load_requirement_index(read_session)
+
+    requirement = _pick_smoke_requirement(index)
+
+    # The synthetic user has no submissions, so preconditions read the
+    # requirement index and the submissions table, then return cleanly.
+    # An early-phase requirement has no prerequisite phase, so the
+    # sequential gating check does not raise for the synthetic user.
+    ctx = await _check_submission_preconditions(
+        session_maker,
+        user_id=_SMOKE_USER_ID,
+        requirement_slug=requirement.slug,
+    )
+
+    # Exercise the submission-type-to-value mapping. A value-validation
+    # error here means the code ran fine, so it is not a health signal;
+    # any other error (e.g. an unmapped submission type) propagates.
+    try:
+        SubmittedValue.from_raw(ctx.requirement, "smoke-test")
+    except ValueError:
+        # A value-format validation error means the parsing code ran fine,
+        # so it is not a schema/code-health signal and is safe to ignore
+        # here. Any other error type propagates and fails the smoke check.
+        pass
+
+    return {"requirement_slug": requirement.slug}
+
+
+def _pick_smoke_requirement(index: RequirementIndex) -> HandsOnRequirement:
+    """Pick the first requirement in the earliest phase that has one.
+
+    The earliest phase has no prerequisite, so the precondition check runs
+    to completion for the synthetic user instead of tripping phase gating.
+    """
+    for phase_order in sorted(index.by_phase_order):
+        requirements = index.by_phase_order[phase_order]
+        if requirements:
+            return requirements[0]
+    raise RuntimeError("Smoke check found no hands-on requirements to exercise.")
