@@ -695,7 +695,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "aiohttp", specifier = ">=3.9.0" },
+    { name = "aiohttp", specifier = ">=3.14.1" },
     { name = "asyncpg", specifier = ">=0.31.0" },
     { name = "azure-identity", specifier = ">=1.25.2" },
     { name = "azure-monitor-opentelemetry", specifier = ">=1.8.6" },
