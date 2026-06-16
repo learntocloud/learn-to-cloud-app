@@ -15,6 +15,7 @@ through the ``GitHubMetadata`` seam.
 
 from unittest.mock import MagicMock, patch
 
+import httpx
 import pytest
 
 from learn_to_cloud_shared.verification.errors import GitHubServerError
@@ -373,6 +374,24 @@ class TestValidateRepoFork:
         )
         assert result.is_valid is False
         assert "not found" in result.message
+
+    @pytest.mark.asyncio
+    async def test_auth_error_does_not_penalise(self):
+        response = httpx.Response(401, request=httpx.Request("GET", "https://test"))
+        metadata = InMemoryGitHubMetadata(
+            repo_error=httpx.HTTPStatusError(
+                "Unauthorized", request=response.request, response=response
+            )
+        )
+        result = await validate_repo_fork(
+            "https://github.com/testuser/repo",
+            "testuser",
+            "learntocloud/repo",
+            metadata,
+        )
+        assert result.is_valid is False
+        assert result.verification_completed is False
+        assert "Unexpected error" not in result.message
 
     @pytest.mark.asyncio
     async def test_server_error_propagated(self):

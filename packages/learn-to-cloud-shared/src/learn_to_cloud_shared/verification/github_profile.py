@@ -12,6 +12,7 @@ on, see ``github_metadata.py``.
 For the main hands-on verification orchestration, see hands_on_verification.py
 """
 
+import httpx
 from opentelemetry import trace
 
 from learn_to_cloud_shared.schemas import ValidationResult
@@ -127,6 +128,14 @@ async def check_repo_is_fork_of(
             is_valid=False,
             message=f"Request error: {e!s}",
             verification_completed=False,
+        )
+    except httpx.HTTPStatusError as e:
+        span = trace.get_current_span()
+        span.record_exception(e)
+        return github_error_to_validation_result(
+            e,
+            event="fork_check.api_error",
+            context={"username": username, "repo": repo_name},
         )
     except Exception as e:
         span = trace.get_current_span()
