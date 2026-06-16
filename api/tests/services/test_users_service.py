@@ -177,7 +177,6 @@ class TestGetOrCreateUserFromGithub:
             "learn_to_cloud.services.users_service.UserRepository", autospec=True
         ) as MockRepo:
             repo = MockRepo.return_value
-            repo.get_by_github_username = AsyncMock(return_value=None)
             repo.upsert = AsyncMock(return_value=mock_user)
             result = await get_or_create_user_from_github(
                 AsyncMock(),
@@ -189,25 +188,3 @@ class TestGetOrCreateUserFromGithub:
             )
         assert result is mock_user
         repo.upsert.assert_awaited_once()
-
-    @pytest.mark.asyncio
-    async def test_username_conflict_clears_old_owner(self):
-        old_owner = MagicMock()
-        old_owner.id = 456
-        new_user = MagicMock()
-        with patch(
-            "learn_to_cloud.services.users_service.UserRepository", autospec=True
-        ) as MockRepo:
-            repo = MockRepo.return_value
-            repo.get_by_github_username = AsyncMock(return_value=old_owner)
-            repo.clear_github_username = AsyncMock()
-            repo.upsert = AsyncMock(return_value=new_user)
-            await get_or_create_user_from_github(
-                AsyncMock(),
-                github_id=123,
-                first_name="New",
-                last_name="User",
-                avatar_url=None,
-                github_username="sharedname",
-            )
-        repo.clear_github_username.assert_awaited_once_with(456)

@@ -109,10 +109,12 @@ class TestGetAuthenticatedUserFromSession:
         result = get_authenticated_user_from_session(request)
         assert result == AuthenticatedUser(user_id=42, github_username="testuser")
 
-    def test_returns_identity_without_username(self):
+    def test_returns_none_without_username(self):
+        # Username is always written to the session at login. A missing
+        # username means a stale cookie, so we force a clean re-login.
         request = _make_request(session={"user_id": 42})
         result = get_authenticated_user_from_session(request)
-        assert result == AuthenticatedUser(user_id=42, github_username=None)
+        assert result is None
 
     def test_returns_none_when_user_id_missing(self):
         request = _make_request(session={"github_username": "testuser"})
@@ -125,7 +127,7 @@ class TestRequireAuth:
     """Test require_auth dependency."""
 
     def test_returns_user_id_and_sets_state(self):
-        request = _make_request(session={"user_id": 42})
+        request = _make_request(session={"user_id": 42, "github_username": "user"})
         result = require_auth(request)
         assert result == 42
         assert request.state.user_id == 42
@@ -169,7 +171,7 @@ class TestOptionalAuth:
     """Test optional_auth dependency."""
 
     def test_returns_user_id_and_sets_state(self):
-        request = _make_request(session={"user_id": 99})
+        request = _make_request(session={"user_id": 99, "github_username": "user"})
         result = optional_auth(request)
         assert result == 99
         assert request.state.user_id == 99

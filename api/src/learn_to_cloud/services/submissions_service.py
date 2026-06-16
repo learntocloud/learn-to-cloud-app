@@ -13,7 +13,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from uuid import UUID
 
-from learn_to_cloud_shared.models import SubmissionType, VerificationJob
+from learn_to_cloud_shared.models import VerificationJob
 from learn_to_cloud_shared.repositories.submission_repository import (
     SubmissionRepository,
 )
@@ -109,10 +109,6 @@ class RequirementNotFoundError(Exception):
     pass
 
 
-class GitHubUsernameRequiredError(Exception):
-    pass
-
-
 class InvalidSubmittedValueError(Exception):
     pass
 
@@ -178,13 +174,11 @@ async def _check_submission_preconditions(
     session_maker: async_sessionmaker[AsyncSession],
     user_id: int,
     requirement_slug: str,
-    github_username: str | None,
     submitted_value: str | None = None,
 ) -> _PreValidationContext:
     """Shared pre-validation checks for submission paths.
 
-    Validates requirement existence, already-validated status, phase gating,
-    and GitHub username requirement.
+    Validates requirement existence, already-validated status, and phase gating.
 
     Opens a short-lived DB session for reads, then releases it before returning.
     """
@@ -225,25 +219,6 @@ async def _check_submission_preconditions(
 
     # read_session is now closed — connection returned to pool
 
-    if (
-        requirement.submission_type
-        in (
-            SubmissionType.GITHUB_PROFILE,
-            SubmissionType.PROFILE_README,
-            SubmissionType.REPO_FORK,
-            SubmissionType.CTF_TOKEN,
-            SubmissionType.NETWORKING_TOKEN,
-            SubmissionType.JOURNAL_API_VERIFIER,
-            SubmissionType.DEVOPS_ANALYSIS,
-            SubmissionType.SECURITY_SCANNING,
-        )
-        and not github_username
-    ):
-        raise GitHubUsernameRequiredError(
-            "You need to link your GitHub account to submit. "
-            "Please sign out and sign in with GitHub."
-        )
-
     return _PreValidationContext(
         requirement=requirement,
         phase_order=phase_order,
@@ -268,7 +243,6 @@ async def create_verification_job(
         session_maker,
         user_id,
         requirement_slug,
-        github_username,
         submitted_value,
     )
     try:

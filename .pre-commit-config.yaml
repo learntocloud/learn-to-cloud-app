@@ -26,6 +26,16 @@ repos:
         files: ^(api|apps/verification-functions|packages/learn-to-cloud-shared)/.*\.py$
         pass_filenames: false
 
+  # squawk - migration SQL safety lint (mirrors the CI check exactly)
+  - repo: local
+    hooks:
+      - id: squawk-migrations
+        name: squawk migration SQL lint
+        entry: bash -c 'cd api && uv run python scripts/lint_migration_sql.py'
+        language: system
+        files: ^api/alembic/versions/.*\.py$
+        pass_filenames: false
+
   # General file hygiene + check-yaml
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0

@@ -17,7 +17,6 @@ from learn_to_cloud_shared.verification.requirements import RequirementIndex
 
 from learn_to_cloud.services.submissions_service import (
     AlreadyValidatedError,
-    GitHubUsernameRequiredError,
     PriorPhaseNotCompleteError,
     RequirementNotFoundError,
     SyncVerificationResult,
@@ -153,37 +152,6 @@ class TestSubmissionValidationErrors:
                 submitted_value="https://github.com/user/repo",
                 github_username="user",
             )
-
-    @pytest.mark.asyncio
-    async def test_github_username_required_for_journal_api_verifier(self):
-        mock_session_maker = _mock_session_maker()
-        mock_requirement = _make_mock_requirement(
-            submission_type=SubmissionType.JOURNAL_API_VERIFIER
-        )
-
-        with (
-            patch(
-                "learn_to_cloud.services.submissions_service.load_requirement_index",
-                new_callable=AsyncMock,
-                return_value=_build_index(mock_requirement),
-            ),
-            patch(
-                "learn_to_cloud.services.submissions_service.SubmissionRepository",
-                autospec=True,
-            ) as mock_repo_class,
-        ):
-            mock_repo = MagicMock()
-            mock_repo.get_by_user_and_requirement = AsyncMock(return_value=None)
-            mock_repo_class.return_value = mock_repo
-
-            with pytest.raises(GitHubUsernameRequiredError):
-                await create_verification_job(
-                    session_maker=mock_session_maker,
-                    user_id=123,
-                    requirement_slug="test-requirement",
-                    submitted_value="https://github.com/user/repo",
-                    github_username=None,
-                )
 
 
 @pytest.mark.unit
@@ -493,43 +461,6 @@ class TestSyncDispatchBranch:
                     requirement_slug="test-requirement",
                     submitted_value="some-token",
                     github_username="user",
-                )
-
-        mock_sync_execute.assert_not_awaited()
-
-    @pytest.mark.asyncio
-    async def test_sync_path_requires_github_username_for_ctf_token(self):
-        mock_session_maker = _mock_session_maker()
-        mock_requirement = _make_mock_requirement(
-            submission_type=SubmissionType.CTF_TOKEN,
-        )
-
-        with (
-            patch(
-                "learn_to_cloud.services.submissions_service.load_requirement_index",
-                new_callable=AsyncMock,
-                return_value=_build_index(mock_requirement),
-            ),
-            patch(
-                "learn_to_cloud.services.submissions_service.SubmissionRepository",
-                autospec=True,
-            ) as mock_repo_class,
-            patch(
-                "learn_to_cloud.services.submissions_service.execute_sync_submission_validation",
-                new_callable=AsyncMock,
-            ) as mock_sync_execute,
-        ):
-            mock_repo = MagicMock()
-            mock_repo.get_by_user_and_requirement = AsyncMock(return_value=None)
-            mock_repo_class.return_value = mock_repo
-
-            with pytest.raises(GitHubUsernameRequiredError):
-                await create_verification_job(
-                    session_maker=mock_session_maker,
-                    user_id=123,
-                    requirement_slug="test-requirement",
-                    submitted_value="some-token",
-                    github_username=None,
                 )
 
         mock_sync_execute.assert_not_awaited()

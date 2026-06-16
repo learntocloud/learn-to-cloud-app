@@ -28,25 +28,14 @@ class UserRepository:
         result = await self.db.execute(select(User).where(User.id == user_id))
         return result.scalar_one_or_none()
 
-    async def get_by_github_username(self, username: str) -> User | None:
-        """Get a user by their GitHub username.
-
-        Expects username to be pre-normalized (lowercase) by service layer.
-        Uses indexed lookup on github_username (unique constraint ensures one).
-        """
-        result = await self.db.execute(
-            select(User).where(User.github_username == username)
-        )
-        return result.scalar_one_or_none()
-
     async def get_or_create(
         self,
         user_id: int,
         *,
+        github_username: str,
         first_name: str | None = None,
         last_name: str | None = None,
         avatar_url: str | None = None,
-        github_username: str | None = None,
     ) -> User:
         """Get user from DB or create from GitHub OAuth data.
 
@@ -89,10 +78,10 @@ class UserRepository:
         self,
         user_id: int,
         *,
+        github_username: str,
         first_name: str | None = None,
         last_name: str | None = None,
         avatar_url: str | None = None,
-        github_username: str | None = None,
     ) -> User:
         """Insert or update a user in a single query.
 
@@ -121,14 +110,6 @@ class UserRepository:
         )
         result = await self.db.execute(stmt)
         return result.scalar_one()
-
-    async def clear_github_username(self, user_id: int) -> None:
-        """Clear the github_username field for a specific user."""
-        user = await self.get_by_id(user_id)
-        if user is not None:
-            user.github_username = None
-            user.updated_at = utcnow()
-            await self.db.flush()
 
     async def delete(self, user_id: int) -> None:
         """Delete a user by ID. Cascades to related records."""
