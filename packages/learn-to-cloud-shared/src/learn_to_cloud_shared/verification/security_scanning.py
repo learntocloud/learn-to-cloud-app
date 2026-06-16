@@ -29,14 +29,13 @@ from tenacity import (
 )
 
 from learn_to_cloud_shared.schemas import TaskResult, ValidationResult
-from learn_to_cloud_shared.verification.devops_analysis import fetch_repo_tree
 from learn_to_cloud_shared.verification.evidence import (
     collect_repo_file_evidence,
-    fetch_repo_file_content,
 )
 from learn_to_cloud_shared.verification.github_profile import (
     RETRIABLE_EXCEPTIONS,
 )
+from learn_to_cloud_shared.verification.repo_files import RepoFiles, default_repo_files
 from learn_to_cloud_shared.verification.repo_utils import VerificationError
 from learn_to_cloud_shared.verification.tasks.base import (
     EvidenceBundle,
@@ -55,7 +54,9 @@ class SecurityVerificationError(VerificationError):
     """Raised when Phase 6 security scanning verification fails."""
 
 
-async def _check_dependabot(owner: str, repo: str, file_paths: list[str]) -> TaskResult:
+async def _check_dependabot(
+    repo_files: RepoFiles, owner: str, repo: str, file_paths: list[str]
+) -> TaskResult:
     """Check for a valid Dependabot configuration file in the repo tree.
 
     Verifies both file existence and content: the file must contain
@@ -73,7 +74,7 @@ async def _check_dependabot(owner: str, repo: str, file_paths: list[str]) -> Tas
             ),
         )
 
-    content = await _fetch_workflow_content(owner, repo, found[0])
+    content = await _fetch_workflow_content(repo_files, owner, repo, found[0])
     if not content:
         return TaskResult(
             task_name=DEPENDABOT_TASK.name,
@@ -143,12 +144,16 @@ def _find_codeql_workflow_candidates(file_paths: list[str]) -> list[str]:
     return codeql_by_name + other_workflows
 
 
-async def _fetch_workflow_content(owner: str, repo: str, path: str) -> str | None:
+async def _fetch_workflow_content(
+    repo_files: RepoFiles, owner: str, repo: str, path: str
+) -> str | None:
     """Fetch a single workflow file's raw content from GitHub."""
-    return await fetch_repo_file_content(owner, repo, path)
+    return await repo_files.file(owner, repo, path)
 
 
-async def _check_codeql(owner: str, repo: str, file_paths: list[str]) -> TaskResult:
+async def _check_codeql(
+    repo_files: RepoFiles, owner: str, repo: str, file_paths: list[str]
+) -> TaskResult:
     """Check for CodeQL workflow in the repository.
 
     First checks filenames for 'codeql', then fetches workflow content
@@ -170,7 +175,9 @@ async def _check_codeql(owner: str, repo: str, file_paths: list[str]) -> TaskRes
     codeql_named = [c for c in candidates if "codeql" in c.rsplit("/", 1)[-1].lower()]
     if codeql_named:
         # Fetch to confirm it actually uses the CodeQL action
-        content = await _fetch_workflow_content(owner, repo, codeql_named[0])
+        content = await _fetch_workflow_content(
+            repo_files, owner, repo, codeql_named[0]
+        )
         if content and CODEQL_ACTION_PATTERN in content:
             return TaskResult(
                 task_name=CODEQL_TASK.name,
@@ -183,7 +190,9 @@ async def _check_codeql(owner: str, repo: str, file_paths: list[str]) -> TaskRes
         : CODEQL_TASK.evidence.max_files
     ]
 
-    fetch_tasks = [_fetch_workflow_content(owner, repo, path) for path in to_check]
+    fetch_tasks = [
+        _fetch_workflow_content(repo_files, owner, repo, path) for path in to_check
+    ]
     results = await asyncio.gather(*fetch_tasks, return_exceptions=True)
 
     for path, result in zip(to_check, results, strict=True):
@@ -211,8 +220,10 @@ async def collect_security_scanning_evidence(
     repo: str,
     file_paths: list[str],
     task: VerificationTask = SECURITY_SCANNING_RUBRIC_TASK,
+    repo_files: RepoFiles | None = None,
 ) -> EvidenceBundle:
     """Collect bounded Phase 6 repository evidence for rubric grading."""
+    repo_files = repo_files or default_repo_files()
     codeql_candidates = set(_find_codeql_workflow_candidates(file_paths))
     candidate_paths = [
         path
@@ -220,7 +231,7 @@ async def collect_security_scanning_evidence(
         if path in DEPENDABOT_CONFIG_PATHS or path in codeql_candidates
     ]
     unique_paths = list(dict.fromkeys(candidate_paths))[: task.evidence.max_files]
-    return await collect_repo_file_evidence(owner, repo, unique_paths, task)
+    return await collect_repo_file_evidence(repo_files, owner, repo, unique_paths, task)
 
 
 @retry(
@@ -230,11 +241,11 @@ async def collect_security_scanning_evidence(
     reraise=True,
 )
 async def _verify_security_scanning(
-    owner: str, repo: str, file_paths: list[str]
+    repo_files: RepoFiles, owner: str, repo: str, file_paths: list[str]
 ) -> ValidationResult:
     """Internal: run security scanning checks with retry."""
-    dependabot_result = await _check_dependabot(owner, repo, file_paths)
-    codeql_result = await _check_codeql(owner, repo, file_paths)
+    dependabot_result = await _check_dependabot(repo_files, owner, repo, file_paths)
+    codeql_result = await _check_codeql(repo_files, owner, repo, file_paths)
 
     task_results = [dependabot_result, codeql_result]
     any_passed = dependabot_result.passed or codeql_result.passed
@@ -279,6 +290,7 @@ async def _verify_security_scanning(
 async def validate_security_scanning(
     owner: str,
     repo: str,
+    repo_files: RepoFiles | None = None,
 ) -> ValidationResult:
     """Verify a learner's GitHub repo has security scanning enabled.
 
@@ -293,13 +305,15 @@ async def validate_security_scanning(
     Args:
         owner: Repository owner (GitHub username).
         repo: Repository name.
+        repo_files: Read access to the repository; defaults to live GitHub.
 
     Returns:
         ValidationResult with is_valid=True if at least one security feature
         is found, and detailed task_results for feedback.
     """
+    repo_files = repo_files or default_repo_files()
     try:
-        all_files = await fetch_repo_tree(owner, repo)
+        all_files = await repo_files.tree(owner, repo)
     except httpx.HTTPStatusError as e:
         if e.response.status_code == 404:
             return ValidationResult(
@@ -312,4 +326,4 @@ async def validate_security_scanning(
             )
         raise
 
-    return await _verify_security_scanning(owner, repo, all_files)
+    return await _verify_security_scanning(repo_files, owner, repo, all_files)

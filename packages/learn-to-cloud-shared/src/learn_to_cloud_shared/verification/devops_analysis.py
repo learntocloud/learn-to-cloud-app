@@ -9,16 +9,14 @@ import asyncio
 import httpx
 from opentelemetry import trace
 
-from learn_to_cloud_shared.core.github_client import get_github_client
 from learn_to_cloud_shared.schemas import TaskResult, ValidationResult
 from learn_to_cloud_shared.verification.evidence import truncate_to_bytes
 from learn_to_cloud_shared.verification.github_profile import (
     RETRIABLE_EXCEPTIONS,
-    get_github_headers,
-    github_api_get,
     github_error_to_validation_result,
 )
 from learn_to_cloud_shared.verification.graders import grade_indicator_task
+from learn_to_cloud_shared.verification.repo_files import RepoFiles, default_repo_files
 from learn_to_cloud_shared.verification.tasks.base import VerificationTask
 from learn_to_cloud_shared.verification.tasks.phase5 import (
     MAX_FILE_SIZE_BYTES,
@@ -100,25 +98,8 @@ def _check_task_indicators(
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Repository tree and file fetching
+# Repository file fetching
 # ─────────────────────────────────────────────────────────────────────────────
-
-
-async def fetch_repo_tree(owner: str, repo: str, branch: str = "main") -> list[str]:
-    """Fetch the file tree of a GitHub repository.
-
-    Uses the Git Trees API with ``recursive=1`` to get all files in one call.
-
-    Returns:
-        List of file paths in the repository.
-    """
-    url = f"https://api.github.com/repos/{owner}/{repo}/git/trees/{branch}"
-    response = await github_api_get(url, params={"recursive": 1})
-
-    tree_data = response.json()
-    return [
-        item["path"] for item in tree_data.get("tree", []) if item.get("type") == "blob"
-    ]
 
 
 def _filter_devops_files(all_files: list[str]) -> dict[str, list[str]]:
@@ -162,18 +143,15 @@ def _filter_devops_files(all_files: list[str]) -> dict[str, list[str]]:
 
 
 async def _fetch_file_content(
-    owner: str, repo: str, path: str, branch: str = "main"
-) -> str:
-    """Fetch a single file's raw content from GitHub."""
-    client = await get_github_client()
+    repo_files: RepoFiles, owner: str, repo: str, path: str, branch: str = "main"
+) -> str | None:
+    """Fetch a single file's raw content, truncating and flagging suspicious text.
 
-    url = f"https://raw.githubusercontent.com/{owner}/{repo}/{branch}/{path}"
-    headers = get_github_headers()
-
-    response = await client.get(url, headers=headers)
-    response.raise_for_status()
-
-    content = response.text
+    Returns ``None`` when the file cannot be read.
+    """
+    content = await repo_files.file(owner, repo, path, branch)
+    if content is None:
+        return None
 
     if len(content.encode("utf-8")) > MAX_FILE_SIZE_BYTES:
         content = truncate_to_bytes(content, MAX_FILE_SIZE_BYTES)
@@ -192,6 +170,7 @@ async def _fetch_file_content(
 
 
 async def _fetch_all_devops_files(
+    repo_files: RepoFiles,
     owner: str,
     repo: str,
     devops_files: dict[str, list[str]],
@@ -211,11 +190,8 @@ async def _fetch_all_devops_files(
         return {task.id: [] for task in PHASE5_TASKS}
 
     async def _fetch_one(task_id: str, path: str) -> tuple[str, str | None]:
-        try:
-            content = await _fetch_file_content(owner, repo, path, branch)
-            return (task_id, content)
-        except httpx.HTTPStatusError:
-            return (task_id, None)
+        content = await _fetch_file_content(repo_files, owner, repo, path, branch)
+        return (task_id, content)
 
     results = await asyncio.gather(
         *[_fetch_one(tid, p) for tid, p in fetch_tasks],
@@ -247,8 +223,11 @@ async def _fetch_all_devops_files(
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-async def run_devops_workflow(owner: str, repo: str) -> ValidationResult:
+async def run_devops_workflow(
+    owner: str, repo: str, repo_files: RepoFiles | None = None
+) -> ValidationResult:
     """Run the full Phase 5 DevOps verification."""
+    repo_files = repo_files or default_repo_files()
     with tracer.start_as_current_span(
         "devops_verification",
         attributes={
@@ -258,7 +237,7 @@ async def run_devops_workflow(owner: str, repo: str) -> ValidationResult:
     ) as span:
         # ── Step 1: Fetch repo tree ──────────────────────────────
         try:
-            all_files = await fetch_repo_tree(owner, repo)
+            all_files = await repo_files.tree(owner, repo)
         except (
             httpx.HTTPStatusError,
             *RETRIABLE_EXCEPTIONS,
@@ -305,7 +284,9 @@ async def run_devops_workflow(owner: str, repo: str) -> ValidationResult:
 
         # ── Step 3: Fetch file contents ──────────────────────────
         devops_files = _filter_devops_files(all_files)
-        file_contents = await _fetch_all_devops_files(owner, repo, devops_files)
+        file_contents = await _fetch_all_devops_files(
+            repo_files, owner, repo, devops_files
+        )
 
         span.set_attribute(
             "repo.fetched_files",

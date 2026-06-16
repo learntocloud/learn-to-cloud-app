@@ -7,8 +7,6 @@ Tests cover:
 - End-to-end run_devops_workflow flow
 """
 
-from unittest.mock import MagicMock, patch
-
 import httpx
 import pytest
 
@@ -18,6 +16,7 @@ from learn_to_cloud_shared.verification.devops_analysis import (
     _filter_devops_files,
     run_devops_workflow,
 )
+from learn_to_cloud_shared.verification.repo_files import InMemoryRepoFiles
 from learn_to_cloud_shared.verification.tasks.base import (
     EvidencePolicy,
     IndicatorGraderConfig,
@@ -285,17 +284,18 @@ class TestRunDevopsWorkflow:
     @pytest.mark.asyncio
     async def test_repo_not_found(self):
         """Should return clear error when repository doesn't exist."""
-        mock_response = MagicMock()
-        mock_response.status_code = 404
+        response = httpx.Response(
+            status_code=404, request=httpx.Request("GET", "https://api.github.com")
+        )
+        repo_files = InMemoryRepoFiles(
+            tree_error=httpx.HTTPStatusError(
+                "Not Found", request=response.request, response=response
+            )
+        )
 
-        with patch(
-            "learn_to_cloud_shared.verification.devops_analysis.fetch_repo_tree",
-            autospec=True,
-            side_effect=httpx.HTTPStatusError(
-                "Not Found", request=MagicMock(), response=mock_response
-            ),
-        ):
-            result = await run_devops_workflow("testuser", "journal-starter")
+        result = await run_devops_workflow(
+            "testuser", "journal-starter", repo_files=repo_files
+        )
 
         assert result.is_valid is False
         assert "not found" in result.message.lower()
@@ -303,12 +303,11 @@ class TestRunDevopsWorkflow:
     @pytest.mark.asyncio
     async def test_all_missing_returns_fast(self):
         """When no tasks pass existence check, return immediately."""
-        with patch(
-            "learn_to_cloud_shared.verification.devops_analysis.fetch_repo_tree",
-            autospec=True,
-            return_value=["README.md"],
-        ):
-            result = await run_devops_workflow("testuser", "journal-starter")
+        repo_files = InMemoryRepoFiles(tree=["README.md"])
+
+        result = await run_devops_workflow(
+            "testuser", "journal-starter", repo_files=repo_files
+        )
 
         assert result.is_valid is False
         assert result.task_results is not None
@@ -325,13 +324,11 @@ class TestRunDevopsWorkflow:
             "k8s/deployment.yaml",
             # k8s/service.yaml intentionally absent
         ]
+        repo_files = InMemoryRepoFiles(tree=mock_files)
 
-        with patch(
-            "learn_to_cloud_shared.verification.devops_analysis.fetch_repo_tree",
-            autospec=True,
-            return_value=mock_files,
-        ):
-            result = await run_devops_workflow("testuser", "journal-starter")
+        result = await run_devops_workflow(
+            "testuser", "journal-starter", repo_files=repo_files
+        )
 
         assert result.is_valid is False
         assert result.task_results is not None
@@ -343,16 +340,6 @@ class TestRunDevopsWorkflow:
     @pytest.mark.asyncio
     async def test_all_tasks_pass_with_good_content(self):
         """Happy path: all required files exist with proper content."""
-        mock_files = [
-            "Dockerfile",
-            ".dockerignore",
-            ".github/workflows/ci.yml",
-            "infra/main.tf",
-            "infra/variables.tf",
-            "k8s/deployment.yaml",
-            "k8s/service.yaml",
-        ]
-
         dockerfile_content = (
             "FROM python:3.12-slim\nWORKDIR /app\n"
             "COPY requirements.txt .\nRUN pip install -r requirements.txt\n"
@@ -399,22 +386,11 @@ class TestRunDevopsWorkflow:
                 "    - port: 80\n      targetPort: 8000\n"
             ),
         }
+        repo_files = InMemoryRepoFiles(file_map)
 
-        async def mock_fetch(owner, repo, path, branch="main"):
-            return file_map.get(path, "")
-
-        with (
-            patch(
-                "learn_to_cloud_shared.verification.devops_analysis.fetch_repo_tree",
-                autospec=True,
-                return_value=mock_files,
-            ),
-            patch(
-                "learn_to_cloud_shared.verification.devops_analysis._fetch_file_content",
-                side_effect=mock_fetch,
-            ),
-        ):
-            result = await run_devops_workflow("testuser", "journal-starter")
+        result = await run_devops_workflow(
+            "testuser", "journal-starter", repo_files=repo_files
+        )
 
         assert result.is_valid is True
         assert result.task_results is not None
