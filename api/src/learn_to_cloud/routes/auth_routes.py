@@ -96,6 +96,13 @@ async def callback(request: Request) -> RedirectResponse:
         return RedirectResponse(url="/", status_code=302)
 
     github_username = github_user.get("login", "")
+    if not github_username:
+        logger.error(
+            "auth.callback.missing_github_login",
+            extra={"status_code": getattr(resp, "status_code", None)},
+        )
+        return RedirectResponse(url="/", status_code=302)
+
     avatar_url = github_user.get("avatar_url")
     first_name, last_name = parse_display_name(github_user.get("name", ""))
 

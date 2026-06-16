@@ -75,21 +75,6 @@ class TestGetById:
         assert user is None
 
 
-class TestGetByGithubUsername:
-    async def test_returns_user(self, db_session: AsyncSession):
-        repo = UserRepository(db_session)
-        await repo.upsert(22222, github_username="testuser")
-
-        user = await repo.get_by_github_username("testuser")
-        assert user is not None
-        assert user.id == 22222
-
-    async def test_returns_none_for_missing(self, db_session: AsyncSession):
-        repo = UserRepository(db_session)
-        user = await repo.get_by_github_username("nonexistent")
-        assert user is None
-
-
 class TestDelete:
     async def test_removes_user(self, db_session: AsyncSession):
         repo = UserRepository(db_session)

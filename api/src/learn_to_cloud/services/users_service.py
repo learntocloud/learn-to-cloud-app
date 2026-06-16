@@ -46,21 +46,14 @@ async def get_or_create_user_from_github(
 ) -> User:
     """Create or update a user from GitHub OAuth profile data.
 
-    Called during the OAuth callback. Uses upsert to handle both new
-    and returning users in a single query.
-
-    If another user already has this GitHub username, it is cleared from
-    them first (GitHub usernames are unique across our user base).
+    Called during the OAuth callback. Identity is the immutable GitHub
+    numeric ID (``github_id``), so the upsert keys on it. ``github_username``
+    is display-only and refreshed from GitHub on every login.
     """
     user_repo = UserRepository(db)
     normalized_username = normalize_github_username(github_username)
-
-    # Clear username from any other user before upsert (business rule:
-    # GitHub usernames must be unique, latest OAuth login wins).
-    if normalized_username:
-        existing_owner = await user_repo.get_by_github_username(normalized_username)
-        if existing_owner and existing_owner.id != github_id:
-            await user_repo.clear_github_username(existing_owner.id)
+    if not normalized_username:
+        raise ValueError("github_username is required and cannot be empty")
 
     user = await user_repo.upsert(
         github_id,

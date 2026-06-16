@@ -49,17 +49,15 @@ class User(TimestampMixin, Base):
     """User model - authenticated via GitHub OAuth."""
 
     __tablename__ = "users"
-    __table_args__ = (
-        UniqueConstraint("github_username", name="uq_users_github_username"),
-    )
+    __table_args__ = (Index("ix_users_github_username", "github_username"),)
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=False)
     first_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     last_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     avatar_url: Mapped[str | None] = mapped_column(Text, nullable=True)
-    github_username: Mapped[str | None] = mapped_column(
+    github_username: Mapped[str] = mapped_column(
         String(255),
-        nullable=True,
+        nullable=False,
     )
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
 

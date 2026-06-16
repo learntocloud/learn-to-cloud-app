@@ -64,7 +64,6 @@ from learn_to_cloud.services.steps_service import (
 )
 from learn_to_cloud.services.submissions_service import (
     AlreadyValidatedError,
-    GitHubUsernameRequiredError,
     InvalidSubmittedValueError,
     PriorPhaseNotCompleteError,
     RequirementNotFoundError,
@@ -89,7 +88,6 @@ logger = logging.getLogger(__name__)
 # Submission errors whose message is safe to show directly to the user.
 _USER_FACING_ERRORS = (
     AlreadyValidatedError,
-    GitHubUsernameRequiredError,
     InvalidSubmittedValueError,
     PriorPhaseNotCompleteError,
     RequirementNotFoundError,
@@ -339,16 +337,11 @@ async def htmx_submit_verification(
                     return _render_card(
                         error_banner="Please enter a value before submitting."
                     )
-            if github_username is None and not is_derivable(
-                requirement.submission_type
-            ):
-                derived_value = user_input or ""
-            else:
-                derived_value = derive_submission_value(
-                    requirement=requirement,
-                    github_username=github_username or "",
-                    user_input=user_input,
-                )
+            derived_value = derive_submission_value(
+                requirement=requirement,
+                github_username=github_username,
+                user_input=user_input,
+            )
         except ValueError as ve:
             return _render_card(error_banner=str(ve))
     else:

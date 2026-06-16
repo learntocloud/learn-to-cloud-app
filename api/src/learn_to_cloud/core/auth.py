@@ -31,7 +31,7 @@ class AuthenticatedUser:
     """Authenticated identity stored in the session cookie."""
 
     user_id: int
-    github_username: str | None
+    github_username: str
 
 
 def init_oauth(settings: OAuthConfig) -> None:
@@ -101,13 +101,22 @@ def ensure_session_id(request: Request) -> str:
 
 
 def get_authenticated_user_from_session(request: Request) -> AuthenticatedUser | None:
-    """Read authenticated identity from the session cookie."""
+    """Read authenticated identity from the session cookie.
+
+    Returns None when either the user ID or the GitHub username is missing.
+    The username is always written to the session at login, so a missing
+    username means a stale cookie (for example, a user whose row predates the
+    NOT NULL backfill); returning None forces a clean re-login.
+    """
     user_id = get_user_id_from_session(request)
     if user_id is None:
         return None
+    github_username = get_github_username_from_session(request)
+    if github_username is None:
+        return None
     return AuthenticatedUser(
         user_id=user_id,
-        github_username=get_github_username_from_session(request),
+        github_username=github_username,
     )
 
 
