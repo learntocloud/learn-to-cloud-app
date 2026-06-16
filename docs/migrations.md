@@ -26,6 +26,12 @@ multi-worker race to defend against.
 > ever executes `alembic upgrade head` per deploy. `alembic/env.py` relies
 > on this and does not include application-layer concurrency controls.
 
+Terraform keeps the migration job shape, but it does not manage rollout tags.
+To satisfy Azure's create-time image requirement, Terraform creates the job with
+`mcr.microsoft.com/k8se/quickstart:latest` as a placeholder image and ignores
+future image changes. On each deploy, the workflow starts the job with the real
+`migrations:<commit-sha>` image.
+
 ### Failure Detection
 
 `alembic/env.py` logs and re-raises every exception from

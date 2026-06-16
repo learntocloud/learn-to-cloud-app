@@ -366,38 +366,6 @@ jobs:
       - name: Terraform Validate
         run: terraform validate
 
-      - name: Ensure migration image exists for Terraform
-        if: github.ref == 'refs/heads/main'
-        working-directory: .
-        run: |
-          set -euo pipefail
-
-          registry_name=$(terraform -chdir=infra output -raw AZURE_CONTAINER_REGISTRY_NAME 2>/dev/null || true)
-          registry_endpoint=$(terraform -chdir=infra output -raw AZURE_CONTAINER_REGISTRY_ENDPOINT 2>/dev/null || true)
-
-          if [[ -z "$registry_name" || -z "$registry_endpoint" ]]; then
-            echo "No existing container registry output found; skipping migration image bootstrap."
-            exit 0
-          fi
-
-          if az acr repository show-tags \
-            --name "$registry_name" \
-            --repository migrations \
-            --query "contains(@, 'latest')" \
-            --output tsv 2>/dev/null | grep -q true; then
-            echo "Migration image already exists: $registry_endpoint/migrations:latest"
-            exit 0
-          fi
-
-          echo "Bootstrapping migration image for Terraform validation."
-          az acr login --name "$registry_name"
-          docker build -f api/Dockerfile \
-            --target migrations-runtime \
-            --build-arg BUILDKIT_INLINE_CACHE=1 \
-            --label git-commit=${{ github.sha }} \
-            -t "$registry_endpoint/migrations:latest" .
-          docker push "$registry_endpoint/migrations:latest"
-
       - name: Terraform Plan
         run: terraform plan -out=tfplan -input=false -lock-timeout=120s
         env:
