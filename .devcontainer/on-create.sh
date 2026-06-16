@@ -31,13 +31,10 @@ if ! copilot plugin list 2>/dev/null | grep -q "azure@azure-skills"; then
         || echo "⚠️  Could not install the azure-skills plugin; skipping. Run 'copilot plugin install azure@azure-skills' manually later."
 fi
 
-# Setup Python environments. Each uv project owns its local .venv.
-echo "🐍 Setting up API Python environment..."
-(cd api && uv sync --locked)
-echo "⚡ Setting up verification Functions Python environment..."
-(cd apps/verification-functions && uv sync --locked)
-echo "📦 Setting up shared package Python environment..."
-(cd packages/learn-to-cloud-shared && uv sync --locked)
+# Set up the Python workspace. A single root .venv holds every member's
+# dependencies, resolved from the one root uv.lock.
+echo "🐍 Setting up the Python workspace environment..."
+uv sync --all-packages --locked
 
 # Install Playwright MCP server + browser for dogfooding.
 # Install `playwright` globally alongside the MCP package so the subsequent

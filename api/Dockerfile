@@ -7,21 +7,33 @@ FROM python:3.13-slim AS builder
 WORKDIR /workspace
 
 # Install uv for fast dependency management
-COPY --from=ghcr.io/astral-sh/uv:0.10.10 /uv /usr/local/bin/uv
-
-# Copy dependency files and local path dependencies first for caching
-COPY api/pyproject.toml api/pyproject.toml
-COPY api/uv.lock api/uv.lock
-COPY packages/learn-to-cloud-shared packages/learn-to-cloud-shared
+COPY --from=ghcr.io/astral-sh/uv:0.11.21 /uv /usr/local/bin/uv
 
 # Disable uv Python downloads (use system Python) and enable bytecode compilation
 ENV UV_PYTHON_DOWNLOADS=never
 ENV UV_COMPILE_BYTECODE=1
 
-# Install dependencies to virtual environment. Local path dependencies are
-# installed non-editably so the runtime image does not need the packages tree.
-WORKDIR /workspace/api
-RUN uv sync --no-dev --frozen --no-install-project --no-editable
+# Copy the workspace manifests needed to resolve the locked workspace. All
+# member pyproject.toml files must be present so uv can read the workspace
+# shape; the single lockfile lives at the repository root.
+COPY pyproject.toml uv.lock ./
+COPY api/pyproject.toml api/pyproject.toml
+COPY packages/learn-to-cloud-shared/pyproject.toml packages/learn-to-cloud-shared/pyproject.toml
+COPY apps/verification-functions/pyproject.toml apps/verification-functions/pyproject.toml
+
+# Layer 1 (cached): install only the API package's third-party dependency
+# closure, not the workspace members themselves. This pulls api + shared
+# dependencies but NOT verification-functions-only dependencies, keeping the
+# API image small.
+RUN uv sync --package learn-to-cloud-api --no-dev --frozen --no-install-workspace --no-editable
+
+# Copy the source for the members in the API's dependency closure.
+COPY api api
+COPY packages/learn-to-cloud-shared packages/learn-to-cloud-shared
+
+# Layer 2: build and install the API and shared packages non-editably, so the
+# runtime image contains copied packages and does not need the source tree.
+RUN uv sync --package learn-to-cloud-api --no-dev --frozen --no-editable
 
 # Tailwind CSS v4 build stage
 FROM node:22-slim AS tailwind
@@ -47,7 +59,7 @@ RUN apt-get update && \
 RUN useradd --create-home --shell /bin/bash appuser
 
 # Copy virtual environment from builder
-COPY --from=builder /workspace/api/.venv /app/.venv
+COPY --from=builder /workspace/.venv /app/.venv
 
 # Activate virtual environment
 ENV PATH="/app/.venv/bin:$PATH"
