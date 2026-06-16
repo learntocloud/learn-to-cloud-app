@@ -94,7 +94,7 @@ python-platform = "linux"
 [tool.uv]
 
 [tool.uv.sources]
-learn-to-cloud-shared = { path = "../packages/learn-to-cloud-shared", editable = true }
+learn-to-cloud-shared = { workspace = true }
 
 [dependency-groups]
 dev = [

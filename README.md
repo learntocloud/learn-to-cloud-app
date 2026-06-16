@@ -77,12 +77,14 @@ If you prefer not to use Dev Containers, you can set things up manually.
 docker compose up -d db azurite dts aspire-dashboard
 ```
 
-**2. API setup**
+**2. Install Python dependencies**
+
+This project is a single uv workspace. One command installs the API, the
+shared package, and the verification Functions worker into one shared
+virtual environment:
 
 ```bash
-cd api
-uv sync --locked  # Install API + shared Python dependencies
-cd ..
+uv sync --all-packages --locked
 cp api/.env.example api/.env  # Create environment config (edit if needed)
 ```
 
@@ -112,7 +114,6 @@ Start the verification worker when testing hands-on submissions:
 
 ```bash
 cd apps/verification-functions
-uv sync --locked
 uv run func start --port 7071
 ```
 

@@ -97,7 +97,7 @@ verifying that mapping.
 ### Prerequisites
 
 - PostgreSQL running locally (via `docker compose up db` or a local install)
-- API virtual environment set up (`cd api && uv sync --locked`)
+- Python workspace set up (`uv sync --all-packages --locked` from the repo root)
 
 ### Run All Pending Migrations
 

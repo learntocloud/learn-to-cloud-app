@@ -4,49 +4,46 @@
 
 The devcontainer handles everything automatically — see the [README](../README.md) for Quick Start instructions.
 
-## Linting, Formatting & Type Checking
+## Quality Gates
+
+This project uses [poethepoet](https://poethepoet.natn.io/) as the single source
+of truth for quality-gate commands. The tasks are defined in the root
+`pyproject.toml` and run across the whole uv workspace.
 
 ```bash
-cd api
-uv run ruff check . ../packages/learn-to-cloud-shared
-uv run ruff format --check . ../packages/learn-to-cloud-shared
-uv run ty check --exclude scripts --exclude tests .
-cd ..
+# Static checks: ruff lint, ruff format, ty type check, migration SQL lint.
+# This runs the prek hooks against every file in the workspace.
+uv run poe static
 
-cd packages/learn-to-cloud-shared
-uv run ty check --exclude tests .
-cd ../..
+# Test suites (with coverage gates) plus the verification import smoke test.
+uv run poe test
 
-cd apps/verification-functions
-uv run ruff check .
-uv run ruff format --check .
-uv run ty check .
-cd ../..
-
-# Auto-fix lint issues
-cd api && uv run ruff check --fix . ../packages/learn-to-cloud-shared && cd ..
-
-# Pre-commit (runs all checks)
-prek run --all-files
+# Everything above, in order. Run this before opening a pull request.
+uv run poe check
 ```
 
-## Tests
+Continuous integration runs the exact same `uv run poe` tasks, so a green
+`uv run poe check` locally means the same checks will pass in CI.
+
+### Running checks against a single project
+
+When you only want to lint or test one member, you can still call the tools
+directly from that member's directory:
 
 ```bash
-# API tests (run from api/)
-cd api
-uv run pytest tests/
+# Lint just the API and shared package
+cd api && uv run ruff check . ../packages/learn-to-cloud-shared
+
+# Run just the API tests
+cd api && uv run pytest tests/
 uv run pytest tests/ -m unit
 uv run pytest tests/ -m integration
-cd ..
 
-# Shared package tests (run from the shared package)
-cd packages/learn-to-cloud-shared
-uv run pytest tests/
-cd ../..
+# Run just the shared package tests
+cd packages/learn-to-cloud-shared && uv run pytest tests/
 ```
 
-- Tests use transactional rollback for isolation — no table recreation per test
+- Tests use transactional rollback for isolation, with no table recreation per test
 - Mark tests with `@pytest.mark.unit` or `@pytest.mark.integration`
 - Async fixtures use `@pytest_asyncio.fixture`
 

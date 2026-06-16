@@ -31,7 +31,7 @@
       "name": "Verification: Durable Functions",
       "type": "node-terminal",
       "request": "launch",
-      "command": "test -f local.settings.json || cp local.settings.example.json local.settings.json; uv sync --locked; uv run func start --port 7071",
+      "command": "test -f local.settings.json || cp local.settings.example.json local.settings.json; uv sync --all-packages --locked; uv run func start --port 7071",
       "cwd": "${workspaceFolder}/apps/verification-functions",
       "env": {
         "APPLICATIONINSIGHTS_CONNECTION_STRING": "",
