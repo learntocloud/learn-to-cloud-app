@@ -165,6 +165,19 @@ variable "github_client_id" {
   type        = string
 }
 
+variable "smoke_test_token" {
+  description = <<-EOT
+    Shared secret for the post-deploy verification smoke endpoint
+    (POST /internal/smoke/verification). When set, it is delivered to the API
+    Container App as the SMOKE_TEST__TOKEN secret so the app can validate smoke
+    requests. When empty, the endpoint stays disabled (returns 404). Sourced
+    from the SMOKE_TEST_TOKEN GitHub Actions secret via TF_VAR_smoke_test_token.
+  EOT
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
 variable "verification_functions_auth_client_id" {
   description = "Client ID of the pre-created Entra app registration."
   type        = string
