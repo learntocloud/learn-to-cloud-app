@@ -364,22 +364,6 @@ jobs:
       - name: Terraform Validate
         run: terraform validate
 
-      - name: Preflight bootstrap images for Terraform
-        if: github.ref == 'refs/heads/main'
-        working-directory: .
-        run: |
-          set -euo pipefail
-
-          registry_name=$(terraform -chdir=infra output -raw AZURE_CONTAINER_REGISTRY_NAME 2>/dev/null || true)
-          registry_endpoint=$(terraform -chdir=infra output -raw AZURE_CONTAINER_REGISTRY_ENDPOINT 2>/dev/null || true)
-
-          if [[ -z "$registry_name" || -z "$registry_endpoint" ]]; then
-            echo "No existing container registry output found; skipping bootstrap image preflight."
-            exit 0
-          fi
-
-          infra/scripts/preflight-bootstrap-images.sh "$registry_name" "$registry_endpoint"
-
       - name: Terraform Plan
         run: terraform plan -out=tfplan -input=false -lock-timeout=120s
         env:

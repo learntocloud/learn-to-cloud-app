@@ -31,7 +31,7 @@ resource "azurerm_container_app_job" "migrations" {
   template {
     container {
       name    = "migrations"
-      image   = "${azurerm_container_registry.main.login_server}/migrations:bootstrap"
+      image   = "mcr.microsoft.com/k8se/quickstart:latest"
       command = ["python"]
       args    = ["scripts/run_migrations.py"]
       cpu     = 0.5

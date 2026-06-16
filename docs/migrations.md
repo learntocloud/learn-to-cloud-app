@@ -26,20 +26,11 @@ multi-worker race to defend against.
 > ever executes `alembic upgrade head` per deploy. `alembic/env.py` relies
 > on this and does not include application-layer concurrency controls.
 
-### Bootstrap image preflight
-
-Terraform keeps the migration job shape, but it no longer manages rollout tags.
-The job template now uses a bootstrap image (`migrations:bootstrap`) and ignores
-future image changes. Deploy uses commit SHA tags when it starts the job.
-
-Before `terraform apply`, check that the bootstrap image exists in ACR:
-
-```bash
-infra/scripts/preflight-bootstrap-images.sh <acr-name> <acr-endpoint>
-```
-
-The deploy workflow runs this same preflight in CI and fails early with a clear
-error if the bootstrap image is missing.
+Terraform keeps the migration job shape, but it does not manage rollout tags.
+To satisfy Azure's create-time image requirement, Terraform creates the job with
+`mcr.microsoft.com/k8se/quickstart:latest` as a placeholder image and ignores
+future image changes. On each deploy, the workflow starts the job with the real
+`migrations:<commit-sha>` image.
 
 ### Failure Detection
 
