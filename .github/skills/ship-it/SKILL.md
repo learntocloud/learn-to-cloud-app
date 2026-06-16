@@ -1,6 +1,6 @@
 ---
 name: ship-it
-description: Run prek, run tests, resolve issues, commit, push, then monitor the deploy workflow and resolve any deploy failures. Use when user says "ship it", "commit and deploy", "push and deploy", or "land this".
+description: Run prek, run tests, resolve issues, commit, push, open a PR to main, then monitor the deploy workflow after merge and resolve any deploy failures. Use when user says "ship it", "commit and deploy", "push and deploy", or "land this".
 ---
 
 # Ship It — Prek, Commit, Push & Monitor Deploy
@@ -120,10 +120,10 @@ Ask the user for a commit message if the intent is ambiguous.
 
 ---
 
-## Step 5: Push
+## Step 5: Push and Open a PR
 
 ```bash
-git push
+git push -u origin <branch>
 ```
 
 If rejected (behind remote):
@@ -131,13 +131,19 @@ If rejected (behind remote):
 git pull --rebase && git push
 ```
 
-**Note**: The deploy workflow triggers on pushes to `main`. If on a different branch, inform the user that deployment won't trigger automatically.
+If the current branch is not `main`, open a PR to `main` after pushing:
+
+```bash
+gh pr create --fill --base main --head <branch>
+```
+
+**Note**: The deploy workflow is triggered by merging the PR to `main`, not by pushing a feature branch. If the branch is not `main`, tell the user that deployment will happen after the PR is merged.
 
 ---
 
 ## Step 6: Monitor the Deploy Workflow
 
-After pushing to `main`, the `deploy.yml` workflow triggers automatically.
+After the PR merges to `main`, the `deploy.yml` workflow triggers automatically.
 
 ### Wait for Workflow to Appear
 
@@ -254,13 +260,16 @@ curl -s https://<api-url>/ready
 ### 4. Push
 ✅ Pushed to `<branch>` on `origin`
 
-### 5. Deploy Workflow
-✅ Run #<id> — succeeded in X min / ❌ Failed (see step 6)
+### 5. PR to main
+✅ Opened or confirmed PR to `main` for the branch
 
-### 6. Deploy Fix (if needed)
+### 6. Deploy Workflow
+✅ Run #<id> — succeeded in X min / ❌ Failed (see step 7)
+
+### 7. Deploy Fix (if needed)
 ❌ <failure reason> → fixed → ✅ Re-deployed successfully
 
-### 7. Production Health
+### 8. Production Health
 ✅ /health — healthy | /ready — ready
 ```
 
