@@ -45,7 +45,7 @@ jobs:
             build-mode: none
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@v6.0.3
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v4
