@@ -1,6 +1,6 @@
 ---
 name: check-prod
-description: Check Azure production health — app status, errors, latency, database, dependencies. Use when user says "check prod", "how's prod", "hows prod doing", "is prod up", "prod status", "health check", "any errors?", "how's the app doing?", or "check Azure".
+description: Check Azure production health: app status, errors, latency, database, dependencies. Use when user says "check prod", "how's prod", "hows prod doing", "is prod up", "prod status", "health check", "any errors?", "how's the app doing?", or "check Azure".
 ---
 
 # Production Health Check
@@ -21,11 +21,11 @@ Before starting, verify Azure CLI authentication:
 
 Evaluated top-down, first match wins:
 
-**🔴 Critical** — ANY of: readiness probe non-200, any 5xx in 24h, DB CPU > 80% sustained, DB CPU credits < 10, fired Sev0/Sev1 alerts in 24h, `ContainerCrashing` on current revision, any `init.failed` logs in 24h, GitHub API failures > 20 in 24h
+**🔴 Critical**: ANY of: readiness probe non-200, any 5xx in 24h, DB CPU > 80% sustained, DB CPU credits < 10, fired Sev0/Sev1 alerts in 24h, `ContainerCrashing` on current revision, any `init.failed` logs in 24h, GitHub API failures > 20 in 24h
 
-**⚠️ Warning** — ANY of: P95 latency > 500ms, DB CPU 50–80% peak or Memory 70–85% or Storage 70–85% or CPU credits 10–30, any failed availability tests in 24h, non-zero unhandled exceptions in 7d, active connections > 30 (B1ms max 50), `ReplicaUnhealthy` without matching scale events, error rate spike (single day > 2× weekly average) or rising trend (3+ consecutive days increasing), Container App CPU > 80% or Memory > 80%, ERROR-level AppTraces > 10 in 24h, auth failure rate > 50% in 24h
+**⚠️ Warning**: ANY of: P95 latency > 500ms, DB CPU 50–80% peak or Memory 70–85% or Storage 70–85% or CPU credits 10–30, any failed availability tests in 24h, non-zero unhandled exceptions in 7d, active connections > 30 (B1ms max 50), `ReplicaUnhealthy` without matching scale events, error rate spike (single day > 2× weekly average) or rising trend (3+ consecutive days increasing), Container App CPU > 80% or Memory > 80%, ERROR-level AppTraces > 10 in 24h, auth failure rate > 50% in 24h
 
-**✅ Healthy** — none of the above
+**✅ Healthy**: none of the above
 
 ---
 
@@ -39,7 +39,7 @@ az resource list --resource-group rg-ltc-dev --query "[].{name:name, type:type}"
 ```
 
 Identify from the output:
-- **Container App** — name containing "api" (type `Microsoft.App/containerApps`)
+- **Container App**: name containing "api" (type `Microsoft.App/containerApps`)
 - **Log Analytics workspace** (type `Microsoft.OperationalInsights/workspaces`)
 - **PostgreSQL server** (type `Microsoft.DBforPostgreSQL/flexibleServers`)
 - **Application Insights** (type `microsoft.insights/components`)
@@ -49,7 +49,7 @@ Then get container app details:
 az containerapp show --name $CA_NAME --resource-group rg-ltc-dev --query "{fqdn:properties.configuration.ingress.fqdn, provisioningState:properties.provisioningState, latestRevision:properties.latestRevisionName, minReplicas:properties.template.scale.minReplicas, maxReplicas:properties.template.scale.maxReplicas}" -o json
 ```
 
-Save these discovered values — all subsequent steps reference them as `SUBSCRIPTION`, `RG`, `LOG_NAME`, `PSQL_NAME`, `CA_NAME`, `APPI_NAME`, `FQDN`, and `LATEST_REVISION`.
+Save these discovered values, all subsequent steps reference them as `SUBSCRIPTION`, `RG`, `LOG_NAME`, `PSQL_NAME`, `CA_NAME`, `APPI_NAME`, `FQDN`, and `LATEST_REVISION`.
 
 ---
 
@@ -68,7 +68,7 @@ Substitute `$FQDN` with the value from Step 0.
 
 ## Steps 2–14: CLI Queries
 
-Steps 2–14 are independent reads — **run them all in parallel** using separate terminal calls.
+Steps 2–14 are independent reads, **run them all in parallel** using separate terminal calls.
 
 ### Common Variables
 
@@ -112,17 +112,17 @@ az monitor log-analytics query -w $LOG_NAME --analytics-query "AppRequests | whe
 
 **Verdict**: ⚠️ if rising trend (3+ consecutive days increasing) or single-day spike > 2× the 7-day average. Stable or falling = healthy.
 
-### Step 6: Errors — Exceptions + AppTraces (7d)
+### Step 6: Errors: Exceptions + AppTraces (7d)
 
-Two queries — run in parallel:
+Two queries, run in parallel:
 
-**Query A — Unhandled exceptions** (AppExceptions):
+**Query A: Unhandled exceptions** (AppExceptions):
 
 ```bash
 az monitor log-analytics query -w $LOG_NAME --analytics-query "AppExceptions | where TimeGenerated > ago(7d) | summarize Count=count() by ExceptionType, OuterMessage | order by Count desc | take 10" -o json
 ```
 
-**Query B — Caught errors** (AppTraces at ERROR level):
+**Query B: Caught errors** (AppTraces at ERROR level):
 
 ```bash
 az monitor log-analytics query -w $LOG_NAME --analytics-query "AppTraces | where TimeGenerated > ago(24h) and SeverityLevel >= 3 | summarize Count=count() by Message | order by Count desc | take 10" -o json
@@ -139,8 +139,8 @@ az monitor log-analytics query -w $LOG_NAME --analytics-query "AppDependencies |
 ```
 
 Expected dependency targets:
-- `psql-ltc-dev-*.postgres.database.azure.com|learntocloud` — PostgreSQL (Type: SQL)
-- `api.github.com` — GitHub API for verification checks (Type: HTTP)
+- `psql-ltc-dev-*.postgres.database.azure.com|learntocloud`, PostgreSQL (Type: SQL)
+- `api.github.com`, GitHub API for verification checks (Type: HTTP)
 
 **Verdict**: 🔴 if PostgreSQL failures > 0 or GitHub API failures > 20. ⚠️ if any other FailureCount > 0.
 
@@ -148,7 +148,7 @@ Expected dependency targets:
 
 **Note**: These use `az monitor metrics list`, not log queries.
 
-Run **three calls** in parallel — Average, Maximum, and CPU credits:
+Run **three calls** in parallel: Average, Maximum, and CPU credits:
 
 **Call A (Average)**:
 ```bash
@@ -158,12 +158,12 @@ az monitor metrics list --resource $PSQL_NAME --resource-group $RG --resource-ty
 **Call B (Peak)**:
 Same as Call A but with `--aggregation Maximum`.
 
-**Call C (CPU Credits — burstable tier)**:
+**Call C (CPU Credits, burstable tier)**:
 ```bash
 az monitor metrics list --resource $PSQL_NAME --resource-group $RG --resource-type "Microsoft.DBforPostgreSQL/flexibleServers" --metrics "cpu_credits_remaining" "cpu_credits_consumed" --interval PT1H --aggregation Minimum --start-time $(date -u -d '24 hours ago' +%Y-%m-%dT%H:%M:%SZ) --end-time $(date -u +%Y-%m-%dT%H:%M:%SZ) -o json
 ```
 
-**Verdict thresholds** (B_Standard_B1ms — 1 vCore, 2 GB RAM, burstable):
+**Verdict thresholds** (B_Standard_B1ms: 1 vCore, 2 GB RAM, burstable):
 
 | Metric | ✅ Healthy | ⚠️ Warning | 🔴 Critical |
 |--------|-----------|-----------|------------|
@@ -201,7 +201,7 @@ Replace `LATEST_REVISION_VALUE` with the actual revision name.
 az monitor log-analytics query -w $LOG_NAME --analytics-query "ContainerAppSystemLogs | where TimeGenerated > ago(24h) and RevisionName == 'LATEST_REVISION_VALUE' | summarize Count=count() by Reason, Type | order by Count desc" -o json
 ```
 
-**Verdict**: 🔴 if `ContainerCrashing` or `OOMKilled`. ⚠️ if `ReplicaUnhealthy` — a few events alongside `SuccessfulRescale` is normal scale-in/out; sustained events without scaling suggest health probe failures.
+**Verdict**: 🔴 if `ContainerCrashing` or `OOMKilled`. ⚠️ if `ReplicaUnhealthy`, a few events alongside `SuccessfulRescale` is normal scale-in/out; sustained events without scaling suggest health probe failures.
 
 ### Step 11: Fired Alerts (24h)
 
@@ -252,7 +252,7 @@ az monitor log-analytics query -w $LOG_NAME --analytics-query "ContainerAppConso
 ## Summary Report
 
 ```
-## Production Health Report — {date}
+## Production Health Report: {date}
 
 ### Overall: ✅ Healthy / ⚠️ Warning / 🔴 Critical
 
@@ -275,10 +275,10 @@ az monitor log-analytics query -w $LOG_NAME --analytics-query "ContainerAppConso
 | 13 | Console Errors | ✅/⚠️/🔴 | {N} crashes, {N} tracebacks in 24h |
 
 ### ⚠️ Items to Watch
-- {any warnings — omit if none}
+- {any warnings, omit if none}
 
 ### 🔴 Action Required
-- {any critical issues — omit if none}
+- {any critical issues, omit if none}
 ```
 
 ---
@@ -290,6 +290,6 @@ az monitor log-analytics query -w $LOG_NAME --analytics-query "ContainerAppConso
 - **Log Analytics table names**: Use `AppRequests`, `AppExceptions`, `AppDependencies`, `AppAvailabilityResults` (Application Insights workspace-mode tables).
 - **Metrics vs logs**: Steps 8–9 query Azure Monitor **metrics** (`az monitor metrics list`). Steps 3–7, 10–14 query Log Analytics **logs** (`az monitor log-analytics query`). These are different CLI commands.
 - **Container App system logs**: Table may be `ContainerAppSystemLogs_CL` (custom log, `_s` suffix columns) or `ContainerAppSystemLogs` (standard, no suffix). Steps 10 and 14 include fallback queries for both schemas.
-- **Parallelization**: Steps 2–14 have no dependencies on each other — run them all concurrently.
+- **Parallelization**: Steps 2–14 have no dependencies on each other, run them all concurrently.
 - **Alert severity mapping**: Step 11 maps `AlertName` → severity using Terraform-defined alert names.
 - **Infrastructure tier**: PostgreSQL is B_Standard_B1ms (1 vCore, 2 GB, burstable). Container App is 0.5 CPU / 1 Gi, 1–2 replicas. Thresholds are tuned for these SKUs.

@@ -117,7 +117,7 @@ cd <workspace>/apps/verification-functions && uv run python -c "import function_
 ```
 
 **Flags:**
-- `-x` — stop on first failure for fast feedback
+- `-x`: stop on first failure for fast feedback
 
 **When mandatory**: Changes to repositories, services, routes, models, schemas, shared verification, or Functions code.
 
@@ -143,7 +143,7 @@ env -i HOME=$HOME PATH=$PATH \
 
 `env -i` clears all env vars. `HOME` and `PATH` are kept so `uv` and Python work. `DATABASE__URL` matches the value in `deploy.yml`'s `ci` job env block.
 
-If the new CI step uses additional env vars in the workflow, add them here too — only the ones the workflow sets.
+If the new CI step uses additional env vars in the workflow, add them here too, only the ones the workflow sets.
 
 ### Pass criteria
 

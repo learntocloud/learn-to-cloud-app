@@ -3,7 +3,7 @@ name: ship-it
 description: Run prek, run tests, resolve issues, commit, push, open a PR to main, then monitor the deploy workflow after merge and resolve any deploy failures. Use when user says "ship it", "commit and deploy", "push and deploy", or "land this".
 ---
 
-# Ship It — Prek, Commit, Push & Monitor Deploy
+# Ship It: Prek, Commit, Push & Monitor Deploy
 
 Run prek, run the Quality Gates, commit, push, open a PR to `main`, and (after merge) monitor the deploy through to a healthy production check.
 
@@ -42,7 +42,7 @@ Capture the current branch into a variable so later commands are copy-pasteable,
 ```bash
 branch=$(git branch --show-current)
 echo "On branch: $branch"
-gh auth status || echo "gh NOT authenticated — deploy monitoring will be skipped"
+gh auth status || echo "gh NOT authenticated, deploy monitoring will be skipped"
 ```
 
 - Never commit on `main`. If `$branch` is `main`, stop and ask the user for a feature branch name first.
@@ -90,7 +90,7 @@ cd <workspace>/apps/verification-functions && uv run python -c "import function_
 
 **If any check or test fails:**
 
-1. Read the failure output — fix the code (never silence with `# noqa` or `type: ignore`)
+1. Read the failure output, fix the code (never silence with `# noqa` or `type: ignore`)
 2. Re-run prek (Step 2) if you changed Python files
 3. Re-run the Quality Gates until everything passes
 
@@ -176,7 +176,7 @@ Watch it with the built-in command instead of a hand-rolled poll loop. `--exit-s
 gh run watch "$run_id" --compact --exit-status
 ```
 
-**If the workflow succeeds** — report success and the deploy URL (`gh run view "$run_id" --json url --jq .url`). Done!
+**If the workflow succeeds**: report success and the deploy URL (`gh run view "$run_id" --json url --jq .url`). Done!
 
 ---
 
@@ -220,14 +220,14 @@ curl -s https://<api-url>/ready
 ```markdown
 ## Ship It: <branch-name>
 
-1. **Branch + Auth** — on feature branch `<branch>`; gh authenticated (or noted)
-2. **Prek** — all hooks passed (or fixed and re-run)
-3. **Quality Gates** — ruff + ty + pytest passed across api, shared, verification-functions
-4. **Commit** — `<commit-hash>` `<commit-message>`
-5. **Push + PR** — pushed `<branch>`; PR opened to `main`; PR checks passing
-6. **Deploy (after merge)** — Run #<id> succeeded / failed (see step 7) / pending merge
-7. **Deploy fix (if needed)** — `<failure>` → fixed → re-deployed
-8. **Production** — /health healthy | /ready ready
+1. **Branch + Auth**: on feature branch `<branch>`; gh authenticated (or noted)
+2. **Prek**: all hooks passed (or fixed and re-run)
+3. **Quality Gates**: ruff + ty + pytest passed across api, shared, verification-functions
+4. **Commit**: `<commit-hash>` `<commit-message>`
+5. **Push + PR**: pushed `<branch>`; PR opened to `main`; PR checks passing
+6. **Deploy (after merge)**: Run #<id> succeeded / failed (see step 7) / pending merge
+7. **Deploy fix (if needed)**: `<failure>` → fixed → re-deployed
+8. **Production**: /health healthy | /ready ready
 ```
 
 ---
@@ -236,5 +236,5 @@ curl -s https://<api-url>/ready
 
 - **Prek auto-fixes**: re-run up to 3 times
 - **Deploy failures**: attempt fix + re-deploy up to 2 times
-- **Git push rejected or rebase conflict**: do not force past it — surface to the user
+- **Git push rejected or rebase conflict**: do not force past it, surface to the user
 - **If still failing**: stop and report with full error context

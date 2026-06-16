@@ -1,6 +1,6 @@
 ---
 name: review-pr-comments
-description: This is used to review comments on an active pull request and decide whether to accept, iterate, or reject the changes suggested in each comment.
+description: Review comments on an active pull request and decide whether to accept, iterate, or reject the changes suggested in each comment. Use when user says "review PR comments", "address review comments", "go through the PR feedback", or "handle the comments on my PR".
 ---
 We have received comments on the current active pull request. Together, we will go through each comment one by one and discuss whether to accept the change, iterate on it, or reject the change.
 
