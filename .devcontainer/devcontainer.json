@@ -54,13 +54,13 @@
   "remoteEnv": {
     "UV_LINK_MODE": "copy"
   },
-  "forwardPorts": [3000, 54320, 7071, 8000, 8082, 18888, 4317, 4318],
+  "forwardPorts": [3000, 55432, 7071, 8000, 8082, 18888, 4317, 4318],
   "portsAttributes": {
     "3000": {
       "label": "Frontend (Vite)",
       "onAutoForward": "silent"
     },
-    "54320": {
+    "55432": {
       "label": "Database (PostgreSQL)",
       "onAutoForward": "silent"
     },

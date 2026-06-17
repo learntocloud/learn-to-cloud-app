@@ -55,7 +55,7 @@ The fastest way to get started on **Windows (WSL), macOS, or Linux** is with VS 
 |---------|-----|
 | App | http://localhost:8000 |
 | API Docs | http://localhost:8000/docs (requires `DEBUG=true` in `.env`) |
-| PostgreSQL | `localhost:54320` (user: `postgres`, password: `postgres`) |
+| PostgreSQL | `localhost:55432` (user: `postgres`, password: `postgres`) |
 | Durable Task Scheduler Dashboard | http://localhost:8082 |
 | Aspire Dashboard | http://localhost:18888 |
 
