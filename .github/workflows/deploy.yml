@@ -9,9 +9,7 @@ on:
       - 'infra/**'
       - 'packages/learn-to-cloud-shared/**'
       - 'pyproject.toml'
-      - 'api/uv.lock'
-      - 'apps/verification-functions/uv.lock'
-      - 'packages/learn-to-cloud-shared/uv.lock'
+      - 'uv.lock'
       - 'scripts/**'
       - 'docker-compose.yml'
       - '.github/workflows/deploy.yml'
@@ -73,18 +71,14 @@ jobs:
               - 'infra/**'
               - 'packages/learn-to-cloud-shared/**'
               - 'pyproject.toml'
-              - 'api/uv.lock'
-              - 'apps/verification-functions/uv.lock'
-              - 'packages/learn-to-cloud-shared/uv.lock'
+              - 'uv.lock'
               - '.github/workflows/deploy.yml'
             code:
               - 'api/**'
               - 'apps/verification-functions/**'
               - 'packages/learn-to-cloud-shared/**'
               - 'pyproject.toml'
-              - 'api/uv.lock'
-              - 'apps/verification-functions/uv.lock'
-              - 'packages/learn-to-cloud-shared/uv.lock'
+              - 'uv.lock'
 
   # -----------------------------------------------------------------------
   # Dependency Review — block PRs that introduce vulnerable dependencies
@@ -166,42 +160,14 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
         with:
-          version: "0.9.26"
+          version: "0.11.21"
           enable-cache: true
 
-      - name: Install project dependencies
-        run: |
-          (cd api && uv sync --locked)
-          (cd apps/verification-functions && uv sync --locked)
-          (cd packages/learn-to-cloud-shared && uv sync --locked)
+      - name: Install workspace dependencies
+        run: uv sync --all-packages --locked
 
-      - name: Ruff lint API and shared package
-        working-directory: api
-        run: uv run ruff check . ../packages/learn-to-cloud-shared
-
-      - name: Ruff lint verification functions
-        working-directory: apps/verification-functions
-        run: uv run ruff check .
-
-      - name: Ruff format check API and shared package
-        working-directory: api
-        run: uv run ruff format --check . ../packages/learn-to-cloud-shared
-
-      - name: Ruff format check verification functions
-        working-directory: apps/verification-functions
-        run: uv run ruff format --check .
-
-      - name: Type check API
-        working-directory: api
-        run: uv run ty check --exclude "scripts/" --exclude "tests/" .
-
-      - name: Type check shared package
-        working-directory: packages/learn-to-cloud-shared
-        run: uv run ty check --exclude "tests/" .
-
-      - name: Type check verification functions
-        working-directory: apps/verification-functions
-        run: uv run ty check .
+      - name: Static checks (ruff lint, ruff format, ty, migration SQL)
+        run: uv run poe static
 
       - name: Validate curriculum content integrity
         working-directory: packages/learn-to-cloud-shared
@@ -235,10 +201,6 @@ jobs:
         working-directory: api
         run: uv run python scripts/check_migration_naming.py
 
-      - name: Lint new migration SQL with squawk
-        working-directory: api
-        run: uv run python scripts/lint_migration_sql.py
-
       - name: Apply migrations to CI database
         working-directory: api
         run: uv run alembic upgrade head
@@ -256,17 +218,8 @@ jobs:
           CONTENT__DIR: ${{ github.workspace }}/packages/learn-to-cloud-shared/src/learn_to_cloud_shared/content/phases
         run: uv run python -m learn_to_cloud_shared.cli.sync_curriculum
 
-      - name: Run API tests with coverage
-        working-directory: api
-        run: uv run pytest tests/ -v --tb=short --cov=learn_to_cloud --cov-report=xml --cov-report=term-missing
-
-      - name: Run shared tests with coverage
-        working-directory: packages/learn-to-cloud-shared
-        run: uv run pytest tests/ -v --tb=short --cov=learn_to_cloud_shared --cov-report=xml --cov-report=term-missing
-
-      - name: Smoke test verification functions import
-        working-directory: apps/verification-functions
-        run: uv run python -c "import function_app"
+      - name: Run test suites with coverage and verification import smoke
+        run: uv run poe test
 
   # -----------------------------------------------------------------------
   # Status gates — always run so required checks are reported on every PR,
@@ -417,7 +370,7 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
         with:
-          version: "0.9.26"
+          version: "0.11.21"
           enable-cache: true
 
       - name: Azure CLI Login
@@ -430,9 +383,14 @@ jobs:
       - name: Build verification Functions package
         run: |
           rm -rf apps/verification-functions/.python_packages
-          cd apps/verification-functions
           python -c "import sys; assert sys.version_info[:2] == (3, 13), sys.version"
+          # Export only the verification-functions dependency closure from the
+          # workspace lockfile. --package scopes the export to this member (plus
+          # its shared dependency) and excludes the API's own dependencies.
+          # Run from the workspace root so the shared package resolves to
+          # ./packages/learn-to-cloud-shared.
           uv export \
+            --package learn-to-cloud-verification-functions \
             --locked \
             --no-dev \
             --no-emit-project \
@@ -442,8 +400,9 @@ jobs:
             --output-file /tmp/verification-functions-requirements.txt
           uv pip install \
             --python "$(which python)" \
-            --target .python_packages/lib/site-packages \
+            --target apps/verification-functions/.python_packages/lib/site-packages \
             -r /tmp/verification-functions-requirements.txt
+          cd apps/verification-functions
           DATABASE__URL="postgresql+asyncpg://postgres:postgres@localhost:5432/learntocloud" PYTHONPATH="$PWD/.python_packages/lib/site-packages" python - <<'PY'
           import asyncpg
           import function_app
