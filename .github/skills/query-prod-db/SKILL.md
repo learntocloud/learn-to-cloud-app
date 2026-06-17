@@ -1,6 +1,6 @@
 ---
 name: query-prod-db
-description: Query production PostgreSQL with Entra ID auth. Use for investigating users, debugging duplicates, or ad-hoc queries.
+description: Query production PostgreSQL with Entra ID auth, for investigating users, debugging duplicates, or ad-hoc queries. Use when user says "query prod db", "check prod database", "look up a user in prod", "run a query against production", or "investigate prod data".
 ---
 
 # Query Production Database

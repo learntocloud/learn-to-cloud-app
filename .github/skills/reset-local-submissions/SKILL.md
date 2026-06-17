@@ -1,6 +1,6 @@
 ---
 name: reset-local-submissions
-description: Undo local submissions for DevOps and Verify Journal API Implementation so you can re-test verification flows. Also supports custom requirement IDs and user scoping.
+description: Undo local submissions for DevOps and Verify Journal API Implementation so you can re-test verification flows. Also supports custom requirement IDs and user scoping. Use when user says "reset local submissions", "undo local verification", "reset phase X locally", or "let me re-test verification".
 ---
 
 # Reset Local Submissions

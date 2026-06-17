@@ -67,29 +67,33 @@ For infrastructure changes, always review the Terraform plan for deployment perm
 
 ## Quality Gates
 
-Do not push unless all of the following pass:
+This project uses [poethepoet](https://poethepoet.natn.io/) (poe) as the single
+source of truth for the quality-gate commands. The tasks live in the root
+`pyproject.toml` and run across the whole uv workspace.
 
-- `cd api && uv run ruff check . ../packages/learn-to-cloud-shared`
-- `cd api && uv run ruff format --check . ../packages/learn-to-cloud-shared`
-- `cd api && uv run ty check --exclude scripts --exclude tests .`
-- `cd packages/learn-to-cloud-shared && uv run ty check --exclude tests .`
-- `cd api && uv run pytest tests/`
-- `cd packages/learn-to-cloud-shared && uv run pytest tests/`
-- `cd apps/verification-functions && uv run ruff check . && uv run ruff format --check . && uv run ty check . && uv run python -c "import function_app"`
+Do not push unless `uv run poe check` passes. It runs two steps:
+
+- `uv run poe static`: ruff lint, ruff format check, ty type check, and the
+  migration SQL safety lint, across the whole workspace.
+- `uv run poe test`: every test suite with its coverage gate, plus the
+  verification Functions import smoke test.
+
+Continuous integration runs the exact same `uv run poe` tasks, so a green
+`uv run poe check` locally means the same checks will pass in CI.
 
 Do not write `# noqa`, `type: ignore`, or ty/ruff suppression comments unless absolutely unavoidable.
 
 ### Validation Workflow (run continuously, not just at the end)
 
-The Quality Gates commands above are the source of truth — **not `prek run --all-files`**. `prek --all-files` only inspects git-tracked files, so newly-created files (new migrations, new modules, new tests) get silently skipped. Relying on prek alone will let real ruff/ty violations slip through until the commit hook fires.
+`uv run poe static` runs the prek hooks with `--all-files`. prek only inspects
+files that git is already tracking, so a brand-new file you have not staged yet
+is silently skipped. Keep that one blind spot in mind:
 
-Follow this loop:
-
-1. **After every batch of edits**, run the explicit Quality Gates commands for the project(s) you touched. At minimum, run `ruff check`, `ruff format --check`, and `ty check`. Do this even if you only changed one file — it takes seconds.
-2. **When creating new files**, either `git add` them first (so prek sees them) or run ruff/ty directly against the file path: `uv run ruff check path/to/new_file.py`.
-3. **Before declaring work complete**, run the entire Quality Gates block from top to bottom, in addition to any test/dog-food steps. Treat any failure as blocking.
-4. **Write code that respects ruff and ty by default** — match `line-length = 88`, prefer explicit imports, keep functions type-annotated, avoid unused imports/variables. Don't write code first and clean up later; getting it right the first time is faster.
-5. **Long SQL or string literals in migrations** must respect `line-length = 88`. Break long `SELECT` / `INSERT` lists across multiple lines inside the SQL string — ruff lints the Python source, not the SQL.
+1. **After every batch of edits**, run `uv run poe static` (or the full `uv run poe check`). It takes seconds and covers every project at once.
+2. **When you create a new file**, `git add` it first so the hooks can see it, or run ruff and ty directly against the file path: `uv run ruff check path/to/new_file.py`.
+3. **Before declaring work complete**, run the full `uv run poe check` and treat any failure as blocking.
+4. **Write code that respects ruff and ty by default**: match `line-length = 88`, prefer explicit imports, keep functions type-annotated, avoid unused imports and variables. Don't write code first and clean up later; getting it right the first time is faster.
+5. **Long SQL or string literals in migrations** must respect `line-length = 88`. Break long `SELECT` / `INSERT` lists across multiple lines inside the SQL string, because ruff lints the Python source, not the SQL.
 
 If a check fails, fix it before moving on. Do not batch lint fixes for the end of the task.
 

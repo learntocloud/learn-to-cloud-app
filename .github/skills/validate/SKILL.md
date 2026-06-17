@@ -34,9 +34,17 @@ lsof -ti:8000 | xargs kill -9 2>/dev/null || true
 
 ## Steps 1-3: Run the Static Checks (lint, format, type-check)
 
-Run the lint, format-check, and type-check commands exactly as listed in the
-**Quality Gates** section of `.github/copilot-instructions.md`. That file is the
-single source of truth for the command list, so it is not repeated here.
+Run the workspace static checks, which cover ruff lint, ruff format, and ty
+type checking across every project at once:
+
+```bash
+cd <workspace>
+uv run poe static
+```
+
+This is the same command the **Quality Gates** section of
+`.github/copilot-instructions.md` and CI use, so there is a single source of
+truth for the command.
 
 **If lint errors are found:** show them and offer to auto-fix with `uv run ruff check --fix <file>`.
 **If formatting is needed:** offer to fix with `uv run ruff format <file>`.
@@ -108,16 +116,21 @@ lsof -ti:8000 | xargs kill -9 2>/dev/null || true
 
 ## Step 7: Run Tests
 
-If the changes affect logic (not just formatting/docs), run the test suite:
+If the changes affect logic (not just formatting/docs), run the test suites.
+The poe `test` task runs every project's tests with coverage plus the
+verification import smoke test:
+
+```bash
+cd <workspace> && uv run poe test
+```
+
+For faster, focused feedback on a single project while iterating, you can run
+that project's tests directly and stop on the first failure:
 
 ```bash
 cd <workspace>/api && uv run pytest tests/ -x
 cd <workspace>/packages/learn-to-cloud-shared && uv run pytest tests/ -x
-cd <workspace>/apps/verification-functions && uv run python -c "import function_app"
 ```
-
-**Flags:**
-- `-x` — stop on first failure for fast feedback
 
 **When mandatory**: Changes to repositories, services, routes, models, schemas, shared verification, or Functions code.
 
@@ -143,7 +156,7 @@ env -i HOME=$HOME PATH=$PATH \
 
 `env -i` clears all env vars. `HOME` and `PATH` are kept so `uv` and Python work. `DATABASE__URL` matches the value in `deploy.yml`'s `ci` job env block.
 
-If the new CI step uses additional env vars in the workflow, add them here too — only the ones the workflow sets.
+If the new CI step uses additional env vars in the workflow, add them here too, only the ones the workflow sets.
 
 ### Pass criteria
 
@@ -170,7 +183,7 @@ Only when the workflow change is purely YAML restructuring with no new Python in
 | Task | Command |
 |------|---------|
 | Kill API | `lsof -ti:8000 \| xargs kill -9 2>/dev/null \|\| true` |
-| Lint / format / type-check | See the **Quality Gates** section of `.github/copilot-instructions.md` (single source of truth) |
+| Static checks (lint / format / type-check) | `uv run poe static` (single source of truth) |
 | Lint + fix | `uv run ruff check --fix <file>` |
 | Format fix | `uv run ruff format <file>` |
 | Health check | `curl -s http://localhost:8000/health` |

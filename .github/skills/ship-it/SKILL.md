@@ -1,22 +1,11 @@
 ---
 name: ship-it
-description: Run prek, run tests, resolve issues, commit, push, open a PR to main, then monitor the deploy workflow after merge and resolve any deploy failures. Use when user says "ship it", "commit and deploy", "push and deploy", or "land this".
+description: Run the quality gate (lint, type-check, tests), resolve issues, commit, push, open a PR to main, then monitor the deploy workflow after merge and resolve any deploy failures. Use when user says "ship it", "commit and deploy", "push and deploy", or "land this".
 ---
 
-# Ship It — Prek, Commit, Push & Monitor Deploy
-
-Run prek, run the Quality Gates, commit, push, open a PR to `main`, and (after merge) monitor the deploy through to a healthy production check.
+# Ship It: Quality Gate, Commit, Push & Monitor Deploy
 
 **Run the steps in order. Do not skip steps. Surface git and CI errors to the user instead of forcing past them.**
-
-
----
-
-## When to Use
-
-- User says "ship it", "land this", "commit and deploy", "push and deploy"
-- User wants to commit, push, and ensure a successful deploy
-- After completing a feature or fix and wanting to ship to production
 
 ---
 
@@ -24,7 +13,7 @@ Run prek, run the Quality Gates, commit, push, open a PR to `main`, and (after m
 
 - `gh` CLI authenticated. Check with `gh auth status` at the very start (see Step 1).
 - `git` configured with push access to the remote
-- `prek` installed (already present in the project devcontainer; otherwise install from https://github.com/j178/prek)
+- Workspace dependencies installed (`uv sync --all-packages --locked`), which provides the `poe` and `prek` dev tools
 - Working directory is inside the repository
 
 ---
@@ -42,7 +31,7 @@ Capture the current branch into a variable so later commands are copy-pasteable,
 ```bash
 branch=$(git branch --show-current)
 echo "On branch: $branch"
-gh auth status || echo "gh NOT authenticated — deploy monitoring will be skipped"
+gh auth status || echo "gh NOT authenticated, deploy monitoring will be skipped"
 ```
 
 - Never commit on `main`. If `$branch` is `main`, stop and ask the user for a feature branch name first.
@@ -50,55 +39,39 @@ gh auth status || echo "gh NOT authenticated — deploy monitoring will be skipp
 
 ---
 
-## Step 2: Run Prek
+## Step 2: Run the Quality Gate
 
+Stage everything first, then run the full quality gate. `uv run poe check` runs
+the static checks (ruff lint, ruff format, ty type check, migration SQL lint)
+followed by the test suites and the verification import smoke test. It is the
+same command CI runs, so passing here means CI should pass too.
 
 ```bash
-cd <workspace> && git add -A && prek run --all-files
+cd <workspace>
+git add -A
+uv run poe check
 ```
 
-> Stage files first (`git add -A`). `prek run --all-files` only inspects git-tracked files, so newly-created files (new migrations, modules, tests) are silently skipped unless staged.
+> Stage files first (`git add -A`). The static checks run `prek run --all-files`,
+> which only inspects git-tracked files, so newly-created files (new migrations,
+> modules, tests) are silently skipped unless staged.
 
 ### Handling Failures
 
-Many hooks auto-fix in place (ruff lint `--fix`, ruff format, trailing whitespace, end-of-file). Re-run prek; if the second run passes, the fixes resolved it. If it still fails, read the output and fix the cause (lint, types, malformed YAML/JSON, large file, merge-conflict markers), then re-run until clean.
+Many static hooks auto-fix in place (ruff lint `--fix`, ruff format, trailing
+whitespace, end-of-file). If `uv run poe check` fails:
 
-**Do NOT proceed to Step 3 until prek passes cleanly.**
+1. Read the failure output and fix the cause (lint, types, a failing test,
+   malformed YAML/JSON, large file, merge-conflict markers). Never silence a
+   failure with `# noqa` or `type: ignore`.
+2. If hooks auto-fixed files, `git add -A` again.
+3. Re-run `uv run poe check` until it passes cleanly.
 
-
----
-
-## Step 3: Run the Quality Gates
-
-prek is a fast first pass, but the authoritative checks live in `.github/copilot-instructions.md`. Run the full Quality Gates so a newly-created file cannot pass locally yet fail in CI.
-
-```bash
-# Lint, format, and type-check across all three projects
-cd <workspace>/api && uv run ruff check . ../packages/learn-to-cloud-shared
-cd <workspace>/api && uv run ruff format --check . ../packages/learn-to-cloud-shared
-cd <workspace>/api && uv run ty check --exclude scripts --exclude tests .
-cd <workspace>/packages/learn-to-cloud-shared && uv run ty check --exclude tests .
-cd <workspace>/apps/verification-functions && uv run ruff check . && uv run ruff format --check . && uv run ty check .
-
-# Tests (catch runtime errors that static checks cannot)
-cd <workspace>/api && uv run pytest tests/ -x --tb=short
-cd <workspace>/packages/learn-to-cloud-shared && uv run pytest tests/ -x --tb=short
-cd <workspace>/apps/verification-functions && uv run python -c "import function_app"
-```
-
-### Handling Failures
-
-**If any check or test fails:**
-
-1. Read the failure output — fix the code (never silence with `# noqa` or `type: ignore`)
-2. Re-run prek (Step 2) if you changed Python files
-3. Re-run the Quality Gates until everything passes
-
-**Do NOT proceed to commit until all checks and tests pass. No exceptions.**
+**Do NOT proceed to commit until `uv run poe check` passes. No exceptions.**
 
 ---
 
-## Step 4: Stage and Commit
+## Step 3: Stage and Commit
 
 Stage everything (`ship it` means ship all changes, never cherry-pick), review, then commit.
 
@@ -116,7 +89,7 @@ git commit -m "<type>: <concise description>" \
 
 ---
 
-## Step 5: Push and Open a PR
+## Step 4: Push and Open a PR
 
 ```bash
 git push -u origin "$branch"
@@ -156,7 +129,7 @@ gh pr merge "$branch" --squash --auto --delete-branch
 
 ---
 
-## Step 6: Monitor the Deploy Workflow
+## Step 5: Monitor the Deploy Workflow
 
 Only do this once the PR has merged to `main`. Select the deploy run precisely by branch, event, and the merge commit SHA so you do not accidentally watch the PR's CI-only run or another branch's run.
 
@@ -176,11 +149,11 @@ Watch it with the built-in command instead of a hand-rolled poll loop. `--exit-s
 gh run watch "$run_id" --compact --exit-status
 ```
 
-**If the workflow succeeds** — report success and the deploy URL (`gh run view "$run_id" --json url --jq .url`). Done!
+**If the workflow succeeds**: report success and the deploy URL (`gh run view "$run_id" --json url --jq .url`). Done!
 
 ---
 
-## Step 7: Diagnose Deploy Failures
+## Step 6: Diagnose Deploy Failures
 
 If `gh run watch` exits non-zero, pull just the failed logs:
 
@@ -192,7 +165,7 @@ For anything beyond an obvious lint/test slip (Terraform state locks, Azure auth
 
 ### Fix and Re-deploy
 
-After fixing on the feature branch: re-run prek (Step 2) and the Quality Gates (Step 3), commit, push, and once merged to `main`, monitor again (Step 6).
+After fixing on the feature branch: re-run the quality gate (Step 2), commit, push, and once merged to `main`, monitor again (Step 5).
 
 If no code changes are needed (e.g., a transient state lock that debug-deploy cleared):
 ```bash
@@ -202,7 +175,7 @@ gh run watch "$run_id" --compact --exit-status
 
 ---
 
-## Step 8: Verify Production
+## Step 7: Verify Production
 
 After a successful deploy:
 
@@ -220,21 +193,20 @@ curl -s https://<api-url>/ready
 ```markdown
 ## Ship It: <branch-name>
 
-1. **Branch + Auth** — on feature branch `<branch>`; gh authenticated (or noted)
-2. **Prek** — all hooks passed (or fixed and re-run)
-3. **Quality Gates** — ruff + ty + pytest passed across api, shared, verification-functions
-4. **Commit** — `<commit-hash>` `<commit-message>`
-5. **Push + PR** — pushed `<branch>`; PR opened to `main`; PR checks passing
-6. **Deploy (after merge)** — Run #<id> succeeded / failed (see step 7) / pending merge
-7. **Deploy fix (if needed)** — `<failure>` → fixed → re-deployed
-8. **Production** — /health healthy | /ready ready
+1. **Branch + Auth**: on feature branch `<branch>`; gh authenticated (or noted)
+2. **Quality Gate**: `uv run poe check` passed (static checks + tests across api, shared, verification-functions)
+3. **Commit**: `<commit-hash>` `<commit-message>`
+4. **Push + PR**: pushed `<branch>`; PR opened to `main`; PR checks passing
+5. **Deploy (after merge)**: Run #<id> succeeded / failed (see step 6) / pending merge
+6. **Deploy fix (if needed)**: `<failure>` → fixed → re-deployed
+7. **Production**: /health healthy | /ready ready
 ```
 
 ---
 
 ## Retry Policy
 
-- **Prek auto-fixes**: re-run up to 3 times
+- **Quality gate auto-fixes**: re-run `uv run poe check` up to 3 times
 - **Deploy failures**: attempt fix + re-deploy up to 2 times
-- **Git push rejected or rebase conflict**: do not force past it — surface to the user
+- **Git push rejected or rebase conflict**: do not force past it, surface to the user
 - **If still failing**: stop and report with full error context
