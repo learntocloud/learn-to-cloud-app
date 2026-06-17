@@ -21,7 +21,8 @@
       "tflint": "none",
       "terragrunt": "none"
     },
-    "ghcr.io/va-h/devcontainers-features/uv:1": {}
+    "ghcr.io/va-h/devcontainers-features/uv:1": {},
+    "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {}
   },
   "customizations": {
     "vscode": {
@@ -52,7 +53,8 @@
   "onCreateCommand": "bash .devcontainer/on-create.sh",
   "postCreateCommand": "bash .devcontainer/post-create.sh",
   "remoteEnv": {
-    "UV_LINK_MODE": "copy"
+    "UV_LINK_MODE": "copy",
+    "LOCAL_WORKSPACE_FOLDER": "${localWorkspaceFolder}"
   },
   "forwardPorts": [3000, 54320, 7071, 8000, 8082, 18888, 4317, 4318],
   "portsAttributes": {

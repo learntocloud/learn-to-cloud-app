@@ -65,6 +65,26 @@ For infrastructure changes, always review the Terraform plan for deployment perm
 - For Azure child config resources that Azure creates by default, update or import the existing resource instead of trying to create it. For Function App authentication, use `azapi_update_resource` for `authsettingsV2`.
 - For risky auth or identity changes, prefer the smallest safe platform change first, then deploy application code after the platform gate is confirmed.
 
+## Docker in the devcontainer
+
+This devcontainer uses **Docker outside of Docker**, not Docker-in-Docker. The
+Docker CLI runs inside the container, but it talks to the Docker daemon on your
+host machine through a forwarded socket. There is no nested Docker daemon.
+
+- **Before saying Docker is unavailable, run the preflight check:**
+  `scripts/check-docker.sh`. It confirms the Docker CLI is installed and can
+  reach the host daemon, and it prints clear next steps if it cannot. Do not
+  stop a task with "Docker is not available here" without running this first.
+- If the preflight fails, the usual fix is to make sure Docker is running on the
+  host and then rebuild the devcontainer (Command Palette: "Dev Containers:
+  Rebuild Container").
+- **Builds work normally**: `docker build -f api/Dockerfile ... .` reads the
+  build context from inside the container and streams it to the host daemon.
+- **Bind mounts need host paths**: because the daemon runs on the host, a bind
+  mount like `docker run -v /workspaces/...:/x` will not find the container's
+  path on the host. Use the `LOCAL_WORKSPACE_FOLDER` environment variable (set
+  in `devcontainer.json`) for the repo root instead of `/workspaces/learn-to-cloud-app`.
+
 ## Quality Gates
 
 This project uses [poethepoet](https://poethepoet.natn.io/) (poe) as the single
