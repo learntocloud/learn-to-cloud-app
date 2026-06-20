@@ -111,16 +111,28 @@
     </form>
     {% endif %}
 
+    {% set _failure_reportable = submission is not none and not submission.is_validated and not submission.verification_completed %}
     {% if server_error %}
     {{ banner(
         (server_error_message or 'The verification service encountered an error.')
-        + ' This attempt was not counted against your rate limit — you can try again immediately.',
-        'warning'
+        + (' This attempt was not counted against your rate limit, so you can try again immediately.'
+           if server_error_retryable
+           else ' This attempt was not counted against your rate limit.'),
+        'warning',
+        report=true,
+        report_title='Verification error: ' ~ requirement.name,
+        report_context='requirement=' ~ requirement.slug
     ) }}
     {% endif %}
 
     {% if error_banner %}
-    {{ banner(error_banner, 'error') }}
+    {{ banner(
+        error_banner,
+        'error',
+        report=_failure_reportable,
+        report_title='Verification error: ' ~ requirement.name,
+        report_context='requirement=' ~ requirement.slug
+    ) }}
     {% endif %}
 
     {% if feedback_tasks %}

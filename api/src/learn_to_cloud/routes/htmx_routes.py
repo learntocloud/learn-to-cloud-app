@@ -95,12 +95,17 @@ _USER_FACING_ERRORS = (
 )
 
 _DURABLE_START_ERROR_MESSAGE = (
-    "Verification could not be started. This attempt was not counted — "
-    "please try again."
+    "Verification could not be started. This attempt was not counted, please try again."
+)
+_DURABLE_UNAVAILABLE_ERROR_MESSAGE = (
+    "Verification is temporarily unavailable because of a problem on our side, "
+    "not something you did. Retrying won't fix it. Please report it by opening "
+    "an issue at https://github.com/learntocloud/learn-to-cloud-app/issues."
 )
 _DURABLE_TERMINAL_ERROR_MESSAGE = (
     "Verification failed because the verification service hit an internal error. "
-    "This attempt was not counted. Please try again."
+    "Please try again in a few minutes. If it keeps failing, open an issue at "
+    "https://github.com/learntocloud/learn-to-cloud-app/issues."
 )
 
 _ACTIVE_DURABLE_STATUSES = {"pending", "running", "continuedasnew"}
@@ -302,6 +307,7 @@ async def htmx_submit_verification(
         feedback_passed: int = 0,
         server_error: bool = False,
         server_error_message: str | None = None,
+        server_error_retryable: bool = True,
         error_banner: str | None = None,
         processing: bool = False,
         verification_status_token: str | None = None,
@@ -319,6 +325,7 @@ async def htmx_submit_verification(
                 feedback_passed=feedback_passed,
                 server_error=server_error,
                 server_error_message=server_error_message,
+                server_error_retryable=server_error_retryable,
                 error_banner=error_banner,
                 processing=processing,
                 verification_status_token=verification_status_token,
@@ -372,7 +379,7 @@ async def htmx_submit_verification(
             server_error=True,
             server_error_message=(
                 "An unexpected error occurred during verification. "
-                "This attempt was not counted — please try again."
+                "This attempt was not counted, please try again."
             ),
         )
 
@@ -500,6 +507,15 @@ async def _start_async_job_and_render(
                 job_submission.job.id,
             )
             await write_session.commit()
+        # A config error means the verification service is misconfigured on our
+        # side, so retrying will never help. A start error is usually a
+        # transient hiccup in the Functions app, so retrying is worth it.
+        if isinstance(exc, DurableVerificationConfigError):
+            return render_card(
+                server_error=True,
+                server_error_message=_DURABLE_UNAVAILABLE_ERROR_MESSAGE,
+                server_error_retryable=False,
+            )
         return render_card(
             server_error=True,
             server_error_message=_DURABLE_START_ERROR_MESSAGE,
@@ -584,6 +600,7 @@ async def htmx_verification_job_status(
                 github_username=current_user.github_username,
                 server_error=True,
                 server_error_message=_DURABLE_TERMINAL_ERROR_MESSAGE,
+                server_error_retryable=False,
             ),
         )
 
