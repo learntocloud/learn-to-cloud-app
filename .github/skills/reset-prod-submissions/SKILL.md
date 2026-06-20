@@ -5,13 +5,20 @@ description: Reset verification submissions for a user in production. Use when u
 
 # Reset Production Submissions
 
-Use this skill to delete submission records and reset phase progress counters in the **production** database.
+Use this skill to delete submission records and reset progress in the **production** database.
+
+Progress is derived live from the `submissions` table, so there is no separate
+counter to update. Submissions are keyed by `requirement_uuid` (there is no
+`phase_id` column). The `verification_jobs` table has a foreign key
+(`fk_verification_jobs_result_submission_id`) pointing at `submissions.id`, so
+you must delete a user's verification jobs **before** deleting their
+submissions, or the delete will fail.
 
 ## When to Use
 
-- User asks to reset a phase verification in prod
+- User asks to reset verification in prod (a single requirement, or everything)
 - User asks to undo prod submissions for a specific user
-- User wants to re-run verification for a specific phase in production
+- User wants to re-run verification in production
 
 ## Prerequisites
 
@@ -52,59 +59,70 @@ psql -h psql-ltc-dev-8v4tyz.postgres.database.azure.com -d learntocloud -U "$PG_
 
 ## Step 4: Preview Submissions
 
-Before deleting, show what will be removed:
+Before deleting, show what will be removed. To reset **everything** for a user,
+omit the `requirement_uuid` filter:
 
 ```bash
 psql -h psql-ltc-dev-8v4tyz.postgres.database.azure.com -d learntocloud -U "$PG_USER" \
   --set=sslmode=require -P pager=off \
-  -c "SELECT id, phase_id, requirement_id, submission_type, is_validated, attempt_number, created_at
+  -c "SELECT id, requirement_uuid, is_validated, verification_completed, created_at
       FROM submissions
-      WHERE user_id = <USER_ID> AND phase_id = <PHASE_ID>
-      ORDER BY created_at;" | cat
+      WHERE user_id = <USER_ID>
+      ORDER BY created_at;
+      SELECT COUNT(*) AS total, COUNT(*) FILTER (WHERE is_validated) AS validated
+      FROM submissions WHERE user_id = <USER_ID>;" | cat
 ```
 
-Also check the current validated submissions for this phase:
+To scope to a single requirement, add `AND requirement_uuid = '<REQUIREMENT_UUID>'`
+to the `WHERE` clauses above.
+
+Also check how many verification jobs the user has (these reference the
+submissions and must be deleted too):
 
 ```bash
 psql -h psql-ltc-dev-8v4tyz.postgres.database.azure.com -d learntocloud -U "$PG_USER" \
   --set=sslmode=require -P pager=off \
-  -c "SELECT COUNT(*) FROM submissions
-      WHERE user_id = <USER_ID> AND phase_id = <PHASE_ID> AND is_validated = true;" | cat
+  -c "SELECT COUNT(*) FROM verification_jobs WHERE user_id = <USER_ID>;" | cat
 ```
 
 ## Step 5: Confirm with User
 
-**Always ask for confirmation** before deleting. Show the number of rows and what phase is being reset.
+**Always ask for confirmation** before deleting. Show the number of submissions
+(and validated count) and what is being reset.
 
 ## Step 6: Delete and Reset
 
-Run as a single transaction:
+Delete the user's verification jobs first, then their submissions, in a single
+transaction. The job delete is required because of the foreign key from
+`verification_jobs.result_submission_id` to `submissions.id`.
+
+To reset **everything** for a user:
 
 ```bash
 psql -h psql-ltc-dev-8v4tyz.postgres.database.azure.com -d learntocloud -U "$PG_USER" \
   --set=sslmode=require -P pager=off \
   -c "
 BEGIN;
-DELETE FROM submissions WHERE user_id = <USER_ID> AND phase_id = <PHASE_ID>;
+DELETE FROM verification_jobs WHERE user_id = <USER_ID>;
+DELETE FROM submissions WHERE user_id = <USER_ID>;
 COMMIT;
 " | cat
 ```
 
-Progress is derived live from the submissions table, so no separate
-counter table needs to be updated.
+### Resetting a Specific Requirement Only
 
-### Resetting Specific Requirements Only
-
-To reset only certain requirements within a phase instead of the whole phase:
+To reset only one requirement instead of everything, scope both deletes by
+`requirement_uuid`:
 
 ```bash
 psql -h psql-ltc-dev-8v4tyz.postgres.database.azure.com -d learntocloud -U "$PG_USER" \
   --set=sslmode=require -P pager=off \
   -c "
 BEGIN;
+DELETE FROM verification_jobs
+  WHERE user_id = <USER_ID> AND requirement_uuid = '<REQUIREMENT_UUID>';
 DELETE FROM submissions
-  WHERE user_id = <USER_ID> AND phase_id = <PHASE_ID>
-    AND requirement_id IN ('<REQ_1>', '<REQ_2>');
+  WHERE user_id = <USER_ID> AND requirement_uuid = '<REQUIREMENT_UUID>';
 COMMIT;
 " | cat
 ```
@@ -116,9 +134,8 @@ Confirm the reset was successful:
 ```bash
 psql -h psql-ltc-dev-8v4tyz.postgres.database.azure.com -d learntocloud -U "$PG_USER" \
   --set=sslmode=require -P pager=off \
-  -c "SELECT COUNT(*) as remaining FROM submissions WHERE user_id = <USER_ID> AND phase_id = <PHASE_ID>;
-      SELECT COUNT(*) as validated FROM submissions
-       WHERE user_id = <USER_ID> AND phase_id = <PHASE_ID> AND is_validated = true;" | cat
+  -c "SELECT COUNT(*) AS submissions_remaining FROM submissions WHERE user_id = <USER_ID>;
+      SELECT COUNT(*) AS jobs_remaining FROM verification_jobs WHERE user_id = <USER_ID>;" | cat
 ```
 
 ## Known Users
@@ -129,4 +146,4 @@ psql -h psql-ltc-dev-8v4tyz.postgres.database.azure.com -d learntocloud -U "$PG_
 
 ## Tables
 
-`users` · `submissions`
+`users` · `submissions` · `verification_jobs`
