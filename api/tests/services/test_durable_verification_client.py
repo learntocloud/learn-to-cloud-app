@@ -28,6 +28,7 @@ def _settings(
     *,
     base_url: str = "http://localhost:7071/",
     token_scope: str = "api://verification-functions/.default",
+    is_development: bool = False,
 ) -> SimpleNamespace:
     return SimpleNamespace(
         verification_functions=SimpleNamespace(
@@ -35,6 +36,7 @@ def _settings(
             token_scope=token_scope,
         ),
         http=SimpleNamespace(external_api_timeout=3.0),
+        is_development=is_development,
     )
 
 
@@ -90,6 +92,50 @@ async def test_starts_orchestration_with_bearer_token_header_and_payload():
         headers={"Authorization": "Bearer access-token"},
         json=prepared.to_payload(),
     )
+
+
+async def test_development_skips_token_and_sends_no_auth_header():
+    prepared = _prepared()
+    client, context_manager = _async_client(httpx.Response(202, json={"id": "abc"}))
+
+    with (
+        patch(
+            "learn_to_cloud.services.durable_verification_client.get_web_settings",
+            return_value=_settings(token_scope="", is_development=True),
+        ),
+        patch(
+            "learn_to_cloud.services.durable_verification_client.get_azure_token",
+            new=AsyncMock(side_effect=AssertionError("token must not be requested")),
+        ),
+        patch(
+            "learn_to_cloud.services.durable_verification_client.httpx.AsyncClient",
+            return_value=context_manager,
+        ),
+    ):
+        result = await start_verification_orchestration(prepared)
+
+    assert result.instance_id == "abc"
+    client.post.assert_awaited_once_with(
+        f"http://localhost:7071/api/verification/jobs/{prepared.id}/start",
+        headers={},
+        json=prepared.to_payload(),
+    )
+
+
+async def test_development_missing_base_url_fails_before_http_call():
+    with (
+        patch(
+            "learn_to_cloud.services.durable_verification_client.get_web_settings",
+            return_value=_settings(base_url="", token_scope="", is_development=True),
+        ),
+        patch(
+            "learn_to_cloud.services.durable_verification_client.httpx.AsyncClient"
+        ) as async_client,
+        pytest.raises(DurableVerificationConfigError),
+    ):
+        await start_verification_orchestration(_prepared())
+
+    async_client.assert_not_called()
 
 
 async def test_missing_config_fails_before_http_call():
