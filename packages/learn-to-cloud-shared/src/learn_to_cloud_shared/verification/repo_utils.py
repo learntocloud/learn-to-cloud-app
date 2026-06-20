@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import logging
 import re
+from collections.abc import Mapping
+from dataclasses import dataclass
 from urllib.parse import urlparse
 
 from learn_to_cloud_shared.schemas import ParsedGitHubUrl, ValidationResult
@@ -97,36 +99,50 @@ def extract_repo_info(repo_url: str) -> tuple[str, str]:
     return parsed.username, parsed.repo_name
 
 
-def validate_repo_url(
-    repo_url: str,
-    github_username: str,
-    expected_repo_name: str | None = None,
-) -> tuple[str, str] | ValidationResult:
-    """Parse a GitHub URL and verify the repo belongs to *github_username*."""
+@dataclass(frozen=True, slots=True)
+class RepositoryRef:
+    """A resolved GitHub repository identity (``owner`` + repo ``name``).
+
+    Carried across the Durable verification pipeline so the repo identity is
+    parsed once from the validated submission value and reused by later steps
+    instead of being re-derived.
+    """
+
+    owner: str
+    repo: str
+
+    def to_payload(self) -> dict[str, str]:
+        """Return a JSON-serializable activity payload."""
+        return {"owner": self.owner, "repo": self.repo}
+
+    @classmethod
+    def from_payload(cls, payload: Mapping[str, object]) -> RepositoryRef:
+        """Rehydrate a repository reference from a Durable activity payload."""
+        owner = payload.get("owner")
+        repo = payload.get("repo")
+        if not isinstance(owner, str) or not isinstance(repo, str):
+            raise TypeError("RepositoryRef payload requires string 'owner' and 'repo'")
+        return cls(owner=owner, repo=repo)
+
+
+def resolve_repository(submitted_value: str) -> RepositoryRef | ValidationResult:
+    """Parse the owner/repo identity from a validated submission URL.
+
+    The async repo-backed submission types (journal API verifier, DevOps
+    analysis, security scanning) persist a server-built
+    ``https://github.com/<user>/<fork>`` value. That value is derived from the
+    authenticated session's GitHub username plus the requirement's
+    ``required_repo`` at submit time (see ``url_derivation``), and the
+    Functions starter validates it against the ``verification_jobs`` row before
+    execution. Ownership and fork-name are therefore guaranteed by
+    construction, so this only parses the identity -- it deliberately does not
+    re-check that the owner matches a username or that the repo matches an
+    expected fork name. A malformed URL still returns a failing
+    ``ValidationResult`` so a corrupt persisted value surfaces instead of
+    crashing a later step.
+    """
     try:
-        owner, repo = extract_repo_info(repo_url)
+        owner, repo = extract_repo_info(submitted_value)
     except ValueError as e:
         return ValidationResult(is_valid=False, message=str(e))
-
-    if owner.lower() != github_username.lower():
-        return ValidationResult(
-            is_valid=False,
-            message=(
-                f"Repository owner '{owner}' does not match your GitHub username "
-                f"'{github_username}'. Please submit your own repository."
-            ),
-            username_match=False,
-        )
-
-    if expected_repo_name is not None and repo.lower() != expected_repo_name.lower():
-        return ValidationResult(
-            is_valid=False,
-            message=(
-                f"Repository '{repo}' does not match the expected fork name "
-                f"'{expected_repo_name}'. Submit the fork from the phase's "
-                "upstream project."
-            ),
-            username_match=True,
-        )
-
-    return owner, repo
+    return RepositoryRef(owner=owner, repo=repo)

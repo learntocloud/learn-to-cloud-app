@@ -56,10 +56,9 @@ async def start_verification_orchestration(
     settings = get_web_settings()
     base_url, token_scope = _verification_endpoint_config(settings)
 
-    token = await _get_verification_token(token_scope)
+    headers = await _verification_auth_headers(token_scope)
 
     url = f"{base_url}/api/verification/jobs/{prepared.id}/start"
-    headers = {"Authorization": f"Bearer {token}"}
     body: dict[str, Any] = prepared.to_payload()
 
     timeout = settings.http.external_api_timeout
@@ -97,10 +96,9 @@ async def get_verification_orchestration_status(
     settings = get_web_settings()
     base_url, token_scope = _verification_endpoint_config(settings)
 
-    token = await _get_verification_token(token_scope)
+    headers = await _verification_auth_headers(token_scope)
 
     url = f"{base_url}/api/verification/jobs/{instance_id}/status"
-    headers = {"Authorization": f"Bearer {token}"}
 
     timeout = settings.http.external_api_timeout
     try:
@@ -134,16 +132,34 @@ async def get_verification_orchestration_status(
     )
 
 
-def _verification_endpoint_config(settings: Any) -> tuple[str, str]:
+def _verification_endpoint_config(settings: Any) -> tuple[str, str | None]:
     base_url = settings.verification_functions.base_url.rstrip("/")
-    token_scope = settings.verification_functions.token_scope
 
-    if not base_url or not token_scope:
+    if not base_url:
+        raise DurableVerificationConfigError(
+            "Verification Functions endpoint is not configured."
+        )
+
+    # The local Functions host runs with AuthLevel.ANONYMOUS, so no bearer token
+    # is needed (or obtainable) in development. Everywhere else the API
+    # authenticates with a managed-identity token for the configured scope.
+    if settings.is_development:
+        return base_url, None
+
+    token_scope = settings.verification_functions.token_scope
+    if not token_scope:
         raise DurableVerificationConfigError(
             "Verification Functions endpoint is not configured."
         )
 
     return base_url, token_scope
+
+
+async def _verification_auth_headers(token_scope: str | None) -> dict[str, str]:
+    if token_scope is None:
+        return {}
+    token = await _get_verification_token(token_scope)
+    return {"Authorization": f"Bearer {token}"}
 
 
 async def _get_verification_token(token_scope: str) -> str:

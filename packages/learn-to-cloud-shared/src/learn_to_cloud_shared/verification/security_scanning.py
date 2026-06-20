@@ -270,7 +270,7 @@ async def _verify_security_scanning(
             else codeql_result.task_name
         )
         message = (
-            f"{passed_name} is configured — security scanning verified! "
+            f"{passed_name} is configured. Security scanning verified! "
             "Consider enabling the other scanner for more comprehensive coverage."
         )
     else:

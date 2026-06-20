@@ -2,15 +2,16 @@
 
 Tests cover:
 - GitHub URL parsing and validation (extract_repo_info)
-- Repository ownership validation (validate_repo_url)
+- Repository identity resolution (resolve_repository / RepositoryRef)
 """
 
 import pytest
 
 from learn_to_cloud_shared.schemas import ValidationResult
 from learn_to_cloud_shared.verification.repo_utils import (
+    RepositoryRef,
     extract_repo_info,
-    validate_repo_url,
+    resolve_repository,
 )
 
 # ---------------------------------------------------------------------------
@@ -94,63 +95,52 @@ class TestExtractRepoInfo:
 
 
 # ---------------------------------------------------------------------------
-# validate_repo_url
+# resolve_repository / RepositoryRef
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.unit
-class TestValidateRepoUrl:
-    """Tests for URL parsing + ownership validation."""
+class TestResolveRepository:
+    """Tests for parsing repo identity from a validated submission URL.
 
-    def test_valid_url_matching_username(self):
-        result = validate_repo_url(
-            "https://github.com/testuser/journal-starter", "testuser"
+    ``resolve_repository`` intentionally does not re-check ownership or fork
+    name: the submission value is server-derived and DB-validated upstream.
+    """
+
+    def test_parses_owner_and_repo(self):
+        result = resolve_repository("https://github.com/testuser/journal-starter")
+        assert result == RepositoryRef(owner="testuser", repo="journal-starter")
+
+    def test_preserves_owner_casing(self):
+        result = resolve_repository("https://github.com/TestUser/journal-starter")
+        assert result == RepositoryRef(owner="TestUser", repo="journal-starter")
+
+    def test_strips_git_suffix_and_subpath(self):
+        result = resolve_repository(
+            "https://github.com/testuser/journal-starter.git/tree/main"
         )
-        assert result == ("testuser", "journal-starter")
+        assert result == RepositoryRef(owner="testuser", repo="journal-starter")
 
-    def test_case_insensitive_match(self):
-        result = validate_repo_url(
-            "https://github.com/TestUser/journal-starter", "testuser"
-        )
-        assert result == ("TestUser", "journal-starter")
-
-    def test_username_mismatch_returns_validation_result(self):
-        result = validate_repo_url(
-            "https://github.com/otheruser/journal-starter", "testuser"
-        )
-        assert isinstance(result, ValidationResult)
-        assert result.is_valid is False
-        assert "does not match" in result.message
-
-    def test_invalid_url_returns_validation_result(self):
-        result = validate_repo_url("not-a-url", "testuser")
+    def test_malformed_url_returns_validation_result(self):
+        result = resolve_repository("not-a-url")
         assert isinstance(result, ValidationResult)
         assert result.is_valid is False
         assert "Invalid GitHub repository URL" in result.message
 
-    def test_expected_repo_name_match(self):
-        result = validate_repo_url(
-            "https://github.com/testuser/journal-starter",
-            "testuser",
-            expected_repo_name="journal-starter",
-        )
-        assert result == ("testuser", "journal-starter")
-
-    def test_expected_repo_name_case_insensitive_match(self):
-        result = validate_repo_url(
-            "https://github.com/testuser/Journal-Starter",
-            "testuser",
-            expected_repo_name="journal-starter",
-        )
-        assert result == ("testuser", "Journal-Starter")
-
-    def test_expected_repo_name_mismatch_returns_validation_result(self):
-        result = validate_repo_url(
-            "https://github.com/testuser/wrong-repo",
-            "testuser",
-            expected_repo_name="journal-starter",
-        )
+    def test_non_github_host_returns_validation_result(self):
+        result = resolve_repository("https://gitlab.com/testuser/repo")
         assert isinstance(result, ValidationResult)
         assert result.is_valid is False
-        assert "does not match the expected fork name" in result.message
-        assert result.username_match is True
+
+
+@pytest.mark.unit
+class TestRepositoryRefPayload:
+    """RepositoryRef survives a Durable payload round trip."""
+
+    def test_round_trip(self):
+        ref = RepositoryRef(owner="testuser", repo="journal-starter")
+        assert RepositoryRef.from_payload(ref.to_payload()) == ref
+
+    def test_from_payload_rejects_non_string_fields(self):
+        with pytest.raises(TypeError):
+            RepositoryRef.from_payload({"owner": "testuser", "repo": 5})

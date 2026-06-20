@@ -232,6 +232,7 @@ def build_requirement_card_context(
     feedback_passed: int = 0,
     server_error: bool = False,
     server_error_message: str | None = None,
+    server_error_retryable: bool = True,
     error_banner: str | None = None,
     processing: bool = False,
     verification_status_token: str | None = None,
@@ -257,6 +258,9 @@ def build_requirement_card_context(
         feedback_passed: Count of passing tasks (for the summary line).
         server_error: Whether to render the server-error banner.
         server_error_message: Optional server-error text.
+        server_error_retryable: Whether to invite the user to retry. False for
+            server-side problems (e.g. misconfiguration) where retrying cannot
+            succeed, so the banner omits the "try again immediately" guidance.
         error_banner: Optional inline error banner text.
         processing: Whether the card is in the "analysing..." state.
         verification_status_token: Signed token used by the HTMX polling card.
@@ -283,6 +287,7 @@ def build_requirement_card_context(
         "feedback_passed": feedback_passed,
         "server_error": server_error,
         "server_error_message": server_error_message,
+        "server_error_retryable": server_error_retryable,
         "error_banner": error_banner,
         "processing": processing,
         "verification_status_token": verification_status_token,

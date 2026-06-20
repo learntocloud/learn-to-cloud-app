@@ -32,6 +32,7 @@ from learn_to_cloud.routes.htmx_routes import (
 )
 from learn_to_cloud.services.durable_verification_client import (
     DurableStatusResult,
+    DurableVerificationConfigError,
     DurableVerificationStartError,
 )
 from learn_to_cloud.services.steps_service import StepValidationError
@@ -364,6 +365,129 @@ class TestHtmxSubmitVerification:
         assert isinstance(result, HTMLResponse)
         repo.delete_active.assert_awaited_once_with(job.id)
         write_session.commit.assert_awaited_once()
+
+    async def test_durable_config_error_does_not_invite_immediate_retry(
+        self, _patch_templates
+    ):
+        """A config error is a server-side misconfiguration, so retrying never
+        helps. The banner must not tell the user to try again immediately."""
+        request = _mock_request()
+        current_user = AuthenticatedUser(user_id=1, github_username="user")
+        job = _mock_job()
+        async_result = VerificationJobSubmission(
+            job=cast(VerificationJob, job),
+            created=True,
+            requirement=_async_requirement(),
+            github_username="user",
+        )
+        write_session = AsyncMock()
+        request.app.state.session_maker.return_value.__aenter__.return_value = (
+            write_session
+        )
+        repo = MagicMock()
+        repo.delete_active = AsyncMock(return_value=True)
+
+        with (
+            patch(
+                "learn_to_cloud.routes.htmx_routes.get_requirement_by_slug",
+                return_value=MagicMock(),
+            ),
+            patch(
+                "learn_to_cloud.routes.htmx_routes.derive_submission_value",
+                autospec=True,
+                return_value="https://github.com/user/repo",
+            ),
+            patch(
+                "learn_to_cloud.routes.htmx_routes.create_verification_job",
+                new_callable=AsyncMock,
+                return_value=async_result,
+            ),
+            patch(
+                "learn_to_cloud.routes.htmx_routes.start_verification_orchestration",
+                new_callable=AsyncMock,
+                side_effect=DurableVerificationConfigError("not configured"),
+            ),
+            patch(
+                "learn_to_cloud.routes.htmx_routes.VerificationJobRepository",
+                return_value=repo,
+            ),
+        ):
+            result = await htmx_submit_verification(
+                request,
+                AsyncMock(),
+                current_user,
+                requirement_slug="req-1",
+                submitted_value="https://github.com/user/repo",
+            )
+
+        assert isinstance(result, HTMLResponse)
+        # The in-flight slot is still freed so a later (post-fix) retry works.
+        repo.delete_active.assert_awaited_once_with(job.id)
+        _, _, context = _patch_templates.TemplateResponse.call_args.args
+        assert context["server_error"] is True
+        assert context["server_error_retryable"] is False
+        assert "open" in context["server_error_message"].lower()
+        assert (
+            "github.com/learntocloud/learn-to-cloud-app/issues"
+            in context["server_error_message"]
+        )
+        assert "immediately" not in context["server_error_message"]
+        assert "team has been notified" not in context["server_error_message"]
+
+    async def test_durable_start_error_invites_retry(self, _patch_templates):
+        """A transient start error should still mark the banner retryable."""
+        request = _mock_request()
+        current_user = AuthenticatedUser(user_id=1, github_username="user")
+        job = _mock_job()
+        async_result = VerificationJobSubmission(
+            job=cast(VerificationJob, job),
+            created=True,
+            requirement=_async_requirement(),
+            github_username="user",
+        )
+        write_session = AsyncMock()
+        request.app.state.session_maker.return_value.__aenter__.return_value = (
+            write_session
+        )
+        repo = MagicMock()
+        repo.delete_active = AsyncMock(return_value=True)
+
+        with (
+            patch(
+                "learn_to_cloud.routes.htmx_routes.get_requirement_by_slug",
+                return_value=MagicMock(),
+            ),
+            patch(
+                "learn_to_cloud.routes.htmx_routes.derive_submission_value",
+                autospec=True,
+                return_value="https://github.com/user/repo",
+            ),
+            patch(
+                "learn_to_cloud.routes.htmx_routes.create_verification_job",
+                new_callable=AsyncMock,
+                return_value=async_result,
+            ),
+            patch(
+                "learn_to_cloud.routes.htmx_routes.start_verification_orchestration",
+                new_callable=AsyncMock,
+                side_effect=DurableVerificationStartError("boom"),
+            ),
+            patch(
+                "learn_to_cloud.routes.htmx_routes.VerificationJobRepository",
+                return_value=repo,
+            ),
+        ):
+            await htmx_submit_verification(
+                request,
+                AsyncMock(),
+                current_user,
+                requirement_slug="req-1",
+                submitted_value="https://github.com/user/repo",
+            )
+
+        _, _, context = _patch_templates.TemplateResponse.call_args.args
+        assert context["server_error"] is True
+        assert context["server_error_retryable"] is True
 
     async def test_sync_submit_returns_reload_trigger(self):
         """Sync submission types finish in-request and return a page-reload
@@ -710,10 +834,12 @@ class TestHtmxVerificationJobStatus:
         mock_session.commit.assert_awaited_once()
         _, _, context = _patch_templates.TemplateResponse.call_args.args
         assert context["server_error"] is True
+        assert context["server_error_retryable"] is False
         assert (
             context["server_error_message"]
             == "Verification failed because the verification service hit an internal "
-            "error. This attempt was not counted. Please try again."
+            "error. Please try again in a few minutes. If it keeps failing, open an "
+            "issue at https://github.com/learntocloud/learn-to-cloud-app/issues."
         )
 
     async def test_canceled_status_also_deletes_active_job(self):

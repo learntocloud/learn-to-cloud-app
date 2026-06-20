@@ -7,13 +7,11 @@ import json
 from learn_to_cloud_shared.schemas import (
     FrozenModel,
     HandsOnRequirement,
-    ValidationResult,
 )
 from learn_to_cloud_shared.verification.journal_api import (
     collect_journal_api_implementation_evidence,
 )
 from learn_to_cloud_shared.verification.repo_files import RepoFiles, default_repo_files
-from learn_to_cloud_shared.verification.repo_utils import validate_repo_url
 from learn_to_cloud_shared.verification.security_scanning import (
     collect_security_scanning_evidence,
 )
@@ -24,9 +22,6 @@ from learn_to_cloud_shared.verification.tasks import (
     LLMGradingDecision,
     VerificationTask,
     require_llm_rubric_grader,
-)
-from learn_to_cloud_shared.verification.url_derivation import (
-    fork_name_from_required_repo,
 )
 from learn_to_cloud_shared.verification_job_executor import (
     VerificationRunResult,
@@ -102,24 +97,33 @@ def apply_llm_grading_decisions(
     return VerificationRunResult(
         job=run_result.job,
         validation_result=validation_result,
+        repository=run_result.repository,
     )
 
 
 def llm_grading_unavailable_result(
     run_result: VerificationRunResult,
-    detail: str,
 ) -> VerificationRunResult:
-    """Return a server-error validation result for LLM grader failures."""
+    """Return a server-error validation result for LLM grader failures.
+
+    The user-facing message stays generic; callers are responsible for
+    recording the real cause in telemetry.
+    """
     validation_result = run_result.validation_result.model_copy(
         update={
             "is_valid": False,
-            "message": "LLM verification grading failed. Please try again later.",
+            "message": (
+                "Automated grading is temporarily unavailable. This is a "
+                "problem on our end, not yours. Please report it so we can "
+                "fix it."
+            ),
             "verification_completed": False,
         }
     )
     return VerificationRunResult(
         job=run_result.job,
         validation_result=validation_result,
+        repository=run_result.repository,
     )
 
 
@@ -128,20 +132,11 @@ async def _collect_phase6_requests(
     tasks: list[VerificationTask],
     repo_files: RepoFiles,
 ) -> list[LLMGradingRequest]:
-    github_username = run_result.job.github_username
-    if github_username is None:
+    repository = run_result.repository
+    if repository is None:
         return []
 
-    expected_name = _expected_fork_name(run_result.job.requirement)
-    repo_result = validate_repo_url(
-        run_result.job.typed_submitted_value.as_text,
-        github_username,
-        expected_name,
-    )
-    if isinstance(repo_result, ValidationResult):
-        return []
-
-    owner, repo = repo_result
+    owner, repo = repository.owner, repository.repo
     file_paths = await repo_files.tree(owner, repo)
     requests: list[LLMGradingRequest] = []
     for task in tasks:
@@ -176,20 +171,11 @@ async def _collect_phase3_requests(
     if not run_result.validation_result.is_valid:
         return []
 
-    github_username = run_result.job.github_username
-    if github_username is None:
+    repository = run_result.repository
+    if repository is None:
         return []
 
-    expected_name = _expected_fork_name(run_result.job.requirement)
-    repo_result = validate_repo_url(
-        run_result.job.typed_submitted_value.as_text,
-        github_username,
-        expected_name,
-    )
-    if isinstance(repo_result, ValidationResult):
-        return []
-
-    owner, repo = repo_result
+    owner, repo = repository.owner, repository.repo
     file_paths = await repo_files.tree(owner, repo)
     requests: list[LLMGradingRequest] = []
     for task in tasks:
@@ -282,12 +268,3 @@ def _llm_tasks_for_requirement(
     if requirement.slug == "journal-api-implementation":
         return PHASE3_LLM_TASKS
     return []
-
-
-def _expected_fork_name(requirement: HandsOnRequirement) -> str | None:
-    if not requirement.required_repo:
-        return None
-    try:
-        return fork_name_from_required_repo(requirement.required_repo)
-    except ValueError:
-        return None

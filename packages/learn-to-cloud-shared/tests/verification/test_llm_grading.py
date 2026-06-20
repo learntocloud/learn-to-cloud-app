@@ -14,6 +14,7 @@ from learn_to_cloud_shared.verification.llm_grading import (
     collect_llm_grading_requests,
     llm_grading_unavailable_result,
 )
+from learn_to_cloud_shared.verification.repo_utils import RepositoryRef
 from learn_to_cloud_shared.verification.tasks import (
     PHASE3_LLM_TASKS,
     PHASE6_LLM_TASKS,
@@ -55,6 +56,7 @@ def _run_result(is_valid: bool = True) -> VerificationRunResult:
                 )
             ],
         ),
+        repository=RepositoryRef(owner="learner", repo="journal"),
     )
 
 
@@ -81,6 +83,7 @@ def _phase3_run_result(is_valid: bool = True) -> VerificationRunResult:
             is_valid=is_valid,
             message="CI tests are passing on main.",
         ),
+        repository=RepositoryRef(owner="learner", repo="journal-starter"),
     )
 
 
@@ -145,6 +148,20 @@ async def test_collect_phase3_llm_requests_skips_when_ci_failed():
     assert requests == []
 
 
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_collect_llm_requests_skips_when_repository_missing():
+    run_result = _run_result()
+    without_repo = VerificationRunResult(
+        job=run_result.job,
+        validation_result=run_result.validation_result,
+    )
+
+    requests = await collect_llm_grading_requests(without_repo)
+
+    assert requests == []
+
+
 @pytest.mark.unit
 def test_apply_llm_grading_decisions_fails_when_score_is_below_threshold():
     run_result = _run_result()
@@ -178,10 +195,12 @@ def test_apply_llm_grading_decisions_fails_when_score_is_below_threshold():
 
 @pytest.mark.unit
 def test_llm_grading_unavailable_result_marks_server_error():
-    updated = llm_grading_unavailable_result(_run_result(), "structured output missing")
+    updated = llm_grading_unavailable_result(_run_result())
 
     assert updated.validation_result.is_valid is False
     assert updated.validation_result.verification_completed is False
     assert updated.validation_result.message == (
-        "LLM verification grading failed. Please try again later."
+        "Automated grading is temporarily unavailable. This is a "
+        "problem on our end, not yours. Please report it so we can "
+        "fix it."
     )
