@@ -195,10 +195,12 @@ def test_apply_llm_grading_decisions_fails_when_score_is_below_threshold():
 
 @pytest.mark.unit
 def test_llm_grading_unavailable_result_marks_server_error():
-    updated = llm_grading_unavailable_result(_run_result(), "structured output missing")
+    updated = llm_grading_unavailable_result(_run_result())
 
     assert updated.validation_result.is_valid is False
     assert updated.validation_result.verification_completed is False
     assert updated.validation_result.message == (
-        "LLM verification grading failed. Please try again later."
+        "Automated grading is temporarily unavailable. This is a "
+        "problem on our end, not yours. Please report it so we can "
+        "fix it."
     )

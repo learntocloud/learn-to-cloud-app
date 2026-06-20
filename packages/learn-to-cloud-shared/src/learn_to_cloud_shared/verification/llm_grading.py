@@ -103,13 +103,20 @@ def apply_llm_grading_decisions(
 
 def llm_grading_unavailable_result(
     run_result: VerificationRunResult,
-    detail: str,
 ) -> VerificationRunResult:
-    """Return a server-error validation result for LLM grader failures."""
+    """Return a server-error validation result for LLM grader failures.
+
+    The user-facing message stays generic; callers are responsible for
+    recording the real cause in telemetry.
+    """
     validation_result = run_result.validation_result.model_copy(
         update={
             "is_valid": False,
-            "message": "LLM verification grading failed. Please try again later.",
+            "message": (
+                "Automated grading is temporarily unavailable. This is a "
+                "problem on our end, not yours. Please report it so we can "
+                "fix it."
+            ),
             "verification_completed": False,
         }
     )

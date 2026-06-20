@@ -49,7 +49,7 @@ from opentelemetry import context as otel_context
 from opentelemetry import trace as otel_trace
 from opentelemetry.propagate import extract
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
-from verification_agents import grade_evidence
+from verification_agents import grade_evidence, missing_grading_config
 
 
 def _telemetry_destination_configured() -> bool:
@@ -376,25 +376,41 @@ def _run_verification_orchestration(context: df.DurableOrchestrationContext):
         context.set_custom_status(
             _job_custom_status("llm_grading", job_id, prepared_verification_job)
         )
-        try:
-            decisions: list[dict[str, object]] = []
-            for request_payload in llm_requests:
-                decision_payload = yield context.call_activity_with_retry(
-                    "run_llm_grading",
-                    _LLM_RETRY_OPTIONS,
-                    request_payload,
-                )
-                decisions.append(_activity_payload(decision_payload))
-
-            run_result = yield context.call_activity(
-                "apply_llm_grading_results",
-                {"run_result": run_result, "decisions": decisions},
-            )
-        except Exception as exc:
+        config_status = yield context.call_activity("ensure_grading_config", None)
+        if not config_status.get("valid"):
+            missing = config_status.get("missing_vars") or []
             run_result = yield context.call_activity(
                 "llm_grading_failed",
-                {"run_result": run_result, "detail": str(exc)},
+                {
+                    "run_result": run_result,
+                    "detail": f"missing grading config: {', '.join(missing)}",
+                    "error_type": "MissingGradingConfig",
+                },
             )
+        else:
+            try:
+                decisions: list[dict[str, object]] = []
+                for request_payload in llm_requests:
+                    decision_payload = yield context.call_activity_with_retry(
+                        "run_llm_grading",
+                        _LLM_RETRY_OPTIONS,
+                        request_payload,
+                    )
+                    decisions.append(_activity_payload(decision_payload))
+
+                run_result = yield context.call_activity(
+                    "apply_llm_grading_results",
+                    {"run_result": run_result, "decisions": decisions},
+                )
+            except Exception as exc:
+                run_result = yield context.call_activity(
+                    "llm_grading_failed",
+                    {
+                        "run_result": run_result,
+                        "detail": str(exc),
+                        "error_type": type(exc).__name__,
+                    },
+                )
 
     context.set_custom_status(
         _job_custom_status("persisting", job_id, prepared_verification_job)
@@ -580,6 +596,22 @@ async def collect_llm_grading_requests(
         return [request.model_dump(mode="json") for request in requests]
 
 
+@app.activity_trigger(input_name="payload")
+async def ensure_grading_config(
+    payload,
+    context: func.Context,
+) -> dict[str, object]:
+    """Report whether the Foundry grading config is present.
+
+    Missing config is a permanent deployment error, not a transient fault,
+    so the orchestrator runs this once without retries and fails the job
+    fast instead of retrying the grading activity four times.
+    """
+    with _attached_invocation_context(context):
+        missing = missing_grading_config()
+        return {"valid": not missing, "missing_vars": missing}
+
+
 @app.activity_trigger(input_name="request_payload")
 async def run_llm_grading(
     request_payload,
@@ -633,14 +665,24 @@ async def llm_grading_failed(
         detail = data.get("detail")
         if not isinstance(detail, str) or not detail:
             detail = "unknown_error"
+        error_type = data.get("error_type")
+        if not isinstance(error_type, str) or not error_type:
+            error_type = "unknown"
         run_result_payload = VerificationRunResult.from_payload(
             _activity_payload(data["run_result"])
         )
         _set_prepared_job_span_attributes(run_result_payload.job)
-        run_result = llm_grading_unavailable_result(
-            run_result_payload,
-            detail,
+        # Record the real cause in telemetry so operators can diagnose the
+        # failure. The user-facing result stays generic on purpose.
+        span = otel_trace.get_current_span()
+        if span.is_recording():
+            span.set_attribute("verification.llm_grading_error_type", error_type)
+            span.set_attribute("verification.llm_grading_error_detail", detail)
+        logger.error(
+            "verification.llm_grading.failed",
+            extra={"error_type": error_type, "detail": detail},
         )
+        run_result = llm_grading_unavailable_result(run_result_payload)
         result_payload = run_result.to_payload()
         _set_result_span_attributes(result_payload)
         return result_payload
