@@ -48,10 +48,17 @@ from learn_to_cloud_shared.submission_values import (
     SubmittedValue,
     submission_value_from_columns,
 )
-from learn_to_cloud_shared.verification.dispatcher import validate_submission
+from learn_to_cloud_shared.verification.dispatcher import (
+    is_repo_backed,
+    validate_submission,
+)
 from learn_to_cloud_shared.verification.execution import (
     persist_validation_result,
     persisted_validation_message,
+)
+from learn_to_cloud_shared.verification.repo_utils import (
+    RepositoryRef,
+    resolve_repository,
 )
 
 tracer = trace.get_tracer(__name__)
@@ -204,22 +211,33 @@ class VerificationRunResult:
 
     job: PreparedVerificationJob
     validation_result: ValidationResult
+    repository: RepositoryRef | None = None
 
     def to_payload(self) -> dict[str, object]:
         """Return a JSON-serializable activity payload."""
-        return {
+        payload: dict[str, object] = {
             "job": self.job.to_payload(),
             "validation_result": self.validation_result.model_dump(mode="json"),
         }
+        if self.repository is not None:
+            payload["repository"] = self.repository.to_payload()
+        return payload
 
     @classmethod
     def from_payload(cls, payload: Mapping[str, object]) -> VerificationRunResult:
         """Rehydrate a validation result from a Durable activity payload."""
+        repository_payload = payload.get("repository")
+        repository = (
+            RepositoryRef.from_payload(_expect_mapping(repository_payload))
+            if repository_payload is not None
+            else None
+        )
         return cls(
             job=PreparedVerificationJob.from_payload(_expect_mapping(payload["job"])),
             validation_result=ValidationResult.model_validate(
                 payload["validation_result"]
             ),
+            repository=repository,
         )
 
 
@@ -320,23 +338,29 @@ async def prepare_verification_job(
     session_maker: async_sessionmaker[AsyncSession],
     prepared_input: PreparedVerificationJob,
 ) -> VerificationJobPreparation:
-    """Validate a verification job and dispatch to the right execution path.
+    """Preflight a verification job: anti-forgery identity check + replay guard.
 
     The orchestration always carries a full ``PreparedVerificationJob``
-    payload (curriculum-decoupling refactor). This activity:
+    payload (curriculum-decoupling refactor). This activity is the trust
+    boundary and idempotency gate for the run:
 
-    1. Loads the ``verification_jobs`` row and validates the immutable
-       identity fields (``user_id``, ``requirement_uuid``,
-       ``submitted_value``) against the payload, so a forged start
-       request can't make us run validation against an arbitrary user
-       or requirement.
-    2. If the job is already linked to a ``Submission`` (Durable
-       retried prepare after the persist activity already finished),
-       returns the same execution result from the linked Submission.
+    1. **Anti-forgery identity check.** Loads the ``verification_jobs`` row and
+       asserts the payload's immutable identity fields (``user_id``,
+       ``requirement_uuid``, ``submitted_value``) match it. The requirement
+       *definition* and ``github_username`` snapshot are trusted from the
+       payload (the Functions role has no curriculum/users grants), so this
+       row match is what stops a forged or buggy start request from running
+       validation against an arbitrary user or requirement.
+    2. **Replay/idempotency short-circuit.** Durable retries an activity on a
+       transient fault and resumes it after a worker crash, so this can run
+       more than once for the same job. If the job is already linked to a
+       ``Submission`` (the persist activity already finished on a prior
+       attempt), it returns that same execution result instead of re-running,
+       so retries never produce a second outcome.
     3. Otherwise returns the prepared job for the orchestrator to run.
 
-    The Functions role only needs ``SELECT`` on ``verification_jobs``
-    + ``submissions`` here -- no curriculum or users reads.
+    The Functions role only needs ``SELECT`` on ``verification_jobs`` +
+    ``submissions`` here -- no curriculum or users reads.
     """
     normalized_job_id = _coerce_job_id(job_id)
 
@@ -431,7 +455,25 @@ async def run_verification(
             "verification.completed",
             validation_result.verification_completed,
         )
-        return VerificationRunResult(job=job, validation_result=validation_result)
+        repository = _resolve_repository_ref(job)
+        return VerificationRunResult(
+            job=job,
+            validation_result=validation_result,
+            repository=repository,
+        )
+
+
+def _resolve_repository_ref(job: PreparedVerificationJob) -> RepositoryRef | None:
+    """Parse the repo identity once for repo-backed jobs, to carry forward.
+
+    Later async steps (LLM grading) reuse this instead of re-parsing the
+    submission URL. Non-repo types and unparseable values yield ``None``;
+    the carried value is purely an optimization, so callers still guard on it.
+    """
+    if not is_repo_backed(job.requirement.submission_type):
+        return None
+    resolved = resolve_repository(job.typed_submitted_value.as_text)
+    return resolved if isinstance(resolved, RepositoryRef) else None
 
 
 async def persist_verification_result(

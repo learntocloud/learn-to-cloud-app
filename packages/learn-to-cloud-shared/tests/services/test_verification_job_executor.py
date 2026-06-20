@@ -23,6 +23,7 @@ from learn_to_cloud_shared.repositories.verification_job_repository import (
 from learn_to_cloud_shared.schemas import HandsOnRequirement, ValidationResult
 from learn_to_cloud_shared.submission_values import SubmittedValue
 from learn_to_cloud_shared.verification.execution import MAX_VALIDATION_MESSAGE_LENGTH
+from learn_to_cloud_shared.verification.repo_utils import RepositoryRef
 from learn_to_cloud_shared.verification_job_executor import (
     VALIDATION_FAILED_ERROR_CODE,
     VERIFICATION_INCOMPLETE_ERROR_CODE,
@@ -186,6 +187,11 @@ async def test_split_verification_primitives_prepare_run_and_persist(
 
     assert await _count_submissions(session_maker) == 0
     assert run_result.to_payload()["job"] == preparation.job.to_payload()
+    assert run_result.repository == RepositoryRef(owner="executoruser", repo="repo")
+    assert run_result.to_payload()["repository"] == {
+        "owner": "executoruser",
+        "repo": "repo",
+    }
 
     result = await persist_verification_result(
         run_result,

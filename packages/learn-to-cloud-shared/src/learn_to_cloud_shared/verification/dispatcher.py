@@ -23,6 +23,7 @@ For phase requirements, see requirements.py
 """
 
 import time
+from collections.abc import Awaitable, Callable
 
 from opentelemetry import metrics, trace
 
@@ -38,7 +39,7 @@ from learn_to_cloud_shared.verification.github_profile import (
 )
 from learn_to_cloud_shared.verification.repo_utils import (
     VerificationError,
-    validate_repo_url,
+    resolve_repository,
 )
 from learn_to_cloud_shared.verification.security_scanning import (
     validate_security_scanning,
@@ -46,9 +47,6 @@ from learn_to_cloud_shared.verification.security_scanning import (
 from learn_to_cloud_shared.verification.token_base import (
     verify_ctf_token,
     verify_networking_token,
-)
-from learn_to_cloud_shared.verification.url_derivation import (
-    fork_name_from_required_repo,
 )
 
 _meter = metrics.get_meter("learn_to_cloud")
@@ -152,6 +150,24 @@ def is_sync_verifiable(submission_type: SubmissionType) -> bool:
     return submission_type in SYNC_VERIFIABLE_SUBMISSION_TYPES
 
 
+# Submission types whose persisted value is a server-derived GitHub repo URL
+# (``https://github.com/<user>/<fork>``). Their owner/repo identity can be
+# parsed straight from the validated submission value -- see
+# ``repo_utils.resolve_repository``.
+_REPO_BACKED_SUBMISSION_TYPES: frozenset[SubmissionType] = frozenset(
+    {
+        SubmissionType.JOURNAL_API_VERIFIER,
+        SubmissionType.DEVOPS_ANALYSIS,
+        SubmissionType.SECURITY_SCANNING,
+    }
+)
+
+
+def is_repo_backed(submission_type: SubmissionType) -> bool:
+    """Return True if the submission value is a server-derived GitHub repo URL."""
+    return submission_type in _REPO_BACKED_SUBMISSION_TYPES
+
+
 async def _dispatch_validation(
     requirement: HandsOnRequirement,
     submitted_value: str,
@@ -198,31 +214,16 @@ async def _dispatch_validation(
         return verify_networking_token(submitted_value, username)
 
     elif requirement.submission_type == SubmissionType.JOURNAL_API_VERIFIER:
-        expected_name = _expected_fork_name(requirement)
-        result = validate_repo_url(submitted_value, username, expected_name)
-        if isinstance(result, ValidationResult):
-            return result
-        owner, repo = result
-        return await verify_ci_status(owner, repo)
+        return await _verify_repo_backed(submitted_value, verify_ci_status)
 
     elif requirement.submission_type == SubmissionType.DEVOPS_ANALYSIS:
-        expected_name = _expected_fork_name(requirement)
-        result = validate_repo_url(submitted_value, username, expected_name)
-        if isinstance(result, ValidationResult):
-            return result
-        owner, repo = result
-        return await run_devops_workflow(owner, repo)
+        return await _verify_repo_backed(submitted_value, run_devops_workflow)
 
     elif requirement.submission_type == SubmissionType.DEPLOYED_API:
         return await validate_deployed_api(submitted_value)
 
     elif requirement.submission_type == SubmissionType.SECURITY_SCANNING:
-        expected_name = _expected_fork_name(requirement)
-        result = validate_repo_url(submitted_value, username, expected_name)
-        if isinstance(result, ValidationResult):
-            return result
-        owner, repo = result
-        return await validate_security_scanning(owner, repo)
+        return await _verify_repo_backed(submitted_value, validate_security_scanning)
 
     else:
         return ValidationResult(
@@ -233,11 +234,17 @@ async def _dispatch_validation(
         )
 
 
-def _expected_fork_name(requirement: HandsOnRequirement) -> str | None:
-    """Return the expected fork repo name from ``required_repo``, if set."""
-    if not requirement.required_repo:
-        return None
-    try:
-        return fork_name_from_required_repo(requirement.required_repo)
-    except ValueError:
-        return None
+async def _verify_repo_backed(
+    submitted_value: str,
+    verifier: Callable[[str, str], Awaitable[ValidationResult]],
+) -> ValidationResult:
+    """Resolve the repo identity from the validated submission value and verify.
+
+    The owner/repo come straight from the server-derived, DB-validated
+    submission URL, so no ownership or fork-name re-check is needed here (see
+    ``resolve_repository``). A malformed URL surfaces as a ``ValidationResult``.
+    """
+    repo = resolve_repository(submitted_value)
+    if isinstance(repo, ValidationResult):
+        return repo
+    return await verifier(repo.owner, repo.repo)

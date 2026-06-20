@@ -14,6 +14,7 @@ from learn_to_cloud_shared.verification.llm_grading import (
     collect_llm_grading_requests,
     llm_grading_unavailable_result,
 )
+from learn_to_cloud_shared.verification.repo_utils import RepositoryRef
 from learn_to_cloud_shared.verification.tasks import (
     PHASE3_LLM_TASKS,
     PHASE6_LLM_TASKS,
@@ -55,6 +56,7 @@ def _run_result(is_valid: bool = True) -> VerificationRunResult:
                 )
             ],
         ),
+        repository=RepositoryRef(owner="learner", repo="journal"),
     )
 
 
@@ -81,6 +83,7 @@ def _phase3_run_result(is_valid: bool = True) -> VerificationRunResult:
             is_valid=is_valid,
             message="CI tests are passing on main.",
         ),
+        repository=RepositoryRef(owner="learner", repo="journal-starter"),
     )
 
 
@@ -141,6 +144,20 @@ def test_apply_phase3_llm_decision_appends_feedback_when_passed():
 @pytest.mark.unit
 async def test_collect_phase3_llm_requests_skips_when_ci_failed():
     requests = await collect_llm_grading_requests(_phase3_run_result(is_valid=False))
+
+    assert requests == []
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_collect_llm_requests_skips_when_repository_missing():
+    run_result = _run_result()
+    without_repo = VerificationRunResult(
+        job=run_result.job,
+        validation_result=run_result.validation_result,
+    )
+
+    requests = await collect_llm_grading_requests(without_repo)
 
     assert requests == []
 
