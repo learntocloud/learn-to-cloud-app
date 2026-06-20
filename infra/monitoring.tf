@@ -253,3 +253,47 @@ resource "azurerm_monitor_scheduled_query_rules_alert_v2" "verification_durable_
     action_groups = [azurerm_monitor_action_group.critical.id]
   }
 }
+
+# The verification submit handler catches DurableVerificationConfigError and
+# returns a 200 page with an error banner, so the 5xx-based alerts above never
+# see it. A config error means verification is misconfigured on our side and is
+# broken for every learner until someone fixes it, so we page on the very first
+# occurrence by matching the structured log event and its error_type dimension.
+resource "azurerm_monitor_scheduled_query_rules_alert_v2" "api_verification_config_error" {
+  name                = "alert-ltc-api-verification-config-error-${var.environment}"
+  resource_group_name = azurerm_resource_group.main.name
+  location            = azurerm_resource_group.main.location
+  description         = "Alert when the verification submit path hits a configuration error (returns 200, so no 5xx alert fires)"
+  severity            = 1
+  enabled             = true
+  tags                = local.tags
+
+  scopes                = [azurerm_application_insights.main.id]
+  evaluation_frequency  = "PT5M"
+  window_duration       = "PT5M"
+  target_resource_types = ["microsoft.insights/components"]
+
+  criteria {
+    query                   = <<-QUERY
+      traces
+      | extend ErrorType = tostring(customDimensions.error_type)
+      | where cloud_RoleName in ("learn-to-cloud-api", "ca-ltc-api-${var.environment}")
+          or cloud_RoleName has "learn-to-cloud-api"
+          or cloud_RoleName has "ca-ltc-api"
+      | where message has "htmx.submit.durable_start_failed"
+      | where ErrorType == "DurableVerificationConfigError"
+    QUERY
+    time_aggregation_method = "Count"
+    operator                = "GreaterThanOrEqual"
+    threshold               = 1
+
+    failing_periods {
+      minimum_failing_periods_to_trigger_alert = 1
+      number_of_evaluation_periods             = 1
+    }
+  }
+
+  action {
+    action_groups = [azurerm_monitor_action_group.critical.id]
+  }
+}
