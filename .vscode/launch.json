@@ -5,7 +5,7 @@
       "name": "API: FastAPI (uvicorn)",
       "type": "debugpy",
       "request": "launch",
-      "python": "${workspaceFolder}/api/.venv/bin/python",
+      "python": "${workspaceFolder}/.venv/bin/python",
       "module": "uvicorn",
       "args": ["learn_to_cloud.main:app", "--reload", "--reload-include", "*.py", "--reload-include", "*.html", "--reload-exclude", ".venv", "--host", "0.0.0.0", "--port", "8000"],
       "cwd": "${workspaceFolder}/api",
