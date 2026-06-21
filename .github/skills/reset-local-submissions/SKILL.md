@@ -51,9 +51,6 @@ cd <workspace>/api && uv run python scripts/reset_local_submissions.py \
   --requirement-slug <requirement_slug_2>
 ```
 
-The older `--requirement-id` flag still works as a deprecated alias, but it
-prints a warning. Prefer `--requirement-slug`.
-
 ## Combined Example
 
 ```bash

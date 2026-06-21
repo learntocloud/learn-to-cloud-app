@@ -20,7 +20,6 @@ from __future__ import annotations
 import argparse
 import asyncio
 import logging
-import sys
 
 from learn_to_cloud_shared.core.config import get_web_settings
 from learn_to_cloud_shared.core.database import create_engine
@@ -97,19 +96,6 @@ async def reset_submissions(
         await engine.dispose()
 
 
-class _DeprecatedRequirementId(argparse.Action):
-    """Accept the old --requirement-id flag and warn it is deprecated."""
-
-    def __call__(self, parser, namespace, values, option_string=None):
-        print(
-            "Warning: --requirement-id is deprecated; use --requirement-slug instead.",
-            file=sys.stderr,
-        )
-        current = getattr(namespace, self.dest) or []
-        current.append(values)
-        setattr(namespace, self.dest, current)
-
-
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Reset local submissions for selected requirement slugs.",
@@ -122,12 +108,6 @@ def parse_args() -> argparse.Namespace:
             "Requirement slug to delete (repeatable). "
             "Defaults to devops-implementation and journal-api-implementation."
         ),
-    )
-    parser.add_argument(
-        "--requirement-id",
-        action=_DeprecatedRequirementId,
-        dest="requirement_slugs",
-        help=argparse.SUPPRESS,
     )
     parser.add_argument(
         "--user-id",
