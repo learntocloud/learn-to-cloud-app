@@ -208,11 +208,11 @@ the form is in a clean state:
 
 ```bash
 cd /workspaces/learn-to-cloud-app/api && uv run python scripts/reset_local_submissions.py \
-  --requirement-id <requirement-id> \
+  --requirement-slug <requirement-slug> \
   --user-id 6733686
 ```
 
-Replace `<requirement-id>` with the value from the Submission Types Reference
+Replace `<requirement-slug>` with the value from the Submission Types Reference
 table (e.g. `journal-api-implementation` for phase 3). The `--user-id` is the
 GitHub user ID for `madebygps` (`6733686`). Run with `--dry-run` first if you
 want to preview what will be deleted.
@@ -224,7 +224,7 @@ http://localhost:8000/phase/{N}
 ```
 
 Confirm the page loads (no 500, `<nav>` and `<main>` present). Find the
-requirement card for the target requirement ID (see the Submission Types
+requirement card for the target requirement slug (see the Submission Types
 Reference table above).
 
 ### 5c — Submit the requirement
@@ -257,7 +257,7 @@ for the next run:
 
 ```bash
 cd /workspaces/learn-to-cloud-app/api && uv run python scripts/reset_local_submissions.py \
-  --requirement-id <requirement-id> \
+  --requirement-slug <requirement-slug> \
   --user-id 6733686
 ```
 
@@ -305,7 +305,7 @@ Basic / Phase X submission
 | Field | Value |
 |-------|-------|
 | Phase | X |
-| Requirement | requirement-id |
+| Requirement | requirement-slug |
 | Submitted value | ... |
 | Verification result | ✅ Passed / ❌ Failed / ⏳ Timed out |
 | Message | (text from the requirement card) |

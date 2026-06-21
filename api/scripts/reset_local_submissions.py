@@ -12,7 +12,7 @@ Examples:
     uv run python scripts/reset_local_submissions.py --dry-run
     uv run python scripts/reset_local_submissions.py --user-id 12345
     uv run python scripts/reset_local_submissions.py \
-        --requirement-id devops-implementation
+        --requirement-slug devops-implementation
 """
 
 from __future__ import annotations
@@ -20,6 +20,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import logging
+import sys
 
 from learn_to_cloud_shared.core.config import get_web_settings
 from learn_to_cloud_shared.core.database import create_engine
@@ -27,7 +28,7 @@ from sqlalchemy import text
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_REQUIREMENT_IDS = [
+DEFAULT_REQUIREMENT_SLUGS = [
     "devops-implementation",
     "journal-api-implementation",
 ]
@@ -96,18 +97,37 @@ async def reset_submissions(
         await engine.dispose()
 
 
+class _DeprecatedRequirementId(argparse.Action):
+    """Accept the old --requirement-id flag and warn it is deprecated."""
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        print(
+            "Warning: --requirement-id is deprecated; use --requirement-slug instead.",
+            file=sys.stderr,
+        )
+        current = getattr(namespace, self.dest) or []
+        current.append(values)
+        setattr(namespace, self.dest, current)
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Reset local submissions for selected requirement slugs.",
     )
     parser.add_argument(
-        "--requirement-id",
+        "--requirement-slug",
         action="append",
         dest="requirement_slugs",
         help=(
             "Requirement slug to delete (repeatable). "
             "Defaults to devops-implementation and journal-api-implementation."
         ),
+    )
+    parser.add_argument(
+        "--requirement-id",
+        action=_DeprecatedRequirementId,
+        dest="requirement_slugs",
+        help=argparse.SUPPRESS,
     )
     parser.add_argument(
         "--user-id",
@@ -126,7 +146,7 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
-    requirement_slugs = args.requirement_slugs or DEFAULT_REQUIREMENT_IDS
+    requirement_slugs = args.requirement_slugs or DEFAULT_REQUIREMENT_SLUGS
     deleted_count = asyncio.run(
         reset_submissions(
             requirement_slugs=requirement_slugs,
