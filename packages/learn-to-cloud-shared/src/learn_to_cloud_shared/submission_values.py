@@ -14,7 +14,6 @@ _GITHUB_URL_TYPES = {
     SubmissionType.GITHUB_PROFILE.value,
     SubmissionType.PROFILE_README.value,
     SubmissionType.REPO_FORK.value,
-    SubmissionType.PR_REVIEW.value,
     SubmissionType.JOURNAL_API_VERIFIER.value,
     SubmissionType.DEVOPS_ANALYSIS.value,
     SubmissionType.SECURITY_SCANNING.value,
@@ -26,10 +25,6 @@ _TOKEN_TYPES = {
     "iac_token",
 }
 _DEPLOYED_URL_TYPES = {SubmissionType.DEPLOYED_API.value}
-_TEXT_TYPES = {
-    SubmissionType.JOURNAL_API_RESPONSE.value,
-    SubmissionType.CODE_ANALYSIS.value,
-}
 
 
 class SubmittedValueColumns(Protocol):
@@ -175,8 +170,6 @@ def value_kind_for_submission_type(
         return SubmissionValueKind.TOKEN
     if raw_type in _DEPLOYED_URL_TYPES:
         return SubmissionValueKind.DEPLOYED_URL
-    if raw_type in _TEXT_TYPES:
-        return SubmissionValueKind.TEXT
     raise ValueError(f"Unknown submission_type for submitted value: {raw_type!r}")
 
 

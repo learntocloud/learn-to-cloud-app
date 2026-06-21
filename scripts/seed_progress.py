@@ -107,8 +107,6 @@ async def main(github_username: str) -> None:
                         submitted_value = (
                             f"https://github.com/{github_username}/journal-starter"
                         )
-                    elif sub_type == "pr_review":
-                        submitted_value = f"https://seed-data.example.com/{req.slug}"
                     elif sub_type == "deployed_api":
                         submitted_value = "https://journal-api.example.com"
                     else:

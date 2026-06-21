@@ -22,7 +22,6 @@ from learn_to_cloud_shared.testing.requirement_factories import (
         (SubmissionType.JOURNAL_API_VERIFIER, SubmissionValueKind.GITHUB_URL),
         (SubmissionType.CTF_TOKEN, SubmissionValueKind.TOKEN),
         (SubmissionType.DEPLOYED_API, SubmissionValueKind.DEPLOYED_URL),
-        (SubmissionType.JOURNAL_API_RESPONSE, SubmissionValueKind.TEXT),
         ("ci_status", SubmissionValueKind.GITHUB_URL),
         ("iac_token", SubmissionValueKind.TOKEN),
     ],

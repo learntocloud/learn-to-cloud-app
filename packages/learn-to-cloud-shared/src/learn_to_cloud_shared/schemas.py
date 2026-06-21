@@ -724,8 +724,8 @@ class SubmissionResult(FrozenModel):
 class TaskResult(FrozenModel):
     """Result of verifying a single task in a multi-task verification.
 
-    Used by PR_REVIEW, DEVOPS_ANALYSIS, and SECURITY_SCANNING validations
-    to provide detailed per-task feedback.
+    Used by DEVOPS_ANALYSIS and SECURITY_SCANNING validations to provide
+    detailed per-task feedback.
     """
 
     task_name: str

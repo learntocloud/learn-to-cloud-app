@@ -104,12 +104,6 @@ class SubmissionType(StrEnum):
     NETWORKING_TOKEN = "networking_token"
 
     # Phase 3: Journal API implementation
-    # JOURNAL_API_RESPONSE kept for backward compatibility with existing DB records
-    JOURNAL_API_RESPONSE = "journal_api_response"
-    # CODE_ANALYSIS kept so SQLAlchemy can deserialize old rows during
-    # rolling deploys before the 0015 migration converts them to ci_status.
-    CODE_ANALYSIS = "code_analysis"
-    PR_REVIEW = "pr_review"
     JOURNAL_API_VERIFIER = "journal_api_verifier"
 
     # Phase 4: Cloud deployment validation
@@ -634,7 +628,6 @@ class CurriculumRequirement(TimestampMixin, Base):
                     'github_profile',
                     'profile_readme',
                     'repo_fork',
-                    'pr_review',
                     'journal_api_verifier',
                     'devops_analysis',
                     'security_scanning',
@@ -653,13 +646,6 @@ class CurriculumRequirement(TimestampMixin, Base):
             OR (
                 submission_type = 'deployed_api'
                 AND submission_value_kind = 'deployed_url'
-            )
-            OR (
-                submission_type IN (
-                    'journal_api_response',
-                    'code_analysis'
-                )
-                AND submission_value_kind = 'text'
             )
             """,
             name="ck_requirements_submission_value_kind_matches_type",
