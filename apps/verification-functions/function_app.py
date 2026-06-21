@@ -89,9 +89,6 @@ _DEFAULT_ORCHESTRATOR_NAME = "verification_orchestrator"
 # declared per type in verification/dispatcher.py (_VALIDATOR_REGISTRY);
 # this map only picks the orchestrator name for the background types.
 _ORCHESTRATOR_NAMES_BY_SUBMISSION_TYPE = {
-    SubmissionType.JOURNAL_API_RESPONSE: "verify_phase3_journal_api_orchestrator",
-    SubmissionType.CODE_ANALYSIS: "verify_phase3_journal_api_orchestrator",
-    SubmissionType.PR_REVIEW: "verify_phase3_pr_review_orchestrator",
     SubmissionType.JOURNAL_API_VERIFIER: (
         "verify_phase3_journal_api_verifier_orchestrator"
     ),
@@ -481,18 +478,6 @@ def verify_networking_token_orchestrator(context: df.DurableOrchestrationContext
 
     See :func:`verify_github_profile_orchestrator` for rationale.
     """
-    return (yield from _run_verification_orchestration(context))
-
-
-@app.orchestration_trigger(context_name="context")
-def verify_phase3_journal_api_orchestrator(context: df.DurableOrchestrationContext):
-    """Run Phase 3 journal API verification."""
-    return ((yield from _run_verification_orchestration(context)),)
-
-
-@app.orchestration_trigger(context_name="context")
-def verify_phase3_pr_review_orchestrator(context: df.DurableOrchestrationContext):
-    """Run Phase 3 pull request verification."""
     return (yield from _run_verification_orchestration(context))
 
 

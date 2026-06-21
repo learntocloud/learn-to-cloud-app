@@ -43,18 +43,8 @@ _EXPECTED_REPO_BACKED = {
 # The only type that does not require a GitHub username.
 _EXPECTED_NO_USERNAME = {SubmissionType.DEPLOYED_API}
 
-# Retired types kept only so old DB rows deserialize; they have no validator.
-_LEGACY_TYPES = {
-    SubmissionType.JOURNAL_API_RESPONSE,
-    SubmissionType.CODE_ANALYSIS,
-    SubmissionType.PR_REVIEW,
-}
-
-# Types backed by an active HandsOnRequirement subclass (the discriminated
-# union). Derived from the schema so it stays in lockstep with it.
-_ACTIVE_TYPES = {
-    member.value for member in SubmissionType if member not in _LEGACY_TYPES
-}
+# Every submission type now has an active validator descriptor.
+_ACTIVE_TYPES = {member.value for member in SubmissionType}
 
 
 def test_inline_set_is_exactly_the_phase_0_to_2_types():
@@ -84,16 +74,6 @@ def test_is_inline_false_for_background_types(submission_type):
 
 
 @pytest.mark.parametrize(
-    "submission_type", sorted(_LEGACY_TYPES, key=lambda t: t.value)
-)
-def test_legacy_types_have_no_descriptor_and_are_not_inline(submission_type):
-    assert descriptor_for(submission_type) is None
-    assert execution_mode_for(submission_type) is None
-    assert is_inline(submission_type) is False
-    assert is_repo_backed(submission_type) is False
-
-
-@pytest.mark.parametrize(
     "submission_type", sorted(_EXPECTED_REPO_BACKED, key=lambda t: t.value)
 )
 def test_repo_backed_true_for_repo_url_types(submission_type):
@@ -111,7 +91,7 @@ def test_repo_backed_false_for_non_repo_types(submission_type):
 @pytest.mark.parametrize(
     "submission_type",
     sorted(
-        set(SubmissionType) - _EXPECTED_NO_USERNAME - _LEGACY_TYPES,
+        set(SubmissionType) - _EXPECTED_NO_USERNAME,
         key=lambda t: t.value,
     ),
 )
@@ -130,9 +110,8 @@ def test_deployed_api_does_not_require_username():
 def test_registry_covers_every_active_submission_type_exactly_once():
     """Completeness: each active type has exactly one descriptor, no extras.
 
-    ``_ACTIVE_TYPES`` is derived from the SubmissionType enum minus the
-    retired legacy values, so adding a real type without registering it (or
-    registering a legacy type) fails here.
+    ``_ACTIVE_TYPES`` is derived from the full SubmissionType enum, so adding a
+    real type without registering it fails here.
     """
     registry_values = {t.value for t in _VALIDATOR_REGISTRY}
     assert registry_values == _ACTIVE_TYPES

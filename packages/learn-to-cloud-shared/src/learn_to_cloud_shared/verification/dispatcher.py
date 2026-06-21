@@ -222,9 +222,8 @@ async def _adapt_security_scanning(
 
 
 # Single source of truth: each active submission type maps to one descriptor.
-# Legacy/retired types (journal_api_response, code_analysis, pr_review) are
-# intentionally absent; lookups use ``.get(...)`` so they surface as the
-# explicit "Unknown submission type" result instead of raising.
+# Lookups use ``.get(...)`` so an unregistered type surfaces as the explicit
+# "Unknown submission type" result instead of raising.
 _VALIDATOR_REGISTRY: dict[SubmissionType, ValidatorDescriptor] = {
     SubmissionType.GITHUB_PROFILE: ValidatorDescriptor(
         adapter=_adapt_github_profile,
