@@ -28,7 +28,7 @@ from learn_to_cloud_shared.schemas import (
     SubmissionResult,
 )
 from learn_to_cloud_shared.submission_values import SubmittedValue
-from learn_to_cloud_shared.verification.dispatcher import is_sync_verifiable
+from learn_to_cloud_shared.verification.dispatcher import is_inline
 from learn_to_cloud_shared.verification.execution import (
     execute_sync_submission_validation,
     to_submission_data,
@@ -251,7 +251,7 @@ async def create_verification_job(
     except ValueError as exc:
         raise InvalidSubmittedValueError(str(exc)) from exc
 
-    if is_sync_verifiable(ctx.requirement.submission_type):
+    if is_inline(ctx.requirement.submission_type):
         submission_result = await execute_sync_submission_validation(
             session_maker=session_maker,
             user_id=user_id,

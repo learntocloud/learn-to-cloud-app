@@ -85,7 +85,10 @@ class SubmissionType(StrEnum):
     2. Add a validator function in the appropriate module:
        - GitHub-based: api/services/github_hands_on_verification_service.py
        - Or create a new module for complex verification types
-    3. Add the routing case in validate_submission() in hands_on_verification.py
+    3. Register a descriptor for it in
+       ``verification/dispatcher.py`` (``_VALIDATOR_REGISTRY``): the
+       descriptor declares the adapter callable, its execution mode, and
+       whether it needs a GitHub username or is repo-backed.
     4. Add optional fields to HandsOnRequirement schema if needed
     """
 
@@ -117,6 +120,26 @@ class SubmissionType(StrEnum):
 
     # Phase 6: Security posture
     SECURITY_SCANNING = "security_scanning"
+
+
+class ExecutionMode(StrEnum):
+    """Where a verification runs and when the learner gets the answer.
+
+    Every validator is an ``async def`` coroutine; this enum is about
+    *where* the work runs, not about asyncio. It replaces the older
+    "sync vs async" wording, which was misleading in a codebase where
+    every validator already awaits.
+    """
+
+    # Runs inside the FastAPI request and answers immediately. Used for
+    # checks that finish in well under a second (one GitHub API call or a
+    # constant-time token compare).
+    INLINE = "inline"
+
+    # Handed off to Durable Functions and answered later via polling.
+    # Used for checks that involve LLM grading, fan-out, or external
+    # probes with retries.
+    BACKGROUND = "background"
 
 
 class SubmissionValueKind(StrEnum):
