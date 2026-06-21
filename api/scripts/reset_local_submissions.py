@@ -1,7 +1,11 @@
 """Reset local submission records for testing.
 
-Deletes submission rows by requirement ID. Progress is automatically
+Deletes submission rows by requirement slug. Progress is automatically
 correct on next page load because it's computed from the submissions table.
+
+Submissions reference a requirement by ``requirement_uuid`` (FK to
+``requirements.uuid``); the human-friendly slug lives on the requirements
+table, so we join through it to match the slugs passed on the command line.
 
 Examples:
     uv run python scripts/reset_local_submissions.py
@@ -30,7 +34,7 @@ DEFAULT_REQUIREMENT_IDS = [
 
 
 async def reset_submissions(
-    requirement_ids: list[str],
+    requirement_slugs: list[str],
     user_ids: list[int] | None,
     dry_run: bool,
 ) -> int:
@@ -41,21 +45,19 @@ async def reset_submissions(
     engine = create_engine(get_web_settings().database)
     try:
         async with engine.begin() as conn:
-            where_clauses = ["requirement_id = ANY(:requirement_ids)"]
-            params: dict[str, object] = {"requirement_ids": requirement_ids}
-
+            params: dict[str, object] = {"requirement_slugs": requirement_slugs}
+            user_filter = ""
             if user_ids:
-                where_clauses.append("user_id = ANY(:user_ids)")
+                user_filter = " AND s.user_id = ANY(:user_ids)"
                 params["user_ids"] = user_ids
-
-            where_sql = " AND ".join(where_clauses)
 
             preview_query = text(
                 f"""
-                SELECT user_id, requirement_id, phase_id, attempt_number, is_validated
-                FROM submissions
-                WHERE {where_sql}
-                ORDER BY user_id, requirement_id, attempt_number
+                SELECT s.user_id, r.slug AS requirement_slug, s.is_validated
+                FROM submissions s
+                JOIN requirements r ON r.uuid = s.requirement_uuid
+                WHERE r.slug = ANY(:requirement_slugs){user_filter}
+                ORDER BY s.user_id, r.slug
                 """
             )
             preview_result = await conn.execute(preview_query, params)
@@ -78,9 +80,11 @@ async def reset_submissions(
 
             delete_query = text(
                 f"""
-                DELETE FROM submissions
-                WHERE {where_sql}
-                RETURNING user_id, requirement_id, phase_id
+                DELETE FROM submissions s
+                USING requirements r
+                WHERE r.uuid = s.requirement_uuid
+                  AND r.slug = ANY(:requirement_slugs){user_filter}
+                RETURNING s.user_id, r.slug AS requirement_slug
                 """
             )
             delete_result = await conn.execute(delete_query, params)
@@ -94,14 +98,14 @@ async def reset_submissions(
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Reset local submissions for selected requirement IDs.",
+        description="Reset local submissions for selected requirement slugs.",
     )
     parser.add_argument(
         "--requirement-id",
         action="append",
-        dest="requirement_ids",
+        dest="requirement_slugs",
         help=(
-            "Requirement ID to delete (repeatable). "
+            "Requirement slug to delete (repeatable). "
             "Defaults to devops-implementation and journal-api-implementation."
         ),
     )
@@ -122,10 +126,10 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
-    requirement_ids = args.requirement_ids or DEFAULT_REQUIREMENT_IDS
+    requirement_slugs = args.requirement_slugs or DEFAULT_REQUIREMENT_IDS
     deleted_count = asyncio.run(
         reset_submissions(
-            requirement_ids=requirement_ids,
+            requirement_slugs=requirement_slugs,
             user_ids=args.user_ids,
             dry_run=args.dry_run,
         )
