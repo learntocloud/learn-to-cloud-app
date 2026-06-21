@@ -14,7 +14,9 @@ To add a new verification type:
 2. Add optional fields to HandsOnRequirement in schemas.py if needed
 3. Create a validator function (here or in a new module):
    - async def validate_<type>(url: str, ...) -> ValidationResult
-4. Add routing case in validate_submission() below
+4. Register a ValidatorDescriptor for it in _VALIDATOR_REGISTRY below:
+   declare its adapter callable, execution mode (INLINE vs BACKGROUND),
+   whether it needs a GitHub username, and whether it is repo-backed.
 
 For GitHub-specific validations, see github_profile.py
 For CTF token validation, see ctf.py
@@ -24,10 +26,11 @@ For phase requirements, see requirements.py
 
 import time
 from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
 
 from opentelemetry import metrics, trace
 
-from learn_to_cloud_shared.models import SubmissionType
+from learn_to_cloud_shared.models import ExecutionMode, SubmissionType
 from learn_to_cloud_shared.schemas import HandsOnRequirement, ValidationResult
 from learn_to_cloud_shared.verification.ci_status import verify_ci_status
 from learn_to_cloud_shared.verification.deployed_api import validate_deployed_api
@@ -124,48 +127,186 @@ async def validate_submission(
         _VERIFICATION_DURATION.record(elapsed, attrs)
 
 
-_USERNAME_NOT_REQUIRED: frozenset[SubmissionType] = frozenset(
-    {SubmissionType.DEPLOYED_API}
-)
+# Uniform call shape for every validator, regardless of how the underlying
+# function is written. Adapters below absorb the per-validator differences
+# (sync token functions, the repo_fork config path, deployed_api taking only
+# a value, and repo-backed owner/repo resolution).
+ValidatorAdapter = Callable[
+    [HandsOnRequirement, str, str],
+    Awaitable[ValidationResult],
+]
 
 
-# Submission types that finish in well under a second (one GitHub API call
-# or a constant-time token compare) and can run inside the FastAPI request
-# instead of going through Durable Functions.  Phase 3+ types involve LLM
-# grading, fan-out, or external probes with retries and stay on the async
-# Durable path.
-SYNC_VERIFIABLE_SUBMISSION_TYPES: frozenset[SubmissionType] = frozenset(
-    {
-        SubmissionType.GITHUB_PROFILE,
-        SubmissionType.PROFILE_README,
-        SubmissionType.REPO_FORK,
-        SubmissionType.CTF_TOKEN,
-        SubmissionType.NETWORKING_TOKEN,
-    }
-)
+@dataclass(frozen=True)
+class ValidatorDescriptor:
+    """Everything the dispatcher needs to know about one submission type.
+
+    Collapses what used to be four separate type-keyed structures (the
+    if/elif routing chain plus three frozensets) into a single home, so a
+    new verification type is declared in exactly one place.
+    """
+
+    adapter: ValidatorAdapter
+    # Where the check runs: INLINE finishes in the request, BACKGROUND goes
+    # through Durable Functions. This is a property of the work itself, so it
+    # lives with the validator rather than in requirement content.
+    execution_mode: ExecutionMode
+    # Whether a GitHub username is required before the validator runs.
+    requires_username: bool
+    # Whether the submitted value is a server-derived GitHub repo URL whose
+    # owner/repo identity can be parsed straight from it.
+    repo_backed: bool
 
 
-def is_sync_verifiable(submission_type: SubmissionType) -> bool:
-    """Return True if the submission type runs synchronously in FastAPI."""
-    return submission_type in SYNC_VERIFIABLE_SUBMISSION_TYPES
+async def _adapt_github_profile(
+    requirement: HandsOnRequirement, submitted_value: str, username: str
+) -> ValidationResult:
+    return await validate_github_profile(submitted_value, username)
 
 
-# Submission types whose persisted value is a server-derived GitHub repo URL
-# (``https://github.com/<user>/<fork>``). Their owner/repo identity can be
-# parsed straight from the validated submission value -- see
-# ``repo_utils.resolve_repository``.
-_REPO_BACKED_SUBMISSION_TYPES: frozenset[SubmissionType] = frozenset(
-    {
-        SubmissionType.JOURNAL_API_VERIFIER,
-        SubmissionType.DEVOPS_ANALYSIS,
-        SubmissionType.SECURITY_SCANNING,
-    }
-)
+async def _adapt_profile_readme(
+    requirement: HandsOnRequirement, submitted_value: str, username: str
+) -> ValidationResult:
+    return await validate_profile_readme(submitted_value, username)
+
+
+async def _adapt_repo_fork(
+    requirement: HandsOnRequirement, submitted_value: str, username: str
+) -> ValidationResult:
+    if not requirement.required_repo:
+        return ValidationResult(
+            is_valid=False,
+            message="Requirement configuration error: missing required_repo",
+            username_match=False,
+            repo_exists=False,
+        )
+    return await validate_repo_fork(
+        submitted_value, username, requirement.required_repo
+    )
+
+
+async def _adapt_ctf_token(
+    requirement: HandsOnRequirement, submitted_value: str, username: str
+) -> ValidationResult:
+    return verify_ctf_token(submitted_value, username)
+
+
+async def _adapt_networking_token(
+    requirement: HandsOnRequirement, submitted_value: str, username: str
+) -> ValidationResult:
+    return verify_networking_token(submitted_value, username)
+
+
+async def _adapt_deployed_api(
+    requirement: HandsOnRequirement, submitted_value: str, username: str
+) -> ValidationResult:
+    return await validate_deployed_api(submitted_value)
+
+
+async def _adapt_journal_api_verifier(
+    requirement: HandsOnRequirement, submitted_value: str, username: str
+) -> ValidationResult:
+    return await _verify_repo_backed(submitted_value, verify_ci_status)
+
+
+async def _adapt_devops_analysis(
+    requirement: HandsOnRequirement, submitted_value: str, username: str
+) -> ValidationResult:
+    return await _verify_repo_backed(submitted_value, run_devops_workflow)
+
+
+async def _adapt_security_scanning(
+    requirement: HandsOnRequirement, submitted_value: str, username: str
+) -> ValidationResult:
+    return await _verify_repo_backed(submitted_value, validate_security_scanning)
+
+
+# Single source of truth: each active submission type maps to one descriptor.
+# Legacy/retired types (journal_api_response, code_analysis, pr_review) are
+# intentionally absent; lookups use ``.get(...)`` so they surface as the
+# explicit "Unknown submission type" result instead of raising.
+_VALIDATOR_REGISTRY: dict[SubmissionType, ValidatorDescriptor] = {
+    SubmissionType.GITHUB_PROFILE: ValidatorDescriptor(
+        adapter=_adapt_github_profile,
+        execution_mode=ExecutionMode.INLINE,
+        requires_username=True,
+        repo_backed=False,
+    ),
+    SubmissionType.PROFILE_README: ValidatorDescriptor(
+        adapter=_adapt_profile_readme,
+        execution_mode=ExecutionMode.INLINE,
+        requires_username=True,
+        repo_backed=False,
+    ),
+    SubmissionType.REPO_FORK: ValidatorDescriptor(
+        adapter=_adapt_repo_fork,
+        execution_mode=ExecutionMode.INLINE,
+        requires_username=True,
+        repo_backed=False,
+    ),
+    SubmissionType.CTF_TOKEN: ValidatorDescriptor(
+        adapter=_adapt_ctf_token,
+        execution_mode=ExecutionMode.INLINE,
+        requires_username=True,
+        repo_backed=False,
+    ),
+    SubmissionType.NETWORKING_TOKEN: ValidatorDescriptor(
+        adapter=_adapt_networking_token,
+        execution_mode=ExecutionMode.INLINE,
+        requires_username=True,
+        repo_backed=False,
+    ),
+    SubmissionType.JOURNAL_API_VERIFIER: ValidatorDescriptor(
+        adapter=_adapt_journal_api_verifier,
+        execution_mode=ExecutionMode.BACKGROUND,
+        requires_username=True,
+        repo_backed=True,
+    ),
+    SubmissionType.DEVOPS_ANALYSIS: ValidatorDescriptor(
+        adapter=_adapt_devops_analysis,
+        execution_mode=ExecutionMode.BACKGROUND,
+        requires_username=True,
+        repo_backed=True,
+    ),
+    SubmissionType.DEPLOYED_API: ValidatorDescriptor(
+        adapter=_adapt_deployed_api,
+        execution_mode=ExecutionMode.BACKGROUND,
+        requires_username=False,
+        repo_backed=False,
+    ),
+    SubmissionType.SECURITY_SCANNING: ValidatorDescriptor(
+        adapter=_adapt_security_scanning,
+        execution_mode=ExecutionMode.BACKGROUND,
+        requires_username=True,
+        repo_backed=True,
+    ),
+}
+
+
+def descriptor_for(
+    submission_type: SubmissionType,
+) -> ValidatorDescriptor | None:
+    """Return the descriptor for a submission type, or None if unsupported."""
+    return _VALIDATOR_REGISTRY.get(submission_type)
+
+
+def execution_mode_for(
+    submission_type: SubmissionType,
+) -> ExecutionMode | None:
+    """Return the execution mode for a submission type, or None if unsupported."""
+    descriptor = _VALIDATOR_REGISTRY.get(submission_type)
+    return descriptor.execution_mode if descriptor is not None else None
+
+
+def is_inline(submission_type: SubmissionType) -> bool:
+    """Return True if the submission type runs inline in the FastAPI request."""
+    return execution_mode_for(submission_type) is ExecutionMode.INLINE
 
 
 def is_repo_backed(submission_type: SubmissionType) -> bool:
     """Return True if the submission value is a server-derived GitHub repo URL."""
-    return submission_type in _REPO_BACKED_SUBMISSION_TYPES
+    descriptor = _VALIDATOR_REGISTRY.get(submission_type)
+    return descriptor.repo_backed if descriptor is not None else False
 
 
 async def _dispatch_validation(
@@ -174,11 +315,17 @@ async def _dispatch_validation(
     expected_username: str | None = None,
 ) -> ValidationResult:
     """Route to the appropriate validator based on submission type."""
+    descriptor = _VALIDATOR_REGISTRY.get(requirement.submission_type)
+    if descriptor is None:
+        return ValidationResult(
+            is_valid=False,
+            message=f"Unknown submission type: {requirement.submission_type}",
+            username_match=False,
+            repo_exists=False,
+        )
+
     # Most submission types require a GitHub username — check once up front.
-    if (
-        requirement.submission_type not in _USERNAME_NOT_REQUIRED
-        and not expected_username
-    ):
+    if descriptor.requires_username and not expected_username:
         return ValidationResult(
             is_valid=False,
             message="GitHub username is required for this verification",
@@ -186,52 +333,9 @@ async def _dispatch_validation(
         )
 
     # Narrow type: after the guard above, username is str for all branches
-    # that require it. DEPLOYED_API never reads it.
+    # that require it. Validators that don't need it ignore the value.
     username: str = expected_username or ""
-
-    if requirement.submission_type == SubmissionType.GITHUB_PROFILE:
-        return await validate_github_profile(submitted_value, username)
-
-    elif requirement.submission_type == SubmissionType.PROFILE_README:
-        return await validate_profile_readme(submitted_value, username)
-
-    elif requirement.submission_type == SubmissionType.REPO_FORK:
-        if not requirement.required_repo:
-            return ValidationResult(
-                is_valid=False,
-                message="Requirement configuration error: missing required_repo",
-                username_match=False,
-                repo_exists=False,
-            )
-        return await validate_repo_fork(
-            submitted_value, username, requirement.required_repo
-        )
-
-    elif requirement.submission_type == SubmissionType.CTF_TOKEN:
-        return verify_ctf_token(submitted_value, username)
-
-    elif requirement.submission_type == SubmissionType.NETWORKING_TOKEN:
-        return verify_networking_token(submitted_value, username)
-
-    elif requirement.submission_type == SubmissionType.JOURNAL_API_VERIFIER:
-        return await _verify_repo_backed(submitted_value, verify_ci_status)
-
-    elif requirement.submission_type == SubmissionType.DEVOPS_ANALYSIS:
-        return await _verify_repo_backed(submitted_value, run_devops_workflow)
-
-    elif requirement.submission_type == SubmissionType.DEPLOYED_API:
-        return await validate_deployed_api(submitted_value)
-
-    elif requirement.submission_type == SubmissionType.SECURITY_SCANNING:
-        return await _verify_repo_backed(submitted_value, validate_security_scanning)
-
-    else:
-        return ValidationResult(
-            is_valid=False,
-            message=f"Unknown submission type: {requirement.submission_type}",
-            username_match=False,
-            repo_exists=False,
-        )
+    return await descriptor.adapter(requirement, submitted_value, username)
 
 
 async def _verify_repo_backed(

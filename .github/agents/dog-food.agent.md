@@ -57,6 +57,9 @@ This runs in a **Linux devcontainer** with:
 - Playwright MCP server (`@playwright/mcp`) is installed globally via npm in
   `.devcontainer/on-create.sh` and registered in `.mcp.json` / `.vscode/mcp.json`.
   Chromium and its OS libraries are installed via `playwright install --with-deps`.
+  Both MCP configs pin `--browser chromium`, because the Playwright MCP default
+  is the `chrome` channel, which is not installable on Linux arm64. If browser
+  launch fails, confirm that flag is present rather than symlinking binaries.
 
 All terminal commands use **bash** via `run_in_terminal`. Never use PowerShell.
 
@@ -96,11 +99,20 @@ test -f local.settings.json || cp local.settings.example.json local.settings.jso
 nohup uv run func start --port 7071 > /tmp/functions.log 2>&1 &
 ```
 
-Wait 10 seconds, then verify:
+Wait 10 seconds, then verify the host is ready. The Functions app does **not**
+expose a health route, so confirm readiness by checking the startup log for the
+worker initializing and the HTTP triggers being registered:
 
 ```bash
-sleep 10 && curl -s --max-time 5 http://localhost:7071/api/health || echo "Functions not ready yet — check /tmp/functions.log"
+sleep 10 && grep -Eq "Worker process started and initialized|Host started|Functions:" /tmp/functions.log \
+  && echo "Functions host ready" \
+  || echo "Functions not ready yet — check /tmp/functions.log"
 ```
+
+The two HTTP routes the host should register are
+`verification/jobs/{job_id}/start` (POST) and
+`verification/jobs/{instance_id}/status` (GET). There is no `/api/health`
+endpoint, so do not curl one.
 
 If the Functions runtime fails to start, report the error but continue — the
 submission attempt will fail at the polling stage and you can diagnose from logs.
@@ -196,11 +208,11 @@ the form is in a clean state:
 
 ```bash
 cd /workspaces/learn-to-cloud-app/api && uv run python scripts/reset_local_submissions.py \
-  --requirement-id <requirement-id> \
+  --requirement-slug <requirement-slug> \
   --user-id 6733686
 ```
 
-Replace `<requirement-id>` with the value from the Submission Types Reference
+Replace `<requirement-slug>` with the value from the Submission Types Reference
 table (e.g. `journal-api-implementation` for phase 3). The `--user-id` is the
 GitHub user ID for `madebygps` (`6733686`). Run with `--dry-run` first if you
 want to preview what will be deleted.
@@ -212,7 +224,7 @@ http://localhost:8000/phase/{N}
 ```
 
 Confirm the page loads (no 500, `<nav>` and `<main>` present). Find the
-requirement card for the target requirement ID (see the Submission Types
+requirement card for the target requirement slug (see the Submission Types
 Reference table above).
 
 ### 5c — Submit the requirement
@@ -245,7 +257,7 @@ for the next run:
 
 ```bash
 cd /workspaces/learn-to-cloud-app/api && uv run python scripts/reset_local_submissions.py \
-  --requirement-id <requirement-id> \
+  --requirement-slug <requirement-slug> \
   --user-id 6733686
 ```
 
@@ -293,7 +305,7 @@ Basic / Phase X submission
 | Field | Value |
 |-------|-------|
 | Phase | X |
-| Requirement | requirement-id |
+| Requirement | requirement-slug |
 | Submitted value | ... |
 | Verification result | ✅ Passed / ❌ Failed / ⏳ Timed out |
 | Message | (text from the requirement card) |

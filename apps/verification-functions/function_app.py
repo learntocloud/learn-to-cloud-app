@@ -81,11 +81,13 @@ configure_observability()
 app = df.DFApp(http_auth_level=func.AuthLevel.ANONYMOUS)
 
 _DEFAULT_ORCHESTRATOR_NAME = "verification_orchestrator"
-# Async-only submission types: phase 3+ verifications that involve LLM
-# grading, multi-task fan-out, or external probes with retries and stay on
-# the Durable Functions path. Phase 0-2 sync types (github_profile,
+# BACKGROUND submission types: phase 3+ verifications that involve LLM
+# grading, multi-task fan-out, or external probes with retries and run on
+# the Durable Functions path. The INLINE phase 0-2 types (github_profile,
 # profile_readme, repo_fork, ctf_token, networking_token) run inside the
-# FastAPI request instead and are intentionally absent.
+# FastAPI request instead and are intentionally absent. Execution mode is
+# declared per type in verification/dispatcher.py (_VALIDATOR_REGISTRY);
+# this map only picks the orchestrator name for the background types.
 _ORCHESTRATOR_NAMES_BY_SUBMISSION_TYPE = {
     SubmissionType.JOURNAL_API_RESPONSE: "verify_phase3_journal_api_orchestrator",
     SubmissionType.CODE_ANALYSIS: "verify_phase3_journal_api_orchestrator",

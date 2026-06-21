@@ -1,6 +1,6 @@
 ---
 name: reset-local-submissions
-description: Undo local submissions for DevOps and Verify Journal API Implementation so you can re-test verification flows. Also supports custom requirement IDs and user scoping. Use when user says "reset local submissions", "undo local verification", "reset phase X locally", or "let me re-test verification".
+description: Undo local submissions for DevOps and Verify Journal API Implementation so you can re-test verification flows. Also supports custom requirement slugs and user scoping. Use when user says "reset local submissions", "undo local verification", "reset phase X locally", or "let me re-test verification".
 ---
 
 # Reset Local Submissions
@@ -40,12 +40,15 @@ Run `--dry-run` first (without `--user-id`) to discover the IDs in your local da
 cd <workspace>/api && uv run python scripts/reset_local_submissions.py --user-id <github_user_id>
 ```
 
-## Custom Requirement IDs
+## Custom Requirement Slugs
+
+A requirement slug is the human-friendly identifier such as
+`devops-implementation` or `journal-api-implementation`.
 
 ```bash
 cd <workspace>/api && uv run python scripts/reset_local_submissions.py \
-  --requirement-id <requirement_id_1> \
-  --requirement-id <requirement_id_2>
+  --requirement-slug <requirement_slug_1> \
+  --requirement-slug <requirement_slug_2>
 ```
 
 ## Combined Example
@@ -53,8 +56,8 @@ cd <workspace>/api && uv run python scripts/reset_local_submissions.py \
 ```bash
 cd <workspace>/api && uv run python scripts/reset_local_submissions.py \
   --user-id <user_id> \
-  --requirement-id devops-implementation \
-  --requirement-id journal-api-implementation
+  --requirement-slug devops-implementation \
+  --requirement-slug journal-api-implementation
 ```
 
 ## Expected Output
