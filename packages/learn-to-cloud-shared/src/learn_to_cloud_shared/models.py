@@ -142,7 +142,6 @@ class SubmissionValueKind(StrEnum):
     GITHUB_URL = "github_url"
     TOKEN = "token"
     DEPLOYED_URL = "deployed_url"
-    TEXT = "text"
 
 
 class Submission(TimestampMixin, Base):
@@ -173,7 +172,6 @@ class Submission(TimestampMixin, Base):
                 AND github_url IS NOT NULL
                 AND token_value IS NULL
                 AND deployed_url IS NULL
-                AND text_value IS NULL
                 AND submitted_value = github_url
             )
             OR (
@@ -181,7 +179,6 @@ class Submission(TimestampMixin, Base):
                 AND token_value IS NOT NULL
                 AND github_url IS NULL
                 AND deployed_url IS NULL
-                AND text_value IS NULL
                 AND submitted_value = token_value
             )
             OR (
@@ -189,16 +186,7 @@ class Submission(TimestampMixin, Base):
                 AND deployed_url IS NOT NULL
                 AND github_url IS NULL
                 AND token_value IS NULL
-                AND text_value IS NULL
                 AND submitted_value = deployed_url
-            )
-            OR (
-                submission_value_kind = 'text'
-                AND text_value IS NOT NULL
-                AND github_url IS NULL
-                AND token_value IS NULL
-                AND deployed_url IS NULL
-                AND submitted_value = text_value
             )
             """,
             name="ck_submissions_typed_value_shape",
@@ -216,10 +204,6 @@ class Submission(TimestampMixin, Base):
             AND (
                 token_value IS NULL
                 OR length(btrim(token_value)) > 0
-            )
-            AND (
-                text_value IS NULL
-                OR length(btrim(text_value)) > 0
             )
             """,
             name="ck_submissions_typed_value_format",
@@ -267,7 +251,6 @@ class Submission(TimestampMixin, Base):
     github_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     token_value: Mapped[str | None] = mapped_column(Text, nullable=True)
     deployed_url: Mapped[str | None] = mapped_column(Text, nullable=True)
-    text_value: Mapped[str | None] = mapped_column(Text, nullable=True)
     extracted_username: Mapped[str | None] = mapped_column(
         String(255),
         nullable=True,
@@ -321,7 +304,6 @@ class VerificationJob(TimestampMixin, Base):
                 AND github_url IS NOT NULL
                 AND token_value IS NULL
                 AND deployed_url IS NULL
-                AND text_value IS NULL
                 AND submitted_value = github_url
             )
             OR (
@@ -329,7 +311,6 @@ class VerificationJob(TimestampMixin, Base):
                 AND token_value IS NOT NULL
                 AND github_url IS NULL
                 AND deployed_url IS NULL
-                AND text_value IS NULL
                 AND submitted_value = token_value
             )
             OR (
@@ -337,16 +318,7 @@ class VerificationJob(TimestampMixin, Base):
                 AND deployed_url IS NOT NULL
                 AND github_url IS NULL
                 AND token_value IS NULL
-                AND text_value IS NULL
                 AND submitted_value = deployed_url
-            )
-            OR (
-                submission_value_kind = 'text'
-                AND text_value IS NOT NULL
-                AND github_url IS NULL
-                AND token_value IS NULL
-                AND deployed_url IS NULL
-                AND submitted_value = text_value
             )
             """,
             name="ck_verification_jobs_typed_value_shape",
@@ -364,10 +336,6 @@ class VerificationJob(TimestampMixin, Base):
             AND (
                 token_value IS NULL
                 OR length(btrim(token_value)) > 0
-            )
-            AND (
-                text_value IS NULL
-                OR length(btrim(text_value)) > 0
             )
             """,
             name="ck_verification_jobs_typed_value_format",
@@ -417,7 +385,6 @@ class VerificationJob(TimestampMixin, Base):
     github_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     token_value: Mapped[str | None] = mapped_column(Text, nullable=True)
     deployed_url: Mapped[str | None] = mapped_column(Text, nullable=True)
-    text_value: Mapped[str | None] = mapped_column(Text, nullable=True)
     extracted_username: Mapped[str | None] = mapped_column(String(255), nullable=True)
     cloud_provider: Mapped[str | None] = mapped_column(String(16), nullable=True)
     result_submission_id: Mapped[int | None] = mapped_column(

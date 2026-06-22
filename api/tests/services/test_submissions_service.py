@@ -64,7 +64,6 @@ def _make_mock_submission(
         github_url="https://github.com/user/repo",
         token_value=None,
         deployed_url=None,
-        text_value=None,
         extracted_username="user",
         is_validated=is_validated,
         validated_at=datetime.now(UTC) if is_validated else None,

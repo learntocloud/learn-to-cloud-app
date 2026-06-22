@@ -32,7 +32,6 @@ class SubmittedValueColumns(Protocol):
     github_url: str | None
     token_value: str | None
     deployed_url: str | None
-    text_value: str | None
     submitted_value: str
 
 
@@ -44,7 +43,6 @@ class SubmittedValue:
     github_url: str | None = None
     token_value: str | None = None
     deployed_url: str | None = None
-    text_value: str | None = None
 
     @property
     def as_text(self) -> str:
@@ -55,8 +53,6 @@ class SubmittedValue:
                 value = self.token_value
             case SubmissionValueKind.DEPLOYED_URL:
                 value = self.deployed_url
-            case SubmissionValueKind.TEXT:
-                value = self.text_value
         if value is None:
             raise ValueError(f"Missing value for {self.kind.value}")
         return value
@@ -68,7 +64,6 @@ class SubmittedValue:
             "github_url": self.github_url,
             "token_value": self.token_value,
             "deployed_url": self.deployed_url,
-            "text_value": self.text_value,
         }
 
     def to_payload(self) -> dict[str, str | None]:
@@ -94,7 +89,6 @@ class SubmittedValue:
                 payload_map.get("deployed_url"),
                 "deployed_url",
             ),
-            text_value=_optional_str(payload_map.get("text_value"), "text_value"),
             legacy_value=_optional_str(
                 payload_map.get("submitted_value"),
                 "submitted_value",
@@ -121,8 +115,6 @@ class SubmittedValue:
             case SubmissionValueKind.DEPLOYED_URL:
                 _validate_http_url(value, field_name="deployed API URL")
                 return cls(kind=kind, deployed_url=value)
-            case SubmissionValueKind.TEXT:
-                return cls(kind=kind, text_value=value)
 
     @classmethod
     def from_columns(
@@ -132,7 +124,6 @@ class SubmittedValue:
         github_url: str | None,
         token_value: str | None,
         deployed_url: str | None,
-        text_value: str | None,
         legacy_value: str | None = None,
     ) -> SubmittedValue:
         normalized_kind = (
@@ -143,7 +134,6 @@ class SubmittedValue:
             github_url=github_url,
             token_value=token_value,
             deployed_url=deployed_url,
-            text_value=text_value,
         )
         if legacy_value is not None and legacy_value != value:
             raise ValueError("Legacy submitted_value does not match typed value")
@@ -152,7 +142,6 @@ class SubmittedValue:
             github_url=github_url,
             token_value=token_value,
             deployed_url=deployed_url,
-            text_value=text_value,
         )
 
 
@@ -179,7 +168,6 @@ def submission_value_from_columns(row: SubmittedValueColumns) -> SubmittedValue:
         github_url=row.github_url,
         token_value=row.token_value,
         deployed_url=row.deployed_url,
-        text_value=row.text_value,
         legacy_value=row.submitted_value,
     )
 
@@ -198,13 +186,11 @@ def _single_value_for_kind(
     github_url: str | None,
     token_value: str | None,
     deployed_url: str | None,
-    text_value: str | None,
 ) -> str:
     values = {
         SubmissionValueKind.GITHUB_URL: github_url,
         SubmissionValueKind.TOKEN: token_value,
         SubmissionValueKind.DEPLOYED_URL: deployed_url,
-        SubmissionValueKind.TEXT: text_value,
     }
     value = values[kind]
     other_values = [item for item_kind, item in values.items() if item_kind != kind]

@@ -67,7 +67,6 @@ def _mock_job(value: str = "https://github.com/user/repo") -> SimpleNamespace:
         github_url=value,
         token_value=None,
         deployed_url=None,
-        text_value=None,
     )
 
 
