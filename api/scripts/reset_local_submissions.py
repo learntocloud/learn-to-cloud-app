@@ -3,6 +3,11 @@
 Deletes submission rows by requirement slug. Progress is automatically
 correct on next page load because it's computed from the submissions table.
 
+Dependent ``verification_jobs`` rows are deleted first (a completed async
+verification job links back to the submission it produced via
+``result_submission_id``), otherwise the submission delete would raise a
+foreign-key violation.
+
 Submissions reference a requirement by ``requirement_uuid`` (FK to
 ``requirements.uuid``); the human-friendly slug lives on the requirements
 table, so we join through it to match the slugs passed on the command line.
@@ -77,6 +82,22 @@ async def reset_submissions(
             if dry_run:
                 print("Dry run enabled: no changes applied.")
                 return 0
+
+            job_user_filter = " AND vj.user_id = ANY(:user_ids)" if user_ids else ""
+            delete_jobs_query = text(
+                f"""
+                DELETE FROM verification_jobs vj
+                USING requirements r
+                WHERE r.uuid = vj.requirement_uuid
+                  AND r.slug = ANY(:requirement_slugs){job_user_filter}
+                """
+            )
+            jobs_result = await conn.execute(delete_jobs_query, params)
+            if jobs_result.rowcount:
+                print(
+                    f"Deleted {jobs_result.rowcount} dependent "
+                    "verification_jobs row(s)."
+                )
 
             delete_query = text(
                 f"""
