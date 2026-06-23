@@ -92,16 +92,13 @@ _DEFAULT_ORCHESTRATOR_NAME = "verification_orchestrator"
 #
 # Each background type maps to its own per-phase orchestration (issue
 # #429): phases 3 and 6 run the canonical grading-capable workflow,
-# phases 4 and 5 run the deterministic (never-grades) workflow. Phases 4
-# and 5 point at ``_v2`` names because the deterministic workflow dropped
-# an activity call; their legacy names stay registered as drain-only
-# orchestrators for in-flight jobs.
+# phases 4 and 5 run the deterministic (never-grades) workflow.
 _ORCHESTRATOR_NAMES_BY_SUBMISSION_TYPE = {
     SubmissionType.JOURNAL_API_VERIFIER: (
         "verify_phase3_journal_api_verifier_orchestrator"
     ),
-    SubmissionType.DEPLOYED_API: "verify_phase4_deployed_api_orchestrator_v2",
-    SubmissionType.DEVOPS_ANALYSIS: "verify_phase5_devops_orchestrator_v2",
+    SubmissionType.DEPLOYED_API: "verify_phase4_deployed_api_orchestrator",
+    SubmissionType.DEVOPS_ANALYSIS: "verify_phase5_devops_orchestrator",
     SubmissionType.SECURITY_SCANNING: "verify_phase6_security_orchestrator",
 }
 _VERIFY_RETRY_OPTIONS = df.RetryOptions(
@@ -509,10 +506,10 @@ def _run_verification_orchestration(context: df.DurableOrchestrationContext):
 def _deterministic_verification(context: df.DurableOrchestrationContext):
     """Workflow for phases that never LLM-grade (phases 4 and 5).
 
-    prepare -> verify -> persist. There is no ``collect_llm_grading_requests``
-    call, so this is a breaking change to the recorded activity sequence:
-    the phases adopting it use new (``_v2``) orchestrator names while the
-    legacy names drain in-flight jobs on the canonical workflow.
+    prepare -> verify -> persist, with no ``collect_llm_grading_requests``
+    call. These verification jobs are short-lived and low-volume, so the
+    orchestrator name is not versioned; the rare case of a job being
+    mid-flight across a deploy is acceptable and recoverable by resubmitting.
     """
     outcome = yield from _prepare_step(context)
     if isinstance(outcome, _TerminalOutcome):
@@ -594,40 +591,12 @@ def verify_phase3_journal_api_verifier_orchestrator(
 
 @app.orchestration_trigger(context_name="context")
 def verify_phase4_deployed_api_orchestrator(context: df.DurableOrchestrationContext):
-    """Drain-only orchestrator for phase 4 deployed API jobs started before
-    the per-phase split (issue #429).
-
-    Phase 4 never LLM-grades, so new jobs run the deterministic workflow
-    under :func:`verify_phase4_deployed_api_orchestrator_v2`. Dropping the
-    ``collect_llm_grading_requests`` call changes the recorded activity
-    sequence, so this legacy name stays on the canonical workflow to
-    replay any in-flight pre-split job cleanly. Safe to remove after
-    Durable retention expires.
-    """
-    return (yield from _run_verification_orchestration(context))
-
-
-@app.orchestration_trigger(context_name="context")
-def verify_phase4_deployed_api_orchestrator_v2(
-    context: df.DurableOrchestrationContext,
-):
     """Run Phase 4 deployed API verification (deterministic, no LLM grading)."""
     return (yield from _deterministic_verification(context))
 
 
 @app.orchestration_trigger(context_name="context")
 def verify_phase5_devops_orchestrator(context: df.DurableOrchestrationContext):
-    """Drain-only orchestrator for phase 5 DevOps jobs started before the
-    per-phase split (issue #429).
-
-    See :func:`verify_phase4_deployed_api_orchestrator` for rationale. New
-    jobs run :func:`verify_phase5_devops_orchestrator_v2`.
-    """
-    return (yield from _run_verification_orchestration(context))
-
-
-@app.orchestration_trigger(context_name="context")
-def verify_phase5_devops_orchestrator_v2(context: df.DurableOrchestrationContext):
     """Run Phase 5 DevOps verification (deterministic, no LLM grading)."""
     return (yield from _deterministic_verification(context))
 

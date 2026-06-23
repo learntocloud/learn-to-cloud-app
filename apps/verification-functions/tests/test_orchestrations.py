@@ -281,39 +281,18 @@ class TestDeterministicWorkflow:
         assert result == terminal
 
 
-class TestDrainCompatibility:
-    def test_deterministic_phase_type_still_grades_on_canonical_workflow(
-        self,
-    ) -> None:
-        """A phase 4/5 job started before the split keeps its old orchestrator
-        name, which routes to the canonical workflow. That workflow still makes
-        the ``collect_llm_grading_requests`` call its recorded history expects,
-        so the in-flight job replays cleanly."""
-        payload = _deterministic_payload()
-        ctx = _FakeOrchestrationContext({"id": "job-1", **payload})
-        responder = _make_responder(payload, llm_requests=[])
-        calls, _ = _drive(function_app._run_verification_orchestration(ctx), responder)
-        assert _sequence(calls) == [
-            ("activity_with_retry", "prepare_verification_job"),
-            ("activity_with_retry", "execute_requirement_verification"),
-            ("activity", "collect_llm_grading_requests"),
-            ("activity_with_retry", "persist_verification_result"),
-        ]
-
-
 class TestOrchestratorNameMapping:
-    def test_phase4_and_phase5_use_v2_names(self) -> None:
+    def test_phase4_and_phase5_map_to_deterministic_orchestrators(self) -> None:
         names = function_app._ORCHESTRATOR_NAMES_BY_SUBMISSION_TYPE
         assert (
             names[SubmissionType.DEPLOYED_API]
-            == "verify_phase4_deployed_api_orchestrator_v2"
+            == "verify_phase4_deployed_api_orchestrator"
         )
         assert (
-            names[SubmissionType.DEVOPS_ANALYSIS]
-            == "verify_phase5_devops_orchestrator_v2"
+            names[SubmissionType.DEVOPS_ANALYSIS] == "verify_phase5_devops_orchestrator"
         )
 
-    def test_phase3_and_phase6_keep_legacy_names(self) -> None:
+    def test_phase3_and_phase6_map_to_canonical_orchestrators(self) -> None:
         names = function_app._ORCHESTRATOR_NAMES_BY_SUBMISSION_TYPE
         assert (
             names[SubmissionType.JOURNAL_API_VERIFIER]
@@ -328,10 +307,3 @@ class TestOrchestratorNameMapping:
         """Guards against pointing the resolver at a non-existent orchestrator."""
         for name in function_app._ORCHESTRATOR_NAMES_BY_SUBMISSION_TYPE.values():
             assert hasattr(function_app, name), f"missing orchestrator: {name}"
-
-    def test_legacy_drain_names_remain_registered(self) -> None:
-        for name in (
-            "verify_phase4_deployed_api_orchestrator",
-            "verify_phase5_devops_orchestrator",
-        ):
-            assert hasattr(function_app, name), f"missing drain orchestrator: {name}"
