@@ -21,7 +21,7 @@ repos:
     hooks:
       - id: ty
         name: ty type check
-        entry: bash -c 'uv run --project api ty check --exclude scripts --exclude tests api && (cd packages/learn-to-cloud-shared && uv run --project . ty check --exclude tests .) && uv run --project apps/verification-functions ty check apps/verification-functions'
+        entry: bash -c 'uv run --project api ty check --exclude scripts --exclude tests api && (cd packages/learn-to-cloud-shared && uv run --project . ty check --exclude tests .) && uv run --project apps/verification-functions ty check --exclude apps/verification-functions/tests apps/verification-functions'
         language: system
         files: ^(api|apps/verification-functions|packages/learn-to-cloud-shared)/.*\.py$
         pass_filenames: false
