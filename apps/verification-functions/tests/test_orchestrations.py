@@ -161,14 +161,19 @@ def _sequence(calls: list[_RecordedCall]) -> list[tuple[str, str]]:
     return [call.as_tuple() for call in calls]
 
 
-class TestGradedWorkflow:
+class TestCanonicalWorkflow:
+    """The grading-capable workflow used by phases 3 and 6, the default
+    orchestrator, and the drain-only legacy orchestrators."""
+
     def test_grades_when_requests_present(self) -> None:
         payload = _graded_payload()
         ctx = _FakeOrchestrationContext({"id": "job-1", **payload})
         responder = _make_responder(
             payload, llm_requests=[{"task": "a"}, {"task": "b"}]
         )
-        calls, result = _drive(function_app._graded_verification(ctx), responder)
+        calls, result = _drive(
+            function_app._run_verification_orchestration(ctx), responder
+        )
         assert _sequence(calls) == [
             ("activity_with_retry", "prepare_verification_job"),
             ("activity_with_retry", "execute_requirement_verification"),
@@ -189,7 +194,7 @@ class TestGradedWorkflow:
         payload = _graded_payload()
         ctx = _FakeOrchestrationContext({"id": "job-1", **payload})
         responder = _make_responder(payload, llm_requests=[])
-        calls, _ = _drive(function_app._graded_verification(ctx), responder)
+        calls, _ = _drive(function_app._run_verification_orchestration(ctx), responder)
         assert _sequence(calls) == [
             ("activity_with_retry", "prepare_verification_job"),
             ("activity_with_retry", "execute_requirement_verification"),
@@ -203,7 +208,7 @@ class TestGradedWorkflow:
         responder = _make_responder(
             payload, llm_requests=[{"task": "a"}], config_valid=False
         )
-        calls, _ = _drive(function_app._graded_verification(ctx), responder)
+        calls, _ = _drive(function_app._run_verification_orchestration(ctx), responder)
         assert _sequence(calls) == [
             ("activity_with_retry", "prepare_verification_job"),
             ("activity_with_retry", "execute_requirement_verification"),
@@ -221,7 +226,7 @@ class TestGradedWorkflow:
             llm_requests=[{"task": "a"}],
             fail_activity="run_llm_grading",
         )
-        calls, _ = _drive(function_app._graded_verification(ctx), responder)
+        calls, _ = _drive(function_app._run_verification_orchestration(ctx), responder)
         assert _sequence(calls) == [
             ("activity_with_retry", "prepare_verification_job"),
             ("activity_with_retry", "execute_requirement_verification"),
@@ -237,7 +242,9 @@ class TestGradedWorkflow:
         ctx = _FakeOrchestrationContext({"id": "job-1", **payload})
         terminal = {"job_id": "job-1", "status": "completed", "submission_id": 1}
         responder = _make_responder(payload, terminal=terminal)
-        calls, result = _drive(function_app._graded_verification(ctx), responder)
+        calls, result = _drive(
+            function_app._run_verification_orchestration(ctx), responder
+        )
         assert _sequence(calls) == [
             ("activity_with_retry", "prepare_verification_job"),
         ]
@@ -274,10 +281,14 @@ class TestDeterministicWorkflow:
         assert result == terminal
 
 
-class TestLegacyDrainBody:
-    def test_deployed_api_still_calls_collect_on_legacy_body(self) -> None:
-        """In-flight phase 4/5 jobs replay on the legacy body, which keeps
-        the collect call so their recorded history still matches."""
+class TestDrainCompatibility:
+    def test_deterministic_phase_type_still_grades_on_canonical_workflow(
+        self,
+    ) -> None:
+        """A phase 4/5 job started before the split keeps its old orchestrator
+        name, which routes to the canonical workflow. That workflow still makes
+        the ``collect_llm_grading_requests`` call its recorded history expects,
+        so the in-flight job replays cleanly."""
         payload = _deterministic_payload()
         ctx = _FakeOrchestrationContext({"id": "job-1", **payload})
         responder = _make_responder(payload, llm_requests=[])

@@ -91,10 +91,11 @@ _DEFAULT_ORCHESTRATOR_NAME = "verification_orchestrator"
 # this map only picks the orchestrator name for the background types.
 #
 # Each background type maps to its own per-phase orchestration (issue
-# #429): phases 3 and 6 use the graded workflow, phases 4 and 5 use the
-# deterministic workflow. Phases 4 and 5 point at ``_v2`` names because
-# the deterministic workflow dropped an activity call; their legacy names
-# stay registered as drain-only orchestrators for in-flight jobs.
+# #429): phases 3 and 6 run the canonical grading-capable workflow,
+# phases 4 and 5 run the deterministic (never-grades) workflow. Phases 4
+# and 5 point at ``_v2`` names because the deterministic workflow dropped
+# an activity call; their legacy names stay registered as drain-only
+# orchestrators for in-flight jobs.
 _ORCHESTRATOR_NAMES_BY_SUBMISSION_TYPE = {
     SubmissionType.JOURNAL_API_VERIFIER: (
         "verify_phase3_journal_api_verifier_orchestrator"
@@ -327,113 +328,6 @@ def _result_custom_status(
     return status
 
 
-def _run_verification_orchestration(context: df.DurableOrchestrationContext):
-    """Run one verification job workflow.
-
-    Input is a :class:`PreparedVerificationJob` payload dict (with
-    ``id``, ``requirement``, ``submitted_value`` etc.) -- the HTTP
-    starter always builds and posts one. Functions never reads
-    curriculum or users tables.
-    """
-    input_payload = context.get_input()
-    if not isinstance(input_payload, Mapping):
-        raise TypeError(
-            f"verification orchestration: expected Mapping input, "
-            f"got {type(input_payload).__name__}"
-        )
-    job_id_obj = input_payload.get("id")
-    job_id = job_id_obj if isinstance(job_id_obj, str) else str(job_id_obj)
-    _set_verification_span_attributes(job_id=job_id)
-    context.set_custom_status({"step": "preparing", "job_id": job_id})
-    preparation = yield context.call_activity_with_retry(
-        "prepare_verification_job",
-        _TRANSIENT_RETRY_OPTIONS,
-        input_payload,
-    )
-
-    terminal_result = preparation.get("terminal_result")
-    if terminal_result is not None:
-        result_payload = _activity_payload(terminal_result)
-        _set_result_span_attributes(result_payload)
-        context.set_custom_status(
-            _result_custom_status("completed", job_id, result_payload)
-        )
-        return terminal_result
-
-    prepared_job = preparation["job"]
-    prepared_job_payload = _activity_payload(prepared_job)
-    prepared_verification_job = PreparedVerificationJob.from_payload(
-        prepared_job_payload
-    )
-    _set_prepared_job_span_attributes(prepared_verification_job)
-    context.set_custom_status(
-        _job_custom_status("verifying", job_id, prepared_verification_job)
-    )
-    run_result = yield context.call_activity_with_retry(
-        "execute_requirement_verification",
-        _VERIFY_RETRY_OPTIONS,
-        prepared_job,
-    )
-    llm_requests = yield context.call_activity(
-        "collect_llm_grading_requests",
-        run_result,
-    )
-    if llm_requests:
-        context.set_custom_status(
-            _job_custom_status("llm_grading", job_id, prepared_verification_job)
-        )
-        config_status = yield context.call_activity("ensure_grading_config", None)
-        if not config_status.get("valid"):
-            missing = config_status.get("missing_vars") or []
-            run_result = yield context.call_activity(
-                "llm_grading_failed",
-                {
-                    "run_result": run_result,
-                    "detail": f"missing grading config: {', '.join(missing)}",
-                    "error_type": "MissingGradingConfig",
-                },
-            )
-        else:
-            try:
-                decisions: list[dict[str, object]] = []
-                for request_payload in llm_requests:
-                    decision_payload = yield context.call_activity_with_retry(
-                        "run_llm_grading",
-                        _LLM_RETRY_OPTIONS,
-                        request_payload,
-                    )
-                    decisions.append(_activity_payload(decision_payload))
-
-                run_result = yield context.call_activity(
-                    "apply_llm_grading_results",
-                    {"run_result": run_result, "decisions": decisions},
-                )
-            except Exception as exc:
-                run_result = yield context.call_activity(
-                    "llm_grading_failed",
-                    {
-                        "run_result": run_result,
-                        "detail": str(exc),
-                        "error_type": type(exc).__name__,
-                    },
-                )
-
-    context.set_custom_status(
-        _job_custom_status("persisting", job_id, prepared_verification_job)
-    )
-    result = yield context.call_activity_with_retry(
-        "persist_verification_result",
-        _TRANSIENT_RETRY_OPTIONS,
-        run_result,
-    )
-    result_payload = _activity_payload(result)
-    _set_result_span_attributes(result_payload)
-    context.set_custom_status(
-        _result_custom_status("completed", job_id, result_payload)
-    )
-    return result
-
-
 @dataclass(frozen=True)
 class _TerminalOutcome:
     """Preparation already decided the job's outcome; skip verification."""
@@ -450,17 +344,14 @@ class _PreparedOutcome:
     prepared_job: PreparedVerificationJob
 
 
-_PrepareOutcome = _TerminalOutcome | _PreparedOutcome
-
-
 def _prepare_step(context: df.DurableOrchestrationContext):
     """Validate and prepare the job. Shared first step for every workflow.
 
     Yields the ``prepare_verification_job`` activity and returns either a
     :class:`_TerminalOutcome` (preparation already decided the result) or a
     :class:`_PreparedOutcome`. Side effects (span attributes, custom
-    status) match the legacy body so phases that keep their orchestrator
-    name replay identically.
+    status) are kept in the order the canonical workflow has always used
+    so in-flight jobs replay identically.
     """
     input_payload = context.get_input()
     if not isinstance(input_payload, Mapping):
@@ -598,12 +489,14 @@ def _persist_step(
     return result
 
 
-def _graded_verification(context: df.DurableOrchestrationContext):
-    """Workflow for phases that may LLM-grade evidence (phases 3 and 6).
+def _run_verification_orchestration(context: df.DurableOrchestrationContext):
+    """Canonical verification workflow: prepare -> verify -> grade -> persist.
 
-    prepare -> verify -> llm_grading -> persist. The activity sequence is
-    identical to the legacy shared body for a graded job, so phases that
-    adopt this workflow keep their orchestrator name and replay cleanly.
+    The LLM grading step is data-driven: it runs only when the verify
+    step produced grading requests, so phases that never grade simply
+    pass through it. Used by the grading-capable phases (3 and 6), the
+    default orchestrator, and every drain-only legacy orchestrator, whose
+    in-flight jobs recorded this exact activity sequence.
     """
     outcome = yield from _prepare_step(context)
     if isinstance(outcome, _TerminalOutcome):
@@ -619,7 +512,7 @@ def _deterministic_verification(context: df.DurableOrchestrationContext):
     prepare -> verify -> persist. There is no ``collect_llm_grading_requests``
     call, so this is a breaking change to the recorded activity sequence:
     the phases adopting it use new (``_v2``) orchestrator names while the
-    legacy names drain in-flight jobs on the legacy body.
+    legacy names drain in-flight jobs on the canonical workflow.
     """
     outcome = yield from _prepare_step(context)
     if isinstance(outcome, _TerminalOutcome):
@@ -630,7 +523,7 @@ def _deterministic_verification(context: df.DurableOrchestrationContext):
 
 @app.orchestration_trigger(context_name="context")
 def verification_orchestrator(context: df.DurableOrchestrationContext):
-    """Run the legacy generic verification workflow."""
+    """Run the default verification workflow for unmapped submission types."""
     return (yield from _run_verification_orchestration(context))
 
 
@@ -696,7 +589,7 @@ def verify_phase3_journal_api_verifier_orchestrator(
     context: df.DurableOrchestrationContext,
 ):
     """Run Phase 3 journal API verification (CI gate + LLM rubric review)."""
-    return (yield from _graded_verification(context))
+    return (yield from _run_verification_orchestration(context))
 
 
 @app.orchestration_trigger(context_name="context")
@@ -707,9 +600,9 @@ def verify_phase4_deployed_api_orchestrator(context: df.DurableOrchestrationCont
     Phase 4 never LLM-grades, so new jobs run the deterministic workflow
     under :func:`verify_phase4_deployed_api_orchestrator_v2`. Dropping the
     ``collect_llm_grading_requests`` call changes the recorded activity
-    sequence, so this legacy name stays on the legacy body to replay any
-    in-flight pre-split job cleanly. Safe to remove after Durable retention
-    expires.
+    sequence, so this legacy name stays on the canonical workflow to
+    replay any in-flight pre-split job cleanly. Safe to remove after
+    Durable retention expires.
     """
     return (yield from _run_verification_orchestration(context))
 
@@ -742,7 +635,7 @@ def verify_phase5_devops_orchestrator_v2(context: df.DurableOrchestrationContext
 @app.orchestration_trigger(context_name="context")
 def verify_phase6_security_orchestrator(context: df.DurableOrchestrationContext):
     """Run Phase 6 security verification (probes + LLM rubric review)."""
-    return (yield from _graded_verification(context))
+    return (yield from _run_verification_orchestration(context))
 
 
 @app.activity_trigger(input_name="input_payload")
