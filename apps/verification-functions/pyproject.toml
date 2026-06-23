@@ -24,6 +24,11 @@ learn-to-cloud-shared = { workspace = true }
 
 [dependency-groups]
 dev = [
+    "pytest>=8.4.2",
     "ruff==0.15.12",
     "ty==0.0.34",
 ]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = ["-ra", "-v"]

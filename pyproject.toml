@@ -31,12 +31,12 @@ help = "Run all static checks (lint, format, type-check, migration SQL, file hyg
 cmd = "prek run --all-files --show-diff-on-failure"
 
 [tool.poe.tasks.test]
-help = "Run the test suites (with coverage gates) and the verification-functions import smoke test"
+help = "Run the test suites (with coverage gates) and the verification-functions orchestration tests"
 shell = """
 set -e
 (cd api && uv run pytest tests/ --cov=learn_to_cloud --cov-report=term-missing)
 (cd packages/learn-to-cloud-shared && uv run pytest tests/ --cov=learn_to_cloud_shared --cov-report=term-missing)
-(cd apps/verification-functions && uv run python -c "import function_app")
+(cd apps/verification-functions && uv run pytest tests/)
 """
 
 [tool.poe.tasks.check]
