@@ -48,7 +48,6 @@ def test_github_url_value_uses_github_column() -> None:
         "github_url": "https://github.com/user",
         "token_value": None,
         "deployed_url": None,
-        "text_value": None,
     }
 
 
@@ -98,7 +97,6 @@ def test_payload_round_trip_rejects_legacy_mismatch() -> None:
         "github_url": "https://github.com/user",
         "token_value": None,
         "deployed_url": None,
-        "text_value": None,
         "submitted_value": "https://github.com/other",
     }
 
