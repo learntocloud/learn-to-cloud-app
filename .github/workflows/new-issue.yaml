@@ -1,0 +1,105 @@
+name: Issue Triage and Intake
+
+on:
+  issues:
+    types: [opened, reopened]
+
+jobs:
+  triage:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Classify and label issue
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const issue = context.payload.issue;
+            const title = issue.title?.toLowerCase() || '';
+            const body = issue.body?.toLowerCase() || '';
+            const combined = `${title} ${body}`;
+            const labels = [];
+
+            const isVerification = combined.includes('verify') ||
+              combined.includes('verification') ||
+              combined.includes('phase') ||
+              combined.includes('ctf') ||
+              combined.includes('token') ||
+              combined.includes('progress');
+            const isDocumentation = combined.includes('docs') ||
+              combined.includes('documentation') ||
+              combined.includes('readme') ||
+              combined.includes('typo');
+            const isFeature = combined.includes('feature request') ||
+              combined.includes('enhancement') ||
+              title.includes('[feature]') ||
+              title.startsWith('feature:');
+            const isQuestion = title.startsWith('question:') ||
+              combined.includes('how do i') ||
+              combined.includes('how to') ||
+              combined.includes('can someone help') ||
+              combined.includes('question');
+            const isBug = title.includes('[bug]') ||
+              title.startsWith('bug:') ||
+              combined.includes('bug') ||
+              combined.includes('error') ||
+              combined.includes('fails') ||
+              combined.includes('not working') ||
+              combined.includes('cannot ');
+
+            labels.push('community automation');
+            if (isVerification) labels.push('needs verification');
+            if (isDocumentation) labels.push('documentation');
+            if (isFeature) labels.push('enhancement');
+            if (isQuestion && !isFeature && !isBug) labels.push('question');
+            if (isBug) labels.push('bug');
+            if (!isBug && !isFeature && !isQuestion) labels.push('question');
+
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+              labels: [...new Set(labels)],
+            });
+
+            await github.rest.issues.addAssignees({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+              assignees: ['madebygps', 'rishabkumar7'],
+            });
+
+      - name: Post intake guidance comment
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const issue = context.payload.issue;
+            const title = issue.title?.toLowerCase() || '';
+            const body = issue.body?.toLowerCase() || '';
+            const combined = `${title} ${body}`;
+            const isVerification = combined.includes('verify') ||
+              combined.includes('verification') ||
+              combined.includes('phase') ||
+              combined.includes('ctf') ||
+              combined.includes('token') ||
+              combined.includes('progress');
+
+            let message = `Thanks for opening this issue. We've auto-labeled it to speed up triage.\n\n`;
+            message += `A maintainer will review this soon.`;
+
+            if (isVerification) {
+              message += `\n\nTo unblock faster, please add:\n`;
+              message += `- your username\n`;
+              message += `- phase number\n`;
+              message += `- whether this is local or production\n`;
+              message += `- the exact error text and timestamp`;
+            }
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+              body: message,
+            });
