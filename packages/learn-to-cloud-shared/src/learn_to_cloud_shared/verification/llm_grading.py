@@ -8,6 +8,9 @@ from learn_to_cloud_shared.schemas import (
     FrozenModel,
     HandsOnRequirement,
 )
+from learn_to_cloud_shared.verification.career_reflection import (
+    collect_career_reflection_evidence,
+)
 from learn_to_cloud_shared.verification.journal_api import (
     collect_journal_api_implementation_evidence,
 )
@@ -18,6 +21,8 @@ from learn_to_cloud_shared.verification.security_scanning import (
 from learn_to_cloud_shared.verification.tasks import (
     PHASE3_LLM_TASKS,
     PHASE6_LLM_TASKS,
+    PHASE7_LLM_TASKS,
+    PHASE7_REQUIREMENT_SLUG,
     GradingResult,
     LLMGradingDecision,
     VerificationTask,
@@ -54,6 +59,9 @@ async def collect_llm_grading_requests(
     tasks = _llm_tasks_for_requirement(run_result.job.requirement)
     if not tasks:
         return []
+
+    if run_result.job.requirement.slug == PHASE7_REQUIREMENT_SLUG:
+        return _collect_phase7_requests(run_result, tasks)
 
     repo_files = repo_files or default_repo_files()
 
@@ -202,6 +210,31 @@ async def _collect_phase3_requests(
     return requests
 
 
+def _collect_phase7_requests(
+    run_result: VerificationRunResult,
+    tasks: list[VerificationTask],
+) -> list[LLMGradingRequest]:
+    if not run_result.validation_result.is_valid:
+        return []
+
+    submitted_text = run_result.job.typed_submitted_value.as_text
+    requests: list[LLMGradingRequest] = []
+    for task in tasks:
+        evidence = collect_career_reflection_evidence(submitted_text, task)
+        requests.append(
+            LLMGradingRequest(
+                task=task,
+                message=_build_text_grading_message(
+                    run_result=run_result,
+                    task=task,
+                    evidence=evidence.model_dump(mode="json"),
+                ),
+                thread_id=f"{run_result.job.id}-{task.id}",
+            )
+        )
+    return requests
+
+
 def _build_grading_message(
     *,
     run_result: VerificationRunResult,
@@ -230,6 +263,37 @@ def _build_grading_message(
     }
     return (
         "Grade this Learn to Cloud verification task using only the JSON payload. "
+        "Return a structured grading decision that follows the configured schema.\n\n"
+        f"{json.dumps(payload, sort_keys=True)}"
+    )
+
+
+def _build_text_grading_message(
+    *,
+    run_result: VerificationRunResult,
+    task: VerificationTask,
+    evidence: dict[str, object],
+) -> str:
+    grader = require_llm_rubric_grader(task)
+    payload = {
+        "requirement": {
+            "id": run_result.job.requirement.slug,
+            "name": run_result.job.requirement.name,
+        },
+        "task": {
+            "id": task.id,
+            "name": task.name,
+            "criteria": task.criteria,
+            "rubric_id": grader.rubric_id,
+            "prompt_version": grader.prompt_version,
+            "passing_score": grader.passing_score,
+        },
+        "deterministic_result": run_result.validation_result.model_dump(mode="json"),
+        "evidence": evidence,
+    }
+    return (
+        "Grade this Learn to Cloud verification task using only the JSON payload. "
+        "The evidence is the learner's own free-text reflection answers. "
         "Return a structured grading decision that follows the configured schema.\n\n"
         f"{json.dumps(payload, sort_keys=True)}"
     )
@@ -267,4 +331,6 @@ def _llm_tasks_for_requirement(
         return PHASE6_LLM_TASKS
     if requirement.slug == "journal-api-implementation":
         return PHASE3_LLM_TASKS
+    if requirement.slug == PHASE7_REQUIREMENT_SLUG:
+        return PHASE7_LLM_TASKS
     return []

@@ -40,6 +40,7 @@ _PASS_THROUGH_TYPES: frozenset[SubmissionType] = frozenset(
         SubmissionType.CTF_TOKEN,
         SubmissionType.NETWORKING_TOKEN,
         SubmissionType.DEPLOYED_API,
+        SubmissionType.CAREER_REFLECTION,
     }
 )
 

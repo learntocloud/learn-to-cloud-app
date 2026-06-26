@@ -23,6 +23,7 @@ from learn_to_cloud_shared.repositories.verification_job_repository import (
     VerificationJobRepository,
 )
 from learn_to_cloud_shared.schemas import (
+    CareerReflectionRequirement,
     HandsOnRequirement,
     SubmissionData,
     SubmissionResult,
@@ -113,6 +114,48 @@ _TERMINAL_DURABLE_STATUSES = {"completed", "failed", "terminated", "canceled"}
 _DURABLE_FAILURE_STATUSES = {"failed", "terminated", "canceled"}
 _INITIAL_STATUS_DELAY_SECONDS = 2
 _RUNNING_STATUS_DELAY_SECONDS = 5
+
+# Per-answer cap for career reflection submissions. Three answers plus their
+# question headers must stay under the 20,000-character text value limit.
+_MAX_REFLECTION_ANSWER_LENGTH = 6000
+
+
+def _combine_reflection_answers(
+    requirement: CareerReflectionRequirement,
+    answers: list[str],
+) -> str:
+    """Validate the per-question reflection answers and combine them into text.
+
+    Each answer is matched to its question, checked against the configured
+    minimum and maximum length, and joined under a Markdown header so the LLM
+    grader can tell which answer belongs to which prompt.
+
+    Raises:
+        ValueError: With a learner-facing message if the answers are missing,
+            too short, or too long.
+    """
+    questions = list(requirement.type_config.questions)
+    min_length = requirement.type_config.min_answer_length
+
+    cleaned = [answer.strip() for answer in answers]
+    if len(cleaned) != len(questions):
+        raise ValueError("Please answer all of the reflection questions.")
+
+    sections: list[str] = []
+    for question, answer in zip(questions, cleaned, strict=True):
+        if len(answer) < min_length:
+            raise ValueError(
+                f"Each answer needs at least {min_length} characters. "
+                "Add more detail and try again."
+            )
+        if len(answer) > _MAX_REFLECTION_ANSWER_LENGTH:
+            raise ValueError(
+                "One of your answers is too long. Please keep each answer "
+                f"under {_MAX_REFLECTION_ANSWER_LENGTH} characters."
+            )
+        sections.append(f"## {question.prompt}\n\n{answer}")
+
+    return "\n\n".join(sections)
 
 
 router = APIRouter(prefix="/htmx", tags=["htmx"], include_in_schema=False)
@@ -279,6 +322,7 @@ async def htmx_submit_verification(
     current_user: CurrentUser,
     requirement_slug: Annotated[str, Form(max_length=100)],
     submitted_value: Annotated[str, Form(max_length=2048)] = "",
+    answers: Annotated[list[str] | None, Form()] = None,
 ) -> HTMLResponse:
     """Submit a hands-on verification.
 
@@ -336,7 +380,9 @@ async def htmx_submit_verification(
     # ── Derive the canonical submission value ──────────────────────────
     if requirement is not None:
         try:
-            if is_derivable(requirement.submission_type):
+            if isinstance(requirement, CareerReflectionRequirement):
+                user_input = _combine_reflection_answers(requirement, answers or [])
+            elif is_derivable(requirement.submission_type):
                 user_input = None
             else:
                 user_input = submitted_value

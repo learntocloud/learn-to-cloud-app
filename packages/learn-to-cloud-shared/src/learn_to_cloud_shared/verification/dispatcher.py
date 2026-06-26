@@ -32,6 +32,9 @@ from opentelemetry import metrics, trace
 
 from learn_to_cloud_shared.models import ExecutionMode, SubmissionType
 from learn_to_cloud_shared.schemas import HandsOnRequirement, ValidationResult
+from learn_to_cloud_shared.verification.career_reflection import (
+    validate_career_reflection,
+)
 from learn_to_cloud_shared.verification.ci_status import verify_ci_status
 from learn_to_cloud_shared.verification.deployed_api import validate_deployed_api
 from learn_to_cloud_shared.verification.devops_analysis import run_devops_workflow
@@ -221,6 +224,12 @@ async def _adapt_security_scanning(
     return await _verify_repo_backed(submitted_value, validate_security_scanning)
 
 
+async def _adapt_career_reflection(
+    requirement: HandsOnRequirement, submitted_value: str, username: str
+) -> ValidationResult:
+    return validate_career_reflection(submitted_value)
+
+
 # Single source of truth: each active submission type maps to one descriptor.
 # Lookups use ``.get(...)`` so an unregistered type surfaces as the explicit
 # "Unknown submission type" result instead of raising.
@@ -278,6 +287,12 @@ _VALIDATOR_REGISTRY: dict[SubmissionType, ValidatorDescriptor] = {
         execution_mode=ExecutionMode.BACKGROUND,
         requires_username=True,
         repo_backed=True,
+    ),
+    SubmissionType.CAREER_REFLECTION: ValidatorDescriptor(
+        adapter=_adapt_career_reflection,
+        execution_mode=ExecutionMode.BACKGROUND,
+        requires_username=False,
+        repo_backed=False,
     ),
 }
 

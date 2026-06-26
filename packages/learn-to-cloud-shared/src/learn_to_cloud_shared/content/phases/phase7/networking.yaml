@@ -1,0 +1,48 @@
+# yaml-language-server: $schema=../../schemas/topic.schema.json
+uuid: 7204db15-b6cf-4908-adc7-ea45b227753f
+slug: networking
+name: Build Your Network
+description: A job search is not just sending applications into the void. Most opportunities come from people — someone who remembers you, vouches for you, or tells you about a role before it's posted. Networking is also low-stakes practice for the exact skill interviews test — talking about your technical work and experience out loud. You don't need to be an extrovert. You need to show up, be genuinely curious, and practice.
+learning_objectives:
+- uuid: 2a4f955a-e5a5-4cec-a813-2900fd1e4d42
+  text: Practice talking about your technical skills and experience with other people.
+  order: 1
+- uuid: 48a46959-72cb-4e58-8606-17f46e45ac40
+  text: Build relationships in the tech community, both in person and online.
+  order: 2
+learning_steps:
+- uuid: fefbcd92-7e8d-45e5-87ab-61f81b4197e6
+  order: 1
+  action: 'Practice:'
+  title: Attend one tech event
+  description: Find one tech event and attend it. In-person meetups are best because the conversations and connections are stronger, but if that isn't possible where you live, an online community or virtual event still counts. The goal isn't to land a job on the spot — it's to put yourself in a room (real or virtual) with other technical people and practice talking about what you're working on.
+  checklist:
+  - "**Find an event** — Search Meetup, local cloud or DevOps user groups, your cloud provider's community days, or online communities like the Learn to Cloud Discord"
+  - "**Show up** — Go in with low pressure. Your only job is to have a few genuine conversations"
+  - "**Talk about your work** — Tell someone what you built in this program and what you're learning. Notice where you stumble — that's exactly what to practice for interviews"
+  done_when: You attended a tech event and had at least one real conversation about your technical work.
+  slug: phase7-networking-practice-attend-one-tech-event
+- uuid: 084a7831-8433-400e-9d32-4a6dab14f7bb
+  order: 2
+  action: 'Practice:'
+  title: Write your one-line introduction
+  description: When you meet someone new or an interviewer says "tell me about yourself," you need a short, confident answer ready. Write a two-to-three sentence introduction that says who you are, what you can do, and what you're looking for. Practice it until it sounds natural, not rehearsed.
+  checklist:
+  - "**Who you are** — Your background and where you're coming from (e.g. help desk, career changer, recent grad)"
+  - "**What you can do** — The concrete cloud skills you've built (e.g. deployed and secured a real API on a cloud provider)"
+  - "**What you want** — The kind of role you're aiming for"
+  tips:
+  - type: tip
+    text: Preparation is the whole point. You want to walk in prepared, not figure out what to say in the moment. Anything you have to think up on the spot takes energy away from the conversation.
+  done_when: You can deliver a natural, confident two-to-three sentence introduction without notes.
+  slug: phase7-networking-practice-write-your-introduction
+- uuid: 91d0440e-b11b-471b-9e29-131b7f8741ee
+  order: 3
+  action: 'Reflect:'
+  title: Accept that this takes time
+  description: |-
+    A quick, honest gut-check before you go further. This market is hard — and right now even people with degrees and years of experience are feeling it. For self-taught people working their way up, it has always been this tricky.
+
+    Landing a role takes time and a lot of rejection. That is part of the game, not a sign you're failing. Every rejection makes you a little sharper, especially on the soft skills. Decide now that you're in this for the long haul so the first few "no"s don't knock you off course.
+  done_when: You've set a realistic expectation — this will take time and persistence, and rejection is part of the process.
+  slug: phase7-networking-reflect-accept-this-takes-time

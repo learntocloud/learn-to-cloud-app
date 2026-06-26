@@ -112,7 +112,7 @@ learning_steps:
   order: 8
   action: 'Practice:'
   title: Clean up your cloud resources
-  description: This is the final phase — delete **all** cloud resources to avoid ongoing charges.
+  description: You've finished the hands-on cloud work — delete **all** cloud resources to avoid ongoing charges. (The final phase, Interview & Job Prep, needs no cloud infrastructure.)
   checklist:
   - VMs, disks, and public IPs
   - Virtual networks, subnets, and security groups
@@ -136,5 +136,5 @@ learning_steps:
     - What you'd do differently or add given more time
     - Key takeaways about cloud security
 
-    Share on LinkedIn or with the Learn to Cloud community to celebrate completing the full curriculum!
+    Share on LinkedIn or with the Learn to Cloud community to celebrate hardening your app. One phase left — Interview & Job Prep — to turn this work into a job.
   slug: phase6-capstone-reflect-share-your-progress

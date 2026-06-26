@@ -303,6 +303,13 @@ class TestOrchestratorNameMapping:
             == "verify_phase6_security_orchestrator"
         )
 
+    def test_phase7_maps_to_career_orchestrator(self) -> None:
+        names = function_app._ORCHESTRATOR_NAMES_BY_SUBMISSION_TYPE
+        assert (
+            names[SubmissionType.CAREER_REFLECTION]
+            == "verify_phase7_career_orchestrator"
+        )
+
     def test_every_mapped_name_is_registered(self) -> None:
         """Guards against pointing the resolver at a non-existent orchestrator."""
         for name in function_app._ORCHESTRATOR_NAMES_BY_SUBMISSION_TYPE.values():

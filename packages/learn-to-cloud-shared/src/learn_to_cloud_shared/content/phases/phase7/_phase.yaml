@@ -1,0 +1,15 @@
+# yaml-language-server: $schema=../../schemas/phase.schema.json
+uuid: b73ba847-5c51-449e-9e61-4b96af6175f3
+slug: phase7
+name: Interview & Job Prep
+description: You've built and secured a real cloud application. Now comes the hardest part of the journey for most people — turning that work into a job. This market is tough, and landing a role takes time, persistence, and preparation. This phase is about the work outside the code — building your network, tailoring your resume, preparing the stories you'll tell in interviews, and getting clear on the roles you're chasing. None of this is a guarantee, but doing it deliberately puts you far ahead of people who wait until an interview is scheduled to start preparing.
+short_description: Turn your cloud skills into a job. Build your network, tailor your resume, prepare your interview stories, and learn to talk about your work with confidence.
+order: 7
+topics:
+- networking
+- resume-and-applications
+- interview-prep
+- job-search-capstone
+hands_on_verification:
+  requirements:
+  - career-reflection

@@ -35,17 +35,38 @@
         Verification is running. Refresh the page to check for results.
     </div>
     {% elif not submission or not submission.is_validated %}
+    {% set is_reflection = requirement.submission_type == 'career_reflection' %}
     <form
         hx-post="/htmx/github/submit"
         hx-target="#requirement-{{ requirement.slug }}"
         hx-swap="outerHTML"
         hx-indicator="#spinner-{{ requirement.slug }}"
         hx-disabled-elt="find button[type='submit']"
-        class="flex gap-2"
+        class="{% if is_reflection %}flex flex-col gap-4{% else %}flex gap-2{% endif %}"
     >
         <input type="hidden" name="requirement_slug" value="{{ requirement.slug }}">
 
-        {% if requirement.submission_type in ['ctf_token', 'networking_token'] %}
+        {% if is_reflection %}
+        {# Career reflection — one textarea per configured question. The answers
+           post as a repeated ``answers`` field, combined server-side into one
+           text submission and graded by the LLM rubric. #}
+        {% for question in requirement.type_config.questions %}
+        <div class="flex flex-col gap-1">
+            <label for="answer-{{ requirement.slug }}-{{ loop.index0 }}" class="text-sm font-medium text-gray-800 dark:text-gray-200">
+                {{ question.prompt }}
+            </label>
+            <textarea
+                id="answer-{{ requirement.slug }}-{{ loop.index0 }}"
+                name="answers"
+                rows="5"
+                minlength="{{ requirement.type_config.min_answer_length }}"
+                placeholder="Write at least {{ requirement.type_config.min_answer_length }} characters."
+                class="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                required
+            ></textarea>
+        </div>
+        {% endfor %}
+        {% elif requirement.submission_type in ['ctf_token', 'networking_token'] %}
         {# Token input — learner pastes the completion token. #}
         <label for="input-{{ requirement.slug }}" class="sr-only">{{ requirement.name }}</label>
         <input

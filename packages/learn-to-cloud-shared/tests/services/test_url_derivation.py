@@ -52,6 +52,7 @@ class TestIsDerivable:
             SubmissionType.CTF_TOKEN,
             SubmissionType.NETWORKING_TOKEN,
             SubmissionType.DEPLOYED_API,
+            SubmissionType.CAREER_REFLECTION,
         ],
     )
     def test_non_derivable_types(self, sub_type: SubmissionType):
@@ -156,6 +157,11 @@ class TestDeriveSubmissionValue:
             derive_submission_value(req, "alice", user_input="https://api.example.com")
             == "https://api.example.com"
         )
+
+    def test_career_reflection_passes_through(self):
+        req = _req(SubmissionType.CAREER_REFLECTION)
+        combined = "## Question 0?\n\nMy answer."
+        assert derive_submission_value(req, "alice", user_input=combined) == combined
 
     def test_derivable_ignores_user_input(self):
         """Tampered submitted_value for derivable types is silently ignored.

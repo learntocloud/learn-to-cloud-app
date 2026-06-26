@@ -18,6 +18,7 @@ from learn_to_cloud_shared.verification.repo_utils import RepositoryRef
 from learn_to_cloud_shared.verification.tasks import (
     PHASE3_LLM_TASKS,
     PHASE6_LLM_TASKS,
+    PHASE7_LLM_TASKS,
     LLMGradingDecision,
 )
 from learn_to_cloud_shared.verification_job_executor import (
@@ -204,3 +205,75 @@ def test_llm_grading_unavailable_result_marks_server_error():
         "problem on our end, not yours. Please report it so we can "
         "fix it."
     )
+
+
+def _phase7_run_result(
+    is_valid: bool = True,
+    submitted_text: str = "## Question 0?\n\nMy detailed reflection answer.",
+) -> VerificationRunResult:
+    from learn_to_cloud_shared.testing.requirement_factories import (
+        career_reflection_requirement,
+    )
+
+    requirement = career_reflection_requirement(
+        slug="career-reflection",
+        name="Reflect on Your Job-Search Readiness",
+        description="Answer three reflection questions.",
+    )
+    return VerificationRunResult(
+        job=PreparedVerificationJob(
+            id=uuid4(),
+            user_id=1,
+            github_username="learner",
+            requirement=requirement,
+            submitted_value=submitted_text,
+        ),
+        validation_result=ValidationResult(
+            is_valid=is_valid,
+            message="Reflection received. Reviewing your answers.",
+        ),
+    )
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_collect_phase7_requests_uses_submitted_text_as_evidence():
+    text = "Question zero: a specific, first-person reflection answer."
+    requests = await collect_llm_grading_requests(
+        _phase7_run_result(submitted_text=text)
+    )
+
+    assert len(requests) == len(PHASE7_LLM_TASKS)
+    assert text in requests[0].message
+    assert requests[0].task.evidence.source == "submitted_text"
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_collect_phase7_requests_skips_when_deterministic_failed():
+    requests = await collect_llm_grading_requests(_phase7_run_result(is_valid=False))
+
+    assert requests == []
+
+
+@pytest.mark.unit
+def test_apply_phase7_llm_decision_appends_feedback_when_passed():
+    updated = apply_llm_grading_decisions(
+        _phase7_run_result(),
+        [
+            LLMGradingDecisionPayload(
+                task=PHASE7_LLM_TASKS[0],
+                decision=LLMGradingDecision(
+                    passed=True,
+                    score=0.82,
+                    confidence=0.8,
+                    feedback="Genuine, specific reflection across all three answers.",
+                    evidence_refs=["career-reflection.md"],
+                ),
+            )
+        ],
+    )
+
+    assert updated.validation_result.is_valid is True
+    assert updated.validation_result.task_results is not None
+    assert updated.validation_result.task_results[-1].passed is True

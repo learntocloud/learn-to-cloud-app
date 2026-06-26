@@ -1,5 +1,94 @@
 {
   "$defs": {
+    "CareerReflectionConfig": {
+      "additionalProperties": false,
+      "description": "Config for career_reflection requirements.",
+      "properties": {
+        "min_answer_length": {
+          "default": 200,
+          "description": "Minimum characters required for each answer.",
+          "minimum": 1,
+          "title": "Min Answer Length",
+          "type": "integer"
+        },
+        "questions": {
+          "description": "Reflection prompts the learner answers in the app.",
+          "items": {
+            "$ref": "#/$defs/CareerReflectionQuestion"
+          },
+          "minItems": 1,
+          "title": "Questions",
+          "type": "array"
+        }
+      },
+      "required": [
+        "questions"
+      ],
+      "title": "CareerReflectionConfig",
+      "type": "object"
+    },
+    "CareerReflectionQuestion": {
+      "additionalProperties": false,
+      "description": "One reflection prompt the learner answers in the app.",
+      "properties": {
+        "id": {
+          "description": "Stable id for this question.",
+          "title": "Id",
+          "type": "string"
+        },
+        "prompt": {
+          "description": "The reflection prompt shown to the learner.",
+          "title": "Prompt",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "prompt"
+      ],
+      "title": "CareerReflectionQuestion",
+      "type": "object"
+    },
+    "CareerReflectionRequirement": {
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "title": "Description",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "slug": {
+          "title": "Slug",
+          "type": "string"
+        },
+        "submission_type": {
+          "const": "career_reflection",
+          "title": "Submission Type",
+          "type": "string"
+        },
+        "type_config": {
+          "$ref": "#/$defs/CareerReflectionConfig"
+        },
+        "uuid": {
+          "format": "uuid",
+          "title": "Uuid",
+          "type": "string"
+        }
+      },
+      "required": [
+        "uuid",
+        "slug",
+        "name",
+        "description",
+        "submission_type",
+        "type_config"
+      ],
+      "title": "CareerReflectionRequirement",
+      "type": "object"
+    },
     "CtfTokenConfig": {
       "additionalProperties": false,
       "description": "Config for ctf_token requirements.",
@@ -492,6 +581,7 @@
   },
   "discriminator": {
     "mapping": {
+      "career_reflection": "#/$defs/CareerReflectionRequirement",
       "ctf_token": "#/$defs/CtfTokenRequirement",
       "deployed_api": "#/$defs/DeployedApiRequirement",
       "devops_analysis": "#/$defs/DevopsAnalysisRequirement",
@@ -531,6 +621,9 @@
     },
     {
       "$ref": "#/$defs/SecurityScanningRequirement"
+    },
+    {
+      "$ref": "#/$defs/CareerReflectionRequirement"
     }
   ]
 }

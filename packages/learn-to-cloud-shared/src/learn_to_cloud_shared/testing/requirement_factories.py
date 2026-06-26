@@ -27,6 +27,9 @@ from uuid import uuid4
 
 from learn_to_cloud_shared.models import SubmissionType
 from learn_to_cloud_shared.schemas import (
+    CareerReflectionConfig,
+    CareerReflectionQuestion,
+    CareerReflectionRequirement,
     CtfTokenConfig,
     CtfTokenRequirement,
     DeployedApiConfig,
@@ -195,6 +198,31 @@ def security_scanning_requirement(
     )
 
 
+def career_reflection_requirement(
+    *,
+    slug: str = "career-reflection",
+    name: str = "Test career reflection requirement",
+    description: str = "Test description",
+    min_answer_length: int = 200,
+    question_count: int = 3,
+) -> CareerReflectionRequirement:
+    questions = [
+        CareerReflectionQuestion(id=f"q{index}", prompt=f"Question {index}?")
+        for index in range(question_count)
+    ]
+    return CareerReflectionRequirement(
+        uuid=uuid4(),
+        slug=slug,
+        submission_type=SubmissionType.CAREER_REFLECTION,
+        name=name,
+        description=description,
+        type_config=CareerReflectionConfig(
+            questions=questions,
+            min_answer_length=min_answer_length,
+        ),
+    )
+
+
 def make_requirement(
     submission_type: SubmissionType,
     *,
@@ -259,6 +287,10 @@ def make_requirement(
                 name=name,
                 description=description,
                 required_repo=required_repo or "owner/sec-repo",
+            )
+        case SubmissionType.CAREER_REFLECTION:
+            return career_reflection_requirement(
+                slug=slug, name=name, description=description
             )
         case _:
             raise ValueError(

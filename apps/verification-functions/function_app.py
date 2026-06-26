@@ -100,6 +100,7 @@ _ORCHESTRATOR_NAMES_BY_SUBMISSION_TYPE = {
     SubmissionType.DEPLOYED_API: "verify_phase4_deployed_api_orchestrator",
     SubmissionType.DEVOPS_ANALYSIS: "verify_phase5_devops_orchestrator",
     SubmissionType.SECURITY_SCANNING: "verify_phase6_security_orchestrator",
+    SubmissionType.CAREER_REFLECTION: "verify_phase7_career_orchestrator",
 }
 _VERIFY_RETRY_OPTIONS = df.RetryOptions(
     first_retry_interval_in_milliseconds=5000,
@@ -604,6 +605,12 @@ def verify_phase5_devops_orchestrator(context: df.DurableOrchestrationContext):
 @app.orchestration_trigger(context_name="context")
 def verify_phase6_security_orchestrator(context: df.DurableOrchestrationContext):
     """Run Phase 6 security verification (probes + LLM rubric review)."""
+    return (yield from _run_verification_orchestration(context))
+
+
+@app.orchestration_trigger(context_name="context")
+def verify_phase7_career_orchestrator(context: df.DurableOrchestrationContext):
+    """Run Phase 7 career reflection verification (LLM rubric review)."""
     return (yield from _run_verification_orchestration(context))
 
 

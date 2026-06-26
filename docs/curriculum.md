@@ -22,7 +22,7 @@ Each entity has two ids:
 - `uuid` — Postgres primary key. Used for foreign keys and as the stable
   identity that survives YAML edits.
 - `slug` — the human-readable id from YAML. For phases that's
-  `"phase0"`..`"phase6"` (with an integer `order` 0..6 for URLs); for
+  `"phase0"`..`"phase7"` (with an integer `order` 0..7 for URLs); for
   topics/steps/objectives/requirements it's the kebab-case slug
   (`prepare-to-learn`, `phase0-topic0-watch-...`, `github-profile`).
   Used in URLs, templates, seed scripts, and log lines so humans can
